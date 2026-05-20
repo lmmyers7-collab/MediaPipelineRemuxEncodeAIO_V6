@@ -1,0 +1,761 @@
+      <section class="page is-visible" data-page-panel="home">
+        <h1 class="visually-hidden">Pipeline Dashboard</h1>
+
+        <!-- ═══ DAILY DRIVER: STATUS STRIP ═══ -->
+        <div class="metric-grid">
+          <section class="metric">
+            <span class="metric-label">Pipeline</span>
+            <strong id="pipeline-state">...</strong>
+          </section>
+          <section class="metric">
+            <span class="metric-label">Queue</span>
+            <strong id="queue-count">0 / 0</strong>
+          </section>
+          <section class="metric">
+            <span class="metric-label">Pending</span>
+            <strong id="home-pending-count">0</strong>
+          </section>
+          <section class="metric">
+            <span class="metric-label">Failed</span>
+            <strong id="home-failed-count">0</strong>
+          </section>
+        </div>
+
+        <!-- ═══ DAILY DRIVER: QUICK CONTROLS ═══ -->
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Quick Controls</h2>
+            <strong id="home-control-readiness-status">Not loaded</strong>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" id="home-refresh-button" class="secondary-button">Refresh Dashboard</button>
+            <button type="button" class="primary-button" data-cross-page-target="launch">Start / Launch</button>
+            <button type="button" class="secondary-button" data-cross-page-target="queue">Queue</button>
+            <button type="button" class="secondary-button" data-cross-page-target="pending">Publish</button>
+            <button type="button" class="secondary-button" data-cross-page-target="diagnostics">Diagnostics</button>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" class="secondary-button" data-open-diagnostics="run_logs">Run Logs</button>
+            <button type="button" class="secondary-button" data-open-diagnostics="active_jobs">Active Jobs</button>
+            <button type="button" class="secondary-button" data-control-action="pause">Pause</button>
+            <button type="button" class="secondary-button" data-control-action="rescan" data-confirm-command="true">Rescan</button>
+            <button type="button" class="danger-button" data-control-action="stop" data-confirm-command="true">Stop</button>
+            <button type="button" class="danger-button" data-control-action="kill" data-confirm-command="true">Kill</button>
+          </div>
+          <p id="home-control-message" class="note">No quick control command sent.</p>
+        </section>
+
+        <!-- ═══ DAILY DRIVER: AT A GLANCE ═══ -->
+        <section class="panel home-at-a-glance-panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>At A Glance</h2>
+            <strong id="home-at-a-glance-status">Checking</strong>
+          </div>
+          <div class="home-at-a-glance-body">
+            <div class="home-now-processing">
+              <span class="home-section-label">Now processing</span>
+              <strong id="home-at-a-glance-current">No active item</strong>
+              <span id="home-at-a-glance-detail">Waiting for backend snapshot.</span>
+            </div>
+            <div id="home-at-a-glance-progress-bars" class="progress-bar-list" aria-live="polite">
+              <p class="note">No active progress loaded.</p>
+            </div>
+            <div class="home-up-next">
+              <div class="home-section-label">Up next</div>
+              <ol id="home-at-a-glance-up-next" class="home-up-next-list">
+                <li>No queue items loaded.</li>
+              </ol>
+            </div>
+          </div>
+          <p id="home-at-a-glance-summary" class="note">No dashboard summary loaded.</p>
+        </section>
+
+        <!-- ═══ DAILY DRIVER: QUEUE SNAPSHOT ═══ -->
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Queue Snapshot</h2>
+            <strong id="home-queue-snapshot-status">No data</strong>
+          </div>
+          <pre id="home-queue-snapshot" class="prose-block">No queue data loaded.</pre>
+        </section>
+
+        <!-- ═══ DAILY DRIVER: RECENTLY COMPLETED ═══ -->
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Recently Completed</h2>
+            <strong id="home-recent-completed-status">No data</strong>
+          </div>
+          <div class="table-wrap">
+            <table class="home-compact-table">
+              <thead>
+                <tr>
+                  <th scope="col">File</th>
+                  <th scope="col">Route</th>
+                  <th scope="col">Finished</th>
+                </tr>
+              </thead>
+              <tbody id="home-recent-completed-tbody">
+                <tr><td colspan="3">No completed files loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No recent output</span>
+            <span class="empty-state-hint">Run the pipeline to see recently completed files here.</span>
+          </div>
+          </div>
+        </section>
+
+        <!-- ═══ ADVANCED GATE: existing panels below ═══ -->
+        <div data-advanced>
+
+          <!-- Metric detail (kept for test references) -->
+          <div class="metric-grid">
+            <section class="metric">
+              <span class="metric-label">Processed</span>
+              <strong id="processed-count">0</strong>
+            </section>
+            <section class="metric">
+              <span class="metric-label">Failed</span>
+              <strong id="failed-count">0</strong>
+            </section>
+          </div>
+
+          <section class="panel" data-panel-type="evidence">
+            <div class="panel-heading">
+              <h2>System Readiness</h2>
+              <strong id="home-readiness-status">Checking</strong>
+            </div>
+            <pre id="home-readiness-summary" class="prose-block">No backend readiness data loaded yet.</pre>
+          </section>
+
+          <section class="panel" data-panel-type="interactive">
+            <div class="panel-heading">
+              <h2>Readiness Checklist</h2>
+              <strong id="daily-driver-status">Not evaluated</strong>
+            </div>
+            <pre id="daily-driver-summary" class="prose-block">No daily-driver readiness checklist loaded.</pre>
+            <div class="table-wrap detail-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Area</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Evidence</th>
+                    <th scope="col">Next Step</th>
+                  </tr>
+                </thead>
+                <tbody id="daily-driver-rows">
+                  <tr><td colspan="4">No daily-driver readiness rows loaded.</td></tr>
+                </tbody>
+              </table>
+            <div class="empty-state" data-empty-state="hidden" style="display:none">
+              <span class="empty-state-label">Checklist waiting</span>
+              <span class="empty-state-hint">Refresh to load the daily-driver readiness checklist.</span>
+            </div>
+            </div>
+            <p id="daily-driver-legend" class="note table-legend">Daily-driver checklist rows are read-only and do not launch, repair, drain, save, rename, or mutate files.</p>
+          </section>
+
+          <section class="panel" data-panel-type="evidence">
+            <div class="panel-heading">
+              <h2>Current Run</h2>
+              <strong id="home-active-work-status">Checking</strong>
+            </div>
+            <pre id="home-active-work-summary" class="prose-block">No active-work data loaded yet.</pre>
+          </section>
+
+          <section class="panel" data-panel-type="interactive">
+            <div class="panel-heading">
+              <h2>Run Progress</h2>
+              <strong id="progress-detail-status">No details</strong>
+            </div>
+            <div id="progress-bar-list" class="progress-bar-list" aria-live="polite">
+              <p class="note">No progress bars loaded.</p>
+            </div>
+            <div class="table-wrap detail-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Field</th>
+                    <th scope="col">Value</th>
+                  </tr>
+                </thead>
+                <tbody id="progress-detail-rows">
+                  <tr><td colspan="2">No progress details loaded.</td></tr>
+                </tbody>
+              </table>
+            <div class="empty-state" data-empty-state="hidden" style="display:none">
+              <span class="empty-state-label">Pipeline not active</span>
+              <span class="empty-state-hint">Progress details appear here during an active pipeline run.</span>
+            </div>
+            </div>
+          </section>
+
+          <section class="panel" data-panel-type="evidence">
+            <div class="panel-heading">
+              <h2>Progress Proof</h2>
+              <strong id="progress-evidence-status">Not loaded</strong>
+            </div>
+            <pre id="progress-evidence-summary" class="prose-block">No progress evidence loaded.</pre>
+            <div class="table-wrap detail-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Checkpoint</th>
+                    <th scope="col">Posture</th>
+                    <th scope="col">Evidence</th>
+                    <th scope="col">Safe Next Step</th>
+                  </tr>
+                </thead>
+                <tbody id="progress-evidence-rows">
+                  <tr><td colspan="4">No progress evidence rows loaded.</td></tr>
+                </tbody>
+              </table>
+            <div class="empty-state" data-empty-state="hidden" style="display:none">
+              <span class="empty-state-label">No progress evidence</span>
+              <span class="empty-state-hint">Evidence rows appear here when a pipeline run is in progress.</span>
+            </div>
+            </div>
+            <p id="progress-evidence-legend" class="note table-legend">Progress evidence rows: no selectable rows.</p>
+            <pre id="progress-evidence-detail" class="prose-block">No progress evidence row selected.</pre>
+          </section>
+
+          <section class="panel" data-panel-type="evidence">
+            <div class="panel-heading">
+              <h2>Settings Health</h2>
+              <strong id="home-settings-trust-status">Not loaded</strong>
+            </div>
+            <pre id="home-settings-trust-summary" class="prose-block">No saved settings trust summary loaded.</pre>
+          </section>
+
+          <section class="panel" data-panel-type="evidence">
+            <div class="panel-heading">
+              <h2>Tool Status</h2>
+              <strong id="home-external-dependencies-status">Not loaded</strong>
+            </div>
+            <pre id="home-external-dependencies-summary" class="prose-block">No external dependency evidence loaded.</pre>
+          </section>
+
+          <section class="panel" data-panel-type="interactive">
+            <div class="panel-heading">
+              <h2>Runtime Files</h2>
+              <strong id="home-runtime-open-status">Idle</strong>
+            </div>
+            <div class="action-row action-row-left wrap-actions">
+              <button type="button" class="tertiary-button" data-open-diagnostics="active_jobs">Active Jobs</button>
+              <button type="button" class="tertiary-button" data-open-diagnostics="run_logs">Run Logs</button>
+              <button type="button" class="tertiary-button" data-open-diagnostics="last_stderr_log">Last Stderr</button>
+              <button type="button" class="tertiary-button" data-open-diagnostics="queue_snapshot">Queue Snapshot</button>
+              <button type="button" class="tertiary-button" data-open-diagnostics="pending_publish">Pending Publish</button>
+              <button type="button" class="tertiary-button" data-open-diagnostics="completed_manifest">Completed Manifest</button>
+            </div>
+            <p class="note">Open requests use the backend diagnostics allowlist. The WebView never sends arbitrary filesystem paths.</p>
+          </section>
+
+          <section class="panel" data-panel-type="evidence">
+            <div class="panel-heading">
+              <h2>Recent Events</h2>
+              <strong id="pipeline-events-status">No events</strong>
+            </div>
+            <div class="table-wrap detail-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Time</th>
+                    <th scope="col">Type</th>
+                    <th scope="col">Details</th>
+                  </tr>
+                </thead>
+                <tbody id="pipeline-event-rows">
+                  <tr><td colspan="3">No pipeline events loaded.</td></tr>
+                </tbody>
+              </table>
+            <div class="empty-state" data-empty-state="hidden" style="display:none">
+              <span class="empty-state-label">No events yet</span>
+              <span class="empty-state-hint">Pipeline events appear here as jobs are processed.</span>
+            </div>
+            </div>
+          </section>
+
+          <section class="panel" data-panel-type="evidence">
+            <div class="panel-heading">
+              <h2>Recent Commands</h2>
+              <strong id="command-status">No commands</strong>
+            </div>
+            <pre id="command-summary" class="prose-block">No command result summary loaded.</pre>
+            <div class="table-wrap command-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Time</th>
+                    <th scope="col">Command</th>
+                    <th scope="col">Owner</th>
+                    <th scope="col">Issue</th>
+                    <th scope="col">Result</th>
+                    <th scope="col">Message</th>
+                  </tr>
+                </thead>
+                <tbody id="command-rows">
+                  <tr><td colspan="6">No command results yet.</td></tr>
+                </tbody>
+              </table>
+            <div class="empty-state" data-empty-state="hidden" style="display:none">
+              <span class="empty-state-label">No commands yet</span>
+              <span class="empty-state-hint">Command results appear here after Launch controls or allowlisted file-open actions run.</span>
+            </div>
+            </div>
+            <p id="command-table-legend" class="note table-legend">Command result rows: no selectable rows.</p>
+            <pre id="command-detail" class="prose-block">No command row selected.</pre>
+            <div id="command-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
+          </section>
+
+          <section class="panel" data-panel-type="interactive">
+            <div class="panel-heading">
+              <h2>Pipeline Overview</h2>
+              <strong id="cross-page-context-status">Not loaded</strong>
+            </div>
+            <pre id="cross-page-context-summary" class="prose-block">No queue/completed/pending context loaded yet.</pre>
+            <div data-advanced>
+              <div class="panel-heading panel-subheading">
+                <h3>Conflict Summary</h3>
+                <strong id="cross-page-conflict-status">Not loaded</strong>
+              </div>
+              <div class="table-wrap detail-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Signal</th>
+                      <th scope="col">Scope</th>
+                      <th scope="col">Evidence</th>
+                      <th scope="col">Next Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cross-page-conflict-rows">
+                    <tr><td colspan="4">No cross-page conflict rows loaded.</td></tr>
+                  </tbody>
+                </table>
+              <div class="empty-state" data-empty-state="hidden" style="display:none">
+                <span class="empty-state-label">No conflicts</span>
+                <span class="empty-state-hint">Conflicts appear when queue, completed, and pending data overlap.</span>
+              </div>
+              </div>
+              <p id="cross-page-conflict-legend" class="note table-legend">Cross-page conflict rows: no selectable rows.</p>
+              <div class="panel-heading panel-subheading">
+                <h3>Evidence Correlation</h3>
+                <strong id="cross-page-sample-status">Not loaded</strong>
+              </div>
+              <div class="table-wrap detail-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Sample</th>
+                      <th scope="col">Proof Strength</th>
+                      <th scope="col">Evidence</th>
+                      <th scope="col">Next Step</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cross-page-sample-rows">
+                    <tr><td colspan="4">No sample evidence correlation rows loaded.</td></tr>
+                  </tbody>
+                </table>
+              <div class="empty-state" data-empty-state="hidden" style="display:none">
+                <span class="empty-state-label">Sample not loaded</span>
+                <span class="empty-state-hint">Sample evidence rows appear after a real-media sample run completes.</span>
+              </div>
+              </div>
+              <p id="cross-page-sample-legend" class="note table-legend">Sample evidence rows: no selectable rows.</p>
+              <div class="panel-heading panel-subheading">
+                <h3>Validation Template</h3>
+                <strong id="cross-page-validation-template-status">Not loaded</strong>
+              </div>
+              <pre id="cross-page-validation-template" class="prose-block">No sample validation template loaded.</pre>
+              <div class="panel-heading panel-subheading">
+                <h3>Validation Worksheet</h3>
+                <strong id="cross-page-real-media-status">Not loaded</strong>
+              </div>
+              <pre id="cross-page-real-media-summary" class="prose-block">No real-media validation worksheet loaded.</pre>
+              <div class="table-wrap detail-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Checkpoint</th>
+                      <th scope="col">Posture</th>
+                      <th scope="col">Evidence</th>
+                      <th scope="col">Operator Next Check</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cross-page-real-media-rows">
+                    <tr><td colspan="4">No real-media validation worksheet rows loaded.</td></tr>
+                  </tbody>
+                </table>
+              <div class="empty-state" data-empty-state="hidden" style="display:none">
+                <span class="empty-state-label">No worksheet yet</span>
+                <span class="empty-state-hint">Validation worksheet rows appear after real-media sample validation runs.</span>
+              </div>
+              </div>
+              <p id="cross-page-real-media-legend" class="note table-legend">Real-media validation worksheet rows: no selectable rows.</p>
+              <pre id="cross-page-real-media-detail" class="prose-block">No real-media validation worksheet row selected.</pre>
+              <div class="panel-heading panel-subheading">
+                <h3>Validation Record</h3>
+                <strong id="sample-validation-status">Not loaded</strong>
+              </div>
+              <pre id="sample-validation-summary" class="prose-block">No backend-owned sample validation record is loaded.</pre>
+              <div class="panel-heading panel-subheading">
+                <h3>Evidence Handoff</h3>
+                <strong id="sample-validation-completed-packet-status">Not loaded</strong>
+              </div>
+              <pre id="sample-validation-completed-packet-summary" class="prose-block">No selected Completed evidence packet handoff loaded.</pre>
+              <div class="table-wrap detail-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Checkpoint</th>
+                      <th scope="col">Posture</th>
+                      <th scope="col">Evidence</th>
+                      <th scope="col">Operator Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sample-validation-completed-packet-rows">
+                    <tr><td colspan="4">No selected Completed evidence packet rows loaded.</td></tr>
+                  </tbody>
+                </table>
+              <div class="empty-state" data-empty-state="hidden" style="display:none">
+                <span class="empty-state-label">No packet selected</span>
+                <span class="empty-state-hint">Select a completed sample to see evidence handoff rows here.</span>
+              </div>
+              </div>
+              <p id="sample-validation-completed-packet-legend" class="note table-legend">Completed evidence handoff rows are read-only and do not append validation records, accept output, rerun, drain, publish, repair, save settings, rename, rewrite manifests, or touch media.</p>
+              <pre id="sample-validation-completed-packet-detail" class="prose-block">No selected Completed evidence packet row selected.</pre>
+              <pre id="sample-validation-completed-packet-markdown" class="prose-block">No copyable Completed evidence packet loaded.</pre>
+              <div class="panel-heading panel-subheading">
+                <h3>Evidence Gaps</h3>
+                <strong id="sample-validation-gap-status">Not loaded</strong>
+              </div>
+              <pre id="sample-validation-gap-summary" class="prose-block">No real-media evidence-gap summary is loaded.</pre>
+              <div class="table-wrap detail-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Checkpoint</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Owner</th>
+                      <th scope="col">Required</th>
+                      <th scope="col">Missing Evidence</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sample-validation-gap-rows">
+                    <tr><td colspan="5">No real-media evidence-gap rows loaded.</td></tr>
+                  </tbody>
+                </table>
+              <div class="empty-state" data-empty-state="hidden" style="display:none">
+                <span class="empty-state-label">No gaps found</span>
+                <span class="empty-state-hint">Evidence gaps appear when a validation run has missing or incomplete checkpoints.</span>
+              </div>
+              </div>
+              <p id="sample-validation-gap-legend" class="note table-legend">Real-media evidence-gap rows are read-only guidance.</p>
+              <pre id="sample-validation-gap-detail" class="prose-block">No real-media evidence-gap row selected.</pre>
+              <div class="panel-heading panel-subheading">
+                <h3>Pilot Runbook</h3>
+                <strong id="sample-validation-runbook-status">Not loaded</strong>
+              </div>
+              <pre id="sample-validation-runbook-summary" class="prose-block">No real-media pilot runbook is loaded.</pre>
+              <div class="table-wrap detail-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Step</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Owner</th>
+                      <th scope="col">Required</th>
+                      <th scope="col">Safe Next Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sample-validation-runbook-rows">
+                    <tr><td colspan="5">No real-media pilot runbook rows loaded.</td></tr>
+                  </tbody>
+                </table>
+              <div class="empty-state" data-empty-state="hidden" style="display:none">
+                <span class="empty-state-label">Runbook not loaded</span>
+                <span class="empty-state-hint">The pilot runbook appears after sample validation generates checklist steps.</span>
+              </div>
+              </div>
+              <p id="sample-validation-runbook-legend" class="note table-legend">Real-media pilot runbook rows are read-only guidance.</p>
+              <pre id="sample-validation-runbook-detail" class="prose-block">No real-media pilot runbook row selected.</pre>
+              <pre id="sample-validation-runbook-markdown" class="prose-block">No copyable real-media pilot runbook Markdown loaded.</pre>
+              <div class="panel-heading panel-subheading">
+                <h3>Cutover Gate</h3>
+                <strong id="sample-validation-cutover-status">Not loaded</strong>
+              </div>
+              <pre id="sample-validation-cutover-summary" class="prose-block">No WebView cutover gate evidence loaded.</pre>
+              <div class="table-wrap detail-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Checkpoint</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Required</th>
+                      <th scope="col">Evidence</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sample-validation-cutover-rows">
+                    <tr><td colspan="4">No WebView cutover gate rows loaded.</td></tr>
+                  </tbody>
+                </table>
+              <div class="empty-state" data-empty-state="hidden" style="display:none">
+                <span class="empty-state-label">Gate not loaded</span>
+                <span class="empty-state-hint">Cutover gate rows appear after the sample validation record is populated.</span>
+              </div>
+              </div>
+              <p id="sample-validation-cutover-legend" class="note table-legend">WebView cutover gate rows are read-only evidence.</p>
+              <pre id="sample-validation-cutover-detail" class="prose-block">No WebView cutover gate row selected.</pre>
+              <div class="panel-heading panel-subheading">
+                <h3>Sample Guide</h3>
+                <strong id="sample-validation-sample-set-status">Not loaded</strong>
+              </div>
+              <pre id="sample-validation-sample-set-summary" class="prose-block">No representative real-media sample guidance loaded.</pre>
+              <div class="table-wrap detail-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Category</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Required</th>
+                      <th scope="col">Evidence</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sample-validation-sample-set-rows">
+                    <tr><td colspan="4">No representative sample-set rows loaded.</td></tr>
+                  </tbody>
+                </table>
+              <div class="empty-state" data-empty-state="hidden" style="display:none">
+                <span class="empty-state-label">No sample categories</span>
+                <span class="empty-state-hint">Sample set guidance rows appear when the backend loads sample category data.</span>
+              </div>
+              </div>
+              <p id="sample-validation-sample-set-legend" class="note table-legend">Representative sample-set rows are read-only guidance.</p>
+              <pre id="sample-validation-sample-set-detail" class="prose-block">No representative sample-set row selected.</pre>
+              <div class="action-row action-row-left wrap-actions">
+                <button type="button" id="sample-validation-use-sample-set-category-button" class="secondary-button">Use Selected Category</button>
+              </div>
+              <div class="panel-heading panel-subheading">
+                <h3>Category Summary</h3>
+                <strong id="sample-validation-category-summary-status">Not loaded</strong>
+              </div>
+              <pre id="sample-validation-category-summary" class="prose-block">No pilot category validation summary loaded.</pre>
+              <div class="table-wrap detail-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Category</th>
+                      <th scope="col">Posture</th>
+                      <th scope="col">Current Evidence</th>
+                      <th scope="col">Next Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sample-validation-category-summary-rows">
+                    <tr><td colspan="4">No pilot category validation summary rows loaded.</td></tr>
+                  </tbody>
+                </table>
+              <div class="empty-state" data-empty-state="hidden" style="display:none">
+                <span class="empty-state-label">No categories</span>
+                <span class="empty-state-hint">Category summary rows appear after selecting a sample category above.</span>
+              </div>
+              </div>
+              <p id="sample-validation-category-summary-legend" class="note table-legend">Pilot category validation rows are read-only and cannot launch, append, or mutate media.</p>
+              <pre id="sample-validation-category-summary-detail" class="prose-block">No pilot category validation row selected.</pre>
+              <div class="panel-heading panel-subheading">
+                <h3>Sample Checklist</h3>
+                <strong id="sample-validation-execution-status">Not loaded</strong>
+              </div>
+              <pre id="sample-validation-execution-summary" class="prose-block">No backend-authored sample execution checklist is loaded.</pre>
+              <div class="table-wrap detail-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Phase</th>
+                      <th scope="col">Check</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Owner</th>
+                      <th scope="col">Required</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sample-validation-execution-rows">
+                    <tr><td colspan="5">No sample execution checklist rows loaded.</td></tr>
+                  </tbody>
+                </table>
+              <div class="empty-state" data-empty-state="hidden" style="display:none">
+                <span class="empty-state-label">Checklist not loaded</span>
+                <span class="empty-state-hint">Sample execution checklist rows appear after the backend generates a sample plan.</span>
+              </div>
+              </div>
+              <p id="sample-validation-execution-legend" class="note table-legend">Sample execution checklist rows are read-only guidance.</p>
+              <pre id="sample-validation-execution-detail" class="prose-block">No sample execution checklist row selected.</pre>
+              <div class="panel-heading panel-subheading">
+                <h3>Pilot Worksheets</h3>
+                <strong id="sample-validation-worksheet-status">Not loaded</strong>
+              </div>
+              <pre id="sample-validation-worksheet-summary" class="prose-block">No generated worksheet evidence loaded.</pre>
+              <div class="table-wrap detail-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Worksheet</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Samples</th>
+                      <th scope="col">Packet Rows</th>
+                      <th scope="col">Selected Match</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sample-validation-worksheet-rows">
+                    <tr><td colspan="5">No generated pilot worksheet rows loaded.</td></tr>
+                  </tbody>
+                </table>
+              <div class="empty-state" data-empty-state="hidden" style="display:none">
+                <span class="empty-state-label">No worksheets</span>
+                <span class="empty-state-hint">Generated worksheet rows appear after a pilot worksheet is created.</span>
+              </div>
+              </div>
+              <p id="sample-validation-worksheet-legend" class="note table-legend">Generated worksheet rows are read-only Markdown evidence.</p>
+              <pre id="sample-validation-worksheet-detail" class="prose-block">No generated worksheet row selected.</pre>
+              <div class="form-grid">
+                <label>
+                  Operator decision
+                  <select id="sample-validation-decision">
+                    <option value="hold_review">Hold for review</option>
+                    <option value="accepted">Accept Selected Sample</option>
+                    <option value="rerun_backend">Rerun through backend</option>
+                    <option value="manual_review">Escalate to manual review</option>
+                  </select>
+                </label>
+                <label>
+                  Pilot category
+                  <select id="sample-validation-category">
+                    <option value="">General / not categorized</option>
+                    <option value="h264-remux-safe">H.264 remux / direct-play copy</option>
+                    <option value="subtitle-srt-generation">Preferred-language subtitle to SRT</option>
+                    <option value="audio-routing">Audio routing / default language</option>
+                    <option value="encode-size-policy">Encode and size policy</option>
+                    <option value="deferred-publish">Deferred publish / final placement</option>
+                  </select>
+                </label>
+                <label class="full-field">
+                  Operator notes
+                  <textarea id="sample-validation-notes" rows="3" spellcheck="true" placeholder="Optional notes from Plex playback, subtitle/audio inspection, size review, or pending-publish verification."></textarea>
+                </label>
+              </div>
+              <div class="option-panel">
+                <div class="option-panel-heading">
+                  <strong>Acceptance Checklist</strong>
+                  <span id="sample-validation-check-status">Auto evidence plus manual checks</span>
+                </div>
+                <div class="option-grid option-grid-compact">
+                  <label class="check-row"><input id="sample-validation-check-queue-route" type="checkbox" data-sample-validation-check="queue_route_checked"> Queue route / remux decision</label>
+                  <label class="check-row"><input id="sample-validation-check-completed-output" type="checkbox" data-sample-validation-check="completed_output_checked"> Completed output exists</label>
+                  <label class="check-row"><input id="sample-validation-check-sidecar-manifest" type="checkbox" data-sample-validation-check="sidecar_manifest_checked"> Sidecar / manifest checked</label>
+                  <label class="check-row"><input id="sample-validation-check-size-growth" type="checkbox" data-sample-validation-check="size_growth_checked"> Size growth acceptable</label>
+                  <label class="check-row"><input id="sample-validation-check-diagnostics" type="checkbox" data-sample-validation-check="diagnostics_checked"> Diagnostics / run logs checked</label>
+                  <label class="check-row"><input id="sample-validation-check-subtitle" type="checkbox" data-sample-validation-check="subtitle_checked"> Subtitle behavior checked</label>
+                  <label class="check-row"><input id="sample-validation-check-audio" type="checkbox" data-sample-validation-check="audio_checked"> Audio behavior checked</label>
+                  <label class="check-row"><input id="sample-validation-check-pending-publish" type="checkbox" data-sample-validation-check="pending_publish_checked"> Pending Publish checked or not applicable</label>
+                </div>
+                <div class="action-row action-row-left wrap-actions">
+                  <button type="button" id="sample-validation-clear-checks-button" class="secondary-button">Clear Manual Checks</button>
+                </div>
+                <p class="note">Loaded Queue, Completed, Pending Publish, and Diagnostics evidence can pre-check matching items. Manual checks only affect the evidence note sent to Preview/Append; they do not accept output, launch work, or mutate media.</p>
+              </div>
+              <div class="panel-heading panel-subheading">
+                <h3>Acceptance Gate</h3>
+                <strong id="sample-validation-acceptance-gate-status">Not loaded</strong>
+              </div>
+              <pre id="sample-validation-acceptance-gate-summary" class="prose-block">No sample-validation acceptance gate loaded.</pre>
+              <div class="table-wrap detail-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Gate</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Evidence</th>
+                      <th scope="col">Safe Next Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sample-validation-acceptance-gate-rows">
+                    <tr><td colspan="4">No sample-validation acceptance gate rows loaded.</td></tr>
+                  </tbody>
+                </table>
+              <div class="empty-state" data-empty-state="hidden" style="display:none">
+                <span class="empty-state-label">Gate not loaded</span>
+                <span class="empty-state-hint">Acceptance gate rows appear when a sample is selected and evidence is loaded.</span>
+              </div>
+              </div>
+              <p id="sample-validation-acceptance-gate-legend" class="note table-legend">Acceptance gate rows are read-only guidance and do not append validation records or mutate media.</p>
+              <pre id="sample-validation-acceptance-gate-detail" class="prose-block">No sample-validation acceptance gate row selected.</pre>
+              <div class="panel-heading panel-subheading">
+                <h3>Accepted Records</h3>
+                <strong id="sample-validation-record-review-status">Not loaded</strong>
+              </div>
+              <pre id="sample-validation-record-review-summary" class="prose-block">No accepted sample-validation record proof review loaded.</pre>
+              <div class="table-wrap detail-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Proof Area</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Evidence</th>
+                      <th scope="col">Safe Next Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sample-validation-record-review-rows">
+                    <tr><td colspan="4">No accepted sample-validation record proof rows loaded.</td></tr>
+                  </tbody>
+                </table>
+              <div class="empty-state" data-empty-state="hidden" style="display:none">
+                <span class="empty-state-label">No records accepted</span>
+                <span class="empty-state-hint">Accepted record proof rows appear after validation records are appended.</span>
+              </div>
+              </div>
+              <p id="sample-validation-record-review-legend" class="note table-legend">Accepted record proof rows are read-only and cannot accept output or mutate media.</p>
+              <pre id="sample-validation-record-review-detail" class="prose-block">No accepted sample-validation record proof row selected.</pre>
+              <div class="action-row action-row-left wrap-actions">
+                <button type="button" id="sample-validation-preview-button" class="secondary-button">Preview Record</button>
+                <button type="button" id="sample-validation-append-button" class="secondary-button">Append Validation Record</button>
+                <button type="button" class="secondary-button" data-open-diagnostics="sample_validation_log">Open Validation Log</button>
+                <button type="button" class="secondary-button" data-cross-page-target="diagnostics">Review Diagnostics</button>
+              </div>
+              <pre id="sample-validation-result" class="prose-block">Preview or append a backend-owned validation record after selecting a real sample row.</pre>
+              <div class="table-wrap detail-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Created</th>
+                      <th scope="col">Decision</th>
+                      <th scope="col">Category</th>
+                      <th scope="col">Current Evidence</th>
+                      <th scope="col">Gap</th>
+                      <th scope="col">Sample</th>
+                      <th scope="col">Proof</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sample-validation-records">
+                    <tr><td colspan="7">No sample validation records loaded.</td></tr>
+                  </tbody>
+                </table>
+              <div class="empty-state" data-empty-state="hidden" style="display:none">
+                <span class="empty-state-label">No validation records</span>
+                <span class="empty-state-hint">Append a record after reviewing and accepting a real-media sample.</span>
+              </div>
+              </div>
+              <p id="sample-validation-legend" class="note table-legend">Sample validation records are operator evidence only.</p>
+              <pre id="sample-validation-detail" class="prose-block">No sample validation record selected.</pre>
+              <div class="action-row action-row-left wrap-actions">
+                <button type="button" class="secondary-button" data-cross-page-target="queue">Review Queue</button>
+                <button type="button" class="secondary-button" data-cross-page-target="completed">Review Completed</button>
+                <button type="button" class="secondary-button" data-cross-page-target="pending">Review Pending Publish</button>
+                <button type="button" class="secondary-button" data-cross-page-target="diagnostics">Review Diagnostics</button>
+              </div>
+              <p class="note">This panel correlates already-loaded backend payloads only. It does not start, repair, rerun, drain, delete, or rewrite files.</p>
+            </div><!-- end inner data-advanced (SV sub-panels) -->
+          </section>
+
+        </div><!-- end outer data-advanced (9 panels) -->
+
+      </section>

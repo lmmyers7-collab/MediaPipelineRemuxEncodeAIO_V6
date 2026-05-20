@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.mediapipeline/schemas/media_pipeline_pending_push_manifest.v1.schema.json",
+  "title": "MediaPipeline Pending Push Manifest",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "manifest_state",
+    "local_file",
+    "server_out",
+    "publish_transaction_id"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "pending_push_manifest.v1" },
+    "parked_at": { "type": "string" },
+    "product_version": { "type": "string" },
+    "pipeline_version": { "type": "string" },
+    "publish_transaction_id": { "type": "string" },
+    "manifest_state": {
+      "type": "string",
+      "enum": [
+        "pending_move",
+        "parked",
+        "parked_recovered",
+        "missing_payload",
+        "retry_copy_failed",
+        "retry_reveal_failed",
+        "retry_sidecar_file_failed",
+        "retry_sidecar_failed",
+        "complete",
+        "published"
+      ]
+    },
+    "local_file": { "type": "string" },
+    "original_local_file": { "type": "string" },
+    "parked_file": { "type": "string" },
+    "server_out": { "type": "string" },
+    "route": { "type": "string" },
+    "route_reason_code": { "type": "string" },
+    "route_reason": { "type": "string" },
+    "source_identity": { "type": "string" },
+    "source_identity_v2": { "type": "string" },
+    "source_identity_v2_algorithm": { "type": "string" },
+    "source_path": { "type": "string" },
+    "source_size": { "type": "integer", "minimum": 0 },
+    "source_mtime_utc": { "type": "string" },
+    "output_size": { "type": "integer", "minimum": 0 },
+    "publish_mode": { "type": "string" },
+    "sidecar_files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "local_file": { "type": "string" },
+          "original_local_file": { "type": "string" },
+          "parked_file": { "type": "string" },
+          "server_out": { "type": "string" }
+        }
+      }
+    },
+    "tx3g_srt_tracks": { "type": "array" },
+    "tx3g_srt_failures": { "type": "array" },
+    "bdpgs_srt_failures": { "type": "array" },
+    "tx3g_embedded_srt_tracks": { "type": "array" },
+    "bdpgs_embedded_srt_tracks": { "type": "array" },
+    "tx3g_srt_conversion_enabled": { "type": "boolean" },
+    "tx3g_external_srt_sidecars_enabled": { "type": "boolean" },
+    "drop_tx3g_after_conversion": { "type": "boolean" },
+    "bdpgs_srt_conversion_enabled": { "type": "boolean" },
+    "drop_bdpgs_after_conversion": { "type": "boolean" },
+    "folder_policy": { "type": "object" },
+    "route_plan": { "type": "object" }
+  }
+}

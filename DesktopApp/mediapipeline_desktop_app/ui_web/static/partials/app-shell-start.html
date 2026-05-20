@@ -1,0 +1,45 @@
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-name">MediaPipeline</div>
+        <div id="app-version" class="brand-version">V6</div>
+      </div>
+      <nav class="nav">
+        <button type="button" class="nav-button is-active" data-page="home">Dashboard</button>
+        <button type="button" class="nav-button" data-page="live">Telemetry</button>
+        <button type="button" class="nav-button" data-page="queue">Queue</button>
+        <button type="button" class="nav-button" data-page="completed">Output</button>
+        <button type="button" class="nav-button" data-page="pending">Publish</button>
+        <button type="button" class="nav-button" data-page="rename">Rename</button>
+        <button type="button" class="nav-button" data-page="launch">Launch</button>
+        <button type="button" class="nav-button" data-page="reports">Reports</button>
+        <button type="button" class="nav-button" data-page="schedule">Schedule</button>
+        <button type="button" class="nav-button" data-page="network">Workers</button>
+        <button type="button" class="nav-button" data-page="maintenance">Maintenance</button>
+        <button type="button" class="nav-button" data-page="diagnostics">Diagnostics</button>
+        <button type="button" class="nav-button" data-page="settings">Settings</button>
+      </nav>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div class="topbar-status">
+          <div id="state-pill" class="state-pill">Connecting</div>
+          <p class="activity-display" id="activity">
+            <span class="activity-primary">Waiting for backend...</span>
+            <span class="activity-original"></span>
+          </p>
+        </div>
+        <div class="topbar-actions">
+          <span id="refresh-health" class="refresh-health" data-state="unknown" title="Click to open Diagnostics">Refresh: starting</span>
+          <span id="close-readiness" class="close-readiness" data-state="unknown" title="Click to open Diagnostics">Close: checking</span>
+          <div id="pipeline-sparkline" class="pipeline-sparkline" title="Last 20 pipeline events" aria-label="Recent pipeline event history" aria-hidden="true"></div>
+          <button type="button" id="advanced-toggle" class="secondary-button" aria-pressed="false">Advanced</button>
+          <button type="button" id="evidence-toggle" class="secondary-button" aria-pressed="false">Hide Evidence</button>
+          <button type="button" id="customize-layout-btn" class="secondary-button" aria-pressed="false" title="Drag and reorder panels, hide panels, or move them behind the Advanced gate">Customize</button>
+          <button type="button" id="reset-layout-btn" class="secondary-button layout-reset-visible-btn" title="Reset all panels to their default order and classification">Reset Layout</button>
+          <button type="button" id="theme-toggle" class="secondary-button">Light</button>
+          <button type="button" id="refresh-button" class="secondary-button">Refresh</button>
+          <button type="button" class="danger-button emergency-button topbar-emergency-control" data-control-action="kill" data-confirm-command="true" hidden aria-label="Emergency force stop active pipeline">Force Stop</button>
+        </div>
+      </header>

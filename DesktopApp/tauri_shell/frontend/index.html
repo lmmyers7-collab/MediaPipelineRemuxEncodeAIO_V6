@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MediaPipeline Shell</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: #0e151d;
+      color: #e8f1f7;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+    }
+
+    main {
+      width: min(640px, calc(100vw - 48px));
+      border: 1px solid #2a4054;
+      border-radius: 8px;
+      background: #121d27;
+      padding: 22px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 20px;
+    }
+
+    p {
+      margin: 0;
+      color: #8fa5b7;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Starting MediaPipeline backend...</h1>
+    <p>The Tauri shell opens the backend-served UI after the Python local API prints its bootstrap payload.</p>
+  </main>
+</body>
+</html>

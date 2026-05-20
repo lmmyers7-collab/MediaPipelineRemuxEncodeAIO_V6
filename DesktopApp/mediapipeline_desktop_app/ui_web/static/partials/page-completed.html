@@ -1,0 +1,427 @@
+      <section class="page" data-page-panel="completed">
+        <h1 class="visually-hidden">Pipeline Output</h1>
+        <div class="metric-grid">
+          <section class="metric">
+            <span class="metric-label">Completed</span>
+            <strong id="completed-count">0</strong>
+          </section>
+          <section class="metric">
+            <span class="metric-label">Encoded</span>
+            <strong id="completed-encode-count">0</strong>
+          </section>
+          <section class="metric">
+            <span class="metric-label">Remuxed</span>
+            <strong id="completed-remux-count">0</strong>
+          </section>
+          <section class="metric">
+            <span class="metric-label">Missing</span>
+            <strong id="completed-missing-count">0</strong>
+          </section>
+        </div>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Output Files</h2>
+            <strong id="completed-status">No rows</strong>
+          </div>
+          <div class="settings-tab-bar" role="tablist" aria-label="Output Files sections">
+            <button type="button" class="settings-tab-btn" role="tab" data-completed-tab="overview" aria-selected="true">Overview</button>
+            <button type="button" class="settings-tab-btn" role="tab" data-completed-tab="evidence" aria-selected="false">Evidence</button>
+            <button type="button" class="settings-tab-btn" role="tab" data-completed-tab="proof" aria-selected="false">Proof</button>
+            <button type="button" class="settings-tab-btn" role="tab" data-completed-tab="history" aria-selected="false">History</button>
+          </div>
+
+          <!-- TAB: OVERVIEW -->
+          <div class="settings-tab-pane is-active" data-completed-tab="overview">
+          <pre id="completed-summary" class="prose-block">No completed history loaded.</pre>
+          <div id="completed-inventory-progress-bars" class="progress-bar-list" aria-live="polite">
+            <p class="note">No completed inventory progress loaded.</p>
+          </div>
+          <div class="panel-heading panel-subheading">
+            <h3>Flagged Items</h3>
+            <strong id="completed-review-status">Not loaded</strong>
+          </div>
+          <pre id="completed-review-board" class="prose-block">No completed review board loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Completed</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Title</th>
+                  <th scope="col">Reason</th>
+                  <th scope="col">Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="completed-review-rows">
+                <tr><td colspan="5">No completed review digest loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Nothing flagged</span>
+            <span class="empty-state-hint">Flagged rows appear here when output validation finds a problem.</span>
+          </div>
+          </div>
+          <p id="completed-review-legend" class="note table-legend">Completed review rows: no selectable rows.</p>
+          <div class="panel-heading panel-subheading">
+            <h3>Size Check</h3>
+            <strong id="completed-size-review-status">Not loaded</strong>
+          </div>
+          <pre id="completed-size-review-summary" class="prose-block">No completed size-growth review loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col" class="num">Delta</th>
+                  <th scope="col">Route</th>
+                  <th scope="col" class="num">Encoder</th>
+                  <th scope="col">Title</th>
+                  <th scope="col">Operator Action</th>
+                </tr>
+              </thead>
+              <tbody id="completed-size-review-rows">
+                <tr><td colspan="5">No completed size-growth rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No size issues detected</span>
+            <span class="empty-state-hint">Size growth rows appear here when output is significantly larger than the source.</span>
+          </div>
+          </div>
+          <p id="completed-size-review-legend" class="note table-legend">Completed size-growth rows: no selectable rows.</p>
+          <div class="form-grid launch-form-grid">
+            <label>
+              Filter completed
+              <input id="completed-filter" type="search" autocomplete="off" placeholder="Title, route, output, encoder, health, consistency">
+            </label>
+            <label>
+              Completed status
+              <select id="completed-status-filter">
+                <option value="all">All rows</option>
+                <option value="review">Review only</option>
+                <option value="blocked">Blocked/missing only</option>
+                <option value="warning">Warnings only</option>
+                <option value="ready">Healthy only</option>
+              </select>
+            </label>
+            <label>
+              Completed view
+              <select id="completed-investigation-filter">
+                <option value="all">All signals</option>
+                <option value="missing_output">Missing output</option>
+                <option value="size_growth">Size growth</option>
+                <option value="sidecar_issues">Sidecar issues</option>
+                <option value="runtime_failed">Runtime failed</option>
+                <option value="encode">Encode routes</option>
+                <option value="remux">Remux routes</option>
+                <option value="route_review">Route review</option>
+              </select>
+            </label>
+            <div class="form-actions-inline">
+              <button id="completed-clear-filters-button" class="secondary-button" type="button">Clear Completed Filters</button>
+            </div>
+          </div>
+          <pre id="completed-filter-summary" class="prose-block">Completed filter inactive. No rows loaded.</pre>
+          <div class="table-wrap">
+            <table class="workflow-table completed-table">
+              <thead>
+                <tr>
+                  <th scope="col">Completed</th>
+                  <th scope="col">Route</th>
+                  <th scope="col" class="num">Size</th>
+                  <th scope="col">Publish</th>
+                  <th scope="col">Media</th>
+                  <th scope="col">Title</th>
+                  <th scope="col">Health</th>
+                </tr>
+              </thead>
+              <tbody id="completed-rows">
+                <tr><td colspan="7">No completed jobs loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No completed jobs</span>
+            <span class="empty-state-hint">Run the pipeline to process files and see them here.</span>
+          </div>
+          </div>
+          <p id="completed-table-legend" class="note table-legend">Completed rows: no selectable rows.</p>
+          <div class="panel-heading panel-subheading">
+            <h3>Selected File</h3>
+            <strong id="completed-selected-status">No selection</strong>
+          </div>
+          <pre id="completed-selected-summary" class="prose-block">Select a completed row to see trust, output health, route/size proof, safe next step, filter visibility, and backend authority.</pre>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" class="primary-button" data-open-completed="output_file">Open / Play Output</button>
+            <button type="button" class="secondary-button" data-open-completed="output_folder">Open Output Folder</button>
+            <button type="button" class="secondary-button" data-open-completed="sidecar">Open Sidecar</button>
+            <button type="button" class="secondary-button" data-open-completed="source_folder">Open Source Folder</button>
+          </div>
+          <p id="completed-open-status" class="note">Select a completed row to open a backend-selected location.</p>
+          <pre id="completed-open-history" class="prose-block">No completed open command history loaded.</pre>
+          <pre id="completed-detail" class="prose-block">No completed row selected.</pre>
+          </div>
+
+          <!-- TAB: EVIDENCE -->
+          <div class="settings-tab-pane" data-completed-tab="evidence">
+          <div class="panel-heading panel-subheading">
+            <h3>Size Evidence</h3>
+            <strong id="completed-size-evidence-status">Not loaded</strong>
+          </div>
+          <pre id="completed-size-evidence-summary" class="prose-block">No completed size-growth evidence handoff loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Checkpoint</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Safe Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="completed-size-evidence-rows">
+                <tr><td colspan="4">No completed size-growth evidence loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No evidence loaded</span>
+            <span class="empty-state-hint">Select a size-growth row to see evidence here.</span>
+          </div>
+          </div>
+          <p id="completed-size-evidence-legend" class="note table-legend">Completed size-growth evidence rows: no selectable rows.</p>
+          <pre id="completed-size-evidence-detail" class="prose-block">Select a size-growth evidence checkpoint for proof-order detail.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Output Proof</h3>
+            <strong id="completed-real-media-proof-status">Not loaded</strong>
+          </div>
+          <pre id="completed-real-media-proof-summary" class="prose-block">No real-media output proof ladder loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Checkpoint</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Safe Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="completed-real-media-proof-rows">
+                <tr><td colspan="4">No real-media output proof rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No proof loaded</span>
+            <span class="empty-state-hint">Proof data appears here after the completed output is verified.</span>
+          </div>
+          </div>
+          <p id="completed-real-media-proof-legend" class="note table-legend">Real-media output proof rows are read-only and do not accept, rerun, drain, publish, rewrite, delete, or touch media.</p>
+          <pre id="completed-real-media-proof-detail" class="prose-block">Select a real-media proof checkpoint to inspect the evidence chain.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Output Verification</h3>
+            <strong id="completed-final-trust-status">Not loaded</strong>
+          </div>
+          <pre id="completed-final-trust-summary" class="prose-block">No final output trust walkthrough loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Step</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Operator Action</th>
+                </tr>
+              </thead>
+              <tbody id="completed-final-trust-rows">
+                <tr><td colspan="4">No final output trust walkthrough rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No verification loaded</span>
+            <span class="empty-state-hint">Verification data appears here after the output is checked.</span>
+          </div>
+          </div>
+          <p id="completed-final-trust-legend" class="note table-legend">Final output trust rows are read-only and do not accept, repair, rerun, drain, publish, rewrite, delete, or touch media.</p>
+          <pre id="completed-final-trust-detail" class="prose-block">Select a final output trust step to inspect proof order and safe next action.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Evidence Packet</h3>
+            <strong id="completed-pilot-evidence-status">Not loaded</strong>
+          </div>
+          <pre id="completed-pilot-evidence-summary" class="prose-block">No selected pilot evidence packet loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Checkpoint</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Operator Action</th>
+                </tr>
+              </thead>
+              <tbody id="completed-pilot-evidence-rows">
+                <tr><td colspan="4">No selected pilot evidence packet rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No evidence loaded</span>
+            <span class="empty-state-hint">Evidence data appears here after the completed output is reviewed.</span>
+          </div>
+          </div>
+          <p id="completed-pilot-evidence-legend" class="note table-legend">Selected pilot evidence packet rows are read-only and do not accept, repair, rerun, drain, publish, rewrite, delete, save settings, rename, or touch media.</p>
+          <pre id="completed-pilot-evidence-detail" class="prose-block">Select a pilot evidence checkpoint to inspect the proof packet.</pre>
+          <pre id="completed-pilot-evidence-markdown" class="prose-block">No copyable pilot evidence packet loaded.</pre>
+          </div>
+
+          <!-- TAB: PROOF -->
+          <div class="settings-tab-pane" data-completed-tab="proof">
+          <div class="panel-heading panel-subheading">
+            <h3>Proof Check</h3>
+            <strong id="completed-pending-proof-status">Not loaded</strong>
+          </div>
+          <pre id="completed-pending-proof-summary" class="prose-block">No completed-to-pending output proof loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Signal</th>
+                  <th scope="col">Completed</th>
+                  <th scope="col">Pending / Drain</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Next Action</th>
+                </tr>
+              </thead>
+              <tbody id="completed-pending-proof-rows">
+                <tr><td colspan="5">No completed-to-pending proof rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No proof loaded</span>
+            <span class="empty-state-hint">Proof rows appear here when completed and pending publish outputs are aligned.</span>
+          </div>
+          </div>
+          <p id="completed-pending-proof-legend" class="note table-legend">Completed-to-pending proof rows: no selectable rows.</p>
+          <pre id="completed-pending-proof-detail" class="prose-block">Select a completed-to-pending proof row to inspect output, pending, and drain-summary evidence.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Publish Reconciliation</h3>
+            <strong id="publish-reconciliation-status">Not loaded</strong>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" id="publish-reconciliation-refresh-button" class="secondary-button">Refresh Backend Reconciliation</button>
+          </div>
+          <pre id="publish-reconciliation-summary" class="prose-block">Backend publish reconciliation has not been loaded. Use Refresh Backend Reconciliation for a backend-owned Completed/Pending/drain-summary proof snapshot.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Signal</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Completed</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Safe Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="publish-reconciliation-rows">
+                <tr><td colspan="5">No backend reconciliation rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Not yet reconciled</span>
+            <span class="empty-state-hint">Use Refresh Backend Reconciliation to load completed/pending proof rows.</span>
+          </div>
+          </div>
+          <p id="publish-reconciliation-legend" class="note table-legend">Backend publish reconciliation rows: no selectable rows.</p>
+          <pre id="publish-reconciliation-detail" class="prose-block">Select a backend reconciliation row to inspect Completed, Pending Publish, and durable drain-summary evidence.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Route Agreement</h3>
+            <strong id="completed-route-agreement-status">Not loaded</strong>
+          </div>
+          <pre id="completed-route-agreement-summary" class="prose-block">No queue/completed route agreement loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Signal</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Safe Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="completed-route-agreement-rows">
+                <tr><td colspan="4">No queue/completed route agreement rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No route data</span>
+            <span class="empty-state-hint">Route agreement data appears here after the output is checked.</span>
+          </div>
+          </div>
+          <p id="completed-route-agreement-legend" class="note table-legend">Queue/completed route agreement rows are read-only and do not launch, rerun, delete, reconcile, or rewrite files.</p>
+          <pre id="completed-route-agreement-detail" class="prose-block">Select a route agreement row to inspect queue/completed proof.</pre>
+          </div>
+
+          <!-- TAB: HISTORY -->
+          <div class="settings-tab-pane" data-completed-tab="history">
+          <div class="panel-heading panel-subheading">
+            <h3>Integrity Check</h3>
+            <strong id="completed-integrity-status">Not loaded</strong>
+          </div>
+          <pre id="completed-integrity" class="prose-block">No completed output integrity summary loaded.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Route Summary</h3>
+            <strong id="completed-breakdown-status">Not loaded</strong>
+          </div>
+          <pre id="completed-breakdown" class="prose-block">No completed route/publish breakdown loaded.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Run History</h3>
+            <strong id="completed-runtime-status">Not loaded</strong>
+          </div>
+          <pre id="completed-runtime" class="prose-block">No completed runtime outcome history loaded.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Manifest Check</h3>
+            <strong id="completed-consistency-status">Not loaded</strong>
+          </div>
+          <pre id="completed-consistency" class="prose-block">No completed manifest consistency summary loaded.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Output Checklist</h3>
+            <strong id="completed-validation-status">Not loaded</strong>
+          </div>
+          <pre id="completed-validation" class="prose-block">No completed validation checklist loaded.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Next Step</h3>
+            <strong id="completed-workflow-status">Not loaded</strong>
+          </div>
+          <pre id="completed-workflow" class="prose-block">No completed workflow guidance loaded.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Acceptance Checklist</h3>
+            <strong id="completed-output-acceptance-status">Not loaded</strong>
+          </div>
+          <pre id="completed-output-acceptance-summary" class="prose-block">No completed output acceptance checklist loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Checkpoint</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Safe Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="completed-output-acceptance-rows">
+                <tr><td colspan="4">No completed output acceptance rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Select a completed row</span>
+            <span class="empty-state-hint">Acceptance checklist rows appear here when a completed row is selected.</span>
+          </div>
+          </div>
+          <p id="completed-output-acceptance-legend" class="note table-legend">Completed output acceptance rows: no selectable rows.</p>
+          <pre id="completed-output-acceptance-detail" class="prose-block">Select a completed row to review output acceptance evidence.</pre>
+          <div data-advanced>
+          <div class="panel-heading panel-subheading">
+            <h3>Diagnostics Links</h3>
+            <strong id="completed-diagnostics-status">Not selected</strong>
+          </div>
+          <pre id="completed-diagnostics-guidance" class="prose-block">Select a completed row to see backend-allowlisted diagnostics actions.</pre>
+          <div id="completed-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
+          </div>
+          </div>
+        </section>
+      </section>

@@ -1,0 +1,348 @@
+/* =============================================================================
+   S60 — Queue Priority Manifest (Phase 1)
+   Priority badges (.priority-badge), per-row priority menu (.queue-priority-menu),
+   bulk toolbar (.queue-priority-toolbar), and row tint overrides.
+   ============================================================================= */
+
+/* --- Priority badge chip (shown in queue table column or next to route chip) --- */
+.priority-badge {
+  display: inline-block;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: var(--space-1) var(--space-2);
+  border-radius: 2px;
+  vertical-align: middle;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.priority-badge[data-level="high"] {
+  background: var(--amber-700);
+  color: var(--amber-100);
+}
+.priority-badge[data-level="low"] {
+  background: var(--grey-700);
+  color: var(--grey-300);
+}
+.priority-badge[data-level="hold"] {
+  background: var(--red-700);
+  color: var(--red-100);
+}
+.priority-badge[data-level="fs"] {
+  /* Filesystem-marker-only priority (no manifest entry) */
+  background: var(--blue-800);
+  color: var(--blue-200);
+}
+
+/* --- Queue row tints based on effective priority level --- */
+tr[data-priority-level="high"] td { background: var(--row-warning-bg) !important; }
+tr[data-priority-level="low"] td  { color: var(--grey-400); }
+tr[data-priority-level="hold"] td { background: var(--row-blocked-bg) !important; color: var(--red-100); }
+
+/* --- Priority dropdown menu (attached per row) --- */
+.queue-priority-menu {
+  position: absolute;
+  z-index: 120;
+  background: var(--grey-800);
+  border: 1px solid var(--grey-600);
+  border-radius: 2px;
+  box-shadow: var(--shadow-2);
+  min-width: 170px;
+  padding: var(--space-1) 0;
+}
+
+.queue-priority-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--grey-100);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  border-radius: 0;
+}
+.queue-priority-menu button:hover {
+  background: var(--grey-700);
+  color: var(--grey-50);
+}
+.queue-priority-menu button[data-level="high"]:hover  { background: var(--amber-700); color: var(--amber-100); }
+.queue-priority-menu button[data-level="hold"]:hover  { background: var(--red-700);   color: var(--red-100); }
+.queue-priority-menu button[data-level="normal"]:hover { background: var(--grey-600); }
+.queue-priority-menu .menu-divider {
+  border: none;
+  border-top: 1px solid var(--grey-700);
+  margin: var(--space-1) 0;
+}
+
+/* --- Bulk priority toolbar (above queue table) --- */
+.queue-priority-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  margin-bottom: var(--space-3);
+}
+
+.queue-priority-toolbar .toolbar-label {
+  font-size: var(--text-xs);
+  color: var(--grey-400);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-right: var(--space-2);
+}
+
+/* --- Priority status feedback line --- */
+#queue-priority-status {
+  font-size: var(--text-sm);
+  color: var(--grey-300);
+  min-height: 1.2em;
+}
+
+/* Light-mode overrides */
+body.light-mode .priority-badge[data-level="high"] { background: var(--amber-100); color: var(--amber-700); }
+body.light-mode .priority-badge[data-level="hold"] { background: var(--red-100);   color: var(--red-700); }
+body.light-mode .priority-badge[data-level="fs"]   { background: var(--blue-100);  color: var(--blue-700); }
+body.light-mode .queue-priority-menu {
+  background: var(--grey-100);
+  border-color: var(--grey-400);
+}
+body.light-mode .queue-priority-menu button { color: var(--grey-900); }
+body.light-mode .queue-priority-menu button:hover { background: var(--grey-200); }
+
+/* =============================================================================
+   S70 — Queue Ordering Strategy Selector (Phase 2)
+   Strategy toolbar (.queue-strategy-toolbar) and strategy <select>.
+   ============================================================================= */
+
+/* --- Strategy toolbar (below priority toolbar, above queue table) --- */
+.queue-strategy-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  margin-bottom: var(--space-1);
+}
+
+.queue-strategy-toolbar .toolbar-label {
+  font-size: var(--text-xs);
+  color: var(--grey-400);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.queue-strategy-select {
+  font-size: var(--text-sm);
+  background: var(--grey-800);
+  color: var(--grey-100);
+  border: 1px solid var(--grey-700);
+  border-radius: 2px;
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  min-width: 14rem;
+  flex: 1 1 auto;
+  max-width: 28rem;
+}
+.queue-strategy-select:focus {
+  outline: 2px solid var(--blue-500);
+  outline-offset: 1px;
+}
+
+/* Active strategy badge rendered inline after the select */
+.queue-strategy-active-label {
+  font-size: var(--text-xs);
+  color: var(--grey-500);
+  white-space: nowrap;
+}
+.queue-strategy-active-label strong { color: var(--grey-300); }
+
+/* Light-mode overrides */
+body.light-mode .queue-strategy-select {
+  background: var(--grey-900);
+  color: var(--grey-900);
+  border-color: var(--grey-400);
+}
+
+/* =============================================================================
+   S80 — Per-File Settings Drawer (Phase 3)
+   Overlay backdrop (.fo-overlay), slide-in drawer (.fo-drawer), form controls.
+   ============================================================================= */
+
+/* Settings column in the queue table — narrow, centred */
+.settings-col { width: 5.5rem; text-align: center; }
+
+/* Per-row settings trigger button */
+.fo-open-btn {
+  font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-4);
+  background: none;
+  border: 1px solid var(--grey-600);
+  border-radius: var(--radius-sm);
+  color: var(--grey-400);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+}
+.fo-open-btn:hover { border-color: var(--blue-500); color: var(--grey-100); }
+.fo-open-btn:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 1px; }
+
+/* Highlight button when an override is active for this row */
+.fo-open-btn[data-has-override="true"] {
+  border-color: var(--blue-600);
+  color: var(--blue-400);
+}
+
+/* Semi-transparent backdrop */
+.fo-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-backdrop-bg);
+  z-index: 200;
+}
+.fo-overlay[hidden] { display: none; }
+
+/* Slide-in drawer panel */
+.fo-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(420px, 92vw);
+  height: 100vh;
+  background: var(--grey-800);
+  border-left: 1px solid var(--grey-700);
+  box-shadow: var(--shadow-drawer);
+  z-index: 201;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.fo-drawer[hidden] { display: none; }
+
+.fo-drawer-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-5) var(--space-4);
+  border-bottom: 1px solid var(--grey-700);
+  flex-shrink: 0;
+}
+.fo-drawer-title-group { flex: 1; min-width: 0; }
+.fo-drawer-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--grey-100);
+  margin: 0 0 var(--space-1);
+}
+.fo-drawer-path {
+  font-size: var(--text-xs);
+  color: var(--grey-500);
+  word-break: break-all;
+  margin: 0;
+  max-height: 3.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fo-close-btn {
+  background: none;
+  border: none;
+  color: var(--grey-500);
+  font-size: var(--text-md);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  line-height: 1;
+  flex-shrink: 0;
+}
+.fo-close-btn:hover { color: var(--grey-100); }
+.fo-close-btn:focus-visible { outline: 2px solid var(--blue-500); outline-offset: 1px; }
+
+.fo-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-5) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.fo-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.fo-section-title {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--grey-400);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--grey-700);
+}
+
+.fo-label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.fo-label-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+}
+.fo-label-text {
+  font-size: var(--text-xs);
+  color: var(--grey-400);
+}
+
+.fo-input {
+  background: var(--grey-900);
+  border: 1px solid var(--grey-700);
+  border-radius: var(--radius-sm);
+  color: var(--grey-100);
+  font-size: var(--text-sm);
+  padding: var(--space-3) var(--space-4);
+  width: 100%;
+  box-sizing: border-box;
+}
+.fo-input::placeholder { color: var(--grey-600); }
+.fo-input:focus { outline: 2px solid var(--blue-500); outline-offset: 1px; border-color: transparent; }
+
+.fo-select {
+  background: var(--grey-900);
+  border: 1px solid var(--grey-700);
+  border-radius: var(--radius-sm);
+  color: var(--grey-100);
+  font-size: var(--text-sm);
+  padding: var(--space-3) var(--space-4);
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+.fo-select:focus { outline: 2px solid var(--blue-500); outline-offset: 1px; }
+
+.fo-drawer-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+/* Light-mode overrides */
+body.light-mode .fo-drawer {
+  background: var(--grey-900);
+  border-color: var(--grey-400);
+}
+body.light-mode .fo-section-title { color: var(--grey-600); border-color: var(--grey-300); }
+body.light-mode .fo-label-text { color: var(--grey-600); }
+body.light-mode .fo-input,
+body.light-mode .fo-select {
+  background: var(--grey-900);
+  border-color: var(--grey-400);
+  color: var(--grey-50);
+}
+body.light-mode .fo-open-btn { border-color: var(--grey-400); color: var(--grey-600); }

@@ -1,0 +1,103 @@
+# Python/cache artifacts
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+
+# Local/private generated state and validation output
+/LocalBase/
+/CodexVerification/
+
+# Bundled runtimes/tools; keep out of source history unless intentionally packaging them
+/DesktopApp/Runtime/
+/Pipeline/Runtime/
+/Pipeline/Tools/
+/Pipeline/PowerShell-*-win-x64/
+
+# Tauri/WebView2 shell build artifacts
+DesktopApp/tauri_shell/node_modules/
+DesktopApp/tauri_shell/src-tauri/target/
+DesktopApp/tauri_shell/src-tauri/gen/
+
+# Desktop app runtime output
+DesktopApp/*.log
+DesktopApp/*.state.json
+/DesktopApp/encode_speed_history.json
+DesktopApp/RunLogs/
+DesktopApp/mediapipeline_desktop_app/*.log
+DesktopApp/mediapipeline_desktop_app/*.state.json
+
+# Root/local API captures from smoke checks and assistant validation runs
+/RunLogs/
+/*.log
+/*.out.log
+/*.err.log
+/*.stdout.log
+/*.stderr.log
+/*.jsonl
+/_codex_*.log
+/_codex_*.out.log
+/_codex_*.err.log
+/local_api_*.log
+
+# Local assistant/editor settings
+.claude/settings.local.json
+
+# Pipeline runtime output/state
+Pipeline/*.log
+Pipeline/*.tmp
+Pipeline/*.bak
+Pipeline/*_progress.json
+Pipeline/pipeline_progress.json
+Pipeline/audit_progress.json
+Pipeline/.single_instance*
+Pipeline/MediaPipeline_config_chatgpt.psd1
+Pipeline/MediaPipeline_config_chatgpt.backup_*.psd1
+
+# Local media-processing workspaces if created inside the bundle
+Pipeline/Incoming/
+Pipeline/Processing/
+Pipeline/Encoded/
+Pipeline/Failed/
+Pipeline/AuditReports/
+Pipeline/PendingServerPush/
+Pipeline/Completed/
+Pipeline/RemuxTemp/
+Pipeline/Scratch/
+Pipeline/.mediapipeline-staging/
+
+# Generated reports/cache directories
+**/AuditReports/
+**/ProbeCache/
+**/RunLogs/
+**/Failed/Reports/
+**/Failed/Artifacts/
+**/Failed/Markers/
+
+# OS/editor noise
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+*.swo
+
+# Accidental terminal captures
+vlc-help.txt
+*-help.txt
+*.console.txt
+
+# Editor / assistant worktrees nested inside the bundle
+.claude/worktrees/
+
+# Generated deployable/release copies if built inside the workspace
+*_Deployable*/
+*_Release*/
+*.release.zip
+
+# Operator validation logs and real-media validation worksheets
+# These files contain personal machine paths (source_path, output_path, operator notes).
+# The release builder excludes LocalBase\State\ by default, but no prior .gitignore entry
+# covered these specifically. Do not commit them to shared or public repositories.
+**/State/Validation/sample_validation_log.jsonl
+Docs/RealMediaValidationRuns/*.md

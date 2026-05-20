@@ -1,0 +1,153 @@
+      <section class="page" data-page-panel="maintenance">
+        <h1 class="visually-hidden">Maintenance Tools</h1>
+        <div class="metric-grid">
+          <section class="metric">
+            <span class="metric-label">OK</span>
+            <strong id="maintenance-ok-count">0</strong>
+          </section>
+          <section class="metric">
+            <span class="metric-label">Missing</span>
+            <strong id="maintenance-missing-count">0</strong>
+          </section>
+          <section class="metric">
+            <span class="metric-label">Warnings</span>
+            <strong id="maintenance-warning-count">0</strong>
+          </section>
+          <section class="metric">
+            <span class="metric-label">Rows</span>
+            <strong id="maintenance-total-count">0</strong>
+          </section>
+        </div>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>System Health</h2>
+            <strong id="maintenance-status">No rows</strong>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="maintenance-refresh-button" class="secondary-button">Run Health Check</button>
+          </div>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Health Progress</h2>
+            <strong id="maintenance-progress-status">Not loaded</strong>
+          </div>
+          <div id="maintenance-progress-bars" class="progress-bar-list" aria-live="polite">
+            <p class="note">No maintenance health progress loaded.</p>
+          </div>
+          <pre id="maintenance-progress-steps" class="prose-block">No maintenance health progress loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Readiness</h2>
+            <strong id="maintenance-readiness-status">Not loaded</strong>
+          </div>
+          <pre id="maintenance-readiness" class="prose-block">No maintenance readiness loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Tool Status</h2>
+            <strong id="maintenance-toolchain-status">Not loaded</strong>
+          </div>
+          <pre id="maintenance-toolchain" class="prose-block">No maintenance toolchain evidence loaded.</pre>
+          <pre id="maintenance-warnings" class="prose-block">No maintenance warnings.</pre>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Health Checks</h2>
+            <strong>Backend dry run</strong>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Status</th>
+                  <th scope="col">Check</th>
+                  <th scope="col">Detail</th>
+                </tr>
+              </thead>
+              <tbody id="maintenance-rows">
+                <tr><td colspan="3">No maintenance checks loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Health not run</span>
+            <span class="empty-state-hint">Click Run Health Check to populate system health checks here.</span>
+          </div>
+          </div>
+          <p id="maintenance-table-legend" class="note table-legend">Maintenance rows: no selectable rows.</p>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Check Detail</h2>
+            <strong id="maintenance-detail-status">No selection</strong>
+          </div>
+          <pre id="maintenance-detail" class="prose-block">No maintenance row selected. Select a health row to inspect dry-run impact, operator guidance, and diagnostics handoff.</pre>
+          <div id="maintenance-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
+          <p id="maintenance-diagnostics-status" class="note">No maintenance diagnostics action selected.</p>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Dry Run Status</h2>
+            <strong id="maintenance-dry-run-confidence-status">Not loaded</strong>
+          </div>
+          <pre id="maintenance-dry-run-confidence" class="prose-block">No maintenance dry-run confidence summary loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Deployment Package</h2>
+            <strong id="release-dry-run-status">Idle</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label>
+              Destination
+              <input id="release-dry-run-destination" type="text" autocomplete="off" placeholder="Blank uses timestamped default">
+            </label>
+            <label class="check-row launch-check-row"><input id="release-dry-run-zip" type="checkbox" checked> Plan zip</label>
+            <label class="check-row launch-check-row"><input id="release-dry-run-verify" type="checkbox" checked> Plan verify</label>
+            <label class="check-row launch-check-row"><input id="release-dry-run-tests" type="checkbox"> Include tests</label>
+            <label class="check-row launch-check-row"><input id="release-dry-run-dev-docs" type="checkbox"> Include dev docs</label>
+            <label class="check-row launch-check-row"><input id="release-dry-run-optional-tools" type="checkbox"> Include optional tools</label>
+            <label class="check-row launch-check-row"><input id="release-dry-run-tool-docs" type="checkbox"> Include tool docs</label>
+            <label class="check-row launch-check-row"><input id="release-dry-run-keep-config" type="checkbox"> Keep personal config</label>
+            <label class="check-row launch-check-row"><input id="release-build-force" type="checkbox"> Replace existing destination</label>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" id="release-dry-run-button" class="secondary-button">Plan Deployment</button>
+            <button type="button" id="release-build-button" class="primary-button">Create Deployment</button>
+          </div>
+          <div id="release-dry-run-progress-bars" class="progress-bar-list" aria-live="polite">
+            <p class="note">No release package progress loaded.</p>
+          </div>
+          <pre id="release-dry-run-detail" class="prose-block">No release dry run has been executed from this shell.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Create Deployment</h3>
+            <strong id="release-build-status">Idle</strong>
+          </div>
+          <div id="release-build-progress-bars" class="progress-bar-list" aria-live="polite">
+            <p class="note">No deployment package progress loaded.</p>
+          </div>
+          <pre id="release-build-detail" class="prose-block">No deployment package has been created from this shell.</pre>
+          <p class="note">Plan Deployment runs the same release builder with DryRun. Create Deployment writes a deployable folder, manifest, and optional zip through the backend release builder after confirmation.</p>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Manifest Backfill</h2>
+            <strong id="backfill-dry-run-status">Idle</strong>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="backfill-dry-run-button" class="secondary-button">Run Backfill Dry Run</button>
+          </div>
+          <div id="backfill-dry-run-progress-bars" class="progress-bar-list" aria-live="polite">
+            <p class="note">No maintenance backfill progress loaded.</p>
+          </div>
+          <pre id="backfill-dry-run-detail" class="prose-block">No completed-manifest backfill dry run has been executed from this shell.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>History</h2>
+            <strong id="maintenance-dry-run-history-status">No runs</strong>
+          </div>
+          <pre id="maintenance-dry-run-history" class="prose-block">No maintenance dry-run command history loaded.</pre>
+        </section>
+      </section>

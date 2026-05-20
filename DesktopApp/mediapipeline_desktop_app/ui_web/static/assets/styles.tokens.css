@@ -1,0 +1,156 @@
+:root {
+  color-scheme: dark;
+
+  /* ===== GREY SCALE - cool-tinted (220deg), dark-mode adapted =====
+     Grey-900 = deepest background. Grey-50 = near-white text.
+     Token names match the design reference so a future light-mode
+     switch only needs to redefine these values, not any class names. */
+  --grey-900: hsl(220, 15%, 8%);
+  --grey-800: hsl(220, 13%, 12%);
+  --grey-700: hsl(220, 11%, 18%);
+  --grey-600: hsl(220, 10%, 26%);
+  --grey-500: hsl(220, 9%, 36%);
+  --grey-400: hsl(220, 8%, 50%);
+  --grey-300: hsl(220, 7%, 62%);
+  --grey-200: hsl(220, 6%, 75%);
+  --grey-100: hsl(220, 5%, 88%);
+  --grey-50:  hsl(220, 4%, 95%);
+
+  /* ===== BLUE - action, active state, selection ===== */
+  --blue-900: hsl(215, 60%, 18%);
+  --blue-800: hsl(215, 55%, 28%);
+  --blue-700: hsl(215, 52%, 38%);
+  --blue-600: hsl(215, 50%, 48%);
+  --blue-500: hsl(215, 55%, 56%);
+  --blue-400: hsl(215, 60%, 67%);
+  --blue-300: hsl(215, 65%, 77%);
+  --blue-200: hsl(215, 70%, 86%);
+  --blue-100: hsl(215, 75%, 93%);
+
+  /* ===== STATUS - green ===== */
+  --green-700: hsl(145, 55%, 25%);
+  --green-500: hsl(145, 52%, 42%);
+  --green-100: hsl(145, 55%, 92%);
+
+  /* ===== STATUS - amber ===== */
+  --amber-700: hsl(38, 80%, 30%);
+  --amber-500: hsl(38, 85%, 50%);
+  --amber-100: hsl(38, 90%, 93%);
+
+  /* ===== STATUS - red ===== */
+  --red-900:   hsl(5, 65%, 12%);
+  --red-700:   hsl(5, 65%, 30%);
+  --red-500:   hsl(5, 68%, 48%);
+  --red-100:   hsl(5, 70%, 94%);
+
+  /* ===== STATUS - purple (advisory / evidence panels) ===== */
+  --purple-700: hsl(265, 45%, 30%);
+  --purple-500: hsl(265, 48%, 52%);
+  --purple-100: hsl(265, 52%, 94%);
+
+  /* ===== TYPE SCALE ===== */
+  --text-xs:   11px;
+  --text-sm:   13px;
+  --text-base: 15px;
+  --text-md:   17px;
+  --text-lg:   20px;
+  --text-xl:   24px;
+  --text-2xl:  30px;
+  --font-mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+
+  /* ===== SPACING SCALE =====
+     Use for all new margin/padding/gap. Existing rules migrated in Stage 3.
+     Zero and auto are the only permitted raw spacing values.              */
+  --space-1:  2px;
+  --space-2:  4px;
+  --space-3:  6px;
+  --space-4:  8px;
+  --space-5:  12px;
+  --space-6:  16px;
+  --space-7:  20px;
+  --space-8:  24px;
+  --space-9:  32px;
+  --space-10: 40px;
+  --space-11: 48px;
+  --space-12: 64px;
+  --space-13: 80px;
+  --space-14: 96px;
+  --topbar-height: 40px;
+
+  /* ===== SHADOWS - dark-mode adapted (higher opacity than light spec) ===== */
+  --shadow-1: 0 1px 2px hsl(220 15% 0% / 0.30);
+  --shadow-2: 0 2px 4px hsl(220 15% 0% / 0.35);
+  --shadow-3: 0 4px 8px hsl(220 15% 0% / 0.40), 0 1px 3px hsl(220 15% 0% / 0.25);
+  --shadow-4: 0 8px 24px hsl(220 15% 0% / 0.45), 0 2px 6px hsl(220 15% 0% / 0.30);
+  --shadow-5: 0 16px 48px hsl(220 15% 0% / 0.50), 0 4px 12px hsl(220 15% 0% / 0.35);
+
+  /* ===== COMPONENT TOKENS ===== */
+  /* Evidence panel - dark-mode tint (light-mode equivalent: --purple-100) */
+  --evidence-bg: hsl(265, 15%, 14%);
+  /* Focus rings - alpha blends of status colors */
+  --focus-ring:       0 0 0 2px hsl(215, 55%, 56%, 0.22);
+  --focus-ring-error: 0 0 0 2px hsl(5, 68%, 48%, 0.22);
+
+  /* ===== ROW BACKGROUND TOKENS - status row tints and focus-visible rows ===== */
+  /* Defined here as tokens so the dark/light split is maintainable from one place.
+     Light-mode overrides live in the body.light-mode block via higher-specificity rules
+     that already use --amber-100 / --red-100 / --green-100 directly.               */
+  --row-warning-bg:   hsl(38, 28%, 15%);
+  --row-blocked-bg:   hsl(5, 35%, 14%);
+  --row-match-bg:     hsl(145, 28%, 14%);
+  /* Focus-row - semi-transparent blue highlight for keyboard-focused selectable rows */
+  --focus-row-bg:     hsl(215 55% 56% / 0.14);
+  --focus-row-border: hsl(215 55% 56% / 0.65);
+  /* Input inset depth cue - subtle shadow on inputs/textareas against dark surfaces */
+  --shadow-input: inset 0 1px 2px hsl(220 5% 0% / 0.08);
+  /* Sidebar right-edge separation - elevates persistent nav above workspace content */
+  --shadow-sidebar: 2px 0 8px hsl(220 15% 0% / 0.25);
+  /* Drawer overlay/depth tokens used by the per-file settings drawer */
+  --overlay-backdrop-bg: hsl(220 15% 0% / 0.55);
+  --shadow-drawer: -4px 0 24px hsl(220 15% 0% / 0.50);
+}
+
+/* ===== LIGHT MODE - Stage 15 ================================================
+   Triggered by body.light-mode class (set by initThemeToggle in app.js).
+   initThemeToggle honours localStorage first, then system prefers-color-scheme.
+   Grey scale is inverted; status palette tokens are mid-range and kept constant
+   - per-component overrides below flip light-only tokens to dark-on-light.    */
+body.light-mode {
+  color-scheme: light;
+
+  /* Grey scale - inverted so bg/surface tokens are light, text tokens are dark */
+  --grey-900: hsl(220, 4%,  95%);   /* page bg */
+  --grey-800: hsl(220, 5%,  90%);   /* panel bg */
+  --grey-700: hsl(220, 6%,  82%);   /* subtle surface, dividers */
+  --grey-600: hsl(220, 7%,  70%);   /* borders */
+  --grey-500: hsl(220, 8%,  55%);   /* placeholder / hint text */
+  --grey-400: hsl(220, 9%,  42%);   /* de-emphasised labels */
+  --grey-300: hsl(220, 10%, 30%);   /* secondary text */
+  --grey-200: hsl(220, 11%, 20%);   /* primary labels */
+  --grey-100: hsl(220, 13%, 12%);   /* default body text */
+  --grey-50:  hsl(220, 15%, 7%);    /* headings, brand */
+
+  /* Evidence panel tint - light blue on light surfaces (purple used in dark mode only) */
+  --evidence-bg: var(--blue-100);
+
+  /* Shadows - reduced opacity against light backgrounds */
+  --shadow-1: 0 1px 2px hsl(220 15% 10% / 0.08);
+  --shadow-2: 0 2px 4px hsl(220 15% 10% / 0.10);
+  --shadow-3: 0 4px 8px hsl(220 15% 10% / 0.12), 0 1px 3px hsl(220 15% 10% / 0.07);
+  --shadow-4: 0 8px 24px hsl(220 15% 10% / 0.14), 0 2px 6px hsl(220 15% 10% / 0.09);
+  --shadow-5: 0 16px 48px hsl(220 15% 10% / 0.16), 0 4px 12px hsl(220 15% 10% / 0.10);
+
+  /* Focus rings - slightly higher alpha against light backgrounds */
+  --focus-ring:       0 0 0 2px hsl(215, 55%, 56%, 0.35);
+  --focus-ring-error: 0 0 0 2px hsl(5,   68%, 48%, 0.35);
+
+  /* Focus-row light mode - more opaque against light surfaces */
+  --focus-row-bg:     hsl(215 55% 56% / 0.10);
+  --focus-row-border: hsl(215 55% 56% / 0.45);
+  /* Input shadow - reduced on light surfaces */
+  --shadow-input: inset 0 1px 2px hsl(220 5% 0% / 0.06);
+  /* Sidebar right-edge shadow - lighter on light bg */
+  --shadow-sidebar: 2px 0 8px hsl(220 15% 10% / 0.08);
+  --overlay-backdrop-bg: hsl(220 15% 10% / 0.35);
+  --shadow-drawer: -4px 0 24px hsl(220 15% 10% / 0.14);
+}

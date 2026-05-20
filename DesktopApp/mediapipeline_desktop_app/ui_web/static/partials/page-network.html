@@ -1,0 +1,296 @@
+      <section class="page" data-page-panel="network">
+        <h1 class="visually-hidden">Distributed Workers</h1>
+        <div class="metric-grid">
+          <section class="metric">
+            <span class="metric-label">Role</span>
+            <strong id="network-role">standalone</strong>
+          </section>
+          <section class="metric">
+            <span class="metric-label">Coordinator</span>
+            <strong id="network-coordinator-target">not configured</strong>
+          </section>
+          <section class="metric">
+            <span class="metric-label">Worker Poll</span>
+            <strong id="network-worker-poll">not configured</strong>
+          </section>
+          <section class="metric">
+            <span class="metric-label">Local API</span>
+            <strong id="network-local-api">not loaded</strong>
+          </section>
+        </div>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Mode Status</h2>
+            <strong id="network-status">Read-only</strong>
+          </div>
+          <pre id="network-summary" class="prose-block">No network settings loaded.</pre>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" class="secondary-button" data-open-diagnostics="run_logs">Open Run Logs</button>
+            <button type="button" class="secondary-button" data-open-diagnostics="cluster_log">Open Cluster Log</button>
+            <button type="button" class="secondary-button" data-open-diagnostics="active_jobs">Open Active Jobs</button>
+            <button type="button" class="secondary-button" data-open-diagnostics="config">Open Config</button>
+            <button type="button" class="secondary-button" data-open-diagnostics="state">Open State Folder</button>
+          </div>
+        </section>
+
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Worker Mode Settings <span class="impact-chip" data-impact="medium" title="Network / runtime config - standalone, coordinator, worker, polling, and connection timeouts">Medium Impact</span></h2>
+            <strong id="settings-network-builder-status">No worker settings staged</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label>
+              Network role
+              <select id="settings-network-role">
+                <option value="standalone">Standalone</option>
+                <option value="coordinator">Coordinator</option>
+                <option value="worker">Worker</option>
+              </select>
+            </label>
+            <label>
+              Coordinator port
+              <input id="settings-network-coordinator-port" type="number" min="1" max="65535" step="1">
+            </label>
+            <label>
+              Coordinator bind address
+              <input id="settings-network-bind-address" type="text" autocomplete="off" spellcheck="false">
+            </label>
+            <label>
+              Heartbeat timeout min
+              <input id="settings-network-heartbeat-timeout" type="number" min="1" step="1">
+            </label>
+            <label>
+              Worker coordinator URL
+              <input id="settings-network-worker-url" type="text" autocomplete="off" spellcheck="false" placeholder="http://192.168.1.50:7830">
+            </label>
+            <label>
+              Worker name
+              <input id="settings-network-worker-name" type="text" autocomplete="off" spellcheck="false">
+            </label>
+            <label>
+              Worker poll interval s
+              <input id="settings-network-worker-poll" type="number" min="5" step="1">
+            </label>
+            <label class="check-row launch-check-row">
+              <input id="settings-network-coordinator-local-encode" type="checkbox"> Coordinator also encodes locally
+            </label>
+          </div>
+          <label class="full-field">
+            Worker source path map JSON
+            <textarea id="settings-network-path-map" rows="3" spellcheck="false" placeholder='{"C:\\Encode": "\\\\SERVER\\Share\\Encode"}'></textarea>
+          </label>
+          <label class="full-field">
+            Per-worker config overrides JSON
+            <textarea id="settings-network-worker-overrides" rows="3" spellcheck="false" placeholder='{"BEAST-PC": {"VideoPreset": "p4"}}'></textarea>
+          </label>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" id="settings-network-apply-button" class="secondary-button">Stage Worker Settings</button>
+            <button type="button" id="settings-network-reset-button" class="secondary-button">Reset From Current</button>
+            <button type="button" id="network-settings-preview-button" class="secondary-button">Preview Settings Patch</button>
+            <button type="button" id="network-settings-save-button" class="primary-button">Save Worker Settings</button>
+          </div>
+          <pre id="settings-network-guidance" class="prose-block">No worker-mode guidance loaded.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Backend Settings Patch</h3>
+            <strong id="network-settings-control-status">No patch</strong>
+          </div>
+          <pre id="network-settings-patch-handoff" class="prose-block">Stage worker mode settings, preview the backend patch, then save when the diff is correct.</pre>
+          <p class="note">These controls stage and save config only. Starting, stopping, claiming, reclaiming, or aborting coordinator/worker runtime remains backend-owned and is not exposed here.</p>
+        </section>
+
+<section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Readiness</h2>
+            <strong id="network-readiness-status">Checking</strong>
+          </div>
+          <pre id="network-readiness-summary" class="prose-block">No network readiness data loaded.</pre>
+        </section>
+
+<section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Worker State</h2>
+            <strong id="network-worker-status">Not loaded</strong>
+          </div>
+          <pre id="network-worker-summary" class="prose-block">No worker runtime state loaded.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Worker Progress</h3>
+            <strong id="network-worker-progress-status">Not loaded</strong>
+          </div>
+          <div id="network-worker-progress-bars" class="progress-bar-list" aria-live="polite">
+            <p class="note">No worker progress loaded.</p>
+          </div>
+          <pre id="network-worker-progress-summary" class="prose-block">No worker progress loaded.</pre>
+          <div class="option-grid option-grid-compact">
+            <label>
+              Worker status
+              <select id="network-worker-status-filter">
+                <option value="">All worker rows</option>
+                <option value="active">Active or claimed</option>
+                <option value="idle">Idle or complete</option>
+                <option value="problem">Stale, offline, or failed</option>
+                <option value="unknown">Unknown</option>
+              </select>
+            </label>
+            <label>
+              Search
+              <input id="network-worker-filter" type="search" autocomplete="off" placeholder="Worker, job, file, stage, error">
+            </label>
+          </div>
+          <p id="network-worker-filter-summary" class="note">No worker filters applied.</p>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Worker</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">File</th>
+                  <th scope="col" class="num">Progress</th>
+                  <th scope="col" class="num">Heartbeat</th>
+                  <th scope="col" class="num">Done</th>
+                  <th scope="col" class="num">GB</th>
+                  <th scope="col" class="num">GB/h</th>
+                  <th scope="col">Stage</th>
+                </tr>
+              </thead>
+              <tbody id="network-worker-rows">
+                <tr><td colspan="9">No worker runtime state loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No workers</span>
+            <span class="empty-state-hint">Worker rows appear here when distributed mode is active and workers are registered.</span>
+          </div>
+          </div>
+          <p id="network-worker-table-legend" class="note table-legend">Worker rows: no selectable rows.</p>
+          <pre id="network-worker-detail" class="prose-block">No network worker row selected.</pre>
+        </section>
+
+<section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Network Config</h2>
+            <strong id="network-settings-status">No rows</strong>
+          </div>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Section</th>
+                  <th scope="col">Setting</th>
+                  <th scope="col">Value</th>
+                  <th scope="col">Purpose</th>
+                </tr>
+              </thead>
+              <tbody id="network-settings-rows">
+                <tr><td colspan="4">No network settings loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No network config</span>
+            <span class="empty-state-hint">Network settings appear here when the backend loads with distributed mode configured.</span>
+          </div>
+          </div>
+        </section>
+
+<section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Open History</h2>
+            <strong id="network-open-history-status">No opens</strong>
+          </div>
+          <pre id="network-open-history" class="prose-block">No network diagnostics open command history loaded.</pre>
+        </section>
+
+<section class="panel" data-advanced data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Lifecycle Handoff</h2>
+            <strong id="network-lifecycle-status">Not loaded</strong>
+          </div>
+          <pre id="network-lifecycle-summary" class="prose-block">No network lifecycle handoff loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Gate</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Safe Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="network-lifecycle-rows">
+                <tr><td colspan="4">No network lifecycle handoff rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No lifecycle data</span>
+            <span class="empty-state-hint">Lifecycle handoff rows appear when a distributed job is active or recently completed.</span>
+          </div>
+          </div>
+          <p id="network-lifecycle-legend" class="note table-legend">Network lifecycle handoff rows are read-only and cannot start, stop, reclaim, release, abort, or mutate distributed work.</p>
+          <pre id="network-lifecycle-detail" class="prose-block">No network lifecycle handoff row selected.</pre>
+        </section>
+
+<section class="panel" data-advanced data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Evidence Checklist</h2>
+            <strong id="network-evidence-status">Not loaded</strong>
+          </div>
+          <pre id="network-evidence-summary" class="prose-block">No network evidence checklist loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Checkpoint</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Safe Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="network-evidence-rows">
+                <tr><td colspan="4">No network evidence rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No evidence</span>
+            <span class="empty-state-hint">Network evidence rows appear when distributed mode is active.</span>
+          </div>
+          </div>
+          <p id="network-evidence-legend" class="note table-legend">Network evidence rows: no selectable rows.</p>
+          <pre id="network-evidence-detail" class="prose-block">No network evidence row selected.</pre>
+        </section>
+
+<section class="panel" data-advanced data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>State Files</h2>
+            <strong id="network-state-files-status">Not loaded</strong>
+          </div>
+          <pre id="network-state-files-summary" class="prose-block">No network runtime state file evidence loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">File</th>
+                  <th scope="col">Status</th>
+                  <th scope="col" class="num">Age</th>
+                  <th scope="col">Purpose</th>
+                </tr>
+              </thead>
+              <tbody id="network-state-files-rows">
+                <tr><td colspan="4">No network runtime state files loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No state files</span>
+            <span class="empty-state-hint">Network runtime state files appear when a distributed job has run.</span>
+          </div>
+          </div>
+          <p id="network-state-files-legend" class="note table-legend">Network runtime state file rows: no selectable rows.</p>
+          <pre id="network-state-files-detail" class="prose-block">No network runtime state file selected.</pre>
+        </section>
+
+<section class="panel" data-advanced data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>API Contract</h2>
+            <strong id="network-api-status">Not loaded</strong>
+          </div>
+          <pre id="network-api-summary" class="prose-block">No local API contract loaded.</pre>
+        </section>
+      </section>

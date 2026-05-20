@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.mediapipeline/schemas/media_pipeline_process_file_result.v1.schema.json",
+  "title": "MediaPipeline Process File Result",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "SchemaVersion",
+    "Success",
+    "Status",
+    "QueueTerminal",
+    "Retryable",
+    "SourcePath",
+    "SourceName"
+  ],
+  "properties": {
+    "SchemaVersion": { "type": "string", "const": "process_file_result.v1" },
+    "Success": { "type": "boolean" },
+    "Status": { "type": "string", "enum": [ "processed", "skipped", "failed", "stopped" ] },
+    "QueueTerminal": { "type": "boolean" },
+    "Retryable": { "type": "boolean" },
+    "Reason": { "type": "string" },
+    "ErrorCode": { "type": "string" },
+    "SourcePath": { "type": "string", "minLength": 1 },
+    "SourceName": { "type": "string" },
+    "Route": { "type": "string" },
+    "RouteReasonCode": { "type": "string" },
+    "RouteReason": { "type": "string" },
+    "PublishState": { "type": "string" },
+    "PublishMode": { "type": "string" },
+    "OutputPath": { "type": "string" },
+    "OutputSizeBytes": { "type": "integer", "minimum": 0 }
+  }
+}

@@ -1,0 +1,1620 @@
+# WebView DOM ID Inventory
+
+Date: 2026-05-20
+
+Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `DesktopApp/mediapipeline_desktop_app/ui_web/static/index.html` and `assets/*.js`.
+
+Total unique element IDs: 1071. IDs are grouped by prefix (owning module/page).
+
+---
+
+## Naming Convention
+
+IDs follow a `{page-or-section}-{semantic-role}` naming pattern. The prefix identifies the owning page or subsystem. IDs that cross pages (e.g., `command-*`, `diagnostics-*`) are owned by shared modules that render into the DOM of multiple pages.
+
+---
+
+## Topbar / App Shell — owner: `app.js`
+
+These IDs live in the persistent topbar and sidebar, visible on all pages.
+
+| ID | Element | Purpose |
+|---|---|---|
+| `app-version` | `<div>` | Version badge ("V5") in sidebar brand |
+| `state-pill` | `<div>` | Pipeline state pill in topbar |
+| `activity` | `<h1>` | Activity status heading |
+| `refresh-health` | `<span>` | Auto-refresh health indicator |
+| `close-readiness` | `<span>` | Backend close-readiness badge; click navigates to Diagnostics (S15) |
+| `pipeline-sparkline` | `<div>` | Last 20 pipeline events rendered as coloured `.spark` squares (S45); between close-readiness and advanced-toggle |
+| `advanced-toggle` | `<button>` | Advanced-mode gate toggle; persisted in localStorage under `mediapipeline-advanced-mode`; sets `aria-pressed` and `.advanced-mode` on `<body>` |
+| `refresh-button` | `<button>` | Manual refresh trigger |
+| `backend-shutdown-button` | `<button>` | Backend graceful shutdown trigger |
+| `backend-lifecycle-status` | `<strong>` | Shutdown/lifecycle result status |
+| `backend-lifecycle-history` | `<div>` | Shutdown history detail |
+| `backend-lifecycle-summary` | `<div>` | Lifecycle state summary |
+
+---
+
+## Home Page — owner: `app.js`, `crossPageContextView.js`
+
+| ID | Element | Purpose |
+|---|---|---|
+| `pipeline-state` | `<strong>` | Pipeline state metric |
+| `queue-count` | `<strong>` | Queue count metric |
+| `processed-count` | `<strong>` | Processed count metric |
+| `failed-count` | `<strong>` | Failed count metric |
+| `home-readiness-status` | `<strong>` | Operator readiness status badge |
+| `home-readiness-summary` | `<pre>` | Operator readiness text block |
+| `home-pending-count` | `<strong>` | Pending parked count metric chip — updated by `renderHomePendingCount` |
+| `home-failed-count` | `<strong>` | Failed-file count metric chip — updated by `renderSnapshot` from `snapshot.counts.failed` (swapped for `home-network-role` in UI refactor phase 1) |
+| `home-queue-snapshot-status` | `<strong>` | Queue snapshot panel status badge |
+| `home-queue-snapshot` | `<pre>` | Queue snapshot compact text block — updated by `renderHomeQueueSnapshot` |
+| `home-recent-completed-status` | `<strong>` | Recently completed panel status badge |
+| `home-recent-completed-tbody` | `<tbody>` | Recently completed compact table body (last 5 rows) — updated by `renderHomeRecentCompleted` |
+| `daily-driver-status` | `<strong>` | Daily-driver checklist status badge |
+| `daily-driver-summary` | `<pre>` | Daily-driver checklist summary |
+| `daily-driver-rows` | `<tbody>` | Daily-driver checklist table body |
+| `daily-driver-legend` | `<p>` | Read-only mutation boundary legend |
+| `cross-page-conflict-rows` | `<tbody>` | Cross-page conflict rows |
+| `cross-page-sample-rows` | `<tbody>` | Cross-page sample records |
+| `cross-page-real-media-rows` | `<tbody>` | Cross-page real-media evidence rows |
+| `sample-validation-decision` | input/select | Sample validation decision field |
+| `sample-validation-notes` | textarea | Sample validation notes field |
+| `sample-validation-execution-status` | `<strong>` | Operator sample execution checklist status |
+| `sample-validation-execution-summary` | `<pre>` | Backend-authored sample execution checklist summary |
+| `sample-validation-execution-rows` | `<tbody>` | Operator sample execution checklist table body |
+| `sample-validation-execution-legend` | `<p>` | Sample execution checklist selectable-row legend |
+| `sample-validation-execution-detail` | `<pre>` | Selected sample execution checklist detail |
+| `sample-validation-worksheet-status` | `<strong>` | Generated pilot worksheet status badge |
+| `sample-validation-worksheet-summary` | `<pre>` | Generated worksheet evidence summary |
+| `sample-validation-worksheet-rows` | `<tbody>` | Generated pilot worksheet table body |
+| `sample-validation-worksheet-legend` | `<p>` | Generated worksheet selectable-row legend |
+| `sample-validation-worksheet-detail` | `<pre>` | Selected generated worksheet detail |
+| `sample-validation-records` | `<div>` | Sample validation records display |
+| `sample-validation-preview-button` | `<button>` | Trigger `/api/sample-validation/preview` |
+
+---
+
+## Live / Progress Page — owner: `progressView.js`
+
+| ID | Element | Purpose |
+|---|---|---|
+| `active-jobs` | `<div>` | Active jobs container |
+| `active-job-detail` | `<div>` | Selected active job detail panel |
+| `active-job-detail-rows` | `<tbody>` | Active job detail table body |
+| `active-job-detail-status` | `<strong>` | Active job detail status badge |
+| `active-job-diagnostics-actions` | `<div>` | Diagnostics action links for active job |
+| `active-job-table-legend` | `<p>` | Legend for active job table |
+
+---
+
+## Queue Page — owner: `queueView.js`
+
+| ID | Element | Purpose |
+|---|---|---|
+| `queue-filter` | `<input>` | Queue text filter |
+| `queue-status-filter` | `<select>` | Queue status filter dropdown |
+| `queue-investigation-filter` | `<select>` | Queue investigation filter dropdown |
+| `queue-clear-filters-button` | `<button>` | Clear all queue filters |
+| `queue-rows` | `<tbody>` | Queue table body |
+| `queue-selected-status` | `<strong>` | Selected queue row at-a-glance status |
+| `queue-selected-summary` | `<pre>` | Selected queue row at-a-glance summary |
+| `queue-backend-scope-status` | `<strong>` | Backend launch scope preview status |
+| `queue-backend-scope-summary` | `<pre>` | Backend launch route/scope/filter/selection summary |
+| `queue-backend-scope-rows` | `<tbody>` | Backend launch scope evidence rows |
+| `queue-backend-scope-legend` | `<p>` | Read-only launch scope boundary legend |
+
+---
+
+## Completed Page — owner: `completedView.js`
+
+| ID | Element | Purpose |
+|---|---|---|
+| `completed-filter` | `<input>` | Completed text filter |
+| `completed-status-filter` | `<select>` | Status filter |
+| `completed-investigation-filter` | `<select>` | Investigation filter |
+| `completed-clear-filters-button` | `<button>` | Clear all completed filters |
+| `completed-rows` | `<tbody>` | Main completed table body |
+| `completed-count` | `<strong>` | Total completed count |
+| `completed-remux-count` | `<strong>` | Remux count |
+| `completed-encode-count` | `<strong>` | Encode count |
+| `completed-missing-count` | `<strong>` | Missing output count |
+| `completed-selected-status` | `<strong>` | Selected completed row at-a-glance status |
+| `completed-selected-summary` | `<pre>` | Selected completed row at-a-glance summary |
+| `completed-detail` | `<div>` | Selected row detail panel |
+| `completed-open-status` | `<span>` | Open operation status |
+| `completed-open-history` | `<div>` | Open operation history |
+| `completed-diagnostics-actions` | `<div>` | Diagnostics handoff actions |
+| `completed-diagnostics-guidance` | `<div>` | Diagnostics guidance text |
+| `completed-diagnostics-status` | `<strong>` | Diagnostics status badge |
+| `completed-breakdown` | `<div>` | Completed breakdown panel |
+| `completed-breakdown-status` | `<strong>` | Breakdown status |
+| `completed-review-board` | `<div>` | Review board panel |
+| `completed-review-rows` | `<tbody>` | Review rows |
+| `completed-review-legend` | `<p>` | Review legend |
+| `completed-review-status` | `<strong>` | Review status |
+| `completed-filter-summary` | `<div>` | Filter scope summary |
+| `completed-size-evidence-rows` | `<tbody>` | Size evidence rows |
+| `completed-size-evidence-status` | `<strong>` | Size evidence status |
+| `completed-size-evidence-summary` | `<div>` | Size evidence summary |
+| `completed-size-evidence-detail` | `<div>` | Size evidence detail |
+| `completed-size-evidence-legend` | `<p>` | Size evidence legend |
+| `completed-real-media-proof-rows` | `<tbody>` | Real-media proof ladder rows |
+| `completed-real-media-proof-status` | `<strong>` | Proof ladder status |
+| `completed-real-media-proof-summary` | `<div>` | Proof ladder summary |
+| `completed-real-media-proof-detail` | `<div>` | Proof detail |
+| `completed-real-media-proof-legend` | `<p>` | Proof legend |
+| `completed-output-acceptance-rows` | `<tbody>` | Output acceptance rows |
+| `completed-output-acceptance-status` | `<strong>` | Acceptance status |
+| `completed-output-acceptance-summary` | `<div>` | Acceptance summary |
+| `completed-output-acceptance-detail` | `<div>` | Acceptance detail |
+| `completed-output-acceptance-legend` | `<p>` | Acceptance legend |
+| `completed-route-agreement-rows` | `<tbody>` | Route agreement rows |
+| `completed-route-agreement-status` | `<strong>` | Route agreement status |
+| `completed-route-agreement-summary` | `<div>` | Route agreement summary |
+| `completed-route-agreement-detail` | `<div>` | Route agreement detail |
+| `completed-route-agreement-legend` | `<p>` | Route agreement legend |
+| `completed-pending-proof-rows` | `<tbody>` | Completed-to-pending overlap proof rows |
+| `completed-pending-proof-status` | `<strong>` | Overlap proof status |
+| `completed-pending-proof-summary` | `<div>` | Overlap proof summary |
+| `completed-pending-proof-detail` | `<div>` | Overlap proof detail |
+| `completed-pending-proof-legend` | `<p>` | Overlap proof legend |
+| `completed-consistency` | `<div>` | Consistency panel |
+| `completed-consistency-status` | `<strong>` | Consistency status |
+| `completed-integrity` | `<div>` | Integrity panel |
+| `completed-integrity-status` | `<strong>` | Integrity status |
+| `completed-runtime` | `<div>` | Runtime evidence panel |
+| `completed-runtime-status` | `<strong>` | Runtime status |
+| `publish-reconciliation-rows` | `<tbody>` | Backend Publish Reconciliation rows |
+| `publish-reconciliation-refresh-button` | `<button>` | Trigger `/api/publish-reconciliation` (GET) |
+
+---
+
+## Pending Publish Page — owner: `pendingPublishView.js`
+
+| ID | Element | Purpose |
+|---|---|---|
+| `pending-filter` | `<input>` | Pending text filter |
+| `pending-status-filter` | `<select>` | Status filter |
+| `pending-investigation-filter` | `<select>` | Investigation filter |
+| `pending-clear-filters-button` | `<button>` | Clear all pending filters |
+| `pending-selected-status` | `<strong>` | Selected pending row at-a-glance status |
+| `pending-selected-summary` | `<pre>` | Selected pending row at-a-glance summary |
+| `pending-open-status` | `<span>` | Open operation status |
+| `pending-recovery-plan-status` | `<span>` | Recovery plan status |
+| `pending-recovery-plan-selected-button` | `<button>` | Trigger recovery-plan for selected row |
+| `pending-recovery-plan-all-button` | `<button>` | Trigger recovery-plan for all |
+| `pending-backend-scope-status` | `<strong>` | Backend drain scope preview status |
+| `pending-backend-scope-summary` | `<pre>` | Backend drain route/scope/filter/selection summary |
+| `pending-backend-scope-rows` | `<tbody>` | Backend drain scope evidence rows |
+| `pending-backend-scope-legend` | `<p>` | Read-only drain scope boundary legend |
+| `pending-drain-button` | `<button>` | Publish Parked Outputs (guarded) |
+| `pending-drain-detail` | `<div>` | Drain request detail |
+
+---
+
+## Rename Page — owner: `renameView.js`
+
+| ID | Element | Purpose |
+|---|---|---|
+| `rename-preview-button` | `<button>` | Trigger `/api/rename/preview` |
+| `rename-add-path-input` | `<input>` | Add an operator-selected media path to the rename list |
+| `rename-browse-files-button` | `<button>` | Open backend-owned Windows file browser for Rename source files |
+| `rename-browse-folder-button` | `<button>` | Open backend-owned Windows folder browser for a Rename source folder |
+| `rename-add-path-button` | `<button>` | Add the typed media path to the rename textarea |
+| `rename-apply-selected-button` | `<button>` | Trigger `/api/rename/apply` (guarded) |
+| `rename-check-applicable-button` | `<button>` | Check applicable rows |
+| `rename-clear-checks-button` | `<button>` | Clear checked rows |
+| `rename-move-checked-up-button` | `<button>` | Move checked rows up |
+| `rename-move-checked-down-button` | `<button>` | Move checked rows down |
+| `rename-natural-sort-button` | `<button>` | Apply natural sort |
+| `rename-bulk-scope` | `<select>` | Bulk operation scope selector |
+| `rename-bulk-stage-button` | `<button>` | Stage bulk rename |
+| `rename-bulk-use-pipeline-button` | `<button>` | Use pipeline name for bulk |
+| `rename-bulk-force-button` | `<button>` | Force pipeline name |
+| `rename-bulk-clear-force-button` | `<button>` | Clear force |
+| `rename-bulk-clear-button` | `<button>` | Clear bulk |
+| `rename-save-override-button` | `<button>` | Save sidecar override |
+| `rename-clear-override-button` | `<button>` | Clear sidecar override |
+| `rename-status` | `<span>` | Rename operation status |
+| `rename-apply-outcome-status` | `<strong>` | Rename apply outcome review status |
+| `rename-apply-outcome-summary` | `<pre>` | Rename apply outcome review summary |
+| `rename-apply-outcome-rows` | `<tbody>` | Rename apply outcome review rows |
+| `rename-apply-outcome-legend` | `<p>` | Rename apply outcome read-only guardrail |
+
+---
+
+## Launch Page — owner: `launchView.js`
+
+| ID | Element | Purpose |
+|---|---|---|
+| `pipeline-start-button` | `<button>` | Trigger `/api/pipeline/start` |
+| `pipeline-launch-detail` | `<div>` | Launch request detail |
+| `pipeline-launch-status` (inferred) | `<span>` | Launch status |
+| `launch-sample-execution-status` | `<strong>` | Launch sample execution checklist status |
+| `launch-sample-execution-summary` | `<pre>` | Launch sample execution checklist summary |
+| `launch-sample-execution-rows` | `<tbody>` | Launch sample execution checklist table body |
+| `launch-sample-execution-legend` | `<p>` | Launch sample execution checklist selectable-row legend |
+| `launch-sample-execution-detail` | `<pre>` | Selected Launch sample execution checklist detail |
+| `launch-start-decision-status` | `<strong>` | Compact Launch start decision rollup status |
+| `launch-start-decision-summary` | `<pre>` | Launch start decision summary text |
+| `launch-start-decision-rows` | `<tbody>` | Launch start decision signal table body |
+| `launch-start-decision-legend` | `<p>` | Launch start decision selectable-row legend |
+| `launch-start-decision-detail` | `<pre>` | Selected Launch start decision signal detail |
+| `control-readiness-status` | `<strong>` | Launch-owned pipeline control readiness status |
+| `control-status` | `<span>` | Control flag status |
+| `control-history` | `<pre>` | Pipeline control command history |
+| `status-summary` | `<pre>` | Hidden status summary consumed by control evidence |
+| `control-readiness` | `<pre>` | Hidden pipeline control readiness detail |
+| `audit-start-button` | `<button>` | Trigger `/api/audit/start` |
+| `audit-start-include-sidecars` | `<input>` | Audit include-sidecars option |
+| `audit-start-library-root` | `<input>` | Audit library root option |
+| `audit-start-show-console` | `<input>` | Audit show-console option |
+| `audit-launch-detail` | `<div>` | Audit launch detail |
+| `audit-launch-status` | `<span>` | Audit launch status |
+| `audit-launch-preflight` | `<div>` | Audit preflight result |
+| `rerun-start-button` | `<button>` | Trigger `/api/rerun/start` |
+| `rerun-launch-detail` | `<div>` | Rerun launch detail |
+| `rerun-launch-status` (inferred) | `<span>` | Rerun launch status |
+| `pending-drain-detail` | `<div>` | Pending drain launch detail |
+| `launch-scope-reconciliation-status` | `<strong>` | Launch Scope Reconciliation read-only status badge |
+| `launch-scope-reconciliation-summary` | `<pre>` | Launch Scope Reconciliation summary text |
+| `launch-scope-reconciliation-rows` | `<tbody>` | Launch Scope Reconciliation table body |
+| `launch-scope-reconciliation-legend` | `<p>` | Launch Scope Reconciliation selectable-row legend |
+| `launch-scope-reconciliation-detail` | `<pre>` | Selected Launch Scope Reconciliation row detail |
+| `launch-real-media-proof-status` | `<strong>` | Launch Real-Media Sample Proof Handoff status badge |
+| `launch-real-media-proof-summary` | `<pre>` | Launch Real-Media Sample Proof Handoff summary text |
+| `launch-real-media-proof-rows` | `<tbody>` | Launch Real-Media Sample Proof Handoff table body |
+| `launch-real-media-proof-legend` | `<p>` | Launch Real-Media Sample Proof Handoff selectable-row legend |
+| `launch-real-media-proof-detail` | `<pre>` | Selected Launch Real-Media Sample Proof row detail |
+| `launch-evidence-section` | `<section>` | Settings Check panel wrapper; receives `id` for collapse state tracking (S3) |
+| `launch-evidence-body` | `<div>` | Collapsible body of the Settings Check panel; `is-collapsed` class hides it (S3) |
+| `launch-evidence-toggle` | `<button>` | Collapse/Expand toggle button in Settings Check heading; `aria-expanded` tracks state (S3) |
+| `launch-settings-trust-status` | `<strong>` | Settings trust status in Settings Check heading |
+
+---
+
+## Audit / Reports Page — owner: `reportsView.js`
+
+| ID | Element | Purpose |
+|---|---|---|
+| `audit-preview-rows` | `<tbody>` | Audit CSV preview rows |
+| `audit-preview-filter` | `<input>` | Audit preview text filter |
+| `audit-preview-priority-only` | `<input>` | Priority-only filter checkbox |
+| `audit-preview-status` | `<strong>` | Audit preview status |
+| `audit-preview-summary` | `<div>` | Audit preview summary |
+| `audit-preview-detail` | `<div>` | Audit preview detail |
+| `audit-preview-diagnostics-actions` | `<div>` | Diagnostics handoff for audit |
+| `audit-preview-table-legend` | `<p>` | Audit table legend |
+| `audit-review-board` | `<div>` | Audit review board panel |
+| `audit-review-status` | `<strong>` | Audit review status |
+| `failure-clear-all-button` | `<button>` | Confirm clearing all loaded failure marker retry blockers |
+| `failure-clear-status` | `<strong>` | Failure marker clear result status |
+| `failure-clear-summary` | `<pre>` | Failure marker clear preview/result summary |
+| `failure-clear-selected-button` | `<button>` | Confirm clearing selected failure marker retry blockers |
+| `failure-clear-visible-button` | `<button>` | Confirm clearing visible failure marker retry blockers |
+| `failure-filter` | `<input>` | Failure text filter |
+| `failure-preview-all-clear-button` | `<button>` | Preview clearing all loaded failure marker retry blockers |
+| `failure-preview-selected-clear-button` | `<button>` | Preview clearing selected failure marker retry blockers |
+| `failure-preview-visible-clear-button` | `<button>` | Preview clearing visible failure marker retry blockers |
+| `failure-source-markers` | `<div>` | Failure source markers |
+
+---
+
+## Schedule Page — owner: `scheduleView.js`
+
+| ID | Element | Purpose |
+|---|---|---|
+| `schedule-editor-status` | `<span>` | Schedule editor status |
+
+---
+
+## Diagnostics Page — owner: `diagnosticsView.js`, `commandHistory.js`
+
+| ID | Element | Purpose |
+|---|---|---|
+| `diagnostics-first-response-status` | `<strong>` | First response checklist status badge |
+| `diagnostics-first-response-summary` | `<div>` | First response checklist summary |
+| `diagnostics-first-response-rows` | `<tbody>` | First response checklist rows |
+| `diagnostics-first-response-legend` | `<p>` | First response checklist read-only guardrail |
+| `diagnostics-first-response-detail` | `<pre>` | Selected first-response row detail and read-only mutation boundary |
+| `diagnostics-command-owner-rows` | `<tbody>` | Command owner rows in diagnostics |
+| `diagnostics-command-drilldown-rows` | `<tbody>` | Command drilldown rows |
+| `diagnostics-command-drilldown-actions` | `<div>` | Drilldown action links |
+| `diagnostics-command-evidence-rows` | `<tbody>` | Command evidence rows |
+| `diagnostics-command-resolution-status` | `<strong>` | Resolution status badge |
+| `diagnostics-command-resolution-rows` | `<tbody>` | Resolution detail rows |
+
+---
+
+## Settings Page — owner: `settingsView.js`
+
+| ID | Element | Purpose |
+|---|---|---|
+| `settings-status` | `<span>` | Settings operation status |
+| `settings-patch-detail` | `<div>` | Patch detail display |
+| `settings-effective-policy-status` | `<strong>` | Effective policy trust status badge |
+| `settings-effective-policy-summary` | `<pre>` | Saved-vs-staged policy trust summary |
+| `settings-effective-policy-rows` | `<tbody>` | Effective policy trust checkpoint rows |
+| `settings-effective-policy-legend` | `<p>` | Effective policy read-only boundary legend |
+| `settings-effective-policy-detail` | `<pre>` | Selected effective policy checkpoint detail |
+| `settings-subtitle-bdpgs-ocr-tool-path` | `<input>` | Subtitle builder staged BDPGS OCR tool path |
+| `settings-subtitle-bdpgs-ocr-tessdata-path` | `<input>` | Subtitle builder staged BDPGS tessdata path |
+| `settings-subtitle-sdh-keywords` | `<input>` | Subtitle builder staged SDH title keyword list |
+| `settings-subtitle-supplemental-keywords` | `<input>` | Subtitle builder staged supplemental title keyword list |
+
+---
+
+## Command History — owner: `commandHistory.js` (shared across pages)
+
+| ID | Element | Purpose |
+|---|---|---|
+| `command-rows` | `<tbody>` | Command journal rows |
+| `command-status` | `<strong>` | Command journal status badge |
+| `command-summary` | `<div>` | Command journal summary |
+| `command-detail` | `<div>` | Selected command detail |
+| `command-diagnostics-actions` | `<div>` | Diagnostics handoff from command |
+| `command-table-legend` | `<p>` | Command table legend |
+
+---
+
+## Maintenance Page — owner: `maintenanceView.js`
+
+| ID | Element | Purpose |
+|---|---|---|
+| `maintenance-refresh-button` | `<button>` | Trigger `GET /api/maintenance` |
+| `release-dry-run-button` | `<button>` | Trigger `/api/maintenance/release-dry-run` |
+| `release-dry-run-detail` | `<div>` | Dry-run result detail |
+| `release-dry-run-status` | `<span>` | Dry-run status |
+| `backfill-dry-run-button` | `<button>` | Trigger `/api/maintenance/completed-backfill-dry-run` |
+| `backfill-dry-run-detail` | `<div>` | Backfill dry-run result detail |
+| `backfill-dry-run-status` | `<span>` | Backfill status |
+
+---
+
+## API Contract Page — owner: `contractView.js`
+
+| ID | Element | Purpose |
+|---|---|---|
+| `api-contract` | `<div>` | API contract container |
+| `api-contract-rows` | `<tbody>` | Contract route rows |
+| `api-contract-method` | `<select>` | Method filter (GET/POST) |
+| `api-contract-scope` | `<select>` | Scope filter |
+| `api-contract-filter` | `<input>` | Text filter |
+| `api-contract-detail` | `<div>` | Selected route detail |
+| `api-contract-status` | `<strong>` | Contract load status |
+| `api-contract-table-legend` | `<p>` | Contract table legend |
+
+---
+
+## ID Ownership Summary
+
+| ID Prefix | Owning Module | Page |
+|---|---|---|
+| `active-job-*` | `progressView.js` | Live |
+| `activity` | `app.js` | All (topbar) |
+| `api-contract-*` | `contractView.js` | Maintenance |
+| `app-version` | `app.js` | All (sidebar) |
+| `audit-launch-*`, `audit-start-*` | `launchView.js` | Launch |
+| `audit-preview-*`, `audit-review-*` | `reportsView.js` | Reports |
+| `backend-lifecycle-*`, `backend-shutdown-*` | `app.js` | All (topbar) |
+| `backfill-dry-run-*` | `maintenanceView.js` | Maintenance |
+| `close-readiness` | `app.js` | All (topbar) |
+| `command-*` | `commandHistory.js` | Cross-page |
+| `completed-*` | `completedView.js` | Completed |
+| `cross-page-*` | `crossPageContextView.js` | Home |
+| `daily-driver-*` | `app.js` + `crossPageContextView.js` | Home |
+| `diagnostics-command-*` | `commandHistory.js` | Diagnostics |
+| `failed-count` | `app.js` | Home |
+| `failure-*` | `reportsView.js` | Reports |
+| `home-readiness-*` | `crossPageContextView.js` | Home |
+| `maintenance-refresh-*` | `maintenanceView.js` | Maintenance |
+| `pending-*` | `pendingPublishView.js` | Pending Publish |
+| `launch-real-media-proof-*` | `launchView.js` | Launch |
+| `launch-sample-execution-*` | `launchView.js` | Launch |
+| `launch-start-decision-*` | `launchView.js` | Launch |
+| `launch-scope-reconciliation-*` | `launchView.js` | Launch |
+| `pipeline-launch-*`, `pipeline-start-*` | `launchView.js` | Launch |
+| `pipeline-state` | `app.js` | Home |
+| `processed-count`, `queue-count` | `app.js` | Home |
+| `publish-reconciliation-*` | `completedView.js` | Completed |
+| `queue-*` | `queueView.js` | Queue |
+| `refresh-button`, `refresh-health` | `app.js` | All (topbar) |
+| `release-dry-run-*` | `maintenanceView.js` | Maintenance |
+| `rename-*` | `renameView.js` | Rename |
+| `rerun-*` | `launchView.js` | Launch |
+| `sample-validation-*` | `crossPageContextView.js` | Home |
+| `schedule-*` | `scheduleView.js` | Schedule |
+| `settings-*` | `settingsView.js` | Settings |
+| `state-pill` | `app.js` | All (topbar) |
+| `telemetry-*` | `telemetryView.js` | Home |
+
+---
+
+## Rules for Future ID Additions
+
+From `archive/admin-audits/WEBVIEW_DOM_ID_NAMESPACE_AUDIT.md`:
+
+- All IDs must use the `{page}-{role}` pattern matching the owning page/section prefix.
+- No global/generic IDs (e.g., `status`, `detail`, `loading`).
+- IDs within a shared module (e.g., `commandHistory.js`) must use a prefix that does not conflict with any page prefix.
+- New shared-module IDs should use a prefix different from all existing page prefixes.
+
+---
+
+## See Also
+
+- DOM ID namespace audit: `Docs/archive/admin-audits/WEBVIEW_DOM_ID_NAMESPACE_AUDIT.md`
+- Frontend module sizes: `Docs/archive/completed-audits/FRONTEND_MODULE_SIZE_COHESION_REPORT.md`
+- Mutation boundary review: `Docs/archive/completed-audits/WEBVIEW_APIPOST_MUTATION_REVIEW.md`
+
+---
+
+## Delta Review — 2026-05-15 (CLN3-005)
+
+Added 10 missing Launch page DOM IDs for two new panels added during the Launch Real-Media Proof Handoff and Launch Scope Reconciliation work.
+
+| Panel | IDs added | Owner | Source in index.html |
+|---|---|---|---|
+| Launch Scope Reconciliation | `launch-scope-reconciliation-{status,summary,rows,legend,detail}` (5) | `launchView.js` | Lines ~1509–1528 |
+| Launch Real-Media Sample Proof | `launch-real-media-proof-{status,summary,rows,legend,detail}` (5) | `launchView.js` | Lines ~1531–1550 |
+
+Both panels are read-only from the frontend perspective — `launchView.js` renders backend-served evidence only, no mutation routes are posted by these panels. ID Ownership Summary updated with `launch-real-media-proof-*` and `launch-scope-reconciliation-*` entries.
+
+```
+Task ID: CLN3-005
+Files inspected: Docs\inventories\WEBVIEW_DOM_ID_INVENTORY.md, DesktopApp\mediapipeline_desktop_app\ui_web\static\index.html (lines 1509–1550)
+Files changed: Docs\inventories\WEBVIEW_DOM_ID_INVENTORY.md (10 ID rows added to Launch Page table; 2 summary rows added to ID Ownership Summary)
+Validation: Select-String -Path Docs\inventories\WEBVIEW_DOM_ID_INVENTORY.md -Pattern "launch-real-media-proof|launch-scope-reconciliation"
+Findings: 10 missing IDs identified and added. No phantom references — all 10 IDs exist in index.html.
+Open questions: None.
+Risk: Low — documentation only.
+```
+
+---
+
+## Delta Review — 2026-05-16 (V5 UI Stage 12)
+
+Home page rebuilt as a daily-driver dashboard (Stage 12). The old home panels (lines 51–716) were replaced with a minimalist status strip + run controls + quick actions + recently completed structure. All existing panels are still present inside `<div data-advanced>`. Seventeen new IDs were added to the daily-driver section.
+
+| Panel | IDs added | Owner | Purpose |
+|---|---|---|---|
+| Status strip metrics | `home-pending-count`, `home-failed-count` | `app.js` | Pending parked count; failed-file count chip (replaces `home-network-role` per UI refactor) |
+| Queue Snapshot | `home-queue-snapshot-status`, `home-queue-snapshot` | `app.js` | Compact queue summary |
+| Recently Completed | `home-recent-completed-status`, `home-recent-completed-tbody` | `app.js` | Last 5 completed files compact table |
+
+**New unique ID count: 972** (was 956 after Advanced Gate; +16 daily-driver IDs, +1 pre-existing gap closed for `home-runtime-open-status` now properly counted).
+
+```
+Task: V5 UI Stage 12
+Files inspected: DesktopApp\mediapipeline_desktop_app\ui_web\static\index.html (lines 51–716 replaced)
+Files changed: Docs\inventories\WEBVIEW_DOM_ID_INVENTORY.md (16 new ID rows added to Home Page table; Delta Review section appended)
+Validation: (grep -o 'id="[^"]*"' index.html | sort | uniq | wc -l) → 972
+Findings: 15 new home daily-driver IDs identified; 1 pre-existing gap (home-runtime-open-status) closed.
+Open questions: None.
+Risk: Low — documentation only.
+```
+
+---
+
+## Delta Review — 2026-05-18 (Dashboard command-surface cleanup)
+
+The Dashboard quick start, publish-drain, and schedule-toggle command IDs were removed from the Home page. Pipeline start and control actions are now Launch-owned, pending publish drain remains on Pending Publish, and schedule mutation remains on Schedule. Current static HTML contains 1011 unique IDs.
+
+| Area | Inventory result |
+|---|---|
+| Home daily-driver command IDs | Removed from current ID table |
+| Launch control evidence IDs | `control-readiness-status`, `control-status`, `control-history`, `status-summary`, `control-readiness` are tracked under Launch |
+| Current ID count | 1011 unique `id=""` values |
+
+```
+Task: Dashboard command-surface cleanup
+Files inspected: DesktopApp\mediapipeline_desktop_app\ui_web\static\index.html
+Files changed: Docs\inventories\WEBVIEW_DOM_ID_INVENTORY.md
+Validation: Python id scan over index.html -> 1011 unique IDs
+Risk: Low — inventory update for visible command-surface relocation
+```
+
+---
+
+## Delta Review — 2026-05-18 (Phase 3 per-file settings drawer)
+
+Added 15 new `fo-*` IDs to `index.html` for the per-file override settings drawer (overlay, drawer panel, audio/subtitle form controls). Count updated from 1011 to 1026.
+
+| Area | Inventory result |
+|---|---|
+| Per-file settings overlay | `fo-overlay` added |
+| Per-file settings drawer | `fo-drawer`, `fo-drawer-title`, `fo-drawer-path`, `fo-drawer-close`, `fo-drawer-save`, `fo-drawer-clear`, `fo-drawer-status` added |
+| Audio override fields | `fo-audio-keep-langs`, `fo-audio-drop-langs`, `fo-audio-max-channels` added |
+| Subtitle override fields | `fo-sub-strip-all`, `fo-sub-filter-fields`, `fo-sub-keep-langs`, `fo-sub-drop-langs` added |
+| Current ID count | 1026 unique `id=""` values |
+
+```
+Task: Phase 3 per-file settings drawer
+Files changed: DesktopApp\mediapipeline_desktop_app\ui_web\static\index.html, Docs\inventories\WEBVIEW_DOM_ID_INVENTORY.md
+Risk: Low — additive only; new IDs for queue drawer UI
+```
+
+---
+
+## Machine-Generated Full DOM ID Manifest — 2026-05-20
+
+This section is generated from `DesktopApp/mediapipeline_desktop_app/ui_web/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
+
+Count: 1071
+
+<!-- BEGIN GENERATED DOM ID MANIFEST -->
+```text
+active-job-detail
+active-job-detail-rows
+active-job-detail-status
+active-job-diagnostics-actions
+active-job-table-legend
+active-jobs
+activity
+advanced-toggle
+api-contract
+api-contract-detail
+api-contract-filter
+api-contract-method
+api-contract-rows
+api-contract-safety-detail
+api-contract-safety-legend
+api-contract-safety-rows
+api-contract-safety-status
+api-contract-safety-summary
+api-contract-scope
+api-contract-status
+api-contract-table-legend
+app-version
+audit-launch-detail
+audit-launch-preflight
+audit-launch-progress-bars
+audit-launch-progress-status
+audit-launch-progress-summary
+audit-launch-status
+audit-preview-detail
+audit-preview-diagnostics-actions
+audit-preview-filter
+audit-preview-priority-only
+audit-preview-rows
+audit-preview-status
+audit-preview-summary
+audit-preview-table-legend
+audit-review-board
+audit-review-status
+audit-start-button
+audit-start-include-sidecars
+audit-start-library-root
+audit-start-show-console
+backend-lifecycle-history
+backend-lifecycle-status
+backend-lifecycle-summary
+backend-shutdown-button
+backend-shutdown-status
+backfill-dry-run-button
+backfill-dry-run-detail
+backfill-dry-run-progress-bars
+backfill-dry-run-status
+close-readiness
+command-detail
+command-diagnostics-actions
+command-rows
+command-status
+command-summary
+command-table-legend
+completed-breakdown
+completed-breakdown-status
+completed-clear-filters-button
+completed-consistency
+completed-consistency-status
+completed-count
+completed-detail
+completed-diagnostics-actions
+completed-diagnostics-guidance
+completed-diagnostics-status
+completed-encode-count
+completed-filter
+completed-filter-summary
+completed-final-trust-detail
+completed-final-trust-legend
+completed-final-trust-rows
+completed-final-trust-status
+completed-final-trust-summary
+completed-integrity
+completed-integrity-status
+completed-inventory-progress-bars
+completed-investigation-filter
+completed-missing-count
+completed-open-history
+completed-open-status
+completed-output-acceptance-detail
+completed-output-acceptance-legend
+completed-output-acceptance-rows
+completed-output-acceptance-status
+completed-output-acceptance-summary
+completed-pending-proof-detail
+completed-pending-proof-legend
+completed-pending-proof-rows
+completed-pending-proof-status
+completed-pending-proof-summary
+completed-pilot-evidence-detail
+completed-pilot-evidence-legend
+completed-pilot-evidence-markdown
+completed-pilot-evidence-rows
+completed-pilot-evidence-status
+completed-pilot-evidence-summary
+completed-real-media-proof-detail
+completed-real-media-proof-legend
+completed-real-media-proof-rows
+completed-real-media-proof-status
+completed-real-media-proof-summary
+completed-remux-count
+completed-review-board
+completed-review-legend
+completed-review-rows
+completed-review-status
+completed-route-agreement-detail
+completed-route-agreement-legend
+completed-route-agreement-rows
+completed-route-agreement-status
+completed-route-agreement-summary
+completed-rows
+completed-runtime
+completed-runtime-status
+completed-selected-status
+completed-selected-summary
+completed-size-evidence-detail
+completed-size-evidence-legend
+completed-size-evidence-rows
+completed-size-evidence-status
+completed-size-evidence-summary
+completed-size-review-legend
+completed-size-review-rows
+completed-size-review-status
+completed-size-review-summary
+completed-status
+completed-status-filter
+completed-summary
+completed-table-legend
+completed-validation
+completed-validation-status
+completed-workflow
+completed-workflow-status
+control-history
+control-readiness
+control-readiness-status
+control-status
+cpu-chart
+cpu-value
+cross-page-conflict-legend
+cross-page-conflict-rows
+cross-page-conflict-status
+cross-page-context-status
+cross-page-context-summary
+cross-page-real-media-detail
+cross-page-real-media-legend
+cross-page-real-media-rows
+cross-page-real-media-status
+cross-page-real-media-summary
+cross-page-sample-legend
+cross-page-sample-rows
+cross-page-sample-status
+cross-page-validation-template
+cross-page-validation-template-status
+customize-layout-btn
+daily-driver-legend
+daily-driver-rows
+daily-driver-status
+daily-driver-summary
+diagnostics-close-readiness
+diagnostics-close-status
+diagnostics-command-drilldown-actions
+diagnostics-command-drilldown-detail
+diagnostics-command-drilldown-legend
+diagnostics-command-drilldown-rows
+diagnostics-command-drilldown-status
+diagnostics-command-drilldown-summary
+diagnostics-command-evidence-legend
+diagnostics-command-evidence-rows
+diagnostics-command-evidence-status
+diagnostics-command-evidence-summary
+diagnostics-command-history
+diagnostics-command-owner-legend
+diagnostics-command-owner-rows
+diagnostics-command-owner-status
+diagnostics-command-owner-summary
+diagnostics-command-resolution-detail
+diagnostics-command-resolution-legend
+diagnostics-command-resolution-rows
+diagnostics-command-resolution-status
+diagnostics-command-resolution-summary
+diagnostics-command-status
+diagnostics-drilldown-actions
+diagnostics-drilldown-status
+diagnostics-drilldown-summary
+diagnostics-first-response-detail
+diagnostics-first-response-legend
+diagnostics-first-response-rows
+diagnostics-first-response-status
+diagnostics-first-response-summary
+diagnostics-investigation-actions
+diagnostics-investigation-status
+diagnostics-investigation-trail
+diagnostics-log-actions
+diagnostics-log-detail
+diagnostics-log-filter
+diagnostics-log-guidance
+diagnostics-log-rows
+diagnostics-log-severity
+diagnostics-log-status
+diagnostics-log-table-legend
+diagnostics-open-history
+diagnostics-open-status
+diagnostics-owner-handoff
+diagnostics-owner-handoff-actions
+diagnostics-owner-handoff-detail
+diagnostics-owner-handoff-legend
+diagnostics-owner-handoff-nav-status
+diagnostics-owner-handoff-rows
+diagnostics-owner-handoff-status
+diagnostics-progress-bars
+diagnostics-progress-detail
+diagnostics-progress-rows
+diagnostics-progress-status
+diagnostics-state-recovery
+diagnostics-state-recovery-status
+diagnostics-state-summary
+diagnostics-state-summary-actions
+diagnostics-state-summary-detail
+diagnostics-state-summary-rows
+diagnostics-state-summary-status
+diagnostics-state-summary-table-legend
+diagnostics-state-triage-actions
+diagnostics-state-triage-detail
+diagnostics-state-triage-legend
+diagnostics-state-triage-rows
+diagnostics-state-triage-status
+diagnostics-state-triage-summary
+diagnostics-tail-detail
+diagnostics-tail-evidence
+diagnostics-tail-max-bytes
+diagnostics-tail-refresh-button
+diagnostics-tail-status
+diagnostics-tail-target
+diagnostics-tail-text
+diagnostics-triage-status
+diagnostics-triage-summary
+evidence-toggle
+failed-count
+failure-clear-all-button
+failure-clear-selected-button
+failure-clear-status
+failure-clear-summary
+failure-clear-visible-button
+failure-detail
+failure-diagnostics-actions
+failure-filter
+failure-preview-all-clear-button
+failure-preview-selected-clear-button
+failure-preview-visible-clear-button
+failure-review-board
+failure-review-status
+failure-rows
+failure-source-markers
+failure-status
+failure-summary
+failure-table-legend
+fo-audio-drop-langs
+fo-audio-keep-langs
+fo-audio-max-channels
+fo-drawer
+fo-drawer-clear
+fo-drawer-close
+fo-drawer-path
+fo-drawer-save
+fo-drawer-status
+fo-drawer-title
+fo-overlay
+fo-sub-drop-langs
+fo-sub-filter-fields
+fo-sub-keep-langs
+fo-sub-strip-all
+gpu-chart
+gpu-detail-status
+gpu-note
+gpu-rows
+gpu-value
+home-active-work-status
+home-active-work-summary
+home-at-a-glance-current
+home-at-a-glance-detail
+home-at-a-glance-progress-bars
+home-at-a-glance-status
+home-at-a-glance-summary
+home-at-a-glance-up-next
+home-control-message
+home-control-readiness-status
+home-external-dependencies-status
+home-external-dependencies-summary
+home-failed-count
+home-pending-count
+home-queue-snapshot
+home-queue-snapshot-status
+home-readiness-status
+home-readiness-summary
+home-recent-completed-status
+home-recent-completed-tbody
+home-refresh-button
+home-runtime-open-status
+home-settings-trust-status
+home-settings-trust-summary
+launch-backend-preflight-detail
+launch-backend-preflight-legend
+launch-backend-preflight-refresh-button
+launch-backend-preflight-rows
+launch-backend-preflight-status
+launch-backend-preflight-summary
+launch-command-diagnostics-actions
+launch-command-diagnostics-guidance
+launch-command-review-detail
+launch-command-review-legend
+launch-command-review-rows
+launch-command-review-status
+launch-command-review-summary
+launch-evidence-body
+launch-evidence-section
+launch-evidence-toggle
+launch-history
+launch-history-status
+launch-logs
+launch-pilot-readiness-detail
+launch-pilot-readiness-legend
+launch-pilot-readiness-rows
+launch-pilot-readiness-status
+launch-pilot-readiness-summary
+launch-policy-boundary-detail
+launch-policy-boundary-legend
+launch-policy-boundary-rows
+launch-policy-boundary-status
+launch-policy-boundary-summary
+launch-readiness
+launch-readiness-status
+launch-real-media-proof-detail
+launch-real-media-proof-legend
+launch-real-media-proof-rows
+launch-real-media-proof-status
+launch-real-media-proof-summary
+launch-sample-execution-detail
+launch-sample-execution-legend
+launch-sample-execution-rows
+launch-sample-execution-status
+launch-sample-execution-summary
+launch-scope-reconciliation-detail
+launch-scope-reconciliation-legend
+launch-scope-reconciliation-rows
+launch-scope-reconciliation-status
+launch-scope-reconciliation-summary
+launch-settings-intent-detail
+launch-settings-intent-legend
+launch-settings-intent-rows
+launch-settings-intent-status
+launch-settings-intent-summary
+launch-settings-risk-detail
+launch-settings-risk-legend
+launch-settings-risk-rows
+launch-settings-risk-status
+launch-settings-risk-summary
+launch-settings-trust-status
+launch-settings-trust-summary
+launch-start-decision-detail
+launch-start-decision-legend
+launch-start-decision-rows
+launch-start-decision-status
+launch-start-decision-summary
+launch-timing
+launch-timing-status
+log-tail
+maintenance-detail
+maintenance-detail-status
+maintenance-diagnostics-actions
+maintenance-diagnostics-status
+maintenance-dry-run-confidence
+maintenance-dry-run-confidence-status
+maintenance-dry-run-history
+maintenance-dry-run-history-status
+maintenance-missing-count
+maintenance-ok-count
+maintenance-progress-bars
+maintenance-progress-status
+maintenance-progress-steps
+maintenance-readiness
+maintenance-readiness-status
+maintenance-refresh-button
+maintenance-rows
+maintenance-status
+maintenance-table-legend
+maintenance-toolchain
+maintenance-toolchain-status
+maintenance-total-count
+maintenance-warning-count
+maintenance-warnings
+network-api-status
+network-api-summary
+network-coordinator-target
+network-evidence-detail
+network-evidence-legend
+network-evidence-rows
+network-evidence-status
+network-evidence-summary
+network-lifecycle-detail
+network-lifecycle-legend
+network-lifecycle-rows
+network-lifecycle-status
+network-lifecycle-summary
+network-local-api
+network-open-history
+network-open-history-status
+network-readiness-status
+network-readiness-summary
+network-role
+network-settings-control-status
+network-settings-patch-handoff
+network-settings-preview-button
+network-settings-rows
+network-settings-save-button
+network-settings-status
+network-state-files-detail
+network-state-files-legend
+network-state-files-rows
+network-state-files-status
+network-state-files-summary
+network-status
+network-summary
+network-worker-detail
+network-worker-filter
+network-worker-filter-summary
+network-worker-poll
+network-worker-progress-bars
+network-worker-progress-status
+network-worker-progress-summary
+network-worker-rows
+network-worker-status
+network-worker-status-filter
+network-worker-summary
+network-worker-table-legend
+pending-backend-scope-legend
+pending-backend-scope-rows
+pending-backend-scope-status
+pending-backend-scope-summary
+pending-clear-filters-button
+pending-count
+pending-detail
+pending-diagnostics-actions
+pending-diagnostics-guidance
+pending-diagnostics-status
+pending-drain-button
+pending-drain-confidence-legend
+pending-drain-confidence-rows
+pending-drain-confidence-status
+pending-drain-confidence-summary
+pending-drain-correlation
+pending-drain-correlation-status
+pending-drain-decision-detail
+pending-drain-decision-legend
+pending-drain-decision-rows
+pending-drain-decision-status
+pending-drain-decision-summary
+pending-drain-detail
+pending-drain-events
+pending-drain-events-status
+pending-drain-guard-status
+pending-drain-guard-summary
+pending-drain-history
+pending-drain-status
+pending-drain-summary
+pending-drain-summary-status
+pending-evidence-legend
+pending-evidence-rows
+pending-evidence-status
+pending-evidence-summary
+pending-filter
+pending-filter-summary
+pending-health-count
+pending-inventory-progress-bars
+pending-investigation-filter
+pending-open-history
+pending-open-status
+pending-payload-count
+pending-post-drain-trust-detail
+pending-post-drain-trust-legend
+pending-post-drain-trust-rows
+pending-post-drain-trust-status
+pending-post-drain-trust-summary
+pending-publish-readiness
+pending-publish-readiness-status
+pending-recovery-plan-all-button
+pending-recovery-plan-detail
+pending-recovery-plan-history
+pending-recovery-plan-legend
+pending-recovery-plan-row-detail
+pending-recovery-plan-rows
+pending-recovery-plan-selected-button
+pending-recovery-plan-status
+pending-review-board
+pending-review-legend
+pending-review-rows
+pending-review-status
+pending-risk
+pending-risk-status
+pending-rows
+pending-selected-status
+pending-selected-summary
+pending-size
+pending-status
+pending-status-filter
+pending-summary
+pending-table-legend
+pending-validation
+pending-validation-status
+pending-workflow
+pending-workflow-status
+pipeline-event-rows
+pipeline-events-status
+pipeline-launch-detail
+pipeline-launch-preflight
+pipeline-launch-status
+pipeline-sparkline
+pipeline-start-button
+pipeline-start-mode
+pipeline-start-schedule-override
+pipeline-start-show-config
+pipeline-start-show-console
+pipeline-start-single-file
+pipeline-start-sleep
+pipeline-state
+processed-count
+progress-bar-list
+progress-detail-rows
+progress-detail-status
+progress-evidence-detail
+progress-evidence-legend
+progress-evidence-rows
+progress-evidence-status
+progress-evidence-summary
+publish-reconciliation-detail
+publish-reconciliation-legend
+publish-reconciliation-refresh-button
+publish-reconciliation-rows
+publish-reconciliation-status
+publish-reconciliation-summary
+queue-backend-scope-legend
+queue-backend-scope-rows
+queue-backend-scope-status
+queue-backend-scope-summary
+queue-breakdown
+queue-breakdown-status
+queue-clear-filters-button
+queue-collision
+queue-collision-status
+queue-count
+queue-detail
+queue-diagnostics-actions
+queue-diagnostics-guidance
+queue-diagnostics-status
+queue-excluded-detail
+queue-excluded-open-status
+queue-excluded-rows
+queue-excluded-status
+queue-excluded-summary
+queue-excluded-table-legend
+queue-filter
+queue-filter-summary
+queue-investigation-filter
+queue-launch-decision-detail
+queue-launch-decision-legend
+queue-launch-decision-rows
+queue-launch-decision-status
+queue-launch-decision-summary
+queue-open-history
+queue-open-status
+queue-priority-clear-all-btn
+queue-priority-hold-btn
+queue-priority-low-btn
+queue-priority-normal-btn
+queue-priority-promote-btn
+queue-priority-promote-movies-btn
+queue-priority-promote-tv-btn
+queue-priority-status
+queue-progress-bars
+queue-progress-status
+queue-progress-summary
+queue-readiness
+queue-readiness-status
+queue-review-board
+queue-review-legend
+queue-review-rows
+queue-review-status
+queue-rows
+queue-runtime
+queue-runtime-status
+queue-selected-status
+queue-selected-summary
+queue-status
+queue-status-filter
+queue-strategy-apply-btn
+queue-strategy-select
+queue-strategy-status
+queue-summary
+queue-table-legend
+queue-validation
+queue-validation-status
+queue-workflow
+queue-workflow-status
+ram-chart
+ram-value
+recent-errors
+recent-events
+refresh-button
+refresh-health
+release-build-button
+release-build-detail
+release-build-force
+release-build-progress-bars
+release-build-status
+release-dry-run-button
+release-dry-run-destination
+release-dry-run-detail
+release-dry-run-dev-docs
+release-dry-run-keep-config
+release-dry-run-optional-tools
+release-dry-run-progress-bars
+release-dry-run-status
+release-dry-run-tests
+release-dry-run-tool-docs
+release-dry-run-verify
+release-dry-run-zip
+rename-add-path-button
+rename-add-path-input
+rename-apply-history
+rename-apply-outcome-legend
+rename-apply-outcome-rows
+rename-apply-outcome-status
+rename-apply-outcome-summary
+rename-apply-progress-bars
+rename-apply-readiness-legend
+rename-apply-readiness-rows
+rename-apply-readiness-status
+rename-apply-selected-button
+rename-batch-safety
+rename-browse-files-button
+rename-browse-folder-button
+rename-bulk-clear-button
+rename-bulk-clear-force-button
+rename-bulk-edit-status
+rename-bulk-edit-summary
+rename-bulk-find
+rename-bulk-force-button
+rename-bulk-prefix
+rename-bulk-replace
+rename-bulk-scope
+rename-bulk-stage-button
+rename-bulk-suffix
+rename-bulk-use-pipeline-button
+rename-check-applicable-button
+rename-cleaning-filter-status
+rename-cleaning-filter-summary
+rename-cleaning-filters-reset-button
+rename-cleaning-filters-save-button
+rename-clear-checks-button
+rename-clear-override-button
+rename-clear-paths-button
+rename-detail
+rename-file-source-status
+rename-file-source-summary
+rename-filter-audio-channels
+rename-filter-editions
+rename-filter-file-size
+rename-filter-release-groups
+rename-filter-services-containers
+rename-filter-video-source
+rename-force-pipeline
+rename-last-apply-detail
+rename-last-apply-status
+rename-mode
+rename-move-checked-down-button
+rename-move-checked-up-button
+rename-movie-title
+rename-movie-year
+rename-natural-sort-button
+rename-paths
+rename-pipeline-handoff
+rename-pipeline-handoff-status
+rename-pipeline-preview
+rename-preview-button
+rename-preview-top-button
+rename-remove-terms
+rename-review-board
+rename-review-board-status
+rename-rows
+rename-save-override-button
+rename-season
+rename-selected-count
+rename-selected-final
+rename-selected-force
+rename-selection-audit
+rename-selection-audit-status
+rename-show
+rename-sidecars
+rename-start
+rename-status
+rename-summary
+rename-table-legend
+rename-template-preset
+rename-use-editable-cleaning-filters
+rename-use-loaded-queue-button
+rename-use-selected-queue-button
+report-audit-csv-state
+report-failure-json-state
+report-go-audit-button
+report-go-diagnostics-button
+report-go-rerun-button
+report-investigation-checklist
+report-investigation-status
+report-launch-handoff
+report-launch-handoff-action-status
+report-launch-handoff-status
+report-open-history
+report-open-history-status
+report-path-rows
+report-path-status
+report-priority-csv-state
+report-progress-bars
+report-progress-status
+report-progress-summary
+report-root-rows
+report-root-status
+report-triage
+report-triage-status
+report-warning-count
+report-warnings
+rerun-launch-detail
+rerun-launch-preflight
+rerun-launch-status
+rerun-start-button
+rerun-start-csv-path
+rerun-start-show-console
+reset-layout-btn
+sample-validation-acceptance-gate-detail
+sample-validation-acceptance-gate-legend
+sample-validation-acceptance-gate-rows
+sample-validation-acceptance-gate-status
+sample-validation-acceptance-gate-summary
+sample-validation-append-button
+sample-validation-category
+sample-validation-category-summary
+sample-validation-category-summary-detail
+sample-validation-category-summary-legend
+sample-validation-category-summary-rows
+sample-validation-category-summary-status
+sample-validation-check-audio
+sample-validation-check-completed-output
+sample-validation-check-diagnostics
+sample-validation-check-pending-publish
+sample-validation-check-queue-route
+sample-validation-check-sidecar-manifest
+sample-validation-check-size-growth
+sample-validation-check-status
+sample-validation-check-subtitle
+sample-validation-clear-checks-button
+sample-validation-completed-packet-detail
+sample-validation-completed-packet-legend
+sample-validation-completed-packet-markdown
+sample-validation-completed-packet-rows
+sample-validation-completed-packet-status
+sample-validation-completed-packet-summary
+sample-validation-cutover-detail
+sample-validation-cutover-legend
+sample-validation-cutover-rows
+sample-validation-cutover-status
+sample-validation-cutover-summary
+sample-validation-decision
+sample-validation-detail
+sample-validation-execution-detail
+sample-validation-execution-legend
+sample-validation-execution-rows
+sample-validation-execution-status
+sample-validation-execution-summary
+sample-validation-gap-detail
+sample-validation-gap-legend
+sample-validation-gap-rows
+sample-validation-gap-status
+sample-validation-gap-summary
+sample-validation-legend
+sample-validation-notes
+sample-validation-preview-button
+sample-validation-record-review-detail
+sample-validation-record-review-legend
+sample-validation-record-review-rows
+sample-validation-record-review-status
+sample-validation-record-review-summary
+sample-validation-records
+sample-validation-result
+sample-validation-runbook-detail
+sample-validation-runbook-legend
+sample-validation-runbook-markdown
+sample-validation-runbook-rows
+sample-validation-runbook-status
+sample-validation-runbook-summary
+sample-validation-sample-set-detail
+sample-validation-sample-set-legend
+sample-validation-sample-set-rows
+sample-validation-sample-set-status
+sample-validation-sample-set-summary
+sample-validation-status
+sample-validation-summary
+sample-validation-use-sample-set-category-button
+sample-validation-worksheet-detail
+sample-validation-worksheet-legend
+sample-validation-worksheet-rows
+sample-validation-worksheet-status
+sample-validation-worksheet-summary
+schedule-allowed-state
+schedule-coverage-detail
+schedule-coverage-rows
+schedule-coverage-status
+schedule-day-detail
+schedule-day-legend
+schedule-day-rows
+schedule-day-status
+schedule-editor-allow-all-button
+schedule-editor-clear-button
+schedule-editor-enabled
+schedule-editor-load-current-button
+schedule-editor-preview-button
+schedule-editor-result
+schedule-editor-rows
+schedule-editor-save-button
+schedule-editor-status
+schedule-enabled-state
+schedule-guidance
+schedule-guidance-status
+schedule-next-start
+schedule-status
+schedule-summary
+schedule-timing
+schedule-timing-status
+schedule-window-end
+settings-active-media-policy-legend
+settings-active-media-policy-rows
+settings-active-media-policy-status
+settings-active-media-policy-summary
+settings-audio-allow-no-audio
+settings-audio-apply-button
+settings-audio-auto-bitrate
+settings-audio-builder-status
+settings-audio-compatible-codecs
+settings-audio-downmix-mode
+settings-audio-guidance
+settings-audio-max-channels
+settings-audio-passthrough-profile
+settings-audio-preferred-languages
+settings-audio-reset-button
+settings-audio-transcode-bitrate
+settings-audio-transcode-codec
+settings-backend-media-policy-legend
+settings-backend-media-policy-rows
+settings-backend-media-policy-status
+settings-backend-media-policy-summary
+settings-backend-result-detail
+settings-backend-result-legend
+settings-backend-result-rows
+settings-backend-result-status
+settings-backend-result-summary
+settings-builder-apply-button
+settings-builder-compat-growth
+settings-builder-encode-ladder
+settings-builder-encode-tuning
+settings-builder-guidance
+settings-builder-max-growth
+settings-builder-movie-threshold
+settings-builder-output-container
+settings-builder-reset-button
+settings-builder-routing-profile
+settings-builder-size-guard
+settings-builder-status
+settings-builder-tv-threshold
+settings-builder-video-codec
+settings-command-history
+settings-command-history-status
+settings-count
+settings-effective-policy-detail
+settings-effective-policy-legend
+settings-effective-policy-rows
+settings-effective-policy-status
+settings-effective-policy-summary
+settings-file-safety-aggressive-episode
+settings-file-safety-apply-button
+settings-file-safety-builder-status
+settings-file-safety-cleanup-age
+settings-file-safety-cleanup-remote
+settings-file-safety-create-tv-subfolder
+settings-file-safety-deferred-publish
+settings-file-safety-enable-integrity
+settings-file-safety-guidance
+settings-file-safety-local-base
+settings-file-safety-min-free
+settings-file-safety-output-size-multiplier
+settings-file-safety-outsource
+settings-file-safety-outsource-min-free
+settings-file-safety-reset-button
+settings-file-safety-robocopy-flags
+settings-file-safety-skip-stability
+settings-file-safety-source-movies
+settings-file-safety-source-tv
+settings-file-safety-stability-wait
+settings-file-safety-valid-extensions
+settings-filter
+settings-launch-impact-legend
+settings-launch-impact-rows
+settings-launch-impact-status
+settings-launch-impact-summary
+settings-media-policy-legend
+settings-media-policy-rows
+settings-media-policy-status
+settings-media-policy-summary
+settings-network-apply-button
+settings-network-bind-address
+settings-network-builder-status
+settings-network-coordinator-local-encode
+settings-network-coordinator-port
+settings-network-guidance
+settings-network-heartbeat-timeout
+settings-network-path-map
+settings-network-reset-button
+settings-network-role
+settings-network-worker-name
+settings-network-worker-overrides
+settings-network-worker-poll
+settings-network-worker-url
+settings-overview-rows
+settings-overview-status
+settings-patch-detail
+settings-patch-impact-summary
+settings-patch-json
+settings-patch-status
+settings-patch-summary-changed-only
+settings-patch-summary-rows
+settings-patch-summary-status
+settings-paths
+settings-pending-apply-button
+settings-pending-builder-status
+settings-pending-cleanup-age
+settings-pending-cleanup-remote
+settings-pending-deferred-publish
+settings-pending-enable-integrity
+settings-pending-guidance
+settings-pending-output-size-multiplier
+settings-pending-outsource-min-free
+settings-pending-reset-button
+settings-pending-robocopy-flags
+settings-pending-robocopy-timeout
+settings-pending-skip-stability
+settings-pending-transient-retry-limit
+settings-policy-delta-legend
+settings-policy-delta-rows
+settings-policy-delta-status
+settings-policy-delta-summary
+settings-preview-patch-button
+settings-profiles
+settings-queue-apply-button
+settings-queue-builder-status
+settings-queue-guidance
+settings-queue-min-pipeline-version
+settings-queue-priority-markers
+settings-queue-processed-index-refresh
+settings-queue-reprocess-all
+settings-queue-reset-button
+settings-raw-action-plan-detail
+settings-raw-action-plan-legend
+settings-raw-action-plan-rows
+settings-raw-action-plan-status
+settings-raw-action-plan-summary
+settings-raw-triage
+settings-raw-triage-detail
+settings-raw-triage-legend
+settings-raw-triage-rows
+settings-raw-triage-status
+settings-reload-button
+settings-rows
+settings-runtime-allow-system-tools
+settings-runtime-apply-button
+settings-runtime-builder-status
+settings-runtime-cleanup-scan-timeout
+settings-runtime-console-log
+settings-runtime-cpu-encode-timeout
+settings-runtime-debug-mode
+settings-runtime-ffmpeg-encode-timeout
+settings-runtime-ffmpeg-remux-timeout
+settings-runtime-file-log
+settings-runtime-guidance
+settings-runtime-index-scan-timeout
+settings-runtime-log-retention
+settings-runtime-mkvmerge-timeout
+settings-runtime-reset-button
+settings-runtime-robocopy-timeout
+settings-runtime-source-scan-interval
+settings-runtime-source-scan-timeout
+settings-runtime-transient-retry-limit
+settings-safety-lock-rows
+settings-safety-lock-status
+settings-safety-lock-summary
+settings-save-patch-button
+settings-save-progress-bars
+settings-save-readiness
+settings-save-readiness-status
+settings-save-review-detail
+settings-save-review-legend
+settings-save-review-rows
+settings-status
+settings-subtitle-apply-button
+settings-subtitle-ass-signs-forced
+settings-subtitle-bdpgs-languages
+settings-subtitle-bdpgs-ocr-tessdata-path
+settings-subtitle-bdpgs-ocr-tool-path
+settings-subtitle-bdpgs-path-evidence
+settings-subtitle-bdpgs-path-status
+settings-subtitle-bdpgs-signs-forced
+settings-subtitle-bdpgs-timeout
+settings-subtitle-builder-status
+settings-subtitle-convert-bdpgs
+settings-subtitle-convert-tx3g
+settings-subtitle-drop-ass
+settings-subtitle-drop-bdpgs
+settings-subtitle-drop-tx3g
+settings-subtitle-exclude-styles
+settings-subtitle-extract-timeout
+settings-subtitle-forced-tx3g
+settings-subtitle-guidance
+settings-subtitle-include-styles
+settings-subtitle-keep-signs
+settings-subtitle-languages
+settings-subtitle-merge-adjacent
+settings-subtitle-merge-threshold
+settings-subtitle-preserve-tx3g-srt
+settings-subtitle-probe-timeout
+settings-subtitle-remove-karaoke
+settings-subtitle-reset-button
+settings-subtitle-sdh-keywords
+settings-subtitle-sidecar-tx3g
+settings-subtitle-strip-formatting
+settings-subtitle-supplemental-keywords
+settings-subtitle-tx3g-languages
+settings-subtitle-tx3g-signs-forced
+settings-summarize-patch-button
+settings-trust-status
+settings-trust-summary
+settings-validate-button
+settings-validation
+settings-video-apply-button
+settings-video-builder-status
+settings-video-cpu-preset
+settings-video-cpu-priority
+settings-video-cpu-quality
+settings-video-cpu-threads
+settings-video-extra-flags
+settings-video-guidance
+settings-video-h264-max-bitrate
+settings-video-h264-max-height
+settings-video-h264-remux
+settings-video-preset
+settings-video-quality
+settings-video-remux-safe-codecs
+settings-video-reset-button
+state-pill
+status-summary
+telemetry-readiness-status
+telemetry-readiness-summary
+theme-toggle
+```
+<!-- END GENERATED DOM ID MANIFEST -->

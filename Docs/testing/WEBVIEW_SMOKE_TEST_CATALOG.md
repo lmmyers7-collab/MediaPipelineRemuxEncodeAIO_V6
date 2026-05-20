@@ -1,0 +1,257 @@
+# WebView Smoke Test Catalog
+
+This catalog describes every `SmokeTests/Test-WebView*.ps1` wrapper, separates browser-backed from non-browser smokes, and states what each does and does not prove.
+
+## Important Scope Limits
+
+- Smoke tests prove WebView rendering, UI state transitions, and operator-facing text. They do not prove FFmpeg, remux/encode, subtitle, audio, or media policy behavior.
+- Browser-backed smokes require Node.js and an installed Chrome or Edge browser. They skip cleanly when those dependencies are absent.
+- Non-browser smokes require only Python and (for some) Node.js. They run faster and are suitable for routine pre-commit checks.
+- No smoke test processes real media, launches the pipeline, publishes parked outputs, saves settings permanently, renames files on disk, or mutates source/output/scratch paths.
+
+---
+
+## Non-Browser Smokes
+
+These run Python/Node in a mocked or fixture-backed environment without opening a real browser.
+
+### `Test-WebViewRealMediaEvidenceSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_real_media_smoke`
+- **What it does:** Starts a temporary local API against generated temporary state. Evaluates backend-served WebView JavaScript with mocked DOM state and fixture command history.
+- **Verifies:** Queue, Completed, Pending Publish real-media evidence rows; diagnostics handoff text; route-reason evidence; backend-produced row content; generated worksheet evidence in `/api/sample-validation`.
+- **Does not:** Process media, launch pipeline commands, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths.
+
+### `Test-WebViewCommandEvidenceSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_command_evidence_smoke`
+- **What it does:** Starts a temporary local API against generated temporary state. Evaluates backend-served WebView JavaScript with mocked DOM state and fixture command history.
+- **Verifies:** Shared command owner/issue evidence across daily-use panels, selected-command owner live-state handoff for cached Queue/Completed/Pending Publish evidence, Pending Publish drain guard state in command detail, and read-only Command Failure Resolution owner-state checkpoints.
+- **Does not:** Process media, launch pipeline commands, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths.
+
+### `Test-WebViewRowDetailSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_row_detail_smoke`
+- **What it does:** Starts a temporary local API against generated temporary state. Evaluates backend-served WebView JavaScript with mocked DOM selected-row state.
+- **Verifies:** Queue, Completed, and Pending Publish row details, Selected Row At A Glance summaries, combined read-first/cross-check/decision review plans, and diagnostics handoff text including adversarial blocked/missing/do-not-drain rows.
+- **Does not:** Process media, launch pipeline commands, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths.
+
+### `Test-WebViewScheduleSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_schedule_smoke`
+- **What it does:** Evaluates Schedule WebView assets in Node with mocked DOM state.
+- **Verifies:** Schedule Coverage Review rows, selected coverage detail, selected day detail, weekly table status legend, outside-window guidance, all-day/no-window wording, Schedule Editor rows, staged clear behavior, backend preview/save route calls, confirmation payloads, appended command results, and app-state-write result copy.
+- **Does not:** Start pipeline commands, override schedule gates, mutate queue state, touch media files, or write app state from the frontend; schedule saves remain backend-owned and confirmed.
+- **Node.js required:** Yes (for mocked DOM runner).
+
+### `Test-WebViewRenameReadinessSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_rename_readiness_smoke`
+- **What it does:** Evaluates Rename WebView assets in Node with mocked DOM state.
+- **Verifies:** Apply Readiness, Pipeline Handoff, and Apply Outcome Review for a ready single-row scope, large-preview 250-row render-cap wording with `260 checked` backend scope, and a blocked duplicate-target scope. Verifies duplicate-target blocking does not call `rename.apply`.
+- **Does not:** Call `rename.apply`, rename files, save settings, process media, mutate queue state, or touch source/output/scratch paths.
+- **Node.js required:** Yes (for mocked DOM runner).
+
+### `Test-WebViewSettingsLaunchPolicySmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_backend_served_webview_fixture_has_settings_launch_policy_handoff` (via discover)
+- **What it does:** Starts a temporary local API against generated temporary state. Validates read-only Settings and Launch policy handoff visibility.
+- **Verifies:** Settings-to-Launch media-policy handoff rows and readiness indicators.
+- **Does not:** Process media, launch pipeline commands, publish, rename, save settings, mutate queue state.
+
+### `Test-WebViewSettingsLaunchLiveConfigSmoke.ps1`
+
+- **Unittest:** `mediapipeline_desktop_app.webview_settings_live_smoke`
+- **What it does:** Starts a temporary local API, reads the current saved config, and validates read-only Settings and Launch policy handoff visibility against live config data.
+- **Verifies:** Backend media-policy readiness against the operator's actual configuration.
+- **Does not:** Process media, launch pipeline commands, publish, rename, save settings permanently, mutate queue state.
+
+### `Test-WebViewSettingsPatchEvidenceSmoke.ps1`
+
+- **Unittest:** `mediapipeline_desktop_app.webview_settings_patch_smoke`
+- **What it does:** Starts a temporary local API against a generated temporary config. Exercises Preview Patch, denied Save Patch, confirmed Save Patch, reload evidence, and command history without touching the current saved config or media.
+- **Verifies:** Backend Preview/Save result handoff evidence, selectable detail-panel assets, command history consistency, denied-save confirmation boundary, confirmed-save reload proof, and temporary-config isolation.
+- **Does not:** Touch the current saved config, process media, launch pipeline commands, publish, rename, mutate queue state.
+
+---
+
+## Browser-Backed Smokes
+
+These start a real temporary local API and open an installed Chrome or Edge browser in headless mode against the actual backend-served WebView page. They require Node.js and a Chrome or Edge installation. Each skips cleanly when the browser is not found.
+
+The Python browser-smoke modules share `DesktopApp\tests\webview_browser_smoke_support.py` for browser discovery, free-port allocation, bounded subprocess output, timeout reporting, JSON result parsing, process-result assertions, and the generated Node/CDP runner prelude. Scenario logic remains inside each smoke, but runner failures should now consistently include return code, bounded stdout/stderr, and richer CDP exception description/value/detail text. The shared Node/CDP prelude launches Chrome/Edge with browser stdout/stderr ignored rather than piped, then terminates the browser with a bounded exit wait so a pre-exited browser cannot hang the Python smoke.
+
+### `Test-WebViewBrowserHighRiskSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_browser_high_risk_smoke`
+- **What it does:** Starts a temporary local API, opens the real backend-served WebView in Chrome/Edge headless. Validates injected and backend-produced blocked Queue, broken Completed, and do-not-drain Pending Publish selected-row guidance.
+- **Verifies:** Row-level risk signals, investigation view hints, and diagnostics handoff text for adversarial rows under real browser rendering.
+- **Does not:** Process media, launch pipeline commands, publish, rename, save settings, mutate queue state. No Playwright or Puppeteer dependency.
+
+### `Test-WebViewBrowserScheduleSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_browser_schedule_smoke`
+- **What it does:** Starts a temporary local API, opens the real backend-served WebView in Chrome/Edge headless, drives Schedule Editor preview/save controls, then checks Launch timing trust after refresh.
+- **Verifies:** Schedule Editor stages day-window text, calls backend preview/save routes only after confirmation, persists only schedule app-state keys, preserves unrelated app-state keys, records Schedule-owned command history, keeps save-result feedback visible after refresh, and updates Launch timing trust from the refreshed schedule payload.
+- **Does not:** Process media, launch pipeline commands, publish, rename files, save settings, mutate queue state, or touch source/output/scratch paths. No Playwright or Puppeteer dependency.
+
+### `Test-WebViewBrowserLifecycleSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_browser_lifecycle_smoke`
+- **What it does:** Starts temporary local API instances, opens the real backend-served WebView in Chrome/Edge headless, and drives Diagnostics backend lifecycle controls in blocked, stop-requested, and safe close-readiness states.
+- **Verifies:** Backend lifecycle summary and Close Readiness render the continuous schedule-stop watcher, the shutdown button stays disabled and records only a local rejection while the watcher is armed, terminal `stop_requested` watcher state is visible without blocking safe close, no confirmation prompt or backend shutdown callback fires while blocked, and safe close-readiness posts only through backend-owned `/api/backend/shutdown` after confirmation.
+- **Does not:** Process media, launch pipeline commands, publish, rename files, save settings, mutate queue state, drain pending publish, or touch source/output/scratch paths. No Playwright or Puppeteer dependency.
+
+### `Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_browser_diagnostics_handoff_smoke`
+- **What it does:** Starts a temporary local API, clicks actual Queue/Completed/Pending table rows, verifies selected-row investigation signals, combined row review plans, current-filter visibility, clear-filter buttons, read-only diagnostics bridge, bounded tail, allowlisted open controls, Diagnostics First Response Checklist summary/detail, Diagnostics ActiveJobs row detail, Diagnostics stale-progress guidance, Diagnostics `Go To Owner Row` navigation back to Queue/Completed/Pending Publish rows, Diagnostics State Artifact Summary read-order/artifact detail, and the Diagnostics API Contract `Contract Safety Review` derived from `/api/contract`.
+- **Verifies:** Table row clicks, combined read-first/cross-check/decision plans, status/investigation/text filter visibility, clear-filter button behavior, diagnostics tail evidence summary, diagnostics tail/open feedback, First Response Checklist status/summary rows plus selectable row detail, active/malformed ActiveJobs table rows and selected detail, stale runtime-progress operator guidance, State Artifact Summary recovery/read-order/detail/action text, owner-page handoff navigation, and contract-safety summary/detail text under real browser rendering.
+- **Does not:** Process media, launch pipeline commands, publish, rename, save settings, mutate queue state, post command routes from the contract safety panel, or touch source/output/scratch paths. No Playwright or Puppeteer dependency.
+
+### `Test-WebViewBrowserPendingDrainGuardSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_browser_pending_drain_guard_smoke`
+- **What it does:** Starts a temporary local API, opens the real backend-served WebView in Chrome/Edge headless, applies a Pending Publish display filter, verifies the Backend Drain Scope Preview, injects a backend-shaped blocked recovery dry-run result, and clicks `Publish Parked Outputs`.
+- **Verifies:** Active display filters are disclosed as local-only and do not narrow backend drain scope, the Backend Drain Scope Preview repeats backend route/scope boundaries, Pending Publish recovery-plan output refreshes the final Publish Button Guard immediately, blocked clicks append local `frontend_guard` command evidence, and no `/api/pipeline/start` POST or confirmation prompt occurs while blocked.
+- **Does not:** Process media, launch pipeline commands, drain pending publish, publish files, rename, save settings, mutate queue state. No Playwright or Puppeteer dependency.
+
+### `Test-WebViewBrowserCompletedPendingProofSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_browser_completed_pending_proof_smoke`
+- **What it does:** Starts a temporary local API, opens the real backend-served WebView in Chrome/Edge headless, renders Completed and Pending Publish fixture state, clicks the Completed Real-Media Output Proof ladder, verifies saved-policy reconciliation and Sample Validation handoff checkpoints, clicks the Completed-to-Pending proof board, invokes the backend-owned publish reconciliation endpoint, selects backend reconciliation detail, selects a Pending Publish row for Completed Manifest correlation, then injects a missing-output Completed row with no pending proof.
+- **Verifies:** Real-Media Output Proof route/size/media detail, Sample Validation handoff detail, missing-output blocker detail, exact completed-output to pending-destination overlap detail, backend `GET /api/publish-reconciliation` rendering, selected Pending row Completed Manifest correlation, missing-output-without-proof blocker detail, same-leaf duplicate-title wording, and the read-only mutation boundary under real browser rendering.
+- **Does not:** Process media, launch pipeline commands, drain pending publish, publish files, rename, save settings, mutate queue state, or post mutation routes. No Playwright or Puppeteer dependency.
+
+### `Test-WebViewBrowserLargeTableSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_browser_large_table_smoke`
+- **What it does:** Starts a temporary local API, opens the real backend-served WebView in Chrome/Edge headless, injects 260-row Queue, Completed, and Pending Publish payloads, applies local display filters, and selects high-risk rows hidden by those filters.
+- **Verifies:** `250 shown / 260 filtered / 260 rows` status wording, 250 rendered table rows, display-cap guidance, hidden blocked/warning row filter warnings, Queue Launch Decision daily-use handoff and filter-scope evidence that backend launch scope is not narrowed to the visible table subset, Queue Backend Launch Scope Preview panel boundary wording, Pending Backend Drain Scope Preview and Drain Decision daily-use boundary wording, Completed Output Acceptance daily-use handoff and filter-scope evidence that backend rerun/cleanup/action scope is not narrowed to the visible table subset, selected-row hidden-by-filter detail, Selected Row At A Glance summaries, and no mutation POSTs.
+- **Does not:** Process media, launch pipeline commands, drain pending publish, publish files, rerun, rename, save settings, mutate queue state, or post mutation routes. No Playwright or Puppeteer dependency.
+
+### `Test-WebViewBrowserMaintenanceReportsSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_browser_maintenance_reports_smoke`
+- **What it does:** Starts a temporary local API, opens the real backend-served WebView in Chrome/Edge headless, renders Maintenance health evidence and synthetic dry-run results, then renders Reports failure/audit triage and row details.
+- **Verifies:** Maintenance readiness/real-media boundary text, release dry-run result rendering, completed-manifest backfill dry-run result rendering, dry-run command history, Reports failure/audit triage, failure and audit selected-row detail, Reports-to-Launch handoff text, read-only Launch/Diagnostics navigation, and no mutation POSTs.
+- **Does not:** Process media, launch pipeline commands, run audit, run CSV rerun, execute release packaging, rewrite completed manifests, publish, rename, save settings, mutate queue state, or post mutation routes. No Playwright or Puppeteer dependency.
+
+### `Test-WebViewBrowserSampleValidationSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_browser_sample_validation_smoke`
+- **What it does:** Starts a temporary local API, opens the real backend-served WebView in Chrome/Edge headless, renders Home Sample Validation pilot checkpoint/attention/readiness/reconciliation text, the real-media validation audit and policy-alignment roll-ups, the operator sample execution checklist, and generated pilot worksheet table, verifies the Real-Media Validation Worksheet repeats Sample Validation posture, fills manual acceptance-checklist items, then clicks `Preview Record`.
+- **Verifies:** `desktop_real_media_pilot_plan.v1`, `desktop_real_media_execution_checklist.v1`, `desktop_real_media_worksheet_runs.v1`, `desktop_real_media_policy_alignment.v1`, and `desktop_real_media_validation_audit.v1` visibility in Home, selectable execution-checklist detail for post-run Completed proof, Completed saved-policy reconciliation handoff/detail, generated worksheet status and selected-sample match detail, Sample Validation posture inside the Home worksheet, manual checklist values in the preview POST body, current-backend-evidence preview rendering, `desktop_sample_validation_evidence_packet.v1` row/stop-condition/guardrail rendering, append-readiness/manual-check gap rendering, accepted-decision preview warning when Pending Publish proof is still present, and no append or mutation POSTs.
+- **Does not:** Append validation records, accept outputs, clear failures, process media, launch pipeline commands, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths. No Playwright or Puppeteer dependency.
+
+### `Test-WebViewBrowserHomeLiveStateSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_browser_home_live_state_smoke`
+- **What it does:** Starts a temporary local API with generated temporary media state, generated active-progress state, a generated ActiveJobs record, and a generated command journal, opens the real backend-served WebView in Chrome/Edge headless, and renders Home plus Live/Diagnostics progress visibility without clicking mutation controls.
+- **Verifies:** Daily-Driver Checklist, Operator Readiness, Active Work, Live Progress Details percent/current item/route fields, selectable Progress Evidence Current Item and ActiveJobs rows, Diagnostics runtime progress summary, Command Results, Sample Validation posture, generated worksheet readback, Real-Media Validation Worksheet handoff, and no POST routes during Home/Live/Diagnostics live-state rendering.
+- **Does not:** Append validation records, process media, launch pipeline commands, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths. No Playwright or Puppeteer dependency.
+
+### `Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_browser_launch_queue_readiness_smoke`
+- **What it does:** Starts a temporary local API with generated temporary media state, generated launch command history, and a temporary Sample Validation record, opens the real backend-served WebView in Chrome/Edge headless, renders Launch, Queue, Schedule readiness, Launch Start Decision Summary, Launch real-media proof-handoff, generated worksheet evidence, Sample Validation record evidence, saved-policy-vs-Queue-route evidence, Launch sample-execution checklist, and Pilot Run Readiness panels, and blocks POST routes while reading evidence.
+- **Verifies:** Launch readiness, Launch timing trust, Launch Scope Reconciliation, Launch Start Decision Summary row/detail rendering, Launch Real-Media Sample Proof Handoff mirroring the Home worksheet evidence, Launch generated-worksheet selected-sample match detail, Launch Sample Validation record selected-sample match/reconciliation detail, Launch Sample Execution Checklist mirroring Home sample-validation execution guidance, backend Launch preflight fetched through `GET /api/launch/preflight`, Queue Launch Decision checklist, Schedule guidance/timing trust, close-readiness chip, launch command-review correlation, `pipeline.start` command ownership as Launch, and no POST routes during read-only readiness rendering.
+- **Does not:** Process media, launch pipeline commands, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths. No Playwright or Puppeteer dependency.
+
+### `Test-WebViewBrowserLayoutManagerSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_browser_layout_manager_smoke`
+- **What it does:** Starts a temporary local API with generated temporary media state, opens the real backend-served WebView in Chrome/Edge headless, enters customize mode, and checks representative boxes across Queue, Completed, Settings, Diagnostics, Launch, and Reports.
+- **Verifies:** Page panels, subtab panes, and generated subsection panels expose independent customize bars and draggable handles; inactive Settings-family subtabs are visible while customize mode is active; generated subsection panel count is present under the runtime layout manager.
+- **Does not:** Process media, launch pipeline commands, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, post mutation routes, or touch source/output/scratch paths. No Playwright or Puppeteer dependency.
+
+### `Test-WebViewBrowserRenameSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_browser_rename_smoke`
+- **What it does:** Starts a temporary local API, clicks actual Rename preview rows and Check Applicable Rows, verifies Apply Readiness, Pipeline Handoff, and Apply Outcome Review status, verifies large-preview render-cap wording, and verifies duplicate-target apply blocking does not call `rename.apply`.
+- **Verifies:** Rename row selection, Apply Readiness rendering, Pipeline Handoff text for saved routing/container/subtitle posture, Apply Outcome Review rows for backend result/scope/sidecar/undo evidence, 250-of-260 render-cap disclosure with checked backend scope, and frontend blocking of duplicate-target apply under real browser rendering.
+- **Does not:** Call `rename.apply`, rename files, save settings, process media, launch pipeline commands, publish, mutate queue state. No Playwright or Puppeteer dependency.
+
+### `Test-WebViewBrowserNetworkSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_browser_network_smoke`
+- **What it does:** Starts a temporary local API, opens the real backend-served WebView in Chrome/Edge headless, renders Network readiness, lifecycle handoff, backend-authored runtime state-file evidence, and persisted worker rows, selects lifecycle/state-file/worker detail, and exercises local worker filters.
+- **Verifies:** Read-only network posture, lifecycle ownership boundary, runtime state-file evidence/read order, persisted worker visibility, worker detail rendering, and warnings when local filters hide active/problem worker rows.
+- **Does not:** Start/stop coordinator or workers, process media, launch pipeline commands, publish, rename files, save settings, mutate queue state, or touch source/output/scratch paths. No Playwright or Puppeteer dependency.
+
+### `Test-WebViewBrowserTelemetrySmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_browser_telemetry_smoke`
+- **What it does:** Starts a temporary local API, opens the real backend-served WebView in Chrome/Edge headless, and renders Live telemetry fixtures.
+- **Verifies:** Idle NVENC at `0%` remains visible, top-level GPU telemetry can synthesize a GPU detail row, and CPU/RAM-only fallback wording remains explicit instead of blank.
+- **Does not:** Collect live GPU telemetry, process media, launch pipeline commands, publish, rename files, save settings, mutate queue state, or touch source/output/scratch paths. No Playwright or Puppeteer dependency.
+
+### `Test-WebViewBrowserSettingsLaunchSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_browser_settings_launch_smoke`
+- **What it does:** Starts a temporary local API, drives real backend-served WebView Settings and Launch controls. Validates staged settings patch handoff, Settings Effective Policy Trust, Launch Active Media Policy Boundary, Settings-to-Launch intent status, and backend Preview/Save result visibility.
+- **Verifies:** Saved launch-active subtitle/audio/pending-publish policy is separated from staged candidates, Settings Effective Policy Trust shows staged Changes JSON as inactive until backend Preview/Save/reload, Launch Risk Handoff rows are selectable and show proof-chain detail, staged subtitle contradictions and staged audio/pending-publish review rows are visible before launch, Launch intent exposes Queue display-scope evidence when filters hide blocked rows, Preview Patch is called, cancelled Save Patch remains visible as `Save cancelled`, command history is not changed by cancellation, and Save Patch is not posted by the browser smoke. Settings-to-Launch intent and backend result handoff under real browser rendering.
+- **Does not:** Save settings permanently, process media, launch pipeline commands, publish, rename files, mutate queue state. No Playwright or Puppeteer dependency.
+
+---
+
+## Running All Smokes
+
+Non-browser smokes (fast, no browser dependency):
+
+```powershell
+.\SmokeTests\Test-WebViewRealMediaEvidenceSmoke.ps1
+.\SmokeTests\Test-WebViewCommandEvidenceSmoke.ps1
+.\SmokeTests\Test-WebViewRowDetailSmoke.ps1
+.\SmokeTests\Test-WebViewScheduleSmoke.ps1
+.\SmokeTests\Test-WebViewRenameReadinessSmoke.ps1
+.\SmokeTests\Test-WebViewSettingsLaunchPolicySmoke.ps1
+.\SmokeTests\Test-WebViewSettingsLaunchLiveConfigSmoke.ps1
+.\SmokeTests\Test-WebViewSettingsPatchEvidenceSmoke.ps1
+```
+
+Browser-backed smokes (require Node + Chrome/Edge, skip cleanly if absent):
+
+```powershell
+.\SmokeTests\Test-WebViewBrowserHighRiskSmoke.ps1
+.\SmokeTests\Test-WebViewBrowserScheduleSmoke.ps1
+.\SmokeTests\Test-WebViewBrowserLifecycleSmoke.ps1
+.\SmokeTests\Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1
+.\SmokeTests\Test-WebViewBrowserPendingDrainGuardSmoke.ps1
+.\SmokeTests\Test-WebViewBrowserCompletedPendingProofSmoke.ps1
+.\SmokeTests\Test-WebViewBrowserLargeTableSmoke.ps1
+.\SmokeTests\Test-WebViewBrowserMaintenanceReportsSmoke.ps1
+.\SmokeTests\Test-WebViewBrowserSampleValidationSmoke.ps1
+.\SmokeTests\Test-WebViewBrowserHomeLiveStateSmoke.ps1
+.\SmokeTests\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1
+.\SmokeTests\Test-WebViewBrowserLayoutManagerSmoke.ps1
+.\SmokeTests\Test-WebViewBrowserRenameSmoke.ps1
+.\SmokeTests\Test-WebViewBrowserNetworkSmoke.ps1
+.\SmokeTests\Test-WebViewBrowserTelemetrySmoke.ps1
+.\SmokeTests\Test-WebViewBrowserSettingsLaunchSmoke.ps1
+```
+
+The release self-test (`Test-MediaPipelineRemuxEncodeAIO-Release.ps1`) checks that all wrapper files are present as a layout gate. It does not run the smokes automatically in the default configuration.
+
+Separate backend route-contract smoke:
+
+```powershell
+.\SmokeTests\Test-LocalApiLifecycleContractSmoke.ps1
+.\SmokeTests\Test-LocalApiMaintenanceDryRunContractSmoke.ps1
+.\SmokeTests\Test-LocalApiSampleValidationContractSmoke.ps1
+```
+
+These are not WebView rendering smokes. The lifecycle smoke validates browser-free close-readiness and backend-shutdown Local API contracts against temporary token-protected backends. The Maintenance dry-run smoke validates browser-free release/backfill dry-run POST contracts, token enforcement, command history, and no temp source/output media mutation. The sample-validation smoke validates browser-free preview/append/read/tail contracts, current-backend-evidence preview, diagnostics tail allowlist, and temp-only validation-log writes.
+
+## What Smokes Do Not Prove
+
+- FFmpeg remux/encode behavior
+- Subtitle conversion or OCR correctness
+- Audio passthrough or transcode policy
+- Real media routing decisions
+- Pending-publish drain behavior
+- Source-deletion safety or scratch-copy correctness
+- Queue scheduling, priority, or deferred start behavior
+
+For real-media validation, follow the observational checklist in `V5_REAL_MEDIA_VALIDATION_PLAYBOOK.md`.
+

@@ -1,0 +1,83 @@
+# MediaPipelineRemuxEncodeAIO V5 — pre-commit safety net
+#
+# Catches cheap, non-controversial regressions on every commit. Does NOT
+# reformat or lint code — those are intentionally separate concerns (see
+# Docs/proposals/CODE_MANAGEMENT_CLEANUP_PLAN.md §3.8 for lint, §5.1 for
+# the deliberate exclusion of mass autoformat).
+#
+# To enable on a developer machine:
+#
+#   pip install pre-commit
+#   pre-commit install
+#
+# After `install`, hooks run automatically on every `git commit`.
+# To run manually against the whole repo (e.g., after first install):
+#
+#   pre-commit run --all-files
+#
+# CI/contributor expectation: these hooks are advisory until adopted by all
+# active maintainers. They never reformat code; they only catch:
+#   - trailing whitespace
+#   - missing/extra final newlines
+#   - mixed line endings (Windows + Unix in same file)
+#   - merge conflict markers committed by accident
+#   - oversized files (>5 MB)
+#   - YAML / JSON / TOML syntax errors in config files
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      # ----------------------------------------------------------------
+      # Whitespace / line-ending hygiene
+      # ----------------------------------------------------------------
+      - id: trailing-whitespace
+        # Preserve trailing whitespace inside Markdown line-break syntax.
+        args: ['--markdown-linebreak-ext=md']
+
+      - id: end-of-file-fixer
+        # Ensures every text file ends with exactly one newline.
+
+      - id: mixed-line-ending
+        # Forces LF line endings on all text files. Windows checkouts can
+        # cause CRLF drift; this normalises to LF on commit.
+        args: ['--fix=lf']
+
+      # ----------------------------------------------------------------
+      # Safety against accidental commits
+      # ----------------------------------------------------------------
+      - id: check-merge-conflict
+        # Refuses commits containing "<<<<<<<", "=======", ">>>>>>>"
+        # outside of test fixtures.
+
+      - id: check-added-large-files
+        # Block commits adding files larger than 5 MB. Bundled runtimes
+        # and ffmpeg binaries should not be committed to the repo.
+        args: ['--maxkb=5120']
+
+      - id: check-case-conflict
+        # Catches filenames that differ only in case (Foo.py vs foo.py).
+        # Important for cross-platform (Windows is case-insensitive).
+
+      # ----------------------------------------------------------------
+      # Config-file syntax sanity
+      # ----------------------------------------------------------------
+      - id: check-yaml
+        # Catches malformed .yml/.yaml files (this file itself,
+        # GitHub workflows, etc.) before they ship.
+
+      - id: check-json
+        # Catches malformed *.json files (priority_manifest.json schema
+        # examples, package.json, etc.). NOTE: this is JSON-only; for
+        # .jsonl files (event logs, completed manifest), it does not
+        # apply since each line is a separate object.
+
+      - id: check-toml
+        # Catches malformed *.toml files (Cargo.toml, tauri.conf.toml,
+        # any future pyproject.toml).
+
+# Files this safety net deliberately leaves alone:
+#   *.psd1  — PowerShell data files; checked by parser smoke in chunks
+#   *.ps1   — PowerShell scripts; same as above
+#   *.jsonl — append-only log files; per-line parse not done here
+#   Docs/archive/**  — historical content, treated as immutable

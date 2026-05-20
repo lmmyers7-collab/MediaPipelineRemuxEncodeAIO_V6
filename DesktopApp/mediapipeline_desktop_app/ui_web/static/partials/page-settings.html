@@ -1,0 +1,1063 @@
+      <section class="page" data-page-panel="settings">
+        <h1 class="visually-hidden">Pipeline Settings</h1>
+        <div class="settings-tab-bar" role="tablist" aria-label="Settings sections">
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="status" aria-selected="true">Status</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="editor" aria-selected="false">Editor</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="media" aria-selected="false">Media</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="system" aria-selected="false">System</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="advanced" aria-selected="false">Advanced</button>
+        </div>
+
+        <!-- TAB: STATUS -->
+        <div class="settings-tab-pane is-active" data-settings-tab="status">
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Current Config</h2>
+            <strong id="settings-status">Read-only</strong>
+          </div>
+          <pre id="settings-paths" class="prose-block">No settings loaded.</pre>
+          <div class="settings-summary-grid">
+            <section>
+              <h3>Profiles</h3>
+              <pre id="settings-profiles" class="prose-block">No profiles loaded.</pre>
+            </section>
+            <section>
+              <h3>Validation</h3>
+              <pre id="settings-validation" class="prose-block">No validation loaded.</pre>
+            </section>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="settings-validate-button" class="secondary-button">Validate Current Settings</button>
+            <button type="button" id="settings-reload-button" class="secondary-button">Reload From Disk</button>
+          </div>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Config Health</h2>
+            <strong id="settings-trust-status">Not loaded</strong>
+          </div>
+          <pre id="settings-trust-summary" class="prose-block">No saved settings trust summary loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Policy Readiness</h2>
+            <strong id="settings-backend-media-policy-status">Not loaded</strong>
+          </div>
+          <pre id="settings-backend-media-policy-summary" class="prose-block">No backend media-policy readiness rows loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Area</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Operator Check</th>
+                </tr>
+              </thead>
+              <tbody id="settings-backend-media-policy-rows">
+                <tr><td colspan="4">No backend media-policy readiness rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Policy not loaded</span>
+            <span class="empty-state-hint">Refresh to load the backend media-policy readiness rows.</span>
+          </div>
+          </div>
+          <p id="settings-backend-media-policy-legend" class="note table-legend">Backend media-policy readiness rows are read-only and have no selectable actions.</p>
+          <p class="note">This panel displays saved backend settings only. Builder edits and Changes JSON are not active until backend Preview/Save succeeds and settings reload completes.</p>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Settings Overview</h2>
+            <strong id="settings-overview-status">No overview</strong>
+          </div>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Section</th>
+                  <th scope="col">Setting</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody id="settings-overview-rows">
+                <tr><td colspan="3">No grouped settings loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Settings not loaded</span>
+            <span class="empty-state-hint">Refresh to load the settings overview.</span>
+          </div>
+          </div>
+        </section>
+        </div>
+
+        <!-- TAB: EDITOR -->
+        <div class="settings-tab-pane" data-settings-tab="editor">
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Settings Editor <span class="impact-chip" data-impact="medium" title="Routing / size policy — affects remux-vs-encode decisions and output container">Medium Impact</span></h2>
+            <strong id="settings-builder-status">No patch built</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label>
+              Routing profile
+              <select id="settings-builder-routing-profile">
+                <option value="plex_direct_stream">Plex direct/stream</option>
+                <option value="plex_direct_play">Plex direct play</option>
+                <option value="archive_shrink">Archive shrink</option>
+                <option value="archive_quality">Archive quality</option>
+                <option value="manual">Manual</option>
+              </select>
+            </label>
+            <label>
+              Size guard
+              <select id="settings-builder-size-guard">
+                <option value="advisory">Advisory</option>
+                <option value="strict">Strict</option>
+                <option value="off">Off</option>
+              </select>
+            </label>
+            <label>
+              Encode tuning
+              <select id="settings-builder-encode-tuning">
+                <option value="balanced_nvenc">Balanced NVENC</option>
+                <option value="quality_nvenc">Quality NVENC</option>
+                <option value="fast_nvenc">Fast NVENC</option>
+                <option value="compatibility">Compatibility</option>
+                <option value="custom_legacy_flags">Custom legacy flags</option>
+              </select>
+            </label>
+            <label>
+              Encode ladder
+              <select id="settings-builder-encode-ladder">
+                <option value="auto">Auto</option>
+                <option value="tv_balanced">TV balanced</option>
+                <option value="tv_space_saver">TV space saver</option>
+                <option value="movie_balanced">Movie balanced</option>
+                <option value="movie_archive">Movie archive</option>
+                <option value="plex_compat">Plex compatibility</option>
+              </select>
+            </label>
+            <label>
+              Video codec
+              <select id="settings-builder-video-codec">
+                <option value="hevc_nvenc">HEVC NVENC</option>
+                <option value="h264_nvenc">H.264 NVENC</option>
+                <option value="libx265">x265 CPU</option>
+                <option value="libx264">x264 CPU</option>
+                <option value="av1_nvenc">AV1 NVENC</option>
+              </select>
+            </label>
+            <label>
+              Container
+              <select id="settings-builder-output-container">
+                <option value="mkv">MKV</option>
+                <option value="mp4">MP4</option>
+              </select>
+            </label>
+            <label>
+              Normal growth %
+              <input id="settings-builder-max-growth" type="number" min="0" step="1">
+            </label>
+            <label>
+              Compatibility growth %
+              <input id="settings-builder-compat-growth" type="number" min="0" step="1">
+            </label>
+            <label>
+              Movie threshold GB
+              <input id="settings-builder-movie-threshold" type="number" min="0" step="1">
+            </label>
+            <label>
+              TV threshold GB
+              <input id="settings-builder-tv-threshold" type="number" min="0" step="1">
+            </label>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="settings-builder-apply-button" class="secondary-button">Apply To Patch JSON</button>
+            <button type="button" id="settings-builder-reset-button" class="secondary-button">Reset From Current</button>
+          </div>
+          <pre id="settings-builder-guidance" class="prose-block">No builder guidance loaded.</pre>
+          <p class="note">Builder controls only update the JSON below. Preview and save still go through backend validation.</p>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Active Policy</h2>
+            <strong id="settings-active-media-policy-status">Not evaluated</strong>
+          </div>
+          <pre id="settings-active-media-policy-summary" class="prose-block">No active media-policy handoff loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Area</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Current Builder State</th>
+                  <th scope="col">Launch Handoff</th>
+                </tr>
+              </thead>
+              <tbody id="settings-active-media-policy-rows">
+                <tr><td colspan="4">No active media-policy handoff rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Policy not loaded</span>
+            <span class="empty-state-hint">Refresh or save settings to load the active policy handoff rows.</span>
+          </div>
+          </div>
+          <p id="settings-active-media-policy-legend" class="note table-legend">Active media-policy handoff rows are read-only and do not stage, save, launch, encode, remux, publish, or touch files.</p>
+          <p class="note">This summarizes visible builder state. Launch uses saved backend settings only after backend Preview/Save succeeds and settings reload/refresh completes.</p>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Change Preview</h2>
+            <strong id="settings-patch-status">No patch</strong>
+          </div>
+          <label class="full-field">
+            Changes JSON
+            <textarea id="settings-patch-json" rows="6" spellcheck="false">{
+  "RoutingProfile": "plex_direct_stream",
+  "SizeGuardMode": "advisory"
+}</textarea>
+          </label>
+          <label class="check-row">
+            <input id="settings-patch-summary-changed-only" type="checkbox"> Show changed / unknown only
+          </label>
+          <pre id="settings-patch-impact-summary" class="prose-block">No patch impact summary loaded.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Staged Changes</h3>
+            <strong id="settings-policy-delta-status">Not evaluated</strong>
+          </div>
+          <pre id="settings-policy-delta-summary" class="prose-block">No staged media-policy delta loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Area</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Current Saved Posture</th>
+                  <th scope="col">Staged Candidate Posture</th>
+                  <th scope="col">Operator Check</th>
+                </tr>
+              </thead>
+              <tbody id="settings-policy-delta-rows">
+                <tr><td colspan="5">No staged media-policy delta loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No staged changes</span>
+            <span class="empty-state-hint">Edit a setting and save to see staged changes here.</span>
+          </div>
+          </div>
+          <p id="settings-policy-delta-legend" class="note table-legend">Staged media-policy delta is read-only; backend preview/save remains authoritative.</p>
+          <div class="panel-heading panel-subheading">
+            <h3>Active Policy</h3>
+            <strong id="settings-effective-policy-status">Not evaluated</strong>
+          </div>
+          <pre id="settings-effective-policy-summary" class="prose-block">No effective policy trust summary loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Checkpoint</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Saved Backend State</th>
+                  <th scope="col">Staged WebView State</th>
+                  <th scope="col">Operator Action</th>
+                </tr>
+              </thead>
+              <tbody id="settings-effective-policy-rows">
+                <tr><td colspan="5">No effective policy trust rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No active policy loaded</span>
+            <span class="empty-state-hint">Save settings or refresh to load the active policy.</span>
+          </div>
+          </div>
+          <p id="settings-effective-policy-legend" class="note table-legend">Effective policy trust rows are read-only; backend Preview/Save remains the only settings persistence boundary.</p>
+          <pre id="settings-effective-policy-detail" class="prose-block">Select an effective policy row to inspect launch-active state, staged-state limitations, and proof requirements.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Save Status</h3>
+            <strong id="settings-save-readiness-status">Not evaluated</strong>
+          </div>
+          <pre id="settings-save-readiness" class="prose-block">No settings save readiness checklist loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Checkpoint</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Safe Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="settings-save-review-rows">
+                <tr><td colspan="4">No settings save review rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No save result</span>
+            <span class="empty-state-hint">The result of the last settings save appears here.</span>
+          </div>
+          </div>
+          <p id="settings-save-review-legend" class="note table-legend">Settings save review rows: no selectable rows.</p>
+          <pre id="settings-save-review-detail" class="prose-block">No settings save review row selected.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Launch Impact</h3>
+            <strong id="settings-launch-impact-status">Not evaluated</strong>
+          </div>
+          <pre id="settings-launch-impact-summary" class="prose-block">No settings-to-launch impact loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Area</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Launch Check</th>
+                </tr>
+              </thead>
+              <tbody id="settings-launch-impact-rows">
+                <tr><td colspan="4">No settings-to-launch impact rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No impact data</span>
+            <span class="empty-state-hint">Impact data appears here after a settings save.</span>
+          </div>
+          </div>
+          <p id="settings-launch-impact-legend" class="note table-legend">Settings-to-launch handoff is read-only; backend launch validation remains authoritative.</p>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Key</th>
+                  <th scope="col">Setting</th>
+                  <th scope="col">Current</th>
+                  <th scope="col">Staged</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody id="settings-patch-summary-rows">
+                <tr><td colspan="5">No settings patch summary loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No staged changes</span>
+            <span class="empty-state-hint">Edit a setting and save to see staged changes here.</span>
+          </div>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="settings-summarize-patch-button" class="secondary-button">Summarize Patch</button>
+            <button type="button" id="settings-preview-patch-button" class="secondary-button">Preview Patch</button>
+            <button type="button" id="settings-save-patch-button" class="primary-button">Save Settings</button>
+          </div>
+          <p id="settings-patch-summary-status" class="note">Summary is local only. Backend preview remains the source of truth.</p>
+          <pre id="settings-patch-detail" class="prose-block">No settings patch preview loaded. This does not save the PSD1.</pre>
+          <div id="settings-save-progress-bars" class="progress-bar-list" aria-live="polite">
+            <p class="note">No settings save/reload progress loaded.</p>
+          </div>
+          <div class="panel-heading panel-subheading">
+            <h3>Save Result</h3>
+            <strong id="settings-backend-result-status">No backend result</strong>
+          </div>
+          <pre id="settings-backend-result-summary" class="prose-block">No backend settings preview/save result loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Signal</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Operator Action</th>
+                </tr>
+              </thead>
+              <tbody id="settings-backend-result-rows">
+                <tr><td colspan="4">No backend settings result rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No save result</span>
+            <span class="empty-state-hint">The result of the last settings save appears here.</span>
+          </div>
+          </div>
+          <p id="settings-backend-result-legend" class="note table-legend">Backend result rows are read-only; Preview Patch and Save Patch remain backend-owned commands.</p>
+          <pre id="settings-backend-result-detail" class="prose-block">Select a backend preview/save result row to inspect warnings, errors, redacted diff, risk summary, and reload evidence.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Command History</h2>
+            <strong id="settings-command-history-status">No commands</strong>
+          </div>
+          <pre id="settings-command-history" class="prose-block">No settings command history loaded.</pre>
+        </section>
+        </div>
+
+        <!-- TAB: MEDIA -->
+        <div class="settings-tab-pane" data-settings-tab="media">
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Video Settings <span class="impact-chip" data-impact="medium" title="Encoder / GPU — NVENC preset, quality, codec, and container tuning">Medium Impact</span></h2>
+            <strong id="settings-video-builder-status">No video detail patch built</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label>
+              NVENC preset
+              <select id="settings-video-preset">
+                <option value="p1">p1 fastest</option>
+                <option value="p2">p2</option>
+                <option value="p3">p3</option>
+                <option value="p4">p4</option>
+                <option value="p5">p5 balanced</option>
+                <option value="p6">p6</option>
+                <option value="p7">p7 slowest</option>
+              </select>
+            </label>
+            <label>
+              NVENC quality
+              <select id="settings-video-quality">
+                <option value="18">18 larger</option>
+                <option value="19">19</option>
+                <option value="20">20</option>
+                <option value="21">21</option>
+                <option value="22">22 default</option>
+                <option value="23">23</option>
+                <option value="24">24</option>
+                <option value="25">25</option>
+                <option value="26">26</option>
+                <option value="27">27</option>
+                <option value="28">28 smaller</option>
+              </select>
+            </label>
+            <label>
+              H.264 copy max Mbps
+              <input id="settings-video-h264-max-bitrate" type="number" min="1" step="1">
+            </label>
+            <label>
+              H.264 copy max height
+              <select id="settings-video-h264-max-height">
+                <option value="720">720p</option>
+                <option value="1080">1080p</option>
+                <option value="2160">2160p</option>
+              </select>
+            </label>
+            <label>
+              CPU fallback CRF
+              <input id="settings-video-cpu-quality" type="number" min="14" max="28" step="1">
+            </label>
+            <label>
+              CPU preset
+              <select id="settings-video-cpu-preset">
+                <option value="ultrafast">ultrafast</option>
+                <option value="superfast">superfast</option>
+                <option value="veryfast">veryfast</option>
+                <option value="faster">faster</option>
+                <option value="fast">fast</option>
+                <option value="medium">medium</option>
+                <option value="slow">slow</option>
+                <option value="slower">slower</option>
+                <option value="veryslow">veryslow</option>
+                <option value="placebo">placebo</option>
+              </select>
+            </label>
+            <label>
+              CPU priority
+              <select id="settings-video-cpu-priority">
+                <option value="inherit">inherit</option>
+                <option value="idle">idle</option>
+                <option value="belownormal">belownormal</option>
+                <option value="normal">normal</option>
+                <option value="abovenormal">abovenormal</option>
+                <option value="high">high</option>
+              </select>
+            </label>
+            <label>
+              CPU max threads
+              <input id="settings-video-cpu-threads" type="number" min="0" step="1">
+            </label>
+          </div>
+          <div class="option-grid option-grid-compact">
+            <label class="check-row"><input id="settings-video-h264-remux" type="checkbox"> Copy Plex-compatible H.264</label>
+          </div>
+          <label class="full-field">
+            Remux-safe video codecs
+            <input id="settings-video-remux-safe-codecs" type="text" autocomplete="off" spellcheck="false" placeholder="hevc, h265, h264, avc">
+          </label>
+          <label class="full-field">
+            Legacy extra video flags
+            <input id="settings-video-extra-flags" type="text" autocomplete="off" spellcheck="false" placeholder="-spatial-aq 1, -aq-strength 8">
+          </label>
+          <div class="action-row action-row-left">
+            <button type="button" id="settings-video-apply-button" class="secondary-button">Merge Video Detail Patch</button>
+            <button type="button" id="settings-video-reset-button" class="secondary-button">Reset From Current</button>
+          </div>
+          <pre id="settings-video-guidance" class="prose-block">No video detail guidance loaded.</pre>
+          <p class="note">Use this for precise remux and fallback tuning. Backend preview/save remains authoritative before any future run uses these values.</p>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>File Safety Settings <span class="impact-chip" data-impact="high" title="Paths / file safety — verify source, output, and scratch roots before running unattended jobs">High Impact</span></h2>
+            <strong id="settings-file-safety-builder-status">No file-safety patch built</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label>
+              Movies source
+              <input id="settings-file-safety-source-movies" type="text" autocomplete="off" spellcheck="false">
+            </label>
+            <label>
+              TV source
+              <input id="settings-file-safety-source-tv" type="text" autocomplete="off" spellcheck="false">
+            </label>
+            <label>
+              Final output
+              <input id="settings-file-safety-outsource" type="text" autocomplete="off" spellcheck="false">
+            </label>
+            <label>
+              Scratch / LocalBase
+              <input id="settings-file-safety-local-base" type="text" autocomplete="off" spellcheck="false">
+            </label>
+            <label>
+              Scratch reserve GB
+              <input id="settings-file-safety-min-free" type="number" min="0" step="1">
+            </label>
+            <label>
+              Output reserve GB
+              <input id="settings-file-safety-outsource-min-free" type="number" min="0" step="1">
+            </label>
+            <label>
+              File stability wait s
+              <input id="settings-file-safety-stability-wait" type="number" min="0" step="1">
+            </label>
+            <label>
+              Cleanup age h
+              <input id="settings-file-safety-cleanup-age" type="number" min="0" step="1">
+            </label>
+            <label>
+              Disk estimate multiplier
+              <input id="settings-file-safety-output-size-multiplier" type="number" min="0.1" max="2" step="0.05">
+            </label>
+          </div>
+          <label class="full-field">
+            Valid media extensions
+            <input id="settings-file-safety-valid-extensions" type="text" autocomplete="off" spellcheck="false" placeholder=".mkv, .mp4, .m2ts">
+          </label>
+          <label class="full-field">
+            Robocopy flags
+            <input id="settings-file-safety-robocopy-flags" type="text" autocomplete="off" spellcheck="false" placeholder="/J, /R:3, /W:15, /MT:2, /NP, /NDL, /NFL">
+          </label>
+          <div class="option-grid option-grid-compact">
+            <label class="check-row"><input id="settings-file-safety-deferred-publish" type="checkbox"> Deferred publish</label>
+            <label class="check-row"><input id="settings-file-safety-aggressive-episode" type="checkbox"> Aggressive episode parsing</label>
+            <label class="check-row"><input id="settings-file-safety-skip-stability" type="checkbox"> Skip stability check</label>
+            <label class="check-row"><input id="settings-file-safety-enable-integrity" type="checkbox"> Enable integrity check</label>
+            <label class="check-row"><input id="settings-file-safety-create-tv-subfolder" type="checkbox"> Create TV folders</label>
+            <label class="check-row"><input id="settings-file-safety-cleanup-remote" type="checkbox"> Clean remote staging</label>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="settings-file-safety-apply-button" class="secondary-button">Merge File Safety Patch</button>
+            <button type="button" id="settings-file-safety-reset-button" class="secondary-button">Reset From Current</button>
+          </div>
+          <pre id="settings-file-safety-guidance" class="prose-block">No file-safety guidance loaded.</pre>
+          <p class="note">This only stages path, scratch, publish, and safety keys into Changes JSON. Backend preview/save remains the source of truth.</p>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Recovery Settings <span class="impact-chip" data-impact="medium" title="Pending publish — deferred-publish, retry, cleanup, and copy safety keys">Medium Impact</span></h2>
+            <strong id="settings-pending-builder-status">No pending-publish patch built</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label class="check-row launch-check-row">
+              <input id="settings-pending-deferred-publish" type="checkbox"> Park completed outputs for pending publish
+            </label>
+            <label class="check-row launch-check-row">
+              <input id="settings-pending-cleanup-remote" type="checkbox"> Clean remote staging after publish
+            </label>
+            <label>
+              Transient retry limit
+              <input id="settings-pending-transient-retry-limit" type="number" min="0" step="1">
+            </label>
+            <label>
+              Stale cleanup age h
+              <input id="settings-pending-cleanup-age" type="number" min="0" step="1">
+            </label>
+            <label>
+              Copy timeout s
+              <input id="settings-pending-robocopy-timeout" type="number" min="1" step="1">
+            </label>
+            <label>
+              Output reserve GB
+              <input id="settings-pending-outsource-min-free" type="number" min="0" step="1">
+            </label>
+            <label>
+              Disk estimate multiplier
+              <input id="settings-pending-output-size-multiplier" type="number" min="0.1" max="2" step="0.05">
+            </label>
+            <label class="check-row launch-check-row">
+              <input id="settings-pending-enable-integrity" type="checkbox"> Require integrity checks
+            </label>
+            <label class="check-row launch-check-row">
+              <input id="settings-pending-skip-stability" type="checkbox"> Skip stability checks
+            </label>
+          </div>
+          <label class="full-field">
+            Robocopy flags
+            <input id="settings-pending-robocopy-flags" type="text" autocomplete="off" spellcheck="false" placeholder="/J, /R:3, /W:15, /MT:2, /NP, /NDL, /NFL">
+          </label>
+          <div class="action-row action-row-left">
+            <button type="button" id="settings-pending-apply-button" class="secondary-button">Merge Pending Publish Patch</button>
+            <button type="button" id="settings-pending-reset-button" class="secondary-button">Reset From Current</button>
+          </div>
+          <pre id="settings-pending-guidance" class="prose-block">No pending-publish guidance loaded.</pre>
+          <p class="note">This stages existing deferred-publish, copy, retry, cleanup, and safety keys only. Publishing and cleanup remain backend-owned workflows.</p>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Subtitle Settings <span class="impact-chip" data-impact="medium" title="Subtitles — language tracks, TX3G, BDPGS, merge thresholds, and extract timeouts">Medium Impact</span></h2>
+            <strong id="settings-subtitle-builder-status">No subtitle patch built</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label>
+              Subtitle languages
+              <input id="settings-subtitle-languages" type="text" autocomplete="off" placeholder="eng, und">
+            </label>
+            <label>
+              TX3G languages
+              <input id="settings-subtitle-tx3g-languages" type="text" autocomplete="off" placeholder="eng, und">
+            </label>
+            <label>
+              BDPGS languages
+              <input id="settings-subtitle-bdpgs-languages" type="text" autocomplete="off" placeholder="eng, und">
+            </label>
+            <label>
+              SDH title keywords
+              <input id="settings-subtitle-sdh-keywords" type="text" autocomplete="off" placeholder="sdh, hearing impaired">
+            </label>
+            <label>
+              Supplemental title keywords
+              <input id="settings-subtitle-supplemental-keywords" type="text" autocomplete="off" placeholder="signs, songs">
+            </label>
+            <label>
+              Merge threshold ms
+              <input id="settings-subtitle-merge-threshold" type="number" min="0" step="1">
+            </label>
+            <label>
+              Extract timeout s
+              <input id="settings-subtitle-extract-timeout" type="number" min="0" step="1">
+            </label>
+            <label>
+              Probe timeout s
+              <input id="settings-subtitle-probe-timeout" type="number" min="0" step="1">
+            </label>
+            <label>
+              BDPGS OCR timeout s
+              <input id="settings-subtitle-bdpgs-timeout" type="number" min="0" step="1">
+            </label>
+            <label>
+              Excluded ASS styles
+              <input id="settings-subtitle-exclude-styles" type="text" autocomplete="off" placeholder="Default, Signs">
+            </label>
+            <label>
+              Included ASS styles
+              <input id="settings-subtitle-include-styles" type="text" autocomplete="off" placeholder="Optional allowlist">
+            </label>
+          </div>
+          <section class="option-panel">
+            <div class="option-panel-heading">
+              <strong>TX3G</strong>
+              <span>MP4 timed text / mov_text policy</span>
+            </div>
+            <div class="option-grid option-grid-compact">
+              <label class="check-row"><input id="settings-subtitle-convert-tx3g" type="checkbox"> Convert TX3G to SRT</label>
+              <label class="check-row"><input id="settings-subtitle-drop-tx3g" type="checkbox"> Drop TX3G after conversion</label>
+              <label class="check-row"><input id="settings-subtitle-sidecar-tx3g" type="checkbox"> Write TX3G SRT sidecars</label>
+              <label class="check-row"><input id="settings-subtitle-preserve-tx3g-srt" type="checkbox"> Preserve existing TX3G SRTs</label>
+              <label class="check-row"><input id="settings-subtitle-forced-tx3g" type="checkbox"> Separate forced TX3G</label>
+              <label class="check-row"><input id="settings-subtitle-tx3g-signs-forced" type="checkbox"> TX3G signs/songs forced</label>
+            </div>
+          </section>
+          <section class="option-panel">
+            <div class="option-panel-heading">
+              <strong>BDPGS</strong>
+              <span>Blu-ray image subtitle OCR policy</span>
+              <strong id="settings-subtitle-bdpgs-path-status">Not loaded</strong>
+            </div>
+            <div class="option-grid option-grid-compact">
+              <label class="check-row"><input id="settings-subtitle-convert-bdpgs" type="checkbox"> OCR BDPGS to SRT</label>
+              <label class="check-row"><input id="settings-subtitle-drop-bdpgs" type="checkbox"> Drop BDPGS after OCR</label>
+              <label class="check-row"><input id="settings-subtitle-bdpgs-signs-forced" type="checkbox"> BDPGS signs/songs forced</label>
+            </div>
+            <div class="form-grid launch-form-grid">
+              <label>
+                OCR tool path
+                <input id="settings-subtitle-bdpgs-ocr-tool-path" type="text" autocomplete="off" spellcheck="false" placeholder="Tools\PgsToSrt\PgsToSrt.exe">
+              </label>
+              <label>
+                Tessdata path
+                <input id="settings-subtitle-bdpgs-ocr-tessdata-path" type="text" autocomplete="off" spellcheck="false" placeholder="Tools\PgsToSrt\tessdata">
+              </label>
+            </div>
+            <pre id="settings-subtitle-bdpgs-path-evidence" class="prose-block">No BDPGS OCR path evidence loaded.</pre>
+          </section>
+          <section class="option-panel">
+            <div class="option-panel-heading">
+              <strong>ASS / SSA</strong>
+              <span>Styled subtitle conversion policy</span>
+            </div>
+            <div class="option-grid option-grid-compact">
+              <label class="check-row"><input id="settings-subtitle-drop-ass" type="checkbox"> Drop ASS after conversion</label>
+              <label class="check-row"><input id="settings-subtitle-remove-karaoke" type="checkbox"> Filter karaoke styling</label>
+              <label class="check-row"><input id="settings-subtitle-strip-formatting" type="checkbox"> Strip ASS formatting</label>
+              <label class="check-row"><input id="settings-subtitle-merge-adjacent" type="checkbox"> Merge adjacent cues</label>
+              <label class="check-row"><input id="settings-subtitle-keep-signs" type="checkbox"> Keep signs & songs</label>
+              <label class="check-row"><input id="settings-subtitle-ass-signs-forced" type="checkbox"> ASS signs/songs forced</label>
+            </div>
+          </section>
+          <div class="action-row action-row-left">
+            <button type="button" id="settings-subtitle-apply-button" class="secondary-button">Merge Subtitle Patch</button>
+            <button type="button" id="settings-subtitle-reset-button" class="secondary-button">Reset From Current</button>
+          </div>
+          <pre id="settings-subtitle-guidance" class="prose-block">No subtitle guidance loaded.</pre>
+          <p class="note">Subtitle patch keys are staged into the same Changes JSON field. Original subtitle tracks remain governed by the selected drop toggles.</p>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Audio Settings <span class="impact-chip" data-impact="medium" title="Audio — channel layout, codec selection, normalize, and passthrough thresholds">Medium Impact</span></h2>
+            <strong id="settings-audio-builder-status">No audio patch built</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label>
+              Passthrough profile
+              <select id="settings-audio-passthrough-profile">
+                <option value="plex_balanced">Plex balanced</option>
+                <option value="compatibility">Compatibility</option>
+                <option value="lossless_passthrough">Lossless passthrough</option>
+                <option value="custom_codec_list">Custom codec list</option>
+              </select>
+            </label>
+            <label>
+              Custom passthrough codecs
+              <input id="settings-audio-compatible-codecs" type="text" autocomplete="off" placeholder="aac, ac3, eac3">
+            </label>
+            <label>
+              Preferred default languages
+              <input id="settings-audio-preferred-languages" type="text" autocomplete="off" placeholder="english, eng">
+            </label>
+            <label>
+              Transcode codec
+              <select id="settings-audio-transcode-codec">
+                <option value="eac3">EAC3</option>
+                <option value="ac3">AC3</option>
+                <option value="aac">AAC</option>
+              </select>
+            </label>
+            <label>
+              Transcode bitrate
+              <select id="settings-audio-transcode-bitrate">
+                <option value="384k">384k</option>
+                <option value="448k">448k</option>
+                <option value="640k">640k</option>
+                <option value="768k">768k</option>
+              </select>
+            </label>
+            <label class="check-row launch-check-row">
+              <input id="settings-audio-auto-bitrate" type="checkbox"> Auto bitrate by channels
+            </label>
+            <label>
+              Downmix mode
+              <select id="settings-audio-downmix-mode">
+                <option value="max_channels">Cap to max channels</option>
+                <option value="preserve">Preserve source channels</option>
+                <option value="stereo">Force stereo</option>
+              </select>
+            </label>
+            <label>
+              Max channels
+              <select id="settings-audio-max-channels">
+                <option value="2">2.0 stereo</option>
+                <option value="6">5.1</option>
+                <option value="8">7.1</option>
+              </select>
+            </label>
+            <label class="check-row launch-check-row">
+              <input id="settings-audio-allow-no-audio" type="checkbox"> Allow no-audio outputs
+            </label>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="settings-audio-apply-button" class="secondary-button">Merge Audio Patch</button>
+            <button type="button" id="settings-audio-reset-button" class="secondary-button">Reset From Current</button>
+          </div>
+          <pre id="settings-audio-guidance" class="prose-block">No audio guidance loaded.</pre>
+          <p class="note">Audio patch keys are staged into Changes JSON. Leave no-audio output disabled for normal Plex libraries.</p>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Audio & Subtitle Check</h2>
+            <strong id="settings-media-policy-status">Not evaluated</strong>
+          </div>
+          <pre id="settings-media-policy-summary" class="prose-block">No audio/subtitle policy cross-check loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Area</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Operator Check</th>
+                </tr>
+              </thead>
+              <tbody id="settings-media-policy-rows">
+                <tr><td colspan="4">No audio/subtitle policy rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Policy not evaluated</span>
+            <span class="empty-state-hint">Refresh to load the audio/subtitle policy cross-check.</span>
+          </div>
+          </div>
+          <p id="settings-media-policy-legend" class="note table-legend">Audio/subtitle policy rows are read-only and have no selectable actions.</p>
+          <p class="note">This cross-check is read-only and does not change FFmpeg, subtitle, audio, remux, encode, or publish policy. Preview/Save remains backend-owned.</p>
+        </section>
+        </div>
+
+        <!-- TAB: SYSTEM -->
+        <div class="settings-tab-pane" data-settings-tab="system">
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Worker Mode Settings</h2>
+            <strong>Moved</strong>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" class="secondary-button" data-cross-page-target="network">Open Workers</button>
+          </div>
+          <p class="note">Standalone, coordinator, worker URL, poll interval, path map, and worker override settings now live on the Workers tab next to runtime worker state. The same backend Preview/Save settings pipeline still owns validation and persistence.</p>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Queue Settings <span class="impact-chip" data-impact="medium" title="Queue — batch size, concurrency, priority ordering, and backoff limits">Medium Impact</span></h2>
+            <strong id="settings-queue-builder-status">No queue patch built</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label>
+              Priority markers
+              <input id="settings-queue-priority-markers" type="text" autocomplete="off" placeholder="!, [NOW]">
+            </label>
+            <label>
+              Processed index refresh s
+              <input id="settings-queue-processed-index-refresh" type="number" min="0" step="1">
+            </label>
+            <label>
+              Minimum pipeline version
+              <input id="settings-queue-min-pipeline-version" type="text" autocomplete="off" placeholder="Current version by default">
+            </label>
+            <label class="check-row launch-check-row">
+              <input id="settings-queue-reprocess-all" type="checkbox"> Force one reprocess pass
+            </label>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="settings-queue-apply-button" class="secondary-button">Merge Queue Patch</button>
+            <button type="button" id="settings-queue-reset-button" class="secondary-button">Reset From Current</button>
+          </div>
+          <pre id="settings-queue-guidance" class="prose-block">No queue guidance loaded.</pre>
+          <p class="note">This stages queue priority and reprocess policy only. Backend preview/save remains the source of truth before any run considers completed outputs.</p>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Runtime Settings <span class="impact-chip" data-impact="medium" title="Runtime / diagnostics — log level, snapshot interval, event retention, and health-check cadence">Medium Impact</span></h2>
+            <strong id="settings-runtime-builder-status">No runtime patch built</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label class="check-row launch-check-row">
+              <input id="settings-runtime-debug-mode" type="checkbox"> Verbose debug logging
+            </label>
+            <label>
+              Console log level
+              <select id="settings-runtime-console-log">
+                <option value="">Default</option>
+                <option value="ERROR">ERROR</option>
+                <option value="WARN">WARN</option>
+                <option value="INFO">INFO</option>
+                <option value="DEBUG">DEBUG</option>
+              </select>
+            </label>
+            <label>
+              File log level
+              <select id="settings-runtime-file-log">
+                <option value="">Default</option>
+                <option value="ERROR">ERROR</option>
+                <option value="WARN">WARN</option>
+                <option value="INFO">INFO</option>
+                <option value="DEBUG">DEBUG</option>
+              </select>
+            </label>
+            <label>
+              Log retention days
+              <input id="settings-runtime-log-retention" type="number" min="0" step="1">
+            </label>
+            <label>
+              FFmpeg encode timeout s
+              <input id="settings-runtime-ffmpeg-encode-timeout" type="number" min="1" step="1">
+            </label>
+            <label>
+              FFmpeg remux timeout s
+              <input id="settings-runtime-ffmpeg-remux-timeout" type="number" min="1" step="1">
+            </label>
+            <label>
+              CPU encode timeout s
+              <input id="settings-runtime-cpu-encode-timeout" type="number" min="1" step="1">
+            </label>
+            <label>
+              MKV remux timeout s
+              <input id="settings-runtime-mkvmerge-timeout" type="number" min="1" step="1">
+            </label>
+            <label>
+              Copy timeout s
+              <input id="settings-runtime-robocopy-timeout" type="number" min="1" step="1">
+            </label>
+            <label>
+              Source scan interval s
+              <input id="settings-runtime-source-scan-interval" type="number" min="1" step="1">
+            </label>
+            <label>
+              Source scan timeout s
+              <input id="settings-runtime-source-scan-timeout" type="number" min="1" step="1">
+            </label>
+            <label>
+              Index scan timeout s
+              <input id="settings-runtime-index-scan-timeout" type="number" min="1" step="1">
+            </label>
+            <label>
+              Cleanup scan timeout s
+              <input id="settings-runtime-cleanup-scan-timeout" type="number" min="1" step="1">
+            </label>
+            <label>
+              Transient retry limit
+              <input id="settings-runtime-transient-retry-limit" type="number" min="0" step="1">
+            </label>
+            <label class="check-row launch-check-row">
+              <input id="settings-runtime-allow-system-tools" type="checkbox"> Allow PATH tool fallback
+            </label>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="settings-runtime-apply-button" class="secondary-button">Merge Runtime Patch</button>
+            <button type="button" id="settings-runtime-reset-button" class="secondary-button">Reset From Current</button>
+          </div>
+          <pre id="settings-runtime-guidance" class="prose-block">No runtime guidance loaded.</pre>
+          <p class="note">This stages timeout, scan, retry, logging, and tool-fallback settings only. Backend preview/save remains the source of truth.</p>
+        </section>
+        </div>
+
+        <!-- TAB: ADVANCED -->
+        <div class="settings-tab-pane" data-settings-tab="advanced">
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Safety Locks</h2>
+            <strong id="settings-safety-lock-status">Not loaded</strong>
+          </div>
+          <pre id="settings-safety-lock-summary" class="prose-block">No safety lock review loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Setting</th>
+                  <th scope="col">Current</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Operator Action</th>
+                </tr>
+              </thead>
+              <tbody id="settings-safety-lock-rows">
+                <tr><td colspan="4">No safety lock review loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Safety locks not loaded</span>
+            <span class="empty-state-hint">Refresh to load the saved high-risk settings review.</span>
+          </div>
+          </div>
+          <p class="note">Read-only view of saved high-risk settings. Changes still require Changes JSON plus backend Preview/Save.</p>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Advanced Keys</h2>
+            <strong id="settings-raw-triage-status">Not loaded</strong>
+          </div>
+          <pre id="settings-raw-triage" class="prose-block">No raw-key triage loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Key</th>
+                  <th scope="col">Coverage</th>
+                  <th scope="col">Impact</th>
+                  <th scope="col">Review Note</th>
+                </tr>
+              </thead>
+              <tbody id="settings-raw-triage-rows">
+                <tr><td colspan="4">No raw-key triage loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Keys not loaded</span>
+            <span class="empty-state-hint">Refresh to load the advanced settings key triage.</span>
+          </div>
+          </div>
+          <p id="settings-raw-triage-legend" class="note table-legend">Settings raw-key triage: no selectable rows.</p>
+          <pre id="settings-raw-triage-detail" class="prose-block">Select a raw-key row to inspect current value, schema help, and recommended next step.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Advanced Key Plan</h2>
+            <strong id="settings-raw-action-plan-status">Not loaded</strong>
+          </div>
+          <pre id="settings-raw-action-plan-summary" class="prose-block">No raw-key action plan loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Area</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Operator Action</th>
+                </tr>
+              </thead>
+              <tbody id="settings-raw-action-plan-rows">
+                <tr><td colspan="4">No raw-key action plan loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Plan not loaded</span>
+            <span class="empty-state-hint">Refresh to load the raw-key action plan.</span>
+          </div>
+          </div>
+          <p id="settings-raw-action-plan-legend" class="note table-legend">Settings raw-key action plan: no selectable rows.</p>
+          <pre id="settings-raw-action-plan-detail" class="prose-block">Select an action-plan row to inspect evidence, recommended operator action, and no-mutation boundary.</pre>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Raw Config</h2>
+            <strong id="settings-count">0 keys</strong>
+          </div>
+          <label class="filter-field">
+            Filter settings
+            <input id="settings-filter" type="search" autocomplete="off" placeholder="Key or value">
+          </label>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Key</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody id="settings-rows">
+                <tr><td colspan="2">No config loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Config not loaded</span>
+            <span class="empty-state-hint">Refresh to load the full raw config key table.</span>
+          </div>
+          </div>
+        </section>
+        </div>
+      </section>

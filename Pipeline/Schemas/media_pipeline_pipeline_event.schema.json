@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.mediapipeline/schemas/media_pipeline_pipeline_event.v1.schema.json",
+  "title": "MediaPipeline Pipeline Event JSONL Record",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [ "schema_version", "event_id", "event_type", "timestamp", "created_at", "data" ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "pipeline_event.v1" },
+    "event_id": { "type": "string", "minLength": 1 },
+    "event_type": { "type": "string", "minLength": 1 },
+    "timestamp": { "type": "string", "minLength": 1 },
+    "created_at": { "type": "string", "minLength": 1 },
+    "run_id": { "type": "string" },
+    "correlation_id": { "type": "string" },
+    "job_id": { "type": "string" },
+    "product_version": { "type": "string" },
+    "pipeline_version": { "type": "string" },
+    "stage": { "type": "string" },
+    "route": { "type": "string" },
+    "status": { "type": "string" },
+    "source_path": { "type": "string" },
+    "data": { "type": "object", "additionalProperties": true }
+  }
+}

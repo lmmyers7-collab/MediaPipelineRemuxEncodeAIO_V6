@@ -1,0 +1,723 @@
+(function () {
+  let selectedProgressEvidenceKey = "";
+
+  function progressBarStatusLabel(bar) {
+    const status = String(bar?.status || "unknown").trim();
+    const mode = String(bar?.mode || "determinate").trim();
+    const percent = bar?.percent;
+    if (mode === "indeterminate") return status === "active" ? `${status} · running` : status;
+    if (percent === undefined || percent === null || percent === "") return status;
+    const value = Number(percent);
+    if (!Number.isFinite(value)) return status;
+    return `${status} · ${Math.max(0, Math.min(100, value)).toFixed(value % 1 ? 1 : 0)}%`;
+  }
+
+  function progressBarPercent(bar) {
+    const value = Number(bar?.percent);
+    if (!Number.isFinite(value)) return 0;
+    return Math.max(0, Math.min(100, value));
+  }
+
+  function renderProgressBarsInto(containerOrId, bars = [], snapshot = null, emptyText = "") {
+    const container = typeof containerOrId === "string" ? byId(containerOrId) : containerOrId;
+    if (!container) return;
+    const items = Array.isArray(bars) ? bars.filter(Boolean) : [];
+    container.replaceChildren();
+    if (!items.length) {
+      const empty = document.createElement("p");
+      empty.className = "note";
+      empty.textContent = emptyText || (snapshot?.progress || snapshot?.audit_progress
+        ? "Progress fields loaded, but no backend progress bars were emitted."
+        : "No progress bars loaded.");
+      container.appendChild(empty);
+      return;
+    }
+    items.forEach((bar) => {
+      const mode = String(bar.mode || "determinate").toLowerCase();
+      const status = String(bar.status || "unknown").toLowerCase();
+      const row = document.createElement("div");
+      row.className = "progress-bar-row";
+      row.dataset.status = status;
+      row.dataset.mode = mode;
+
+      const header = document.createElement("div");
+      header.className = "progress-bar-header";
+      const label = document.createElement("span");
+      label.className = "progress-bar-label";
+      label.textContent = bar.label || bar.id || "Progress";
+      const value = document.createElement("span");
+      value.className = "progress-bar-value";
+      value.textContent = progressBarStatusLabel(bar);
+      header.append(label, value);
+
+      const track = document.createElement("div");
+      track.className = "progress-track";
+      track.setAttribute("role", "progressbar");
+      track.setAttribute("aria-label", bar.label || bar.id || "Progress");
+      if (mode === "determinate" || mode === "stepped") {
+        const percent = progressBarPercent(bar);
+        track.setAttribute("aria-valuemin", "0");
+        track.setAttribute("aria-valuemax", "100");
+        track.setAttribute("aria-valuenow", String(Math.round(percent)));
+      }
+      const fill = document.createElement("div");
+      fill.className = "progress-fill";
+      if (mode !== "indeterminate") fill.style.width = `${progressBarPercent(bar)}%`;
+      track.appendChild(fill);
+
+      const detail = document.createElement("div");
+      detail.className = "progress-bar-detail";
+      const pieces = [
+        bar.detail,
+        bar.source ? `source: ${bar.source}` : "",
+        bar.updated_at ? `updated: ${bar.updated_at}` : "",
+        bar.stale ? "stale/review" : "",
+      ].filter(Boolean);
+      detail.textContent = pieces.join(" · ") || "No progress detail reported.";
+
+      row.append(header, track, detail);
+      container.appendChild(row);
+    });
+  }
+
+  function renderProgressBars(bars = [], snapshot = null) {
+    renderProgressBarsInto("progress-bar-list", bars, snapshot);
+  }
+
+  function auditProgressBars(snapshot = {}) {
+    const bars = Array.isArray(snapshot?.progress_bars) ? snapshot.progress_bars : [];
+    return bars.filter((bar) => {
+      const id = String(bar?.id || "").toLowerCase();
+      const source = String(bar?.source || "").toLowerCase();
+      return id === "audit_progress" || id === "audit_reports" || source.includes("audit_progress");
+    });
+  }
+
+  function auditProgressStatus(snapshot = {}, bars = auditProgressBars(snapshot)) {
+    if (!snapshot) return "No snapshot";
+    const auditProgress = snapshot.audit_progress && typeof snapshot.audit_progress === "object" ? snapshot.audit_progress : {};
+    const statuses = Array.isArray(bars) ? bars.map((bar) => String(bar?.status || "").toLowerCase()) : [];
+    if (statuses.some((status) => status === "blocked")) return "Audit blocked";
+    if (statuses.some((status) => status === "active")) return "Audit active";
+    if (statuses.length && statuses.every((status) => status === "complete")) return "Audit complete";
+    if (statuses.length) return "Audit progress loaded";
+    return Object.keys(auditProgress).length ? "Audit fields loaded" : "No audit progress";
+  }
+
+  function auditProgressSummaryLines(snapshot = {}, bars = auditProgressBars(snapshot)) {
+    const auditProgress = snapshot?.audit_progress && typeof snapshot.audit_progress === "object" ? snapshot.audit_progress : {};
+    if (!Object.keys(auditProgress).length && (!Array.isArray(bars) || !bars.length)) {
+      return [
+        "Audit progress: no audit progress object is loaded.",
+        "Next step: start Audit from Launch or refresh after an audit process has created audit_progress.json.",
+        "Mutation guardrail: this view is read-only and cannot start, rerun, export, repair, or edit report files.",
+      ];
+    }
+    const processed = auditProgress.processed_files ?? auditProgress.ProcessedFiles ?? "";
+    const total = auditProgress.total_files ?? auditProgress.TotalFiles ?? "";
+    const percent = auditProgress.percent_complete ?? auditProgress.PercentComplete ?? "";
+    const reportIndex = auditProgress.report_step_index ?? auditProgress.ReportStepIndex ?? "";
+    const reportTotal = auditProgress.report_step_total ?? auditProgress.ReportStepTotal ?? "";
+    const reportStage = auditProgress.report_stage ?? auditProgress.ReportStage ?? "";
+    const completedSteps = Array.isArray(auditProgress.report_completed_steps)
+      ? auditProgress.report_completed_steps
+      : Array.isArray(auditProgress.ReportCompletedSteps) ? auditProgress.ReportCompletedSteps : [];
+    const lines = [
+      `Audit status: ${formatProgressValue(auditProgress.status || auditProgress.Status || "unknown")}`,
+      `Audit scan: ${processed !== "" && total !== "" ? `${processed} / ${total}` : "no scan count"}${percent !== "" ? ` (${percent}%)` : ""}`,
+      auditProgress.current_operation ? `Current operation: ${formatProgressValue(auditProgress.current_operation)}` : "",
+      reportTotal !== "" && Number(reportTotal) > 0
+        ? `Report generation: ${reportIndex || 0} / ${reportTotal}${reportStage ? ` (${String(reportStage).replaceAll("_", " ")})` : ""}`
+        : "Report generation: no stepped report progress loaded.",
+      completedSteps.length ? `Completed report steps: ${completedSteps.map((step) => String(step).replaceAll("_", " ")).join(", ")}` : "",
+      bars.length ? `Progress bars: ${bars.map((bar) => `${bar.label || bar.id}: ${progressBarStatusLabel(bar)}`).join(" | ")}` : "Progress bars: none emitted.",
+    ].filter(Boolean);
+    const written = [
+      auditProgress.latest_json_path ? "JSON" : "",
+      auditProgress.latest_csv_path ? "CSV" : "",
+      auditProgress.latest_priority_csv_path ? "Priority CSV" : "",
+      auditProgress.latest_text_path ? "Text" : "",
+    ].filter(Boolean);
+    if (written.length) lines.push(`Written reports: ${written.join(", ")}`);
+    lines.push("Mutation guardrail: audit progress is runtime/report evidence only; report writing and launch remain backend-owned.");
+    return lines;
+  }
+
+  function renderAuditProgressInto({ containerId, statusId, summaryId, snapshot = null, emptyText = "" } = {}) {
+    const bars = auditProgressBars(snapshot || {});
+    renderProgressBarsInto(containerId, bars, snapshot, emptyText || "No audit progress bars loaded.");
+    if (statusId) setText(statusId, auditProgressStatus(snapshot || {}, bars));
+    if (summaryId) setText(summaryId, auditProgressSummaryLines(snapshot || {}, bars).join("\n"));
+  }
+
+  function renderProgressDetails(progress) {
+    const preferred = [
+      "Status",
+      "CurrentStage",
+      "CurrentStagePercent",
+      "CurrentFileDisplay",
+      "CurrentQueueIndex",
+      "CurrentQueueTotal",
+      "CurrentRoute",
+      "RouteReason",
+      "Remuxed",
+      "Encoded",
+      "Failed",
+      "StopRequested",
+      "PauseRequested",
+    ];
+    const keys = preferred.filter((key) => progress[key] !== undefined && progress[key] !== null && progress[key] !== "");
+    const extraKeys = Object.keys(progress).filter((key) => !preferred.includes(key)).sort((a, b) => a.localeCompare(b));
+    const rows = [...keys, ...extraKeys].slice(0, 40);
+    setText("progress-detail-status", rows.length ? `${rows.length} field${rows.length === 1 ? "" : "s"}` : "No details");
+    const tbody = byId("progress-detail-rows");
+    if (!tbody) return;
+    if (!rows.length) {
+      clearRows(tbody, 2, "No progress details loaded.");
+      return;
+    }
+    tbody.replaceChildren();
+    rows.forEach((key) => {
+      const row = document.createElement("tr");
+      appendCells(row, [key, formatProgressValue(progress[key])]);
+      tbody.appendChild(row);
+    });
+  }
+
+  function renderPipelineEvents(events) {
+    setText("pipeline-events-status", events.length ? `${events.length} event${events.length === 1 ? "" : "s"}` : "No events");
+    const tbody = byId("pipeline-event-rows");
+    if (!tbody) return;
+    if (!events.length) {
+      clearRows(tbody, 3, "No pipeline events loaded.");
+      return;
+    }
+    tbody.replaceChildren();
+    events.slice(-25).reverse().forEach((event) => {
+      const row = document.createElement("tr");
+      appendCells(row, [
+        event.timestamp || event.created_at || "",
+        event.event_type || event.type || "",
+        formatProgressValue(event.data || event),
+      ]);
+      tbody.appendChild(row);
+    });
+  }
+
+  function normalizedProgressState(snapshot, progress) {
+    return String(snapshot?.pipeline_state || progress?.Status || progress?.status || "unknown").trim().toLowerCase();
+  }
+
+  function progressStateIsActive(state) {
+    return /processing|running|active|publishing|copying|encoding|remuxing|probing|auditing/.test(String(state || "").toLowerCase());
+  }
+
+  function progressEvidencePostureStatus(posture) {
+    const value = String(posture || "").toLowerCase();
+    if (value.includes("blocked") || value.includes("active work") || value.includes("unsafe")) return "blocked";
+    if (value.includes("review") || value.includes("unknown") || value.includes("stale") || value.includes("missing") || value.includes("paused") || value.includes("stop")) return "warning";
+    return "match";
+  }
+
+  function progressLatestEvent(events) {
+    const items = Array.isArray(events) ? events.filter(Boolean) : [];
+    if (!items.length) return null;
+    return items[items.length - 1] || null;
+  }
+
+  function progressEventLabel(event) {
+    if (!event) return "none";
+    const type = event.event_type || event.type || event.kind || "event";
+    const time = event.timestamp || event.created_at || event.at || "";
+    return `${time ? `${time} ` : ""}${type}`.trim();
+  }
+
+  function progressActiveJobRows(diagnostics) {
+    return Array.isArray(diagnostics?.active_jobs) ? diagnostics.active_jobs.filter(Boolean) : [];
+  }
+
+  function progressEvidenceRows({ snapshot = null, closeReadiness = null, diagnostics = null } = {}) {
+    const progress = snapshot?.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
+    const auditProgress = snapshot?.audit_progress && typeof snapshot.audit_progress === "object" ? snapshot.audit_progress : {};
+    const state = normalizedProgressState(snapshot, progress);
+    const active = progressStateIsActive(state);
+    const activeJobs = progressActiveJobRows(diagnostics);
+    const events = Array.isArray(snapshot?.recent_events) ? snapshot.recent_events : [];
+    const latest = progressLatestEvent(events);
+    const route = activeWorkRouteLine(progress);
+    const queue = activeWorkQueueLine(progress);
+    const control = activeWorkControlLine(progress);
+    const auditState = String(auditProgress.status || auditProgress.Status || "").trim().toLowerCase();
+    const auditActive = progressStateIsActive(auditState);
+    const rows = [];
+
+    rows.push({
+      key: "snapshot-state",
+      checkpoint: "Snapshot state",
+      posture: active ? "active" : state === "unknown" ? "unknown" : "idle",
+      evidence: `${snapshot?.activity || "No activity text"}; state=${state}`,
+      action: active
+        ? "Monitor Progress Details and wait for close-readiness to report safe before closing or starting more work."
+        : "Confirm Queue/Completed/Pending pages if you expected active work.",
+      detail: [
+        `Pipeline state: ${state}`,
+        `Activity: ${snapshot?.activity || "not reported"}`,
+        activeWorkProgressLine(progress) || "No active stage/file progress reported.",
+      ],
+    });
+
+    rows.push({
+      key: "close-readiness",
+      checkpoint: "Close readiness",
+      posture: closeReadiness ? (closeReadiness.safe_to_close ? "safe" : "active work") : "unknown",
+      evidence: closeReadiness ? `${closeReadiness.state || "unknown"}; ${closeReadiness.reason || "no reason"}` : "Close-readiness payload has not loaded.",
+      action: closeReadiness?.safe_to_close === false
+        ? "Do not close unless intentionally interrupting work. Inspect ActiveJobs, Run Logs, Last Stderr, and progress fields first."
+        : closeReadiness?.safe_to_close === true
+          ? "Safe-to-close is reported, but still compare ActiveJobs and progress rows if state looks stale."
+          : "Refresh before closing; unknown close-readiness is not proof that work is idle.",
+      detail: [
+        `Safe to close: ${closeReadiness ? (closeReadiness.safe_to_close ? "yes" : "no") : "unknown"}`,
+        `Reason: ${closeReadiness?.reason || "not reported"}`,
+        `Warnings: ${(closeReadiness?.warnings || []).join(" | ") || "none"}`,
+      ],
+    });
+
+    rows.push({
+      key: "active-jobs",
+      checkpoint: "ActiveJobs",
+      posture: activeJobs.length ? "active work" : "no active job rows",
+      evidence: `${activeJobs.length} ActiveJobs row${activeJobs.length === 1 ? "" : "s"} loaded.`,
+      action: activeJobs.length
+        ? "Open Diagnostics > ActiveJobs or Runtime Artifacts before closing, relaunching, or clearing state."
+        : "If progress says active but ActiveJobs is empty, inspect Run Logs and Last Stderr for stale progress state.",
+      detail: activeJobs.length
+        ? activeJobs.slice(0, 8).map((row) => formatProgressValue(row))
+        : ["No ActiveJobs rows were loaded from Diagnostics."],
+    });
+
+    rows.push({
+      key: "current-item",
+      checkpoint: "Current item",
+      posture: activeWorkProgressLine(progress) ? (active ? "active" : "loaded") : active ? "missing progress" : "idle",
+      evidence: activeWorkProgressLine(progress) || "No current stage/file fields are present.",
+      action: active && !activeWorkProgressLine(progress)
+        ? "Inspect Run Logs and Last Stderr; active state without current-item detail may mean stale or malformed progress."
+        : "Use this as live context only; Completed/Pending evidence remains the output proof.",
+      detail: [
+        activeWorkProgressLine(progress) || "No stage/file progress line available.",
+        `Current file: ${formatProgressValue(progress.CurrentFileDisplay || progress.CurrentFile || progress.InputFile || "not reported")}`,
+        `Updated at: ${formatProgressValue(progress.UpdatedAt || progress.updated_at || "not reported")}`,
+      ],
+    });
+
+    rows.push({
+      key: "route-queue",
+      checkpoint: "Route / queue",
+      posture: route || queue ? "loaded" : active ? "missing route" : "idle",
+      evidence: [route, queue].filter(Boolean).join(" | ") || "No route or queue-position fields are present.",
+      action: route || queue
+        ? "Compare route/queue fields against Queue row route evidence before judging remux/encode behavior."
+        : "Use Queue and Completed row details if route/queue fields are missing.",
+      detail: [
+        route || "Route: not reported",
+        queue || "Queue position: not reported",
+        `Route reason: ${formatProgressValue(progress.RouteReason || progress.CurrentRouteReason || "not reported")}`,
+      ],
+    });
+
+    rows.push({
+      key: "control-flags",
+      checkpoint: "Control flags",
+      posture: /yes/.test(control) ? "paused/stop requested" : control ? "clear" : "unknown",
+      evidence: control || "Pause/stop request fields are not present.",
+      action: /yes/.test(control)
+        ? "Expect progress to slow, pause, or finish current item. Check Control command history and Run Logs before pressing another control."
+        : "Use controls only when close-readiness and active-work summary agree work is running.",
+      detail: [
+        `Pause requested: ${progress.PauseRequested === undefined ? "not reported" : progress.PauseRequested ? "yes" : "no"}`,
+        `Stop requested: ${progress.StopRequested === undefined ? "not reported" : progress.StopRequested ? "yes" : "no"}`,
+      ],
+    });
+
+    rows.push({
+      key: "recent-events",
+      checkpoint: "Recent events",
+      posture: events.length ? "events loaded" : active ? "missing events" : "no recent events",
+      evidence: `${events.length} event${events.length === 1 ? "" : "s"}; latest=${progressEventLabel(latest)}`,
+      action: events.length
+        ? "Use Recent Pipeline Events as supporting context, not as output proof."
+        : active
+          ? "Open Run Logs and Last Stderr if active work has no recent events."
+          : "No event history is expected when idle or after older events roll off.",
+      detail: events.length
+        ? events.slice(-8).reverse().map((event) => `${progressEventLabel(event)}: ${formatProgressValue(event.data || event)}`)
+        : ["No recent pipeline events are loaded in the snapshot."],
+    });
+
+    rows.push({
+      key: "audit-progress",
+      checkpoint: "Audit progress",
+      posture: auditActive ? "audit active" : Object.keys(auditProgress).length ? "audit loaded" : "no audit progress",
+      evidence: auditProgress.status || auditProgress.Status || auditProgress.current_operation || "No audit progress fields are loaded.",
+      action: auditActive
+        ? "Use Diagnostics runtime progress and audit logs before closing or launching pipeline work."
+        : "Audit progress is informational unless audit state is active or close-readiness blocks.",
+      detail: Object.keys(auditProgress).length
+        ? Object.keys(auditProgress).sort().slice(0, 12).map((key) => `${key}: ${formatProgressValue(auditProgress[key])}`)
+        : ["No audit progress object is present in the snapshot."],
+    });
+
+    rows.push({
+      key: "proof-boundary",
+      checkpoint: "Proof boundary",
+      posture: "read-only",
+      evidence: "Progress explains current activity; it is not publish, completion, or output-integrity proof.",
+      action: "Use Completed, Pending Publish, Queue, and Diagnostics proof panels before rerun, cleanup, drain, or trust decisions.",
+      detail: [
+        "This board does not launch, pause, stop, rescan, drain, publish, delete, repair, rewrite, or open arbitrary paths.",
+        "Progress is runtime evidence only. Output proof belongs to Completed, Pending Publish, and durable drain/manifest artifacts.",
+      ],
+    });
+
+    return rows;
+  }
+
+  function progressEvidenceStatus(rows = []) {
+    if (!rows.length) return "No evidence";
+    if (rows.some((row) => progressEvidencePostureStatus(row.posture) === "blocked")) return "Active/review";
+    if (rows.some((row) => progressEvidencePostureStatus(row.posture) === "warning")) return "Review";
+    return "Ready";
+  }
+
+  function progressEvidenceSummaryLines(rows = []) {
+    const counts = rows.reduce((acc, row) => {
+      const key = progressEvidencePostureStatus(row.posture);
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    }, {});
+    const reviewRows = rows.filter((row) => progressEvidencePostureStatus(row.posture) !== "match");
+    const lines = [
+      "Progress evidence board:",
+      `Status: ${progressEvidenceStatus(rows)}`,
+      `Rows: ${rows.length}; blocked=${counts.blocked || 0}; review=${counts.warning || 0}; ready=${counts.match || 0}.`,
+    ];
+    if (reviewRows.length) {
+      lines.push("", "Rows needing attention:");
+      reviewRows.slice(0, 6).forEach((row) => lines.push(`- ${row.checkpoint}: ${row.posture}; ${row.action}`));
+    } else {
+      lines.push("", "No local progress-evidence review rows are active.");
+    }
+    lines.push("", "Mutation guardrail: this board is read-only and does not control processes or touch media files.");
+    return lines;
+  }
+
+  function selectedProgressEvidenceRow(rows) {
+    if (!selectedProgressEvidenceKey) return null;
+    return rows.find((row) => row.key === selectedProgressEvidenceKey) || null;
+  }
+
+  function progressEvidenceDetailLines(row) {
+    if (!row) {
+      return [
+        "No progress evidence row selected.",
+        "Select a row to inspect progress, close-readiness, ActiveJobs, events, audit progress, or proof-boundary context.",
+        "Mutation guardrail: this detail view is read-only and cannot control processes or touch media files.",
+      ];
+    }
+    const lines = [
+      `Checkpoint: ${row.checkpoint}`,
+      `Posture: ${row.posture}`,
+      `Evidence: ${row.evidence}`,
+      `Safe next step: ${row.action}`,
+    ];
+    if (Array.isArray(row.detail) && row.detail.length) {
+      lines.push("", "Detail:");
+      row.detail.forEach((line) => lines.push(`- ${line}`));
+    }
+    lines.push("", "Mutation guardrail: progress evidence is read-only; backend process controls and diagnostics allowlists remain authoritative.");
+    return lines;
+  }
+
+  function renderProgressEvidence(context = {}) {
+    const rows = progressEvidenceRows(context || {});
+    setText("progress-evidence-status", progressEvidenceStatus(rows));
+    setText("progress-evidence-summary", progressEvidenceSummaryLines(rows).join("\n"));
+    const tbody = byId("progress-evidence-rows");
+    if (!tbody) return;
+    if (selectedProgressEvidenceKey && !rows.some((row) => row.key === selectedProgressEvidenceKey)) {
+      selectedProgressEvidenceKey = "";
+    }
+    if (!rows.length) {
+      clearRows(tbody, 4, "No progress evidence rows loaded.");
+      updateTableStatusLegend("progress-evidence-legend", tbody, "Progress evidence rows");
+      setText("progress-evidence-detail", progressEvidenceDetailLines(null).join("\n"));
+      return;
+    }
+    tbody.replaceChildren();
+    rows.forEach((item) => {
+      const row = document.createElement("tr");
+      row.dataset.status = progressEvidencePostureStatus(item.posture);
+      appendCells(row, [item.checkpoint, item.posture, item.evidence, item.action]);
+      makeRowSelectable(row, () => {
+        selectedProgressEvidenceKey = item.key;
+        renderProgressEvidence(context);
+      }, {
+        selected: selectedProgressEvidenceKey === item.key,
+        label: `Progress evidence ${item.checkpoint} ${item.posture}`,
+      });
+      tbody.appendChild(row);
+    });
+    updateTableStatusLegend("progress-evidence-legend", tbody, "Progress evidence rows");
+    setText("progress-evidence-detail", progressEvidenceDetailLines(selectedProgressEvidenceRow(rows)).join("\n"));
+  }
+
+  function progressRowsForSource(source, progress, preferred) {
+    const payload = progress && typeof progress === "object" ? progress : {};
+    const preferredRows = preferred.filter((key) => payload[key] !== undefined && payload[key] !== null && payload[key] !== "");
+    const extraRows = Object.keys(payload).filter((key) => !preferred.includes(key)).sort((a, b) => a.localeCompare(b));
+    return [...preferredRows, ...extraRows].slice(0, 40).map((key) => ({
+      source,
+      field: key,
+      value: payload[key],
+    }));
+  }
+
+  function diagnosticsProgressRows(snapshot) {
+    const pipelinePreferred = [
+      "Status",
+      "CurrentStage",
+      "CurrentStagePercent",
+      "CurrentFileDisplay",
+      "CurrentFile",
+      "CurrentRoute",
+      "RouteReason",
+      "CurrentQueueIndex",
+      "CurrentQueueTotal",
+      "CurrentStageStartedAt",
+      "CurrentItemStartedAt",
+      "PushState",
+      "PauseRequested",
+      "StopRequested",
+      "UpdatedAt",
+    ];
+    const auditPreferred = [
+      "status",
+      "current_operation",
+      "current_file",
+      "processed_files",
+      "total_files",
+      "percent_complete",
+      "report_stage",
+      "report_step_index",
+      "report_step_total",
+      "report_completed_steps",
+      "started_at",
+      "updated_at",
+      "error",
+    ];
+    return [
+      ...progressRowsForSource("Pipeline", snapshot?.progress, pipelinePreferred),
+      ...progressRowsForSource("Audit", snapshot?.audit_progress, auditPreferred),
+    ];
+  }
+
+  function diagnosticsProgressStatus(snapshot, rows) {
+    if (!snapshot) return "No snapshot";
+    if (/stale progress/i.test(String(snapshot.activity || ""))) return "Stale progress review";
+    const progress = snapshot.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
+    const auditProgress = snapshot.audit_progress && typeof snapshot.audit_progress === "object" ? snapshot.audit_progress : {};
+    const pipelineState = String(snapshot.pipeline_state || progress.Status || "").toLowerCase();
+    const auditState = String(auditProgress.status || auditProgress.Status || "").toLowerCase();
+    if (pipelineState && /processing|running|active|publishing/.test(pipelineState)) return "Pipeline active";
+    if (auditState && /running|active|processing|scanning/.test(auditState)) return "Audit active";
+    return rows.length ? "Progress loaded" : "No progress";
+  }
+
+  function diagnosticsProgressSummaryLines(snapshot, rows) {
+    if (!snapshot) {
+      return [
+        "Snapshot: unavailable",
+        "Next step: refresh the WebView or open Diagnostics > Run Logs if close-readiness is blocked.",
+      ];
+    }
+    const progress = snapshot.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
+    const auditProgress = snapshot.audit_progress && typeof snapshot.audit_progress === "object" ? snapshot.audit_progress : {};
+    const staleProgress = /stale progress/i.test(String(snapshot.activity || ""));
+    const lines = [
+      `Pipeline state: ${snapshot.pipeline_state || progress.Status || "unknown"}`,
+      activeWorkProgressLine(progress) || "Pipeline progress: no active progress fields reported.",
+      activeWorkRouteLine(progress),
+      activeWorkQueueLine(progress),
+      activeWorkControlLine(progress),
+    ].filter(Boolean);
+    if (staleProgress) {
+      lines.push(
+        "",
+        "Stale progress warning:",
+        "Runtime progress looks older than the current backend state. Treat Progress as context only until Close Readiness, ActiveJobs, Run Logs, and Last Stderr agree.",
+        "Safe next step: read ActiveJobs and bounded logs before clearing state, closing the app, rerunning, or starting new work."
+      );
+    }
+    if (Object.keys(auditProgress).length) {
+      lines.push(
+        "",
+        `Audit status: ${formatProgressValue(auditProgress.status || auditProgress.Status || "unknown")}`,
+        auditProgress.current_operation ? `Audit operation: ${formatProgressValue(auditProgress.current_operation)}` : "",
+        auditProgress.current_file ? `Audit file: ${formatProgressValue(auditProgress.current_file)}` : "",
+        auditProgress.percent_complete !== undefined ? `Audit percent: ${formatProgressValue(auditProgress.percent_complete)}` : ""
+      );
+    }
+    lines.push(
+      "",
+      `Structured fields: ${rows.length}`,
+      "Next step: compare Runtime Progress with Close Readiness and ActiveJobs before closing the app or clearing runtime state.",
+      "Mutation guardrail: this table is read-only; progress files are still backend/runtime-owned."
+    );
+    return lines.filter((line) => line !== "");
+  }
+
+  function renderDiagnosticsProgress(snapshot = null) {
+    const rows = diagnosticsProgressRows(snapshot || {});
+    setText("diagnostics-progress-status", diagnosticsProgressStatus(snapshot, rows));
+    renderProgressBarsInto(
+      "diagnostics-progress-bars",
+      Array.isArray(snapshot?.progress_bars) ? snapshot.progress_bars : [],
+      snapshot,
+      "No runtime progress bars loaded.",
+    );
+    const tbody = byId("diagnostics-progress-rows");
+    if (tbody) {
+      if (!rows.length) {
+        clearRows(tbody, 3, "No runtime progress fields loaded.");
+      } else {
+        tbody.replaceChildren();
+        rows.forEach((item) => {
+          const row = document.createElement("tr");
+          const source = String(item.source || "").toLowerCase();
+          row.dataset.status = source === "audit" ? "warning" : "";
+          appendCells(row, [item.source, item.field, formatProgressValue(item.value)]);
+          tbody.appendChild(row);
+        });
+      }
+    }
+    setText("diagnostics-progress-detail", diagnosticsProgressSummaryLines(snapshot, rows).join("\n"));
+  }
+
+  function activeWorkProgressLine(progress) {
+    const stage = progress?.CurrentStage || progress?.Status || "";
+    const percent = progress?.CurrentStagePercent;
+    const file = progress?.CurrentFileDisplay || progress?.CurrentFile || progress?.InputFile || "";
+    const parts = [];
+    if (stage) parts.push(`Stage: ${formatProgressValue(stage)}`);
+    if (percent !== undefined && percent !== null && percent !== "") parts.push(`Stage percent: ${formatProgressValue(percent)}`);
+    if (file) parts.push(`File: ${formatProgressValue(file)}`);
+    return parts.join(" | ");
+  }
+
+  function activeWorkRouteLine(progress) {
+    const route = progress?.CurrentRoute || progress?.Route || "";
+    const reason = progress?.RouteReason || progress?.CurrentRouteReason || "";
+    if (!route && !reason) return "";
+    return `Route: ${formatProgressValue(route || "unknown")}${reason ? ` | Reason: ${formatProgressValue(reason)}` : ""}`;
+  }
+
+  function activeWorkQueueLine(progress) {
+    const index = progress?.CurrentQueueIndex;
+    const total = progress?.CurrentQueueTotal;
+    if ((index === undefined || index === null || index === "") && (total === undefined || total === null || total === "")) return "";
+    return `Queue position: ${formatProgressValue(index || 0)} / ${formatProgressValue(total || 0)}`;
+  }
+
+  function activeWorkControlLine(progress) {
+    const flags = [];
+    if (progress?.PauseRequested !== undefined) flags.push(`Pause requested: ${progress.PauseRequested ? "yes" : "no"}`);
+    if (progress?.StopRequested !== undefined) flags.push(`Stop requested: ${progress.StopRequested ? "yes" : "no"}`);
+    return flags.join(" | ");
+  }
+
+  function latestEventLine(diagnostics, snapshot) {
+    const diagnosticEvents = Array.isArray(diagnostics?.recent_events) ? diagnostics.recent_events : [];
+    if (diagnosticEvents.length) return `Latest diagnostic event: ${formatProgressValue(diagnosticEvents[0])}`;
+    const snapshotEvents = Array.isArray(snapshot?.recent_events) ? snapshot.recent_events : [];
+    if (!snapshotEvents.length) return "";
+    const event = snapshotEvents[snapshotEvents.length - 1];
+    return `Latest pipeline event: ${formatProgressValue(event?.event_type || event?.type || event)}`;
+  }
+
+  function activeWorkNextStep({ activeJobs, closeReadiness, state }) {
+    if (activeJobs.length || closeReadiness?.safe_to_close === false) {
+      return "Inspect Progress Details, Diagnostics > ActiveJobs, and Run Logs before closing or starting more work.";
+    }
+    const normalized = String(state || "").toLowerCase();
+    if (["processing", "running", "active", "publishing"].includes(normalized)) {
+      return "Monitor Progress Details and wait for close-readiness to report safe before exiting.";
+    }
+    return "No active work indicators are currently reported.";
+  }
+
+  function renderHomeActiveWork({ snapshot = null, diagnostics = null, closeReadiness = null } = {}) {
+    const activeJobs = Array.isArray(diagnostics?.active_jobs) ? diagnostics.active_jobs.filter(Boolean) : [];
+    const progress = snapshot?.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
+    const auditProgress = snapshot?.audit_progress && typeof snapshot.audit_progress === "object" ? snapshot.audit_progress : {};
+    const state = snapshot?.pipeline_state || closeReadiness?.state || "unknown";
+    const stateActive = ["processing", "running", "active", "publishing"].includes(String(state || "").toLowerCase());
+    const active = activeJobs.length > 0 || closeReadiness?.safe_to_close === false || stateActive;
+    setText("home-active-work-status", active ? "Active work" : closeReadiness?.safe_to_close === true ? "Idle" : "Checking");
+    const lines = [
+      `Pipeline state: ${state}`,
+      `Close readiness: ${closeReadiness ? (closeReadiness.safe_to_close ? "safe" : "active work") : "unknown"}`,
+      closeReadiness?.reason ? `Close reason: ${closeReadiness.reason}` : "",
+      `ActiveJobs: ${activeJobs.length || 0}`,
+      ...activeJobs.slice(0, 5).map((item) => `- ${item}`),
+      activeJobs.length > 5 ? `- and ${activeJobs.length - 5} more ActiveJobs row(s)` : "",
+      activeWorkProgressLine(progress),
+      activeWorkRouteLine(progress),
+      activeWorkQueueLine(progress),
+      activeWorkControlLine(progress),
+      auditProgress.status || auditProgress.Status ? `Audit: ${formatProgressValue(auditProgress.status || auditProgress.Status)}` : "",
+      latestEventLine(diagnostics, snapshot),
+      "",
+      `Next step: ${activeWorkNextStep({ activeJobs, closeReadiness, state })}`,
+    ].filter((line) => line !== "");
+    setText("home-active-work-summary", lines.join("\n"));
+  }
+
+  /**
+   * Public namespace for the shared progress module.
+   * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.
+   */
+  window.mediaPipelineProgressView = {
+    renderProgressBarsInto,
+    renderProgressBars,
+    auditProgressBars,
+    auditProgressStatus,
+    auditProgressSummaryLines,
+    renderAuditProgressInto,
+    renderProgressDetails,
+    renderPipelineEvents,
+    renderProgressEvidence,
+    progressEvidenceRows,
+    progressEvidenceStatus,
+    progressEvidenceSummaryLines,
+    progressEvidenceDetailLines,
+    renderDiagnosticsProgress,
+    diagnosticsProgressRows,
+    diagnosticsProgressStatus,
+    diagnosticsProgressSummaryLines,
+    renderHomeActiveWork,
+    activeWorkNextStep,
+    activeWorkProgressLine,
+    activeWorkRouteLine,
+    activeWorkQueueLine,
+    activeWorkControlLine,
+    latestEventLine,
+  };
+  window.renderProgressBarsInto = renderProgressBarsInto;
+  window.renderProgressBars = renderProgressBars;
+  window.renderAuditProgressInto = renderAuditProgressInto;
+  window.renderProgressDetails = renderProgressDetails;
+  window.renderPipelineEvents = renderPipelineEvents;
+  window.renderProgressEvidence = renderProgressEvidence;
+  window.renderHomeActiveWork = renderHomeActiveWork;
+})();

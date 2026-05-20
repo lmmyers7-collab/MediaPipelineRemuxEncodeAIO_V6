@@ -1,0 +1,603 @@
+      <section class="page" data-page-panel="diagnostics">
+        <h1 class="visually-hidden">System Diagnostics</h1>
+        <div class="settings-tab-bar" role="tablist" aria-label="Diagnostics sections">
+          <button type="button" class="settings-tab-btn" role="tab" data-diag-tab="logs" aria-selected="true">Logs</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-diag-tab="triage" aria-selected="false">Overview</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-diag-tab="investigation" aria-selected="false">Investigation</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-diag-tab="progress" aria-selected="false">State</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-diag-tab="advanced" aria-selected="false">Advanced</button>
+        </div>
+
+        <!-- TAB: TRIAGE -->
+        <div class="settings-tab-pane" data-diag-tab="triage">
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Diagnostics Overview</h2>
+            <strong id="diagnostics-triage-status">Not loaded</strong>
+          </div>
+          <pre id="diagnostics-triage-summary" class="prose-block">No diagnostics overview loaded.</pre>
+        </section>
+
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Errors</h2>
+          </div>
+          <pre id="recent-errors" class="log-block">No diagnostics loaded.</pre>
+        </section>
+
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Events</h2>
+          </div>
+          <pre id="recent-events" class="log-block">No events loaded.</pre>
+        </section>
+
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Active Jobs</h2>
+            <strong id="active-job-detail-status">No rows</strong>
+          </div>
+          <pre id="active-jobs" class="log-block">No jobs loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Record</th>
+                  <th scope="col">Job</th>
+                  <th scope="col">Mode</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">PID</th>
+                  <th scope="col">Launched</th>
+                  <th scope="col">Issue</th>
+                </tr>
+              </thead>
+              <tbody id="active-job-detail-rows">
+                <tr><td colspan="7">No structured ActiveJobs loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No active jobs</span>
+            <span class="empty-state-hint">Run a pipeline job to see active job records here.</span>
+          </div>
+          </div>
+          <p id="active-job-table-legend" class="note table-legend">ActiveJob rows: no selectable rows.</p>
+          <pre id="active-job-detail" class="prose-block">No ActiveJob row selected.</pre>
+          <div id="active-job-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
+        </section>
+
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>First Response</h2>
+            <strong id="diagnostics-first-response-status">Not loaded</strong>
+          </div>
+          <pre id="diagnostics-first-response-summary" class="prose-block">No diagnostics first-response checklist loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Step</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Safe Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="diagnostics-first-response-rows">
+                <tr><td colspan="4">No diagnostics first-response rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No triage data</span>
+            <span class="empty-state-hint">Run a pipeline job to populate the first-response checklist here.</span>
+          </div>
+          </div>
+          <p id="diagnostics-first-response-legend" class="note table-legend">Diagnostics first-response rows are read-only and do not launch, drain, save, rename, repair, delete, publish, clear state, or touch files.</p>
+          <pre id="diagnostics-first-response-detail" class="prose-block">No diagnostics first-response row selected.</pre>
+        </section>
+        </div>
+
+        <!-- TAB: STATE -->
+        <div class="settings-tab-pane" data-diag-tab="progress">
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Runtime Progress Snapshot</h2>
+            <strong id="diagnostics-progress-status">Not loaded</strong>
+          </div>
+          <div id="diagnostics-progress-bars" class="progress-bar-list" aria-live="polite">
+            <p class="note">No runtime progress bars loaded.</p>
+          </div>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Source</th>
+                  <th scope="col">Field</th>
+                  <th scope="col">Value</th>
+                </tr>
+              </thead>
+              <tbody id="diagnostics-progress-rows">
+                <tr><td colspan="3">No runtime progress loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No active progress</span>
+            <span class="empty-state-hint">Progress rows appear during and after a pipeline run.</span>
+          </div>
+          </div>
+          <pre id="diagnostics-progress-detail" class="prose-block">No runtime progress summary loaded.</pre>
+        </section>
+
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Shutdown Readiness</h2>
+            <strong id="diagnostics-close-status">Not loaded</strong>
+          </div>
+          <pre id="diagnostics-close-readiness" class="prose-block">No close-readiness data loaded.</pre>
+        </section>
+
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>State Summary</h2>
+            <strong id="diagnostics-state-summary-status">Not loaded</strong>
+          </div>
+          <pre id="diagnostics-state-summary" class="prose-block">No backend state artifact summary loaded.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Recovery Steps</h3>
+            <strong id="diagnostics-state-recovery-status">Not loaded</strong>
+          </div>
+          <pre id="diagnostics-state-recovery" class="prose-block">No diagnostics state recovery checklist loaded.</pre>
+          <div data-advanced>
+          <div class="panel-heading panel-subheading">
+            <h3>Read Order</h3>
+            <strong id="diagnostics-state-triage-status">Not loaded</strong>
+          </div>
+          <pre id="diagnostics-state-triage-summary" class="prose-block">No backend state triage loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Priority</th>
+                  <th scope="col">Target</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Stage</th>
+                  <th scope="col">First Action</th>
+                </tr>
+              </thead>
+              <tbody id="diagnostics-state-triage-rows">
+                <tr><td colspan="5">No backend state triage rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No state triage</span>
+            <span class="empty-state-hint">Backend state triage rows appear after a pipeline run or error.</span>
+          </div>
+          </div>
+          <p id="diagnostics-state-triage-legend" class="note table-legend">Backend state triage rows: no selectable rows.</p>
+          <pre id="diagnostics-state-triage-detail" class="prose-block">No backend state triage row selected.</pre>
+          <div id="diagnostics-state-triage-actions" class="action-row action-row-left wrap-actions"></div>
+          </div>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Target</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Kind</th>
+                  <th scope="col" class="num">Size</th>
+                  <th scope="col" class="num">Modified</th>
+                </tr>
+              </thead>
+              <tbody id="diagnostics-state-summary-rows">
+                <tr><td colspan="5">No backend state artifact rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No state artifacts</span>
+            <span class="empty-state-hint">Backend state artifacts appear after the pipeline produces output.</span>
+          </div>
+          </div>
+          <p id="diagnostics-state-summary-table-legend" class="note table-legend">State artifact rows: no selectable rows.</p>
+          <pre id="diagnostics-state-summary-detail" class="prose-block">No state artifact row selected.</pre>
+          <div id="diagnostics-state-summary-actions" class="action-row action-row-left wrap-actions"></div>
+        </section>
+
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Artifact Detail</h2>
+            <strong id="diagnostics-drilldown-status">Not loaded</strong>
+          </div>
+          <pre id="diagnostics-drilldown-summary" class="prose-block">No diagnostics artifact drilldown loaded.</pre>
+          <div id="diagnostics-drilldown-actions" class="action-row action-row-left wrap-actions"></div>
+        </section>
+        </div>
+
+        <!-- TAB: INVESTIGATION -->
+        <div class="settings-tab-pane" data-diag-tab="investigation">
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Investigation Path</h2>
+            <strong id="diagnostics-investigation-status">Not loaded</strong>
+          </div>
+          <pre id="diagnostics-investigation-trail" class="prose-block">No diagnostics investigation trail loaded.</pre>
+          <div id="diagnostics-investigation-actions" class="action-row action-row-left wrap-actions"></div>
+        </section>
+
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Log Access</h2>
+            <strong id="diagnostics-log-status">No lines</strong>
+          </div>
+          <div class="form-grid option-grid-compact">
+            <label>
+              Severity
+              <select id="diagnostics-log-severity">
+                <option value="">All severities</option>
+                <option value="error">Errors</option>
+                <option value="warning">Warnings</option>
+                <option value="active">Active</option>
+                <option value="info">Info</option>
+              </select>
+            </label>
+            <label>
+              Search
+              <input id="diagnostics-log-filter" type="search" autocomplete="off" placeholder="Source, severity, timestamp, message">
+            </label>
+          </div>
+          <pre id="diagnostics-log-guidance" class="prose-block">No diagnostics log guidance loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Source</th>
+                  <th scope="col">Severity</th>
+                  <th scope="col">Time</th>
+                  <th scope="col">Line</th>
+                </tr>
+              </thead>
+              <tbody id="diagnostics-log-rows">
+                <tr><td colspan="4">No structured diagnostics log rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No log entries</span>
+            <span class="empty-state-hint">Structured log rows appear after a pipeline run produces log output.</span>
+          </div>
+          </div>
+          <p id="diagnostics-log-table-legend" class="note table-legend">Diagnostics log rows: no selectable rows.</p>
+          <pre id="diagnostics-log-detail" class="prose-block">No diagnostics log row selected.</pre>
+          <div id="diagnostics-log-actions" class="action-row action-row-left wrap-actions"></div>
+        </section>
+
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Command History</h2>
+            <strong id="diagnostics-command-status">No commands</strong>
+          </div>
+          <pre id="diagnostics-command-history" class="log-block">No backend command history loaded.</pre>
+        </section>
+
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Command Detail</h2>
+            <strong id="diagnostics-command-drilldown-status">No commands</strong>
+          </div>
+          <pre id="diagnostics-command-drilldown-summary" class="prose-block">No command-result drilldown loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Owner</th>
+                  <th scope="col">Command</th>
+                  <th scope="col">Issue</th>
+                  <th scope="col">Refresh</th>
+                  <th scope="col">Next Action</th>
+                </tr>
+              </thead>
+              <tbody id="diagnostics-command-drilldown-rows">
+                <tr><td colspan="5">No command-result drilldown rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No command results</span>
+            <span class="empty-state-hint">Command drilldown rows appear after pipeline commands complete.</span>
+          </div>
+          </div>
+          <p id="diagnostics-command-drilldown-legend" class="note table-legend">Command drilldown rows: no selectable rows.</p>
+          <pre id="diagnostics-command-drilldown-detail" class="prose-block">No command drilldown row selected.</pre>
+          <div id="diagnostics-command-drilldown-actions" class="action-row action-row-left wrap-actions"></div>
+          <div data-advanced>
+          <div class="panel-heading panel-subheading">
+            <h3>Impact Summary</h3>
+            <strong id="diagnostics-command-owner-status">No owners</strong>
+          </div>
+          <pre id="diagnostics-command-owner-summary" class="prose-block">No command owner impact loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Owner</th>
+                  <th scope="col">Issues</th>
+                  <th scope="col">Latest Command</th>
+                  <th scope="col">Refresh</th>
+                  <th scope="col">Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="diagnostics-command-owner-rows">
+                <tr><td colspan="5">No command owner impact rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No row selected</span>
+            <span class="empty-state-hint">Select a row above to see details here.</span>
+          </div>
+          </div>
+          <p id="diagnostics-command-owner-legend" class="note table-legend">Command owner impact rows: no selectable rows.</p>
+          </div>
+          <div data-advanced>
+          <div class="panel-heading panel-subheading">
+            <h3>Related Evidence</h3>
+            <strong id="diagnostics-command-evidence-status">No selection</strong>
+          </div>
+          <pre id="diagnostics-command-evidence-summary" class="prose-block">No command diagnostics evidence loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Confidence</th>
+                  <th scope="col">Source</th>
+                  <th scope="col">Operator Action</th>
+                </tr>
+              </thead>
+              <tbody id="diagnostics-command-evidence-rows">
+                <tr><td colspan="4">No command diagnostics evidence rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No row selected</span>
+            <span class="empty-state-hint">Select a row above to see details here.</span>
+          </div>
+          </div>
+          <p id="diagnostics-command-evidence-legend" class="note table-legend">Command diagnostics evidence rows: no selectable rows.</p>
+          <p class="note">Read-only command triage. Diagnostics buttons use backend allowlist targets; this panel cannot retry, launch, drain, save, rename, repair, delete, publish, or open arbitrary paths.</p>
+          </div>
+          <div class="panel-heading panel-subheading">
+            <h3>Failure Resolution</h3>
+            <strong id="diagnostics-command-resolution-status">No commands</strong>
+          </div>
+          <pre id="diagnostics-command-resolution-summary" class="prose-block">No command failure resolution checklist loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Checkpoint</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Safe Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="diagnostics-command-resolution-rows">
+                <tr><td colspan="4">No command failure resolution rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No row selected</span>
+            <span class="empty-state-hint">Select a row above to see details here.</span>
+          </div>
+          </div>
+          <p id="diagnostics-command-resolution-legend" class="note table-legend">Command failure resolution rows: no selectable rows.</p>
+          <pre id="diagnostics-command-resolution-detail" class="prose-block">Select a command failure checkpoint before retrying from an owning page.</pre>
+        </section>
+        </div>
+
+        <!-- TAB: LOGS -->
+        <div class="settings-tab-pane is-active" data-diag-tab="logs">
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Pipeline Log</h2>
+          </div>
+          <pre id="log-tail" class="log-block">No log tail loaded.</pre>
+        </section>
+
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>File Log</h2>
+            <strong id="diagnostics-tail-status">Idle</strong>
+          </div>
+          <div class="form-grid option-grid-compact">
+            <label>
+              Target
+              <select id="diagnostics-tail-target">
+                <option value="last_stderr_log">Last Stderr</option>
+                <option value="last_stdout_log">Last Stdout</option>
+                <option value="cluster_log">Cluster Log</option>
+                <option value="queue_snapshot">Queue Snapshot</option>
+                <option value="completed_manifest">Completed Manifest</option>
+                <option value="active_jobs">Active Jobs</option>
+                <option value="latest_failure_report">Latest Failure Report</option>
+                <option value="latest_failure_json">Latest Failure JSON</option>
+                <option value="latest_audit_csv">Latest Audit CSV</option>
+                <option value="latest_priority_csv">Latest Priority CSV</option>
+                <option value="sample_validation_log">Sample Validation Log</option>
+              </select>
+            </label>
+            <label>
+              Bytes
+              <select id="diagnostics-tail-max-bytes">
+                <option value="16384">16 KB</option>
+                <option value="65536" selected>64 KB</option>
+                <option value="131072">128 KB</option>
+                <option value="262144">256 KB</option>
+              </select>
+            </label>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <button id="diagnostics-tail-refresh-button" class="secondary-button" type="button">Read Tail</button>
+          </div>
+          <pre id="diagnostics-tail-detail" class="prose-block">No allowlisted file tail loaded.</pre>
+          <pre id="diagnostics-tail-evidence" class="prose-block">No diagnostics tail evidence loaded.</pre>
+          <pre id="diagnostics-tail-text" class="log-block">Select a target and read a bounded tail. The WebView sends a target key, not a filesystem path.</pre>
+        </section>
+
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Launch Log</h2>
+          </div>
+          <pre id="launch-logs" class="log-block">No launch logs loaded.</pre>
+        </section>
+        </div>
+
+        <!-- TAB: ADVANCED -->
+        <div class="settings-tab-pane" data-diag-tab="advanced">
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Page Handoff</h2>
+            <strong id="diagnostics-owner-handoff-status">Not loaded</strong>
+          </div>
+          <pre id="diagnostics-owner-handoff" class="prose-block">No owning-page evidence handoff loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Owner</th>
+                  <th scope="col">Row</th>
+                  <th scope="col">Severity</th>
+                  <th scope="col">Reason</th>
+                  <th scope="col">Safe Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="diagnostics-owner-handoff-rows">
+                <tr><td colspan="5">No owning-page handoff rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No handoff data</span>
+            <span class="empty-state-hint">Handoff rows appear when active queue, completed, or pending items have diagnostics context.</span>
+          </div>
+          </div>
+          <p id="diagnostics-owner-handoff-legend" class="note table-legend">Diagnostics owning-page handoff rows: no selectable rows.</p>
+          <pre id="diagnostics-owner-handoff-detail" class="prose-block">No owning-page handoff row selected.</pre>
+          <div id="diagnostics-owner-handoff-actions" class="action-row action-row-left wrap-actions"></div>
+          <p id="diagnostics-owner-handoff-nav-status" class="note">Owner-row navigation is local UI selection only and sends no backend command.</p>
+          <p class="note">Read-only: Diagnostics points to Queue, Completed, or Pending Publish evidence. Row file/folder opens and mutation commands stay on the owning page and use backend-owned row keys.</p>
+        </section>
+
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Backend State</h2>
+            <strong id="backend-lifecycle-status" data-state="unknown">Not loaded</strong>
+          </div>
+          <pre id="backend-lifecycle-summary" class="prose-block">No backend lifecycle readiness loaded.</pre>
+          <div class="action-row action-row-left">
+            <button type="button" id="backend-shutdown-button" class="danger-button" disabled>Request Backend Shutdown</button>
+          </div>
+          <p id="backend-shutdown-status" class="note">Shutdown requests stay disabled until close-readiness reports safe.</p>
+          <pre id="backend-lifecycle-history" class="prose-block">No backend lifecycle command history loaded.</pre>
+        </section>
+
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Open Files</h2>
+            <strong id="diagnostics-open-status">Idle</strong>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" class="secondary-button" data-open-diagnostics="run_logs">Run Logs</button>
+            <button type="button" class="secondary-button" data-open-diagnostics="cluster_log">Cluster Log</button>
+            <button type="button" class="secondary-button" data-open-diagnostics="last_stdout_log">Last Stdout</button>
+            <button type="button" class="secondary-button" data-open-diagnostics="last_stderr_log">Last Stderr</button>
+            <button type="button" class="secondary-button" data-open-diagnostics="config">Config File</button>
+            <button type="button" class="secondary-button" data-open-diagnostics="config_folder">Config Folder</button>
+            <button type="button" class="secondary-button" data-open-diagnostics="workspace">Workspace</button>
+            <button type="button" class="secondary-button" data-open-diagnostics="state">State Folder</button>
+            <button type="button" class="secondary-button" data-open-diagnostics="active_jobs">Active Jobs</button>
+            <button type="button" class="secondary-button" data-open-diagnostics="queue_snapshot">Queue Snapshot</button>
+            <button type="button" class="secondary-button" data-open-diagnostics="completed_manifest">Completed Manifest</button>
+            <button type="button" class="secondary-button" data-open-diagnostics="pending_publish">Pending Publish</button>
+            <button type="button" class="secondary-button" data-open-diagnostics="failed_reports">Failure Reports</button>
+            <button type="button" class="secondary-button" data-open-diagnostics="failed_markers">Failure Markers</button>
+            <button type="button" class="secondary-button" data-open-diagnostics="audit_reports">Audit Reports</button>
+            <button type="button" class="secondary-button" data-open-diagnostics="sample_validation_log">Sample Validation Log</button>
+          </div>
+          <pre id="diagnostics-open-history" class="prose-block">No diagnostics open command history loaded.</pre>
+        </section>
+
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>API Contract</h2>
+            <strong id="api-contract-status">Not loaded</strong>
+          </div>
+          <pre id="api-contract" class="prose-block">No contract loaded.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Contract Review</h3>
+            <strong id="api-contract-safety-status">Not loaded</strong>
+          </div>
+          <pre id="api-contract-safety-summary" class="prose-block">No contract safety review loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Contract Surface</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Safe Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="api-contract-safety-rows">
+                <tr><td colspan="4">No contract safety rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Contract not loaded</span>
+            <span class="empty-state-hint">Refresh to populate the API contract safety review.</span>
+          </div>
+          </div>
+          <p id="api-contract-safety-legend" class="note table-legend">API contract safety rows: no selectable rows.</p>
+          <pre id="api-contract-safety-detail" class="prose-block">Select a contract safety row to inspect route risk and ownership boundaries.</pre>
+          <div class="form-grid option-grid-compact">
+            <label>
+              Method
+              <select id="api-contract-method">
+                <option value="">All methods</option>
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+              </select>
+            </label>
+            <label>
+              Scope
+              <select id="api-contract-scope">
+                <option value="">All routes</option>
+                <option value="read-only">Read-only</option>
+                <option value="guarded">Guarded actions</option>
+                <option value="token">Token protected</option>
+                <option value="public">Public</option>
+              </select>
+            </label>
+            <label>
+              Search
+              <input id="api-contract-filter" type="search" autocomplete="off" placeholder="Path, effect, schema, purpose">
+            </label>
+          </div>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Method</th>
+                  <th scope="col">Path</th>
+                  <th scope="col">Auth</th>
+                  <th scope="col">Effect</th>
+                  <th scope="col">Schema / Purpose</th>
+                </tr>
+              </thead>
+              <tbody id="api-contract-rows">
+                <tr><td colspan="5">No contract routes loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Contract not loaded</span>
+            <span class="empty-state-hint">Refresh to populate the full API contract route table.</span>
+          </div>
+          </div>
+          <p id="api-contract-table-legend" class="note table-legend">API contract rows: no selectable rows.</p>
+          <pre id="api-contract-detail" class="prose-block">No contract route selected.</pre>
+        </section>
+        </div>
+      </section>

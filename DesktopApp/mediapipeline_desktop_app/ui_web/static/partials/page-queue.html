@@ -1,0 +1,359 @@
+      <section class="page" data-page-panel="queue">
+        <h1 class="visually-hidden">Processing Queue</h1>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Queue</h2>
+            <strong id="queue-status">No rows</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label>
+              Filter queue
+              <input id="queue-filter" type="search" autocomplete="off" placeholder="Name, route, reason, kind">
+            </label>
+            <label>
+              Queue status
+              <select id="queue-status-filter">
+                <option value="all">All rows</option>
+                <option value="review">Review only</option>
+                <option value="blocked">Blocked only</option>
+                <option value="warning">Warnings only</option>
+                <option value="ready">Ready only</option>
+              </select>
+            </label>
+            <label>
+              Queue view
+              <select id="queue-investigation-filter">
+                <option value="all">All signals</option>
+                <option value="launch_blockers">Launch blockers</option>
+                <option value="runtime_failed">Runtime failed</option>
+                <option value="deferred_checks">Deferred checks</option>
+                <option value="priority">Priority rows</option>
+                <option value="encode">Encode routes</option>
+                <option value="remux">Remux routes</option>
+                <option value="tv_parse">TV parse review</option>
+              </select>
+            </label>
+            <div class="form-actions-inline">
+              <button class="primary-button" type="button" data-queue-refresh-button>Refresh Queue</button>
+              <button id="queue-clear-filters-button" class="secondary-button" type="button">Clear Queue Filters</button>
+            </div>
+          </div>
+          <p class="note">Refresh Queue reloads backend snapshots only. Filters, selected rows, and visible table limits do not change backend launch scope.</p>
+          <pre id="queue-filter-summary" class="prose-block">Queue filter inactive. No rows loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Queue Rows</h2>
+            <strong>Backend preview</strong>
+          </div>
+          <!-- S60 Priority toolbar -->
+          <div class="queue-priority-toolbar">
+            <span class="toolbar-label">Set priority:</span>
+            <button type="button" class="secondary-button" id="queue-priority-promote-btn" title="Promote selected row to High priority">⬆ High</button>
+            <button type="button" class="secondary-button" id="queue-priority-normal-btn" title="Reset selected row to Normal priority">↺ Normal</button>
+            <button type="button" class="secondary-button" id="queue-priority-low-btn" title="Demote selected row to Low priority">⬇ Low</button>
+            <button type="button" class="secondary-button" id="queue-priority-hold-btn" title="Hold selected row — exclude from processing">⏸ Hold</button>
+            <button type="button" class="secondary-button" id="queue-priority-promote-movies-btn" title="Promote all visible Movie rows to High">⬆ All Movies</button>
+            <button type="button" class="secondary-button" id="queue-priority-promote-tv-btn" title="Promote all visible TV rows to High">⬆ All TV</button>
+            <button type="button" class="secondary-button" id="queue-priority-clear-all-btn" title="Reset all manifest entries to Normal (clear entire manifest)">✕ Clear All</button>
+          </div>
+          <p id="queue-priority-status" class="note">Select a row, then set High, Normal, Low, or Hold. Hold writes a backend queue-state override only; it does not delete or rename media.</p>
+          <!-- End S60 Priority toolbar -->
+          <!-- S70 Queue ordering strategy selector -->
+          <div class="queue-strategy-toolbar">
+            <label class="toolbar-label" for="queue-strategy-select">Order strategy:</label>
+            <select id="queue-strategy-select" class="queue-strategy-select" title="Choose how queue entries are ordered within each priority phase">
+              <option value="Standard">Standard — Priority → Movies → TV</option>
+              <option value="FreshestFirst">Freshest First — by last-modified date</option>
+              <option value="ShowComplete">Show Complete — finish each show first</option>
+              <option value="RoundRobin">Round Robin — 1 episode per show per cycle</option>
+              <option value="DeadlineAware">Deadline Aware — by due date</option>
+              <option value="SmallFirst">Small Files First</option>
+              <option value="LargeFirst">Large Files First</option>
+              <option value="ManualOrder">Manual Order — position from manifest</option>
+            </select>
+            <button type="button" class="secondary-button" id="queue-strategy-apply-btn" title="Save strategy (takes effect on next queue build)">Apply</button>
+          </div>
+          <p id="queue-strategy-status" class="note">Order strategy affects the next backend queue build.</p>
+          <!-- End S70 Queue ordering strategy selector -->
+          <div class="table-wrap">
+            <table class="workflow-table queue-table">
+              <thead>
+                <tr>
+                  <th scope="col" class="num">Order</th>
+                  <th scope="col">Kind</th>
+                  <th scope="col">Priority</th>
+                  <th scope="col">Name</th>
+                  <th scope="col">Route</th>
+                  <th scope="col">Reason</th>
+                  <th scope="col" class="settings-col">Settings</th>
+                </tr>
+              </thead>
+              <tbody id="queue-rows">
+                <tr><td colspan="7">No queue loaded. Click Refresh Queue, or run a fresh queue preview from Launch if the snapshot is stale.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Queue is empty</span>
+            <span class="empty-state-hint">Check source paths and schedule state, or run a fresh queue preview from Launch.</span>
+          </div>
+          </div>
+          <p id="queue-table-legend" class="note table-legend">Queue rows: no selectable rows.</p>
+          <!-- S80 Per-file settings drawer (Phase 3) -->
+          <div id="fo-overlay" class="fo-overlay" hidden aria-hidden="true"></div>
+          <aside id="fo-drawer" class="fo-drawer" hidden role="dialog" aria-modal="true" aria-labelledby="fo-drawer-title">
+            <div class="fo-drawer-header">
+              <div class="fo-drawer-title-group">
+                <h3 id="fo-drawer-title" class="fo-drawer-title">File Settings</h3>
+                <p id="fo-drawer-path" class="fo-drawer-path"></p>
+              </div>
+              <button type="button" id="fo-drawer-close" class="icon-button fo-close-btn" aria-label="Close settings">✕</button>
+            </div>
+            <div class="fo-drawer-body">
+              <section class="fo-section">
+                <h4 class="fo-section-title">Audio Tracks</h4>
+                <label class="fo-label">
+                  <span class="fo-label-text">Keep only — languages (comma-separated ISO 639-2 codes)</span>
+                  <input type="text" id="fo-audio-keep-langs" class="fo-input" placeholder="e.g. eng, jpn — blank = no restriction">
+                </label>
+                <label class="fo-label">
+                  <span class="fo-label-text">Drop — languages (comma-separated)</span>
+                  <input type="text" id="fo-audio-drop-langs" class="fo-input" placeholder="e.g. spa, fre">
+                </label>
+                <label class="fo-label">
+                  <span class="fo-label-text">Max channels</span>
+                  <select id="fo-audio-max-channels" class="fo-select">
+                    <option value="">— no override —</option>
+                    <option value="2">2.0 Stereo</option>
+                    <option value="6">5.1</option>
+                    <option value="8">7.1</option>
+                  </select>
+                </label>
+              </section>
+              <section class="fo-section">
+                <h4 class="fo-section-title">Subtitle Tracks</h4>
+                <label class="fo-label fo-label-inline">
+                  <input type="checkbox" id="fo-sub-strip-all">
+                  <span class="fo-label-text">Strip all subtitle tracks from output</span>
+                </label>
+                <div id="fo-sub-filter-fields">
+                  <label class="fo-label">
+                    <span class="fo-label-text">Keep only — languages (comma-separated)</span>
+                    <input type="text" id="fo-sub-keep-langs" class="fo-input" placeholder="e.g. eng — blank = no restriction">
+                  </label>
+                  <label class="fo-label">
+                    <span class="fo-label-text">Drop — languages (comma-separated)</span>
+                    <input type="text" id="fo-sub-drop-langs" class="fo-input" placeholder="e.g. chi, kor">
+                  </label>
+                </div>
+              </section>
+              <div class="fo-drawer-actions">
+                <button type="button" id="fo-drawer-save" class="primary-button">Save Override</button>
+                <button type="button" id="fo-drawer-clear" class="secondary-button">Clear Override</button>
+              </div>
+              <p id="fo-drawer-status" class="note"></p>
+            </div>
+          </aside>
+          <!-- End S80 Per-file settings drawer -->
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Selected File</h2>
+            <strong id="queue-selected-status">No selection</strong>
+          </div>
+          <pre id="queue-selected-summary" class="prose-block">Select a queue row to see trust, route, concern, safe next step, filter visibility, and backend authority.</pre>
+          <pre id="queue-detail" class="prose-block">No queue row selected.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Source Scan Progress</h2>
+            <strong id="queue-progress-status">Not loaded</strong>
+          </div>
+          <div id="queue-progress-bars" class="progress-bar-list" aria-live="polite">
+            <p class="note">No queue source scan progress loaded.</p>
+          </div>
+          <pre id="queue-progress-summary" class="prose-block">No queue source scan progress loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Queue Snapshot</h2>
+            <strong>Read-only</strong>
+          </div>
+          <pre id="queue-summary" class="prose-block">No queue preview loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Readiness</h2>
+            <strong id="queue-readiness-status">Not loaded</strong>
+          </div>
+          <pre id="queue-readiness" class="prose-block">No queue readiness loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Queue Summary</h2>
+            <strong id="queue-breakdown-status">Not loaded</strong>
+          </div>
+          <pre id="queue-breakdown" class="prose-block">No queue breakdown loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Run History</h2>
+            <strong id="queue-runtime-status">Not loaded</strong>
+          </div>
+          <pre id="queue-runtime" class="prose-block">No queue runtime outcome history loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Pre-Launch Checklist</h2>
+            <strong id="queue-validation-status">Not loaded</strong>
+          </div>
+          <pre id="queue-validation" class="prose-block">No queue validation checklist loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Next Step</h2>
+            <strong id="queue-workflow-status">Not loaded</strong>
+          </div>
+          <pre id="queue-workflow" class="prose-block">No queue workflow guidance loaded.</pre>
+        </section>
+        <section class="panel" data-advanced data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Launch Scope</h2>
+            <strong id="queue-backend-scope-status">Not evaluated</strong>
+          </div>
+          <pre id="queue-backend-scope-summary" class="prose-block">No backend launch scope preview loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Signal</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Operator Meaning</th>
+                  <th scope="col">Boundary</th>
+                </tr>
+              </thead>
+              <tbody id="queue-backend-scope-rows">
+                <tr><td colspan="4">No backend launch scope rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Scope not evaluated</span>
+            <span class="empty-state-hint">Launch scope rows appear here after queue data loads.</span>
+          </div>
+          </div>
+          <p id="queue-backend-scope-legend" class="note table-legend">Backend launch scope rows are read-only and do not launch, reorder, drop, skip, or mutate queue state.</p>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Launch Checklist</h2>
+            <strong id="queue-launch-decision-status">Not evaluated</strong>
+          </div>
+          <pre id="queue-launch-decision-summary" class="prose-block">No queue launch decision checklist loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Checkpoint</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Safe Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="queue-launch-decision-rows">
+                <tr><td colspan="4">No queue launch decision rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Checklist pending</span>
+            <span class="empty-state-hint">Launch checklist rows appear here after queue data loads.</span>
+          </div>
+          </div>
+          <p id="queue-launch-decision-legend" class="note table-legend">Queue launch decision rows: no selectable rows.</p>
+          <pre id="queue-launch-decision-detail" class="prose-block">Select a launch decision checkpoint before starting queued work.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Flagged Items</h2>
+            <strong id="queue-review-status">Not loaded</strong>
+          </div>
+          <pre id="queue-review-board" class="prose-block">No queue review board loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Order</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Source</th>
+                  <th scope="col">Reason</th>
+                  <th scope="col">Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="queue-review-rows">
+                <tr><td colspan="5">No queue review digest loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Nothing flagged</span>
+            <span class="empty-state-hint">Flagged rows appear here when the backend marks a file blocked.</span>
+          </div>
+          </div>
+          <p id="queue-review-legend" class="note table-legend">Queue review rows: no selectable rows.</p>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Collision Risk</h2>
+            <strong id="queue-collision-status">Not loaded</strong>
+          </div>
+          <pre id="queue-collision" class="prose-block">No queue/completed collision summary loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Excluded Files</h2>
+            <strong id="queue-excluded-status">Not loaded</strong>
+          </div>
+          <pre id="queue-excluded-summary" class="prose-block">No excluded source row detail loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Order</th>
+                  <th scope="col">Kind</th>
+                  <th scope="col">Reason</th>
+                  <th scope="col">Name</th>
+                  <th scope="col">Source</th>
+                </tr>
+              </thead>
+              <tbody id="queue-excluded-rows">
+                <tr><td colspan="5">No excluded source rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No exclusions</span>
+            <span class="empty-state-hint">Excluded rows appear here when files are filtered out of the active scope.</span>
+          </div>
+          </div>
+          <p id="queue-excluded-table-legend" class="note table-legend">Excluded rows: no selectable rows.</p>
+          <pre id="queue-excluded-detail" class="prose-block">No excluded source row selected.</pre>
+          <div class="action-row action-row-left">
+            <button type="button" data-open-queue-excluded="source_file">Open Excluded Source</button>
+            <button type="button" data-open-queue-excluded="source_folder">Open Excluded Folder</button>
+            <button type="button" data-open-queue-excluded="source_root">Open Excluded Root</button>
+          </div>
+          <p id="queue-excluded-open-status" class="note">Select an excluded source row to open a backend-selected source location.</p>
+        </section>
+        <section class="panel" data-advanced data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Diagnostics Links</h2>
+            <strong id="queue-diagnostics-status">Not selected</strong>
+          </div>
+          <pre id="queue-diagnostics-guidance" class="prose-block">Select a queue row to see backend-allowlisted diagnostics actions.</pre>
+          <div id="queue-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
+          <div class="action-row action-row-left">
+            <button type="button" data-open-queue="source_file">Open Source</button>
+            <button type="button" data-open-queue="source_folder">Open Source Folder</button>
+            <button type="button" data-open-queue="source_root">Open Source Root</button>
+          </div>
+          <p id="queue-open-status" class="note">Select a queue row to open a backend-selected source location.</p>
+          <pre id="queue-open-history" class="prose-block">No queue open command history loaded.</pre>
+        </section>
+      </section>

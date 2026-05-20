@@ -1,0 +1,135 @@
+from __future__ import annotations
+
+import contextlib
+from pathlib import Path
+from typing import Any
+
+from .service_pending_publish_format import (
+    format_bytes_compact,
+    format_pending_datetime_text,
+    format_pending_timestamp,
+    int_or_none,
+    pending_age_text,
+)
+from .service_pending_publish_paths import path_from_manifest, pending_item_mtime
+
+
+def unreadable_pending_manifest_row(manifest_path: Path, exc: Exception) -> dict[str, Any]:
+    return {
+        "manifest_path": str(manifest_path),
+        "parked_at": "",
+        "parked_at_display": format_pending_timestamp(pending_item_mtime(manifest_path)),
+        "age_text": "",
+        "publish_mode": "",
+        "route": "",
+        "state": "unreadable",
+        "local_file": "",
+        "local_exists": False,
+        "server_out": "",
+        "source_path": "",
+        "output_size": 0,
+        "size_text": "0 B",
+        "sidecar_count": 0,
+        "missing_sidecar_count": 0,
+        "sidecar_paths": [],
+        "error": str(exc),
+    }
+
+
+def invalid_contract_pending_manifest_row(
+    manifest_path: Path,
+    manifest: dict[str, Any],
+    *,
+    schema_version: str,
+    exc: Exception,
+) -> dict[str, Any]:
+    return {
+        "manifest_path": str(manifest_path),
+        "parked_at": str(manifest.get("parked_at") or "").strip(),
+        "parked_at_display": format_pending_timestamp(pending_item_mtime(manifest_path)),
+        "age_text": "",
+        "publish_mode": str(manifest.get("publish_mode") or "").strip(),
+        "route": str(manifest.get("route") or "").strip(),
+        "state": "invalid_contract",
+        "local_file": str(manifest.get("local_file") or manifest.get("parked_file") or "").strip(),
+        "local_exists": False,
+        "server_out": str(manifest.get("server_out") or "").strip(),
+        "source_path": str(manifest.get("source_path") or "").strip(),
+        "output_size": 0,
+        "size_text": "0 B",
+        "sidecar_count": 0,
+        "missing_sidecar_count": 0,
+        "sidecar_paths": [],
+        "schema_version": schema_version,
+        "error": f"Current pending manifest contract invalid: {exc}",
+    }
+
+
+def pending_sidecar_status(sidecars: Any) -> tuple[list[str], int]:
+    sidecar_paths: list[str] = []
+    missing_sidecars = 0
+    if isinstance(sidecars, list):
+        for sidecar in sidecars:
+            if not isinstance(sidecar, dict):
+                continue
+            sidecar_path = path_from_manifest(sidecar, "local_file", "parked_file")
+            if sidecar_path:
+                sidecar_paths.append(str(sidecar_path))
+                if not sidecar_path.exists():
+                    missing_sidecars += 1
+    return sidecar_paths, missing_sidecars
+
+
+def pending_output_size(manifest: dict[str, Any], local_path: Path | None) -> int:
+    output_size = int_or_none(manifest.get("output_size"))
+    if output_size is None and local_path and local_path.exists():
+        with contextlib.suppress(OSError):
+            output_size = local_path.stat().st_size
+    return int(output_size or 0)
+
+
+def pending_payload_error_text(local_path: Path | None, local_exists: bool, missing_sidecars: int) -> str:
+    if local_path and not local_exists:
+        return "Manifest local_file payload is missing; retry/drain will require manual recovery."
+    if missing_sidecars:
+        return f"{missing_sidecars} pending sidecar payload(s) are missing."
+    return ""
+
+
+def readable_pending_manifest_row(
+    *,
+    manifest_path: Path,
+    parked_at: str,
+    publish_mode: str,
+    route: str,
+    state: str,
+    local_path: Path | None,
+    local_exists: bool,
+    server_path: Path | None,
+    source_path: Path | None,
+    output_size: int,
+    sidecar_paths: list[str],
+    missing_sidecars: int,
+    schema_version: str,
+    error_text: str,
+) -> dict[str, Any]:
+    return {
+        "manifest_path": str(manifest_path),
+        "parked_at": parked_at,
+        "parked_at_display": format_pending_datetime_text(parked_at) or format_pending_timestamp(pending_item_mtime(manifest_path)),
+        "age_text": pending_age_text(parked_at),
+        "publish_mode": publish_mode,
+        "route": route,
+        "state": state or "unknown",
+        "local_file": str(local_path) if local_path else "",
+        "local_exists": local_exists,
+        "server_out": str(server_path) if server_path else "",
+        "source_path": str(source_path) if source_path else "",
+        "output_size": int(output_size),
+        "size_text": format_bytes_compact(int(output_size)),
+        "sidecar_count": len(sidecar_paths),
+        "missing_sidecar_count": missing_sidecars,
+        "sidecar_paths": sidecar_paths,
+        "schema_version": schema_version or "legacy",
+        "error": error_text,
+    }

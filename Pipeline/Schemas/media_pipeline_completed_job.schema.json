@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local.mediapipeline/schemas/media_pipeline_completed_job.v1.schema.json",
+  "title": "MediaPipeline Completed Job Manifest Record",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [ "schema_version", "route" ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": [ "completed_job.v1", "pipeline_sidecar.v1" ]
+    },
+    "product_version": { "type": "string" },
+    "pipeline_version": { "type": "string" },
+    "created_at": { "type": "string" },
+    "encoded_at": { "type": "string" },
+    "logged_at": { "type": "string" },
+    "job_id": { "type": "string" },
+    "correlation_id": { "type": "string" },
+    "route": { "type": "string" },
+    "output_file": { "type": "string" },
+    "output_path": { "type": "string" },
+    "source_path": { "type": "string" },
+    "source_identity": { "type": "string" },
+    "source_identity_v2": { "type": "string" },
+    "audio_decisions": { "type": "array" },
+    "subtitle_decisions": { "type": "array" },
+    "tx3g_srt_tracks": { "type": "array" },
+    "tx3g_srt_failures": { "type": "array" },
+    "bdpgs_srt_failures": { "type": "array" },
+    "tx3g_embedded_srt_tracks": { "type": "array" },
+    "bdpgs_embedded_srt_tracks": { "type": "array" },
+    "encode_selected_encoder": { "type": "string" },
+    "encode_selected_encoder_kind": { "type": "string" },
+    "encode_selected_gpu_device": { "type": "string" }
+  }
+}

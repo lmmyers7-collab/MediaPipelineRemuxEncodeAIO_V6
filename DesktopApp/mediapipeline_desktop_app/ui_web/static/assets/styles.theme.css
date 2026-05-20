@@ -1,0 +1,124 @@
+body.light-mode ::selection {
+  background: var(--blue-200);
+  color: var(--blue-900);
+}
+
+/* ===== LIGHT MODE COMPONENT OVERRIDES - Stage 15 =============================
+   The grey-scale inversion is correct for surfaces and text. These rules fix
+   components that embed dark status-palette backgrounds (--blue-900, --red-900,
+   --green-700, etc.) which were designed for dark surfaces and become invisible
+   or jarring when the grey scale inverts. All flips follow the design-reference
+   chip spec (Section 7): --x-100 bg / --x-700 text for light contexts.        */
+
+/* A - Active nav button: --blue-900 bg (18% L) + --grey-100 text (12% L) = invisible */
+body.light-mode .nav-button.is-active {
+  background: var(--blue-100);
+  border-color: var(--blue-500);
+  border-left-color: var(--blue-500);
+}
+
+/* B - Danger button: --red-900 bg (12% L) close to body-text lightness */
+body.light-mode .danger-button {
+  background: var(--red-100);
+  border-color: var(--red-500);
+  color: var(--red-700);
+}
+body.light-mode .danger-button:hover {
+  background: var(--red-100);
+  border-color: var(--red-700);
+  color: var(--red-700);
+}
+body.light-mode .danger-button:active {
+  background: var(--red-100);
+  border-color: var(--red-700);
+  color: var(--red-700);
+}
+body.light-mode .danger-button:disabled {
+  background: var(--grey-800);
+  border-color: var(--grey-600);
+  color: var(--grey-500);
+}
+
+/* C - Table status-row text: light tokens can vanish on light backgrounds */
+body.light-mode tr[data-status="blocked"] td,
+body.light-mode tr[data-status="failed"] td  { color: var(--red-700); }
+body.light-mode tr[data-status="match"] td,
+body.light-mode tr[data-status="new"] td     { color: var(--green-700); }
+body.light-mode tr[data-status="warning"] td,
+body.light-mode tr[data-status="unknown"] td { color: var(--amber-700); }
+body.light-mode tr[data-status="changed"] td { color: var(--blue-700); }
+
+/* D - Panel heading strong states: same light-on-light fix */
+body.light-mode .panel-heading strong[data-state="ok"]       { color: var(--green-700); }
+body.light-mode .panel-heading strong[data-state="blocked"]  { color: var(--red-700); }
+body.light-mode .panel-heading strong[data-state="warning"],
+body.light-mode .panel-heading strong[data-state="unknown"]  { color: var(--amber-700); }
+body.light-mode .panel-heading strong[data-state="ready"]    { color: var(--green-700); }
+body.light-mode .panel-heading strong[data-state="changed"]  { color: var(--blue-700); }
+body.light-mode .panel-heading strong[data-state="loading"],
+body.light-mode .panel-heading strong[data-state="empty"]    { color: var(--grey-500); }
+
+/* E - Selected table row: use a light-mode selected background */
+body.light-mode tr.is-selected td { background: var(--blue-100); }
+
+/* F - State pills: dark status backgrounds are too heavy in a light UI */
+body.light-mode .state-pill[data-state="processing"],
+body.light-mode .state-pill[data-state="audit"] {
+  background: var(--blue-100);
+  color: var(--blue-700);
+}
+body.light-mode .state-pill[data-state="completed"] {
+  background: var(--green-100);
+  color: var(--green-700);
+}
+body.light-mode .state-pill[data-state="failed"] {
+  background: var(--red-100);
+  color: var(--red-700);
+}
+
+/* G - Topbar status badges: reduce visual weight on a light topbar */
+body.light-mode .refresh-health[data-state="ok"],
+body.light-mode .close-readiness[data-state="safe"] {
+  background: var(--green-100);
+  border-color: var(--green-700);
+  color: var(--green-700);
+}
+body.light-mode .refresh-health[data-state="warning"] {
+  background: var(--amber-100);
+  border-color: var(--amber-700);
+  color: var(--amber-700);
+}
+body.light-mode .refresh-health[data-state="updating"] {
+  background: var(--blue-100);
+  border-color: var(--blue-500);
+  color: var(--blue-700);
+}
+body.light-mode .refresh-health[data-state="failed"],
+body.light-mode .close-readiness[data-state="blocked"] {
+  background: var(--red-100);
+  border-color: var(--red-500);
+  color: var(--red-700);
+}
+
+/* H - Home compact table row dividers: make them visible on light backgrounds */
+body.light-mode .home-compact-table td {
+  border-bottom-color: var(--grey-600);
+}
+
+/* I - Evidence panel: swap purple accent to blue for light mode */
+body.light-mode .panel[data-panel-type="evidence"] {
+  border-left-color: var(--blue-600);
+}
+
+/* Evidence badge: swap purple chip to blue in light mode */
+body.light-mode .panel[data-panel-type="evidence"] .panel-heading h2::after,
+body.light-mode .panel[data-panel-type="evidence"] .panel-heading h3::after {
+  border-color: var(--blue-700);
+  color: var(--blue-700);
+}
+
+/* J - Option panel: invert the S43 inset; darker background inside a lighter panel */
+body.light-mode .option-panel {
+  background: var(--grey-700);
+  border-color: var(--grey-600);
+}

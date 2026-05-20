@@ -1,0 +1,33 @@
+@import url("./styles.tokens.css");
+@import url("./styles.theme.css");
+@import url("./styles.layout.css");
+@import url("./styles.components.css");
+@import url("./styles.pages.css");
+@import url("./styles.controls.css");
+@import url("./styles.layout-manager.css");
+@import url("./styles.queue.css");
+
+/* ===== REDUCED MOTION — disable transitions for users who opt out ===== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@media (max-width: 1280px) {
+  .telemetry-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid {
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+  }
+
+  .settings-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}

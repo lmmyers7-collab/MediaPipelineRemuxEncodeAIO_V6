@@ -1,0 +1,64 @@
+      <section class="page" data-page-panel="live">
+        <h1 class="visually-hidden">Hardware Telemetry</h1>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Monitoring Status</h2>
+            <strong id="telemetry-readiness-status">Not loaded</strong>
+          </div>
+          <pre id="telemetry-readiness-summary" class="prose-block">No telemetry readiness loaded.</pre>
+        </section>
+
+        <div class="telemetry-grid">
+          <section class="panel" data-panel-type="interactive">
+            <div class="panel-heading">
+              <h2>CPU Usage</h2>
+              <strong id="cpu-value">...</strong>
+            </div>
+            <canvas id="cpu-chart" width="520" height="140"></canvas>
+          </section>
+
+          <section class="panel" data-panel-type="interactive">
+            <div class="panel-heading">
+              <h2>NVENC Usage</h2>
+              <strong id="gpu-value">...</strong>
+            </div>
+            <canvas id="gpu-chart" width="520" height="140"></canvas>
+            <p id="gpu-note" class="note"></p>
+          </section>
+
+          <section class="panel" data-panel-type="interactive">
+            <div class="panel-heading">
+              <h2>RAM Usage</h2>
+              <strong id="ram-value">...</strong>
+            </div>
+            <canvas id="ram-chart" width="520" height="140"></canvas>
+          </section>
+        </div>
+
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>GPU Details</h2>
+            <strong id="gpu-detail-status">No GPU rows</strong>
+          </div>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col" class="num">GPU</th>
+                  <th scope="col">Name</th>
+                  <th scope="col" class="num">Encoder</th>
+                  <th scope="col" class="num">GPU</th>
+                  <th scope="col" class="num">Memory</th>
+                </tr>
+              </thead>
+              <tbody id="gpu-rows">
+                <tr><td colspan="5">No GPU telemetry loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No GPU detected</span>
+            <span class="empty-state-hint">GPU details appear here when telemetry loads. Check that NVENC is enabled in Settings.</span>
+          </div>
+          </div>
+        </section>
+      </section>

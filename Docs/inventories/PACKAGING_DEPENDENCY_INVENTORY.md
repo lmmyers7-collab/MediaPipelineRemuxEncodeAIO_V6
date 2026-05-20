@@ -1,0 +1,176 @@
+# Packaging Dependency Inventory
+
+Documents bundled and external dependencies relevant to packaging, validation, and admin work. Use this when setting up a new machine, troubleshooting missing tools, or verifying a release package.
+
+This document does not install or verify tools. To check tool availability, run `Verify-MediaPipelineRemuxEncodeAIO-Environment.bat`.
+
+---
+
+## Bundled Dependencies (Included in Release Package)
+
+These are shipped with the package and do not require a separate install.
+
+### Bundled PowerShell 7.6.0
+
+| Field | Value |
+|---|---|
+| Role | Primary runtime for all pipeline, test, and build scripts |
+| Status | Bundled |
+| Expected path | `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe` |
+| Checked by | `Verify-MediaPipelineRemuxEncodeAIO-Environment.bat`, release self-test |
+| Failure symptom | Scripts fall back to system `pwsh`; if system `pwsh` is also absent, scripts throw with a human-readable error |
+| Notes | Scripts that detect PS5 re-invoke under `pwsh`; never spawn `powershell.exe` explicitly |
+
+See `Docs/operator/POWERSHELL_HOST_EXPECTATIONS.md` for full resolution order and prohibited patterns.
+
+### Bundled Python (DesktopApp Runtime)
+
+| Field | Value |
+|---|---|
+| Role | Local API runtime, backend-served WebView runner, WebView smoke test runner |
+| Status | Bundled |
+| Expected paths | `DesktopApp\Runtime\Python\python.exe`, `DesktopApp\Runtime\Python\pythonw.exe` |
+| Checked by | `Verify-MediaPipelineRemuxEncodeAIO-Environment.bat`, release self-test |
+| Failure symptom | Local API/WebView fails to launch; smoke wrappers fail to find Python; all Python tests unavailable |
+| Required packages | `psutil`, `pysubs2`, `packaging`, `darkdetect` |
+
+### Bundled FFmpeg
+
+| Field | Value |
+|---|---|
+| Role | Video/audio remux and encode, subtitle probing |
+| Status | Bundled |
+| Expected path | `Pipeline\Tools\ffmpeg\bin\ffmpeg.exe`, `ffprobe.exe` |
+| Checked by | `Verify-MediaPipelineRemuxEncodeAIO-Environment.bat`, `Invoke-ToolIntegrationChecks.ps1` |
+| Failure symptom | Pipeline cannot process media; all encodes and remuxes fail |
+| Optional | `ffplay.exe` excluded from default release (include with `-IncludeOptionalTools`) |
+
+### Bundled MKVToolNix
+
+| Field | Value |
+|---|---|
+| Role | MKV container inspection and subtitle extraction (`mkvmerge`) |
+| Status | Bundled (core tool) |
+| Expected path | `Pipeline\Tools\MKVToolNix\mkvmerge.exe` |
+| Checked by | `Verify-MediaPipelineRemuxEncodeAIO-Environment.bat`, `Invoke-ToolIntegrationChecks.ps1` |
+| Failure symptom | MKV subtitle extraction fails; pipeline falls back or errors |
+| Optional | GUI, `mkvextract`, `mkvinfo`, `mkvpropedit`, GUI assets excluded from default release |
+
+### Bundled PgsToSrt and tessdata (OCR)
+
+| Field | Value |
+|---|---|
+| Role | BDPGS subtitle OCR conversion (PGS → SRT) |
+| Status | Bundled (optional capability — only active if `ConvertBdpgsToSrt` is enabled in config) |
+| Expected path | `Pipeline\Tools\PgsToSrt\PgsToSrt.exe` (or similar), `Pipeline\Tools\PgsToSrt\tessdata\eng.traineddata` |
+| Checked by | `Verify-MediaPipelineRemuxEncodeAIO-Environment.bat` (when OCR enabled in config) |
+| Failure symptom | BDPGS OCR silently skipped or errors; SRT not produced for Blu-ray PGS subtitles |
+| Config keys | `BdpgsOcrToolPath`, `BdpgsOcrTessdataPath` (raw/advanced keys — must match actual paths) |
+
+---
+
+## External Dependencies (Not Bundled — Operator-Installed)
+
+These must be installed separately and are not included in the release package.
+
+### Node.js
+
+| Field | Value |
+|---|---|
+| Role | WebView smoke test runner (both browser-backed and non-browser smokes) |
+| Status | External — must be on operator PATH |
+| Minimum version | Node 18+ (required for global `WebSocket` in scope) |
+| Check | `node --version` |
+| Checked by | Smoke wrappers (`Test-WebView*.ps1`) check for `node` before running |
+| Failure symptom | Smoke wrappers fail with `SkipTest: Node.js is required` and skip; no JavaScript evaluation possible |
+| Notes | Not required for pipeline operation — only for WebView validation |
+
+### Chrome or Edge (for browser-backed smokes)
+
+| Field | Value |
+|---|---|
+| Role | Browser-backed WebView smoke tests via Chrome DevTools Protocol (CDP) |
+| Status | External — must be installed; smoke skips cleanly if absent |
+| Required version | Any modern Chrome or Edge (no specific version requirement beyond CDP support) |
+| Check | `Test-Path "C:\Program Files\Google\Chrome\Application\chrome.exe"` |
+| Checked by | Browser smoke wrappers at startup |
+| Failure symptom | Smoke exits with `SkipTest: Chrome or Edge is required` (exit 0, not failure) |
+| Notes | No Playwright or Puppeteer install needed; smokes use CDP directly |
+
+See `Docs/testing/BROWSER_SMOKE_PREREQUISITES_CHECKLIST.md` for full browser discovery diagnostics.
+
+### Tauri Prerequisites (for Tauri shell build)
+
+These are only needed when building the Tauri/WebView2 shell (`DesktopApp\tauri_shell\`) from source. Operators who use pre-built shells do not need these.
+
+| Dependency | Role | Check |
+|---|---|---|
+| Node.js (see above) | npm package management for Tauri WebView assets | `node --version` |
+| npm | Package installation for Tauri build | `npm --version` |
+| Rust / Cargo | Builds the Tauri shell binary | `cargo --version` |
+| Tauri CLI | Tauri build tool | `cargo tauri --version` or `npx tauri --version` |
+
+Check Tauri prereqs without building:
+
+```powershell
+.\Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat -CheckOnly
+```
+
+The release self-test verifies Tauri prerequisite availability:
+
+```powershell
+.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\Test-MediaPipelineRemuxEncodeAIO-Release.ps1
+```
+
+---
+
+## Browser Smoke Skip Behavior
+
+Browser-backed smokes (`Test-WebViewBrowser*.ps1`) are designed to skip cleanly when Chrome or Edge is unavailable. A skip exits with code 0 and is not a test failure. This is intentional for CI environments without a browser install.
+
+Non-browser WebView smokes (`Test-WebViewRealMediaEvidenceSmoke.ps1`, `Test-WebViewCommandEvidenceSmoke.ps1`, `Test-WebViewRowDetailSmoke.ps1`, `Test-WebViewScheduleSmoke.ps1`, `Test-WebViewRenameReadinessSmoke.ps1`, `Test-WebViewSettingsLaunchPolicySmoke.ps1`, `Test-WebViewSettingsLaunchLiveConfigSmoke.ps1`, `Test-WebViewSettingsPatchEvidenceSmoke.ps1`) require Python and, where the smoke evaluates WebView JavaScript, Node.js. They are suitable for lightweight automated checks and do not require Chrome/Edge.
+
+`Test-LocalApiLifecycleContractSmoke.ps1` is not a WebView smoke. It requires Python only and validates the token-protected close-readiness/shutdown route contract against temporary local API instances.
+
+---
+
+## Version Verification
+
+To verify all bundled dependencies:
+
+```powershell
+.\Verify-MediaPipelineRemuxEncodeAIO-Environment.bat
+```
+
+To see tool versions in the release manifest after building a package:
+
+```powershell
+Get-Content release_manifest.json | ConvertFrom-Json | Select-Object tool_versions
+```
+
+---
+
+## Dependency Inventory Summary
+
+| Dependency | Bundled | Required for pipeline? | Required for WebView smokes? | Required for Tauri build? |
+|---|---|---|---|---|
+| PowerShell 7.6.0 | Yes | Yes | Yes (test runners) | No |
+| Python (DesktopApp Runtime) | Yes | Yes (desktop app) | Yes | No |
+| FFmpeg / ffprobe | Yes | Yes | No | No |
+| MKVToolNix (mkvmerge) | Yes | Yes | No | No |
+| PgsToSrt / tessdata | Yes | Only if OCR enabled | No | No |
+| Node.js | No | No | Yes | Yes |
+| Chrome or Edge | No | No | Browser smokes only (skips if absent) | No |
+| Rust / Cargo | No | No | No | Yes |
+| npm | No | No | No | Yes |
+
+---
+
+## See Also
+
+- PowerShell host expectations: `Docs/operator/POWERSHELL_HOST_EXPECTATIONS.md`
+- Browser smoke prerequisites: `Docs/testing/BROWSER_SMOKE_PREREQUISITES_CHECKLIST.md`
+- Release package inventory: `Docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`
+- Release package inventory: `Docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`
+- Environment verification script: `Verify-MediaPipelineRemuxEncodeAIO-Environment.bat`

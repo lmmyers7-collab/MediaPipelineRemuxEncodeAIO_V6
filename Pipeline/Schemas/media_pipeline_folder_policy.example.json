@@ -1,0 +1,70 @@
+{
+  "schema_version": "folder_policy.v1",
+  "folder": "D:\\Media\\Incoming\\TVSHOWSAMPLE\\Season 01",
+  "_notes": [
+    "Save as mediapipeline.folder.json in the folder whose media should inherit this policy.",
+    "Validate the sidecar from the desktop Maintenance tab before running a batch.",
+    "Use sample_file plus require_uniform_stream_topology when a whole season should share the same audio/subtitle layout."
+  ],
+  "audio": {
+    "passthrough_profile": "plex_balanced",
+    "passthrough_codecs": [],
+    "preferred_default_languages": [
+      "eng",
+      "jpn",
+      "und"
+    ],
+    "transcode_codec": "eac3",
+    "transcode_bitrate": "640k",
+    "downmix_mode": "max_channels",
+    "max_channels": 6
+  },
+  "subtitles": {
+    "ass": {
+      "enabled": true,
+      "languages": [
+        "eng",
+        "und"
+      ],
+      "drop_after_conversion": false
+    },
+    "tx3g": {
+      "enabled": true,
+      "languages": [
+        "eng",
+        "und"
+      ],
+      "drop_after_conversion": false
+    },
+    "bdpgs": {
+      "enabled": false,
+      "languages": [
+        "eng",
+        "und"
+      ],
+      "drop_after_conversion": false
+    }
+  },
+  "routing": {
+    "routing_profile": "plex_direct_stream",
+    "size_guard_mode": "advisory",
+    "allow_h264_remux_if_plex_compatible": true,
+    "h264_remux_max_bitrate_mbps": 35,
+    "h264_remux_max_height": 1080,
+    "force_route": "auto",
+    "prefer_route": "auto",
+    "max_video_bitrate_mbps": null,
+    "max_resolution_height": null,
+    "allowed_video_codecs": [
+      "h264",
+      "hevc",
+      "av1"
+    ],
+    "plex_strict_mode": false,
+    "reason": ""
+  },
+  "validation": {
+    "sample_file": "TVSHOWSAMPLE - S01E01.mkv",
+    "require_uniform_stream_topology": true
+  }
+}
