@@ -553,6 +553,19 @@ $script:QueueOrderingStrategy = if ($config.ContainsKey('QueueOrderingStrategy')
     if ($v -in $validStrats) { $v } else { 'Standard' }
 } else { 'Standard' }
 
+$script:MaxParallelEncodes = Get-ConfigInt 'MaxParallelEncodes' 1 1 2
+$script:ParallelEncodeMode = if ($config.ContainsKey('ParallelEncodeMode')) {
+    Resolve-MediaPipelineParallelEncodeMode -Mode ([string]$config['ParallelEncodeMode'])
+} else {
+    Get-MediaPipelineParallelEncodeModeDefault
+}
+if ($script:MaxParallelEncodes -gt 1 -and $script:ParallelEncodeMode -ne 'local_worker_slots') {
+    Add-StartupWarning "MaxParallelEncodes is $script:MaxParallelEncodes but ParallelEncodeMode is '$script:ParallelEncodeMode'; local parallel encode scheduling remains disabled."
+}
+if ($script:ParallelEncodeMode -eq 'local_worker_slots' -and $script:MaxParallelEncodes -gt 1) {
+    Add-StartupWarning "Parallel encode mode is enabled for $script:MaxParallelEncodes local worker slots. Use this only on dual-NVENC systems; it can increase disk, scratch-disk, CPU, memory, network, and source/output share pressure."
+}
+
 if ($config.ContainsKey('PreferredDefaultAudioLanguages')) {
     $v = $config['PreferredDefaultAudioLanguages']
     if     ($null -eq $v)       { $script:PreferredDefaultAudioLanguages = @() }
@@ -780,6 +793,10 @@ $ProgressFile         = $script:LocalStateLayout.Paths.ProgressFile
 $PipelineEventLogFile = $script:LocalStateLayout.Paths.PipelineEventLogFile
 $script:PipelineEventLogFile = $PipelineEventLogFile
 $script:PipelineRunId = [guid]::NewGuid().ToString("N")
+if ($WorkerChild -and -not [string]::IsNullOrWhiteSpace($WorkerRunId)) {
+    $script:PipelineRunId = $WorkerRunId
+}
+$script:WorkerClaimId = if ($WorkerChild) { [string]$WorkerClaimId } else { '' }
 $script:ProgressWriteFailures = 0
 $script:ProgressPersistenceHealthy = $true
 $LockFile             = Join-Path $LocalBase "pipeline.lock"
@@ -793,6 +810,29 @@ $script:PendingPublishIndex = @{
 }
 $script:FailureMarkerIndex = $null
 
+if ($WorkerChild) {
+    if ($WorkerSlotId -lt 1 -or $WorkerSlotId -gt 2) {
+        Write-Host "FATAL: -WorkerChild requires -WorkerSlotId 1 or 2." -ForegroundColor Red
+        exit 74
+    }
+    if ([string]::IsNullOrWhiteSpace($SingleFile)) {
+        Write-Host "FATAL: -WorkerChild requires -SingleFile." -ForegroundColor Red
+        exit 74
+    }
+    $script:WorkerSlotLayout = Initialize-MediaPipelineWorkerSlotLayout -SlotLayout (New-MediaPipelineWorkerSlotLayout -StateLayout $script:LocalStateLayout -SlotId $WorkerSlotId)
+    $LocalIncoming        = $script:WorkerSlotLayout.Incoming
+    $LocalEncoded         = $script:WorkerSlotLayout.Encoded
+    $LocalRemuxTemp       = $script:WorkerSlotLayout.RemuxTemp
+    $LocalFailed          = $script:WorkerSlotLayout.Failures
+    $LogFile              = $script:WorkerSlotLayout.LogFile
+    $ProgressFile         = $script:WorkerSlotLayout.ProgressFile
+    $PipelineEventLogFile = $script:WorkerSlotLayout.EventLogFile
+    $script:PipelineEventLogFile = $PipelineEventLogFile
+    $LocalFailureArtifacts = $script:WorkerSlotLayout.FailureArtifacts
+    $LocalFailureReports   = $script:WorkerSlotLayout.FailureReports
+    $script:processingDir  = $script:WorkerSlotLayout.Processing
+}
+
 # ==============================================================================
 # SINGLE INSTANCE LOCK — named OS Mutex (eliminates TOCTOU race from file+PID)
 # ==============================================================================
@@ -803,7 +843,9 @@ if (-not [string]::IsNullOrWhiteSpace($env:MEDIA_PIPELINE_TEST_MUTEX_SUFFIX)) {
 $instanceMutexName = "Global\MediaPipelineSingleInstance_v781$mutexSuffix"
 $instanceMutex  = $null
 $instanceLocked = $false
-if (-not $ValidateOnly) {
+$workerSlotMutex = $null
+$workerSlotLocked = $false
+if (-not $ValidateOnly -and -not $WorkerChild) {
     $instanceMutex = [System.Threading.Mutex]::new($false, $instanceMutexName)
     try {
         $instanceLocked = $instanceMutex.WaitOne(0)
@@ -821,9 +863,26 @@ if (-not $ValidateOnly) {
         exit 73
     }
 }
+if (-not $ValidateOnly -and $WorkerChild) {
+    $workerSlotMutexName = Get-MediaPipelineLocalWorkerMutexName -Kind 'WorkerSlot' -LocalBase $LocalBase -SlotId $WorkerSlotId
+    $workerSlotMutex = [System.Threading.Mutex]::new($false, $workerSlotMutexName)
+    try {
+        $workerSlotLocked = $workerSlotMutex.WaitOne(0)
+    } catch [System.Threading.AbandonedMutexException] {
+        $workerSlotLocked = $true
+    }
+    if (-not $workerSlotLocked) {
+        Write-Host "ERROR: Another MediaPipeline worker child is already running for slot $WorkerSlotId." -ForegroundColor Red
+        $workerSlotMutex.Dispose()
+        exit 75
+    }
+}
 
 $Script:ExitCleanup = {
     if ($logLock) { try { $logLock.ReleaseMutex(); $logLock.Dispose() } catch {} }
+    if ($workerSlotMutex -and $workerSlotLocked) {
+        try { $workerSlotMutex.ReleaseMutex(); $workerSlotMutex.Dispose() } catch {}
+    }
     if ($instanceMutex -and $instanceLocked) {
         try { $instanceMutex.ReleaseMutex(); $instanceMutex.Dispose() } catch {}
     }
@@ -896,6 +955,10 @@ foreach ($dir in @($LocalIncoming, $LocalEncoded, $LocalRemuxTemp, $script:proce
 }
 
 Invoke-LogRotation
+if (-not $WorkerChild -and -not $ValidateOnly) {
+    Repair-MediaPipelineLocalWorkerClaims -ClaimStorePath $script:LocalStateLayout.Paths.LocalWorkerClaims -CurrentRunId $script:PipelineRunId | Out-Null
+    Write-MediaPipelineLocalWorkerActiveJobs -ActiveJobsPath $script:LocalStateLayout.Paths.LocalWorkerActiveJobs -CompatibilityProgressPath $ProgressFile -ActiveJobs @() -WriteCompatibilityProgress | Out-Null
+}
 Write-StartupWarnings
 
 # ==============================================================================
@@ -1965,7 +2028,7 @@ if (-not $ValidateOnly) {
 }
 
 Write-Log "===== PIPELINE START $($script:ProductVersion) (pipeline $($script:PipelineVersion)) ====="
-$runMode = if ($ValidateOnly) { 'validate-only' } elseif ($DrainPendingPushes) { 'drain-pending-pushes' } elseif ($Once) { 'single-pass' } else { 'continuous' }
+$runMode = if ($ValidateOnly) { 'validate-only' } elseif ($WorkerChild) { 'local-worker-child' } elseif ($DrainPendingPushes) { 'drain-pending-pushes' } elseif ($Once) { 'single-pass' } else { 'continuous' }
 Write-PipelineEvent -EventType 'pipeline_started' -Stage 'startup' -Status 'started' -Data @{
     run_mode    = $runMode
     config_path = $configPath
@@ -1975,6 +2038,7 @@ Write-Log "Run mode      : $runMode"
 Write-Log "Config file   : $configPath"
 Write-Log "PowerShell    : $($PSVersionTable.PSVersion)"
 Write-Log "SleepSeconds  : $SleepSeconds"
+Write-Log "Parallel encodes: max=$script:MaxParallelEncodes mode=$script:ParallelEncodeMode$(if ($WorkerChild) { " worker_slot=$WorkerSlotId" } else { "" })"
 Write-Log "Scan refresh  : source $($script:SourceScanIntervalSeconds)s | index $($script:ProcessedIndexRefreshSeconds)s"
 Write-Log "Movie thresh  : $EncodeThresholdGB GB | TV thresh: $TVEncodeThresholdGB GB"
 Write-Log "Codec         : $VideoCodec preset $VideoPreset CQ $VideoQuality"
