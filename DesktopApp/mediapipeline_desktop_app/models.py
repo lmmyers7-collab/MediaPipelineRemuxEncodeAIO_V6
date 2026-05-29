@@ -28,6 +28,15 @@ def _decision_records(value: Any) -> list[dict[str, Any]]:
     return []
 
 
+def _payload_text(payload: dict[str, Any], *keys: str) -> str:
+    for key in keys:
+        value = payload.get(key)
+        text = str(value or "").strip()
+        if text:
+            return text
+    return ""
+
+
 @dataclass
 class AuditRecord:
     source_csv: Path
@@ -139,54 +148,76 @@ class FailureRecord:
 
     @property
     def source_path(self) -> Path | None:
-        raw = str(self.payload.get("SourcePath", "") or "").strip()
+        raw = self.source_path_text
         return Path(raw) if raw else None
 
     @property
     def source_path_text(self) -> str:
-        return str(self.payload.get("SourcePath", "") or "").strip()
+        return _payload_text(self.payload, "SourcePath", "source_path", "source_full_path")
 
     @property
     def stage(self) -> str:
-        return str(self.payload.get("Stage", "") or "").strip()
+        return _payload_text(self.payload, "Stage", "stage", "operation")
 
     @property
     def reason(self) -> str:
-        return str(self.payload.get("Reason", "") or "").strip()
+        return _payload_text(self.payload, "Reason", "reason", "Error", "error", "message")
 
     @property
     def classification(self) -> str:
-        return str(self.payload.get("Classification", "") or "").strip()
+        return _payload_text(self.payload, "Classification", "classification")
 
     @property
     def error_code(self) -> str:
-        return str(self.payload.get("ErrorCode", "") or "").strip()
+        return _payload_text(self.payload, "ErrorCode", "error_code", "code")
 
     @property
     def artifact_path(self) -> Path | None:
-        raw = str(self.payload.get("ArtifactPath", "") or "").strip()
+        raw = _payload_text(self.payload, "ArtifactPath", "artifact_path")
         return Path(raw) if raw else None
 
     @property
     def repro_path(self) -> Path | None:
-        raw = str(self.payload.get("ReproPath", "") or "").strip()
+        raw = _payload_text(self.payload, "ReproPath", "ReproductionPath", "repro_path", "reproduction_path")
         return Path(raw) if raw else None
 
     @property
     def suggested_action(self) -> str:
-        return str(self.payload.get("SuggestedAction", "") or "").strip()
+        return _payload_text(self.payload, "SuggestedAction", "OperatorAction", "suggested_action", "operator_action")
 
     @property
     def suggested_rename(self) -> str:
-        return str(self.payload.get("SuggestedRename", "") or "").strip()
+        return _payload_text(self.payload, "SuggestedRename", "suggested_rename")
 
     @property
     def recorded_at(self) -> str:
-        return str(self.payload.get("RecordedAt", "") or "").strip()
+        return _payload_text(self.payload, "RecordedAt", "recorded_at")
+
+    @property
+    def job_id(self) -> str:
+        return _payload_text(self.payload, "JobId", "job_id")
+
+    @property
+    def correlation_id(self) -> str:
+        return _payload_text(self.payload, "CorrelationId", "correlation_id")
+
+    @property
+    def retryable(self) -> bool | None:
+        raw = self.payload.get("Retryable", self.payload.get("retryable"))
+        if isinstance(raw, bool):
+            return raw
+        text = str(raw or "").strip().casefold()
+        if not text:
+            return None
+        if text in {"true", "1", "yes"}:
+            return True
+        if text in {"false", "0", "no"}:
+            return False
+        return None
 
     @property
     def retry_count(self) -> int:
-        raw = self.payload.get("RetryCount")
+        raw = self.payload.get("RetryCount", self.payload.get("retry_count"))
         try:
             return int(raw) if raw not in (None, "") else 0
         except (TypeError, ValueError):
@@ -194,7 +225,7 @@ class FailureRecord:
 
     @property
     def retry_limit(self) -> int:
-        raw = self.payload.get("RetryLimit")
+        raw = self.payload.get("RetryLimit", self.payload.get("retry_limit"))
         try:
             return int(raw) if raw not in (None, "") else 0
         except (TypeError, ValueError):

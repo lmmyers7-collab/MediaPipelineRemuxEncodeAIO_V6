@@ -13,14 +13,14 @@ Pending publish is a backend-owned media safety path. Future work should keep me
 
 | Module | Owns | Must not own |
 |---|---|---|
-| `Pipeline/Modules/PublishCompletion.ps1` | Immediate publish flow, low-space/unknown-space deferred parking decision, calls into pending park helpers when verified output must be parked. | Pending drain loop, manifest row presentation, WebView readiness decisions. |
-| `Pipeline/Modules/Publish.Partial.ps1` | Partial media reveal and sidecar backup/restore primitives shared by immediate and pending drain publish. | Publish policy, source identity validation, manifest indexing. |
-| `Pipeline/Modules/Publish.Sidecars.ps1` | Sidecar publish helper mechanics shared by immediate and pending paths. | Deciding whether a parked output is safe to discard or drain. |
-| `Pipeline/Modules/PendingManifestStore.ps1` | Pending manifest read/write/round-trip validation and retry-state serialization. | Moving media, copying sidecars, or publishing final output. |
-| `Pipeline/Modules/PendingTransactions.ps1` | Durable media-plus-sidecar park transaction, drain transaction, server-copy validation, sidecar rollback, and `pending_move` crash recovery. | Public operator command routing, UI row formatting, or frontend policy. |
-| `Pipeline/Modules/PendingPush.ps1` | Public PowerShell facade for park and retry/drain commands, drain summary, event/log emission, and index refresh calls. | Low-level copy/reveal rollback details already owned by `PendingTransactions.ps1`. |
-| `Pipeline/Modules/PendingPublishIndex.ps1` | Read-only in-memory index and health rows for parked manifests and missing payloads. | Moving, deleting, draining, or repairing payloads. |
-| `DesktopApp/mediapipeline_desktop_app/service_pending_publish*.py` | Read-only desktop scan, row shaping, open-target support, and API DTO normalization. | Media copy/reveal policy, discard decisions, manifest repair side effects. |
+| `engine/publish/publish_completion.ps1` | Immediate publish flow, low-space/unknown-space deferred parking decision, calls into pending park helpers when verified output must be parked. | Pending drain loop, manifest row presentation, WebView readiness decisions. |
+| `engine/publish/publish_partial.ps1` | Partial media reveal and sidecar backup/restore primitives shared by immediate and pending drain publish. | Publish policy, source identity validation, manifest indexing. |
+| `engine/publish/publish_sidecars.ps1` | Sidecar publish helper mechanics shared by immediate and pending paths. | Deciding whether a parked output is safe to discard or drain. |
+| `engine/publish/pending_manifest_store.ps1` | Pending manifest read/write/round-trip validation and retry-state serialization. | Moving media, copying sidecars, or publishing final output. |
+| `engine/publish/pending_transactions.ps1` | Durable media-plus-sidecar park transaction, drain transaction, server-copy validation, sidecar rollback, and `pending_move` crash recovery. | Public operator command routing, UI row formatting, or frontend policy. |
+| `engine/publish/pending_push.ps1` | Public PowerShell facade for park and retry/drain commands, drain summary, event/log emission, and index refresh calls. | Low-level copy/reveal rollback details already owned by `PendingTransactions.ps1`. |
+| `engine/publish/pending_publish_index.ps1` | Read-only in-memory index and health rows for parked manifests and missing payloads. | Moving, deleting, draining, or repairing payloads. |
+| `app/publish/pending_*.py` | Read-only desktop scan, row shaping, open-target support, and API DTO normalization. | Media copy/reveal policy, discard decisions, manifest repair side effects. |
 
 ---
 
@@ -137,7 +137,7 @@ Service-layer tests hardcode rows directly in test methods:
 | Drain summary records media-plus-sidecar success and retryable failures | `Pipeline/Tests/Invoke-ReliabilityRegressionChecks.ps1` | Covered at PowerShell transaction layer |
 | Failed media reveal preserves parked media, parked sidecar, and manifest while removing partial/server-side artifacts | `Pipeline/Tests/Invoke-ReliabilityRegressionChecks.ps1` | Covered at PowerShell transaction layer |
 | Real deferred-publish drain command moves generated media out of pending state | `Pipeline/Tests/Invoke-EndToEndSmokeChecks.ps1` | Covered by generated-media smoke |
-| Recovery plan is dry-run only (no files moved) | Route contract (`effect: "none"`) + `command_payloads_files.py` (`recovery_plan_dry_run` command name) | Contract-level only |
+| Recovery plan is dry-run only (no files moved) | Route contract (`effect: "none"`) + `app/api/commands_files.py` (`recovery_plan_dry_run` command name) | Contract-level only |
 | Open targets are allowlisted | `test_facade_diagnostics_open_policy.py` | Covered |
 
 ---

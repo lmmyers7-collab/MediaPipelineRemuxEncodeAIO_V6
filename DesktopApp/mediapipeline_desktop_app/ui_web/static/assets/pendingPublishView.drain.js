@@ -27,6 +27,7 @@
       renderPendingDrainActionConfidence = function () {},
       renderPendingDrainDecisionChecklist = function () {},
       renderPendingDrainGuard = function () {},
+      renderCompactCommandHistoryBlock = null,
       renderPendingPostDrainTrust = function () {},
       selectPendingRow = function () {},
       setText = function () {},
@@ -379,6 +380,25 @@
     return `${entry?.at || ""} ${entry?.command || "unknown"} [${status}; ${local}] ${entry?.message || ""}${bits.length ? ` (${bits.join("; ")})` : ""}`.trim();
   }
   function renderPendingDrainHistory(entries) {
+    if (typeof renderCompactCommandHistoryBlock === "function") {
+      renderCompactCommandHistoryBlock({
+        history: entries,
+        filter: isPendingDrainCommand,
+        limit: 5,
+        targetId: "pending-drain-history",
+        itemLabel: "pending publish drain command",
+        emptyHistoryText: "No pending publish drain history loaded. Refresh command history after running Publish Parked Outputs.",
+        emptyMatchText: "No pending publish drain commands found in command history. Use Publish Parked Outputs to start a backend-owned drain.",
+        lineFor: pendingDrainHistoryLine,
+        footer: "Open Run Logs from Diagnostics when a drain reports warnings, errors, or no payload movement.",
+      });
+      renderPendingDrainCorrelation(getLastPendingPayload(), getLastPendingRows(), getLastPendingSnapshot(), entries);
+      renderPendingPostDrainTrust(getLastPendingPayload(), getLastPendingRows(), getLastPendingSnapshot(), entries);
+      renderPendingDrainActionConfidence(getLastPendingPayload(), getLastPendingRows(), getLastPendingSnapshot(), entries);
+      renderPendingDrainDecisionChecklist(getLastPendingPayload(), getLastPendingRows(), getLastPendingSnapshot(), entries);
+      renderPendingDrainGuard(getLastPendingPayload(), getLastPendingRows(), getLastPendingSnapshot(), entries);
+      return;
+    }
     const history = Array.isArray(entries) ? entries.filter(isPendingDrainCommand).slice(0, 5) : [];
     if (!Array.isArray(entries) || !entries.length) {
       setText(

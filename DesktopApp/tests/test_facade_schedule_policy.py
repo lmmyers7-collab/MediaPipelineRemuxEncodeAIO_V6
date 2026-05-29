@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.application.facade_schedule_policy import (
+from app.schedule.policy import (
     schedule_block_label,
     schedule_bool_values,
     schedule_day_summaries,

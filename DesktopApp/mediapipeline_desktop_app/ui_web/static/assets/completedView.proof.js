@@ -788,6 +788,13 @@
       const consistencyIssues = Array.isArray(item?.consistency_issues) ? item.consistency_issues.filter(Boolean) : [];
       const missingSidecar = item?.sidecar_exists === false || consistencyIssues.some((issue) => String(issue || "").toLowerCase().includes("sidecar"));
       const unknownSidecar = item && item.sidecar_exists !== true && item.sidecar_exists !== false && !item.sidecar_path && !item.expected_sidecar_path;
+      const validationUnavailable = Array.isArray(item?.validation_unavailable_reasons) ? item.validation_unavailable_reasons.filter(Boolean) : [];
+      const validationState = String(item?.validation_status_state || "").toLowerCase();
+      const validationBlocked = validationState === "blocked";
+      const validationNeeded = validationState === "validation-needed" || validationUnavailable.length > 0 || item?.validation_playback_required === true;
+      const validationProbe = item?.validation_probe_ok === true ? "passed" : item?.validation_probe_ok === false ? "failed" : "not reported";
+      const validationHash = item?.validation_hash_ok === true ? "passed" : item?.validation_hash_ok === false ? "failed" : "not reported";
+      const validationPlayback = item?.validation_playback_required === true ? "required" : item?.validation_playback_required === false ? "not required" : "not reported";
       const routeEvidence = Array.isArray(item?.route_evidence_lines) ? item.route_evidence_lines.length : 0;
       const audioCount = Number(item?.audio_decision_count || 0);
       const subtitleCount = Number(item?.subtitle_decision_count || 0);
@@ -857,6 +864,23 @@
           `Sidecar path: ${item?.sidecar_path || item?.expected_sidecar_path || "unknown"}`,
           `Consistency status: ${item?.consistency_status || "unknown"}`,
           `Consistency issues: ${consistencyIssues.length ? consistencyIssues.join(", ") : "none loaded"}`,
+        ],
+      );
+      add(
+        "validation-state-proof",
+        "2b. Validation state proof",
+        validationBlocked ? "Blocked review" : validationNeeded ? "Review" : "Current proof",
+        `state=${item?.validation_status_state || "not reported"}; probe=${validationProbe}; hash=${validationHash}; playback=${validationPlayback}.`,
+        validationBlocked
+          ? "Stop before sample acceptance: selected Completed validation proof is blocked."
+          : validationNeeded
+            ? "Treat this as output-presence proof only until probe/hash/playback proof is available or manually documented."
+            : "Use validation state as supporting evidence; backend mutation and Sample Validation append remain authoritative.",
+        [
+          `Validation proof gap: ${item?.validation_failure_reason || "none reported"}`,
+          `Unavailable proof: ${validationUnavailable.length ? validationUnavailable.join(", ") : "none reported"}`,
+          `Safe next action: ${item?.validation_safe_next_action || "not reported"}`,
+          "Proof boundary: this packet does not run ffprobe, hash files, or mark playback accepted.",
         ],
       );
       add(

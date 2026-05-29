@@ -111,14 +111,101 @@
     return String(value || "").trim().toLowerCase() || "normal";
   }
 
+  function normalizeBackendStatusState(value) {
+    const raw = normalizedTableStatus(value);
+    const aliases = {
+      error: "failed",
+      failure: "failed",
+      healthy: "match",
+      ok: "match",
+      complete: "completed",
+      done: "completed",
+      published: "completed",
+      pending_publish: "publishing",
+      pending: "publishing",
+      validation_needed: "validation-needed",
+      health_check: "health-check",
+      do_not_drain: "failed",
+      do_not_launch: "blocked",
+      review: "warning",
+      active: "running",
+      unavailable: "unknown",
+      "not available": "unknown",
+      not_available: "unknown",
+    };
+    const normalized = aliases[raw] || raw;
+    return [
+      "blocked",
+      "failed",
+      "warning",
+      "ready",
+      "match",
+      "completed",
+      "skipped",
+      "parked",
+      "publishing",
+      "validation-needed",
+      "health-check",
+      "running",
+      "paused",
+      "retrying",
+      "changed",
+      "unknown",
+      "empty",
+      "normal",
+    ].includes(normalized) ? normalized : "";
+  }
+
+  function backendRowStatusState(row, fallback) {
+    const input = row && typeof row === "object" ? row : {};
+    const operatorSeverity = normalizedTableStatus(input.operator_severity || "");
+    const diagnosticSeverity = normalizedTableStatus(input.diagnostic_severity || "");
+    const drainRecommendation = normalizedTableStatus(input.drain_recommendation || "");
+    if (drainRecommendation === "do_not_drain" || diagnosticSeverity === "error" || diagnosticSeverity === "critical" || input.local_exists === false) return "failed";
+    if (operatorSeverity === "error" || operatorSeverity === "critical" || input.output_exists === false || input.blocked_reason || input.blocked_reason_code) return "blocked";
+    const candidates = [
+      input.operator_status_state,
+      input.diagnostic_status_state,
+      input.status_state,
+      input.table_status_state,
+      input.ui_status_state,
+      fallback,
+    ];
+    for (const candidate of candidates) {
+      const state = normalizeBackendStatusState(candidate);
+      if ((state === "match" || state === "ready") && (operatorSeverity === "warning" || diagnosticSeverity === "warning")) return "warning";
+      if (state && state !== "normal") return state;
+    }
+    return "";
+  }
+
   function statusChipState(status, label) {
     const raw = normalizedTableStatus(status || label);
-    if (["ok", "ready", "safe", "healthy", "match", "new", "completed", "complete"].includes(raw)) return "ok";
-    if (["blocked", "failed", "failure", "error", "missing", "do_not_drain"].includes(raw)) return "blocked";
+    if (["ok", "safe", "healthy", "match", "new"].includes(raw)) return "ok";
+    if (["ready"].includes(raw)) return "ready";
+    if (["completed", "complete", "done", "published"].includes(raw)) return "completed";
+    if (["skipped", "skip", "excluded"].includes(raw)) return "skipped";
+    if (["parked", "park"].includes(raw)) return "warning";
+    if (["health-check", "health_check", "health check"].includes(raw)) return "validation-needed";
+    if (["failed", "failure", "error"].includes(raw)) return "failed";
+    if (["blocked", "missing", "do_not_drain"].includes(raw)) return "blocked";
+    if (["validation_needed", "validation-needed", "needs_validation"].includes(raw)) return "validation-needed";
     if (["warning", "review", "unknown", "limited", "hold", "held"].includes(raw)) return "warning";
-    if (["changed", "active", "processing", "running"].includes(raw)) return "changed";
-    if (raw.includes("fail") || raw.includes("block") || raw.includes("missing")) return "blocked";
+    if (["changed"].includes(raw)) return "changed";
+    if (["active", "processing", "running", "encoding", "remuxing", "copying", "scanning", "validating"].includes(raw)) return "running";
+    if (["paused", "pause_pending", "paused_pending"].includes(raw)) return "paused";
+    if (["retrying", "retry"].includes(raw)) return "retrying";
+    if (["publishing", "draining"].includes(raw)) return "publishing";
+    if (raw.includes("fail") || raw.includes("error")) return "failed";
+    if (raw.includes("block") || raw.includes("missing")) return "blocked";
     if (raw.includes("warning") || raw.includes("review") || raw.includes("unknown")) return "warning";
+    if (raw.includes("validation")) return "validation-needed";
+    if (raw.includes("retry")) return "retrying";
+    if (raw.includes("publish") || raw.includes("drain")) return "publishing";
+    if (raw.includes("pause")) return "paused";
+    if (raw.includes("running") || raw.includes("processing") || raw.includes("active")) return "running";
+    if (raw.includes("skip") || raw.includes("exclude")) return "skipped";
+    if (raw.includes("complete") || raw.includes("done")) return "completed";
     if (raw.includes("ready") || raw.includes("healthy") || raw.includes("ok")) return "ok";
     return "normal";
   }
@@ -298,6 +385,269 @@
     return lines;
   }
 
+  function selectedRowAtAGlanceLines(options = {}) {
+    const item = options.item || null;
+    const title = options.title || "Selected row";
+    const authority = options.authority || "Authority: this summary is read-only.";
+    if (!item) {
+      return [
+        `${title}: none`,
+        options.emptyNextStep || "Next step: select a row to review backend evidence.",
+        authority,
+      ];
+    }
+    return [
+      `${title}: ${options.label || "(unnamed row)"}`,
+      `Trust/status: ${options.trustStatus || "not reported"}; at-a-glance=${options.atAGlanceStatus || "No selection"}`,
+      `${options.proofLabel || "Proof"}: ${options.proof || "not reported"}`,
+      `Primary concern: ${options.primaryConcern || "no primary concern reported"}`,
+      `Safe next step: ${options.safeNextStep || "Review backend evidence before acting."}`,
+      `Filter visibility: ${options.filterVisibility || "not evaluated"}`,
+      authority,
+    ];
+  }
+
+  function humanizeReviewFlagToken(value) {
+    return String(value || "")
+      .replace(/^consistency:/i, "")
+      .replace(/^runtime:/i, "")
+      .replace(/^runtime_error:/i, "")
+      .replace(/^runtime_outcome:/i, "")
+      .replace(/^blocked:/i, "")
+      .replace(/[_:.-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+  }
+
+  function reviewFlagExplanation(flag) {
+    const raw = String(flag || "").trim();
+    if (!raw) return "";
+    const normalized = raw.toLowerCase();
+    const readable = humanizeReviewFlagToken(raw);
+    if (/tv_parse|season|episode|parse/.test(normalized)) {
+      return `- ${raw}: title/episode parsing is not trusted. Read the blocker, Queue Snapshot, Last Stderr, and Run Logs before launch.`;
+    }
+    if (/bad_extension|unsupported|codec|format/.test(normalized)) {
+      return `- ${raw}: this source or stream may not be supported by the current route. Check route evidence and diagnostics before processing.`;
+    }
+    if (/already_processed|duplicate/.test(normalized)) {
+      return `- ${raw}: backend evidence suggests duplicate work or an existing output. Compare Completed, Pending Publish, and sidecar proof before reprocessing.`;
+    }
+    if (/missing_output|output_path_missing|output_missing|publish_missing_output/.test(normalized)) {
+      return `- ${raw}: expected output proof is missing. Check Completed Manifest, Pending Publish, output folder, Run Logs, and Last Stderr before rerun or cleanup.`;
+    }
+    if (/missing_sidecar|sidecar/.test(normalized)) {
+      return `- ${raw}: sidecar or metadata proof is missing or inconsistent. Inspect sidecar state before cleanup, rerun, library decisions, or output acceptance.`;
+    }
+    if (/size_growth|growth_over_5|oversize|larger/.test(normalized)) {
+      return `- ${raw}: output grew beyond the size-review threshold. Compare route, encoder, settings, and logs before accepting the larger file as intentional.`;
+    }
+    if (normalized === "runtime_checks_deferred") {
+      return `- ${raw}: backend source/output checks run only when processing starts. The queue snapshot cannot prove launch-time file stability yet.`;
+    }
+    if (normalized.startsWith("runtime_error:")) {
+      return `- ${raw}: previous runtime error ${readable || "not reported"} is attached to this row. Read Last Stderr and Latest Failure before retry, rerun, or cleanup.`;
+    }
+    if (normalized.startsWith("runtime_outcome:")) {
+      return `- ${raw}: previous runtime outcome was ${readable || "not reported"}. Treat it as run-history evidence and compare logs before acting.`;
+    }
+    if (normalized === "runtime_outcome_stale") {
+      return `- ${raw}: runtime history is stale. Use it as context only; current disk/log proof still needs review.`;
+    }
+    if (normalized.startsWith("runtime:")) {
+      return `- ${raw}: backend runtime check ${readable || "not reported"} happens at processing time, not from this read-only table view.`;
+    }
+    if (/remux/.test(normalized)) {
+      return `- ${raw}: route/output uses remux. Compare container and stream compatibility proof before trusting that no encode is needed.`;
+    }
+    if (/encode|encoded/.test(normalized)) {
+      return `- ${raw}: route/output uses encode. Compare size, audio, subtitle, and log proof before treating the result as accepted.`;
+    }
+    if (/blocked/.test(normalized)) {
+      return `- ${raw}: backend marked this row blocked or review-only. Resolve the backend reason before launch, rerun, cleanup, or acceptance decisions.`;
+    }
+    return `- ${raw}: backend review marker "${readable || raw}". Use the row guidance and diagnostics before acting.`;
+  }
+
+  function reviewFlagExplanationLines(flags, options = {}) {
+    const rawFlags = Array.isArray(flags) ? flags : [flags];
+    const title = options.title || "Review flag explanations:";
+    const emptyMessage = options.emptyMessage || "No backend review flags were reported for this row.";
+    const guardrail = options.guardrail || "Mutation guardrail: these explanations only translate already-loaded backend markers and cannot change queue, output, publish, or file state.";
+    const limit = Number(options.limit || 8);
+    const seen = new Set();
+    const explanations = [];
+    rawFlags.forEach((flag) => {
+      const raw = String(flag || "").trim();
+      if (!raw || seen.has(raw)) return;
+      seen.add(raw);
+      const explanation = reviewFlagExplanation(raw);
+      if (explanation) explanations.push(explanation);
+    });
+    if (!explanations.length) {
+      return [title, emptyMessage, guardrail];
+    }
+    const visible = limit > 0 ? explanations.slice(0, limit) : explanations;
+    const lines = [title, ...visible];
+    if (limit > 0 && explanations.length > limit) {
+      lines.push(`Additional backend markers: ${explanations.length - limit} not shown here; inspect the raw Review flags line for the full list.`);
+    }
+    lines.push(guardrail);
+    return lines;
+  }
+
+  function selectedRowDetailDrawerLines(options = {}) {
+    const title = options.title || "Selected row detail";
+    const summaryLines = Array.isArray(options.summaryLines) ? options.summaryLines.filter(Boolean) : [];
+    const bodyLines = Array.isArray(options.bodyLines) ? options.bodyLines.filter((line) => line !== undefined && line !== null) : [];
+    const guardrail = options.guardrail || "Mutation guardrail: selected-row detail is read-only and cannot submit backend commands.";
+    const lines = [`${title}:`];
+    if (summaryLines.length) {
+      lines.push("At a glance:", ...summaryLines);
+    } else {
+      lines.push("At a glance: no selected-row summary available.");
+    }
+    if (bodyLines.length) {
+      lines.push("", "Detail:", ...bodyLines);
+    }
+    lines.push("", guardrail);
+    return lines.filter((line, index, array) => line !== "" || array[index - 1] !== "");
+  }
+
+  function formatRefreshTimestamp(value) {
+    if (!value) return "not reported";
+    const date = value instanceof Date ? value : new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    try {
+      return date.toLocaleString([], {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+    } catch {
+      return date.toISOString();
+    }
+  }
+
+  function payloadRefreshMeta(payload) {
+    return payload && typeof payload === "object" && payload.__mediaPipelineRefreshMeta
+      ? payload.__mediaPipelineRefreshMeta
+      : {};
+  }
+
+  function payloadFreshnessLines(options = {}) {
+    const payload = options.payload && typeof options.payload === "object" ? options.payload : {};
+    const meta = payloadRefreshMeta(payload);
+    const label = options.label || "Payload";
+    const rowCount = options.rowCount !== undefined
+      ? options.rowCount
+      : Array.isArray(payload.rows)
+        ? payload.rows.length
+        : payload.count;
+    const refreshAction = options.refreshAction || "Use Refresh to reload backend state.";
+    const lines = [
+      `${label} refresh: WebView loaded ${formatRefreshTimestamp(meta.fetched_at)}${meta.name ? ` from ${meta.name}` : ""}; rows=${rowCount ?? "not reported"}.`,
+    ];
+    if (options.artifactLine) lines.push(options.artifactLine);
+    if (options.sourceLine) lines.push(options.sourceLine);
+    if (options.readError) lines.push(`Read issue: ${options.readError}`);
+    lines.push(`Refresh action: ${refreshAction}`);
+    return lines;
+  }
+
+  function jsonDetailText(options = {}) {
+    const label = options.label || "JSON detail";
+    const value = options.value;
+    const intro = options.intro || "Read-only structured detail. Select this block to copy it for troubleshooting.";
+    const guardrail = options.guardrail || "Mutation guardrail: this viewer only formats already-loaded backend data and does not submit commands.";
+    const lines = [
+      `${label}:`,
+      intro,
+      guardrail,
+    ];
+    if (value === undefined || value === null || value === "") {
+      lines.push("", options.emptyMessage || "No JSON payload available.");
+      return lines.join("\n");
+    }
+    try {
+      lines.push("", "JSON valid: yes", JSON.stringify(value, null, 2));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      lines.push("", "JSON valid: no", `Render error: ${message}`);
+    }
+    return lines.join("\n");
+  }
+
+  function renderJsonDetail(id, options = {}) {
+    setText(id, jsonDetailText(options));
+  }
+
+  function setOptionalDataset(node, key, value) {
+    if (!node || !key) return;
+    node.dataset[key] = value;
+  }
+
+  function renderOpenTargetActionGroups(container, groups, options = {}) {
+    if (!container) return { readFirst: 0, openNext: 0 };
+    if (!options.append) container.replaceChildren();
+    const readFirst = Array.isArray(groups?.readFirst) ? groups.readFirst : [];
+    const openNext = Array.isArray(groups?.openNext) ? groups.openNext : [];
+    const labelFor = typeof options.labelFor === "function" ? options.labelFor : (action) => action?.label || action?.target || "Open target";
+    const titleFor = typeof options.titleFor === "function" ? options.titleFor : (action) => action?.hint || "";
+    const classFor = typeof options.classFor === "function" ? options.classFor : () => "secondary-button";
+    const onTail = typeof options.onTail === "function" ? options.onTail : null;
+    const onOpen = typeof options.onOpen === "function" ? options.onOpen : null;
+    const groupDataset = options.groupDataset || "";
+    const actionDataset = options.actionDataset || "";
+    const targetDataset = options.targetDataset || "";
+    const emptyLabel = options.emptyLabel || "No allowlisted action";
+    const appendGroup = (labelText, actionRows) => {
+      if (!actionRows.length) return;
+      const label = document.createElement("span");
+      label.className = "action-group-label";
+      label.textContent = labelText;
+      container.appendChild(label);
+      actionRows.forEach((action) => {
+        const kind = String(action?.kind || "").trim();
+        const target = String(action?.target || "").trim();
+        const button = document.createElement("button");
+        button.className = classFor(action) || "secondary-button";
+        button.type = "button";
+        button.textContent = labelFor(action);
+        button.title = titleFor(action);
+        const groupValue = labelText.toLowerCase().replace(/\s+/g, "-");
+        button.dataset.openTargetActionGroup = groupValue;
+        button.dataset.openTargetAction = kind;
+        button.dataset.openTarget = target;
+        setOptionalDataset(button, groupDataset, groupValue);
+        setOptionalDataset(button, actionDataset, kind);
+        setOptionalDataset(button, targetDataset, target);
+        if (kind === "tail" && onTail) {
+          button.addEventListener("click", () => onTail(target, action));
+        } else if (onOpen) {
+          button.addEventListener("click", () => onOpen(target, action));
+        }
+        container.appendChild(button);
+      });
+    };
+    appendGroup("Read first", readFirst);
+    appendGroup("Open next", openNext);
+    if (!readFirst.length && !openNext.length && options.showEmpty !== false) {
+      const button = document.createElement("button");
+      button.className = "secondary-button";
+      button.type = "button";
+      button.textContent = emptyLabel;
+      button.disabled = true;
+      button.dataset.openTargetAction = "none";
+      container.appendChild(button);
+    }
+    return { readFirst: readFirst.length, openNext: openNext.length };
+  }
+
   /**
    * Public namespace for shared DOM helpers.
    * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.
@@ -312,6 +662,8 @@
     filterRows,
     makeRowSelectable,
     scrollSelectedRowIntoView,
+    normalizeBackendStatusState,
+    backendRowStatusState,
     makeStatusChip,
     setCellStatusChip,
     tableStatusLegendText,
@@ -324,6 +676,13 @@
     tableInvestigationFilterLabel,
     filterRowsByInvestigation,
     filterResultSummaryLines,
+    selectedRowAtAGlanceLines,
+    reviewFlagExplanationLines,
+    selectedRowDetailDrawerLines,
+    payloadFreshnessLines,
+    jsonDetailText,
+    renderJsonDetail,
+    renderOpenTargetActionGroups,
   };
   window.byId = byId;
   window.setText = setText;
@@ -332,6 +691,8 @@
   window.appendCells = appendCells;
   window.filterRows = filterRows;
   window.makeRowSelectable = makeRowSelectable;
+  window.normalizeBackendStatusState = normalizeBackendStatusState;
+  window.backendRowStatusState = backendRowStatusState;
   window.updateTableStatusLegend = updateTableStatusLegend;
   window.formatStatusCounts = formatStatusCounts;
   window.tableStatusFilterLabel = tableStatusFilterLabel;

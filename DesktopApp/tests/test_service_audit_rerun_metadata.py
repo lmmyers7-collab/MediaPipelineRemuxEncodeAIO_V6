@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from mediapipeline_desktop_app.service_audit_rerun_metadata import (
+from app.audit.rerun_metadata import (
     deduplicate_source_paths,
     load_rerun_source_metadata_for_service,
     rerun_source_metadata_script_path_for_service,

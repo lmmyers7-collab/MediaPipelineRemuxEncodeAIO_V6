@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_folder_policy_probe import parse_ffprobe_stream_signature
+from app.folder_policy.probe import parse_ffprobe_stream_signature
 
 
 class FolderPolicyProbeParserTests(unittest.TestCase):

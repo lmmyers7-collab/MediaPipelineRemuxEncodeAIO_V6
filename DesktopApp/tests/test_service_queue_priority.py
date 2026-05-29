@@ -8,8 +8,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_queue import QueueServiceMixin
-from mediapipeline_desktop_app.service_queue_priority import (
+from app.queue.service import QueueServiceMixin
+from app.queue.priority_markers import (
     apply_priority_marker,
     format_priority_leaf_name,
     get_source_priority_info,

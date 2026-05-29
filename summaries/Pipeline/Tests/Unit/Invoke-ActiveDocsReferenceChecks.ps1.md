@@ -3,9 +3,9 @@ file: Pipeline/Tests/Unit/Invoke-ActiveDocsReferenceChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-26
+last_modified: 2026-05-28
 last_reviewed: 2026-05-28
-sha256: 0dd4ed146f5f45b825c1c61062eb6fada2ccc3f2144ec9c5e5efae99560567a7
+sha256: 99fa45c6031b38d1b895abb8ce15f5298303122bdbbf1ae0fd18285c711dfd7e
 ---
 # `Pipeline/Tests/Unit/Invoke-ActiveDocsReferenceChecks.ps1`
 

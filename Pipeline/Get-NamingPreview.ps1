@@ -40,8 +40,8 @@ $script:AggressiveEpisodeParsing = $true
 $script:ValidExtensions = @('.mkv','.mp4','.m4v','.avi','.mov','.ts','.m2ts','.webm')
 $CreateTVSubfolder = $true
 
-$queuePlanModule = Join-Path $PSScriptRoot 'Modules\QueuePlan.ps1'
-$namingModule = Join-Path $PSScriptRoot 'Modules\Naming.ps1'
+$queuePlanModule = Join-Path (Split-Path -Parent $PSScriptRoot) 'engine\queue\queue_plan.ps1'
+$namingModule = Join-Path (Split-Path -Parent $PSScriptRoot) 'engine\naming\naming.ps1'
 if (-not (Test-Path -LiteralPath $queuePlanModule)) { throw "QueuePlan module not found: $queuePlanModule" }
 if (-not (Test-Path -LiteralPath $namingModule)) { throw "Naming module not found: $namingModule" }
 . $queuePlanModule

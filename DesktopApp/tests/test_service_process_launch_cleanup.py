@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from mediapipeline_desktop_app.service_process_launch_cleanup import (
+from app.processes.launch_cleanup import (
     prepare_control_flags_for_launch,
     prepare_stale_progress_cleanup,
 )

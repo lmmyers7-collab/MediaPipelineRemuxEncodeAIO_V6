@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mediapipeline_desktop_app.service_release_result import release_capture_fields, release_result_payload
+from app.maintenance.release_result import release_capture_fields, release_result_payload
 from mediapipeline_desktop_app.subprocess_runner import CapturedCommandResult
 
 

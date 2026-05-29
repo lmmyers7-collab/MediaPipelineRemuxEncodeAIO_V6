@@ -119,28 +119,28 @@
   }
 
   function appendDiagnosticsActionGroup(container, groupLabel, actions) {
-    if (!container || !actions.length) return;
-    const label = document.createElement("span");
-    label.className = "action-group-label";
-    label.textContent = groupLabel;
-    container.appendChild(label);
-    actions.forEach((action) => {
-      const button = document.createElement("button");
-      button.className = "secondary-button";
-      button.type = "button";
-      button.textContent = diagnosticsActionLabel(action);
-      button.title = action.hint || "";
-      button.dataset.diagnosticsActionGroup = groupLabel.toLowerCase().replace(/\s+/g, "-");
-      button.dataset.diagnosticsLogAction = action.kind;
-      button.dataset.diagnosticsLogTarget = action.target;
-      if (action.kind === "tail") {
-        button.dataset.readDiagnosticsTail = action.target;
-        button.addEventListener("click", () => requestDiagnosticsTail(action.target));
+    const actionRows = Array.isArray(actions) ? actions : [];
+    if (!container || !actionRows.length) return;
+    const key = String(groupLabel || "").toLowerCase().includes("read") ? "readFirst" : "openNext";
+    const groups = { readFirst: [], openNext: [] };
+    groups[key] = actionRows;
+    window.mediaPipelineDom?.renderOpenTargetActionGroups?.(container, groups, {
+      append: true,
+      labelFor: diagnosticsActionLabel,
+      groupDataset: "diagnosticsActionGroup",
+      actionDataset: "diagnosticsLogAction",
+      targetDataset: "diagnosticsLogTarget",
+      onTail: (target) => requestDiagnosticsTail(target),
+      onOpen: (target) => requestDiagnosticsOpen(target),
+    });
+    const groupValue = String(groupLabel || "").toLowerCase().replace(/\s+/g, "-");
+    container.querySelectorAll("button[data-open-target-action-group]").forEach((button) => {
+      if (button.dataset.openTargetActionGroup !== groupValue) return;
+      if (button.dataset.openTargetAction === "tail") {
+        button.dataset.readDiagnosticsTail = button.dataset.openTarget || "";
       } else {
-        button.dataset.openDiagnostics = action.target;
-        button.addEventListener("click", () => requestDiagnosticsOpen(action.target));
+        button.dataset.openDiagnostics = button.dataset.openTarget || "";
       }
-      container.appendChild(button);
     });
   }
 
@@ -466,7 +466,17 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
             ? "Informational"
             : "No issues";
     setText("diagnostics-triage-status", status);
+    const freshnessLines = window.mediaPipelineDom?.payloadFreshnessLines
+      ? window.mediaPipelineDom.payloadFreshnessLines({
+        payload: diagnostics,
+        label: "Diagnostics",
+        rowCount: allLines.length,
+        artifactLine: `Readable lines: errors ${recentErrors.length}; events ${recentEvents.length}; ActiveJobs ${activeJobs.length}; warnings ${warnings.length}.`,
+        refreshAction: "Use Refresh Diagnostics or topbar Refresh. This re-reads logs/state only and does not repair, clear, delete, rerun, publish, or move files.",
+      })
+      : [];
     const lines = [
+      ...freshnessLines,
       `Recent errors: ${recentErrors.length}`,
       `Recent events: ${recentEvents.length}`,
       `ActiveJobs lines: ${activeJobs.length}`,

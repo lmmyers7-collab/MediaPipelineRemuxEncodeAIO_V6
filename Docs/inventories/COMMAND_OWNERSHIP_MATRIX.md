@@ -1,10 +1,10 @@
 # Command Ownership Matrix
 
-Date: 2026-05-20
+Date: 2026-05-29
 
 Documents every POST command route in the Local API: the command type, owning backend contract group, owning frontend page, mutation class, and key restrictions. Source: `api/contract_command.py` (backend) and `apiPost` call inventory (frontend).
 
-Total command routes: 28 POST routes across 8 contract groups.
+Total command routes: 29 POST routes across 8 contract groups.
 
 Network lifecycle remains design-only and is intentionally absent from this command matrix. `/api/contract` publishes `network_lifecycle_contracts` for future coordinator/worker lifecycle gates, but no Network start/stop/reclaim/release/worker-polling POST route exists and no WebView Network lifecycle control is authorized until `Docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` is satisfied.
 
@@ -20,7 +20,7 @@ The backend organizes command routes into 8 groups in `contract_command.py`:
 | `LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT` | maintenance/release-dry-run, maintenance/release-build, maintenance/completed-backfill-dry-run |
 | `LOCAL_API_DIAGNOSTICS_COMMAND_ROUTE_CONTRACT` | diagnostics/open |
 | `LOCAL_API_RENAME_COMMAND_ROUTE_CONTRACT` | rename/preview, rename/browse, rename/apply |
-| `LOCAL_API_SETTINGS_COMMAND_ROUTE_CONTRACT` | settings/validate, settings/preview-patch, settings/save-patch, settings/reload |
+| `LOCAL_API_SETTINGS_COMMAND_ROUTE_CONTRACT` | settings/validate, settings/browse-path, settings/preview-patch, settings/save-patch, settings/reload |
 | `LOCAL_API_SCHEDULE_COMMAND_ROUTE_CONTRACT` | schedule/preview, schedule/save |
 | `LOCAL_API_SAMPLE_VALIDATION_COMMAND_ROUTE_CONTRACT` | sample-validation/preview, sample-validation/append |
 | `LOCAL_API_PROCESS_COMMAND_ROUTE_CONTRACT` | pipeline/control, pipeline/start, audit/start, rerun/start, backend/shutdown |
@@ -62,7 +62,7 @@ Backend resolves the actual filesystem path from its own state. Frontend never p
 
 | Route | Owner page | Owner JS | Mutation class | Key restriction |
 |---|---|---|---|---|
-| `POST /api/maintenance/release-dry-run` | Maintenance | `maintenanceView.js` | `process-dry-run` | Runs `Build-MediaPipelineRemuxEncodeAIO-Release.ps1 -DryRun`; no release zip or folder written |
+| `POST /api/maintenance/release-dry-run` | Maintenance | `maintenanceView.js` | `process-dry-run` | Runs `scripts\release\build.ps1 -DryRun`; no release zip or folder written |
 | `POST /api/maintenance/release-build` | Maintenance | `maintenanceView.js` | `deployment-write` | `confirm_create: true` required; writes release deployment artifacts through backend builder |
 | `POST /api/maintenance/completed-backfill-dry-run` | Maintenance | `maintenanceView.js` | `process-dry-run` | Runs backfill script with `-DryRun`; no manifest written |
 
@@ -84,11 +84,12 @@ See `Docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md` for full per-target
 | `POST /api/rename/browse` | Rename | `renameView.js` | `shell-dialog` | Opens native Windows file/folder browser and returns operator-selected paths for staging only |
 | `POST /api/rename/apply` | Rename | `renameView.js` | `filesystem-mutation` | `confirm_apply: true` required; backend rebuilds plan from state; outside configured media roots also require `allow_outside_configured_roots: true` |
 
-### Group: Settings (none + config-write)
+### Group: Settings (none + shell-dialog + config-write)
 
 | Route | Owner page | Owner JS | Mutation class | Key restriction |
 |---|---|---|---|---|
 | `POST /api/settings/validate` | Settings | `settingsView.js` | `none` | Validation only; no config written |
+| `POST /api/settings/browse-path` | Settings | `settingsView.js` | `shell-dialog` | Folder-only native Windows browser for allowlisted path fields (`SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`); stages selected-folder evidence only |
 | `POST /api/settings/preview-patch` | Settings | `settingsView.js` | `none` | Returns redacted diff; no config written |
 | `POST /api/settings/save-patch` | Settings | `settingsView.js` | `config-write` | `confirm_save: true` required; backend backs up before writing |
 | `POST /api/settings/reload` | Settings | `settingsView.js` | `none` | Reloads in-memory backend state; no config written |
@@ -124,7 +125,7 @@ See `Docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md` for full per-target
 | Class | Count | Routes |
 |---|---|---|
 | `shell-open` | 4 | queue/open, completed/open, pending-publish/open, diagnostics/open |
-| `shell-dialog` | 1 | rename/browse |
+| `shell-dialog` | 2 | rename/browse, settings/browse-path |
 | `queue-state-write` | 3 | queue/priority, queue/strategy, queue/file-overrides |
 | `failure-marker-write` | 1 | failures/clear |
 | `process-dry-run` | 2 | maintenance/release-dry-run, maintenance/completed-backfill-dry-run |
@@ -161,6 +162,7 @@ See `Docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md` for full per-target
 **Low** — shell opens or log appends; no media mutation:
 - All `*/open` routes
 - `rename/browse`
+- `settings/browse-path`
 - `sample-validation/append`
 
 **Safe** — read-only previews and validations:
@@ -195,7 +197,7 @@ These are not frontend conventions — they are enforced at the API contract lay
 
 ## Freshness Review — 2026-05-15 (CLN3-012)
 
-Re-checked all 22 POST routes and their owner mappings against current JS exports and backend contract groups. Superseded by the current 2026-05-20 command matrix: 28 POST routes are now documented above, including queue state routes, backend shutdown, deployment build, Reports-owned marker clear, and Rename-owned `rename/browse` shell-dialog staging.
+Re-checked all 22 POST routes and their owner mappings against current JS exports and backend contract groups. Superseded by the current command matrix: 29 POST routes are now documented above, including queue state routes, backend shutdown, deployment build, Reports-owned marker clear, Rename-owned `rename/browse` shell-dialog staging, and Settings-owned `settings/browse-path` shell-dialog staging.
 
 | Check | Result |
 |---|---|

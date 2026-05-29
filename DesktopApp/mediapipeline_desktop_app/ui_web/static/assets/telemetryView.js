@@ -91,6 +91,12 @@
     return formatPercent(value);
   }
 
+  function formatTelemetryNumber(value, digits = 0) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return "unavailable";
+    return numeric.toFixed(digits);
+  }
+
   function telemetryGpuNote(telemetry) {
     const details = [];
     if (!telemetryGpuPresent(telemetry)) {
@@ -108,6 +114,49 @@
       details.push(`GPU ${rows[0].index ?? 0}: ${formatGpuEncoderPercent(rows[0].encoder_percent)}`);
     }
     return details.join(" | ");
+  }
+
+  function telemetryGpuUsagePayload(telemetry) {
+    const payload = telemetry?.gpu_encoder_usage && typeof telemetry.gpu_encoder_usage === "object" ? telemetry.gpu_encoder_usage : {};
+    if (payload.schema_version) return payload;
+    return {
+      schema_version: "desktop_gpu_encoder_usage.v1",
+      status: telemetryGpuPresent(telemetry) ? "loaded" : "unavailable",
+      row_count: Array.isArray(telemetry?.gpu_rows) ? telemetry.gpu_rows.length : 0,
+      active_encoder_count: telemetryHasNumber(telemetry?.gpu_encoder_percent) && Number(telemetry.gpu_encoder_percent) > 0 ? 1 : 0,
+      missing_session_count: telemetryGpuPresent(telemetry) ? 1 : 0,
+      rows: [],
+      summary_lines: ["GPU/NVENC usage contract was not supplied by the backend."],
+      read_only: true,
+    };
+  }
+
+  function telemetryGpuUsageSummaryLine(telemetry) {
+    const payload = telemetryGpuUsagePayload(telemetry);
+    const rows = Array.isArray(payload.rows) ? payload.rows : [];
+    return `GPU/NVENC usage: ${payload.status || "unknown"}; rows=${rows.length}; active_encoders=${payload.active_encoder_count || 0}; missing_session_counts=${payload.missing_session_count || 0}.`;
+  }
+
+  function telemetryGpuUsageDetailLines(telemetry) {
+    const payload = telemetryGpuUsagePayload(telemetry);
+    const rows = Array.isArray(payload.rows) ? payload.rows : [];
+    const lines = [
+      `Contract: ${payload.schema_version || "desktop_gpu_encoder_usage.v1"}`,
+      telemetryGpuUsageSummaryLine(telemetry),
+    ];
+    rows.slice(0, 4).forEach((row) => {
+      const memory = row.memory_used_mb !== undefined && row.memory_used_mb !== null
+        ? `${formatTelemetryNumber(row.memory_used_mb, 0)} MB${row.memory_total_mb !== undefined && row.memory_total_mb !== null ? ` / ${formatTelemetryNumber(row.memory_total_mb, 0)} MB` : ""}`
+        : "memory not reported";
+      lines.push(`${row.adapter || "GPU"}${row.adapter_index ? ` (${row.adapter_index})` : ""}: encoder=${formatGpuEncoderPercent(row.utilization_percent)}; sessions=${row.encoder_sessions ?? "not reported"}; ${memory}`);
+    });
+    if (!rows.length) lines.push("No GPU/NVENC usage rows were reported by the backend.");
+    if (Array.isArray(payload.summary_lines)) {
+      const sessionLine = payload.summary_lines.find((line) => String(line || "").includes("Encoder sessions"));
+      if (sessionLine) lines.push(sessionLine);
+    }
+    lines.push("Mutation guardrail: GPU/NVENC telemetry is read-only and cannot start, stop, retry, or tune encoder work.");
+    return lines;
   }
 
   function parseTelemetrySampleTime(telemetry) {
@@ -183,6 +232,7 @@
       `GPU present: ${gpuPresent ? "yes" : "no"}`,
       `NVENC: ${gpuPresent ? formatGpuEncoderPercent(telemetry.gpu_encoder_percent) : "unavailable"}`,
       `GPU rows: ${rows.length}`,
+      ...telemetryGpuUsageDetailLines(telemetry),
     ];
     if (telemetry.error) lines.push(`Warning: ${telemetry.error}`);
     if (age !== null && age > 60) {
@@ -275,6 +325,9 @@
     formatGpuEncoderPercent,
     telemetryGpuNote,
     telemetryVisibleGpuRows,
+    telemetryGpuUsagePayload,
+    telemetryGpuUsageSummaryLine,
+    telemetryGpuUsageDetailLines,
     telemetryReadinessStatus,
     telemetryReadinessLines,
   };

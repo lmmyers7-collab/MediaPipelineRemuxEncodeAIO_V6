@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_process_spawn import (
+from app.processes.spawn import (
     build_spawn_command_line,
     build_spawn_kwargs,
     build_spawn_log_paths,

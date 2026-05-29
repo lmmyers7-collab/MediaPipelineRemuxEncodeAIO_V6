@@ -10,8 +10,8 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_constants import APP_STATE_NAME
-from mediapipeline_desktop_app.service_rename import RenameServiceMixin
+from app.shared.constants import APP_STATE_NAME
+from app.rename.service import RenameServiceMixin
 from mediapipeline_desktop_app.subprocess_runner import CapturedCommandResult
 
 
@@ -108,7 +108,7 @@ class RenameServiceTests(unittest.TestCase):
                 return CapturedCommandResult(args=args, returncode=0, stdout="", stderr="")
 
             with patch.object(self.service, "_naming_preview_script_path", return_value=script):
-                with patch("mediapipeline_desktop_app.service_rename.run_capture", fake_run):
+                with patch("app.rename.service.run_capture", fake_run):
                     plan = self.service.plan_rename_paths(
                         [source],
                         mode="movie",

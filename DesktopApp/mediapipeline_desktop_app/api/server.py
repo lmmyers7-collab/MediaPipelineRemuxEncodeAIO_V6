@@ -11,9 +11,9 @@ from typing import Any
 from ..application import MediaPipelineApplicationFacade
 from ..models import ResolvedPaths, Snapshot
 from .command_journal import CommandJournal
-from .command_payloads import LocalApiCommandPayloadMixin
+from app.api.command_handlers import LocalApiCommandHandlerMixin
 from .handler import build_local_api_handler_class
-from .http_helpers import request_authorized
+from .http_helpers import host_header_authorized, origin_header_authorized, request_authorized
 from .read_payloads import LocalApiReadPayloadMixin
 from .static_files import default_static_root, local_api_bootstrap, read_static_asset, render_index
 
@@ -25,7 +25,7 @@ AuditRootProvider = Callable[[], str]
 ShutdownRequest = Callable[[], None]
 
 
-class LocalApiServer(LocalApiReadPayloadMixin, LocalApiCommandPayloadMixin):
+class LocalApiServer(LocalApiReadPayloadMixin, LocalApiCommandHandlerMixin):
     """Localhost API for WebView/Tauri and browser control surfaces.
 
     Health and static shell assets are public for startup. Read and command API
@@ -66,7 +66,12 @@ class LocalApiServer(LocalApiReadPayloadMixin, LocalApiCommandPayloadMixin):
         self.shell_surface = str(shell_surface or "webview")
         self.startup_progress = dict(startup_progress or {})
         self.logger = logger or logging.getLogger(__name__)
-        self.command_journal = CommandJournal(path=command_journal_path, logger=self.logger)
+        resolved = self._resolved()
+        self.command_journal = CommandJournal(
+            path=command_journal_path,
+            state_db_root=resolved.state_root if resolved is not None else None,
+            logger=self.logger,
+        )
         self._server: http.server.ThreadingHTTPServer | None = None
         self._thread: threading.Thread | None = None
 
@@ -114,10 +119,26 @@ class LocalApiServer(LocalApiReadPayloadMixin, LocalApiCommandPayloadMixin):
     def _request_authorized(self, headers: Any, query: dict[str, list[str]]) -> bool:
         return request_authorized(headers, query, token=self.token, require_token=self.require_token)
 
+    def _host_header_authorized(self, headers: Any) -> bool:
+        return host_header_authorized(str(headers.get("Host") or ""), bind_host=self.host, port=self.port)
+
+    def _origin_header_authorized(self, headers: Any) -> bool:
+        return origin_header_authorized(
+            str(headers.get("Origin") or ""),
+            bind_host=self.host,
+            port=self.port,
+            shell_surface=self.shell_surface,
+        )
+
     def _resolved(self) -> ResolvedPaths | None:
         if self.resolved_provider is None:
             return None
         return self.resolved_provider()
+
+    def _validate_api_payload(self, route: str, body: dict[str, Any]) -> dict[str, Any]:
+        from app.validation import validate_api_payload
+
+        return validate_api_payload(route, body)
 
     def _snapshot(self) -> Snapshot | None:
         if self.snapshot_provider is not None:

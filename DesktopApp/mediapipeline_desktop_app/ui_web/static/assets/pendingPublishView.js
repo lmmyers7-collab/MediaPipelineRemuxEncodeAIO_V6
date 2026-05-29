@@ -177,9 +177,21 @@
     setText("pending-payload-count", String(pending.payload_count || 0));
     setText("pending-size", pending.total_size_text || "0 B");
     setText("pending-health-count", String(pending.health_count || 0));
+    const freshnessLines = window.mediaPipelineDom?.payloadFreshnessLines
+      ? window.mediaPipelineDom.payloadFreshnessLines({
+        payload: pending,
+        label: "Pending Publish",
+        rowCount: pending.count || rows.length || 0,
+        sourceLine: pending.pending_root ? `Pending root: ${pending.pending_root}` : "",
+        artifactLine: pending.exists ? "Pending scan: backend returned current parked-output inventory." : "Pending scan: pending root does not exist.",
+        readError: pending.error || "",
+        refreshAction: "Use Refresh Pending or topbar Refresh. This re-reads parked-output evidence only and does not publish, repair, delete, or move files.",
+      })
+      : [];
     const summary = [
-      pending.pending_root ? `Pending root: ${pending.pending_root}` : "",
-      pending.exists ? "" : "Pending root does not exist.",
+      ...freshnessLines,
+      freshnessLines.length ? "" : (pending.pending_root ? `Pending root: ${pending.pending_root}` : ""),
+      freshnessLines.length ? "" : (pending.exists ? "" : "Pending root does not exist."),
       `Manifests: ${pending.count || rows.length || 0}`,
       `Payloads: ${pending.payload_count || 0}`,
       `Health rows: ${pending.health_count || 0}`,
@@ -531,6 +543,8 @@
   }
 
   function pendingTableRowStatus(item) {
+    const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(item) : "";
+    if (backendState) return backendState;
     const severity = String(item?.diagnostic_severity || "").toLowerCase();
     const recommendation = String(item?.drain_recommendation || "").toLowerCase();
     if (recommendation === "do_not_drain" || severity === "error" || item?.local_exists === false || item?.error) return "failed";
@@ -975,6 +989,10 @@
 
   function pendingSelectedAtAGlanceState(item) {
     if (!item) return "unknown";
+    const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(item) : "";
+    if (["failed", "blocked"].includes(backendState)) return "blocked";
+    if (backendState === "warning") return "warning";
+    if (["match", "ready"].includes(backendState)) return "ready";
     const status = String(item.diagnostic_status || "").toLowerCase();
     const severity = String(item.diagnostic_severity || "").toLowerCase();
     const recommendation = String(item.drain_recommendation || "review").toLowerCase();
@@ -1656,6 +1674,7 @@
       byId: typeof byId === "function" ? byId : window.byId,
       clearRows: typeof clearRows === "function" ? clearRows : window.clearRows,
       commandHistoryCompactEvidenceLine: typeof window.commandHistoryCompactEvidenceLine === "function" ? window.commandHistoryCompactEvidenceLine : (typeof commandHistoryCompactEvidenceLine === "function" ? commandHistoryCompactEvidenceLine : null),
+      renderCompactCommandHistoryBlock: window.mediaPipelineCommandHistory?.renderCompactCommandHistoryBlock || null,
       filterRows: typeof filterRows === "function" ? filterRows : window.filterRows,
       filterRowsByInvestigation: typeof filterRowsByInvestigation === "function" ? filterRowsByInvestigation : window.filterRowsByInvestigation,
       filterRowsByStatus: typeof filterRowsByStatus === "function" ? filterRowsByStatus : window.filterRowsByStatus,
@@ -1761,6 +1780,7 @@
       byId: typeof byId === "function" ? byId : window.byId,
       clearRows: typeof clearRows === "function" ? clearRows : window.clearRows,
       commandHistoryCompactEvidenceLine: typeof window.commandHistoryCompactEvidenceLine === "function" ? window.commandHistoryCompactEvidenceLine : (typeof commandHistoryCompactEvidenceLine === "function" ? commandHistoryCompactEvidenceLine : null),
+      renderCompactCommandHistoryBlock: window.mediaPipelineCommandHistory?.renderCompactCommandHistoryBlock || null,
       getCommandHistory: typeof window.getCommandHistory === "function" ? () => window.getCommandHistory() : (typeof getCommandHistory === "function" ? () => getCommandHistory() : () => []),
       getLastPendingPayload: () => lastPendingPayload || {},
       getLastPendingRows: () => Array.isArray(lastPendingRows) ? lastPendingRows : [],

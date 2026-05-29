@@ -62,6 +62,7 @@ class QueuePreviewDto:
     route_counts: JsonMap = field(default_factory=dict)
     route_reason_counts: JsonMap = field(default_factory=dict)
     operator_status_counts: JsonMap = field(default_factory=dict)
+    operator_status_state_counts: JsonMap = field(default_factory=dict)
     operator_severity_counts: JsonMap = field(default_factory=dict)
     operator_trust_state_counts: JsonMap = field(default_factory=dict)
     phase_counts: JsonMap = field(default_factory=dict)
@@ -98,10 +99,12 @@ class CompletedPreviewDto:
     publish_counts: JsonMap = field(default_factory=dict)
     health_counts: JsonMap = field(default_factory=dict)
     operator_status_counts: JsonMap = field(default_factory=dict)
+    operator_status_state_counts: JsonMap = field(default_factory=dict)
     operator_severity_counts: JsonMap = field(default_factory=dict)
     operator_trust_state_counts: JsonMap = field(default_factory=dict)
     consistency_status_counts: JsonMap = field(default_factory=dict)
     consistency_severity_counts: JsonMap = field(default_factory=dict)
+    validation_status_state_counts: JsonMap = field(default_factory=dict)
     size_bucket_counts: JsonMap = field(default_factory=dict)
     media_type_counts: JsonMap = field(default_factory=dict)
     decision_totals: JsonMap = field(default_factory=dict)
@@ -131,6 +134,7 @@ class CompletedPreviewDto:
     total_output_size_text: str = "0 B"
     inventory_progress: JsonMap = field(default_factory=dict)
     progress_bars: list[JsonMap] = field(default_factory=list)
+    validation_state: JsonMap = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
     schema_version: str = "desktop_completed_preview.v1"
 
@@ -153,6 +157,7 @@ class PendingPublishPreviewDto:
     state_counts: JsonMap = field(default_factory=dict)
     route_counts: JsonMap = field(default_factory=dict)
     diagnostic_status_counts: JsonMap = field(default_factory=dict)
+    diagnostic_status_state_counts: JsonMap = field(default_factory=dict)
     diagnostic_severity_counts: JsonMap = field(default_factory=dict)
     operator_trust_state_counts: JsonMap = field(default_factory=dict)
     recovery_class_counts: JsonMap = field(default_factory=dict)
@@ -213,6 +218,7 @@ class FailurePreviewDto:
     operator_required_count: int = 0
     permanent_count: int = 0
     transient_count: int = 0
+    retry_state: JsonMap = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
     schema_version: str = "desktop_failure_preview.v1"
 

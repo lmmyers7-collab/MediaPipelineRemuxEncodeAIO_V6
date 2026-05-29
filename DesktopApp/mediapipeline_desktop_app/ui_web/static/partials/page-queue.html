@@ -334,11 +334,7 @@
           </div>
           <p id="queue-excluded-table-legend" class="note table-legend">Excluded rows: no selectable rows.</p>
           <pre id="queue-excluded-detail" class="prose-block">No excluded source row selected.</pre>
-          <div class="action-row action-row-left">
-            <button type="button" data-open-queue-excluded="source_file">Open Excluded Source</button>
-            <button type="button" data-open-queue-excluded="source_folder">Open Excluded Folder</button>
-            <button type="button" data-open-queue-excluded="source_root">Open Excluded Root</button>
-          </div>
+          <div class="action-row action-row-left" data-open-target-row-actions="queue-excluded"></div>
           <p id="queue-excluded-open-status" class="note">Select an excluded source row to open a backend-selected source location.</p>
         </section>
         <section class="panel" data-advanced data-panel-type="interactive">
@@ -348,11 +344,7 @@
           </div>
           <pre id="queue-diagnostics-guidance" class="prose-block">Select a queue row to see backend-allowlisted diagnostics actions.</pre>
           <div id="queue-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
-          <div class="action-row action-row-left">
-            <button type="button" data-open-queue="source_file">Open Source</button>
-            <button type="button" data-open-queue="source_folder">Open Source Folder</button>
-            <button type="button" data-open-queue="source_root">Open Source Root</button>
-          </div>
+          <div class="action-row action-row-left" data-open-target-row-actions="queue"></div>
           <p id="queue-open-status" class="note">Select a queue row to open a backend-selected source location.</p>
           <pre id="queue-open-history" class="prose-block">No queue open command history loaded.</pre>
         </section>

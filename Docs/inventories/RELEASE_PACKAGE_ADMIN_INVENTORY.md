@@ -1,6 +1,6 @@
 # Release Package Admin Inventory
 
-Documents what a clean release package is expected to include and exclude. Sources: `Build-MediaPipelineRemuxEncodeAIO-Release.ps1`, `Test-MediaPipelineRemuxEncodeAIO-Release.ps1`, `Docs/CURRENT_PROJECT_STATE.md`, and `Docs/testing/VALIDATION_LADDER_RUNBOOK.md`.
+Documents what a clean release package is expected to include and exclude. Sources: `scripts\release\build.ps1`, `scripts\release\test.ps1`, `Docs/CURRENT_PROJECT_STATE.md`, and `Docs/testing/VALIDATION_LADDER_RUNBOOK.md`.
 
 ---
 
@@ -9,19 +9,19 @@ Documents what a clean release package is expected to include and exclude. Sourc
 ### Default clean package (new-user deployable)
 
 ```powershell
-.\Build-MediaPipelineRemuxEncodeAIO-Release.ps1 -Zip
+.\scripts\release\build.ps1 -Zip
 ```
 
 ### Engineering handoff with tests and verification
 
 ```powershell
-.\Build-MediaPipelineRemuxEncodeAIO-Release.ps1 -Zip -Verify -IncludeTests
+.\scripts\release\build.ps1 -Zip -Verify -IncludeTests
 ```
 
 ### Private backup / machine-to-machine mirror
 
 ```powershell
-.\Build-MediaPipelineRemuxEncodeAIO-Release.ps1 -Zip -KeepPersonalConfig
+.\scripts\release\build.ps1 -Zip -KeepPersonalConfig
 ```
 
 **Warning**: `-KeepPersonalConfig` includes `Pipeline\MediaPipeline_config_chatgpt.psd1` with the operator's private UNC paths, source/output locations, and scheduling settings. Use only for private machine-to-machine mirrors — never for distribution.
@@ -40,14 +40,14 @@ Documents what a clean release package is expected to include and exclude. Sourc
 | `Docs\inventories\SMOKE_TEST_INVENTORY.md` | Yes | Canonical smoke wrapper location and boundary inventory |
 | `Docs\testing\BROWSER_SMOKE_TEST_RUNBOOK.md` | Yes | Browser smoke runbook |
 | Other operator docs in `Docs\` | Yes (unless dev-only) | See exclusions list below |
-| `Start-MediaPipelineRemuxEncodeAIO-ApiAndBrowser.bat` | Yes | Local API plus backend-served browser WebView launcher |
-| `Start-MediaPipelineRemuxEncodeAIO-LocalApi.bat` | Yes | Optional headless backend API launcher |
-| `Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat` | Yes | Tauri/WebView2 shell launcher |
-| `Setup-MediaPipelineRemuxEncodeAIO.bat` | Yes | Config wizard launcher |
-| `Run-MediaPipelineRemuxEncodeAIO.bat` | Yes | Pipeline runner launcher |
-| `Verify-MediaPipelineRemuxEncodeAIO-Environment.bat` | Yes | Environment verifier launcher |
-| `Build-MediaPipelineRemuxEncodeAIO-Release.ps1` | Yes | Release builder |
-| `Test-MediaPipelineRemuxEncodeAIO-Release.ps1` | Yes | Release self-test |
+| `scripts\dev\start-api-and-browser.bat` | Yes | Local API plus backend-served browser WebView launcher |
+| `scripts\dev\start-local-api.bat` | Yes | Optional headless backend API launcher |
+| `scripts\dev\start-tauri-preview.bat` | Yes | Tauri/WebView2 shell launcher |
+| `scripts\dev\setup.bat` | Yes | Config wizard launcher |
+| `scripts\dev\run.bat` | Yes | Pipeline runner launcher |
+| `scripts\verify-env.bat` | Yes | Environment verifier launcher |
+| `scripts\release\build.ps1` | Yes | Release builder |
+| `scripts\release\test.ps1` | Yes | Release self-test |
 | `SmokeTests\Test-WebView*.ps1` and `SmokeTests\Test-LocalApi*.ps1` | Yes | WebView and local API smoke wrappers |
 | `release_manifest.json` | Yes (generated) | Written by build; records included/excluded/tool versions |
 
@@ -65,13 +65,12 @@ Documents what a clean release package is expected to include and exclude. Sourc
 | File / Path | Included by default | Notes |
 |---|---|---|
 | `Pipeline\MediaPipeline_chatgpt.ps1` | Yes | Backend pipeline entry point |
-| `Pipeline\Modules\*.ps1` | Yes | Pipeline modules |
+| `engine\**\*.ps1` | Yes | Active PowerShell engine implementations |
+| `Pipeline\Modules\*.ps1` | Yes | Temporary compatibility shims for legacy dot-source paths |
 | `Pipeline\Setup-MediaPipeline_chatgpt.ps1` | Yes | Setup wizard |
 | `Pipeline\Audit-MediaLibrary_chatgpt.ps1` | Yes | Audit script |
 | `Pipeline\Invoke-RerunCsv.ps1` | Yes | CSV rerun script |
 | `Pipeline\Backfill-CompletedManifest.ps1` | Yes | Backfill script |
-| `Pipeline\Run-MediaPipelineRemuxEncodeAIO.bat` | Yes | Pipeline runner |
-| `Pipeline\Setup-MediaPipelineRemuxEncodeAIO.bat` | Yes | Setup launcher |
 | `Pipeline\MediaPipeline_config_template.psd1` | Yes | New-user config template |
 | `Pipeline\PowerShell-7.6.0-win-x64\` | Yes | Bundled PowerShell 7 runtime |
 | `Pipeline\Tools\ffmpeg\bin\` | Yes (core tools) | FFmpeg, ffprobe (ffplay excluded by default) |
@@ -143,7 +142,7 @@ Documents what a clean release package is expected to include and exclude. Sourc
 - Package version and build options used
 - Config policy (template vs live)
 
-The release self-test (`Test-MediaPipelineRemuxEncodeAIO-Release.ps1`) validates the manifest after build.
+The release self-test (`scripts\release\test.ps1`) validates the manifest after build.
 
 ---
 
@@ -159,14 +158,14 @@ Run after every build:
 
 ```powershell
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\Test-MediaPipelineRemuxEncodeAIO-Release.ps1
+  -File .\scripts\release\test.ps1
 ```
 
 ---
 
 ## Desktop App: Maintenance Release Package
 
-From the WebView, the operator can also trigger a release dry-run or build via **Maintenance → Release Package**. This invokes the same `Build-MediaPipelineRemuxEncodeAIO-Release.ps1` script through the local API dry-run route. The **Plan Only** option runs with `-DryRun`; **Build Package** runs without.
+From the WebView, the operator can also trigger a release dry-run or build via **Maintenance → Release Package**. This invokes the same `scripts\release\build.ps1` script through the local API dry-run route. The **Plan Only** option runs with `-DryRun`; **Build Package** runs without.
 
 ---
 

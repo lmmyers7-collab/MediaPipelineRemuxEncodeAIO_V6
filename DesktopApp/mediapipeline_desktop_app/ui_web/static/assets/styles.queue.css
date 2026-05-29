@@ -12,7 +12,7 @@
   letter-spacing: 0.05em;
   text-transform: uppercase;
   padding: var(--space-1) var(--space-2);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   vertical-align: middle;
   line-height: 1.4;
   white-space: nowrap;
@@ -47,7 +47,7 @@ tr[data-priority-level="hold"] td { background: var(--row-blocked-bg) !important
   z-index: 120;
   background: var(--grey-800);
   border: 1px solid var(--grey-600);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow-2);
   min-width: 170px;
   padding: var(--space-1) 0;
@@ -141,7 +141,7 @@ body.light-mode .queue-priority-menu button:hover { background: var(--grey-200);
   background: var(--grey-800);
   color: var(--grey-100);
   border: 1px solid var(--grey-700);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   padding: var(--space-2) var(--space-4);
   cursor: pointer;
   min-width: 14rem;

@@ -8,8 +8,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_rename import RenameServiceMixin
-from mediapipeline_desktop_app.service_rename_planner import plan_rename_paths_for_service
+from app.rename.service import RenameServiceMixin
+from app.rename.planner import plan_rename_paths_for_service
 
 
 class DummyRenamePlannerService(RenameServiceMixin):

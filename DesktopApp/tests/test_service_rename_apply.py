@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_rename_apply import (
+from app.rename.apply import (
     build_rename_operations,
     pipeline_sidecar_paths_for_destination,
     read_json_dict_for_rename,
@@ -18,7 +18,7 @@ from mediapipeline_desktop_app.service_rename_apply import (
     update_rename_sidecar_metadata,
     write_rename_undo_manifest,
 )
-from mediapipeline_desktop_app.service_rename_utils import casefold_path, pipeline_sidecar_path, resolve_same_file
+from app.rename.utils import casefold_path, pipeline_sidecar_path, resolve_same_file
 
 
 class RenameApplyHelperTests(unittest.TestCase):
@@ -142,6 +142,21 @@ class RenameApplyHelperTests(unittest.TestCase):
             ]
 
             with self.assertRaisesRegex(RuntimeError, "same path"):
+                build_rename_operations(plan, same_file=resolve_same_file, casefold_path=casefold_path)
+
+    def test_build_rename_operations_rejects_cross_root_destination(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            source_dir = root / "source"
+            outside_dir = root / "outside"
+            source_dir.mkdir()
+            outside_dir.mkdir()
+            source = source_dir / "one.mkv"
+            destination = outside_dir / "one.mkv"
+            source.write_text("x", encoding="utf-8")
+            plan = [{"source": source, "destination": destination, "rename_sidecars": False}]
+
+            with self.assertRaisesRegex(RuntimeError, "OUTSIDE_ALLOWED_ROOT"):
                 build_rename_operations(plan, same_file=resolve_same_file, casefold_path=casefold_path)
 
     def test_build_rename_operations_detects_duplicate_sidecar_destination(self) -> None:

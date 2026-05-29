@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.application.facade_settings_patch_policy import (
+from app.config.settings_patch_policy import (
     SETTINGS_DIFF_LINE_LIMIT,
     SETTINGS_PATCH_CHANGES_ERROR,
     SETTINGS_PATCH_REMOVE_KEYS_ERROR,

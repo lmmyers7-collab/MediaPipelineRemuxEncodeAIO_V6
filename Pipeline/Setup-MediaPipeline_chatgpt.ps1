@@ -121,7 +121,7 @@ $script:PipelinePath = Join-Path $script:ScriptDir 'MediaPipeline_chatgpt.ps1'
 $script:SubtitlePath = Join-Path $script:ScriptDir 'ass_to_srt_chatgpt.py'
 $script:UseAcceptDefaults = [bool]$AcceptDefaults
 
-$configSchemaModule = Join-Path $script:ScriptDir 'Modules\ConfigSchema.ps1'
+$configSchemaModule = Join-Path (Split-Path -Parent $script:ScriptDir) 'engine\config\config_schema.ps1'
 if (-not (Test-Path -LiteralPath $configSchemaModule)) {
     throw "Required config schema module not found: $configSchemaModule"
 }

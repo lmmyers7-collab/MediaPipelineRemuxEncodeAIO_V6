@@ -3,9 +3,9 @@ file: Pipeline/Tests/Unit/Invoke-SidecarWriteSafetyChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-20
+last_modified: 2026-05-29
 last_reviewed: 2026-05-28
-sha256: 9405919548286461fbfe141ad5ee4efc95f5f0e2552a1b544edc7607794315d4
+sha256: 3cff54c84fb2152b29e5961c668d06b24b2810cf82393b11a36135c3d5ca3fb1
 ---
 # `Pipeline/Tests/Unit/Invoke-SidecarWriteSafetyChecks.ps1`
 

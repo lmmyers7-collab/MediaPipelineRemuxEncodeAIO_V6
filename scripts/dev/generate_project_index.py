@@ -1,31 +1,50 @@
-"""Generate PROJECT_INDEX.md and DEPENDENCY_GRAPH.md from summaries/.
+"""Generate Docs/generated/PROJECT_INDEX.md and Docs/generated/DEPENDENCY_GRAPH.md from summaries/.
 
-PROJECT_INDEX.md is a flat table: one row per source file with path,
+Docs/generated/PROJECT_INDEX.md is a flat table: one row per source file with path,
 owner_domain, token_priority, pipeline_stage, and a short purpose line
 extracted from its summary.
 
-DEPENDENCY_GRAPH.md emits a Mermaid graph of cross-domain imports (Python)
+Docs/generated/DEPENDENCY_GRAPH.md emits a Mermaid graph of cross-domain imports (Python)
 and dot-includes (PowerShell). Edges are aggregated by owner_domain pair
 so the graph stays legible.
 
-Run after refresh_summaries.py.
+Run after refresh_summaries.py. Use --check in pre-commit/CI to verify
+Docs/generated/PROJECT_INDEX.md and Docs/generated/DEPENDENCY_GRAPH.md are current without rewriting
+them.
 """
 
 from __future__ import annotations
 
+import argparse
+import difflib
 import re
+import sys
+from dataclasses import dataclass
 from collections import defaultdict
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SUMMARY_ROOT = REPO_ROOT / "summaries"
-INDEX_PATH = REPO_ROOT / "PROJECT_INDEX.md"
-GRAPH_PATH = REPO_ROOT / "DEPENDENCY_GRAPH.md"
+GENERATED_DOCS_ROOT = REPO_ROOT / "Docs" / "generated"
+INDEX_PATH = GENERATED_DOCS_ROOT / "PROJECT_INDEX.md"
+GRAPH_PATH = GENERATED_DOCS_ROOT / "DEPENDENCY_GRAPH.md"
 
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
 PURPOSE_RE = re.compile(r"\*\*Purpose:\*\*\s*(.+)")
 IMPORTS_RE = re.compile(r"\*\*In-repo imports:\*\*\s*(.+)")
 DOTINC_RE = re.compile(r"\*\*Dot-sourced:\*\*\s*(.+)")
+
+
+@dataclass(frozen=True)
+class OrphanSummaryFinding:
+    summary_path: Path
+    reason_code: str
+    reason: str
+    recorded_file: str = ""
+
+    @property
+    def display_path(self) -> str:
+        return self.summary_path.relative_to(REPO_ROOT).as_posix()
 
 
 def parse_frontmatter(text: str) -> dict[str, str]:
@@ -48,6 +67,70 @@ def parse_first(text: str, regex: re.Pattern[str]) -> str:
 
 def iter_summaries() -> list[Path]:
     return sorted(SUMMARY_ROOT.rglob("*.md"))
+
+
+def expected_summary_path_for_file(file_path: str) -> Path:
+    source = Path(file_path)
+    return SUMMARY_ROOT / source.with_suffix(source.suffix + ".md")
+
+
+def orphan_summary_findings(summaries: list[Path]) -> list[OrphanSummaryFinding]:
+    findings: list[OrphanSummaryFinding] = []
+    for summary in summaries:
+        text = summary.read_text(encoding="utf-8", errors="replace")
+        fm = parse_frontmatter(text)
+        recorded = fm.get("file", "")
+        if not recorded:
+            findings.append(
+                OrphanSummaryFinding(
+                    summary_path=summary,
+                    reason_code="SUMMARY_FILE_MISSING",
+                    reason="summary has no frontmatter file field",
+                )
+            )
+            continue
+        source_path = Path(recorded)
+        if source_path.is_absolute():
+            findings.append(
+                OrphanSummaryFinding(
+                    summary_path=summary,
+                    reason_code="SUMMARY_FILE_ABSOLUTE",
+                    reason="summary file field must be repo-relative",
+                    recorded_file=recorded,
+                )
+            )
+            continue
+        if not (REPO_ROOT / source_path).is_file():
+            findings.append(
+                OrphanSummaryFinding(
+                    summary_path=summary,
+                    reason_code="SOURCE_FILE_MISSING",
+                    reason="recorded source file no longer exists",
+                    recorded_file=source_path.as_posix(),
+                )
+            )
+            continue
+        expected = expected_summary_path_for_file(source_path.as_posix())
+        if summary != expected:
+            findings.append(
+                OrphanSummaryFinding(
+                    summary_path=summary,
+                    reason_code="SUMMARY_PATH_MISMATCH",
+                    reason=f"summary is not at expected path {expected.relative_to(REPO_ROOT).as_posix()}",
+                    recorded_file=source_path.as_posix(),
+                )
+            )
+    return findings
+
+
+def render_orphan_summary_findings(findings: list[OrphanSummaryFinding]) -> str:
+    lines = [
+        f"Orphan summaries found ({len(findings)}). Run: python scripts/dev/refresh_summaries.py --all --prune-orphans"
+    ]
+    for finding in findings[:80]:
+        suffix = f" -> {finding.recorded_file}" if finding.recorded_file else ""
+        lines.append(f"  {finding.display_path}: {finding.reason_code}{suffix}")
+    return "\n".join(lines)
 
 
 def short_purpose(text: str, limit: int = 90) -> str:
@@ -172,16 +255,67 @@ def _domain_of_ps_include(tok: str) -> str:
     return name or ""
 
 
-def main() -> int:
+def check_file(path: Path, expected: str) -> bool:
+    if not path.exists():
+        print(f"Missing generated file: {path.relative_to(REPO_ROOT)}")
+        return False
+    actual = path.read_text(encoding="utf-8", errors="replace")
+    if actual == expected:
+        return True
+    rel = path.relative_to(REPO_ROOT)
+    print(f"{rel} is stale. Run: python scripts/dev/generate_project_index.py")
+    diff = difflib.unified_diff(
+        actual.splitlines(),
+        expected.splitlines(),
+        fromfile=f"{rel} (current)",
+        tofile=f"{rel} (expected)",
+        lineterm="",
+    )
+    for line in list(diff)[:120]:
+        print(line)
+    return False
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Verify Docs/generated navigation files without rewriting.",
+    )
+    args = parser.parse_args(argv)
+
     if not SUMMARY_ROOT.exists():
         print("summaries/ does not exist. Run refresh_summaries.py first.")
         return 1
     summaries = iter_summaries()
-    INDEX_PATH.write_text(render_index(summaries), encoding="utf-8")
-    GRAPH_PATH.write_text(render_graph(summaries), encoding="utf-8")
-    print(f"Wrote {INDEX_PATH.name} and {GRAPH_PATH.name} from {len(summaries)} summaries.")
+    orphans = orphan_summary_findings(summaries)
+    if orphans:
+        print(render_orphan_summary_findings(orphans), file=sys.stderr)
+        return 1
+    index = render_index(summaries)
+    graph = render_graph(summaries)
+    if args.check:
+        ok = check_file(INDEX_PATH, index)
+        ok = check_file(GRAPH_PATH, graph) and ok
+        if ok:
+            print(
+                "OK: "
+                f"{INDEX_PATH.relative_to(REPO_ROOT)} and "
+                f"{GRAPH_PATH.relative_to(REPO_ROOT)} are current."
+            )
+            return 0
+        return 1
+
+    GENERATED_DOCS_ROOT.mkdir(parents=True, exist_ok=True)
+    INDEX_PATH.write_text(index, encoding="utf-8")
+    GRAPH_PATH.write_text(graph, encoding="utf-8")
+    print(
+        f"Wrote {INDEX_PATH.relative_to(REPO_ROOT)} and {GRAPH_PATH.relative_to(REPO_ROOT)} "
+        f"from {len(summaries)} summaries."
+    )
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv[1:]))

@@ -1,8 +1,8 @@
 $ErrorActionPreference = 'Stop'
 
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..\..')
-. (Join-Path $repoRoot 'Pipeline\Modules\ConfigKeys.ps1')
-. (Join-Path $repoRoot 'Pipeline\Modules\ConfigSchema.ps1')
+. (Join-Path $repoRoot 'engine\config\config_keys.ps1')
+. (Join-Path $repoRoot 'engine\config\config_schema.ps1')
 
 $entrypointText = Get-Content -LiteralPath (Join-Path $repoRoot 'Pipeline\MediaPipeline_chatgpt.ps1') -Raw
 if ($entrypointText -notmatch "'ConfigKeys\.ps1'") {
@@ -64,7 +64,7 @@ if (Test-MediaPipelineKnownConfigKey -Key 'NotARealConfigKey') {
 
 $scanFiles = @(
     Get-Item -LiteralPath (Join-Path $repoRoot 'Pipeline\MediaPipeline_chatgpt.ps1')
-    Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Pipeline\Modules') -Filter '*.ps1' -File
+    Get-ChildItem -LiteralPath (Join-Path $repoRoot 'engine') -Filter '*.ps1' -File -Recurse
 )
 $patterns = @(
     @{ Name = 'GetConfig'; Regex = 'Get-Config(?:Bool|Int|Double|Choice|LogLevel)\s+[''"](?<key>[^''"]+)[''"]' },

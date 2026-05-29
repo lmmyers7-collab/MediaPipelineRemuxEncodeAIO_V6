@@ -1,4 +1,4 @@
-# MediaPipelineRemuxEncodeAIO V5 — pre-commit safety net
+# MediaPipelineRemuxEncodeAIO V6 — pre-commit safety net
 #
 # Catches cheap, non-controversial regressions on every commit. Does NOT
 # reformat or lint code — those are intentionally separate concerns (see
@@ -23,8 +23,90 @@
 #   - merge conflict markers committed by accident
 #   - oversized files (>5 MB)
 #   - YAML / JSON / TOML syntax errors in config files
+#   - Phase 1 generated-context drift
+#   - Phase 2 generated config-schema drift
+#   - Phase 3 generated stage-schema drift
+#   - Phase 4 architecture/type/PowerShell guardrails
+#   - Phase 5 naming lint and active-doc reference checks
 
 repos:
+  - repo: local
+    hooks:
+      # ----------------------------------------------------------------
+      # Phase 1 generated-context drift
+      # ----------------------------------------------------------------
+      - id: mediapipeline-summary-drift
+        name: MediaPipeline summary drift
+        entry: python scripts/dev/refresh_summaries.py --check
+        language: system
+        pass_filenames: false
+
+      - id: mediapipeline-project-index-drift
+        name: MediaPipeline project index drift
+        entry: python scripts/dev/generate_project_index.py --check
+        language: system
+        pass_filenames: false
+
+      - id: mediapipeline-pipeline-map-drift
+        name: MediaPipeline pipeline map drift
+        entry: python scripts/dev/generate_pipeline_map.py --check
+        language: system
+        pass_filenames: false
+
+      - id: mediapipeline-lifecycle-map-drift
+        name: MediaPipeline lifecycle map drift
+        entry: python scripts/dev/generate_lifecycle_map.py --check
+        language: system
+        pass_filenames: false
+
+      - id: mediapipeline-config-schema-drift
+        name: MediaPipeline config schema drift
+        entry: python scripts/dev/generate_config_schema.py --check
+        language: system
+        pass_filenames: false
+
+      - id: mediapipeline-stage-schema-drift
+        name: MediaPipeline stage schema drift
+        entry: python scripts/dev/generate_stage_schema.py --check
+        language: system
+        pass_filenames: false
+
+      - id: mediapipeline-risky-file-registry
+        name: MediaPipeline risky file registry
+        entry: python scripts/dev/check_risky_file_registry.py
+        language: system
+        pass_filenames: false
+
+      - id: mediapipeline-architecture-guardrails
+        name: MediaPipeline architecture guardrails
+        entry: python scripts/dev/check_architecture_guardrails.py --staged
+        language: system
+        pass_filenames: false
+
+      - id: mediapipeline-naming-lint
+        name: MediaPipeline naming lint
+        entry: python scripts/lint-naming.py --staged
+        language: system
+        pass_filenames: false
+
+      - id: mediapipeline-active-doc-references
+        name: MediaPipeline active doc references
+        entry: python scripts/dev/check_active_doc_references.py
+        language: system
+        pass_filenames: false
+
+      - id: mediapipeline-python-typing
+        name: MediaPipeline Python typing
+        entry: python scripts/dev/check_python_typing.py
+        language: system
+        pass_filenames: false
+
+      - id: mediapipeline-powershell-analysis
+        name: MediaPipeline PowerShell analysis
+        entry: pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/dev/check_powershell_analysis.ps1
+        language: system
+        pass_filenames: false
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:

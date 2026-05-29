@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_config_option_policy import validate_option_config
+from app.config.option_policy import validate_option_config
 
 
 def _option_baseline() -> dict:

@@ -37,7 +37,7 @@ function Resolve-RerunMetadataFfprobePath {
     return ''
 }
 
-$identityModule = Join-Path $PSScriptRoot 'Modules\RerunSourceIdentity.ps1'
+$identityModule = Join-Path (Split-Path -Parent $PSScriptRoot) 'engine\audit\rerun_source_identity.ps1'
 if (-not (Test-Path -LiteralPath $identityModule)) { throw "Rerun source identity module not found: $identityModule" }
 . $identityModule
 

@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_rename_utils import (
+from app.rename.utils import (
     associated_sidecar_candidates,
     natural_sort_key,
     normalize_plex_filename_component,

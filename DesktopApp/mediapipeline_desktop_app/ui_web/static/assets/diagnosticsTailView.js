@@ -24,12 +24,27 @@
     return Array.isArray(value) ? value.map((item) => String(item || "")).filter(Boolean) : [];
   }
 
+  function diagnosticsTailOperatorStatusState(status) {
+    const state = typeof normalizeBackendStatusState === "function" ? normalizeBackendStatusState(status) : "";
+    if (state) return state;
+    const normalized = String(status || "").trim().toLowerCase();
+    if (normalized === "blocked") return "blocked";
+    if (normalized === "review") return "warning";
+    if (normalized === "active") return "running";
+    if (["ready", "empty", "unknown"].includes(normalized)) return normalized;
+    return "unknown";
+  }
+
   function diagnosticsTailEvidence(payload) {
     const tail = payload && typeof payload === "object" ? payload : {};
     const evidence = tail.evidence && typeof tail.evidence === "object" ? tail.evidence : {};
     const lines = String(tail.text || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
     const hasEvidence = Object.keys(evidence).length > 0;
-    if (hasEvidence) return Object.assign({ evidence_authority: "backend" }, evidence);
+    if (hasEvidence) {
+      const backendEvidence = Object.assign({ evidence_authority: "backend" }, evidence);
+      backendEvidence.operator_status_state = evidence.operator_status_state || diagnosticsTailOperatorStatusState(evidence.operator_status);
+      return backendEvidence;
+    }
     const lowerLines = lines.map((line) => line.toLowerCase());
     const countMatching = (terms) => lowerLines.filter((line) => terms.some((term) => line.includes(term))).length;
     const errors = diagnosticsTailLines(tail.errors);
@@ -46,6 +61,7 @@
     return {
       evidence_authority: "frontend_advisory",
       operator_status: operatorStatus,
+      operator_status_state: diagnosticsTailOperatorStatusState(operatorStatus),
       line_count: lines.length,
       error_count: errorCount,
       warning_count: warningCount,
@@ -176,6 +192,7 @@
     setDiagnosticsTailBusy,
     renderDiagnosticsTail,
     requestDiagnosticsTail,
+    diagnosticsTailOperatorStatusState,
     diagnosticsTailEvidence,
     diagnosticsTailEvidenceLines,
   };

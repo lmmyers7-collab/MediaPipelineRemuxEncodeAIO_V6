@@ -13,7 +13,7 @@ from mediapipeline_desktop_app import APP_VERSION
 class VersioningTests(unittest.TestCase):
     def test_desktop_app_version_matches_pipeline_product_version(self) -> None:
         root = Path(__file__).resolve().parents[2]
-        versioning = root / "Pipeline" / "Modules" / "Versioning.ps1"
+        versioning = root / "engine" / "shared" / "versioning.ps1"
         text = versioning.read_text(encoding="utf-8")
         match = re.search(
             r"function\s+Get-MediaPipelineProductVersion\s*\{[^{}]*return\s+['\"](?P<version>v\d+\.\d{3})['\"]",
@@ -27,7 +27,7 @@ class VersioningTests(unittest.TestCase):
 
     def test_operator_version_bump_rules_are_documented(self) -> None:
         root = Path(__file__).resolve().parents[2]
-        text = (root / "Pipeline" / "Modules" / "Versioning.ps1").read_text(encoding="utf-8")
+        text = (root / "engine" / "shared" / "versioning.ps1").read_text(encoding="utf-8")
 
         self.assertIn("v6.001 = minor bug fix", text)
         self.assertIn("v6.010 = minor feature", text)

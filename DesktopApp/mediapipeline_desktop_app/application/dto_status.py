@@ -30,6 +30,9 @@ class AppSnapshotDto:
     counts: JsonMap = field(default_factory=dict)
     progress: JsonMap = field(default_factory=dict)
     audit_progress: JsonMap = field(default_factory=dict)
+    worker_progress: JsonMap = field(default_factory=dict)
+    ffmpeg_progress: JsonMap = field(default_factory=dict)
+    eta: JsonMap = field(default_factory=dict)
     progress_bars: list[JsonMap] = field(default_factory=list)
     recent_events: list[JsonMap] = field(default_factory=list)
     latest_paths: dict[str, str] = field(default_factory=dict)
@@ -58,6 +61,7 @@ class TelemetryDto:
     gpu_memory_percent: float | None = None
     gpu_memory_used_gb: float | None = None
     gpu_memory_total_gb: float | None = None
+    gpu_encoder_usage: JsonMap = field(default_factory=dict)
     source: str = ""
     error: str = ""
     schema_version: str = "desktop_telemetry.v1"
@@ -71,6 +75,9 @@ class DiagnosticsDto:
     app_version: str
     active_jobs: list[str] = field(default_factory=list)
     active_job_rows: list[JsonMap] = field(default_factory=list)
+    worker_progress: JsonMap = field(default_factory=dict)
+    ffmpeg_progress: JsonMap = field(default_factory=dict)
+    eta: JsonMap = field(default_factory=dict)
     recent_errors: list[str] = field(default_factory=list)
     recent_events: list[str] = field(default_factory=list)
     status_summary: str = ""

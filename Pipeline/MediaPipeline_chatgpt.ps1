@@ -286,8 +286,9 @@ $ProgressPreference    = 'SilentlyContinue'
 # ==============================================================================
 # MODULE LOADING (dot-source)
 # ------------------------------------------------------------------------------
-# Pure-function and shared-state helpers live in Modules\*.ps1, dot-sourced so
-# they share this script's scope. This keeps `$script:*` semantics intact —
+# Pure-function and shared-state helpers live in engine\<domain>\*.ps1 and are
+# dot-sourced through compatibility loaders so they share this script's scope.
+# This keeps `$script:*` semantics intact —
 # extraction is purely a code-locality change with no behavioural impact.
 #
 # Order matters slightly:
@@ -325,9 +326,56 @@ $ProgressPreference    = 'SilentlyContinue'
 #   - PublishCompletion.ps1 loads after PendingPush.ps1 because completed
 #     output publish orchestration parks retry/deferred outputs.
 # ==============================================================================
-$moduleRoot = if ($PSScriptRoot) { Join-Path $PSScriptRoot 'Modules' } else { Join-Path (Get-Location).Path 'Modules' }
+$pipelineRoot = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
+$repoRootForModules = Split-Path -Parent $pipelineRoot
+$moduleRoot = Join-Path $pipelineRoot 'Modules'
+$engineModulePaths = @{
+    'Audio.ps1'                 = Join-Path $repoRootForModules 'engine\audio\audio.ps1'
+    'Logging.ps1'               = Join-Path $repoRootForModules 'engine\observability\logging.ps1'
+    'ConfigGetters.ps1'          = Join-Path $repoRootForModules 'engine\config\getters.ps1'
+    'ConfigKeys.ps1'             = Join-Path $repoRootForModules 'engine\config\config_keys.ps1'
+    'ConfigSchema.ps1'           = Join-Path $repoRootForModules 'engine\config\config_schema.ps1'
+    'Disk.ps1'                   = Join-Path $repoRootForModules 'engine\storage\disk.ps1'
+    'EncodePolicy.ps1'           = Join-Path $repoRootForModules 'engine\decide\encode_policy.ps1'
+    'ExecutableResolution.ps1'   = Join-Path $repoRootForModules 'engine\shared\executable_resolution.ps1'
+    'FailureCodes.ps1'           = Join-Path $repoRootForModules 'engine\shared\failure_codes.ps1'
+    'FailureState.ps1'           = Join-Path $repoRootForModules 'engine\failures\failure_state.ps1'
+    'FfmpegProgress.ps1'         = Join-Path $repoRootForModules 'engine\process\ffmpeg_progress.ps1'
+    'FileOverrides.ps1'          = Join-Path $repoRootForModules 'engine\queue\file_overrides.ps1'
+    'FolderPolicy.ps1'           = Join-Path $repoRootForModules 'engine\policy\folder_policy.ps1'
+    'LibraryIndex.ps1'           = Join-Path $repoRootForModules 'engine\library\library_index.ps1'
+    'LocalWorkerSlots.ps1'       = Join-Path $repoRootForModules 'engine\queue\local_worker_slots.ps1'
+    'MediaConstants.ps1'         = Join-Path $repoRootForModules 'engine\shared\media_constants.ps1'
+    'MediaProbe.ps1'             = Join-Path $repoRootForModules 'engine\probe\media_probe.ps1'
+    'Naming.ps1'                 = Join-Path $repoRootForModules 'engine\naming\naming.ps1'
+    'Native.ps1'                 = Join-Path $repoRootForModules 'engine\shared\native.ps1'
+    'NativeProcessContracts.ps1' = Join-Path $repoRootForModules 'engine\shared\native_process_contracts.ps1'
+    'OutputPathPlanning.ps1'     = Join-Path $repoRootForModules 'engine\paths\output_path_planning.ps1'
+    'PathHelpers.ps1'            = Join-Path $repoRootForModules 'engine\shared\path_helpers.ps1'
+    'PendingManifestStore.ps1'   = Join-Path $repoRootForModules 'engine\publish\pending_manifest_store.ps1'
+    'PendingPublishIndex.ps1'    = Join-Path $repoRootForModules 'engine\publish\pending_publish_index.ps1'
+    'PendingPush.ps1'            = Join-Path $repoRootForModules 'engine\publish\pending_push.ps1'
+    'PendingTransactions.ps1'    = Join-Path $repoRootForModules 'engine\publish\pending_transactions.ps1'
+    'PipelineEngine.ps1'         = Join-Path $repoRootForModules 'engine\queue\pipeline_engine.ps1'
+    'PipelineProcessing.ps1'     = Join-Path $repoRootForModules 'engine\process\pipeline_processing.ps1'
+    'ProgressState.ps1'          = Join-Path $repoRootForModules 'engine\status\progress_state.ps1'
+    'Publish.Partial.ps1'        = Join-Path $repoRootForModules 'engine\publish\publish_partial.ps1'
+    'Publish.Result.ps1'         = Join-Path $repoRootForModules 'engine\publish\publish_result.ps1'
+    'Publish.Sidecars.ps1'       = Join-Path $repoRootForModules 'engine\publish\publish_sidecars.ps1'
+    'PublishCompletion.ps1'      = Join-Path $repoRootForModules 'engine\publish\publish_completion.ps1'
+    'QueuePlan.ps1'              = Join-Path $repoRootForModules 'engine\queue\queue_plan.ps1'
+    'Routing.ps1'                = Join-Path $repoRootForModules 'engine\decide\routing.ps1'
+    'ScratchCopy.ps1'            = Join-Path $repoRootForModules 'engine\storage\scratch_copy.ps1'
+    'ShowOverrides.ps1'          = Join-Path $repoRootForModules 'engine\decide\show_overrides.ps1'
+    'Sidecar.ps1'                = Join-Path $repoRootForModules 'engine\publish\sidecar.ps1'
+    'SourceIdentity.ps1'         = Join-Path $repoRootForModules 'engine\shared\source_identity.ps1'
+    'StateStore.ps1'             = Join-Path $repoRootForModules 'engine\storage\state_store.ps1'
+    'Subtitles.ps1'              = Join-Path $repoRootForModules 'engine\subtitles\subtitles.ps1'
+    'TempCleanup.ps1'            = Join-Path $repoRootForModules 'engine\shared\temp_cleanup.ps1'
+    'Versioning.ps1'             = Join-Path $repoRootForModules 'engine\shared\versioning.ps1'
+}
 foreach ($module in @('Logging.ps1', 'ConfigGetters.ps1', 'ConfigKeys.ps1', 'ExecutableResolution.ps1', 'TempCleanup.ps1', 'PathHelpers.ps1', 'MediaConstants.ps1', 'ShowOverrides.ps1', 'Versioning.ps1', 'FailureCodes.ps1', 'ConfigSchema.ps1', 'StateStore.ps1', 'Routing.ps1', 'EncodePolicy.ps1', 'NativeProcessContracts.ps1', 'Native.ps1', 'Disk.ps1', 'MediaProbe.ps1', 'FolderPolicy.ps1', 'FileOverrides.ps1', 'Audio.ps1', 'Subtitles.ps1', 'ProgressState.ps1', 'FfmpegProgress.ps1', 'QueuePlan.ps1', 'Naming.ps1', 'OutputPathPlanning.ps1', 'SourceIdentity.ps1', 'ScratchCopy.ps1', 'LocalWorkerSlots.ps1', 'FailureState.ps1', 'Sidecar.ps1', 'Publish.Result.ps1', 'Publish.Partial.ps1', 'Publish.Sidecars.ps1', 'PendingManifestStore.ps1', 'PendingTransactions.ps1', 'PendingPush.ps1', 'PendingPublishIndex.ps1', 'PublishCompletion.ps1', 'LibraryIndex.ps1', 'PipelineProcessing.ps1', 'PipelineEngine.ps1')) {
-    $modulePath = Join-Path $moduleRoot $module
+    $modulePath = if ($engineModulePaths.ContainsKey($module)) { $engineModulePaths[$module] } else { Join-Path $moduleRoot $module }
     if (-not (Test-Path -LiteralPath $modulePath)) {
         Write-Host "FATAL: required module not found: $modulePath" -ForegroundColor Red
         exit 1
@@ -657,7 +705,7 @@ $script:AllowNoAudio = Get-ConfigBool 'AllowNoAudio' $false
 # picked from a codec/channel-count table (eac3/ac3/aac). Default $false
 # preserves existing behavior so operators with custom bitrates aren't
 # surprised. Surfaced in the desktop config UI; see Get-AudioTranscode-
-# BitrateForChannels in Modules\Audio.ps1 for the table.
+# BitrateForChannels in engine\audio\audio.ps1 for the table.
 $script:AudioTranscodeAutoBitrateByChannels = Get-ConfigBool 'AudioTranscodeAutoBitrateByChannels' $false
 
 # ==============================================================================
@@ -699,7 +747,7 @@ $script:FallbackCpuQuality = Get-ConfigInt 'FallbackCpuQuality' 20 14 28
 # libx265 -preset for CPU encodes (fallback or future primary).  Faster
 # presets keep the box responsive but lose quality; slower presets compress
 # better but can run for many hours.  Validation lives in
-# Resolve-MediaPipelineCpuEncodePreset (Modules\ConfigSchema.ps1).
+# Resolve-MediaPipelineCpuEncodePreset (engine\config\config_schema.ps1).
 $script:CpuEncodePreset = if ($config.ContainsKey('CpuEncodePreset')) {
     Resolve-MediaPipelineCpuEncodePreset -Preset ([string]$config['CpuEncodePreset'])
 } else {
@@ -709,7 +757,7 @@ $script:CpuEncodePreset = if ($config.ContainsKey('CpuEncodePreset')) {
 # Windows ProcessPriorityClass to apply to ffmpeg when running a CPU encode.
 # 'belownormal' keeps the desktop UI responsive while libx265 saturates cores;
 # 'inherit' leaves the priority alone (legacy behavior).  Validation lives in
-# Resolve-MediaPipelineCpuEncodeProcessPriority (Modules\ConfigSchema.ps1).
+# Resolve-MediaPipelineCpuEncodeProcessPriority (engine\config\config_schema.ps1).
 $script:CpuEncodeProcessPriority = if ($config.ContainsKey('CpuEncodeProcessPriority')) {
     Resolve-MediaPipelineCpuEncodeProcessPriority -Priority ([string]$config['CpuEncodeProcessPriority'])
 } else {
@@ -1154,7 +1202,7 @@ function Do-Remux {
             # R7 fix — leave the scratch copy in place. Do-Encode calls
             # Ensure-ScratchCopy which is idempotent: it verifies the
             # fingerprint and integrity of the existing file and reuses
-            # it (Modules\... — see the "Fingerprint matched and integrity
+            # it (engine\storage\scratch_copy.ps1 — see the "Fingerprint matched and integrity
             # passed - reuse." branch in Ensure-ScratchCopy). Deleting it
             # here forced a second multi-GB copy from the network share
             # for every codec-fallback file.
@@ -1596,7 +1644,7 @@ function Do-Encode {
         }
 
         # Attempt 1 uses the configured GPU-first encoder. Retry policy and
-        # CPU fallback command construction live in Modules\EncodePolicy.ps1.
+        # CPU fallback command construction live in engine\decide\encode_policy.ps1.
         # Suggestion #2 — when the cached NVENC probe says GPU is
         # unavailable (set by Invalidate-NvencAvailableProbe after an
         # earlier runtime NVENC failure), skip the primary AND safe-retry
@@ -1767,7 +1815,7 @@ function Do-Encode {
                 -Hdr10MasterDisplay $hdr10MasterDisplay `
                 -Hdr10MaxCll $hdr10MaxCll
                 $ffArgs     = @($encodePlan.ArgumentList)
-                # Differentiate the GUI status string. service_status.py renders
+                # Differentiate the GUI status string. app/status/service.py renders
                 # `encode_cpu` with its own label, but the user-facing status
                 # text (currentStatus) is also surfaced verbatim in the live
                 # tile and the taskbar tooltip; keep it explicit so the
@@ -1866,7 +1914,7 @@ function Do-Encode {
             # D2 fix — CPU failures are recorded as 'transient' just like
             # NVENC failures. Register-SourceFailure already escalates to
             # 'operator_required' after $TransientFailureRetryLimit repeated
-            # same-(stage,error_code) failures (see Modules\FailureState.ps1
+            # same-(stage,error_code) failures (see engine\failures\failure_state.ps1
             # ~line 670). That gives a CPU job N retry chances for
             # genuinely transient errors (antivirus locks, transient OOM,
             # disk full near end), then escalates exactly once instead of
@@ -1991,7 +2039,7 @@ function Do-Encode {
 # PROCESS ONE FILE
 # ===============================================================================
 # Compatibility wrapper: the job-level implementation lives in
-# Modules\PipelineProcessing.ps1 so the engine can call the historical name.
+# engine\process\pipeline_processing.ps1 so the engine can call the historical name.
 function Process-File {
     param(
         $file,
@@ -2005,7 +2053,7 @@ function Process-File {
     Invoke-MediaPipelineProcessFile -file $file -isTV:$isTV -idx $idx -QueueIndex $QueueIndex -QueueTotal $QueueTotal -PriorityInfo $PriorityInfo
 }
 
-# Queue snapshot helpers live in Modules\PipelineEngine.ps1.
+# Queue snapshot helpers live in engine\queue\pipeline_engine.ps1.
 
 # ==============================================================================
 # MAIN LOOP
@@ -2038,7 +2086,8 @@ Write-Log "Run mode      : $runMode"
 Write-Log "Config file   : $configPath"
 Write-Log "PowerShell    : $($PSVersionTable.PSVersion)"
 Write-Log "SleepSeconds  : $SleepSeconds"
-Write-Log "Parallel encodes: max=$script:MaxParallelEncodes mode=$script:ParallelEncodeMode$(if ($WorkerChild) { " worker_slot=$WorkerSlotId" } else { "" })"
+$workerSlotLog = if ($WorkerChild) { " worker_slot=$WorkerSlotId" } else { "" }
+Write-Log "Parallel encodes: max=$script:MaxParallelEncodes mode=$script:ParallelEncodeMode$workerSlotLog"
 Write-Log "Scan refresh  : source $($script:SourceScanIntervalSeconds)s | index $($script:ProcessedIndexRefreshSeconds)s"
 Write-Log "Movie thresh  : $EncodeThresholdGB GB | TV thresh: $TVEncodeThresholdGB GB"
 Write-Log "Codec         : $VideoCodec preset $VideoPreset CQ $VideoQuality"

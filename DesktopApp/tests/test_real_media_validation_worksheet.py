@@ -9,6 +9,8 @@ from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+WORKSHEET_SCRIPT = PROJECT_ROOT / "scripts" / "operator" / "New-RealMediaValidationWorksheet.ps1"
+RELEASE_BUILD_SCRIPT = PROJECT_ROOT / "scripts" / "release" / "build.ps1"
 
 
 def _powershell_host() -> str | None:
@@ -20,7 +22,7 @@ def _powershell_host() -> str | None:
 
 class RealMediaValidationWorksheetTests(unittest.TestCase):
     def test_worksheet_helper_is_bounded_and_non_media_mutating(self) -> None:
-        script = PROJECT_ROOT / "New-RealMediaValidationWorksheet.ps1"
+        script = WORKSHEET_SCRIPT
         self.assertTrue(script.exists())
         source = script.read_text(encoding="utf-8")
 
@@ -63,7 +65,7 @@ class RealMediaValidationWorksheetTests(unittest.TestCase):
                     "-ExecutionPolicy",
                     "Bypass",
                     "-File",
-                    str(PROJECT_ROOT / "New-RealMediaValidationWorksheet.ps1"),
+                    str(WORKSHEET_SCRIPT),
                     "-OutputDirectory",
                     str(out_dir),
                     "-RunId",
@@ -132,7 +134,7 @@ class RealMediaValidationWorksheetTests(unittest.TestCase):
                     "-ExecutionPolicy",
                     "Bypass",
                     "-File",
-                    str(PROJECT_ROOT / "New-RealMediaValidationWorksheet.ps1"),
+                    str(WORKSHEET_SCRIPT),
                     "-OutputDirectory",
                     str(out_dir),
                     "-RunId",
@@ -175,7 +177,7 @@ class RealMediaValidationWorksheetTests(unittest.TestCase):
                     "-ExecutionPolicy",
                     "Bypass",
                     "-File",
-                    str(PROJECT_ROOT / "New-RealMediaValidationWorksheet.ps1"),
+                    str(WORKSHEET_SCRIPT),
                     "-OutputDirectory",
                     str(out_dir),
                     "-RunId",
@@ -259,7 +261,7 @@ class RealMediaValidationWorksheetTests(unittest.TestCase):
                     "-ExecutionPolicy",
                     "Bypass",
                     "-File",
-                    str(PROJECT_ROOT / "New-RealMediaValidationWorksheet.ps1"),
+                    str(WORKSHEET_SCRIPT),
                     "-OutputDirectory",
                     str(out_dir),
                     "-RunId",
@@ -291,10 +293,10 @@ class RealMediaValidationWorksheetTests(unittest.TestCase):
             self.assertIn("Snapshot still matches expected source files: Yes (1/1)", text)
 
     def test_release_builder_omits_generated_real_media_validation_runs(self) -> None:
-        builder = (PROJECT_ROOT / "Build-MediaPipelineRemuxEncodeAIO-Release.ps1").read_text(encoding="utf-8")
-        policy = (PROJECT_ROOT / "Pipeline" / "Modules" / "ReleasePolicy.ps1").read_text(encoding="utf-8")
+        builder = RELEASE_BUILD_SCRIPT.read_text(encoding="utf-8")
+        policy = (PROJECT_ROOT / "scripts" / "release" / "release_policy.ps1").read_text(encoding="utf-8")
 
-        self.assertIn("ReleasePolicy.ps1", builder)
+        self.assertIn("release_policy.ps1", builder)
         self.assertIn("Get-MediaPipelineReleaseExclusionReason", builder)
         self.assertIn("Docs\\RealMediaValidationRuns\\*", policy)
         self.assertIn("operator real-media validation evidence omitted", policy)

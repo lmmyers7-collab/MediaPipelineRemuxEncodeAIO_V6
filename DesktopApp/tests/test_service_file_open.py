@@ -9,8 +9,8 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_file_open import FileOpenServiceMixin
-from mediapipeline_desktop_app.service_file_open_plan import MKLINK_JUNCTION_TIMEOUT_SECONDS
+from app.files.open_plan import MKLINK_JUNCTION_TIMEOUT_SECONDS
+from app.files.opening import FileOpenServiceMixin
 
 
 class DummyFileOpenService(FileOpenServiceMixin):
@@ -29,8 +29,8 @@ class FileOpenServiceTests(unittest.TestCase):
             calls.append({"args": args, "kwargs": kwargs})
             return subprocess.CompletedProcess(args=args, returncode=0)
 
-        with patch("mediapipeline_desktop_app.service_file_open.vlc_needs_short_path", return_value=True):
-            with patch("mediapipeline_desktop_app.service_file_open.subprocess.run", side_effect=fake_run):
+        with patch("app.files.opening.vlc_needs_short_path", return_value=True):
+            with patch("app.files.opening.subprocess.run", side_effect=fake_run):
                 launch_path, cleanup_root = service._vlc_launch_path_for_media(Path(r"C:\Media\Long\Movie.mkv"))
 
         self.assertEqual(cleanup_root, None)

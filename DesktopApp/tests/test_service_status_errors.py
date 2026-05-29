@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import tempfile
 import unittest
 
-from mediapipeline_desktop_app.service_status_errors import format_recent_error_summary
+from app.status.errors import format_recent_error_summary
 
 
 class ServiceStatusErrorSummaryTests(unittest.TestCase):

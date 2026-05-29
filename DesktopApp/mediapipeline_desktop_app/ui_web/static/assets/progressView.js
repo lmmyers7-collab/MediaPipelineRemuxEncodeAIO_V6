@@ -236,12 +236,126 @@
     return Array.isArray(diagnostics?.active_jobs) ? diagnostics.active_jobs.filter(Boolean) : [];
   }
 
+  function progressWorkerPayload(snapshot = null, diagnostics = null) {
+    const fromSnapshot = snapshot?.worker_progress && typeof snapshot.worker_progress === "object" ? snapshot.worker_progress : null;
+    const fromDiagnostics = diagnostics?.worker_progress && typeof diagnostics.worker_progress === "object" ? diagnostics.worker_progress : null;
+    return fromDiagnostics || fromSnapshot || {};
+  }
+
+  function progressWorkerRows(snapshot = null, diagnostics = null) {
+    const payload = progressWorkerPayload(snapshot, diagnostics);
+    return Array.isArray(payload.rows) ? payload.rows.filter(Boolean) : [];
+  }
+
+  function progressWorkerSummaryLine(snapshot = null, diagnostics = null) {
+    const payload = progressWorkerPayload(snapshot, diagnostics);
+    const rows = Array.isArray(payload.rows) ? payload.rows : [];
+    if (!payload.schema_version && !rows.length) return "Worker progress: no backend worker-progress contract loaded.";
+    return `Worker progress: ${payload.status || "unknown"}; rows=${rows.length}; running=${payload.active_count || 0}; blocked=${payload.blocked_count || 0}; warning=${payload.warning_count || 0}.`;
+  }
+
+  function formatWorkerProgressRow(row) {
+    return [
+      row.worker_label || row.worker_id || "Local worker",
+      row.stage ? `stage=${formatProgressValue(row.stage)}` : "",
+      row.percent !== undefined && row.percent !== null ? `percent=${formatProgressValue(row.percent)}` : "",
+      row.source ? `file=${formatProgressValue(row.source)}` : "",
+      row.last_log_line ? `last=${formatProgressValue(row.last_log_line)}` : "",
+    ].filter(Boolean).join("; ");
+  }
+
+  function progressFfmpegPayload(snapshot = null, diagnostics = null) {
+    const fromSnapshot = snapshot?.ffmpeg_progress && typeof snapshot.ffmpeg_progress === "object" ? snapshot.ffmpeg_progress : null;
+    const fromDiagnostics = diagnostics?.ffmpeg_progress && typeof diagnostics.ffmpeg_progress === "object" ? diagnostics.ffmpeg_progress : null;
+    return fromDiagnostics || fromSnapshot || {};
+  }
+
+  function progressFfmpegRows(snapshot = null, diagnostics = null) {
+    const payload = progressFfmpegPayload(snapshot, diagnostics);
+    return Array.isArray(payload.rows) ? payload.rows.filter(Boolean) : [];
+  }
+
+  function progressFfmpegSummaryLine(snapshot = null, diagnostics = null) {
+    const payload = progressFfmpegPayload(snapshot, diagnostics);
+    const rows = Array.isArray(payload.rows) ? payload.rows : [];
+    if (!payload.schema_version && !rows.length) return "FFmpeg progress proof: no backend FFmpeg-progress contract loaded.";
+    return `FFmpeg progress proof: ${payload.status || "unknown"}; rows=${rows.length}; parsed=${payload.parsed_count || 0}; parse_errors=${payload.parse_error_count || 0}.`;
+  }
+
+  function formatFfmpegProgressRow(row) {
+    return [
+      row.job_id ? `job=${formatProgressValue(row.job_id)}` : "",
+      row.stage ? `stage=${formatProgressValue(row.stage)}` : "",
+      row.source ? `file=${formatProgressValue(row.source)}` : "",
+      row.frame !== undefined && row.frame !== null ? `frame=${formatProgressValue(row.frame)}` : "",
+      row.fps !== undefined && row.fps !== null ? `fps=${formatProgressValue(row.fps)}` : "",
+      row.time ? `time=${formatProgressValue(row.time)}` : "",
+      row.speed ? `speed=${formatProgressValue(row.speed)}` : "",
+      row.bitrate ? `bitrate=${formatProgressValue(row.bitrate)}` : "",
+      row.parse_error ? `parse_error=${formatProgressValue(row.parse_error)}` : "",
+    ].filter(Boolean).join("; ") || "No FFmpeg key/value progress fields parsed.";
+  }
+
+  function progressEtaPayload(snapshot = null, diagnostics = null) {
+    const fromSnapshot = snapshot?.eta && typeof snapshot.eta === "object" ? snapshot.eta : null;
+    const fromDiagnostics = diagnostics?.eta && typeof diagnostics.eta === "object" ? diagnostics.eta : null;
+    return fromDiagnostics || fromSnapshot || {};
+  }
+
+  function progressEtaRows(snapshot = null, diagnostics = null) {
+    const payload = progressEtaPayload(snapshot, diagnostics);
+    return Array.isArray(payload.rows) ? payload.rows.filter(Boolean) : [];
+  }
+
+  function formatEtaSeconds(value) {
+    const seconds = Number(value);
+    if (!Number.isFinite(seconds) || seconds < 0) return "not available";
+    const rounded = Math.round(seconds);
+    const hours = Math.floor(rounded / 3600);
+    const minutes = Math.floor((rounded % 3600) / 60);
+    const remainingSeconds = rounded % 60;
+    if (hours > 0) return `${hours}h ${String(minutes).padStart(2, "0")}m`;
+    if (minutes > 0) return `${minutes}m ${String(remainingSeconds).padStart(2, "0")}s`;
+    return `${remainingSeconds}s`;
+  }
+
+  function progressEtaSummaryLine(snapshot = null, diagnostics = null) {
+    const payload = progressEtaPayload(snapshot, diagnostics);
+    const rows = Array.isArray(payload.rows) ? payload.rows : [];
+    if (!payload.schema_version && !rows.length) return "ETA: no backend ETA contract loaded.";
+    const estimate = rows.find((row) => row && row.eta_seconds !== undefined && row.eta_seconds !== null);
+    const estimateText = estimate ? `; next=${formatEtaSeconds(estimate.eta_seconds)}; confidence=${estimate.confidence || "unknown"}` : "";
+    return `ETA: ${payload.status || "unknown"}; rows=${rows.length}; estimated=${payload.estimated_count || 0}; unavailable=${payload.unavailable_count || 0}${estimateText}.`;
+  }
+
+  function formatEtaRow(row) {
+    return [
+      row.job_id ? `job=${formatProgressValue(row.job_id)}` : "",
+      row.stage ? `stage=${formatProgressValue(row.stage)}` : "",
+      row.source ? `file=${formatProgressValue(row.source)}` : "",
+      row.eta_seconds !== undefined && row.eta_seconds !== null ? `eta=${formatEtaSeconds(row.eta_seconds)}` : "",
+      row.confidence ? `confidence=${formatProgressValue(row.confidence)}` : "",
+      row.percent !== undefined && row.percent !== null ? `percent=${formatProgressValue(row.percent)}` : "",
+      row.elapsed_seconds !== undefined && row.elapsed_seconds !== null ? `elapsed=${formatEtaSeconds(row.elapsed_seconds)}` : "",
+      row.unavailable_reason ? `unavailable=${formatProgressValue(row.unavailable_reason)}` : "",
+    ].filter(Boolean).join("; ") || "No ETA row details available.";
+  }
+
   function progressEvidenceRows({ snapshot = null, closeReadiness = null, diagnostics = null } = {}) {
     const progress = snapshot?.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
     const auditProgress = snapshot?.audit_progress && typeof snapshot.audit_progress === "object" ? snapshot.audit_progress : {};
     const state = normalizedProgressState(snapshot, progress);
     const active = progressStateIsActive(state);
     const activeJobs = progressActiveJobRows(diagnostics);
+    const workerRows = progressWorkerRows(snapshot, diagnostics);
+    const workerPayload = progressWorkerPayload(snapshot, diagnostics);
+    const ffmpegRows = progressFfmpegRows(snapshot, diagnostics);
+    const ffmpegPayload = progressFfmpegPayload(snapshot, diagnostics);
+    const ffmpegParseError = Number(ffmpegPayload.parse_error_count || 0) > 0;
+    const etaRows = progressEtaRows(snapshot, diagnostics);
+    const etaPayload = progressEtaPayload(snapshot, diagnostics);
+    const etaEstimated = Number(etaPayload.estimated_count || 0) > 0;
+    const etaUnavailable = Number(etaPayload.unavailable_count || 0) > 0;
     const events = Array.isArray(snapshot?.recent_events) ? snapshot.recent_events : [];
     const latest = progressLatestEvent(events);
     const route = activeWorkRouteLine(progress);
@@ -294,6 +408,53 @@
       detail: activeJobs.length
         ? activeJobs.slice(0, 8).map((row) => formatProgressValue(row))
         : ["No ActiveJobs rows were loaded from Diagnostics."],
+    });
+
+    rows.push({
+      key: "worker-progress",
+      checkpoint: "Worker progress",
+      posture: workerPayload.status || (workerRows.length ? "loaded" : "not loaded"),
+      evidence: progressWorkerSummaryLine(snapshot, diagnostics),
+      action: workerRows.length
+        ? "Use worker progress as live telemetry only; compare it with ActiveJobs and Run Logs before close, stop, retry, or rerun decisions."
+        : "Do not infer per-worker progress in the WebView until the backend worker-progress contract is present.",
+      detail: workerRows.length
+        ? workerRows.slice(0, 8).map(formatWorkerProgressRow)
+        : ["No desktop_worker_progress.v1 rows were loaded."],
+    });
+
+    rows.push({
+      key: "ffmpeg-progress",
+      checkpoint: "FFmpeg progress proof",
+      posture: ffmpegParseError ? "missing progress" : ffmpegRows.length ? (ffmpegPayload.status || "loaded") : ffmpegPayload.status === "unavailable" ? "missing progress" : ffmpegPayload.status || "idle",
+      evidence: progressFfmpegSummaryLine(snapshot, diagnostics),
+      action: ffmpegParseError || ffmpegPayload.status === "unavailable"
+        ? "Open Run Logs and Last Stderr; active encode/remux work did not expose parseable FFmpeg key/value progress."
+        : ffmpegRows.length
+        ? "Use FFmpeg progress as runtime proof only; do not infer ETA, GPU use, or output integrity from it."
+        : "No FFmpeg progress action is needed while encode/remux evidence is idle or absent.",
+      detail: ffmpegRows.length
+        ? ffmpegRows.slice(0, 8).map(formatFfmpegProgressRow)
+        : Array.isArray(ffmpegPayload.summary_lines) && ffmpegPayload.summary_lines.length
+          ? ffmpegPayload.summary_lines
+          : ["No desktop_ffmpeg_progress.v1 rows were loaded."],
+    });
+
+    rows.push({
+      key: "eta",
+      checkpoint: "ETA",
+      posture: etaEstimated ? "loaded" : etaUnavailable ? "missing progress" : etaPayload.status || "idle",
+      evidence: progressEtaSummaryLine(snapshot, diagnostics),
+      action: etaEstimated
+        ? "Treat ETA as a rough current-stage estimate only; keep using progress, logs, and close-readiness for run decisions."
+        : etaUnavailable
+        ? "No ETA is shown until backend worker progress reports usable percent and elapsed-time evidence."
+        : "No ETA action is needed while no active worker row is reported.",
+      detail: etaRows.length
+        ? etaRows.slice(0, 8).map(formatEtaRow)
+        : Array.isArray(etaPayload.summary_lines) && etaPayload.summary_lines.length
+          ? etaPayload.summary_lines
+          : ["No desktop_eta.v1 rows were loaded."],
     });
 
     rows.push({
@@ -483,7 +644,7 @@
     }));
   }
 
-  function diagnosticsProgressRows(snapshot) {
+  function diagnosticsProgressRows(snapshot, diagnostics = null) {
     const pipelinePreferred = [
       "Status",
       "CurrentStage",
@@ -516,10 +677,50 @@
       "updated_at",
       "error",
     ];
-    return [
+    const rows = [
       ...progressRowsForSource("Pipeline", snapshot?.progress, pipelinePreferred),
       ...progressRowsForSource("Audit", snapshot?.audit_progress, auditPreferred),
     ];
+    const workerRows = progressWorkerRows(snapshot, diagnostics);
+    workerRows.forEach((row) => {
+      rows.push({ source: "Worker", field: row.worker_label || row.worker_id || "Local worker", value: formatWorkerProgressRow(row) });
+      if (row.last_log_line) rows.push({ source: "Worker", field: "last_log_line", value: row.last_log_line });
+    });
+    const ffmpegRows = progressFfmpegRows(snapshot, diagnostics);
+    ffmpegRows.forEach((row) => {
+      rows.push({ source: "FFmpeg", field: "latest", value: formatFfmpegProgressRow(row) });
+      [
+        "job_id",
+        "frame",
+        "fps",
+        "time",
+        "speed",
+        "bitrate",
+        "progress_source",
+        "updated_at",
+        "parse_error",
+      ].forEach((field) => {
+        const value = row[field];
+        if (value !== undefined && value !== null && value !== "") rows.push({ source: "FFmpeg", field, value });
+      });
+      if (row.last_log_line) rows.push({ source: "FFmpeg", field: "last_log_line", value: row.last_log_line });
+    });
+    const etaRows = progressEtaRows(snapshot, diagnostics);
+    etaRows.forEach((row) => {
+      rows.push({ source: "ETA", field: row.worker_label || row.worker_id || "estimate", value: formatEtaRow(row) });
+      [
+        "job_id",
+        "eta_seconds",
+        "confidence",
+        "basis",
+        "updated_at",
+        "unavailable_reason",
+      ].forEach((field) => {
+        const value = row[field];
+        if (value !== undefined && value !== null && value !== "") rows.push({ source: "ETA", field, value });
+      });
+    });
+    return rows;
   }
 
   function diagnosticsProgressStatus(snapshot, rows) {
@@ -534,7 +735,7 @@
     return rows.length ? "Progress loaded" : "No progress";
   }
 
-  function diagnosticsProgressSummaryLines(snapshot, rows) {
+  function diagnosticsProgressSummaryLines(snapshot, rows, diagnostics = null) {
     if (!snapshot) {
       return [
         "Snapshot: unavailable",
@@ -550,6 +751,9 @@
       activeWorkRouteLine(progress),
       activeWorkQueueLine(progress),
       activeWorkControlLine(progress),
+      progressWorkerSummaryLine(snapshot, null),
+      progressFfmpegSummaryLine(snapshot, diagnostics),
+      progressEtaSummaryLine(snapshot, diagnostics),
     ].filter(Boolean);
     if (staleProgress) {
       lines.push(
@@ -571,18 +775,21 @@
     lines.push(
       "",
       `Structured fields: ${rows.length}`,
-      "Next step: compare Runtime Progress with Close Readiness and ActiveJobs before closing the app or clearing runtime state.",
+      "Next step: compare Runtime Progress with Worker Progress, Close Readiness, and ActiveJobs before closing the app or clearing runtime state.",
       "Mutation guardrail: this table is read-only; progress files are still backend/runtime-owned."
     );
     return lines.filter((line) => line !== "");
   }
 
-  function renderDiagnosticsProgress(snapshot = null) {
-    const rows = diagnosticsProgressRows(snapshot || {});
+  function renderDiagnosticsProgress(snapshot = null, diagnostics = null) {
+    const rows = diagnosticsProgressRows(snapshot || {}, diagnostics);
     setText("diagnostics-progress-status", diagnosticsProgressStatus(snapshot, rows));
     renderProgressBarsInto(
       "diagnostics-progress-bars",
-      Array.isArray(snapshot?.progress_bars) ? snapshot.progress_bars : [],
+      [
+        ...(Array.isArray(snapshot?.progress_bars) ? snapshot.progress_bars : []),
+        ...(Array.isArray(progressWorkerPayload(snapshot, diagnostics).progress_bars) ? progressWorkerPayload(snapshot, diagnostics).progress_bars : []),
+      ],
       snapshot,
       "No runtime progress bars loaded.",
     );
@@ -601,7 +808,7 @@
         });
       }
     }
-    setText("diagnostics-progress-detail", diagnosticsProgressSummaryLines(snapshot, rows).join("\n"));
+    setText("diagnostics-progress-detail", diagnosticsProgressSummaryLines(snapshot, rows, diagnostics).join("\n"));
   }
 
   function activeWorkProgressLine(progress) {
@@ -658,6 +865,7 @@
 
   function renderHomeActiveWork({ snapshot = null, diagnostics = null, closeReadiness = null } = {}) {
     const activeJobs = Array.isArray(diagnostics?.active_jobs) ? diagnostics.active_jobs.filter(Boolean) : [];
+    const workerRows = progressWorkerRows(snapshot, diagnostics);
     const progress = snapshot?.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
     const auditProgress = snapshot?.audit_progress && typeof snapshot.audit_progress === "object" ? snapshot.audit_progress : {};
     const state = snapshot?.pipeline_state || closeReadiness?.state || "unknown";
@@ -669,6 +877,9 @@
       `Close readiness: ${closeReadiness ? (closeReadiness.safe_to_close ? "safe" : "active work") : "unknown"}`,
       closeReadiness?.reason ? `Close reason: ${closeReadiness.reason}` : "",
       `ActiveJobs: ${activeJobs.length || 0}`,
+      progressWorkerSummaryLine(snapshot, diagnostics),
+      progressEtaSummaryLine(snapshot, diagnostics),
+      ...workerRows.slice(0, 4).map((row) => `- ${formatWorkerProgressRow(row)}`),
       ...activeJobs.slice(0, 5).map((item) => `- ${item}`),
       activeJobs.length > 5 ? `- and ${activeJobs.length - 5} more ActiveJobs row(s)` : "",
       activeWorkProgressLine(progress),
@@ -697,6 +908,15 @@
     renderProgressDetails,
     renderPipelineEvents,
     renderProgressEvidence,
+    progressWorkerPayload,
+    progressWorkerRows,
+    progressWorkerSummaryLine,
+    progressFfmpegPayload,
+    progressFfmpegRows,
+    progressFfmpegSummaryLine,
+    progressEtaPayload,
+    progressEtaRows,
+    progressEtaSummaryLine,
     progressEvidenceRows,
     progressEvidenceStatus,
     progressEvidenceSummaryLines,

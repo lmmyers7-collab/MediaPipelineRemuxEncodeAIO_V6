@@ -12,8 +12,8 @@ The UI itself should not contain roadmap or changelog tabs. Notes belong here in
   - HTTP routes, command/read contracts, token enforcement, static WebView serving
 - `mediapipeline_desktop_app\application\`
   - facade and DTO boundary for backend-owned actions
-- `mediapipeline_desktop_app\service_*.py`
-  - testable service modules for queue, process, settings, rename, pending publish, diagnostics, maintenance, and sample validation
+- `app\<domain>\`
+  - testable domain service modules for queue, process, settings, rename, pending publish, diagnostics, maintenance, and sample validation
 - `mediapipeline_desktop_app\ui_web\static\`
   - backend-served WebView HTML/CSS/JS assets
 - `DesktopApp\tauri_shell\`
@@ -22,14 +22,14 @@ The UI itself should not contain roadmap or changelog tabs. Notes belong here in
   - standalone pre/post rename workflow with TV sequencing, movie prediction, forced-name sidecars, selectable scrub filters, and custom negative terms
 - `mediapipeline_desktop_app\network\*.py`
   - standalone dispatcher groundwork and future coordinator/worker skeletons
-- `mediapipeline_desktop_app\service_*.py`
-  - focused service mixins for path resolution, process lifecycle, config, app state, telemetry, status/diagnostics, queue, audit/rerun, completed jobs, pending publish, release packaging, file opening, failure cleanup, folder policy, and rename logic
+- `app\paths`, `app\processes`, `app\config`, `app\status`, `app\queue`, `app\audit`, `app\completed`, `app\publish`, and related `app\` domains
+  - focused domain modules for path resolution, process lifecycle, config, app state, telemetry, status/diagnostics, queue, audit/rerun, completed jobs, pending publish, release packaging, file opening, failure cleanup, folder policy, and rename logic
 
 ## Backend Integration Notes
 
-- The backend PowerShell pipeline is split between `Pipeline\MediaPipeline_chatgpt.ps1` and `Pipeline\Modules\*.ps1`.
+- The backend PowerShell pipeline entry point remains `Pipeline\MediaPipeline_chatgpt.ps1`; reusable PowerShell implementations now live under `engine\<domain>\*.ps1`, with `Pipeline\Modules\*.ps1` kept as temporary compatibility shims.
 - Audit implementation is split into focused PowerShell modules: progress, issue policy, probe cache, report writers, and scanner orchestration. The desktop app consumes audit outputs instead of owning audit classification rules.
-- Subtitle implementation is split behind the stable `Pipeline\Modules\Subtitles.ps1` facade. Keep public subtitle entrypoints stable unless every pipeline/test call site is migrated in the same change.
+- Subtitle implementation is under `engine\subtitles\`; the stable `Pipeline\Modules\Subtitles.ps1` path remains a compatibility facade until shim deletion gates close. Keep public subtitle entrypoints stable unless every pipeline/test call site is migrated in the same change.
 - Subtitle settings exposed in the app are grouped by shared policy, ASS/SSA, TX3G, and BDPGS controls. Keep those groups distinct because each subtitle class has different conversion risks and failure modes.
 - Folder-level `mediapipeline.folder.json` sidecars can override audio, subtitle, and routing policy for a show/season folder. Use `Pipeline\Schemas\media_pipeline_folder_policy.example.json` as the operator template, then validate the folder from the Maintenance tab before running a batch.
 - Routing policy is backend-owned. The UI should expose selected profile, size guard, encode ladder, and route reason metadata, but it should not duplicate route decision logic.

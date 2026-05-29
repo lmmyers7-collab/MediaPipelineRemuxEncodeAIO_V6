@@ -29,7 +29,7 @@ function DebugLog {
 
 Write-RerunLog "CSV rerun safety policy: copy-only staging, keep originals, and park outputs. Source-mutating row policies are rejected during planning." "INFO"
 
-$rerunIdentityModule = Join-Path $PSScriptRoot 'Modules\RerunSourceIdentity.ps1'
+$rerunIdentityModule = Join-Path (Split-Path -Parent $PSScriptRoot) 'engine\audit\rerun_source_identity.ps1'
 if (-not (Test-Path -LiteralPath $rerunIdentityModule)) { throw "Rerun source identity module not found: $rerunIdentityModule" }
 . $rerunIdentityModule
 
@@ -675,11 +675,11 @@ $script:AggressiveEpisodeParsing = [bool]$config['AggressiveEpisodeParsing']
 $script:ValidExtensions = @($config['ValidExtensions'])
 $CreateTVSubfolder = [bool]$config['CreateTVSubfolder']
 
-$queuePlanModule = Join-Path $PSScriptRoot 'Modules\QueuePlan.ps1'
+$queuePlanModule = Join-Path (Split-Path -Parent $PSScriptRoot) 'engine\queue\queue_plan.ps1'
 if (-not (Test-Path -LiteralPath $queuePlanModule)) { throw "QueuePlan module not found: $queuePlanModule" }
 . $queuePlanModule
 
-$namingModule = Join-Path $PSScriptRoot 'Modules\Naming.ps1'
+$namingModule = Join-Path (Split-Path -Parent $PSScriptRoot) 'engine\naming\naming.ps1'
 if (-not (Test-Path -LiteralPath $namingModule)) { throw "Naming module not found: $namingModule" }
 . $namingModule
 

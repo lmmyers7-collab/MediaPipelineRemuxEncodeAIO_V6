@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/api/handler.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-05-20
+last_modified: 2026-05-29
 last_reviewed: 2026-05-28
-sha256: 69250ab9aa685ac2a07094f570fd86a1738c2072141b3edcc33e0b6c1ef7e542
+sha256: 0db07aedf2ee9f8d8279450e61a230a54176bd06ab13217cb20ce3be4cc70501
 ---
 # `DesktopApp/mediapipeline_desktop_app/api/handler.py`
 

@@ -6,6 +6,7 @@
     const queueListText = deps.queueListText || function (value) { return Array.isArray(value) && value.length ? value.join(", ") : "none"; };
     const queueRowKey = deps.queueRowKey || function () { return ""; };
     const queueSelectedQuickSignalLines = deps.queueSelectedQuickSignalLines || function () { return []; };
+    const queueSelectedAtAGlanceLines = deps.queueSelectedAtAGlanceLines || function () { return []; };
     const queueInvestigationSignalLines = deps.queueInvestigationSignalLines || function () { return []; };
     const queueSelectedOpenTargetLines = deps.queueSelectedOpenTargetLines || function () { return []; };
     const renderQueueSelectedAtAGlance = deps.renderQueueSelectedAtAGlance || function () {};
@@ -40,6 +41,14 @@
         `Runtime checks: ${item.runtime_checks_deferred ? "deferred until processing start" : "no deferred checks reported"}`,
         `Review flags: ${reviewFlags.length ? reviewFlags.join(", ") : "none"}`,
       ];
+      const reviewFlagExplanations = typeof window.mediaPipelineDom?.reviewFlagExplanationLines === "function"
+        ? window.mediaPipelineDom.reviewFlagExplanationLines(reviewFlags, {
+          title: "Review flag explanations:",
+          emptyMessage: "No Queue review flags were reported for this row.",
+          guardrail: "Mutation guardrail: review-flag explanations translate Queue snapshot markers only; they cannot launch, reorder, drop, or rewrite queue entries.",
+        })
+        : [];
+      lines.push(...reviewFlagExplanations);
       if (item.blocked_reason_code || item.blocked_reason) {
         lines.push(`Blocker: ${[item.blocked_reason_code, item.blocked_reason].filter(Boolean).join(" - ")}`);
       }
@@ -317,8 +326,18 @@
 
     function renderQueueDetail(item) {
       renderQueueSelectedAtAGlance(item || null);
+      const detailDrawer = window.mediaPipelineDom?.selectedRowDetailDrawerLines;
       if (!item) {
-        setText("queue-detail", queueRowReviewChecklistLines(null).join("\n"));
+        const bodyLines = queueRowReviewChecklistLines(null);
+        const detailLines = typeof detailDrawer === "function"
+          ? detailDrawer({
+            title: "Queue selected-row detail",
+            summaryLines: queueSelectedAtAGlanceLines(null),
+            bodyLines,
+            guardrail: "Mutation guardrail: selected-row detail is read-only and cannot launch, reorder, drop, rewrite queue entries, or touch source files.",
+          })
+          : bodyLines;
+        setText("queue-detail", detailLines.join("\n"));
         renderQueueDiagnosticsLinks(null);
         return;
       }
@@ -412,7 +431,15 @@
         `Season: ${item.season_number || ""}`,
         `Episode: ${item.episode_number || ""}`,
       ].filter(Boolean);
-      setText("queue-detail", detail.join("\n"));
+      const detailLines = typeof detailDrawer === "function"
+        ? detailDrawer({
+          title: "Queue selected-row detail",
+          summaryLines: queueSelectedAtAGlanceLines(item),
+          bodyLines: detail,
+          guardrail: "Mutation guardrail: selected-row detail is read-only and cannot launch, reorder, drop, rewrite queue entries, or touch source files.",
+        })
+        : detail;
+      setText("queue-detail", detailLines.join("\n"));
       renderQueueDiagnosticsLinks(item);
     }
 

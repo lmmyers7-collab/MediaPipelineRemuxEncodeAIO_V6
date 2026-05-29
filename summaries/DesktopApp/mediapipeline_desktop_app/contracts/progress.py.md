@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/contracts/progress.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-05-26
+last_modified: 2026-05-28
 last_reviewed: 2026-05-28
-sha256: 80f4d1b2109565eab77aae8ca1b08e2a3926904275126fb44ab57e23d8db8c7d
+sha256: 59493c307a651dfdd3eb90fe73b398a0571a9bcbf86dc17c03112d8f2ba6dc13
 ---
 # `DesktopApp/mediapipeline_desktop_app/contracts/progress.py`
 

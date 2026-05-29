@@ -5,8 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mediapipeline_desktop_app.service_constants import FOLDER_POLICY_SIDECAR_NAME
-from mediapipeline_desktop_app.service_folder_policy_io import (
+from app.shared.constants import FOLDER_POLICY_SIDECAR_NAME
+from app.folder_policy.io import (
     folder_policy_path,
     load_folder_policy_file,
     save_folder_policy_file,

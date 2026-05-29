@@ -15,7 +15,8 @@ $ErrorActionPreference = 'Stop'
 
 $testsRoot = Split-Path -Parent $PSCommandPath
 $pipelineRoot = Split-Path -Parent (Split-Path -Parent $testsRoot)
-$sidecarModule = Join-Path $pipelineRoot 'Modules\Sidecar.ps1'
+$repoRoot = Split-Path -Parent $pipelineRoot
+$sidecarModule = Join-Path $repoRoot 'engine\publish\sidecar.ps1'
 
 function Assert-True {
     param(

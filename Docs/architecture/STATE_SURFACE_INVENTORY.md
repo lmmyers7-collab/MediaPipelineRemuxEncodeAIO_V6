@@ -54,7 +54,7 @@ PS1 modules are dot-sourced into the same script scope, so `$script:Foo` written
 
 ### 2.3 Per-file processing state (set/cleared in try/finally)
 
-**Lifecycle:** Set at the start of `Invoke-MediaPipelineProcessFile` (in `Modules/PipelineProcessing.ps1`), read by helpers throughout the file's processing, **always cleared in the `finally` block** before the function returns.
+**Lifecycle:** Set at the start of `Invoke-MediaPipelineProcessFile` (in `engine/process/pipeline_processing.ps1`), read by helpers throughout the file's processing, **always cleared in the `finally` block** before the function returns.
 
 **Representative names:**
 
@@ -65,7 +65,7 @@ PS1 modules are dot-sourced into the same script scope, so `$script:Foo` written
 - `$script:CurrentEncodeAttempts`
 - `$script:CurrentSizePolicyResult`
 
-**Rule:** Any new state that's only valid during a single file's processing belongs here. Add to the `finally { … = $null }` block in `PipelineProcessing.ps1` in the same chunk that introduces it.
+**Rule:** Any new state that's only valid during a single file's processing belongs here. Add to the `finally { … = $null }` block in `engine/process/pipeline_processing.ps1` in the same chunk that introduces it.
 
 **Danger level:** **HIGH.** A leaked `$script:Current*` from one file processing into the next is the worst class of bug — it manifests as "the second file gets the first file's policy." Always pair set with finally-clear in the same commit.
 
@@ -231,7 +231,7 @@ Checklist for adding a new `$script:Xxx`, `let lastXxx`, or `let selectedXxxKey`
 1. **Identify the category** (§2.1–§2.4 or §3.1–§3.5). Document it in the module header.
 2. **Decide the lifecycle.** Set when? Read by whom? Cleared when?
 3. **Add a row to this document** under the matching category.
-4. **For `$script:Current*` — add the `$null` clear to `PipelineProcessing.ps1`'s `finally` block in the same chunk.**
+4. **For `$script:Current*` — add the `$null` clear to `engine/process/pipeline_processing.ps1`'s `finally` block in the same chunk.**
 5. **For `…InFlight` flags — add the clear-on-error path in the same chunk.**
 6. **For `last*` — set it inside the top-level renderer only.**
 7. **Update `DOC_TOUCH_LOG.md`** with this file in the touched-inventories column.

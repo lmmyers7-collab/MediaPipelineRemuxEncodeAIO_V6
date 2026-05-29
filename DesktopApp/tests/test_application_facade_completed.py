@@ -89,10 +89,15 @@ class ApplicationFacadeCompletedTests(unittest.TestCase):
         self.assertEqual(preview["publish_counts"], {"published": 1})
         self.assertEqual(preview["health_counts"], {"ok": 1})
         self.assertEqual(preview["operator_status_counts"], {"Healthy": 1})
+        self.assertEqual(preview["operator_status_state_counts"], {"match": 1})
         self.assertEqual(preview["operator_severity_counts"], {"ok": 1})
         self.assertEqual(preview["operator_trust_state_counts"], {"consistent-looking": 1})
         self.assertEqual(preview["consistency_status_counts"], {"Consistent": 1})
         self.assertEqual(preview["consistency_severity_counts"], {"ok": 1})
+        self.assertEqual(preview["validation_status_state_counts"], {"validation-needed": 1})
+        self.assertEqual(preview["validation_state"]["schema_version"], "desktop_validation_state.v1")
+        self.assertEqual(preview["validation_state"]["status_state"], "validation-needed")
+        self.assertEqual(preview["validation_state"]["validation_needed_count"], 1)
         self.assertEqual(preview["size_bucket_counts"], {"shrink_or_equal": 1})
         self.assertEqual(preview["missing_sidecar_count"], 0)
         self.assertEqual(preview["output_sidecar_mismatch_count"], 0)
@@ -111,6 +116,7 @@ class ApplicationFacadeCompletedTests(unittest.TestCase):
         self.assertEqual(preview["rows"][0]["size_delta_label"], "-50.0%")
         self.assertFalse(preview["rows"][0]["size_growth_over_5"])
         self.assertEqual(preview["rows"][0]["operator_status"], "Healthy")
+        self.assertEqual(preview["rows"][0]["operator_status_state"], "match")
         self.assertEqual(preview["rows"][0]["operator_severity"], "ok")
         self.assertEqual(preview["rows"][0]["operator_trust_state"], "consistent-looking")
         self.assertIn("no output, sidecar, size, or runtime blocker", preview["rows"][0]["primary_concern"])
@@ -122,6 +128,11 @@ class ApplicationFacadeCompletedTests(unittest.TestCase):
         self.assertEqual(preview["rows"][0]["route_decision_summary"], "ENCODE (subtitle_srt_required)")
         self.assertEqual(preview["rows"][0]["consistency_status"], "Consistent")
         self.assertEqual(preview["rows"][0]["consistency_severity"], "ok")
+        self.assertEqual(preview["rows"][0]["validation_status_state"], "validation-needed")
+        self.assertIsNone(preview["rows"][0]["validation_probe_ok"])
+        self.assertIsNone(preview["rows"][0]["validation_hash_ok"])
+        self.assertTrue(preview["rows"][0]["validation_playback_required"])
+        self.assertIn("ffprobe output proof not reported", preview["rows"][0]["validation_unavailable_reasons"])
         self.assertEqual(preview["rows"][0]["size_bucket"], "shrink_or_equal")
         self.assertTrue(preview["rows"][0]["sidecar_exists"])
         self.assertTrue(preview["rows"][0]["sidecar_matches_output"])
@@ -169,6 +180,7 @@ class ApplicationFacadeCompletedTests(unittest.TestCase):
         self.assertEqual(row["operator_status"], "Review size growth")
         self.assertEqual(row["operator_severity"], "warning")
         self.assertEqual(preview["operator_status_counts"], {"Review size growth": 1})
+        self.assertEqual(preview["operator_status_state_counts"], {"warning": 1})
         self.assertEqual(preview["operator_severity_counts"], {"warning": 1})
         self.assertEqual(preview["operator_trust_state_counts"], {"review-before-rerun-or-cleanup": 1})
         self.assertEqual(row["operator_trust_state"], "review-before-rerun-or-cleanup")
@@ -256,11 +268,13 @@ class ApplicationFacadeCompletedTests(unittest.TestCase):
         self.assertEqual(preview["runtime_outcome_event_type_counts"], {"job_completed": 1})
         self.assertEqual(preview["runtime_outcome_freshness_counts"], {"fresh": 1})
         self.assertEqual(preview["operator_status_counts"], {"Recent runtime conflict": 1})
+        self.assertEqual(preview["operator_status_state_counts"], {"warning": 1})
         self.assertEqual(preview["operator_trust_state_counts"], {"review-before-rerun-or-cleanup": 1})
         row = preview["rows"][0]
         self.assertEqual(row["runtime_outcome_status"], "failed")
         self.assertEqual(row["runtime_outcome_error_code"], "OUTPUT_DESTINATION_LOW_SPACE")
         self.assertEqual(row["operator_status"], "Recent runtime conflict")
+        self.assertEqual(row["operator_status_state"], "warning")
         self.assertEqual(row["operator_severity"], "warning")
         self.assertEqual(row["operator_trust_state"], "review-before-rerun-or-cleanup")
         self.assertIn("OUTPUT_DESTINATION_LOW_SPACE", row["primary_concern"])
@@ -310,6 +324,11 @@ class ApplicationFacadeCompletedTests(unittest.TestCase):
         self.assertEqual(preview["missing_output_count"], 1)
         self.assertEqual(preview["consistency_status_counts"], {"Broken": 1})
         self.assertEqual(preview["consistency_severity_counts"], {"error": 1})
+        self.assertEqual(row["validation_status_state"], "blocked")
+        self.assertIn("missing output", row["validation_failure_reason"])
+        self.assertFalse(row["validation_playback_required"])
+        self.assertEqual(preview["validation_status_state_counts"], {"blocked": 1})
+        self.assertEqual(preview["validation_state"]["blocked_count"], 1)
 
     def test_completed_open_uses_backend_manifest_row_key_not_frontend_path(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -375,7 +394,7 @@ class ApplicationFacadeCompletedTests(unittest.TestCase):
                 self.assertEqual(kwargs["label"], "completed manifest backfill")
                 return CapturedCommandResult(args=args, returncode=0, stdout="Backfill wrote 1 row.\n", stderr="")
 
-            with patch("mediapipeline_desktop_app.service_completed.run_capture", fake_run):
+            with patch("app.completed.service.run_capture", fake_run):
                 ok, message = service.backfill_completed_manifest(
                     resolved,
                     dry_run=True,

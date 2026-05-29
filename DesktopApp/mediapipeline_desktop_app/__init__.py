@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import sys
 from pathlib import Path
 
 
@@ -10,6 +11,18 @@ _PRODUCT_VERSION_PATTERN = re.compile(
     r"function\s+Get-MediaPipelineProductVersion\s*\{[^{}]*return\s+['\"](?P<version>v\d+\.\d{3})['\"]",
     re.IGNORECASE | re.DOTALL,
 )
+
+
+def _ensure_workspace_root_on_path() -> None:
+    for root in Path(__file__).resolve().parents:
+        if (root / "app" / "contracts").is_dir() and (root / "Pipeline").is_dir():
+            root_text = str(root)
+            if root_text not in sys.path:
+                sys.path.insert(0, root_text)
+            return
+
+
+_ensure_workspace_root_on_path()
 
 
 def _read_pipeline_product_version() -> str:

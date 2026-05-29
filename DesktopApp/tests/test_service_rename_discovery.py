@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_rename_discovery import discover_rename_media_files
+from app.rename.discovery import discover_rename_media_files
 
 
 class RenameServiceDiscoveryTests(unittest.TestCase):

@@ -20,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.api import LocalApiServer
 from mediapipeline_desktop_app.api.command_journal import CommandJournal
-from mediapipeline_desktop_app.api.command_payloads_process import LocalApiProcessCommandPayloadMixin
+from app.api.commands_process import LocalApiProcessCommandPayloadMixin
 from mediapipeline_desktop_app.api.contract import LOCAL_API_ROUTE_CONTRACT
 from mediapipeline_desktop_app.api.contract_command import LOCAL_API_COMMAND_ROUTE_CONTRACT
 from mediapipeline_desktop_app.api.contract_read import LOCAL_API_READ_ROUTE_CONTRACT
@@ -39,12 +39,12 @@ from mediapipeline_desktop_app.api.static_files import local_api_bootstrap, read
 from mediapipeline_desktop_app.application import CommandResult, MediaPipelineApplicationFacade
 from mediapipeline_desktop_app.local_api_main import BOOTSTRAP_SCHEMA_VERSION, bootstrap_payload, build_backend
 from mediapipeline_desktop_app.models import AuditRecord, ConfigSaveResult, FailureRecord, ResolvedPaths, Snapshot, TelemetrySnapshot
-from mediapipeline_desktop_app.service_app_state import AppStateScheduleServiceMixin
-from mediapipeline_desktop_app.service_completed import CompletedJobsServiceMixin
-from mediapipeline_desktop_app.service_pending_publish import PendingPublishServiceMixin
-from mediapipeline_desktop_app.service_processes import ProcessLifecycleServiceMixin
-from mediapipeline_desktop_app.service_queue import QueueServiceMixin
-from mediapipeline_desktop_app.service_rename import RenameServiceMixin
+from app.schedule.app_state import AppStateScheduleServiceMixin
+from app.completed.service import CompletedJobsServiceMixin
+from app.publish.pending_service import PendingPublishServiceMixin
+from app.processes.lifecycle import ProcessLifecycleServiceMixin
+from app.queue.service import QueueServiceMixin
+from app.rename.service import RenameServiceMixin
 from mediapipeline_desktop_app.subprocess_runner import CapturedCommandResult
 
 
@@ -265,7 +265,7 @@ class DummyFacadeService(AppStateScheduleServiceMixin):
             "success": True,
             "timed_out": False,
             "returncode": 0,
-            "command": "pwsh -File Build-MediaPipelineRemuxEncodeAIO-Release.ps1" + (" -DryRun" if dry_run else ""),
+            "command": "pwsh -File scripts\\release\\build.ps1" + (" -DryRun" if dry_run else ""),
             "stdout": stdout,
             "stderr": "",
             "destination_root": str(destination),

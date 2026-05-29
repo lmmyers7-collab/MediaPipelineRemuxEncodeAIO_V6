@@ -1,13 +1,19 @@
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-from mediapipeline_desktop_app.service_path_layout import (
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from app.paths.layout import (
     first_existing,
     normalized_path_key,
     path_or_none,
+    path_boundary_check,
     path_within_root,
     state_root_for_local_base,
     valid_extensions_from_config,
@@ -51,6 +57,70 @@ class ServicePathLayoutTests(unittest.TestCase):
             key = normalized_path_key(Path(temp_dir) / ".." / Path(temp_dir).name)
 
         self.assertTrue(Path(key).is_absolute())
+
+    def test_path_boundary_rejects_parent_traversal_and_root_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "root"
+            root.mkdir()
+
+            outside = root / ".." / "outside.txt"
+            root_target = root
+
+            self.assertEqual(path_boundary_check(outside, root).reason_code, "OUTSIDE_ALLOWED_ROOT")
+            self.assertEqual(path_boundary_check(root_target, root).reason_code, "ROOT_MUTATION_TARGET")
+
+    def test_path_boundary_allows_missing_leaf_after_existing_parent_chain(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "root"
+            parent = root / "parent"
+            parent.mkdir(parents=True)
+
+            target = parent / "new-file.txt"
+
+            self.assertTrue(path_boundary_check(target, root, allow_missing_leaf=True).ok)
+            self.assertEqual(path_boundary_check(target, root, allow_missing_leaf=False).reason_code, "PATH_MISSING")
+
+    def test_path_boundary_rejects_symlink_component_when_supported(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "root"
+            outside = Path(temp_dir) / "outside"
+            root.mkdir()
+            outside.mkdir()
+            link = root / "link"
+            try:
+                link.symlink_to(outside, target_is_directory=True)
+            except (OSError, NotImplementedError) as exc:
+                self.skipTest(f"symlink creation unavailable: {exc}")
+
+            result = path_boundary_check(link / "file.txt", root, allow_missing_leaf=True)
+
+            self.assertEqual(result.reason_code, "REPARSE_POINT_COMPONENT")
+            self.assertIn("link", result.reparse_path)
+
+    @unittest.skipUnless(os.name == "nt", "junction checks are Windows-only")
+    def test_path_boundary_rejects_junction_component_when_supported(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir) / "root"
+            outside = Path(temp_dir) / "outside"
+            junction = root / "junction"
+            root.mkdir()
+            outside.mkdir()
+            result = subprocess.run(
+                ["cmd", "/c", "mklink", "/J", str(junction), str(outside)],
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            if result.returncode != 0:
+                self.skipTest(f"junction creation unavailable: {result.stdout} {result.stderr}")
+
+            boundary = path_boundary_check(junction / "file.txt", root, allow_missing_leaf=True)
+
+            self.assertEqual(boundary.reason_code, "REPARSE_POINT_COMPONENT")
+
+    @unittest.skipUnless(os.name == "nt", "case-insensitive keys are Windows-specific")
+    def test_normalized_path_key_handles_case_insensitive_collisions_on_windows(self) -> None:
+        self.assertEqual(normalized_path_key(Path("C:/Media/Movie.mkv")), normalized_path_key(Path("c:/media/movie.mkv")))
 
 
 if __name__ == "__main__":

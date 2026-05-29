@@ -122,10 +122,10 @@ function New-SmokeVideo {
     Assert-True ((Test-Path -LiteralPath $Path -PathType Leaf) -and ((Get-Item -LiteralPath $Path).Length -gt 0)) "failed to generate smoke media: $Path"
 }
 
-. (Join-Path $pipelineRoot 'Modules\ConfigSchema.ps1')
-. (Join-Path $pipelineRoot 'Modules\MediaConstants.ps1')
-. (Join-Path $pipelineRoot 'Modules\FailureCodes.ps1')
-. (Join-Path $pipelineRoot 'Modules\EncodePolicy.ps1')
+. (Join-Path $projectRoot 'engine\config\config_schema.ps1')
+. (Join-Path $projectRoot 'engine\shared\media_constants.ps1')
+. (Join-Path $projectRoot 'engine\shared\failure_codes.ps1')
+. (Join-Path $projectRoot 'engine\decide\encode_policy.ps1')
 
 $workRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("mp-e2e-smoke-" + [guid]::NewGuid().ToString('N'))
 $sourceMovies = Join-Path $workRoot 'SourceMovies'

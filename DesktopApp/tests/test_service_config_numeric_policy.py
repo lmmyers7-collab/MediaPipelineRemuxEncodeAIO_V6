@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_config_numeric_policy import validate_required_and_numeric_config
+from app.config.numeric_policy import validate_required_and_numeric_config
 
 
 def _numeric_baseline() -> dict:
@@ -20,6 +20,8 @@ def _numeric_baseline() -> dict:
         "OutputContainer": "mkv",
         "EncodeThresholdGB": 8,
         "TVEncodeThresholdGB": 4,
+        "MovieRouteMaxVideoBitrateMbps": 35,
+        "TVRouteMaxVideoBitrateMbps": 18,
         "MinFreeSpaceGB": 20,
         "OutsourceMinFreeSpaceGB": 20,
         "VideoQuality": 22,
@@ -57,6 +59,8 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
                 "IndexScanTimeoutSeconds": 10,
                 "TransientFailureRetryLimit": 101,
                 "OutputSizeMultiplier": 3.0,
+                "MovieRouteMaxVideoBitrateMbps": 0,
+                "TVRouteMaxVideoBitrateMbps": 501,
             }
         )
         errors: list[str] = []
@@ -68,6 +72,8 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
         self.assertIn("IndexScanTimeoutSeconds must be >= 30.", errors)
         self.assertIn("TransientFailureRetryLimit must be <= 100.", errors)
         self.assertIn("OutputSizeMultiplier must be <= 2.0.", errors)
+        self.assertIn("MovieRouteMaxVideoBitrateMbps must be >= 1.", errors)
+        self.assertIn("TVRouteMaxVideoBitrateMbps must be <= 500.", errors)
 
     def test_numeric_policy_bounds_optional_cpu_fields_when_present(self) -> None:
         values = _numeric_baseline()

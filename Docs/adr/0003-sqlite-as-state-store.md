@@ -21,7 +21,8 @@ write the file back. This pattern leaks in three ways:
 - **No durability guarantee on partial writes.** A crash mid-write leaves
   truncated JSON that the next reader refuses, requiring manual repair.
 
-`ARCHITECTURAL_OVERHAUL_PLAN.md` §Storage strategy recommends SQLite.
+`Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md` §Storage strategy
+recommends SQLite.
 
 ## Decision
 

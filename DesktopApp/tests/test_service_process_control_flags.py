@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from mediapipeline_desktop_app.service_process_control_flags import (
+from app.processes.control_flags import (
     control_flag_age_seconds,
     new_control_flag_payload,
     read_control_flag_payload,

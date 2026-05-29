@@ -458,6 +458,8 @@ def _browser_diagnostics_handoff_runner_source() -> str:
               "Read first:",
               "Open next:",
               "Mutation guardrail: this read-order detail cannot repair",
+              "Diagnostics triage JSON:",
+              "JSON valid: yes",
             ]);
             click('[data-diagnostics-state-triage-action="tail"][data-diagnostics-state-triage-target="last_stderr_log"]', "state triage stderr tail");
             await waitFor(
@@ -482,6 +484,8 @@ def _browser_diagnostics_handoff_runner_source() -> str:
               "Unsafe if ignored:",
               "Diagnostics action plan:",
               "Guardrail: this view is read-only",
+              "Diagnostics artifact JSON:",
+              "JSON valid: yes",
             ]);
             window.showPage("diagnostics");
             window.mediaPipelineDiagnosticsView.renderDiagnosticsOwnerHandoff({
@@ -560,6 +564,11 @@ def _browser_diagnostics_handoff_runner_source() -> str:
             await waitFor(
               () => text("api-contract-safety-detail").includes("Mutation boundary:") && text("api-contract-safety-detail").includes("Frontend code stages intent and displays results only"),
               "api contract safety detail",
+            );
+            click("#api-contract-rows tr", "api contract route row");
+            await waitFor(
+              () => text("api-contract-detail").includes("Route contract JSON:") && text("api-contract-detail").includes("JSON valid: yes") && text("api-contract-detail").includes("Operator safety:"),
+              "api contract route JSON detail",
             );
 
             const history = window.getCommandHistory().filter((entry) => entry.command === "diagnostics.open");

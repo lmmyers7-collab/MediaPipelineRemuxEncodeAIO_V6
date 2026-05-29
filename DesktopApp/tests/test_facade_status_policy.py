@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.application.facade_status_policy import (
+from app.observability.status_policy import (
     application_capabilities,
     int_from_mapping,
     snapshot_counts,

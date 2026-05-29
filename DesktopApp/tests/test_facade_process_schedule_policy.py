@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.application.facade_process_schedule_policy import (
+from app.processes.schedule_policy import (
     SCHEDULE_CONTINUOUS_BLOCK_MESSAGE,
     SCHEDULE_CONTINUOUS_WATCHER_CHECK_KEY,
     SCHEDULE_MODE_NOT_SCHEDULED_REASON,

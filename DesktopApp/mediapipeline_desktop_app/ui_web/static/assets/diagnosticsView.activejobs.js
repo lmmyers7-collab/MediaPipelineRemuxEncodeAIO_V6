@@ -64,6 +64,8 @@
   }
 
   function activeJobRowPosture(item) {
+    const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(item) : "";
+    if (backendState) return backendState;
     const status = String(item?.status || "").toLowerCase();
     const issue = String(item?.issue || "").toLowerCase();
     const source = String(item?.source || "").toLowerCase();
@@ -80,8 +82,8 @@
     const counts = items.reduce((acc, item) => {
       const posture = activeJobRowPosture(item);
       if (posture === "blocked") acc.blocked += 1;
-      else if (posture === "warning") acc.review += 1;
-      else if (posture === "match") acc.completed += 1;
+      else if (posture === "warning" || posture === "running") acc.review += 1;
+      else if (posture === "match" || posture === "completed") acc.completed += 1;
       else acc.unknown += 1;
       return acc;
     }, { blocked: 0, review: 0, completed: 0, unknown: 0 });

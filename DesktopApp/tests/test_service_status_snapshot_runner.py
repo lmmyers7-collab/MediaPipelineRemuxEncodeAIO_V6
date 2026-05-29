@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from mediapipeline_desktop_app.service_status_snapshot_runner import build_snapshot_for_service
+from app.status.snapshot_runner import build_snapshot_for_service
 
 
 def _resolved(root: Path) -> ResolvedPaths:

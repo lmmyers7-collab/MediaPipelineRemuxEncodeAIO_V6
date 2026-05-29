@@ -15,7 +15,8 @@ $ErrorActionPreference = 'Stop'
 
 $testsRoot = Split-Path -Parent $PSCommandPath
 $pipelineRoot = Split-Path -Parent (Split-Path -Parent $testsRoot)
-$nativeModule = Join-Path $pipelineRoot 'Modules\Native.ps1'
+$repoRoot = Split-Path -Parent $pipelineRoot
+$nativeModule = Join-Path $repoRoot 'engine\shared\native.ps1'
 $stopFlag = Join-Path ([System.IO.Path]::GetTempPath()) ("mediapipeline-native-cleanup-{0}.stop" -f ([Guid]::NewGuid().ToString('N')))
 
 function Assert-True {

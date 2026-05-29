@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.application.facade_failures_policy import (
+from app.failures.policy import (
     FAILURE_JSON_EMPTY_MESSAGE,
     FAILURE_LOADER_UNAVAILABLE_MESSAGE,
     FAILURE_MARKER_SERVICE_UNAVAILABLE_MESSAGE,
@@ -40,6 +40,8 @@ def _record(
         source_json=Path(source_json),
         payload={
             "SourcePath": source_path,
+            "JobId": "job-123",
+            "CorrelationId": "run-456",
             "Stage": stage,
             "Reason": "Pipeline stage failed.",
             "Classification": classification,
@@ -73,6 +75,8 @@ class FailureFacadePolicyTests(unittest.TestCase):
         row = failure_record_to_row(record)
 
         self.assertEqual(row["source_path"], "C:/Source/TV/Show/Season 01/Show - S01E01.mkv")
+        self.assertEqual(row["job_id"], "job-123")
+        self.assertEqual(row["correlation_id"], "run-456")
         self.assertEqual(row["stage"], "encode")
         self.assertEqual(row["reason"], "Pipeline stage failed.")
         self.assertEqual(row["classification"], "operator_required")
@@ -82,6 +86,9 @@ class FailureFacadePolicyTests(unittest.TestCase):
         self.assertEqual(row["recorded_at"], "2026-05-07T22:00:00-04:00")
         self.assertEqual(row["retry_count"], 2)
         self.assertEqual(row["retry_limit"], 5)
+        self.assertFalse(row["retry_allowed"])
+        self.assertEqual(row["retry_status_state"], "blocked")
+        self.assertEqual(row["retry_route_or_command"], "none_exposed")
         self.assertTrue(row["escalated"])
         self.assertEqual(row["artifact_path"], str(Path("C:/Reports/artifact.json")))
         self.assertEqual(row["repro_path"], str(Path("C:/Reports/repro.txt")))
@@ -112,6 +119,10 @@ class FailureFacadePolicyTests(unittest.TestCase):
         self.assertEqual(fields["operator_required_count"], 1)
         self.assertEqual(fields["permanent_count"], 1)
         self.assertEqual(fields["transient_count"], 0)
+        self.assertEqual(fields["retry_state"]["schema_version"], "desktop_retry_state.v1")
+        self.assertEqual(fields["retry_state"]["row_count"], 2)
+        self.assertEqual(fields["retry_state"]["blocked_count"], 2)
+        self.assertEqual(fields["retry_state"]["status_state"], "blocked")
         self.assertEqual(fields["warnings"], ["Showing 2 of 3 failure row(s)."])
 
     def test_empty_failure_preview_fields_keep_operator_warning(self) -> None:
@@ -128,6 +139,8 @@ class FailureFacadePolicyTests(unittest.TestCase):
         self.assertEqual(fields["operator_required_count"], 0)
         self.assertEqual(fields["permanent_count"], 0)
         self.assertEqual(fields["transient_count"], 0)
+        self.assertEqual(fields["retry_state"]["status_state"], "idle")
+        self.assertEqual(fields["retry_state"]["read_only"], True)
         self.assertEqual(fields["warnings"], ["No failure markers are available from the state store."])
 
     def test_failure_preview_dto_helpers_preserve_warning_contracts(self) -> None:
@@ -161,7 +174,32 @@ class FailureFacadePolicyTests(unittest.TestCase):
         self.assertEqual(preview.source, "latest_failures.json")
         self.assertEqual(preview.count, 1)
         self.assertEqual(preview.operator_required_count, 1)
+        self.assertEqual(preview.retry_state["schema_version"], "desktop_retry_state.v1")
         self.assertEqual(preview.warnings, [])
+
+    def test_retry_state_allows_transient_rows_before_limit(self) -> None:
+        preview = failure_preview_from_records(
+            [
+                _record(
+                    classification="transient",
+                    error_code="SOURCE_LOCKED",
+                    source_path="C:/Source/Movies/Movie (2024)/Movie.mkv",
+                )
+            ],
+            source="markers",
+            source_kind="markers",
+            limit=100,
+            empty_warning=FAILURE_JSON_EMPTY_MESSAGE,
+        ).to_mapping()
+
+        self.assertEqual(preview["retry_state"]["schema_version"], "desktop_retry_state.v1")
+        self.assertEqual(preview["retry_state"]["status_state"], "retrying")
+        self.assertEqual(preview["retry_state"]["retryable_count"], 1)
+        self.assertEqual(preview["retry_state"]["rows"][0]["attempt"], 2)
+        self.assertEqual(preview["retry_state"]["rows"][0]["max_attempts"], 5)
+        self.assertTrue(preview["retry_state"]["rows"][0]["retry_allowed"])
+        self.assertEqual(preview["rows"][0]["retry_status_state"], "retrying")
+        self.assertIn("next backend queue pass", preview["rows"][0]["retry_safe_next_action"])
 
 
 if __name__ == "__main__":

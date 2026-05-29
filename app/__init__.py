@@ -5,5 +5,5 @@ the Phase 3-6 migration completes, the live code still lives in
 `DesktopApp/mediapipeline_desktop_app/`. New contracts and scaffolding
 land here first; callers migrate per domain in subsequent phases.
 
-See ARCHITECTURAL_OVERHAUL_PLAN.md and docs/adr/0001-folder-by-domain-layout.md.
+See Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md and Docs/adr/0001-folder-by-domain-layout.md.
 """

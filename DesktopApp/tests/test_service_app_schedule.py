@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_app_schedule import (
+from app.schedule.grid import (
     block_label,
     default_schedule_grid,
     evaluate_schedule,

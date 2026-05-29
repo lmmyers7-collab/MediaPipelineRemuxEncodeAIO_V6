@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.application.facade_pending_publish_policy import (
+from app.publish.pending_policy import (
     PENDING_PUBLISH_INVALID_RESULT_MESSAGE,
     PENDING_PUBLISH_OPEN_TARGETS,
     PENDING_PUBLISH_SERVICE_UNAVAILABLE_MESSAGE,

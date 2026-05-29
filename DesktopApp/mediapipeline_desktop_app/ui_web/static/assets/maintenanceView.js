@@ -1,4 +1,5 @@
 (function () {
+  const commandHistoryView = window.mediaPipelineCommandHistory || {};
   let lastMaintenance = null;
   let selectedMaintenanceRowKey = "";
   let maintenanceRefreshInFlight = false;
@@ -445,6 +446,23 @@
   }
 
   function renderMaintenanceDryRunHistory(history = []) {
+    if (typeof commandHistoryView.renderCompactCommandHistoryBlock === "function") {
+      commandHistoryView.renderCompactCommandHistoryBlock({
+        history,
+        filter: isMaintenanceDryRunCommand,
+        limit: 5,
+        targetId: "maintenance-dry-run-history",
+        statusId: "maintenance-dry-run-history-status",
+        statusText: (entries) => `${entries.length} run${entries.length === 1 ? "" : "s"}`,
+        itemLabel: "maintenance command",
+        emptyHistoryText: "No maintenance commands recorded yet. Run Plan Deployment, Create Deployment, or Backfill Dry Run to see backend command results here.",
+        emptyMatchText: "No maintenance commands recorded yet. Run Plan Deployment, Create Deployment, or Backfill Dry Run to see backend command results here.",
+        lineFor: formatMaintenanceDryRunHistoryLine,
+        header: false,
+      });
+      renderMaintenanceDryRunConfidence(history);
+      return;
+    }
     const entries = Array.isArray(history) ? history.filter(isMaintenanceDryRunCommand).slice(0, 5) : [];
     setText(
       "maintenance-dry-run-history-status",

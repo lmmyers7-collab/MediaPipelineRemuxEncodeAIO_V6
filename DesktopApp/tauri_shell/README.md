@@ -25,7 +25,7 @@ Run these from the project root when validating the shell:
 1. Check the basic preview layout and local API module:
 
 ```powershell
-.\Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat -CheckOnly
+.\scripts\dev\start-tauri-preview.bat -CheckOnly
 ```
 
 2. Run the Tauri build gate. This checks WebView JavaScript syntax, cargo check, and Rust shell unit tests:
@@ -175,7 +175,7 @@ For browser-free sample-validation route coverage, run the local API sample vali
 23. Run the release self-test before treating a package as trustworthy:
 
 ```powershell
-.\Test-MediaPipelineRemuxEncodeAIO-Release.ps1 -SkipToolIntegration -SkipEndToEndSmoke
+.\scripts\release\test.ps1 -SkipToolIntegration -SkipEndToEndSmoke
 ```
 
 Tool integration and end-to-end media smoke checks are still separate. Passing the fixture, command-evidence, row-detail, schedule, browser schedule, browser backend lifecycle, local API Maintenance dry-run, local API sample validation, browser high-risk, browser diagnostics handoff, pending drain guard, completed pending proof, large-table, browser Maintenance/Reports, browser Sample Validation, browser Home live-state, browser Launch/Queue readiness, browser layout manager, settings/launch policy, live-config handoff, settings patch evidence, or preview launch smoke does not prove FFmpeg, PowerShell pipeline behavior, subtitle conversion, pending publish, Plex playback, or real-media processing.
@@ -185,19 +185,19 @@ Tool integration and end-to-end media smoke checks are still separate. Passing t
 Use the explicit preview launcher:
 
 ```powershell
-.\Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat
+.\scripts\dev\start-tauri-preview.bat
 ```
 
 For first-time setup of the preview dependencies:
 
 ```powershell
-.\Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat -InstallNodePackages
+.\scripts\dev\start-tauri-preview.bat -InstallNodePackages
 ```
 
 To verify prerequisites without launching the preview window:
 
 ```powershell
-.\Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat -CheckOnly
+.\scripts\dev\start-tauri-preview.bat -CheckOnly
 ```
 
 For PG-3 clean-machine validation, run from the copied release bundle, not from the development workspace:
@@ -215,8 +215,8 @@ For PG-3 clean-machine validation, run from the copied release bundle, not from 
 When building a deployable PG-3 candidate after a Tauri release build, use the release builder's explicit preview-binary option so the copied bundle contains `DesktopApp\tauri_shell\mediapipeline-tauri-shell.exe`:
 
 ```powershell
-.\Build-MediaPipelineRemuxEncodeAIO-Release.ps1 -DestinationRoot C:\Temp\MediaPipelineRemuxEncodeAIO_V6_PG3 -IncludeTauriPreviewBinary
-.\Test-MediaPipelineRemuxEncodeAIO-Release.ps1 -BundleRoot C:\Temp\MediaPipelineRemuxEncodeAIO_V6_PG3 -SkipToolIntegration -SkipEndToEndSmoke
+.\scripts\release\build.ps1 -DestinationRoot C:\Temp\MediaPipelineRemuxEncodeAIO_V6_PG3 -IncludeTauriPreviewBinary
+.\scripts\release\test.ps1 -BundleRoot C:\Temp\MediaPipelineRemuxEncodeAIO_V6_PG3 -SkipToolIntegration -SkipEndToEndSmoke
 ```
 
 The lower-level developer commands are:

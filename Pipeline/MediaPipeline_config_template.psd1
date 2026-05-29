@@ -10,6 +10,8 @@
     EncodeThresholdGB = 8
     TVEncodeThresholdGB = 3
     RoutingProfile = 'plex_direct_stream'
+    MovieRouteMaxVideoBitrateMbps = 35
+    TVRouteMaxVideoBitrateMbps = 18
     AllowH264RemuxIfPlexCompatible = $true
     H264RemuxMaxBitrateMbps = 35
     H264RemuxMaxHeight = 1080
@@ -79,6 +81,9 @@
     SubtitleExtractTimeoutSeconds = 180
     SubtitleProbeTimeoutSeconds = 30
     BdpgsOcrTimeoutSeconds = 1800
+    OutputValidationProbeTimeoutSeconds = 60
+    OutputValidationMinSizeBytes = 1024
+    OutputValidationDurationToleranceSeconds = 2
     AllowSystemTools = $false
     RobocopyTimeoutSeconds = 14400
     TransientFailureRetryLimit = 3

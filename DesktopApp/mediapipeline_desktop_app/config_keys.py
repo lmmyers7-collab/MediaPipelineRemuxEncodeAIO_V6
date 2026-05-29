@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import Final
 
 # Canonical MediaPipeline PSD1 config keys used by the Python desktop host.
-# Keep this aligned with config_schema.py, config_schema_network.py,
-# Pipeline/Modules/ConfigSchema.ps1, and Docs/architecture/CONFIG_KEY_GLOSSARY.md.
+# Keep this aligned with app.contracts.config, app.config.metadata,
+# engine/config/config_schema.ps1, and Docs/architecture/CONFIG_KEY_GLOSSARY.md.
 
 KEY_CONFIG_SCHEMA_VERSION: Final = "ConfigSchemaVersion"
 KEY_SOURCE_MOVIES: Final = "SourceMovies"
@@ -14,6 +14,8 @@ KEY_LOCAL_BASE: Final = "LocalBase"
 KEY_ENCODE_THRESHOLD_GB: Final = "EncodeThresholdGB"
 KEY_TV_ENCODE_THRESHOLD_GB: Final = "TVEncodeThresholdGB"
 KEY_ROUTING_PROFILE: Final = "RoutingProfile"
+KEY_MOVIE_ROUTE_MAX_VIDEO_BITRATE_MBPS: Final = "MovieRouteMaxVideoBitrateMbps"
+KEY_TV_ROUTE_MAX_VIDEO_BITRATE_MBPS: Final = "TVRouteMaxVideoBitrateMbps"
 KEY_ALLOW_H264_REMUX_IF_PLEX_COMPATIBLE: Final = "AllowH264RemuxIfPlexCompatible"
 KEY_H264_REMUX_MAX_BITRATE_MBPS: Final = "H264RemuxMaxBitrateMbps"
 KEY_H264_REMUX_MAX_HEIGHT: Final = "H264RemuxMaxHeight"
@@ -79,6 +81,8 @@ KEY_MIX_PRIORITY_PHASE: Final = "MixPriorityPhase"
 KEY_QUEUE_ORDERING_STRATEGY: Final = "QueueOrderingStrategy"
 KEY_CONSOLE_LOG_LEVEL: Final = "ConsoleLogLevel"
 KEY_FILE_LOG_LEVEL: Final = "FileLogLevel"
+KEY_MAX_PARALLEL_ENCODES: Final = "MaxParallelEncodes"
+KEY_PARALLEL_ENCODE_MODE: Final = "ParallelEncodeMode"
 KEY_FALLBACK_CPU_QUALITY: Final = "FallbackCpuQuality"
 KEY_CPU_ENCODE_PRESET: Final = "CpuEncodePreset"
 KEY_CPU_ENCODE_PROCESS_PRIORITY: Final = "CpuEncodeProcessPriority"
@@ -91,6 +95,9 @@ KEY_MKVMERGE_REMUX_TIMEOUT_SECONDS: Final = "MkvmergeRemuxTimeoutSeconds"
 KEY_SUBTITLE_EXTRACT_TIMEOUT_SECONDS: Final = "SubtitleExtractTimeoutSeconds"
 KEY_SUBTITLE_PROBE_TIMEOUT_SECONDS: Final = "SubtitleProbeTimeoutSeconds"
 KEY_BDPGS_OCR_TIMEOUT_SECONDS: Final = "BdpgsOcrTimeoutSeconds"
+KEY_OUTPUT_VALIDATION_PROBE_TIMEOUT_SECONDS: Final = "OutputValidationProbeTimeoutSeconds"
+KEY_OUTPUT_VALIDATION_MIN_SIZE_BYTES: Final = "OutputValidationMinSizeBytes"
+KEY_OUTPUT_VALIDATION_DURATION_TOLERANCE_SECONDS: Final = "OutputValidationDurationToleranceSeconds"
 KEY_ALLOW_SYSTEM_TOOLS: Final = "AllowSystemTools"
 KEY_ROBOCOPY_TIMEOUT_SECONDS: Final = "RobocopyTimeoutSeconds"
 KEY_TRANSIENT_FAILURE_RETRY_LIMIT: Final = "TransientFailureRetryLimit"
@@ -126,6 +133,8 @@ CONFIG_KEY_ORDER: Final = (
     KEY_ENCODE_THRESHOLD_GB,
     KEY_TV_ENCODE_THRESHOLD_GB,
     KEY_ROUTING_PROFILE,
+    KEY_MOVIE_ROUTE_MAX_VIDEO_BITRATE_MBPS,
+    KEY_TV_ROUTE_MAX_VIDEO_BITRATE_MBPS,
     KEY_ALLOW_H264_REMUX_IF_PLEX_COMPATIBLE,
     KEY_H264_REMUX_MAX_BITRATE_MBPS,
     KEY_H264_REMUX_MAX_HEIGHT,
@@ -191,6 +200,8 @@ CONFIG_KEY_ORDER: Final = (
     KEY_QUEUE_ORDERING_STRATEGY,
     KEY_CONSOLE_LOG_LEVEL,
     KEY_FILE_LOG_LEVEL,
+    KEY_MAX_PARALLEL_ENCODES,
+    KEY_PARALLEL_ENCODE_MODE,
     KEY_FALLBACK_CPU_QUALITY,
     KEY_CPU_ENCODE_PRESET,
     KEY_CPU_ENCODE_PROCESS_PRIORITY,
@@ -203,6 +214,9 @@ CONFIG_KEY_ORDER: Final = (
     KEY_SUBTITLE_EXTRACT_TIMEOUT_SECONDS,
     KEY_SUBTITLE_PROBE_TIMEOUT_SECONDS,
     KEY_BDPGS_OCR_TIMEOUT_SECONDS,
+    KEY_OUTPUT_VALIDATION_PROBE_TIMEOUT_SECONDS,
+    KEY_OUTPUT_VALIDATION_MIN_SIZE_BYTES,
+    KEY_OUTPUT_VALIDATION_DURATION_TOLERANCE_SECONDS,
     KEY_ALLOW_SYSTEM_TOOLS,
     KEY_ROBOCOPY_TIMEOUT_SECONDS,
     KEY_TRANSIENT_FAILURE_RETRY_LIMIT,
@@ -251,6 +265,8 @@ PYTHON_SCHEMA_CONFIG_KEYS: Final = (
     KEY_ENCODE_THRESHOLD_GB,
     KEY_TV_ENCODE_THRESHOLD_GB,
     KEY_ROUTING_PROFILE,
+    KEY_MOVIE_ROUTE_MAX_VIDEO_BITRATE_MBPS,
+    KEY_TV_ROUTE_MAX_VIDEO_BITRATE_MBPS,
     KEY_ALLOW_H264_REMUX_IF_PLEX_COMPATIBLE,
     KEY_H264_REMUX_MAX_BITRATE_MBPS,
     KEY_H264_REMUX_MAX_HEIGHT,

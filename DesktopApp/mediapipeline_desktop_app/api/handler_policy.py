@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+import uuid
 
 
 OPTIONS_RESPONSE_HEADERS = [
@@ -28,6 +29,11 @@ def not_found_payload(route: str) -> dict[str, Any]:
 
 
 def route_exception_payload(route: str, exc: Exception) -> dict[str, Any]:
+    _ = exc
+    return {"error": "internal route error", "path": route, "error_id": uuid.uuid4().hex[:12]}
+
+
+def route_validation_error_payload(route: str, exc: Exception) -> dict[str, Any]:
     return {"error": bounded_error_text(exc), "path": route}
 
 

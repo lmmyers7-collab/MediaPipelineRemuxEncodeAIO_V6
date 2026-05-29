@@ -1,7 +1,7 @@
 # Open Work Checklist
 
 > **Generated:** 2026-05-19 by full scan of all non-archived Markdown files; reconciled 2026-05-20 after stale-gate review.
-> **Sources:** `DOCS_HOUSEKEEPING_AUDIT.md`, quarantined transition-review checklist evidence under `Docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/Docs/archive/historical-plans/`, `Docs/architecture/V5_MIGRATION_RISK_REGISTER.md`, `Docs/testing/TEST_COVERAGE_MATRIX.md`, `Docs/testing/VALIDATION_LADDER_RUNBOOK.md`, `Docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md`, `Docs/inventories/RENAME_SAFETY_TEST_INVENTORY.md`, `Docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md`, `Docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`, `Docs/architecture/SETTINGS_RAW_KEY_TRIAGE.md`, `Docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`, `Docs/DOC_TOUCH_LOG.md`, and `Docs/REMEDIATION_CHANGELOG.md`.
+> **Sources:** archived housekeeping and transition-review evidence under `Docs/archive/docs-housekeeping/2026-05-20-review/`, `Docs/architecture/V5_MIGRATION_RISK_REGISTER.md`, `Docs/testing/TEST_COVERAGE_MATRIX.md`, `Docs/testing/VALIDATION_LADDER_RUNBOOK.md`, `Docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md`, `Docs/inventories/RENAME_SAFETY_TEST_INVENTORY.md`, `Docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md`, `Docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`, `Docs/architecture/SETTINGS_RAW_KEY_TRIAGE.md`, `Docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`, `Docs/DOC_TOUCH_LOG.md`, and `Docs/REMEDIATION_CHANGELOG.md`.
 > **Excludes:** `Docs/archive/`, config backups, run logs.
 
 ---
@@ -18,11 +18,13 @@ These remaining open blockers are external/operator validation gates, not stale 
 
 - [ ] **PG-3 clean-machine validation** — Package-mode launch/close on a separate clean Windows machine has not been run. This is a hard gate before promoting WebView/Tauri as the default launcher. Source: `VALIDATION_LADDER_RUNBOOK.md` and `RELEASE_PACKAGE_ADMIN_INVENTORY.md`.
 
-- [ ] **Real-media validation playbook** — `Docs/RealMediaValidationRuns/` currently contains no active Markdown worksheet. Operator must select representative samples (H.264 remux, encode, subtitle, audio) and create/fill a worksheet with `New-RealMediaValidationWorksheet.ps1`. Source: `V5_MIGRATION_RISK_REGISTER.md` R-015 plus current folder scan.
+- [x] **Real-media validation playbook** — Closed on 2026-05-28 by operator attestation. Representative real-media validation covered remux, encode/size policy, subtitle conversion, audio policy, and pending-publish/final-placement behavior. `Docs/RealMediaValidationRuns/README.md` records the non-sensitive status anchor; detailed run worksheets may remain local or excluded from release packaging when they contain personal paths. Re-run this validation after any FFmpeg/media-policy, subtitle, audio, publish/drain, source/scratch/output movement, or cleanup behavior change.
 
 ---
 
 ## High — Fix Now or Before Next Publish / Packaging Work
+
+- [x] **Phase 6 destructive legacy removal gate** — Closed on 2026-05-29 for the local legacy surface burn-down: config-schema compatibility files, former command-payload adapters, flat Python facades/services, root launcher shims, `Pipeline` root launcher shims, and `Pipeline\Modules` are removed or empty, with active implementations under `app\<domain>` and `engine\<domain>`. Post-deletion validation covered active-reference cleanup, full source release wrapper validation, copied package-mode Tauri launch/close, Local API health plus WebView open, and fresh representative real-media validation for remux, encode/size, subtitles, audio, deferred pending publish, drain, and rename-output safety. PG-3 clean-machine validation remains a separate default-launcher promotion gate. Guardrails still block reintroducing old root launcher shim names and new dotted `Pipeline\Modules` files.
 
 - [x] **Rename undo manifest state-root cleanup** — New rename undo manifests now resolve under `State\RenameUndo` when service state or app root is available; focused rename tests passed. Source: `DOC_TOUCH_LOG.md` row "Rename undo state-root safety cleanup".
 
@@ -66,7 +68,7 @@ These remaining open blockers are external/operator validation gates, not stale 
 
 - [x] **Test god-file splits (Wave 5)** — Wave 5 test-file splits are complete; `test_application_facade.py` and `test_controllers.py` are now shared fixture/import-boundary modules with focused child test files. Full split history is quarantined at `Docs\archive\docs-housekeeping\2026-05-20-review\archive-historical\Docs\archive\completed-checklists\GOD_FILE_SPLIT_PLAN.md`.
 
-- [x] **Tauri production-hardening lifecycle** — Closed on 2026-05-19 for the V5 preview shell: spawn/bootstrap resilience remains bounded, Tauri now emits backend health/crash lifecycle events, WebView renders a visible read-only recovery banner through an event-only Tauri bridge, a per-user Windows mutex rejects second Tauri shell instances before backend startup, ActiveJobs orphan reconciliation remains backend-owned and guarded, and `Test-TauriShell-ProductionSurface.ps1` checks no production devtools flags, no token-adjacent runtime logging, one dynamic main window, the single-instance guard, and event-only bridge posture. This does not prove PG-3 clean-machine launch or real-media daily-driver readiness. Source: `TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`.
+- [x] **Tauri production-hardening lifecycle** — Closed on 2026-05-19 for the V5 preview shell: spawn/bootstrap resilience remains bounded, Tauri now emits backend health/crash lifecycle events, WebView renders a visible read-only recovery banner through an event-only Tauri bridge, a per-user Windows mutex rejects second Tauri shell instances before backend startup, ActiveJobs orphan reconciliation remains backend-owned and guarded, and `Test-TauriShell-ProductionSurface.ps1` checks no production devtools flags, no token-adjacent runtime logging, one dynamic main window, the single-instance guard, and event-only bridge posture. This does not prove PG-3 clean-machine launch; representative real-media validation was later closed by operator attestation on 2026-05-28. Source: `TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`.
 
 - [x] **Network page lifecycle controls** — Closed as a backend-contract gate, not as WebView buttons. WebView Network remains read-only; `/api/contract` now publishes design-only Network lifecycle contracts for coordinator start, coordinator stop, and worker polling lifecycle, `Docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` records the dry-run/cleanup/journal/source-policy gates, and static/API tests prove no Network lifecycle POST route or WebView control is exposed yet. Future controls still require backend dry-run routes, command journaling, cleanup/orphan tests, browser no-mutation coverage, and inventory updates.
 
@@ -74,13 +76,13 @@ These remaining open blockers are external/operator validation gates, not stale 
 
 - [x] **Settings builder for remaining raw-only keys** — `SubSDHTitleKeywords` and `SubSupplementalKeywords` are now covered by the Subtitle Settings builder as staged list fields. The WebView only stages list text; backend Preview/Save and backend subtitle classification remain authoritative. Auth tokens remain intentionally hidden. Source: `SETTINGS_RAW_KEY_TRIAGE.md`.
 
-- [x] **Active docs consolidation** — Closed on 2026-05-20. `Docs/CURRENT_PROJECT_STATE.md` is the single current-state source, root `OPEN_WORK_CHECKLIST.md` is the single active checklist, and the prior active-fix checklist, Tauri transition current plan, transition status board, and transition-review fix checklist bodies were quarantined under `Docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/Docs/archive/historical-plans/` with compatibility redirect stubs left at their old paths. Source: `DOCS_HOUSEKEEPING_AUDIT.md`.
+- [x] **Active docs consolidation** — Closed on 2026-05-20. `Docs/CURRENT_PROJECT_STATE.md` is the single current-state source, root `OPEN_WORK_CHECKLIST.md` is the single active checklist, and the prior active-fix checklist, Tauri transition current plan, transition status board, and transition-review fix checklist bodies were quarantined under `Docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/Docs/archive/historical-plans/` with compatibility redirect stubs left at their old paths. Source: archived housekeeping evidence.
 
 - [x] **UI improvement backlog** — Closed on 2026-05-20 for the active 23-item low-priority backlog. State-aware Launch controls, emergency topbar Force Stop, progress/status handling, WebView root-cause summaries, telemetry render diagnostics, status-chip/tooltips, and layout decisions are recorded in `Docs/DOC_TOUCH_LOG.md` and `Docs/REMEDIATION_CHANGELOG.md`; no active standalone UI-improvement checklist remains in `Docs/ui/`.
 
 - [x] **Layout manager edge cases** — Closed on 2026-05-20. Stored page order now resets to authored default order when a page's panel-key set changes, so newly added panels are no longer appended below every stored panel; dragging an advanced-gated panel now shows a transient "Still gated" hint in the customize bar. Source: `Docs/DOC_TOUCH_LOG.md`, `Docs/REMEDIATION_CHANGELOG.md`, and guarded WebView layout-manager tests.
 
-- [x] **Housekeeping report archival** — Superseded housekeeping reports and delete candidates were quarantined under `Docs\archive\docs-housekeeping\2026-05-20-review\`; `DOCS_HOUSEKEEPING_AUDIT.md` and `DOCS_HOUSEKEEPING_CHECKLIST.md` are the current housekeeping entry points.
+- [x] **Housekeeping report archival** — Superseded housekeeping reports and delete candidates were quarantined under `Docs\archive\docs-housekeeping\2026-05-20-review\`; active handoff guidance now lives in `README.md`, `AGENTS.md`, `Docs\CURRENT_PROJECT_STATE.md`, and `Docs\DOCS_INDEX.md`.
 
 ---
 
@@ -88,8 +90,8 @@ These remaining open blockers are external/operator validation gates, not stale 
 
 | Priority | Open Count |
 |---|---:|
-| P0 — Blocker | 2 |
-| High | 0 |
+| P0 — Blocker | 1 |
+| High | 1 |
 | Medium | 0 |
 | Low | 0 |
 | **Total Open** | **2** |

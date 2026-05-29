@@ -49,19 +49,29 @@ function Assert-PowerShellParses {
     }
 }
 
-$requiredModuleFiles = @(
-    'PublishCompletion.ps1',
-    'Publish.Partial.ps1',
-    'Publish.Sidecars.ps1',
-    'PendingManifestStore.ps1',
-    'PendingTransactions.ps1',
-    'PendingPush.ps1',
-    'PendingPublishIndex.ps1'
-)
+$requiredModuleFiles = [ordered]@{
+    'publish_completion.ps1'      = 'engine\publish\publish_completion.ps1'
+    'publish_partial.ps1'         = 'engine\publish\publish_partial.ps1'
+    'publish_sidecars.ps1'        = 'engine\publish\publish_sidecars.ps1'
+    'pending_manifest_store.ps1'  = 'engine\publish\pending_manifest_store.ps1'
+    'pending_transactions.ps1'    = 'engine\publish\pending_transactions.ps1'
+    'pending_push.ps1'            = 'engine\publish\pending_push.ps1'
+    'pending_publish_index.ps1'   = 'engine\publish\pending_publish_index.ps1'
+}
 
-foreach ($name in $requiredModuleFiles) {
-    $path = Join-Path $pipelineRoot "Modules\$name"
-    Assert-True (Test-Path -LiteralPath $path -PathType Leaf) "Missing pending-publish ownership module: $name"
+$ownershipDocPaths = @{
+    'publish_completion.ps1'      = 'engine/publish/publish_completion.ps1'
+    'publish_partial.ps1'         = 'engine/publish/publish_partial.ps1'
+    'publish_sidecars.ps1'        = 'engine/publish/publish_sidecars.ps1'
+    'pending_manifest_store.ps1'  = 'engine/publish/pending_manifest_store.ps1'
+    'pending_transactions.ps1'    = 'engine/publish/pending_transactions.ps1'
+    'pending_push.ps1'            = 'engine/publish/pending_push.ps1'
+    'pending_publish_index.ps1'   = 'engine/publish/pending_publish_index.ps1'
+}
+
+foreach ($name in $requiredModuleFiles.Keys) {
+    $path = Join-Path $repoRoot $requiredModuleFiles[$name]
+    Assert-True (Test-Path -LiteralPath $path -PathType Leaf) "Missing pending-publish ownership module: $($requiredModuleFiles[$name])"
     Assert-PowerShellParses -Path $path
 }
 
@@ -76,10 +86,10 @@ $serviceTestText = Get-Content -LiteralPath $serviceTest -Raw
 Assert-Contains $moduleMapText 'Pending Publish Ownership Boundary' 'MODULE_MAP.md must document the pending-publish ownership boundary.'
 Assert-Contains $moduleMapText 'Parked output is media plus sidecars' 'MODULE_MAP.md must state parked output is media plus sidecars.'
 Assert-Contains $moduleMapText 'must not infer drain safety or move parked payloads' 'MODULE_MAP.md must keep WebView/Tauri out of pending drain safety decisions.'
-foreach ($name in $requiredModuleFiles) {
-    Assert-Contains $moduleMapText "Pipeline/Modules/$name" "MODULE_MAP.md must list ownership for $name."
+foreach ($name in $requiredModuleFiles.Keys) {
+    Assert-Contains $moduleMapText $ownershipDocPaths[$name] "MODULE_MAP.md must list ownership for $name."
 }
-Assert-Contains $moduleMapText 'DesktopApp/mediapipeline_desktop_app/service_pending_publish*.py' 'MODULE_MAP.md must list DesktopApp pending-publish service ownership.'
+Assert-Contains $moduleMapText 'app/publish/pending_*.py' 'MODULE_MAP.md must list pending-publish service ownership.'
 Assert-Contains $moduleMapText 'Durable media-plus-sidecar park transaction' 'PendingTransactions ownership must include durable media-plus-sidecar transactions.'
 Assert-Contains $moduleMapText 'low-space/unknown-space deferred parking decision' 'PublishCompletion ownership must include low-space deferred parking.'
 

@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.application.facade_queue_policy import (
+from app.queue.policy import (
     EMPTY_QUEUE_SNAPSHOT_WARNING,
     INVALID_QUEUE_SNAPSHOT_WARNING,
     NO_QUEUE_SNAPSHOT_WARNING,

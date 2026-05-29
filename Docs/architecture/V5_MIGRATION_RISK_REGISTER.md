@@ -57,7 +57,7 @@ Key mitigation across all risks: V5 remains the external rollback workspace, and
 
 **Severity**: Medium
 
-**Description**: `Pipeline/Modules/Versioning.ps1` returns `'v4.000'` while the UI displays `V5`. `GET /api/snapshot` reports `v4.000`, which may confuse operators about which version is running.
+**Description**: the PowerShell versioning helper historically returned `'v4.000'` while the UI displayed `V5`. `GET /api/snapshot` reported `v4.000`, which could confuse operators about which version was running. The active implementation now lives at `engine/shared/versioning.ps1`; `Pipeline/Modules/Versioning.ps1` is only a compatibility shim.
 
 **Current mitigation**: Documented in `Docs/archive/admin-audits/STALE_VERSION_LABEL_AUDIT.md`. The mismatch is cosmetic — no pipeline behavior is affected.
 
@@ -131,7 +131,7 @@ Key mitigation across all risks: V5 remains the external rollback workspace, and
 
 **Owner area**: Release builder + self-test.
 
-**Next action**: Always run `Test-MediaPipelineRemuxEncodeAIO-Release.ps1` before sharing any release package. Use `-KeepPersonalConfig` only for private machine-to-machine mirrors.
+**Next action**: Always run `scripts\release\test.ps1` before sharing any release package. Use `-KeepPersonalConfig` only for private machine-to-machine mirrors.
 
 **Do not do**: Do not remove the live-config-in-package check from the release self-test.
 
@@ -245,7 +245,7 @@ Key mitigation across all risks: V5 remains the external rollback workspace, and
 
 **Severity**: Medium
 
-**Description**: The service layer has ~95 `service_*.py` files, 30 facade mixins, and 7 single-line command payload files. Further micro-splitting reduces maintainability and makes debugging harder.
+**Description**: Historically, the service layer had ~95 flat package-root service files, 30 facade mixins, and 7 single-line command payload files. Further micro-splitting reduced maintainability and made debugging harder.
 
 **Current mitigation**: `Docs/archive/completed-audits/V5_MODULE_OWNERSHIP_REVIEW_ADDENDUM.md` documents the current fragmentation and advises against further splitting during V5 stabilization.
 

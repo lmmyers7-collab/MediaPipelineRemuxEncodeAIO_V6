@@ -101,3 +101,4 @@ vlc-help.txt
 # covered these specifically. Do not commit them to shared or public repositories.
 **/State/Validation/sample_validation_log.jsonl
 Docs/RealMediaValidationRuns/*.md
+!Docs/RealMediaValidationRuns/README.md

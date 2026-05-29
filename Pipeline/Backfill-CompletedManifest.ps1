@@ -30,7 +30,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-. (Join-Path $PSScriptRoot 'Modules\StateStore.ps1')
+. (Join-Path (Split-Path -Parent $PSScriptRoot) 'engine\storage\state_store.ps1')
 
 function Write-BackfillJsonAtomic {
     param(

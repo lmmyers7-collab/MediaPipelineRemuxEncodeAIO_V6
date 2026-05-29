@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.application.facade_process_audit_policy import (
+from app.processes.audit_policy import (
     AUDIT_LIBRARY_ROOT_ERROR,
     audit_missing_library_root_result,
     audit_start_active_work_result,

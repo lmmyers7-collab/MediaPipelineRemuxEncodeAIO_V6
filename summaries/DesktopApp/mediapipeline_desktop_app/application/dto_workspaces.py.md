@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/application/dto_workspaces.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: application
-last_modified: 2026-05-26
+last_modified: 2026-05-28
 last_reviewed: 2026-05-28
-sha256: 45f89a82a1d3671245c765336872c852baf2e8a3305862b6a81e21ad283a1caa
+sha256: 5c3fa2289e7b3a69a8c2b25c2e6eb01f1488ba6ae2496ba0610acb872edccde9
 ---
 # `DesktopApp/mediapipeline_desktop_app/application/dto_workspaces.py`
 

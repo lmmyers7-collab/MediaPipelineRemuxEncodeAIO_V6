@@ -12,7 +12,7 @@ Inventories all `window.*` assignments in `DesktopApp/mediapipeline_desktop_app/
 - **29 files** export a primary namespace object (`window.mediaPipeline* = { ... }`)
 - **64 files** also export flat functions directly onto `window`
 - **38 files** have no primary namespace object: `app.js`, `completedView.diagnostics.js`, `completedView.evidence.js`, `completedView.proof.js`, `completedView.review.js`, `crossPageContextView.conflict.js`, `crossPageContextView.sample.js`, `crossPageContextView.sampleValidation.js`, `crossPageContextView.sampleValidation.records.js`, `crossPageContextView.sampleValidation.runbook.js`, `crossPageContextView.sampleValidation.worksheet.js`, `crossPageContextView.settings.js`, `diagnosticsView.activejobs.js`, `diagnosticsView.investigation.js`, `diagnosticsView.log.js`, `launchView.preflight.js`, `launchView.realmedia.js`, `launchView.risk.js`, `launchView.scope.js`, `pendingPublishView.confidence.js`, `pendingPublishView.diagnostics.js`, `pendingPublishView.drain.js`, `pendingPublishView.recovery.js`, `queueView.detail.js`, `queueView.launch.js`, `queueView.review.js`, `queueView.summary.js`, `settingsView.builders.audio.js`, `settingsView.builders.file_safety.js`, `settingsView.builders.network.js`, `settingsView.builders.pending.js`, `settingsView.builders.queue.js`, `settingsView.builders.runtime.js`, `settingsView.builders.subtitle.js`, `settingsView.builders.video.js`, `settingsView.rawTriage.js`, `settingsView.safetyLocks.js`, `tauriLifecycleBridge.js`
-- **Flat export total:** 763
+- **Flat export total:** 766
 - **1 backend-injected bootstrap global** (`window.MEDIA_PIPELINE_BOOTSTRAP`) is read by `apiClient.js`
 - **All 29 primary namespace objects** have adjacent `Public namespace` JSDoc boundary comments. `test_webview_inventory_docs.py` fails if a future `window.mediaPipeline* = { ... }` namespace object is added without that boundary note.
 
@@ -40,13 +40,13 @@ Inventories all `window.*` assignments in `DesktopApp/mediapipeline_desktop_app/
 | `crossPageContextView.sampleValidation.worksheet.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
 | `crossPageContextView.settings.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
 | `diagnosticsBridge.js` | mediaPipelineDiagnosticsBridge | 7 | Generated from current `window.* =` assignments |
-| `diagnosticsStateSummaryView.js` | mediaPipelineDiagnosticsStateSummaryView | 2 | Generated from current `window.* =` assignments |
+| `diagnosticsStateSummaryView.js` | mediaPipelineDiagnosticsStateSummaryView | 3 | Generated from current `window.* =` assignments |
 | `diagnosticsTailView.js` | mediaPipelineDiagnosticsTailView | 7 | Generated from current `window.* =` assignments |
 | `diagnosticsView.activejobs.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
 | `diagnosticsView.investigation.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
 | `diagnosticsView.js` | mediaPipelineDiagnosticsView | 74 | Generated from current `window.* =` assignments |
 | `diagnosticsView.log.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `domHelpers.js` | mediaPipelineDom | 13 | Generated from current `window.* =` assignments |
+| `domHelpers.js` | mediaPipelineDom | 15 | Generated from current `window.* =` assignments |
 | `formatters.js` | mediaPipelineFormatters | 8 | Generated from current `window.* =` assignments |
 | `launchHistoryView.js` | mediaPipelineLaunchHistoryView | 9 | Generated from current `window.* =` assignments |
 | `launchReadinessView.js` | mediaPipelineLaunchReadinessView | 7 | Generated from current `window.* =` assignments |
@@ -229,7 +229,7 @@ Risk: Low — documentation only.
 
 Generated from `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/*.js` by scanning `window.* =` assignments. Namespace objects are listed separately from flat exports.
 
-Flat export total: 763
+Flat export total: 766
 
 <!-- BEGIN GENERATED WEBVIEW GLOBAL EXPORT MANIFEST -->
 ### apiClient.js
@@ -609,10 +609,11 @@ appendDiagnosticsBridgeButton
 
 Namespace objects: mediaPipelineDiagnosticsStateSummaryView
 
-Flat exports (2):
+Flat exports (3):
 ```text
 diagnosticsStateRecommendedFirstAction
 diagnosticsStateOperatorStatus
+diagnosticsStateRowStatusState
 ```
 
 ### diagnosticsTailView.js
@@ -743,7 +744,7 @@ __diagnosticsLogModule
 
 Namespace objects: mediaPipelineDom
 
-Flat exports (13):
+Flat exports (15):
 ```text
 byId
 setText
@@ -752,6 +753,8 @@ clearRows
 appendCells
 filterRows
 makeRowSelectable
+normalizeBackendStatusState
+backendRowStatusState
 updateTableStatusLegend
 formatStatusCounts
 tableStatusFilterLabel

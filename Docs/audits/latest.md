@@ -1,6 +1,6 @@
 ---
 updated: 2026-05-28
-source: ARCHITECTURAL_OVERHAUL_PLAN.md §Current-State Audit
+source: Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md §Current-State Audit
 scope: V6 main branch, post Phase 0 / Phase 1 scaffolding
 status: advisory — known issues, not blocking
 ---
@@ -132,6 +132,87 @@ ever committed historically, repo history would carry the weight.
 Plan flags this as committed at some point. Verify with
 `git ls-files Pipeline/__pycache__/` (expected empty). If not empty,
 the cleanup belongs in Phase 6.
+
+### F-023 — `V6_SPLIT_NOTES.md` archived to `Docs/archive/` (resolved 2026-05-28)
+
+The original repo-root `V6_SPLIT_NOTES.md` (2026-05-20) was archived
+to `Docs/archive/v6-split-notes-2026-05-20.md` via `git mv` (history
+preserved). ADR-0011 is the durable architectural record; the archive
+preserves the validation command list and live-API proof.
+
+Prior session note (now corrected): an earlier turn in this session
+recorded ADR-0011 as `absent` because the source was assumed to be
+missing from the tree. The source was present; the assumption was
+wrong. The ADR README and CHANGELOG were corrected in the same change.
+
+### F-024 — Root launchers relocated under `scripts/` (resolved 2026-05-28; follow-ups outstanding)
+
+10 root-level launchers moved (via `git mv`) into `scripts/`:
+
+| Old root                                        | New                                                     |
+| ----------------------------------------------- | ------------------------------------------------------- |
+| `Build-MediaPipelineRemuxEncodeAIO-Release.ps1` | `scripts/release/build.ps1`                             |
+| `Test-MediaPipelineRemuxEncodeAIO-Release.ps1`  | `scripts/release/test.ps1`                              |
+| `Verify-...-Environment.{ps1,bat}`              | `scripts/verify-env.{ps1,bat}`                          |
+| `Run-MediaPipelineRemuxEncodeAIO.bat`           | `scripts/dev/run.bat`                                   |
+| `Setup-MediaPipelineRemuxEncodeAIO.bat`         | `scripts/dev/setup.bat`                                 |
+| `Start-...-LocalApi.bat`                        | `scripts/dev/start-local-api.bat`                       |
+| `Start-...-TauriPreview.bat`                    | `scripts/dev/start-tauri-preview.bat`                   |
+| `Start-...-ApiAndBrowser.bat`                   | `scripts/dev/start-api-and-browser.bat`                 |
+| `New-RealMediaValidationWorksheet.ps1`          | `scripts/operator/New-RealMediaValidationWorksheet.ps1` |
+
+Each old root path is now a thin deprecation shim that prints a
+`[DEPRECATED]` warning and forwards to the new location for one
+release. Moved files were patched for new path roots
+(`$PSScriptRoot` / `%~dp0` stepped up from their new subfolders). All
+8 moved/stub `.ps1` files parse clean (`Parser.ParseFile`).
+
+Follow-ups (deferred to later sessions):
+
+- **Active doc references** still point at the old paths in
+  `Docs/operator/POWERSHELL_HOST_EXPECTATIONS.md`,
+  `Docs/operator/WEBVIEW_MANUAL_OPERATOR_TEST_SCRIPT.md`,
+  `Docs/testing/{BROWSER_SMOKE_TEST_RUNBOOK,TEST_COVERAGE_MATRIX,
+  VALIDATION_LADDER_RUNBOOK,WEBVIEW_SMOKE_TEST_CATALOG}.md`,
+  `Docs/inventories/{COMMAND_OWNERSHIP_MATRIX,
+  RELEASE_PACKAGE_ADMIN_INVENTORY,SMOKE_TEST_INVENTORY,
+  ROOT_SCRIPT_INVENTORY,PACKAGING_DEPENDENCY_INVENTORY}.md`,
+  `Docs/TLDR.md`, `Docs/REMEDIATION_CHANGELOG.md`,
+  `Docs/DOC_TOUCH_LOG.md`. Most of these docs are slated for archive
+  per plan §Debloat.
+- **Test files** reference root paths:
+  `DesktopApp/tests/test_tauri_shell_scaffold.py`,
+  `Pipeline/Tests/Invoke-V6WebViewReliabilityChecks.ps1`,
+  `Pipeline/Tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1`.
+  Tests continue to pass through deprecation shims; update before the
+  shims are removed.
+- **`service_release.py`** lines 22-23 reference
+  `Build-MediaPipelineRemuxEncodeAIO-Release.ps1` at root; the packaged
+  bundle currently ships the root shims, which is the transition
+  state. Update both bundle layout and `service_release.py` together
+  when promoting the new paths.
+- **Engine-internal launchers**
+  (`Pipeline\Run-MediaPipelineRemuxEncodeAIO.bat`,
+  `Pipeline\Setup-MediaPipelineRemuxEncodeAIO.bat`) were intentionally
+  not moved (ADR-0001 engine domain).
+- **Start-* merge**: plan §Debloat suggests merging three start-*
+  files into one `scripts/dev/launch.bat <mode>`. Deferred — behavior
+  change with its own decision cost.
+
+### F-025 — Phase 1 generated-context drift gates closed (resolved 2026-05-28)
+
+Phase 1 now has executable drift checks for generated AI-context files:
+
+- `python scripts/dev/refresh_summaries.py --check`
+- `python scripts/dev/generate_project_index.py --check`
+- `python scripts/dev/generate_pipeline_map.py --check`
+
+The same checks are wired into `.pre-commit-config.yaml` as local hooks
+and `.github/workflows/phase1-drift.yml` as a Windows CI job.
+`Docs/generated/PIPELINE_MAP.md` is generated from
+`app/contracts/stages.py` instead of hand-synced. The stale summary
+baseline was refreshed so the summary check passes against the current
+in-scope source set.
 
 ## Known-good baselines
 

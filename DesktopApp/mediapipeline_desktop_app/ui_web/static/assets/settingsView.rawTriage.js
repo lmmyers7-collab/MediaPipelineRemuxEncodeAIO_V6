@@ -269,11 +269,11 @@
           : `${bdpgsStructuredKeys.join(", ")} are covered by the Subtitle builder; saved backend evidence reports ${bdpgsStatus}.`
         : "No BDPGS OCR path keys were present in the loaded config.",
       action: bdpgsKeys.length
-        ? "Use the Subtitle builder or raw JSON to stage path changes, then backend Preview/Save and re-check saved path evidence; do not add a frontend path picker."
+        ? "Use the Subtitle builder or raw JSON to stage OCR path changes, then backend Preview/Save and re-check saved path evidence; do not add a frontend-owned path picker."
         : "If BDPGS OCR is enabled later, require backend path evidence before real-media validation.",
       detail: [
         ...settingsBdpgsOcrPathEvidenceLines().slice(0, 12),
-        "Path policy: WebView can stage configured path text, but backend Preview/Save and saved path evidence remain authoritative; WebView does not browse or resolve arbitrary paths.",
+        "Path policy: WebView can stage configured path text, but backend Preview/Save and saved path evidence remain authoritative; WebView does not browse arbitrary paths or resolve paths. Any folder picker must be backend-owned and allowlisted.",
       ],
     });
 

@@ -231,7 +231,7 @@ Browser-backed smokes (require Node + Chrome/Edge, skip cleanly if absent):
 .\SmokeTests\Test-WebViewBrowserSettingsLaunchSmoke.ps1
 ```
 
-The release self-test (`Test-MediaPipelineRemuxEncodeAIO-Release.ps1`) checks that all wrapper files are present as a layout gate. It does not run the smokes automatically in the default configuration.
+The release self-test (`scripts\release\test.ps1`) checks that all wrapper files are present as a layout gate. It does not run the smokes automatically in the default configuration.
 
 Separate backend route-contract smoke:
 

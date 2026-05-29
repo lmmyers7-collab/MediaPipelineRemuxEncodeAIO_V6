@@ -6,9 +6,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_constants import FOLDER_POLICY_SCHEMA_VERSION
-from mediapipeline_desktop_app.service_folder_policy import FolderPolicyServiceMixin
-from mediapipeline_desktop_app.service_folder_policy_contracts import (
+from app.shared.constants import FOLDER_POLICY_SCHEMA_VERSION
+from app.folder_policy.service import FolderPolicyServiceMixin
+from app.folder_policy.contracts import (
     default_folder_policy,
     stream_signature,
     stream_topology,

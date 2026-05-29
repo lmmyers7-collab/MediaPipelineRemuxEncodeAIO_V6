@@ -19,7 +19,7 @@ body.light-mode .nav-button.is-active {
 
 /* B - Danger button: --red-900 bg (12% L) close to body-text lightness */
 body.light-mode .danger-button {
-  background: var(--red-100);
+  background: var(--grey-900);
   border-color: var(--red-500);
   color: var(--red-700);
 }
@@ -33,6 +33,11 @@ body.light-mode .danger-button:active {
   border-color: var(--red-700);
   color: var(--red-700);
 }
+body.light-mode .emergency-button {
+  background: var(--red-100);
+  border-color: var(--red-500);
+  color: var(--red-700);
+}
 body.light-mode .danger-button:disabled {
   background: var(--grey-800);
   border-color: var(--grey-600);
@@ -43,10 +48,21 @@ body.light-mode .danger-button:disabled {
 body.light-mode tr[data-status="blocked"] td,
 body.light-mode tr[data-status="failed"] td  { color: var(--red-700); }
 body.light-mode tr[data-status="match"] td,
+body.light-mode tr[data-status="ready"] td,
+body.light-mode tr[data-status="completed"] td,
+body.light-mode tr[data-status="skipped"] td,
 body.light-mode tr[data-status="new"] td     { color: var(--green-700); }
 body.light-mode tr[data-status="warning"] td,
-body.light-mode tr[data-status="unknown"] td { color: var(--amber-700); }
-body.light-mode tr[data-status="changed"] td { color: var(--blue-700); }
+body.light-mode tr[data-status="validation-needed"] td,
+body.light-mode tr[data-status="health-check"] td,
+body.light-mode tr[data-status="parked"] td,
+body.light-mode tr[data-status="paused"] td,
+body.light-mode tr[data-status="retrying"] td,
+body.light-mode tr[data-status="unknown"] td,
+body.light-mode tr[data-status="empty"] td { color: var(--amber-700); }
+body.light-mode tr[data-status="changed"] td,
+body.light-mode tr[data-status="running"] td,
+body.light-mode tr[data-status="publishing"] td { color: var(--blue-700); }
 
 /* D - Panel heading strong states: same light-on-light fix */
 body.light-mode .panel-heading strong[data-state="ok"]       { color: var(--green-700); }

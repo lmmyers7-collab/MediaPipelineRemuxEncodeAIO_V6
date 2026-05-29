@@ -117,6 +117,7 @@
               </select>
             </label>
             <div class="form-actions-inline">
+              <button class="secondary-button" type="button" data-page-refresh-button="completed">Refresh Output</button>
               <button id="completed-clear-filters-button" class="secondary-button" type="button">Clear Completed Filters</button>
             </div>
           </div>
@@ -149,12 +150,7 @@
             <strong id="completed-selected-status">No selection</strong>
           </div>
           <pre id="completed-selected-summary" class="prose-block">Select a completed row to see trust, output health, route/size proof, safe next step, filter visibility, and backend authority.</pre>
-          <div class="action-row action-row-left wrap-actions">
-            <button type="button" class="primary-button" data-open-completed="output_file">Open / Play Output</button>
-            <button type="button" class="secondary-button" data-open-completed="output_folder">Open Output Folder</button>
-            <button type="button" class="secondary-button" data-open-completed="sidecar">Open Sidecar</button>
-            <button type="button" class="secondary-button" data-open-completed="source_folder">Open Source Folder</button>
-          </div>
+          <div class="action-row action-row-left wrap-actions" data-open-target-row-actions="completed"></div>
           <p id="completed-open-status" class="note">Select a completed row to open a backend-selected location.</p>
           <pre id="completed-open-history" class="prose-block">No completed open command history loaded.</pre>
           <pre id="completed-detail" class="prose-block">No completed row selected.</pre>

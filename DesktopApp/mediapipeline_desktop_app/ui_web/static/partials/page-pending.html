@@ -36,6 +36,9 @@
             <h2>Pending Items</h2>
             <strong id="pending-status">No rows</strong>
           </div>
+          <div class="action-row action-row-left">
+            <button class="secondary-button" type="button" data-page-refresh-button="pending">Refresh Pending</button>
+          </div>
           <pre id="pending-summary" class="prose-block">No pending publish data loaded.</pre>
           <div id="pending-inventory-progress-bars" class="progress-bar-list" aria-live="polite">
             <p class="note">No pending inventory progress loaded.</p>
@@ -365,12 +368,7 @@
           </div>
           <pre id="pending-diagnostics-guidance" class="prose-block">Select a pending row to see backend-allowlisted diagnostics actions.</pre>
           <div id="pending-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
-          <div class="action-row action-row-left wrap-actions">
-            <button type="button" class="secondary-button" data-open-pending="local_file">Open Local</button>
-            <button type="button" class="secondary-button" data-open-pending="manifest">Open Manifest</button>
-            <button type="button" class="secondary-button" data-open-pending="destination_folder">Open Destination Folder</button>
-            <button type="button" class="secondary-button" data-open-pending="source_folder">Open Source Folder</button>
-          </div>
+          <div class="action-row action-row-left wrap-actions" data-open-target-row-actions="pending"></div>
           <p id="pending-open-status" class="note">Select a pending row to open a backend-selected location.</p>
           <pre id="pending-open-history" class="prose-block">No pending publish open command history loaded.</pre>
         </section>

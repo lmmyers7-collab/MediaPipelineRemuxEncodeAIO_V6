@@ -121,6 +121,7 @@
       queueInvestigationSignalLines,
       queueListText,
       queueRowKey,
+      queueSelectedAtAGlanceLines,
       queueSelectedOpenTargetLines,
       queueSelectedQuickSignalLines,
       renderQueueSelectedAtAGlance,
@@ -1091,7 +1092,7 @@
   // S70 — Queue Ordering Strategy Selector
   // ===========================================================================
 
-  // Strategy names must match VALID_STRATEGIES in service_queue_strategy.py
+  // Strategy names must match VALID_STRATEGIES in app/queue/strategy.py
   // and $script:ValidQueueStrategies in QueuePlan.ps1.
   const QUEUE_STRATEGIES = [
     "Standard",

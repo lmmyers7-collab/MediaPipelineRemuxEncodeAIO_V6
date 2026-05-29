@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.application.facade_settings_policy import (
+from app.config.settings_policy import (
     settings_bdpgs_ocr_path_evidence,
     settings_config_path_value,
     settings_tool_path_evidence,

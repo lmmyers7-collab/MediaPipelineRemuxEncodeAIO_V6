@@ -15,9 +15,10 @@ $ErrorActionPreference = 'Stop'
 
 $testsRoot = Split-Path -Parent $PSCommandPath
 $pipelineRoot = Split-Path -Parent (Split-Path -Parent $testsRoot)
+$repoRoot = Split-Path -Parent $pipelineRoot
 
-. (Join-Path $pipelineRoot 'Modules\PendingManifestStore.ps1')
-. (Join-Path $pipelineRoot 'Modules\PendingTransactions.ps1')
+. (Join-Path $repoRoot 'engine\publish\pending_manifest_store.ps1')
+. (Join-Path $repoRoot 'engine\publish\pending_transactions.ps1')
 
 $script:PipelineVersion = 'v5-test'
 $script:MinPipelineVersion = 'v5-test'
@@ -148,7 +149,7 @@ function Invoke-WithTempRoot {
     }
 }
 
-$pendingPushPath = Join-Path $pipelineRoot 'Modules\PendingPush.ps1'
+$pendingPushPath = Join-Path $repoRoot 'engine\publish\pending_push.ps1'
 $pendingPushText = Get-Content -LiteralPath $pendingPushPath -Raw
 foreach ($requiredFunction in @(
     'function Get-PendingDrainSummaryPath',
@@ -276,7 +277,7 @@ Invoke-WithTempRoot {
     Assert-True (-not (Test-Path -LiteralPath $newSidecar)) 'Newly written sidecar was not removed after rollback.'
 }
 
-$publishCompletionText = Get-Content -LiteralPath (Join-Path $pipelineRoot 'Modules\PublishCompletion.ps1') -Raw
+$publishCompletionText = Get-Content -LiteralPath (Join-Path $repoRoot 'engine\publish\publish_completion.ps1') -Raw
 Assert-MatchText $publishCompletionText 'PublishMode = \$\(if \(\$copyFailureIsOutputSpace\) \{ ''output-space-deferred'' \}' 'Publish completion no longer marks output-space copy failures as output-space-deferred before parking.'
 Assert-MatchText $publishCompletionText 'New-PipelinePublishResult[\s\S]+-PublishState ''pending_publish''[\s\S]+-PublishMode ''output-space-deferred''[\s\S]+-ParkedForOutputSpace:\$true' 'Low-space deferred publish no longer returns pending_publish success after safe parking.'
 Assert-MatchText $publishCompletionText 'Clear-SourceFailureState \$SourceFile[\s\S]+output-space deferred publish' 'Low-space deferred publish no longer clears source failure state only after successful parking.'

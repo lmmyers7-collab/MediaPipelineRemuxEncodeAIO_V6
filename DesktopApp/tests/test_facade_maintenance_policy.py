@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.application.facade_maintenance_policy import (
+from app.maintenance.policy import (
     maintenance_health_row,
     maintenance_health_rows,
     maintenance_toolchain_evidence,

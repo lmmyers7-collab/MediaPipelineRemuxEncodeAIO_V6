@@ -31,40 +31,40 @@
 │  │   handler.py  ── per-request dispatch                        │ │
 │  │   routes_read.py, routes_command.py                          │ │
 │  │       ── single registry of routes  →  payload handler name  │ │
-│  │   read_payloads_*.py, command_payloads_*.py                  │ │
-│  │       ── per-route payload builders  (mixins on the facade)  │ │
+│  │   read_payloads_*.py, app/api/commands_*.py                  │ │
+│  │       ── per-route payload builders and command handlers     │ │
 │  │   handler_policy.py, queue_source_path_policy.py, …          │ │
 │  │       ── allowlists and path validation                      │ │
 │  │   contract*.py  ── HTTP contract evidence (route inventory)  │ │
 │  └──────────────────────────────────────────────────────────────┘ │
 │                              │  calls facade methods               │
 │  ┌──────────────────────────────────────────────────────────────┐ │
-│  │ APPLICATION LAYER  application/                              │ │
-│  │   facade*.py    ── orchestrate one operator-visible action   │ │
-│  │   facade_*_policy.py  ── pure policy/validation helpers      │ │
-│  │   application/sample_validation/ ── split sample-validation  │ │
+│  │ APPLICATION LAYER  app/<domain>/                             │ │
+│  │   *_facade.py  ── orchestrate one operator-visible action    │ │
+│  │   policy.py    ── pure policy/validation helpers             │ │
+│  │   app/sample_validation/                                      │ │
 │  │       worksheet/readiness/reconciliation/evidence/pilot/policy│ │
-│  │       behind facade imports                                   │ │
+│  │       behind application facade imports                       │ │
 │  │   dto*.py       ── typed payload dataclasses                 │ │
 │  │   runtime_outcomes.py  ── shared outcome / posture types     │ │
 │  └──────────────────────────────────────────────────────────────┘ │
 │                              │  calls services                     │
 │  ┌──────────────────────────────────────────────────────────────┐ │
-│  │ SERVICE LAYER  service_*.py  (at package root)               │ │
+│  │ DOMAIN SERVICE LAYER  app/<domain>/                          │ │
 │  │   Pure read/write of local state and outsource SMB shares.   │ │
 │  │   No HTTP, no orchestration — narrow, testable.              │ │
 │  │   Examples:                                                  │ │
-│  │     service_path_layout.py     ── state-root directory map   │ │
-│  │     service_queue_strategy.py  ── queue_strategy.json I/O    │ │
-│  │     service_file_overrides.py  ── file_overrides.json I/O    │ │
-│  │     service_priority_manifest.py  ── priority_manifest.json  │ │
-│  │     service_completed_manifest.py ── completed_jobs.jsonl    │ │
-│  │     service_pending_publish.py    ── PendingServerPush/...   │ │
-│  │     service_status_*.py        ── progress / events / files  │ │
+│  │     app/paths/layout.py        ── state-root directory map   │ │
+│  │     app/queue/strategy.py     ── queue_strategy.json I/O     │ │
+│  │     app/queue/file_overrides.py ─ file_overrides.json I/O    │ │
+│  │     app/queue/priority_manifest.py ─ priority_manifest.json  │ │
+│  │     app/completed/manifest.py ── completed_jobs.jsonl        │ │
+│  │     app/publish/pending_service.py ─ PendingServerPush/...   │ │
+│  │     app/status/*.py            ── progress / events / files  │ │
 │  │     config_keys.py             ── Python config-key registry │ │
-│  │     service_runner_protocols.py ── Protocol contracts for    │ │
+│  │     app/shared/protocols.py ── Protocol contracts for        │ │
 │  │                                    service-helper runners    │ │
-│  │     service_config*.py         ── load/save MediaPipeline-   │ │
+│  │     app/config/*.py            ── load/save MediaPipeline-   │ │
 │  │                                    Config.psd1 via PS1       │ │
 │  └──────────────────────────────────────────────────────────────┘ │
 │                              │  reads/writes                       │
@@ -88,24 +88,28 @@
 │ PIPELINE RUNTIME  (Pipeline/)                                      │
 │                                                                    │
 │  MediaPipeline_chatgpt.ps1  ── orchestrator (entry + main loop)    │
-│      ── Loads config, dot-sources every Modules/*.ps1, runs the    │
-│         pipeline rounds (queue build → process file → publish).    │
+│      ── Loads config, dot-sources compatibility Modules/*.ps1,     │
+│         and runs pipeline rounds (queue build → process → publish).│
 │                                                                    │
-│  Pipeline/Modules/*.ps1  ── focused helpers, dot-sourced once      │
+│  Pipeline/Modules/*.ps1  ── current dot-source compatibility path  │
+│      These files are temporary shims to engine/<domain>/ modules.  │
+│      Keep them only until full release, package-mode, and          │
+│      representative real-media evidence prove the old paths can be │
+│      deleted without changing operator behavior.                   │
+│                                                                    │
+│  engine/<domain>/*.ps1 ── active PowerShell implementations        │
 │      Examples (grouped):                                           │
-│        Logging.ps1, PathHelpers.ps1, MediaConstants.ps1            │
-│        ConfigKeys.ps1, ConfigSchema.ps1, ConfigGetters.ps1         │
-│        StateStore.ps1   ── builds the LocalBase/State layout       │
-│        Routing.ps1, EncodePolicy.ps1                               │
-│        FolderPolicy.ps1, FileOverrides.ps1                         │
-│        Audio.ps1, Subtitles.*.ps1                                  │
-│        Native.ps1, NativeProcessContracts.ps1, FfmpegProgress.ps1  │
-│        ProgressState.ps1, QueuePlan.ps1                            │
-│        Naming.ps1, SourceIdentity.ps1, FailureState.ps1            │
-│        Publish.*.ps1, PendingPush.ps1, PendingTransactions.ps1     │
-│        PublishCompletion.ps1, LibraryIndex.ps1                     │
-│        PipelineProcessing.ps1, PipelineEngine.ps1                  │
-│        ScratchCopy.ps1, OutputPathPlanning.ps1, …                  │
+│        observability/logging.ps1, shared/path_helpers.ps1          │
+│        config/config_keys.ps1, config/config_schema.ps1            │
+│        storage/state_store.ps1, storage/scratch_copy.ps1           │
+│        decide/routing.ps1, decide/encode_policy.ps1                │
+│        policy/folder_policy.ps1, queue/file_overrides.ps1          │
+│        audio/audio.ps1, subtitles/*.ps1                            │
+│        shared/native.ps1, process/ffmpeg_progress.ps1              │
+│        status/progress_state.ps1, queue/queue_plan.ps1             │
+│        naming/naming.ps1, shared/source_identity.ps1               │
+│        publish/*.ps1, library/library_index.ps1                    │
+│        process/pipeline_processing.ps1, queue/pipeline_engine.ps1  │
 │                                                                    │
 │  Audit-PendingPublishOutsourcedFiles.ps1, Backfill-*.ps1, Release- │
 │  CompletedOutsourceShare.ps1  ── scripts invoked by DesktopApp     │
@@ -171,30 +175,30 @@ Use this decision tree:
 ### "I want a new operator-visible action (button, toggle, command)."
 
 1. Add a new route to `api/routes_command.py` or `api/routes_read.py`.
-2. Add a payload handler in `api/command_payloads_*.py` (write actions) or `api/read_payloads_*.py` (read actions). Often this is a mixin class.
-3. Wire the handler into `api/command_payloads.py` (the mixin assembly).
-4. Add a facade method in `application/facade_*.py` that orchestrates the action.
-5. Add or reuse a service in `service_*.py` for the actual state read/write.
-6. If the action affects pipeline behaviour: add a state file that PS1 reads (see §4), and add a `Modules/*.ps1` reader/applier.
+2. Add a command handler in `app/api/commands_*.py` (write actions) or a payload handler in `api/read_payloads_*.py` (read actions). Often this is a mixin class.
+3. Wire write handlers into `app/api/command_handlers.py` and route names into `app/api/commands.py`.
+4. Add a domain facade method under `app/<domain>/` that orchestrates the action.
+5. Add or reuse a focused module under the relevant `app/<domain>/` package for the actual state read/write.
+6. If the action affects pipeline behaviour: add a state file that PS1 reads (see §4), and add an `engine/<domain>/*.ps1` reader/applier while keeping any existing `Pipeline/Modules/*.ps1` compatibility path working until Phase 6 deletion gates close.
 7. Wire the UI in the relevant `assets/xxxView.js` plus `index.html`.
 8. **Update inventories** (see §6).
 
 ### "I want a new piece of local state."
 
-1. Add the path to `service_path_layout.py` (in the `ResolvedPaths` dataclass and the resolution runner).
-2. Add the path to `Pipeline/Modules/StateStore.ps1` (the `Paths` object).
-3. Both sides now have a deterministic path derived from `LocalBase`. Add a service file (DesktopApp side) and a Modules/ file (PS1 side) for the read/write logic.
+1. Add the path to `app/paths/layout.py` or the path-resolution runner, plus the `ResolvedPaths` dataclass.
+2. Add the path to `engine/storage/state_store.ps1` and keep the current `Pipeline/Modules/StateStore.ps1` compatibility path working until Phase 6 removes it.
+3. Both sides now have a deterministic path derived from `LocalBase`. Add a service file (DesktopApp side) and an `engine/<domain>/` file (PS1 side) for the read/write logic.
 
 ### "I want a new pipeline processing override."
 
-1. Extend `Pipeline/Modules/FileOverrides.ps1` (per-file overrides) or add a new module in the same shape.
+1. Extend the current file-overrides implementation behind `engine/queue/file_overrides.ps1`; keep `Pipeline/Modules/FileOverrides.ps1` as a compatibility shim only. New PowerShell files should use `engine/<domain>/`, not a new dotted `Pipeline/Modules` file.
 2. Wire its merge into `PipelineProcessing.ps1` at the right point in the per-file loop.
-3. Surface it via `service_file_overrides.py` and the `/api/queue/file-overrides` route.
+3. Surface it via `app/queue/file_overrides.py` and the `/api/queue/file-overrides` route.
 4. Add a UI control to the per-file settings drawer in `queueView.js`.
 
 ### "I want a new diagnostics or evidence panel."
 
-1. Add a payload builder in the matching facade (e.g., `facade_completed_policy.py` for completed-side evidence).
+1. Add a payload builder in the matching domain policy module (e.g., `app/completed/policy.py` for completed-side evidence).
 2. Add a read route + handler.
 3. Render in the matching `xxxView.js`.
 4. Add DOM IDs to `WEBVIEW_DOM_ID_INVENTORY.md`.
@@ -207,17 +211,17 @@ Each persistent state file is read by both DesktopApp and PS1 in different ways.
 
 | State file (under `LocalBase/State/`) | Written by | Read by |
 |---|---|---|
-| `priority_manifest.json` | `service_priority_manifest.py` (POST `/api/queue/priority`) | `Pipeline/Modules/QueuePlan.ps1` at queue-build time |
-| `queue_strategy.json` | `service_queue_strategy.py` (POST `/api/queue/strategy`) | `Pipeline/Modules/QueuePlan.ps1` at queue-build time |
-| `file_overrides.json` | `service_file_overrides.py` (POST `/api/queue/file-overrides`) | `Pipeline/Modules/FileOverrides.ps1` per file |
-| `Progress/pipeline_progress.json` | PS1 (`ProgressState.ps1`) | `service_status_*.py` (GET `/api/status`, `/api/progress`) |
-| `Progress/pipeline_events.jsonl` | PS1 (`PipelineEngine.ps1`) | `service_status_events.py` (GET `/api/progress`) |
-| `Progress/queue_snapshot.json` | PS1 (`PipelineEngine.ps1`) | `service_queue_snapshot.py` (GET `/api/queue`) |
-| `Pipeline/pipeline_{pause,stop,rescan}.flag` | `service_process_control_flags.py` (POST `/api/pipeline/control`) | PS1 main loop (`MediaPipeline_chatgpt.ps1`) |
-| `ActiveJobs/*.json` | PS1 (`ProgressState.ps1`) | `service_process_active_jobs.py` |
-| `Completed/completed_jobs.jsonl` | PS1 (`PublishCompletion.ps1`) and `Backfill-CompletedManifest.ps1` | `service_completed_manifest.py` |
-| `Failures/{Markers,Reports,Artifacts}/` | PS1 (`FailureState.ps1`, `PublishCompletion.ps1`) | `service_failure_markers.py`, `facade_failures.py` |
-| `PendingServerPush/<job>/` | PS1 (`PendingPush.ps1`, `PendingTransactions.ps1`) | `service_pending_publish*.py` |
+| `priority_manifest.json` | `app/queue/priority_manifest.py` (POST `/api/queue/priority`) | `engine/queue/queue_plan.ps1` at queue-build time |
+| `queue_strategy.json` | `app/queue/strategy.py` (POST `/api/queue/strategy`) | `engine/queue/queue_plan.ps1` at queue-build time |
+| `file_overrides.json` | `app/queue/file_overrides.py` (POST `/api/queue/file-overrides`) | `engine/queue/file_overrides.ps1` per file |
+| `Progress/pipeline_progress.json` | PS1 (`engine/status/progress_state.ps1`) | `app/status/*.py` (GET `/api/status`, `/api/progress`) |
+| `Progress/pipeline_events.jsonl` | PS1 (`engine/queue/pipeline_engine.ps1`) | `app/status/events.py` (GET `/api/progress`) |
+| `Progress/queue_snapshot.json` | PS1 (`engine/queue/pipeline_engine.ps1`) | `app/queue/snapshot.py` (GET `/api/queue`) |
+| `Pipeline/pipeline_{pause,stop,rescan}.flag` | `app/processes/control_flags.py` (POST `/api/pipeline/control`) | PS1 main loop (`MediaPipeline_chatgpt.ps1`) |
+| `ActiveJobs/*.json` | PS1 (`ProgressState.ps1`) | `app/processes/active_jobs.py` |
+| `Completed/completed_jobs.jsonl` | PS1 (`engine/publish/publish_completion.ps1`) and `Backfill-CompletedManifest.ps1` | `app/completed/manifest.py` |
+| `Failures/{Markers,Reports,Artifacts}/` | PS1 (`engine/failures/failure_state.ps1`, `engine/publish/publish_completion.ps1`) | `app/failures/markers.py`, `app/failures/facade.py` |
+| `PendingServerPush/<job>/` | PS1 (`engine/publish/pending_push.ps1`, `engine/publish/pending_transactions.ps1`) | `app/publish/pending_*.py` |
 
 **Anytime a new piece of state is added, both sides of this table get a new row.** That's the cross-machine integrity contract.
 
@@ -227,14 +231,14 @@ Parked output is media plus sidecars. The backend owns every decision about what
 
 | Module | Owns | Must not own |
 |---|---|---|
-| `Pipeline/Modules/PublishCompletion.ps1` | Immediate publish flow, low-space/unknown-space deferred parking decision, and calls into pending park helpers when verified output must be parked. | Pending drain loop, manifest row presentation, or WebView readiness decisions. |
-| `Pipeline/Modules/Publish.Partial.ps1` | Partial media reveal and sidecar backup/restore primitives shared by immediate publish and pending drain. | Publish policy, source identity validation, manifest indexing, or UI state. |
-| `Pipeline/Modules/Publish.Sidecars.ps1` | Sidecar publish helper mechanics shared by immediate and pending paths. | Deciding whether parked output is safe to discard, drain, or mark accepted. |
-| `Pipeline/Modules/PendingManifestStore.ps1` | Pending manifest read/write/round-trip validation and retry-state serialization. | Moving media, copying sidecars, publishing final output, or formatting UI rows. |
-| `Pipeline/Modules/PendingTransactions.ps1` | Durable media-plus-sidecar park transaction, drain transaction, server-copy validation, sidecar rollback, and `pending_move` crash recovery. | Operator command routing, frontend policy, or read-only row shaping. |
-| `Pipeline/Modules/PendingPush.ps1` | Public PowerShell facade for park/retry/drain commands, drain summary, event/log emission, and pending index refresh calls. | Low-level copy/reveal rollback details already owned by `PendingTransactions.ps1`. |
-| `Pipeline/Modules/PendingPublishIndex.ps1` | Read-only in-memory index and health rows for parked manifests and missing payloads. | Moving, deleting, draining, repairing, or accepting parked payloads. |
-| `DesktopApp/mediapipeline_desktop_app/service_pending_publish*.py` | Read-only desktop scan, row shaping, open-target support, and API DTO normalization over backend-authored manifests. | Media copy/reveal policy, discard decisions, manifest repair side effects, or drain safety inference. |
+| `engine/publish/publish_completion.ps1` | Immediate publish flow, low-space/unknown-space deferred parking decision, and calls into pending park helpers when verified output must be parked. | Pending drain loop, manifest row presentation, or WebView readiness decisions. |
+| `engine/publish/publish_partial.ps1` | Partial media reveal and sidecar backup/restore primitives shared by immediate publish and pending drain. | Publish policy, source identity validation, manifest indexing, or UI state. |
+| `engine/publish/publish_sidecars.ps1` | Sidecar publish helper mechanics shared by immediate and pending paths. | Deciding whether parked output is safe to discard, drain, or mark accepted. |
+| `engine/publish/pending_manifest_store.ps1` | Pending manifest read/write/round-trip validation and retry-state serialization. | Moving media, copying sidecars, publishing final output, or formatting UI rows. |
+| `engine/publish/pending_transactions.ps1` | Durable media-plus-sidecar park transaction, drain transaction, server-copy validation, sidecar rollback, and `pending_move` crash recovery. | Operator command routing, frontend policy, or read-only row shaping. |
+| `engine/publish/pending_push.ps1` | Public PowerShell facade for park/retry/drain commands, drain summary, event/log emission, and pending index refresh calls. | Low-level copy/reveal rollback details already owned by `PendingTransactions.ps1`. |
+| `engine/publish/pending_publish_index.ps1` | Read-only in-memory index and health rows for parked manifests and missing payloads. | Moving, deleting, draining, repairing, or accepting parked payloads. |
+| `app/publish/pending_*.py` | Read-only desktop scan, row shaping, open-target support, and API DTO normalization over backend-authored manifests. | Media copy/reveal policy, discard decisions, manifest repair side effects, or drain safety inference. |
 
 ---
 
@@ -243,9 +247,9 @@ Parked output is media plus sidecars. The backend owns every decision about what
 `MediaPipelineConfig.psd1` is the single config file. Read by:
 
 1. **PS1 entry** (`MediaPipeline_chatgpt.ps1`) at startup — via PowerShell `Import-PowerShellDataFile`.
-2. **DesktopApp** at API-resolution time — via `service_config_psd1.py` invoking a PS1 helper to read and emit JSON.
+2. **DesktopApp** at API-resolution time — via the config PSD1 reader in `app/config/` invoking a PS1 helper to read and emit JSON.
 
-Both sides ingest the same keys. **Config-key names are documented in `Docs/architecture/CONFIG_KEY_GLOSSARY.md`**. Python-side key names are guarded in `DesktopApp/mediapipeline_desktop_app/config_keys.py`; PowerShell-side key names are guarded in `Pipeline/Modules/ConfigKeys.ps1`. Drift tests are `DesktopApp/tests/test_config_keys.py` and `Pipeline/Tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1`.
+Both sides ingest the same keys. **Config-key names are documented in `Docs/architecture/CONFIG_KEY_GLOSSARY.md`**. Python-side key names are guarded in `DesktopApp/mediapipeline_desktop_app/config_keys.py`; PowerShell-side key names are guarded in `engine/config/config_keys.ps1` with `Pipeline/Modules/ConfigKeys.ps1` kept as a compatibility shim. Drift tests are `DesktopApp/tests/test_config_keys.py` and `Pipeline/Tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1`.
 
 ---
 
@@ -276,16 +280,16 @@ If you add a state file, route, DOM ID, or window-export and you do not update t
 
 | Pattern | Layer | Example |
 |---|---|---|
-| `service_*.py` | Service layer | `service_file_overrides.py` |
-| `service_*_runner.py` | Service layer entrypoint that wires multiple services | `service_path_resolution_runner.py` |
-| `application/facade_*.py` | Application facade | `facade_queue.py` |
-| `application/facade_*_policy.py` | Pure policy/validation companion to a facade | `facade_queue_policy.py` |
+| `app/<domain>/*.py` | Domain service layer | `app/queue/file_overrides.py` |
+| `app/<domain>/*_runner.py` | Service-layer entrypoint that wires multiple modules | `app/paths/resolution_runner.py` |
+| `app/<domain>/*_facade.py` | Application facade adapter | `app/queue/facade.py` |
+| `app/<domain>/policy.py` | Pure policy/validation companion to a facade | `app/queue/policy.py` |
 | `application/dto_*.py` | Typed payload dataclasses | `dto_status.py` |
 | `api/routes_*.py` | Route registry | `routes_command.py` |
-| `api/command_payloads_*.py` | Mixin with per-route POST handlers | `command_payloads_queue_priority.py` |
+| `app/api/commands_*.py` | Mixin with per-route POST handlers | `commands_queue_priority.py` |
 | `api/read_payloads_*.py` | Mixin with per-route GET handlers | `read_payloads_inventory.py` |
 | `api/*_policy.py` | Per-route policy/validation | `queue_source_path_policy.py` |
-| `Pipeline/Modules/*.ps1` | PS1 helper module, dot-sourced | `FileOverrides.ps1` |
+| `Pipeline/Modules/*.ps1` | Current PS1 dot-source compatibility path; do not add new files here | `FileOverrides.ps1` |
 | `assets/xxxView.js` | One page-view module per WebView page | `queueView.js` |
 | `assets/xxxView.<slice>.js` | Split child of a page-view (per `GOD_FILE_SPLIT_PLAN.md`) | `completedView.evidence.js`, `completedView.proof.js`, `completedView.review.js`, `completedView.diagnostics.js`, `launchView.risk.js`, `launchView.scope.js`, `launchView.realmedia.js`, `launchView.preflight.js`, `pendingPublishView.recovery.js`, `pendingPublishView.diagnostics.js`, `pendingPublishView.drain.js`, `pendingPublishView.confidence.js` |
 | `assets/xxxHistory.js`, `xxxBridge.js`, `xxxLabels.js` | Sub-modules under a page view | `launchHistoryView.js` |

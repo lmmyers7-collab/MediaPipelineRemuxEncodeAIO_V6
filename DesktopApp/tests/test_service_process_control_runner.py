@@ -11,14 +11,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from mediapipeline_desktop_app.service_process_control_runner import (
+from app.processes.control_runner import (
     control_flag_age_seconds_for_service,
     prepare_pipeline_control_flags_for_service,
     read_control_flag_payload_for_service,
     toggle_pause_flag_for_service,
     write_flag_for_service,
 )
-from mediapipeline_desktop_app.service_processes import ProcessLifecycleServiceMixin
+from app.processes.lifecycle import ProcessLifecycleServiceMixin
 
 
 class DummyControlRunnerService(ProcessLifecycleServiceMixin):

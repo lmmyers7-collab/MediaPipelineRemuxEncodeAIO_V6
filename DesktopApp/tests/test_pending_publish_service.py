@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from mediapipeline_desktop_app.service_pending_publish import PendingPublishServiceMixin
+from app.publish.pending_service import PendingPublishServiceMixin
 
 
 class DummyPendingPublishService(PendingPublishServiceMixin):

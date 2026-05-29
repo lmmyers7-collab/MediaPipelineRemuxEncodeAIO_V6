@@ -8,7 +8,7 @@ Sources: `Docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`, `Pipeline/Media
 
 This document does not invent defaults — all values noted here are from the current codebase. For the full list of keys and their WebView builder coverage status, see `Docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`.
 
-Code constants live in `DesktopApp/mediapipeline_desktop_app/config_keys.py` and `Pipeline/Modules/ConfigKeys.ps1`. Drift is guarded by `DesktopApp/tests/test_config_keys.py` and `Pipeline/Tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1`.
+Code constants live in `DesktopApp/mediapipeline_desktop_app/config_keys.py` and `engine/config/config_keys.ps1`. Drift is guarded by `DesktopApp/tests/test_config_keys.py` and `Pipeline/Tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1`.
 
 ---
 
@@ -55,6 +55,8 @@ Code constants live in `DesktopApp/mediapipeline_desktop_app/config_keys.py` and
 | `CompatibilityEncodeGrowthPercent` | Growth percent threshold used for compatibility-mode encode | Separate from MaxEncodeGrowthPercent to allow higher tolerance for compatibility encodes | Builder |
 | `EncodeThresholdGB` | Source file size above which the pipeline considers the file for size-guard checks in movie mode | Files smaller than this may bypass size-guard in some routing profiles | Builder |
 | `TVEncodeThresholdGB` | Same as EncodeThresholdGB but for TV episodes | Separate threshold for TV allows different policy by content type | Builder |
+| `MovieRouteMaxVideoBitrateMbps` | Maximum estimated movie bitrate allowed for remux/copy routing | Sources above this bitrate are encoded unless folder policy overrides the route ceiling | Builder |
+| `TVRouteMaxVideoBitrateMbps` | Maximum estimated TV bitrate allowed for remux/copy routing | Lets TV episodes use a lower bitrate ceiling than movies before encode is selected | Builder |
 | `AllowH264RemuxIfPlexCompatible` | Allow H.264 sources that pass Plex compatibility to be remuxed instead of encoded | Disabling forces encode of all H.264 regardless of compatibility | Builder |
 | `H264RemuxMaxBitrateMbps` | Maximum H.264 bitrate (Mbps) allowed for the remux-if-compatible path | Sources above this bitrate are encoded even if codec is compatible | Builder |
 | `H264RemuxMaxHeight` | Maximum video height allowed for the remux-if-compatible path | Sources taller than this are encoded | Builder |

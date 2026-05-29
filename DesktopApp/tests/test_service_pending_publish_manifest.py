@@ -5,7 +5,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from mediapipeline_desktop_app.service_pending_publish_manifest import pending_manifest_row
+from app.publish.pending_manifest import pending_manifest_row
 
 
 class ServicePendingPublishManifestTests(unittest.TestCase):

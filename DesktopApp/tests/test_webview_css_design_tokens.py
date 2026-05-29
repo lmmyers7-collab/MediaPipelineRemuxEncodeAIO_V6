@@ -17,6 +17,8 @@ CSS_PATHS = sorted(ASSETS_ROOT.glob("styles*.css"))
 DOM_HELPERS_PATH = ASSETS_ROOT / "domHelpers.js"
 COMPLETED_VIEW_PATH = ASSETS_ROOT / "completedView.js"
 PENDING_VIEW_PATH = ASSETS_ROOT / "pendingPublishView.js"
+LAUNCH_VIEW_PATH = ASSETS_ROOT / "launchView.js"
+LAUNCH_PARTIAL_PATH = STATIC_ROOT / "partials" / "page-launch.html"
 
 
 def _rendered_index_html() -> str:
@@ -155,6 +157,37 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertIn(".status-chip", controls)
         self.assertIn("setCellStatusChip(healthCell", completed)
         self.assertIn("setCellStatusChip(stateCell", pending)
+
+    def test_design_system_cleanup_tokens_and_action_hierarchy_are_wired(self) -> None:
+        tokens = (ASSETS_ROOT / "styles.tokens.css").read_text(encoding="utf-8")
+        layout = (ASSETS_ROOT / "styles.layout.css").read_text(encoding="utf-8")
+        components = (ASSETS_ROOT / "styles.components.css").read_text(encoding="utf-8")
+        controls = (ASSETS_ROOT / "styles.controls.css").read_text(encoding="utf-8")
+        launch_js = LAUNCH_VIEW_PATH.read_text(encoding="utf-8")
+        launch_html = LAUNCH_PARTIAL_PATH.read_text(encoding="utf-8")
+
+        for token in ["--radius-xs:", "--radius-sm:", "--radius-pill:", "--amber-900:"]:
+            self.assertIn(token, tokens)
+
+        declared_radius_tokens = set(re.findall(r"--(radius-[\w-]+):", tokens))
+        used_radius_tokens = set(
+            re.findall(
+                r"var\(--(radius-[\w-]+)\)",
+                "\n".join(path.read_text(encoding="utf-8") for path in CSS_PATHS),
+            )
+        )
+        self.assertTrue(used_radius_tokens)
+        self.assertEqual(used_radius_tokens - declared_radius_tokens, set())
+
+        self.assertRegex(layout, r"\.danger-button\s*\{[^}]*background: var\(--grey-800\);")
+        self.assertRegex(layout, r"\.emergency-button\s*\{[^}]*background: var\(--red-900\);")
+        self.assertIn(".status-chip::before", controls)
+        self.assertIn("background: currentColor;", controls)
+        self.assertIn("padding: var(--space-3) var(--space-4);", components)
+        self.assertIn('id="audit-start-button" class="primary-button"', launch_html)
+        self.assertIn('id="rerun-start-button" class="primary-button"', launch_html)
+        self.assertIn("This does not start a new run or touch media", launch_js)
+        self.assertIn("source media should not be touched", launch_js)
 
 
 if __name__ == "__main__":

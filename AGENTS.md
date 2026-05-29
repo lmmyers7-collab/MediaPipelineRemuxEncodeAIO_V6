@@ -1,11 +1,12 @@
 # AGENTS.md — AI Entry Point
 
 This is the canonical entry point for AI coding agents (Claude Code, Codex,
-etc.) working in this repository. It supersedes `AI_AGENT_START_HERE.md`,
-`AI_DIRECTIVE.md`, and `AI_HANDOFF.md`.
+etc.) working in this repository. It supersedes the archived
+`Docs/archive/ai/AI_AGENT_START_HERE.md`, `Docs/archive/ai/AI_DIRECTIVE.md`,
+and `AI_HANDOFF.md`.
 
 If you are a human, you probably want `README.md` and
-`ARCHITECTURAL_OVERHAUL_PLAN.md`.
+`Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md`.
 
 ---
 
@@ -38,7 +39,7 @@ work happens.
 ## 2. The overhaul context (read before editing structure)
 
 This repository is mid-overhaul. The plan is in
-`ARCHITECTURAL_OVERHAUL_PLAN.md`. Highlights you must respect:
+`Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md`. Highlights you must respect:
 
 - **Do not create new `facade_*.py`, `service_*.py`, or
   `command_payloads_*.py` files at the existing flat paths.** The target
@@ -55,7 +56,7 @@ This repository is mid-overhaul. The plan is in
   - `README.md`
   - `CHANGELOG.md`
   - `AGENTS.md` (this file)
-  - `ARCHITECTURAL_OVERHAUL_PLAN.md` (plan of record until V7 ships)
+  - `Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md` (plan of record until V7 ships)
   - `Docs/CURRENT_PROJECT_STATE.md` (interim until consolidated)
   - `OPEN_WORK_CHECKLIST.md` (interim until moved to issues)
 
@@ -87,7 +88,10 @@ current-state doc. Internalize them.
    guards, close-readiness checks** are release-critical safety
    mechanisms.
 8. **V5 fallback** must remain available externally until V6 package-mode
-   launch, real-media validation, and operator workflows are proven.
+   launch and operator workflows are proven. Representative real-media
+   validation is operator-attested complete as of 2026-05-28, but must be
+   rerun after media-policy, FFmpeg, subtitle, audio, publish/drain, source
+   movement, or cleanup behavior changes.
 
 ---
 
@@ -99,10 +103,10 @@ many tokens.
 
 1. **Start each session by reading**, in order:
    - This file (`AGENTS.md`)
-   - `ARCHITECTURAL_OVERHAUL_PLAN.md`
+   - `Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md`
    - `Docs/CURRENT_PROJECT_STATE.md`
    - `OPEN_WORK_CHECKLIST.md`
-   - `PROJECT_INDEX.md` (once it exists)
+   - `Docs/generated/PROJECT_INDEX.md` (once it exists)
 2. **Before opening any source file**, check `summaries/<path>.md` first.
    Open the full source only when the summary marks it
    `token_priority: high` *or* the change requires a function the summary
@@ -133,6 +137,13 @@ many tokens.
 | Tauri files                                           | Tauri shell checks                                         |
 | Media policy / FFmpeg / subtitle / audio / publish    | Release gate plus real-media validation                    |
 
+At the end of every overhaul phase, agents must also prove the operator
+surface still opens: start the local API from the `DesktopApp` working
+directory, confirm it reaches the bootstrap/listening state, and run the
+app-opening smoke appropriate to the changed surface (`start-api-and-browser`
+or Tauri preview/check-only). If a GUI/browser open cannot be performed in
+the current environment, report the exact substitute command and evidence.
+
 References:
 
 - `Docs/testing/VALIDATION_LADDER_RUNBOOK.md`
@@ -144,15 +155,33 @@ References:
 
 ## 6. Launchers
 
-From the V6 repository root (Windows):
+From the V6 repository root (Windows). Canonical paths under `scripts\`:
 
 ```powershell
-.\Start-MediaPipelineRemuxEncodeAIO-LocalApi.bat
-.\Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat -CheckOnly
-.\Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat
-.\Verify-MediaPipelineRemuxEncodeAIO-Environment.bat
-.\Test-MediaPipelineRemuxEncodeAIO-Release.ps1
+.\scripts\dev\start-local-api.bat
+.\scripts\dev\start-tauri-preview.bat -CheckOnly
+.\scripts\dev\start-tauri-preview.bat
+.\scripts\dev\start-api-and-browser.bat
+.\scripts\dev\run.bat
+.\scripts\dev\setup.bat
+.\scripts\verify-env.bat
+.\scripts\verify-env.ps1
+.\scripts\release\build.ps1
+.\scripts\release\test.ps1
+.\scripts\operator\New-RealMediaValidationWorksheet.ps1
 ```
+
+The legacy root paths
+(`.\Start-MediaPipelineRemuxEncodeAIO-*.bat`,
+`.\Run-MediaPipelineRemuxEncodeAIO.bat`,
+`.\Setup-MediaPipelineRemuxEncodeAIO.bat`,
+`.\Verify-MediaPipelineRemuxEncodeAIO-Environment.{bat,ps1}`,
+`.\Build-MediaPipelineRemuxEncodeAIO-Release.ps1`,
+`.\Test-MediaPipelineRemuxEncodeAIO-Release.ps1`,
+`.\New-RealMediaValidationWorksheet.ps1`) still exist as one-release
+deprecation shims that forward to the new locations with a warning.
+**Do not add new callers at the root paths.** They will be removed in
+a later release.
 
 Python validation uses the bundled interpreter at
 `DesktopApp\Runtime\Python\python.exe`. System Python may lack `pytest`
@@ -198,8 +227,9 @@ If your change touches any of these, read
 
 Do not treat the following as active guidance:
 
-- Old Claude or Codex handoff files (`AI_HANDOFF.md`, `AI_DIRECTIVE.md`,
-  `AI_AGENT_START_HERE.md`) — superseded by this file.
+- Old Claude or Codex handoff files (`AI_HANDOFF.md`,
+  `Docs/archive/ai/AI_DIRECTIVE.md`,
+  `Docs/archive/ai/AI_AGENT_START_HERE.md`) — superseded by this file.
 - `MONOLITH_SPLIT_PLAN.md` — the split campaign is complete; archived.
 - `md_documentation_audit*` — one-shot audit.
 - `*_REPORT.md`, `*_FIXES.md` at the repo root — PR descriptions, not
@@ -209,18 +239,21 @@ Do not treat the following as active guidance:
 - V3/V4 historical docs — context only.
 - `node_modules` Markdown — vendor material.
 - "Tauri/WebView2 preview is the production replacement" — not yet true;
-  PG-3 clean-machine validation and real-media validation still required.
+  PG-3 clean-machine validation is still required. Representative real-media
+  validation is operator-attested complete as of 2026-05-28, but becomes stale
+  after future media behavior changes.
 
 ---
 
 ## 10. Where to look next
 
-- Engineering plan: `ARCHITECTURAL_OVERHAUL_PLAN.md`
+- Engineering plan: `Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md`
 - Current state: `Docs/CURRENT_PROJECT_STATE.md`
 - Backlog: `OPEN_WORK_CHECKLIST.md`
 - ADRs: `docs/adr/` (once seeded)
 - Boundaries: `Docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`
 - Architecture: `Docs/architecture/`
+- Generated maps: `Docs/generated/`
 - Smoke catalogs: `Docs/testing/`
 - File summaries: `summaries/` (once generated by
   `scripts/dev/refresh_summaries.py`)

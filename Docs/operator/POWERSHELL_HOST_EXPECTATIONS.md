@@ -36,11 +36,11 @@ Every script that needs `pwsh` follows the same resolution order:
 3. If neither is found, throw with an explicit message that PowerShell 7 is required
 
 This pattern is implemented in:
-- `Build-MediaPipelineRemuxEncodeAIO-Release.ps1` (`Resolve-ReleasePowerShell`)
-- `Test-MediaPipelineRemuxEncodeAIO-Release.ps1` (`Resolve-ReleasePowerShell`)
-- `Verify-MediaPipelineRemuxEncodeAIO-Environment.ps1` (`Resolve-CommandPath` with `-RelativePreferred`)
+- `scripts\release\build.ps1` (`Resolve-ReleasePowerShell`)
+- `scripts\release\test.ps1` (`Resolve-ReleasePowerShell`)
+- `scripts\verify-env.ps1` (`Resolve-CommandPath` with `-RelativePreferred`)
 - `Pipeline\Setup-MediaPipeline_chatgpt.ps1` (`Resolve-PwshPath`)
-- `Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat` (inline check before script invocation)
+- `scripts\dev\start-tauri-preview.bat` (inline check before script invocation)
 
 ---
 
@@ -50,8 +50,8 @@ This pattern is implemented in:
 
 | Entry point | Shell chain | PowerShell used |
 |---|---|---|
-| `Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat` | `.bat` → `pwsh.exe -File ...` | Bundled `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe` (system fallback if absent) |
-| `Start-MediaPipelineRemuxEncodeAIO-LocalApi.bat` | `.bat` → `DesktopApp\Launch-*.bat` → Python | No PowerShell in this chain |
+| `scripts\dev\start-tauri-preview.bat` | `.bat` → `pwsh.exe -File ...` | Bundled `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe` (system fallback if absent) |
+| `scripts\dev\start-local-api.bat` | `.bat` → `DesktopApp\Launch-*.bat` → Python | No PowerShell in this chain |
 
 ### Root PowerShell Wrappers (`.ps1`)
 
@@ -60,8 +60,8 @@ These wrappers are invoked by the operator from a terminal. They invoke Python (
 | Wrapper | Shell | What it invokes |
 |---|---|---|
 | `Test-WebView*.ps1` | Whatever the operator's `pwsh` is | `python -m unittest` via bundled Python |
-| `Test-MediaPipelineRemuxEncodeAIO-Release.ps1` | Requires `pwsh` 7 | Various Python checks and bundled `pwsh` for pipeline tests |
-| `Build-MediaPipelineRemuxEncodeAIO-Release.ps1` | Requires `pwsh` 7 | Builder and packager |
+| `scripts\release\test.ps1` | Requires `pwsh` 7 | Various Python checks and bundled `pwsh` for pipeline tests |
+| `scripts\release\build.ps1` | Requires `pwsh` 7 | Builder and packager |
 
 The operator wrapper scripts, including the `SmokeTests/` wrappers, do not check `$PSVersionTable` themselves; they are written in PS7 syntax and will fail at parse time on PS5 if PS5 is used. Run them with `pwsh` or the bundled runtime.
 
@@ -75,7 +75,7 @@ The operator wrapper scripts, including the `SmokeTests/` wrappers, do not check
 
 ### Python Service Layer (subprocess invocation)
 
-The Python backend service layer (`DesktopApp/mediapipeline_desktop_app/service_process_launch_env.py`) prepends the following directories to `PATH` before spawning any subprocess:
+The Python backend process helper (`app/processes/launch_env.py`) prepends the following directories to `PATH` before spawning any subprocess:
 
 1. `DesktopApp\Runtime\Python` — bundled Python
 2. `Pipeline\Tools\ffmpeg\bin` — FFmpeg
@@ -137,7 +137,7 @@ If `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe` is missing (e.g., a partial rele
 - **Python service layer**: the bundled pwsh directory is simply not prepended; system `pwsh` becomes the PATH-resolved host for subprocesses.
 - **Reliability regression checks**: `$PSVersionTable` guard fires and attempts to find system `pwsh`; fails with a human-readable error if not found.
 
-The `Verify-MediaPipelineRemuxEncodeAIO-Environment.ps1` script (invoked by the release self-test) explicitly probes for the bundled pwsh and reports its presence as a named health check row.
+The `scripts\verify-env.ps1` script (invoked by the release self-test) explicitly probes for the bundled pwsh and reports its presence as a named health check row.
 
 ---
 
@@ -154,6 +154,6 @@ The `Verify-MediaPipelineRemuxEncodeAIO-Environment.ps1` script (invoked by the 
 ## See Also
 
 - Bundled Python resolution: root WebView wrapper scripts (`Test-WebView*.ps1`) use the same resolver pattern for Python as this doc describes for pwsh
-- Python service layer PATH setup: `DesktopApp/mediapipeline_desktop_app/service_process_launch_env.py`
-- Environment verification: `Verify-MediaPipelineRemuxEncodeAIO-Environment.ps1`
+- Python service layer PATH setup: `app/processes/launch_env.py`
+- Environment verification: `scripts\verify-env.ps1`
 - Deployment requirements: `Pipeline/README_MediaPipelineRemuxEncodeAIO_Deployment.md`

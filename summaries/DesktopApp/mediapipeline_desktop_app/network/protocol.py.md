@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/network/protocol.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-05-26
+last_modified: 2026-05-28
 last_reviewed: 2026-05-28
-sha256: 90b4d7018057dce2a0d66709bc154d67a472d3151f1b87077100e82274c0338e
+sha256: 332452bb21084b13786d3b3040938722b45aa2b59a7c83523fcead0d14f30eb3
 ---
 # `DesktopApp/mediapipeline_desktop_app/network/protocol.py`
 

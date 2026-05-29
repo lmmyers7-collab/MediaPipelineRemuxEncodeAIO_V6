@@ -57,6 +57,19 @@ def _browser_large_table_runner_source() -> str:
               node.dispatchEvent(new Event("input", { bubbles: true }));
               node.dispatchEvent(new Event("change", { bubbles: true }));
             }
+            function pressShortcut(key) {
+              const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+              document.dispatchEvent(event);
+              return event.defaultPrevented;
+            }
+            function requireActivePage(page) {
+              const active = document.querySelector("[data-page-panel].is-visible")?.dataset.pagePanel || "";
+              if (active !== page) throw new Error("expected active page " + page + ", got " + active);
+            }
+            function requireActiveElement(id) {
+              const active = document.activeElement?.id || "";
+              if (active !== id) throw new Error("expected active element " + id + ", got " + active);
+            }
             function requireText(id, fragments) {
               const actual = text(id);
               for (const fragment of fragments) {
@@ -169,6 +182,18 @@ def _browser_large_table_runner_source() -> str:
             window.selectQueueRow(queueRows[259]);
             requireText("queue-selected-summary", ["Selected Queue row: Large Queue 260", "at-a-glance=Blocked", "Filter visibility: Selected row visible in table: no", "Authority: this summary is read-only"]);
             requireText("queue-detail", ["Large Queue 260", "Selected row visible in table: no", "Hidden by current filters: text filter=\\"Large Queue 001\\"", "Mutation guardrail"]);
+            if (!pressShortcut("2")) throw new Error("Queue page shortcut should be handled");
+            requireActivePage("queue");
+            if (!pressShortcut("/")) throw new Error("Queue search shortcut should be handled");
+            requireActiveElement("queue-filter");
+            document.activeElement.blur();
+            setValue("queue-filter", "Large Queue 001");
+            if (!pressShortcut("j")) throw new Error("Queue next-row shortcut should be handled");
+            requireText("queue-detail", ["Queue selected-row detail:", "Large Queue 001", "Mutation guardrail"]);
+            if (!pressShortcut("d")) throw new Error("Queue detail shortcut should be handled");
+            requireActiveElement("queue-detail");
+            if (!pressShortcut("c")) throw new Error("Queue clear-filter shortcut should be handled");
+            requireText("queue-status", ["250 shown / 260 filtered / 260 rows"]);
 
             const completedRows = Array.from({ length: 260 }, (_value, index) => {
               const label = "Large Completed " + pad(index);
@@ -248,6 +273,18 @@ def _browser_large_table_runner_source() -> str:
             window.selectCompletedRow(completedRows[259]);
             requireText("completed-selected-summary", ["Selected Completed row: Large Completed 260.mkv", "at-a-glance=Broken proof", "Filter visibility: Selected row visible in table: no", "Authority: this summary is read-only"]);
             requireText("completed-detail", ["Large Completed 260", "Selected row visible in table: no", "Hidden by current filters: text filter=\\"Large Completed 001\\"", "Mutation guardrail"]);
+            if (!pressShortcut("3")) throw new Error("Output page shortcut should be handled");
+            requireActivePage("completed");
+            if (!pressShortcut("/")) throw new Error("Output search shortcut should be handled");
+            requireActiveElement("completed-filter");
+            document.activeElement.blur();
+            setValue("completed-filter", "Large Completed 001");
+            if (!pressShortcut("j")) throw new Error("Output next-row shortcut should be handled");
+            requireText("completed-detail", ["Completed selected-row detail:", "Large Completed 001", "Mutation guardrail"]);
+            if (!pressShortcut("d")) throw new Error("Output detail shortcut should be handled");
+            requireActiveElement("completed-detail");
+            if (!pressShortcut("c")) throw new Error("Output clear-filter shortcut should be handled");
+            requireText("completed-status", ["250 shown / 260 filtered / 260 rows"]);
 
             const pendingRows = Array.from({ length: 260 }, (_value, index) => {
               const label = "Large Pending " + pad(index);
@@ -334,6 +371,18 @@ def _browser_large_table_runner_source() -> str:
             window.selectPendingRow(pendingRows[259]);
             requireText("pending-selected-summary", ["Selected Pending Publish row: C:/Scratch/Pending/Large Pending 260.mkv", "at-a-glance=Do not drain", "Filter visibility: Selected row visible in table: no", "Authority: this summary is read-only"]);
             requireText("pending-detail", ["Large Pending 260", "Selected row visible in table: no", "Hidden by current filters: text filter=\\"Large Pending 001\\"", "Mutation guardrail"]);
+            if (!pressShortcut("4")) throw new Error("Publish page shortcut should be handled");
+            requireActivePage("pending");
+            if (!pressShortcut("/")) throw new Error("Publish search shortcut should be handled");
+            requireActiveElement("pending-filter");
+            document.activeElement.blur();
+            setValue("pending-filter", "Large Pending 001");
+            if (!pressShortcut("j")) throw new Error("Publish next-row shortcut should be handled");
+            requireText("pending-detail", ["Large Pending 001", "Mutation guardrail"]);
+            if (!pressShortcut("d")) throw new Error("Publish detail shortcut should be handled");
+            requireActiveElement("pending-detail");
+            if (!pressShortcut("c")) throw new Error("Publish clear-filter shortcut should be handled");
+            requireText("pending-status", ["250 shown / 260 filtered / 260 rows"]);
 
             const forbidden = ["/api/pipeline/start", "/api/rerun/start", "/api/completed/open", "/api/queue/open", "/api/pending-publish/open", "/api/pending-publish/recovery-plan", "/api/rename/apply", "/api/settings/save-patch"];
             const forbiddenPosts = posts.filter((path) => forbidden.some((blocked) => path.includes(blocked)));
@@ -481,9 +530,9 @@ class WebViewBrowserLargeTableSmokeTests(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         browser_result = result["result"]
-        self.assertEqual(browser_result["queueStatus"], "1 / 260 rows")
-        self.assertEqual(browser_result["completedStatus"], "1 / 260 rows")
-        self.assertEqual(browser_result["pendingStatus"], "1 / 260 rows")
+        self.assertEqual(browser_result["queueStatus"], "250 shown / 260 filtered / 260 rows")
+        self.assertEqual(browser_result["completedStatus"], "250 shown / 260 filtered / 260 rows")
+        self.assertEqual(browser_result["pendingStatus"], "250 shown / 260 filtered / 260 rows")
         self.assertEqual(browser_result["posts"], [])
 
 

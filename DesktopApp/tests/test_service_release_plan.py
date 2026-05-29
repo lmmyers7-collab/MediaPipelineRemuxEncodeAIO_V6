@@ -4,7 +4,7 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 
-from mediapipeline_desktop_app.service_release_plan import (
+from app.maintenance.release_plan import (
     build_release_command_args,
     default_release_destination,
     release_artifact_paths,

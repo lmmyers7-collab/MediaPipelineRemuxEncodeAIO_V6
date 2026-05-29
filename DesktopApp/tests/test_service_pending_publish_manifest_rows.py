@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mediapipeline_desktop_app.service_pending_publish_manifest_rows import (
+from app.publish.pending_manifest_rows import (
     invalid_contract_pending_manifest_row,
     pending_output_size,
     pending_payload_error_text,

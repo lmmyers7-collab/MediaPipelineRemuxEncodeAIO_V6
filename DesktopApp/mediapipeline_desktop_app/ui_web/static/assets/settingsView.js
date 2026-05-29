@@ -8,6 +8,15 @@
   const isSettingsCommand = window.isSettingsCommand || settingsCommandHistory.isSettingsCommand || function () { return false; };
   const settingsCommandHistoryLine = window.settingsCommandHistoryLine || settingsCommandHistory.settingsCommandHistoryLine || function () { return ""; };
   const renderSettingsCommandHistory = window.renderSettingsCommandHistory || settingsCommandHistory.renderSettingsCommandHistory || function () {};
+  const domHelpers = window.mediaPipelineDom || {};
+  const jsonDetailText = domHelpers.jsonDetailText || function (options = {}) {
+    const label = options.label || "JSON detail";
+    try {
+      return `${label}:\n${JSON.stringify(options.value, null, 2)}`;
+    } catch (error) {
+      return `${label}:\nJSON render error: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  };
 
   function settingsBuilderCoveredKeys() {
     return new Set([
@@ -51,6 +60,10 @@ const settingsCommandButtonIds = [
   "settings-reload-button",
   "settings-preview-patch-button",
   "settings-save-patch-button",
+  "settings-file-safety-source-movies-browse",
+  "settings-file-safety-source-tv-browse",
+  "settings-file-safety-outsource-browse",
+  "settings-file-safety-local-base-browse",
   "network-settings-preview-button",
   "network-settings-save-button",
 ];
@@ -431,6 +444,8 @@ function syncSettingsBuilderFromConfig() {
   setSettingsBuilderControl("settings-builder-compat-growth", settingsBuilderConfigValue("CompatibilityEncodeGrowthPercent", 15));
   setSettingsBuilderControl("settings-builder-movie-threshold", settingsBuilderConfigValue("EncodeThresholdGB", 8));
   setSettingsBuilderControl("settings-builder-tv-threshold", settingsBuilderConfigValue("TVEncodeThresholdGB", 3));
+  setSettingsBuilderControl("settings-builder-movie-route-bitrate", settingsBuilderConfigValue("MovieRouteMaxVideoBitrateMbps", 35));
+  setSettingsBuilderControl("settings-builder-tv-route-bitrate", settingsBuilderConfigValue("TVRouteMaxVideoBitrateMbps", 18));
   settingsBuilderInitialized = true;
   settingsBuilderDirty = false;
   setText("settings-builder-status", "Loaded current values");
@@ -531,6 +546,8 @@ function collectSettingsBuilderPatch() {
     CompatibilityEncodeGrowthPercent: readSettingsBuilderNumber("settings-builder-compat-growth", "Compatibility growth percent"),
     EncodeThresholdGB: readSettingsBuilderNumber("settings-builder-movie-threshold", "Movie threshold GB"),
     TVEncodeThresholdGB: readSettingsBuilderNumber("settings-builder-tv-threshold", "TV threshold GB"),
+    MovieRouteMaxVideoBitrateMbps: readSettingsBuilderNumber("settings-builder-movie-route-bitrate", "Movie route max video bitrate Mbps"),
+    TVRouteMaxVideoBitrateMbps: readSettingsBuilderNumber("settings-builder-tv-route-bitrate", "TV route max video bitrate Mbps"),
   };
   Object.entries(patch).forEach(([key, value]) => {
     if (typeof value === "string" && !value.trim()) {
@@ -695,6 +712,8 @@ function settingsActiveMediaPolicyRows() {
   const compatGrowth = settingsMediaPolicyNumber("settings-builder-compat-growth", "CompatibilityEncodeGrowthPercent", 15);
   const movieThreshold = settingsMediaPolicyNumber("settings-builder-movie-threshold", "EncodeThresholdGB", 8);
   const tvThreshold = settingsMediaPolicyNumber("settings-builder-tv-threshold", "TVEncodeThresholdGB", 3);
+  const movieRouteMaxBitrate = settingsMediaPolicyNumber("settings-builder-movie-route-bitrate", "MovieRouteMaxVideoBitrateMbps", 35);
+  const tvRouteMaxBitrate = settingsMediaPolicyNumber("settings-builder-tv-route-bitrate", "TVRouteMaxVideoBitrateMbps", 18);
   const allowH264Copy = settingsMediaPolicyBool("settings-video-h264-remux", "AllowH264RemuxIfPlexCompatible", true);
   const h264MaxBitrate = settingsMediaPolicyNumber("settings-video-h264-max-bitrate", "H264RemuxMaxBitrateMbps", 35);
   const h264MaxHeight = settingsMediaPolicyNumber("settings-video-h264-max-height", "H264RemuxMaxHeight", 1080);
@@ -716,7 +735,7 @@ function settingsActiveMediaPolicyRows() {
     {
       area: "Routing profile / size guard",
       posture: ["off", "disabled"].includes(String(sizeGuard).toLowerCase()) ? "review" : "coherent",
-      evidence: `profile=${formatSettingsChoiceLabel(routingProfile)}; size guard=${formatSettingsChoiceLabel(sizeGuard)}; normal growth=${maxGrowth}%; compatibility growth=${compatGrowth}%; movie>${movieThreshold}GB; TV>${tvThreshold}GB`,
+      evidence: `profile=${formatSettingsChoiceLabel(routingProfile)}; size guard=${formatSettingsChoiceLabel(sizeGuard)}; normal growth=${maxGrowth}%; compatibility growth=${compatGrowth}%; movie>${movieThreshold}GB/${movieRouteMaxBitrate}Mbps; TV>${tvThreshold}GB/${tvRouteMaxBitrate}Mbps`,
       handoff: "Launch should show these saved route/size values before Start. Strict mode can block growth; advisory mode should warn without changing policy by itself.",
     },
     {
@@ -1370,6 +1389,8 @@ function settingsPolicyDeltaRows(entries) {
     "SizeGuardMode",
     "EncodeThresholdGB",
     "TVEncodeThresholdGB",
+    "MovieRouteMaxVideoBitrateMbps",
+    "TVRouteMaxVideoBitrateMbps",
     "MaxEncodeGrowthPercent",
     "CompatibilityEncodeGrowthPercent",
   ];
@@ -1382,8 +1403,8 @@ function settingsPolicyDeltaRows(entries) {
   rows.push({
     area: "Routing / size guard",
     posture: ["off", "disabled"].includes(nextSizeGuard) || nextMaxGrowth > 15 || nextCompatGrowth > 30 ? "review" : (settingsPolicyDeltaChangedLabels(entries, routingKeys).length ? "preview required" : "unchanged"),
-    current: `profile=${formatSettingsChoiceLabel(settingsPatchCurrentText("RoutingProfile", "plex_direct_stream"))}; guard=${formatSettingsChoiceLabel(currentSizeGuard)}; growth=${currentMaxGrowth}%/${currentCompatGrowth}%; movie>${settingsPatchCurrentNumber("EncodeThresholdGB", 8)}GB; TV>${settingsPatchCurrentNumber("TVEncodeThresholdGB", 3)}GB`,
-    candidate: `profile=${formatSettingsChoiceLabel(settingsPatchCandidateText(entries, "RoutingProfile", "plex_direct_stream"))}; guard=${formatSettingsChoiceLabel(nextSizeGuard)}; growth=${nextMaxGrowth}%/${nextCompatGrowth}%; movie>${settingsPatchCandidateNumber(entries, "EncodeThresholdGB", 8)}GB; TV>${settingsPatchCandidateNumber(entries, "TVEncodeThresholdGB", 3)}GB`,
+    current: `profile=${formatSettingsChoiceLabel(settingsPatchCurrentText("RoutingProfile", "plex_direct_stream"))}; guard=${formatSettingsChoiceLabel(currentSizeGuard)}; growth=${currentMaxGrowth}%/${currentCompatGrowth}%; movie>${settingsPatchCurrentNumber("EncodeThresholdGB", 8)}GB/${settingsPatchCurrentNumber("MovieRouteMaxVideoBitrateMbps", 35)}Mbps; TV>${settingsPatchCurrentNumber("TVEncodeThresholdGB", 3)}GB/${settingsPatchCurrentNumber("TVRouteMaxVideoBitrateMbps", 18)}Mbps`,
+    candidate: `profile=${formatSettingsChoiceLabel(settingsPatchCandidateText(entries, "RoutingProfile", "plex_direct_stream"))}; guard=${formatSettingsChoiceLabel(nextSizeGuard)}; growth=${nextMaxGrowth}%/${nextCompatGrowth}%; movie>${settingsPatchCandidateNumber(entries, "EncodeThresholdGB", 8)}GB/${settingsPatchCandidateNumber(entries, "MovieRouteMaxVideoBitrateMbps", 35)}Mbps; TV>${settingsPatchCandidateNumber(entries, "TVEncodeThresholdGB", 3)}GB/${settingsPatchCandidateNumber(entries, "TVRouteMaxVideoBitrateMbps", 18)}Mbps`,
     check: `${settingsPolicyDeltaChangedText(entries, routingKeys)} Size guards and growth limits affect remux-vs-encode trust and oversized-output review.`,
   });
 
@@ -2445,6 +2466,12 @@ function settingsBackendResultDetailLines(row) {
     }
     lines.push(...settingsBackendRiskSummaryLines(data.risk_summary));
     lines.push(...settingsProgressDetailLines(data.settings_progress));
+    lines.push("");
+    lines.push(jsonDetailText({
+      label: "Backend data JSON",
+      value: data,
+      intro: "Read-only backend preview/save data for troubleshooting. Sensitive values are redacted before they reach this workspace.",
+    }));
   }
   if (!evidence && row.key === "save-confirmation-boundary") {
     lines.push("");
@@ -2670,6 +2697,22 @@ function renderSettingsBuilderGuidance() {
   setText("settings-builder-guidance", lines.join("\n") || "No builder guidance loaded.");
 }
 
+function settingsProfileSummaryLines(settings) {
+  const summary = settings?.profile_summary && typeof settings.profile_summary === "object"
+    ? settings.profile_summary
+    : null;
+  if (summary && Array.isArray(summary.summary_lines) && summary.summary_lines.length) {
+    const lines = summary.summary_lines.map((line) => String(line));
+    if (Array.isArray(summary.mismatch_keys) && summary.mismatch_keys.length) {
+      const truncated = summary.mismatch_keys_truncated ? " (truncated)" : "";
+      lines.push(`Different keys${truncated}: ${summary.mismatch_keys.join(", ")}`);
+    }
+    return lines.join("\n");
+  }
+  const profiles = Array.isArray(settings?.profiles) ? settings.profiles : [];
+  return profiles.length ? profiles.join("\n") : "No profiles found.";
+}
+
 function renderSettings(settings) {
   lastSettings = settings || {};
   const config = settings.config || {};
@@ -2694,7 +2737,7 @@ function renderSettings(settings) {
   if (auditRootInput && !auditRootInput.value && (settings.paths || {}).outsource) {
     auditRootInput.value = settings.paths.outsource;
   }
-  setText("settings-profiles", (settings.profiles || []).join("\n") || "No profiles found.");
+  setText("settings-profiles", settingsProfileSummaryLines(settings));
   setText("settings-validation", warnings.join("\n") || "No validation warnings.");
   renderSettingsOverview(config);
   renderSettingsOperatorTrust(settings);
@@ -3069,6 +3112,74 @@ async function reloadSettingsFromDisk() {
     return lastSettings || {};
   }
 
+  function settingsBrowsePathDetailLines(result, fieldLabel) {
+    const data = result?.data && typeof result.data === "object" ? result.data : {};
+    const validation = data.validation && typeof data.validation === "object" ? data.validation : {};
+    const lines = [
+      result?.message || `Settings folder browse returned for ${fieldLabel}.`,
+      validation.message ? `Validation: ${validation.message}` : "Validation: no selected-folder evidence returned.",
+      `Writes config: ${data.writes_config === true ? "yes" : "no"}`,
+      `Stages only: ${data.stages_only === true ? "yes" : "no"}`,
+      "Next step: Merge File Safety Patch, then Preview Patch before Save Patch. Launch uses saved backend settings only.",
+      "Mutation guardrail: this route only opens a backend-owned Windows folder picker and stages one allowlisted Settings field. It cannot save settings, launch work, rewrite queue state, publish, rename, delete, or touch media files.",
+    ];
+    if (data.selected_path) lines.splice(1, 0, `Selected path: ${data.selected_path}`);
+    return lines;
+  }
+
+  async function browseSettingsPath(settingKey, inputId) {
+    if (rejectSettingsCommandWhileBusy("settings.browse_path", "settings-file-safety-builder-status", "settings-file-safety-guidance")) return;
+    const input = byId(inputId);
+    const field = settingsFieldDefinition(settingKey);
+    const fieldLabel = field?.label || settingKey;
+    const initialPath = input?.value || settingsBuilderConfigValue(settingKey, "");
+    setSettingsCommandBusy(true);
+    setText("settings-file-safety-builder-status", `Opening ${fieldLabel} folder browser...`);
+    setText(
+      "settings-file-safety-guidance",
+      [
+        `Opening backend-owned Windows folder browser for ${fieldLabel}.`,
+        "No Settings file will be saved by this action.",
+        "Use Merge File Safety Patch and backend Preview Patch before Save Patch.",
+      ].join("\n")
+    );
+    try {
+      const result = await apiPost(
+        "/api/settings/browse-path",
+        { setting_key: settingKey, selection_mode: "folder", initial_path: initialPath },
+        { timeoutMs: 15 * 60 * 1000 }
+      );
+      appendCommandResult(result);
+      const data = result?.data && typeof result.data === "object" ? result.data : {};
+      const validation = data.validation && typeof data.validation === "object" ? data.validation : {};
+      const selectedPath = String(data.selected_path || "");
+      if (result.ok && !data.canceled && selectedPath && validation.status_state === "ready" && input) {
+        input.value = selectedPath;
+        markFileSafetySettingsBuilderDirty();
+        setText("settings-file-safety-builder-status", `${fieldLabel} path staged`);
+      } else if (data.canceled) {
+        setText("settings-file-safety-builder-status", "Folder browse canceled");
+      } else {
+        setText("settings-file-safety-builder-status", result.ok ? "Folder browse needs review" : "Folder browse failed");
+      }
+      setText("settings-file-safety-guidance", settingsBrowsePathDetailLines(result, fieldLabel).join("\n"));
+      renderSettingsActiveMediaPolicyHandoff();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const result = {
+        command: "settings.browse_path",
+        ok: false,
+        severity: "error",
+        message,
+      };
+      appendCommandResult(result);
+      setText("settings-file-safety-builder-status", "Folder browse failed");
+      setText("settings-file-safety-guidance", settingsBrowsePathDetailLines(result, fieldLabel).join("\n"));
+    } finally {
+      setSettingsCommandBusy(false);
+    }
+  }
+
   function initSettingsViewEvents() {
     const settingsValidateButton = byId("settings-validate-button");
     if (settingsValidateButton) settingsValidateButton.addEventListener("click", validateCurrentSettings);
@@ -3114,6 +3225,11 @@ async function reloadSettingsFromDisk() {
       const control = byId(id);
       if (control) control.addEventListener("input", markFileSafetySettingsBuilderDirty);
       if (control) control.addEventListener("change", markFileSafetySettingsBuilderDirty);
+    });
+    document.querySelectorAll("[data-settings-path-browse-key]").forEach((button) => {
+      button.addEventListener("click", () => {
+        browseSettingsPath(button.dataset.settingsPathKey || "", button.dataset.settingsPathInput || "");
+      });
     });
     const networkBuilderApplyButton = byId("settings-network-apply-button");
     if (networkBuilderApplyButton) networkBuilderApplyButton.addEventListener("click", applyNetworkSettingsBuilderToPatch);
@@ -3202,6 +3318,8 @@ async function reloadSettingsFromDisk() {
     getLastSettings,
     validateCurrentSettings,
     reloadSettingsFromDisk,
+    browseSettingsPath,
+    settingsBrowsePathDetailLines,
     setSettingsCommandBusy,
     rejectSettingsCommandWhileBusy,
     previewSettingsPatch,

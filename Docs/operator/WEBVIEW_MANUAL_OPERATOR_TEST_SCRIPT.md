@@ -12,11 +12,11 @@ Before starting:
 
 1. Start the local API:
    ```
-   .\Start-MediaPipelineRemuxEncodeAIO-LocalApi.bat
+   .\scripts\dev\start-local-api.bat
    ```
 2. Start the Tauri/WebView2 preview:
    ```
-   .\Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat
+   .\scripts\dev\start-tauri-preview.bat
    ```
 3. Confirm the top bar shows a green/active state pill (not "Connecting" or "Error").
 4. Open browser DevTools → Network tab. Filter by XHR/Fetch. You will use this to confirm which routes are called during each page browse.

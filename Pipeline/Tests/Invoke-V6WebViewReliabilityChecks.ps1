@@ -114,7 +114,7 @@ Assert-Absent -Path (Join-Path $packageRoot 'views') -Label 'Removed desktop vie
 $requiredLeaves = @(
     'DesktopApp\Launch-MediaPipelineRemuxEncodeAIO-ApiAndBrowser.ps1',
     'DesktopApp\Launch-MediaPipelineRemuxEncodeAIO-LocalApi.bat',
-    'Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat',
+    'scripts\dev\start-tauri-preview.bat',
     'DesktopApp\tauri_shell\Launch-MediaPipelineRemuxEncodeAIO-TauriPreview.ps1',
     'DesktopApp\mediapipeline_desktop_app\local_api_main.py',
     'DesktopApp\mediapipeline_desktop_app\backend_bootstrap.py',
@@ -122,11 +122,12 @@ $requiredLeaves = @(
     'DesktopApp\mediapipeline_desktop_app\api\static_files_policy.py',
     'DesktopApp\mediapipeline_desktop_app\api\routes_command.py',
     'DesktopApp\mediapipeline_desktop_app\api\contract_command.py',
-    'DesktopApp\mediapipeline_desktop_app\api\command_payloads.py',
-    'DesktopApp\mediapipeline_desktop_app\api\command_payloads_process.py',
-    'DesktopApp\mediapipeline_desktop_app\api\command_payloads_rename.py',
-    'DesktopApp\mediapipeline_desktop_app\api\command_payloads_settings.py',
-    'DesktopApp\mediapipeline_desktop_app\api\command_payloads_schedule.py',
+    'app\api\commands.py',
+    'app\api\command_handlers.py',
+    'app\api\commands_process.py',
+    'app\api\commands_rename.py',
+    'app\api\commands_settings.py',
+    'app\api\commands_schedule.py',
     'DesktopApp\mediapipeline_desktop_app\application\schedule_stop_watcher.py',
     'DesktopApp\mediapipeline_desktop_app\ui_web\static\index.html',
     'DesktopApp\mediapipeline_desktop_app\ui_web\static\assets\apiClient.js',
@@ -142,21 +143,21 @@ $requiredLeaves = @(
     'DesktopApp\tauri_shell\src-tauri\src\backend_process.rs',
     'DesktopApp\tauri_shell\src-tauri\src\backend_contract.rs',
     'DesktopApp\tauri_shell\src-tauri\src\close_readiness.rs',
-    'Build-MediaPipelineRemuxEncodeAIO-Release.ps1',
-    'Test-MediaPipelineRemuxEncodeAIO-Release.ps1'
+    'scripts\release\build.ps1',
+    'scripts\release\test.ps1'
 )
 foreach ($relative in $requiredLeaves) {
     Assert-Leaf -Path (Join-Path $projectRoot $relative) -Label $relative
 }
 
 foreach ($path in @(
-    (Join-Path $projectRoot 'Build-MediaPipelineRemuxEncodeAIO-Release.ps1'),
-    (Join-Path $projectRoot 'Test-MediaPipelineRemuxEncodeAIO-Release.ps1'),
-    (Join-Path $projectRoot 'New-RealMediaValidationWorksheet.ps1')
+    (Join-Path $projectRoot 'scripts\release\build.ps1'),
+    (Join-Path $projectRoot 'scripts\release\test.ps1'),
+    (Join-Path $projectRoot 'scripts\operator\New-RealMediaValidationWorksheet.ps1')
 )) {
     Test-PowerShellParse -Path $path
 }
-Get-ChildItem -LiteralPath (Join-Path $pipelineRoot 'Modules') -Filter '*.ps1' -File |
+Get-ChildItem -LiteralPath (Join-Path $projectRoot 'engine') -Filter '*.ps1' -File -Recurse |
     ForEach-Object { Test-PowerShellParse -Path $_.FullName }
 
 Assert-Leaf -Path $nativeCleanupCheck -Label 'Native process cleanup unit gate'
@@ -172,30 +173,32 @@ $httpHelpersText = Read-Text (Join-Path $apiRoot 'http_helpers.py')
 $routesCommandText = Read-Text (Join-Path $apiRoot 'routes_command.py')
 $contractCommandText = Read-Text (Join-Path $apiRoot 'contract_command.py')
 $contractPayloadText = Read-Text (Join-Path $apiRoot 'contract_payload.py')
-$commandPayloadsRenameText = Read-Text (Join-Path $apiRoot 'command_payloads_rename.py')
+$appApiRoot = Join-Path $projectRoot 'app\api'
+$appApiCommandsText = Read-Text (Join-Path $appApiRoot 'commands.py')
+$commandRenameText = Read-Text (Join-Path $appApiRoot 'commands_rename.py')
 $staticFilesText = Read-Text (Join-Path $apiRoot 'static_files.py')
 $staticFilesPolicyText = Read-Text (Join-Path $apiRoot 'static_files_policy.py')
 $indexText = Read-Text (Join-Path $staticRoot 'index.html')
 $apiClientText = Read-Text (Join-Path $assetsRoot 'apiClient.js')
 $appJsText = Read-Text (Join-Path $assetsRoot 'app.js')
 $apiBrowserLauncherText = Read-Text (Join-Path $projectRoot 'DesktopApp\Launch-MediaPipelineRemuxEncodeAIO-ApiAndBrowser.ps1')
-$facadeRenameText = Read-Text (Join-Path $packageRoot 'application\facade_rename.py')
-$facadeRenamePolicyText = Read-Text (Join-Path $packageRoot 'application\facade_rename_policy.py')
-$renameApplyRunnerText = Read-Text (Join-Path $packageRoot 'service_rename_apply_runner.py')
+$facadeRenameText = Read-Text (Join-Path $projectRoot 'app\rename\facade.py')
+$facadeRenamePolicyText = Read-Text (Join-Path $projectRoot 'app\rename\policy.py')
+$renameApplyRunnerText = Read-Text (Join-Path $projectRoot 'app\rename\apply_runner.py')
 $tauriLibText = Read-Text (Join-Path $tauriSrcRoot 'lib.rs')
 $tauriBackendProcessText = Read-Text (Join-Path $tauriSrcRoot 'backend_process.rs')
 $tauriBackendContractText = Read-Text (Join-Path $tauriSrcRoot 'backend_contract.rs')
 $scheduleWatcherText = Read-Text (Join-Path $packageRoot 'application\schedule_stop_watcher.py')
-$ffmpegProgressText = Read-Text (Join-Path $pipelineRoot 'Modules\FfmpegProgress.ps1')
-$nativeText = Read-Text (Join-Path $pipelineRoot 'Modules\Native.ps1')
-$sidecarText = Read-Text (Join-Path $pipelineRoot 'Modules\Sidecar.ps1')
-$releasePolicyText = Read-Text (Join-Path $pipelineRoot 'Modules\ReleasePolicy.ps1')
+$ffmpegProgressText = Read-Text (Join-Path $projectRoot 'engine\process\ffmpeg_progress.ps1')
+$nativeText = Read-Text (Join-Path $projectRoot 'engine\shared\native.ps1')
+$sidecarText = Read-Text (Join-Path $projectRoot 'engine\publish\sidecar.ps1')
+$releasePolicyText = Read-Text (Join-Path $projectRoot 'scripts\release\release_policy.ps1')
 $reliabilityWrapperText = Read-Text (Join-Path $pipelineRoot 'Tests\Invoke-ReliabilityRegressionChecks.ps1')
 $repoHygieneText = Read-Text (Join-Path $pipelineRoot 'Tests\Unit\Invoke-RepoHygieneChecks.ps1')
 $legacyReliabilityPath = Join-Path $pipelineRoot 'Tests\Legacy\Invoke-LegacyDesktopReliabilityRegressionChecks.ps1'
-$releaseBuilderText = Read-Text (Join-Path $projectRoot 'Build-MediaPipelineRemuxEncodeAIO-Release.ps1')
-$releaseVerifierText = Read-Text (Join-Path $projectRoot 'Test-MediaPipelineRemuxEncodeAIO-Release.ps1')
-$worksheetHelperText = Read-Text (Join-Path $projectRoot 'New-RealMediaValidationWorksheet.ps1')
+$releaseBuilderText = Read-Text (Join-Path $projectRoot 'scripts\release\build.ps1')
+$releaseVerifierText = Read-Text (Join-Path $projectRoot 'scripts\release\test.ps1')
+$worksheetHelperText = Read-Text (Join-Path $projectRoot 'scripts\operator\New-RealMediaValidationWorksheet.ps1')
 
 Assert-True ($serverText -match 'Read and command API\s+routes require a per-run token') "LocalApiServer docstring must describe the current token-protected read/command API surface."
 Assert-True ($serverText -match 'CommandJournal' -and $serverText -match 'require_token') "LocalApiServer must keep token and command-journal wiring."
@@ -205,7 +208,7 @@ Assert-True ($staticFilesText -match 'resolve_asset_path' -and $staticFilesText 
 Assert-True ($apiClientText -match 'Authorization' -and $apiClientText -match 'Bearer' -and $apiClientText -match 'window\.apiGet' -and $apiClientText -match 'window\.apiPost') "WebView API client must attach the per-run token and expose shared request helpers."
 Assert-True ($apiBrowserLauncherText -match '\[switch\]\$NoTokenDevMode' -and $apiBrowserLauncherText -match 'Token auth: enabled \(browser receives a per-run bootstrap token\)' -and $apiBrowserLauncherText -match 'Token auth: DISABLED by explicit -NoTokenDevMode' -and $apiBrowserLauncherText -match 'if \(\$NoTokenDevMode\)[\s\S]+?\$apiArgs \+= ''--no-token''') "API browser launcher must keep token auth enabled by default and require an explicit dev-only no-token switch."
 Assert-True ($appJsText -match '/api/backend/shutdown' -and $appJsText -match 'Backend authority') "WebView close/shutdown path must call the backend-owned shutdown API and label backend authority."
-Assert-True ($commandPayloadsRenameText -match 'backend_owned_keys = \{"_configured_media_roots", "_rename_undo_manifest_root"\}' -and $commandPayloadsRenameText -match 'rename_undo_manifest_root_from_resolved' -and $facadeRenameText -match 'undo_manifest_root=rename_undo_manifest_root_from_request\(request\)' -and $facadeRenameText -match 'rename_apply_outside_configured_roots_result' -and $facadeRenamePolicyText -match 'Path\(state_root\) / "RenameUndo"' -and $facadeRenamePolicyText -match 'allow_outside_configured_roots' -and $renameApplyRunnerText -match 'undo_manifest_root: Path \| None = None') "Rename apply must strip spoofable backend authority keys, require outside-root confirmation, and write undo manifests under the backend-resolved runtime state root when LocalBase/State is available."
+Assert-True ($commandRenameText -match 'backend_owned_keys = \{"_configured_media_roots", "_rename_undo_manifest_root"\}' -and $commandRenameText -match 'rename_undo_manifest_root_from_resolved' -and $facadeRenameText -match 'undo_manifest_root=rename_undo_manifest_root_from_request\(request\)' -and $facadeRenameText -match 'rename_apply_outside_configured_roots_result' -and $facadeRenamePolicyText -match 'Path\(state_root\) / "RenameUndo"' -and $facadeRenamePolicyText -match 'allow_outside_configured_roots' -and $renameApplyRunnerText -match 'undo_manifest_root: Path \| None = None') "Rename apply must strip spoofable backend authority keys, require outside-root confirmation, and write undo manifests under the backend-resolved runtime state root when LocalBase/State is available."
 
 foreach ($route in @(
     '/api/pipeline/start',
@@ -220,7 +223,7 @@ foreach ($route in @(
     '/api/pending-publish/recovery-plan',
     '/api/sample-validation/append'
 )) {
-    Assert-True ($routesCommandText.Contains($route)) "Command route handler is missing active V6 route: $route"
+    Assert-True ($routesCommandText.Contains($route) -or $appApiCommandsText.Contains($route)) "Command route registry/handler is missing active V6 route: $route"
     Assert-True ($contractCommandText.Contains($route)) "Command route contract is missing active V6 route: $route"
 }
 foreach ($effect in @('process-launch', 'control-flag-write', 'backend-lifecycle', 'config-write', 'app-state-write', 'filesystem-mutation', 'validation-log-write')) {
@@ -235,7 +238,7 @@ Assert-True ($nativeText -match 'Stop-NativeProcessTree -Process \$proc -Label \
 Assert-True ($sidecarText -match 'Move-SidecarTempIntoPlace' -and $sidecarText -match '\[System\.IO\.File\]::Move\(\$TempPath,\s*\$DestinationPath,\s*\$true\)' -and $sidecarText -notmatch 'Remove-Item\s+-LiteralPath\s+\$sidecar\s+-Force') "Sidecar Replace fallback must use overwrite move without explicitly deleting the current sidecar."
 Assert-True ($worksheetHelperText -match 'Launch surface' -and $worksheetHelperText -match 'V6 workspace path' -and $worksheetHelperText -notmatch 'Tk supported') "Real-media worksheet helper must use V6 launch-surface wording."
 
-Assert-True ($releaseBuilderText -match 'ReleasePolicy\.ps1' -and $releaseBuilderText -match 'Get-MediaPipelineReleaseExclusionReason' -and $releaseBuilderText -match 'Get-MediaPipelineReleasePolicyManifest') "Release builder must use the shared release policy module for exclusions and manifest metadata."
+Assert-True ($releaseBuilderText -match 'release_policy\.ps1' -and $releaseBuilderText -match 'Get-MediaPipelineReleaseExclusionReason' -and $releaseBuilderText -match 'Get-MediaPipelineReleasePolicyManifest') "Release builder must use the shared release policy module for exclusions and manifest metadata."
 Assert-True ($releaseVerifierText -match 'Invoke-V6WebViewReliabilityChecks\.ps1') "Release self-test must run the active V6 WebView reliability gate."
 Assert-True ($releaseVerifierText -match 'Import-MediaPipelineReleasePolicy' -and $releaseVerifierText -match 'Get-MediaPipelineReleaseHygieneRules') "Release self-test must verify hygiene through the shared release policy module."
 Assert-True ($releaseVerifierText -notmatch 'legacyDesktopEntryPoint') "Release self-test must not branch on removed desktop-shell entrypoints."

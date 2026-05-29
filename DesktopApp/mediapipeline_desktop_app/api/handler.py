@@ -9,6 +9,7 @@ from .handler_policy import (
     OPTIONS_RESPONSE_HEADERS,
     not_found_payload,
     route_exception_payload,
+    route_validation_error_payload,
     should_record_command_payload,
     unauthorized_payload,
 )
@@ -22,6 +23,12 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
             owner.logger.debug("local-api " + fmt, *args)
 
         def do_OPTIONS(self) -> None:
+            if not self._request_host_authorized():
+                self._send_json({"error": "invalid host"}, status=400)
+                return
+            if not self._request_origin_authorized():
+                self._send_json({"error": "invalid origin"}, status=403)
+                return
             self.send_response(204)
             for name, value in OPTIONS_RESPONSE_HEADERS:
                 self.send_header(name, value)
@@ -31,6 +38,9 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
             parsed = urlsplit(self.path)
             route = parsed.path.rstrip("/") or "/"
             query = parse_qs(parsed.query)
+            if not self._request_host_authorized():
+                self._send_json({"error": "invalid host"}, status=400)
+                return
             if route in {"/", "/index.html"}:
                 owner._send_index(self)
                 return
@@ -41,8 +51,9 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
                 try:
                     self._send_json(owner._health_payload())
                 except Exception as exc:
-                    owner.logger.exception("local API route failed: %s", route)
-                    self._send_json(route_exception_payload(route, exc), status=500)
+                    payload = route_exception_payload(route, exc)
+                    owner.logger.exception("local API route failed: %s error_id=%s", route, payload.get("error_id"))
+                    self._send_json(payload, status=500)
                 return
             if not owner._request_authorized(self.headers, query):
                 self._send_json(unauthorized_payload(), status=401)
@@ -55,13 +66,22 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
                 handler = getattr(owner, spec.method_name)
                 self._send_json(handler(query) if spec.needs_query else handler())
             except Exception as exc:
-                owner.logger.exception("local API route failed: %s", route)
-                self._send_json(route_exception_payload(route, exc), status=500)
+                payload = route_exception_payload(route, exc)
+                owner.logger.exception("local API route failed: %s error_id=%s", route, payload.get("error_id"))
+                self._send_json(payload, status=500)
 
         def do_POST(self) -> None:
             parsed = urlsplit(self.path)
             route = parsed.path.rstrip("/") or "/"
             query = parse_qs(parsed.query)
+            if not self._request_host_authorized():
+                self._discard_request_body()
+                self._send_json({"error": "invalid host"}, status=400)
+                return
+            if not self._request_origin_authorized():
+                self._discard_request_body()
+                self._send_json({"error": "invalid origin"}, status=403)
+                return
             if not owner._request_authorized(self.headers, query):
                 self._discard_request_body()
                 self._send_json(unauthorized_payload(), status=401)
@@ -74,16 +94,32 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
                 body = self._read_json_body()
                 if body is None:
                     return
+                validate_payload = getattr(owner, "_validate_api_payload", None)
+                if callable(validate_payload):
+                    try:
+                        body = validate_payload(route, body)
+                    except Exception as exc:
+                        self._send_json(route_validation_error_payload(route, exc), status=400)
+                        return
                 self._send_json(getattr(owner, spec.method_name)(body))
             except Exception as exc:
-                owner.logger.exception("local API route failed: %s", route)
-                self._send_json(route_exception_payload(route, exc), status=500)
+                payload = route_exception_payload(route, exc)
+                owner.logger.exception("local API route failed: %s error_id=%s", route, payload.get("error_id"))
+                self._send_json(payload, status=500)
 
         def _read_json_body(self) -> dict[str, Any] | None:
             return read_json_body(self, lambda payload, status: self._send_json(payload, status=status))
 
         def _discard_request_body(self) -> None:
             discard_request_body(self)
+
+        def _request_host_authorized(self) -> bool:
+            checker = getattr(owner, "_host_header_authorized", None)
+            return bool(checker(self.headers)) if callable(checker) else True
+
+        def _request_origin_authorized(self) -> bool:
+            checker = getattr(owner, "_origin_header_authorized", None)
+            return bool(checker(self.headers)) if callable(checker) else True
 
         def _send_json(self, payload: dict[str, Any], status: int = 200) -> None:
             try:

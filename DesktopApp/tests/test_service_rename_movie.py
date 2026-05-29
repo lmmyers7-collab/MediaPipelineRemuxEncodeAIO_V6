@@ -6,8 +6,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_rename import RenameServiceMixin
-from mediapipeline_desktop_app.service_rename_movie import (
+from app.rename.service import RenameServiceMixin
+from app.rename.movie import (
     clean_pipeline_movie_name,
     movie_filter_options_are_default,
     normalize_movie_filter_options,

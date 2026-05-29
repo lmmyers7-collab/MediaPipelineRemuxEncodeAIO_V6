@@ -5,7 +5,7 @@ token_priority: low
 owner_domain: contracts
 last_modified: 2026-05-28
 last_reviewed: 2026-05-28
-sha256: c3bb9e227738a4b2e5e7b8710e952cf9b12c1737343b7bd7ee96528a235114d5
+sha256: 176b4c6a68f38976e39a2abd4564485a99f10ff47818311591f0090b3c96696c
 ---
 # `app/contracts/__init__.py`
 

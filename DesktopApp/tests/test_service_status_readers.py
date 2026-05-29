@@ -9,8 +9,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from mediapipeline_desktop_app.service_status import StatusServiceMixin
-from mediapipeline_desktop_app.service_status_readers import (
+from app.status.service import StatusServiceMixin
+from app.status.readers import (
     read_audit_progress_file,
     read_log_tail_file,
     read_pipeline_events_tail_file,

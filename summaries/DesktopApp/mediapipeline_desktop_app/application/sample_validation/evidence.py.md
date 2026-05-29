@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/application/sample_validation/evidenc
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: application
-last_modified: 2026-05-26
+last_modified: 2026-05-28
 last_reviewed: 2026-05-28
-sha256: 2f90e0e7053b3b179748e3a1c011b013766fab43c35f7329cb359420a977d21b
+sha256: 4f3534ad3883fc58db0ee7aaf5e8f83475844d3544e3e9989f3ea1bd92ba2e6e
 ---
 # `DesktopApp/mediapipeline_desktop_app/application/sample_validation/evidence.py`
 

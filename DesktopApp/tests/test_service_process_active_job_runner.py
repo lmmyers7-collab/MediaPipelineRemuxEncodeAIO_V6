@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from mediapipeline_desktop_app.service_process_active_job_runner import (
+from app.processes.active_job_runner import (
     active_job_pid_is_alive_for_service,
     active_job_record_path_for_proc_for_service,
     active_jobs_dir_for_service,

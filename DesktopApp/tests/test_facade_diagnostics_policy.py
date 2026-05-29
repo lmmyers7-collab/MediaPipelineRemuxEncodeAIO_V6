@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.application.facade_diagnostics_policy import (
+from app.diagnostics.policy import (
     diagnostics_active_job_rows,
     diagnostics_launch_log_summary,
     diagnostics_summary_lines,
@@ -81,6 +81,7 @@ class DiagnosticsFacadePolicyTests(unittest.TestCase):
         )
         self.assertEqual(blocked["evidence_authority"], "backend")
         self.assertEqual(blocked["operator_status"], "blocked")
+        self.assertEqual(blocked["operator_status_state"], "blocked")
         self.assertEqual(blocked["error_count"], 2)
         self.assertEqual(blocked["active_count"], 1)
         self.assertIn("ERROR source locked", blocked["issue_lines"])
@@ -95,15 +96,18 @@ class DiagnosticsFacadePolicyTests(unittest.TestCase):
             truncated=True,
         )
         self.assertEqual(review["operator_status"], "review")
+        self.assertEqual(review["operator_status_state"], "warning")
         self.assertGreaterEqual(review["warning_count"], 2)
         self.assertTrue(review["truncated"])
 
         active = diagnostics_tail_evidence(text="ffmpeg running\n", ok=True, exists=True, is_file=True)
         self.assertEqual(active["operator_status"], "active")
+        self.assertEqual(active["operator_status_state"], "running")
         self.assertIn("Close Readiness", active["safe_next_action"])
 
         ready = diagnostics_tail_evidence(text="completed normally\n", ok=True, exists=True, is_file=True)
         self.assertEqual(ready["operator_status"], "ready")
+        self.assertEqual(ready["operator_status_state"], "ready")
 
 
 if __name__ == "__main__":

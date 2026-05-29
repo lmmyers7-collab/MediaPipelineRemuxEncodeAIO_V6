@@ -20,7 +20,7 @@ both engines with the same intent and slightly different expression. The
 PSD1 config has three Python representations (`config_schema.py` plus
 four siblings) — none generated from a common source.
 
-`ARCHITECTURAL_OVERHAUL_PLAN.md` §Drift risks ranks
+`Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md` §Drift risks ranks
 "PowerShell pipeline behavior ↔ Python facade descriptions ↔ Markdown
 narrative" as drift risk #2.
 

@@ -39,6 +39,8 @@ body {
   background: var(--grey-900);
   color: var(--grey-100);
   font-family: "Segoe UI", system-ui, sans-serif;
+  font-size: var(--text-base);
+  line-height: 1.45;
 }
 
 button {
@@ -75,7 +77,7 @@ textarea {
   border: 1px solid var(--grey-600);
   background: var(--grey-800);
   color: var(--grey-100);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   padding: var(--space-4) var(--space-4);
   font: inherit;
   /* Stage 16 #6: inset depth cue (Section 7) — token-driven so dark/light adapts */
@@ -165,7 +167,7 @@ textarea[data-state="error"]:focus {
   border: 1px solid var(--grey-600);
   background: var(--grey-800);
   color: var(--grey-100);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   padding: var(--space-4) var(--space-5);
   cursor: pointer;
 }
@@ -181,10 +183,12 @@ textarea[data-state="error"]:focus {
 
 .danger-button {
   border-color: var(--red-700);
-  background: var(--red-900);
+  background: var(--grey-800);
+  color: var(--red-100);
 }
 
 .danger-button:hover {
+  background: var(--red-900);
   border-color: var(--red-500);
 }
 
@@ -210,6 +214,8 @@ textarea[data-state="error"]:focus {
 
 .emergency-button {
   border-color: var(--red-500);
+  background: var(--red-900);
+  color: var(--red-100);
 }
 
 .topbar-emergency-control {
@@ -243,7 +249,7 @@ textarea[data-state="error"]:focus {
   padding: var(--space-5) var(--space-6);
   background: var(--grey-800);
   border: 1px solid var(--grey-600);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow-2);
 }
 
@@ -253,7 +259,7 @@ textarea[data-state="error"]:focus {
   margin: calc(var(--space-4) * -1) 0 var(--space-6);
   padding: var(--space-4) var(--space-5);
   border: 1px solid var(--amber-500);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--amber-900);
   color: var(--amber-100);
   box-shadow: var(--shadow-1);
@@ -336,7 +342,7 @@ textarea[data-state="error"]:focus {
   align-items: center;
   min-height: 26px;
   padding: var(--space-2) var(--space-4);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--grey-700);
   color: var(--grey-300);
   font-size: var(--text-xs);
@@ -352,7 +358,7 @@ textarea[data-state="error"]:focus {
   min-height: 28px;
   padding: var(--space-2) var(--space-4);
   border: 1px solid var(--grey-600);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--grey-700);
   color: var(--grey-300);
   font-size: var(--text-xs);

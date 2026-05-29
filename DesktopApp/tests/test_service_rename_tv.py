@@ -7,8 +7,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_rename import RenameServiceMixin
-from mediapipeline_desktop_app.service_rename_tv import (
+from app.rename.service import RenameServiceMixin
+from app.rename.tv import (
     build_auto_tv_rename_name,
     clean_pipeline_tv_name_part,
     extract_confident_tv_episode_title,

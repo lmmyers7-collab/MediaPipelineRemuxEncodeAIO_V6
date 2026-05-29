@@ -10,8 +10,8 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from mediapipeline_desktop_app.service_queue_dry_run_runner import run_queue_dry_run_for_service
-from mediapipeline_desktop_app.service_queue_snapshot import (
+from app.queue.dry_run_runner import run_queue_dry_run_for_service
+from app.queue.snapshot import (
     queue_snapshot_write_path,
     read_queue_snapshot,
 )
@@ -95,7 +95,7 @@ class QueueDryRunRunnerTests(unittest.TestCase):
                 )
                 return CapturedCommandResult(args=args, returncode=0, stdout="", stderr="")
 
-            with patch("mediapipeline_desktop_app.service_queue_dry_run_runner.run_capture", fake_run_capture):
+            with patch("app.queue.dry_run_runner.run_capture", fake_run_capture):
                 snapshot = run_queue_dry_run_for_service(service, resolved)
 
             self.assertIsNotNone(snapshot)
@@ -137,7 +137,7 @@ class QueueDryRunRunnerTests(unittest.TestCase):
                     kill_message="process killed",
                 )
 
-            with patch("mediapipeline_desktop_app.service_queue_dry_run_runner.run_capture", fake_run_capture):
+            with patch("app.queue.dry_run_runner.run_capture", fake_run_capture):
                 snapshot = run_queue_dry_run_for_service(service, resolved, allow_cached_fallback=True)
 
             self.assertEqual(snapshot, cached_payload)

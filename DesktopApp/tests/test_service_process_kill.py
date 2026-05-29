@@ -11,14 +11,14 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from mediapipeline_desktop_app.service_process_kill import (
+from app.processes.kill import (
     find_related_pipeline_processes,
     kill_process_tree,
     kill_related_pipeline_processes,
     process_text_contains_any,
     wait_for_process_exit,
 )
-from mediapipeline_desktop_app.service_processes import ProcessLifecycleServiceMixin
+from app.processes.lifecycle import ProcessLifecycleServiceMixin
 
 
 class FakePopen:
@@ -208,7 +208,7 @@ class ProcessKillHelperTests(unittest.TestCase):
             FakePsutil.processes = [matching]
             service = DummyKillService()
 
-            with patch("mediapipeline_desktop_app.service_processes.psutil", FakePsutil):
+            with patch("app.processes.lifecycle.psutil", FakePsutil):
                 matches = service.find_related_pipeline_processes(resolved)
 
         self.assertEqual(matches, [matching])

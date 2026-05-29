@@ -4,7 +4,7 @@ import subprocess
 import unittest
 from pathlib import Path
 
-from mediapipeline_desktop_app.service_file_open_plan import (
+from app.files.open_plan import (
     build_vlc_launch_args,
     explorer_select_args,
     vlc_candidate_paths,

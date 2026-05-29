@@ -7,6 +7,18 @@
   const isLaunchCommand = window.isLaunchCommand || launchHistoryView.isLaunchCommand || function () { return false; };
   const launchHistoryLine = window.launchHistoryLine || launchHistoryView.launchHistoryLine || function () { return ""; };
   const renderLaunchCommandHistory = window.renderLaunchCommandHistory || launchHistoryView.renderLaunchCommandHistory || function () {};
+  const domHelpers = window.mediaPipelineDom || {};
+  const jsonDetailText = domHelpers.jsonDetailText || function (options = {}) {
+    const label = options.label || "JSON detail";
+    try {
+      return `${label}:\n${JSON.stringify(options.value, null, 2)}`;
+    } catch (error) {
+      return `${label}:\nJSON render error: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  };
+  const renderJsonDetail = domHelpers.renderJsonDetail || function (id, options = {}) {
+    setText(id, jsonDetailText(options));
+  };
   const controlActionLabels = {
     pause: "Pause / Resume",
     rescan: "Rescan",
@@ -15,9 +27,9 @@
   };
 
   const controlConfirmMessages = {
-    rescan: "Request a queue rescan flag for the running pipeline?",
-    stop: "Request Stop After Current for the running pipeline?",
-    kill: "Force-kill the active pipeline process tree immediately? The current file will be aborted. This cannot be undone.",
+    rescan: "Request a queue rescan flag for the running pipeline? This does not start a new run or touch media, but it can change what the active loop sees next.",
+    stop: "Request Stop After Current? The current file may finish; no new file should start. Use Force Stop only if the run is stalled.",
+    kill: "Force stop immediately? This asks the backend to terminate the active process tree. The current file can be left partial in scratch and will need review; source media should not be touched.",
   };
 
   const launchCommandButtonIds = [
@@ -302,10 +314,18 @@
       lines.push("", `Refresh hint: ${payload.refresh_hint}`);
     }
     if (payload.data && Object.keys(payload.data).length) {
-      lines.push("", "Backend data:", JSON.stringify(payload.data, null, 2));
+      lines.push("", "Backend data:", jsonDetailText({
+        label: "Backend data JSON",
+        value: payload.data,
+        intro: "Read-only backend command result data.",
+      }));
     }
     if (request) {
-      lines.push("", "Submitted request:", JSON.stringify(request, null, 2));
+      lines.push("", "Submitted request:", jsonDetailText({
+        label: "Submitted request JSON",
+        value: request,
+        intro: "Read-only request payload that was submitted to the backend command route.",
+      }));
     }
     return lines.join("\n");
   }
@@ -823,7 +843,11 @@
     }
     setLaunchCommandBusy(true);
     setText("pipeline-launch-status", "Starting...");
-    setText("pipeline-launch-detail", JSON.stringify(request, null, 2));
+    renderJsonDetail("pipeline-launch-detail", {
+      label: "Submitted request",
+      value: request,
+      intro: "Pipeline start request confirmed by the operator and about to be submitted.",
+    });
     try {
       const result = await apiPost("/api/pipeline/start", request);
       appendCommandResult(result);
@@ -891,7 +915,11 @@
     }
     setLaunchCommandBusy(true);
     setText("pending-drain-status", "Starting...");
-    setText("pending-drain-detail", JSON.stringify(request, null, 2));
+    renderJsonDetail("pending-drain-detail", {
+      label: "Submitted request",
+      value: request,
+      intro: "Pending publish drain request confirmed by the operator and about to be submitted.",
+    });
     try {
       const result = await apiPost("/api/pipeline/start", request);
       const drainResult = {
@@ -948,7 +976,11 @@
     }
     setLaunchCommandBusy(true);
     setText("audit-launch-status", "Starting...");
-    setText("audit-launch-detail", JSON.stringify(request, null, 2));
+    renderJsonDetail("audit-launch-detail", {
+      label: "Submitted request",
+      value: request,
+      intro: "Audit start request confirmed by the operator and about to be submitted.",
+    });
     try {
       const result = await apiPost("/api/audit/start", request);
       appendCommandResult(result);
@@ -1016,7 +1048,11 @@
     }
     setLaunchCommandBusy(true);
     setText("rerun-launch-status", "Starting...");
-    setText("rerun-launch-detail", JSON.stringify(request, null, 2));
+    renderJsonDetail("rerun-launch-detail", {
+      label: "Submitted request",
+      value: request,
+      intro: "CSV rerun request confirmed by the operator and about to be submitted.",
+    });
     try {
       const result = await apiPost("/api/rerun/start", request);
       appendCommandResult(result);

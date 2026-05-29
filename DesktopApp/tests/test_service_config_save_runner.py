@@ -6,12 +6,12 @@ import unittest
 from pathlib import Path
 
 from mediapipeline_desktop_app.models import ConfigSaveResult, ResolvedPaths
-from mediapipeline_desktop_app.service_config_profiles import (
+from app.config.profiles import (
     config_profile_path,
     config_profiles_dir,
     normalize_profile_name,
 )
-from mediapipeline_desktop_app.service_config_save_runner import (
+from app.config.save_runner import (
     list_config_profiles_for_service,
     load_config_profile_for_service,
     normalize_config_path_value,

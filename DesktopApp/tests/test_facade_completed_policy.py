@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.application.facade_completed_policy import (
+from app.completed.policy import (
     COMPLETED_HISTORY_EMPTY_MESSAGE,
     COMPLETED_HISTORY_SERVICE_UNAVAILABLE_MESSAGE,
     bounded_completed_limit,
@@ -100,6 +100,11 @@ class CompletedFacadePolicyTests(unittest.TestCase):
         self.assertEqual(row["gpu_device"], "NVIDIA")
         self.assertEqual(row["audio_decision_count"], 1)
         self.assertEqual(row["subtitle_decision_count"], 1)
+        self.assertEqual(row["validation_status_state"], "validation-needed")
+        self.assertIsNone(row["validation_probe_ok"])
+        self.assertIsNone(row["validation_hash_ok"])
+        self.assertTrue(row["validation_playback_required"])
+        self.assertIn("ffprobe output proof not reported", row["validation_unavailable_reasons"])
         self.assertEqual(row["available_open_targets"], ["output_file", "output_folder", "sidecar", "source_folder"])
 
     def test_completed_row_counts_singleton_decision_objects(self) -> None:
@@ -148,6 +153,12 @@ class CompletedFacadePolicyTests(unittest.TestCase):
         self.assertEqual(fields["size_policy_available_count"], 0)
         self.assertEqual(fields["size_policy_exceeded_count"], 0)
         self.assertEqual(fields["size_policy_within_limit_count"], 0)
+        self.assertEqual(fields["validation_status_state_counts"], {"blocked": 1, "validation-needed": 2})
+        self.assertEqual(fields["validation_state"]["schema_version"], "desktop_validation_state.v1")
+        self.assertEqual(fields["validation_state"]["status_state"], "blocked")
+        self.assertEqual(fields["validation_state"]["blocked_count"], 1)
+        self.assertEqual(fields["validation_state"]["validation_needed_count"], 2)
+        self.assertEqual(fields["validation_state"]["playback_required_count"], 2)
         self.assertEqual(
             fields["available_open_target_counts"],
             {"output_file": 2, "output_folder": 3, "sidecar": 3, "source_folder": 3},
@@ -159,6 +170,8 @@ class CompletedFacadePolicyTests(unittest.TestCase):
 
         self.assertEqual(fields["count"], 0)
         self.assertEqual(fields["total_output_size_text"], "0 B")
+        self.assertEqual(fields["validation_state"]["status_state"], "idle")
+        self.assertEqual(fields["validation_state"]["row_count"], 0)
         self.assertEqual(fields["warnings"], ["No completed jobs are available from the local manifest."])
 
     def test_completed_preview_dto_helpers_preserve_warning_contracts(self) -> None:

@@ -124,7 +124,7 @@ The frontend **never** receives an output path for the log, cannot choose a writ
 
 ```
 Task ID: CLN3-002
-Files inspected: Docs\sample-validation\V5_SAMPLE_VALIDATION_ARTIFACT_DESIGN.md, Docs\sample-validation\V5_REAL_MEDIA_VALIDATION_PLAYBOOK.md, DesktopApp\mediapipeline_desktop_app\application\facade_sample_validation_policy.py
+Files inspected: Docs\sample-validation\V5_SAMPLE_VALIDATION_ARTIFACT_DESIGN.md, Docs\sample-validation\V5_REAL_MEDIA_VALIDATION_PLAYBOOK.md, app\sample_validation\policy.py
 Files changed: Docs\sample-validation\SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md (created)
 Validation: Test-Path Docs\sample-validation\SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md; Select-String -Path Docs\sample-validation\SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md -Pattern "does not accept|does not launch|read-only|operator evidence"
 Findings: Guide created with purpose, when to record, stale/current/review meaning, safe next action, and mutation boundary sections.

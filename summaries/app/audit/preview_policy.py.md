@@ -1,0 +1,17 @@
+---
+file: app/audit/preview_policy.py
+pipeline_stage: observability
+token_priority: medium
+owner_domain: audit
+last_modified: 2026-05-28
+last_reviewed: 2026-05-28
+sha256: 764429bb2577cdae20a9bbf6c2bf7af786d6b7aa39b6c904ba97f46ce9444409
+---
+# `app/audit/preview_policy.py`
+
+**Purpose:** Audit preview policy and result helpers.
+
+**Public functions:** `audit_csv_read_error_result()`, `audit_duplicate_group_count()`, `audit_latest_csv_resolution_error_result()`, `audit_loader_unavailable_result()`, `audit_no_csv_report_result()`, `audit_preview_fields()`, `audit_preview_from_records()`, `audit_record_to_row()`, `audit_report_service_unavailable_result()`, `bounded_audit_limit()`
+**In-repo imports:** `mediapipeline_desktop_app.models`
+
+_Edit the source, not this file. Regenerate with `python scripts/dev/refresh_summaries.py --paths app/audit/preview_policy.py`._

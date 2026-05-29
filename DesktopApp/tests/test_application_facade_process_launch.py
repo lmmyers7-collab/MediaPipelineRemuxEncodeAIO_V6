@@ -31,6 +31,10 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
                 },
             ).to_mapping()
             rejected = facade.start_pipeline_process(resolved, {"mode": "once", "extra_args": "-Danger"}).to_mapping()
+            rejected_with_client_allow = facade.start_pipeline_process(
+                resolved,
+                {"mode": "once", "extra_args": "-Danger", "allow_extra_args": True},
+            ).to_mapping()
 
         self.assertTrue(result["ok"])
         self.assertEqual(result["schema_version"], "desktop_command_result.v1")
@@ -42,6 +46,8 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertEqual(service.started_pipeline["single_file"], str(root / "sample.mkv"))
         self.assertFalse(rejected["ok"])
         self.assertIn("Extra pipeline arguments", rejected["message"])
+        self.assertFalse(rejected_with_client_allow["ok"])
+        self.assertIn("Extra pipeline arguments", rejected_with_client_allow["message"])
 
     def test_pipeline_start_respects_schedule_gate_before_web_launch_ui(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

@@ -9,8 +9,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from mediapipeline_desktop_app.service_status import StatusServiceMixin
-from mediapipeline_desktop_app.service_status_files import (
+from app.status.service import StatusServiceMixin
+from app.observability.status_files import (
     latest_audit_csv,
     latest_failure_json,
     latest_matching_file,

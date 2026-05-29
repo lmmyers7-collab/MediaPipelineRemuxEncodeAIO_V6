@@ -1,4 +1,5 @@
 (function () {
+  const commandHistoryView = window.mediaPipelineCommandHistory || {};
   let lastReportSnapshot = {};
   let lastReportSettings = {};
   let lastFailurePreviewPayload = {};
@@ -136,6 +137,22 @@
   }
 
   function renderReportOpenHistory(history = []) {
+    if (typeof commandHistoryView.renderCompactCommandHistoryBlock === "function") {
+      commandHistoryView.renderCompactCommandHistoryBlock({
+        history,
+        filter: isReportOpenCommand,
+        limit: 6,
+        targetId: "report-open-history",
+        statusId: "report-open-history-status",
+        statusText: (entries) => entries.length ? `${entries.length} recent` : "No opens",
+        itemLabel: "report open command",
+        emptyHistoryText: "No report open command history loaded. Open a report path or report root to see backend results here after refresh.",
+        emptyMatchText: "No report-related open commands found in recent command history.",
+        lineFor: reportOpenHistoryLine,
+        footer: "Backend diagnostics target allowlists remain the source of truth.",
+      });
+      return;
+    }
     const entries = Array.isArray(history) ? history.filter(isReportOpenCommand).slice(0, 6) : [];
     setText("report-open-history-status", entries.length ? `${entries.length} recent` : "No opens");
     if (!Array.isArray(history) || !history.length) {
@@ -237,6 +254,7 @@
       `Operator required: ${failures.operator_required_count || 0}`,
       `Permanent: ${failures.permanent_count || 0}`,
       `Transient: ${failures.transient_count || 0}`,
+      failureRetryPreviewSummaryLine(failures),
       ...(failures.warnings || []),
       !rows.length ? failureEmptyStateMessage(failures, rows) : "",
     ].filter(Boolean);
@@ -294,6 +312,121 @@
     if (classification === "transient") return "Preview marker clear, then rerun after confirming logs.";
     if (classification === "operator_required" || classification === "permanent") return "Open diagnostics and review the source before retry.";
     return "Review diagnostics before retry.";
+  }
+
+  function failureRetryStatePayload(failures = lastFailurePreviewPayload) {
+    const payload = failures && typeof failures === "object" ? failures.retry_state : null;
+    if (payload && typeof payload === "object" && payload.schema_version === "desktop_retry_state.v1") {
+      return payload;
+    }
+    const rows = Array.isArray(failures?.rows) ? failures.rows : lastFailureRows;
+    const retryRows = (Array.isArray(rows) ? rows : []).map((row) => failureRetryStateFromRow(row));
+    const retryable = retryRows.filter((row) => row.retry_allowed).length;
+    const blocked = retryRows.filter((row) => row.status_state === "blocked").length;
+    return {
+      schema_version: "desktop_retry_state.v1",
+      read_only: true,
+      status_state: retryable ? "retrying" : blocked ? "blocked" : retryRows.length ? "warning" : "idle",
+      row_count: retryRows.length,
+      retryable_count: retryable,
+      blocked_count: blocked,
+      warning_count: retryRows.filter((row) => row.status_state === "warning").length,
+      unavailable_count: retryRows.filter((row) => row.unavailable_reason).length,
+      rows: retryRows,
+      operator_guidance: "Retry state was derived from loaded failure rows because the backend retry_state payload was absent.",
+    };
+  }
+
+  function failureRetryRows(failures = lastFailurePreviewPayload) {
+    const retry = failureRetryStatePayload(failures);
+    return Array.isArray(retry.rows) ? retry.rows : [];
+  }
+
+  function failureRetryStateFromRow(item) {
+    const classification = String(item?.classification || item?.class || "").toLowerCase();
+    const attempt = Number(item?.retry_count || item?.RetryCount || 0) || 0;
+    const maxAttempts = Number(item?.retry_limit || item?.RetryLimit || 0) || 0;
+    const exhausted = maxAttempts > 0 && attempt >= maxAttempts;
+    const retryable = item?.retryable === false || String(item?.retryable || "").toLowerCase() === "false" ? false : classification === "transient";
+    const retryAllowed = Boolean(classification === "transient" && retryable && !exhausted);
+    const status = retryAllowed ? (maxAttempts > 0 ? "retrying" : "warning") : (classification === "operator_required" || classification === "permanent" || exhausted || retryable === false) ? "blocked" : "warning";
+    return {
+      schema_version: "desktop_retry_state.v1",
+      job_id: item?.job_id || item?.JobId || "",
+      source_path: item?.source_path || "",
+      source_json: item?.source_json || "",
+      stage: item?.stage || "",
+      error_code: item?.error_code || "",
+      classification,
+      attempt,
+      max_attempts: maxAttempts,
+      last_failure_reason: failureReasonText(item),
+      retry_allowed: retryAllowed,
+      retry_route_or_command: retryAllowed ? "automatic_next_queue_pass" : "none_exposed",
+      safe_next_action: item?.retry_safe_next_action || failureSuggestedActionText(item),
+      status_state: item?.retry_status_state || status,
+      unavailable_reason: retryAllowed && maxAttempts === 0 ? "Retry limit was not reported." : "",
+      read_only: true,
+    };
+  }
+
+  function failureRetryStateForRow(item) {
+    if (!item) return null;
+    const itemKey = failureRowKey(item);
+    const rows = failureRetryRows();
+    const matched = rows.find((row) => {
+      const candidate = {
+        source_json: row.source_json || item.source_json || "",
+        source_path: row.source_path || "",
+        stage: row.stage || "",
+        error_code: row.error_code || "",
+        recorded_at: item.recorded_at || "",
+      };
+      return failureRowKey(candidate) === itemKey
+        || (
+          (!row.source_json || row.source_json === item.source_json)
+          && (!row.source_path || row.source_path === item.source_path)
+          && (!row.stage || row.stage === item.stage)
+          && (!row.error_code || row.error_code === item.error_code)
+        );
+    });
+    return matched || failureRetryStateFromRow(item);
+  }
+
+  function failureRetryPreviewSummaryLine(failures = lastFailurePreviewPayload) {
+    const retry = failureRetryStatePayload(failures);
+    if (!retry || retry.status_state === "idle") return "Retry state: no failure rows.";
+    return `Retry state: ${retry.status_state || "unknown"}; retryable=${retry.retryable_count || 0}; blocked=${retry.blocked_count || 0}; warning=${retry.warning_count || 0}.`;
+  }
+
+  function failureRetrySummaryText(item) {
+    const retry = failureRetryStateForRow(item);
+    if (!retry) return "No retry evidence";
+    const attempt = Number(retry.attempt || 0);
+    const maxAttempts = Number(retry.max_attempts || 0);
+    const attemptText = maxAttempts > 0 ? `${attempt}/${maxAttempts}` : attempt > 0 ? `${attempt}/limit unknown` : "limit unknown";
+    if (retry.retry_allowed) return `Auto retry (${attemptText})`;
+    if (retry.status_state === "blocked") return `Blocked (${attemptText})`;
+    return retry.unavailable_reason ? `Review (${retry.unavailable_reason})` : `Review (${attemptText})`;
+  }
+
+  function failureRetryDetailLines(item) {
+    const retry = failureRetryStateForRow(item);
+    if (!retry) {
+      return [
+        "Retry status: unavailable",
+        "Retry evidence: no backend retry_state row matched this failure.",
+      ];
+    }
+    return [
+      `Retry status: ${retry.status_state || "unknown"}`,
+      `Retry allowed: ${retry.retry_allowed ? "yes" : "no"}`,
+      `Retry attempts: ${Number(retry.attempt || 0)}/${Number(retry.max_attempts || 0) || "limit unknown"}`,
+      `Retry route/command: ${retry.retry_route_or_command || "none_exposed"}`,
+      retry.job_id ? `Job ID: ${retry.job_id}` : "",
+      retry.unavailable_reason ? `Retry evidence gap: ${retry.unavailable_reason}` : "",
+      `Retry next action: ${retry.safe_next_action || failureSuggestedActionText(item)}`,
+    ].filter(Boolean);
   }
 
   function failureRecordedText(value) {
@@ -560,7 +693,7 @@
 
   function renderFailureDetail(item) {
     if (!item) {
-      setText("failure-detail", "No failure row selected. Select a row to inspect classification, error code, stage, suggested action, retry state, and repro path.");
+      setText("failure-detail", "No failure row selected. Select a row to inspect classification, error code, stage, suggested action, backend-authored retry state, and repro path.");
       renderReportDiagnosticsActions("failure-diagnostics-actions", failureDiagnosticsActionsForRow(null), "Reports failure page");
       return;
     }
@@ -587,6 +720,7 @@
       `Suggested action: ${failureSuggestedActionText(item)}`,
       `Suggested rename: ${item.suggested_rename || ""}`,
       `Retry: ${item.retry_count || 0}/${item.retry_limit || 0}`,
+      ...failureRetryDetailLines(item),
       `Escalated: ${item.escalated ? "yes" : "no"}`,
       `Recorded: ${failureRecordedText(item.recorded_at)}`,
       `Source: ${item.source_path || ""}`,
@@ -603,7 +737,7 @@
     setText("failure-status", `${rows.length} / ${lastFailureRows.length} row${lastFailureRows.length === 1 ? "" : "s"}`);
     const tbody = byId("failure-rows");
     if (!rows.length) {
-      clearRows(tbody, 9, lastFailureRows.length ? "No failure rows match the filter." : lastFailureEmptyMessage);
+      clearRows(tbody, 10, lastFailureRows.length ? "No failure rows match the filter." : lastFailureEmptyMessage);
       updateTableStatusLegend("failure-table-legend", tbody, "Failure rows");
       return;
     }
@@ -611,7 +745,8 @@
     rows.slice(0, 250).forEach((item) => {
       const row = document.createElement("tr");
       const classification = String(failureClassificationText(item)).toLowerCase();
-      row.dataset.status = classification === "operator_required" || classification === "permanent" ? "blocked" : classification === "transient" ? "warning" : "";
+      const retryState = failureRetryStateForRow(item);
+      row.dataset.status = retryState?.status_state || (classification === "operator_required" || classification === "permanent" ? "blocked" : classification === "transient" ? "warning" : "");
       const key = failureRowKey(item);
       row.dataset.rowKey = key;
       const selectCell = document.createElement("td");
@@ -631,6 +766,7 @@
         item.lookup_title || item.source_path || "",
         failureReasonText(item),
         failureSuggestedActionText(item),
+        failureRetrySummaryText(item),
         failureRecordedText(item.recorded_at),
       ]);
       makeRowSelectable(row, () => selectFailureRow(item), {
@@ -738,6 +874,7 @@
     }
     const operatorRows = rows.filter((row) => ["operator_required", "permanent"].includes(String(row.classification || "").toLowerCase()));
     const transientRows = rows.filter((row) => String(row.classification || "").toLowerCase() === "transient");
+    const retryState = failureRetryStatePayload(failures);
     const reviewRows = [...operatorRows, ...transientRows, ...rows.filter((row) => !operatorRows.includes(row) && !transientRows.includes(row))];
     const lines = [
       "Failure review board:",
@@ -748,6 +885,7 @@
       `Media counts: ${reportFormatCounts(reportCountBy(rows, "media_type"))}`,
       `Operator/permanent rows: ${operatorRows.length}`,
       `Transient retry rows: ${transientRows.length}`,
+      `Retry state: ${retryState.status_state || "unknown"}; retryable=${retryState.retryable_count || 0}; blocked=${retryState.blocked_count || 0}; warning=${retryState.warning_count || 0}.`,
     ];
     if (warnings.length) {
       lines.push("", "Warning(s):");
@@ -1301,6 +1439,10 @@
     renderFailureRows,
     renderFailureDetail,
     renderFailureReviewBoard,
+    failureRetryStatePayload,
+    failureRetryRows,
+    failureRetryStateForRow,
+    failureRetryPreviewSummaryLine,
     requestFailureMarkerClear,
     renderFailureClearResult,
     failureReviewStatus,

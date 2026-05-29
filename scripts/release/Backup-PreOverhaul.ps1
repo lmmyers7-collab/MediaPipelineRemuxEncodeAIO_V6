@@ -3,7 +3,7 @@
     Produces a complete pre-overhaul backup bundle at an external destination.
 
 .DESCRIPTION
-    Phase 0 of ARCHITECTURAL_OVERHAUL_PLAN.md calls for three artifacts to
+    Phase 0 of Docs\architecture\ARCHITECTURAL_OVERHAUL_PLAN.md calls for three artifacts to
     be stored externally as a rollback anchor:
 
       1. A source archive of tag `v6-pre-overhaul`.
@@ -137,10 +137,10 @@ if ($DryRun) {
 if ($SkipReleaseBuild) {
     Write-Step "Step 2: skipped (--SkipReleaseBuild)"
 } else {
-    Write-Step "Step 2: invoking Build-MediaPipelineRemuxEncodeAIO-Release.ps1 -> $ReleaseDir"
-    $buildScript = Join-Path $RepoRoot 'Build-MediaPipelineRemuxEncodeAIO-Release.ps1'
+    Write-Step "Step 2: invoking scripts/release/build.ps1 -> $ReleaseDir"
+    $buildScript = Join-Path $RepoRoot 'scripts\release\build.ps1'
     if (-not (Test-Path $buildScript)) {
-        throw "Release build script not found at $buildScript"
+        throw "Release build script not found at scripts\release\build.ps1."
     }
     if ($DryRun) {
         Write-Step "[dry-run] Would run: & '$buildScript' -DestinationRoot '$ReleaseDir' -Verify -Zip"

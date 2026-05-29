@@ -19,8 +19,9 @@ This works at the current scale but has known costs:
 - Component reuse is by copy-paste.
 - Accessibility passes are manual.
 
-`ARCHITECTURAL_OVERHAUL_PLAN.md` flags this as ADR-0007 to be decided
-during the overhaul; the plan does not pick a winner.
+`Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md` flags this as
+ADR-0007 to be decided during the overhaul; the plan does not pick a
+winner.
 
 ## Decision
 

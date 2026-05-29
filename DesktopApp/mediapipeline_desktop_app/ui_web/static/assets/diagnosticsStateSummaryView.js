@@ -1,4 +1,13 @@
 (function () {
+  const domHelpers = window.mediaPipelineDom || {};
+  const jsonDetailText = domHelpers.jsonDetailText || function (options = {}) {
+    const label = options.label || "JSON detail";
+    try {
+      return `${label}:\n${JSON.stringify(options.value, null, 2)}`;
+    } catch (error) {
+      return `${label}:\nJSON render error: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  };
   let lastDiagnosticsStateSummaryRows = [];
   let selectedDiagnosticsStateSummaryKey = "";
   let lastDiagnosticsStateTriageRows = [];
@@ -37,6 +46,16 @@
     if (status === "warning" || status === "missing") return "review";
     if (status === "ok") return "ready";
     return "unknown";
+  }
+
+  function diagnosticsStateRowStatusState(item) {
+    const fallback = diagnosticsStateOperatorStatus(item);
+    const state = typeof backendRowStatusState === "function" ? backendRowStatusState(item, fallback) : "";
+    if (state) return state;
+    if (fallback === "blocked") return "blocked";
+    if (fallback === "review") return "warning";
+    if (fallback === "ready") return "ready";
+    return fallback === "unknown" ? "unknown" : "";
   }
 
   function diagnosticsStateRecoveryStatus(rows) {
@@ -302,6 +321,13 @@
       `Recommended tail target: ${item.recommended_tail_target || "(none)"}`,
       "",
       "Guardrail: this view is read-only and only summarizes backend-selected diagnostics targets.",
+      "",
+      jsonDetailText({
+        label: "Diagnostics artifact JSON",
+        value: item,
+        intro: "Read-only diagnostics artifact payload from the backend state summary. Select this block to copy it for troubleshooting.",
+        guardrail: "Mutation guardrail: this detail view formats already-loaded diagnostics state only and cannot repair, delete, drain, rerun, clear state, open arbitrary paths, or touch media.",
+      }),
     ].filter((line, index, array) => line !== "" || array[index - 1] !== "");
     setText("diagnostics-state-summary-detail", lines.join("\n"));
   }
@@ -312,43 +338,18 @@
     actions.replaceChildren();
     if (!item) return;
     const groups = diagnosticsStateActionGroups(diagnosticsStateSummaryActionsForItem(item));
-    const appendGroup = (labelText, actionRows) => {
-      if (!actionRows.length) return;
-      const label = document.createElement("span");
-      label.className = "action-group-label";
-      label.textContent = labelText;
-      actions.appendChild(label);
-      actionRows.forEach((action) => {
-        const button = document.createElement("button");
-        button.className = "secondary-button";
-        button.type = "button";
-        button.textContent = diagnosticsStateActionLabel(action);
-        button.title = action.hint || "";
-        button.dataset.diagnosticsStateActionGroup = labelText.toLowerCase().replace(/\s+/g, "-");
-        button.dataset.diagnosticsStateAction = action.kind;
-        button.dataset.diagnosticsStateTarget = action.target;
-        if (action.kind === "tail") {
-          button.addEventListener("click", () => {
-            if (typeof window.requestDiagnosticsTail === "function") window.requestDiagnosticsTail(action.target);
-          });
-        } else {
-          button.addEventListener("click", () => {
-            if (typeof window.requestDiagnosticsOpen === "function") window.requestDiagnosticsOpen(action.target);
-          });
-        }
-        actions.appendChild(button);
-      });
-    };
-    appendGroup("Read first", groups.readFirst);
-    appendGroup("Open next", groups.openNext);
-    if (!groups.readFirst.length && !groups.openNext.length) {
-      const button = document.createElement("button");
-      button.className = "secondary-button";
-      button.type = "button";
-      button.textContent = "No allowlisted action";
-      button.disabled = true;
-      actions.appendChild(button);
-    }
+    window.mediaPipelineDom?.renderOpenTargetActionGroups?.(actions, groups, {
+      labelFor: diagnosticsStateActionLabel,
+      groupDataset: "diagnosticsStateActionGroup",
+      actionDataset: "diagnosticsStateAction",
+      targetDataset: "diagnosticsStateTarget",
+      onTail: (target) => {
+        if (typeof window.requestDiagnosticsTail === "function") window.requestDiagnosticsTail(target);
+      },
+      onOpen: (target) => {
+        if (typeof window.requestDiagnosticsOpen === "function") window.requestDiagnosticsOpen(target);
+      },
+    });
   }
 
   function renderDiagnosticsStateTriageActions(item) {
@@ -357,43 +358,18 @@
     actions.replaceChildren();
     if (!item) return;
     const groups = diagnosticsStateActionGroups(diagnosticsStateTriageActionsForItem(item));
-    const appendGroup = (labelText, actionRows) => {
-      if (!actionRows.length) return;
-      const label = document.createElement("span");
-      label.className = "action-group-label";
-      label.textContent = labelText;
-      actions.appendChild(label);
-      actionRows.forEach((action) => {
-        const button = document.createElement("button");
-        button.className = "secondary-button";
-        button.type = "button";
-        button.textContent = diagnosticsStateActionLabel(action);
-        button.title = action.hint || "";
-        button.dataset.diagnosticsStateTriageActionGroup = labelText.toLowerCase().replace(/\s+/g, "-");
-        button.dataset.diagnosticsStateTriageAction = action.kind;
-        button.dataset.diagnosticsStateTriageTarget = action.target;
-        if (action.kind === "tail") {
-          button.addEventListener("click", () => {
-            if (typeof window.requestDiagnosticsTail === "function") window.requestDiagnosticsTail(action.target);
-          });
-        } else {
-          button.addEventListener("click", () => {
-            if (typeof window.requestDiagnosticsOpen === "function") window.requestDiagnosticsOpen(action.target);
-          });
-        }
-        actions.appendChild(button);
-      });
-    };
-    appendGroup("Read first", groups.readFirst);
-    appendGroup("Open next", groups.openNext);
-    if (!groups.readFirst.length && !groups.openNext.length) {
-      const button = document.createElement("button");
-      button.className = "secondary-button";
-      button.type = "button";
-      button.textContent = "No allowlisted action";
-      button.disabled = true;
-      actions.appendChild(button);
-    }
+    window.mediaPipelineDom?.renderOpenTargetActionGroups?.(actions, groups, {
+      labelFor: diagnosticsStateActionLabel,
+      groupDataset: "diagnosticsStateTriageActionGroup",
+      actionDataset: "diagnosticsStateTriageAction",
+      targetDataset: "diagnosticsStateTriageTarget",
+      onTail: (target) => {
+        if (typeof window.requestDiagnosticsTail === "function") window.requestDiagnosticsTail(target);
+      },
+      onOpen: (target) => {
+        if (typeof window.requestDiagnosticsOpen === "function") window.requestDiagnosticsOpen(target);
+      },
+    });
   }
 
   function renderDiagnosticsStateTriageDetail(item) {
@@ -418,6 +394,13 @@
       `Unsafe if ignored: ${item.unsafe_if_ignored || "Related WebView pages may look healthier than backend state actually is."}`,
       "",
       "Mutation guardrail: this read-order detail cannot repair, delete, drain, rerun, clear state, or mark work complete.",
+      "",
+      jsonDetailText({
+        label: "Diagnostics triage JSON",
+        value: item,
+        intro: "Read-only diagnostics read-order payload from the backend state summary. Select this block to copy it for troubleshooting.",
+        guardrail: "Mutation guardrail: this triage detail formats already-loaded diagnostics state only and cannot repair, delete, drain, rerun, clear state, open arbitrary paths, or touch media.",
+      }),
     ];
     setText("diagnostics-state-triage-detail", lines.join("\n"));
   }
@@ -452,8 +435,7 @@
     tbody.replaceChildren();
     lastDiagnosticsStateTriageRows.forEach((item) => {
       const row = document.createElement("tr");
-      const operatorStatus = String(item?.operator_status || "").toLowerCase();
-      row.dataset.status = operatorStatus === "blocked" ? "blocked" : operatorStatus === "review" ? "warning" : "";
+      row.dataset.status = diagnosticsStateRowStatusState(item);
       const key = diagnosticsStateTriageRowKey(item);
       row.dataset.rowKey = key;
       appendCells(row, [
@@ -552,8 +534,7 @@
     tbody.replaceChildren();
     lastDiagnosticsStateSummaryRows.forEach((item) => {
       const row = document.createElement("tr");
-      const status = String(item?.status || "").toLowerCase();
-      row.dataset.status = status === "error" ? "blocked" : status === "warning" || status === "missing" ? "warning" : "";
+      row.dataset.status = diagnosticsStateRowStatusState(item);
       const key = diagnosticsStateSummaryRowKey(item);
       row.dataset.rowKey = key;
       appendCells(row, [
@@ -576,7 +557,18 @@
   function renderDiagnosticsStateSummary(payload) {
     const rows = Array.isArray(payload?.targets) ? payload.targets : [];
     setText("diagnostics-state-summary-status", diagnosticsStateSummaryStatusText(payload || {}));
+    const freshnessLines = window.mediaPipelineDom?.payloadFreshnessLines
+      ? window.mediaPipelineDom.payloadFreshnessLines({
+        payload,
+        label: "Diagnostics State",
+        rowCount: rows.length,
+        artifactLine: `State artifacts: ${rows.length}; operator status=${payload?.operator_status || "unknown"}.`,
+        readError: Array.isArray(payload?.errors) && payload.errors.length ? payload.errors.join(" | ") : "",
+        refreshAction: "Use Refresh Diagnostics or topbar Refresh. This re-reads backend diagnostics only and does not repair, clear, delete, rerun, publish, or move files.",
+      })
+      : [];
     const lines = [
+      ...freshnessLines,
       payload?.guardrail || "Read-only backend state summary.",
       `Schema: ${payload?.schema_version || "unknown"}`,
       `Status: ${payload?.ok === false ? "issues detected" : "ok"}`,
@@ -617,6 +609,7 @@
     diagnosticsStateSummaryRowKey,
     diagnosticsStateSummaryStatusText,
     diagnosticsStateOperatorStatus,
+    diagnosticsStateRowStatusState,
     diagnosticsStateRecoveryStatus,
     diagnosticsStateSettingsToolPathLines,
     diagnosticsStateSummaryActionsForItem,
@@ -626,4 +619,5 @@
   };
   window.diagnosticsStateRecommendedFirstAction = diagnosticsStateRecommendedFirstAction;
   window.diagnosticsStateOperatorStatus = diagnosticsStateOperatorStatus;
+  window.diagnosticsStateRowStatusState = diagnosticsStateRowStatusState;
 })();

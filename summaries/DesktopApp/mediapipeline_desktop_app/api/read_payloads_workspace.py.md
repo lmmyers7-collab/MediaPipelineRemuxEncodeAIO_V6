@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/api/read_payloads_workspace.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-05-26
+last_modified: 2026-05-28
 last_reviewed: 2026-05-28
-sha256: b433c65ae964f481249d5e05a096cf3d83c3e1d7f3369cf6440de51c2ef2d6be
+sha256: f59031ddc03244cd9379ab92b2f8f1594132f2e863c426e956b42d830b55b2e7
 ---
 # `DesktopApp/mediapipeline_desktop_app/api/read_payloads_workspace.py`
 

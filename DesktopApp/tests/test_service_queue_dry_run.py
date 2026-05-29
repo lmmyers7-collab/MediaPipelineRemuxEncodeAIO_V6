@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from mediapipeline_desktop_app.service_queue_dry_run import (
+from app.queue.dry_run import (
     build_queue_dry_run_command,
     format_queue_plan_source_status,
     queue_dry_run_temp_snapshot_path,

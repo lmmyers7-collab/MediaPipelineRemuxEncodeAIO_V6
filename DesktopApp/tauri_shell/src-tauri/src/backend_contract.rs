@@ -116,6 +116,7 @@ pub(crate) fn validate_backend_contract(backend_url: &str, token: &str) -> Shell
         ("POST", "/api/schedule/preview", true),
         ("POST", "/api/schedule/save", true),
         ("POST", "/api/settings/validate", true),
+        ("POST", "/api/settings/browse-path", true),
         ("POST", "/api/settings/preview-patch", true),
         ("POST", "/api/settings/save-patch", true),
         ("POST", "/api/settings/reload", true),

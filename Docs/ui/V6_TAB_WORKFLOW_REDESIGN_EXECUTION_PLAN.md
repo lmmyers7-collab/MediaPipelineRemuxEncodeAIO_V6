@@ -9,7 +9,7 @@ Purpose: track the operator-requested 13-tab WebView workflow redesign from plan
 - Frontend JavaScript may render, stage UI state, and call documented backend routes through `apiClient.js`.
 - Backend remains the owner for pipeline control, queue priority/exclusion writes, output open targets, pending publish drain, rename preview/apply, failure clear, schedule save, worker lifecycle, settings preview/save, diagnostics open/tail, and shutdown.
 - New mutation routes require schema, inventory, tests, confirmation/selector payloads, and explicit operator approval for semantics.
-- Work must follow `AI_DIRECTIVE.md`: one parent view per code chunk, no namespace export removals, no module-scope state moves, update inventories when DOM IDs/routes/exports/tests change, and run gates before marking a chunk done.
+- Work must follow `AGENTS.md`: one parent view per code chunk, no namespace export removals, no module-scope state moves, update inventories when DOM IDs/routes/exports/tests change, and run gates before marking a chunk done.
 
 ## Execution Order
 
@@ -54,7 +54,7 @@ The first pass prioritizes layout clarity and controls that can reuse existing b
 9. Use shorter column names and keep paths secondary/expandable.
 10. Keep queue mutation controls backend-owned and show command result feedback inline.
 
-Implementation note: `queueView.js` is at 1,450 lines after the table-first pass. Deeper Queue behavior changes should split this parent before adding substantial new logic, per `AI_DIRECTIVE.md`.
+Implementation note: `queueView.js` is at 1,450 lines after the table-first pass. Deeper Queue behavior changes should split this parent before adding substantial new logic, per `AGENTS.md`.
 
 ## Chunk Checklist
 
@@ -66,7 +66,7 @@ For each code chunk:
 4. Avoid new `window.*` exports; if unavoidable, update `WEBVIEW_GLOBAL_EXPORT_INVENTORY.md`.
 5. Avoid new routes unless backend authority is required and tests/inventories are updated.
 6. Run `node --check` for touched JS.
-7. Run core WebView static gates from `AI_DIRECTIVE.md`.
+7. Run core WebView static gates from `AGENTS.md`.
 8. Run affected browser smoke when a page has one.
 9. Update `DOC_TOUCH_LOG.md` only after validation passes.
 

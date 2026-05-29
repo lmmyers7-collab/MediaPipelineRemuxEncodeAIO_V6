@@ -3,9 +3,9 @@ file: Pipeline/Tests/Unit/Invoke-PendingPublishSafetyChecks.ps1
 pipeline_stage: publish
 token_priority: high
 owner_domain: tests
-last_modified: 2026-05-20
+last_modified: 2026-05-29
 last_reviewed: 2026-05-28
-sha256: 4a6148b016f9cf5faf7186e988fcebda15585eefb0b4a8a5a38bbabea3961a2f
+sha256: 9fb01d09d688a1c9de3c71cfa65d69119aaa489afacd16de4c16a6ccb5cca013
 ---
 # `Pipeline/Tests/Unit/Invoke-PendingPublishSafetyChecks.ps1`
 

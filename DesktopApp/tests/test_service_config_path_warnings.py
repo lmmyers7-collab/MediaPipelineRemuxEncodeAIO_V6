@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_config_path_warnings import (
+from app.config.path_warnings import (
     config_path_overlap_warning,
     config_root_path_warnings,
 )

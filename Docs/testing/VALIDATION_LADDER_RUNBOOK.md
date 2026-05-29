@@ -28,7 +28,7 @@ For changes that touch only `.md` files with no code or test changes.
 ```powershell
 # Fastest check: verify package layout still valid, PS syntax passes
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\Test-MediaPipelineRemuxEncodeAIO-Release.ps1 `
+  -File .\scripts\release\test.ps1 `
   -SkipToolIntegration -SkipEndToEndSmoke
 ```
 
@@ -83,7 +83,7 @@ The browser-backed smoke modules share one Python/Node CDP runner support layer.
 
 ```powershell
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\Test-MediaPipelineRemuxEncodeAIO-Release.ps1 `
+  -File .\scripts\release\test.ps1 `
   -SkipToolIntegration -SkipEndToEndSmoke
 ```
 
@@ -102,7 +102,7 @@ Use the bundled interpreter from the repository root. Do not treat system Python
 ```powershell
 $py = "DesktopApp\Runtime\Python\python.exe"
 & $py -m unittest DesktopApp.tests.test_api_read_payloads_policy -q
-& $py -m unittest DesktopApp.tests.test_api_command_payloads_policy -q
+& $py -m unittest DesktopApp.tests.test_api_command_results_policy -q
 & $py -m unittest DesktopApp.tests.test_api_command_journal_policy -q
 & $py -m unittest DesktopApp.tests.test_api_handler_policy -q
 & $py -m unittest DesktopApp.tests.test_api_static_files_policy -q
@@ -118,10 +118,11 @@ $py = "DesktopApp\Runtime\Python\python.exe"
 .\SmokeTests\Test-LocalApiSampleValidationContractSmoke.ps1
 ```
 
-### Facade tests if facade changed
+### Domain policy/facade tests if application behavior changed
 
 ```powershell
-& $py -m unittest discover -s DesktopApp\tests -p "test_facade_*.py" -q
+& $py -m unittest discover -s DesktopApp\tests -p "test_*_policy.py" -q
+& $py -m unittest discover -s DesktopApp\tests -p "test_application_facade_*.py" -q
 ```
 
 ### WebView smokes (Rung 1) to verify frontend renders new payload shapes correctly.
@@ -178,7 +179,7 @@ What this proves: Queue, Completed, and Pending Publish 260-row payloads disclos
 
 ## Rung 4: Pipeline PowerShell Modules
 
-For changes to `Pipeline\Modules\*.ps1` or `Pipeline\MediaPipeline_chatgpt.ps1`.
+For changes to `engine\<domain>\*.ps1`, the temporary `Pipeline\Modules\*.ps1` compatibility shims, or `Pipeline\MediaPipeline_chatgpt.ps1`.
 
 ### Pipeline unit checks
 
@@ -225,14 +226,14 @@ For changes to `DesktopApp\tauri_shell\` (Rust, Cargo.toml, tauri.conf.json).
 ### Check Tauri prerequisites
 
 ```powershell
-.\Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat -CheckOnly
+.\scripts\dev\start-tauri-preview.bat -CheckOnly
 ```
 
 ### Release self-test (includes Tauri prereq verification)
 
 ```powershell
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\Test-MediaPipelineRemuxEncodeAIO-Release.ps1
+  -File .\scripts\release\test.ps1
 ```
 
 ### PG-1 adversarial close-readiness scaffold (Python, no Rust build required)
@@ -261,20 +262,20 @@ What these prove: Rust/Cargo available, Tauri configuration valid, WebView asset
 
 ## Rung 6: Release / Packaging Changes
 
-For changes to `Build-MediaPipelineRemuxEncodeAIO-Release.ps1` or `Test-MediaPipelineRemuxEncodeAIO-Release.ps1`.
+For changes to `scripts\release\build.ps1` or `scripts\release\test.ps1`.
 
 ### Full release self-test
 
 ```powershell
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\Test-MediaPipelineRemuxEncodeAIO-Release.ps1
+  -File .\scripts\release\test.ps1
 ```
 
 ### Engineering handoff verification (full)
 
 ```powershell
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\Build-MediaPipelineRemuxEncodeAIO-Release.ps1 -Zip -Verify -IncludeTests
+  -File .\scripts\release\build.ps1 -Zip -Verify -IncludeTests
 ```
 
 What these prove: release manifest correctness, layout, exclusions, personal config not accidentally included. What they do not prove: any runtime media-processing behavior.
@@ -300,7 +301,7 @@ Docs/sample-validation/REAL_MEDIA_VALIDATION_EVIDENCE_TEMPLATE.md
 Or generate a timestamped worksheet before the run:
 
 ```powershell
-.\New-RealMediaValidationWorksheet.ps1 -SamplePath "D:\Samples\Movie.mkv" -Shell "WebView preview"
+.\scripts\operator\New-RealMediaValidationWorksheet.ps1 -SamplePath "D:\Samples\Movie.mkv" -Shell "WebView preview"
 ```
 
 The worksheet helper is documentation-only. It writes Markdown evidence under `Docs\RealMediaValidationRuns` by default and does not process media, launch the app, save settings, rename files, publish outputs, drain pending publish, mutate queue state, or touch source/output/scratch paths.

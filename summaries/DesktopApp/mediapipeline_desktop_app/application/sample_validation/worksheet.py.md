@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/application/sample_validation/workshe
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: application
-last_modified: 2026-05-26
+last_modified: 2026-05-28
 last_reviewed: 2026-05-28
-sha256: 38e6fdb164baa69baf922b58dfb9b97f06f2e9c9f7871e8f0f03c7ee6fd62c10
+sha256: 5d02cfacc077bc207b4216d0f5ed1cf12ac3ced54dc63a39bd9498086ab75940
 ---
 # `DesktopApp/mediapipeline_desktop_app/application/sample_validation/worksheet.py`
 

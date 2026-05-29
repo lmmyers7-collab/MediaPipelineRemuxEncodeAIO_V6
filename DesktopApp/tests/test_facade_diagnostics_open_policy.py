@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.application.facade_diagnostics_open_policy import (
+from app.diagnostics.open_policy import (
     DIAGNOSTICS_OPEN_TARGETS,
     diagnostics_allowed_targets_error,
     diagnostics_open_data,

@@ -3,7 +3,8 @@ param()
 $ErrorActionPreference = 'Stop'
 $scriptPath = if ($PSCommandPath) { $PSCommandPath } else { $MyInvocation.MyCommand.Path }
 $root = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $scriptPath))
-$failureCodesModule = Join-Path $root 'Modules\FailureCodes.ps1'
+$projectRoot = Split-Path -Parent $root
+$failureCodesModule = Join-Path $projectRoot 'engine\shared\failure_codes.ps1'
 
 . $failureCodesModule
 
@@ -66,6 +67,7 @@ $pipelineRoot = $root
 $scanFiles = @(
     Get-Item -LiteralPath (Join-Path $pipelineRoot 'MediaPipeline_chatgpt.ps1')
     Get-ChildItem -LiteralPath (Join-Path $pipelineRoot 'Modules') -Filter '*.ps1' -File
+    Get-ChildItem -LiteralPath (Join-Path $projectRoot 'engine') -Filter '*.ps1' -File -Recurse
 )
 $outcomeTokenPattern = '(?<![A-Z0-9_])(?<code>(?:ALREADY|AUDIO|BAD|ENCODE|ENCODER|FFMPEG|FILE|HDR|INTEGRITY|MEDIA|MKVMERGE|NATIVE|OPERATOR|OUTPUT|PENDING|PERMANENT|PROGRESS|PUBLISH|REMUX|SCRATCH|SIDECAR|SOURCE|STOP|SUBTITLE|SYSTEM|TRANSIENT|TV|UNKNOWN)[A-Z0-9]*_[A-Z0-9_]*[A-Z0-9]|OK)(?![A-Z0-9_])'
 $emittedCodes = @(

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 import json
 from typing import Any
 import urllib.error
@@ -13,6 +13,7 @@ from .json_policy import loads_strict_json
 HTTP_TIMEOUT = 15
 HTTP_MAX_RESPONSE_BYTES = 1 * 1024 * 1024
 HTTP_JSON_ERROR_PREVIEW_BYTES = 500
+RequestSigner = Callable[[str, str, bytes], Mapping[str, str]]
 
 
 def http_read_capped(response: Any, max_bytes: int = HTTP_MAX_RESPONSE_BYTES) -> bytes:
@@ -51,12 +52,18 @@ def http_get_json(
     *,
     headers: Mapping[str, str],
     params: Mapping[str, str] | None = None,
+    sign_request: RequestSigner | None = None,
     timeout_seconds: int = HTTP_TIMEOUT,
 ) -> dict[str, Any]:
-    url = base_url + path
+    path_with_query = path
+    url = base_url + path_with_query
     if params:
-        url += "?" + urllib.parse.urlencode(dict(params))
-    request = urllib.request.Request(url, headers=dict(headers), method="GET")
+        path_with_query += "?" + urllib.parse.urlencode(dict(params))
+        url = base_url + path_with_query
+    request_headers = dict(headers)
+    if sign_request is not None:
+        request_headers.update(dict(sign_request("GET", path_with_query, b"")))
+    request = urllib.request.Request(url, headers=request_headers, method="GET")
     return _request_json(url, request, timeout_seconds=timeout_seconds)
 
 
@@ -66,9 +73,13 @@ def http_post_json(
     data: Mapping[str, Any],
     *,
     headers: Mapping[str, str],
+    sign_request: RequestSigner | None = None,
     timeout_seconds: int = HTTP_TIMEOUT,
 ) -> dict[str, Any]:
     url = base_url + path
     payload = json.dumps(dict(data), allow_nan=False).encode()
-    request = urllib.request.Request(url, data=payload, headers=dict(headers), method="POST")
+    request_headers = dict(headers)
+    if sign_request is not None:
+        request_headers.update(dict(sign_request("POST", path, payload)))
+    request = urllib.request.Request(url, data=payload, headers=request_headers, method="POST")
     return _request_json(url, request, timeout_seconds=timeout_seconds)

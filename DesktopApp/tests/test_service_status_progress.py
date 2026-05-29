@@ -7,8 +7,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_status import StatusServiceMixin
-from mediapipeline_desktop_app.service_status_progress import (
+from app.status.service import StatusServiceMixin
+from app.status.progress import (
     datetime_is_stale,
     format_audit_progress,
     is_audit_progress_stale,

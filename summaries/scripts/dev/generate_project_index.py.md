@@ -5,12 +5,13 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-05-28
 last_reviewed: 2026-05-28
-sha256: d427ae4f7c2d0d6d59a6635ef870056710cd1a8ab94c80db197fc28a042a9d01
+sha256: 5ddbba0e8f4a933be723f0c5122e59d27ae3c82693d415bccb16c5c911d3ec4f
 ---
 # `scripts/dev/generate_project_index.py`
 
-**Purpose:** Generate PROJECT_INDEX.md and DEPENDENCY_GRAPH.md from summaries/.
+**Purpose:** Generate Docs/generated/PROJECT_INDEX.md and Docs/generated/DEPENDENCY_GRAPH.md from summaries/.
 
-**Public functions:** `iter_summaries()`, `main()`, `parse_first()`, `parse_frontmatter()`, `render_graph()`, `render_index()`, `short_purpose()`
+**Classes:** `OrphanSummaryFinding`
+**Public functions:** `check_file()`, `expected_summary_path_for_file()`, `iter_summaries()`, `main()`, `orphan_summary_findings()`, `parse_first()`, `parse_frontmatter()`, `render_graph()`, `render_index()`, `render_orphan_summary_findings()`, `short_purpose()`
 
 _Edit the source, not this file. Regenerate with `python scripts/dev/refresh_summaries.py --paths scripts/dev/generate_project_index.py`._

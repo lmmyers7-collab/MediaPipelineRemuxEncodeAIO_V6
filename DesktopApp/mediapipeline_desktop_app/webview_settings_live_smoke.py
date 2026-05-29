@@ -11,7 +11,7 @@ from .api import LocalApiServer
 from .application import MediaPipelineApplicationFacade
 from .config_keys import KEY_LOCAL_BASE, KEY_PRIORITY_MARKERS, KEY_SOURCE_MOVIES, KEY_SOURCE_TV
 from .models import ResolvedPaths
-from .service_path_state_migration import app_state_path_for_state_root
+from app.storage.state_migration import app_state_path_for_state_root
 from .services import DesktopAppService
 
 
@@ -135,6 +135,7 @@ def _validate_static_assets(base_url: str) -> None:
     for fragment, label in (
         ("function settingsBackendMediaPolicyReadiness", "settings readiness source"),
         ("function renderSettingsBackendMediaPolicyReadiness", "settings readiness renderer"),
+        ("function settingsProfileSummaryLines", "settings profile summary renderer"),
         ("Backend media-policy readiness:", "settings readiness heading"),
         ("function settingsBackendResultRows", "settings backend result handoff rows"),
         ("function renderSettingsBackendResultFromEntries", "settings backend result renderer"),
@@ -206,6 +207,16 @@ def _validate_settings_workspace(base_url: str, token: str, config_path: Path) -
         raise RuntimeError("Settings workspace did not redact WorkerAuthToken.")
     if "CoordinatorAuthToken" in config and config["CoordinatorAuthToken"] not in {"", "<redacted>"}:
         raise RuntimeError("Settings workspace did not redact CoordinatorAuthToken.")
+    profile_summary = settings.get("profile_summary")
+    if not isinstance(profile_summary, dict):
+        raise RuntimeError("Settings workspace is missing profile_summary.")
+    if profile_summary.get("schema_version") != "desktop_settings_profile_summary.v1":
+        raise RuntimeError("Settings profile summary schema mismatch.")
+    if profile_summary.get("read_only") is not True:
+        raise RuntimeError("Settings profile summary must be read-only.")
+    operations = profile_summary.get("webview_profile_operations")
+    if not isinstance(operations, dict) or operations.get("save_default_profile") is not False or operations.get("load_profile") is not False:
+        raise RuntimeError("Settings profile summary exposed unsupported profile mutation operations.")
     return settings
 
 

@@ -110,7 +110,7 @@ This section is required for every run. It confirms the smoke stayed within its 
 | Non-browser JS/Node (no Chrome/Edge needed) | `Test-WebViewCommandEvidenceSmoke.ps1`, `Test-WebViewRowDetailSmoke.ps1`, `Test-WebViewScheduleSmoke.ps1`, `Test-WebViewRenameReadinessSmoke.ps1`, `Test-WebViewSettingsLaunchPolicySmoke.ps1`, `Test-WebViewSettingsLaunchLiveConfigSmoke.ps1`, `Test-WebViewSettingsPatchEvidenceSmoke.ps1` |
 | Browser-backed (Chrome or Edge required, skips cleanly if absent) | `Test-WebViewBrowserHighRiskSmoke.ps1`, `Test-WebViewBrowserScheduleSmoke.ps1`, `Test-WebViewBrowserLifecycleSmoke.ps1`, `Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1`, `Test-WebViewBrowserPendingDrainGuardSmoke.ps1`, `Test-WebViewBrowserCompletedPendingProofSmoke.ps1`, `Test-WebViewBrowserLargeTableSmoke.ps1`, `Test-WebViewBrowserMaintenanceReportsSmoke.ps1`, `Test-WebViewBrowserRenameSmoke.ps1`, `Test-WebViewBrowserNetworkSmoke.ps1`, `Test-WebViewBrowserTelemetrySmoke.ps1`, `Test-WebViewBrowserSettingsLaunchSmoke.ps1` |
 | Real-media fixture evidence | `Test-WebViewRealMediaEvidenceSmoke.ps1` |
-| Release / package self-test | `Test-MediaPipelineRemuxEncodeAIO-Release.ps1` |
+| Release / package self-test | `scripts\release\test.ps1` |
 
 For the full catalog with scope and limitation notes see `Docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`.
 

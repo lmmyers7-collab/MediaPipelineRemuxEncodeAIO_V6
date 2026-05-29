@@ -9,7 +9,13 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.network.auth import validate_header
+from mediapipeline_desktop_app.network.auth import (
+    LEGACY_BEARER_ENV_VAR,
+    sign_request,
+    validate_header,
+    validate_request_auth,
+    validate_signed_request,
+)
 from mediapipeline_desktop_app.network.coordinator import CoordinatorDispatcher, _CoordHandler
 from mediapipeline_desktop_app.network.identity import (
     LOG_MESSAGE_TRUNCATION_SUFFIX,
@@ -46,6 +52,76 @@ class NetworkSecurityTests(unittest.TestCase):
     def test_validate_header_handles_uppercase_authorization(self) -> None:
         token = "b" * 32
         self.assertTrue(validate_header({"AUTHORIZATION": f"Bearer {token}"}, token))
+
+    def test_hmac_signed_requests_validate_and_reject_replay_or_tampering(self) -> None:
+        token = "s" * 32
+        timestamp = 1_700_000_000
+        nonce_cache: dict[str, float] = {}
+        headers = sign_request(
+            "POST",
+            "/api/done",
+            b'{"job_id":"job-1"}',
+            token,
+            timestamp=timestamp,
+            nonce="nonce-1",
+        )
+
+        self.assertTrue(
+            validate_signed_request(
+                headers,
+                token,
+                method="POST",
+                path_with_query="/api/done",
+                body=b'{"job_id":"job-1"}',
+                nonce_cache=nonce_cache,
+                now=timestamp + 1,
+            )
+        )
+        self.assertFalse(
+            validate_signed_request(
+                headers,
+                token,
+                method="POST",
+                path_with_query="/api/done",
+                body=b'{"job_id":"job-1"}',
+                nonce_cache=nonce_cache,
+                now=timestamp + 1,
+            )
+        )
+        tampered = sign_request("POST", "/api/done", b"{}", token, timestamp=timestamp, nonce="nonce-2")
+        self.assertFalse(
+            validate_signed_request(
+                tampered,
+                token,
+                method="POST",
+                path_with_query="/api/done",
+                body=b'{"job_id":"job-1"}',
+                now=timestamp + 1,
+            )
+        )
+        stale = sign_request("GET", "/api/workers", b"", token, timestamp=timestamp, nonce="nonce-3")
+        self.assertFalse(
+            validate_signed_request(
+                stale,
+                token,
+                method="GET",
+                path_with_query="/api/workers",
+                body=b"",
+                now=timestamp + 301,
+            )
+        )
+
+    def test_request_auth_allows_legacy_bearer_only_when_env_enabled(self) -> None:
+        token = "s" * 32
+        headers = {"Authorization": f"Bearer {token}"}
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertFalse(
+                validate_request_auth(headers, token, method="GET", path_with_query="/api/workers", body=b"")
+            )
+        with patch.dict("os.environ", {LEGACY_BEARER_ENV_VAR: "1"}, clear=True):
+            self.assertTrue(
+                validate_request_auth(headers, token, method="GET", path_with_query="/api/workers", body=b"")
+            )
 
     def test_update_auth_token_rejects_blank_and_persists(self) -> None:
         saved: list[dict] = []

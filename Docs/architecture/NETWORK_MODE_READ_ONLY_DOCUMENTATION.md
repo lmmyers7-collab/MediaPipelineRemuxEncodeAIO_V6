@@ -65,7 +65,7 @@ The Network page is read-only. It renders the coordinator/worker runtime state f
 
 | Operation | Where to perform |
 |---|---|
-| Launch the coordinator | `Start-MediaPipelineRemuxEncodeAIO-ApiAndBrowser.bat` or `Start-MediaPipelineRemuxEncodeAIO-LocalApi.bat` on the coordinator machine, with `NetworkRole=coordinator` in config |
+| Launch the coordinator | `scripts\dev\start-api-and-browser.bat` or `scripts\dev\start-local-api.bat` on the coordinator machine, with `NetworkRole=coordinator` in config |
 | Launch a worker | Same start command on the worker machine, with `NetworkRole=worker` and `WorkerCoordinatorUrl` set |
 | Set coordinator auth token | Raw JSON patch in Settings (`CoordinatorAuthToken`), then save-patch; or direct PSD1 edit |
 | Diagnose cluster log | Diagnostics page → `cluster_log` target (tail) or open |

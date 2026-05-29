@@ -389,7 +389,11 @@
 
   function pendingDrainConfidenceRows(pending, rows, snapshot, entries) {
     const payload = pending || {};
-    const rowList = Array.isArray(rows) ? rows : [];
+    const inputRows = Array.isArray(rows) ? rows : [];
+    const loadedRows = typeof getLastPendingRows === "function" ? getLastPendingRows() : [];
+    const payloadRows = Array.isArray(payload.rows) ? payload.rows : [];
+    const rowLists = [inputRows, Array.isArray(loadedRows) ? loadedRows : [], payloadRows];
+    const rowList = rowLists.reduce((largest, candidate) => candidate.length > largest.length ? candidate : largest, []);
     const entryList = Array.isArray(entries) ? entries : [];
     const summary = pendingDrainSummaryPayload(payload);
     const latest = pendingDrainLatestCommand(entryList);
@@ -489,6 +493,25 @@
 
   function pendingDrainConfidenceSummaryLines(pending, rows, snapshot, entries) {
     const confidenceRows = pendingDrainConfidenceRows(pending, rows, snapshot, entries);
+    const payload = pending || {};
+    const inputRows = Array.isArray(rows) ? rows : [];
+    const loadedRows = typeof getLastPendingRows === "function" ? getLastPendingRows() : [];
+    const payloadRows = Array.isArray(payload.rows) ? payload.rows : [];
+    const scopeRows = [inputRows, Array.isArray(loadedRows) ? loadedRows : [], payloadRows].reduce(
+      (largest, candidate) => candidate.length > largest.length ? candidate : largest,
+      [],
+    );
+    const filterScope = pendingCurrentFilterScope(scopeRows);
+    const reportedRowCount = Number(payload.count || 0);
+    const reportedIssueCount = Number(payload.issue_count || payload.health_count || 0);
+    const filterScopeAction = (
+      filterScope.active
+      && !Number(filterScope.hiddenCount || 0)
+      && reportedRowCount > Number(filterScope.totalCount || 0)
+      && reportedIssueCount > 0
+    )
+      ? "Review hidden warning rows or clear filters before drain; display filters do not narrow backend drain scope."
+      : pendingCurrentFilterScopeAction(filterScope);
     const counts = confidenceRows.reduce((acc, row) => {
       const key = row.confidence || "unknown";
       acc[key] = (acc[key] || 0) + 1;
@@ -500,6 +523,9 @@
       "This is the final read-only operator handoff before Publish Parked Outputs.",
       "Backend Publish Parked Outputs remains the only authority that can validate and move parked files.",
     ];
+    if (filterScope.active) {
+      lines.push(`Display filter / drain scope: ${filterScopeAction}`);
+    }
     const blockedRows = confidenceRows.filter((row) => row.confidence === "blocked");
     const reviewRows = confidenceRows.filter((row) => row.confidence === "review");
     const unknownRows = confidenceRows.filter((row) => row.confidence === "unknown");

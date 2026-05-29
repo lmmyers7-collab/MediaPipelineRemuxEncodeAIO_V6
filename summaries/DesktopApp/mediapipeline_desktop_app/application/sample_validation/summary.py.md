@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/application/sample_validation/summary
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: application
-last_modified: 2026-05-26
+last_modified: 2026-05-28
 last_reviewed: 2026-05-28
-sha256: a68d30ddeeb86a65aa42cc3a775d2f3e7e3a2b78fdd4853f79c6230d25f95e14
+sha256: c5a3954df3e405fd297ee518624aa840d8339b50a57f559b3523b0465c51f9b7
 ---
 # `DesktopApp/mediapipeline_desktop_app/application/sample_validation/summary.py`
 

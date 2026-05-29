@@ -21,8 +21,8 @@ flat tree to find sibling files that share state. AI sessions spend
 tokens reconstructing which files belong together. The naming convention
 prevents IDE folder grouping from helping.
 
-`ARCHITECTURAL_OVERHAUL_PLAN.md` §Target Architecture proposes re-folding
-by domain.
+`Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md` §Target Architecture
+proposes re-folding by domain.
 
 ## Decision
 

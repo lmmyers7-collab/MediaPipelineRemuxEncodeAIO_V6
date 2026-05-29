@@ -3,21 +3,32 @@ network.auth
 ============
 Token generation and validation for the coordinator HTTP API.
 
-Designed to be simple and stdlib-only.  The token is a shared secret
-transmitted as a bearer token in the ``Authorization`` header.  This is
-sufficient for LAN-only use where TLS is not required.
+Designed to be simple and stdlib-only. The coordinator token is a shared
+secret used to sign requests with HMAC-SHA256 so the token is not sent on
+the LAN for normal worker/coordinator traffic.
 
 For future TLS support, wrap the ``ThreadingHTTPServer`` with an
 ``ssl.SSLContext`` in ``network/coordinator.py`` — no changes needed here.
 """
 from __future__ import annotations
 
+import hashlib
 import hmac
+import os
 import secrets
+import time
+from collections.abc import MutableMapping
 
 
 # Number of random bytes → 64-char hex string.
 _TOKEN_BYTES = 32
+AUTH_VERSION = "mp-hmac-v1"
+AUTH_TIMESTAMP_HEADER = "X-MediaPipeline-Timestamp"
+AUTH_NONCE_HEADER = "X-MediaPipeline-Nonce"
+AUTH_SIGNATURE_HEADER = "X-MediaPipeline-Signature"
+AUTH_VERSION_HEADER = "X-MediaPipeline-Auth-Version"
+AUTH_MAX_SKEW_SECONDS = 300
+LEGACY_BEARER_ENV_VAR = "MEDIAPIPELINE_ALLOW_LEGACY_COORDINATOR_BEARER"
 
 
 def generate_token() -> str:
@@ -82,3 +93,125 @@ def validate_header(headers: dict, expected_token: str) -> bool:
 def make_auth_header(token: str) -> dict[str, str]:
     """Return an ``Authorization`` header dict for use in worker requests."""
     return {"Authorization": f"Bearer {token}"}
+
+
+def _header_value(headers: dict, name: str) -> str:
+    value = headers.get(name)
+    if value is not None:
+        return str(value)
+    folded = name.casefold()
+    for key, item in headers.items():
+        if str(key).casefold() == folded:
+            return str(item)
+    return ""
+
+
+def body_sha256_hex(body: bytes) -> str:
+    return hashlib.sha256(body or b"").hexdigest()
+
+
+def canonical_request(method: str, path_with_query: str, timestamp: str, nonce: str, body: bytes) -> str:
+    return "\n".join(
+        [
+            str(method or "").upper(),
+            str(path_with_query or ""),
+            str(timestamp or ""),
+            str(nonce or ""),
+            body_sha256_hex(body),
+        ]
+    )
+
+
+def sign_request(
+    method: str,
+    path_with_query: str,
+    body: bytes,
+    token: str,
+    *,
+    timestamp: int | None = None,
+    nonce: str | None = None,
+) -> dict[str, str]:
+    timestamp_text = str(int(time.time() if timestamp is None else timestamp))
+    nonce_text = str(nonce or secrets.token_urlsafe(24))
+    secret = str(token or "").strip()
+    signature = hmac.new(
+        secret.encode("utf-8"),
+        canonical_request(method, path_with_query, timestamp_text, nonce_text, body).encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    return {
+        AUTH_VERSION_HEADER: AUTH_VERSION,
+        AUTH_TIMESTAMP_HEADER: timestamp_text,
+        AUTH_NONCE_HEADER: nonce_text,
+        AUTH_SIGNATURE_HEADER: signature,
+    }
+
+
+def validate_signed_request(
+    headers: dict,
+    expected_token: str,
+    *,
+    method: str,
+    path_with_query: str,
+    body: bytes,
+    nonce_cache: MutableMapping[str, float] | None = None,
+    now: float | None = None,
+    max_skew_seconds: int = AUTH_MAX_SKEW_SECONDS,
+) -> bool:
+    secret = str(expected_token or "").strip()
+    if not secret:
+        return False
+    if _header_value(headers, AUTH_VERSION_HEADER) != AUTH_VERSION:
+        return False
+    timestamp_text = _header_value(headers, AUTH_TIMESTAMP_HEADER).strip()
+    nonce = _header_value(headers, AUTH_NONCE_HEADER).strip()
+    provided_signature = _header_value(headers, AUTH_SIGNATURE_HEADER).strip()
+    if not timestamp_text or not nonce or not provided_signature:
+        return False
+    try:
+        timestamp = int(timestamp_text)
+    except ValueError:
+        return False
+    current = float(time.time() if now is None else now)
+    if abs(current - float(timestamp)) > int(max_skew_seconds):
+        return False
+    expected_signature = hmac.new(
+        secret.encode("utf-8"),
+        canonical_request(method, path_with_query, timestamp_text, nonce, body).encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    try:
+        if not hmac.compare_digest(provided_signature, expected_signature):
+            return False
+    except (TypeError, ValueError):
+        return False
+    if nonce_cache is not None:
+        expired = [key for key, expires_at in nonce_cache.items() if float(expires_at) < current]
+        for key in expired:
+            nonce_cache.pop(key, None)
+        if nonce in nonce_cache:
+            return False
+        nonce_cache[nonce] = current + int(max_skew_seconds)
+    return True
+
+
+def validate_request_auth(
+    headers: dict,
+    expected_token: str,
+    *,
+    method: str,
+    path_with_query: str,
+    body: bytes,
+    nonce_cache: MutableMapping[str, float] | None = None,
+) -> bool:
+    if validate_signed_request(
+        headers,
+        expected_token,
+        method=method,
+        path_with_query=path_with_query,
+        body=body,
+        nonce_cache=nonce_cache,
+    ):
+        return True
+    legacy_enabled = str(os.environ.get(LEGACY_BEARER_ENV_VAR, "") or "").strip().casefold() in {"1", "true", "yes", "on"}
+    return legacy_enabled and validate_header(headers, expected_token)

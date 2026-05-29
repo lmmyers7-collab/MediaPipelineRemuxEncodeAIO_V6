@@ -272,6 +272,8 @@
     }
 
     function completedTableRowStatus(item) {
+      const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(item) : "";
+      if (backendState) return backendState;
       const severity = String(item?.operator_severity || "").toLowerCase();
       if (severity === "error" || item?.output_exists === false || completedRowHasIntegrityIssue(item)) return "blocked";
       if (severity === "warning" || item?.size_growth_over_5 || completedReviewRowReasons(item).length) return "warning";
@@ -1006,10 +1008,35 @@
       setText("completed-consistency", completedConsistencyLines(completed || {}, rowList).join("\n"));
     }
 
+    const COMPLETED_VALIDATION_STATE_SCHEMA_VERSION = "desktop_validation_state.v1";
+
+    function completedValidationStatePayload(completed) {
+      const payload = completed || {};
+      return payload.validation_state && typeof payload.validation_state === "object" ? payload.validation_state : {};
+    }
+
+    function completedValidationStatusLabel(state) {
+      const normalized = String(state || "").toLowerCase();
+      if (normalized === "blocked") return "Blocked";
+      if (normalized === "validation-needed") return "Validation needed";
+      if (normalized === "completed") return "Complete";
+      if (normalized === "warning") return "Review";
+      if (normalized === "idle") return "No history";
+      return normalized ? normalized.replace(/-/g, " ") : "Unknown";
+    }
+
+    function completedValidationProofLabel(value) {
+      if (value === true) return "passed";
+      if (value === false) return "failed";
+      return "not reported";
+    }
+
     function completedValidationStatus(completed, rows) {
       const payload = completed || {};
       const rowList = Array.isArray(rows) ? rows : [];
+      const validation = completedValidationStatePayload(payload);
       if (payload.error) return "Unavailable";
+      if (validation.status_state) return completedValidationStatusLabel(validation.status_state);
       if (!rowList.length) return "No history";
       if (Number(payload.missing_output_count || 0) > 0) return "Broken outputs";
       if (Number(payload.size_growth_over_5_count || 0) > 0) return "Size review";
@@ -1022,6 +1049,7 @@
     function completedValidationChecklistLines(completed, rows) {
       const payload = completed || {};
       const rowList = Array.isArray(rows) ? rows : [];
+      const validation = completedValidationStatePayload(payload);
       const warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
       if (payload.error) {
         return [
@@ -1033,6 +1061,13 @@
       }
       const lines = [
         "Real-media validation checklist:",
+        `Expected validation contract: ${COMPLETED_VALIDATION_STATE_SCHEMA_VERSION}`,
+        `Validation contract: ${validation.schema_version || "not reported"}`,
+        `Validation state: ${completedValidationStatusLabel(validation.status_state)}`,
+        `Validation rows: ${validation.row_count || 0}; blocked=${validation.blocked_count || 0}; needed=${validation.validation_needed_count || 0}; complete=${validation.completed_count || 0}; unavailable=${validation.unavailable_count || 0}`,
+        `Playback required rows: ${validation.playback_required_count || 0}`,
+        `Probe proof: ${validation.row_count ? "row-level; see selected row" : "not reported"}`,
+        `Hash proof: ${validation.row_count ? "row-level; see selected row" : "not reported"}`,
         `Manifest fresh enough: ${completedManifestIsAged(payload) ? "no - treat as old context" : "yes"}`,
         payload.manifest_freshness_status ? completedFreshnessLine("Manifest age", payload.manifest_age_text, payload.manifest_freshness_status, payload.manifest_mtime_utc) : "Manifest age: not reported",
         `Completed rows loaded: ${payload.count || rowList.length || 0}`,
@@ -1050,6 +1085,10 @@
       lines.push("");
       if (!rowList.length) {
         lines.push("Operator action: no completed rows are loaded. This is normal before first success; otherwise open the completed manifest and run logs.");
+      } else if (validation.status_state === "blocked") {
+        lines.push("Operator action: filter for blocked validation rows. A missing output or failed proof is not safe Sample Validation evidence.");
+      } else if (validation.status_state === "validation-needed") {
+        lines.push("Operator action: treat Completed rows as output-presence evidence only until probe/hash/playback proof is available or manually recorded.");
       } else if (Number(payload.missing_output_count || 0) > 0) {
         lines.push("Operator action: filter for missing/broken outputs. A completed manifest row without an output is not proof of success.");
       } else if (Number(payload.size_growth_over_5_count || 0) > 0) {
@@ -1063,6 +1102,7 @@
       } else {
         lines.push("Operator action: completed manifest, output presence, sidecar consistency, size policy, and runtime context look internally consistent.");
       }
+      lines.push("Proof boundary: this checklist does not run ffprobe, hash files, or mark playback accepted.");
       lines.push("Mutation guardrail: this checklist does not repair manifests, reconcile outputs, rerun jobs, or delete files.");
       return lines;
     }
@@ -1093,14 +1133,36 @@
         "Selected completed-row review checklist:",
         `Row state: ${backendTrustState || (missingOutput ? "broken-output" : needsReview ? "review" : "consistent-looking")}`,
         `Output health: ${item.output_health || (item.output_exists === false ? "missing output" : "ok")}`,
+        `Validation state: ${completedValidationStatusLabel(item.validation_status_state)}`,
+        `Probe proof: ${completedValidationProofLabel(item.validation_probe_ok)}`,
+        `Hash proof: ${completedValidationProofLabel(item.validation_hash_ok)}`,
+        `Playback required: ${item.validation_playback_required === true ? "yes" : item.validation_playback_required === false ? "no" : "not reported"}`,
         `Consistency: ${item.consistency_status || "not reported"}`,
         `Size growth: ${item.size_delta_label || "unknown"}${item.size_growth_over_5 ? " (over +5%)" : ""}`,
         `Runtime history: ${item.runtime_outcome_status || "none"}${item.runtime_outcome_freshness_status ? ` (${item.runtime_outcome_freshness_status})` : ""}`,
         `Review flags: ${reviewFlags.length ? reviewFlags.join(", ") : "none"}`,
         `Consistency issues: ${consistencyIssues.length ? consistencyIssues.join(", ") : "none"}`,
       ];
+      const reviewMarkers = [
+        ...reviewFlags,
+        ...consistencyIssues.map((issue) => `consistency:${issue}`),
+      ];
+      const reviewFlagExplanations = typeof window.mediaPipelineDom?.reviewFlagExplanationLines === "function"
+        ? window.mediaPipelineDom.reviewFlagExplanationLines(reviewMarkers, {
+          title: "Review flag explanations:",
+          emptyMessage: "No Completed review flags or consistency issues were reported for this row.",
+          guardrail: "Mutation guardrail: review-flag explanations translate Completed history markers only; they cannot accept outputs, repair manifests, rerun jobs, reconcile sidecars, publish, or delete files.",
+        })
+        : [];
+      lines.push(...reviewFlagExplanations);
       if (item.runtime_outcome_error_code || item.runtime_outcome_reason) {
         lines.push(`Runtime issue: ${[item.runtime_outcome_error_code, item.runtime_outcome_reason].filter(Boolean).join(" - ")}`);
+      }
+      if (item.validation_failure_reason) {
+        lines.push(`Validation proof gap: ${item.validation_failure_reason}`);
+      }
+      if (Array.isArray(item.validation_unavailable_reasons) && item.validation_unavailable_reasons.length) {
+        lines.push(`Validation unavailable proof: ${item.validation_unavailable_reasons.join(", ")}`);
       }
       if (item.operator_guidance) {
         lines.push(`Operator action: ${item.operator_guidance}`);
@@ -1121,6 +1183,10 @@
 
     function completedSelectedAtAGlanceState(item) {
       if (!item) return "unknown";
+      const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(item) : "";
+      if (["blocked", "failed"].includes(backendState)) return "blocked";
+      if (["warning", "running", "skipped", "parked", "publishing", "health-check"].includes(backendState)) return "warning";
+      if (["match", "ready", "completed"].includes(backendState)) return "ready";
       const reviewFlags = Array.isArray(item.review_flags) ? item.review_flags.filter(Boolean) : [];
       const consistencyIssues = Array.isArray(item.consistency_issues) ? item.consistency_issues.filter(Boolean) : [];
       const runtimeStatus = String(item.runtime_outcome_status || "").toLowerCase();
@@ -1149,12 +1215,21 @@
     }
 
     function completedSelectedAtAGlanceLines(item) {
+      const sharedSummary = window.mediaPipelineDom?.selectedRowAtAGlanceLines;
+      const authority = "Authority: this summary is read-only. It cannot accept outputs, repair manifests, rerun jobs, reconcile sidecars, publish, or delete files.";
       if (!item) {
-        return [
-          "Selected Completed row: none",
-          "Next step: select a completed row to review output, sidecar, route, size, pending-publish, and diagnostics evidence.",
-          "Authority: this summary is read-only. Completed history is proof to inspect, not acceptance or cleanup authority.",
-        ];
+        return typeof sharedSummary === "function"
+          ? sharedSummary({
+            title: "Selected Completed row",
+            item: null,
+            emptyNextStep: "Next step: select a completed row to review output, sidecar, route, size, pending-publish, and diagnostics evidence.",
+            authority: "Authority: this summary is read-only. Completed history is proof to inspect, not acceptance or cleanup authority.",
+          })
+          : [
+            "Selected Completed row: none",
+            "Next step: select a completed row to review output, sidecar, route, size, pending-publish, and diagnostics evidence.",
+            "Authority: this summary is read-only. Completed history is proof to inspect, not acceptance or cleanup authority.",
+          ];
       }
       const concern = item.primary_concern
         || (item.output_exists === false ? "completed row points to a missing output" : "")
@@ -1166,14 +1241,30 @@
         || (completedSelectedAtAGlanceState(item) === "ready"
           ? "Compare output/sidecar proof and Pending Publish state before treating this as accepted."
           : "Read Completed Manifest, Pending Publish, Run Logs, and Last Stderr before rerun or cleanup.");
+      const outputReview = `${item.output_path || "output not reported"}; ${item.route_decision_summary || item.route_label || item.route || "route not reported"}; size=${item.size_delta_label || item.size_reduction_text || "unknown"}; audio=${item.audio_decision_count || 0}; subtitles=${item.subtitle_decision_count || 0}; health=${item.output_health || "unknown"}`;
+      if (typeof sharedSummary === "function") {
+        return sharedSummary({
+          title: "Selected Completed row",
+          item,
+          label: item.output_file || item.lookup_title || item.output_path || item.source_path || "(unnamed row)",
+          trustStatus: item.operator_trust_state || item.output_health || item.consistency_status || "not reported",
+          atAGlanceStatus: completedSelectedAtAGlanceStatus(item),
+          proofLabel: "Output review",
+          proof: outputReview,
+          primaryConcern: concern,
+          safeNextStep: safeAction,
+          filterVisibility: completedSelectedVisibilitySummary(item) || "not evaluated",
+          authority,
+        });
+      }
       return [
         `Selected Completed row: ${item.output_file || item.lookup_title || item.output_path || item.source_path || "(unnamed row)"}`,
         `Trust/status: ${item.operator_trust_state || item.output_health || item.consistency_status || "not reported"}; at-a-glance=${completedSelectedAtAGlanceStatus(item)}`,
-        `Output review: ${item.output_path || "output not reported"}; ${item.route_decision_summary || item.route_label || item.route || "route not reported"}; size=${item.size_delta_label || item.size_reduction_text || "unknown"}; audio=${item.audio_decision_count || 0}; subtitles=${item.subtitle_decision_count || 0}; health=${item.output_health || "unknown"}`,
+        `Output review: ${outputReview}`,
         `Primary concern: ${concern}`,
         `Safe next step: ${safeAction}`,
         `Filter visibility: ${completedSelectedVisibilitySummary(item) || "not evaluated"}`,
-        "Authority: this summary is read-only. It cannot accept outputs, repair manifests, rerun jobs, reconcile sidecars, publish, or delete files.",
+        authority,
       ];
     }
 

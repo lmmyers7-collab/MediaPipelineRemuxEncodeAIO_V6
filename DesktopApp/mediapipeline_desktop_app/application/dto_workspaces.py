@@ -66,6 +66,7 @@ class SettingsWorkspaceDto:
     field_definitions: list[JsonMap] = field(default_factory=list)
     key_count: int = 0
     profiles: list[str] = field(default_factory=list)
+    profile_summary: JsonMap = field(default_factory=dict)
     risk_summary: JsonMap = field(default_factory=dict)
     media_policy_readiness: JsonMap = field(default_factory=dict)
     tool_path_evidence: JsonMap = field(default_factory=dict)

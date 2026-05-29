@@ -1,0 +1,243 @@
+{
+  "schema_version": "risky_file_registry.v1",
+  "entries": [
+    {
+      "id": "source_scratch_output_movement",
+      "path_globs": [
+        "Pipeline/Modules/Disk.ps1",
+        "Pipeline/Modules/ScratchCopy.ps1",
+        "Pipeline/Modules/PathHelpers.ps1",
+        "Pipeline/Modules/OutputPathPlanning.ps1",
+        "engine/**"
+      ],
+      "risk_level": "critical",
+      "risk_domains": [
+        "source_preservation",
+        "scratch_copy",
+        "path_safety",
+        "cleanup"
+      ],
+      "validation_rung": "media-policy-release-real-media",
+      "required_checks": [
+        "Pipeline/Tests/Unit/Invoke-PathBoundaryGuardChecks.ps1",
+        "Pipeline/Tests/Invoke-ReliabilityRegressionChecks.ps1",
+        "scripts/dev/refresh_summaries.py --check",
+        "scripts/dev/generate_project_index.py --check"
+      ],
+      "manual_gates": [
+        "real-media validation when behavior changes source/scratch/output movement",
+        "extra review for any source delete or overwrite permission change"
+      ],
+      "owner_docs": [
+        "AGENTS.md",
+        "Docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md",
+        "Docs/testing/VALIDATION_LADDER_RUNBOOK.md"
+      ],
+      "rationale": "These files control copy, move, cleanup, and path containment around source, scratch, and output media."
+    },
+    {
+      "id": "publish_and_pending_publish",
+      "path_globs": [
+        "Pipeline/Modules/Publish*.ps1",
+        "Pipeline/Modules/Pending*.ps1",
+        "DesktopApp/mediapipeline_desktop_app/service_pending_publish*.py",
+        "DesktopApp/mediapipeline_desktop_app/application/facade_pending_publish*.py"
+      ],
+      "risk_level": "critical",
+      "risk_domains": [
+        "publish",
+        "pending_publish",
+        "source_preservation",
+        "sidecar_carry_forward"
+      ],
+      "validation_rung": "settings-pending-publish-diagnostics",
+      "required_checks": [
+        "DesktopApp.tests.test_application_facade_pending_publish",
+        "DesktopApp.tests.test_service_pending_publish_manifest",
+        "Pipeline/Tests/Unit/Invoke-PendingPublishSafetyChecks.ps1",
+        "scripts/dev/generate_lifecycle_map.py --check"
+      ],
+      "manual_gates": [
+        "real-media validation when final publish, drain, or sidecar behavior changes",
+        "extra review for any bypass of park/drain manifest evidence"
+      ],
+      "owner_docs": [
+        "AGENTS.md",
+        "Docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md",
+        "Docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md"
+      ],
+      "rationale": "Pending publish protects final-root safety and must preserve evidence before any drain or cleanup."
+    },
+    {
+      "id": "rename_apply",
+      "path_globs": [
+        "DesktopApp/mediapipeline_desktop_app/service_rename*.py",
+        "DesktopApp/mediapipeline_desktop_app/application/facade_rename*.py"
+      ],
+      "risk_level": "high",
+      "risk_domains": [
+        "rename",
+        "path_safety",
+        "overwrite_prevention",
+        "undo_manifest"
+      ],
+      "validation_rung": "targeted-route-tests-plus-smokes",
+      "required_checks": [
+        "DesktopApp.tests.test_service_rename_apply",
+        "DesktopApp.tests.test_service_rename_planner",
+        "DesktopApp.tests.test_application_facade_rename"
+      ],
+      "manual_gates": [
+        "extra review for any change that permits overwrite or cross-root rename"
+      ],
+      "owner_docs": [
+        "AGENTS.md",
+        "Docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md"
+      ],
+      "rationale": "Rename apply mutates media filenames and sidecars and relies on collision checks plus undo manifests."
+    },
+    {
+      "id": "settings_and_config",
+      "path_globs": [
+        "DesktopApp/mediapipeline_desktop_app/config*.py",
+        "DesktopApp/mediapipeline_desktop_app/service_config*.py",
+        "Pipeline/Modules/Config*.ps1",
+        "Pipeline/Profiles/*.psd1",
+        "app/config/**",
+        "schemas/config.v1.schema.json"
+      ],
+      "risk_level": "high",
+      "risk_domains": [
+        "settings",
+        "path_roots",
+        "operator_policy"
+      ],
+      "validation_rung": "settings-queue-rename-pending-diagnostics",
+      "required_checks": [
+        "tests.contract.test_config_contract",
+        "DesktopApp.tests.test_config_service",
+        "scripts/dev/generate_config_schema.py --check"
+      ],
+      "manual_gates": [
+        "extra review for defaults that affect safe delete, cleanup, roots, publish, audio, or subtitle policy"
+      ],
+      "owner_docs": [
+        "AGENTS.md",
+        "Docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md",
+        "Docs/testing/TEST_COVERAGE_MATRIX.md"
+      ],
+      "rationale": "Config controls roots, cleanup, publish policy, and operator-facing safety defaults."
+    },
+    {
+      "id": "queue_and_process_control",
+      "path_globs": [
+        "DesktopApp/mediapipeline_desktop_app/service_queue*.py",
+        "DesktopApp/mediapipeline_desktop_app/service_process*.py",
+        "DesktopApp/mediapipeline_desktop_app/application/facade_queue*.py",
+        "DesktopApp/mediapipeline_desktop_app/application/facade_process*.py",
+        "Pipeline/Modules/QueuePlan.ps1",
+        "Pipeline/Modules/PipelineEngine.ps1",
+        "app/orchestration/**"
+      ],
+      "risk_level": "high",
+      "risk_domains": [
+        "queue",
+        "duplicate_processing",
+        "process_control",
+        "command_journal"
+      ],
+      "validation_rung": "targeted-route-tests-plus-smokes",
+      "required_checks": [
+        "DesktopApp.tests.test_application_facade_queue",
+        "DesktopApp.tests.test_service_queue_dry_run",
+        "DesktopApp.tests.test_application_facade_process_launch"
+      ],
+      "manual_gates": [
+        "extra review for changes to duplicate command guards, close readiness, or launch scope"
+      ],
+      "owner_docs": [
+        "AGENTS.md",
+        "Docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md",
+        "Docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md"
+      ],
+      "rationale": "Queue and process controls decide when pipeline work starts and how duplicate work is prevented."
+    },
+    {
+      "id": "ai_guardrails_and_generated_context",
+      "path_globs": [
+        "AGENTS.md",
+        "Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md",
+        "Docs/CURRENT_PROJECT_STATE.md",
+        "OPEN_WORK_CHECKLIST.md",
+        "scripts/dev/refresh_summaries.py",
+        "scripts/dev/generate_project_index.py",
+        "scripts/dev/generate_pipeline_map.py",
+        "scripts/dev/generate_lifecycle_map.py",
+        "scripts/dev/check_architecture_guardrails.py",
+        "scripts/dev/check_risky_file_registry.py",
+        "scripts/dev/ai_guardrail.py",
+        "scripts/lint-naming.py",
+        "Docs/generated/PROJECT_INDEX.md",
+        "Docs/generated/DEPENDENCY_GRAPH.md",
+        "Docs/generated/PIPELINE_MAP.md",
+        "summaries/**"
+      ],
+      "risk_level": "high",
+      "risk_domains": [
+        "ai_development_guardrails",
+        "generated_context",
+        "architecture_lint"
+      ],
+      "validation_rung": "tooling-contract-tests",
+      "required_checks": [
+        "tests.tooling.test_summary_integrity",
+        "tests.tooling.test_risky_file_registry",
+        "tests.tooling.test_lifecycle_map",
+        "tests.tooling.test_ai_guardrail",
+        "scripts/dev/refresh_summaries.py --check",
+        "scripts/dev/generate_project_index.py --check",
+        "scripts/dev/generate_lifecycle_map.py --check",
+        "scripts/dev/check_architecture_guardrails.py",
+        "scripts/lint-naming.py"
+      ],
+      "manual_gates": [
+        "extra review before weakening AI entry-point or architecture guardrail rules"
+      ],
+      "owner_docs": [
+        "AGENTS.md",
+        "Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md",
+        "Docs/CURRENT_PROJECT_STATE.md"
+      ],
+      "rationale": "These files shape what AI agents read, how they navigate the repo, and which architecture violations are caught."
+    },
+    {
+      "id": "lifecycle_contract_and_docs",
+      "path_globs": [
+        "app/contracts/lifecycle.py",
+        "Docs/architecture/FILE_LIFECYCLE_MAP.md",
+        "Docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md",
+        "Docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md"
+      ],
+      "risk_level": "medium",
+      "risk_domains": [
+        "lifecycle_docs",
+        "state_machine",
+        "recovery"
+      ],
+      "validation_rung": "docs-and-contract-checks",
+      "required_checks": [
+        "tests.tooling.test_lifecycle_map",
+        "scripts/dev/generate_lifecycle_map.py --check"
+      ],
+      "manual_gates": [
+        "extra review if lifecycle map contradicts runtime behavior"
+      ],
+      "owner_docs": [
+        "Docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md",
+        "Docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md",
+        "Docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md"
+      ],
+      "rationale": "Lifecycle documentation prevents AI and operators from losing track of state, cleanup, and recovery rules."
+    }
+  ]
+}

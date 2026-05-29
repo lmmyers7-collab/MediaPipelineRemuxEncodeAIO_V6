@@ -1,40 +1,42 @@
 # MediaPipelineRemuxEncodeAIO V6 Documentation Index
 
-Last updated: 2026-05-20
+Last updated: 2026-05-28
 
 This is the active documentation map for the current V6 tree. It reflects the quarantine move plus the operator's later manual deletion of several active doc folders. The legacy desktop shell is not part of this V6 folder. V5 remains an external fallback workspace only.
 
 ## Start Here
 
-- `..\AI_AGENT_START_HERE.md`: root entry point for AI/code agents.
-- `..\V6_SPLIT_NOTES.md`: V6 split scope, removed legacy desktop-shell surface, validation proof, and live API proof.
+- `..\README.md`: root operator entry point.
+- `..\AGENTS.md`: root entry point for AI/code agents.
 - `CURRENT_PROJECT_STATE.md`: current architecture, launch paths, migration state, safety assumptions, and obsolete instructions.
 - `..\OPEN_WORK_CHECKLIST.md`: single active unresolved work queue.
 - `TLDR.md`: fast operator summary.
 - `README_MediaPipelineRemuxEncodeAIO.md`: bundle overview, launchers, setup, release packaging, and important paths.
 - `DOCS_INDEX.md`: this file.
-- `..\DOCS_HOUSEKEEPING_CHECKLIST.md`: recurring rules for preventing future Markdown sprawl.
 
 ## Housekeeping
 
-- `..\DOCS_HOUSEKEEPING_AUDIT.md`: current documentation audit, scored inventory, and proposed canonical map.
-- `..\DOCS_HOUSEKEEPING_CHECKLIST.md`: recurring documentation hygiene checklist.
-- `..\docs_housekeeping_catalog.csv`: machine-readable documentation catalog regenerated from the current tree.
 - Older root housekeeping reports were moved under `archive/docs-housekeeping/2026-05-20-review/archive-historical/` as superseded historical evidence.
 - `ARCHIVED_MD_INDEX.md`: current archive/quarantine index.
 - `archive/docs-housekeeping/2026-05-20-review/`: current quarantine root.
 
 ## Active Root Docs
 
-- `..\AI_DIRECTIVE.md`: universal AI coding directive. This file is intentionally not edited unless the operator explicitly asks to update the directive.
-- `..\DOCS_HOUSEKEEPING_AUDIT.md`: current docs audit.
-- `..\DOCS_HOUSEKEEPING_CHECKLIST.md`: documentation cleanup rules.
-- `..\V5_TRANSITION_REVIEW_FIX_CHECKLIST.md`: compatibility redirect to the active root checklist.
-- `..\V6_SPLIT_NOTES.md`: current V6 split evidence.
+- `..\README.md`: root operator entry point.
+- `..\AGENTS.md`: root AI/code-agent entry point.
+- `architecture/ARCHITECTURE.md`: concise architecture map.
+- `architecture/ARCHITECTURAL_OVERHAUL_PLAN.md`: V6 to V7 plan of record.
+- `..\CHANGELOG.md`: canonical shipped-status log.
 - `..\OPEN_WORK_CHECKLIST.md`: active task queue and promotion blockers.
+- `generated/PROJECT_INDEX.md`: generated per-source navigation index.
+- `generated/PIPELINE_MAP.md`: generated stage contract map.
+- `generated/DEPENDENCY_GRAPH.md`: generated cross-domain dependency graph.
+- `generated/FILE_SUMMARIES.md`: summary-system guide.
 
-## Active Compatibility Redirects
+## Archived Compatibility Redirects
 
+- `archive/ai/AI_AGENT_START_HERE.md`: archived redirect to `..\AGENTS.md`.
+- `archive/ai/AI_DIRECTIVE.md`: archived redirect to `..\AGENTS.md`.
 - `ACTIVE_FIX_CHECKLIST.md`: redirect to `CURRENT_PROJECT_STATE.md` and `..\OPEN_WORK_CHECKLIST.md`.
 
 `Docs/active-plans/` currently contains no Markdown files.
@@ -114,8 +116,9 @@ Smoke wrappers live under `..\SmokeTests\`. Do not add new smoke wrappers at the
 - `sample-validation/SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md`
 - `sample-validation/V5_REAL_MEDIA_VALIDATION_PLAYBOOK.md`
 - `sample-validation/V5_SAMPLE_VALIDATION_ARTIFACT_DESIGN.md`
+- `RealMediaValidationRuns/README.md`: non-sensitive status anchor for the 2026-05-28 operator-attested representative real-media validation.
 
-`Docs/RealMediaValidationRuns/` currently contains no Markdown files.
+Run-specific worksheets may remain local or excluded from release packaging when they contain personal source/output paths.
 
 ## Desktop App And WebView
 
@@ -126,6 +129,7 @@ Smoke wrappers live under `..\SmokeTests\`. Do not add new smoke wrappers at the
 ## UI Planning
 
 - `ui/V6_TAB_WORKFLOW_REDESIGN_EXECUTION_PLAN.md`: active planning and execution tracker for the 13-tab WebView workflow redesign.
+- `ui/V6_OPERATOR_UX_REMEDIATION_REMAINING_TASKS.md`: remaining operator UX remediation tracker after the backend-authored status-state pass.
 
 The old DesktopApp overview and feature comparison docs remain in `archive/docs-housekeeping/2026-05-20-review/consolidated-after-extraction/`; recover only specific paragraphs into current canonical docs.
 
@@ -143,7 +147,6 @@ These folders currently exist but contain no Markdown/text documentation files:
 - `active-plans/`
 - `Pipeline/`
 - `proposals/`
-- `RealMediaValidationRuns/`
 
 ## Archive And Quarantine
 

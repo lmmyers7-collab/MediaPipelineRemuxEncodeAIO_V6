@@ -6,14 +6,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_rename_plan_policy import (
+from app.rename.plan_policy import (
     build_movie_rename_name,
     casefold_bool_override_map,
     casefold_override_map,
     normalise_manual_final_name,
     rename_row_status,
 )
-from mediapipeline_desktop_app.service_rename_utils import normalize_plex_filename_component
+from app.rename.utils import normalize_plex_filename_component
 
 
 def _clean_movie_name(

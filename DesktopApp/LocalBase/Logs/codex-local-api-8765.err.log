@@ -1,0 +1,88 @@
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 1465)
+Traceback (most recent call last):
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\mediapipeline_desktop_app\api\handler.py", line 56, in do_GET
+    self._send_json(handler(query) if spec.needs_query else handler())
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\mediapipeline_desktop_app\api\handler.py", line 105, in _send_json
+    self._send_bytes(body, status=status, content_type="application/json; charset=utf-8")
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\mediapipeline_desktop_app\api\handler.py", line 108, in _send_bytes
+    send_bytes(self, body, status=status, content_type=content_type)
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\mediapipeline_desktop_app\api\http_helpers.py", line 151, in send_bytes
+    handler.wfile.write(body)
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\Runtime\Python\Lib\socketserver.py", line 845, in write
+    self._sock.sendall(b)
+ConnectionAbortedError: [WinError 10053] An established connection was aborted by the software in your host machine
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\Runtime\Python\Lib\socketserver.py", line 697, in process_request_thread
+    self.finish_request(request, client_address)
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\Runtime\Python\Lib\socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\Runtime\Python\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\Runtime\Python\Lib\http\server.py", line 436, in handle
+    self.handle_one_request()
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\Runtime\Python\Lib\http\server.py", line 424, in handle_one_request
+    method()
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\mediapipeline_desktop_app\api\handler.py", line 59, in do_GET
+    self._send_json(route_exception_payload(route, exc), status=500)
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\mediapipeline_desktop_app\api\handler.py", line 105, in _send_json
+    self._send_bytes(body, status=status, content_type="application/json; charset=utf-8")
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\mediapipeline_desktop_app\api\handler.py", line 108, in _send_bytes
+    send_bytes(self, body, status=status, content_type=content_type)
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\mediapipeline_desktop_app\api\http_helpers.py", line 150, in send_bytes
+    handler.end_headers()
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\Runtime\Python\Lib\http\server.py", line 538, in end_headers
+    self.flush_headers()
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\Runtime\Python\Lib\http\server.py", line 542, in flush_headers
+    self.wfile.write(b"".join(self._headers_buffer))
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\Runtime\Python\Lib\socketserver.py", line 845, in write
+    self._sock.sendall(b)
+ConnectionAbortedError: [WinError 10053] An established connection was aborted by the software in your host machine
+----------------------------------------
+----------------------------------------
+Exception occurred during processing of request from ('127.0.0.1', 11292)
+Traceback (most recent call last):
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\mediapipeline_desktop_app\api\handler.py", line 56, in do_GET
+    self._send_json(handler(query) if spec.needs_query else handler())
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\mediapipeline_desktop_app\api\handler.py", line 105, in _send_json
+    self._send_bytes(body, status=status, content_type="application/json; charset=utf-8")
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\mediapipeline_desktop_app\api\handler.py", line 108, in _send_bytes
+    send_bytes(self, body, status=status, content_type=content_type)
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\mediapipeline_desktop_app\api\http_helpers.py", line 151, in send_bytes
+    handler.wfile.write(body)
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\Runtime\Python\Lib\socketserver.py", line 845, in write
+    self._sock.sendall(b)
+ConnectionAbortedError: [WinError 10053] An established connection was aborted by the software in your host machine
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\Runtime\Python\Lib\socketserver.py", line 697, in process_request_thread
+    self.finish_request(request, client_address)
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\Runtime\Python\Lib\socketserver.py", line 362, in finish_request
+    self.RequestHandlerClass(request, client_address, self)
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\Runtime\Python\Lib\socketserver.py", line 766, in __init__
+    self.handle()
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\Runtime\Python\Lib\http\server.py", line 436, in handle
+    self.handle_one_request()
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\Runtime\Python\Lib\http\server.py", line 424, in handle_one_request
+    method()
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\mediapipeline_desktop_app\api\handler.py", line 59, in do_GET
+    self._send_json(route_exception_payload(route, exc), status=500)
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\mediapipeline_desktop_app\api\handler.py", line 105, in _send_json
+    self._send_bytes(body, status=status, content_type="application/json; charset=utf-8")
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\mediapipeline_desktop_app\api\handler.py", line 108, in _send_bytes
+    send_bytes(self, body, status=status, content_type=content_type)
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\mediapipeline_desktop_app\api\http_helpers.py", line 150, in send_bytes
+    handler.end_headers()
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\Runtime\Python\Lib\http\server.py", line 538, in end_headers
+    self.flush_headers()
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\Runtime\Python\Lib\http\server.py", line 542, in flush_headers
+    self.wfile.write(b"".join(self._headers_buffer))
+  File "C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\DesktopApp\Runtime\Python\Lib\socketserver.py", line 845, in write
+    self._sock.sendall(b)
+ConnectionAbortedError: [WinError 10053] An established connection was aborted by the software in your host machine
+----------------------------------------

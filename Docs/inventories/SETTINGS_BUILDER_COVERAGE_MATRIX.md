@@ -12,7 +12,7 @@ Raw JSON only or intentionally hidden: 2.
 
 | Builder name | Fields covered | Purpose |
 |---|---|---|
-| Routing / Size | `RoutingProfile`, `SizeGuardMode`, `EncodeTuningPreset`, `EncodeLadder`, `VideoCodec`, `OutputContainer`, `MaxEncodeGrowthPercent`, `CompatibilityEncodeGrowthPercent`, `EncodeThresholdGB`, `TVEncodeThresholdGB` | High-level route and size policy |
+| Routing / Size | `RoutingProfile`, `SizeGuardMode`, `EncodeTuningPreset`, `EncodeLadder`, `VideoCodec`, `OutputContainer`, `MaxEncodeGrowthPercent`, `CompatibilityEncodeGrowthPercent`, `EncodeThresholdGB`, `TVEncodeThresholdGB`, `MovieRouteMaxVideoBitrateMbps`, `TVRouteMaxVideoBitrateMbps` | High-level route, bitrate, and size policy |
 | Video Detail | `VideoPreset`, `VideoQuality`, `AllowH264RemuxIfPlexCompatible`, `H264RemuxMaxBitrateMbps`, `H264RemuxMaxHeight`, `RemuxSafeVideoCodecs`, `FallbackCpuQuality`, `CpuEncodePreset`, `CpuEncodeProcessPriority`, `CpuEncodeMaxThreads`, `ExtraVideoFlags` | NVENC/CPU encoder precision and copy policy |
 | File Safety / Publish | `SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`, `MinFreeSpaceGB`, `OutsourceMinFreeSpaceGB`, `FileStabilityWait`, `CleanupStaleAgeHours`, `OutputSizeMultiplier`, `ValidExtensions`, `RobocopyFlags`, `DeferredPublish`, `AggressiveEpisodeParsing`, `SkipStabilityCheck`, `EnableIntegrityCheck`, `CreateTVSubfolder`, `CleanupRemoteStaging` | Source/output/scratch paths, stability, integrity, deferred publish |
 | Pending Publish / Recovery | `DeferredPublish`, `CleanupRemoteStaging`, `TransientFailureRetryLimit`, `CleanupStaleAgeHours`, `RobocopyTimeoutSeconds`, `RobocopyFlags`, `OutsourceMinFreeSpaceGB`, `OutputSizeMultiplier`, `EnableIntegrityCheck`, `SkipStabilityCheck` | Drain behavior and recovery tuning |
@@ -78,12 +78,12 @@ Re-checked builder groups against current `settingsView.js` and `settingsOvervie
 
 | Builder | Status |
 |---|---|
-| Routing / Size | Pass — no new keys; `RoutingProfile`, `SizeGuardMode`, and encode ladder fields unchanged |
+| Routing / Size | Pass — route, size, encode ladder, and movie/TV bitrate ceiling fields are builder-covered |
 | Audio | Pass — `AudioPassthroughProfile`, passthrough/transcode/channel/language fields unchanged |
 | Subtitle | Pass — TX3G, BDPGS, ASS/SSA convert/drop/preserve fields unchanged; BDPGS OCR tool/tessdata paths and SDH/supplemental keyword lists now have structured fields |
 | Pending Publish / Recovery | Pass — `DeferredPublish`, `RobocopyFlags`, `CleanupStaleAgeHours` unchanged |
 | Auth token exclusion | Pass — `CoordinatorAuthToken` / `WorkerAuthToken` still intentionally raw-only |
-| New sample-validation config keys | None — sample validation is not a settings/config concern; its limits are constants in `facade_sample_validation_policy.py` |
+| New sample-validation config keys | None — sample validation is not a settings/config concern; its limits are constants in `app/sample_validation/policy.py` |
 
 No builder coverage gaps introduced. `BdpgsOcrToolPath` / `BdpgsOcrTessdataPath` raw-only recommendation closed by the Subtitle builder text fields; `SubSDHTitleKeywords` / `SubSupplementalKeywords` are now list fields staged through the same backend Preview/Save flow. No path picker was added, and auth tokens remain intentionally excluded.
 

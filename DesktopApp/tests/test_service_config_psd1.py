@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import unittest
 
-from mediapipeline_desktop_app.service_config import ConfigProfileServiceMixin
-from mediapipeline_desktop_app.service_config_psd1 import (
+from app.config.service import ConfigProfileServiceMixin
+from app.config.load import (
     order_top_level_config,
     psd1_key,
     psd1_quote,

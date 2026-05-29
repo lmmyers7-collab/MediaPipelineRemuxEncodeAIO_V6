@@ -76,7 +76,7 @@ Operational surface:
 - API responses can validate against the generated schemas at the
   boundary (per `jsonschema`), catching contract drift at runtime
   rather than in a downstream consumer.
-- Generated `docs/pipeline-contracts.md` describes the wire shape and
+- Generated `Docs/generated/PIPELINE_MAP.md` describes the wire shape and
   cannot drift from the model.
 
 Testing and CI:

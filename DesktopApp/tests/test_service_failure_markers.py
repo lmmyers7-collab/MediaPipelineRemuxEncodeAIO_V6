@@ -9,13 +9,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from mediapipeline_desktop_app.service_audit_rerun import AuditRerunServiceMixin
-from mediapipeline_desktop_app.service_failure_cleanup import FailureCleanupServiceMixin
-from mediapipeline_desktop_app.service_failure_markers import (
+from app.audit.rerun_service import AuditRerunServiceMixin
+from app.failures.cleanup_service import FailureCleanupServiceMixin
+from app.failures.markers import (
     failure_record_from_marker_payload,
     normalize_failure_marker_payload,
 )
-from mediapipeline_desktop_app.service_path_layout import path_within_root
+from app.paths.layout import path_within_root
 
 
 def _resolved(root: Path, markers: Path) -> ResolvedPaths:

@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 from mediapipeline_desktop_app.models import AuditRecord, ResolvedPaths
-from mediapipeline_desktop_app.service_audit_rerun_io import (
+from app.audit.rerun_io import (
     load_audit_records,
     load_failure_marker_records,
     load_failure_records,

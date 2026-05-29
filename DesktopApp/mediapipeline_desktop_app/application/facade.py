@@ -3,37 +3,36 @@ from __future__ import annotations
 import threading
 
 from .. import APP_NAME, APP_VERSION
-from .facade_audit import AuditFacadeMixin
-from .facade_completed import CompletedFacadeMixin
-from .facade_completed_open import CompletedOpenFacadeMixin
-from .facade_diagnostics import DiagnosticsFacadeMixin
-from .facade_failures import FailureFacadeMixin
-from .facade_inventory import InventoryFacadeMixin
-from .facade_maintenance import MaintenanceFacadeMixin
-from .facade_maintenance_backfill import MaintenanceBackfillFacadeMixin
-from .facade_maintenance_commands import MaintenanceCommandFacadeMixin
-from .facade_maintenance_release import MaintenanceReleaseFacadeMixin
-from .facade_network import NetworkFacadeMixin
-from .facade_pending_publish import PendingPublishFacadeMixin
-from .facade_publish_reconciliation import PublishReconciliationFacadeMixin
-from .facade_process import ProcessFacadeMixin
-from .facade_process_audit import AuditLaunchFacadeMixin
-from .facade_process_control import ProcessControlFacadeMixin
-from .facade_process_guard import ProcessGuardFacadeMixin
-from .facade_process_pipeline import PipelineLaunchFacadeMixin
-from .facade_process_rerun import RerunLaunchFacadeMixin
-from .facade_process_schedule import ProcessScheduleFacadeMixin
-from .facade_queue import QueueFacadeMixin
-from .facade_rename import RenameFacadeMixin
-from .facade_sample_validation import SampleValidationFacadeMixin
-from .facade_schedule import ScheduleFacadeMixin
-from .facade_settings import SettingsFacadeMixin
-from .facade_settings_helpers import SettingsHelperFacadeMixin
-from .facade_settings_patch import SettingsPatchFacadeMixin
-from .facade_settings_patch_candidate import SettingsPatchCandidateFacadeMixin
-from .facade_settings_risk import SettingsRiskFacadeMixin
-from .facade_status import StatusFacadeMixin
-from .facade_utils import FacadeUtilityMixin
+from app.audit.facade import AuditFacadeMixin
+from app.completed.facade import CompletedFacadeMixin
+from app.completed.open_facade import CompletedOpenFacadeMixin
+from app.diagnostics.facade import DiagnosticsFacadeMixin
+from app.failures.facade import FailureFacadeMixin
+from app.maintenance.backfill_facade import MaintenanceBackfillFacadeMixin
+from app.maintenance.commands_facade import MaintenanceCommandFacadeMixin
+from app.maintenance.facade import MaintenanceFacadeMixin
+from app.maintenance.release_facade import MaintenanceReleaseFacadeMixin
+from app.network.facade import NetworkFacadeMixin
+from app.publish.pending_facade import PendingPublishFacadeMixin
+from app.publish.reconciliation_facade import PublishReconciliationFacadeMixin
+from app.processes.preflight_facade import ProcessFacadeMixin
+from app.processes.audit_facade import AuditLaunchFacadeMixin
+from app.processes.control_facade import ProcessControlFacadeMixin
+from app.processes.guard_facade import ProcessGuardFacadeMixin
+from app.processes.pipeline_facade import PipelineLaunchFacadeMixin
+from app.processes.rerun_facade import RerunLaunchFacadeMixin
+from app.processes.schedule_facade import ProcessScheduleFacadeMixin
+from app.queue.facade import QueueFacadeMixin
+from app.rename.facade import RenameFacadeMixin
+from app.sample_validation.facade import SampleValidationFacadeMixin
+from app.schedule.facade import ScheduleFacadeMixin
+from app.config.settings_facade import SettingsFacadeMixin
+from app.config.settings_helpers_facade import SettingsHelperFacadeMixin
+from app.config.settings_patch_candidate_facade import SettingsPatchCandidateFacadeMixin
+from app.config.settings_patch_facade import SettingsPatchFacadeMixin
+from app.config.settings_risk_facade import SettingsRiskFacadeMixin
+from app.observability.status_facade import StatusFacadeMixin
+from app.application.utilities import FacadeUtilityMixin
 from .schedule_stop_watcher import ScheduleStopWatcherManager
 
 
@@ -56,7 +55,6 @@ class MediaPipelineApplicationFacade(
     AuditFacadeMixin,
     PendingPublishFacadeMixin,
     PublishReconciliationFacadeMixin,
-    InventoryFacadeMixin,
     PipelineLaunchFacadeMixin,
     AuditLaunchFacadeMixin,
     RerunLaunchFacadeMixin,

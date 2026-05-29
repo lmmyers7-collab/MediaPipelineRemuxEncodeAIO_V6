@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.application.facade_process_pipeline_policy import (
+from app.processes.pipeline_policy import (
     PIPELINE_EXTRA_ARGS_ERROR,
     PIPELINE_SLEEP_SECONDS_ERROR,
     PIPELINE_START_MODE_ERROR,

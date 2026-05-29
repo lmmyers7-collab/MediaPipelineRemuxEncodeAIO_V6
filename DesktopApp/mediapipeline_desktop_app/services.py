@@ -5,7 +5,7 @@ import threading
 from pathlib import Path
 
 from .models import AuditRecord, CompletedJobRecord, FailureRecord, QueueRecord, ResolvedPaths, Snapshot, TelemetrySnapshot
-from .service_constants import (
+from app.shared.constants import (
     ACTIVE_JOB_SCHEMA_VERSION,
     APP_STATE_NAME,
     CONFIG_SCHEMA_VERSION,
@@ -21,22 +21,22 @@ from .service_constants import (
     SCHEDULE_DAY_NAMES,
     VLC_LONG_PATH_THRESHOLD,
 )
-from .service_app_state import AppStateScheduleServiceMixin
-from .service_audit_rerun import AuditRerunServiceMixin
-from .service_config import ConfigProfileServiceMixin
-from .service_completed import CompletedJobsServiceMixin
-from .service_file_open import FileOpenServiceMixin
-from .service_failure_cleanup import FailureCleanupServiceMixin
-from .service_folder_policy import FolderPolicyServiceMixin
-from .service_pending_publish import PendingPublishServiceMixin
-from .service_paths import PathResolutionServiceMixin
-from .service_processes import ProcessLifecycleServiceMixin
-from .service_queue import QueueServiceMixin
-from .service_release import ReleasePackageServiceMixin
-from .service_rename import RenameServiceMixin
-from .service_status import StatusServiceMixin
-from .service_telemetry import TelemetryServiceMixin
-from .service_utils import (
+from app.schedule.app_state import AppStateScheduleServiceMixin
+from app.audit.rerun_service import AuditRerunServiceMixin
+from app.config.service import ConfigProfileServiceMixin
+from app.completed.service import CompletedJobsServiceMixin
+from app.files.opening import FileOpenServiceMixin
+from app.failures.cleanup_service import FailureCleanupServiceMixin
+from app.folder_policy.service import FolderPolicyServiceMixin
+from app.publish.pending_service import PendingPublishServiceMixin
+from app.paths.service import PathResolutionServiceMixin
+from app.processes.lifecycle import ProcessLifecycleServiceMixin
+from app.queue.service import QueueServiceMixin
+from app.maintenance.release import ReleasePackageServiceMixin
+from app.rename.service import RenameServiceMixin
+from app.status.service import StatusServiceMixin
+from app.telemetry.service import TelemetryServiceMixin
+from app.shared.utils import (
     _normalize_open_path_text,
     _strip_windows_extended_path_prefix,
 )

@@ -139,6 +139,8 @@
 
 
     function queueTableRowStatus(item) {
+      const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(item) : "";
+      if (backendState) return backendState;
       const severity = String(item?.operator_severity || "").toLowerCase();
       if (severity === "error" || item?.blocked_reason || item?.blocked_reason_code || item?.error) return "blocked";
       if (severity === "warning" || item?.is_priority || queueReviewRowReasons(item).length) return "warning";
@@ -244,6 +246,10 @@
 
     function queueSelectedAtAGlanceState(item) {
       if (!item) return "unknown";
+      const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(item) : "";
+      if (["blocked", "failed"].includes(backendState)) return "blocked";
+      if (["warning", "running", "completed", "skipped", "parked", "publishing", "health-check"].includes(backendState)) return "warning";
+      if (["ready", "match"].includes(backendState)) return "ready";
       const runtimeStatus = String(item.runtime_outcome_status || "").toLowerCase();
       const runtimeFreshness = String(item.runtime_outcome_freshness_status || "").toLowerCase();
       const reviewFlags = Array.isArray(item.review_flags) ? item.review_flags.filter(Boolean) : [];
@@ -275,12 +281,21 @@
 
 
     function queueSelectedAtAGlanceLines(item) {
+      const sharedSummary = window.mediaPipelineDom?.selectedRowAtAGlanceLines;
+      const authority = "Authority: this summary is read-only. It cannot launch, reorder, drop, rewrite queue entries, or touch source files.";
       if (!item) {
-        return [
-          "Selected Queue row: none",
-          "Next step: select a queue row to review route, source, diagnostics, and Launch readiness evidence.",
-          "Authority: this summary is read-only. Backend Launch remains the only path that can start processing.",
-        ];
+        return typeof sharedSummary === "function"
+          ? sharedSummary({
+            title: "Selected Queue row",
+            item: null,
+            emptyNextStep: "Next step: select a queue row to review route, source, diagnostics, and Launch readiness evidence.",
+            authority: "Authority: this summary is read-only. Backend Launch remains the only path that can start processing.",
+          })
+          : [
+            "Selected Queue row: none",
+            "Next step: select a queue row to review route, source, diagnostics, and Launch readiness evidence.",
+            "Authority: this summary is read-only. Backend Launch remains the only path that can start processing.",
+          ];
       }
       const concern = item.primary_concern
         || [item.blocked_reason_code, item.blocked_reason, item.error].filter(Boolean).join(" - ")
@@ -291,6 +306,21 @@
         || (queueSelectedAtAGlanceState(item) === "ready"
           ? "Use Launch only after page-level readiness, schedule, and backend preflight agree."
           : "Read Queue Snapshot, Last Stderr, Run Logs, and owning-page evidence before starting.");
+      if (typeof sharedSummary === "function") {
+        return sharedSummary({
+          title: "Selected Queue row",
+          item,
+          label: item.display_name || item.relative_path || item.source_path || "(unnamed row)",
+          trustStatus: item.operator_trust_state || item.operator_status || queueTableRowStatus(item),
+          atAGlanceStatus: queueSelectedAtAGlanceStatus(item),
+          proofLabel: "Route/source proof",
+          proof: `${item.route_decision_summary || item.route_name || "route not reported"}; source=${item.source_path || "not reported"}`,
+          primaryConcern: concern,
+          safeNextStep: safeAction,
+          filterVisibility: queueSelectedVisibilitySummary(item) || "not evaluated",
+          authority,
+        });
+      }
       return [
         `Selected Queue row: ${item.display_name || item.relative_path || item.source_path || "(unnamed row)"}`,
         `Trust/status: ${item.operator_trust_state || item.operator_status || queueTableRowStatus(item)}; at-a-glance=${queueSelectedAtAGlanceStatus(item)}`,
@@ -298,7 +328,7 @@
         `Primary concern: ${concern}`,
         `Safe next step: ${safeAction}`,
         `Filter visibility: ${queueSelectedVisibilitySummary(item) || "not evaluated"}`,
-        "Authority: this summary is read-only. It cannot launch, reorder, drop, rewrite queue entries, or touch source files.",
+        authority,
       ];
     }
 

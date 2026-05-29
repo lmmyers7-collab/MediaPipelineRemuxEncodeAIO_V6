@@ -33,6 +33,7 @@
   --green-100: hsl(145, 55%, 92%);
 
   /* ===== STATUS - amber ===== */
+  --amber-900: hsl(38, 55%, 13%);
   --amber-700: hsl(38, 80%, 30%);
   --amber-500: hsl(38, 85%, 50%);
   --amber-100: hsl(38, 90%, 93%);
@@ -76,6 +77,14 @@
   --space-13: 80px;
   --space-14: 96px;
   --topbar-height: 40px;
+
+  /* ===== RADIUS SCALE =====
+     Keep desktop controls crisp and consistent. Cards/panels should stay at
+     --radius-sm or below unless a pill shape communicates status grouping. */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-pill: 999px;
 
   /* ===== SHADOWS - dark-mode adapted (higher opacity than light spec) ===== */
   --shadow-1: 0 1px 2px hsl(220 15% 0% / 0.30);

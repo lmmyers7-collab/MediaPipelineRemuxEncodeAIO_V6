@@ -199,6 +199,17 @@ def _browser_home_live_state_runner_source() -> str:
             if (document.body.classList.contains("evidence-hidden")) {
               throw new Error("Evidence toggle did not restore evidence visibility.");
             }
+            window.scrollTo(0, document.body.scrollHeight || 1200);
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            if (window.scrollY <= 0) {
+              throw new Error("Could not stage scroll position before page navigation reset check.");
+            }
+            window.showPage("settings");
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            if (window.scrollY !== 0) {
+              throw new Error("Page navigation did not reset viewport scroll to top; scrollY=" + window.scrollY);
+            }
+            window.showPage("home");
             const homePanels = Array.from(document.querySelectorAll('[data-page-panel="home"] .panel'));
             const priorHiddenAttrs = homePanels.map((panel) => panel.hasAttribute("data-panel-hidden"));
             homePanels.forEach((panel) => panel.setAttribute("data-panel-hidden", ""));

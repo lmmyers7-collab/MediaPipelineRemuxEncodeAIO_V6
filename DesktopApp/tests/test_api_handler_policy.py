@@ -11,6 +11,7 @@ from mediapipeline_desktop_app.api.handler_policy import (
     bounded_error_text,
     not_found_payload,
     route_exception_payload,
+    route_validation_error_payload,
     should_record_command_payload,
     unauthorized_payload,
 )
@@ -29,13 +30,17 @@ class LocalApiHandlerPolicyTests(unittest.TestCase):
     def test_error_payload_helpers_preserve_handler_contract(self) -> None:
         self.assertEqual(unauthorized_payload(), {"error": "unauthorized"})
         self.assertEqual(not_found_payload("/api/missing"), {"error": "not found", "path": "/api/missing"})
+        error_payload = route_exception_payload("/api/snapshot", RuntimeError("failed"))
+        self.assertEqual(error_payload["error"], "internal route error")
+        self.assertEqual(error_payload["path"], "/api/snapshot")
+        self.assertRegex(error_payload["error_id"], r"^[0-9a-f]{12}$")
         self.assertEqual(
-            route_exception_payload("/api/snapshot", RuntimeError("failed")),
+            route_validation_error_payload("/api/snapshot", RuntimeError("failed")),
             {"error": "failed", "path": "/api/snapshot"},
         )
         self.assertEqual(bounded_error_text("abcdef", limit=4), "a...")
         self.assertEqual(
-            route_exception_payload("/api/snapshot", RuntimeError("x" * 2500))["error"],
+            route_validation_error_payload("/api/snapshot", RuntimeError("x" * 2500))["error"],
             ("x" * 1997) + "...",
         )
 

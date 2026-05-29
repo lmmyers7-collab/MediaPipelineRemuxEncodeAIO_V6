@@ -37,7 +37,7 @@ from ..config_keys import (
     KEY_TRANSIENT_FAILURE_RETRY_LIMIT,
     KEY_TX3G_EXTRACT_LANGUAGES,
 )
-from ..config_schema import CONFIG_MANAGED_KEYS
+from app.config.metadata import CONFIG_MANAGED_KEYS
 from .settings_risk_policy_rules import (
     changed_key_risk_item,
     list_setting_values,

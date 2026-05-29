@@ -1,4 +1,13 @@
 (function () {
+  const domHelpers = window.mediaPipelineDom || {};
+  const jsonDetailText = domHelpers.jsonDetailText || function (options = {}) {
+    const label = options.label || "JSON detail";
+    try {
+      return `${label}:\n${JSON.stringify(options.value, null, 2)}`;
+    } catch (error) {
+      return `${label}:\nJSON render error: ${error instanceof Error ? error.message : String(error)}`;
+    }
+  };
   let lastContractRoutes = [];
   let lastContractPayload = {};
   let selectedContractRouteKey = "";
@@ -473,6 +482,12 @@
     } else {
       lines.push("Operator safety: this is read-only from the WebView perspective.");
     }
+    lines.push("", jsonDetailText({
+      label: "Route contract JSON",
+      value: route,
+      intro: "Read-only route contract payload from /api/contract. Select this block to copy it for troubleshooting.",
+      guardrail: "Mutation guardrail: this Contract page formats already-loaded route data only and cannot call command routes, open files, save settings, launch work, drain publish, rename, or mutate media.",
+    }));
     setText("api-contract-detail", lines.join("\n"));
   }
 

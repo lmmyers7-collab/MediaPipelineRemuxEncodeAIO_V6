@@ -1,0 +1,18 @@
+---
+file: app/config/load.py
+pipeline_stage: config
+token_priority: medium
+owner_domain: config
+last_modified: 2026-05-28
+last_reviewed: 2026-05-28
+sha256: c8fb2cbab4f26e47f91ec2b7cf86d7f24bc0dfd1d283763d70b887e8b43d8d2c
+---
+# `app/config/load.py`
+
+**Purpose:** Canonical PSD1 loader and converter for `app.contracts.config`.
+
+**Classes:** `ConfigLoadError`, `Psd1LoadResult`
+**Public functions:** `build_psd1_import_args()`, `config_from_mapping()`, `config_to_flat_dict()`, `config_to_psd1()`, `default_powershell_host()`, `load_config()`, `load_psd1_mapping()`, `order_top_level_config()`, `parse_psd1_json()`, `psd1_key()`, `psd1_lines()`, `psd1_quote()`, `serialize_psd1_document()`
+**In-repo imports:** `app.contracts.config`
+
+_Edit the source, not this file. Regenerate with `python scripts/dev/refresh_summaries.py --paths app/config/load.py`._

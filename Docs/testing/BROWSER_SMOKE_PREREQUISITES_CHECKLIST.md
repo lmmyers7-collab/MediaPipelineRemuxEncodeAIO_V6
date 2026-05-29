@@ -13,7 +13,7 @@ For full coverage and failure interpretation, see `Docs/testing/BROWSER_SMOKE_TE
 - When doing docs-only changes — the release self-test with `-SkipEndToEndSmoke` is sufficient.
 - When Node.js is not on PATH — fix the PATH issue first; the smoke will skip cleanly, but a skip is not a pass.
 - In headless CI environments with no Chrome/Edge installation — browser smokes skip cleanly and are designed for this. Non-browser smokes are the CI-suitable alternative.
-- When you want to test only backend API shapes — use `test_api_read_payloads_policy.py` and `test_api_command_payloads_policy.py` instead.
+- When you want to test only backend API shapes, use `test_api_read_payloads_policy.py` and `test_api_command_results_policy.py` instead.
 
 ---
 
@@ -67,7 +67,7 @@ Test-Path $py
 
 Expected: `Python 3.x.x`. If the bundled Python is missing:
 - Check whether the DesktopApp Runtime folder exists.
-- If the workspace is a partial clone or missing the bundled runtime, run `Verify-MediaPipelineRemuxEncodeAIO-Environment.bat` to identify what is missing.
+- If the workspace is a partial clone or missing the bundled runtime, run `scripts\verify-env.bat` to identify what is missing.
 
 ---
 

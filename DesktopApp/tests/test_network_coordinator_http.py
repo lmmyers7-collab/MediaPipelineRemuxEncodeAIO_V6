@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.network.auth import validate_header
+from mediapipeline_desktop_app.network.auth import AUTH_VERSION
 from mediapipeline_desktop_app.network.cluster_log import format_cluster_log_line
 from mediapipeline_desktop_app.network.coordinator import (
     CoordinatorDispatcher,
@@ -95,24 +95,36 @@ class NetworkCoordinatorHttpTests(unittest.TestCase):
                 return self.body
 
         requests: list[object] = []
+        signer_calls: list[tuple[str, str, bytes]] = []
 
         def fake_urlopen(request, timeout: int):
             requests.append((request, timeout))
             return FakeResponse(b'{"ok": true}')
 
+        def signer(method: str, path_with_query: str, body: bytes) -> dict[str, str]:
+            signer_calls.append((method, path_with_query, body))
+            return {
+                "X-MediaPipeline-Auth-Version": AUTH_VERSION,
+                "X-MediaPipeline-Timestamp": "1700000000",
+                "X-MediaPipeline-Nonce": f"nonce-{len(signer_calls)}",
+                "X-MediaPipeline-Signature": "signature",
+            }
+
         with patch("mediapipeline_desktop_app.network.http_json.urllib.request.urlopen", side_effect=fake_urlopen):
             get_result = http_get_json(
                 "http://coordinator:7830",
                 "/api/claim",
-                headers={"Authorization": "Bearer token"},
+                headers={"Accept": "application/json"},
                 params={"worker_id": "worker 1"},
+                sign_request=signer,
                 timeout_seconds=7,
             )
             post_result = http_post_json(
                 "http://coordinator:7830",
                 "/api/done",
                 {"job_id": "job-1", "success": True},
-                headers={"Authorization": "Bearer token"},
+                headers={"Accept": "application/json"},
+                sign_request=signer,
                 timeout_seconds=8,
             )
 
@@ -124,9 +136,17 @@ class NetworkCoordinatorHttpTests(unittest.TestCase):
         self.assertEqual(post_timeout, 8)
         self.assertEqual(get_request.get_method(), "GET")
         self.assertIn("worker_id=worker+1", get_request.full_url)
-        self.assertEqual(get_request.headers["Authorization"], "Bearer token")
+        get_headers = {key.casefold(): value for key, value in get_request.header_items()}
+        post_headers = {key.casefold(): value for key, value in post_request.header_items()}
+        self.assertNotIn("authorization", get_headers)
+        self.assertNotIn("authorization", post_headers)
+        self.assertEqual(get_headers["x-mediapipeline-auth-version"], AUTH_VERSION)
+        self.assertEqual(post_headers["x-mediapipeline-auth-version"], AUTH_VERSION)
         self.assertEqual(post_request.get_method(), "POST")
         self.assertEqual(json.loads(post_request.data.decode("utf-8")), {"job_id": "job-1", "success": True})
+        self.assertEqual(signer_calls[0], ("GET", "/api/claim?worker_id=worker+1", b""))
+        self.assertEqual(signer_calls[1][0:2], ("POST", "/api/done"))
+        self.assertEqual(json.loads(signer_calls[1][2].decode("utf-8")), {"job_id": "job-1", "success": True})
 
     def test_http_json_post_rejects_nonfinite_payload_before_request(self) -> None:
         with patch("mediapipeline_desktop_app.network.http_json.urllib.request.urlopen") as urlopen:

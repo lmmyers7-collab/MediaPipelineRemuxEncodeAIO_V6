@@ -95,30 +95,22 @@
     const groups = diagnosticsBridgeActionGroups(actions);
     const datasetPrefix = options.datasetPrefix || "diagnosticsBridge";
     const onAction = typeof options.onAction === "function" ? options.onAction : null;
-    let count = 0;
-    const appendGroup = (labelText, actionRows) => {
-      if (!actionRows.length) return;
-      const label = document.createElement("span");
-      label.className = "action-group-label";
-      label.textContent = labelText;
-      container.appendChild(label);
-      actionRows.forEach((action) => {
-        const button = document.createElement("button");
-        button.className = "secondary-button";
-        button.type = "button";
-        button.textContent = diagnosticsBridgeActionLabel(action);
-        button.title = action.reason || action.hint || "";
-        button.dataset.diagnosticsActionGroup = labelText.toLowerCase().replace(/\s+/g, "-");
-        button.dataset[`${datasetPrefix}Action`] = action.kind || "open";
-        button.dataset[`${datasetPrefix}Target`] = action.target;
-        if (onAction) button.addEventListener("click", () => onAction(action));
-        container.appendChild(button);
-        count += 1;
-      });
-    };
-    appendGroup("Read first", groups.readFirst);
-    appendGroup("Open next", groups.openNext);
-    return count;
+    const result = window.mediaPipelineDom?.renderOpenTargetActionGroups?.(container, groups, {
+      append: true,
+      showEmpty: false,
+      labelFor: diagnosticsBridgeActionLabel,
+      titleFor: (action) => action.reason || action.hint || "",
+      groupDataset: "diagnosticsActionGroup",
+      actionDataset: `${datasetPrefix}Action`,
+      targetDataset: `${datasetPrefix}Target`,
+      onTail: (_target, action) => {
+        if (onAction) onAction(action);
+      },
+      onOpen: (_target, action) => {
+        if (onAction) onAction(action);
+      },
+    });
+    return (result?.readFirst || 0) + (result?.openNext || 0);
   }
 
   function diagnosticsBridgeShowDiagnostics() {

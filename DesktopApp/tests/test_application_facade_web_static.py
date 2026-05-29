@@ -19,7 +19,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.api import LocalApiServer
-from mediapipeline_desktop_app.api.command_payloads_process import LocalApiProcessCommandPayloadMixin
+from app.api.commands_process import LocalApiProcessCommandPayloadMixin
 from mediapipeline_desktop_app.api.contract_command import LOCAL_API_COMMAND_ROUTE_CONTRACT
 from mediapipeline_desktop_app.api.contract_read import LOCAL_API_READ_ROUTE_CONTRACT
 from mediapipeline_desktop_app.api.handler import build_local_api_handler_class
@@ -87,8 +87,16 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         desktop_root = Path(__file__).resolve().parents[1]
         static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static"
         html = _render_static_index_html(static_root)
+        app_js = (static_root / "assets" / "app.js").read_text(encoding="utf-8")
         reports_js = (static_root / "assets" / "reportsView.js").read_text(encoding="utf-8")
         command_routes = {str(route["path"]): route for route in LOCAL_API_COMMAND_ROUTE_CONTRACT}
+
+        def row_open_targets(scope: str) -> set[str]:
+            key = f'"{scope}"' if "-" in scope else scope
+            pattern = rf"{re.escape(key)}:\s*\{{.*?actions:\s*\[(.*?)\],\s*onOpen"
+            match = re.search(pattern, app_js, re.S)
+            self.assertIsNotNone(match, f"row open action config missing for {scope}")
+            return set(re.findall(r'target:\s*"([^"]+)"', match.group(1)))
 
         diagnostics_targets = set(re.findall(r'data-open-diagnostics="([^"]+)"', html))
         report_target_match = re.search(r"function reportOpenTarget\(key\).*?const targets = \{(.*?)\};", reports_js, re.S)
@@ -96,16 +104,16 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         diagnostics_targets.update(re.findall(r':\s*"([^"]+)"', report_target_match.group(1)))
         self.assertEqual(set(command_routes["/api/diagnostics/open"]["allowed_targets"]) - diagnostics_targets, set())
 
-        queue_targets = set(re.findall(r'data-open-queue="([^"]+)"', html))
+        queue_targets = row_open_targets("queue")
         self.assertEqual(set(command_routes["/api/queue/open"]["allowed_targets"]) - queue_targets, set())
-        queue_excluded_targets = set(re.findall(r'data-open-queue-excluded="([^"]+)"', html))
+        queue_excluded_targets = row_open_targets("queue-excluded")
         self.assertEqual(set(command_routes["/api/queue/open"]["allowed_targets"]) - queue_excluded_targets, set())
         self.assertEqual(set(command_routes["/api/queue/open"]["allowed_row_scopes"]), {"runnable", "excluded"})
 
-        completed_targets = set(re.findall(r'data-open-completed="([^"]+)"', html))
+        completed_targets = row_open_targets("completed")
         self.assertEqual(set(command_routes["/api/completed/open"]["allowed_targets"]) - completed_targets, set())
 
-        pending_targets = set(re.findall(r'data-open-pending="([^"]+)"', html))
+        pending_targets = row_open_targets("pending")
         self.assertEqual(set(command_routes["/api/pending-publish/open"]["allowed_targets"]) - pending_targets, set())
         self.assertEqual(set(command_routes["/api/pending-publish/recovery-plan"]["allowed_scopes"]), {"all", "selected"})
 
@@ -169,6 +177,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         assets_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static" / "assets"
         settings_js = (assets_root / "settingsView.js").read_text(encoding="utf-8")
         launch_js = (assets_root / "launchView.js").read_text(encoding="utf-8")
+        helpers_js = (assets_root / "domHelpers.js").read_text(encoding="utf-8")
 
         self.assertIn('setText("settings-patch-status", result.ok ? "Saved" : result.severity || "Save failed")', settings_js)
         self.assertIn("lastSettingsPatchSaveEvidence = {", settings_js)
@@ -183,6 +192,13 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('command: "pending_publish.drain"', launch_js)
         self.assertIn('renderLaunchCommandResult("pending-drain-status", "pending-drain-detail", drainResult, request)', launch_js)
         self.assertIn('renderLaunchCommandResult("pipeline-launch-status", "pipeline-launch-detail", result, request)', launch_js)
+        self.assertIn("function jsonDetailText", helpers_js)
+        self.assertIn("function renderJsonDetail", helpers_js)
+        self.assertIn("Read-only structured detail", helpers_js)
+        self.assertIn("Backend data JSON", settings_js)
+        self.assertIn('renderJsonDetail("pipeline-launch-detail"', launch_js)
+        self.assertIn('renderJsonDetail("pending-drain-detail"', launch_js)
+        self.assertIn("jsonDetailText({", launch_js)
 
     def test_ui_polish_error_and_tooltip_guards_are_wired(self) -> None:
         desktop_root = Path(__file__).resolve().parents[1]
@@ -192,6 +208,9 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         launch_js = (static_root / "assets" / "launchView.js").read_text(encoding="utf-8")
         helpers_js = (static_root / "assets" / "domHelpers.js").read_text(encoding="utf-8")
         telemetry_js = (static_root / "assets" / "telemetryView.js").read_text(encoding="utf-8")
+        progress_js = (static_root / "assets" / "progressView.js").read_text(encoding="utf-8")
+        completed_review_js = (static_root / "assets" / "completedView.review.js").read_text(encoding="utf-8")
+        completed_proof_js = (static_root / "assets" / "completedView.proof.js").read_text(encoding="utf-8")
 
         self.assertIn("function applyDefaultActionTooltips", app_js)
         self.assertIn("function renderTelemetrySafely", app_js)
@@ -200,7 +219,25 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("Stack traces are intentionally omitted", launch_js)
         self.assertIn("span.title = `Status:", helpers_js)
         self.assertIn("function telemetryCanvasColors", telemetry_js)
+        self.assertIn("function telemetryGpuUsagePayload", telemetry_js)
+        self.assertIn("desktop_gpu_encoder_usage.v1", telemetry_js)
+        self.assertIn("Encoder sessions", telemetry_js)
         self.assertNotIn("#65a7ff", telemetry_js)
+        self.assertIn("function progressWorkerPayload", progress_js)
+        self.assertIn("function progressWorkerRows", progress_js)
+        self.assertIn("desktop_worker_progress.v1", progress_js)
+        self.assertIn("Worker progress", progress_js)
+        self.assertIn("function progressFfmpegPayload", progress_js)
+        self.assertIn("desktop_ffmpeg_progress.v1", progress_js)
+        self.assertIn("FFmpeg progress proof", progress_js)
+        self.assertIn("function progressEtaPayload", progress_js)
+        self.assertIn("desktop_eta.v1", progress_js)
+        self.assertIn("No ETA is shown until backend worker progress reports usable percent", progress_js)
+        self.assertIn("desktop_validation_state.v1", completed_review_js)
+        self.assertIn("Validation state proof", completed_proof_js)
+        self.assertIn("does not run ffprobe, hash files, or mark playback accepted", completed_review_js)
+        self.assertIn("renderDiagnosticsProgress?.(values.snapshot || lastSnapshot, values.diagnostics || null)", app_js)
+        self.assertIn("progressWorkerPayload?.(snapshot, diagnostics)", app_js)
         self.assertIn("CSV rerun stages files by copying to scratch first", html)
         self.assertIn("Custom negative terms are added to the backend rename planner", html)
 
@@ -332,7 +369,35 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("are covered by the Subtitle builder", raw_triage_js)
         self.assertIn("subtitle keyword builder coverage", raw_triage_js)
         self.assertIn("backend subtitle classification remains authoritative", raw_triage_js)
-        self.assertIn("do not add a frontend path picker", raw_triage_js)
+        self.assertIn("do not add a frontend-owned path picker", raw_triage_js)
+        self.assertIn("Any folder picker must be backend-owned and allowlisted", raw_triage_js)
+
+    def test_settings_file_safety_path_browse_is_backend_owned_staging(self) -> None:
+        desktop_root = Path(__file__).resolve().parents[1]
+        static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static"
+        html = _render_static_index_html(static_root)
+        assets_root = static_root / "assets"
+        settings_js = (assets_root / "settingsView.js").read_text(encoding="utf-8")
+        app_js = (assets_root / "app.js").read_text(encoding="utf-8")
+        settings_history_js = (assets_root / "settingsCommandHistory.js").read_text(encoding="utf-8")
+
+        for key, input_id in [
+            ("SourceMovies", "settings-file-safety-source-movies"),
+            ("SourceTV", "settings-file-safety-source-tv"),
+            ("Outsource", "settings-file-safety-outsource"),
+            ("LocalBase", "settings-file-safety-local-base"),
+        ]:
+            with self.subTest(key=key):
+                self.assertIn(f'data-settings-path-key="{key}"', html)
+                self.assertIn(f'data-settings-path-input="{input_id}"', html)
+        self.assertIn('"/api/settings/browse-path"', settings_js)
+        self.assertIn('selection_mode: "folder"', settings_js)
+        self.assertIn("writes_config", settings_js)
+        self.assertIn("stages_only", settings_js)
+        self.assertIn("Merge File Safety Patch, then Preview Patch before Save Patch", settings_js)
+        self.assertIn("It cannot save settings, launch work, rewrite queue state, publish, rename, delete, or touch media files.", settings_js)
+        self.assertIn("[data-settings-path-key]", app_js)
+        self.assertIn('command === "settings.browse_path"', settings_history_js)
 
     def test_web_command_feedback_preserves_backend_warnings_and_errors(self) -> None:
         desktop_root = Path(__file__).resolve().parents[1]
@@ -362,9 +427,15 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("function commandResultDisplayMessage", command_history_js)
         self.assertIn("function commandResultFeedbackLines", command_history_js)
         self.assertIn("function commandHistoryCompactEvidenceLine", command_history_js)
+        self.assertIn("function commandHistoryDiagnosticLine", command_history_js)
+        self.assertIn("function compactCommandHistoryEntries", command_history_js)
+        self.assertIn("function compactCommandHistoryBlockText", command_history_js)
+        self.assertIn("function renderCompactCommandHistoryBlock", command_history_js)
         self.assertIn("owner=${commandHistoryOwnerPage(item)}", command_history_js)
         self.assertIn("issue=${commandHistoryIssueLevel(item)}", command_history_js)
         self.assertIn("window.commandHistoryCompactEvidenceLine = commandHistoryCompactEvidenceLine", command_history_js)
+        _assert_namespace_export(self, command_history_js, "mediaPipelineCommandHistory", "renderCompactCommandHistoryBlock")
+        _assert_namespace_export(self, command_history_js, "mediaPipelineCommandHistory", "commandHistoryDiagnosticLine")
         self.assertIn("commandHistoryCompactEvidenceLine(entry", settings_command_history_js)
         self.assertIn("commandHistoryCompactEvidenceLine(entry", rename_history_view_js)
         self.assertIn("commandHistoryCompactEvidenceLine(entry", launch_history_view_js)
@@ -378,6 +449,12 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("commandHistoryCompactEvidenceLine(item", maintenance_view_js)
         self.assertIn("commandHistoryCompactEvidenceLine(entry", launch_preflight_view_js)
         self.assertIn("commandHistoryCompactEvidenceLine(entry", app_js)
+        self.assertIn("renderCompactCommandHistoryBlock({", settings_command_history_js)
+        self.assertIn("renderCompactCommandHistoryBlock({", launch_history_view_js)
+        self.assertIn("renderCompactCommandHistoryBlock({", reports_view_js)
+        self.assertIn("renderCompactCommandHistoryBlock({", maintenance_view_js)
+        self.assertIn("renderCompactCommandHistoryBlock({", pending_publish_drain_js)
+        self.assertIn("renderCompactCommandHistoryBlock: window.mediaPipelineCommandHistory?.renderCompactCommandHistoryBlock", pending_publish_view_js)
         self.assertIn("function commandHistoryIsPendingPublishCommand", command_history_js)
         self.assertIn("function commandHistoryPendingPublishCommandKind", command_history_js)
         self.assertIn("function commandHistoryPendingPublishSuggestedAction", command_history_js)
@@ -533,12 +610,18 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("function tableStatusMatchesFilter", dom_helpers_js)
         self.assertIn("function tableStatusFilterLabel", dom_helpers_js)
         self.assertIn("function tableInvestigationFilterLabel", dom_helpers_js)
+        self.assertIn("function reviewFlagExplanationLines", dom_helpers_js)
+        self.assertIn("expected output proof is missing", dom_helpers_js)
+        self.assertIn("translate already-loaded backend markers", dom_helpers_js)
+        self.assertIn("function selectedRowDetailDrawerLines", dom_helpers_js)
         self.assertIn("Hidden review rows:", dom_helpers_js)
         self.assertIn("filters are display-only", dom_helpers_js)
         self.assertIn("window.makeRowSelectable = makeRowSelectable", dom_helpers_js)
         self.assertIn("window.filterRowsByStatus = filterRowsByStatus", dom_helpers_js)
         self.assertIn("window.filterRowsByInvestigation = filterRowsByInvestigation", dom_helpers_js)
         _assert_namespace_export(self, dom_helpers_js, "mediaPipelineDom", "filterResultSummaryLines")
+        _assert_namespace_export(self, dom_helpers_js, "mediaPipelineDom", "reviewFlagExplanationLines")
+        _assert_namespace_export(self, dom_helpers_js, "mediaPipelineDom", "selectedRowDetailDrawerLines")
         _assert_namespace_export(self, diagnostics_bridge_js, "mediaPipelineDiagnosticsBridge", "diagnosticsBridgeActions")
         self.assertIn("function diagnosticsOwnerHandoffRows", diagnostics_view_js)
         self.assertIn("function diagnosticsCompletedFinalTrustStepForRow", diagnostics_view_js)
@@ -561,13 +644,38 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("Read/open boundary: diagnostics targets are backend allowlist identifiers", diagnostics_view_js)
         self.assertIn("Row file/folder opens belong to the owning page and require row_key plus target only.", diagnostics_view_js)
         self.assertIn("Go To Owner Row is local UI selection over already-loaded data", diagnostics_view_js)
+        self.assertIn("Diagnostics artifact JSON", diagnostics_state_js)
+        self.assertIn("Diagnostics triage JSON", diagnostics_state_js)
+        self.assertIn("jsonDetailText({", diagnostics_state_js)
         self.assertIn("renderDiagnosticsOwnerHandoffFn({", app_js)
         self.assertIn("sampleValidation: values[\"sample validation\"]", app_js)
         self.assertIn("function renderBrandVersion", app_js)
         self.assertIn("renderBrandVersion();", app_js)
+        self.assertIn("function keyboardShortcutRegistry", app_js)
+        self.assertIn("function focusActivePageSearch", app_js)
+        self.assertIn("function clearActivePageFilters", app_js)
+        self.assertIn("function moveActivePageSelection", app_js)
+        self.assertIn("function focusActivePageDetail", app_js)
+        self.assertIn("Read-only shortcuts. They navigate, refresh, filter, focus, or select rows", app_js)
+        self.assertIn('key: "/"', app_js)
+        self.assertIn('key: "c"', app_js)
+        self.assertIn('key: "j"', app_js)
+        self.assertIn('key: "k"', app_js)
+        self.assertIn('key: "d"', app_js)
         self.assertIn("startup HTML/assets are a separate shell bootstrap surface", contract_view_js)
         self.assertIn("/ and /assets/* are served for startup", contract_view_js)
+        self.assertIn("Route contract JSON", contract_view_js)
+        self.assertIn("jsonDetailText({", contract_view_js)
+        self.assertIn("formats already-loaded route data only", contract_view_js)
         self.assertNotIn("Only /api/health is public; all operator routes stay token-protected.", contract_view_js)
+        self.assertIn("window.mediaPipelineDom?.selectedRowDetailDrawerLines", queue_view_js)
+        self.assertIn("Queue selected-row detail", queue_view_js)
+        self.assertIn("reviewFlagExplanationLines(reviewFlags", queue_view_js)
+        self.assertIn("No Queue review flags were reported for this row.", queue_view_js)
+        self.assertIn("window.mediaPipelineDom?.selectedRowDetailDrawerLines", completed_view_js)
+        self.assertIn("Completed selected-row detail", completed_view_js)
+        self.assertIn("reviewFlagExplanationLines(reviewMarkers", completed_view_review_js)
+        self.assertIn("No Completed review flags or consistency issues were reported for this row.", completed_view_review_js)
         self.assertIn(".inline-actions", styles_css)
         self.assertIn('tr[data-selectable-row="true"]:focus-visible td', styles_css)
         self.assertIn('tr[data-status="failed"] td', styles_css)
@@ -637,7 +745,9 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("Operator trust summary:", diagnostics_bridge_js)
         self.assertIn("Read first:", diagnostics_bridge_js)
         self.assertIn("Open next:", diagnostics_bridge_js)
-        self.assertIn("button.dataset.diagnosticsActionGroup", diagnostics_bridge_js)
+        self.assertIn("renderOpenTargetActionGroups?.(container, groups", diagnostics_bridge_js)
+        self.assertIn('groupDataset: "diagnosticsActionGroup"', diagnostics_bridge_js)
+        self.assertIn("targetDataset: `${datasetPrefix}Target`", diagnostics_bridge_js)
         self.assertIn("Guardrail: this handoff selects or invokes backend allowlisted diagnostics targets only", diagnostics_bridge_js)
         self.assertIn("window.diagnosticsBridgeHandoffLines = diagnosticsBridgeHandoffLines", diagnostics_bridge_js)
 

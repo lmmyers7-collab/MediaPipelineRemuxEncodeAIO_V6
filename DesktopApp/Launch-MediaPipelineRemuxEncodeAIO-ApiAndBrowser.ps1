@@ -104,10 +104,17 @@ if ($NoTokenDevMode) {
 }
 
 Write-Host 'Starting local API in a new console window...' -ForegroundColor Yellow
+$previousNoTokenDevEnv = [Environment]::GetEnvironmentVariable('MEDIAPIPELINE_ALLOW_NO_TOKEN_DEV', 'Process')
+if ($NoTokenDevMode) {
+    [Environment]::SetEnvironmentVariable('MEDIAPIPELINE_ALLOW_NO_TOKEN_DEV', '1', 'Process')
+}
 Start-Process -FilePath $python `
               -ArgumentList $apiArgs `
               -WorkingDirectory $desktopRoot `
               -WindowStyle Normal
+if ($NoTokenDevMode) {
+    [Environment]::SetEnvironmentVariable('MEDIAPIPELINE_ALLOW_NO_TOKEN_DEV', $previousNoTokenDevEnv, 'Process')
+}
 
 # ---------------------------------------------------------------------------
 # Health poll — wait until the API is accepting connections

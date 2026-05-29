@@ -11,6 +11,8 @@
     ["CompatibilityEncodeGrowthPercent", "settings-builder-compat-growth"],
     ["EncodeThresholdGB", "settings-builder-movie-threshold"],
     ["TVEncodeThresholdGB", "settings-builder-tv-threshold"],
+    ["MovieRouteMaxVideoBitrateMbps", "settings-builder-movie-route-bitrate"],
+    ["TVRouteMaxVideoBitrateMbps", "settings-builder-tv-route-bitrate"],
   ];
 
   const fileSafetySettingsBuilderFields = [
@@ -262,6 +264,8 @@
         "H264RemuxMaxHeight",
         "EncodeThresholdGB",
         "TVEncodeThresholdGB",
+        "MovieRouteMaxVideoBitrateMbps",
+        "TVRouteMaxVideoBitrateMbps",
         "MaxEncodeGrowthPercent",
         "CompatibilityEncodeGrowthPercent",
         "OutputContainer",
@@ -373,6 +377,8 @@
     VideoQuality: "Lower quality numbers produce larger outputs; higher numbers are smaller but softer.",
     AllowH264RemuxIfPlexCompatible: "Disabling this can force unnecessary encodes of Plex-compatible H.264 sources.",
     H264RemuxMaxBitrateMbps: "Higher values allow more H.264 sources to copy video instead of encoding.",
+    MovieRouteMaxVideoBitrateMbps: "Higher values allow more movie sources to copy/remux before bitrate forces encode.",
+    TVRouteMaxVideoBitrateMbps: "Higher values allow more TV sources to copy/remux before bitrate forces encode.",
     H264RemuxMaxHeight: "Higher values allow larger H.264 sources to copy video when the profile allows it.",
     RemuxSafeVideoCodecs: "Adding codecs here can bypass video re-encoding for matching sources; keep the list conservative.",
     FallbackCpuQuality: "CPU fallback uses libx265 CRF, not NVENC CQ; lower values can greatly increase output size and runtime.",

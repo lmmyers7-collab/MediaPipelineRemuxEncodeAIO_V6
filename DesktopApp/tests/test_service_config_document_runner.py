@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_config_document_runner import (
+from app.config.document_runner import (
     load_config_data_for_service,
     validate_config_document_for_save_for_service,
 )

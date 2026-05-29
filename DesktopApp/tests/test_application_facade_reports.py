@@ -23,6 +23,7 @@ class ApplicationFacadeReportsTests(unittest.TestCase):
                     [
                         {
                             "SourcePath": str(root / "TV" / "Show" / "Season 01" / "Show - S01E01.mkv"),
+                            "JobId": "job-encode-1",
                             "Stage": "encode",
                             "Reason": "No NVENC capable devices found",
                             "Classification": "operator_required",
@@ -53,6 +54,7 @@ class ApplicationFacadeReportsTests(unittest.TestCase):
                 json.dumps(
                     {
                         "source_full_path": str(root / "TV" / "Show" / "Season 01" / "Show - S01E02.mkv"),
+                        "job_id": "job-publish-1",
                         "stage": "publish",
                         "reason": "Network destination unavailable",
                         "classification": "transient",
@@ -78,11 +80,16 @@ class ApplicationFacadeReportsTests(unittest.TestCase):
         self.assertEqual(preview["rows"][0]["error_code"], "ENCODE_NVENC_FAILED")
         self.assertEqual(preview["rows"][0]["media_type"], "TV")
         self.assertTrue(preview["rows"][0]["escalated"])
+        self.assertEqual(preview["rows"][0]["job_id"], "job-encode-1")
+        self.assertEqual(preview["retry_state"]["schema_version"], "desktop_retry_state.v1")
+        self.assertEqual(preview["retry_state"]["blocked_count"], 1)
         self.assertEqual(marker_preview["schema_version"], "desktop_failure_preview.v1")
         self.assertEqual(marker_preview["source_kind"], "markers")
         self.assertEqual(marker_preview["count"], 1)
         self.assertEqual(marker_preview["rows"][0]["error_code"], "PUBLISH_UNAVAILABLE")
         self.assertEqual(marker_preview["rows"][0]["retry_limit"], 5)
+        self.assertEqual(marker_preview["retry_state"]["status_state"], "retrying")
+        self.assertTrue(marker_preview["retry_state"]["rows"][0]["retry_allowed"])
 
     def test_clear_failure_markers_requires_confirmation_and_passes_marker_paths(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

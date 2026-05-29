@@ -1,0 +1,244 @@
+"""Pydantic contracts for Local API command request payloads.
+
+The Local API wire shape remains owned by the existing routes. These models
+describe the known per-route fields while allowing existing additive fields so
+the command-handler migration can proceed without breaking WebView callers.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, ValidationError
+
+
+class ApiCommandPayload(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    def to_wire_payload(self) -> dict[str, Any]:
+        return dict(self.model_dump(mode="json", exclude_unset=True))
+
+
+class StrictApiCommandPayload(ApiCommandPayload):
+    model_config = ConfigDict(extra="forbid")
+
+
+class EmptyCommandPayload(ApiCommandPayload):
+    pass
+
+
+class OpenLocationCommandPayload(ApiCommandPayload):
+    path: Any = None
+    target: Any = None
+    location: Any = None
+    relative_path: Any = None
+    manifest_path: Any = None
+
+
+class QueuePriorityItemPayload(ApiCommandPayload):
+    path: Any = None
+    level: Any = None
+    reason: Any = None
+
+
+class QueuePriorityCommandPayload(ApiCommandPayload):
+    path: Any = None
+    level: Any = None
+    reason: Any = None
+    items: Any = None
+
+
+class QueueStrategyCommandPayload(ApiCommandPayload):
+    strategy: Any = None
+
+
+class QueueFileOverridesCommandPayload(ApiCommandPayload):
+    path: Any = None
+    audio: Any = None
+    subtitles: Any = None
+    clear: Any = None
+    clear_all: Any = None
+
+
+class SettingsCommandPayload(ApiCommandPayload):
+    values: Any = None
+    patch: Any = None
+    changes: Any = None
+    removed_keys: Any = None
+    profile_name: Any = None
+    reload: Any = None
+
+
+class SettingsPreviewPatchCommandPayload(StrictApiCommandPayload):
+    changes: Any = None
+    remove_keys: Any = None
+
+
+class SettingsSavePatchCommandPayload(StrictApiCommandPayload):
+    changes: Any = None
+    remove_keys: Any = None
+    confirm_save: Any = None
+
+
+class SettingsBrowsePathCommandPayload(ApiCommandPayload):
+    setting_key: Any = None
+    selection_mode: Any = None
+    initial_path: Any = None
+
+
+class ScheduleCommandPayload(ApiCommandPayload):
+    enabled: Any = None
+    days: Any = None
+    start_time: Any = None
+    stop_time: Any = None
+    timezone: Any = None
+
+
+class RenameCommandPayload(ApiCommandPayload):
+    path: Any = None
+    paths: Any = None
+    media_type: Any = None
+    selection_mode: Any = None
+    initial_path: Any = None
+    confirm_apply: Any = None
+    selected_ids: Any = None
+
+
+class RenameApplyCommandPayload(StrictApiCommandPayload):
+    paths: Any = None
+    mode: Any = None
+    show_name: Any = None
+    season: Any = None
+    season_value: Any = None
+    start_episode: Any = None
+    start_episode_value: Any = None
+    movie_title: Any = None
+    movie_year: Any = None
+    remove_terms: Any = None
+    remove_terms_text: Any = None
+    movie_filter_options: Any = None
+    movie_filter_terms: Any = None
+    movie_filter_terms_enabled: Any = None
+    final_name_overrides: Any = None
+    rename_sidecars: Any = None
+    force_pipeline_name: Any = None
+    force_pipeline_name_overrides: Any = None
+    powershell_host: Any = None
+    use_pipeline_naming_preview: Any = None
+    template_preset: Any = None
+    selected_sources: Any = None
+    confirm_apply: Any = None
+    allow_outside_configured_roots: Any = None
+
+
+class ProcessControlCommandPayload(ApiCommandPayload):
+    action: Any = None
+    mode: Any = None
+    dry_run: Any = None
+    force_active_work_shutdown: Any = None
+
+
+class PipelineControlCommandPayload(StrictApiCommandPayload):
+    action: Any = None
+
+
+class PipelineStartCommandPayload(StrictApiCommandPayload):
+    mode: Any = None
+    sleep_seconds: Any = None
+    show_config: Any = None
+    show_console: Any = None
+    single_file: Any = None
+    schedule_override: Any = None
+
+
+class BackendShutdownCommandPayload(StrictApiCommandPayload):
+    reason: Any = None
+    force_active_work_shutdown: Any = None
+
+
+class MaintenanceCommandPayload(ApiCommandPayload):
+    dry_run: Any = None
+    include_package_check: Any = None
+    output_root: Any = None
+
+
+class MaintenanceReleaseBuildCommandPayload(StrictApiCommandPayload):
+    destination_root: Any = None
+    zip_package: Any = None
+    verify: Any = None
+    include_tests: Any = None
+    include_dev_docs: Any = None
+    include_optional_tools: Any = None
+    include_tool_docs: Any = None
+    keep_personal_config: Any = None
+    force: Any = None
+    confirm_create: Any = None
+    timeout_seconds: Any = None
+
+
+class SampleValidationCommandPayload(ApiCommandPayload):
+    sample_path: Any = None
+    worksheet_path: Any = None
+    result: Any = None
+    notes: Any = None
+
+
+class FailureCommandPayload(ApiCommandPayload):
+    dry_run: Any = None
+    confirm: Any = None
+    scope: Any = None
+
+
+COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
+    "/api/rename/preview": RenameCommandPayload,
+    "/api/rename/browse": RenameCommandPayload,
+    "/api/rename/apply": RenameApplyCommandPayload,
+    "/api/diagnostics/open": OpenLocationCommandPayload,
+    "/api/queue/open": OpenLocationCommandPayload,
+    "/api/queue/priority": QueuePriorityCommandPayload,
+    "/api/queue/strategy": QueueStrategyCommandPayload,
+    "/api/queue/file-overrides": QueueFileOverridesCommandPayload,
+    "/api/failures/clear": FailureCommandPayload,
+    "/api/pending-publish/open": OpenLocationCommandPayload,
+    "/api/pending-publish/recovery-plan": OpenLocationCommandPayload,
+    "/api/completed/open": OpenLocationCommandPayload,
+    "/api/settings/validate": SettingsCommandPayload,
+    "/api/settings/browse-path": SettingsBrowsePathCommandPayload,
+    "/api/settings/preview-patch": SettingsPreviewPatchCommandPayload,
+    "/api/settings/save-patch": SettingsSavePatchCommandPayload,
+    "/api/schedule/preview": ScheduleCommandPayload,
+    "/api/schedule/save": ScheduleCommandPayload,
+    "/api/maintenance/release-dry-run": MaintenanceCommandPayload,
+    "/api/maintenance/release-build": MaintenanceReleaseBuildCommandPayload,
+    "/api/maintenance/completed-backfill-dry-run": MaintenanceCommandPayload,
+    "/api/settings/reload": EmptyCommandPayload,
+    "/api/sample-validation/preview": SampleValidationCommandPayload,
+    "/api/sample-validation/append": SampleValidationCommandPayload,
+    "/api/pipeline/control": PipelineControlCommandPayload,
+    "/api/pipeline/start": PipelineStartCommandPayload,
+    "/api/audit/start": ProcessControlCommandPayload,
+    "/api/rerun/start": ProcessControlCommandPayload,
+    "/api/backend/shutdown": BackendShutdownCommandPayload,
+}
+
+
+def command_model_for_route(route: str) -> type[ApiCommandPayload]:
+    return COMMAND_ROUTE_PAYLOAD_MODELS.get(route, ApiCommandPayload)
+
+
+def validate_api_command_payload(route: str, payload: dict[str, Any]) -> dict[str, Any]:
+    model = command_model_for_route(route)
+    try:
+        return model.model_validate(payload).to_wire_payload()
+    except ValidationError:
+        raise
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"invalid command payload for {route}: {exc}") from exc
+
+
+__all__ = [
+    "ApiCommandPayload",
+    "COMMAND_ROUTE_PAYLOAD_MODELS",
+    "command_model_for_route",
+    "validate_api_command_payload",
+]

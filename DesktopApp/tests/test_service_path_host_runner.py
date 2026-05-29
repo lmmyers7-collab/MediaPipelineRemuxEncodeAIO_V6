@@ -6,7 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from mediapipeline_desktop_app.service_path_host_runner import (
+from app.paths.host import (
     resolve_powershell_host_for_service,
     subprocess_kwargs_hidden,
 )
@@ -39,7 +39,7 @@ class ServicePathHostRunnerTests(unittest.TestCase):
         self.assertEqual(calls, ["pwsh.exe", "pwsh"])
 
     def test_subprocess_kwargs_hidden_returns_empty_on_non_windows(self) -> None:
-        with patch("mediapipeline_desktop_app.service_path_host_runner.os.name", "posix"):
+        with patch("app.paths.host.os.name", "posix"):
             self.assertEqual(subprocess_kwargs_hidden(), {})
 
 

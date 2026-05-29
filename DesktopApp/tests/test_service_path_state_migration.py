@@ -5,8 +5,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from mediapipeline_desktop_app.service_constants import APP_STATE_NAME
-from mediapipeline_desktop_app.service_path_state_migration import (
+from app.shared.constants import APP_STATE_NAME
+from app.storage.state_migration import (
     app_state_path_for_state_root,
     migrate_app_state_path,
     migrate_app_state_path_for_service,
@@ -76,7 +76,7 @@ class ServicePathStateMigrationTests(unittest.TestCase):
             logger = DummyLogger()
 
             with patch(
-                "mediapipeline_desktop_app.service_path_state_migration.shutil.copy2",
+                "app.storage.state_migration.shutil.copy2",
                 side_effect=OSError("locked"),
             ):
                 selected = migrate_app_state_path(app_root, preferred, logger)

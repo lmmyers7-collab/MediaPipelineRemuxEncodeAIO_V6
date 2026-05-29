@@ -15,6 +15,7 @@ $ErrorActionPreference = 'Stop'
 
 $testsRoot = Split-Path -Parent $PSCommandPath
 $pipelineRoot = Split-Path -Parent (Split-Path -Parent $testsRoot)
+$repoRoot = Split-Path -Parent $pipelineRoot
 $schemasRoot = Join-Path $pipelineRoot 'Schemas'
 
 function Assert-True {
@@ -163,8 +164,8 @@ $completedJob = Convert-RoundTripJson ([ordered]@{
 })
 Assert-Equal $completedJob.schema_version 'pipeline_sidecar.v1' 'Completed manifest compatibility schema mismatch.'
 
-. (Join-Path $pipelineRoot 'Modules\Publish.Result.ps1')
-. (Join-Path $pipelineRoot 'Modules\Publish.Partial.ps1')
+. (Join-Path $repoRoot 'engine\publish\publish_result.ps1')
+. (Join-Path $repoRoot 'engine\publish\publish_partial.ps1')
 $publishResult = New-PipelinePublishResult -Ok:$true -DeleteLocalOutput:$true -PublishState 'published' -PublishMode 'immediate' -OutputPath 'C:\Out\Movie.mkv' -OutputSizeBytes 42
 Assert-True ([bool]$publishResult.Ok) 'Publish result Ok did not round-trip as bool.'
 Assert-True ([bool]$publishResult.DeleteLocalOutput) 'Publish result DeleteLocalOutput did not round-trip as bool.'

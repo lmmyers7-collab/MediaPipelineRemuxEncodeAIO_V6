@@ -212,5 +212,5 @@ For real-media validation, follow the observational checklist in `V5_REAL_MEDIA_
 
 - Browser smokes skip cleanly when Chrome/Edge is absent (exit 0). This is intentional — they are environment-dependent and should not block CI pipelines that run on headless agents without a browser install.
 - Non-browser smokes (`Test-WebViewCommandEvidenceSmoke.ps1`, `Test-WebViewRowDetailSmoke.ps1`, `Test-WebViewRenameReadinessSmoke.ps1`, `Test-WebViewSettingsLaunchPolicySmoke.ps1`) require only Python and Node and are suitable for lightweight automated checks.
-- The release self-test layout gate (`Test-MediaPipelineRemuxEncodeAIO-Release.ps1`) checks that all wrapper files exist. It does not run the smokes automatically.
+- The release self-test layout gate (`scripts\release\test.ps1`) checks that all wrapper files exist. It does not run the smokes automatically.
 

@@ -4,8 +4,8 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from mediapipeline_desktop_app.service_config import ConfigProfileServiceMixin
-from mediapipeline_desktop_app.service_config_profiles import (
+from app.config.service import ConfigProfileServiceMixin
+from app.config.profiles import (
     config_profile_path,
     config_profiles_dir,
     normalize_profile_name,

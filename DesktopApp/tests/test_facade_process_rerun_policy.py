@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.application.facade_process_rerun_policy import (
+from app.processes.rerun_policy import (
     CSV_RERUN_MODE_ERROR,
     CSV_RERUN_PATH_ERROR,
     normalize_rerun_csv_path,

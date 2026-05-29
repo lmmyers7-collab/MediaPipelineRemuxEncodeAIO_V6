@@ -10,7 +10,7 @@ This playbook is observational. It does not add a new processing mode. All media
 |---|---|---|
 | **UI smoke** (non-browser: `Test-WebViewCommandEvidenceSmoke`, `Test-WebViewRowDetailSmoke`, `Test-WebViewRenameReadinessSmoke`, etc.) | WebView JavaScript renders correctly, operator-facing text is present, boundary guards fire | FFmpeg behavior, real route decisions, actual subtitle/audio output |
 | **Browser smoke** (`Test-WebViewBrowserHighRiskSmoke`, `Test-WebViewBrowserDiagnosticsHandoffSmoke`, `Test-WebViewBrowserLargeTableSmoke`, `Test-WebViewBrowserMaintenanceReportsSmoke`, `Test-WebViewBrowserRenameSmoke`, `Test-WebViewBrowserSettingsLaunchSmoke`) | UI interactions work under real browser rendering, large table caps are disclosed, readiness checks block correctly, Maintenance/Reports triage renders, mutation routes are not called | No real media; no pipeline executed |
-| **Release self-test** (`Test-MediaPipelineRemuxEncodeAIO-Release.ps1`) | Package layout, Python/PS syntax, unit tests, environment verifier, Tauri prereqs | FFmpeg, subtitle, audio, size policy, pending publish on real files |
+| **Release self-test** (`scripts\release\test.ps1`) | Package layout, Python/PS syntax, unit tests, environment verifier, Tauri prereqs | FFmpeg, subtitle, audio, size policy, pending publish on real files |
 | **Backend route smoke** (`Test-WebViewRealMediaEvidenceSmoke`, `Test-LocalApiSampleValidationContractSmoke`) | Backend-served WebView assets agree with fixture Queue/Completed/Pending state, route evidence renders for known source/output, sample-validation preview/append/read/tail contracts expose current-backend-evidence checks | Real encode or remux was not run; fixture data only |
 | **Real-media proof** (this playbook) | A real file ran through the pipeline, output exists, route/audio/subtitle/size/pending-publish evidence is coherent and explained | Does not guarantee all future files will behave the same way |
 
@@ -92,7 +92,7 @@ Record these fields for each sample file. Use the Home Validation Log Template, 
 To create a timestamped worksheet before a run:
 
 ```powershell
-.\New-RealMediaValidationWorksheet.ps1 `
+.\scripts\operator\New-RealMediaValidationWorksheet.ps1 `
   -SamplePath "D:\Samples\Movie.mkv" "\\SERVER\TV\Show\S01E01.mkv" `
   -SampleCategory "h264-remux-safe,subtitle-bearing" `
   -ExpectedRoute "remux,remux-plus-srt" `

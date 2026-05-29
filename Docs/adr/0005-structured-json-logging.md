@@ -11,8 +11,9 @@ Diagnostics rebuilds its picture by re-parsing those logs — a fragile
 process that loses any structure the producer had, fails on slightly
 different phrasings, and burns CPU on every Diagnostics refresh.
 
-`ARCHITECTURAL_OVERHAUL_PLAN.md` §Logging strategy proposes structured
-JSON logs read by the orchestrator and persisted to SQLite.
+`Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md` §Logging strategy
+proposes structured JSON logs read by the orchestrator and persisted to
+SQLite.
 
 ## Decision
 

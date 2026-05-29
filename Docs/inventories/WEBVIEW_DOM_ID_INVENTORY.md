@@ -1,10 +1,10 @@
 # WebView DOM ID Inventory
 
-Date: 2026-05-20
+Date: 2026-05-29
 
 Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `DesktopApp/mediapipeline_desktop_app/ui_web/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 1071. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 1077. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -338,6 +338,8 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `settings-effective-policy-rows` | `<tbody>` | Effective policy trust checkpoint rows |
 | `settings-effective-policy-legend` | `<p>` | Effective policy read-only boundary legend |
 | `settings-effective-policy-detail` | `<pre>` | Selected effective policy checkpoint detail |
+| `settings-builder-movie-route-bitrate` | `<input>` | Settings builder movie remux/copy route bitrate ceiling |
+| `settings-builder-tv-route-bitrate` | `<input>` | Settings builder TV remux/copy route bitrate ceiling |
 | `settings-subtitle-bdpgs-ocr-tool-path` | `<input>` | Subtitle builder staged BDPGS OCR tool path |
 | `settings-subtitle-bdpgs-ocr-tessdata-path` | `<input>` | Subtitle builder staged BDPGS tessdata path |
 | `settings-subtitle-sdh-keywords` | `<input>` | Subtitle builder staged SDH title keyword list |
@@ -537,11 +539,11 @@ Risk: Low — additive only; new IDs for queue drawer UI
 
 ---
 
-## Machine-Generated Full DOM ID Manifest — 2026-05-20
+## Machine-Generated Full DOM ID Manifest — 2026-05-29
 
 This section is generated from `DesktopApp/mediapipeline_desktop_app/ui_web/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 1071
+Count: 1077
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
 ```text
@@ -1417,12 +1419,14 @@ settings-builder-encode-ladder
 settings-builder-encode-tuning
 settings-builder-guidance
 settings-builder-max-growth
+settings-builder-movie-route-bitrate
 settings-builder-movie-threshold
 settings-builder-output-container
 settings-builder-reset-button
 settings-builder-routing-profile
 settings-builder-size-guard
 settings-builder-status
+settings-builder-tv-route-bitrate
 settings-builder-tv-threshold
 settings-builder-video-codec
 settings-command-history
@@ -1443,15 +1447,19 @@ settings-file-safety-deferred-publish
 settings-file-safety-enable-integrity
 settings-file-safety-guidance
 settings-file-safety-local-base
+settings-file-safety-local-base-browse
 settings-file-safety-min-free
 settings-file-safety-output-size-multiplier
 settings-file-safety-outsource
+settings-file-safety-outsource-browse
 settings-file-safety-outsource-min-free
 settings-file-safety-reset-button
 settings-file-safety-robocopy-flags
 settings-file-safety-skip-stability
 settings-file-safety-source-movies
+settings-file-safety-source-movies-browse
 settings-file-safety-source-tv
+settings-file-safety-source-tv-browse
 settings-file-safety-stability-wait
 settings-file-safety-valid-extensions
 settings-filter

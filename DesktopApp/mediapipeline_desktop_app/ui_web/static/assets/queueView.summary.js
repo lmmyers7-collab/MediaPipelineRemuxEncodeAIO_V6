@@ -102,6 +102,15 @@
 
     function queueDisplayPayloadForVisibleRows(queue, visibleRows, hiddenSidecars, allRows) {
       const display = { ...(queue || {}) };
+      if (queue?.__mediaPipelineRefreshMeta) {
+        try {
+          Object.defineProperty(display, "__mediaPipelineRefreshMeta", {
+            value: queue.__mediaPipelineRefreshMeta,
+            enumerable: false,
+            configurable: true,
+          });
+        } catch (_) {}
+      }
       const rows = Array.isArray(visibleRows) ? visibleRows : [];
       const hidden = Array.isArray(hiddenSidecars) ? hiddenSidecars : [];
       const rawRows = Array.isArray(allRows) ? allRows : rows;
@@ -269,10 +278,22 @@
       const tvCount = Number(queue.tv_count_total || 0);
       const sourceCount = Number(queue.source_count_total || movieCount + tvCount || 0);
       const completedExcluded = Number(queue.completed_excluded_count || 0);
+      const freshnessLines = window.mediaPipelineDom?.payloadFreshnessLines
+        ? window.mediaPipelineDom.payloadFreshnessLines({
+          payload: queue,
+          label: "Queue",
+          rowCount: rows.length,
+          sourceLine: queue.source ? `Source: ${queue.source}` : "",
+          artifactLine: queue.snapshot_file_freshness_status ? queueFreshnessLine("Snapshot file age", queue.snapshot_file_age_text, queue.snapshot_file_freshness_status, queue.snapshot_file_mtime_utc) : "",
+          readError: queue.snapshot_file_error || queue.error || "",
+          refreshAction: "Use Refresh Queue or topbar Refresh. This reloads backend snapshots only and does not change launch scope.",
+        })
+        : [];
       const lines = [
-        queue.source ? `Source: ${queue.source}` : "",
+        ...freshnessLines,
+        freshnessLines.length ? "" : (queue.source ? `Source: ${queue.source}` : ""),
         queue.produced_at ? `Produced: ${queue.produced_at}` : "",
-        queue.snapshot_file_freshness_status ? queueFreshnessLine("Snapshot file age", queue.snapshot_file_age_text, queue.snapshot_file_freshness_status, queue.snapshot_file_mtime_utc) : "",
+        freshnessLines.length ? "" : (queue.snapshot_file_freshness_status ? queueFreshnessLine("Snapshot file age", queue.snapshot_file_age_text, queue.snapshot_file_freshness_status, queue.snapshot_file_mtime_utc) : ""),
         queue.produced_freshness_status ? queueFreshnessLine("Produced age", queue.produced_age_text, queue.produced_freshness_status) : "",
         queue.config_path ? `Config: ${queue.config_path}` : "",
         queue.local_base ? `Scratch: ${queue.local_base}` : "",

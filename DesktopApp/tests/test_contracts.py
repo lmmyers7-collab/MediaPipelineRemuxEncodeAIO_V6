@@ -44,7 +44,7 @@ class ContractTests(unittest.TestCase):
                 self.assertIn("$id", payload)
                 self.assertEqual(payload.get("type"), "object")
 
-    def test_config_schema_includes_cpu_encode_controls(self) -> None:
+    def test_generated_config_contract_includes_cpu_encode_controls(self) -> None:
         payload = json.loads((SCHEMA_DIR / "media_pipeline_config.schema.json").read_text(encoding="utf-8"))
         properties = payload["properties"]
 
@@ -255,7 +255,7 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(snapshot.excluded_rows[0].reason_code, "already_processed")
 
     def test_queue_snapshot_builder_records_deterministic_preflight_block_codes(self) -> None:
-        source = (PROJECT_ROOT / "Pipeline" / "Modules" / "PipelineEngine.ps1").read_text(encoding="utf-8")
+        source = (PROJECT_ROOT / "engine" / "queue" / "pipeline_engine.ps1").read_text(encoding="utf-8")
 
         self.assertIn("function Get-QueuePlanPreflightBlock", source)
         self.assertIn("$runtimeChecksDeferred = $true", source)

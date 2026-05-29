@@ -32,7 +32,7 @@ This register applies to all admin, documentation, and WebView frontend tasks. E
 
 ## Media Policy (FFmpeg Command Generation)
 
-**What**: `Pipeline\Modules\*.ps1` code that generates FFmpeg arguments — video codec selection, quality/preset settings, container selection, stream copy/encode decisions.
+**What**: `engine\*.ps1` code that generates FFmpeg arguments — video codec selection, quality/preset settings, container selection, stream copy/encode decisions. Legacy `Pipeline\Modules\*.ps1` shim paths remain in scope until they are deleted.
 
 **Why**: FFmpeg arguments directly determine output quality, compatibility, and encode safety. A one-character typo can produce silent bitrate misconfiguration or stream corruption.
 
@@ -152,11 +152,11 @@ This register applies to all admin, documentation, and WebView frontend tasks. E
 
 ## Release Gates
 
-**What**: `Test-MediaPipelineRemuxEncodeAIO-Release.ps1` assertions that a clean release does not include live config, run logs, state files, or optional tool bulk.
+**What**: `scripts\release\test.ps1` assertions that a clean release does not include live config, run logs, state files, or optional tool bulk.
 
 **Why**: If personal config ships in a release package, the recipient gets the operator's private UNC paths, credentials, and source/output locations.
 
-**Safe alternative**: Use `Build-MediaPipelineRemuxEncodeAIO-Release.ps1` with default flags (strips live config, excludes logs/state). Use `-KeepPersonalConfig` only for private machine-to-machine mirror.
+**Safe alternative**: Use `scripts\release\build.ps1` with default flags (strips live config, excludes logs/state). Use `-KeepPersonalConfig` only for private machine-to-machine mirror.
 
 **Gate before touching**: Full release self-test with `-Verify -IncludeTests`.
 
@@ -197,7 +197,7 @@ This register applies to all admin, documentation, and WebView frontend tasks. E
 
 ## See Also
 
-- Global rules reference: `..\..\AI_DIRECTIVE.md` and `..\..\AI_AGENT_START_HERE.md`
+- Global rules reference: `..\..\AGENTS.md`; older AI directive redirects are archived under `..\archive\ai\`.
 - Archived AI handoff inventory: `..\ARCHIVED_MD_INDEX.md`
 - Migration risk register: `Docs/architecture/V5_MIGRATION_RISK_REGISTER.md`
 - Validation ladder: `Docs/testing/VALIDATION_LADDER_RUNBOOK.md`

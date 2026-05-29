@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.application.facade_process_control_policy import (
+from app.processes.control_policy import (
     PIPELINE_CONTROL_ACTION_ERROR,
     is_supported_pipeline_control_action,
     normalize_pipeline_control_action,

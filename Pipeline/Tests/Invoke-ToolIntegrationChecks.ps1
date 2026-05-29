@@ -94,15 +94,15 @@ function Write-PipelineEvent {
     return $true
 }
 
-. (Join-Path $pipelineRoot 'Modules\PathHelpers.ps1')
-. (Join-Path $pipelineRoot 'Modules\FailureCodes.ps1')
-. (Join-Path $pipelineRoot 'Modules\FailureState.ps1')
-. (Join-Path $pipelineRoot 'Modules\Native.ps1')
-. (Join-Path $pipelineRoot 'Modules\FfmpegProgress.ps1')
-. (Join-Path $pipelineRoot 'Modules\Subtitles.Srt.ps1')
-. (Join-Path $pipelineRoot 'Modules\Subtitles.Common.ps1')
-. (Join-Path $pipelineRoot 'Modules\Subtitles.Tx3g.ps1')
-. (Join-Path $pipelineRoot 'Modules\Subtitles.Bdpgs.ps1')
+. (Join-Path $projectRoot 'engine\shared\path_helpers.ps1')
+. (Join-Path $projectRoot 'engine\shared\failure_codes.ps1')
+. (Join-Path $projectRoot 'engine\failures\failure_state.ps1')
+. (Join-Path $projectRoot 'engine\shared\native.ps1')
+. (Join-Path $projectRoot 'engine\process\ffmpeg_progress.ps1')
+. (Join-Path $projectRoot 'engine\subtitles\srt.ps1')
+. (Join-Path $projectRoot 'engine\subtitles\common.ps1')
+. (Join-Path $projectRoot 'engine\subtitles\tx3g.ps1')
+. (Join-Path $projectRoot 'engine\subtitles\bdpgs.ps1')
 
 $workRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("mp-tool-integration-" + [guid]::NewGuid().ToString("N"))
 $StopFlag = Join-Path $workRoot 'stop.flag'

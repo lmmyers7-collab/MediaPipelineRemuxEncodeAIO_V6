@@ -42,6 +42,12 @@ try {{
   $selectionMode = [string]$payload.selection_mode
   if ($selectionMode -ne 'folder') {{ $selectionMode = 'files' }}
   $initialPath = [string]$payload.initial_path
+  $folderDescription = [string]$payload.dialog_description
+  if (-not $folderDescription) {{ $folderDescription = 'Select a folder to add to Rename source paths' }}
+  $fileTitle = [string]$payload.dialog_title
+  if (-not $fileTitle) {{ $fileTitle = 'Select media files to add to Rename source paths' }}
+  $fileFilter = [string]$payload.file_filter
+  if (-not $fileFilter) {{ $fileFilter = 'Media files (*.mkv;*.mp4;*.m4v;*.avi;*.mov;*.wmv)|*.mkv;*.mp4;*.m4v;*.avi;*.mov;*.wmv|All files (*.*)|*.*' }}
   $initialDirectory = ''
   if ($initialPath -and [System.IO.File]::Exists($initialPath)) {{
     $initialDirectory = [System.IO.Path]::GetDirectoryName($initialPath)
@@ -51,7 +57,7 @@ try {{
 
   if ($selectionMode -eq 'folder') {{
     $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-    $dialog.Description = 'Select a folder to add to Rename source paths'
+    $dialog.Description = $folderDescription
     $dialog.ShowNewFolderButton = $false
     if ($initialDirectory) {{ $dialog.SelectedPath = $initialDirectory }}
     $dialogResult = $dialog.ShowDialog()
@@ -76,8 +82,8 @@ try {{
     }}
   }} else {{
     $dialog = New-Object System.Windows.Forms.OpenFileDialog
-    $dialog.Title = 'Select media files to add to Rename source paths'
-    $dialog.Filter = 'Media files (*.mkv;*.mp4;*.m4v;*.avi;*.mov;*.wmv)|*.mkv;*.mp4;*.m4v;*.avi;*.mov;*.wmv|All files (*.*)|*.*'
+    $dialog.Title = $fileTitle
+    $dialog.Filter = $fileFilter
     $dialog.Multiselect = $true
     $dialog.CheckFileExists = $true
     $dialog.RestoreDirectory = $true
@@ -162,6 +168,9 @@ def select_windows_paths_with_dialog(
     *,
     selection_mode: str = "files",
     initial_path: str = "",
+    dialog_title: str = "",
+    dialog_description: str = "",
+    file_filter: str = "",
     timeout_seconds: int = 900,
 ) -> dict[str, Any]:
     mode = "folder" if str(selection_mode or "").strip().lower() == "folder" else "files"
@@ -186,7 +195,15 @@ def select_windows_paths_with_dialog(
             "errors": ["powershell_not_found"],
         }
 
-    script = _powershell_dialog_script({"selection_mode": mode, "initial_path": str(initial_path or "")})
+    script = _powershell_dialog_script(
+        {
+            "selection_mode": mode,
+            "initial_path": str(initial_path or ""),
+            "dialog_title": str(dialog_title or ""),
+            "dialog_description": str(dialog_description or ""),
+            "file_filter": str(file_filter or ""),
+        }
+    )
     encoded_script = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
     command = [
         powershell,

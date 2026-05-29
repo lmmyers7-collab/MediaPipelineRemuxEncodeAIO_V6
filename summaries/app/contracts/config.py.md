@@ -3,14 +3,15 @@ file: app/contracts/config.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-05-28
+last_modified: 2026-05-29
 last_reviewed: 2026-05-28
-sha256: ff9b50beee543e0e131d000c00f4f4cfe0e852176eef138705932cbd4d9ad8c1
+sha256: f441f47aace5fcade75bf3e9716f21dee097971760aaf89fe1acbc77164f304c
 ---
 # `app/contracts/config.py`
 
-**Purpose:** Canonical configuration shape for the media pipeline.
+**Purpose:** Canonical Pydantic contract for MediaPipeline configuration.
 
-**Classes:** `Audio`, `Cleanup`, `Concurrency`, `Config`, `Diagnostics`, `Naming`, `Paths`, `Publish`, `Retries`, `Routing`, `RunFlags`, `Scheduling`, `SizeGuard`, `Stability`, `Subtitles`
+**Classes:** `Config`
+**Public functions:** `default_config()`
 
 _Edit the source, not this file. Regenerate with `python scripts/dev/refresh_summaries.py --paths app/contracts/config.py`._

@@ -4,6 +4,8 @@ from dataclasses import dataclass
 import urllib.error
 import urllib.request
 
+from .auth import sign_request
+
 
 @dataclass(frozen=True)
 class NetworkProbeResult:
@@ -30,9 +32,10 @@ def probe_coordinator_health(base_url: str, *, timeout_seconds: int = 4) -> Netw
 def probe_worker_auth(base_url: str, token: str, *, timeout_seconds: int = 4) -> NetworkProbeResult:
     url = base_url.rstrip("/")
     try:
+        path = "/api/workers"
         request = urllib.request.Request(
-            url + "/api/workers",
-            headers={"Authorization": f"Bearer {token}"},
+            url + path,
+            headers=sign_request("GET", path, b"", token) if str(token or "").strip() else {},
         )
         with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
             code = int(response.getcode())

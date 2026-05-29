@@ -4,7 +4,7 @@ Date: 2026-05-20
 
 Full inventory of all Local API routes: route, method, effect class, backend contract/handler, mutation risk, primary frontend caller, and test coverage. Source: `contract_read.py`, `contract_command.py`, `routes_read.py`, `routes_command.py`.
 
-Total: 53 routes — 25 GET (read) + 28 POST (command).
+Total: 54 routes — 25 GET (read) + 29 POST (command).
 
 All routes require the bootstrap token (`X-Desktop-Token`) except `GET /api/health`.
 
@@ -66,7 +66,7 @@ Network lifecycle mutation remains design-only. `/api/contract` publishes the fu
 
 ---
 
-## POST Routes (Command — 28 routes)
+## POST Routes (Command — 29 routes)
 
 All POST routes require auth. File-open routes pass row keys or allowlisted target keys. Queue state routes accept only absolute paths under backend-configured `SourceMovies`/`SourceTV` roots and write non-destructive state manifests.
 
@@ -129,16 +129,17 @@ The dry-run routes do not write a release folder, zip, manifest, or completed ma
 
 `rename/browse` is a non-mutating path-selection helper: the backend opens the Windows file/folder browser and returns operator-selected paths for staging. It does not preview, apply, rename, move, delete, or touch media files. `rename/apply` requires `confirm_apply: true`. Backend rebuilds the rename plan from its own state, not from the frontend-submitted plan. If selected paths are outside backend-injected configured media roots, the backend also requires `allow_outside_configured_roots: true` after explicit operator review.
 
-### Settings Commands (4 routes)
+### Settings Commands (5 routes)
 
 | Route | Effect | Key Request Keys | Frontend Caller | Mutation Risk | Backend Test Coverage |
 |---|---|---|---|---|---|
 | `POST /api/settings/validate` | `none` | `values` | Settings | None — validation only | `test_facade_settings_policy.py`, `test_service_config_validation.py`, `test_application_facade_settings_workspace.py` |
+| `POST /api/settings/browse-path` | `shell-dialog` | `setting_key`, `selection_mode`, `initial_path` | Settings | Low — backend-owned native Windows folder browser for allowlisted path fields only | `test_application_facade_local_api.py`, `test_api_path_dialogs.py`, `test_webview_frontend_mutation_boundary.py` |
 | `POST /api/settings/preview-patch` | `none` | `changes`, `remove_keys` | Settings | None — returns redacted diff | `test_facade_settings_patch_policy.py`, `test_service_config_preview.py` |
 | `POST /api/settings/save-patch` | `config-write` | `changes`, `remove_keys`, `confirm_save` | Settings | **High** — writes PSD1 config | `test_facade_settings_patch_policy.py`, `test_service_config_save_runner.py` |
 | `POST /api/settings/reload` | `none` | *(none)* | Settings | None — reloads cached state | `test_facade_settings_policy.py` |
 
-`save-patch` requires `confirm_save: true`. Backend backs up current config before writing. Frontend cannot write the PSD1 file directly.
+`browse-path` opens only the backend-owned Windows folder browser for allowlisted Settings path fields (`SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`) and returns selected-folder validation evidence for WebView staging. It does not save the PSD1, launch work, rewrite queue state, or touch media files. `save-patch` requires `confirm_save: true`. Backend backs up current config before writing. Frontend cannot write the PSD1 file directly.
 
 ### Schedule Commands (2 routes)
 
@@ -179,7 +180,7 @@ The dry-run routes do not write a release folder, zip, manifest, or completed ma
 | `none` (read-only) | 31 | All non-probing GET routes + preview/validate/reload POSTs |
 | `bounded-health-check` | 1 | `GET /api/maintenance` |
 | `shell-open` | 4 | `POST /api/queue/open`, `completed/open`, `pending-publish/open`, `diagnostics/open` |
-| `shell-dialog` | 1 | `POST /api/rename/browse` |
+| `shell-dialog` | 2 | `POST /api/rename/browse`, `POST /api/settings/browse-path` |
 | `queue-state-write` | 3 | `POST /api/queue/priority`, `queue/strategy`, `queue/file-overrides` |
 | `failure-marker-write` | 1 | `POST /api/failures/clear` |
 | `process-dry-run` | 2 | `POST /api/maintenance/release-dry-run`, `maintenance/completed-backfill-dry-run` |
@@ -199,14 +200,14 @@ The dry-run routes do not write a release folder, zip, manifest, or completed ma
 | Coverage type | Scope |
 |---|---|
 | `test_api_contract_payload.py` | Contract schema serialization and shape for all routes |
-| `test_api_command_payloads_policy.py` | POST command payload contracts |
+| `test_api_command_results_policy.py` | POST command result shaping |
 | `test_api_read_payloads_policy.py` | GET response payload contracts |
 | `test_api_handler_policy.py` | Route handler dispatch (auth, error codes) |
 | `test_api_command_journal_policy.py` | `/api/commands` journal entries |
 | `test_api_http_helpers.py` | HTTP client error parsing, token headers |
 | `test_contracts.py` | Data contract round-trip (all schema versions) |
-| Facade tests (`test_facade_*.py`) | Business logic and parameter validation per route group |
-| Service tests (`test_service_*.py`) | Underlying service behavior exercised by route handlers |
+| Domain policy/facade tests (`test_*_policy.py`, `test_application_facade_*.py`) | Business logic and parameter validation per route group |
+| Domain service tests | Underlying service behavior exercised by route handlers |
 | WebView smokes (20 PS1 wrappers) | Integration rendering and mutation-boundary verification |
 | `Test-LocalApiLifecycleContractSmoke.ps1` | Browser-free lifecycle route contract smoke for close-readiness/shutdown safe and watcher-blocked payloads |
 | `Test-LocalApiMaintenanceDryRunContractSmoke.ps1` | Browser-free Maintenance route contract smoke for dry-run-only release/backfill POSTs, token enforcement, command history, and unchanged temp source/output bytes |

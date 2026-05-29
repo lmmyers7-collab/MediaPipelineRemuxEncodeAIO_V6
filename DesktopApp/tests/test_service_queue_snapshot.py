@@ -11,8 +11,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from mediapipeline_desktop_app.service_queue import QueueServiceMixin
-from mediapipeline_desktop_app.service_queue_snapshot import (
+from app.queue.service import QueueServiceMixin
+from app.queue.snapshot import (
     queue_dry_run_tail,
     queue_record_from_snapshot_row,
     queue_snapshot_is_current_for_request,

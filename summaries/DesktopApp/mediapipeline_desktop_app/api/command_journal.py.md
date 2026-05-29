@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/api/command_journal.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-05-09
+last_modified: 2026-05-28
 last_reviewed: 2026-05-28
-sha256: 25b4d64a8f7e13b80d3d421ccc59b9a1d14cae7f4809bb3b63728b8e5c3f415e
+sha256: 898fe554f9091d052d0591f65c1e6b0ed09a911aed24eeb86938fb193ee16f34
 ---
 # `DesktopApp/mediapipeline_desktop_app/api/command_journal.py`
 

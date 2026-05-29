@@ -11,6 +11,18 @@ from mediapipeline_desktop_app.application import MediaPipelineApplicationFacade
 from DesktopApp.tests.test_application_facade import DummyFacadeService, _resolved
 
 
+class ProfileSummaryService(DummyFacadeService):
+    def __init__(self, root: Path, profile_config: dict[str, object]) -> None:
+        super().__init__(root)
+        self.profile_config = dict(profile_config)
+        self.loaded_profile_path: Path | None = None
+
+    def load_config_data(self, config_path: Path, powershell_host: str | None) -> dict[str, object]:
+        _ = powershell_host
+        self.loaded_profile_path = config_path
+        return dict(self.profile_config)
+
+
 class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
     def test_settings_workspace_redacts_tokens_and_reports_validation(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -52,6 +64,10 @@ class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
         self.assertEqual(settings["tool_path_evidence"]["bdpgs_ocr"]["operator_status"], "Ready")
         self.assertTrue(settings["tool_path_evidence"]["bdpgs_ocr"]["read_only"])
         self.assertEqual(settings["profiles"], ["Default", "DirectPlay"])
+        self.assertEqual(settings["profile_summary"]["schema_version"], "desktop_settings_profile_summary.v1")
+        self.assertTrue(settings["profile_summary"]["read_only"])
+        self.assertFalse(settings["profile_summary"]["webview_profile_operations"]["save_default_profile"])
+        self.assertFalse(settings["profile_summary"]["webview_profile_operations"]["load_profile"])
         self.assertIn("LocalBase shares a volume", settings["warnings"][0])
         self.assertEqual(settings["paths"]["failed_reports"], str(root / "Logs" / "FailedReports"))
         self.assertEqual(settings["paths"]["audit_reports"], str(root / "AuditReports"))
@@ -59,6 +75,12 @@ class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
         size_guard_field = next(field for field in settings["field_definitions"] if field["key"] == "SizeGuardMode")
         self.assertEqual(size_guard_field["choices"], ["advisory", "strict", "off"])
         self.assertIn("Reject oversized encodes", size_guard_field["choice_help"]["strict"])
+        movie_bitrate_field = next(field for field in settings["field_definitions"] if field["key"] == "MovieRouteMaxVideoBitrateMbps")
+        self.assertEqual(movie_bitrate_field["section"], "Routing")
+        self.assertEqual(movie_bitrate_field["default"], 35)
+        tv_bitrate_field = next(field for field in settings["field_definitions"] if field["key"] == "TVRouteMaxVideoBitrateMbps")
+        self.assertEqual(tv_bitrate_field["section"], "Routing")
+        self.assertEqual(tv_bitrate_field["default"], 18)
         subtitle_field = next(field for field in settings["field_definitions"] if field["key"] == "ConvertTx3gToSrt")
         self.assertEqual(subtitle_field["section"], "TX3G Subtitles")
         self.assertIn("mov_text", subtitle_field["help"])
@@ -125,6 +147,44 @@ class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
         self.assertEqual(rows["Source preservation"]["posture"], "blocked")
         self.assertIn("DeleteSourceAfterProcessing", rows["Source preservation"]["keys"])
         self.assertIn("Backend media-policy readiness:", "\n".join(readiness["summary_lines"]))
+
+    def test_settings_workspace_compares_default_profile_without_exposing_values(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            profile_dir = resolved.config_path.parent / "Profiles"
+            profile_dir.mkdir()
+            default_profile = profile_dir / "Default.psd1"
+            default_profile.write_text("@{}", encoding="utf-8")
+            resolved.config_data = {
+                "LocalBase": str(root / "Scratch"),
+                "DeferredPublish": False,
+                "RemuxSafeVideoCodecs": ["hevc", "av1"],
+                "WorkerAuthToken": "current-secret",
+            }
+            service = ProfileSummaryService(
+                root,
+                {
+                    "LocalBase": str(root / "Scratch").replace("\\", "/"),
+                    "DeferredPublish": True,
+                    "RemuxSafeVideoCodecs": ["hevc"],
+                    "WorkerAuthToken": "profile-secret",
+                },
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+
+            summary = facade.get_settings_workspace(resolved).to_mapping()["profile_summary"]
+
+        self.assertEqual(service.loaded_profile_path, default_profile)
+        self.assertEqual(summary["schema_version"], "desktop_settings_profile_summary.v1")
+        self.assertEqual(summary["default_profile_status"], "differs_from_current")
+        self.assertEqual(summary["default_profile_status_state"], "warning")
+        self.assertEqual(summary["mismatch_count"], 3)
+        self.assertEqual(summary["mismatch_keys"], ["DeferredPublish", "RemuxSafeVideoCodecs", "WorkerAuthToken"])
+        self.assertIn("Default profile status: differs from current settings", "\n".join(summary["summary_lines"]))
+        self.assertNotIn("current-secret", "\n".join(summary["summary_lines"]))
+        self.assertNotIn("profile-secret", "\n".join(summary["summary_lines"]))
+        self.assertFalse(summary["webview_profile_operations"]["save_default_profile"])
 
     def test_settings_validate_uses_command_result_envelope(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

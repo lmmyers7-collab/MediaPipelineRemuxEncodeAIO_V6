@@ -163,7 +163,8 @@ def _browser_settings_launch_runner_source() -> str:
             requireText("settings-raw-action-plan-detail", [
               "Area: BDPGS OCR path evidence",
               "Path policy: WebView can stage configured path text, but backend Preview/Save and saved path evidence remain authoritative",
-              "WebView does not resolve arbitrary paths",
+              "WebView does not browse arbitrary paths or resolve paths",
+              "backend-owned and allowlisted",
               "Mutation guardrail",
             ]);
             const secretRawActionRow = rawActionRows.find((row) => row.textContent.includes("Network auth secrets"));

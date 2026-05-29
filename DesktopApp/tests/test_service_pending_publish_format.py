@@ -7,8 +7,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_pending_publish import PendingPublishServiceMixin
-from mediapipeline_desktop_app.service_pending_publish_format import (
+from app.publish.pending_service import PendingPublishServiceMixin
+from app.publish.pending_format import (
     format_bytes_compact,
     format_pending_datetime_text,
     format_pending_timestamp,

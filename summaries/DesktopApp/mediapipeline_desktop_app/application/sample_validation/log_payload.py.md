@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/application/sample_validation/log_pay
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: application
-last_modified: 2026-05-26
+last_modified: 2026-05-28
 last_reviewed: 2026-05-28
-sha256: 6142dcef45e4e893c2120793c8081b47fd167d94b5e10e740a1285c8c69267ff
+sha256: 7f930288ac1cd94dfbefd2f8d3bcca15227dad63b52d4797cab4e3665cabf71b
 ---
 # `DesktopApp/mediapipeline_desktop_app/application/sample_validation/log_payload.py`
 

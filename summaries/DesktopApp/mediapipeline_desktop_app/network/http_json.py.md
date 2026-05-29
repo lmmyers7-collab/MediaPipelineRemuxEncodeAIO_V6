@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/network/http_json.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-05-10
+last_modified: 2026-05-29
 last_reviewed: 2026-05-28
-sha256: 37789041b033b30273c2b13f05d3cef862bd35acbb162ac367fcd5e24694123a
+sha256: 18062fb2f35086a3c2c6b05ff2c01f103ee456883fd21e8ba89970943abca7d3
 ---
 # `DesktopApp/mediapipeline_desktop_app/network/http_json.py`
 

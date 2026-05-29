@@ -70,11 +70,8 @@ ignore = [
 ]
 
 [lint.per-file-ignores]
-# __init__.py re-export shims (e.g., the planned facade_sample_validation_policy.py
-# shim) intentionally import names without using them.
+# __init__.py re-export shims intentionally import names without using them.
 "**/__init__.py" = ["F401", "F403"]
-# Re-export shims at module level — name matches §3.1 split pattern.
-"**/facade_sample_validation_policy.py" = ["F401", "F403"]
 # Test files often import fixtures they don't directly reference.
 "**/test_*.py" = ["F401"]
 "**/conftest.py" = ["F401", "F403"]

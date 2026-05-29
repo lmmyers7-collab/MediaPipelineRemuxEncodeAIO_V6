@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_paths import PathResolutionServiceMixin
+from app.paths.service import PathResolutionServiceMixin
 
 
 class DummyPathService(PathResolutionServiceMixin):
@@ -27,7 +27,7 @@ class PathResolutionServiceTests(unittest.TestCase):
             bundled.write_text("", encoding="utf-8")
             service = DummyPathService(app_root)
 
-            with patch("mediapipeline_desktop_app.service_paths.shutil.which", return_value=None):
+            with patch("app.paths.service.shutil.which", return_value=None):
                 self.assertEqual(service.resolve_powershell_host(), str(bundled))
 
     def test_resolve_powershell_host_does_not_fall_back_to_windows_powershell(self) -> None:
@@ -41,7 +41,7 @@ class PathResolutionServiceTests(unittest.TestCase):
                     return r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
                 return None
 
-            with patch("mediapipeline_desktop_app.service_paths.shutil.which", fake_which):
+            with patch("app.paths.service.shutil.which", fake_which):
                 self.assertIsNone(service.resolve_powershell_host())
 
 

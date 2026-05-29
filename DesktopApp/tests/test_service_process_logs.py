@@ -7,8 +7,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_process_logs import launch_log_summary, launch_log_tail_summary, spawn_log_tail
-from mediapipeline_desktop_app.service_processes import ProcessLifecycleServiceMixin
+from app.processes.logs import launch_log_summary, launch_log_tail_summary, spawn_log_tail
+from app.processes.lifecycle import ProcessLifecycleServiceMixin
 
 
 class DummyProcessLogService(ProcessLifecycleServiceMixin):

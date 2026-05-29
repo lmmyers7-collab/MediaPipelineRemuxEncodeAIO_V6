@@ -2,13 +2,18 @@ from __future__ import annotations
 
 from collections.abc import Callable
 import http.server
+import ipaddress
 import json
+import os
 import secrets
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 
 JsonSender = Callable[[dict[str, Any], int], None]
+
+NO_TOKEN_DEV_ENV_VAR = "MEDIAPIPELINE_ALLOW_NO_TOKEN_DEV"
 
 
 LOCAL_API_CONTENT_SECURITY_POLICY = (
@@ -64,6 +69,104 @@ def request_authorized(
     if authorization.casefold().startswith("bearer "):
         candidates.append(authorization[7:].strip())
     return any(candidate and secrets.compare_digest(candidate, token) for candidate in candidates)
+
+
+def _strip_host_brackets(value: str) -> str:
+    text = str(value or "").strip()
+    if text.startswith("[") and "]" in text:
+        return text[1 : text.index("]")]
+    return text
+
+
+def split_host_port(value: str) -> tuple[str, int | None]:
+    text = str(value or "").strip()
+    if not text:
+        return "", None
+    if text.startswith("[") and "]" in text:
+        host = text[1 : text.index("]")]
+        remainder = text[text.index("]") + 1 :]
+        if remainder.startswith(":") and remainder[1:].isdigit():
+            return host, int(remainder[1:])
+        return host, None
+    if text.count(":") == 1:
+        host, raw_port = text.rsplit(":", 1)
+        if raw_port.isdigit():
+            return host, int(raw_port)
+    return text, None
+
+
+def is_loopback_host(host: str) -> bool:
+    text = _strip_host_brackets(host).strip().casefold()
+    if text == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(text).is_loopback
+    except ValueError:
+        return False
+
+
+def no_token_dev_allowed(host: str, *, environ: dict[str, str] | None = None) -> bool:
+    env = os.environ if environ is None else environ
+    enabled = str(env.get(NO_TOKEN_DEV_ENV_VAR, "") or "").strip().casefold() in {"1", "true", "yes", "on"}
+    return enabled and is_loopback_host(host)
+
+
+def local_api_allowed_hosts(bind_host: str, port: int) -> set[str]:
+    allowed = {"127.0.0.1", "localhost", "::1"}
+    host = _strip_host_brackets(bind_host).strip().casefold()
+    if host and host not in {"0.0.0.0", "::"}:
+        allowed.add(host)
+    return allowed
+
+
+def host_header_authorized(host_header: str, *, bind_host: str, port: int) -> bool:
+    host, supplied_port = split_host_port(host_header)
+    if not host:
+        return False
+    if supplied_port is not None and int(supplied_port) != int(port):
+        return False
+    return _strip_host_brackets(host).strip().casefold() in local_api_allowed_hosts(bind_host, port)
+
+
+def local_api_allowed_origins(*, bind_host: str, port: int, shell_surface: str = "webview") -> set[str]:
+    origins = set()
+    for host in local_api_allowed_hosts(bind_host, port):
+        display_host = f"[{host}]" if ":" in host and not host.startswith("[") else host
+        origins.add(f"http://{display_host}:{int(port)}")
+    if str(shell_surface or "").strip().casefold() == "tauri":
+        origins.add("tauri://localhost")
+    return origins
+
+
+def origin_header_authorized(
+    origin_header: str,
+    *,
+    bind_host: str,
+    port: int,
+    shell_surface: str = "webview",
+) -> bool:
+    origin = str(origin_header or "").strip()
+    if not origin:
+        return True
+    parsed = urlsplit(origin)
+    if not parsed.scheme or not parsed.hostname:
+        return False
+    if parsed.scheme == "tauri":
+        return origin in local_api_allowed_origins(bind_host=bind_host, port=port, shell_surface=shell_surface)
+    if parsed.scheme != "http":
+        return False
+    try:
+        parsed_port = parsed.port if parsed.port is not None else 80
+    except ValueError:
+        return False
+    candidate_host = parsed.hostname.casefold()
+    return (
+        parsed_port == int(port)
+        and candidate_host in local_api_allowed_hosts(bind_host, port)
+        and not parsed.path
+        and not parsed.query
+        and not parsed.fragment
+    )
 
 
 def read_json_body(

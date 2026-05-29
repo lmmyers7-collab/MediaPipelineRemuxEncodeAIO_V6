@@ -2,7 +2,7 @@
 
 Documents bundled and external dependencies relevant to packaging, validation, and admin work. Use this when setting up a new machine, troubleshooting missing tools, or verifying a release package.
 
-This document does not install or verify tools. To check tool availability, run `Verify-MediaPipelineRemuxEncodeAIO-Environment.bat`.
+This document does not install or verify tools. To check tool availability, run `scripts\verify-env.bat`.
 
 ---
 
@@ -17,7 +17,7 @@ These are shipped with the package and do not require a separate install.
 | Role | Primary runtime for all pipeline, test, and build scripts |
 | Status | Bundled |
 | Expected path | `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe` |
-| Checked by | `Verify-MediaPipelineRemuxEncodeAIO-Environment.bat`, release self-test |
+| Checked by | `scripts\verify-env.bat`, release self-test |
 | Failure symptom | Scripts fall back to system `pwsh`; if system `pwsh` is also absent, scripts throw with a human-readable error |
 | Notes | Scripts that detect PS5 re-invoke under `pwsh`; never spawn `powershell.exe` explicitly |
 
@@ -30,7 +30,7 @@ See `Docs/operator/POWERSHELL_HOST_EXPECTATIONS.md` for full resolution order an
 | Role | Local API runtime, backend-served WebView runner, WebView smoke test runner |
 | Status | Bundled |
 | Expected paths | `DesktopApp\Runtime\Python\python.exe`, `DesktopApp\Runtime\Python\pythonw.exe` |
-| Checked by | `Verify-MediaPipelineRemuxEncodeAIO-Environment.bat`, release self-test |
+| Checked by | `scripts\verify-env.bat`, release self-test |
 | Failure symptom | Local API/WebView fails to launch; smoke wrappers fail to find Python; all Python tests unavailable |
 | Required packages | `psutil`, `pysubs2`, `packaging`, `darkdetect` |
 
@@ -41,7 +41,7 @@ See `Docs/operator/POWERSHELL_HOST_EXPECTATIONS.md` for full resolution order an
 | Role | Video/audio remux and encode, subtitle probing |
 | Status | Bundled |
 | Expected path | `Pipeline\Tools\ffmpeg\bin\ffmpeg.exe`, `ffprobe.exe` |
-| Checked by | `Verify-MediaPipelineRemuxEncodeAIO-Environment.bat`, `Invoke-ToolIntegrationChecks.ps1` |
+| Checked by | `scripts\verify-env.bat`, `Invoke-ToolIntegrationChecks.ps1` |
 | Failure symptom | Pipeline cannot process media; all encodes and remuxes fail |
 | Optional | `ffplay.exe` excluded from default release (include with `-IncludeOptionalTools`) |
 
@@ -52,7 +52,7 @@ See `Docs/operator/POWERSHELL_HOST_EXPECTATIONS.md` for full resolution order an
 | Role | MKV container inspection and subtitle extraction (`mkvmerge`) |
 | Status | Bundled (core tool) |
 | Expected path | `Pipeline\Tools\MKVToolNix\mkvmerge.exe` |
-| Checked by | `Verify-MediaPipelineRemuxEncodeAIO-Environment.bat`, `Invoke-ToolIntegrationChecks.ps1` |
+| Checked by | `scripts\verify-env.bat`, `Invoke-ToolIntegrationChecks.ps1` |
 | Failure symptom | MKV subtitle extraction fails; pipeline falls back or errors |
 | Optional | GUI, `mkvextract`, `mkvinfo`, `mkvpropedit`, GUI assets excluded from default release |
 
@@ -63,7 +63,7 @@ See `Docs/operator/POWERSHELL_HOST_EXPECTATIONS.md` for full resolution order an
 | Role | BDPGS subtitle OCR conversion (PGS → SRT) |
 | Status | Bundled (optional capability — only active if `ConvertBdpgsToSrt` is enabled in config) |
 | Expected path | `Pipeline\Tools\PgsToSrt\PgsToSrt.exe` (or similar), `Pipeline\Tools\PgsToSrt\tessdata\eng.traineddata` |
-| Checked by | `Verify-MediaPipelineRemuxEncodeAIO-Environment.bat` (when OCR enabled in config) |
+| Checked by | `scripts\verify-env.bat` (when OCR enabled in config) |
 | Failure symptom | BDPGS OCR silently skipped or errors; SRT not produced for Blu-ray PGS subtitles |
 | Config keys | `BdpgsOcrToolPath`, `BdpgsOcrTessdataPath` (raw/advanced keys — must match actual paths) |
 
@@ -113,14 +113,14 @@ These are only needed when building the Tauri/WebView2 shell (`DesktopApp\tauri_
 Check Tauri prereqs without building:
 
 ```powershell
-.\Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat -CheckOnly
+.\scripts\dev\start-tauri-preview.bat -CheckOnly
 ```
 
 The release self-test verifies Tauri prerequisite availability:
 
 ```powershell
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\Test-MediaPipelineRemuxEncodeAIO-Release.ps1
+  -File .\scripts\release\test.ps1
 ```
 
 ---
@@ -140,7 +140,7 @@ Non-browser WebView smokes (`Test-WebViewRealMediaEvidenceSmoke.ps1`, `Test-WebV
 To verify all bundled dependencies:
 
 ```powershell
-.\Verify-MediaPipelineRemuxEncodeAIO-Environment.bat
+.\scripts\verify-env.bat
 ```
 
 To see tool versions in the release manifest after building a package:
@@ -173,4 +173,4 @@ Get-Content release_manifest.json | ConvertFrom-Json | Select-Object tool_versio
 - Browser smoke prerequisites: `Docs/testing/BROWSER_SMOKE_PREREQUISITES_CHECKLIST.md`
 - Release package inventory: `Docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`
 - Release package inventory: `Docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`
-- Environment verification script: `Verify-MediaPipelineRemuxEncodeAIO-Environment.bat`
+- Environment verification script: `scripts\verify-env.bat`

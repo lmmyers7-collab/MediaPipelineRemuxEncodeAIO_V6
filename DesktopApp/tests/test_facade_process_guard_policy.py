@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.application.facade_process_guard_policy import (
+from app.processes.guard_policy import (
     NO_ACTIVE_WORK_REASON,
     SNAPSHOT_UNAVAILABLE_WARNING,
     UNKNOWN_CLOSE_READINESS_REASON,

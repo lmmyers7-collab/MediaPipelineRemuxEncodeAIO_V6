@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.network.auth import validate_header
+from mediapipeline_desktop_app.network.auth import AUTH_VERSION
 from mediapipeline_desktop_app.network.cluster_log import format_cluster_log_line
 from mediapipeline_desktop_app.network.coordinator import (
     CoordinatorDispatcher,
@@ -134,7 +134,10 @@ class NetworkCoordinatorHelperTests(unittest.TestCase):
         self.assertTrue(auth.ok)
         self.assertEqual(auth.detail, "Token accepted (HTTP 200)")
         self.assertEqual(auth_request.full_url, "http://coordinator:7830/api/workers")
-        self.assertEqual(auth_request.headers["Authorization"], "Bearer token")
+        auth_headers = {key.casefold(): value for key, value in auth_request.header_items()}
+        self.assertNotIn("authorization", auth_headers)
+        self.assertEqual(auth_headers["x-mediapipeline-auth-version"], AUTH_VERSION)
+        self.assertIn("x-mediapipeline-signature", auth_headers)
         self.assertEqual(auth_timeout, 4)
 
     def test_coordinator_health_probe_normalizes_failure_details(self) -> None:

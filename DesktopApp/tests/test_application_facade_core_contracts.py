@@ -16,6 +16,9 @@ from mediapipeline_desktop_app.api.contract import LOCAL_API_ROUTE_CONTRACT
 from mediapipeline_desktop_app.api.http_helpers import (
     LOCAL_API_CONTENT_SECURITY_POLICY,
     content_type_for,
+    host_header_authorized,
+    no_token_dev_allowed,
+    origin_header_authorized,
     query_bool,
     query_int,
     query_value,
@@ -48,7 +51,7 @@ class ApplicationFacadeCoreContractTests(unittest.TestCase):
         self.assertEqual(mapping["log_paths"]["stdout"], "stdout.log")
 
     def test_runtime_outcome_helper_normalizes_completion_and_failure_events(self) -> None:
-        from mediapipeline_desktop_app.application.runtime_outcomes import runtime_outcome_from_event, runtime_outcome_index, source_identity_key
+        from app.observability.runtime_outcomes import runtime_outcome_from_event, runtime_outcome_index, source_identity_key
 
         source = r"C:\Media\Source\Movie.mkv"
         job_completed = {
@@ -236,6 +239,34 @@ class ApplicationFacadeCoreContractTests(unittest.TestCase):
         self.assertTrue(request_authorized({"X-MediaPipeline-Token": "secret"}, {}, token="secret", require_token=True))
         self.assertFalse(request_authorized({}, {"token": ["secret"]}, token="secret", require_token=True))
         self.assertFalse(request_authorized({"Authorization": "Bearer wrong"}, {}, token="secret", require_token=True))
+        self.assertTrue(host_header_authorized("127.0.0.1:8765", bind_host="127.0.0.1", port=8765))
+        self.assertTrue(host_header_authorized("localhost:8765", bind_host="127.0.0.1", port=8765))
+        self.assertFalse(host_header_authorized("evil.example:8765", bind_host="127.0.0.1", port=8765))
+        self.assertFalse(host_header_authorized("127.0.0.1:9999", bind_host="127.0.0.1", port=8765))
+        self.assertTrue(
+            origin_header_authorized(
+                "http://127.0.0.1:8765",
+                bind_host="127.0.0.1",
+                port=8765,
+            )
+        )
+        self.assertFalse(
+            origin_header_authorized(
+                "https://127.0.0.1:8765",
+                bind_host="127.0.0.1",
+                port=8765,
+            )
+        )
+        self.assertFalse(
+            origin_header_authorized(
+                "http://evil.example:8765",
+                bind_host="127.0.0.1",
+                port=8765,
+            )
+        )
+        self.assertTrue(no_token_dev_allowed("127.0.0.1", environ={"MEDIAPIPELINE_ALLOW_NO_TOKEN_DEV": "1"}))
+        self.assertFalse(no_token_dev_allowed("0.0.0.0", environ={"MEDIAPIPELINE_ALLOW_NO_TOKEN_DEV": "1"}))
+        self.assertFalse(no_token_dev_allowed("127.0.0.1", environ={}))
         self.assertEqual(query_value({"source": ["latest_csv"]}, "source", "latest_json"), "latest_csv")
         self.assertEqual(query_value({}, "source", "latest_json"), "latest_json")
         self.assertEqual(query_int({"limit": ["25"]}, "limit", 100), 25)

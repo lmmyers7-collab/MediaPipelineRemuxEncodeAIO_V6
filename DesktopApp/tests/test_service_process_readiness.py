@@ -8,7 +8,7 @@ from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_process_readiness import verify_spawn_readiness
+from app.processes.readiness import verify_spawn_readiness
 
 
 class FakeReadinessProc:

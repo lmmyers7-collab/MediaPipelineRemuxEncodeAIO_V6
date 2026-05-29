@@ -9,6 +9,7 @@ from typing import Any
 from typing import Sequence
 
 from .api import LocalApiServer
+from .api.http_helpers import NO_TOKEN_DEV_ENV_VAR, no_token_dev_allowed
 from .application import MediaPipelineApplicationFacade
 from .backend_bootstrap import BOOTSTRAP_SCHEMA_VERSION, backend_bootstrap_payload, startup_progress_payload, startup_step
 from .models import ResolvedPaths
@@ -253,6 +254,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     app_root = Path(args.app_root).expanduser() if args.app_root else None
     pipeline_path = Path(args.pipeline_path).expanduser() if args.pipeline_path else None
     config_path = Path(args.config_path).expanduser() if args.config_path else None
+    host = str(args.host or "127.0.0.1")
+    if bool(args.no_token) and not no_token_dev_allowed(host):
+        print(
+            json.dumps(
+                {
+                    "error": (
+                        f"--no-token requires a loopback --host and {NO_TOKEN_DEV_ENV_VAR}=1. "
+                        "Token checks remain enabled by default."
+                    )
+                },
+                sort_keys=True,
+            ),
+            flush=True,
+        )
+        return 2
     require_token = not bool(args.no_token)
     stop_event = threading.Event()
     startup_callback = emit_startup_progress if bool(args.emit_startup_progress) else None
@@ -260,7 +276,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         app_root=app_root,
         pipeline_path=pipeline_path,
         config_path=config_path,
-        host=str(args.host or "127.0.0.1"),
+        host=host,
         port=int(args.port or 0),
         token=str(args.token or "") or None,
         require_token=require_token,

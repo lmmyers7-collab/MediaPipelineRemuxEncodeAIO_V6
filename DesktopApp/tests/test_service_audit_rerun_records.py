@@ -7,8 +7,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import AuditRecord, CompletedJobRecord, FailureRecord
-from mediapipeline_desktop_app.service_audit_rerun import AuditRerunServiceMixin
-from mediapipeline_desktop_app.service_audit_rerun_records import (
+from app.audit.rerun_service import AuditRerunServiceMixin
+from app.audit.rerun_records import (
     audit_correlation_lookup_key,
     audit_row_value,
     correlate_audit_record,

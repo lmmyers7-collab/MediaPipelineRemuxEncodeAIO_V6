@@ -42,9 +42,11 @@ SOURCE_ROOTS = [
     "tests",
     "DesktopApp/mediapipeline_desktop_app",
     "DesktopApp/tauri_shell/src-tauri/src",
-    "Pipeline/Modules",
     "Pipeline/Tests",
 ]
+
+ROOT_SOURCE_FILES = {
+}
 
 EXCLUDE_DIR_PARTS = {
     "__pycache__",
@@ -62,13 +64,17 @@ SOURCE_EXTS = {".py", ".ps1", ".psm1", ".psd1", ".rs"}
 
 OWNER_DOMAIN_HINTS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"app/api"), "api"),
+    (re.compile(r"app/audit"), "audit"),
     (re.compile(r"app/orchestration"), "orchestration"),
     (re.compile(r"app/ingest"), "ingest"),
     (re.compile(r"app/metadata"), "metadata"),
     (re.compile(r"app/decide"), "decide"),
+    (re.compile(r"app/diagnostics"), "diagnostics"),
+    (re.compile(r"app/failures"), "failures"),
     (re.compile(r"app/transcode"), "transcode"),
     (re.compile(r"app/subtitles"), "subtitles"),
     (re.compile(r"app/audio"), "audio"),
+    (re.compile(r"app/completed"), "completed"),
     (re.compile(r"app/publish"), "publish"),
     (re.compile(r"app/rename"), "rename"),
     (re.compile(r"app/storage"), "storage"),
@@ -83,9 +89,8 @@ OWNER_DOMAIN_HINTS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"DesktopApp/.*/contracts/"), "contracts"),
     (re.compile(r"DesktopApp/.*/ui_web/"), "webview"),
     (re.compile(r"DesktopApp/tauri_shell"), "shell"),
+    (re.compile(r"tests/"), "tests"),
     (re.compile(r"DesktopApp/tests/"), "tests"),
-    (re.compile(r"Pipeline/Modules/(Audio|Audit|MediaProbe|Naming|Subtitles|Publish|Routing|EncodePolicy|PipelineEngine|LocalWorkerSlots|DecisionTrace|FailureCodes|FailureState|PendingTransactions|PendingManifestStore|PendingPublishIndex|PendingPush|QueuePlan|Routing|Setup|Root)"), r"\1"),
-    (re.compile(r"Pipeline/Modules"), "engine-legacy"),
     (re.compile(r"Pipeline/Tests"), "tests"),
     (re.compile(r"scripts/"), "scripts"),
 ]
@@ -129,6 +134,18 @@ class PsSymbols:
     dot_includes: list[str] = field(default_factory=list)
 
 
+@dataclass(frozen=True)
+class OrphanSummary:
+    summary_path: Path
+    reason_code: str
+    reason: str
+    recorded_file: str = ""
+
+    @property
+    def display_path(self) -> str:
+        return self.summary_path.relative_to(REPO_ROOT).as_posix()
+
+
 # ---------- helpers ----------
 
 def is_source_file(path: Path) -> bool:
@@ -142,10 +159,16 @@ def is_source_file(path: Path) -> bool:
 
 def in_scope_roots(rel_path: Path) -> bool:
     rel = rel_path.as_posix()
+    if rel in ROOT_SOURCE_FILES:
+        return True
     return any(rel.startswith(root + "/") or rel == root for root in SOURCE_ROOTS)
 
 
 def iter_source_files() -> Iterable[Path]:
+    for root_file in sorted(ROOT_SOURCE_FILES):
+        path = REPO_ROOT / root_file
+        if path.is_file() and is_source_file(path):
+            yield path
     for root in SOURCE_ROOTS:
         base = REPO_ROOT / root
         if not base.exists():
@@ -158,12 +181,89 @@ def iter_source_files() -> Iterable[Path]:
             yield path
 
 
+def summary_path_for_source(rel_path: str | Path, suffix: str) -> Path:
+    return SUMMARY_ROOT / Path(rel_path).with_suffix(suffix + ".md")
+
+
+def iter_summary_files() -> Iterable[Path]:
+    if not SUMMARY_ROOT.exists():
+        return []
+    return sorted(SUMMARY_ROOT.rglob("*.md"))
+
+
 def sha256_of(path: Path) -> str:
     h = hashlib.sha256()
     with path.open("rb") as fh:
         for chunk in iter(lambda: fh.read(65536), b""):
             h.update(chunk)
     return h.hexdigest()
+
+
+def frontmatter_value(summary_path: Path, key: str) -> str | None:
+    text = summary_path.read_text(encoding="utf-8", errors="replace")
+    m = re.search(rf"^{re.escape(key)}:\s*(.+?)\s*$", text, re.MULTILINE)
+    return m.group(1).strip() if m else None
+
+
+def summary_recorded_file(summary_path: Path) -> str | None:
+    return frontmatter_value(summary_path, "file")
+
+
+def orphan_summaries(sources: Iterable[Path] | None = None) -> list[OrphanSummary]:
+    source_paths = list(iter_source_files() if sources is None else sources)
+    expected: dict[str, Path] = {}
+    for source in source_paths:
+        try:
+            rel = source.relative_to(REPO_ROOT).as_posix()
+        except ValueError:
+            continue
+        expected[rel] = summary_path_for_source(rel, source.suffix)
+
+    findings: list[OrphanSummary] = []
+    for summary_path in iter_summary_files():
+        recorded = summary_recorded_file(summary_path)
+        if not recorded:
+            findings.append(
+                OrphanSummary(
+                    summary_path=summary_path,
+                    reason_code="SUMMARY_FILE_MISSING",
+                    reason="summary has no frontmatter file field",
+                )
+            )
+            continue
+        recorded_path = Path(recorded)
+        if recorded_path.is_absolute():
+            findings.append(
+                OrphanSummary(
+                    summary_path=summary_path,
+                    reason_code="SUMMARY_FILE_ABSOLUTE",
+                    reason="summary file field must be repo-relative",
+                    recorded_file=recorded,
+                )
+            )
+            continue
+        normalized_recorded = recorded_path.as_posix()
+        expected_summary = expected.get(normalized_recorded)
+        if expected_summary is None:
+            findings.append(
+                OrphanSummary(
+                    summary_path=summary_path,
+                    reason_code="SOURCE_FILE_MISSING",
+                    reason="recorded source file no longer exists or is out of summary scope",
+                    recorded_file=normalized_recorded,
+                )
+            )
+            continue
+        if summary_path != expected_summary:
+            findings.append(
+                OrphanSummary(
+                    summary_path=summary_path,
+                    reason_code="SUMMARY_PATH_MISMATCH",
+                    reason=f"summary is not at expected path {expected_summary.relative_to(REPO_ROOT).as_posix()}",
+                    recorded_file=normalized_recorded,
+                )
+            )
+    return findings
 
 
 def owner_domain_for(rel_path: str) -> str:
@@ -324,7 +424,7 @@ def render_summary(rel_path: str, source: Path) -> str:
     owner = owner_domain_for(rel_path)
     priority = token_priority_for(rel_path)
     stage = pipeline_stage_for(rel_path)
-    summary_path = SUMMARY_ROOT / Path(rel_path).with_suffix(source.suffix + ".md")
+    summary_path = summary_path_for_source(rel_path, source.suffix)
     prior_reviewed = existing_last_reviewed(summary_path) or today
 
     lines: list[str] = []
@@ -376,7 +476,7 @@ def render_summary(rel_path: str, source: Path) -> str:
 
 def write_summary(rel_path: str, source: Path) -> bool:
     """Return True if the summary was written or changed."""
-    summary_path = SUMMARY_ROOT / Path(rel_path).with_suffix(source.suffix + ".md")
+    summary_path = summary_path_for_source(rel_path, source.suffix)
     new_content = render_summary(rel_path, source)
     if summary_path.exists() and summary_path.read_text(encoding="utf-8") == new_content:
         return False
@@ -420,20 +520,21 @@ def collect_sources(args: argparse.Namespace) -> list[Path]:
     return list(iter_source_files())
 
 
-def cmd_check(sources: list[Path]) -> int:
+def cmd_check(sources: list[Path], *, check_orphans: bool = False) -> int:
     stale: list[str] = []
     missing: list[str] = []
     for path in sources:
         rel = path.relative_to(REPO_ROOT).as_posix()
-        summary_path = SUMMARY_ROOT / Path(rel).with_suffix(path.suffix + ".md")
+        summary_path = summary_path_for_source(rel, path.suffix)
         recorded = existing_summary_sha(summary_path)
         if recorded is None:
             missing.append(rel)
             continue
         if recorded != sha256_of(path):
             stale.append(rel)
-    if not stale and not missing:
-        print(f"OK: {len(sources)} source files all have current summaries.")
+    orphans = orphan_summaries(sources) if check_orphans else []
+    if not stale and not missing and not orphans:
+        print(f"OK: {len(sources)} source files all have current summaries and no orphan summaries.")
         return 0
     if missing:
         print(f"Missing summaries ({len(missing)}):")
@@ -443,11 +544,37 @@ def cmd_check(sources: list[Path]) -> int:
         print(f"Stale summaries ({len(stale)}):")
         for p in stale[:50]:
             print(f"  {p}")
-    print("Run: python scripts/dev/refresh_summaries.py --changed   (or --all)")
+    if orphans:
+        print(f"Orphan summaries ({len(orphans)}):")
+        for finding in orphans[:50]:
+            suffix = f" -> {finding.recorded_file}" if finding.recorded_file else ""
+            print(f"  {finding.display_path}: {finding.reason_code}{suffix}")
+    print("Run: python scripts/dev/refresh_summaries.py --changed   (or --all --prune-orphans)")
     return 1
 
 
-def cmd_generate(sources: list[Path]) -> int:
+def prune_orphan_summaries(sources: list[Path]) -> int:
+    removed = 0
+    summary_root = SUMMARY_ROOT.resolve()
+    for finding in orphan_summaries(sources):
+        path = finding.summary_path
+        try:
+            path.resolve().relative_to(summary_root)
+        except ValueError:
+            print(f"Refusing to prune summary outside summaries/: {path}", file=sys.stderr)
+            continue
+        if path.suffix.lower() != ".md":
+            print(f"Refusing to prune non-Markdown summary path: {path}", file=sys.stderr)
+            continue
+        try:
+            path.unlink()
+            removed += 1
+        except OSError as exc:
+            print(f"ERROR pruning {path.relative_to(REPO_ROOT).as_posix()}: {exc}", file=sys.stderr)
+    return removed
+
+
+def cmd_generate(sources: list[Path], *, prune_orphans: bool = False) -> int:
     written = 0
     unchanged = 0
     for path in sources:
@@ -461,7 +588,9 @@ def cmd_generate(sources: list[Path]) -> int:
             written += 1
         else:
             unchanged += 1
-    print(f"Summaries: {written} written, {unchanged} unchanged. Source files: {len(sources)}.")
+    pruned = prune_orphan_summaries(sources) if prune_orphans else 0
+    suffix = f", {pruned} orphan summaries pruned" if prune_orphans else ""
+    print(f"Summaries: {written} written, {unchanged} unchanged{suffix}. Source files: {len(sources)}.")
     return 0
 
 
@@ -472,8 +601,11 @@ def main(argv: list[str]) -> int:
     mode.add_argument("--changed", action="store_true", help="Regenerate for files changed vs HEAD.")
     mode.add_argument("--staged", action="store_true", help="Regenerate for staged files (pre-commit).")
     mode.add_argument("--check", action="store_true", help="Verify summary freshness; exit non-zero if stale.")
+    parser.add_argument("--prune-orphans", action="store_true", help="With --all, remove summaries for deleted/out-of-scope sources.")
     parser.add_argument("--paths", nargs="*", default=[], help="Specific paths to operate on.")
     args = parser.parse_args(argv)
+    if args.prune_orphans and not args.all:
+        parser.error("--prune-orphans must be used with --all")
 
     SUMMARY_ROOT.mkdir(exist_ok=True)
 
@@ -488,11 +620,12 @@ def main(argv: list[str]) -> int:
     sources = collect_sources(args)
     if args.check:
         # In --check mode, always check the full inventory unless paths/changed/staged is set.
-        if not (args.paths or args.changed or args.staged):
+        check_orphans = not (args.paths or args.changed or args.staged)
+        if check_orphans:
             sources = list(iter_source_files())
-        return cmd_check(sources)
+        return cmd_check(sources, check_orphans=check_orphans)
 
-    return cmd_generate(sources)
+    return cmd_generate(sources, prune_orphans=args.prune_orphans)
 
 
 if __name__ == "__main__":

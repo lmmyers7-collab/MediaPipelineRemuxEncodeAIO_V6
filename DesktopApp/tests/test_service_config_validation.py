@@ -6,8 +6,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_config import ConfigProfileServiceMixin
-from mediapipeline_desktop_app.service_config_validation import (
+from app.config.service import ConfigProfileServiceMixin
+from app.config.validation import (
     config_path_overlap_warning,
     split_list_input,
     validate_config_values,

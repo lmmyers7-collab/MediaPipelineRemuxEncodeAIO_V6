@@ -67,7 +67,7 @@ Status note: this table preserves the initial audit findings. Use the remediatio
 | 6 | HIGH | `Invoke-NativeProcess` did not kill a child in the broad catch after `Process.Start`. | Native tools are long-running and expensive; wrapper errors should not leave work detached. | FFmpeg/mkvmerge/robocopy-like process could keep running after wrapper failure. | `Pipeline\Modules\Native.ps1`, `Pipeline\Tests\Unit\Invoke-NativeProcessCleanupChecks.ps1` | Native cleanup checks simulate catch-time cleanup and verify process-tree cleanup before returning failure. | Fixed. |
 | 7 | MEDIUM | Active UI/tests referenced removed desktop-shell fallback wording. | Operator guidance should not point to a non-existent shell. | The operator could follow dead-end instructions, and release/test logic could preserve old assumptions. | WebView assets, worksheet scripts, and test fixtures touched during remediation | Active-source stale shell scan excluding bundled runtimes/vendor/docs should return zero active hits or only explicitly historical hits. | Fixed for active wording; historical docs remain archive/reference only. |
 | 8 | MEDIUM | FFmpeg progress event used priority before it was computed; stale poll code referenced undefined `$lineTask`. | Evidence panels should reflect actual process priority and avoid dead/refactored logic. | Diagnostics could report `inherit` even when priority was requested; future edits could revive broken duplicated stderr handling. | `Pipeline\Modules\FfmpegProgress.ps1`, `Pipeline\Tests\Invoke-V6WebViewReliabilityChecks.ps1` | V6 reliability gate asserts priority is mapped before `tool_started` and `$lineTask` is absent. | Fixed. |
-| 9 | MEDIUM | External process detection failed open when `psutil` was unavailable. | Duplicate launch and close-readiness safety depend on related process discovery. | If psutil was missing/broken, externally launched package PowerShell jobs could be invisible to Python guardrails. | `service_process_kill.py`, `application\facade_process_guard.py`, focused close-readiness tests | psutil-unavailable tests prove process detection degrades visibly and close-readiness fails closed instead of silently ignoring related work. | Fixed. |
+| 9 | MEDIUM | External process detection failed open when `psutil` was unavailable. | Duplicate launch and close-readiness safety depend on related process discovery. | If psutil was missing/broken, externally launched package PowerShell jobs could be invisible to Python guardrails. | `app/processes/kill.py`, `application\facade_process_guard.py`, focused close-readiness tests | psutil-unavailable tests prove process detection degrades visibly and close-readiness fails closed instead of silently ignoring related work. | Fixed. |
 | 10 | MEDIUM | Sidecar replace fallback temporarily removed the destination file before remediation. | Sidecars are the durable truth for completed output evidence. | The old delete+rename fallback could let concurrent readers see no sidecar during replacement. | `Pipeline\Modules\Sidecar.ps1`, `Pipeline\Tests\Unit\Invoke-SidecarWriteSafetyChecks.ps1`, `Pipeline\Tests\Invoke-V6WebViewReliabilityChecks.ps1` | Local guard now verifies overwrite move without explicit sidecar delete; real Windows/UNC stress testing is still needed for the actual storage profile. | Fixed locally; UNC stress remains operator validation. |
 
 ## 4) Correctness Bugs With File Paths And Line References
@@ -92,7 +92,7 @@ Status note: this table preserves the initial audit findings. Use the remediatio
 
 10. Fixed after audit: `DesktopApp\mediapipeline_desktop_app\ui_web\static\assets\contractView.js` now distinguishes public API routes from the separate startup HTML/assets bootstrap surface, and Tauri no longer receives the bearer token through public index HTML.
 
-## 5) Stale Legacy/TK/V3/V4 Code Or Assumptions
+## 5) Stale Legacy Desktop-Shell/V3/V4 Code Or Assumptions
 
 Initial audit stale-reference status after remediation:
 
@@ -181,7 +181,7 @@ Strengths:
 - Rust drains backend stderr and eventually stdout after bootstrap (`backend_process.rs:252-284`).
 - Rust validates backend health, route contract, and web UI before building the window (`backend_process.rs:163-183`).
 - Tauri close calls close-readiness first and only then requests backend shutdown (`lib.rs:72-82`, `backend_process.rs:94-109`).
-- Python process services track app-owned children and have force-kill helpers with `taskkill /T /F` on Windows (`service_process_kill.py:153-188`).
+- Python process services track app-owned children and have force-kill helpers with `taskkill /T /F` on Windows (`app/processes/kill.py`).
 - The schedule-stop watcher writes the backend stop flag at the schedule boundary rather than having the frontend mutate flags.
 
 Gaps:

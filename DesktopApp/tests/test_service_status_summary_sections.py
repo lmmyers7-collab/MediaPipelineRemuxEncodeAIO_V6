@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from mediapipeline_desktop_app.service_status_summary_sections import (
+from app.status.summary_sections import (
     append_audit_progress_section,
     append_latest_path_section,
     append_plain_section,

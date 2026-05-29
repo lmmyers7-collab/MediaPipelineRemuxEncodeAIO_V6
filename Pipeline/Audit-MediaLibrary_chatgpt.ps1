@@ -59,7 +59,16 @@ foreach ($auditModuleName in @(
     'Audit.Reports.ps1',
     'Audit.Scanner.ps1'
 )) {
-    $auditModulePath = Join-Path $script:AuditModuleRoot $auditModuleName
+    $auditModulePath = switch ($auditModuleName) {
+        'Audit.Progress.ps1' { Join-Path (Split-Path -Parent $PSScriptRoot) 'engine\audit\progress.ps1' }
+        'Audit.Policy.ps1' { Join-Path (Split-Path -Parent $PSScriptRoot) 'engine\audit\policy.ps1' }
+        'Audit.Probe.ps1' { Join-Path (Split-Path -Parent $PSScriptRoot) 'engine\audit\probe.ps1' }
+        'Audit.Reports.ps1' { Join-Path (Split-Path -Parent $PSScriptRoot) 'engine\audit\reports.ps1' }
+        'Audit.Scanner.ps1' { Join-Path (Split-Path -Parent $PSScriptRoot) 'engine\audit\scanner.ps1' }
+        'Naming.ps1' { Join-Path (Split-Path -Parent $PSScriptRoot) 'engine\naming\naming.ps1' }
+        'QueuePlan.ps1' { Join-Path (Split-Path -Parent $PSScriptRoot) 'engine\queue\queue_plan.ps1' }
+        default { Join-Path $script:AuditModuleRoot $auditModuleName }
+    }
     if (-not (Test-Path -LiteralPath $auditModulePath)) {
         throw "Required audit module was not found: $auditModulePath"
     }
@@ -992,7 +1001,7 @@ function Add-AuditIssue {
 
 # Remove-PriorityMarkersFromName, Normalize-TVShowFolderName,
 # Get-TVEpisodeFromFilename, Get-TVFolderSeasonInfo, and Get-TVInfoFromFile
-# are provided by Modules\QueuePlan.ps1 and Modules\Naming.ps1, which are
+# are provided by engine\queue\queue_plan.ps1 and engine\naming\naming.ps1, which are
 # loaded in the module-loading loop above.  The inline copies that used to
 # live here were removed to eliminate drift; the canonical versions in those
 # modules now handle ordinal-season folders, extras-container detection,

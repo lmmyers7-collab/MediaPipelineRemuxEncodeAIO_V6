@@ -57,4 +57,4 @@ Browser-backed smokes require Chrome or Edge plus Node/browser runner prerequisi
 - Always print boundary text that states what the smoke does not prove.
 - Browser-backed smokes must skip cleanly when Chrome/Edge is unavailable.
 - Do not add source/output/scratch mutation to smoke wrappers.
-- Update `Test-MediaPipelineRemuxEncodeAIO-Release.ps1`, `Docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`, `Docs/testing/TEST_COVERAGE_MATRIX.md`, and this inventory when adding or removing smoke wrappers.
+- Update `scripts\release\test.ps1`, `Docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`, `Docs/testing/TEST_COVERAGE_MATRIX.md`, and this inventory when adding or removing smoke wrappers.

@@ -30,10 +30,12 @@ class CommandJournal:
         self,
         *,
         path: Path | None = None,
+        state_db_root: Path | None = None,
         max_entries: int = 50,
         logger: logging.Logger | None = None,
     ) -> None:
         self.path = path
+        self.state_db_root = state_db_root
         self.max_entries = max(1, int(max_entries))
         self.logger = logger or logging.getLogger(__name__)
         self._lock = threading.Lock()
@@ -47,6 +49,7 @@ class CommandJournal:
             self._entries.insert(0, entry)
             del self._entries[self.max_entries :]
             self._save_locked()
+            self._mirror_sqlite_locked(payload, entry)
 
     def to_mapping(self, *, limit: int = 20) -> dict[str, Any]:
         with self._lock:
@@ -94,3 +97,16 @@ class CommandJournal:
                 except OSError as cleanup_exc:
                     self.logger.warning("Could not remove temporary local API command journal %s: %s", tmp_path, cleanup_exc)
             self.logger.warning("Could not save local API command journal %s: %s", self.path, exc)
+
+    def _mirror_sqlite_locked(self, payload: Mapping[str, Any], entry: Mapping[str, Any]) -> None:
+        if self.state_db_root is None:
+            return
+        try:
+            from app.storage.db import open_state_db
+
+            command_event = dict(payload)
+            for key, value in entry.items():
+                command_event.setdefault(key, value)
+            open_state_db(self.state_db_root).record_command(command_event)
+        except Exception as exc:
+            self.logger.warning("Could not mirror local API command journal to SQLite: %s", exc)

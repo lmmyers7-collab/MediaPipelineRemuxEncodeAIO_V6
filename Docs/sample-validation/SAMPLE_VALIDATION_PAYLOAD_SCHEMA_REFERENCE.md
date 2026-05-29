@@ -2,7 +2,7 @@
 
 Date: 2026-05-15
 
-Documents all schema version constants defined in `DesktopApp/mediapipeline_desktop_app/application/facade_sample_validation_policy.py` and the route/payload each schema serves. All payloads are backend-owned. The frontend reads or previews them only — no payload is written from frontend code.
+Documents all schema version constants defined in `app/sample_validation/policy.py` and the route/payload each schema serves. All payloads are backend-owned. The frontend reads or previews them only — no payload is written from frontend code.
 
 ---
 
@@ -274,7 +274,7 @@ The `guardrail` field in `desktop_sample_validation_preview.v1` states this boun
 - Operator guide: `Docs/sample-validation/SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md`
 - Artifact design: `Docs/sample-validation/V5_SAMPLE_VALIDATION_ARTIFACT_DESIGN.md`
 - Real-media playbook: `Docs/sample-validation/V5_REAL_MEDIA_VALIDATION_PLAYBOOK.md`
-- Source: `DesktopApp/mediapipeline_desktop_app/application/facade_sample_validation_policy.py`
+- Source: `app/sample_validation/policy.py`
 
 ---
 
@@ -282,7 +282,7 @@ The `guardrail` field in `desktop_sample_validation_preview.v1` states this boun
 
 ```
 Task ID: CLN3-011
-Files inspected: DesktopApp\mediapipeline_desktop_app\application\facade_sample_validation_policy.py, Docs\sample-validation\V5_SAMPLE_VALIDATION_ARTIFACT_DESIGN.md
+Files inspected: app\sample_validation\policy.py, Docs\sample-validation\V5_SAMPLE_VALIDATION_ARTIFACT_DESIGN.md
 Files changed: Docs\sample-validation\SAMPLE_VALIDATION_PAYLOAD_SCHEMA_REFERENCE.md (created)
 Validation: Select-String -Path Docs\sample-validation\SAMPLE_VALIDATION_PAYLOAD_SCHEMA_REFERENCE.md -Pattern "desktop_sample_validation|sample_validation_record|desktop_real_media"
 Findings: 12 schema constants documented; per-field summaries provided; mutation boundary and size limits stated.

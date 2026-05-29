@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.application import MediaPipelineApplicationFacade
-from mediapipeline_desktop_app.application.facade_rename_policy import OUTSIDE_CONFIGURED_ROOTS_WARNING
+from app.rename.policy import OUTSIDE_CONFIGURED_ROOTS_WARNING
 from DesktopApp.tests.test_application_facade import DummyWorkflowFacadeService
 
 

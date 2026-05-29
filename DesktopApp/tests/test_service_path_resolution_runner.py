@@ -5,9 +5,9 @@ import unittest
 from pathlib import Path
 from typing import Any
 
-from mediapipeline_desktop_app.service_constants import APP_STATE_NAME
-from mediapipeline_desktop_app.service_path_layout import first_existing, path_or_none, state_root_for_local_base
-from mediapipeline_desktop_app.service_path_resolution_runner import resolve_paths_for_service
+from app.shared.constants import APP_STATE_NAME
+from app.paths.layout import first_existing, path_or_none, state_root_for_local_base
+from app.paths.resolution_runner import resolve_paths_for_service
 
 
 class DummyPathResolutionService:

@@ -68,6 +68,49 @@
     return `${time}${label} [${parts.join("; ")}] ${message}${detail}`.trim();
   }
 
+  function compactCommandHistoryEntries(history = [], filter = null, limit = 6) {
+    const source = Array.isArray(history) ? history : [];
+    const predicate = typeof filter === "function" ? filter : () => true;
+    return source.filter(predicate).slice(0, limit);
+  }
+
+  function compactCommandHistoryBlockText(options = {}) {
+    const history = Array.isArray(options.history) ? options.history : [];
+    const entries = Array.isArray(options.entries)
+      ? options.entries
+      : compactCommandHistoryEntries(history, options.filter, options.limit || 6);
+    if (!history.length) return options.emptyHistoryText || "No command history loaded yet.";
+    if (!entries.length) return options.emptyMatchText || "No matching commands found in the recent command history.";
+    const label = options.itemLabel || "command";
+    const lineFor = typeof options.lineFor === "function"
+      ? options.lineFor
+      : (entry) => commandHistoryCompactEvidenceLine(entry);
+    const lines = [];
+    if (options.header !== false) {
+      lines.push(options.header || `Last ${entries.length} ${label}${entries.length === 1 ? "" : "s"}:`);
+    }
+    lines.push(...entries.map(lineFor));
+    if (options.footer) lines.push(options.footer);
+    return lines.join("\n");
+  }
+
+  function renderCompactCommandHistoryBlock(options = {}) {
+    const history = Array.isArray(options.history) ? options.history : [];
+    const entries = Array.isArray(options.entries)
+      ? options.entries
+      : compactCommandHistoryEntries(history, options.filter, options.limit || 6);
+    if (options.statusId) {
+      const status = typeof options.statusText === "function"
+        ? options.statusText(entries, history)
+        : options.statusText || `${entries.length} command${entries.length === 1 ? "" : "s"}`;
+      setText(options.statusId, status);
+    }
+    if (options.targetId) {
+      setText(options.targetId, compactCommandHistoryBlockText({ ...options, history, entries }));
+    }
+    return entries;
+  }
+
   function commandHistoryOwnerPage(item) {
     const command = commandHistoryCommandText(item);
     const refresh = String(item?.raw?.refresh_hint || "").trim().toLowerCase();
@@ -1816,15 +1859,21 @@
     updateTableStatusLegend("command-table-legend", tbody, "Command result rows");
   }
 
+  function commandHistoryDiagnosticLine(item) {
+    const owner = commandHistoryOwnerPage(item);
+    const issue = commandHistoryIssueLevel(item);
+    return `${item?.at || ""} ${item?.command || "unknown"} [${item?.result || ""}; ${owner}; issue=${issue}] ${item?.message || ""}`.trim();
+  }
+
   function formatCommandHistoryLines() {
-    if (!commandHistory.length) return "No backend command history loaded.";
-    return commandHistory
-      .map((item) => {
-        const owner = commandHistoryOwnerPage(item);
-        const issue = commandHistoryIssueLevel(item);
-        return `${item.at || ""} ${item.command || "unknown"} [${item.result || ""}; ${owner}; issue=${issue}] ${item.message || ""}`.trim();
-      })
-      .join("\n");
+    return compactCommandHistoryBlockText({
+      history: commandHistory,
+      limit: commandHistory.length || 1,
+      itemLabel: "backend command",
+      emptyHistoryText: "No backend command history loaded.",
+      lineFor: commandHistoryDiagnosticLine,
+      header: false,
+    });
   }
 
   function getCommandHistory() {
@@ -1853,6 +1902,10 @@
     commandHistoryDetailLines,
     commandHistoryCommandText,
     commandHistoryCompactEvidenceLine,
+    commandHistoryDiagnosticLine,
+    compactCommandHistoryEntries,
+    compactCommandHistoryBlockText,
+    renderCompactCommandHistoryBlock,
     commandHistoryOwnerPage,
     commandHistoryIssueLevel,
     commandHistoryRefreshTarget,

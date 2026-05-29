@@ -9,8 +9,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import AuditRecord, ResolvedPaths
-from mediapipeline_desktop_app.service_audit_rerun import AuditRerunServiceMixin
-from mediapipeline_desktop_app.service_audit_rerun_csv import (
+from app.audit.rerun_service import AuditRerunServiceMixin
+from app.audit.rerun_csv import (
     apply_rerun_source_metadata,
     build_rerun_csv_row,
     source_stat_to_rerun_values,

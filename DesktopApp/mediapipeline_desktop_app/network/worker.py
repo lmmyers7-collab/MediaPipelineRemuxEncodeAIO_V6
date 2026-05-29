@@ -26,6 +26,7 @@ from ..config_keys import (
 from .coordinator_url import validate_coordinator_url as _validate_coordinator_url
 from .diagnostics import diagnostic_preview as _worker_diagnostic_preview
 from .dispatcher import ClaimedJob, QueueDispatcher
+from .auth import sign_request as _sign_request_headers
 from .http_json import HTTP_MAX_RESPONSE_BYTES as _HTTP_MAX_RESPONSE_BYTES
 from .http_json import HTTP_TIMEOUT as _HTTP_TIMEOUT
 from .http_json import http_get_json, http_post_json
@@ -264,13 +265,15 @@ class WorkerDispatcher(QueueDispatcher):
     # ------------------------------------------------------------------
 
     def _headers(self) -> dict[str, str]:
-        h: dict[str, str] = {
+        return {
             "Content-Type": "application/json",
             "Accept":       "application/json",
         }
-        if self._auth_token:
-            h["Authorization"] = f"Bearer {self._auth_token}"
-        return h
+
+    def _sign_request(self, method: str, path_with_query: str, body: bytes) -> dict[str, str]:
+        if not self._auth_token:
+            return {}
+        return _sign_request_headers(method, path_with_query, body, self._auth_token)
 
     def _http_get(self, path: str, params: dict[str, str] | None = None) -> dict[str, Any]:
         return http_get_json(
@@ -278,6 +281,7 @@ class WorkerDispatcher(QueueDispatcher):
             path,
             headers=self._headers(),
             params=params,
+            sign_request=self._sign_request,
             timeout_seconds=_HTTP_TIMEOUT,
         )
 
@@ -287,6 +291,7 @@ class WorkerDispatcher(QueueDispatcher):
             path,
             data,
             headers=self._headers(),
+            sign_request=self._sign_request,
             timeout_seconds=_HTTP_TIMEOUT,
         )
 

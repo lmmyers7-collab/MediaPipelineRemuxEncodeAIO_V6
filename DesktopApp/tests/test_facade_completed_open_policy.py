@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import unittest
+import sys
 from pathlib import Path
 
-from mediapipeline_desktop_app.application.facade_completed_open_policy import (
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from app.completed.open_policy import (
     allowed_completed_open_targets_text,
     completed_open_disallowed_target_result,
     completed_open_exception_result,

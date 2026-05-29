@@ -15,6 +15,7 @@
       makeRowSelectable = function () {},
       pendingFormatCounts = function () { return "none"; },
       pendingRowKey = function (row) { return row?.row_key || ""; },
+      renderCompactCommandHistoryBlock = null,
       renderPendingBackendDrainScopePreview = function () {},
       renderPendingDrainActionConfidence = function () {},
       renderPendingDrainDecisionChecklist = function () {},
@@ -275,6 +276,20 @@
   }
 
   function renderPendingRecoveryPlanHistory(entries) {
+    if (typeof renderCompactCommandHistoryBlock === "function") {
+      renderCompactCommandHistoryBlock({
+        history: entries,
+        filter: isPendingRecoveryPlanCommand,
+        limit: 5,
+        targetId: "pending-recovery-plan-history",
+        itemLabel: "pending publish recovery plan",
+        emptyHistoryText: "No pending publish recovery plan history loaded. Build a dry-run plan before draining suspicious parked outputs.",
+        emptyMatchText: "No pending publish recovery plans found in command history. Build a dry-run plan for all rows or the selected row before risky drain decisions.",
+        lineFor: pendingRecoveryPlanHistoryLine,
+        footer: "Plans are backend-authored dry runs; they do not repair, drain, rewrite, move, delete, or publish files.",
+      });
+      return;
+    }
     const history = Array.isArray(entries) ? entries.filter(isPendingRecoveryPlanCommand).slice(0, 5) : [];
     if (!Array.isArray(entries) || !entries.length) {
       setText(

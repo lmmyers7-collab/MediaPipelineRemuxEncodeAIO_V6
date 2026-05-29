@@ -539,6 +539,96 @@ function renderRefreshHealth(failures) {
   if (button) button.title = `Refresh all WebView read-only state. Last result had ${items.length} issue${items.length === 1 ? "" : "s"}.`;
 }
 
+function attachRefreshMetadata(name, payload) {
+  if (!payload || typeof payload !== "object") return payload;
+  try {
+    Object.defineProperty(payload, "__mediaPipelineRefreshMeta", {
+      value: {
+        name,
+        fetched_at: new Date().toISOString(),
+        refresh_started_at: lastRefreshStartedAt ? lastRefreshStartedAt.toISOString() : "",
+      },
+      enumerable: false,
+      configurable: true,
+    });
+  } catch (_) {
+    // Read-only/frozen payloads still render; they simply omit WebView refresh metadata.
+  }
+  return payload;
+}
+
+function initPageRefreshButtons() {
+  if (typeof document.querySelectorAll !== "function") return;
+  document.querySelectorAll("[data-page-refresh-button]").forEach((button) => {
+    button.addEventListener("click", () => refreshAll());
+    if (!button.title) {
+      button.title = "Refreshes backend read-only state for this page without starting, saving, publishing, repairing, deleting, or moving files.";
+    }
+  });
+}
+
+function rowOpenActionGroup(scope) {
+  const groups = {
+    completed: {
+      targetDataset: "openCompleted",
+      actions: [
+        { kind: "open", target: "output_file", label: "Open / Play Output", primary: true, hint: "Open the backend-selected completed output file." },
+        { kind: "open", target: "output_folder", label: "Open Output Folder", hint: "Open the backend-selected completed output folder." },
+        { kind: "open", target: "sidecar", label: "Open Sidecar", hint: "Open the backend-selected sidecar file." },
+        { kind: "open", target: "source_folder", label: "Open Source Folder", hint: "Open the backend-selected source folder." },
+      ],
+      onOpen: (target) => window.requestCompletedOpen?.(target),
+    },
+    pending: {
+      targetDataset: "openPending",
+      actions: [
+        { kind: "open", target: "local_file", label: "Open Local", hint: "Open the backend-selected parked local payload." },
+        { kind: "open", target: "manifest", label: "Open Manifest", hint: "Open the backend-selected pending publish manifest." },
+        { kind: "open", target: "destination_folder", label: "Open Destination Folder", hint: "Open the backend-selected destination folder." },
+        { kind: "open", target: "source_folder", label: "Open Source Folder", hint: "Open the backend-selected source folder." },
+      ],
+      onOpen: (target) => window.requestPendingPublishOpen?.(target),
+    },
+    queue: {
+      targetDataset: "openQueue",
+      actions: [
+        { kind: "open", target: "source_file", label: "Open Source", hint: "Open the backend-selected source file." },
+        { kind: "open", target: "source_folder", label: "Open Source Folder", hint: "Open the backend-selected source folder." },
+        { kind: "open", target: "source_root", label: "Open Source Root", hint: "Open the backend-selected source root." },
+      ],
+      onOpen: (target) => window.requestQueueOpen?.(target),
+    },
+    "queue-excluded": {
+      targetDataset: "openQueueExcluded",
+      actions: [
+        { kind: "open", target: "source_file", label: "Open Excluded Source", hint: "Open the backend-selected excluded source file." },
+        { kind: "open", target: "source_folder", label: "Open Excluded Folder", hint: "Open the backend-selected excluded source folder." },
+        { kind: "open", target: "source_root", label: "Open Excluded Root", hint: "Open the backend-selected excluded source root." },
+      ],
+      onOpen: (target) => window.requestQueueOpen?.(target, "excluded"),
+    },
+  };
+  return groups[scope] || null;
+}
+
+function initBackendRowOpenActions() {
+  const renderer = window.mediaPipelineDom?.renderOpenTargetActionGroups;
+  document.querySelectorAll("[data-open-target-row-actions]").forEach((container) => {
+    const config = rowOpenActionGroup(container.dataset.openTargetRowActions || "");
+    if (!container || !config || typeof renderer !== "function") return;
+    renderer(container, { readFirst: [], openNext: config.actions }, {
+      showEmpty: false,
+      labelFor: (action) => action.label || action.target || "Open target",
+      titleFor: (action) => action.hint || "",
+      classFor: (action) => action.primary ? "primary-button" : "secondary-button",
+      groupDataset: "openTargetRowGroup",
+      actionDataset: "openTargetRowAction",
+      targetDataset: config.targetDataset,
+      onOpen: (target) => config.onOpen(target),
+    });
+  });
+}
+
 function refreshFailure(name, result, required = false) {
   if (result.status === "fulfilled") return null;
   const reason = result.reason;
@@ -1165,13 +1255,17 @@ function homeAtAGlanceModel(context = {}) {
   const queue = context.queue || {};
   const progress = snapshot?.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
   const activeJobs = Array.isArray(diagnostics?.active_jobs) ? diagnostics.active_jobs.filter(Boolean) : [];
+  const workerProgress = window.mediaPipelineProgressView?.progressWorkerPayload?.(snapshot, diagnostics) || {};
+  const workerRows = window.mediaPipelineProgressView?.progressWorkerRows?.(snapshot, diagnostics) || [];
+  const activeWorkerRows = workerRows.filter((row) => ["running", "warning", "blocked"].includes(String(row?.status_state || "").toLowerCase()));
   const pipelineState = snapshot?.pipeline_state || closeReadiness?.state || "unknown";
   const stateActive = ["processing", "running", "active", "publishing", "audit"].includes(String(pipelineState || "").toLowerCase());
-  const active = activeJobs.length > 0 || closeReadiness?.safe_to_close === false || stateActive;
-  const stage = progress.CurrentStage || progress.Status || "";
+  const active = activeJobs.length > 0 || activeWorkerRows.length > 0 || closeReadiness?.safe_to_close === false || stateActive;
+  const primaryWorker = activeWorkerRows[0] || workerRows[0] || {};
+  const stage = progress.CurrentStage || primaryWorker.stage || progress.Status || "";
   const percent = homeAtAGlancePercent(progress.CurrentStagePercent);
   const percentNumber = Number(progress.CurrentStagePercent);
-  const rawFile = homeAtAGlanceCurrentFile(progress);
+  const rawFile = homeAtAGlanceCurrentFile(progress) || primaryWorker.source || "";
   const file = homeAtAGlanceShortValue(rawFile, 88);
   const queuePosition = homeAtAGlanceQueuePosition(progress);
   const route = progress.CurrentRoute || progress.Route || "";
@@ -1180,6 +1274,7 @@ function homeAtAGlanceModel(context = {}) {
     percent ? percent : "",
     route ? `Route ${formatProgressValue(route)}` : "",
     queuePosition ? `Queue ${queuePosition}` : "",
+    workerProgress.status ? `Workers ${formatProgressValue(workerProgress.status)}` : "",
     activeJobs.length ? `${activeJobs.length} ActiveJobs` : "",
   ].filter(Boolean).join(" · ");
   const status = !snapshot && !closeReadiness
@@ -1486,13 +1581,30 @@ function updatePagePanelEmptyStates() {
   document.querySelectorAll(".page[data-page-panel]").forEach(updatePagePanelEmptyState);
 }
 
+const resetWorkspaceScroll = function () {
+  const workspace = document.querySelector(".workspace");
+  if (workspace && typeof workspace.scrollTo === "function") {
+    workspace.scrollTo(0, 0);
+  }
+  const scroller = document.scrollingElement || document.documentElement || document.body;
+  if (scroller) {
+    scroller.scrollTop = 0;
+    scroller.scrollLeft = 0;
+  }
+  if (typeof window.scrollTo === "function") {
+    window.scrollTo(0, 0);
+  }
+};
+
 function showPage(page) {
   const normalized = String(page || "").trim();
   if (!normalized) return;
   const buttons = Array.from(document.querySelectorAll(".nav-button"));
   const panels = Array.from(document.querySelectorAll("[data-page-panel]"));
+  const current = panels.find((panel) => panel.classList.contains("is-visible"))?.dataset.pagePanel || "";
   buttons.forEach((item) => item.classList.toggle("is-active", item.dataset.page === normalized));
   panels.forEach((panel) => panel.classList.toggle("is-visible", panel.dataset.pagePanel === normalized));
+  if (current && current !== normalized) resetWorkspaceScroll();
   updatePagePanelEmptyStates();
   if (normalized === "maintenance" && typeof hasMaintenanceLoaded === "function" && !hasMaintenanceLoaded()) {
     refreshMaintenance();
@@ -1531,6 +1643,7 @@ function applyDefaultActionTooltips() {
     ["#settings-network-reset-button", "Reloads the Workers tab mode controls from current saved backend settings."],
     ["#network-settings-preview-button", "Previews staged Worker Mode Settings through the backend settings route. It does not save the PSD1."],
     ["#network-settings-save-button", "Saves staged Worker Mode Settings through backend validation and config backup. It does not start or stop workers."],
+    ['[data-settings-path-key]', "Opens a backend-owned Windows folder picker and stages this Settings field. It does not save the PSD1 or touch media files."],
     ["#settings-save-patch-button", "Saves staged settings through backend validation. Raw WebView fields never write directly to the PSD1."],
     ["#settings-preview-patch-button", "Previews staged settings changes without saving."],
   ];
@@ -1603,7 +1716,7 @@ async function refreshAllNow() {
       failures.push(failure);
       return;
     }
-    values[name] = result.value;
+    values[name] = attachRefreshMetadata(name, result.value);
   });
   if (values.snapshot) {
     renderSnapshot(values.snapshot);
@@ -1693,6 +1806,7 @@ async function refreshAllNow() {
       diagnostics: values.diagnostics || null,
     });
   }
+  window.mediaPipelineProgressView?.renderDiagnosticsProgress?.(values.snapshot || lastSnapshot, values.diagnostics || null);
   if (typeof renderCrossPageContext === "function") {
     const crossPageContext = {
       snapshot: values.snapshot || lastSnapshot,
@@ -2067,106 +2181,215 @@ function initLaunchEvidenceToggle() {
   btn.addEventListener("click", () => applyCollapsed(!body.classList.contains("is-collapsed")));
 }
 
-// ── KEYBOARD SHORTCUTS — S46 ─────────────────────────────────────────────────
-// Global keyboard shortcuts that activate only when focus is NOT in a text
-// field, select, textarea, or contenteditable element.
-//
-//   R          Refresh all panels
-//   A          Toggle Advanced mode
-//   T          Toggle Light / Dark theme
-//   1–9        Navigate to page (Home, Queue, Completed, Pending, Launch,
-//              Reports, Diagnostics, Settings, Maintenance)
-//   ?          Show / hide this shortcut reference overlay
+// Keyboard shortcuts are local UI affordances only. They may refresh read-only
+// payloads, change visible filters, move focus/selection, and navigate pages;
+// they must not submit pipeline, publish, rename, settings-save, or file-open
+// mutation commands.
+const KEYBOARD_PAGE_KEYS = {
+  "1": { page: "home", label: "Dashboard" },
+  "2": { page: "queue", label: "Queue" },
+  "3": { page: "completed", label: "Output" },
+  "4": { page: "pending", label: "Publish" },
+  "5": { page: "launch", label: "Launch" },
+  "6": { page: "reports", label: "Reports" },
+  "7": { page: "diagnostics", label: "Diagnostics" },
+  "8": { page: "settings", label: "Settings" },
+  "9": { page: "maintenance", label: "Maintenance" },
+};
+
+const KEYBOARD_PRIMARY_FILTER_IDS = {
+  queue: "queue-filter",
+  completed: "completed-filter",
+  pending: "pending-filter",
+  reports: "failure-filter",
+  diagnostics: "diagnostics-log-filter",
+  settings: "settings-filter",
+  network: "network-worker-filter",
+};
+
+const KEYBOARD_DETAIL_IDS = {
+  queue: "queue-detail",
+  completed: "completed-detail",
+  pending: "pending-detail",
+  reports: "failure-detail",
+  diagnostics: "diagnostics-first-response-detail",
+  settings: "settings-detail",
+  network: "network-worker-detail",
+};
+
+function activeKeyboardPage() {
+  return document.querySelector("[data-page-panel].is-visible")?.dataset.pagePanel || "home";
+}
+
+function activeKeyboardPanel() {
+  return document.querySelector("[data-page-panel].is-visible");
+}
+
+function shortcutTypingTarget(target) {
+  const tag = target ? String(target.tagName || "").toUpperCase() : "";
+  return ["INPUT", "TEXTAREA", "SELECT"].includes(tag) || Boolean(target?.isContentEditable);
+}
+
+function shortcutElementVisible(node) {
+  if (!node) return false;
+  const style = typeof window.getComputedStyle === "function" ? window.getComputedStyle(node) : null;
+  return (!style || (style.display !== "none" && style.visibility !== "hidden"))
+    && Boolean(node.offsetWidth || node.offsetHeight || node.getClientRects().length);
+}
+
+function focusActivePageSearch() {
+  const page = activeKeyboardPage();
+  const panel = activeKeyboardPanel();
+  const configured = byId(KEYBOARD_PRIMARY_FILTER_IDS[page] || "");
+  const target = configured || panel?.querySelector('input[type="search"], input[id*="filter"]');
+  if (!target || typeof target.focus !== "function" || !shortcutElementVisible(target)) return false;
+  target.focus();
+  if (typeof target.select === "function") target.select();
+  return true;
+}
+
+function dispatchShortcutInputChange(node) {
+  node.dispatchEvent(new Event("input", { bubbles: true }));
+  node.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+function clearActivePageFilters() {
+  const page = activeKeyboardPage();
+  const panel = activeKeyboardPanel();
+  if (!panel) return false;
+  if (page === "queue" && window.mediaPipelineQueueView?.resetQueueFilters) {
+    window.mediaPipelineQueueView.resetQueueFilters();
+    return true;
+  }
+  if (page === "completed" && window.mediaPipelineCompletedView?.resetCompletedFilters) {
+    window.mediaPipelineCompletedView.resetCompletedFilters();
+    return true;
+  }
+  if (page === "pending" && window.mediaPipelinePendingPublishView?.resetPendingFilters) {
+    window.mediaPipelinePendingPublishView.resetPendingFilters();
+    return true;
+  }
+  let changed = false;
+  panel.querySelectorAll("input, select").forEach((node) => {
+    const searchable = /filter|search/i.test([node.id, node.name, node.placeholder, node.getAttribute("aria-label")].filter(Boolean).join(" "));
+    if (!searchable) return;
+    if (node.tagName === "SELECT") {
+      const nextValue = Array.from(node.options || []).some((option) => option.value === "all") ? "all" : (node.options?.[0]?.value || "");
+      if (node.value !== nextValue) {
+        node.value = nextValue;
+        changed = true;
+        dispatchShortcutInputChange(node);
+      }
+    } else if (node.type === "checkbox" || node.type === "radio") {
+      return;
+    } else if (node.value) {
+      node.value = "";
+      changed = true;
+      dispatchShortcutInputChange(node);
+    }
+  });
+  return changed;
+}
+
+function activePageSelectableRows() {
+  const panel = activeKeyboardPanel();
+  if (!panel) return [];
+  return Array.from(panel.querySelectorAll('tr[data-selectable-row="true"]')).filter(shortcutElementVisible);
+}
+
+function moveActivePageSelection(delta) {
+  const rows = activePageSelectableRows();
+  if (!rows.length) return false;
+  const currentIndex = rows.findIndex((row) => row.classList.contains("is-selected") || row.getAttribute("aria-selected") === "true" || row === document.activeElement);
+  const baseIndex = currentIndex >= 0 ? currentIndex : (delta > 0 ? -1 : rows.length);
+  const nextIndex = Math.max(0, Math.min(rows.length - 1, baseIndex + delta));
+  const next = rows[nextIndex];
+  if (!next) return false;
+  next.click();
+  if (typeof next.focus === "function") next.focus({ preventScroll: true });
+  if (typeof next.scrollIntoView === "function") next.scrollIntoView({ block: "nearest", inline: "nearest" });
+  return true;
+}
+
+function focusActivePageDetail() {
+  const page = activeKeyboardPage();
+  const panel = activeKeyboardPanel();
+  const target = byId(KEYBOARD_DETAIL_IDS[page] || "") || panel?.querySelector('pre[id$="-detail"]');
+  if (!target || !shortcutElementVisible(target)) return false;
+  if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
+  if (typeof target.focus === "function") target.focus({ preventScroll: true });
+  if (typeof target.scrollIntoView === "function") target.scrollIntoView({ block: "nearest", inline: "nearest" });
+  return true;
+}
+
+function keyboardShortcutRegistry(toggleHelp) {
+  const pageShortcuts = Object.entries(KEYBOARD_PAGE_KEYS).map(([key, item]) => ({
+    key,
+    label: key,
+    description: `Go to ${item.label}`,
+    run: () => showPage(item.page),
+  }));
+  return [
+    { key: "r", label: "R", description: "Refresh read-only backend state", run: () => refreshAll() },
+    { key: "/", label: "/", description: "Focus search/filter on this page", run: focusActivePageSearch },
+    { key: "c", label: "C", description: "Clear filters on this page", run: clearActivePageFilters },
+    { key: "j", label: "J", description: "Select next visible row", run: () => moveActivePageSelection(1) },
+    { key: "k", label: "K", description: "Select previous visible row", run: () => moveActivePageSelection(-1) },
+    { key: "d", label: "D", description: "Focus selected-row detail", run: focusActivePageDetail },
+    { key: "a", label: "A", description: "Toggle Advanced mode", run: () => byId("advanced-toggle")?.click() },
+    { key: "t", label: "T", description: "Toggle light/dark theme", run: () => byId("theme-toggle")?.click() },
+    ...pageShortcuts,
+    { key: "?", label: "?", description: "Show or hide keyboard shortcuts", run: toggleHelp },
+  ];
+}
+
+function keyboardShortcutHelpText(registry) {
+  const lines = [
+    "Keyboard shortcuts",
+    "------------------",
+    "Read-only shortcuts. They navigate, refresh, filter, focus, or select rows; they do not launch, publish, rename, save settings, open files, or delete sources.",
+    "",
+  ];
+  registry.forEach((item) => lines.push(`${String(item.label || item.key).padStart(2, " ")}  ${item.description}`));
+  return lines.join("\n");
+}
 
 function initKeyboardShortcuts() {
-  const PAGE_KEYS = {
-    "1": "home",
-    "2": "queue",
-    "3": "completed",
-    "4": "pending",
-    "5": "launch",
-    "6": "reports",
-    "7": "diagnostics",
-    "8": "settings",
-    "9": "maintenance",
-  };
-
-  const HELP_TEXT = [
-    "Keyboard shortcuts",
-    "──────────────────",
-    "  R  Refresh",
-    "  A  Toggle Advanced mode",
-    "  T  Toggle Light / Dark theme",
-    "  1  Home",
-    "  2  Queue",
-    "  3  Completed",
-    "  4  Pending Publish",
-    "  5  Launch",
-    "  6  Reports",
-    "  7  Diagnostics",
-    "  8  Settings",
-    "  9  Maintenance",
-    "  ?  Show / hide this overlay",
-  ].join("\n");
-
   let helpEl = null;
+  let registry = [];
 
   function toggleHelp() {
     if (helpEl) {
       helpEl.remove();
       helpEl = null;
-      return;
+      return true;
     }
     helpEl = document.createElement("div");
     helpEl.className = "keyboard-shortcut-help";
     helpEl.setAttribute("role", "dialog");
     helpEl.setAttribute("aria-label", "Keyboard shortcuts");
-    helpEl.textContent = HELP_TEXT;
+    helpEl.textContent = keyboardShortcutHelpText(registry);
     document.body.appendChild(helpEl);
-    // Auto-dismiss after 6 s so it never blocks the operator permanently
     window.setTimeout(() => {
       if (helpEl) {
         helpEl.remove();
         helpEl = null;
       }
     }, 6000);
+    return true;
   }
 
-  document.addEventListener("keydown", (e) => {
-    // Never fire shortcuts while typing
-    const tag = e.target ? String(e.target.tagName || "").toUpperCase() : "";
-    if (["INPUT", "TEXTAREA", "SELECT"].includes(tag) || e.target.isContentEditable) return;
-    // Never intercept modifier combos (browser / OS commands)
-    if (e.ctrlKey || e.altKey || e.metaKey) return;
+  registry = keyboardShortcutRegistry(toggleHelp);
 
-    switch (e.key) {
-      case "r":
-      case "R":
-        e.preventDefault();
-        refreshAll();
-        break;
-      case "a":
-      case "A": {
-        const advBtn = byId("advanced-toggle");
-        if (advBtn) { e.preventDefault(); advBtn.click(); }
-        break;
-      }
-      case "t":
-      case "T": {
-        const themeBtn = byId("theme-toggle");
-        if (themeBtn) { e.preventDefault(); themeBtn.click(); }
-        break;
-      }
-      case "?":
-        e.preventDefault();
-        toggleHelp();
-        break;
-      default:
-        if (PAGE_KEYS[e.key]) {
-          e.preventDefault();
-          showPage(PAGE_KEYS[e.key]);
-        }
-    }
+  document.addEventListener("keydown", (event) => {
+    if (shortcutTypingTarget(event.target)) return;
+    if (event.ctrlKey || event.altKey || event.metaKey) return;
+    const key = String(event.key || "").length === 1 ? String(event.key || "").toLowerCase() : String(event.key || "");
+    const shortcut = registry.find((item) => item.key === key);
+    if (!shortcut) return;
+    const handled = shortcut.run(event);
+    if (handled === false) return;
+    event.preventDefault();
   });
 }
 
@@ -2943,6 +3166,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initLaunchEvidenceToggle();
   initKeyboardShortcuts();
   initCollapsibleSummaries();
+  initPageRefreshButtons();
   initSettingsTabNav();
   initDiagnosticsTabNav();
   initCompletedTabNav();
@@ -3093,18 +3317,7 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll("[data-open-diagnostics]").forEach((button) => {
     button.addEventListener("click", () => requestDiagnosticsOpen(button.dataset.openDiagnostics || ""));
   });
-  document.querySelectorAll("[data-open-pending]").forEach((button) => {
-    button.addEventListener("click", () => requestPendingPublishOpen(button.dataset.openPending || ""));
-  });
-    document.querySelectorAll("[data-open-completed]").forEach((button) => {
-      button.addEventListener("click", () => requestCompletedOpen(button.dataset.openCompleted || ""));
-    });
-    document.querySelectorAll("[data-open-queue]").forEach((button) => {
-      button.addEventListener("click", () => requestQueueOpen(button.dataset.openQueue || ""));
-    });
-    document.querySelectorAll("[data-open-queue-excluded]").forEach((button) => {
-      button.addEventListener("click", () => requestQueueOpen(button.dataset.openQueueExcluded || "", "excluded"));
-    });
+  initBackendRowOpenActions();
   updatePagePanelEmptyStates();
   refreshAll();
   window.setInterval(refreshAll, 4000);

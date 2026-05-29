@@ -94,6 +94,8 @@ Tests for pipeline state, progress tracking, event reading, snapshot assembly, a
 | `test_status_service.py` | General status service |
 | `test_service_status_errors.py` | Error state classification |
 | `test_service_status_progress.py` | Progress field parsing |
+| `test_service_status_ffmpeg_progress.py` | FFmpeg progress proof payload parsing, read-only contract shape, parse-error reporting for active encode/remux evidence without key/value fields, and idle no-fake-row behavior |
+| `test_service_status_eta.py` | ETA telemetry payload calculation from worker-progress percent/elapsed evidence, unavailable-reason reporting when ETA cannot be estimated, read-only contract shape, and idle no-fake-row behavior |
 | `test_service_status_files.py` | Status file discovery |
 | `test_service_status_summary.py` | Summary aggregation |
 | `test_service_status_presentation.py` | Presentation formatting |
@@ -185,10 +187,11 @@ Tests for completed manifest reading, consistency checks, and backfill.
 
 | Test file | What it covers |
 |---|---|
+| `test_service_completed_validation_state.py` | Completed validation-state contract from completed rows, including output-presence proof, missing-output blockers, unavailable probe/hash/playback proof, and future complete proof |
 | `test_service_completed_manifest.py` | Manifest read and validation |
 | `test_service_completed_backfill.py` | Backfill runner logic |
 | `test_facade_completed_open_policy.py` | Facade: completed open policy |
-| `test_application_facade_completed.py` | Application-facade completed preview manifest/progress evidence, size/runtime/missing-output classification, completed-open row-key allowlists, and completed-manifest backfill dry-run behavior |
+| `test_application_facade_completed.py` | Application-facade completed preview manifest/progress evidence, validation-state child payload, size/runtime/missing-output classification, completed-open row-key allowlists, and completed-manifest backfill dry-run behavior |
 
 Targeted command:
 
@@ -269,9 +272,10 @@ Tests for audit record reading, CSV handling, I/O, metadata, and export.
 | `test_service_audit_rerun_metadata.py` | Metadata reading and Protocol-typed rerun metadata service boundary |
 | `test_service_audit_rerun_export.py` | Export logic and Protocol-typed rerun CSV export service boundary |
 | `test_service_failure_markers.py` | Failure marker read/write |
+| `test_service_failure_retry_state.py` | Failure retry-state contract from failure rows/markers, including transient next-queue-pass retries and blocked operator/permanent/exhausted rows |
 | `test_facade_audit_policy.py` | Facade: audit policy |
-| `test_facade_failures_policy.py` | Facade: failures policy |
-| `test_application_facade_reports.py` | Application-facade read-only failure JSON/marker preview and audit CSV preview behavior |
+| `test_facade_failures_policy.py` | Facade: failures policy and retry-state child payload |
+| `test_application_facade_reports.py` | Application-facade read-only failure JSON/marker preview, retry-state payload, and audit CSV preview behavior |
 | `Pipeline/Tests/Unit/Invoke-PortablePathChecks.ps1` | PowerShell audit/legacy GUI parser and portable audit-root default guard |
 
 Targeted command:
@@ -279,6 +283,7 @@ Targeted command:
 ```powershell
 & $py -m unittest discover -s DesktopApp\tests -p "test*audit*.py" -q
 & $py -m unittest DesktopApp.tests.test_service_failure_markers -q
+& $py -m unittest DesktopApp.tests.test_service_failure_retry_state -q
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-PortablePathChecks.ps1
 ```
 
@@ -390,7 +395,7 @@ Tests for API route payloads, command payloads, handler dispatch, command journa
 | Test file | What it covers |
 |---|---|
 | `test_api_read_payloads_policy.py` | Read route payload shapes |
-| `test_api_command_payloads_policy.py` | Command route payload handling |
+| `test_api_command_results_policy.py` | Command route result payload handling |
 | `test_api_contract_payload.py` | Route contract payload, auth/effect classification, effectful POST command-result history contract, Network lifecycle design-only dry-run/rollback/source-policy/exposure contracts, repair/reconcile design-only dry-run/rollback/source-policy/exposure contracts, and CSV rerun copy/keep/park defaults |
 | `test_api_command_journal_policy.py` | Command journal recording policy |
 | `test_api_handler_policy.py` | Handler dispatch policy |
@@ -461,10 +466,10 @@ General facade policy and desktop shell bootstrap tests not covered by subsystem
 | `test_application_facade.py` | Shared fixture/helper module for split application-facade tests; intentionally owns no direct tests |
 | `test_application_public_api.py` | Application facade/DTO public API boundary: package-level exports, per-module literal `__all__` declarations, export uniqueness/completeness, and declared export importability |
 | `test_application_facade_close_readiness.py` | Application-facade close-readiness fail-closed behavior for active/unknown runtime state, fresh progress, progress read failures, ActiveJobs, schedule-stop watcher, and related-process inspection failures |
-| `test_application_facade_completed.py` | Application-facade completed/output preview evidence, size/runtime/missing-output classification, completed-open row-key allowlists, and completed-manifest backfill dry-run behavior |
+| `test_application_facade_completed.py` | Application-facade completed/output preview evidence, validation-state child payload, size/runtime/missing-output classification, completed-open row-key allowlists, and completed-manifest backfill dry-run behavior |
 | `test_application_facade_core_contracts.py` | Application-facade core contract helpers: command-result serialization, runtime outcome normalization, command journal bounds, strict JSON guards, Local API HTTP helper guards, static bootstrap/asset helpers, and route-map coverage |
 | `test_application_facade_diagnostics.py` | Application-facade diagnostics allowlists, read-only state-summary artifact evidence, blocked BDPGS OCR path surfacing, and diagnostics path lookup failure logging |
-| `test_application_facade_local_api.py` | Local API server auth/public-token boundaries, route contracts, design-only Network lifecycle contract payload, diagnostics allowlists, queue state routes/source scope/journaling, rename apply confirmation rejection without mutation, launch preflight nested readiness DTO exposure, process/schedule/shutdown lifecycle behavior, backend shutdown cleanup/logging, layout-manager schema-reset/gated-drag static asset coverage, and broad workflow contract coverage |
+| `test_application_facade_local_api.py` | Local API server auth/public-token boundaries, route contracts, design-only Network lifecycle contract payload, diagnostics allowlists, queue state routes/source scope/journaling, completed validation-state payload exposure, rename apply confirmation rejection without mutation, launch preflight nested readiness DTO exposure, process/schedule/shutdown lifecycle behavior, backend shutdown cleanup/logging, layout-manager schema-reset/gated-drag static asset coverage, and broad workflow contract coverage |
 | `test_application_facade_maintenance.py` | Application-facade Maintenance workspace environment-health rows, toolchain evidence/progress rows, Release Package dry-run plan/progress behavior, and maintenance command-lock fail-closed behavior |
 | `test_application_facade_network.py` | Application-facade Network worker-state metadata, progress bars, backend-authored heartbeat age, state-file evidence, and lifecycle-control absence for `/api/network/workers` |
 | `test_application_facade_pending_publish.py` | Application-facade pending-publish preview classification, durable drain-summary evidence, publish reconciliation, row-key open allowlists, scan-failure surfacing, and backend-authored recovery dry-run planning |
@@ -477,7 +482,7 @@ General facade policy and desktop shell bootstrap tests not covered by subsystem
 | `test_application_facade_settings_patch.py` | Application-facade Settings Preview Patch/Save Patch behavior, risk summaries, redacted diff fallback, save-lock guard, backup/secret preservation, and no-op same-value handling |
 | `test_application_facade_settings_workspace.py` | Application-facade Settings workspace redaction, path/field metadata, validation warning surfacing, backend media-policy readiness evidence, tool-path evidence, and Validate command-result envelope coverage |
 | `test_application_facade_snapshot.py` | Application-facade snapshot assembly, progress bar shaping, active-job diagnostics rows, pending-publish copy byte progress, and zero-percent GPU telemetry presence |
-| `test_application_facade_web_static.py` | Backend-served WebView/Tauri static integration, route references, command allowlists, Dashboard command-surface ownership, evidence/read-only panel guardrails, canonical rendered page H1 titles, Settings BDPGS OCR path builder/no-path-picker guard, Settings subtitle keyword list builder wiring, table selection/accessibility helpers, diagnostics handoff, state-aware Launch command controls, emergency topbar Force Stop posture, UI tooltip/error/telemetry guards, page-scoped IDs, and headless backend bootstrap payload coverage |
+| `test_application_facade_web_static.py` | Backend-served WebView/Tauri static integration, route references, command allowlists, Dashboard command-surface ownership, evidence/read-only panel guardrails, canonical rendered page H1 titles, Settings BDPGS OCR path builder/no-path-picker guard, Settings subtitle keyword list builder wiring, Completed validation-state checklist/proof copy, table selection/accessibility helpers, diagnostics handoff, state-aware Launch command controls, emergency topbar Force Stop posture, UI tooltip/error/telemetry guards, page-scoped IDs, and headless backend bootstrap payload coverage |
 | `test_facade_schedule_policy.py` | Facade: schedule policy |
 | `test_facade_status_policy.py` | Facade: status policy |
 | `test_facade_diagnostics_open_policy.py` | Facade: diagnostics open policy |
@@ -541,9 +546,9 @@ Browser-backed smoke tests under `DesktopApp\tests\`. Require Chrome or Edge; sk
 | `test_webview_browser_pending_drain_guard_smoke.py` | Publish Button Guard refresh, blocked drain does not POST |
 | `test_webview_browser_completed_pending_proof_smoke.py` | Completed-to-Pending proof board, Completed Manifest correlation |
 | `test_webview_browser_large_table_smoke.py` | 260-row render-cap disclosure, filter warnings, hidden selected-row detail, no mutation posts |
-| `test_webview_browser_maintenance_reports_smoke.py` | Maintenance health/dry-run result rendering, Reports triage, read-only Launch/Diagnostics handoff |
+| `test_webview_browser_maintenance_reports_smoke.py` | Maintenance health/dry-run result rendering, Reports triage, retry-state display, read-only Launch/Diagnostics handoff |
 | `test_webview_browser_sample_validation_smoke.py` | Home sample-validation pilot/readiness/reconciliation, worksheet detail, preview-only backend route |
-| `test_webview_browser_home_live_state_smoke.py` | Home Daily-Driver, Operator Readiness, active work, command history, live progress evidence |
+| `test_webview_browser_home_live_state_smoke.py` | Home Daily-Driver, Operator Readiness, active work, command history, live progress evidence, page-switch viewport reset |
 | `test_webview_browser_launch_queue_readiness_smoke.py` | Launch/Queue/Schedule readiness, scope reconciliation, sample proof handoff, no POSTs |
 | `test_webview_browser_layout_manager_smoke.py` | Customize-mode draggable boxes across page tabs, subtabs, and generated subsections with no mutation posts |
 | `test_webview_browser_rename_smoke.py` | Rename row click, Apply Readiness, duplicate-target blocking does not call apply |
@@ -568,7 +573,7 @@ Node.js-backed smoke tests that evaluate WebView JS with mocked DOM state.
 | Test file | What it covers |
 |---|---|
 | `test_webview_command_evidence_smoke.py` | Shared command owner/issue evidence across all page histories |
-| `test_webview_row_detail_smoke.py` | Queue, Completed, Pending selected-row detail rendering |
+| `test_webview_row_detail_smoke.py` | Queue, Completed, Pending selected-row detail rendering, including Completed validation-state proof-gap copy |
 | `test_webview_rename_readiness_smoke.py` | Apply Readiness for ready and blocked duplicate-target scopes |
 | `test_webview_real_media_smoke.py` | Fixture-backed backend API + WebView asset agreement for one TV sample |
 

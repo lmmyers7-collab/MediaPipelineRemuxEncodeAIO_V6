@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from mediapipeline_desktop_app.service_config_preview import build_config_preview
+from app.config.preview import build_config_preview
 
 
 class ServiceConfigPreviewTests(unittest.TestCase):

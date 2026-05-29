@@ -8,8 +8,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app import config_keys
-from mediapipeline_desktop_app.config_schema import CONFIG_FIELD_DEFINITIONS
-from mediapipeline_desktop_app.config_schema_network import NETWORK_CONFIG_DEFAULTS
+from app.config.metadata import CONFIG_FIELD_DEFINITIONS
+from app.config.metadata_network import NETWORK_CONFIG_DEFAULTS
 
 
 class ConfigKeyRegistryTests(unittest.TestCase):
@@ -27,7 +27,7 @@ class ConfigKeyRegistryTests(unittest.TestCase):
 
     def test_pipeline_config_order_matches_powershell_schema_order(self) -> None:
         module_text = (
-            Path(__file__).resolve().parents[2] / "Pipeline" / "Modules" / "ConfigSchema.ps1"
+            Path(__file__).resolve().parents[2] / "engine" / "config" / "config_schema.ps1"
         ).read_text(encoding="utf-8")
         match = re.search(
             r"function Get-MediaPipelineConfigOrderedKeys \{\s*return @\((?P<body>.*?)\)\s*\}",
@@ -78,6 +78,8 @@ class ConfigKeyRegistryTests(unittest.TestCase):
             config_keys.KEY_EXTRA_VIDEO_FLAGS,
             config_keys.KEY_FALLBACK_CPU_QUALITY,
             config_keys.KEY_ROUTING_PROFILE,
+            config_keys.KEY_MOVIE_ROUTE_MAX_VIDEO_BITRATE_MBPS,
+            config_keys.KEY_TV_ROUTE_MAX_VIDEO_BITRATE_MBPS,
             config_keys.KEY_ALLOW_H264_REMUX_IF_PLEX_COMPATIBLE,
             config_keys.KEY_H264_REMUX_MAX_BITRATE_MBPS,
             config_keys.KEY_H264_REMUX_MAX_HEIGHT,
@@ -164,8 +166,8 @@ class ConfigKeyRegistryTests(unittest.TestCase):
             config_keys.KEY_VIDEO_CODEC,
         )
         paths = (
-            "mediapipeline_desktop_app/application/facade_settings_policy.py",
-            "mediapipeline_desktop_app/application/facade_process_audit_policy.py",
+            "../app/config/settings_policy.py",
+            "../app/processes/audit_policy.py",
             "mediapipeline_desktop_app/application/settings_risk_policy.py",
             "mediapipeline_desktop_app/application/sample_validation/policy_alignment.py",
             "mediapipeline_desktop_app/application/sample_validation/readiness.py",
@@ -175,7 +177,7 @@ class ConfigKeyRegistryTests(unittest.TestCase):
             "mediapipeline_desktop_app/service_completed.py",
             "mediapipeline_desktop_app/service_config_option_policy.py",
             "mediapipeline_desktop_app/service_config_validation.py",
-            "mediapipeline_desktop_app/service_path_layout.py",
+            "../app/paths/layout.py",
         )
         source_root = Path(__file__).resolve().parents[1]
         pattern = re.compile(

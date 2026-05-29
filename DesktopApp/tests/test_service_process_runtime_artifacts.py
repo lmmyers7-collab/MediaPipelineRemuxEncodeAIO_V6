@@ -9,14 +9,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from mediapipeline_desktop_app.service_paths import PathResolutionServiceMixin
-from mediapipeline_desktop_app.service_process_runtime_artifacts import (
+from app.paths.service import PathResolutionServiceMixin
+from app.processes.runtime_artifacts import (
     clear_runtime_artifact_specs,
     filter_runtime_artifact_specs,
     runtime_artifact_specs,
     validate_runtime_artifact_target,
 )
-from mediapipeline_desktop_app.service_processes import ProcessLifecycleServiceMixin
+from app.processes.lifecycle import ProcessLifecycleServiceMixin
 
 
 def _normalized_path_key(path: Path) -> str:

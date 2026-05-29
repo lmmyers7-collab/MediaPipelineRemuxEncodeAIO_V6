@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.application.facade_rename_policy import (
+from app.rename.policy import (
     CONFIRM_RENAME_APPLY_MESSAGE,
     CONFIRM_RENAME_APPLY_WARNING,
     MISSING_RENAME_SELECTION_MESSAGE,

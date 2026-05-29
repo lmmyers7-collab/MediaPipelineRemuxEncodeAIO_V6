@@ -7,9 +7,10 @@ Format: [MADR](https://adr.github.io/madr/) (see `0000-template.md`).
 
 ## Why ADRs
 
-`ARCHITECTURAL_OVERHAUL_PLAN.md` is the *plan*. It changes as work
-progresses. ADRs are the *decisions*. They are written once, accepted (or
-rejected), and only superseded by a later ADR — never silently edited.
+`Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md` is the *plan*. It
+changes as work progresses. ADRs are the *decisions*. They are written
+once, accepted (or rejected), and only superseded by a later ADR — never
+silently edited.
 
 If you find yourself wanting to "update" an ADR, write a new one with
 `Status: supersedes NNNN` and set the old one's status to
@@ -30,11 +31,13 @@ If you find yourself wanting to "update" an ADR, write a new one with
 | 0008   | accepted               | Tauri / WebView2 as the shell                          |
 | 0009   | accepted               | One canonical CHANGELOG; PR descriptions are not docs  |
 | 0010   | historical             | Monolith-split campaign (V5 → V6 facade/service split) |
-| 0011   | absent                 | V5 → V6 split — source notes not in tree; deferred     |
+| 0011   | historical             | V5 → V6 split (WebView-first carve-out from V5)        |
 
-`0011` is intentionally absent: the original `V6_SPLIT_NOTES.md` is no
-longer in the repository. If that source surfaces, write 0011 from it
-rather than reconstructing from git log.
+ADR-0011 was written from `V6_SPLIT_NOTES.md` (the original repo-root
+source notes, dated 2026-05-20). The source was archived in the same
+commit to `Docs/archive/v6-split-notes-2026-05-20.md` so the per-feature
+validation detail survives; ADR-0011 itself is the short, immutable
+record.
 
 ## Rules
 
@@ -58,9 +61,10 @@ rather than reconstructing from git log.
 ## Where ADRs are referenced from
 
 - `AGENTS.md §10` points new agents here.
-- `ARCHITECTURE.md` cites the ADRs that establish each module boundary.
-- `ARCHITECTURAL_OVERHAUL_PLAN.md` references ADRs by number rather than
-  re-stating decisions.
+- `Docs/architecture/ARCHITECTURE.md` cites the ADRs that establish each
+  module boundary.
+- `Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md` references ADRs by
+  number rather than re-stating decisions.
 - `CHANGELOG.md` notes the ADR number alongside the commit that landed an
   ADR-backed change.
 
@@ -73,4 +77,4 @@ rather than reconstructing from git log.
 3. Set `Status: proposed`. Open the PR. Convert to `accepted` only after
    merge.
 4. Add the entry to the table above. Update any referencing doc
-   (`ARCHITECTURE.md`, `AGENTS.md`) in the same PR.
+   (`Docs/architecture/ARCHITECTURE.md`, `AGENTS.md`) in the same PR.

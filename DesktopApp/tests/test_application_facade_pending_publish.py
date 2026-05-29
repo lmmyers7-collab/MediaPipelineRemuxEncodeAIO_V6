@@ -36,6 +36,7 @@ class ApplicationFacadePendingPublishTests(unittest.TestCase):
         self.assertEqual(preview["state_counts"], {"orphan_payload": 1})
         self.assertEqual(preview["route_counts"], {"unknown": 1})
         self.assertEqual(preview["diagnostic_status_counts"], {"orphan_payload": 1})
+        self.assertEqual(preview["diagnostic_status_state_counts"], {"warning": 1})
         self.assertEqual(preview["diagnostic_severity_counts"], {"warning": 1})
         self.assertEqual(preview["operator_trust_state_counts"], {"review-before-drain": 1})
         self.assertEqual(preview["recovery_class_counts"], {"orphan_payload_review": 1})
@@ -51,6 +52,7 @@ class ApplicationFacadePendingPublishTests(unittest.TestCase):
         self.assertIn("payload has no manifest", preview["rows"][0]["issue_summary"])
         self.assertFalse(preview["rows"][0]["ready_to_drain"])
         self.assertEqual(preview["rows"][0]["diagnostic_status"], "orphan_payload")
+        self.assertEqual(preview["rows"][0]["diagnostic_status_state"], "warning")
         self.assertEqual(preview["rows"][0]["diagnostic_severity"], "warning")
         self.assertEqual(preview["rows"][0]["drain_recommendation"], "review_before_drain")
         self.assertEqual(preview["rows"][0]["operator_trust_state"], "review-before-drain")
@@ -84,6 +86,7 @@ class ApplicationFacadePendingPublishTests(unittest.TestCase):
 
         self.assertEqual(preview["invalid_manifest_count"], 1)
         self.assertEqual(preview["diagnostic_status_counts"], {"unreadable_manifest": 1})
+        self.assertEqual(preview["diagnostic_status_state_counts"], {"failed": 1})
         self.assertEqual(preview["diagnostic_severity_counts"], {"error": 1})
         self.assertEqual(preview["operator_trust_state_counts"], {"do-not-drain": 1})
         self.assertEqual(preview["recovery_class_counts"], {"manifest_repair": 1})
@@ -94,6 +97,7 @@ class ApplicationFacadePendingPublishTests(unittest.TestCase):
         row = preview["rows"][0]
         self.assertEqual(row["state"], "unreadable")
         self.assertEqual(row["diagnostic_status"], "unreadable_manifest")
+        self.assertEqual(row["diagnostic_status_state"], "failed")
         self.assertEqual(row["diagnostic_severity"], "error")
         self.assertEqual(row["drain_recommendation"], "do_not_drain")
         self.assertEqual(row["operator_trust_state"], "do-not-drain")

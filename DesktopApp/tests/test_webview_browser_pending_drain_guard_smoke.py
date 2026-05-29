@@ -149,16 +149,18 @@ def _browser_pending_drain_guard_runner_source() -> str:
             mixedPending.ready_count = 1;
             mixedPending.issue_count = 1;
             mixedPending.health_count = 1;
-            window.renderPendingPublish(mixedPending, {});
             byId("pending-investigation-filter").value = "ready_to_drain";
+            window.renderPendingPublish(mixedPending, {});
             window.mediaPipelinePendingPublishView.renderPendingRows();
             await waitFor(
-              () => text("pending-drain-guard-status") === "Review confirm" && text("pending-drain-guard-summary").includes("Pending table filter: active;") && text("pending-drain-guard-summary").includes("Backend drain scope remains all loaded parked rows"),
+              () => text("pending-drain-guard-status") === "Review confirm"
+                && text("pending-drain-guard-summary").includes("Pending table filter: active;")
+                && text("pending-drain-guard-summary").includes("Backend drain scope remains all loaded parked rows")
+                && text("pending-drain-confidence-summary").includes("Display filter / drain scope"),
               "guard reports active filter scope before drain",
             );
             requireText("pending-drain-confidence-summary", [
               "Display filter / drain scope",
-              "Review hidden warning rows or clear filters before drain",
             ]);
             requireText("pending-backend-scope-summary", [
               "Backend drain scope preview:",

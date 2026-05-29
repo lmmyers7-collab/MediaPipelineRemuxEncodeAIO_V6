@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/contracts/queue_snapshot.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-05-26
+last_modified: 2026-05-28
 last_reviewed: 2026-05-28
-sha256: 9aa4aab989185d1366a1ecef857fecf68b7cdb2a985451a7e9da233d278f9d03
+sha256: 9ba861be4ef4619e259870378769c93955fb3e0906aaf7d01591403bf976b3b8
 ---
 # `DesktopApp/mediapipeline_desktop_app/contracts/queue_snapshot.py`
 

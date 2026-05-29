@@ -11,8 +11,8 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_process_spawn_runner import spawn_process_for_service
-from mediapipeline_desktop_app.service_processes import ProcessLifecycleServiceMixin
+from app.processes.spawn_runner import spawn_process_for_service
+from app.processes.lifecycle import ProcessLifecycleServiceMixin
 
 
 class DummySpawnRunnerService:
@@ -119,7 +119,7 @@ class SpawnRunnerTests(unittest.TestCase):
                 captured["kwargs"] = kwargs
                 return fake_proc
 
-            with patch("mediapipeline_desktop_app.service_process_spawn_runner.subprocess.Popen", fake_popen):
+            with patch("app.processes.spawn_runner.subprocess.Popen", fake_popen):
                 result = spawn_process_for_service(
                     service,
                     ["pwsh", "-File", "Pipeline.ps1"],
@@ -153,7 +153,7 @@ class SpawnRunnerTests(unittest.TestCase):
             fake_proc = FakeSpawnProcess()
 
             with patch(
-                "mediapipeline_desktop_app.service_process_spawn_runner.subprocess.Popen",
+                "app.processes.spawn_runner.subprocess.Popen",
                 lambda *args, **kwargs: fake_proc,
             ):
                 with self.assertRaisesRegex(RuntimeError, "active job write failed"):
@@ -170,7 +170,7 @@ class SpawnRunnerTests(unittest.TestCase):
             fake_proc = FakeSpawnProcess()
 
             with patch(
-                "mediapipeline_desktop_app.service_process_spawn_runner.subprocess.Popen",
+                "app.processes.spawn_runner.subprocess.Popen",
                 lambda *args, **kwargs: fake_proc,
             ):
                 with self.assertRaisesRegex(RuntimeError, "readiness update failed"):
@@ -187,7 +187,7 @@ class SpawnRunnerTests(unittest.TestCase):
             fake_proc = FakeSpawnProcess(returncode=2)
 
             with patch(
-                "mediapipeline_desktop_app.service_process_spawn_runner.subprocess.Popen",
+                "app.processes.spawn_runner.subprocess.Popen",
                 lambda *args, **kwargs: fake_proc,
             ):
                 with self.assertRaisesRegex(RuntimeError, "immediate failure"):
@@ -203,7 +203,7 @@ class SpawnRunnerTests(unittest.TestCase):
             fake_proc = FakeSpawnProcess(returncode=0)
 
             with patch(
-                "mediapipeline_desktop_app.service_process_spawn_runner.subprocess.Popen",
+                "app.processes.spawn_runner.subprocess.Popen",
                 lambda *args, **kwargs: fake_proc,
             ):
                 result = spawn_process_for_service(service, ["pwsh", "-File", "Pipeline.ps1"], False, job_kind="pipeline")

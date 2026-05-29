@@ -10,12 +10,12 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from mediapipeline_desktop_app.service_process_launch_plans import (
+from app.processes.launch_plans import (
     build_audit_launch_plan,
     build_pipeline_launch_plan,
     build_rerun_csv_launch_plan,
 )
-from mediapipeline_desktop_app.service_processes import ProcessLifecycleServiceMixin
+from app.processes.lifecycle import ProcessLifecycleServiceMixin
 
 
 class CapturingLaunchService(ProcessLifecycleServiceMixin):

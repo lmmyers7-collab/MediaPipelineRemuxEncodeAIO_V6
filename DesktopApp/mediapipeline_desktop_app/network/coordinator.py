@@ -10,7 +10,7 @@ Architecture
   so workers on other LAN machines can reach it when the bind address allows
   LAN traffic.  The existing status-display server (localhost) is left
   untouched.
-* Bearer-token authentication via :mod:`network.auth`.
+* HMAC-signed worker requests via :mod:`network.auth`.
 * ``InFlightRegistry`` handles all thread-safe job tracking.
 * A daemon *stale-reaper* thread runs every 60 s and reclaims jobs whose
   heartbeat has expired, returning them to the available queue.
@@ -40,7 +40,7 @@ from ..config_keys import KEY_COORDINATOR_AUTH_TOKEN
 # changed response shapes). Workers may treat a missing field as 0.
 _COORDINATOR_PROTOCOL_VERSION = 1
 
-from .auth import generate_token, validate_header
+from .auth import generate_token, validate_request_auth
 from .cluster_log import format_cluster_log_line
 from .coordinator_http import MAX_COORDINATOR_BODY_BYTES, parse_query_params, validate_content_length
 from .coordinator_policy import RETRY_AFTER_ACTIVE_SECONDS as _RETRY_AFTER_ACTIVE_SECONDS
@@ -162,8 +162,13 @@ class _CoordHandler(http.server.BaseHTTPRequestHandler):
             )
             raise
 
-    def _check_auth(self) -> bool:
-        return validate_header(dict(self.headers), self._disp._auth_token)
+    def _check_auth(self, *, method: str, path_with_query: str, body: bytes = b"") -> bool:
+        return self._disp._validate_request_auth(
+            dict(self.headers),
+            method=method,
+            path_with_query=path_with_query,
+            body=body,
+        )
 
     def _parse_query_params(self) -> dict[str, str]:
         return parse_query_params(self.path)
@@ -236,7 +241,8 @@ class _CoordHandler(http.server.BaseHTTPRequestHandler):
             raise
 
     def do_GET(self) -> None:
-        path   = self.path.split("?")[0].rstrip("/") or "/"
+        path_with_query = self.path or "/"
+        path   = path_with_query.split("?")[0].rstrip("/") or "/"
         params = self._parse_query_params()
 
         # /api/health is auth-free so workers and the UI can probe reachability
@@ -258,7 +264,7 @@ class _CoordHandler(http.server.BaseHTTPRequestHandler):
             })
             return
 
-        if not self._check_auth():
+        if not self._check_auth(method="GET", path_with_query=path_with_query):
             self._send_json({"error": "unauthorized"}, 401)
             return
 
@@ -270,15 +276,16 @@ class _CoordHandler(http.server.BaseHTTPRequestHandler):
             self._send_json({"error": "not found", "path": path}, 404)
 
     def do_POST(self) -> None:
-        if not self._check_auth():
-            self._send_json({"error": "unauthorized"}, 401)
-            return
-        path = self.path.split("?")[0].rstrip("/") or "/"
+        path_with_query = self.path or "/"
+        path = path_with_query.split("?")[0].rstrip("/") or "/"
         body = self._read_body()
         # _read_body returns None after it has already sent 400/413 for
         # malformed or oversized requests (N4/N5). Short-circuit so we
         # don't double-respond on the same socket.
         if body is None:
+            return
+        if not self._check_auth(method="POST", path_with_query=path_with_query, body=body):
+            self._send_json({"error": "unauthorized"}, 401)
             return
         if path == "/api/done":
             self._disp._http_done(self, body)
@@ -334,8 +341,10 @@ class CoordinatorDispatcher(QueueDispatcher):
         # the goal is recent visibility, not long-term retention.
         self._cluster_log_max_bytes = 50 * 1024 * 1024
 
-        # Load / generate the bearer token.
+        # Load / generate the shared auth token.
         self._auth_token = self._load_or_generate_token()
+        self._auth_nonce_cache: dict[str, float] = {}
+        self._auth_nonce_lock = threading.Lock()
 
         # Crash-recovery: restore any jobs that were in-flight when the
         # coordinator last exited unexpectedly.
@@ -422,6 +431,24 @@ class CoordinatorDispatcher(QueueDispatcher):
         else:
             _log.info("Generated new coordinator auth token (stored in app state).")
         return token
+
+    def _validate_request_auth(
+        self,
+        headers: dict,
+        *,
+        method: str,
+        path_with_query: str,
+        body: bytes,
+    ) -> bool:
+        with self._auth_nonce_lock:
+            return validate_request_auth(
+                headers,
+                self._auth_token,
+                method=method,
+                path_with_query=path_with_query,
+                body=body,
+                nonce_cache=self._auth_nonce_cache,
+            )
 
     # ------------------------------------------------------------------
     # Paths

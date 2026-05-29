@@ -11,9 +11,9 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from mediapipeline_desktop_app.service_paths import PathResolutionServiceMixin
-from mediapipeline_desktop_app.service_processes import ProcessLifecycleServiceMixin
-from mediapipeline_desktop_app.service_status import StatusServiceMixin
+from app.paths.service import PathResolutionServiceMixin
+from app.processes.lifecycle import ProcessLifecycleServiceMixin
+from app.status.service import StatusServiceMixin
 
 
 class DummyProcessService(PathResolutionServiceMixin, ProcessLifecycleServiceMixin, StatusServiceMixin):
@@ -303,7 +303,7 @@ class ProcessServiceControlFlagTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            with patch("mediapipeline_desktop_app.service_processes.psutil", FakePsutil):
+            with patch("app.processes.lifecycle.psutil", FakePsutil):
                 messages = service.reconcile_active_job_records(resolved)
 
             updated = json.loads(record_path.read_text(encoding="utf-8"))
@@ -346,7 +346,7 @@ class ProcessServiceControlFlagTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            with patch("mediapipeline_desktop_app.service_processes.psutil", FakePsutil):
+            with patch("app.processes.lifecycle.psutil", FakePsutil):
                 messages = service.reconcile_active_job_records(resolved)
 
             updated = json.loads(record_path.read_text(encoding="utf-8"))

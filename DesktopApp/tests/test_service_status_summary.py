@@ -8,8 +8,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from mediapipeline_desktop_app.service_status import StatusServiceMixin
-from mediapipeline_desktop_app.service_status_summary import build_status_summary
+from app.status.service import StatusServiceMixin
+from app.status.summary import build_status_summary
 
 
 def _resolved(root: Path, **overrides: object) -> ResolvedPaths:

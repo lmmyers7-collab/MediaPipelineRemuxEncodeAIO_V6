@@ -1,4 +1,5 @@
 (function () {
+  const commandHistoryView = window.mediaPipelineCommandHistory || {};
   let selectedLaunchCommandReviewKey = "";
 
   function isLaunchCommand(entry) {
@@ -494,9 +495,25 @@
   }
 
   function renderLaunchCommandHistory(history = []) {
+    renderLaunchCommandReview(history);
+    if (typeof commandHistoryView.renderCompactCommandHistoryBlock === "function") {
+      commandHistoryView.renderCompactCommandHistoryBlock({
+        history,
+        filter: isLaunchCommand,
+        limit: 6,
+        targetId: "launch-history",
+        statusId: "launch-history-status",
+        statusText: (entries) => `${entries.length} launch${entries.length === 1 ? "" : "es"}`,
+        itemLabel: "launch command",
+        emptyHistoryText: "No command history loaded yet. Recent pipeline, audit, and CSV rerun starts will appear here after refresh.",
+        emptyMatchText: "No pipeline, audit, or CSV rerun start commands found in the recent command history. Pending publish drain history remains on the Pending Publish page.",
+        lineFor: launchHistoryLine,
+        footer: "Backend launch locking and validation remain the source of truth.",
+      });
+      return;
+    }
     const entries = Array.isArray(history) ? history.filter(isLaunchCommand).slice(0, 6) : [];
     setText("launch-history-status", `${entries.length} launch${entries.length === 1 ? "" : "es"}`);
-    renderLaunchCommandReview(history);
     if (!Array.isArray(history) || !history.length) {
       setText("launch-history", "No command history loaded yet. Recent pipeline, audit, and CSV rerun starts will appear here after refresh.");
       return;

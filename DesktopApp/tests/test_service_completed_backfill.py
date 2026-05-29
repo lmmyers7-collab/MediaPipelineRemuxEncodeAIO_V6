@@ -8,7 +8,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from mediapipeline_desktop_app.service_completed_backfill import (
+from app.completed.backfill import (
     build_completed_backfill_args,
     completed_backfill_launch_exception_message,
     completed_backfill_result_message,

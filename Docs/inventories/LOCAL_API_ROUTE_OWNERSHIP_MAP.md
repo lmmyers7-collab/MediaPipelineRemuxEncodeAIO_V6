@@ -2,7 +2,7 @@
 
 Documents all Local API routes, their mutation risk, auth requirements, backend owner confirmation, and primary frontend caller. Source of truth is `contract_read.py` and `contract_command.py`; handler dispatch is in `routes_read.py` and `routes_command.py`.
 
-Total routes: 53 (25 read, 28 command).
+Total routes: 54 (25 read, 29 command).
 
 All routes that mutate state are backend-owned. The WebView never resolves filesystem paths, selects output targets, chooses encode settings, or launches processes directly — it forwards requests with allowlisted parameters and the backend validates, plans, and executes.
 
@@ -120,11 +120,12 @@ The dry-run routes run existing backend scripts with `-DryRun` and write no rele
 | Route | Effect | Key Request Keys | Mutation Risk | Frontend Caller |
 |---|---|---|---|---|
 | `POST /api/settings/validate` | `none` | `values` | None — validation only | Settings |
+| `POST /api/settings/browse-path` | `shell-dialog` | `setting_key`, `selection_mode`, `initial_path` | Low — backend-owned native Windows folder browser for allowlisted path fields only | Settings |
 | `POST /api/settings/preview-patch` | `none` | `changes`, `remove_keys` | None — returns redacted diff | Settings |
 | `POST /api/settings/save-patch` | `config-write` | `changes`, `remove_keys`, `confirm_save` | **High** — writes PSD1 config | Settings |
 | `POST /api/settings/reload` | `none` | *(none)* | None — reloads cached state | Settings |
 
-`save-patch` performs backup, atomic write, and backend state reload. `confirm_save` must be set. The browser smoke explicitly verifies that `save-patch` is NOT called during the staged-settings handoff test.
+`browse-path` opens only the backend-owned Windows folder browser for allowlisted Settings path fields (`SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`) and returns selected-folder validation evidence for WebView staging. It does not save the PSD1, launch work, rewrite queue state, or touch media files. `save-patch` performs backup, atomic write, and backend state reload. `confirm_save` must be set. The browser smoke explicitly verifies that `save-patch` is NOT called during the staged-settings handoff test.
 
 ### Schedule Commands
 
@@ -165,7 +166,7 @@ The dry-run routes run existing backend scripts with `-DryRun` and write no rele
 | `none` | 31 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/reload, recovery-plan, sample-validation/preview, schedule/preview) | None |
 | `bounded-health-check` | `GET /api/maintenance` | Read-only probes |
 | `shell-open` | `POST /api/queue/open`, `POST /api/completed/open`, `POST /api/pending-publish/open`, `POST /api/diagnostics/open` | OS open only; no file mutation |
-| `shell-dialog` | `POST /api/rename/browse` | Native Windows picker only; no file mutation |
+| `shell-dialog` | `POST /api/rename/browse`, `POST /api/settings/browse-path` | Native Windows picker only; no file mutation |
 | `queue-state-write` | `POST /api/queue/priority`, `POST /api/queue/strategy`, `POST /api/queue/file-overrides` | Non-destructive queue state JSON only |
 | `failure-marker-write` | `POST /api/failures/clear` | Moves retry-blocker marker JSON out of the active marker folder only |
 | `process-dry-run` | `POST /api/maintenance/release-dry-run`, `POST /api/maintenance/completed-backfill-dry-run` | No output written |
@@ -192,6 +193,7 @@ Every mutation route enforces backend ownership:
 
 - **File open** (`queue/open`, `completed/open`, `pending-publish/open`): backend selects the path from its own manifest/snapshot by `row_key` and `target` key; the frontend cannot pass a raw path.
 - **Rename browse** (`rename/browse`): backend opens the native Windows file/folder browser and returns operator-selected paths for staging only; preview/apply still use separate backend routes.
+- **Settings path browse** (`settings/browse-path`): backend opens the native Windows folder browser for allowlisted source/output/scratch settings and returns validation evidence for staging only; Preview/Save remains the only settings persistence path.
 - **Diagnostics open/tail**: frontend passes an allowlisted target key string; backend resolves the real path and rejects any key not in the allowlist.
 - **Queue state writes**: backend rejects priority/file-override path writes unless the path is absolute and under configured `SourceMovies`/`SourceTV`; strategy writes are constrained to backend valid strategy names.
 - **Recovery plan**: backend authors the dry-run plan; the frontend receives it read-only.

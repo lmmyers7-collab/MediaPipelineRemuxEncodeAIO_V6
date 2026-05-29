@@ -12,14 +12,14 @@ It is not a cloud service, metadata scraper, acquisition tool, or multi-user com
 
 From the bundle root:
 
-1. Run `Start-MediaPipelineRemuxEncodeAIO-ApiAndBrowser.bat` for the backend-served WebView.
-2. Use `Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat` when validating the native WebView2 shell.
+1. Run `scripts\dev\start-api-and-browser.bat` for the backend-served WebView.
+2. Use `scripts\dev\start-tauri-preview.bat` when validating the native WebView2 shell.
 3. Use the WebView for Start Continuous, Run Once, Pause, Stop, Kill + Quit, Refresh Queue, Audit, CSV Rerun, Reports Clear Retry Blockers, and Publish Parked Outputs after the relevant validation gates pass.
 4. Use **Maintenance -> Pending Publish** to inspect parked outputs, sidecars, manifest state, missing payloads, and orphan payload files before draining.
 5. Use the standalone **Rename** tab for pre/post file renaming. TV mode supports selected-order season numbering; Movie mode shows scrubbed/pipeline predictions, per-row final names, forced pipeline-name sidecars, selectable built-in scrub filters, custom negative terms, an Apply Readiness ledger, explicit large-batch render-cap wording before backend-owned apply, and an Apply Outcome Review after backend results are available.
 6. Use **Settings -> Video / Audio / Subtitles** to adjust routing profile, size guard, encode presets, audio passthrough/transcode policy, and subtitle conversion behavior.
-7. Use `Setup-MediaPipelineRemuxEncodeAIO.bat` when changing config paths or major settings.
-8. Use `Verify-MediaPipelineRemuxEncodeAIO-Environment.bat` when moving machines or troubleshooting missing tools.
+7. Use `scripts\dev\setup.bat` when changing config paths or major settings.
+8. Use `scripts\verify-env.bat` when moving machines or troubleshooting missing tools.
 
 ## Tauri/WebView2 Shell
 
@@ -28,8 +28,8 @@ The V6 folder no longer carries the removed desktop shell. The local API/WebView
 From the bundle root:
 
 ```powershell
-.\Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat -CheckOnly
-.\Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat
+.\scripts\dev\start-tauri-preview.bat -CheckOnly
+.\scripts\dev\start-tauri-preview.bat
 ```
 
 Use `-InstallNodePackages` the first time the preview dependencies need to be installed.
@@ -39,7 +39,7 @@ Preview/build/release checks prove shell and package readiness only. Before trea
 To create a timestamped run worksheet before a sample batch:
 
 ```powershell
-.\New-RealMediaValidationWorksheet.ps1 `
+.\scripts\operator\New-RealMediaValidationWorksheet.ps1 `
   -SamplePath "D:\Samples\Movie.mkv" "\\SERVER\TV\Show\S01E01.mkv" `
   -SampleCategory "h264-remux-safe,subtitle-bearing" `
   -ExpectedRoute "remux,remux-plus-srt" `
@@ -100,7 +100,7 @@ Keep your normal V6 folder personal while V5 remains the known-good external fal
 When you want a clean new-user package, run:
 
 ```powershell
-.\Build-MediaPipelineRemuxEncodeAIO-Release.ps1 -Zip
+.\scripts\release\build.ps1 -Zip
 ```
 
 The WebView Maintenance surface exposes the same release builder under **Maintenance -> Release Package**. Use **Plan Only** for a dry run; use **Build Package** after confirming destination/options.
@@ -108,7 +108,7 @@ The WebView Maintenance surface exposes the same release builder under **Mainten
 For a verified engineering handoff package:
 
 ```powershell
-.\Build-MediaPipelineRemuxEncodeAIO-Release.ps1 -Zip -Verify -IncludeTests
+.\scripts\release\build.ps1 -Zip -Verify -IncludeTests
 ```
 
 Default release behavior:
@@ -131,7 +131,8 @@ Use `-IncludeOptionalTools` or `-IncludeToolDocs` only for a fuller maintenance 
 - Config wizard: `Pipeline\Setup-MediaPipeline_chatgpt.ps1`
 - Live config: `Pipeline\MediaPipeline_config_chatgpt.psd1`
 - New-user template: `Pipeline\MediaPipeline_config_template.psd1`
-- Pipeline modules: `Pipeline\Modules`
+- PowerShell engine implementations: `engine\<domain>`
+- Temporary PowerShell compatibility shims: `Pipeline\Modules`
 - Tests: `Pipeline\Tests`
 - Bundled PowerShell: `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe`
 - Bundled Python: `DesktopApp\Runtime\Python\python.exe`
@@ -174,19 +175,19 @@ The desktop **Maintenance -> Pending Publish** tab is the quickest way to inspec
 ## Fast Checks
 
 ```powershell
-.\Verify-MediaPipelineRemuxEncodeAIO-Environment.bat
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Test-MediaPipelineRemuxEncodeAIO-Release.ps1
+.\scripts\verify-env.bat
+.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\release\test.ps1
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Invoke-ReliabilityRegressionChecks.ps1
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Invoke-ToolIntegrationChecks.ps1
 ```
 
 `Invoke-ReliabilityRegressionChecks.ps1` is the active V6 compatibility wrapper: it runs WebView/backend checks by default and only runs archived legacy desktop-shell checks when explicitly invoked with `-RunLegacyDesktopChecks`.
 
-Use `Start-MediaPipelineRemuxEncodeAIO-LocalApi.bat` or `Start-MediaPipelineRemuxEncodeAIO-ApiAndBrowser.bat` when the WebView will not open and you need backend import/startup errors to stay visible.
+Use `scripts\dev\start-local-api.bat` or `scripts\dev\start-api-and-browser.bat` when the WebView will not open and you need backend import/startup errors to stay visible.
 
 For operator terminology, see `Docs/operator/OPERATOR_GLOSSARY.md`. For the ordered validation ladder (what to run before treating WebView as a production path), see `Docs/testing/VALIDATION_LADDER_RUNBOOK.md`. When investigating a pipeline failure, start with `Docs/operator/FAILURE_TRIAGE_WORKSHEET.md` to capture evidence before taking recovery actions.
 
-For browser/Tauri backend work, use `Start-MediaPipelineRemuxEncodeAIO-LocalApi.bat`. It starts the token-protected localhost API without opening the browser or native shell.
+For browser/Tauri backend work, use `scripts\dev\start-local-api.bat`. It starts the token-protected localhost API without opening the browser or native shell.
 
 For the WebView command-evidence runtime smoke, run:
 

@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_config_value_checks import (
+from app.config.value_checks import (
     add_unique_warning,
     require_non_empty,
     validate_float,

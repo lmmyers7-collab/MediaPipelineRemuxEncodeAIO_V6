@@ -8,6 +8,7 @@ $ErrorActionPreference = 'Stop'
 
 $testsRoot = Split-Path -Parent $PSCommandPath
 $pipelineRoot = Split-Path -Parent $testsRoot
+$projectRoot = Split-Path -Parent $pipelineRoot
 
 $bundledPwshPath = Join-Path $pipelineRoot 'PowerShell-7.6.0-win-x64\pwsh.exe'
 $ffmpegPath = Join-Path $pipelineRoot 'Tools\ffmpeg\bin\ffmpeg.exe'
@@ -221,10 +222,10 @@ function Assert-NoAcceptedOutput {
     }
 }
 
-. (Join-Path $pipelineRoot 'Modules\ConfigSchema.ps1')
-. (Join-Path $pipelineRoot 'Modules\MediaConstants.ps1')
-. (Join-Path $pipelineRoot 'Modules\FailureCodes.ps1')
-. (Join-Path $pipelineRoot 'Modules\EncodePolicy.ps1')
+. (Join-Path $projectRoot 'engine\config\config_schema.ps1')
+. (Join-Path $projectRoot 'engine\shared\media_constants.ps1')
+. (Join-Path $projectRoot 'engine\shared\failure_codes.ps1')
+. (Join-Path $projectRoot 'engine\decide\encode_policy.ps1')
 
 if (-not (Test-FFmpegEncoderAvailable -EncoderName 'libx265')) {
     Write-Host 'SKIP: adversarial force-kill encode checks require bundled ffmpeg libx265 encoder support.'

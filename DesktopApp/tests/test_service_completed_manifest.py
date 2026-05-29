@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import CompletedJobRecord
-from mediapipeline_desktop_app.service_completed_manifest import (
+from app.completed.manifest import (
     annotate_completed_output_health,
     completed_sidecar_path_from_payload,
     read_completed_manifest_records,

@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mediapipeline_desktop_app.service_rename_tv_folder import resolve_tv_folder_season_info
+from app.rename.tv_folder import resolve_tv_folder_season_info
 
 
 def _clean_name(value: str, _remove_terms: list[str] | None = None) -> str:

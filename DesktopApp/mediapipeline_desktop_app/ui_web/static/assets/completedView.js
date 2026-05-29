@@ -39,6 +39,10 @@
     "consistency_status",
     "consistency_guidance",
     "consistency_issues",
+    "validation_status_state",
+    "validation_failure_reason",
+    "validation_unavailable_reasons",
+    "validation_safe_next_action",
     "expected_sidecar_path",
     "runtime_outcome_status",
     "runtime_outcome_error_code",
@@ -479,9 +483,21 @@
     }
     setText("completed-count", String(payload.count || rows.length || 0));
     const warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
+    const freshnessLines = window.mediaPipelineDom?.payloadFreshnessLines
+      ? window.mediaPipelineDom.payloadFreshnessLines({
+        payload,
+        label: "Output",
+        rowCount: payload.count || rows.length || 0,
+        sourceLine: payload.source || payload.manifest_path ? `Manifest: ${payload.source || payload.manifest_path}` : "",
+        artifactLine: completedFreshnessLine("Manifest age", payload.manifest_age_text, payload.manifest_freshness_status, payload.manifest_mtime_utc),
+        readError: payload.manifest_error || payload.error || "",
+        refreshAction: "Use Refresh Output or topbar Refresh. This reloads completed evidence only and does not accept, delete, or move outputs.",
+      })
+      : [];
     const summary = [
-      payload.source || payload.manifest_path ? `Manifest: ${payload.source || payload.manifest_path}` : "",
-      completedFreshnessLine("Manifest age", payload.manifest_age_text, payload.manifest_freshness_status, payload.manifest_mtime_utc),
+      ...freshnessLines,
+      freshnessLines.length ? "" : (payload.source || payload.manifest_path ? `Manifest: ${payload.source || payload.manifest_path}` : ""),
+      freshnessLines.length ? "" : completedFreshnessLine("Manifest age", payload.manifest_age_text, payload.manifest_freshness_status, payload.manifest_mtime_utc),
       `Rows: ${payload.count || rows.length || 0}`,
       `Encode/remux: ${payload.encode_count || 0} / ${payload.remux_count || 0}`,
       `Missing outputs: ${payload.missing_output_count || 0}`,
@@ -621,8 +637,19 @@
 
   function renderCompletedDetail(item) {
     renderCompletedSelectedAtAGlance(item || null);
+    const detailDrawer = window.mediaPipelineDom?.selectedRowDetailDrawerLines;
+    const guardrail = "Mutation guardrail: selected-row detail is read-only and cannot accept outputs, repair manifests, rerun jobs, reconcile sidecars, publish, or delete files.";
     if (!item) {
-      setText("completed-detail", completedRowReviewChecklistLines(null).join("\n"));
+      const bodyLines = completedRowReviewChecklistLines(null);
+      const detailLines = typeof detailDrawer === "function"
+        ? detailDrawer({
+          title: "Completed selected-row detail",
+          summaryLines: completedSelectedAtAGlanceLines(null),
+          bodyLines,
+          guardrail,
+        })
+        : bodyLines;
+      setText("completed-detail", detailLines.join("\n"));
       setText("completed-open-status", "Select a completed row to open a backend-selected location.");
       renderCompletedDiagnosticsLinks(null);
       return;
@@ -680,6 +707,13 @@
       item.consistency_status ? `Consistency: ${item.consistency_status}` : "",
       item.consistency_guidance ? `Consistency next step: ${item.consistency_guidance}` : "",
       Array.isArray(item.consistency_issues) && item.consistency_issues.length ? `Consistency issues: ${item.consistency_issues.join(", ")}` : "",
+      item.validation_status_state ? `Validation state: ${item.validation_status_state}` : "",
+      item.validation_failure_reason ? `Validation proof gap: ${item.validation_failure_reason}` : "",
+      item.validation_probe_ok === true ? "Probe proof: passed" : item.validation_probe_ok === false ? "Probe proof: failed" : "Probe proof: not reported",
+      item.validation_hash_ok === true ? "Hash proof: passed" : item.validation_hash_ok === false ? "Hash proof: failed" : "Hash proof: not reported",
+      item.validation_playback_required === true ? "Playback required: yes" : item.validation_playback_required === false ? "Playback required: no" : "Playback required: not reported",
+      Array.isArray(item.validation_unavailable_reasons) && item.validation_unavailable_reasons.length ? `Validation unavailable proof: ${item.validation_unavailable_reasons.join(", ")}` : "",
+      item.validation_safe_next_action ? `Validation next step: ${item.validation_safe_next_action}` : "",
       item.expected_sidecar_path ? `Expected sidecar: ${item.expected_sidecar_path}` : "",
       item.sidecar_exists === false ? "Sidecar: missing" : item.sidecar_exists === true ? "Sidecar: present" : "",
       item.route_decision_summary ? `Route decision: ${item.route_decision_summary}` : "",
@@ -713,7 +747,15 @@
       ...subtitlePreview.map((line) => `  ${line}`),
       `Health: ${item.output_health || (item.output_exists === false ? "missing output" : "ok")}`,
     ].filter((line) => line !== "");
-    setText("completed-detail", detail.join("\n"));
+    const detailLines = typeof detailDrawer === "function"
+      ? detailDrawer({
+        title: "Completed selected-row detail",
+        summaryLines: completedSelectedAtAGlanceLines(item),
+        bodyLines: detail,
+        guardrail,
+      })
+      : detail;
+    setText("completed-detail", detailLines.join("\n"));
     setText("completed-open-status", "Selected completed row. Open commands use backend-selected paths from the manifest.");
     renderCompletedDiagnosticsLinks(item);
   }

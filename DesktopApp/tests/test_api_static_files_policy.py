@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 import unittest
@@ -48,6 +49,18 @@ class LocalApiStaticFilesPolicyTests(unittest.TestCase):
         self.assertIn('"token": "secret"', body)
         self.assertIn('"appVersion": "v5-test"', body)
         self.assertNotIn(STATIC_INDEX_BOOTSTRAP_PLACEHOLDER, body)
+
+    def test_render_index_html_escapes_script_breakout_json(self) -> None:
+        body = render_index_html(
+            f"<script>window.MEDIA_PIPELINE_BOOTSTRAP = {STATIC_INDEX_BOOTSTRAP_PLACEHOLDER};</script>",
+            {"token": "</script><img src=x onerror=alert(1)>", "line": "\u2028"},
+        ).decode("utf-8")
+
+        self.assertNotIn("</script><img", body)
+        self.assertIn("\\u003c/script\\u003e", body)
+        json_text = body.split(" = ", 1)[1].split(";</script>", 1)[0]
+        parsed = json.loads(json_text)
+        self.assertEqual(parsed["token"], "</script><img src=x onerror=alert(1)>")
 
     def test_render_index_rejects_missing_bootstrap_placeholder(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

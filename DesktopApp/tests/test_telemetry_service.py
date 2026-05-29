@@ -3,13 +3,14 @@ from __future__ import annotations
 import sys
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import ResolvedPaths, TelemetrySnapshot
-from mediapipeline_desktop_app.service_telemetry_health import (
+from app.telemetry.health import (
     ass_to_srt_exception_row,
     ass_to_srt_missing_row,
     ass_to_srt_result_row,
@@ -19,12 +20,13 @@ from mediapipeline_desktop_app.service_telemetry_health import (
     nvidia_smi_health_row,
     powershell_health_row,
 )
-from mediapipeline_desktop_app.service_telemetry_nvidia import (
+from app.telemetry.nvidia import (
     apply_nvidia_smi_rows_to_snapshot,
     parse_nvidia_smi_encoder_rows,
     select_active_gpu_row,
 )
-from mediapipeline_desktop_app.service_telemetry_system import apply_system_metrics_to_snapshot, prime_cpu_sampler
+from app.telemetry.gpu_usage import GPU_ENCODER_USAGE_SCHEMA_VERSION, gpu_encoder_usage_payload
+from app.observability.system_metrics import apply_system_metrics_to_snapshot, prime_cpu_sampler
 from mediapipeline_desktop_app.services import DesktopAppService
 from mediapipeline_desktop_app.subprocess_runner import CapturedCommandResult
 
@@ -185,7 +187,7 @@ class TelemetryServiceTests(unittest.TestCase):
                 return CapturedCommandResult(args=[], returncode=2, stdout="", stderr="")
 
             progress_events: list[dict[str, object]] = []
-            with patch("mediapipeline_desktop_app.service_telemetry.run_capture", fake_run):
+            with patch("app.telemetry.service.run_capture", fake_run):
                 rows = service.check_environment_health(resolved, progress_callback=progress_events.append)
 
             for handler in list(service.logger.handlers):
@@ -238,6 +240,44 @@ class TelemetryServiceTests(unittest.TestCase):
         self.assertAlmostEqual(snapshot.gpu_memory_used_gb, 2.0)
         self.assertIn("max of 2", snapshot.gpu_name)
 
+    def test_gpu_encoder_usage_payload_exposes_read_only_contract_without_faking_sessions(self) -> None:
+        snapshot = TelemetrySnapshot(
+            collected_at=datetime(2026, 5, 29, 12, 0, 0),
+            gpu_rows=[
+                {
+                    "index": "0",
+                    "name": "NVIDIA RTX Idle",
+                    "encoder_percent": 0.0,
+                    "temperature_c": 44.0,
+                    "memory_used_mb": 1024.0,
+                    "memory_total_mb": 8192.0,
+                },
+                {
+                    "index": "1",
+                    "name": "NVIDIA RTX Busy",
+                    "encoder_percent": 21.0,
+                    "temperature_c": 55.0,
+                    "memory_used_mb": 2048.0,
+                    "memory_total_mb": 8192.0,
+                },
+            ],
+            source="nvidia-smi",
+        )
+
+        payload = gpu_encoder_usage_payload(snapshot)
+
+        self.assertEqual(payload["schema_version"], GPU_ENCODER_USAGE_SCHEMA_VERSION)
+        self.assertEqual(payload["status"], "loaded")
+        self.assertEqual(payload["row_count"], 2)
+        self.assertEqual(payload["active_encoder_count"], 1)
+        self.assertEqual(payload["missing_session_count"], 2)
+        self.assertTrue(payload["read_only"])
+        self.assertEqual(payload["rows"][1]["adapter"], "NVIDIA RTX Busy")
+        self.assertEqual(payload["rows"][1]["utilization_percent"], 21.0)
+        self.assertEqual(payload["rows"][1]["memory_used"], 2048.0)
+        self.assertIsNone(payload["rows"][1]["encoder_sessions"])
+        self.assertIn("Encoder sessions are not reported", "\n".join(payload["summary_lines"]))
+
     def test_nvidia_smi_na_encoder_row_remains_visible_as_zero_percent(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             service = DesktopAppService(Path(td))
@@ -252,7 +292,7 @@ class TelemetryServiceTests(unittest.TestCase):
                     stderr="",
                 )
 
-            with patch("mediapipeline_desktop_app.service_telemetry.run_capture", fake_run):
+            with patch("app.telemetry.service.run_capture", fake_run):
                 snapshot = service.sample_system_telemetry()
 
             self.assertEqual(snapshot.gpu_encoder_percent, 0.0)

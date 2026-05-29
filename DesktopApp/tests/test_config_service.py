@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_config import ConfigProfileServiceMixin
+from app.config.service import ConfigProfileServiceMixin
 from mediapipeline_desktop_app.subprocess_runner import CapturedCommandResult
 
 
@@ -42,7 +42,7 @@ class ConfigServiceRunnerTests(unittest.TestCase):
                     stderr="",
                 )
 
-            with patch("mediapipeline_desktop_app.service_config.run_capture", fake_run):
+            with patch("app.config.service.run_capture", fake_run):
                 data = self.service.load_config_data(config, "pwsh")
 
             self.assertEqual(data["VideoCodec"], "hevc_nvenc")
@@ -62,7 +62,7 @@ class ConfigServiceRunnerTests(unittest.TestCase):
                     kill_message="process killed",
                 )
 
-            with patch("mediapipeline_desktop_app.service_config.run_capture", fake_run):
+            with patch("app.config.service.run_capture", fake_run):
                 data = self.service.load_config_data(config, "pwsh")
 
             self.assertEqual(data, {})

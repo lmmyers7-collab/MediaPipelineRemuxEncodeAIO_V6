@@ -43,6 +43,7 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/schedule/preview": {"scheduleView.js"},
     "/api/schedule/save": {"scheduleView.js"},
     "/api/settings/validate": {"settingsView.js"},
+    "/api/settings/browse-path": {"settingsView.js"},
     "/api/settings/preview-patch": {"settingsView.js"},
     "/api/settings/save-patch": {"settingsView.js"},
     "/api/settings/reload": {"settingsView.js"},
@@ -153,6 +154,19 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn("confirm_clear: !dryRun", _asset_sources()["reportsView.js"])
         self.assertIn('apiPost("/api/settings/save-patch", { changes, confirm_save: true })', _asset_sources()["settingsView.js"])
         self.assertIn('apiPost("/api/schedule/save", { ...request, confirm_save: true })', _asset_sources()["scheduleView.js"])
+
+    def test_settings_path_browse_is_allowlisted_staging_only(self) -> None:
+        payload = _payload_for_route("settingsView.js", "/api/settings/browse-path")
+        self.assertIn("setting_key: settingKey", payload)
+        self.assertIn('selection_mode: "folder"', payload)
+        self.assertIn("initial_path: initialPath", payload)
+        self.assertNotIn("confirm_save", payload)
+        browse_contract = next(route for route in LOCAL_API_ROUTE_CONTRACT if route["path"] == "/api/settings/browse-path")
+        self.assertEqual(browse_contract["effect"], "shell-dialog")
+        self.assertEqual(browse_contract["allowed_selection_modes"], ["folder"])
+        self.assertEqual(browse_contract["allowed_setting_keys"], ["SourceMovies", "SourceTV", "Outsource", "LocalBase"])
+        self.assertIn("staging only", browse_contract["purpose"])
+        self.assertIn("touch media files", browse_contract["purpose"])
 
     def test_repair_reconcile_mutation_remains_design_only_and_not_webview_callable(self) -> None:
         payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")

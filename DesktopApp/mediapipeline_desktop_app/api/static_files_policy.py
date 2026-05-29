@@ -43,8 +43,19 @@ def local_api_bootstrap(
     return payload
 
 
+def json_for_inline_script(value: dict[str, Any]) -> str:
+    return (
+        json.dumps(value, ensure_ascii=False)
+        .replace("&", "\\u0026")
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
+    )
+
+
 def render_index_html(template: str, bootstrap: dict[str, Any]) -> bytes:
-    html = template.replace(STATIC_INDEX_BOOTSTRAP_PLACEHOLDER, json.dumps(bootstrap, ensure_ascii=False))
+    html = template.replace(STATIC_INDEX_BOOTSTRAP_PLACEHOLDER, json_for_inline_script(bootstrap))
     return html.encode("utf-8")
 
 

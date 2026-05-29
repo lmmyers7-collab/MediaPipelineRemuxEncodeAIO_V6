@@ -1,0 +1,74 @@
+name: Generated Drift Checks
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - master
+      - "codex/**"
+
+jobs:
+  generated-context:
+    name: Generated context drift
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install contract dependencies
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Check summary freshness
+        run: python scripts/dev/refresh_summaries.py --check
+
+      - name: Check project index and dependency graph
+        run: python scripts/dev/generate_project_index.py --check
+
+      - name: Check pipeline map
+        run: python scripts/dev/generate_pipeline_map.py --check
+
+      - name: Check lifecycle map
+        run: python scripts/dev/generate_lifecycle_map.py --check
+
+      - name: Check config schema
+        run: python scripts/dev/generate_config_schema.py --check
+
+      - name: Check stage schema
+        run: python scripts/dev/generate_stage_schema.py --check
+
+      - name: Check risky file registry
+        run: python scripts/dev/check_risky_file_registry.py
+
+      - name: Check architecture guardrails
+        run: python scripts/dev/check_architecture_guardrails.py
+
+      - name: Check naming lint
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "pull_request") {
+            git fetch origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}" --depth=1
+            python scripts/lint-naming.py --git-diff "origin/${{ github.base_ref }}"
+          } else {
+            python scripts/lint-naming.py
+          }
+
+      - name: Check active doc references
+        run: python scripts/dev/check_active_doc_references.py
+
+      - name: Check Python typing
+        run: python scripts/dev/check_python_typing.py
+
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: Install-Module PSScriptAnalyzer -Scope CurrentUser -Force
+
+      - name: Check engine PowerShell analysis
+        shell: pwsh
+        run: .\scripts\dev\check_powershell_analysis.ps1

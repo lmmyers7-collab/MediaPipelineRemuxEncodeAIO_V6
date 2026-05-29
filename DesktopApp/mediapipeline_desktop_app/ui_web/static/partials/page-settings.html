@@ -172,6 +172,14 @@
               TV threshold GB
               <input id="settings-builder-tv-threshold" type="number" min="0" step="1">
             </label>
+            <label>
+              Movie copy max Mbps
+              <input id="settings-builder-movie-route-bitrate" type="number" min="1" max="500" step="1">
+            </label>
+            <label>
+              TV copy max Mbps
+              <input id="settings-builder-tv-route-bitrate" type="number" min="1" max="500" step="1">
+            </label>
           </div>
           <div class="action-row action-row-left">
             <button type="button" id="settings-builder-apply-button" class="secondary-button">Apply To Patch JSON</button>
@@ -503,19 +511,31 @@
           <div class="form-grid launch-form-grid">
             <label>
               Movies source
-              <input id="settings-file-safety-source-movies" type="text" autocomplete="off" spellcheck="false">
+              <span class="settings-path-control">
+                <input id="settings-file-safety-source-movies" type="text" autocomplete="off" spellcheck="false">
+                <button type="button" id="settings-file-safety-source-movies-browse" class="tertiary-button settings-path-browse-button" data-settings-path-key="SourceMovies" data-settings-path-input="settings-file-safety-source-movies">Browse</button>
+              </span>
             </label>
             <label>
               TV source
-              <input id="settings-file-safety-source-tv" type="text" autocomplete="off" spellcheck="false">
+              <span class="settings-path-control">
+                <input id="settings-file-safety-source-tv" type="text" autocomplete="off" spellcheck="false">
+                <button type="button" id="settings-file-safety-source-tv-browse" class="tertiary-button settings-path-browse-button" data-settings-path-key="SourceTV" data-settings-path-input="settings-file-safety-source-tv">Browse</button>
+              </span>
             </label>
             <label>
               Final output
-              <input id="settings-file-safety-outsource" type="text" autocomplete="off" spellcheck="false">
+              <span class="settings-path-control">
+                <input id="settings-file-safety-outsource" type="text" autocomplete="off" spellcheck="false">
+                <button type="button" id="settings-file-safety-outsource-browse" class="tertiary-button settings-path-browse-button" data-settings-path-key="Outsource" data-settings-path-input="settings-file-safety-outsource">Browse</button>
+              </span>
             </label>
             <label>
               Scratch / LocalBase
-              <input id="settings-file-safety-local-base" type="text" autocomplete="off" spellcheck="false">
+              <span class="settings-path-control">
+                <input id="settings-file-safety-local-base" type="text" autocomplete="off" spellcheck="false">
+                <button type="button" id="settings-file-safety-local-base-browse" class="tertiary-button settings-path-browse-button" data-settings-path-key="LocalBase" data-settings-path-input="settings-file-safety-local-base">Browse</button>
+              </span>
             </label>
             <label>
               Scratch reserve GB

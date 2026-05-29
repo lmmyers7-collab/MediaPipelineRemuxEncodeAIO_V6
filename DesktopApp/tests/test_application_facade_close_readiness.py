@@ -331,7 +331,7 @@ class ApplicationFacadeCloseReadinessTests(unittest.TestCase):
                 latest_priority_csv=None,
             )
 
-            with patch("mediapipeline_desktop_app.service_processes.psutil", None):
+            with patch("app.processes.lifecycle.psutil", None):
                 with self.assertLogs("test_application_facade", level="WARNING") as logs:
                     readiness = facade.get_close_readiness(resolved, idle_snapshot)
 

@@ -9,7 +9,7 @@
   font-weight: 600;
   cursor: pointer;
   padding: var(--space-2) var(--space-4);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   text-underline-offset: 2px;
   transition: color 150ms ease;
 }
@@ -31,7 +31,7 @@
   border: none;
   background: var(--blue-500);
   color: var(--grey-50);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   padding: var(--space-4) var(--space-7);
   font-size: var(--text-sm);
   font-weight: 600;
@@ -127,7 +127,7 @@
 .route-chip {
   display: inline-flex;
   padding: var(--space-1) var(--space-3);
-  border-radius: 2px;
+  border-radius: var(--radius-xs);
   background: var(--grey-700);
   color: var(--grey-300);
   font-size: var(--text-xs);
@@ -144,9 +144,11 @@
 .status-chip {
   display: inline-flex;
   align-items: center;
+  gap: var(--space-2);
   max-width: 100%;
   padding: var(--space-1) var(--space-3);
-  border-radius: 2px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
   background: var(--grey-700);
   color: var(--grey-200);
   font-size: var(--text-xs);
@@ -161,22 +163,45 @@
   box-shadow: var(--focus-ring);
 }
 
-.status-chip[data-status="ok"] {
+.status-chip[data-status="ok"],
+.status-chip[data-status="ready"],
+.status-chip[data-status="match"],
+.status-chip[data-status="completed"],
+.status-chip[data-status="skipped"] {
   background: var(--green-700);
   color: var(--green-100);
 }
 
-.status-chip[data-status="warning"] {
+.status-chip::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
+
+.status-chip[data-status="warning"],
+.status-chip[data-status="validation-needed"],
+.status-chip[data-status="health-check"],
+.status-chip[data-status="parked"],
+.status-chip[data-status="paused"],
+.status-chip[data-status="retrying"],
+.status-chip[data-status="unknown"],
+.status-chip[data-status="empty"] {
   background: var(--amber-700);
   color: var(--amber-100);
 }
 
-.status-chip[data-status="blocked"] {
+.status-chip[data-status="blocked"],
+.status-chip[data-status="failed"] {
   background: var(--red-700);
   color: var(--red-100);
 }
 
-.status-chip[data-status="changed"] {
+.status-chip[data-status="changed"],
+.status-chip[data-status="running"],
+.status-chip[data-status="publishing"] {
   background: var(--blue-800);
   color: var(--blue-200);
 }
@@ -186,22 +211,36 @@ body.light-mode .status-chip {
   color: var(--grey-700);
 }
 
-body.light-mode .status-chip[data-status="ok"] {
+body.light-mode .status-chip[data-status="ok"],
+body.light-mode .status-chip[data-status="ready"],
+body.light-mode .status-chip[data-status="match"],
+body.light-mode .status-chip[data-status="completed"],
+body.light-mode .status-chip[data-status="skipped"] {
   background: var(--green-100);
   color: var(--green-700);
 }
 
-body.light-mode .status-chip[data-status="warning"] {
+body.light-mode .status-chip[data-status="warning"],
+body.light-mode .status-chip[data-status="validation-needed"],
+body.light-mode .status-chip[data-status="health-check"],
+body.light-mode .status-chip[data-status="parked"],
+body.light-mode .status-chip[data-status="paused"],
+body.light-mode .status-chip[data-status="retrying"],
+body.light-mode .status-chip[data-status="unknown"],
+body.light-mode .status-chip[data-status="empty"] {
   background: var(--amber-100);
   color: var(--amber-700);
 }
 
-body.light-mode .status-chip[data-status="blocked"] {
+body.light-mode .status-chip[data-status="blocked"],
+body.light-mode .status-chip[data-status="failed"] {
   background: var(--red-100);
   color: var(--red-700);
 }
 
-body.light-mode .status-chip[data-status="changed"] {
+body.light-mode .status-chip[data-status="changed"],
+body.light-mode .status-chip[data-status="running"],
+body.light-mode .status-chip[data-status="publishing"] {
   background: var(--blue-100);
   color: var(--blue-700);
 }
@@ -253,7 +292,7 @@ body.light-mode .status-chip[data-status="changed"] {
   right: var(--space-4);
   background: var(--grey-900);
   border: 1px solid var(--grey-600);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow-4);
   color: var(--grey-200);
   font-family: var(--font-mono);
@@ -321,7 +360,14 @@ body.light-mode .impact-chip[data-impact="medium"] { background: var(--grey-200)
    scoped to [data-page-panel="schedule"] to avoid false highlights elsewhere. */
 
 /* Dark mode — muted tints that don't overpower the dark surface */
-tr[data-status="warning"] td  { background: var(--row-warning-bg); }
+tr[data-status="warning"] td,
+tr[data-status="validation-needed"] td,
+tr[data-status="health-check"] td,
+tr[data-status="parked"] td,
+tr[data-status="paused"] td,
+tr[data-status="retrying"] td,
+tr[data-status="unknown"] td,
+tr[data-status="empty"] td  { background: var(--row-warning-bg); }
 tr[data-status="blocked"] td,
 tr[data-status="failed"] td   { background: var(--row-blocked-bg); }
 
@@ -332,7 +378,14 @@ tr[data-status="failed"] td   { background: var(--row-blocked-bg); }
 [data-page-panel="schedule"] tr[data-status="review"] td  { background: var(--grey-700); }
 
 /* Light mode — use the spec-named tokens directly */
-body.light-mode tr[data-status="warning"] td  { background: var(--amber-100); }
+body.light-mode tr[data-status="warning"] td,
+body.light-mode tr[data-status="validation-needed"] td,
+body.light-mode tr[data-status="health-check"] td,
+body.light-mode tr[data-status="parked"] td,
+body.light-mode tr[data-status="paused"] td,
+body.light-mode tr[data-status="retrying"] td,
+body.light-mode tr[data-status="unknown"] td,
+body.light-mode tr[data-status="empty"] td  { background: var(--amber-100); }
 body.light-mode tr[data-status="blocked"] td,
 body.light-mode tr[data-status="failed"] td   { background: var(--red-100); }
 

@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mediapipeline_desktop_app.service_path_defaults import (
+from app.paths.defaults import (
     default_audit_script_path_for_roots,
     default_config_path_for_roots,
     default_pipeline_path_for_roots,

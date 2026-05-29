@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 from mediapipeline_desktop_app.models import AuditRecord, ResolvedPaths
-from mediapipeline_desktop_app.service_audit_rerun_export import save_rerun_records_csv_for_service
+from app.audit.rerun_export import save_rerun_records_csv_for_service
 
 
 def _audit_record(**row: str) -> AuditRecord:

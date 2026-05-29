@@ -55,7 +55,8 @@ What replaces it:
 - ADR-0001 (folder-by-domain layout) establishes the target shape.
 - The forbidden-name list in ADR-0001 prevents new files at the legacy
   paths.
-- Phases 3 and 6 of `ARCHITECTURAL_OVERHAUL_PLAN.md` execute the fold.
+- Phases 3 and 6 of `Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md`
+  execute the fold.
 
 ## Consequences
 

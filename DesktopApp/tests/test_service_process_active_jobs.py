@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from mediapipeline_desktop_app.service_process_active_jobs import (
+from app.processes.active_jobs import (
     active_job_close_block_messages,
     active_job_pid_is_alive,
     active_job_pid_matches_record,
@@ -19,7 +19,7 @@ from mediapipeline_desktop_app.service_process_active_jobs import (
     write_active_job_launch_record,
     write_active_job_payload,
 )
-from mediapipeline_desktop_app.service_processes import ProcessLifecycleServiceMixin
+from app.processes.lifecycle import ProcessLifecycleServiceMixin
 
 
 class FakeProc:

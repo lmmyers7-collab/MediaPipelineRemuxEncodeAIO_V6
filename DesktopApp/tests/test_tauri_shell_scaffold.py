@@ -17,6 +17,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 TAURI_ROOT = PROJECT_ROOT / "DesktopApp" / "tauri_shell"
 TAURI_SRC_ROOT = TAURI_ROOT / "src-tauri" / "src"
 ACTIVE_SOURCE_SUFFIXES = {".html", ".js", ".py", ".ps1", ".rs"}
+RELEASE_BUILD_SCRIPT = PROJECT_ROOT / "scripts" / "release" / "build.ps1"
+RELEASE_TEST_SCRIPT = PROJECT_ROOT / "scripts" / "release" / "test.ps1"
 
 
 def _tauri_rust_source() -> str:
@@ -37,9 +39,9 @@ class TauriShellScaffoldTests(unittest.TestCase):
             PROJECT_ROOT / "SmokeTests",
         )
         scan_files = [
-            PROJECT_ROOT / "Build-MediaPipelineRemuxEncodeAIO-Release.ps1",
-            PROJECT_ROOT / "Test-MediaPipelineRemuxEncodeAIO-Release.ps1",
-            PROJECT_ROOT / "New-RealMediaValidationWorksheet.ps1",
+            RELEASE_BUILD_SCRIPT,
+            RELEASE_TEST_SCRIPT,
+            PROJECT_ROOT / "scripts" / "operator" / "New-RealMediaValidationWorksheet.ps1",
         ]
         for root in scan_roots:
             scan_files.extend(
@@ -506,8 +508,8 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertNotIn("Start-Process", source)
 
     def test_release_self_test_runs_preview_prereqs_without_requiring_toolchain(self) -> None:
-        source = (PROJECT_ROOT / "Test-MediaPipelineRemuxEncodeAIO-Release.ps1").read_text(encoding="utf-8")
-        policy_source = (PROJECT_ROOT / "Pipeline" / "Modules" / "ReleasePolicy.ps1").read_text(encoding="utf-8")
+        source = RELEASE_TEST_SCRIPT.read_text(encoding="utf-8")
+        policy_source = (PROJECT_ROOT / "scripts" / "release" / "release_policy.ps1").read_text(encoding="utf-8")
 
         self.assertIn("$tauriPrereqs", source)
         self.assertIn("Test-TauriShell-Prereqs.ps1", source)
@@ -565,7 +567,8 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("Test-WebViewRenameReadinessSmoke.ps1", source)
         self.assertIn("SmokeTests WebView browser settings/launch smoke", source)
         self.assertIn("Test-WebViewBrowserSettingsLaunchSmoke.ps1", source)
-        self.assertIn("Root real-media validation worksheet helper", source)
+        self.assertNotIn("Root real-media validation worksheet helper", source)
+        self.assertIn("Canonical real-media validation worksheet helper", source)
         self.assertIn("New-RealMediaValidationWorksheet.ps1", source)
         self.assertIn("SmokeTests WebView settings launch policy smoke", source)
         self.assertIn("Test-WebViewSettingsLaunchPolicySmoke.ps1", source)
@@ -574,8 +577,8 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("SmokeTests WebView settings patch evidence smoke", source)
         self.assertIn("Test-WebViewSettingsPatchEvidenceSmoke.ps1", source)
         self.assertIn("Application facade sample validation mixin", source)
-        self.assertIn("facade_sample_validation_policy.py", source)
-        self.assertIn("Local API sample validation command payloads", source)
+        self.assertIn("app\\sample_validation\\policy.py", source)
+        self.assertIn("Local API sample validation command handlers", source)
         self.assertIn("tauri_preview_binary_included", source)
         self.assertIn("Import-MediaPipelineReleasePolicy", source)
         self.assertIn("Get-MediaPipelineReleaseHygieneRules", source)
@@ -593,8 +596,8 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertNotIn("-RequireBuildTools", source)
 
     def test_release_builder_has_opt_in_tauri_preview_binary_packaging(self) -> None:
-        source = (PROJECT_ROOT / "Build-MediaPipelineRemuxEncodeAIO-Release.ps1").read_text(encoding="utf-8")
-        policy_source = (PROJECT_ROOT / "Pipeline" / "Modules" / "ReleasePolicy.ps1").read_text(encoding="utf-8")
+        source = RELEASE_BUILD_SCRIPT.read_text(encoding="utf-8")
+        policy_source = (PROJECT_ROOT / "scripts" / "release" / "release_policy.ps1").read_text(encoding="utf-8")
 
         self.assertIn("IncludeTauriPreviewBinary", source)
         self.assertIn("src-tauri\\target\\release\\mediapipeline-tauri-shell.exe", source)
@@ -602,7 +605,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("tauri_preview_binary_included", source)
         self.assertIn("Compiled Tauri preview executable was copied", source)
         self.assertIn("Run the Tauri release build first", source)
-        self.assertIn("ReleasePolicy.ps1", source)
+        self.assertIn("release_policy.ps1", source)
         self.assertIn("Get-MediaPipelineReleaseExclusionReason", source)
         self.assertIn("DesktopApp\\tests\\*", policy_source)
         self.assertIn("test suite omitted", policy_source)
@@ -627,7 +630,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertNotIn("MediaPipeline_chatgpt.ps1", source)
 
     def test_release_self_test_child_script_checks_are_bounded(self) -> None:
-        source = (PROJECT_ROOT / "Test-MediaPipelineRemuxEncodeAIO-Release.ps1").read_text(encoding="utf-8")
+        source = RELEASE_TEST_SCRIPT.read_text(encoding="utf-8")
 
         self.assertIn("function Invoke-ReleaseScriptProcess", source)
         self.assertIn("[int]$TimeoutSeconds = 600", source)
@@ -641,7 +644,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("-TimeoutSeconds 120", source)
 
     def test_release_self_test_tracks_consolidated_local_api_contracts(self) -> None:
-        source = (PROJECT_ROOT / "Test-MediaPipelineRemuxEncodeAIO-Release.ps1").read_text(encoding="utf-8")
+        source = RELEASE_TEST_SCRIPT.read_text(encoding="utf-8")
 
         self.assertIn("api\\contract_command.py", source)
         self.assertIn("api\\contract_read.py", source)
@@ -659,7 +662,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
             self.assertNotIn(removed_contract, source)
 
     def test_release_self_test_validates_webview_static_asset_references(self) -> None:
-        source = (PROJECT_ROOT / "Test-MediaPipelineRemuxEncodeAIO-Release.ps1").read_text(encoding="utf-8")
+        source = RELEASE_TEST_SCRIPT.read_text(encoding="utf-8")
 
         self.assertIn("function Test-WebStaticAssetReferences", source)
         self.assertIn("Web Static Asset References", source)
@@ -671,7 +674,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("Test-WebStaticAssetReferences -StaticRoot", source)
 
     def test_release_self_test_validates_api_browser_launcher_token_policy(self) -> None:
-        source = (PROJECT_ROOT / "Test-MediaPipelineRemuxEncodeAIO-Release.ps1").read_text(encoding="utf-8")
+        source = RELEASE_TEST_SCRIPT.read_text(encoding="utf-8")
 
         self.assertIn("function Test-ApiBrowserLauncherTokenPolicy", source)
         self.assertIn("API Browser Launcher Token Policy", source)
@@ -684,7 +687,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
 
     def test_reliability_gate_loads_pending_drain_summary_helpers(self) -> None:
         source = (PROJECT_ROOT / "Pipeline" / "Tests" / "Unit" / "Invoke-PendingPublishSafetyChecks.ps1").read_text(encoding="utf-8")
-        pending_push = (PROJECT_ROOT / "Pipeline" / "Modules" / "PendingPush.ps1").read_text(encoding="utf-8")
+        pending_push = (PROJECT_ROOT / "engine" / "publish" / "pending_push.ps1").read_text(encoding="utf-8")
 
         self.assertIn("function Get-PendingDrainSummaryPath", source)
         self.assertIn("function Write-PendingDrainSummary", source)
@@ -699,7 +702,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
     def test_reliability_gate_valid_config_fixture_tracks_required_safety_keys(self) -> None:
         source = (PROJECT_ROOT / "Pipeline" / "Tests" / "Invoke-ReliabilityRegressionChecks.ps1").read_text(encoding="utf-8")
         config_registry_check = (PROJECT_ROOT / "Pipeline" / "Tests" / "Unit" / "Invoke-ConfigKeyRegistryChecks.ps1").read_text(encoding="utf-8")
-        config_schema = (PROJECT_ROOT / "Pipeline" / "Modules" / "ConfigSchema.ps1").read_text(encoding="utf-8")
+        config_schema = (PROJECT_ROOT / "engine" / "config" / "config_schema.ps1").read_text(encoding="utf-8")
 
         self.assertIn("Invoke-ConfigKeyRegistryChecks.ps1", source)
         self.assertIn("Invoke-ContractSchemaChecks.ps1", source)
@@ -709,7 +712,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("RobocopyTimeoutSeconds", config_schema)
 
     def test_environment_verifier_setup_validator_is_bounded(self) -> None:
-        source = (PROJECT_ROOT / "Verify-MediaPipelineRemuxEncodeAIO-Environment.ps1").read_text(encoding="utf-8")
+        source = (PROJECT_ROOT / "scripts" / "verify-env.ps1").read_text(encoding="utf-8")
 
         self.assertIn("function Invoke-EnvironmentProcess", source)
         self.assertIn("RedirectStandardOutput = $true", source)
@@ -807,13 +810,15 @@ class TauriShellScaffoldTests(unittest.TestCase):
 
     def test_tauri_preview_launcher_is_explicit_and_non_default(self) -> None:
         root_launcher = PROJECT_ROOT / "Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat"
+        canonical_launcher = PROJECT_ROOT / "scripts" / "dev" / "start-tauri-preview.bat"
         shell_launcher = TAURI_ROOT / "Launch-MediaPipelineRemuxEncodeAIO-TauriPreview.ps1"
         readme = (TAURI_ROOT / "README.md").read_text(encoding="utf-8")
-        root_text = root_launcher.read_text(encoding="utf-8")
+        canonical_text = canonical_launcher.read_text(encoding="utf-8")
         shell_text = shell_launcher.read_text(encoding="utf-8")
 
-        self.assertIn("Launch-MediaPipelineRemuxEncodeAIO-TauriPreview.ps1", root_text)
-        self.assertIn("PowerShell-7.6.0-win-x64\\pwsh.exe", root_text)
+        self.assertFalse(root_launcher.exists())
+        self.assertIn("Launch-MediaPipelineRemuxEncodeAIO-TauriPreview.ps1", canonical_text)
+        self.assertIn("PowerShell-7.6.0-win-x64\\pwsh.exe", canonical_text)
         self.assertIn("V6 is the WebView-first workspace. V5 remains the external fallback if needed.", shell_text)
         self.assertIn("Tauri/WebView prerequisites are available.", shell_text)
         self.assertIn("Shell boundary: the WebView calls backend-owned local API commands", shell_text)
@@ -829,7 +834,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("npm run dev", shell_text)
         self.assertIn("Resolve-VsDevCmd", shell_text)
         self.assertNotIn("Remove-Item", shell_text)
-        self.assertIn("Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat", readme)
+        self.assertIn("scripts\\dev\\start-tauri-preview.bat", readme)
         self.assertIn("Validation Ladder", readme)
         self.assertIn("Test-TauriShell-Build.ps1 -SkipLinkCheck", readme)
         self.assertIn("cargo test --manifest-path src-tauri\\Cargo.toml --lib", readme)
@@ -857,17 +862,19 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("PG-3 clean-machine validation", readme)
         self.assertIn("Test-TauriShell-Prereqs.ps1 -CheckOnly", readme)
         self.assertIn("Test-TauriShell-Launch.ps1 -Mode Packaged -TimeoutSeconds 180 -CloseTimeoutSeconds 30", readme)
-        self.assertIn("Build-MediaPipelineRemuxEncodeAIO-Release.ps1 -DestinationRoot C:\\Temp\\MediaPipelineRemuxEncodeAIO_V6_PG3 -IncludeTauriPreviewBinary", readme)
+        self.assertIn("scripts\\release\\build.ps1 -DestinationRoot C:\\Temp\\MediaPipelineRemuxEncodeAIO_V6_PG3 -IncludeTauriPreviewBinary", readme)
         self.assertIn("dev-mode `npm run dev` launch path", readme)
         self.assertIn("Passing the fixture, command-evidence, row-detail, schedule, browser schedule, browser backend lifecycle, local API Maintenance dry-run, local API sample validation, browser high-risk, browser diagnostics handoff, pending drain guard, completed pending proof, large-table, browser Maintenance/Reports, browser Sample Validation, browser Home live-state, browser Launch/Queue readiness, browser layout manager, settings/launch policy, live-config handoff, settings patch evidence, or preview launch smoke does not prove FFmpeg", readme)
 
     def test_api_browser_launcher_keeps_token_auth_enabled_by_default(self) -> None:
         root_launcher = PROJECT_ROOT / "Start-MediaPipelineRemuxEncodeAIO-ApiAndBrowser.bat"
+        canonical_launcher = PROJECT_ROOT / "scripts" / "dev" / "start-api-and-browser.bat"
         shell_launcher = PROJECT_ROOT / "DesktopApp" / "Launch-MediaPipelineRemuxEncodeAIO-ApiAndBrowser.ps1"
-        root_text = root_launcher.read_text(encoding="utf-8")
+        canonical_text = canonical_launcher.read_text(encoding="utf-8")
         shell_text = shell_launcher.read_text(encoding="utf-8")
 
-        self.assertIn("Launch-MediaPipelineRemuxEncodeAIO-ApiAndBrowser.ps1", root_text)
+        self.assertFalse(root_launcher.exists())
+        self.assertIn("Launch-MediaPipelineRemuxEncodeAIO-ApiAndBrowser.ps1", canonical_text)
         self.assertIn("[switch]$NoTokenDevMode", shell_text)
         self.assertIn("Token auth: enabled (browser receives a per-run bootstrap token)", shell_text)
         self.assertIn("Token auth: DISABLED by explicit -NoTokenDevMode", shell_text)

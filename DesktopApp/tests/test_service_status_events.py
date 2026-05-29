@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from mediapipeline_desktop_app.service_status_events import (
+from app.status.events import (
     format_pipeline_event_summary,
     pipeline_event_stage_label,
     structured_status_from_pipeline_event,

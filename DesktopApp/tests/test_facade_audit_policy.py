@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.application.facade_audit_policy import (
+from app.audit.preview_policy import (
     AUDIT_EMPTY_CSV_MESSAGE,
     AUDIT_LOADER_UNAVAILABLE_MESSAGE,
     AUDIT_NO_CSV_REPORT_MESSAGE,

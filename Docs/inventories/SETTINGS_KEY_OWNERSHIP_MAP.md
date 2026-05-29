@@ -55,6 +55,8 @@ These keys have no structured WebView builder panel because they are auth secret
 | `OutputContainer` | **High** | `mkv` or `mp4`. Affects subtitle compatibility and muxing behavior. | Yes — container policy row | `test_service_config_validation.py` |
 | `EncodeThresholdGB` | **High** | Movie file size above which encode (rather than remux) is triggered. | Yes — route threshold row | `test_service_config_numeric_policy.py` |
 | `TVEncodeThresholdGB` | **High** | TV episode size above which encode is triggered. | Yes — route threshold row | `test_service_config_numeric_policy.py` |
+| `MovieRouteMaxVideoBitrateMbps` | **High** | Movie source bitrate above which encode is selected instead of remux/copy. | Yes — route bitrate row | `test_service_config_numeric_policy.py`, `test_stage_entrypoint.py` |
+| `TVRouteMaxVideoBitrateMbps` | **High** | TV source bitrate above which encode is selected instead of remux/copy. | Yes — route bitrate row | `test_service_config_numeric_policy.py`, `test_stage_entrypoint.py` |
 | `SizeGuardMode` | **High** | Post-encode size validation: `advisory` (warn), `strict` (fail if over), `off`. `strict` + aggressive growth settings blocks large encodes. | Yes — size guard posture row | `test_settings_risk_policy_rules.py` |
 | `MaxEncodeGrowthPercent` | Medium | Allowed output size growth % for normal encodes before size guard triggers. | Yes — growth limit row | `test_service_config_numeric_policy.py` |
 | `AllowH264RemuxIfPlexCompatible` | Medium | Allows H.264 sources to be remuxed (copy) rather than re-encoded when Plex-compatible. | Yes — H264 copy policy row | `test_service_config_option_policy.py` |
@@ -129,7 +131,7 @@ The Launch page reads these config values (via `GET /api/launch/preflight` and `
 
 | Handoff row | Key(s) driving it |
 |---|---|
-| Route policy | `RoutingProfile`, `EncodeThresholdGB`, `TVEncodeThresholdGB` |
+| Route policy | `RoutingProfile`, `EncodeThresholdGB`, `TVEncodeThresholdGB`, `MovieRouteMaxVideoBitrateMbps`, `TVRouteMaxVideoBitrateMbps` |
 | Video codec / preset | `VideoCodec`, `VideoPreset`, `VideoQuality` |
 | Audio policy | `AudioPassthroughProfile`, `AudioTranscodeCodec`, `AudioDownmixMode`, `AllowNoAudio` |
 | Subtitle policy | `SubKeepLanguages`, `ConvertTx3gToSrt`, `ConvertBdpgsToSrt` |

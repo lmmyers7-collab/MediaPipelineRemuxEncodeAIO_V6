@@ -37,6 +37,31 @@ function Invoke-RequiredReliabilityScript {
     }
 }
 
+function Invoke-ArchitectureGuardrails {
+    $repoRoot = Split-Path -Parent (Split-Path -Parent $testsRoot)
+    $guardScript = Join-Path $repoRoot 'scripts\dev\check_architecture_guardrails.py'
+    if (-not (Test-Path -LiteralPath $guardScript -PathType Leaf)) {
+        throw "architecture guardrails script is missing: $guardScript"
+    }
+
+    $pythonCandidates = @(
+        (Join-Path $repoRoot 'DesktopApp\Runtime\Python\python.exe'),
+        (Get-Command python.exe -ErrorAction SilentlyContinue).Source,
+        (Get-Command python -ErrorAction SilentlyContinue).Source
+    ) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -Unique
+
+    if (-not $pythonCandidates -or $pythonCandidates.Count -eq 0) {
+        throw "architecture guardrails require Python. Expected bundled runtime at DesktopApp\Runtime\Python\python.exe."
+    }
+
+    Write-Host 'Running architecture guardrails...'
+    & $pythonCandidates[0] $guardScript
+    $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
+    if ($exitCode -ne 0) {
+        throw "architecture guardrails failed with exit $exitCode."
+    }
+}
+
 if ($RunLegacyDesktopChecks) {
     Invoke-RequiredReliabilityScript `
         -RelativePath 'Legacy\Invoke-LegacyDesktopReliabilityRegressionChecks.ps1' `
@@ -45,6 +70,7 @@ if ($RunLegacyDesktopChecks) {
 }
 
 Write-Host 'Running active V6 reliability regression checks.'
+Invoke-ArchitectureGuardrails
 Invoke-RequiredReliabilityScript -RelativePath 'Invoke-V6WebViewReliabilityChecks.ps1' -Label 'V6 WebView/backend reliability gate'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-ContractSchemaChecks.ps1' -Label 'contract schema checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-ConfigKeyRegistryChecks.ps1' -Label 'config-key registry checks'

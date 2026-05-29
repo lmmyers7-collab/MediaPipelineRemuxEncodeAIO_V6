@@ -132,7 +132,7 @@ def _browser_maintenance_reports_runner_source() -> str:
                 destination_root: "C:/Temp/MediaPipeline_Deployable_DryRun",
                 returncode: 0,
                 elapsed_seconds: 1.25,
-                command: "pwsh -File Build-MediaPipelineRemuxEncodeAIO-Release.ps1 -DryRun",
+                command: "pwsh -File scripts\\\\release\\\\build.ps1 -DryRun",
                 release_progress: {
                   schema_version: "desktop_release_package_progress.v1",
                   status: "complete",
@@ -395,6 +395,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               "source-stability",
               "Source changed during probe.",
               "Wait for the source to stabilize before rerun.",
+              "Blocked (1/3)",
               "2026-05-14 22:00",
             ]);
             if (text("failure-rows").includes("2026-05-14T22:00:00-04:00")) {
@@ -412,6 +413,8 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Class: operator_required",
               "Code: source_locked",
               "Suggested action: Wait for the source to stabilize before rerun.",
+              "Retry status: blocked",
+              "Retry route/command: none_exposed",
             ]);
             clickFirst('[data-reports-tab="audit"]', "Reports Audit tab");
             if (document.querySelector('[data-reports-tab="audit"]')?.getAttribute("aria-selected") !== "true") {

@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from mediapipeline_desktop_app.service_process_runtime_runner import (
+from app.processes.runtime_runner import (
     clear_runtime_artifacts_for_service,
     prepare_audit_runtime_for_service,
     prepare_pipeline_runtime_for_service,
@@ -52,7 +52,7 @@ class DummyRuntimeRunnerService:
             for spec in self._runtime_artifact_specs(resolved, include_pipeline=True, include_audit=False)
             if spec[0] in {"pipeline progress", "legacy pipeline progress"}
         ]
-        from mediapipeline_desktop_app.service_process_runtime_artifacts import clear_runtime_artifact_specs
+        from app.processes.runtime_artifacts import clear_runtime_artifact_specs
 
         return clear_runtime_artifact_specs(specs, normalized_path_key=self._normalized_path_key)
 
@@ -62,7 +62,7 @@ class DummyRuntimeRunnerService:
             for spec in self._runtime_artifact_specs(resolved, include_pipeline=False, include_audit=True)
             if spec[0] == "audit progress"
         ]
-        from mediapipeline_desktop_app.service_process_runtime_artifacts import clear_runtime_artifact_specs
+        from app.processes.runtime_artifacts import clear_runtime_artifact_specs
 
         return clear_runtime_artifact_specs(specs, normalized_path_key=self._normalized_path_key)
 

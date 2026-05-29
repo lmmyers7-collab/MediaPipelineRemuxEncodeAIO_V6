@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from mediapipeline_desktop_app.service_rename_preview_runner import (
+from app.rename.preview_runner import (
     load_pipeline_movie_name_previews_for_service,
     load_pipeline_name_previews_for_service,
     load_pipeline_tv_name_previews_for_service,
