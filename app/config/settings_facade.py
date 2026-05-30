@@ -13,7 +13,11 @@ from app.config.settings_policy import (
     settings_tool_path_evidence,
     settings_workspace_paths,
 )
-from mediapipeline_desktop_app.application.settings_risk_policy import build_current_settings_risk_summary, build_media_policy_readiness
+from mediapipeline_desktop_app.application.settings_risk_policy import (
+    build_current_settings_risk_summary,
+    build_media_policy_readiness,
+    build_settings_policy_impact,
+)
 from mediapipeline_desktop_app.models import ResolvedPaths
 from app.config.profiles import config_profile_path, config_profiles_dir
 
@@ -51,6 +55,8 @@ class SettingsFacadeMixin:
                 profiles = [str(item) for item in profile_lister(resolved.config_path)]
             except Exception as exc:
                 warnings.append(f"Config profiles unavailable: {exc}")
+        risk_summary = build_current_settings_risk_summary(config)
+        media_policy_readiness = build_media_policy_readiness(config)
         return _settings_workspace_dto(
             app_version=self.app_version,
             config_path=str(resolved.config_path),
@@ -62,8 +68,15 @@ class SettingsFacadeMixin:
             key_count=len(config),
             profiles=profiles,
             profile_summary=self._settings_profile_summary(resolved, config, profiles),
-            risk_summary=build_current_settings_risk_summary(config),
-            media_policy_readiness=build_media_policy_readiness(config),
+            risk_summary=risk_summary,
+            media_policy_readiness=media_policy_readiness,
+            policy_impact=build_settings_policy_impact(
+                config,
+                risk_summary=risk_summary,
+                media_policy_readiness=media_policy_readiness,
+                errors=errors,
+                warnings=warnings,
+            ),
             tool_path_evidence=settings_tool_path_evidence(resolved, config),
             errors=errors,
             warnings=warnings,

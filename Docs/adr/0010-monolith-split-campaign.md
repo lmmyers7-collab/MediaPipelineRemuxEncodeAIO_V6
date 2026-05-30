@@ -29,7 +29,7 @@ What the campaign did:
 - Broke five Python "god files"
   (`mediapipeline_desktop_app/services.py`, `models.py`, the original
   config schema, and others) into single-responsibility siblings.
-- Broke `Pipeline/MediaPipeline_chatgpt.ps1` and several large
+- Broke `Pipeline/MediaPipeline.ps1` and several large
   `Pipeline/Modules/*.ps1` files into smaller modules, named with
   dotted suffixes for cohesion (`Audit.Audio.ps1`,
   `Subtitles.Common.Config.ps1`).

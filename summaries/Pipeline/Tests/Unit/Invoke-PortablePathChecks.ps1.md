@@ -3,9 +3,9 @@ file: Pipeline/Tests/Unit/Invoke-PortablePathChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-20
+last_modified: 2026-05-29
 last_reviewed: 2026-05-28
-sha256: 873a2f65a4b392863333f9cb4976515327149689678277a7385a93699d09c4ed
+sha256: 649976ede09165a1c9d91e8633e6c395a581276b69b623fb7e2f41ae76e4cf8c
 ---
 # `Pipeline/Tests/Unit/Invoke-PortablePathChecks.ps1`
 

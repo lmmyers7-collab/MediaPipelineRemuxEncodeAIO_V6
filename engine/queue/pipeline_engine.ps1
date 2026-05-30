@@ -327,6 +327,10 @@ function New-QueuePlanExcludedSnapshotRow {
         priority_rank    = [long]$Entry.PriorityOrderTicks
         source_path      = [string]$Entry.SourcePath
         root_path        = [string]$Entry.RootPath
+        library_id       = [string]$Entry.LibraryId
+        library_name     = [string]$Entry.LibraryName
+        library_designation = [string]$Entry.LibraryDesignation
+        library_output_root = [string]$Entry.LibraryOutputRoot
         relative_path    = [string]$Entry.RelativePathSort
         display_name     = [string]$Entry.SortName
         show_sort_key    = [string]$Entry.ShowSortKey
@@ -462,6 +466,9 @@ function Build-QueuePlanSnapshotRows {
         $sizeGb = 0.0
         try { $sizeGb = [math]::Round([double]$file.Length / 1GB, 3) } catch {}
         $route = $null; $routeReason = $null; $routeReasonCode = $null; $routeDecisionTrace = @()
+        $routeLibraryOverrideKeys = if ($entry.Metadata -and $entry.Metadata.ContainsKey('settings_override_keys')) { @($entry.Metadata['settings_override_keys']) } else { @() }
+        $routeLibrarySettingsOverrides = if ($entry.Metadata -and $entry.Metadata.ContainsKey('settings_overrides')) { $entry.Metadata['settings_overrides'] } else { [ordered]@{} }
+        $routeLibraryEffectiveSettings = if ($entry.Metadata -and $entry.Metadata.ContainsKey('effective_settings')) { $entry.Metadata['effective_settings'] } else { [ordered]@{} }
         $runtimeChecksDeferred = $false
         $runtimeCheckCodes = @()
         $runtimeCheckNotes = @()
@@ -479,7 +486,13 @@ function Build-QueuePlanSnapshotRows {
         } else {
             try {
             $previousOverrides = $script:ActiveOverrides
+            $activeConfigOverrideSnapshot = $null
             try {
+                $libraryOverrides = if (Get-Command -Name Resolve-MediaPipelineLibraryOverridesForPath -ErrorAction SilentlyContinue) {
+                    Resolve-MediaPipelineLibraryOverridesForPath -SourcePath $file.FullName
+                } else {
+                    $null
+                }
                 $showOverrides = if ($isTV -and $tvInfo -and $tvInfo.ShowName -and (Get-Command -Name Resolve-ShowOverrides -ErrorAction SilentlyContinue)) {
                     Resolve-ShowOverrides $tvInfo.ShowName
                 } else {
@@ -491,9 +504,20 @@ function Build-QueuePlanSnapshotRows {
                     $null
                 }
                 if (Get-Command -Name Merge-MediaPipelineActiveOverrides -ErrorAction SilentlyContinue) {
-                    $script:ActiveOverrides = Merge-MediaPipelineActiveOverrides -Base $showOverrides -Override $folderOverrides
+                    $script:ActiveOverrides = Merge-MediaPipelineActiveOverrides -Base $libraryOverrides -Override $showOverrides
+                    $script:ActiveOverrides = Merge-MediaPipelineActiveOverrides -Base $script:ActiveOverrides -Override $folderOverrides
                 } else {
                     $script:ActiveOverrides = $folderOverrides
+                }
+                if (Get-Command -Name Push-MediaPipelineActiveConfigOverrides -ErrorAction SilentlyContinue) {
+                    $activeConfigOverrideSnapshot = Push-MediaPipelineActiveConfigOverrides -Overrides $script:ActiveOverrides
+                }
+                if ($libraryOverrides) {
+                    $routeLibraryOverrideKeys = @($libraryOverrides.Keys)
+                    $routeLibrarySettingsOverrides = $libraryOverrides
+                }
+                if (Get-Command -Name Resolve-MediaPipelineLibraryEffectiveSettings -ErrorAction SilentlyContinue) {
+                    $routeLibraryEffectiveSettings = Resolve-MediaPipelineLibraryEffectiveSettings -Overrides $libraryOverrides
                 }
                 $routeHints = if (Get-Command -Name Get-ActiveMediaRouteHints -ErrorAction SilentlyContinue) {
                     Get-ActiveMediaRouteHints
@@ -507,6 +531,9 @@ function Build-QueuePlanSnapshotRows {
                 }
                 $rp = Resolve-InitialMediaRoutePlan -File $file -IsTV:$isTV -MediaProfile $sourceMediaProfile -RouteHints $routeHints
             } finally {
+                if (Get-Command -Name Pop-MediaPipelineActiveConfigOverrides -ErrorAction SilentlyContinue) {
+                    Pop-MediaPipelineActiveConfigOverrides -Snapshot $activeConfigOverrideSnapshot
+                }
                 $script:ActiveOverrides = $previousOverrides
             }
             if ($rp) {
@@ -531,6 +558,10 @@ function Build-QueuePlanSnapshotRows {
             priority_rank           = [long]$entry.PriorityOrderTicks
             source_path             = [string]$entry.SourcePath
             root_path               = [string]$entry.RootPath
+            library_id              = [string]$entry.LibraryId
+            library_name            = [string]$entry.LibraryName
+            library_designation     = [string]$entry.LibraryDesignation
+            library_output_root     = [string]$entry.LibraryOutputRoot
             relative_path           = [string]$entry.RelativePathSort
             display_name            = [string]$entry.SortName
             show_sort_key           = [string]$entry.ShowSortKey
@@ -543,6 +574,9 @@ function Build-QueuePlanSnapshotRows {
             route_reason_code       = $routeReasonCode
             route_reason            = $routeReason
             route_decision_trace    = @($routeDecisionTrace)
+            library_settings_override_keys = @($routeLibraryOverrideKeys)
+            library_settings_overrides = $routeLibrarySettingsOverrides
+            library_effective_settings = $routeLibraryEffectiveSettings
             blocked_reason_code     = $blockedCode
             blocked_reason          = $blocked
             runtime_checks_deferred = [bool]$runtimeChecksDeferred
@@ -573,6 +607,10 @@ function Build-QueuePlanSnapshotRows {
             priority_rank           = 0L
             source_path             = [string]$holdEntry.SourcePath
             root_path               = [string]$holdEntry.RootPath
+            library_id              = [string]$holdEntry.LibraryId
+            library_name            = [string]$holdEntry.LibraryName
+            library_designation     = [string]$holdEntry.LibraryDesignation
+            library_output_root     = [string]$holdEntry.LibraryOutputRoot
             relative_path           = [string]$holdEntry.RelativePathSort
             display_name            = [string]$holdEntry.SortName
             show_sort_key           = [string]$holdEntry.ShowSortKey

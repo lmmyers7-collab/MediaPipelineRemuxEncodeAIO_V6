@@ -55,6 +55,10 @@ function Get-EffectiveSubtitleSwitch {
 }
 
 function Get-ConfiguredOutputContainerName {
+    if ($script:ActiveOverrides -and $script:ActiveOverrides.ContainsKey('OutputContainer')) {
+        $activeContainer = ([string]$script:ActiveOverrides['OutputContainer']).Trim().TrimStart('.').ToLowerInvariant()
+        if (-not [string]::IsNullOrWhiteSpace($activeContainer)) { return $activeContainer }
+    }
     $configured = Get-Variable -Name 'OutputContainer' -Scope Script -ErrorAction SilentlyContinue
     if ($configured -and $configured.Value) {
         return ([string]$configured.Value).Trim().TrimStart('.').ToLowerInvariant()

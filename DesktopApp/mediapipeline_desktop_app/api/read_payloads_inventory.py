@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.publish.reconciliation_policy import publish_reconciliation_from_payloads
+
 from .http_helpers import query_bool, query_int, query_value
 from .read_payloads_policy import read_unavailable_payload
 
@@ -17,7 +19,41 @@ class LocalApiInventoryReadPayloadMixin:
         resolved = self._resolved()
         if resolved is None:
             return read_unavailable_payload("completed")
-        return self.facade.get_completed_preview(resolved, limit=query_int(query, "limit", 100)).to_mapping()
+        payload = self.facade.get_completed_preview(
+            resolved,
+            limit=query_value(query, "limit", "100"),
+            force_refresh=query_bool(query, "force_refresh", False),
+        ).to_mapping()
+        try:
+            pending_payload = self.facade.get_pending_publish_preview(resolved).to_mapping()
+            reconciliation = publish_reconciliation_from_payloads(
+                payload,
+                pending_payload,
+                limit=query_int(query, "pending_proof_limit", 250),
+            ).to_mapping()
+            payload["completed_pending_proof"] = reconciliation.get("completed_pending_proof") or {}
+        except Exception as exc:  # pragma: no cover - defensive route isolation
+            payload["completed_pending_proof"] = {
+                "schema_version": "desktop_completed_pending_proof.v1",
+                "evidence_authority": "backend",
+                "render_contract": "completedView.evidence.js",
+                "status": "Pending proof unavailable",
+                "rows": [],
+                "summary_lines": [
+                    "Completed-to-Pending output proof cross-check:",
+                    f"Backend pending proof DTO unavailable: {exc}",
+                    "Safe next step: use Completed Manifest, Pending Publish, Run Logs, and Last Stderr diagnostics before acting.",
+                    "Mutation guardrail: failed proof DTO generation did not repair, rerun, drain, publish, rewrite manifests, or touch media.",
+                ],
+                "error": str(exc),
+            }
+        return payload
+
+    def _final_library_promotion_status_payload(self) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return read_unavailable_payload("final library promotion")
+        return self.facade.get_final_library_promotion_status(resolved)
 
     def _failures_payload(self, query: dict[str, list[str]]) -> dict[str, Any]:
         resolved = self._resolved()

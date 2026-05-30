@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: storage
 last_modified: 2026-05-29
 last_reviewed: 2026-05-29
-sha256: 58e0d48b81d0e66c4cd01b0e35bf361b85d772e645158f089d0179a61ea25f7a
+sha256: 029889825550e3256eb9e92dfa6581e5dc380d9a105ffe066347f0448e9fdb53
 ---
 # `engine/storage/disk.ps1`
 

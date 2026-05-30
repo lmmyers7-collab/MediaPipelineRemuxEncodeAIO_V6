@@ -63,6 +63,9 @@ class ProcessGuardFacadeMixin:
                 pids = sorted(str(getattr(proc, "pid", "?")) for proc in related_processes if str(getattr(proc, "pid", "?")).strip())
                 pid_text = ", ".join(pids) if pids else "unknown"
                 return f"{action} blocked because MediaPipeline process PID(s) {pid_text} are still running from this bundle."
+        promotion_block = self._final_library_promotion_block_message(action)
+        if promotion_block:
+            return promotion_block
         watcher_block = self._schedule_stop_watcher_close_block_message(action)
         if watcher_block:
             return watcher_block
@@ -78,6 +81,16 @@ class ProcessGuardFacadeMixin:
         if audit_block:
             return audit_block
         return ""
+
+    def _final_library_promotion_block_message(self, action: str) -> str:
+        block_message = getattr(self.service, "final_library_promotion_active_block_message", None)
+        if not callable(block_message):
+            return ""
+        try:
+            return str(block_message(action) or "")
+        except Exception as exc:
+            self._log_close_guard_exception("Final-library promotion close-readiness verification failed", exc)
+            return f"{action} blocked because final-library promotion state could not be verified: {exc}"
 
     def _active_job_block_messages(self, resolved: ResolvedPaths) -> list[str]:
         block_messages = getattr(self.service, "active_job_close_block_messages", None)

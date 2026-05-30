@@ -3,9 +3,9 @@ file: Pipeline/Tests/Unit/Invoke-FailureCodeRegistryChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-29
+last_modified: 2026-05-30
 last_reviewed: 2026-05-28
-sha256: eb3f490c978a411b1edecf5848a8cef30cf889f3ed35e8862b073b0d26af8189
+sha256: a55929eea2ffb3aa3063fea7fb456ac7a5fdd56d44d3755b5c97cb4b3fe1c587
 ---
 # `Pipeline/Tests/Unit/Invoke-FailureCodeRegistryChecks.ps1`
 

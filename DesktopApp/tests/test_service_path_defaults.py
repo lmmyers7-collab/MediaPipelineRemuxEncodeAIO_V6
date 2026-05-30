@@ -18,8 +18,8 @@ class ServicePathDefaultsTests(unittest.TestCase):
             root = Path(temp_dir)
             app_root = root / "DesktopApp"
             workspace_root = root
-            preferred = workspace_root / "Pipeline" / "MediaPipeline_chatgpt.ps1"
-            fallback = app_root / "MediaPipeline_chatgpt.ps1"
+            preferred = workspace_root / "Pipeline" / "MediaPipeline.ps1"
+            fallback = app_root / "MediaPipeline.ps1"
             preferred.parent.mkdir(parents=True)
             app_root.mkdir()
             preferred.write_text("", encoding="utf-8")
@@ -43,7 +43,7 @@ class ServicePathDefaultsTests(unittest.TestCase):
             root = Path(temp_dir)
             app_root = root / "DesktopApp"
             workspace_root = root
-            fallback = workspace_root / "Audit-MediaLibrary_chatgpt.ps1"
+            fallback = workspace_root / "Audit-MediaLibrary.ps1"
             app_root.mkdir()
             fallback.write_text("", encoding="utf-8")
 

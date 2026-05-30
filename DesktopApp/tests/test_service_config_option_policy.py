@@ -15,6 +15,7 @@ def _option_baseline() -> dict:
         "EncodeTuningPreset": "balanced_nvenc",
         "EncodeLadder": "auto",
         "RoutingProfile": "plex_direct_stream",
+        "RouteThresholdMode": "compatibility_advisory",
         "SizeGuardMode": "advisory",
         "AudioPassthroughProfile": "custom_codec_list",
         "AudioTranscodeCodec": "eac3",
@@ -47,6 +48,7 @@ class ServiceConfigOptionPolicyTests(unittest.TestCase):
             {
                 "OutputContainer": "avi",
                 "EncodeLadder": "bad",
+                "RouteThresholdMode": "all",
                 "AudioTranscodeBitrate": "640",
                 "ConsoleLogLevel": "TRACE",
                 "CompatibleAudioCodecs": [],
@@ -61,6 +63,7 @@ class ServiceConfigOptionPolicyTests(unittest.TestCase):
 
         self.assertIn("OutputContainer must be 'mkv' or 'mp4'.", errors)
         self.assertIn("EncodeLadder must be one of: auto, tv_balanced, tv_space_saver, movie_balanced, movie_archive, plex_compat.", errors)
+        self.assertIn("RouteThresholdMode must be one of: compatibility_advisory, size, bitrate, size_or_bitrate.", errors)
         self.assertIn("AudioTranscodeBitrate must look like 640k.", errors)
         self.assertIn("ConsoleLogLevel must be one of: ERROR, WARN, INFO, DEBUG, or blank.", errors)
         self.assertIn("CompatibleAudioCodecs must contain at least one value.", errors)

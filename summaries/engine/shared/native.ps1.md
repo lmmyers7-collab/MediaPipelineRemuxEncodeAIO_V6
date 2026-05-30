@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: shared
 last_modified: 2026-05-29
 last_reviewed: 2026-05-29
-sha256: 351a2248777bc7631d52df1372ba1b10567af5eb930fe8df293a83d1f901caa4
+sha256: 3ebd0d025e6c8502391bd912cf0e678ce4bfaa55a8dda91947bfd5663ee10096
 ---
 # `engine/shared/native.ps1`
 

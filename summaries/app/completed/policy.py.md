@@ -3,15 +3,15 @@ file: app/completed/policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: completed
-last_modified: 2026-05-29
+last_modified: 2026-05-30
 last_reviewed: 2026-05-28
-sha256: ccf59cf8217432ee3b59113b1fbab544397d8d31878912b5ca1afe71f248ce2e
+sha256: 4382d578e453d9c2c38d98dc96e56248ce636808164dc8e22f049c2cdab72655
 ---
 # `app/completed/policy.py`
 
 **Purpose:** Completed-job preview DTO policy.
 
-**Public functions:** `bounded_completed_limit()`, `completed_apply_runtime_outcomes()`, `completed_audio_decision_preview()`, `completed_decision_value()`, `completed_history_read_error_result()`, `completed_history_service_unavailable_result()`, `completed_inventory_progress_payload()`, `completed_path_exists()`, `completed_path_mtime()`, `completed_preview_fields()`, `completed_preview_from_records()`, `completed_preview_rows()`, `completed_record_key()`, `completed_record_to_row()`, `completed_row_available_open_targets()`, `completed_row_consistency()`, `completed_row_operator_guidance()`, `completed_row_operator_status_state()`, `completed_row_route_decision_summary()`, `completed_row_route_evidence_lines()`
-**In-repo imports:** `app.completed.validation_state`, `app.observability.artifact_freshness`, `app.observability.runtime_outcomes`, `mediapipeline_desktop_app.models`
+**Public functions:** `bounded_completed_limit()`, `completed_apply_runtime_outcomes()`, `completed_audio_decision_preview()`, `completed_decision_value()`, `completed_history_read_error_result()`, `completed_history_service_unavailable_result()`, `completed_inventory_progress_payload()`, `completed_path_exists()`, `completed_path_mtime()`, `completed_preview_fields()`, `completed_preview_from_records()`, `completed_preview_limit()`, `completed_preview_rows()`, `completed_record_key()`, `completed_record_to_row()`, `completed_row_available_open_targets()`, `completed_row_consistency()`, `completed_row_operator_guidance()`, `completed_row_operator_status_state()`, `completed_row_route_decision_summary()`
+**In-repo imports:** `app.completed.trust_fields`, `app.completed.validation_state`, `app.observability.artifact_freshness`, `app.observability.runtime_outcomes`, `mediapipeline_desktop_app.models`
 
 _Edit the source, not this file. Regenerate with `python scripts/dev/refresh_summaries.py --paths app/completed/policy.py`._

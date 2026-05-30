@@ -8,6 +8,7 @@ from app.completed.facade import CompletedFacadeMixin
 from app.completed.open_facade import CompletedOpenFacadeMixin
 from app.diagnostics.facade import DiagnosticsFacadeMixin
 from app.failures.facade import FailureFacadeMixin
+from app.final_library.facade import FinalLibraryPromotionFacadeMixin
 from app.maintenance.backfill_facade import MaintenanceBackfillFacadeMixin
 from app.maintenance.commands_facade import MaintenanceCommandFacadeMixin
 from app.maintenance.facade import MaintenanceFacadeMixin
@@ -31,6 +32,7 @@ from app.config.settings_helpers_facade import SettingsHelperFacadeMixin
 from app.config.settings_patch_candidate_facade import SettingsPatchCandidateFacadeMixin
 from app.config.settings_patch_facade import SettingsPatchFacadeMixin
 from app.config.settings_risk_facade import SettingsRiskFacadeMixin
+from app.config.settings_wizard_facade import SettingsWizardFacadeMixin
 from app.observability.status_facade import StatusFacadeMixin
 from app.application.utilities import FacadeUtilityMixin
 from .schedule_stop_watcher import ScheduleStopWatcherManager
@@ -43,8 +45,10 @@ class MediaPipelineApplicationFacade(
     SettingsPatchCandidateFacadeMixin,
     SettingsPatchFacadeMixin,
     SettingsRiskFacadeMixin,
+    SettingsWizardFacadeMixin,
     CompletedFacadeMixin,
     CompletedOpenFacadeMixin,
+    FinalLibraryPromotionFacadeMixin,
     MaintenanceFacadeMixin,
     MaintenanceCommandFacadeMixin,
     MaintenanceReleaseFacadeMixin,

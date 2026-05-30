@@ -13,13 +13,16 @@ from app.completed.policy import (
     bounded_completed_limit,
     completed_history_read_error_result,
     completed_history_service_unavailable_result,
+    completed_preview_limit,
     completed_preview_fields,
     completed_preview_from_records,
     completed_preview_rows,
     completed_record_key,
     completed_record_to_row,
+    completed_row_trust_fields,
     format_bytes_compact,
 )
+from app.completed.trust_fields import build_completed_row_trust_fields
 from mediapipeline_desktop_app.models import CompletedJobRecord
 
 
@@ -68,6 +71,12 @@ class CompletedFacadePolicyTests(unittest.TestCase):
         self.assertEqual(bounded_completed_limit(999), 500)
         self.assertEqual(bounded_completed_limit("25"), 25)
 
+    def test_completed_preview_limit_all_bypasses_numeric_bounds(self) -> None:
+        self.assertIsNone(completed_preview_limit("all"))
+        self.assertIsNone(completed_preview_limit("ALL"))
+        self.assertEqual(completed_preview_limit("999"), 500)
+        self.assertEqual(completed_preview_limit("bad"), 100)
+
     def test_format_bytes_compact_uses_existing_units(self) -> None:
         self.assertEqual(format_bytes_compact(-1), "0 B")
         self.assertEqual(format_bytes_compact(0), "0 B")
@@ -106,6 +115,83 @@ class CompletedFacadePolicyTests(unittest.TestCase):
         self.assertTrue(row["validation_playback_required"])
         self.assertIn("ffprobe output proof not reported", row["validation_unavailable_reasons"])
         self.assertEqual(row["available_open_targets"], ["output_file", "output_folder", "sidecar", "source_folder"])
+
+    def test_completed_trust_fields_fixture_parity_for_consistent_row(self) -> None:
+        row = {
+            "review_flags": ["encoded", "size_policy_within_limit"],
+            "consistency_issues": [],
+            "runtime_outcome_status": "",
+            "output_exists": True,
+            "output_health": "ok",
+            "sidecar_exists": True,
+            "size_policy_exceeded": False,
+            "size_growth_over_5": False,
+            "size_policy_available": True,
+            "operator_status": "Healthy",
+            "consistency_status": "Consistent",
+            "size_delta_label": "-50.0%",
+            "output_path": "C:/Outsource/Movies/Movie (2024).mkv",
+        }
+        expected = {
+            "operator_trust_state": "consistent-looking",
+            "primary_concern": "row has no output, sidecar, size, or runtime blocker in the loaded completed manifest",
+            "safe_next_action": "Treat this row as historical proof only after output/sidecar and route evidence agree.",
+            "unsafe_if_ignored": "Treating stale or inconsistent completed rows as proof can hide missing outputs, stale sidecars, partial publishes, or oversized encodes.",
+            "proof_summary": [
+                "status=Healthy",
+                "consistency=Consistent",
+                "size=-50.0%",
+                "output=C:/Outsource/Movies/Movie (2024).mkv",
+            ],
+            "recommended_diagnostics_targets": ["completed_manifest", "run_logs", "last_stderr_log"],
+        }
+
+        self.assertEqual(build_completed_row_trust_fields(row), expected)
+        self.assertEqual(completed_row_trust_fields(row), expected)
+
+    def test_completed_trust_fields_fixture_parity_for_missing_output(self) -> None:
+        row = {
+            "review_flags": ["missing_output"],
+            "consistency_issues": ["missing_output", "missing_sidecar"],
+            "runtime_outcome_status": "failed",
+            "runtime_outcome_freshness_status": "current",
+            "runtime_outcome_error_code": "OUTPUT_DESTINATION_LOW_SPACE",
+            "runtime_outcome_success": False,
+            "runtime_outcome_reason": "destination had too little free space",
+            "output_exists": False,
+            "output_health": "missing",
+            "sidecar_exists": False,
+            "size_policy_exceeded": False,
+            "size_growth_over_5": False,
+            "size_policy_available": False,
+            "operator_status": "Missing output",
+            "consistency_status": "Broken",
+            "size_reduction_text": "unknown",
+            "output_path": "C:/Outsource/Movies/Missing.mkv",
+        }
+        expected = {
+            "operator_trust_state": "broken-output",
+            "primary_concern": "completed manifest row points to a missing or unhealthy output",
+            "safe_next_action": "Inspect Completed Manifest, Pending Publish, output folder, Run Logs, and Last Stderr before rerun or cleanup.",
+            "unsafe_if_ignored": "Treating stale or inconsistent completed rows as proof can hide missing outputs, stale sidecars, partial publishes, or oversized encodes.",
+            "proof_summary": [
+                "status=Missing output",
+                "consistency=Broken",
+                "size=unknown",
+                "output=C:/Outsource/Movies/Missing.mkv",
+                "runtime=failed / OUTPUT_DESTINATION_LOW_SPACE",
+            ],
+            "recommended_diagnostics_targets": [
+                "completed_manifest",
+                "run_logs",
+                "last_stderr_log",
+                "pending_publish",
+                "latest_failure_report",
+            ],
+        }
+
+        self.assertEqual(build_completed_row_trust_fields(row), expected)
+        self.assertEqual(completed_row_trust_fields(row), expected)
 
     def test_completed_row_counts_singleton_decision_objects(self) -> None:
         record = _record()

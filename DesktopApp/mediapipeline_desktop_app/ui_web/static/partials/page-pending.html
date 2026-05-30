@@ -23,7 +23,14 @@
             <h2>Publish Parked Outputs</h2>
             <strong id="pending-drain-guard-status">Not evaluated</strong>
           </div>
-          <pre id="pending-drain-guard-summary" class="prose-block">No pending publish button guard loaded.</pre>
+          <div id="pending-drain-guard-summary" class="diagnostic-callout" aria-live="polite">
+            <p class="diagnostic-callout-brief">No pending publish button guard loaded.</p>
+            <details class="diagnostic-callout-details">
+              <summary>Why?</summary>
+              <pre class="prose-block diagnostic-callout-body">No pending publish button guard loaded.</pre>
+            </details>
+            <pre class="prose-block diagnostic-callout-body diagnostic-callout-advanced" data-advanced>No pending publish button guard loaded.</pre>
+          </div>
           <div class="action-row action-row-left">
             <button type="button" id="pending-drain-button" class="danger-button">Publish Parked Outputs</button>
             <strong id="pending-drain-status">Idle</strong>

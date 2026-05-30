@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-05-29
 last_reviewed: 2026-05-29
-sha256: cd7b30694611a925e307cd6aba3a79d3759934232a14a2a0f2ff6c27b1cbb28f
+sha256: b1a9b94f898d838287359a831839443aefa354bb5fddb65e22d8b7ce864bf507
 ---
 # `engine/config/getters.ps1`
 

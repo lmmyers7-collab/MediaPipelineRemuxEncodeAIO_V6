@@ -19,11 +19,15 @@ API_POST_CALL_RE = re.compile(r"\bapiPost\s*\(")
 
 EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/backend/shutdown": {"app.js"},
+    "/api/ui-preferences": {"app.js"},
     "/api/pipeline/control": {"launchView.js"},
     "/api/pipeline/start": {"launchView.js"},
     "/api/audit/start": {"launchView.js"},
     "/api/rerun/start": {"launchView.js"},
     "/api/completed/open": {"completedView.js"},
+    "/api/final-library-promotion/promote-queue": {"completedView.js"},
+    "/api/final-library-promotion/pause": {"completedView.js"},
+    "/api/final-library-promotion/resume": {"completedView.js"},
     "/api/maintenance/release-dry-run": {"maintenanceView.js"},
     "/api/maintenance/release-build": {"maintenanceView.js"},
     "/api/maintenance/completed-backfill-dry-run": {"maintenanceView.js"},
@@ -111,6 +115,31 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
     def test_api_post_command_ownership_stays_page_specific(self) -> None:
         self.assertEqual(_literal_api_post_owners(), EXPECTED_API_POST_OWNERS)
 
+    def test_ui_preferences_sync_stays_allowlisted_and_runs_before_layout_init(self) -> None:
+        app_js = _asset_sources()["app.js"]
+
+        self.assertIn('const UI_PREFERENCES_ROUTE = "/api/ui-preferences";', app_js)
+        self.assertIn("const UI_PREFERENCE_KEY_RE = /^mediapipeline[-.]", app_js)
+        self.assertIn("let uiPreferenceSyncPending = false;", app_js)
+        self.assertIn('bootstrap.shellSurface || bootstrap.shell_surface || "webview"', app_js)
+        self.assertIn('if (surface !== "tauri" && Object.keys(local).length)', app_js)
+        self.assertIn("localStorage.removeItem(key)", app_js)
+        self.assertIn("uiPreferenceSyncPending = true;", app_js)
+        self.assertIn("await restoreSharedUiPreferences();", app_js)
+        self.assertIn("installSharedUiPreferenceStorageSync();", app_js)
+        self.assertIn("startSharedUiPreferenceRemoteRefresh();", app_js)
+        self.assertIn("function applySharedUiPreferenceRuntimeState()", app_js)
+        self.assertIn("function applyStoredLayoutPreferences()", app_js)
+        self.assertLess(
+            app_js.index("await restoreSharedUiPreferences();"),
+            app_js.index("initLayoutManager();"),
+        )
+        self.assertLess(
+            app_js.index("initCompletedTabNav();"),
+            app_js.index("installSharedUiPreferenceStorageSync();"),
+        )
+        self.assertIn('apiPost("/api/ui-preferences", payload', app_js)
+
     def test_shell_open_routes_submit_backend_selector_keys_not_raw_paths(self) -> None:
         specs = {
             "/api/diagnostics/open": ("diagnosticsView.js", {"target"}),
@@ -154,6 +183,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn("confirm_clear: !dryRun", _asset_sources()["reportsView.js"])
         self.assertIn('apiPost("/api/settings/save-patch", { changes, confirm_save: true })', _asset_sources()["settingsView.js"])
         self.assertIn('apiPost("/api/schedule/save", { ...request, confirm_save: true })', _asset_sources()["scheduleView.js"])
+        self.assertIn('apiPost("/api/final-library-promotion/promote-queue", { confirm_promote: true })', _asset_sources()["completedView.js"])
 
     def test_settings_path_browse_is_allowlisted_staging_only(self) -> None:
         payload = _payload_for_route("settingsView.js", "/api/settings/browse-path")
@@ -164,7 +194,17 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         browse_contract = next(route for route in LOCAL_API_ROUTE_CONTRACT if route["path"] == "/api/settings/browse-path")
         self.assertEqual(browse_contract["effect"], "shell-dialog")
         self.assertEqual(browse_contract["allowed_selection_modes"], ["folder"])
-        self.assertEqual(browse_contract["allowed_setting_keys"], ["SourceMovies", "SourceTV", "Outsource", "LocalBase"])
+        self.assertEqual(
+            browse_contract["allowed_setting_keys"],
+            [
+                "SourceMovies",
+                "SourceTV",
+                "Outsource",
+                "LocalBase",
+                "FinalLibraryPromotionRuleSourceRoot",
+                "FinalLibraryPromotionRuleDestinationRoot",
+            ],
+        )
         self.assertIn("staging only", browse_contract["purpose"])
         self.assertIn("touch media files", browse_contract["purpose"])
 
@@ -239,6 +279,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             "backend Preview Patch and Save Patch remain",
             "source-deletion acceptance",
             "PSD1 writes",
+            "settingsBackendPolicyImpact",
         ]:
             with self.subTest(asset="settingsView.js", snippet=snippet):
                 self.assertIn(snippet, settings_view)
@@ -253,6 +294,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             "route safety",
             "publish/drain safety",
             "source-deletion policy",
+            "policy_impact.launch_risk_handoff is preferred",
         ]:
             with self.subTest(asset="launchView.risk.js", snippet=snippet):
                 self.assertIn(snippet, launch_risk)

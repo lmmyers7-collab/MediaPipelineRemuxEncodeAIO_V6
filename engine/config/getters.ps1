@@ -1,7 +1,7 @@
 # ==============================================================================
 # engine\config\getters.ps1
 # ==============================================================================
-# Pure config getter helpers extracted from MediaPipeline_chatgpt.ps1.
+# Pure config getter helpers extracted from MediaPipeline.ps1.
 #
 # Dot-sourced by callers so the functions continue to read $config and call
 # Add-StartupWarning from the caller scope at call time.

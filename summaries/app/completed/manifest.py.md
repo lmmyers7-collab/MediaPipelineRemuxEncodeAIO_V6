@@ -3,9 +3,9 @@ file: app/completed/manifest.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: completed
-last_modified: 2026-05-28
+last_modified: 2026-05-29
 last_reviewed: 2026-05-28
-sha256: c82ab9948de6aa7952075502f43aafe74817a52c04e3cc76d15e1c7544f7f876
+sha256: d89092753ddcf50bf349c0685cfa3bd339052cf64672eed93c9cc81b9a0f4170
 ---
 # `app/completed/manifest.py`
 

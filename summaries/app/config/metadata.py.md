@@ -3,13 +3,13 @@ file: app/config/metadata.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-05-29
+last_modified: 2026-05-30
 last_reviewed: 2026-05-28
-sha256: 51799bd94ff9c8a6c65dc500c1eefa87774e3f1b160e7d4372421d6183b42776
+sha256: b4c7c85f5b977bcf94dcaa21b4de62c346f0f2e977f1b8c6b4282dffbe122804
 ---
 # `app/config/metadata.py`
 
-**Purpose:** Desktop settings metadata derived from the canonical config contract.
+**Purpose:** Desktop settings metadata compatibility facade.
 
 **In-repo imports:** `app.contracts.config`
 

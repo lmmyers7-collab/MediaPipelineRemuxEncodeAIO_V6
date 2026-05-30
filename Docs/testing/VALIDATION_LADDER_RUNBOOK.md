@@ -179,7 +179,7 @@ What this proves: Queue, Completed, and Pending Publish 260-row payloads disclos
 
 ## Rung 4: Pipeline PowerShell Modules
 
-For changes to `engine\<domain>\*.ps1`, the temporary `Pipeline\Modules\*.ps1` compatibility shims, or `Pipeline\MediaPipeline_chatgpt.ps1`.
+For changes to `engine\<domain>\*.ps1`, the temporary `Pipeline\Modules\*.ps1` compatibility shims, or `Pipeline\MediaPipeline.ps1`.
 
 ### Pipeline unit checks
 

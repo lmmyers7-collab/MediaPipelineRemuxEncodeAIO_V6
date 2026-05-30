@@ -1,5 +1,6 @@
 # MediaPipelineRemuxEncodeAIO config template for new-user deployments.
-# Copy or generate this as MediaPipeline_config_chatgpt.psd1 with the setup wizard.
+# Copy or generate this as MediaPipeline_config.psd1 with the setup wizard.
+# (Legacy operator copies named MediaPipeline_config_chatgpt.psd1 are still loaded as a fallback.)
 # Keep operator-specific paths and machine-only tuning in the live config, not here.
 @{
     ConfigSchemaVersion = 1
@@ -10,6 +11,7 @@
     EncodeThresholdGB = 8
     TVEncodeThresholdGB = 3
     RoutingProfile = 'plex_direct_stream'
+    RouteThresholdMode = 'compatibility_advisory'
     MovieRouteMaxVideoBitrateMbps = 35
     TVRouteMaxVideoBitrateMbps = 18
     AllowH264RemuxIfPlexCompatible = $true
@@ -21,6 +23,11 @@
     MinFreeSpaceGB = 50
     OutsourceMinFreeSpaceGB = 50
     DeferredPublish = $false
+    FinalLibraryPromotionEnabled = $false
+    FinalLibraryPromotionRules = @()
+    FinalLibraryPromotionVerificationMode = 'cautious'
+    FinalLibraryPromotionCleanupAfterVerified = $false
+    FinalLibraryPromotionOverwriteExisting = $false
     VideoCodec = 'hevc_nvenc'
     VideoPreset = 'p7'
     VideoQuality = 22

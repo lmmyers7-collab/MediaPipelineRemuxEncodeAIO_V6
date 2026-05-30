@@ -619,6 +619,9 @@ class WebViewRealMediaSmokeTests(unittest.TestCase):
             try:
                 server.start()
                 html_status, html, html_type = _get_text(f"{server.url}/")
+                settings_policy_impact_status, settings_policy_impact_js, settings_policy_impact_type = _get_text(
+                    f"{server.url}/assets/settings/policyImpact.js"
+                )
                 settings_view_status, settings_view_js, settings_view_type = _get_text(f"{server.url}/assets/settingsView.js")
                 settings_overview_status, settings_overview_js, settings_overview_type = _get_text(f"{server.url}/assets/settingsOverview.js")
                 launch_risk_status, launch_risk_js, launch_risk_type = _get_text(f"{server.url}/assets/launchView.risk.js")
@@ -641,8 +644,8 @@ class WebViewRealMediaSmokeTests(unittest.TestCase):
         ):
             self.assertIn(fragment, html)
 
-        self.assertEqual(settings_view_status, 200)
-        self.assertIn("javascript", settings_view_type)
+        self.assertEqual(settings_policy_impact_status, 200)
+        self.assertIn("javascript", settings_policy_impact_type)
         for fragment in (
             "function settingsBackendMediaPolicyReadiness",
             "function renderSettingsBackendMediaPolicyReadiness",
@@ -650,6 +653,15 @@ class WebViewRealMediaSmokeTests(unittest.TestCase):
             "function settingsPolicyDeltaRows",
             "Staged media-policy delta:",
             "this table cannot stage settings, save config, launch work, run FFmpeg, publish files, or touch source media",
+        ):
+            self.assertIn(fragment, settings_policy_impact_js)
+
+        self.assertEqual(settings_view_status, 200)
+        self.assertIn("javascript", settings_view_type)
+        for fragment in (
+            "function settingsBackendPolicyImpact",
+            "function settingsBackendMediaPolicyReadiness",
+            "function settingsPolicyDeltaRows",
         ):
             self.assertIn(fragment, settings_view_js)
 
@@ -679,6 +691,9 @@ class WebViewRealMediaSmokeTests(unittest.TestCase):
 
         self.assertEqual(settings_status, 200)
         readiness = settings["media_policy_readiness"]  # type: ignore[index]
+        policy_impact = settings["policy_impact"]  # type: ignore[index]
+        self.assertEqual(policy_impact["schema_version"], "settings_policy_impact.v1")  # type: ignore[index]
+        self.assertEqual(policy_impact["launch_risk_handoff"]["schema_version"], "settings_launch_risk_handoff.v1")  # type: ignore[index]
         self.assertEqual(readiness["schema_version"], "settings_media_policy_readiness.v1")  # type: ignore[index]
         self.assertEqual(readiness["operator_status"], "Ready")  # type: ignore[index]
         self.assertEqual(readiness["counts"]["blocked"], 0)  # type: ignore[index]

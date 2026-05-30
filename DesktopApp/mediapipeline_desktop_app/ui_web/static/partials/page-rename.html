@@ -1,301 +1,153 @@
       <section class="page" data-page-panel="rename">
+        <div class="rename-workbench">
         <h1 class="visually-hidden">Rename Files</h1>
-        <section class="panel" data-panel-type="interactive">
-          <div class="panel-heading">
-            <h2>Find Files / Preview</h2>
-            <strong id="rename-file-source-status">No paths</strong>
+        <section class="panel rename-workbench-shell" data-panel-type="interactive">
+          <div class="rename-workbench-header">
+            <div>
+              <h2>Rename</h2>
+              <p class="note">Standalone tool for renaming one TV season or one movie at a time. Drop or browse to add files, set the naming mode, preview, then apply.</p>
+            </div>
+            <div class="rename-status-strip" aria-label="Rename workflow status">
+              <span class="rename-status-chip" data-step="1" data-state="waiting">1 Choose Files</span>
+              <span class="rename-status-chip" data-step="2" data-state="waiting">2 Naming Mode</span>
+              <span class="rename-status-chip" data-step="3" data-state="waiting">3 Preview / Apply</span>
+            </div>
           </div>
-          <div class="action-row action-row-left wrap-actions">
-            <button type="button" class="secondary-button" data-cross-page-target="queue">Review Queue</button>
-            <button type="button" id="rename-use-selected-queue-button" class="secondary-button">Use Selected Queue Row</button>
-            <button type="button" id="rename-use-loaded-queue-button" class="secondary-button">Use Loaded Queue Rows</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="queue_snapshot">Open Queue Snapshot</button>
-            <button type="button" id="rename-preview-top-button" class="primary-button">Preview Rename Plan</button>
+
+          <div class="rename-workbench-grid">
+            <section class="rename-stage rename-stage-intake" aria-labelledby="rename-stage-files-heading">
+              <div class="panel-heading">
+                <h2 id="rename-stage-files-heading"><span class="rename-stage-number">1</span><span>Choose Files</span></h2>
+                <strong id="rename-file-source-status">No paths</strong>
+              </div>
+              <div class="action-row action-row-left wrap-actions">
+                <button type="button" id="rename-browse-files-button" class="primary-button">Browse Files</button>
+                <button type="button" id="rename-browse-folder-button" class="secondary-button">Browse Folder</button>
+                <button type="button" id="rename-clear-paths-button" class="secondary-button">Clear</button>
+              </div>
+              <div id="rename-drop-zone" class="rename-drop-zone" tabindex="0" aria-label="Drag and drop files or one folder here">
+                Drag files or a folder here, or use the buttons above. Folder selection adds only the files directly inside (no subfolders), all extensions.
+              </div>
+              <pre id="rename-file-source-summary" class="prose-block compact-text-block">No source paths staged.</pre>
+            </section>
+
+            <section class="rename-stage rename-stage-rules" aria-labelledby="rename-stage-mode-heading">
+              <div class="panel-heading">
+                <h2 id="rename-stage-mode-heading"><span class="rename-stage-number">2</span><span>Naming Mode</span></h2>
+                <strong id="rename-status">Idle</strong>
+              </div>
+              <div class="form-grid rename-mode-grid">
+                <label>
+                  Mode
+                  <select id="rename-mode">
+                    <option value="tv">TV</option>
+                    <option value="movie">Movie</option>
+                  </select>
+                </label>
+                <label>
+                  Template
+                  <select id="rename-template-preset">
+                    <option value="">Auto (backend decides)</option>
+                    <option value="tv_standard">TV: Show - SxxEyy - Episode Title</option>
+                    <option value="tv_no_episode_title">TV: Show - SxxEyy</option>
+                    <option value="movie_standard">Movie: Title (Year)</option>
+                  </select>
+                </label>
+                <label>
+                  Title / Show
+                  <input id="rename-show" type="text" autocomplete="off" placeholder="e.g. Trigun Stampede or The Matrix">
+                </label>
+                <label data-rename-mode-field="tv">
+                  Season
+                  <input id="rename-season" type="text" value="S01" autocomplete="off">
+                </label>
+                <label data-rename-mode-field="tv">
+                  Start
+                  <input id="rename-start" type="text" value="E01" autocomplete="off" title="Starting episode number; subsequent files increment from here.">
+                </label>
+                <label>
+                  Year
+                  <input id="rename-movie-year" type="text" autocomplete="off" placeholder="e.g. 1999">
+                </label>
+              </div>
+              <div class="option-grid option-grid-compact">
+                <label class="check-row"><input id="rename-sidecars" type="checkbox" checked> Rename sidecar preview</label>
+                <label class="check-row"><input id="rename-force-pipeline" type="checkbox"> Force pipeline name preview</label>
+                <label class="check-row"><input id="rename-pipeline-preview" type="checkbox"> Use pipeline naming preview when available</label>
+              </div>
+              <div class="action-row">
+                <button type="button" id="rename-preview-button" class="primary-button">Preview Rename Plan</button>
+              </div>
+            </section>
           </div>
-          <label class="full-field">
-            Source paths
-            <textarea id="rename-paths" rows="5" spellcheck="false" placeholder="Paste or type one source file/folder path per line"></textarea>
-          </label>
-          <div class="form-grid">
-            <label>
-              Add one path
-              <input id="rename-add-path-input" type="text" autocomplete="off" placeholder="C:\Media\Show\S01E01.mkv">
-            </label>
-          </div>
-          <div class="action-row action-row-left wrap-actions">
-            <button type="button" id="rename-browse-files-button" class="secondary-button">Browse Files</button>
-            <button type="button" id="rename-browse-folder-button" class="secondary-button">Browse Folder</button>
-            <button type="button" id="rename-add-path-button" class="secondary-button">Add Path</button>
-            <button type="button" id="rename-clear-paths-button" class="secondary-button">Clear Paths</button>
-          </div>
-          <pre id="rename-file-source-summary" class="prose-block">No source paths staged.</pre>
+
+          <section class="rename-stage rename-stage-preview" aria-labelledby="rename-stage-preview-heading">
+            <div class="panel-heading">
+              <h2 id="rename-stage-preview-heading"><span class="rename-stage-number">3</span><span>Preview / Apply</span></h2>
+              <strong id="rename-preview-status">No preview</strong>
+            </div>
+            <div class="rename-preview-layout">
+              <div class="rename-preview-table">
+                <div class="table-wrap">
+                  <table class="rename-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Original</th>
+                        <th scope="col">New Name</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Why</th>
+                      </tr>
+                    </thead>
+                    <tbody id="rename-rows">
+                      <tr><td colspan="4">No rename preview loaded.</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <p id="rename-table-legend" class="note table-legend">Preview rows show the rename plan. Apply renames every row that is not blocked.</p>
+                <div class="action-row action-row-left wrap-actions">
+                  <button type="button" id="rename-apply-button" class="primary-button">Apply Renames</button>
+                  <span id="rename-apply-status-hint" class="note"></span>
+                </div>
+                <pre id="rename-summary" class="prose-block compact-text-block">No rename preview loaded. Preview rows to see status, confidence, and blocked-row guidance.</pre>
+              </div>
+            </div>
+          </section>
+
+          <!--
+            Confirmation dialog shown before apply. Renders count + old -> new list.
+          -->
+          <dialog id="rename-confirm-dialog" class="rename-modal" aria-labelledby="rename-confirm-title">
+            <form method="dialog" class="rename-modal-form">
+              <h2 id="rename-confirm-title" class="rename-modal-title">Confirm rename</h2>
+              <p id="rename-confirm-count" class="rename-modal-count">Renaming 0 file(s).</p>
+              <div id="rename-confirm-list" class="rename-modal-list" role="list"></div>
+              <p id="rename-confirm-warning" class="rename-modal-warning" hidden></p>
+              <div class="action-row action-row-right">
+                <button type="button" id="rename-confirm-cancel-button" class="secondary-button" value="cancel">Cancel</button>
+                <button type="submit" id="rename-confirm-apply-button" class="primary-button" value="confirm">Apply Rename</button>
+              </div>
+            </form>
+          </dialog>
+
+          <!--
+            Result dialog shown after apply. Renders success/failed/skipped counts + errors.
+          -->
+          <dialog id="rename-result-dialog" class="rename-modal" aria-labelledby="rename-result-title">
+            <form method="dialog" class="rename-modal-form">
+              <h2 id="rename-result-title" class="rename-modal-title">Rename result</h2>
+              <ul id="rename-result-counts" class="rename-modal-counts" role="list">
+                <li>Success: <strong id="rename-result-success">0</strong></li>
+                <li>Failed: <strong id="rename-result-failed">0</strong></li>
+                <li>Skipped: <strong id="rename-result-skipped">0</strong></li>
+              </ul>
+              <p id="rename-result-summary" class="rename-modal-summary"></p>
+              <div id="rename-result-errors" class="rename-modal-errors" role="region" aria-label="Errors" hidden></div>
+              <div class="action-row action-row-right">
+                <button type="button" id="rename-result-open-log-button" class="secondary-button" hidden>Open Log Folder</button>
+                <button type="submit" class="primary-button" value="close">Close</button>
+              </div>
+            </form>
+          </dialog>
         </section>
-        <section class="panel" data-panel-type="interactive">
-          <div class="panel-heading sub-panel-heading">
-            <h2>Pipeline Context</h2>
-            <strong id="rename-pipeline-handoff-status">No preview</strong>
-          </div>
-          <pre id="rename-pipeline-handoff" class="prose-block">Run Preview to compare rename results with saved pipeline routing, container, subtitle, sidecar, and force-name behavior.</pre>
-          <div class="panel-heading sub-panel-heading">
-            <h2>Name Overrides</h2>
-            <strong id="rename-bulk-edit-status">No scope</strong>
-          </div>
-          <div class="form-grid">
-            <label>
-              Scope
-              <select id="rename-bulk-scope">
-                <option value="checked">Checked rows</option>
-                <option value="selected">Selected row</option>
-                <option value="all_applicable">All applicable preview rows</option>
-              </select>
-            </label>
-            <label>
-              Find
-              <input id="rename-bulk-find" type="text" autocomplete="off">
-            </label>
-            <label>
-              Replace
-              <input id="rename-bulk-replace" type="text" autocomplete="off">
-            </label>
-            <label>
-              Prefix
-              <input id="rename-bulk-prefix" type="text" autocomplete="off">
-            </label>
-            <label>
-              Suffix
-              <input id="rename-bulk-suffix" type="text" autocomplete="off">
-            </label>
-          </div>
-          <div class="action-row action-row-left wrap-actions">
-            <button type="button" id="rename-bulk-stage-button" class="secondary-button">Stage Bulk Edit + Preview</button>
-            <button type="button" id="rename-bulk-use-pipeline-button" class="secondary-button">Use Pipeline Names</button>
-            <button type="button" id="rename-bulk-force-button" class="secondary-button">Force Scope Through Pipeline</button>
-            <button type="button" id="rename-bulk-clear-force-button" class="secondary-button">Clear Scope Force</button>
-            <button type="button" id="rename-bulk-clear-button" class="secondary-button">Clear Scope Overrides</button>
-          </div>
-          <pre id="rename-bulk-edit-summary" class="prose-block">Preview rows, then use checked, selected, or all applicable rows to stage final-name overrides. Preview rebuilds through the backend before apply.</pre>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Apply</th>
-                  <th scope="col">Current</th>
-                  <th scope="col">Scrubbed / Pipeline</th>
-                  <th scope="col">Final</th>
-                  <th scope="col">Confidence</th>
-                  <th scope="col">Status</th>
-                </tr>
-              </thead>
-              <tbody id="rename-rows">
-                <tr><td colspan="6">No rename preview loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">No row selected</span>
-            <span class="empty-state-hint">Select a row above to see details here.</span>
-          </div>
-          </div>
-          <p id="rename-table-legend" class="note table-legend">Rename rows: no selectable rows.</p>
-          <div class="form-grid">
-            <label>
-              Selected final name override
-              <input id="rename-selected-final" type="text" autocomplete="off">
-            </label>
-            <label class="check-row launch-check-row">
-              <input id="rename-selected-force" type="checkbox"> Force selected through pipeline
-            </label>
-          </div>
-          <div class="action-row action-row-left wrap-actions">
-            <button type="button" id="rename-save-override-button" class="secondary-button">Preview Override</button>
-            <button type="button" id="rename-clear-override-button" class="secondary-button">Clear Selected Override</button>
-            <button type="button" id="rename-apply-selected-button" class="primary-button">Submit Rename to Backend</button>
-          </div>
-          <pre id="rename-detail" class="prose-block">No rename row selected.</pre>
-          <div class="panel-heading">
-            <h2>Rename Plan</h2>
-            <strong id="rename-status">Idle</strong>
-          </div>
-          <div class="form-grid">
-            <label>
-              Mode
-              <select id="rename-mode">
-                <option value="tv">TV</option>
-                <option value="movie">Movie</option>
-              </select>
-            </label>
-            <label>
-              Template
-              <select id="rename-template-preset">
-                <option value="">Backend default</option>
-                <option value="tv_standard">TV: Show - SxxEyy - Episode Title</option>
-                <option value="tv_no_episode_title">TV: Show - SxxEyy</option>
-                <option value="movie_standard">Movie: Title (Year)</option>
-              </select>
-            </label>
-            <label>
-              Show
-              <input id="rename-show" type="text" autocomplete="off">
-            </label>
-            <label>
-              Season
-              <input id="rename-season" type="text" value="S01" autocomplete="off">
-            </label>
-            <label>
-              Start
-              <input id="rename-start" type="text" value="E01" autocomplete="off">
-            </label>
-            <label>
-              Movie Title
-              <input id="rename-movie-title" type="text" autocomplete="off">
-            </label>
-            <label>
-              Year
-              <input id="rename-movie-year" type="text" autocomplete="off">
-            </label>
-          </div>
-          <label class="full-field">
-            Custom negative terms
-            <textarea id="rename-remove-terms" rows="3" spellcheck="false" data-default-terms="sample, trailer, extras, featurette, deleted scenes, behind the scenes" title="Custom negative terms are added to the backend rename planner. Built-in movie scrub filters below handle common release/source/audio/edition tags; this field is for local terms you want removed from preview names.">sample, trailer, extras, featurette, deleted scenes, behind the scenes</textarea>
-          </label>
-          <div class="option-panel">
-            <div class="option-panel-heading">
-              <strong>Movie Scrub Filters</strong>
-              <span title="Built-in scrub filters remove common movie filename clutter before backend preview. Custom negative terms above cover project-specific words.">Preview-only controls using the backend rename planner.</span>
-            </div>
-            <div class="option-grid">
-              <label class="check-row"><input type="checkbox" data-movie-filter="video_source" checked> Video / source tags</label>
-              <label class="check-row"><input type="checkbox" data-movie-filter="audio_channels" checked> Audio / channels</label>
-              <label class="check-row"><input type="checkbox" data-movie-filter="editions" checked> Editions / cuts</label>
-              <label class="check-row"><input type="checkbox" data-movie-filter="file_size" checked> File size tags</label>
-              <label class="check-row"><input type="checkbox" data-movie-filter="services_containers" checked> Services / containers</label>
-              <label class="check-row"><input type="checkbox" data-movie-filter="release_groups" checked> Release groups</label>
-            </div>
-            <div class="panel-heading panel-subheading">
-              <h3>Cleaning Terms</h3>
-              <strong id="rename-cleaning-filter-status">Backend built-ins</strong>
-            </div>
-            <label class="check-row launch-check-row">
-              <input id="rename-use-editable-cleaning-filters" type="checkbox"> Use editable movie filter terms
-            </label>
-            <div class="form-grid">
-              <label>
-                Video / source
-                <textarea id="rename-filter-video-source" data-movie-filter-terms="video_source" data-default-terms="2160p, 1080p, 720p, 480p, uhd, hdr, hdr10, hdr10+, dv, dovi, dolby vision, hevc, h264, h.264, h265, h.265, x264, x265, av1, avc, blu ray, bluray, brrip, bdrip, webrip, web dl, webdl, web, hdtv, dvdrip, dvd, remux, 10 bit, 8 bit" rows="3" spellcheck="false">2160p, 1080p, 720p, 480p, uhd, hdr, hdr10, hdr10+, dv, dovi, dolby vision, hevc, h264, h.264, h265, h.265, x264, x265, av1, avc, blu ray, bluray, brrip, bdrip, webrip, web dl, webdl, web, hdtv, dvdrip, dvd, remux, 10 bit, 8 bit</textarea>
-              </label>
-              <label>
-                Audio / channels
-                <textarea id="rename-filter-audio-channels" data-movie-filter-terms="audio_channels" data-default-terms="truehd, atmos, flac, opus, eac3, ac3, aac, dd, ddp, dts, dts hd, dtshd, 1.0, 2.0, 5.1, 7.1, 6ch, 6 ch, 8ch, 8 ch" rows="3" spellcheck="false">truehd, atmos, flac, opus, eac3, ac3, aac, dd, ddp, dts, dts hd, dtshd, 1.0, 2.0, 5.1, 7.1, 6ch, 6 ch, 8ch, 8 ch</textarea>
-              </label>
-              <label>
-                Editions / cuts
-                <textarea id="rename-filter-editions" data-movie-filter-terms="editions" data-default-terms="imax, proper, repack, rerip, extended, remastered, remaster, unrated, theatrical, criterion, director cut, directors cut, director's cut, final cut, open matte" rows="3" spellcheck="false">imax, proper, repack, rerip, extended, remastered, remaster, unrated, theatrical, criterion, director cut, directors cut, director's cut, final cut, open matte</textarea>
-              </label>
-              <label>
-                File size
-                <textarea id="rename-filter-file-size" data-movie-filter-terms="file_size" data-default-terms="700mb, 1400mb, 1gb, 2gb, 4.7gb" rows="3" spellcheck="false">700mb, 1400mb, 1gb, 2gb, 4.7gb</textarea>
-              </label>
-              <label>
-                Services / containers
-                <textarea id="rename-filter-services-containers" data-movie-filter-terms="services_containers" data-default-terms="amzn, nf, dsnp, hmax, hulu, itunes, appletv, mkv, mp4, m4v" rows="3" spellcheck="false">amzn, nf, dsnp, hmax, hulu, itunes, appletv, mkv, mp4, m4v</textarea>
-              </label>
-              <label>
-                Release groups
-                <textarea id="rename-filter-release-groups" data-movie-filter-terms="release_groups" data-default-terms="rarbg, rbg, yify, yts, yts lt, galaxyrg, bone, psa, tigole, kris" rows="3" spellcheck="false">rarbg, rbg, yify, yts, yts lt, galaxyrg, bone, psa, tigole, kris</textarea>
-              </label>
-            </div>
-            <div class="action-row action-row-left wrap-actions">
-              <button type="button" id="rename-cleaning-filters-save-button" class="secondary-button">Save Cleaning Filters</button>
-              <button type="button" id="rename-cleaning-filters-reset-button" class="secondary-button">Reset Cleaning Filters</button>
-            </div>
-            <pre id="rename-cleaning-filter-summary" class="prose-block">Using backend built-in movie cleaning filters.</pre>
-          </div>
-          <div class="option-grid option-grid-compact">
-            <label class="check-row"><input id="rename-sidecars" type="checkbox" checked> Rename sidecar preview</label>
-            <label class="check-row"><input id="rename-force-pipeline" type="checkbox"> Force pipeline name preview</label>
-            <label class="check-row"><input id="rename-pipeline-preview" type="checkbox"> Use pipeline naming preview when available</label>
-          </div>
-          <div class="action-row">
-            <button type="button" id="rename-preview-button" class="secondary-button">Preview Rename Plan</button>
-          </div>
-          <pre id="rename-summary" class="prose-block">No rename preview loaded. Preview rows to see status, confidence, and blocked-row guidance.</pre>
-          <pre id="rename-batch-safety" class="prose-block">No rename batch safety summary loaded.</pre>
-          <div class="panel-heading sub-panel-heading">
-            <h2>Selection Check</h2>
-            <strong id="rename-selection-audit-status">No selection</strong>
-          </div>
-          <pre id="rename-selection-audit" class="prose-block">Check rows or select one row to see the exact backend apply scope before applying.</pre>
-          <div class="panel-heading sub-panel-heading">
-            <h2>Review</h2>
-            <strong id="rename-review-board-status">No preview</strong>
-          </div>
-          <pre id="rename-review-board" class="prose-block">Run Preview to see confidence mix, source-of-truth signals, duplicate targets, and mode-specific review guidance.</pre>
-          <div class="panel-heading sub-panel-heading">
-            <h2>Apply Status</h2>
-            <strong id="rename-apply-readiness-status">No scope</strong>
-          </div>
-          <div class="table-wrap detail-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Checkpoint</th>
-                  <th scope="col">Posture</th>
-                  <th scope="col">Evidence</th>
-                  <th scope="col">Operator Check</th>
-                </tr>
-              </thead>
-              <tbody id="rename-apply-readiness-rows">
-                <tr><td colspan="4">Preview rows before reviewing apply readiness.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">Nothing blocked</span>
-            <span class="empty-state-hint">Blocked checkpoints appear here when the apply scope has an unresolved issue.</span>
-          </div>
-          </div>
-          <p id="rename-apply-readiness-legend" class="note table-legend">Rename apply readiness is read-only and does not change backend selected_sources.</p>
-          <div class="action-row action-row-left wrap-actions">
-            <button type="button" id="rename-check-applicable-button" class="secondary-button">Check Applicable Rows</button>
-            <button type="button" id="rename-clear-checks-button" class="secondary-button">Clear Checked Rows</button>
-            <button type="button" id="rename-move-checked-up-button" class="secondary-button">Move Checked Up</button>
-            <button type="button" id="rename-move-checked-down-button" class="secondary-button">Move Checked Down</button>
-            <button type="button" id="rename-natural-sort-button" class="secondary-button">Natural Sort Paths</button>
-            <span id="rename-selected-count" class="note">0 checked</span>
-          </div>
-          <div class="panel-heading sub-panel-heading">
-            <h2>Last Result</h2>
-            <strong id="rename-last-apply-status">No apply</strong>
-          </div>
-          <div data-advanced>
-          <div class="panel-heading sub-panel-heading">
-            <h3>Outcome Review</h3>
-            <strong id="rename-apply-outcome-status">No apply</strong>
-          </div>
-          <div id="rename-apply-progress-bars" class="progress-bar-list" aria-live="polite">
-            <p class="note">No rename apply progress loaded.</p>
-          </div>
-          <pre id="rename-apply-outcome-summary" class="prose-block">No backend rename apply result loaded.</pre>
-          <div class="table-wrap detail-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Checkpoint</th>
-                  <th scope="col">Posture</th>
-                  <th scope="col">Evidence</th>
-                  <th scope="col">Safe Next Step</th>
-                </tr>
-              </thead>
-              <tbody id="rename-apply-outcome-rows">
-                <tr><td colspan="4">Apply a checked/selected backend rename to review outcome evidence.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">No apply result</span>
-            <span class="empty-state-hint">Apply a checked/selected rename to see outcome evidence here.</span>
-          </div>
-          </div>
-          <p id="rename-apply-outcome-legend" class="note table-legend">Rename apply outcome review is read-only and does not rename, undo, retry, or touch files.</p>
-          <pre id="rename-last-apply-detail" class="prose-block">No rename apply result loaded.</pre>
-          <pre id="rename-apply-history" class="prose-block">No rename apply command history loaded.</pre>
-          </div>
-        </section>
+        </div>
       </section>

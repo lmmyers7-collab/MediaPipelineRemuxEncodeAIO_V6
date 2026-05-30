@@ -278,7 +278,11 @@ Invoke-WithTempRoot {
 }
 
 $publishCompletionText = Get-Content -LiteralPath (Join-Path $repoRoot 'engine\publish\publish_completion.ps1') -Raw
-Assert-MatchText $publishCompletionText 'PublishMode = \$\(if \(\$copyFailureIsOutputSpace\) \{ ''output-space-deferred'' \}' 'Publish completion no longer marks output-space copy failures as output-space-deferred before parking.'
+$publishCompletionHelperText = Get-Content -LiteralPath (Join-Path $repoRoot 'engine\publish\publish_completion\context_builders.ps1') -Raw
+Assert-MatchText $publishCompletionHelperText 'function New-PendingParkArguments' 'Publish completion pending-park argument builder is missing.'
+Assert-MatchText $publishCompletionHelperText 'function Get-PublishCopyFailureClassification' 'Publish completion pure copy-failure classifier is missing.'
+Assert-MatchText $publishCompletionHelperText 'PublishMode = \$PublishMode' 'Pending-park argument builder no longer preserves the supplied publish mode.'
+Assert-MatchText $publishCompletionText 'New-PendingParkArguments[\s\S]+-PublishMode \$\(if \(\$copyFailureIsOutputSpace\) \{ ''output-space-deferred'' \}' 'Publish completion no longer marks output-space copy failures as output-space-deferred before parking.'
 Assert-MatchText $publishCompletionText 'New-PipelinePublishResult[\s\S]+-PublishState ''pending_publish''[\s\S]+-PublishMode ''output-space-deferred''[\s\S]+-ParkedForOutputSpace:\$true' 'Low-space deferred publish no longer returns pending_publish success after safe parking.'
 Assert-MatchText $publishCompletionText 'Clear-SourceFailureState \$SourceFile[\s\S]+output-space deferred publish' 'Low-space deferred publish no longer clears source failure state only after successful parking.'
 

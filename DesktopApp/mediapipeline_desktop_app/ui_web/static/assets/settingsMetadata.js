@@ -2,6 +2,7 @@
   // UI metadata is advisory copy only; backend preview/save owns settings validation and persistence.
   const settingsBuilderFields = [
     ["RoutingProfile", "settings-builder-routing-profile"],
+    ["RouteThresholdMode", "settings-builder-route-threshold-mode"],
     ["SizeGuardMode", "settings-builder-size-guard"],
     ["EncodeTuningPreset", "settings-builder-encode-tuning"],
     ["EncodeLadder", "settings-builder-encode-ladder"],
@@ -33,6 +34,14 @@
     ["EnableIntegrityCheck", "settings-file-safety-enable-integrity", "bool"],
     ["CreateTVSubfolder", "settings-file-safety-create-tv-subfolder", "bool"],
     ["CleanupRemoteStaging", "settings-file-safety-cleanup-remote", "bool"],
+  ];
+
+  const finalLibraryPromotionSettingsBuilderFields = [
+    ["FinalLibraryPromotionEnabled", "settings-final-library-enabled", "bool"],
+    ["FinalLibraryPromotionRules", "settings-final-library-rules-rows", "rules"],
+    ["FinalLibraryPromotionVerificationMode", "settings-final-library-verification-mode", "select"],
+    ["FinalLibraryPromotionCleanupAfterVerified", "settings-final-library-cleanup", "bool"],
+    ["FinalLibraryPromotionOverwriteExisting", "settings-final-library-overwrite", "bool"],
   ];
 
   const networkSettingsBuilderFields = [
@@ -250,14 +259,20 @@
         "CleanupStaleAgeHours",
         "AggressiveEpisodeParsing",
         "DeferredPublish",
+        "FinalLibraryPromotionEnabled",
+        "FinalLibraryPromotionRules",
+        "FinalLibraryPromotionVerificationMode",
+        "FinalLibraryPromotionCleanupAfterVerified",
+        "FinalLibraryPromotionOverwriteExisting",
       ],
-      note: "Verify source, output, and scratch roots before running unattended media jobs.",
+      note: "Verify source, output, scratch, and final library roots before running media jobs.",
     },
     {
       name: "Routing / size policy",
       severity: "medium",
       keys: [
         "RoutingProfile",
+        "RouteThresholdMode",
         "SizeGuardMode",
         "AllowH264RemuxIfPlexCompatible",
         "H264RemuxMaxBitrateMbps",
@@ -377,6 +392,7 @@
     VideoQuality: "Lower quality numbers produce larger outputs; higher numbers are smaller but softer.",
     AllowH264RemuxIfPlexCompatible: "Disabling this can force unnecessary encodes of Plex-compatible H.264 sources.",
     H264RemuxMaxBitrateMbps: "Higher values allow more H.264 sources to copy video instead of encoding.",
+    RouteThresholdMode: "Controls whether size, Mbps, or both act as hard remux-vs-encode route filters.",
     MovieRouteMaxVideoBitrateMbps: "Higher values allow more movie sources to copy/remux before bitrate forces encode.",
     TVRouteMaxVideoBitrateMbps: "Higher values allow more TV sources to copy/remux before bitrate forces encode.",
     H264RemuxMaxHeight: "Higher values allow larger H.264 sources to copy video when the profile allows it.",
@@ -398,6 +414,11 @@
     TransientFailureRetryLimit: "Higher retry limits can delay operator review for persistent network, disk, or media failures.",
     DeferredPublish: "When enabled, completed payloads can park in pending publish until the drain workflow moves them to final output.",
     CleanupRemoteStaging: "Remote staging cleanup can remove transient files on slow or unreliable shares; keep disabled unless the drain workflow is trusted.",
+    FinalLibraryPromotionEnabled: "Enables only the manual Promote Queue workflow; promotion still requires the Completed/Output button.",
+    FinalLibraryPromotionRules: "Maps each source root to a final library destination. Longest matching source root wins.",
+    FinalLibraryPromotionVerificationMode: "Cautious hashes every copied media and sidecar file; fast checks existence and byte size only.",
+    FinalLibraryPromotionCleanupAfterVerified: "Deletes only verified promoted publish-output files below Outsource and then removes empty folders.",
+    FinalLibraryPromotionOverwriteExisting: "Destructive overwrite deletes the existing final file before copying the replacement.",
     CleanupStaleAgeHours: "Lower values can clean stale scratch or pending artifacts sooner; inspect pending publish before aggressive cleanup.",
     RobocopyTimeoutSeconds: "Too-low copy timeouts can fail large files on slow SMB shares before the transfer has a fair chance to finish.",
     OutsourceMinFreeSpaceGB: "Output free-space reserve should account for pending publish drains and same-disk source/output/scratch layouts.",
@@ -413,6 +434,12 @@
     archive_shrink: "Archive shrink",
     archive_quality: "Archive quality",
     manual: "Manual",
+    cautious: "Cautious hash verification",
+    fast: "Fast size verification",
+    compatibility_advisory: "Compatibility advisory",
+    size: "Size only",
+    bitrate: "Mbps only",
+    size_or_bitrate: "Size or Mbps",
     advisory: "Advisory",
     strict: "Strict",
     off: "Off",
@@ -458,6 +485,7 @@
   window.mediaPipelineSettingsMetadata = {
     settingsBuilderFields,
     fileSafetySettingsBuilderFields,
+    finalLibraryPromotionSettingsBuilderFields,
     networkSettingsBuilderFields,
     queueSettingsBuilderFields,
     videoDetailSettingsBuilderFields,

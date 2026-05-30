@@ -125,6 +125,7 @@ class StandaloneDispatcher(QueueDispatcher):
             "ExtraVideoFlags",
             "FallbackCpuQuality",
             "RoutingProfile",
+            "RouteThresholdMode",
             "AllowH264RemuxIfPlexCompatible",
             "H264RemuxMaxBitrateMbps",
             "H264RemuxMaxHeight",

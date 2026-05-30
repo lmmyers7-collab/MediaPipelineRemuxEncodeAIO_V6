@@ -17,8 +17,8 @@ if /i "%~1"=="validate" (
     exit /b !ERRORLEVEL!
 )
 
-if not exist "%PIPELINE_ROOT%\MediaPipeline_chatgpt.ps1" (
-    echo ERROR: MediaPipeline_chatgpt.ps1 was not found in:
+if not exist "%PIPELINE_ROOT%\MediaPipeline.ps1" (
+    echo ERROR: MediaPipeline.ps1 was not found in:
     echo   %PIPELINE_ROOT%
     pause
     exit /b 1
@@ -27,8 +27,8 @@ if not exist "%PIPELINE_ROOT%\MediaPipeline_chatgpt.ps1" (
 if not exist "%PIPELINE_ROOT%\MediaPipeline_config_chatgpt.psd1" if not exist "%PIPELINE_ROOT%\MediaPipeline_config.psd1" (
     echo ERROR: No config file was found next to the pipeline.
     echo Checked:
-    echo   %PIPELINE_ROOT%\MediaPipeline_config_chatgpt.psd1
     echo   %PIPELINE_ROOT%\MediaPipeline_config.psd1
+    echo   %PIPELINE_ROOT%\MediaPipeline_config_chatgpt.psd1 (legacy)
     echo.
     echo Run scripts\dev\setup.bat first.
     pause
@@ -61,11 +61,11 @@ if not defined PWSH_PATH (
 :pwsh_resolved
 if defined PWSH_PATH (
     echo Launching pipeline with PowerShell 7: !PWSH_PATH!
-    "!PWSH_PATH!" -NoProfile -ExecutionPolicy Bypass -File "%PIPELINE_ROOT%\MediaPipeline_chatgpt.ps1"
+    "!PWSH_PATH!" -NoProfile -ExecutionPolicy Bypass -File "%PIPELINE_ROOT%\MediaPipeline.ps1"
 ) else (
     echo PowerShell 7 was not resolved by the launcher.
     echo Trying Windows PowerShell so the script can self-relaunch if a bundled runtime exists.
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PIPELINE_ROOT%\MediaPipeline_chatgpt.ps1"
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PIPELINE_ROOT%\MediaPipeline.ps1"
 )
 
 set "EXIT_CODE=!ERRORLEVEL!"

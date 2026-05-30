@@ -27,6 +27,12 @@ COMMAND_ROUTE_METHODS: dict[str, str] = {
     "/api/settings/browse-path": "_settings_browse_path_payload",
     "/api/settings/preview-patch": "_settings_preview_patch_payload",
     "/api/settings/save-patch": "_settings_save_patch_payload",
+    "/api/settings/wizard/validate-paths": "_settings_wizard_validate_paths_payload",
+    "/api/settings/wizard/validate-tools": "_settings_wizard_validate_tools_payload",
+    "/api/settings/wizard/probe-hardware": "_settings_wizard_probe_hardware_payload",
+    "/api/settings/wizard/validate-workers": "_settings_wizard_validate_workers_payload",
+    "/api/settings/wizard/preview": "_settings_wizard_preview_payload",
+    "/api/settings/wizard/save": "_settings_wizard_save_payload",
     "/api/schedule/preview": "_schedule_preview_payload",
     "/api/schedule/save": "_schedule_save_payload",
     "/api/maintenance/release-dry-run": "_maintenance_release_dry_run_payload",
@@ -40,6 +46,10 @@ COMMAND_ROUTE_METHODS: dict[str, str] = {
     "/api/audit/start": "_audit_start_payload",
     "/api/rerun/start": "_rerun_start_payload",
     "/api/backend/shutdown": "_backend_shutdown_payload",
+    "/api/ui-preferences": "_ui_preferences_save_payload",
+    "/api/final-library-promotion/promote-queue": "_final_library_promote_queue_payload",
+    "/api/final-library-promotion/pause": "_final_library_promotion_pause_payload",
+    "/api/final-library-promotion/resume": "_final_library_promotion_resume_payload",
 }
 
 COMMAND_ROUTE_SPECS: dict[str, ApiCommandRouteSpec] = {

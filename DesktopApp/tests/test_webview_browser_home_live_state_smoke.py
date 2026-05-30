@@ -121,7 +121,9 @@ def _browser_home_live_state_runner_source() -> str:
               }
               throw new Error("Timed out waiting for " + label + (lastError ? ": " + lastError.message : "") + "\\nState:\\n" + [
                 "homeReadiness=" + text("home-readiness-summary"),
-                "atAGlance=" + text("home-at-a-glance-summary"),
+                "atAGlanceCurrent=" + text("home-at-a-glance-current"),
+                "atAGlanceDetail=" + text("home-at-a-glance-detail"),
+                "atAGlanceQueue=" + text("home-at-a-glance-up-next"),
                 "dailyDriver=" + text("daily-driver-summary"),
                 "externalDependencies=" + text("home-external-dependencies-summary"),
                 "activeWork=" + text("home-active-work-summary"),
@@ -157,7 +159,6 @@ def _browser_home_live_state_runner_source() -> str:
                 && text("home-at-a-glance-current").includes("Current Fixture.mkv")
                 && text("home-at-a-glance-progress-bars").includes("Current item")
                 && text("home-at-a-glance-progress-bars").includes("Push file")
-                && text("home-at-a-glance-summary").includes("Processing now.")
                 && text("home-readiness-summary").includes("Backend snapshot: ok")
                 && text("home-active-work-summary").includes("ActiveJobs:")
                 && text("command-summary").includes("Results: 1")
@@ -183,8 +184,8 @@ def _browser_home_live_state_runner_source() -> str:
               throw new Error("Evidence toggle hid Home interactive panels: " + hiddenInteractive.map((panel) => panel.querySelector("h2,h3")?.textContent || panel.id || "panel").join(", "));
             }
             const atAGlancePanel = document.querySelector(".home-at-a-glance-panel");
-            if (!atAGlancePanel || atAGlancePanel.offsetParent !== null) {
-              throw new Error("Evidence toggle did not hide the Home at-a-glance evidence panel.");
+            if (!atAGlancePanel || atAGlancePanel.offsetParent === null) {
+              throw new Error("Evidence toggle hid the Home at-a-glance status panel.");
             }
             window.showPage("live");
             const visibleTelemetryGraphs = ["cpu-chart", "gpu-chart", "ram-chart"].filter((id) => {
@@ -261,13 +262,6 @@ def _browser_home_live_state_runner_source() -> str:
               "Next operator action:",
               "Mutation guardrail: this checklist is read-only",
             ]);
-            requireText("home-at-a-glance-summary", [
-              "Processing now.",
-              "Current Fixture.mkv",
-              "Progress: 42.5%.",
-              "Push: active · 50%.",
-              "Up next:",
-            ]);
             requireText("activity", [
               "Current Fixture.mkv",
               "Encoding",
@@ -323,11 +317,11 @@ def _browser_home_live_state_runner_source() -> str:
             ]);
             window.showPage("live");
             await waitFor(
-              () => text("progress-detail-status").includes("field")
+              () => text("progress-detail-status").includes("checks")
                 && text("progress-bar-list").includes("Current stage")
                 && text("progress-bar-list").includes("42.5%")
                 && text("progress-bar-list").includes("Run total")
-                && tableText("progress-detail-rows").includes("CurrentStagePercent")
+                && tableText("progress-detail-rows").includes("Stage percent")
                 && tableText("progress-detail-rows").includes("42.5")
                 && text("progress-evidence-summary").includes("Progress evidence board:")
                 && tableText("progress-evidence-rows").includes("Current item"),
@@ -340,18 +334,21 @@ def _browser_home_live_state_runner_source() -> str:
               "source: pipeline_progress.json",
             ]);
             requireTableText("progress-detail-rows", [
-              "Status",
+              "State",
               "Processing",
-              "CurrentStage",
+              "Stage",
               "Encoding",
-              "CurrentStagePercent",
+              "Stage percent",
               "42.5",
-              "CurrentFileDisplay",
+              "File",
               "Current Fixture.mkv",
-              "CurrentRoute",
+              "Route",
               "encode",
-              "RouteReason",
               "operator-trust smoke fixture",
+              "Done",
+              "Remuxed",
+              "Controls",
+              "clear",
             ]);
             requireText("progress-evidence-summary", [
               "Progress evidence board:",
@@ -445,8 +442,8 @@ def _browser_home_live_state_runner_source() -> str:
               ok: true,
               posts,
               readiness: text("home-readiness-summary"),
-              atAGlance: text("home-at-a-glance-summary"),
               atAGlanceCurrent: text("home-at-a-glance-current"),
+              atAGlanceDetail: text("home-at-a-glance-detail"),
               activity: text("activity"),
               atAGlanceQueue: text("home-at-a-glance-up-next"),
               dailyDriver: text("daily-driver-summary"),
@@ -669,13 +666,11 @@ class WebViewBrowserHomeLiveStateSmokeTests(unittest.TestCase):
             self.assertTrue(result["ok"])
             browser_result = result["result"]
             self.assertEqual(browser_result["posts"], [])
-            self.assertIn("Processing now.", browser_result["atAGlance"])
-            self.assertIn("Current Fixture.mkv", browser_result["atAGlance"])
-            self.assertIn("42.5%", browser_result["atAGlance"])
             self.assertIn("Current Fixture.mkv", browser_result["atAGlanceCurrent"])
+            self.assertIn("Stage Encoding", browser_result["atAGlanceDetail"])
             self.assertIn("Serial Experiments Lain S02E01 Weird.mkv", browser_result["atAGlanceQueue"])
             self.assertIn("Daily-driver readiness checklist:", browser_result["dailyDriver"])
-            self.assertIn("CurrentStagePercent", browser_result["progressDetails"])
+            self.assertIn("Stage percent", browser_result["progressDetails"])
             self.assertIn("42.5", browser_result["progressDetails"])
             self.assertIn("Current stage", browser_result["progressBars"])
             self.assertIn("active", browser_result["progressBars"])

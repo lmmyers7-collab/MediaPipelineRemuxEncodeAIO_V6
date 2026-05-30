@@ -1,10 +1,12 @@
 # ============================================================================== 
 # engine\process\pipeline_processing.ps1
 # ============================================================================== 
-# Job-level processing orchestration extracted from MediaPipeline_chatgpt.ps1.
+# Job-level processing orchestration extracted from MediaPipeline.ps1.
 # Dot-sourced by the main script; preserves script-scope configuration and the
 # legacy Process-File wrapper in the main script.
 # ============================================================================== 
+
+. (Join-Path $PSScriptRoot 'pipeline_processing\preflight.ps1')
 
 function New-MediaPipelineProcessFileResult {
     param(
@@ -97,6 +99,70 @@ function Write-MediaPipelineProcessCompletedEvent {
     } | Out-Null
 }
 
+function Invoke-MediaPipelineProcessPreflightDecision {
+    param(
+        [Parameter(Mandatory)] $Decision,
+        [Parameter(Mandatory)] $File,
+        [Parameter(Mandatory)] $CollectedChecks
+    )
+
+    foreach ($check in @($Decision.Checks)) {
+        if ($null -ne $check) { [void]$CollectedChecks.Add($check) }
+    }
+
+    foreach ($effect in @($Decision.Effects)) {
+        switch ([string]$effect.Kind) {
+            'skip_stat' {
+                if (-not [string]::IsNullOrWhiteSpace([string]$effect.SkipStat)) {
+                    Add-SkipStat ([string]$effect.SkipStat)
+                }
+            }
+            'retry_notice' {
+                Add-RetryNotice
+            }
+            'register_failure' {
+                $registration = $effect.FailureRegistration
+                if ($registration) {
+                    $params = @{
+                        SourceFile     = $File
+                        Classification = [string]$registration.Classification
+                        Reason         = [string]$registration.Reason
+                        Stage          = [string]$registration.Stage
+                    }
+                    if (-not [string]::IsNullOrWhiteSpace([string]$registration.SuggestedAction)) {
+                        $params['SuggestedAction'] = [string]$registration.SuggestedAction
+                    }
+                    if (-not [string]::IsNullOrWhiteSpace([string]$registration.SuggestedRename)) {
+                        $params['SuggestedRename'] = [string]$registration.SuggestedRename
+                    }
+                    Register-SourceFailure @params | Out-Null
+                }
+            }
+            'clear_failure_state' {
+                Clear-SourceFailureState $File
+            }
+            'log' {
+                if (-not [string]::IsNullOrWhiteSpace([string]$effect.Message)) {
+                    Write-Log ([string]$effect.Message) ([string]$effect.Level)
+                }
+            }
+        }
+    }
+
+    if (-not [bool]$Decision.Terminal) { return $null }
+
+    $result = New-MediaPipelineProcessFileResult `
+        -File $File `
+        -Status ([string]$Decision.Status) `
+        -Success:([bool]$Decision.Success) `
+        -QueueTerminal:([bool]$Decision.QueueTerminal) `
+        -Retryable:([bool]$Decision.Retryable) `
+        -Reason ([string]$Decision.Reason) `
+        -ErrorCode ([string]$Decision.ErrorCode)
+    Write-MediaPipelineProcessCompletedEvent -Result $result -Stage ([string]$Decision.EventStage) -MediaType ([string]$Decision.MediaType)
+    return $result
+}
+
 function Invoke-MediaPipelineProcessFile {
     param(
         $file,
@@ -130,95 +196,41 @@ function Invoke-MediaPipelineProcessFile {
         ''
     }
 
-    if (-not ($ValidExtensions -contains $file.Extension.ToLower())) {
-        Add-SkipStat 'BadExtension'
-        Write-Log "SKIP (bad extension): $($file.Name)" "DEBUG"
-        $result = New-MediaPipelineProcessFileResult -File $file -Status 'skipped' -Success:$false -QueueTerminal:$true -Retryable:$false -Reason 'Bad extension' -ErrorCode 'BAD_EXTENSION'
-        Write-MediaPipelineProcessCompletedEvent -Result $result -Stage 'skipped'
-        return $result
-    }
-    $failureState = Get-SourceFailureState $file
-    if ($failureState) {
-        $stateCode = if ($failureState.PSObject.Properties['error_code'] -and $failureState.error_code) {
-            Normalize-FailureCode -Code ([string]$failureState.error_code)
-        } else {
-            Get-MediaFailureCode -Stage ([string]$failureState.stage) -Reason ([string]$failureState.reason) -Classification ([string]$failureState.classification)
-        }
-        $stateClassification = [string]$failureState.classification
-        $retrySuffix = ''
-        if ($failureState.PSObject.Properties['retry_count'] -and $failureState.PSObject.Properties['retry_limit']) {
-            try {
-                $retryCount = [int]$failureState.retry_count
-                $retryLimit = [int]$failureState.retry_limit
-                if ($retryCount -gt 0 -and $retryLimit -gt 0) { $retrySuffix = " retry=$retryCount/$retryLimit" }
-            } catch {}
-        }
-        if ($stateClassification -eq 'permanent' -or $stateClassification -eq 'operator_required') {
-            $skipKey = if ($stateClassification -eq 'operator_required') { 'OperatorRequired' } else { 'PermanentFailure' }
-            Add-SkipStat $skipKey
-            $label = if ($stateClassification -eq 'operator_required') { 'operator required' } else { 'permanent failure' }
-            Write-Log "SKIP ($label [$stateCode]${retrySuffix}: $($failureState.reason)): $($file.Name)" "ERROR"
-            $result = New-MediaPipelineProcessFileResult -File $file -Status 'skipped' -Success:$false -QueueTerminal:$true -Retryable:$false -Reason ([string]$failureState.reason) -ErrorCode $stateCode
-            Write-MediaPipelineProcessCompletedEvent -Result $result -Stage 'skipped'
-            return $result
-        }
-        Add-RetryNotice
-        Write-Log "RETRY after transient failure [$stateCode]$retrySuffix ($($failureState.stage)): $($file.Name)" "WARN"
-    }
-    $tvInfo = $null
-    if ($isTV) { $tvInfo = Get-TVInfoFromFile $file }
-    if ($isTV -and $tvInfo -and -not $tvInfo.IsReliable) {
-        $renameSuggestion = Get-TVParseRenameSuggestion -File $file -TvInfo $tvInfo
-        Register-SourceFailure -SourceFile $file -Classification 'permanent' -Reason $tvInfo.ParseError -Stage 'tv-parse' -SuggestedRename $renameSuggestion | Out-Null
-        Add-SkipStat 'AmbiguousTV'
-        Write-Log "SKIP (ambiguous TV filename): $($file.Name) — $($tvInfo.ParseError)" "ERROR"
-        Write-Log "  Suggested rename: $renameSuggestion" "WARN"
-        $result = New-MediaPipelineProcessFileResult -File $file -Status 'skipped' -Success:$false -QueueTerminal:$true -Retryable:$false -Reason ([string]$tvInfo.ParseError) -ErrorCode 'TV_PARSE_UNRELIABLE'
-        Write-MediaPipelineProcessCompletedEvent -Result $result -Stage 'skipped' -MediaType 'tv'
-        return $result
-    }
-    # ③ Apply ShowName canonical override NOW — before Already-Processed — so the
-    #   index key, output path, and all downstream log messages use the final name.
-    #   The full ActiveOverrides (audio/subtitle settings) are re-resolved below at
-    #   the standard point; this early call is ShowName-only.
-    if ($isTV -and $tvInfo -and $tvInfo.IsReliable -and $tvInfo.ShowName) {
-        $_earlyOvr = Resolve-ShowOverrides $tvInfo.ShowName
-        if (-not [string]::IsNullOrWhiteSpace([string]$_earlyOvr.ShowName)) {
-            Write-Log "SHOW NAME OVERRIDE: '$($tvInfo.ShowName)' → '$($_earlyOvr.ShowName)'" "DEBUG"
-            $tvInfo.ShowName = [string]$_earlyOvr.ShowName
-        }
-        Remove-Variable _earlyOvr -ErrorAction SilentlyContinue
-    }
-    if (Already-Processed $file $isTV $tvInfo $idx) {
-        Add-SkipStat 'AlreadyProcessed'
-        Clear-SourceFailureState $file
-        $result = New-MediaPipelineProcessFileResult -File $file -Status 'skipped' -Success:$true -QueueTerminal:$true -Retryable:$false -Reason 'Already processed' -ErrorCode 'ALREADY_PROCESSED'
-        Write-MediaPipelineProcessCompletedEvent -Result $result -Stage 'skipped' -MediaType $queueLabel.ToLowerInvariant()
-        return $result
-    }
-    if (-not (Test-FileStable $file.FullName)) {
-        Add-SkipStat 'StillWriting'
-        Write-Log "SKIP (file still being written): $($file.Name)" "WARN"
-        $result = New-MediaPipelineProcessFileResult -File $file -Status 'skipped' -Success:$false -QueueTerminal:$false -Retryable:$true -Reason 'File is still being written' -ErrorCode 'SOURCE_STILL_WRITING'
-        Write-MediaPipelineProcessCompletedEvent -Result $result -Stage 'skipped' -MediaType $queueLabel.ToLowerInvariant()
-        return $result
-    }
+    $mediaType = $queueLabel.ToLowerInvariant()
+    $preflightChecks = [System.Collections.Generic.List[object]]::new()
 
-    # Output path guard — test the actual filesystem/share capability instead
-    # of rejecting by total string length. Long paths can be valid on modern
-    # Windows/SMB; component length and write/create capability are what matter.
-    $safeName  = Get-SafeLocalName $file.Name
-    $testPaths = Get-OutputPaths $file $isTV $tvInfo $safeName
-    $pathCheck = Test-OutputPathCapability -Paths $testPaths
-    if (-not $pathCheck.Ok) {
-        Add-SkipStat 'PathUnsupported'
-        Register-SourceFailure -SourceFile $file -Classification 'permanent' -Reason $pathCheck.Reason -Stage 'path-capability' -SuggestedAction (Get-FailureSuggestedAction -Stage 'path-capability' -Reason $pathCheck.Reason) -SuggestedRename (Split-Path $testPaths.ServerOut -Leaf) | Out-Null
-        Write-Log "SKIP (output path unsupported): $($file.Name) — $($pathCheck.Reason)" "WARN"
-        if ($pathCheck.Path) { Write-Log "  Path: $($pathCheck.Path)" "DEBUG" }
-        $result = New-MediaPipelineProcessFileResult -File $file -Status 'skipped' -Success:$false -QueueTerminal:$true -Retryable:$false -Reason ([string]$pathCheck.Reason) -ErrorCode 'OUTPUT_PATH_UNSUPPORTED'
-        Write-MediaPipelineProcessCompletedEvent -Result $result -Stage 'skipped' -MediaType $queueLabel.ToLowerInvariant()
-        return $result
-    }
+    $extensionDecision = Test-MediaPipelineExtensionPreflight -File $file -ValidExtensions $ValidExtensions
+    $result = Invoke-MediaPipelineProcessPreflightDecision -Decision $extensionDecision -File $file -CollectedChecks $preflightChecks
+    if ($result) { return $result }
+
+    $failureDecision = Get-MediaPipelineFailureStatePreflight -File $file
+    $result = Invoke-MediaPipelineProcessPreflightDecision -Decision $failureDecision -File $file -CollectedChecks $preflightChecks
+    if ($result) { return $result }
+
+    $tvDecision = Get-MediaPipelineTvParsePreflight -File $file -IsTV:$isTV
+    $result = Invoke-MediaPipelineProcessPreflightDecision -Decision $tvDecision -File $file -CollectedChecks $preflightChecks
+    if ($result) { return $result }
+    $tvInfo = $tvDecision.TvInfo
+
+    # Apply ShowName canonical override NOW before Already-Processed so the
+    # index key, output path, and all downstream log messages use the final name.
+    # The full ActiveOverrides are re-resolved below at the standard point.
+    $showNameDecision = Resolve-MediaPipelineTvShowNameOverridePreflight -IsTV:$isTV -TvInfo $tvInfo
+    $result = Invoke-MediaPipelineProcessPreflightDecision -Decision $showNameDecision -File $file -CollectedChecks $preflightChecks
+    if ($result) { return $result }
+    $tvInfo = $showNameDecision.TvInfo
+
+    $alreadyProcessedDecision = Test-MediaPipelineAlreadyProcessedPreflight -File $file -IsTV:$isTV -TvInfo $tvInfo -ProcessedIndex $idx -MediaType $mediaType
+    $result = Invoke-MediaPipelineProcessPreflightDecision -Decision $alreadyProcessedDecision -File $file -CollectedChecks $preflightChecks
+    if ($result) { return $result }
+
+    $stabilityDecision = Test-MediaPipelineStabilityPreflight -File $file -MediaType $mediaType
+    $result = Invoke-MediaPipelineProcessPreflightDecision -Decision $stabilityDecision -File $file -CollectedChecks $preflightChecks
+    if ($result) { return $result }
+
+    $outputPathDecision = Test-MediaPipelineOutputPathPreflight -File $file -IsTV:$isTV -TvInfo $tvInfo -MediaType $mediaType
+    $result = Invoke-MediaPipelineProcessPreflightDecision -Decision $outputPathDecision -File $file -CollectedChecks $preflightChecks
+    if ($result) { return $result }
 
     $queuePhase = if ($PriorityInfo.IsPriority) { 'priority' } elseif ($isTV) { 'tv' } else { 'movie' }
     $displayName = "$queuePrefix$($file.Name)"
@@ -242,46 +254,54 @@ function Invoke-MediaPipelineProcessFile {
     } else { Write-Log "${queuePrefix}TYPE: Movie" }
 
     # Resolve effective per-job overrides before route selection so folder
-    # policy can influence routing, encode ladders, audio, and subtitle policy
-    # from one shared source of truth. Always cleared in the finally block.
+    # and library policy can influence routing, encode ladders, audio, and
+    # subtitle policy from one shared source of truth. Always cleared in the
+    # finally block.
     $showOverrides = if ($isTV -and $tvInfo.ShowName) { Resolve-ShowOverrides $tvInfo.ShowName } else { $null }
     $folderOverrides = Resolve-FolderPolicyOverrides -SourceFile $file
-    $script:ActiveOverrides = Merge-MediaPipelineActiveOverrides -Base $showOverrides -Override $folderOverrides
+    $libraryOverrides = Resolve-MediaPipelineLibraryOverridesForPath -SourcePath $file.FullName
+    $script:ActiveOverrides = Merge-MediaPipelineActiveOverrides -Base $libraryOverrides -Override $showOverrides
+    $script:ActiveOverrides = Merge-MediaPipelineActiveOverrides -Base $script:ActiveOverrides -Override $folderOverrides
     # Merge per-file à-la-carte overrides from file_overrides.json (Phase 3).
     # Stores the structured audio/subtitle override under '_FileOverride' and
     # promotes flat audio config fields so existing Get-Effective* functions
     # pick them up without modification. No-op if no entry exists for this file.
     Merge-FileOverrideIntoActiveOverrides -SourcePath $file.FullName
-    $script:CurrentSizePolicyResult = $null
-    $routeHints = Get-ActiveMediaRouteHints
-    $sourceMediaProfile = Get-SourceMediaRouteProfile -FilePath $file.FullName -FileSizeBytes ([long]$file.Length)
-    $routePlan = Resolve-InitialMediaRoutePlan -File $file -IsTV:$isTV -MediaProfile $sourceMediaProfile -RouteHints $routeHints
-    $encode    = [bool]$routePlan.ShouldEncode
-    $script:CurrentRoutePlan = $routePlan
-    $script:CurrentRouteReasonCode = [string]$routePlan.ReasonCode
-    $script:CurrentRouteReason = [string]$routePlan.Reason
-    Write-Log "${queuePrefix}SIZE: $([math]::Round([double]$routePlan.SizeGB,2)) GB | Route: $($routePlan.DisplayRoute)"
-    DebugLog "${queuePrefix}ROUTE REASON: $($routePlan.ReasonCode) - $($routePlan.Reason)"
-    Write-PipelineEvent -EventType 'route_selected' -Stage 'route' -Route $routePlan.Route -Status 'selected' -SourcePath $file.FullName -Data @{
-        route              = $routePlan.Route
-        reason_code        = $routePlan.ReasonCode
-        reason             = $routePlan.Reason
-        size_gb            = [double]$routePlan.SizeGB
-        threshold_gb       = [double]$routePlan.ThresholdGB
-        estimated_bitrate_mbps = [double]$routePlan.EstimatedBitrateMbps
-        source_codec       = [string]$routePlan.SourceCodec
-        plex_compatibility_score = [double]$routePlan.PlexCompatibilityScore
-        routing_profile   = if ($routePlan.PSObject.Properties['RoutingProfile']) { [string]$routePlan.RoutingProfile } else { [string]$script:RoutingProfile }
-        size_guard_mode   = if ($routePlan.PSObject.Properties['SizeGuardMode']) { [string]$routePlan.SizeGuardMode } else { [string]$script:SizeGuardMode }
-        route_actions      = $routePlan.Actions
-        route_hints        = $routePlan.RouteHints
-        decision_trace     = @($routePlan.DecisionTrace)
-        source_media_profile = $routePlan.SourceMediaProfile
-        requires_probe     = [bool]$routePlan.RequiresCodecProbe
-        media_type         = $queueLabel.ToLowerInvariant()
-    } | Out-Null
-
+    $libraryEffectiveSettings = Resolve-MediaPipelineLibraryEffectiveSettings -Overrides $libraryOverrides
+    $activeConfigOverrideSnapshot = Push-MediaPipelineActiveConfigOverrides -Overrides $script:ActiveOverrides
     try {
+        $script:CurrentSizePolicyResult = $null
+        $routeHints = Get-ActiveMediaRouteHints
+        $sourceMediaProfile = Get-SourceMediaRouteProfile -FilePath $file.FullName -FileSizeBytes ([long]$file.Length)
+        $routePlan = Resolve-InitialMediaRoutePlan -File $file -IsTV:$isTV -MediaProfile $sourceMediaProfile -RouteHints $routeHints
+        $encode    = [bool]$routePlan.ShouldEncode
+        $script:CurrentRoutePlan = $routePlan
+        $script:CurrentRouteReasonCode = [string]$routePlan.ReasonCode
+        $script:CurrentRouteReason = [string]$routePlan.Reason
+        Write-Log "${queuePrefix}SIZE: $([math]::Round([double]$routePlan.SizeGB,2)) GB | Route: $($routePlan.DisplayRoute)"
+        DebugLog "${queuePrefix}ROUTE REASON: $($routePlan.ReasonCode) - $($routePlan.Reason)"
+        Write-PipelineEvent -EventType 'route_selected' -Stage 'route' -Route $routePlan.Route -Status 'selected' -SourcePath $file.FullName -Data @{
+            route              = $routePlan.Route
+            reason_code        = $routePlan.ReasonCode
+            reason             = $routePlan.Reason
+            size_gb            = [double]$routePlan.SizeGB
+            threshold_gb       = [double]$routePlan.ThresholdGB
+            estimated_bitrate_mbps = [double]$routePlan.EstimatedBitrateMbps
+            source_codec       = [string]$routePlan.SourceCodec
+            plex_compatibility_score = [double]$routePlan.PlexCompatibilityScore
+            routing_profile   = if ($routePlan.PSObject.Properties['RoutingProfile']) { [string]$routePlan.RoutingProfile } else { [string]$script:RoutingProfile }
+            size_guard_mode   = if ($routePlan.PSObject.Properties['SizeGuardMode']) { [string]$routePlan.SizeGuardMode } else { [string]$script:SizeGuardMode }
+            route_actions      = $routePlan.Actions
+            route_hints        = $routePlan.RouteHints
+            decision_trace     = @($routePlan.DecisionTrace)
+            source_media_profile = $routePlan.SourceMediaProfile
+            requires_probe     = [bool]$routePlan.RequiresCodecProbe
+            media_type         = $queueLabel.ToLowerInvariant()
+            library_settings_override_keys = @($libraryOverrides.Keys)
+            library_settings_overrides = $libraryOverrides
+            library_effective_settings = $libraryEffectiveSettings
+        } | Out-Null
+
         $ok = $false
         $routeName = if ($encode) { 'encode' } else { 'remux' }
         if ($encode) {
@@ -317,6 +337,7 @@ function Invoke-MediaPipelineProcessFile {
         Write-MediaPipelineProcessCompletedEvent -Result $result -Stage 'stopped' -MediaType $queueLabel.ToLowerInvariant()
         return $result
     } finally {
+        Pop-MediaPipelineActiveConfigOverrides -Snapshot $activeConfigOverrideSnapshot
         $script:ActiveOverrides = $null
         $script:CurrentJobId = $null
         $script:CurrentRoutePlan = $null

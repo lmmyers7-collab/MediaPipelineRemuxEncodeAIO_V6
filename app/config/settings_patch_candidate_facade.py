@@ -8,6 +8,7 @@ from app.config.settings_patch_policy import (
     settings_patch_changes_from_request,
     settings_patch_remove_keys_from_request,
 )
+from app.config.library_profiles import mirror_legacy_keys_from_library_profiles
 from mediapipeline_desktop_app.models import ResolvedPaths
 
 if TYPE_CHECKING:
@@ -59,6 +60,15 @@ class SettingsPatchCandidateFacadeMixin:
                 continue
             merged[key] = safe_value
             changed_keys.append(key)
+
+        mirrored = mirror_legacy_keys_from_library_profiles(merged, require_profiles=True)
+        for key, value in mirrored.items():
+            safe_value = _json_safe(value)
+            if key in merged and _json_safe(merged.get(key)) == safe_value:
+                continue
+            merged[key] = safe_value
+            if key not in changed_keys and _json_safe(base_config.get(key)) != safe_value:
+                changed_keys.append(key)
 
         if not changed_keys and not removed_keys and not errors:
             warnings.append("No settings changes were proposed.")

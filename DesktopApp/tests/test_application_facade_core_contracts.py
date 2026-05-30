@@ -30,6 +30,7 @@ from mediapipeline_desktop_app.api.http_helpers import (
 from mediapipeline_desktop_app.api.routes import GET_ROUTE_HANDLERS, POST_ROUTE_HANDLERS
 from mediapipeline_desktop_app.api.static_files import local_api_bootstrap, read_static_asset, render_index
 from mediapipeline_desktop_app.application import CommandResult, MediaPipelineApplicationFacade
+from mediapipeline_desktop_app.models import ResolvedPaths
 from DesktopApp.tests.test_application_facade import DummyFacadeService
 
 
@@ -366,6 +367,42 @@ class ApplicationFacadeCoreContractTests(unittest.TestCase):
         self.assertEqual(set(POST_ROUTE_HANDLERS), documented_post)
         for spec in [*GET_ROUTE_HANDLERS.values(), *POST_ROUTE_HANDLERS.values()]:
             self.assertTrue(callable(getattr(server, spec.method_name, None)), spec.method_name)
+
+    def test_ui_preferences_round_trip_uses_state_root_and_allowlisted_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            state_root = root / "State"
+            resolved = ResolvedPaths(
+                app_root=root,
+                workspace_root=root,
+                pipeline_path=root / "pipeline.ps1",
+                config_path=root / "config.psd1",
+                audit_script_path=root / "audit.ps1",
+                rerun_script_path=root / "rerun.ps1",
+                powershell_host=str(root / "pwsh.exe"),
+                state_root=state_root,
+            )
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v5-test")
+            server = LocalApiServer(facade, resolved_provider=lambda: resolved)
+
+            saved = server._ui_preferences_save_payload(
+                {
+                    "source_surface": "webview",
+                    "storage": {
+                        "mediapipeline-layout-v1": "{\"home\":{}}",
+                        "mediapipeline-theme": "dark",
+                        "not-owned": "ignored",
+                    },
+                }
+            )
+            loaded = server._ui_preferences_payload()
+
+        self.assertTrue(saved["ok"])
+        self.assertEqual(saved["schema_version"], "desktop_ui_preferences.v1")
+        self.assertEqual(saved["source_surface"], "webview")
+        self.assertEqual(loaded["storage"]["mediapipeline-layout-v1"], "{\"home\":{}}")
+        self.assertEqual(loaded["storage"]["mediapipeline-theme"], "dark")
+        self.assertNotIn("not-owned", loaded["storage"])
 
 
 if __name__ == "__main__":

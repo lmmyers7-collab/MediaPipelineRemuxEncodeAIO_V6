@@ -1,6 +1,7 @@
 (function () {
   let lastCompletedRows = [];
   let lastCompletedPayload = {};
+  let lastFinalLibraryPromotionStatus = {};
   let lastCompletedPendingPayload = {};
   let lastCompletedPendingProofRows = [];
   let lastPublishReconciliationPayload = {};
@@ -15,6 +16,7 @@
   let lastCompletedRouteAgreementRows = [];
   let selectedPublishReconciliationKey = "";
   let publishReconciliationInFlight = false;
+  let finalLibraryPromotionCommandInFlight = false;
   let lastCompletedEmptyMessage = "No completed jobs available.";
   let completedOpenInFlight = false;
   const COMPLETED_FILTER_FIELDS = [
@@ -24,6 +26,10 @@
     "route_reason",
     "route_reason_code",
     "publish",
+    "final_library_promotion_status",
+    "final_library_promotion_status_label",
+    "final_library_destination_path",
+    "final_library_rule_label",
     "media_type",
     "lookup_title",
     "output_file",
@@ -65,6 +71,8 @@
     set selectedCompletedPendingProofKey(value) { selectedCompletedPendingProofKey = value; },
     get selectedCompletedRowKey() { return selectedCompletedRowKey; },
     set selectedCompletedRowKey(value) { selectedCompletedRowKey = value; },
+    get lastCompletedEmptyMessage() { return lastCompletedEmptyMessage; },
+    set lastCompletedEmptyMessage(value) { lastCompletedEmptyMessage = value; },
     get selectedCompletedSizeEvidenceKey() { return selectedCompletedSizeEvidenceKey; },
     set selectedCompletedSizeEvidenceKey(value) { selectedCompletedSizeEvidenceKey = value; },
     get selectedCompletedAcceptanceKey() { return selectedCompletedAcceptanceKey; },
@@ -468,9 +476,208 @@
     return true;
   }
 
+  function completedCurrentRows(rows = lastCompletedRows) {
+    return (Array.isArray(rows) ? rows : []).filter((row) => row?.output_exists !== false);
+  }
+
+  function completedMissingRows(rows = lastCompletedRows) {
+    return (Array.isArray(rows) ? rows : []).filter((row) => row?.output_exists === false && !row?.promoted_cleaned);
+  }
+
+  function completedMetricCounts(rows = lastCompletedRows) {
+    const currentRows = completedCurrentRows(rows);
+    return {
+      current: currentRows.length,
+      encoded: currentRows.filter((row) => String(row?.route || "").startsWith("encode")).length,
+      remuxed: currentRows.filter((row) => String(row?.route || "") === "remux").length,
+      missing: completedMissingRows(rows).length,
+    };
+  }
+
+  function finalLibraryPromotionItemsByKey(status = lastFinalLibraryPromotionStatus) {
+    const payload = status && typeof status === "object" ? status : {};
+    const items = Array.isArray(payload.items) ? payload.items : Array.isArray(payload.item_rows) ? payload.item_rows : [];
+    const byKey = {};
+    items.forEach((item) => {
+      if (item?.row_key) byKey[item.row_key] = item;
+    });
+    return byKey;
+  }
+
+  function mergeFinalLibraryPromotionRows(rows, status = lastFinalLibraryPromotionStatus) {
+    const byKey = finalLibraryPromotionItemsByKey(status);
+    return (Array.isArray(rows) ? rows : []).map((row) => {
+      const item = byKey[row?.row_key || ""];
+      return item ? { ...row, ...item } : row;
+    });
+  }
+
+  function finalLibraryPromotionStatusText(item = {}) {
+    if (item.promoted_cleaned) return "✓ Promoted + cleaned";
+    if (item.promoted) return "✓ Promoted";
+    if (item.promoting) return "Promoting";
+    if (item.paused) return "Paused";
+    if (item.promotion_failed) return "Failed";
+    if (item.ready_for_promotion) return "✓ Ready";
+    if (item.no_destination_rule) return "No Destination Rule";
+    if (item.destination_offline) return "Destination Offline";
+    return item.final_library_promotion_status_label || "";
+  }
+
+  function finalLibraryPromotionChipState(item = {}) {
+    if (item.promoted || item.promoted_cleaned) return "success";
+    if (item.ready_for_promotion || item.promoting) return "ready";
+    if (item.paused || item.destination_offline || item.no_destination_rule) return "warning";
+    if (item.promotion_failed) return "error";
+    return "unknown";
+  }
+
+  function finalLibraryPromotionActiveRun(status = lastFinalLibraryPromotionStatus) {
+    const active = status?.active_run && typeof status.active_run === "object" ? status.active_run : {};
+    return active?.run_id ? active : {};
+  }
+
+  function finalLibraryPromotionRunActive(status = lastFinalLibraryPromotionStatus) {
+    const active = finalLibraryPromotionActiveRun(status);
+    const state = String(active.status || "").toLowerCase();
+    return Boolean(active.run_id && ["running", "pausing", "paused"].includes(state));
+  }
+
+  function renderFinalLibraryPromotion(status = {}) {
+    const payload = status && typeof status === "object" ? status : {};
+    lastFinalLibraryPromotionStatus = payload;
+    if (lastCompletedRows.length) {
+      lastCompletedRows = mergeFinalLibraryPromotionRows(lastCompletedRows, payload);
+    }
+    const counts = payload.counts && typeof payload.counts === "object" ? payload.counts : {};
+    const active = finalLibraryPromotionActiveRun(payload);
+    const activeStatus = String(active.status || "").toLowerCase();
+    const enabled = Boolean(payload.enabled);
+    const eligible = Number(counts.eligible || 0);
+    const warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
+    const statusText = active.run_id
+      ? `${active.status || "active"} / ${Number(active.completed_count || 0)} of ${Number(active.eligible_count || eligible || 0)}`
+      : enabled
+        ? `${eligible} ready`
+        : "Disabled";
+    setText("final-library-promotion-status", statusText);
+    setText("final-library-promotion-summary", [
+      `Enabled: ${enabled ? "yes" : "no"}`,
+      `Verification: ${payload.verification_mode || "cautious"}`,
+      `Cleanup after verified: ${payload.cleanup_after_verified ? "yes" : "no"}`,
+      `Overwrite existing: ${payload.overwrite_existing ? "yes - destructive" : "no"}`,
+      `Rows: ${Number(counts.total || 0)} total; ${eligible} ready; ${Number(counts.no_destination_rule || 0)} no rule; ${Number(counts.destination_offline || 0)} offline; ${Number(counts.promoted || 0)} promoted; ${Number(counts.promoted_cleaned || 0)} promoted + cleaned`,
+      active.run_id ? `Active run: ${active.run_id}; status=${active.status || ""}; pause=${active.pause_state || ""}; consecutive failures=${Number(active.consecutive_failures || 0)}` : "Active run: none",
+      active.stop_reason ? `Stop reason: ${active.stop_reason}` : "",
+      payload.publish_root ? `Publish root: ${payload.publish_root}` : "",
+      payload.evidence_root ? `Evidence: ${payload.evidence_root}` : "",
+      ...warnings,
+    ].filter(Boolean).join("\n"));
+
+    const promoteButton = byId("final-library-promote-button");
+    const pauseButton = byId("final-library-pause-button");
+    const resumeButton = byId("final-library-resume-button");
+    if (promoteButton) promoteButton.disabled = finalLibraryPromotionCommandInFlight || !enabled || finalLibraryPromotionRunActive(payload) || eligible <= 0;
+    if (pauseButton) pauseButton.disabled = finalLibraryPromotionCommandInFlight || !(active.run_id && ["running", "pausing"].includes(activeStatus));
+    if (resumeButton) resumeButton.disabled = finalLibraryPromotionCommandInFlight || !(active.run_id && activeStatus === "paused");
+
+    const tbody = byId("final-library-promotion-rows");
+    const items = Array.isArray(payload.items) ? payload.items : Array.isArray(payload.item_rows) ? payload.item_rows : [];
+    if (!items.length) {
+      clearRows(tbody, 3, "No final library promotion rows loaded.");
+    } else {
+      tbody.replaceChildren();
+      items.slice(0, 40).forEach((item) => {
+        const tr = document.createElement("tr");
+        appendCells(tr, [
+          finalLibraryPromotionStatusText(item),
+          item.lookup_title || item.output_file || "",
+          item.final_library_destination_path || "",
+        ]);
+        const statusCell = tr.querySelector("td");
+        if (typeof setCellStatusChip === "function") {
+          setCellStatusChip(statusCell, finalLibraryPromotionStatusText(item), finalLibraryPromotionChipState(item));
+        }
+        tbody.appendChild(tr);
+      });
+    }
+    renderCompletedRows();
+  }
+
+  const completedFiltersModule = window.__completedViewFiltersModule || {};
+  delete window.__completedViewFiltersModule;
+  const completedFilters = typeof completedFiltersModule.createCompletedFiltersModule === "function"
+    ? completedFiltersModule.createCompletedFiltersModule({
+      byId: typeof byId === "function" ? byId : window.byId,
+      completedCurrentRows: (...args) => completedCurrentRows(...args),
+      completedFilterFields: COMPLETED_FILTER_FIELDS,
+      completedInvestigationFilterLabel: (...args) => completedInvestigationFilterLabel(...args),
+      completedMatchesInvestigationFilter: (...args) => completedMatchesInvestigationFilter(...args),
+      completedMissingRows: (...args) => completedMissingRows(...args),
+      completedReviewRows: (...args) => completedReviewRows(...args),
+      completedReviewRowReasons: (...args) => completedReviewRowReasons(...args),
+      completedTableRowStatus: (...args) => completedTableRowStatus(...args),
+      filterRows: typeof filterRows === "function" ? filterRows : window.filterRows,
+      filterRowsByInvestigation: window.filterRowsByInvestigation,
+      filterRowsByStatus: window.filterRowsByStatus,
+      renderCompletedRows: (...args) => renderCompletedRows(...args),
+      setText: typeof setText === "function" ? setText : window.setText,
+      state: completedEvidenceState,
+    })
+    : {};
+  const {
+    completedDisplayRowStatus = completedReviewNoop,
+    completedFilteredRows = completedReviewNoop,
+    completedRiskStatusLine = completedReviewNoop,
+    completedRowsStatusLine = completedReviewNoop,
+    renderCompletedReconciliationHint = completedReviewNoop,
+    resetCompletedFilters = completedReviewNoop,
+    resetCompletedHistoryFilters = completedReviewNoop,
+  } = completedFilters;
+
+  const completedTableModule = window.__completedViewTableModule || {};
+  delete window.__completedViewTableModule;
+  const completedTable = typeof completedTableModule.createCompletedTableModule === "function"
+    ? completedTableModule.createCompletedTableModule({
+      appendCells: typeof appendCells === "function" ? appendCells : window.appendCells,
+      byId: typeof byId === "function" ? byId : window.byId,
+      clearRows: typeof clearRows === "function" ? clearRows : window.clearRows,
+      completedCurrentRows: (...args) => completedCurrentRows(...args),
+      completedDisplayRowStatus: (...args) => completedDisplayRowStatus(...args),
+      completedFilteredRows: (...args) => completedFilteredRows(...args),
+      completedInvestigationFilterLabel: (...args) => completedInvestigationFilterLabel(...args),
+      completedRiskStatusLine: (...args) => completedRiskStatusLine(...args),
+      completedRowsStatusLine: (...args) => completedRowsStatusLine(...args),
+      filterResultSummaryLines: window.filterResultSummaryLines,
+      finalLibraryPromotionChipState: (...args) => finalLibraryPromotionChipState(...args),
+      finalLibraryPromotionStatusText: (...args) => finalLibraryPromotionStatusText(...args),
+      getSelectedCompletedRow: (...args) => getSelectedCompletedRow(...args),
+      makeRowSelectable: typeof makeRowSelectable === "function" ? makeRowSelectable : window.makeRowSelectable,
+      renderCompletedDetail: (...args) => renderCompletedDetail(...args),
+      renderCompletedFinalTrust: (...args) => renderCompletedFinalTrust(...args),
+      renderCompletedOutputAcceptance: (...args) => renderCompletedOutputAcceptance(...args),
+      renderCompletedPilotEvidencePacket: (...args) => renderCompletedPilotEvidencePacket(...args),
+      selectCompletedRow: (...args) => selectCompletedRow(...args),
+      setCellStatusChip: typeof setCellStatusChip === "function" ? setCellStatusChip : window.setCellStatusChip,
+      setText: typeof setText === "function" ? setText : window.setText,
+      state: completedEvidenceState,
+      updateTableStatusLegend: typeof updateTableStatusLegend === "function" ? updateTableStatusLegend : window.updateTableStatusLegend,
+    })
+    : {};
+  const {
+    renderCompletedRows = completedReviewNoop,
+    renderCompletedHistoryRows = completedReviewNoop,
+  } = completedTable;
+
   function renderCompleted(completed = {}) {
     const payload = completed && typeof completed === "object" ? completed : {};
-    const rows = Array.isArray(payload.rows) ? payload.rows : [];
+    let rows = Array.isArray(payload.rows) ? payload.rows : [];
+    if (payload.final_library_promotion && typeof payload.final_library_promotion === "object") {
+      lastFinalLibraryPromotionStatus = payload.final_library_promotion;
+      rows = mergeFinalLibraryPromotionRows(rows, payload.final_library_promotion);
+    }
+    const currentRows = completedCurrentRows(rows);
+    const metricCounts = completedMetricCounts(rows);
     const commandEntries = typeof getCommandHistory === "function" ? getCommandHistory() : [];
     lastCompletedPayload = payload;
     lastCompletedRows = rows;
@@ -481,7 +688,10 @@
     if (!selectedCompletedRowKey && rows.length) {
       selectedCompletedRowKey = rows[0]?.row_key || "";
     }
-    setText("completed-count", String(payload.count || rows.length || 0));
+    setText("completed-count", String(metricCounts.current));
+    setText("completed-encode-count", String(metricCounts.encoded));
+    setText("completed-remux-count", String(metricCounts.remuxed));
+    setText("completed-missing-count", String(metricCounts.missing));
     const warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
     const freshnessLines = window.mediaPipelineDom?.payloadFreshnessLines
       ? window.mediaPipelineDom.payloadFreshnessLines({
@@ -491,16 +701,18 @@
         sourceLine: payload.source || payload.manifest_path ? `Manifest: ${payload.source || payload.manifest_path}` : "",
         artifactLine: completedFreshnessLine("Manifest age", payload.manifest_age_text, payload.manifest_freshness_status, payload.manifest_mtime_utc),
         readError: payload.manifest_error || payload.error || "",
-        refreshAction: "Use Refresh Output or topbar Refresh. This reloads completed evidence only and does not accept, delete, or move outputs.",
+        refreshAction: "Use Refresh Current Output Status to reread completed history and recheck destination file existence without accepting, deleting, or moving outputs.",
       })
       : [];
+    const currentReviewCount = completedReviewRows(payload, currentRows).length;
     const summary = [
       ...freshnessLines,
       freshnessLines.length ? "" : (payload.source || payload.manifest_path ? `Manifest: ${payload.source || payload.manifest_path}` : ""),
       freshnessLines.length ? "" : completedFreshnessLine("Manifest age", payload.manifest_age_text, payload.manifest_freshness_status, payload.manifest_mtime_utc),
-      `Rows: ${payload.count || rows.length || 0}`,
-      `Encode/remux: ${payload.encode_count || 0} / ${payload.remux_count || 0}`,
-      `Missing outputs: ${payload.missing_output_count || 0}`,
+      `Completed history rows: ${payload.count || rows.length || 0}`,
+      `Current outputs present: ${metricCounts.current}`,
+      `Current encode/remux: ${metricCounts.encoded} / ${metricCounts.remuxed}`,
+      `Historical outputs missing from expected destination: ${metricCounts.missing}`,
       `Rows needing review: ${completedReviewRows(payload, rows).length}`,
       `Rows over +5% output growth: ${payload.size_growth_over_5_count || 0}`,
       payload.operator_status_counts ? `Operator statuses: ${completedFormatCounts(payload.operator_status_counts)}` : "",
@@ -512,6 +724,15 @@
       !rows.length ? lastCompletedEmptyMessage : "",
     ].filter(Boolean);
     setText("completed-summary", summary.join("\n") || payload.error || "No completed history issues loaded.");
+    setText("completed-current-summary", [
+      `Current outputs present at expected destination: ${metricCounts.current}`,
+      `Current encoded/remuxed: ${metricCounts.encoded} / ${metricCounts.remuxed}`,
+      `Current rows needing review: ${currentReviewCount}`,
+      `Completed history rows not currently present: ${metricCounts.missing}`,
+      "Current table rule: a row appears here only when the completed output is still present at the expected destination.",
+      "Refresh Current Output Status rereads the completed manifest and rechecks output existence; it does not accept, delete, rerun, drain, publish, or move media.",
+    ].join("\n"));
+    renderCompletedReconciliationHint(payload, rows);
     renderCompletedInventoryProgress(payload);
     renderCompletedIntegrity(payload, rows);
     renderCompletedBreakdown(payload, rows);
@@ -732,6 +953,12 @@
       `Route: ${item.route_label || item.route || ""}`,
       item.route_reason || item.route_reason_code ? `Route reason: ${[item.route_reason_code, item.route_reason].filter(Boolean).join(" - ")}` : "",
       `Publish: ${item.publish || ""}`,
+      item.final_library_promotion_status_label ? `Final library promotion: ${item.final_library_promotion_status_label}` : "",
+      item.final_library_rule_label ? `Final library rule: ${item.final_library_rule_label}` : "",
+      item.final_library_destination_path ? `Final library destination: ${item.final_library_destination_path}` : "",
+      item.last_promotion_run_id ? `Last promotion run: ${item.last_promotion_run_id}` : "",
+      item.last_promotion_completed_at ? `Last promotion completed: ${item.last_promotion_completed_at}` : "",
+      item.promotion_error ? `Promotion error: ${item.promotion_error}` : "",
       `Media: ${item.media_type || ""}`,
       `Title: ${item.lookup_title || item.output_file || ""}`,
       `Output: ${item.output_path || ""}`,
@@ -760,86 +987,94 @@
     renderCompletedDiagnosticsLinks(item);
   }
 
-  function renderCompletedRows() {
-    const filterText = byId("completed-filter")?.value || "";
-    const statusFilter = byId("completed-status-filter")?.value || "all";
-    const investigationFilter = byId("completed-investigation-filter")?.value || "all";
-    const textRows = filterRows(lastCompletedRows, filterText, COMPLETED_FILTER_FIELDS);
-    const statusRows = typeof filterRowsByStatus === "function" ? filterRowsByStatus(textRows, statusFilter, completedTableRowStatus) : textRows;
-    const rows = typeof filterRowsByInvestigation === "function" ? filterRowsByInvestigation(statusRows, investigationFilter, completedMatchesInvestigationFilter) : statusRows;
-    const renderLimit = 250;
-    const renderedCount = Math.min(rows.length, renderLimit);
-    setText(
-      "completed-status",
-      rows.length > renderLimit
-        ? `${renderedCount} shown / ${rows.length} filtered / ${lastCompletedRows.length} rows`
-        : `${rows.length} / ${lastCompletedRows.length} row${lastCompletedRows.length === 1 ? "" : "s"}`
-    );
-    if (typeof filterResultSummaryLines === "function") {
-      setText("completed-filter-summary", filterResultSummaryLines({
-        label: "Completed filter",
-        allRows: lastCompletedRows,
-        visibleRows: rows,
-        filterText,
-        statusFilter,
-        investigationFilter,
-        investigationLabel: completedInvestigationFilterLabel(investigationFilter),
-        statusOf: completedTableRowStatus,
-        limit: 250,
-        decisionName: "rerun, cleanup, or library",
-        guardrail: "Mutation guardrail: filtering Completed history does not mark outputs accepted, reconcile sidecars, rerun files, delete files, or change backend manifests.",
-      }).join("\n"));
-    }
-    const tbody = byId("completed-rows");
-    if (!rows.length) {
-      clearRows(tbody, 7, lastCompletedRows.length ? "No completed rows match the filter." : lastCompletedEmptyMessage);
-      updateTableStatusLegend("completed-table-legend", tbody, "Completed rows");
-      if (selectedCompletedRowKey) renderCompletedDetail(getSelectedCompletedRow());
-      renderCompletedOutputAcceptance(lastCompletedPayload, lastCompletedRows, lastCompletedPendingProofRows);
-      renderCompletedFinalTrust(lastCompletedPayload, lastCompletedRows, lastCompletedPendingProofRows, lastCompletedPendingPayload);
-      renderCompletedPilotEvidencePacket(lastCompletedPayload, lastCompletedRows, lastCompletedPendingProofRows, lastCompletedPendingPayload);
-      return;
-    }
-    tbody.replaceChildren();
-    rows.slice(0, renderLimit).forEach((item) => {
-      const row = document.createElement("tr");
-      row.dataset.status = completedTableRowStatus(item);
-      row.dataset.rowKey = item.row_key || "";
-      const healthText = item.consistency_status || item.operator_status || item.output_health || (item.output_exists === false ? "missing output" : "ok");
-      appendCells(row, [
-        item.completed_at || "",
-        item.route_label || item.route || "",
-        item.size_reduction_text || item.output_size_text || "",
-        item.publish || "",
-        item.media_type || "",
-        item.lookup_title || item.output_file || "",
-        healthText,
-      ], [null, null, "num", null, null, null, null]);
-      const completedCells = row.querySelectorAll("td");
-      const healthCell = completedCells[6] || row.children?.[6];
-      if (typeof setCellStatusChip === "function") setCellStatusChip(healthCell, healthText, row.dataset.status);
-      makeRowSelectable(row, () => selectCompletedRow(item), {
-        selected: Boolean(item.row_key && item.row_key === selectedCompletedRowKey),
-        label: `Completed row ${item.lookup_title || item.output_file || item.output_path || ""}`,
-      });
-      tbody.appendChild(row);
-    });
-    updateTableStatusLegend("completed-table-legend", tbody, "Completed rows");
-    if (selectedCompletedRowKey) renderCompletedDetail(getSelectedCompletedRow());
-    renderCompletedOutputAcceptance(lastCompletedPayload, lastCompletedRows, lastCompletedPendingProofRows);
-    renderCompletedFinalTrust(lastCompletedPayload, lastCompletedRows, lastCompletedPendingProofRows, lastCompletedPendingPayload);
-    renderCompletedPilotEvidencePacket(lastCompletedPayload, lastCompletedRows, lastCompletedPendingProofRows, lastCompletedPendingPayload);
+  function currentFinalLibraryPromotionRunId() {
+    return String(finalLibraryPromotionActiveRun(lastFinalLibraryPromotionStatus).run_id || "");
   }
 
-  function resetCompletedFilters() {
-    const filter = byId("completed-filter");
-    const status = byId("completed-status-filter");
-    const investigation = byId("completed-investigation-filter");
-    if (filter) filter.value = "";
-    if (status) status.value = "all";
-    if (investigation) investigation.value = "all";
-    renderCompletedRows();
-    setText("completed-open-status", "Completed display filters cleared. Backend manifest, rerun, cleanup, and reconcile scopes are unchanged.");
+  function setFinalLibraryPromotionCommandBusy(isBusy) {
+    finalLibraryPromotionCommandInFlight = Boolean(isBusy);
+    renderFinalLibraryPromotion(lastFinalLibraryPromotionStatus);
+  }
+
+  async function requestFinalLibraryPromotion() {
+    if (finalLibraryPromotionCommandInFlight) return;
+    setFinalLibraryPromotionCommandBusy(true);
+    setText("final-library-promotion-status", "Starting");
+    try {
+      const result = await apiPost("/api/final-library-promotion/promote-queue", { confirm_promote: true });
+      appendCommandResult(result);
+      setText("final-library-promotion-status", result.ok ? "Started" : "Start failed");
+      if (result?.data && typeof result.data === "object") {
+        renderFinalLibraryPromotion({ ...lastFinalLibraryPromotionStatus, active_run: result.data });
+      }
+    } catch (error) {
+      const message = error?.message || String(error);
+      appendCommandResult({
+        command: "final_library.promote_queue",
+        ok: false,
+        message,
+        severity: "error",
+      });
+      setText("final-library-promotion-status", `Start failed: ${message}`);
+    } finally {
+      setFinalLibraryPromotionCommandBusy(false);
+    }
+  }
+
+  async function requestFinalLibraryPromotionPause() {
+    if (finalLibraryPromotionCommandInFlight) return;
+    const runId = currentFinalLibraryPromotionRunId();
+    if (!runId) {
+      setText("final-library-promotion-status", "No active promotion run to pause.");
+      return;
+    }
+    setFinalLibraryPromotionCommandBusy(true);
+    try {
+      const result = await apiPost("/api/final-library-promotion/pause", { run_id: runId });
+      appendCommandResult(result);
+      if (result?.data && typeof result.data === "object") {
+        renderFinalLibraryPromotion({ ...lastFinalLibraryPromotionStatus, active_run: result.data });
+      }
+    } catch (error) {
+      const message = error?.message || String(error);
+      appendCommandResult({
+        command: "final_library.pause",
+        ok: false,
+        message,
+        severity: "error",
+      });
+      setText("final-library-promotion-status", `Pause failed: ${message}`);
+    } finally {
+      setFinalLibraryPromotionCommandBusy(false);
+    }
+  }
+
+  async function requestFinalLibraryPromotionResume() {
+    if (finalLibraryPromotionCommandInFlight) return;
+    const runId = currentFinalLibraryPromotionRunId();
+    if (!runId) {
+      setText("final-library-promotion-status", "No paused promotion run to resume.");
+      return;
+    }
+    setFinalLibraryPromotionCommandBusy(true);
+    try {
+      const result = await apiPost("/api/final-library-promotion/resume", { run_id: runId });
+      appendCommandResult(result);
+      if (result?.data && typeof result.data === "object") {
+        renderFinalLibraryPromotion({ ...lastFinalLibraryPromotionStatus, active_run: result.data });
+      }
+    } catch (error) {
+      const message = error?.message || String(error);
+      appendCommandResult({
+        command: "final_library.resume",
+        ok: false,
+        message,
+        severity: "error",
+      });
+      setText("final-library-promotion-status", `Resume failed: ${message}`);
+    } finally {
+      setFinalLibraryPromotionCommandBusy(false);
+    }
   }
 
   async function requestCompletedOpen(target) {
@@ -866,6 +1101,41 @@
       });
     } finally {
       setCompletedOpenBusy(false);
+    }
+  }
+
+  function completedEvidencePacketText() {
+    const node = byId("completed-pilot-evidence-markdown");
+    return node ? String(node.textContent || "").trim() : "";
+  }
+
+  async function copyCompletedEvidencePacket() {
+    const text = completedEvidencePacketText();
+    if (!text || text === "No copyable pilot evidence packet loaded.") {
+      setText("completed-copy-evidence-status", "No evidence packet text is available to copy.");
+      return false;
+    }
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "readonly");
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.select();
+        const copied = document.execCommand("copy");
+        document.body.removeChild(textarea);
+        if (!copied) throw new Error("clipboard command returned false");
+      }
+      setText("completed-copy-evidence-status", "Copied evidence packet. This did not append evidence, save settings, publish, drain, rerun, rename, or touch media.");
+      return true;
+    } catch (error) {
+      const message = error?.message || String(error);
+      setText("completed-copy-evidence-status", `Copy failed: ${message}. Select the packet text manually if needed.`);
+      return false;
     }
   }
 
@@ -917,8 +1187,18 @@
     renderCompleted,
     renderCompletedInventoryProgress,
     completedInventoryProgressBars,
+    completedCurrentRows,
+    completedMissingRows,
+    completedMetricCounts,
+    renderFinalLibraryPromotion,
+    requestFinalLibraryPromotion,
+    requestFinalLibraryPromotionPause,
+    requestFinalLibraryPromotionResume,
+    currentFinalLibraryPromotionRunId,
     renderCompletedRows,
+    renderCompletedHistoryRows,
     resetCompletedFilters,
+    resetCompletedHistoryFilters,
     renderCompletedDetail,
     renderCompletedIntegrity,
     renderCompletedBreakdown,
@@ -942,6 +1222,7 @@
     completedWorkflowLines,
     completedReviewStatus,
     completedReviewBoardLines,
+    completedTableRowStatus,
     completedReviewRows,
     renderCompletedReviewDigest,
     completedReviewDigestStatus,
@@ -1052,9 +1333,14 @@
     isCompletedOpenCommand,
     completedOpenHistoryLine,
     renderCompletedOpenHistory,
+    completedRiskStatusLine,
+    renderCompletedReconciliationHint,
+    completedEvidencePacketText,
+    copyCompletedEvidencePacket,
   };
   window.renderCompleted = renderCompleted;
   window.resetCompletedFilters = resetCompletedFilters;
+  window.resetCompletedHistoryFilters = resetCompletedHistoryFilters;
   window.renderCompletedDetail = renderCompletedDetail;
   window.renderCompletedIntegrity = renderCompletedIntegrity;
   window.renderCompletedBreakdown = renderCompletedBreakdown;
@@ -1177,4 +1463,5 @@
   window.getLastCompletedPendingProofRows = getLastCompletedPendingProofRows;
   window.requestCompletedOpen = requestCompletedOpen;
   window.renderCompletedOpenHistory = renderCompletedOpenHistory;
+  window.copyCompletedEvidencePacket = copyCompletedEvidencePacket;
 })();

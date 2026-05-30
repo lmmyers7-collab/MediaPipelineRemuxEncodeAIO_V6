@@ -28,7 +28,7 @@
       button.setAttribute("aria-selected", String(active));
     });
     panels.forEach((panel) => {
-      panel.classList.toggle("is-reports-tab-hidden", panel.dataset.reportsTabPanel !== selected);
+      panel.classList.toggle("is-active", panel.dataset.reportsTabPanel === selected);
     });
     try { localStorage.setItem(REPORTS_TAB_STORAGE_KEY, selected); } catch (_) {}
     if (typeof updatePagePanelEmptyStates === "function") updatePagePanelEmptyStates();

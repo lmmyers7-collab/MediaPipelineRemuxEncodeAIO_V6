@@ -23,6 +23,8 @@ except ImportError:  # pragma: no cover - fallback for direct test execution
 
 
 COMMAND_EVIDENCE_ASSETS = [
+    "commandHistory/formatters.js",
+    "commandHistory/diagnostics.js",
     "commandHistory.js",
     "settingsCommandHistory.js",
     "renameHistoryView.js",
@@ -54,6 +56,7 @@ COMMAND_EVIDENCE_ASSETS = [
     "reportsView.js",
     "networkView.js",
     "maintenanceView.js",
+    "app/lifecycle.js",
     "app.js",
 ]
 

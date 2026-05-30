@@ -44,7 +44,7 @@ class RealMediaValidationWorksheetTests(unittest.TestCase):
         self.assertIn("Move-Item", source)
         self.assertNotIn("Start-Process", source)
         self.assertNotIn("Remove-Item", source)
-        self.assertNotIn("MediaPipeline_chatgpt.ps1", source)
+        self.assertNotIn("MediaPipeline.ps1", source)
         self.assertNotIn("& ffmpeg", source.casefold())
         self.assertNotIn("ffprobe", source.casefold())
         self.assertNotIn("rename.apply", source)

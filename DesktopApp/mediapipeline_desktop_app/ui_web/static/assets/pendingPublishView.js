@@ -248,21 +248,6 @@
     }
   }
 
-  function pendingInventoryProgressBars(pending) {
-    const payload = pending && typeof pending === "object" ? pending : {};
-    const progress = payload.inventory_progress && typeof payload.inventory_progress === "object" ? payload.inventory_progress : {};
-    if (Array.isArray(progress.progress_bars)) return progress.progress_bars.filter(Boolean);
-    if (Array.isArray(payload.progress_bars)) return payload.progress_bars.filter(Boolean);
-    return [];
-  }
-
-  function renderPendingInventoryProgress(pending) {
-    if (typeof renderProgressBarsInto !== "function") return;
-    const payload = pending && typeof pending === "object" ? pending : {};
-    const progress = payload.inventory_progress && typeof payload.inventory_progress === "object" ? payload.inventory_progress : {};
-    renderProgressBarsInto("pending-inventory-progress-bars", pendingInventoryProgressBars(payload), progress, "No pending inventory progress loaded.");
-  }
-
   function getLastPendingPublishPayload() {
     return lastPendingPayload;
   }
@@ -271,642 +256,106 @@
     return lastPendingRows.slice();
   }
 
-  function pendingEmptyStateMessage(pending, rows) {
-    if (pending.error) {
-      return `Pending publish unavailable: ${pending.error}. Open Diagnostics > Pending Publish and Run Logs.`;
-    }
-    const warnings = Array.isArray(pending.warnings) ? pending.warnings.filter(Boolean) : [];
-    if (warnings.length) {
-      return `Pending publish loaded with warning: ${warnings.join(" | ")}`;
-    }
-    if (!pending.exists) {
-      return "No pending-publish folder exists yet. This is normal until Deferred Publish parks an output.";
-    }
-    if (!rows.length) {
-      return "No parked outputs are waiting to publish. If an output is missing, check completed history and Run Logs before reprocessing.";
-    }
-    return "No pending publish rows available.";
-  }
+  let pendingInventoryProgressBars = function () { return []; };
+  let renderPendingInventoryProgress = function () {};
+  let pendingEmptyStateMessage = function () { return "No pending publish rows available."; };
+  let pendingRowHasHealthIssue = function () { return false; };
+  let pendingPublishReadinessStatus = function () { return "Not evaluated"; };
+  let pendingPublishReadinessLines = function () { return []; };
+  let renderPendingPublishReadiness = function () {};
+  let pendingWorkflowStatus = function () { return "Not evaluated"; };
+  let pendingWorkflowLines = function () { return []; };
+  let renderPendingWorkflow = function () {};
+  let pendingReviewRowReasons = function () { return []; };
+  let pendingReviewRows = function () { return []; };
+  let pendingReviewStatus = function () { return "Not evaluated"; };
+  let pendingReviewBoardLines = function () { return []; };
+  let pendingReviewDigestStatus = function () { return "warning"; };
+  let pendingReviewDigestAction = function () { return "Select this row and inspect Pending detail before drain."; };
+  let renderPendingReviewDigest = function () {};
+  let renderPendingReviewBoard = function () {};
+  let pendingFormatCounts = function () { return "none"; };
+  let pendingRecoverySummaryPayload = function () { return {}; };
+  let pendingRecoverySummaryLines = function () { return []; };
+  let pendingRiskStatus = function () { return "Not evaluated"; };
+  let pendingRiskLines = function () { return []; };
+  let renderPendingRiskBreakdown = function () {};
+  let pendingValidationStatus = function () { return "Not evaluated"; };
+  let pendingValidationChecklistLines = function () { return []; };
+  let renderPendingValidation = function () {};
 
-  function pendingStateCounts(rows) {
-    const counts = {};
-    rows.forEach((row) => {
-      const key = String(row?.state || "unknown").trim() || "unknown";
-      counts[key] = (counts[key] || 0) + 1;
-    });
-    return counts;
-  }
+  const pendingSummaryModule = window.__pendingPublishSummaryModule || {};
+  const pendingSummary = typeof pendingSummaryModule.createPendingPublishSummaryModule === "function"
+    ? pendingSummaryModule.createPendingPublishSummaryModule({
+      appendCells: typeof appendCells === "function" ? appendCells : window.appendCells,
+      byId: typeof byId === "function" ? byId : window.byId,
+      clearRows: typeof clearRows === "function" ? clearRows : window.clearRows,
+      getSelectedPendingRowKey: () => selectedPendingRowKey,
+      makeRowSelectable: typeof makeRowSelectable === "function" ? makeRowSelectable : window.makeRowSelectable,
+      pendingDrainSummaryStatus: (...args) => pendingDrainSummaryStatus(...args),
+      pendingRowKey: (...args) => pendingRowKey(...args),
+      renderProgressBarsInto: window.renderProgressBarsInto,
+      selectPendingRow: (...args) => selectPendingRow(...args),
+      setText: typeof setText === "function" ? setText : window.setText,
+      shortenPath: window.shortenPath,
+      updateTableStatusLegend: typeof updateTableStatusLegend === "function" ? updateTableStatusLegend : window.updateTableStatusLegend,
+    })
+    : {};
+  pendingInventoryProgressBars = typeof pendingSummary.pendingInventoryProgressBars === "function" ? pendingSummary.pendingInventoryProgressBars : pendingInventoryProgressBars;
+  renderPendingInventoryProgress = typeof pendingSummary.renderPendingInventoryProgress === "function" ? pendingSummary.renderPendingInventoryProgress : renderPendingInventoryProgress;
+  pendingEmptyStateMessage = typeof pendingSummary.pendingEmptyStateMessage === "function" ? pendingSummary.pendingEmptyStateMessage : pendingEmptyStateMessage;
+  pendingRowHasHealthIssue = typeof pendingSummary.pendingRowHasHealthIssue === "function" ? pendingSummary.pendingRowHasHealthIssue : pendingRowHasHealthIssue;
+  pendingPublishReadinessStatus = typeof pendingSummary.pendingPublishReadinessStatus === "function" ? pendingSummary.pendingPublishReadinessStatus : pendingPublishReadinessStatus;
+  pendingPublishReadinessLines = typeof pendingSummary.pendingPublishReadinessLines === "function" ? pendingSummary.pendingPublishReadinessLines : pendingPublishReadinessLines;
+  renderPendingPublishReadiness = typeof pendingSummary.renderPendingPublishReadiness === "function" ? pendingSummary.renderPendingPublishReadiness : renderPendingPublishReadiness;
+  pendingWorkflowStatus = typeof pendingSummary.pendingWorkflowStatus === "function" ? pendingSummary.pendingWorkflowStatus : pendingWorkflowStatus;
+  pendingWorkflowLines = typeof pendingSummary.pendingWorkflowLines === "function" ? pendingSummary.pendingWorkflowLines : pendingWorkflowLines;
+  renderPendingWorkflow = typeof pendingSummary.renderPendingWorkflow === "function" ? pendingSummary.renderPendingWorkflow : renderPendingWorkflow;
+  pendingReviewRowReasons = typeof pendingSummary.pendingReviewRowReasons === "function" ? pendingSummary.pendingReviewRowReasons : pendingReviewRowReasons;
+  pendingReviewRows = typeof pendingSummary.pendingReviewRows === "function" ? pendingSummary.pendingReviewRows : pendingReviewRows;
+  pendingReviewStatus = typeof pendingSummary.pendingReviewStatus === "function" ? pendingSummary.pendingReviewStatus : pendingReviewStatus;
+  pendingReviewBoardLines = typeof pendingSummary.pendingReviewBoardLines === "function" ? pendingSummary.pendingReviewBoardLines : pendingReviewBoardLines;
+  pendingReviewDigestStatus = typeof pendingSummary.pendingReviewDigestStatus === "function" ? pendingSummary.pendingReviewDigestStatus : pendingReviewDigestStatus;
+  pendingReviewDigestAction = typeof pendingSummary.pendingReviewDigestAction === "function" ? pendingSummary.pendingReviewDigestAction : pendingReviewDigestAction;
+  renderPendingReviewDigest = typeof pendingSummary.renderPendingReviewDigest === "function" ? pendingSummary.renderPendingReviewDigest : renderPendingReviewDigest;
+  renderPendingReviewBoard = typeof pendingSummary.renderPendingReviewBoard === "function" ? pendingSummary.renderPendingReviewBoard : renderPendingReviewBoard;
+  pendingFormatCounts = typeof pendingSummary.pendingFormatCounts === "function" ? pendingSummary.pendingFormatCounts : pendingFormatCounts;
+  pendingRecoverySummaryPayload = typeof pendingSummary.pendingRecoverySummaryPayload === "function" ? pendingSummary.pendingRecoverySummaryPayload : pendingRecoverySummaryPayload;
+  pendingRecoverySummaryLines = typeof pendingSummary.pendingRecoverySummaryLines === "function" ? pendingSummary.pendingRecoverySummaryLines : pendingRecoverySummaryLines;
+  pendingRiskStatus = typeof pendingSummary.pendingRiskStatus === "function" ? pendingSummary.pendingRiskStatus : pendingRiskStatus;
+  pendingRiskLines = typeof pendingSummary.pendingRiskLines === "function" ? pendingSummary.pendingRiskLines : pendingRiskLines;
+  renderPendingRiskBreakdown = typeof pendingSummary.renderPendingRiskBreakdown === "function" ? pendingSummary.renderPendingRiskBreakdown : renderPendingRiskBreakdown;
+  pendingValidationStatus = typeof pendingSummary.pendingValidationStatus === "function" ? pendingSummary.pendingValidationStatus : pendingValidationStatus;
+  pendingValidationChecklistLines = typeof pendingSummary.pendingValidationChecklistLines === "function" ? pendingSummary.pendingValidationChecklistLines : pendingValidationChecklistLines;
+  renderPendingValidation = typeof pendingSummary.renderPendingValidation === "function" ? pendingSummary.renderPendingValidation : renderPendingValidation;
 
-  function formatPendingStateCounts(rows) {
-    const counts = pendingStateCounts(rows);
-    return Object.keys(counts).sort().map((key) => `${key}=${counts[key]}`).join(", ") || "none";
-  }
+  let pendingTableRowStatus = function () { return "match"; };
+  let pendingInvestigationFilterLabel = function (value) { return String(value || "all").replace(/_/g, " "); };
+  let pendingMatchesInvestigationFilter = function () { return true; };
+  let pendingFocusedInvestigationLabels = function () { return []; };
+  let pendingFilterVisibilityLines = function () { return []; };
+  let pendingSelectedQuickSignalLines = function () { return []; };
+  let pendingInvestigationSignalLines = function () { return []; };
 
-  function pendingRowHasHealthIssue(row) {
-    const missingSidecars = Number(row?.missing_sidecar_count || 0);
-    const state = String(row?.state || "").toLowerCase();
-    return Boolean(
-      row?.diagnostic_severity === "error" ||
-      row?.drain_recommendation === "do_not_drain" ||
-      row?.error ||
-      row?.local_exists === false ||
-      missingSidecars > 0 ||
-      state === "orphan_payload" ||
-      state === "invalid_manifest" ||
-      state === "unreadable_manifest"
-    );
-  }
-
-  function pendingPublishReadinessStatus(pending, rows) {
-    const rowList = Array.isArray(rows) ? rows : [];
-    if (pending?.error) return "Unavailable";
-    if (!pending?.exists) return "No pending root";
-    if (!rowList.length) return "Empty";
-    if (rowList.some(pendingRowHasHealthIssue) || Number(pending?.health_count || 0) > 0 || Number(pending?.missing_local_count || 0) > 0) {
-      return "Review before drain";
-    }
-    const warnings = Array.isArray(pending?.warnings) ? pending.warnings.filter(Boolean) : [];
-    if (warnings.length) return "Warnings";
-    return "Ready-looking";
-  }
-
-  function pendingPublishReadinessLines(pending, rows) {
-    const payload = pending || {};
-    const rowList = Array.isArray(rows) ? rows : [];
-    if (payload.error) {
-      return [
-        `Status: unavailable`,
-        `Error: ${payload.error}`,
-        "Safe action: open Diagnostics > Pending Publish and Run Logs before retrying a drain.",
-        "Backend drain command remains the source of truth; this summary does not authorize publish.",
-      ];
-    }
-    const issueRows = rowList.filter(pendingRowHasHealthIssue);
-    const warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
-    const lines = [
-      `Pending root: ${payload.pending_root || "not reported"}`,
-      `Root exists: ${payload.exists ? "yes" : "no"}`,
-      `Parked manifests: ${payload.count || rowList.length || 0}`,
-      `Payloads: ${payload.payload_count || 0}`,
-      `Health rows: ${payload.health_count || 0}`,
-      `Missing payload references: ${payload.missing_local_count || 0}`,
-      `Ready rows: ${payload.ready_count || 0}`,
-      `Issue rows: ${payload.issue_count || issueRows.length}`,
-      `Missing sidecars: ${payload.missing_sidecar_count || 0}`,
-      `Rows needing review: ${issueRows.length}`,
-      `States: ${formatPendingStateCounts(rowList)}`,
-      `Diagnostic statuses: ${pendingFormatCounts(payload.diagnostic_status_counts)}`,
-      `Diagnostic severities: ${pendingFormatCounts(payload.diagnostic_severity_counts)}`,
-      `Backend trust states: ${pendingFormatCounts(payload.operator_trust_state_counts)}`,
-      `Recovery classes: ${pendingFormatCounts(payload.recovery_class_counts)}`,
-      `Suggested open targets: ${pendingFormatCounts(payload.recommended_open_target_counts)}`,
-      `Available open targets: ${pendingFormatCounts(payload.available_open_target_counts)}`,
-    ];
-    lines.push("", ...pendingRecoverySummaryLines(payload));
-    if (warnings.length) {
-      lines.push("", "Warning(s):");
-      warnings.slice(0, 5).forEach((warning) => lines.push(`- ${warning}`));
-    }
-    lines.push("");
-    if (!payload.exists) {
-      lines.push("Safe action: no drain is needed until Deferred Publish parks outputs.");
-    } else if (!rowList.length) {
-      lines.push("Safe action: no parked outputs are waiting. Do not reprocess solely because this list is empty; check Completed History and Run Logs first.");
-    } else if (issueRows.length || Number(payload.health_count || 0) > 0 || Number(payload.missing_local_count || 0) > 0) {
-      lines.push("Safe action: review row issues before publishing. Open the selected manifest/local payload/destination using backend-selected open buttons.");
-    } else if (warnings.length) {
-      lines.push("Safe action: drain may be possible, but review warnings first.");
-    } else {
-      lines.push("Safe action: pending rows look ready for Publish Parked Outputs.");
-    }
-    lines.push("Backend drain command remains the source of truth; this summary does not bypass backend validation or publish checks.");
-    return lines;
-  }
-
-  function renderPendingPublishReadiness(pending, rows) {
-    const rowList = Array.isArray(rows) ? rows : [];
-    setText("pending-publish-readiness-status", pendingPublishReadinessStatus(pending || {}, rowList));
-    setText("pending-publish-readiness", pendingPublishReadinessLines(pending || {}, rowList).join("\n"));
-  }
-
-  function pendingWorkflowStatus(pending, rows) {
-    const payload = pending || {};
-    const rowList = Array.isArray(rows) ? rows : [];
-    const warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
-    if (payload.error) return "Diagnostics first";
-    if (payload.exists === false) return "No pending root";
-    if (!rowList.length) return "No drain";
-    if (pendingValidationStatus(payload, rowList) === "Do not drain") return "Do not drain";
-    if (Number(payload.issue_count || 0) > 0 || rowList.some(pendingRowHasHealthIssue)) return "Review rows";
-    if (warnings.length) return "Review context";
-    return "Drain path clear";
-  }
-
-  function pendingWorkflowLines(pending, rows) {
-    const payload = pending || {};
-    const rowList = Array.isArray(rows) ? rows : [];
-    const warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
-    const issueRows = rowList.filter(pendingRowHasHealthIssue);
-    const lines = [
-      "Cross-page workflow: Pending Publish",
-      `Drain readiness: ${pendingPublishReadinessStatus(payload, rowList)}`,
-      `Pending validation: ${pendingValidationStatus(payload, rowList)}`,
-      `Rows loaded: ${payload.count || rowList.length || 0}`,
-      `Payload rows: ${payload.payload_count || 0}`,
-      `Ready rows: ${payload.ready_count || 0}`,
-      `Issue rows: ${payload.issue_count || issueRows.length}`,
-      `Health rows: ${payload.health_count || 0}`,
-      `Missing payload references: ${payload.missing_local_count || 0}`,
-    ];
-    lines.push("");
-    if (payload.error) {
-      lines.push("Next step: open Diagnostics > State Artifact Summary, Pending Publish, Run Logs, and Last Stderr before another publish attempt.");
-    } else if (payload.exists === false) {
-      lines.push("Next step: no pending-publish root exists. Check Completed before rerun and do not assume outputs were lost solely from an empty pending view.");
-    } else if (!rowList.length) {
-      lines.push("Next step: no parked outputs are waiting. If an expected output is missing, inspect Completed and Run Logs before reprocessing.");
-    } else if (pendingValidationStatus(payload, rowList) === "Do not drain") {
-      lines.push("Next step: do not drain. Select the issue row, use Pending Diagnostics Cross-Links, and inspect manifest/payload/sidecar/log evidence first.");
-    } else if (Number(payload.issue_count || 0) > 0 || issueRows.length || warnings.length) {
-      lines.push("Next step: review issue/warning rows and Last Stderr before using Publish Parked Outputs.");
-    } else {
-      lines.push("Next step: pending publish context is coherent. Publish Parked Outputs remains the backend-owned drain command.");
-    }
-    lines.push("Owning pages: Pending Publish for parked output safety, Completed for output proof, Queue before rerun, Diagnostics for artifacts/logs.");
-    lines.push("Mutation guardrail: this workflow panel is read-only. Publish Parked Outputs remains backend-owned.");
-    return lines;
-  }
-
-  function renderPendingWorkflow(pending, rows) {
-    const rowList = Array.isArray(rows) ? rows : [];
-    setText("pending-workflow-status", pendingWorkflowStatus(pending || {}, rowList));
-    setText("pending-workflow", pendingWorkflowLines(pending || {}, rowList).join("\n"));
-  }
-
-  function pendingReviewRowReasons(row) {
-    const reasons = [];
-    const severity = String(row?.diagnostic_severity || "").toLowerCase();
-    const recommendation = String(row?.drain_recommendation || "").toLowerCase();
-    const state = String(row?.state || "").toLowerCase();
-    if (severity === "error") reasons.push("diagnostic error");
-    if (severity === "warning") reasons.push("diagnostic warning");
-    if (recommendation === "do_not_drain") reasons.push("do-not-drain recommendation");
-    if (row?.local_exists === false) reasons.push("missing local payload");
-    if (Number(row?.missing_sidecar_count || 0) > 0) reasons.push(`missing sidecars: ${row.missing_sidecar_count}`);
-    if (["orphan_payload", "invalid_manifest", "unreadable_manifest"].includes(state)) reasons.push(`state: ${row.state}`);
-    if (row?.error) reasons.push(`error: ${row.error}`);
-    if (row?.issue_summary) reasons.push(`issue: ${row.issue_summary}`);
-    if (String(row?.operator_trust_state || "").toLowerCase().includes("review") || String(row?.operator_trust_state || "").toLowerCase().includes("drain")) {
-      reasons.push(`trust state: ${row.operator_trust_state}`);
-    }
-    if (row?.recovery_class && String(row.recovery_class).toLowerCase() !== "ready") reasons.push(`recovery: ${row.recovery_class}`);
-    if (row?.primary_concern) reasons.push(`primary concern: ${row.primary_concern}`);
-    return reasons.filter(Boolean);
-  }
-
-  function pendingReviewRows(pending, rows) {
-    const rowList = Array.isArray(rows) ? rows : [];
-    return rowList
-      .map((row, index) => ({ row, index, reasons: pendingReviewRowReasons(row) }))
-      .filter((entry) => entry.reasons.length)
-      .sort((a, b) => {
-        const rank = (entry) => String(entry.row?.drain_recommendation || "").toLowerCase() === "do_not_drain" ? 0
-          : String(entry.row?.diagnostic_severity || "").toLowerCase() === "error" ? 1
-            : entry.row?.local_exists === false ? 2
-              : String(entry.row?.diagnostic_severity || "").toLowerCase() === "warning" ? 3
-                : 4;
-        return rank(a) - rank(b) || a.index - b.index;
-      });
-  }
-
-  function pendingReviewStatus(pending, rows) {
-    const payload = pending || {};
-    const rowList = Array.isArray(rows) ? rows : [];
-    if (payload.error) return "Diagnostics first";
-    if (payload.exists === false) return "No pending root";
-    const reviewRows = pendingReviewRows(payload, rowList);
-    if (reviewRows.length) return `${reviewRows.length} row${reviewRows.length === 1 ? "" : "s"} need review`;
-    if (!rowList.length) return "No parked rows";
-    return "No flagged rows";
-  }
-
-  function pendingReviewBoardLines(pending, rows) {
-    const payload = pending || {};
-    const rowList = Array.isArray(rows) ? rows : [];
-    const reviewRows = pendingReviewRows(payload, rowList);
-    const lines = [
-      "Operator review board: Pending Publish",
-      `Page status: ${pendingWorkflowStatus(payload, rowList)}`,
-      `Rows loaded: ${payload.count || rowList.length || 0}`,
-      `Flagged rows: ${reviewRows.length}`,
-      `Ready / issue rows: ${payload.ready_count || 0} / ${payload.issue_count || reviewRows.length}`,
-      `Backend trust states: ${pendingFormatCounts(payload.operator_trust_state_counts)}`,
-      `Diagnostic severities: ${pendingFormatCounts(payload.diagnostic_severity_counts)}`,
-      `Recovery classes: ${pendingFormatCounts(payload.recovery_class_counts)}`,
-    ];
-    lines.push("");
-    if (payload.error) {
-      lines.push("First action: open Diagnostics > Pending Publish, Run Logs, and Last Stderr. Do not drain while the pending view is unavailable.");
-    } else if (payload.exists === false) {
-      lines.push("First action: no pending-publish root exists. Check Completed before rerun; do not assume a missing output is lost from this empty view alone.");
-    } else if (reviewRows.length) {
-      lines.push("First rows to inspect before drain:");
-      reviewRows.slice(0, 6).forEach(({ row, reasons }, index) => {
-        const label = row.local_file || row.manifest_path || row.server_out || `row ${index + 1}`;
-        const action = row.safe_next_action || row.operator_guidance || row.recovery_action || "build a selected-row recovery dry-run plan and inspect backend-selected targets before drain.";
-        lines.push(`- ${label}: ${reasons.slice(0, 3).join("; ")}. Safe action: ${action}`);
-      });
-      if (reviewRows.length > 6) lines.push(`- ${reviewRows.length - 6} more flagged row(s) not shown.`);
-    } else if (!rowList.length) {
-      lines.push("First action: no parked outputs are waiting. If expected outputs are missing, inspect Completed and Run Logs before reprocessing.");
-    } else {
-      lines.push("First action: no pending rows are locally flagged. Publish Parked Outputs remains the backend-owned validation and drain path.");
-    }
-    lines.push("Mutation guardrail: this board is read-only; drain, repair, rewrite, move, delete, and publish actions remain backend-owned.");
-    return lines;
-  }
-
-  function pendingReviewDigestStatus(entry) {
-    const row = entry?.row || {};
-    const severity = String(row.diagnostic_severity || "").toLowerCase();
-    const recommendation = String(row.drain_recommendation || "").toLowerCase();
-    if (recommendation === "do_not_drain" || severity === "error" || row.local_exists === false || row.error) return "blocked";
-    if (severity === "warning" || entry?.reasons?.length || row.ready_to_drain === false) return "warning";
-    return "match";
-  }
-
-  function pendingReviewDigestAction(row) {
-    return row?.safe_next_action
-      || row?.operator_guidance
-      || row?.recovery_action
-      || "Select this row, inspect Pending detail and Diagnostics Cross-Links, then use backend recovery dry-run before drain if anything is unclear.";
-  }
-
-  function pendingTableRowStatus(item) {
-    const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(item) : "";
-    if (backendState) return backendState;
-    const severity = String(item?.diagnostic_severity || "").toLowerCase();
-    const recommendation = String(item?.drain_recommendation || "").toLowerCase();
-    if (recommendation === "do_not_drain" || severity === "error" || item?.local_exists === false || item?.error) return "failed";
-    if (severity === "warning" || item?.ready_to_drain === false || pendingReviewRowReasons(item).length) return "warning";
-    return "match";
-  }
-
-  function pendingInvestigationFilterLabel(value) {
-    const normalized = String(value || "all").trim().toLowerCase();
-    const labels = {
-      all: "all signals",
-      do_not_drain: "do not drain",
-      missing_payload: "missing payload",
-      invalid_manifest: "invalid manifest",
-      missing_sidecars: "missing sidecars",
-      orphan_payload: "orphan payload",
-      ready_to_drain: "ready to drain",
-    };
-    return labels[normalized] || normalized.replace(/_/g, " ");
-  }
-
-  function pendingMatchesInvestigationFilter(item, filter) {
-    const normalized = String(filter || "all").trim().toLowerCase();
-    const state = String(item?.state || item?.diagnostic_status || "").toLowerCase();
-    const recommendation = String(item?.drain_recommendation || "").toLowerCase();
-    if (!normalized || normalized === "all") return true;
-    if (normalized === "do_not_drain") return recommendation === "do_not_drain" || pendingTableRowStatus(item) === "failed";
-    if (normalized === "missing_payload") return item?.local_exists === false || Number(item?.missing_local_count || 0) > 0 || state.includes("missing");
-    if (normalized === "invalid_manifest") return state.includes("invalid_manifest") || state.includes("unreadable_manifest") || String(item?.error || "").toLowerCase().includes("manifest");
-    if (normalized === "missing_sidecars") return Number(item?.missing_sidecar_count || 0) > 0;
-    if (normalized === "orphan_payload") return state.includes("orphan_payload");
-    if (normalized === "ready_to_drain") return item?.ready_to_drain !== false && recommendation !== "do_not_drain" && pendingTableRowStatus(item) === "match";
-    return true;
-  }
-
-  function pendingFocusedInvestigationLabels(item) {
-    const filters = ["do_not_drain", "missing_payload", "invalid_manifest", "missing_sidecars", "orphan_payload", "ready_to_drain"];
-    return filters.filter((filter) => pendingMatchesInvestigationFilter(item, filter)).map(pendingInvestigationFilterLabel);
-  }
-
-  function pendingFilterVisibilityLines(item) {
-    if (!item) return [];
-    const filterText = byId("pending-filter")?.value || "";
-    const statusFilter = byId("pending-status-filter")?.value || "all";
-    const investigationFilter = byId("pending-investigation-filter")?.value || "all";
-    const textMatches = typeof filterRows === "function" ? filterRows([item], filterText, PENDING_FILTER_FIELDS).length > 0 : true;
-    const status = pendingTableRowStatus(item);
-    const statusMatches = typeof tableStatusMatchesFilter === "function" ? tableStatusMatchesFilter(status, statusFilter) : true;
-    const normalizedInvestigation = String(investigationFilter || "all").trim().toLowerCase();
-    const investigationMatches = !normalizedInvestigation || normalizedInvestigation === "all" || pendingMatchesInvestigationFilter(item, normalizedInvestigation);
-    const activeFilters = Boolean(String(filterText || "").trim()) || String(statusFilter || "all").toLowerCase() !== "all" || normalizedInvestigation !== "all";
-    const reasons = [];
-    if (!textMatches) reasons.push(`text filter="${String(filterText || "").trim()}"`);
-    if (!statusMatches) reasons.push(`status filter=${typeof tableStatusFilterLabel === "function" ? tableStatusFilterLabel(statusFilter) : statusFilter}`);
-    if (!investigationMatches) reasons.push(`investigation view=${pendingInvestigationFilterLabel(investigationFilter)}`);
-    const lines = [
-      "Current filter visibility:",
-      `Selected row visible in table: ${textMatches && statusMatches && investigationMatches ? "yes" : "no"}`,
-      `Active filters: ${activeFilters ? `text=${String(filterText || "").trim() || "none"}; status=${typeof tableStatusFilterLabel === "function" ? tableStatusFilterLabel(statusFilter) : statusFilter}; view=${pendingInvestigationFilterLabel(investigationFilter)}` : "none"}`,
-    ];
-    if (reasons.length) {
-      lines.push(`Hidden by current filters: ${reasons.join("; ")}.`);
-      lines.push("Operator note: selected-row detail remains visible for review, but the table is currently hiding this row.");
-    } else if (activeFilters) {
-      lines.push("Operator note: this selected row is still visible under the active display filters.");
-    } else {
-      lines.push("Operator note: no Pending Publish display filter is hiding this selected row.");
-    }
-    return lines;
-  }
-
-  function pendingSelectedQuickSignalLines(item) {
-    if (!item) {
-      return [
-        "Selected pending-row quick signal:",
-        "Select a pending publish row to see status, focused investigation views, and current-filter visibility.",
-      ];
-    }
-    const focusedViews = pendingFocusedInvestigationLabels(item);
-    const primaryConcern = item.primary_concern
-      || item.issue_summary
-      || item.error
-      || item.operator_guidance
-      || item.drain_recommendation
-      || "no focused pending-publish blocker reported";
-    return [
-      "Selected pending-row quick signal:",
-      `Table status: ${pendingTableRowStatus(item)}`,
-      `Focused views: ${focusedViews.length ? focusedViews.join(", ") : "none beyond all signals"}`,
-      `Primary concern: ${primaryConcern}`,
-      ...pendingFilterVisibilityLines(item),
-    ];
-  }
-
-  function pendingInvestigationSignalLines(item) {
-    if (!item) {
-      return [
-        "Investigation view matches:",
-        "- Select a pending publish row to see which Pending Publish investigation views would include it.",
-      ];
-    }
-    const state = String(item.state || item.diagnostic_status || "").trim();
-    const signals = [];
-    if (pendingMatchesInvestigationFilter(item, "do_not_drain")) {
-      signals.push(`- do not drain: ${item.drain_recommendation || item.diagnostic_severity || item.error || "backend marked row unsafe to drain"}`);
-    }
-    if (pendingMatchesInvestigationFilter(item, "missing_payload")) {
-      signals.push(`- missing payload: ${item.local_file || item.issue_summary || "local parked payload is missing"}`);
-    }
-    if (pendingMatchesInvestigationFilter(item, "invalid_manifest")) {
-      signals.push(`- invalid manifest: ${item.manifest_path || item.error || state || "manifest is invalid or unreadable"}`);
-    }
-    if (pendingMatchesInvestigationFilter(item, "missing_sidecars")) {
-      signals.push(`- missing sidecars: ${item.missing_sidecar_count || "reported by pending scan"}`);
-    }
-    if (pendingMatchesInvestigationFilter(item, "orphan_payload")) {
-      signals.push(`- orphan payload: ${item.local_file || state || "payload exists without a valid manifest"}`);
-    }
-    if (pendingMatchesInvestigationFilter(item, "ready_to_drain")) {
-      signals.push(`- ready to drain: ${item.drain_recommendation || "row has no focused blocker in the loaded pending scan"}`);
-    }
-    if (!signals.length) {
-      signals.push("- none beyond all signals: this row is not currently included by a focused Pending Publish investigation view.");
-    }
-    signals.push("Operator note: investigation views are display filters only and do not change backend drain scope.");
-    return ["Investigation view matches:", ...signals];
-  }
-
-  function renderPendingReviewDigest(pending, rows) {
-    const tbody = byId("pending-review-rows");
-    if (!tbody) return;
-    const payload = pending || {};
-    const rowList = Array.isArray(rows) ? rows : [];
-    const reviewRows = pendingReviewRows(payload, rowList).slice(0, 12);
-    if (!reviewRows.length) {
-      clearRows(
-        tbody,
-        5,
-        payload.error
-          ? "Pending publish scan is unavailable. Use Diagnostics > Pending Publish, Run Logs, and Last Stderr before drain."
-          : payload.exists === false
-            ? "No pending-publish root exists. Check Completed and Run Logs before assuming a missing output is lost."
-            : rowList.length
-              ? "No pending rows are flagged by the loaded backend payload. Publish Parked Outputs remains backend-owned validation."
-              : "No parked outputs are waiting. Cross-check Completed before reprocessing expected outputs.",
-      );
-      updateTableStatusLegend("pending-review-legend", tbody, "Pending publish review rows");
-      return;
-    }
-    tbody.replaceChildren();
-    reviewRows.forEach((entry) => {
-      const item = entry.row || {};
-      const row = document.createElement("tr");
-      const key = pendingRowKey(item);
-      row.dataset.rowKey = key;
-      row.dataset.status = pendingReviewDigestStatus(entry);
-      const reviewPathRaw = item.local_file || item.manifest_path || item.server_out || item.source_path || "";
-      const reviewPathDisplay = typeof shortenPath === "function" ? shortenPath(reviewPathRaw, 40) : reviewPathRaw;
-      appendCells(row, [
-        item.recovery_class || item.diagnostic_status || item.state || row.dataset.status,
-        item.drain_recommendation || "review",
-        reviewPathDisplay,
-        entry.reasons.slice(0, 3).join("; "),
-        pendingReviewDigestAction(item),
-      ], [null, null, "path-cell", null, null]);
-      if (reviewPathRaw) {
-        const reviewCells = row.querySelectorAll("td");
-        if (reviewCells[2]) reviewCells[2].title = reviewPathRaw;
-      }
-      makeRowSelectable(row, () => selectPendingRow(item), {
-        selected: Boolean(key && key === selectedPendingRowKey),
-        label: `Pending publish review row ${item.local_file || item.server_out || item.manifest_path || ""}`,
-      });
-      tbody.appendChild(row);
-    });
-    updateTableStatusLegend("pending-review-legend", tbody, "Pending publish review rows");
-  }
-
-  function renderPendingReviewBoard(pending, rows) {
-    const rowList = Array.isArray(rows) ? rows : [];
-    setText("pending-review-status", pendingReviewStatus(pending || {}, rowList));
-    setText("pending-review-board", pendingReviewBoardLines(pending || {}, rowList).join("\n"));
-    renderPendingReviewDigest(pending || {}, rowList);
-  }
-
-  function pendingFormatCounts(value) {
-    const entries = value && typeof value === "object" ? Object.entries(value) : [];
-    if (!entries.length) return "none";
-    return entries.map(([key, count]) => `${key || "unknown"}=${count}`).join(", ");
-  }
-
-  function pendingRecoverySummaryPayload(pending) {
-    const summary = pending?.recovery_summary;
-    return summary && typeof summary === "object" ? summary : {};
-  }
-
-  function pendingRecoverySummaryLines(pending) {
-    const summary = pendingRecoverySummaryPayload(pending);
-    if (!Object.keys(summary).length) {
-      return [
-        "Backend recovery summary:",
-        "- Status: not reported",
-        "- Primary action: use row diagnostics and backend validation before drain.",
-      ];
-    }
-    const lines = [
-      "Backend recovery summary:",
-      `- Status: ${summary.status || "unknown"}`,
-      `- Blockers/review/ready: ${summary.blocker_count || 0} / ${summary.review_count || 0} / ${summary.ready_count || 0}`,
-      `- Recovery classes: ${pendingFormatCounts(summary.class_counts)}`,
-      `- Primary action: ${summary.primary_action || "Review pending publish diagnostics before drain."}`,
-    ];
-    const steps = Array.isArray(summary.next_steps) ? summary.next_steps.filter(Boolean) : [];
-    if (steps.length) {
-      lines.push("- Next steps:");
-      steps.slice(0, 5).forEach((step) => lines.push(`  - ${step}`));
-    }
-    return lines;
-  }
-
-  function pendingRiskStatus(pending, rows) {
-    const rowList = Array.isArray(rows) ? rows : [];
-    if (pending?.error) return "Unavailable";
-    if (!pending?.exists) return "No root";
-    if (!rowList.length) return "Empty";
-    if (Number(pending?.issue_count || 0) > 0 || Number(pending?.health_count || 0) > 0 || rowList.some(pendingRowHasHealthIssue)) return "Review";
-    return "Ready";
-  }
-
-  function pendingRiskLines(pending, rows) {
-    const payload = pending || {};
-    const rowList = Array.isArray(rows) ? rows : [];
-    const issues = rowList.filter(pendingRowHasHealthIssue);
-    const lines = [
-      `Rows loaded: ${payload.count || rowList.length || 0}`,
-      `Ready rows: ${payload.ready_count || 0}`,
-      `Issue rows: ${payload.issue_count || issues.length}`,
-      `States: ${pendingFormatCounts(payload.state_counts)}`,
-      `Routes: ${pendingFormatCounts(payload.route_counts)}`,
-      `Diagnostic statuses: ${pendingFormatCounts(payload.diagnostic_status_counts)}`,
-      `Diagnostic severities: ${pendingFormatCounts(payload.diagnostic_severity_counts)}`,
-      `Recovery classes: ${pendingFormatCounts(payload.recovery_class_counts)}`,
-      `Suggested open targets: ${pendingFormatCounts(payload.recommended_open_target_counts)}`,
-      `Available open targets: ${pendingFormatCounts(payload.available_open_target_counts)}`,
-      `Orphan payloads: ${payload.orphan_payload_count || 0}`,
-      `Invalid/unreadable manifests: ${payload.invalid_manifest_count || 0}`,
-      `Missing payload references: ${payload.missing_local_count || 0}`,
-      `Missing sidecars: ${payload.missing_sidecar_count || 0}`,
-    ];
-    if (issues.length) {
-      lines.push("", "First issue rows:");
-      issues.slice(0, 5).forEach((row) => {
-        lines.push(`- ${row.local_file || row.manifest_path || row.server_out || row.row_key || "(row)"}: ${row.issue_summary || row.error || row.state || "review required"}`);
-      });
-    }
-    lines.push("", ...pendingRecoverySummaryLines(payload));
-    lines.push("", "Operator note: drain readiness is advisory. The backend Publish Parked Outputs command still performs authoritative validation.");
-    return lines;
-  }
-
-  function renderPendingRiskBreakdown(pending, rows) {
-    const rowList = Array.isArray(rows) ? rows : [];
-    setText("pending-risk-status", pendingRiskStatus(pending || {}, rowList));
-    setText("pending-risk", pendingRiskLines(pending || {}, rowList).join("\n"));
-  }
-
-  function pendingValidationStatus(pending, rows) {
-    const payload = pending || {};
-    const rowList = Array.isArray(rows) ? rows : [];
-    if (payload.error) return "Unavailable";
-    if (payload.exists === false) return "No root";
-    if (!rowList.length) return "Empty";
-    const doNotDrainRows = rowList.filter((row) => String(row?.drain_recommendation || "").toLowerCase() === "do_not_drain");
-    const severeRows = rowList.filter((row) => String(row?.diagnostic_severity || "").toLowerCase() === "error");
-    const invalidRows = rowList.filter((row) => ["invalid_manifest", "unreadable_manifest"].includes(String(row?.state || "").toLowerCase()));
-    const missingPayloadRows = rowList.filter((row) => row?.local_exists === false);
-    const missingSidecarRows = rowList.filter((row) => Number(row?.missing_sidecar_count || 0) > 0);
-    if (
-      doNotDrainRows.length ||
-      severeRows.length ||
-      invalidRows.length ||
-      missingPayloadRows.length ||
-      missingSidecarRows.length ||
-      Number(payload.health_count || 0) > 0 ||
-      Number(payload.missing_local_count || 0) > 0
-    ) {
-      return "Do not drain";
-    }
-    const warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
-    if (warnings.length || Number(payload.issue_count || 0) > 0 || rowList.some(pendingRowHasHealthIssue)) return "Review";
-    return "Ready";
-  }
-
-  function pendingValidationChecklistLines(pending, rows) {
-    const payload = pending || {};
-    const rowList = Array.isArray(rows) ? rows : [];
-    const warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
-    const issueRows = rowList.filter(pendingRowHasHealthIssue);
-    const doNotDrainRows = rowList.filter((row) => String(row?.drain_recommendation || "").toLowerCase() === "do_not_drain");
-    const severeRows = rowList.filter((row) => String(row?.diagnostic_severity || "").toLowerCase() === "error");
-    const invalidRows = rowList.filter((row) => ["invalid_manifest", "unreadable_manifest"].includes(String(row?.state || "").toLowerCase()));
-    const missingPayloadRows = rowList.filter((row) => row?.local_exists === false);
-    const missingSidecarRows = rowList.filter((row) => Number(row?.missing_sidecar_count || 0) > 0);
-    const existsText = payload.exists === true ? "yes" : payload.exists === false ? "no" : "unknown";
-    if (payload.error) {
-      return [
-        "Real-media validation checklist:",
-        `Status: unavailable`,
-        `Error: ${payload.error}`,
-        "Operator action: open Diagnostics > Pending Publish and Run Logs before another publish attempt.",
-        "Mutation guardrail: this checklist is read-only and cannot drain, repair, delete, rewrite, or publish files.",
-      ];
-    }
-    const lines = [
-      "Real-media validation checklist:",
-      `Pending root: ${payload.pending_root || "not reported"}`,
-      `Pending root exists: ${existsText}`,
-      `Parked manifest rows: ${payload.count || rowList.length || 0}`,
-      `Payload rows: ${payload.payload_count || 0}`,
-      `Ready rows: ${payload.ready_count || 0}`,
-      `Issue rows: ${payload.issue_count || issueRows.length}`,
-      `Health rows: ${payload.health_count || 0}`,
-      `Do-not-drain rows: ${doNotDrainRows.length}`,
-      `Diagnostic error rows: ${severeRows.length}`,
-      `Invalid/unreadable manifest rows: ${payload.invalid_manifest_count || invalidRows.length}`,
-      `Missing payload references: ${payload.missing_local_count || missingPayloadRows.length}`,
-      `Missing sidecar rows: ${payload.missing_sidecar_count || missingSidecarRows.length}`,
-      `Orphan payloads: ${payload.orphan_payload_count || 0}`,
-      `States: ${pendingFormatCounts(payload.state_counts || pendingStateCounts(rowList))}`,
-      `Diagnostic statuses: ${pendingFormatCounts(payload.diagnostic_status_counts)}`,
-      `Diagnostic severities: ${pendingFormatCounts(payload.diagnostic_severity_counts)}`,
-      `Recovery classes: ${pendingFormatCounts(payload.recovery_class_counts)}`,
-      `Suggested open targets: ${pendingFormatCounts(payload.recommended_open_target_counts)}`,
-      `Available open targets: ${pendingFormatCounts(payload.available_open_target_counts)}`,
-      `Last drain summary: ${pendingDrainSummaryStatus(payload)}`,
-    ];
-    lines.push("", ...pendingRecoverySummaryLines(payload));
-    if (warnings.length) {
-      lines.push("", "Warning(s):");
-      warnings.slice(0, 5).forEach((warning) => lines.push(`- ${warning}`));
-    }
-    lines.push("");
-    if (payload.exists === false) {
-      lines.push("Operator action: no pending-publish folder exists yet. This is normal until Deferred Publish parks an output.");
-    } else if (!rowList.length) {
-      lines.push("Operator action: no parked outputs are waiting. Cross-check Completed History and Run Logs before reprocessing anything.");
-    } else if (doNotDrainRows.length || severeRows.length || invalidRows.length || missingPayloadRows.length || missingSidecarRows.length) {
-      lines.push("Operator action: do not drain yet. Select issue rows and use backend-selected open/diagnostic actions to inspect manifests, payloads, sidecars, and logs.");
-    } else if (warnings.length || Number(payload.issue_count || 0) > 0 || issueRows.length) {
-      lines.push("Operator action: review warnings and issue rows before publishing parked outputs.");
-    } else {
-      lines.push("Operator action: rows appear ready, but Publish Parked Outputs remains the authoritative backend validation path.");
-    }
-    lines.push("Mutation guardrail: this checklist is read-only and cannot drain, repair, delete, rewrite, or publish files.");
-    return lines;
-  }
-
-  function renderPendingValidation(pending, rows) {
-    const rowList = Array.isArray(rows) ? rows : [];
-    setText("pending-validation-status", pendingValidationStatus(pending || {}, rowList));
-    setText("pending-validation", pendingValidationChecklistLines(pending || {}, rowList).join("\n"));
-  }
+  const pendingFiltersModule = window.__pendingPublishFiltersModule || {};
+  const pendingFilters = typeof pendingFiltersModule.createPendingPublishFiltersModule === "function"
+    ? pendingFiltersModule.createPendingPublishFiltersModule({
+      backendRowStatusState: window.backendRowStatusState,
+      byId: typeof byId === "function" ? byId : window.byId,
+      filterRows: typeof filterRows === "function" ? filterRows : window.filterRows,
+      pendingFilterFields: PENDING_FILTER_FIELDS,
+      pendingReviewRowReasons: (...args) => pendingReviewRowReasons(...args),
+      tableStatusFilterLabel: window.tableStatusFilterLabel,
+      tableStatusMatchesFilter: window.tableStatusMatchesFilter,
+    })
+    : {};
+  pendingTableRowStatus = typeof pendingFilters.pendingTableRowStatus === "function" ? pendingFilters.pendingTableRowStatus : pendingTableRowStatus;
+  pendingInvestigationFilterLabel = typeof pendingFilters.pendingInvestigationFilterLabel === "function" ? pendingFilters.pendingInvestigationFilterLabel : pendingInvestigationFilterLabel;
+  pendingMatchesInvestigationFilter = typeof pendingFilters.pendingMatchesInvestigationFilter === "function" ? pendingFilters.pendingMatchesInvestigationFilter : pendingMatchesInvestigationFilter;
+  pendingFocusedInvestigationLabels = typeof pendingFilters.pendingFocusedInvestigationLabels === "function" ? pendingFilters.pendingFocusedInvestigationLabels : pendingFocusedInvestigationLabels;
+  pendingFilterVisibilityLines = typeof pendingFilters.pendingFilterVisibilityLines === "function" ? pendingFilters.pendingFilterVisibilityLines : pendingFilterVisibilityLines;
+  pendingSelectedQuickSignalLines = typeof pendingFilters.pendingSelectedQuickSignalLines === "function" ? pendingFilters.pendingSelectedQuickSignalLines : pendingSelectedQuickSignalLines;
+  pendingInvestigationSignalLines = typeof pendingFilters.pendingInvestigationSignalLines === "function" ? pendingFilters.pendingInvestigationSignalLines : pendingInvestigationSignalLines;
 
   function pendingListText(value) {
     return Array.isArray(value) && value.length ? value.join(", ") : "none";
@@ -937,605 +386,51 @@
     renderPendingRows();
   }
 
-  function pendingRowReviewChecklistLines(item) {
-    if (!item) {
-      return [
-        "Selected pending-row review checklist:",
-        "Select a pending publish row to see drain safety, payload, sidecar, manifest, and diagnostics guidance.",
-      ];
-    }
-    const status = String(item.diagnostic_status || "").toLowerCase();
-    const severity = String(item.diagnostic_severity || "").toLowerCase();
-    const recommendation = String(item.drain_recommendation || "review").toLowerCase();
-    const state = String(item.state || "").toLowerCase();
-    const missingSidecars = Number(item.missing_sidecar_count || 0);
-    const blockers = [];
-    if (recommendation === "do_not_drain") blockers.push("backend marked do_not_drain");
-    if (severity === "error") blockers.push("diagnostic severity is error");
-    if (item.local_exists === false) blockers.push("local payload missing");
-    if (missingSidecars > 0) blockers.push(`${missingSidecars} missing sidecar${missingSidecars === 1 ? "" : "s"}`);
-    if (["invalid_manifest", "unreadable_manifest"].includes(state) || ["invalid_manifest", "unreadable_manifest"].includes(status)) blockers.push("manifest unreadable or invalid");
-    if (state === "orphan_payload" || status === "orphan_payload") blockers.push("orphan payload");
-    if (item.error) blockers.push("row error");
-    const backendTrustState = String(item.operator_trust_state || "").trim();
-    const lines = [
-      "Selected pending-row review checklist:",
-      `Row state: ${backendTrustState || (blockers.length ? "do-not-drain" : recommendation === "ready" || item.ready_to_drain ? "ready-looking" : "review")}`,
-      `Diagnostic status: ${item.diagnostic_status || "unknown"}`,
-      `Diagnostic severity: ${item.diagnostic_severity || "unknown"}`,
-      `Drain recommendation: ${item.drain_recommendation || "review"}`,
-      `Recovery class: ${item.recovery_class || "manual_review"}`,
-      `Health blockers: ${blockers.length ? blockers.join(", ") : "none"}`,
-      `Evidence fields: ${pendingListText(item.evidence_fields)}`,
-      `Recommended open targets: ${pendingListText(item.recommended_open_targets)}`,
-    ];
-    if (item.issue_summary) lines.push(`Issue summary: ${item.issue_summary}`);
-    if (item.error) lines.push(`Row error: ${item.error}`);
-    if (item.operator_guidance) {
-      lines.push(`Operator action: ${item.operator_guidance}`);
-    }
-    if (item.recovery_action) {
-      lines.push(`Recovery action: ${item.recovery_action}`);
-    } else if (blockers.length) {
-      lines.push("Operator action: do not drain this row yet; inspect backend-selected payload/manifest/sidecar targets and logs.");
-    } else if (recommendation === "review") {
-      lines.push("Operator action: review row targets and diagnostics before publishing parked outputs.");
-    } else {
-      lines.push("Operator action: row looks ready, but Publish Parked Outputs remains the authoritative backend validation path.");
-    }
-    lines.push("Mutation guardrail: selected-row detail is read-only and cannot drain, repair, delete, rewrite, or publish files.");
-    return lines;
-  }
+  let pendingRowReviewChecklistLines = function () { return []; };
+  let pendingSelectedAtAGlanceState = function () { return "unknown"; };
+  let pendingSelectedAtAGlanceStatus = function () { return "No row selected"; };
+  let pendingSelectedAtAGlanceLines = function () { return []; };
+  let renderPendingSelectedAtAGlance = function () {};
+  let pendingRowIssueDigestLines = function () { return []; };
+  let pendingRealMediaTraceLines = function () { return []; };
+  let pendingSelectedCompletedCorrelationRows = function () { return []; };
+  let pendingSelectedCompletedCorrelationLines = function () { return []; };
+  let pendingSampleValidationHandoffLines = function () { return []; };
+  let pendingSampleValidationComparisonLines = function () { return []; };
+  let pendingRowTrustSummaryLines = function () { return []; };
+  let renderPendingDetail = function () {};
 
-  function pendingSelectedAtAGlanceState(item) {
-    if (!item) return "unknown";
-    const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(item) : "";
-    if (["failed", "blocked"].includes(backendState)) return "blocked";
-    if (backendState === "warning") return "warning";
-    if (["match", "ready"].includes(backendState)) return "ready";
-    const status = String(item.diagnostic_status || "").toLowerCase();
-    const severity = String(item.diagnostic_severity || "").toLowerCase();
-    const recommendation = String(item.drain_recommendation || "review").toLowerCase();
-    const state = String(item.state || "").toLowerCase();
-    const missingSidecars = Number(item.missing_sidecar_count || 0);
-    const blocked = recommendation === "do_not_drain"
-      || severity === "error"
-      || item.local_exists === false
-      || ["invalid_manifest", "unreadable_manifest"].includes(state)
-      || ["invalid_manifest", "unreadable_manifest"].includes(status)
-      || Boolean(item.error);
-    if (blocked) return "blocked";
-    if (missingSidecars > 0 || state === "orphan_payload" || status === "orphan_payload" || recommendation === "review" || !item.ready_to_drain) return "warning";
-    return "ready";
-  }
-
-  function pendingSelectedAtAGlanceStatus(item) {
-    const state = pendingSelectedAtAGlanceState(item);
-    if (state === "blocked") return "Do not drain";
-    if (state === "warning") return "Review";
-    if (state === "ready") return "Ready-looking";
-    return "No selection";
-  }
-
-  function pendingSelectedVisibilitySummary(item) {
-    const lines = pendingFilterVisibilityLines(item);
-    return lines
-      .filter((line) => /^Selected row visible|^Active filters|^Hidden by current filters/.test(String(line || "")))
-      .join(" ");
-  }
-
-  function pendingSelectedAtAGlanceLines(item) {
-    if (!item) {
-      return [
-        "Selected Pending Publish row: none",
-        "Next step: select a pending row to review parked payload, manifest, sidecars, Completed correlation, and drain guidance.",
-        "Authority: this summary is read-only. Backend Publish Parked Outputs remains the only path that can move parked files.",
-      ];
-    }
-    const concern = item.primary_concern
-      || item.issue_summary
-      || item.error
-      || item.operator_guidance
-      || "no primary concern reported";
-    const safeAction = item.safe_next_action
-      || item.operator_guidance
-      || item.recovery_action
-      || (pendingSelectedAtAGlanceState(item) === "ready"
-        ? "Use only backend-owned Publish Parked Outputs after page-level drain validation agrees."
-        : "Inspect pending manifest/payload/sidecars, Completed correlation, Last Stderr, and Run Logs before drain.");
-    return [
-      `Selected Pending Publish row: ${item.local_file || item.server_out || item.manifest_path || "(unnamed row)"}`,
-      `Trust/status: ${item.operator_trust_state || item.diagnostic_status || item.state || "not reported"}; at-a-glance=${pendingSelectedAtAGlanceStatus(item)}`,
-      `Drain proof: recommendation=${item.drain_recommendation || "review"}; ready=${item.ready_to_drain ? "yes" : "no"}; recovery=${item.recovery_class || "manual_review"}`,
-      `Primary concern: ${concern}`,
-      `Safe next step: ${safeAction}`,
-      `Filter visibility: ${pendingSelectedVisibilitySummary(item) || "not evaluated"}`,
-      "Authority: this summary is read-only. It cannot drain, repair, move, delete, rewrite manifests, publish, or touch media files.",
-    ];
-  }
-
-  function renderPendingSelectedAtAGlance(item) {
-    const status = pendingSelectedAtAGlanceStatus(item);
-    setText("pending-selected-status", status);
-    const statusNode = byId("pending-selected-status");
-    if (statusNode) statusNode.dataset.state = pendingSelectedAtAGlanceState(item);
-    setText("pending-selected-summary", pendingSelectedAtAGlanceLines(item).join("\n"));
-  }
-
-  function pendingRowIssueDigestLines(item) {
-    if (!item) return [];
-    const status = String(item.diagnostic_status || "").toLowerCase();
-    const severity = String(item.diagnostic_severity || "").toLowerCase();
-    const recommendation = String(item.drain_recommendation || "review").toLowerCase();
-    const state = String(item.state || "").toLowerCase();
-    const missingSidecars = Number(item.missing_sidecar_count || 0);
-    const issues = [];
-    if (recommendation === "do_not_drain") issues.push("backend marked do_not_drain");
-    if (severity === "error") issues.push("diagnostic severity is error");
-    if (item.local_exists === false) issues.push("local payload missing");
-    if (missingSidecars > 0) issues.push(`${missingSidecars} missing sidecar${missingSidecars === 1 ? "" : "s"}`);
-    if (["invalid_manifest", "unreadable_manifest"].includes(state) || ["invalid_manifest", "unreadable_manifest"].includes(status)) issues.push("manifest unreadable or invalid");
-    if (state === "orphan_payload" || status === "orphan_payload") issues.push("orphan payload");
-    if (item.error) issues.push(`row error: ${item.error}`);
-    const level = recommendation === "do_not_drain" || severity === "error" ? "do-not-drain" : issues.length ? "review" : item.ready_to_drain ? "ready-looking" : "review";
-    const backendTrustState = String(item.operator_trust_state || "").trim();
-    const lines = [
-      "Selected pending issue digest:",
-      `Issue level: ${backendTrustState || level}`,
-      `Recovery class: ${item.recovery_class || "manual_review"}`,
-      `Primary issue(s): ${issues.length ? issues.join("; ") : "none reported by pending scan"}`,
-      `Evidence fields: ${pendingListText(item.evidence_fields)}`,
-      `Proof to inspect: manifest=${item.manifest_path || "not reported"}; payload=${item.local_file || "not reported"}; destination=${item.server_out || "not reported"}`,
-      `Drain proof: ${item.drain_recommendation || "review"}; status=${item.diagnostic_status || "unknown"}; severity=${item.diagnostic_severity || "unknown"}`,
-    ];
-    if (recommendation === "do_not_drain" || severity === "error") {
-      lines.push("Safe next action: do not drain; inspect row targets, Pending Publish diagnostics, Last Stderr, and Run Logs first.");
-    } else if (issues.length) {
-      lines.push("Safe next action: review row targets before Publish Parked Outputs; backend drain validation remains authoritative.");
-    } else if (item.ready_to_drain) {
-      lines.push("Safe next action: row looks ready, but use only the backend-owned Publish Parked Outputs command to move files.");
-    } else {
-      lines.push("Safe next action: treat this row as review-needed until backend diagnostics or a refreshed pending scan marks it ready.");
-    }
-    return lines;
-  }
-
-  function pendingRowCombinedReviewPlanLines(item) {
-    if (!item) return [];
-    const status = String(item.diagnostic_status || "").toLowerCase();
-    const severity = String(item.diagnostic_severity || "").toLowerCase();
-    const recommendation = String(item.drain_recommendation || "review").toLowerCase();
-    const state = String(item.state || "").toLowerCase();
-    const missingSidecars = Number(item.missing_sidecar_count || 0);
-    const signals = [];
-    if (recommendation === "do_not_drain") signals.push("backend do_not_drain");
-    if (severity === "error") signals.push("diagnostic error");
-    if (item.local_exists === false) signals.push("missing payload");
-    if (missingSidecars > 0) signals.push(`${missingSidecars} missing sidecar${missingSidecars === 1 ? "" : "s"}`);
-    if (["invalid_manifest", "unreadable_manifest"].includes(state) || ["invalid_manifest", "unreadable_manifest"].includes(status)) signals.push("invalid/unreadable manifest");
-    if (state === "orphan_payload" || status === "orphan_payload") signals.push("orphan payload");
-    if (item.error) signals.push(`row error ${item.error}`);
-    const readFirst = ["Pending manifest"];
-    if (item.local_exists === false) readFirst.push("Pending payload path");
-    if (missingSidecars > 0) readFirst.push("Sidecar paths");
-    if (recommendation === "do_not_drain" || severity === "error" || item.error) readFirst.push("Last Stderr", "Run Logs");
-    const crossCheck = ["Completed Manifest correlation", "Durable drain summary"];
-    if (item.source_path) crossCheck.push("Queue/source route evidence before rerun");
-    if (item.recovery_class) crossCheck.push(`Recovery class ${item.recovery_class}`);
-    const lines = [
-      "Combined pending-row drain review plan:",
-      `Signal count: ${signals.length}`,
-      `Signals: ${signals.length ? signals.join("; ") : "none reported by the selected pending row"}`,
-      `Read first: ${[...new Set(readFirst)].join(" -> ")}`,
-      `Cross-check: ${[...new Set(crossCheck)].join(" -> ")}`,
-    ];
-    if (recommendation === "do_not_drain" || severity === "error") {
-      lines.push("Decision: do not run Publish Parked Outputs for this row until pending artifacts and logs explain the blocker.");
-    } else if (signals.length) {
-      lines.push("Decision: review the selected artifacts first; backend drain validation remains authoritative.");
-    } else if (item.ready_to_drain) {
-      lines.push("Decision: row is ready-looking, but only backend-owned Publish Parked Outputs may move files.");
-    } else {
-      lines.push("Decision: treat this row as review-needed until pending scan and drain decision both report ready.");
-    }
-    lines.push("Guardrail: this combined plan is read-only and cannot drain, repair, move, delete, rewrite manifests, publish, or touch media files.");
-    return lines;
-  }
-
-  function pendingRealMediaTraceLines(item) {
-    if (!item) return [];
-    const proofSummary = Array.isArray(item.proof_summary) ? item.proof_summary.filter(Boolean) : [];
-    const evidenceFields = Array.isArray(item.evidence_fields) ? item.evidence_fields.filter(Boolean) : [];
-    const sidecars = Array.isArray(item.sidecar_paths) ? item.sidecar_paths.filter(Boolean) : [];
-    const lines = [
-      "Real-media sample trace: Pending Publish",
-      `Trace key: payload=${item.local_file || "not reported"}; destination=${item.server_out || "not reported"}; source=${item.source_path || "not reported"}`,
-      `Parking proof: state=${item.state || "unknown"}; manifest=${item.manifest_path || "not reported"}; payload exists=${item.local_exists === false ? "no" : item.local_exists === true ? "yes" : "unknown"}`,
-      `Drain proof: recommendation=${item.drain_recommendation || "review"}; diagnostic=${[item.diagnostic_status, item.diagnostic_severity].filter(Boolean).join(" / ") || "unknown"}; ready=${item.ready_to_drain ? "yes" : "no"}`,
-      "What this proves: the backend pending-publish scan can see a parked output or parked-output issue and can classify drain safety.",
-      "What remains unproven: final publish completion until Publish Parked Outputs succeeds and durable drain summary/recent drain event agrees with Completed output proof.",
-    ];
-    if (proofSummary.length || evidenceFields.length) {
-      lines.push("Pending proof to compare with Completed and logs:");
-      proofSummary.slice(0, 5).forEach((line) => lines.push(`  ${line}`));
-      if (evidenceFields.length) lines.push(`  evidence fields: ${evidenceFields.join(", ")}`);
-    }
-    if (sidecars.length) {
-      lines.push(`Sidecar payloads: ${sidecars.length}; verify they drain with the media file when subtitle SRT sidecars are expected.`);
-    }
-    if (item.drain_recommendation === "do_not_drain" || item.ready_to_drain === false || item.local_exists === false) {
-      lines.push("Drain boundary: do not drain this row until blockers are explained by pending diagnostics and logs.");
-    }
-    lines.push("Next evidence stop: run or review backend-owned recovery dry-run, then compare durable drain summary with Completed output proof after Publish Parked Outputs.");
-    lines.push("Mutation guardrail: this trace is read-only and cannot drain, repair, delete, rewrite, move, publish, or mutate files.");
-    return lines;
-  }
-
-  function pendingCompletedCorrelationFirstValue(item, keys) {
-    for (const key of keys) {
-      const value = item?.[key];
-      if (value !== undefined && value !== null && String(value).trim()) return String(value).trim();
-    }
-    return "";
-  }
-
-  function pendingCompletedCorrelationNormalizePath(value) {
-    const s = String(value || "").trim().replace(/\//g, "\\");
-    const unc = s.startsWith("\\\\") ? "\\\\" : "";
-    return (unc + s.slice(unc.length).replace(/\\+/g, "\\")).toLowerCase();
-  }
-
-  function pendingCompletedCorrelationLeaf(value) {
-    const text = String(value || "").trim();
-    if (!text) return "";
-    const parts = text.split(/[\\/]/).filter(Boolean);
-    return parts.length ? parts[parts.length - 1] : text;
-  }
-
-  function pendingCompletedCorrelationPendingDestinationPath(row) {
-    return pendingCompletedCorrelationFirstValue(row, ["server_out", "destination_path", "output_path", "target_path", "final_path"]);
-  }
-
-  function pendingCompletedCorrelationPendingSourcePath(row) {
-    return pendingCompletedCorrelationFirstValue(row, ["source_path", "input_path", "source_file"]);
-  }
-
-  function pendingCompletedCorrelationPendingLocalPath(row) {
-    return pendingCompletedCorrelationFirstValue(row, ["local_file", "payload_path", "payload_file"]);
-  }
-
-  function pendingCompletedCorrelationCompletedOutputPath(row) {
-    return pendingCompletedCorrelationFirstValue(row, ["output_path", "server_out", "destination_path", "final_path", "output_file"]);
-  }
-
-  function pendingCompletedCorrelationCompletedSourcePath(row) {
-    return pendingCompletedCorrelationFirstValue(row, ["source_path", "input_path", "source_file"]);
-  }
-
-  function pendingCompletedCorrelationCompletedRowLabel(row) {
-    return pendingCompletedCorrelationFirstValue(row, ["lookup_title", "output_file", "title", "route_label"])
-      || pendingCompletedCorrelationLeaf(pendingCompletedCorrelationCompletedOutputPath(row))
-      || pendingCompletedCorrelationLeaf(pendingCompletedCorrelationCompletedSourcePath(row))
-      || "(completed row)";
-  }
-
-  function pendingCompletedCorrelationLoadedRows() {
-    if (typeof window.getLastCompletedRows === "function") {
-      const rows = window.getLastCompletedRows();
-      return Array.isArray(rows) ? rows : [];
-    }
-    return [];
-  }
-
-  function pendingSelectedCompletedCorrelationRows(item) {
-    const completedRows = pendingCompletedCorrelationLoadedRows();
-    const pendingDestination = pendingCompletedCorrelationPendingDestinationPath(item);
-    const pendingSource = pendingCompletedCorrelationPendingSourcePath(item);
-    const pendingLocal = pendingCompletedCorrelationPendingLocalPath(item);
-    const pendingDestinationKey = pendingCompletedCorrelationNormalizePath(pendingDestination);
-    const pendingSourceKey = pendingCompletedCorrelationNormalizePath(pendingSource);
-    const pendingDestinationLeaf = pendingCompletedCorrelationLeaf(pendingDestination).toLowerCase();
-    const pendingLocalLeaf = pendingCompletedCorrelationLeaf(pendingLocal).toLowerCase();
-    const exactDestination = [];
-    const exactSource = [];
-    const sameLeaf = [];
-    const addMatch = (collection, completedRow, index, matchType, evidence, outputPath, sourcePath) => {
-      collection.push({
-        completedRow,
-        index,
-        matchType,
-        evidence,
-        outputPath,
-        sourcePath,
-        label: pendingCompletedCorrelationCompletedRowLabel(completedRow),
-        status: completedRow?.operator_trust_state || completedRow?.consistency_status || completedRow?.output_health || completedRow?.status || "unknown",
-      });
-    };
-    completedRows.forEach((completedRow, index) => {
-      const outputPath = pendingCompletedCorrelationCompletedOutputPath(completedRow);
-      const sourcePath = pendingCompletedCorrelationCompletedSourcePath(completedRow);
-      const outputKey = pendingCompletedCorrelationNormalizePath(outputPath);
-      const sourceKey = pendingCompletedCorrelationNormalizePath(sourcePath);
-      const outputLeaf = pendingCompletedCorrelationLeaf(outputPath).toLowerCase();
-      if (pendingDestinationKey && outputKey && pendingDestinationKey === outputKey) {
-        addMatch(exactDestination, completedRow, index, "exact-destination", "pending destination equals completed output", outputPath, sourcePath);
-      }
-      if (pendingSourceKey && sourceKey && pendingSourceKey === sourceKey) {
-        addMatch(exactSource, completedRow, index, "exact-source", "pending source equals completed source", outputPath, sourcePath);
-      }
-      if (
-        outputLeaf
-        && (outputLeaf === pendingDestinationLeaf || outputLeaf === pendingLocalLeaf)
-        && !(pendingDestinationKey && outputKey && pendingDestinationKey === outputKey)
-      ) {
-        addMatch(sameLeaf, completedRow, index, "same-leaf", "completed output filename matches pending destination or local payload leaf only", outputPath, sourcePath);
-      }
-    });
-    return {
-      completedRows,
-      pendingDestination,
-      pendingSource,
-      pendingLocal,
-      exactDestination,
-      exactSource,
-      sameLeaf,
-    };
-  }
-
-  function pendingCompletedCorrelationMatchLine(match) {
-    return `- ${match.label}: ${match.evidence}; status=${match.status}; completed output=${match.outputPath || "unknown"}; completed source=${match.sourcePath || "unknown"}`;
-  }
-
-  function pendingSelectedCompletedCorrelationLines(item) {
-    if (!item) {
-      return [
-        "Completed Manifest correlation for selected pending row:",
-        "Select a pending row to compare its destination/source against the loaded Completed Manifest rows.",
-        "Mutation guardrail: this pending-row correlation is read-only and cannot mark done, drain, rerun, delete, publish, rewrite manifests, or touch media.",
-      ];
-    }
-    const correlation = pendingSelectedCompletedCorrelationRows(item);
-    const lines = [
-      "Completed Manifest correlation for selected pending row:",
-      `Completed rows loaded: ${correlation.completedRows.length}`,
-      `Pending destination: ${correlation.pendingDestination || "unknown"}`,
-      `Pending source: ${correlation.pendingSource || "unknown"}`,
-      `Pending local payload: ${correlation.pendingLocal || "unknown"}`,
-      `Exact pending destination -> completed output: ${correlation.exactDestination.length}`,
-      `Exact pending source -> completed source: ${correlation.exactSource.length}`,
-      `Same-leaf completed output hints: ${correlation.sameLeaf.length}`,
-      "Proof order: exact normalized destination/source path matches are stronger than same-leaf filename matches.",
-      "Boundary: same-leaf matches are duplicate-title hints only and do not prove publish completion.",
-    ];
-    if (!correlation.completedRows.length) {
-      lines.push("No Completed rows are loaded in this WebView session. Open or refresh Completed before deciding whether this parked output already has completed-history proof.");
-    }
-    if (correlation.exactDestination.length) {
-      lines.push("Exact destination matches:");
-      correlation.exactDestination.slice(0, 4).forEach((match) => lines.push(pendingCompletedCorrelationMatchLine(match)));
-    }
-    if (correlation.exactSource.length) {
-      lines.push("Exact source matches:");
-      correlation.exactSource.slice(0, 4).forEach((match) => lines.push(pendingCompletedCorrelationMatchLine(match)));
-    }
-    if (correlation.sameLeaf.length) {
-      lines.push("Same-leaf review hints:");
-      correlation.sameLeaf.slice(0, 4).forEach((match) => lines.push(pendingCompletedCorrelationMatchLine(match)));
-    }
-    if (!correlation.exactDestination.length && !correlation.exactSource.length && correlation.completedRows.length) {
-      lines.push("No exact Completed proof is loaded for this pending row. Inspect Completed, Pending Publish, Run Logs, Last Stderr, and durable drain summaries before assuming publish success or data loss.");
-    }
-    lines.push("Mutation guardrail: this pending-row correlation is read-only and cannot mark done, drain, rerun, delete, publish, rewrite manifests, or touch media.");
-    return lines;
-  }
-
-  function pendingSampleValidationHandoffLines(item) {
-    if (!item) return [];
-    const recommendation = String(item.drain_recommendation || "review").toLowerCase();
-    const state = String(item.state || "").toLowerCase();
-    const status = String(item.diagnostic_status || item.state || "").toLowerCase();
-    const severity = String(item.diagnostic_severity || "").toLowerCase();
-    const blocked = Boolean(
-      recommendation === "do_not_drain"
-      || item.ready_to_drain === false
-      || item.local_exists === false
-      || severity === "error"
-      || ["invalid_manifest", "unreadable_manifest", "orphan_payload", "missing_payload"].some((token) => status.includes(token) || state.includes(token))
-    );
-    const suggestedDecision = blocked
-      ? "hold_review until pending blockers are explained"
-      : "accepted only after Completed output proof and durable drain summary agree";
-    const lines = [
-      "Sample Validation handoff: Pending Publish",
-      "Suggested pilot category: deferred-publish",
-      `Suggested evidence decision: ${suggestedDecision}`,
-      `Current pending proof: recommendation=${item.drain_recommendation || "review"}; ready=${item.ready_to_drain ? "yes" : "no"}; state=${item.state || "unknown"}; diagnostic=${[item.diagnostic_status, item.diagnostic_severity].filter(Boolean).join(" / ") || "unknown"}`,
-      "Record evidence only after comparing Pending Publish row proof, Completed output proof, durable drain summary, Run Logs, and Last Stderr.",
-    ];
-    if (blocked) {
-      lines.push("Do not append accepted sample evidence from this pending row until blockers are resolved or intentionally documented as review evidence.");
-    } else {
-      lines.push("If this row is part of a real-media pilot, use Home Sample Validation after backend-owned Publish Parked Outputs and post-drain proof are checked.");
-    }
-    lines.push("Home Sample Validation can write JSONL evidence notes only; it cannot drain, publish, mark complete, accept output, rewrite manifests, or mutate media.");
-    return lines;
-  }
-
-  function pendingSampleValidationComparisonLines(item) {
-    const context = window.mediaPipelineLastCrossPageContext || {};
-    const log = context.sampleValidation || {};
-    const rows = typeof window.sampleValidationRecordComparisonRowsForPaths === "function"
-      ? window.sampleValidationRecordComparisonRowsForPaths(
-        log,
-        [
-          item?.source_path,
-          item?.server_out,
-          item?.destination_path,
-          item?.output_path,
-          item?.local_file,
-          item?.payload_path,
-        ],
-        item?.lookup_title || item?.output_file || item?.server_out || item?.local_file || "",
-      )
-      : [];
-    const current = rows.filter((row) => row.current_status === "current").length;
-    const stale = rows.filter((row) => row.current_status === "stale").length;
-    const review = rows.filter((row) => ["review", "not checked", "unknown"].includes(row.current_status)).length;
-    const accepted = rows.filter((row) => row.operator_decision === "accepted").length;
-    const lines = [
-      "Sample Validation comparison for selected Pending Publish row:",
-      `Matching evidence records: ${rows.length}; accepted=${accepted}; current=${current}; stale=${stale}; review/not-checked=${review}.`,
-      `Pending source: ${item?.source_path || "unknown"}`,
-      `Pending destination: ${item?.server_out || item?.destination_path || item?.output_path || "unknown"}`,
-      `Parked payload: ${item?.local_file || item?.payload_path || "unknown"}`,
-    ];
-    if (!rows.length) {
-      lines.push(
-        "No matching Sample Validation record is loaded for this pending source/destination/payload.",
-        "Next action: keep deferred-publish evidence at hold/review until Completed, Pending Publish, durable drain summary, Diagnostics, playback, and output proof agree."
-      );
-    } else {
-      rows.slice(0, 4).forEach((row) => {
-        const gaps = Array.isArray(row.missing_current_evidence) && row.missing_current_evidence.length
-          ? ` gaps=${row.missing_current_evidence.join("; ")}`
-          : " gaps=none";
-        lines.push(`- ${row.created_at || "unknown time"} ${row.operator_decision || "unknown decision"} category=${row.sample_category || "general"} proof=${row.proof_strength || "unknown"} match=${row.match_strength} fields=${(row.match_fields || []).join(",") || "unknown"} current=${row.current_status || "not checked"}${gaps}`);
-      });
-      lines.push("Next action: if a matching record is not current, preview a fresh deferred-publish evidence note only after post-drain/final-placement proof is coherent.");
-    }
-    lines.push(
-      "Post-run capture: Preview Record includes pending/final-placement proof rows; use category deferred-publish for parked/drained samples.",
-      "Mutation guardrail: this comparison is read-only and cannot append Sample Validation records, drain, publish, repair, rewrite manifests/sidecars, move/delete payloads, save settings, rename, or touch media."
-    );
-    return lines;
-  }
-
-  function pendingRowTrustSummaryLines(item) {
-    if (!item || typeof diagnosticsBridgeRowTrustLines !== "function") return [];
-    const status = String(item.diagnostic_status || "").toLowerCase();
-    const severity = String(item.diagnostic_severity || "").toLowerCase();
-    const recommendation = String(item.drain_recommendation || "review").toLowerCase();
-    const state = String(item.state || "").toLowerCase();
-    const missingSidecars = Number(item.missing_sidecar_count || 0);
-    const issues = [];
-    if (recommendation === "do_not_drain") issues.push("backend marked do_not_drain");
-    if (severity === "error") issues.push("diagnostic severity is error");
-    if (item.local_exists === false) issues.push("local payload missing");
-    if (missingSidecars > 0) issues.push(`${missingSidecars} missing sidecar${missingSidecars === 1 ? "" : "s"}`);
-    if (["invalid_manifest", "unreadable_manifest"].includes(state) || ["invalid_manifest", "unreadable_manifest"].includes(status)) issues.push("manifest unreadable or invalid");
-    if (state === "orphan_payload" || status === "orphan_payload") issues.push("orphan payload");
-    if (item.error) issues.push(`row error: ${item.error}`);
-    const backendTrustState = String(item.operator_trust_state || "").trim();
-    const trustState = backendTrustState || (recommendation === "do_not_drain" || severity === "error"
-      ? "do-not-drain"
-      : issues.length
-        ? "review-before-drain"
-        : item.ready_to_drain
-          ? "ready-looking"
-          : "review");
-    const proofSummary = Array.isArray(item.proof_summary) ? item.proof_summary.filter(Boolean) : [];
-    return diagnosticsBridgeRowTrustLines("Pending Publish selected row", pendingDiagnosticsActionsForRow(item), {
-      trustState,
-      primaryConcern: item.primary_concern || (issues.length ? issues.join("; ") : item.ready_to_drain ? "row has no blocker in the loaded pending scan" : "backend still marks this row for review"),
-      evidence: proofSummary.length ? proofSummary : [
-        item.diagnostic_status || item.diagnostic_severity ? `diagnostic=${[item.diagnostic_status, item.diagnostic_severity].filter(Boolean).join(" / ")}` : "",
-        item.drain_recommendation ? `drain=${item.drain_recommendation}` : "",
-        item.recovery_class || item.recovery_action ? `recovery=${[item.recovery_class, item.recovery_action].filter(Boolean).join(" - ")}` : "",
-        item.local_file ? `payload=${item.local_file}` : "",
-        item.manifest_path ? `manifest=${item.manifest_path}` : "",
-        item.server_out ? `destination=${item.server_out}` : "",
-      ],
-      safeAction: item.safe_next_action || (trustState === "ready-looking" ? "use only backend-owned Publish Parked Outputs after page-level validation agrees." : "inspect pending manifest/payload/sidecar evidence, Last Stderr, and Run Logs before drain."),
-      unsafeAction: item.unsafe_if_ignored || "move, delete, drain, repair, or rewrite pending payloads/manifests from this page.",
-      owningPages: "Pending Publish owns parked output safety; Completed owns output proof; Queue owns rerun risk; Diagnostics owns artifact/log evidence.",
-    });
-  }
-
-  function renderPendingDetail(item) {
-    renderPendingSelectedAtAGlance(item || null);
-    if (!item) {
-      setText("pending-detail", pendingRowReviewChecklistLines(null).join("\n"));
-      renderPendingDiagnosticsLinks(null);
-      return;
-    }
-    const sidecars = Array.isArray(item.sidecar_paths) ? item.sidecar_paths.join("\n  ") : "";
-    const proofSummary = Array.isArray(item.proof_summary) ? item.proof_summary : [];
-    const diagnosticTargets = Array.isArray(item.recommended_diagnostics_targets) ? item.recommended_diagnostics_targets.join(", ") : "";
-    const handoffLines = typeof diagnosticsBridgeHandoffLines === "function"
-      ? diagnosticsBridgeHandoffLines("Pending Publish selected row", pendingDiagnosticsActionsForRow(item), {
-        evidence: [
-          item.diagnostic_status || item.diagnostic_severity ? `diagnostic=${[item.diagnostic_status, item.diagnostic_severity].filter(Boolean).join(" / ")}` : "",
-          item.drain_recommendation ? `drain=${item.drain_recommendation}` : "",
-          item.recovery_class || item.recovery_action ? `recovery=${[item.recovery_class, item.recovery_action].filter(Boolean).join(" - ")}` : "",
-          item.manifest_path || item.local_file ? `payload=${item.local_file || item.manifest_path}` : "",
-        ],
-        safeAction: "compare Pending Publish, manifest/payload/sidecar evidence, Last Stderr, and Run Logs before using Publish Parked Outputs.",
-      })
-      : [];
-    const detail = [
-      ...pendingSelectedQuickSignalLines(item),
-      "",
-      ...pendingRowReviewChecklistLines(item),
-      "",
-      ...pendingRowIssueDigestLines(item),
-      "",
-      ...pendingRowCombinedReviewPlanLines(item),
-      "",
-      ...pendingInvestigationSignalLines(item),
-      "",
-      ...pendingRealMediaTraceLines(item),
-      "",
-      ...pendingSelectedCompletedCorrelationLines(item),
-      "",
-      ...pendingSampleValidationHandoffLines(item),
-      "",
-      ...pendingSampleValidationComparisonLines(item),
-      "",
-      ...pendingRowTrustSummaryLines(item),
-      "",
-      ...handoffLines,
-      "",
-      ...pendingSelectedOpenTargetLines(item),
-      "",
-      `State: ${item.state || ""}`,
-      item.operator_trust_state ? `Backend trust state: ${item.operator_trust_state}` : "",
-      item.primary_concern ? `Primary concern: ${item.primary_concern}` : "",
-      item.safe_next_action ? `Safe next action: ${item.safe_next_action}` : "",
-      item.unsafe_if_ignored ? `Unsafe if ignored: ${item.unsafe_if_ignored}` : "",
-      proofSummary.length ? "Backend proof summary:" : "",
-      ...proofSummary.map((line) => `  ${line}`),
-      diagnosticTargets ? `Recommended diagnostics targets: ${diagnosticTargets}` : "",
-      `Row key: ${item.row_key || pendingRowKey(item) || ""}`,
-      `Route: ${item.route || ""}`,
-      `Publish mode: ${item.publish_mode || ""}`,
-      `Diagnostic status: ${item.diagnostic_status || "unknown"}`,
-      `Diagnostic severity: ${item.diagnostic_severity || "unknown"}`,
-      `Drain recommendation: ${item.drain_recommendation || "review"}`,
-      `Operator guidance: ${item.operator_guidance || "Review this pending row before drain."}`,
-      `Recovery class: ${item.recovery_class || "manual_review"}`,
-      `Recovery action: ${item.recovery_action || "Review this row with Pending Publish diagnostics before drain."}`,
-      `Evidence fields: ${pendingListText(item.evidence_fields)}`,
-      `Recommended open targets: ${pendingListText(item.recommended_open_targets)}`,
-      `Available open targets: ${pendingListText(item.available_open_targets)}`,
-      `Size: ${item.size_text || ""} (${item.output_size || 0} bytes)`,
-      `Parked: ${item.parked_at || item.parked_at_display || ""}`,
-      `Age: ${item.age_text || ""}`,
-      `Local payload: ${item.local_file || ""}`,
-      `Local exists: ${item.local_exists === false ? "no" : item.local_exists === true ? "yes" : ""}`,
-      `Destination: ${item.server_out || ""}`,
-      `Source: ${item.source_path || ""}`,
-      `Manifest: ${item.manifest_path || ""}`,
-      `Schema: ${item.schema_version || ""}`,
-      `Sidecars: ${item.sidecar_count || 0}`,
-      `Missing sidecars: ${item.missing_sidecar_count || 0}`,
-      `Ready to drain: ${item.ready_to_drain ? "yes" : "no"}`,
-      item.issue_summary ? `Issue summary: ${item.issue_summary}` : "",
-      sidecars ? `Sidecar paths:\n  ${sidecars}` : "",
-      item.error ? `Issue: ${item.error}` : "",
-    ].filter(Boolean);
-    setText("pending-detail", detail.join("\n"));
-    renderPendingDiagnosticsLinks(item);
-  }
+  const pendingDetailsModule = window.__pendingPublishDetailsModule || {};
+  const pendingDetails = typeof pendingDetailsModule.createPendingPublishDetailsModule === "function"
+    ? pendingDetailsModule.createPendingPublishDetailsModule({
+      byId: typeof byId === "function" ? byId : window.byId,
+      backendRowStatusState: window.backendRowStatusState,
+      diagnosticsBridgeHandoffLines: window.diagnosticsBridgeHandoffLines,
+      diagnosticsBridgeRowTrustLines: window.diagnosticsBridgeRowTrustLines,
+      pendingDiagnosticsActionsForRow: (...args) => pendingDiagnosticsActionsForRow(...args),
+      pendingFilterVisibilityLines: (...args) => pendingFilterVisibilityLines(...args),
+      pendingInvestigationSignalLines: (...args) => pendingInvestigationSignalLines(...args),
+      pendingListText: (...args) => pendingListText(...args),
+      pendingRowKey: (...args) => pendingRowKey(...args),
+      pendingSelectedOpenTargetLines: (...args) => pendingSelectedOpenTargetLines(...args),
+      pendingSelectedQuickSignalLines: (...args) => pendingSelectedQuickSignalLines(...args),
+      renderPendingDiagnosticsLinks: (...args) => renderPendingDiagnosticsLinks(...args),
+      setText: typeof setText === "function" ? setText : window.setText,
+    })
+    : {};
+  pendingRowReviewChecklistLines = typeof pendingDetails.pendingRowReviewChecklistLines === "function" ? pendingDetails.pendingRowReviewChecklistLines : pendingRowReviewChecklistLines;
+  pendingSelectedAtAGlanceState = typeof pendingDetails.pendingSelectedAtAGlanceState === "function" ? pendingDetails.pendingSelectedAtAGlanceState : pendingSelectedAtAGlanceState;
+  pendingSelectedAtAGlanceStatus = typeof pendingDetails.pendingSelectedAtAGlanceStatus === "function" ? pendingDetails.pendingSelectedAtAGlanceStatus : pendingSelectedAtAGlanceStatus;
+  pendingSelectedAtAGlanceLines = typeof pendingDetails.pendingSelectedAtAGlanceLines === "function" ? pendingDetails.pendingSelectedAtAGlanceLines : pendingSelectedAtAGlanceLines;
+  renderPendingSelectedAtAGlance = typeof pendingDetails.renderPendingSelectedAtAGlance === "function" ? pendingDetails.renderPendingSelectedAtAGlance : renderPendingSelectedAtAGlance;
+  pendingRowIssueDigestLines = typeof pendingDetails.pendingRowIssueDigestLines === "function" ? pendingDetails.pendingRowIssueDigestLines : pendingRowIssueDigestLines;
+  pendingRealMediaTraceLines = typeof pendingDetails.pendingRealMediaTraceLines === "function" ? pendingDetails.pendingRealMediaTraceLines : pendingRealMediaTraceLines;
+  pendingSelectedCompletedCorrelationRows = typeof pendingDetails.pendingSelectedCompletedCorrelationRows === "function" ? pendingDetails.pendingSelectedCompletedCorrelationRows : pendingSelectedCompletedCorrelationRows;
+  pendingSelectedCompletedCorrelationLines = typeof pendingDetails.pendingSelectedCompletedCorrelationLines === "function" ? pendingDetails.pendingSelectedCompletedCorrelationLines : pendingSelectedCompletedCorrelationLines;
+  pendingSampleValidationHandoffLines = typeof pendingDetails.pendingSampleValidationHandoffLines === "function" ? pendingDetails.pendingSampleValidationHandoffLines : pendingSampleValidationHandoffLines;
+  pendingSampleValidationComparisonLines = typeof pendingDetails.pendingSampleValidationComparisonLines === "function" ? pendingDetails.pendingSampleValidationComparisonLines : pendingSampleValidationComparisonLines;
+  pendingRowTrustSummaryLines = typeof pendingDetails.pendingRowTrustSummaryLines === "function" ? pendingDetails.pendingRowTrustSummaryLines : pendingRowTrustSummaryLines;
+  renderPendingDetail = typeof pendingDetails.renderPendingDetail === "function" ? pendingDetails.renderPendingDetail : renderPendingDetail;
 
   function renderPendingRows() {
     const filterText = byId("pending-filter")?.value || "";

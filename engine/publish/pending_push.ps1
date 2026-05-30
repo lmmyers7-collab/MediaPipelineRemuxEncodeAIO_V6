@@ -2,7 +2,7 @@
 # Modules\PendingPush.ps1
 # ==============================================================================
 # PendingServerPush\ park-and-retry helpers extracted from
-# MediaPipeline_chatgpt.ps1 (the FIX#10 cluster).
+# MediaPipeline.ps1 (the FIX#10 cluster).
 #
 # Public facade for the state machine where "the local encode/remux succeeded
 # but the network push to the outsource share failed". Durable manifest/move

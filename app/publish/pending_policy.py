@@ -4,6 +4,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping
 
+from .pending_policy_parts.status_rules import (
+    recovery_plan_action as _recovery_plan_action,
+    row_operator_guidance as _row_operator_guidance,
+    row_recovery_action as _row_recovery_action,
+    row_recovery_class as _row_recovery_class,
+)
+from .pending_policy_parts.trust_fields import build_pending_publish_row_trust_fields
+
 if TYPE_CHECKING:
     from mediapipeline_desktop_app.application.dto_commands import CommandResult
     from mediapipeline_desktop_app.application.dto_inventory import PendingPublishPreviewDto
@@ -33,6 +41,7 @@ PENDING_PUBLISH_OPEN_COMMAND = "pending_publish.open"
 PENDING_PUBLISH_RECOVERY_PLAN_COMMAND = "pending_publish.recovery_plan_dry_run"
 PENDING_PUBLISH_RECOVERY_PLAN_SCHEMA_VERSION = "pending_publish_recovery_plan.v1"
 PENDING_PUBLISH_INVENTORY_PROGRESS_SCHEMA_VERSION = "desktop_pending_publish_inventory_progress.v1"
+PENDING_DRAIN_CONFIDENCE_SCHEMA_VERSION = "desktop_pending_drain_confidence.v1"
 PENDING_PUBLISH_OPEN_TARGETS = {
     "local_file": "parked local payload",
     "manifest": "pending manifest",
@@ -129,7 +138,7 @@ def pending_publish_preview_fields(raw: Mapping[str, Any]) -> dict[str, Any]:
         status="blocked" if error else "complete",
         detail=error or "",
     )
-    return {
+    fields = {
         "pending_root": str(raw.get("pending_root") or ""),
         "exists": bool(raw.get("exists", False)),
         "rows": rows,
@@ -160,6 +169,241 @@ def pending_publish_preview_fields(raw: Mapping[str, Any]) -> dict[str, Any]:
         "progress_bars": progress["progress_bars"],
         "warnings": pending_publish_error_warning(error),
         "error": error,
+    }
+    fields["drain_confidence"] = pending_publish_drain_confidence_payload(fields, rows)
+    return fields
+
+
+def _pending_evidence_class(row: Mapping[str, Any]) -> str:
+    recommendation = str(row.get("drain_recommendation") or "").casefold()
+    severity = str(row.get("diagnostic_severity") or "").casefold()
+    status = str(row.get("diagnostic_status") or "").casefold()
+    state = str(row.get("state") or "").casefold()
+    if recommendation == "do_not_drain":
+        return "do-not-drain"
+    if severity == "error":
+        return "diagnostic-error"
+    if row.get("local_exists") is False or status == "missing_payload":
+        return "missing-payload"
+    if status in {"invalid_manifest", "unreadable_manifest"} or state in {"invalid_manifest", "unreadable_manifest", "invalid_contract", "unreadable"}:
+        return "manifest-invalid"
+    if state == "orphan_payload" or status == "orphan_payload":
+        return "orphan-payload"
+    if int_value(row.get("missing_sidecar_count")) > 0 or status == "missing_sidecar":
+        return "missing-sidecar"
+    if severity == "warning" or recommendation == "review_before_drain" or row.get("ready_to_drain") is False:
+        return "review"
+    return "ready-evidence"
+
+
+def _pending_evidence_rank(row: Mapping[str, Any]) -> int:
+    ranks = {
+        "do-not-drain": 0,
+        "diagnostic-error": 1,
+        "missing-payload": 2,
+        "manifest-invalid": 3,
+        "orphan-payload": 4,
+        "missing-sidecar": 5,
+        "review": 6,
+        "ready-evidence": 7,
+    }
+    return ranks.get(_pending_evidence_class(row), 99)
+
+
+def _pending_evidence_rows(rows: list[dict[str, Any]], *, include_ready: bool = False) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    for index, row in enumerate(rows):
+        evidence_class = _pending_evidence_class(row)
+        if include_ready or evidence_class != "ready-evidence":
+            entries.append({"row": row, "index": index, "evidenceClass": evidence_class})
+    return sorted(entries, key=lambda entry: (_pending_evidence_rank(entry["row"]), entry["index"]))
+
+
+def _pending_evidence_status(payload: Mapping[str, Any], rows: list[dict[str, Any]]) -> str:
+    if payload.get("error"):
+        return "Diagnostics first"
+    if payload.get("exists") is False:
+        return "No pending root"
+    if not rows:
+        return "No parked rows"
+    evidence_rows = _pending_evidence_rows(rows)
+    if any(entry["evidenceClass"] in {"do-not-drain", "diagnostic-error", "missing-payload", "manifest-invalid"} for entry in evidence_rows):
+        return "Blocked evidence"
+    if evidence_rows:
+        return "Review evidence"
+    return "No blockers"
+
+
+def _pending_row_has_health_issue(row: Mapping[str, Any]) -> bool:
+    return bool(
+        row.get("error")
+        or row.get("local_exists") is False
+        or int_value(row.get("missing_sidecar_count")) > 0
+        or str(row.get("diagnostic_severity") or "").casefold() in {"warning", "error", "critical"}
+        or str(row.get("drain_recommendation") or "").casefold() in {"do_not_drain", "review_before_drain"}
+    )
+
+
+def _pending_validation_status(payload: Mapping[str, Any], rows: list[dict[str, Any]]) -> str:
+    if payload.get("error"):
+        return "Unavailable"
+    if payload.get("exists") is False:
+        return "No root"
+    if not rows:
+        return "Empty"
+    do_not_drain = [row for row in rows if str(row.get("drain_recommendation") or "").casefold() == "do_not_drain"]
+    severe = [row for row in rows if str(row.get("diagnostic_severity") or "").casefold() == "error"]
+    invalid = [row for row in rows if str(row.get("state") or "").casefold() in {"invalid_manifest", "unreadable_manifest"}]
+    missing_payload = [row for row in rows if row.get("local_exists") is False]
+    missing_sidecar = [row for row in rows if int_value(row.get("missing_sidecar_count")) > 0]
+    if (
+        do_not_drain
+        or severe
+        or invalid
+        or missing_payload
+        or missing_sidecar
+        or int_value(payload.get("health_count")) > 0
+        or int_value(payload.get("missing_local_count")) > 0
+    ):
+        return "Do not drain"
+    warnings = [item for item in payload.get("warnings") or [] if item]
+    if warnings or int_value(payload.get("issue_count")) > 0 or any(_pending_row_has_health_issue(row) for row in rows):
+        return "Review"
+    return "Ready"
+
+
+def _pending_drain_summary_payload(payload: Mapping[str, Any]) -> Mapping[str, Any]:
+    summary = payload.get("drain_summary")
+    return summary if isinstance(summary, Mapping) else {}
+
+
+def _pending_drain_summary_status(payload: Mapping[str, Any]) -> str:
+    summary = _pending_drain_summary_payload(payload)
+    if summary.get("read_error"):
+        return "Unreadable summary"
+    if summary.get("exists") is False:
+        return "No summary"
+    if not summary.get("started_at") and not summary.get("completed_at"):
+        return "No summary"
+    if summary.get("deferred"):
+        return "Deferred"
+    if summary.get("stopped"):
+        return "Stopped"
+    if int_value(summary.get("error_count")) > 0:
+        return "Review drain"
+    if int_value(summary.get("succeeded_count")) > 0 or int_value(summary.get("already_published_count")) > 0:
+        return "Last drain complete"
+    if int_value(summary.get("attempted_count")) == 0:
+        return "No attempts"
+    return "Last drain recorded"
+
+
+def _pending_drain_summary_issue_level(summary: Mapping[str, Any]) -> str:
+    if summary.get("read_error"):
+        return "blocked"
+    if summary.get("exists") is False or (not summary.get("started_at") and not summary.get("completed_at")):
+        return "none"
+    if summary.get("stopped") or int_value(summary.get("error_count")) > 0:
+        return "blocked"
+    if summary.get("deferred") or int_value(summary.get("skipped_count")) > 0 or int_value(summary.get("remaining_count")) > 0:
+        return "review"
+    return "ok"
+
+
+def _pending_drain_confidence_status(rows: list[dict[str, Any]]) -> str:
+    if any(row.get("confidence") == "blocked" for row in rows):
+        return "Do not drain"
+    if any(row.get("confidence") == "review" for row in rows):
+        return "Review first"
+    if any(row.get("confidence") == "unknown" for row in rows):
+        return "Evidence incomplete"
+    return "Ready-looking" if rows else "Not evaluated"
+
+
+def _pending_drain_confidence_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        key = str(row.get("confidence") or "unknown")
+        counts[key] = counts.get(key, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def pending_publish_drain_confidence_payload(payload: Mapping[str, Any], rows: list[dict[str, Any]]) -> dict[str, Any]:
+    evidence_rows = _pending_evidence_rows(rows)
+    blocking_evidence = [entry for entry in evidence_rows if entry["evidenceClass"] in {"do-not-drain", "diagnostic-error", "missing-payload", "manifest-invalid"}]
+    review_evidence = [entry for entry in evidence_rows if entry["evidenceClass"] not in {"do-not-drain", "diagnostic-error", "missing-payload", "manifest-invalid"}]
+    summary = _pending_drain_summary_payload(payload)
+    rows_out: list[dict[str, Any]] = []
+
+    def add(check: str, confidence: str, evidence: str, action: str) -> None:
+        rows_out.append({
+            "check": check,
+            "confidence": confidence,
+            "evidence": evidence,
+            "action": action,
+            "evidence_authority": "backend",
+        })
+
+    if payload.get("error"):
+        add(
+            "Pending scan",
+            "blocked",
+            f"scan unavailable: {payload.get('error')}",
+            "Open Diagnostics > Pending Publish, Run Logs, and Last Stderr before any drain attempt.",
+        )
+    else:
+        exists = payload.get("exists")
+        add(
+            "Current parked rows",
+            "unknown" if exists is False else "ready" if not rows else "blocked" if blocking_evidence else "review" if review_evidence else "ready",
+            f"root={'missing' if exists is False else 'available'}; rows={payload.get('count') or len(rows) or 0}; ready={payload.get('ready_count') or 0}; issues={payload.get('issue_count') or 0}",
+            "No pending root exists. Confirm Completed and Run Logs before rerun."
+            if exists is False
+            else "No parked outputs are waiting. Do not reprocess solely because Pending Publish is empty."
+            if not rows
+            else "Review row-level evidence below before pressing Publish Parked Outputs.",
+        )
+        add(
+            "Blocker evidence",
+            "blocked" if blocking_evidence else "review" if review_evidence else "ready",
+            f"blocking={len(blocking_evidence)}; review={len(review_evidence)}; evidence status={_pending_evidence_status(payload, rows)}",
+            "Do not drain. Select the highest-risk evidence row and inspect backend-selected targets or build a recovery dry-run plan."
+            if blocking_evidence
+            else "Review warning/orphan/sidecar rows before drain."
+            if review_evidence
+            else "No loaded row exposes drain-blocking evidence.",
+        )
+        validation = _pending_validation_status(payload, rows)
+        add(
+            "Validation checklist",
+            "blocked" if validation == "Do not drain" else "review" if validation == "Review" else "ready",
+            f"validation={validation}; health={payload.get('health_count') or 0}; missing payloads={payload.get('missing_local_count') or 0}; missing sidecars={payload.get('missing_sidecar_count') or 0}",
+            "Use the Real-media Validation Checklist as the page-level pre-drain gate; backend drain validation remains authoritative.",
+        )
+        summary_level = _pending_drain_summary_issue_level(summary)
+        add(
+            "Durable drain summary",
+            "blocked" if summary_level == "blocked" else "review" if summary_level == "review" else "ready" if summary_level == "ok" else "unknown",
+            f"status={_pending_drain_summary_status(payload)}; attempted={summary.get('attempted_count') or 0}; errors={summary.get('error_count') or 0}; remaining={summary.get('remaining_count') or 0}",
+            "Treat the durable summary as last-attempt evidence; the current pending rows remain the source of truth for what is still parked.",
+        )
+
+    counts = _pending_drain_confidence_counts(rows_out)
+    return {
+        "schema_version": PENDING_DRAIN_CONFIDENCE_SCHEMA_VERSION,
+        "evidence_authority": "backend",
+        "render_contract": "pendingPublishView.confidence.js",
+        "render_complete": False,
+        "status": _pending_drain_confidence_status(rows_out),
+        "counts": counts,
+        "rows": _json_safe(rows_out),
+        "summary_lines": [
+            "Pending Publish backend drain confidence:",
+            f"Rows: {len(rows_out)}; ready={counts.get('ready', 0)}; review={counts.get('review', 0)}; blocked={counts.get('blocked', 0)}; unknown={counts.get('unknown', 0)}.",
+            "Backend rows cover parked-row, blocker, validation, and durable-summary evidence; WebView still adds display-scope, command-history, recovery-plan, runtime-event, and selection context.",
+            "Mutation guardrail: this DTO is read-only and cannot drain, repair, rewrite, move, delete, publish, or bypass backend validation.",
+        ],
+        "boundary": "read_only_no_media_mutation",
     }
 
 
@@ -277,45 +521,15 @@ def pending_publish_row_diagnostic_status_state(
 
 
 def pending_publish_row_operator_guidance(status: str) -> str:
-    guidance = {
-        "ready": "Ready-looking row; backend drain still performs final publish validation.",
-        "missing_payload": "Parked media file is missing. Open the manifest and destination/source folders before retrying or reprocessing.",
-        "missing_sidecar": "One or more sidecars referenced by the manifest are missing. Review the manifest and payload before drain.",
-        "orphan_payload": "Payload has no manifest. Confirm whether it is leftover from a failed parking or manual copy before cleanup or retry.",
-        "invalid_manifest": "Manifest is invalid. Regenerate or repair from pipeline logs before drain.",
-        "unreadable_manifest": "Manifest could not be read. Check file locking, permissions, and JSON validity before drain.",
-        "duplicate_target": "Multiple pending manifests reference the same payload or destination. Resolve duplicates before drain.",
-        "row_error": "Pending row has a backend-reported error. Inspect manifest, payload, and run logs before drain.",
-    }
-    return guidance.get(status, "Review this pending row before drain.")
+    return _row_operator_guidance(status)
 
 
 def pending_publish_row_recovery_class(status: str) -> str:
-    classes = {
-        "ready": "ready_to_validate",
-        "missing_payload": "payload_missing",
-        "missing_sidecar": "sidecar_missing",
-        "orphan_payload": "orphan_payload_review",
-        "invalid_manifest": "manifest_repair",
-        "unreadable_manifest": "manifest_repair",
-        "duplicate_target": "duplicate_resolution",
-        "row_error": "manual_review",
-    }
-    return classes.get(status, "manual_review")
+    return _row_recovery_class(status)
 
 
 def pending_publish_row_recovery_action(status: str) -> str:
-    actions = {
-        "ready": "Use Publish Parked Outputs only after the current pending scan still shows this row ready.",
-        "missing_payload": "Open the manifest and destination/source folders, then confirm whether the parked payload was moved, deleted, or never written.",
-        "missing_sidecar": "Open the manifest and payload, then compare expected sidecar paths against disk before draining.",
-        "orphan_payload": "Open the orphan payload and run logs before deciding whether it is a leftover, manual copy, or failed parking artifact.",
-        "invalid_manifest": "Repair or regenerate the pending manifest from logs/sidecar evidence before another drain attempt.",
-        "unreadable_manifest": "Check locking, permissions, and JSON validity before another drain attempt.",
-        "duplicate_target": "Compare duplicate manifests and destinations before draining; one row may be stale or manually copied.",
-        "row_error": "Inspect manifest, payload, destination, Last Stderr, and Run Logs before another drain attempt.",
-    }
-    return actions.get(status, "Review this row with Pending Publish diagnostics before draining.")
+    return _row_recovery_action(status)
 
 
 def pending_publish_row_evidence_fields(row: Mapping[str, Any], status: str) -> list[str]:
@@ -367,59 +581,12 @@ def pending_publish_row_diagnostics(row: Mapping[str, Any]) -> dict[str, Any]:
 
 
 def pending_publish_row_trust_fields(row: Mapping[str, Any], diagnostics: Mapping[str, Any]) -> dict[str, Any]:
-    status = str(diagnostics.get("diagnostic_status") or "unknown").strip()
-    severity = str(diagnostics.get("diagnostic_severity") or "unknown").strip().casefold()
-    recommendation = str(diagnostics.get("drain_recommendation") or "review").strip().casefold()
-    state = str(row.get("state") or "").strip().casefold()
-    issues: list[str] = []
-    if recommendation == "do_not_drain":
-        issues.append("backend marked do_not_drain")
-    if severity == "error":
-        issues.append("diagnostic severity is error")
-    if row.get("local_exists") is False:
-        issues.append("local payload missing")
-    missing_sidecars = int_value(row.get("missing_sidecar_count"))
-    if missing_sidecars > 0:
-        issues.append(f"{missing_sidecars} missing sidecar{'s' if missing_sidecars != 1 else ''}")
-    if state in {"invalid_manifest", "unreadable_manifest", "invalid_contract", "unreadable"} or status in {"invalid_manifest", "unreadable_manifest"}:
-        issues.append("manifest unreadable or invalid")
-    if state == "orphan_payload" or status == "orphan_payload":
-        issues.append("orphan payload")
-    if row.get("error"):
-        issues.append(f"row error: {row.get('error')}")
-
-    if recommendation == "do_not_drain" or severity == "error":
-        trust_state = "do-not-drain"
-        safe_action = "Do not drain; inspect pending manifest/payload/sidecar evidence, Last Stderr, and Run Logs first."
-    elif issues:
-        trust_state = "review-before-drain"
-        safe_action = "Review backend-selected row targets before Publish Parked Outputs; backend drain validation remains authoritative."
-    elif diagnostics.get("ready_to_drain") or pending_publish_row_ready_to_drain(row):
-        trust_state = "ready-looking"
-        safe_action = "Use only backend-owned Publish Parked Outputs after page-level validation still agrees."
-    else:
-        trust_state = "review-before-drain"
-        safe_action = "Treat this row as review-needed until a refreshed pending scan marks it ready."
-
-    proof = [
-        f"diagnostic={status} / {diagnostics.get('diagnostic_severity') or 'unknown'}",
-        f"drain={diagnostics.get('drain_recommendation') or 'review'}",
-        f"recovery={diagnostics.get('recovery_class') or 'manual_review'}",
-        f"payload={row.get('local_file') or 'not reported'}",
-        f"manifest={row.get('manifest_path') or 'not reported'}",
-        f"destination={row.get('server_out') or 'not reported'}",
-    ]
-    diagnostics_targets = ["pending_publish", "run_logs", "last_stderr_log"]
-    if trust_state == "do-not-drain" or "manifest unreadable or invalid" in issues:
-        diagnostics_targets.append("state")
-    return {
-        "operator_trust_state": trust_state,
-        "primary_concern": "; ".join(issues) if issues else "row has no blocker in the loaded pending publish scan",
-        "safe_next_action": safe_action,
-        "unsafe_if_ignored": "Draining review or blocker rows can lose parked output context, overwrite the wrong destination, or strand payload/sidecar evidence.",
-        "proof_summary": proof,
-        "recommended_diagnostics_targets": diagnostics_targets,
-    }
+    return build_pending_publish_row_trust_fields(
+        row,
+        diagnostics,
+        missing_sidecars=int_value(row.get("missing_sidecar_count")),
+        ready_to_drain=bool(diagnostics.get("ready_to_drain") or pending_publish_row_ready_to_drain(row)),
+    )
 
 
 def pending_publish_row_is_recovery_blocker(row: Mapping[str, Any]) -> bool:
@@ -578,18 +745,7 @@ def normalize_pending_publish_recovery_scope(value: Any, row_key: str = "") -> s
 
 
 def pending_publish_recovery_plan_action(row: Mapping[str, Any]) -> str:
-    status = str(row.get("diagnostic_status") or "").strip().casefold()
-    actions = {
-        "ready": "validate_with_backend_drain",
-        "missing_payload": "locate_payload_or_reprocess_source",
-        "missing_sidecar": "compare_manifest_sidecars_before_drain",
-        "orphan_payload": "classify_orphan_payload_before_cleanup_or_rerun",
-        "invalid_manifest": "repair_or_regenerate_manifest_from_logs",
-        "unreadable_manifest": "unlock_or_repair_manifest_json",
-        "duplicate_target": "resolve_duplicate_pending_targets",
-        "row_error": "manual_review_with_logs",
-    }
-    return actions.get(status, "manual_review_with_pending_diagnostics")
+    return _recovery_plan_action(row)
 
 
 def pending_publish_recovery_plan_row(row: Mapping[str, Any]) -> dict[str, Any]:
@@ -885,6 +1041,8 @@ __all__ = [
     "pending_publish_rows",
     "pending_publish_row_key",
     "pending_publish_preview_fields",
+    "pending_publish_drain_confidence_payload",
+    "PENDING_DRAIN_CONFIDENCE_SCHEMA_VERSION",
     "count_pending_publish_rows",
     "count_pending_publish_row_targets",
     "pending_publish_row_ready_to_drain",

@@ -1,0 +1,93 @@
+"""Queue-page settings field definitions."""
+
+from __future__ import annotations
+
+
+QUEUE_CONFIG_FIELD_DEFINITIONS = (
+    {
+        "page": "Queue",
+        "section": "Queue",
+        "key": "PriorityMarkers",
+        "label": "Priority Markers",
+        "kind": "list",
+        "help": "Filename or folder prefixes used to force priority queue placement.",
+    },
+    {
+        "page": "Queue",
+        "section": "Queue",
+        "key": "SourceScanIntervalSeconds",
+        "label": "Source Scan Refresh (s)",
+        "kind": "int",
+        "default": 300,
+        "help": "How often the pipeline scans incoming source folders.",
+    },
+    {
+        "page": "Queue",
+        "section": "Queue",
+        "key": "SourceScanTimeoutSeconds",
+        "label": "Source Scan Timeout (s)",
+        "kind": "int",
+        "default": 1800,
+        "help": "Maximum time allowed for each source library scan.",
+    },
+    {
+        "page": "Queue",
+        "section": "Queue",
+        "key": "ProcessedIndexRefreshSeconds",
+        "label": "Processed Index Refresh (s)",
+        "kind": "int",
+        "default": 900,
+        "help": "How often the pipeline refreshes its processed output index.",
+    },
+    {
+        "page": "Queue",
+        "section": "Queue",
+        "key": "ReprocessAll",
+        "label": "Force One Reprocess Pass",
+        "kind": "bool",
+        "help": "When enabled, previously completed outputs are reconsidered for one complete pass; use only for deliberate rerun testing.",
+    },
+    {
+        "page": "Queue",
+        "section": "Queue",
+        "key": "IndexScanTimeoutSeconds",
+        "label": "Index Scan Timeout (s)",
+        "kind": "int",
+        "default": 1800,
+        "help": "Maximum time allowed for processed index scanning.",
+    },
+    {
+        "page": "Queue",
+        "section": "Queue",
+        "key": "CleanupScanTimeoutSeconds",
+        "label": "Cleanup Scan Timeout (s)",
+        "kind": "int",
+        "default": 300,
+        "help": "Maximum time allowed for startup partial/staging cleanup scans.",
+    },
+    {
+        "page": "Queue",
+        "section": "Queue",
+        "key": "ValidExtensions",
+        "label": "Valid Media Extensions",
+        "kind": "list",
+        "help": "File extensions considered media candidates during source discovery.",
+    },
+    {
+        "page": "Queue",
+        "section": "Queue",
+        "key": "CleanupRemoteStaging",
+        "label": "Clean Remote Staging",
+        "kind": "bool",
+        "help": "Allow startup cleanup scans against remote outsource paths. Leave off for normal daily use.",
+    },
+    {
+        "page": "Queue",
+        "section": "Queue",
+        "key": "CleanupStaleAgeHours",
+        "label": "Cleanup Age (h)",
+        "kind": "int",
+        "default": 24,
+        "help": "Minimum age before partial or staging artifacts are removed by startup cleanup.",
+    },
+)

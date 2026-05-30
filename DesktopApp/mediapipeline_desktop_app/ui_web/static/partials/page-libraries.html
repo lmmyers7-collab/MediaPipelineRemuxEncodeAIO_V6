@@ -1,0 +1,32 @@
+      <section class="page" data-page-panel="libraries">
+        <h1 class="visually-hidden">Library Profiles</h1>
+        <div id="settings-library-tab-bar" class="settings-tab-bar settings-library-tab-bar" role="tablist" aria-label="Library profile tabs"></div>
+
+        <section class="panel settings-library-actions-panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Libraries</h2>
+            <strong id="settings-libraries-status">No libraries loaded</strong>
+          </div>
+          <div class="settings-library-command-box" aria-label="Library profile actions">
+            <div class="settings-library-command-heading">
+              <strong id="settings-library-active-title">Selected library: Movies</strong>
+            </div>
+            <div class="action-row action-row-left wrap-actions">
+              <button type="button" class="secondary-button" id="settings-library-add-button">Add Library</button>
+              <button type="button" class="danger-button" id="settings-library-delete-button">Delete Library</button>
+              <button type="button" class="primary-button" id="settings-library-save-button">Save Library Profile</button>
+              <button type="button" class="secondary-button" id="settings-library-defaults-button">Replace Values With Default</button>
+              <button type="button" class="secondary-button" id="settings-library-reset-button">Reset From Current</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel settings-libraries-panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Library Profile</h2>
+            <strong id="settings-library-editor-status">Selected profile</strong>
+          </div>
+          <div id="settings-library-profile-list" class="settings-library-profile-list"></div>
+          <pre id="settings-library-warning-summary" class="prose-block settings-library-feedback" hidden></pre>
+        </section>
+      </section>

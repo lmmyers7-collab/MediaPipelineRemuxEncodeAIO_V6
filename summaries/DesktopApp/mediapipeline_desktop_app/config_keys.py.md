@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-05-29
 last_reviewed: 2026-05-28
-sha256: 9fdcf6c822cf6402e80e708de47334dab737dd2140b355b29ee025f5b045b6cc
+sha256: 119bc1016a112fc55f643d278fdf16150df7aff9274a221a9e8d1990f0993427
 ---
 # `DesktopApp/mediapipeline_desktop_app/config_keys.py`
 

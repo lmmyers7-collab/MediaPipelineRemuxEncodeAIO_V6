@@ -3,7 +3,7 @@
 # ==============================================================================
 # Source-to-scratch copy helpers and scratch fingerprint safety.
 #
-# Dot-sourced from MediaPipeline_chatgpt.ps1. These helpers read runtime state
+# Dot-sourced from MediaPipeline.ps1. These helpers read runtime state
 # from the main script scope at call time and preserve the existing source-file
 # protection boundary: source media is copied to scratch, never mutated.
 # ==============================================================================

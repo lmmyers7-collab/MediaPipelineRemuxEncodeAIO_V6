@@ -31,6 +31,9 @@
   const _queueEmptyArray = function () { return []; };
   const _queueEmptyObject = function () { return {}; };
   const _queueEmptyString = function () { return ""; };
+  const _queueFalse = function () { return false; };
+  const _queueIdentity = function (row) { return row; };
+  const _queueEmptySet = function () { return new Set(); };
   const {
     queuePathExtension = _queueNoop,
     queueRowExtension = _queueNoop,
@@ -107,6 +110,27 @@
     renderQueueReviewBoard = _queueNoop,
     queueListText = _queueNoop,
   } = _queueReview;
+
+  const __queueTableMod = window.__queueTableModule || {};
+  delete window.__queueTableModule;
+  const _queueTable = typeof __queueTableMod.createQueueTableModule === "function"
+    ? __queueTableMod.createQueueTableModule({
+      appendCells: typeof appendCells === "function" ? appendCells : window.appendCells,
+      makeRowSelectable: typeof makeRowSelectable === "function" ? makeRowSelectable : window.makeRowSelectable,
+      openFileSettingsDrawer: typeof openFileSettingsDrawer === "function" ? openFileSettingsDrawer : window.openFileSettingsDrawer,
+      queueRowKey,
+      queueTableRowStatus,
+      selectQueueRow,
+      shortenPath: typeof shortenPath === "function" ? shortenPath : window.shortenPath,
+    })
+    : {};
+  const {
+    queueIsOverrideArtifactRow = _queueFalse,
+    queueOverrideTargetKeys = _queueEmptySet,
+    queueRowWithOverrideMarker = _queueIdentity,
+    queueDisplayRowStatus = queueTableRowStatus,
+    renderQueueTableRows = _queueNoop,
+  } = _queueTable;
 
   const __queueDetailMod = window.__queueDetailModule || {};
   delete window.__queueDetailModule;
@@ -237,8 +261,12 @@
   function renderQueue(queue) {
     queue = queue && typeof queue === "object" ? queue : {};
     const rawRows = Array.isArray(queue.rows) ? queue.rows : [];
-    const hiddenSidecars = rawRows.filter(queueIsHiddenSidecarBlockedRow);
-    const rows = rawRows.filter((row) => !queueIsHiddenSidecarBlockedRow(row));
+    const overrideArtifactRows = rawRows.filter(queueIsOverrideArtifactRow);
+    const overrideTargetKeys = queueOverrideTargetKeys(overrideArtifactRows);
+    const hiddenSidecars = rawRows.filter((row) => queueIsHiddenSidecarBlockedRow(row) && !queueIsOverrideArtifactRow(row));
+    const rows = rawRows
+      .filter((row) => !queueIsHiddenSidecarBlockedRow(row) && !queueIsOverrideArtifactRow(row))
+      .map((row) => queueRowWithOverrideMarker(row, overrideTargetKeys));
     const displayQueue = queueDisplayPayloadForVisibleRows(queue, rows, hiddenSidecars, rawRows);
     const excludedRows = Array.isArray(queue.excluded_rows) ? queue.excluded_rows : [];
     lastQueuePayload = displayQueue;
@@ -644,34 +672,12 @@
     }
   }
 
-  /**
-   * makeRouteChip(routeName) → <span class="route-chip" data-route="...">
-   *
-   * Builds a colored badge element for the Queue table Route column.
-   * The data-route attribute is the canonical route category (remux, encode,
-   * skip, review) and drives CSS color. Multi-word route strings like
-   * "h264-remux" or "encode-avc" are normalized to the base category.
-   */
-  function makeRouteChip(routeName) {
-    const span = document.createElement("span");
-    const normalized = String(routeName || "").toLowerCase();
-    let category = "";
-    if (normalized.includes("remux")) category = "remux";
-    else if (normalized.includes("encode") || normalized.includes("transcode")) category = "encode";
-    else if (normalized === "skip" || normalized.includes("skip")) category = "skip";
-    else if (normalized.includes("review") || normalized.includes("blocked")) category = "review";
-    span.className = "route-chip";
-    if (category) span.dataset.route = category;
-    span.textContent = routeName || "—";
-    return span;
-  }
-
   function renderQueueRows() {
     const filterText = byId("queue-filter")?.value || "";
     const statusFilter = byId("queue-status-filter")?.value || "all";
     const investigationFilter = byId("queue-investigation-filter")?.value || "all";
     const textRows = filterRows(lastQueueRows, filterText, QUEUE_FILTER_FIELDS);
-    const statusRows = typeof filterRowsByStatus === "function" ? filterRowsByStatus(textRows, statusFilter, queueTableRowStatus) : textRows;
+    const statusRows = typeof filterRowsByStatus === "function" ? filterRowsByStatus(textRows, statusFilter, queueDisplayRowStatus) : textRows;
     const rows = typeof filterRowsByInvestigation === "function" ? filterRowsByInvestigation(statusRows, investigationFilter, queueMatchesInvestigationFilter) : statusRows;
     const renderLimit = 250;
     const renderedCount = Math.min(rows.length, renderLimit);
@@ -681,8 +687,11 @@
         ? `${renderedCount} shown / ${rows.length} filtered / ${lastQueueRows.length} rows`
         : `${rows.length} / ${lastQueueRows.length} row${lastQueueRows.length === 1 ? "" : "s"}`
     );
-    if (typeof filterResultSummaryLines === "function") {
-      setText("queue-filter-summary", filterResultSummaryLines({
+    const buildFilterSummary = typeof filterResultSummaryLines === "function"
+      ? filterResultSummaryLines
+      : window.mediaPipelineDom?.filterResultSummaryLines;
+    if (typeof buildFilterSummary === "function") {
+      setText("queue-filter-summary", buildFilterSummary({
         label: "Queue filter",
         allRows: lastQueueRows,
         visibleRows: rows,
@@ -690,7 +699,7 @@
         statusFilter,
         investigationFilter,
         investigationLabel: queueInvestigationFilterLabel(investigationFilter),
-        statusOf: queueTableRowStatus,
+        statusOf: queueDisplayRowStatus,
         limit: 250,
         decisionName: "launch",
         guardrail: "Mutation guardrail: filtering the Queue table does not change backend launch scope, queue state, source files, or processing commands.",
@@ -698,7 +707,7 @@
     }
     const tbody = byId("queue-rows");
     if (!rows.length) {
-      clearRows(tbody, 7, lastQueueRows.length ? "No queue rows match the filter." : lastQueueEmptyMessage);
+      clearRows(tbody, 9, lastQueueRows.length ? "No queue rows match the filter." : lastQueueEmptyMessage);
       updateTableStatusLegend("queue-table-legend", tbody, "Queue rows");
       if (selectedQueueRowKey) renderQueueDetail(getSelectedQueueRow());
       renderQueueBackendLaunchScopePreview(lastQueuePayload, lastQueueRows, typeof getCommandHistory === "function" ? getCommandHistory() : []);
@@ -706,61 +715,10 @@
       return;
     }
     tbody.replaceChildren();
-    rows.slice(0, renderLimit).forEach((item) => {
-      const row = document.createElement("tr");
-      const key = queueRowKey(item);
-      row.dataset.rowKey = key;
-      row.dataset.status = queueTableRowStatus(item);
-      // Priority level: manifest level or FS marker
-      const mpl = String(item.manifest_priority_level || "normal").toLowerCase();
-      const isFsOnly = Boolean(item.is_priority) && mpl === "normal";
-      const effectiveLevel = isFsOnly ? "fs" : mpl;
-      if (effectiveLevel !== "normal") row.dataset.priorityLevel = effectiveLevel;
-      const nameRaw = item.display_name || item.relative_path || item.source_path || "";
-      const nameDisplay = typeof shortenPath === "function" ? shortenPath(nameRaw, 40) : nameRaw;
-      appendCells(row, [
-        item.global_order || item.queue_index || "",
-        item.media_type || "",
-        "", // Priority cell: replaced with badge below
-        nameDisplay,
-        "", // Route cell: replaced with chip below
-        item.operator_status || item.route_decision_summary || item.route_reason || "",
-      ], ["num", null, null, "path-cell", null, null]);
-      // Set path tooltip, priority badge, route chip
-      const queueCells = row.querySelectorAll("td");
-      // Priority badge (col 2)
-      if (queueCells[2]) {
-        if (effectiveLevel !== "normal") {
-          const badge = document.createElement("span");
-          badge.className = "priority-badge";
-          badge.dataset.level = effectiveLevel;
-          const labels = { high: "⬆ HIGH", low: "⬇ LOW", hold: "⏸ HOLD", fs: "★ FS" };
-          badge.textContent = labels[effectiveLevel] || effectiveLevel.toUpperCase();
-          queueCells[2].appendChild(badge);
-        }
-      }
-      if (queueCells[3] && nameRaw) queueCells[3].title = nameRaw;
-      if (queueCells[4]) queueCells[4].appendChild(makeRouteChip(item.route_name || ""));
-      // S80 — per-file settings button (7th column)
-      const foCell = document.createElement("td");
-      foCell.className = "settings-col";
-      const foBtn = document.createElement("button");
-      foBtn.type = "button";
-      foBtn.className = "fo-open-btn";
-      foBtn.textContent = "⚙ Settings";
-      const foPath = item.source_path || "";
-      if (foPath) foBtn.dataset.sourcePath = foPath;
-      foBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (typeof openFileSettingsDrawer === "function") openFileSettingsDrawer(item);
-      });
-      foCell.appendChild(foBtn);
-      row.appendChild(foCell);
-      makeRowSelectable(row, () => selectQueueRow(item), {
-        selected: Boolean(key && key === selectedQueueRowKey),
-        label: `Queue row ${item.display_name || item.relative_path || item.source_path || ""}`,
-      });
-      tbody.appendChild(row);
+    renderQueueTableRows({
+      rows: rows.slice(0, renderLimit),
+      tbody,
+      selectedQueueRowKey,
     });
     updateTableStatusLegend("queue-table-legend", tbody, "Queue rows");
     if (selectedQueueRowKey) renderQueueDetail(getSelectedQueueRow());

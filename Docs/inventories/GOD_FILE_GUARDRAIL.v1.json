@@ -1,0 +1,116 @@
+{
+  "schema_version": "god_file_guardrail.v1",
+  "description": "Line-count guardrail for source files. Existing large files warn by default; new oversized files fail unless explicitly allowlisted.",
+  "defaults": {
+    "include_globs": [
+      "app/**/*.py",
+      "DesktopApp/**/*.py",
+      "tests/**/*.py",
+      "scripts/*.py",
+      "scripts/**/*.py",
+      "Pipeline/**/*.ps1",
+      "engine/**/*.ps1",
+      "SmokeTests/**/*.ps1",
+      "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/*.js",
+      "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/**/*.js",
+      "DesktopApp/tauri_shell/src-tauri/src/**/*.rs"
+    ],
+    "exclude_globs": [
+      "**/node_modules/**",
+      "**/__pycache__/**",
+      "**/.pytest_cache/**",
+      "**/Runtime/**",
+      "**/target/**",
+      "Docs/archive/**",
+      "LocalBase/**"
+    ],
+    "warn_lines": 500,
+    "max_lines": 900,
+    "new_file_max_lines": 700,
+    "growth_warn_lines": 150,
+    "report_limit": 30
+  },
+  "patterns": [
+    {
+      "id": "python-app",
+      "path_globs": [
+        "DesktopApp/**/*.py",
+        "app/**/*.py"
+      ],
+      "warn_lines": 450,
+      "max_lines": 800,
+      "new_file_max_lines": 650,
+      "growth_warn_lines": 120
+    },
+    {
+      "id": "python-tests",
+      "path_globs": [
+        "tests/**/*.py",
+        "DesktopApp/tests/**/*.py"
+      ],
+      "warn_lines": 500,
+      "max_lines": 900,
+      "new_file_max_lines": 750,
+      "growth_warn_lines": 150
+    },
+    {
+      "id": "webview-js",
+      "path_globs": [
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/*.js",
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/**/*.js"
+      ],
+      "warn_lines": 500,
+      "max_lines": 900,
+      "new_file_max_lines": 650,
+      "growth_warn_lines": 120
+    },
+    {
+      "id": "powershell-engine",
+      "path_globs": [
+        "Pipeline/**/*.ps1",
+        "engine/**/*.ps1",
+        "SmokeTests/**/*.ps1"
+      ],
+      "warn_lines": 450,
+      "max_lines": 800,
+      "new_file_max_lines": 650,
+      "growth_warn_lines": 120
+    },
+    {
+      "id": "rust-tauri",
+      "path_globs": [
+        "DesktopApp/tauri_shell/src-tauri/src/**/*.rs"
+      ],
+      "warn_lines": 450,
+      "max_lines": 800,
+      "new_file_max_lines": 650,
+      "growth_warn_lines": 120
+    }
+  ],
+  "allowlist": [
+    {
+      "id": "webview-app-known-godfile",
+      "path_globs": [
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+      ],
+      "warn_lines": 1500,
+      "max_lines": 4600,
+      "new_file_max_lines": 4600,
+      "growth_warn_lines": 100,
+      "feature": "webview_godfile_split_campaign",
+      "reason": "Known WebView god file under active split tooling. Do not expand without a deliberate split-pass note."
+    },
+    {
+      "id": "webview-settings-known-godfile",
+      "path_globs": [
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js"
+      ],
+      "warn_lines": 1500,
+      "max_lines": 4600,
+      "new_file_max_lines": 4600,
+      "growth_warn_lines": 100,
+      "feature": "webview_godfile_split_campaign",
+      "reason": "Known WebView god file under active split tooling. Do not expand without a deliberate split-pass note."
+    }
+  ]
+}

@@ -692,43 +692,6 @@
     setScheduleEditorDirty(true);
   }
 
-  function scheduleCopyEditorSourceDay() {
-    const select = document.querySelector("[data-schedule-copy-source]");
-    const value = String(select?.value || "").trim();
-    return SCHEDULE_DAYS.includes(value) ? value : SCHEDULE_DAYS[0];
-  }
-
-  function scheduleCopyEditorTargetDays(sourceDay) {
-    const source = String(sourceDay || "");
-    return Array.from(document.querySelectorAll("[data-schedule-copy-target]"))
-      .filter((input) => Boolean(input?.checked))
-      .map((input) => String(input?.dataset?.scheduleCopyTarget || input?.value || "").trim())
-      .filter((day) => SCHEDULE_DAYS.includes(day) && day !== source);
-  }
-
-  function scheduleCopyEditorDayToTargets() {
-    const sourceDay = scheduleCopyEditorSourceDay();
-    const targetDays = scheduleCopyEditorTargetDays(sourceDay);
-    if (!targetDays.length) {
-      setText(
-        "schedule-editor-result",
-        `Choose at least one target day other than ${sourceDay} before copying.\nMutation guardrail: copy-day only stages editor values; backend Preview Schedule and Save Schedule remain the validation/write boundary.`
-      );
-      return false;
-    }
-    const sourceBlocks = scheduleEditorBlocksForDay(sourceDay);
-    targetDays.forEach((day) => {
-      scheduleApplyEditorDayBlocks(day, sourceBlocks, { dirty: false });
-    });
-    lastScheduleEditorResult = null;
-    setScheduleEditorDirty(true);
-    setText(
-      "schedule-editor-result",
-      `Copied ${sourceDay} schedule to ${targetDays.join(", ")}.\nMutation guardrail: this only stages editor values; use Preview Schedule and Save Schedule for backend validation/write.`
-    );
-    return true;
-  }
-
   async function previewScheduleEditor() {
     setText("schedule-editor-status", "Previewing");
     try {
@@ -801,8 +764,6 @@
     if (clear) clear.addEventListener("click", clearScheduleEditorWeek);
     const allowAll = byId("schedule-editor-allow-all-button");
     if (allowAll) allowAll.addEventListener("click", allowAllScheduleEditorWeek);
-    const copyDay = document.querySelector("[data-schedule-copy-apply]");
-    if (copyDay) copyDay.addEventListener("click", scheduleCopyEditorDayToTargets);
     const preview = byId("schedule-editor-preview-button");
     if (preview) preview.addEventListener("click", previewScheduleEditor);
     const save = byId("schedule-editor-save-button");

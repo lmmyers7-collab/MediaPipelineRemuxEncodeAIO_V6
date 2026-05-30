@@ -137,4 +137,5 @@ body.light-mode .panel[data-panel-type="evidence"] .panel-heading h3::after {
 body.light-mode .option-panel {
   background: var(--grey-700);
   border-color: var(--grey-600);
+  border-left-color: var(--grey-500);
 }

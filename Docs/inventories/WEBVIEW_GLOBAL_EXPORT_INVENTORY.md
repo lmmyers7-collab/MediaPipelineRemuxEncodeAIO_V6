@@ -1,94 +1,95 @@
 # WebView Global Export Inventory
 
-Date: 2026-05-20
+Date: 2026-05-29
 
-Inventories all `window.*` assignments in `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/*.js`. Source: generated scan of `window.{name} =` assignments across all 67 JS files.
+Inventories all `window.*` assignments in `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/*.js`. Source: generated scan of `window.{name} =` assignments across all 69 JS files.
 
 ---
 
 ## Summary
 
-- **67 JS files** total in `assets/`
-- **29 files** export a primary namespace object (`window.mediaPipeline* = { ... }`)
+- **69 JS files** total in `assets/`
+- **31 files** export a primary namespace object (`window.mediaPipeline* = { ... }`)
 - **64 files** also export flat functions directly onto `window`
 - **38 files** have no primary namespace object: `app.js`, `completedView.diagnostics.js`, `completedView.evidence.js`, `completedView.proof.js`, `completedView.review.js`, `crossPageContextView.conflict.js`, `crossPageContextView.sample.js`, `crossPageContextView.sampleValidation.js`, `crossPageContextView.sampleValidation.records.js`, `crossPageContextView.sampleValidation.runbook.js`, `crossPageContextView.sampleValidation.worksheet.js`, `crossPageContextView.settings.js`, `diagnosticsView.activejobs.js`, `diagnosticsView.investigation.js`, `diagnosticsView.log.js`, `launchView.preflight.js`, `launchView.realmedia.js`, `launchView.risk.js`, `launchView.scope.js`, `pendingPublishView.confidence.js`, `pendingPublishView.diagnostics.js`, `pendingPublishView.drain.js`, `pendingPublishView.recovery.js`, `queueView.detail.js`, `queueView.launch.js`, `queueView.review.js`, `queueView.summary.js`, `settingsView.builders.audio.js`, `settingsView.builders.file_safety.js`, `settingsView.builders.network.js`, `settingsView.builders.pending.js`, `settingsView.builders.queue.js`, `settingsView.builders.runtime.js`, `settingsView.builders.subtitle.js`, `settingsView.builders.video.js`, `settingsView.rawTriage.js`, `settingsView.safetyLocks.js`, `tauriLifecycleBridge.js`
-- **Flat export total:** 766
+- **Flat export total:** 775
 - **1 backend-injected bootstrap global** (`window.MEDIA_PIPELINE_BOOTSTRAP`) is read by `apiClient.js`
-- **All 29 primary namespace objects** have adjacent `Public namespace` JSDoc boundary comments. `test_webview_inventory_docs.py` fails if a future `window.mediaPipeline* = { ... }` namespace object is added without that boundary note.
+- **All 32 primary namespace objects** have adjacent `Public namespace` JSDoc boundary comments. `test_webview_inventory_docs.py` fails if a future `window.mediaPipeline* = { ... }` namespace object is added without that boundary note.
 
 ---
 
 ## Module Inventory
-
 | File | Namespace Object | Flat Exports | Notes |
 |---|---|---:|---|
-| `apiClient.js` | mediaPipelineApi | 2 | Reads `window.MEDIA_PIPELINE_BOOTSTRAP` (backend-injected) |
-| `app.js` | - | 6 | Flat exports only |
+| `apiClient.js` | mediaPipelineApi | 2 | Generated from current `window.* =` assignments |
+| `app.js` | - | 6 | Generated from current `window.* =` assignments |
 | `commandHistory.js` | mediaPipelineCommandHistory | 14 | Generated from current `window.* =` assignments |
-| `completedView.diagnostics.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `completedView.evidence.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `completedView.js` | mediaPipelineCompletedView | 124 | Generated from current `window.* =` assignments |
-| `completedView.proof.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `completedView.review.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
+| `completedView.diagnostics.js` | - | 1 | Generated from current `window.* =` assignments |
+| `completedView.evidence.js` | - | 1 | Generated from current `window.* =` assignments |
+| `completedView.js` | mediaPipelineCompletedView | 126 | Generated from current `window.* =` assignments |
+| `completedView.proof.js` | - | 1 | Generated from current `window.* =` assignments |
+| `completedView.review.js` | - | 1 | Generated from current `window.* =` assignments |
 | `contractView.js` | mediaPipelineContractView | 1 | Generated from current `window.* =` assignments |
-| `crossPageContextView.conflict.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
+| `crossPageContextView.conflict.js` | - | 1 | Generated from current `window.* =` assignments |
 | `crossPageContextView.js` | mediaPipelineLastCrossPageContext, mediaPipelineCrossPageContextView | 64 | Generated from current `window.* =` assignments |
-| `crossPageContextView.sample.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `crossPageContextView.sampleValidation.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `crossPageContextView.sampleValidation.records.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `crossPageContextView.sampleValidation.runbook.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `crossPageContextView.sampleValidation.worksheet.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `crossPageContextView.settings.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
+| `crossPageContextView.sample.js` | - | 1 | Generated from current `window.* =` assignments |
+| `crossPageContextView.sampleValidation.js` | - | 1 | Generated from current `window.* =` assignments |
+| `crossPageContextView.sampleValidation.records.js` | - | 1 | Generated from current `window.* =` assignments |
+| `crossPageContextView.sampleValidation.runbook.js` | - | 1 | Generated from current `window.* =` assignments |
+| `crossPageContextView.sampleValidation.worksheet.js` | - | 1 | Generated from current `window.* =` assignments |
+| `crossPageContextView.settings.js` | - | 1 | Generated from current `window.* =` assignments |
 | `diagnosticsBridge.js` | mediaPipelineDiagnosticsBridge | 7 | Generated from current `window.* =` assignments |
 | `diagnosticsStateSummaryView.js` | mediaPipelineDiagnosticsStateSummaryView | 3 | Generated from current `window.* =` assignments |
 | `diagnosticsTailView.js` | mediaPipelineDiagnosticsTailView | 7 | Generated from current `window.* =` assignments |
-| `diagnosticsView.activejobs.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `diagnosticsView.investigation.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
+| `diagnosticsView.activejobs.js` | - | 1 | Generated from current `window.* =` assignments |
+| `diagnosticsView.investigation.js` | - | 1 | Generated from current `window.* =` assignments |
 | `diagnosticsView.js` | mediaPipelineDiagnosticsView | 74 | Generated from current `window.* =` assignments |
-| `diagnosticsView.log.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `domHelpers.js` | mediaPipelineDom | 15 | Generated from current `window.* =` assignments |
+| `diagnosticsView.log.js` | - | 1 | Generated from current `window.* =` assignments |
+| `domHelpers.js` | mediaPipelineDom | 16 | Generated from current `window.* =` assignments |
 | `formatters.js` | mediaPipelineFormatters | 8 | Generated from current `window.* =` assignments |
 | `launchHistoryView.js` | mediaPipelineLaunchHistoryView | 9 | Generated from current `window.* =` assignments |
 | `launchReadinessView.js` | mediaPipelineLaunchReadinessView | 7 | Generated from current `window.* =` assignments |
 | `launchView.js` | mediaPipelineLaunchView | 77 | Generated from current `window.* =` assignments |
-| `launchView.preflight.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `launchView.realmedia.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `launchView.risk.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `launchView.scope.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
+| `launchView.preflight.js` | - | 1 | Generated from current `window.* =` assignments |
+| `launchView.realmedia.js` | - | 1 | Generated from current `window.* =` assignments |
+| `launchView.risk.js` | - | 1 | Generated from current `window.* =` assignments |
+| `launchView.scope.js` | - | 1 | Generated from current `window.* =` assignments |
 | `maintenanceView.js` | mediaPipelineMaintenanceView | 7 | Generated from current `window.* =` assignments |
 | `networkView.js` | mediaPipelineNetworkView | 2 | Generated from current `window.* =` assignments |
-| `pendingPublishView.confidence.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `pendingPublishView.diagnostics.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `pendingPublishView.drain.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
+| `pendingPublishView.confidence.js` | - | 1 | Generated from current `window.* =` assignments |
+| `pendingPublishView.diagnostics.js` | - | 1 | Generated from current `window.* =` assignments |
+| `pendingPublishView.drain.js` | - | 1 | Generated from current `window.* =` assignments |
 | `pendingPublishView.js` | mediaPipelinePendingPublishView | 88 | Generated from current `window.* =` assignments |
-| `pendingPublishView.recovery.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
+| `pendingPublishView.recovery.js` | - | 1 | Generated from current `window.* =` assignments |
 | `progressView.js` | mediaPipelineProgressView | 7 | Generated from current `window.* =` assignments |
-| `queueView.detail.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
+| `queueView.detail.js` | - | 1 | Generated from current `window.* =` assignments |
 | `queueView.js` | mediaPipelineQueueView | 76 | Generated from current `window.* =` assignments |
-| `queueView.launch.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `queueView.review.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `queueView.summary.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
+| `queueView.launch.js` | - | 1 | Generated from current `window.* =` assignments |
+| `queueView.review.js` | - | 1 | Generated from current `window.* =` assignments |
+| `queueView.summary.js` | - | 1 | Generated from current `window.* =` assignments |
 | `renameHistoryView.js` | mediaPipelineRenameHistoryView | 3 | Generated from current `window.* =` assignments |
 | `renameLabels.js` | mediaPipelineRenameLabels | 4 | Generated from current `window.* =` assignments |
 | `renameView.js` | mediaPipelineRenameView | 25 | Generated from current `window.* =` assignments |
 | `reportsView.js` | mediaPipelineReportsView | 4 | Generated from current `window.* =` assignments |
 | `scheduleView.js` | mediaPipelineScheduleView | 10 | Generated from current `window.* =` assignments |
 | `settingsCommandHistory.js` | mediaPipelineSettingsCommandHistory | 3 | Generated from current `window.* =` assignments |
-| `settingsMetadata.js` | mediaPipelineSettingsMetadata | 0 | Namespace object only; no flat exports |
+| `settingsLibraries.js` | mediaPipelineSettingsLibraries | 0 | Generated from current `window.* =` assignments |
+| `settingsMetadata.js` | mediaPipelineSettingsMetadata | 0 | Generated from current `window.* =` assignments |
 | `settingsOverview.js` | mediaPipelineSettingsOverview | 5 | Generated from current `window.* =` assignments |
-| `settingsView.builders.audio.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `settingsView.builders.file_safety.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `settingsView.builders.network.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `settingsView.builders.pending.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `settingsView.builders.queue.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `settingsView.builders.runtime.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `settingsView.builders.subtitle.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `settingsView.builders.video.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `settingsView.js` | mediaPipelineSettingsView | 78 | Generated from current `window.* =` assignments |
-| `settingsView.rawTriage.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `settingsView.safetyLocks.js` | - | 1 | Split-child factory stash consumed and deleted by parent module |
-| `tauriLifecycleBridge.js` | - | 0 | Read-only Tauri backend lifecycle event bridge; no window exports |
-| `telemetryView.js` | mediaPipelineTelemetryView | 0 | Namespace object only; no flat exports |
+| `settingsView.builders.audio.js` | - | 1 | Generated from current `window.* =` assignments |
+| `settingsView.builders.file_safety.js` | - | 1 | Generated from current `window.* =` assignments |
+| `settingsView.builders.network.js` | - | 1 | Generated from current `window.* =` assignments |
+| `settingsView.builders.pending.js` | - | 1 | Generated from current `window.* =` assignments |
+| `settingsView.builders.queue.js` | - | 1 | Generated from current `window.* =` assignments |
+| `settingsView.builders.runtime.js` | - | 1 | Generated from current `window.* =` assignments |
+| `settingsView.builders.subtitle.js` | - | 1 | Generated from current `window.* =` assignments |
+| `settingsView.builders.video.js` | - | 1 | Generated from current `window.* =` assignments |
+| `settingsView.js` | mediaPipelineSettingsView | 84 | Generated from current `window.* =` assignments |
+| `settingsView.rawTriage.js` | - | 1 | Generated from current `window.* =` assignments |
+| `settingsView.safetyLocks.js` | - | 1 | Generated from current `window.* =` assignments |
+| `settingsWizard.js` | mediaPipelineSettingsWizard | 0 | Generated from current `window.* =` assignments |
+| `tauriLifecycleBridge.js` | - | 0 | Generated from current `window.* =` assignments |
+| `telemetryView.js` | mediaPipelineTelemetryView | 0 | Generated from current `window.* =` assignments |
 
 ---
 
@@ -225,11 +226,11 @@ Risk: Low — documentation only.
 
 ---
 
-## Machine-Generated Flat Export Manifest — 2026-05-19
+## Machine-Generated Flat Export Manifest — 2026-05-29
 
 Generated from `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/*.js` by scanning `window.* =` assignments. Namespace objects are listed separately from flat exports.
 
-Flat export total: 766
+Flat export total: 769
 
 <!-- BEGIN GENERATED WEBVIEW GLOBAL EXPORT MANIFEST -->
 ### apiClient.js
@@ -300,10 +301,11 @@ __completedViewEvidenceModule
 
 Namespace objects: mediaPipelineCompletedView
 
-Flat exports (124):
+Flat exports (126):
 ```text
 renderCompleted
 resetCompletedFilters
+resetCompletedHistoryFilters
 renderCompletedDetail
 renderCompletedIntegrity
 renderCompletedBreakdown
@@ -426,6 +428,7 @@ getLastCompletedRows
 getLastCompletedPendingProofRows
 requestCompletedOpen
 renderCompletedOpenHistory
+copyCompletedEvidencePacket
 ```
 
 ### completedView.proof.js
@@ -744,10 +747,11 @@ __diagnosticsLogModule
 
 Namespace objects: mediaPipelineDom
 
-Flat exports (15):
+Flat exports (16):
 ```text
 byId
 setText
+applyDiagnosticCallouts
 setTextState
 clearRows
 appendCells
@@ -1321,6 +1325,14 @@ settingsCommandHistoryLine
 renderSettingsCommandHistory
 ```
 
+### settingsLibraries.js
+
+Namespace objects: mediaPipelineSettingsLibraries
+
+Flat exports (0):
+```text
+```
+
 ### settingsMetadata.js
 
 Namespace objects: mediaPipelineSettingsMetadata
@@ -1418,7 +1430,7 @@ __settingsViewVideoBuilderModule
 
 Namespace objects: mediaPipelineSettingsView
 
-Flat exports (78):
+Flat exports (84):
 ```text
 configValue
 buildSettingsOverviewRows
@@ -1481,6 +1493,12 @@ collectPendingPublishSettingsBuilderPatch
 applyPendingPublishSettingsBuilderToPatch
 renderPendingPublishSettingsBuilderGuidance
 markPendingPublishSettingsBuilderDirty
+syncFinalLibraryPromotionSettingsBuilderFromConfig
+collectFinalLibraryPromotionSettingsPatch
+previewFinalLibraryPromotionSettings
+saveFinalLibraryPromotionSettings
+renderFinalLibraryPromotionSettingsGuidance
+markFinalLibraryPromotionSettingsBuilderDirty
 syncSubtitleSettingsBuilderFromConfig
 collectSubtitleSettingsBuilderPatch
 applySubtitleSettingsBuilderToPatch
@@ -1516,6 +1534,14 @@ Namespace objects: none
 Flat exports (1):
 ```text
 __settingsSafetyLocksModule
+```
+
+### settingsWizard.js
+
+Namespace objects: mediaPipelineSettingsWizard
+
+Flat exports (0):
+```text
 ```
 
 ### tauriLifecycleBridge.js

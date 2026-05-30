@@ -1,0 +1,17 @@
+---
+file: DesktopApp/tests/test_webview_real_media_smoke.py
+pipeline_stage: n/a
+token_priority: medium
+owner_domain: tests
+last_modified: 2026-05-30
+last_reviewed: 2026-05-30
+sha256: a0109972f16f8fd71bfaca4236be2aa7d334df9c474445a6069484d4ea460f65
+---
+# `DesktopApp/tests/test_webview_real_media_smoke.py`
+
+**Purpose:** (no module docstring)
+
+**Classes:** `WebViewRealMediaSmokeTests`
+**In-repo imports:** `mediapipeline_desktop_app.api`, `mediapipeline_desktop_app.application`
+
+_Edit the source, not this file. Regenerate with `python scripts/dev/refresh_summaries.py --paths DesktopApp/tests/test_webview_real_media_smoke.py`._

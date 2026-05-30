@@ -10,6 +10,7 @@ Does not test JavaScript execution, CSS rendering, or runtime page switching.
 from __future__ import annotations
 
 import pathlib
+import re
 import sys
 import unittest
 from html.parser import HTMLParser
@@ -35,6 +36,7 @@ _EXPECTED_NAV_PAGES = [
     "network",
     "maintenance",
     "diagnostics",
+    "libraries",
     "settings",
 ]
 
@@ -51,6 +53,7 @@ _EXPECTED_NAV_LABELS = {
     "network": "Workers",
     "maintenance": "Maintenance",
     "diagnostics": "Diagnostics",
+    "libraries": "Libraries",
     "settings": "Settings",
 }
 
@@ -318,6 +321,25 @@ class WebViewNavigationStaticTests(unittest.TestCase):
                 "Selected Item",
                 "Diagnostics Links",
             ],
+            "completed": [
+                "Current Output Status",
+                "Output Files",
+                "Final Library Promotion",
+                "Selected File",
+                "Completed History Summary",
+                "Output History",
+                "Integrity Check",
+                "Route Summary",
+                "Run History",
+                "Manifest Check",
+                "Output Checklist",
+                "Diagnostics Links",
+                "Output Evidence",
+                "Size Evidence",
+                "Proof Check",
+                "Publish Reconciliation",
+                "Route Agreement",
+            ],
             "maintenance": [
                 "Health Progress",
                 "Readiness",
@@ -352,11 +374,15 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             'data-cross-page-target="pending"',
             'data-open-diagnostics="run_logs"',
             'data-open-diagnostics="active_jobs"',
-            'data-control-action="pause"',
-            'data-control-action="rescan"',
-            'data-control-action="stop"',
         ]:
             self.assertIn(fragment, html)
+        home_match = re.search(
+            r'<section class="page is-visible" data-page-panel="home">(.*?)<section class="page" data-page-panel="live">',
+            html,
+            re.S,
+        )
+        self.assertIsNotNone(home_match)
+        self.assertNotIn('data-control-action="', home_match.group(1))
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)] [string]$CsvPath,
-    [string]$ConfigPath = (Join-Path $PSScriptRoot 'MediaPipeline_config_chatgpt.psd1'),
+    [string]$ConfigPath = '',
     [ValidateSet('copy')] [string]$DefaultStageMode = 'copy',
     [ValidateSet('keep')] [string]$DefaultOriginalMode = 'keep',
     [ValidateSet('park')] [string]$DefaultReturnMode = 'park',
@@ -645,6 +645,13 @@ function Complete-RerunPlans {
 if (-not (Test-Path -LiteralPath $CsvPath -PathType Leaf)) {
     throw "CSV not found: $CsvPath"
 }
+if ([string]::IsNullOrWhiteSpace($ConfigPath)) {
+    # Default lookup: prefer V7 convention, fall back to legacy `_chatgpt` name.
+    foreach ($candidate in @('MediaPipeline_config.psd1', 'MediaPipeline_config_chatgpt.psd1')) {
+        $probe = Join-Path $PSScriptRoot $candidate
+        if (Test-Path -LiteralPath $probe -PathType Leaf) { $ConfigPath = $probe; break }
+    }
+}
 if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf)) {
     throw "Config not found: $ConfigPath"
 }
@@ -683,7 +690,7 @@ $namingModule = Join-Path (Split-Path -Parent $PSScriptRoot) 'engine\naming\nami
 if (-not (Test-Path -LiteralPath $namingModule)) { throw "Naming module not found: $namingModule" }
 . $namingModule
 
-$pipelinePath = Join-Path $PSScriptRoot 'MediaPipeline_chatgpt.ps1'
+$pipelinePath = Join-Path $PSScriptRoot 'MediaPipeline.ps1'
 if (-not (Test-Path -LiteralPath $pipelinePath)) { throw "Pipeline script not found: $pipelinePath" }
 $pwsh = Join-Path $PSScriptRoot 'PowerShell-7.6.0-win-x64\pwsh.exe'
 if (-not (Test-Path -LiteralPath $pwsh)) { $pwsh = (Get-Command pwsh.exe -ErrorAction SilentlyContinue).Source }

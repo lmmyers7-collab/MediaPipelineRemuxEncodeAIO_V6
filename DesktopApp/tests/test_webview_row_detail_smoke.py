@@ -711,6 +711,76 @@ def _node_runner_source() -> str:
           })];
           context.renderCompleted(riskCompleted);
           context.selectCompletedRow(riskCompleted.rows[0]);
+          ["+0.8%", "-0.9%"].forEach((deltaLabel) => {
+            const healthySmallDeltaRow = Object.assign({}, riskCompleted.rows[0], {
+              output_exists: true,
+              output_health: "ok",
+              sidecar_exists: true,
+              consistency_status: "ok",
+              consistency_issues: [],
+              size_growth_over_5: false,
+              size_policy_exceeded: false,
+              size_delta_label: deltaLabel,
+              operator_severity: "info",
+              operator_status_state: "changed",
+              operator_trust_state: "healthy",
+              review_flags: [],
+              runtime_outcome_status: "ok",
+              runtime_outcome_freshness_status: "fresh",
+              runtime_outcome_error_code: "",
+              runtime_outcome_reason: "",
+              primary_concern: "",
+            });
+            const status = context.mediaPipelineCompletedView.completedTableRowStatus(healthySmallDeltaRow);
+            if (status !== "match") {
+              throw new Error(`healthy ${deltaLabel} output row should render neutral match status, got ${status}`);
+            }
+            const sizeReviewRows = context.mediaPipelineCompletedView.completedSizeReviewRows([healthySmallDeltaRow]);
+            if (sizeReviewRows.length) {
+              throw new Error(`healthy ${deltaLabel} output row should not appear in size-growth review rows`);
+            }
+            const focusedLabels = context.mediaPipelineCompletedView.completedFocusedInvestigationLabels(healthySmallDeltaRow);
+            if (focusedLabels.includes("size growth")) {
+              throw new Error(`healthy ${deltaLabel} output row should not match the size-growth investigation filter`);
+            }
+            const sizeEvidenceRows = context.mediaPipelineCompletedView.completedSizeEvidenceRows({ count: 1 }, [healthySmallDeltaRow], []);
+            const sizePolicyRow = sizeEvidenceRows.find((row) => row.key === "oversized-outputs");
+            const sizePosture = context.mediaPipelineCompletedView.completedSizeEvidencePostureStatus(sizePolicyRow?.posture);
+            if (sizePosture !== "match") {
+              throw new Error(`healthy ${deltaLabel} output row should keep size evidence neutral, got ${sizePosture}`);
+            }
+          });
+          const alreadyProcessedRow = Object.assign({}, riskCompleted.rows[0], {
+            output_exists: true,
+            output_health: "ok",
+            error: "",
+            blocked_reason: "",
+            blocked_reason_code: "",
+            sidecar_exists: true,
+            consistency_status: "ok",
+            consistency_issues: [],
+            size_growth_over_5: false,
+            size_policy_exceeded: false,
+            size_delta_label: "+0.0%",
+            size_delta_percent: 0,
+            operator_severity: "warning",
+            operator_status_state: "warning",
+            operator_trust_state: "review-before-rerun-or-cleanup",
+            review_flags: ["size_growth", "runtime_outcome", "runtime_outcome:succeeded", "runtime_error:ALREADY_PROCESSED"],
+            runtime_outcome_status: "succeeded",
+            runtime_outcome_freshness_status: "fresh",
+            runtime_outcome_error_code: "ALREADY_PROCESSED",
+            runtime_outcome_reason: "",
+            primary_concern: "size_growth, runtime_outcome, runtime_outcome:succeeded, runtime_error:ALREADY_PROCESSED",
+          });
+          const alreadyProcessedStatus = context.mediaPipelineCompletedView.completedTableRowStatus(alreadyProcessedRow);
+          if (alreadyProcessedStatus !== "match") {
+            throw new Error(`benign already-processed completed row should render neutral match status, got ${alreadyProcessedStatus}`);
+          }
+          const alreadyProcessedAtAGlance = context.mediaPipelineCompletedView.completedSelectedAtAGlanceStatus(alreadyProcessedRow);
+          if (alreadyProcessedAtAGlance !== "Consistent-looking") {
+            throw new Error(`benign already-processed completed row should not require review, got ${alreadyProcessedAtAGlance}`);
+          }
           requireText("completed-detail", [
             "Row state: broken-output",
             "Output health: missing output",
@@ -728,7 +798,8 @@ def _node_runner_source() -> str:
             "Decision: do not treat this completed row as output proof until manifest, output, sidecar, and pending-publish evidence agree.",
             "Table status: blocked",
             "Focused views: missing output, size growth, sidecar issues, runtime failed",
-            "Selected row visible in table: yes",
+            "Selected row visible in table: no",
+            "not present in Current Output Status table",
             "- missing output: missing output",
             "- size growth: +110%",
             "- sidecar issues: missing_sidecar, output_path_missing",
@@ -770,48 +841,48 @@ def _node_runner_source() -> str:
             "output=missing",
             "Do not append accepted Sample Validation evidence",
           ]);
-          context.document.getElementById("completed-filter").value = "definitely-no-completed-match";
+          context.document.getElementById("completed-history-filter").value = "definitely-no-completed-match";
           context.renderCompletedRows();
-          requireText("completed-filter-summary", [
-            "Completed filter: text=\"definitely-no-completed-match\"; status=all; view=all signals; showing 0 of 1 row.",
+          requireText("completed-history-filter-summary", [
+            "Completed history filter: text=\"definitely-no-completed-match\"; status=all; view=all signals; showing 0 of 1 row.",
             "Hidden review rows: 1.",
             "clear or change this filter before rerun, cleanup, or library decisions",
             "Mutation guardrail: filtering Completed history does not mark outputs accepted",
           ]);
           requireText("completed-detail", [
             "Selected row visible in table: no",
-            "Hidden by current filters: text filter=\"definitely-no-completed-match\".",
+            "not present in Current Output Status table",
             "selected-row detail remains visible for review",
           ]);
-          context.document.getElementById("completed-filter").value = "";
-          context.document.getElementById("completed-status-filter").value = "ready";
+          context.document.getElementById("completed-history-filter").value = "";
+          context.document.getElementById("completed-history-status-filter").value = "ready";
           context.renderCompletedRows();
-          requireText("completed-filter-summary", [
-            "Completed filter: text=none; status=ready/healthy; view=all signals; showing 0 of 1 row.",
+          requireText("completed-history-filter-summary", [
+            "Completed history filter: text=none; status=ready/healthy; view=all signals; showing 0 of 1 row.",
             "Hidden review rows: 1.",
             "clear or change this filter before rerun, cleanup, or library decisions",
           ]);
           requireText("completed-detail", [
-            "Hidden by current filters: status filter=ready/healthy.",
+            "not present in Current Output Status table",
           ]);
-          context.document.getElementById("completed-status-filter").value = "all";
-          context.document.getElementById("completed-investigation-filter").value = "route_review";
+          context.document.getElementById("completed-history-status-filter").value = "all";
+          context.document.getElementById("completed-history-investigation-filter").value = "route_review";
           context.renderCompletedRows();
-          requireText("completed-filter-summary", [
-            "Completed filter: text=none; status=all; view=route review; showing 0 of 1 row.",
+          requireText("completed-history-filter-summary", [
+            "Completed history filter: text=none; status=all; view=route review; showing 0 of 1 row.",
             "Hidden review rows: 1.",
             "clear or change this filter before rerun, cleanup, or library decisions",
           ]);
           requireText("completed-detail", [
-            "Hidden by current filters: investigation view=route review.",
+            "not present in Current Output Status table",
           ]);
-          context.resetCompletedFilters();
-          requireText("completed-filter-summary", [
-            "Completed filter: text=none; status=all; view=all signals; showing 1 of 1 row.",
+          context.resetCompletedHistoryFilters();
+          requireText("completed-history-filter-summary", [
+            "Completed history filter: text=none; status=all; view=all signals; showing 1 of 1 row.",
           ]);
           requireText("completed-detail", [
-            "Selected row visible in table: yes",
-            "no Completed display filter is hiding this selected row",
+            "Selected row visible in table: no",
+            "not present in Current Output Status table",
           ]);
 
           const riskPending = JSON.parse(JSON.stringify(payload.pending));

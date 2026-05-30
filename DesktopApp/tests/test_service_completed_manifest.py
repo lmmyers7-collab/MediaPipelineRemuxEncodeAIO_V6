@@ -85,6 +85,22 @@ class CompletedManifestHelperTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0].payload["output_file"], "new.mkv")
 
+    def test_read_completed_manifest_records_accepts_no_limit_for_full_history(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            manifest = Path(td) / "completed_jobs.jsonl"
+            manifest.write_text(
+                "\n".join(json.dumps({"output_file": f"movie-{index}.mkv"}) for index in range(3)) + "\n",
+                encoding="utf-8",
+            )
+
+            rows = read_completed_manifest_records(
+                manifest,
+                limit=None,
+                logger=self._logger(),
+            )
+
+        self.assertEqual([row.payload["output_file"] for row in rows], ["movie-2.mkv", "movie-1.mkv", "movie-0.mkv"])
+
     def test_annotate_completed_output_health_handles_existence_errors(self) -> None:
         class RaisingRecord(CompletedJobRecord):
             @property

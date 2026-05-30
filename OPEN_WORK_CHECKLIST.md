@@ -1,6 +1,6 @@
 # Open Work Checklist
 
-> **Generated:** 2026-05-19 by full scan of all non-archived Markdown files; reconciled 2026-05-20 after stale-gate review.
+> **Generated:** 2026-05-19 by full scan of all non-archived Markdown files; reconciled 2026-05-20 after stale-gate review; refreshed 2026-05-30 after local Phase 6 legacy burn-down.
 > **Sources:** archived housekeeping and transition-review evidence under `Docs/archive/docs-housekeeping/2026-05-20-review/`, `Docs/architecture/V5_MIGRATION_RISK_REGISTER.md`, `Docs/testing/TEST_COVERAGE_MATRIX.md`, `Docs/testing/VALIDATION_LADDER_RUNBOOK.md`, `Docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md`, `Docs/inventories/RENAME_SAFETY_TEST_INVENTORY.md`, `Docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md`, `Docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`, `Docs/architecture/SETTINGS_RAW_KEY_TRIAGE.md`, `Docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`, `Docs/DOC_TOUCH_LOG.md`, and `Docs/REMEDIATION_CHANGELOG.md`.
 > **Excludes:** `Docs/archive/`, config backups, run logs.
 
@@ -22,7 +22,7 @@ These remaining open blockers are external/operator validation gates, not stale 
 
 ---
 
-## High — Fix Now or Before Next Publish / Packaging Work
+## High — Closed Local Legacy / Packaging Work
 
 - [x] **Phase 6 destructive legacy removal gate** — Closed on 2026-05-29 for the local legacy surface burn-down: config-schema compatibility files, former command-payload adapters, flat Python facades/services, root launcher shims, `Pipeline` root launcher shims, and `Pipeline\Modules` are removed or empty, with active implementations under `app\<domain>` and `engine\<domain>`. Post-deletion validation covered active-reference cleanup, full source release wrapper validation, copied package-mode Tauri launch/close, Local API health plus WebView open, and fresh representative real-media validation for remux, encode/size, subtitles, audio, deferred pending publish, drain, and rename-output safety. PG-3 clean-machine validation remains a separate default-launcher promotion gate. Guardrails still block reintroducing old root launcher shim names and new dotted `Pipeline\Modules` files.
 
@@ -40,7 +40,7 @@ These remaining open blockers are external/operator validation gates, not stale 
 
 ---
 
-## Medium — Fix Before Packaged Handoff or Wave 6
+## Medium — Closed Pre-Package / Wave Work
 
 - [x] **WebView advisory logic duplicates backend policy** — Settings/Launch frontend risk helpers are now labelled/tested as advisory-only; backend Preview/Save and Launch validation remain authoritative. Source: `DOC_TOUCH_LOG.md` row "Frontend media-policy advisory boundary guard".
 
@@ -91,7 +91,7 @@ These remaining open blockers are external/operator validation gates, not stale 
 | Priority | Open Count |
 |---|---:|
 | P0 — Blocker | 1 |
-| High | 1 |
+| High | 0 |
 | Medium | 0 |
 | Low | 0 |
-| **Total Open** | **2** |
+| **Total Open** | **1** |

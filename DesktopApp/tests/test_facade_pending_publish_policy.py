@@ -23,11 +23,13 @@ from app.publish.pending_policy import (
     pending_publish_recovery_plan_action,
     pending_publish_recovery_plan_result,
     pending_publish_row_key,
+    pending_publish_row_trust_fields,
     pending_publish_rows,
     pending_publish_scan_exception_fields,
     pending_publish_scan_exception_result,
     pending_publish_service_unavailable_result,
 )
+from app.publish.pending_policy_parts.trust_fields import build_pending_publish_row_trust_fields
 
 
 class PendingPublishFacadePolicyTests(unittest.TestCase):
@@ -52,6 +54,81 @@ class PendingPublishFacadePolicyTests(unittest.TestCase):
         self.assertEqual(rows[0]["nested"]["path"], str(Path("C:/Sidecar.srt")))
         self.assertIn("row_key", rows[0])
         self.assertEqual(rows[1]["state"], "orphan_payload")
+
+    def test_pending_publish_trust_fields_fixture_parity_for_ready_row(self) -> None:
+        row = {
+            "manifest_path": r"C:\Pending\Ready.mkv.manifest.json",
+            "local_file": r"C:\Pending\Ready.mkv",
+            "server_out": r"\\nas\Movies\Ready.mkv",
+            "state": "parked",
+            "local_exists": True,
+            "missing_sidecar_count": 0,
+        }
+        diagnostics = {
+            "diagnostic_status": "ready",
+            "diagnostic_severity": "ok",
+            "drain_recommendation": "ready_to_drain",
+            "recovery_class": "ready_to_validate",
+        }
+        expected = {
+            "operator_trust_state": "ready-looking",
+            "primary_concern": "row has no blocker in the loaded pending publish scan",
+            "safe_next_action": "Use only backend-owned Publish Parked Outputs after page-level validation still agrees.",
+            "unsafe_if_ignored": "Draining review or blocker rows can lose parked output context, overwrite the wrong destination, or strand payload/sidecar evidence.",
+            "proof_summary": [
+                "diagnostic=ready / ok",
+                "drain=ready_to_drain",
+                "recovery=ready_to_validate",
+                r"payload=C:\Pending\Ready.mkv",
+                r"manifest=C:\Pending\Ready.mkv.manifest.json",
+                r"destination=\\nas\Movies\Ready.mkv",
+            ],
+            "recommended_diagnostics_targets": ["pending_publish", "run_logs", "last_stderr_log"],
+        }
+
+        self.assertEqual(
+            build_pending_publish_row_trust_fields(row, diagnostics, missing_sidecars=0, ready_to_drain=True),
+            expected,
+        )
+        self.assertEqual(pending_publish_row_trust_fields(row, diagnostics), expected)
+
+    def test_pending_publish_trust_fields_fixture_parity_for_do_not_drain_row(self) -> None:
+        row = {
+            "manifest_path": r"C:\Pending\Broken.mkv.manifest.json",
+            "local_file": "",
+            "server_out": r"\\nas\Movies\Broken.mkv",
+            "state": "unreadable",
+            "local_exists": False,
+            "missing_sidecar_count": "2",
+            "error": "bad json",
+        }
+        diagnostics = {
+            "diagnostic_status": "unreadable_manifest",
+            "diagnostic_severity": "error",
+            "drain_recommendation": "do_not_drain",
+            "recovery_class": "manifest_repair",
+        }
+        expected = {
+            "operator_trust_state": "do-not-drain",
+            "primary_concern": "backend marked do_not_drain; diagnostic severity is error; local payload missing; 2 missing sidecars; manifest unreadable or invalid; row error: bad json",
+            "safe_next_action": "Do not drain; inspect pending manifest/payload/sidecar evidence, Last Stderr, and Run Logs first.",
+            "unsafe_if_ignored": "Draining review or blocker rows can lose parked output context, overwrite the wrong destination, or strand payload/sidecar evidence.",
+            "proof_summary": [
+                "diagnostic=unreadable_manifest / error",
+                "drain=do_not_drain",
+                "recovery=manifest_repair",
+                "payload=not reported",
+                r"manifest=C:\Pending\Broken.mkv.manifest.json",
+                r"destination=\\nas\Movies\Broken.mkv",
+            ],
+            "recommended_diagnostics_targets": ["pending_publish", "run_logs", "last_stderr_log", "state"],
+        }
+
+        self.assertEqual(
+            build_pending_publish_row_trust_fields(row, diagnostics, missing_sidecars=2, ready_to_drain=False),
+            expected,
+        )
+        self.assertEqual(pending_publish_row_trust_fields(row, diagnostics), expected)
 
     def test_preview_fields_normalize_raw_scan_result(self) -> None:
         raw = {

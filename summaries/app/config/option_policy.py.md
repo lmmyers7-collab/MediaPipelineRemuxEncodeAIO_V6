@@ -3,9 +3,9 @@ file: app/config/option_policy.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-05-28
+last_modified: 2026-05-29
 last_reviewed: 2026-05-28
-sha256: 155c4e8adf32f9b8e2dc193f1b5dbea5d834f6845d144a2341d05a6c438f4c31
+sha256: d0e521f7d523e7a63b199809b5ae9d6de6acd0a2c2b44c619c0e0c00ccbcf36f
 ---
 # `app/config/option_policy.py`
 

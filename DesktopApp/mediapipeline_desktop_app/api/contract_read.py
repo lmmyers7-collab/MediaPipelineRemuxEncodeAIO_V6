@@ -73,6 +73,14 @@ LOCAL_API_STATUS_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
     },
     {
         "method": "GET",
+        "path": "/api/ui-preferences",
+        "auth_required": True,
+        "effect": "none",
+        "response_schema": "desktop_ui_preferences.v1",
+        "purpose": "Read shared WebView UI preferences for browser/Tauri parity without changing settings, queue state, or media files.",
+    },
+    {
+        "method": "GET",
         "path": "/api/launch/preflight",
         "auth_required": True,
         "effect": "none",
@@ -150,6 +158,14 @@ LOCAL_API_INVENTORY_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
     },
     {
         "method": "GET",
+        "path": "/api/final-library-promotion/status",
+        "auth_required": True,
+        "effect": "none",
+        "response_schema": "desktop_final_library_promotion_status.v1",
+        "purpose": "Read backend-owned final-library promotion readiness, active run state, pause state, counts, and resolved destinations without copying, deleting, or moving files.",
+    },
+    {
+        "method": "GET",
         "path": "/api/failures",
         "auth_required": True,
         "effect": "none",
@@ -218,6 +234,22 @@ LOCAL_API_WORKSPACE_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "effect": "none",
         "response_schema": "desktop_settings_workspace.v1",
         "purpose": "Read-only, redacted settings workspace snapshot.",
+    },
+    {
+        "method": "GET",
+        "path": "/api/settings/wizard/status",
+        "auth_required": True,
+        "effect": "none",
+        "response_schema": "desktop_settings_wizard_status.v1",
+        "purpose": "Read Settings Wizard availability and first-run recommendation state without writing config or touching media files.",
+    },
+    {
+        "method": "GET",
+        "path": "/api/settings/wizard/defaults",
+        "auth_required": True,
+        "effect": "none",
+        "response_schema": "desktop_settings_wizard.v1",
+        "purpose": "Read Settings Wizard defaults and tool candidates for guided setup without writing config or touching media files.",
     },
     {
         "method": "GET",

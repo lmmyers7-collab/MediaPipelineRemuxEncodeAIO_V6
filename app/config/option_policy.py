@@ -16,10 +16,12 @@ from mediapipeline_desktop_app.config_keys import (
     KEY_ENCODE_TUNING_PRESET,
     KEY_EXTRA_VIDEO_FLAGS,
     KEY_FILE_LOG_LEVEL,
+    KEY_FINAL_LIBRARY_PROMOTION_VERIFICATION_MODE,
     KEY_OUTPUT_CONTAINER,
     KEY_PRIORITY_MARKERS,
     KEY_REMUX_SAFE_VIDEO_CODECS,
     KEY_ROBOCOPY_FLAGS,
+    KEY_ROUTE_THRESHOLD_MODE,
     KEY_ROUTING_PROFILE,
     KEY_SIZE_GUARD_MODE,
     KEY_SUB_KEEP_LANGUAGES,
@@ -30,6 +32,7 @@ from app.shared.constants import (
     AUDIO_PASSTHROUGH_PROFILE_DEFAULT,
     AUDIO_PASSTHROUGH_PROFILE_NAMES,
     LOG_LEVEL_VALUES,
+    ROUTE_THRESHOLD_MODE_NAMES,
     ROUTING_PROFILE_NAMES,
     SIZE_GUARD_MODE_NAMES,
 )
@@ -71,11 +74,21 @@ def validate_option_config(values: dict[str, Any], errors: list[str], warnings: 
     routing_profile = str(values.get(KEY_ROUTING_PROFILE, "plex_direct_stream") or "plex_direct_stream").strip().lower()
     if routing_profile not in ROUTING_PROFILE_NAMES:
         errors.append(f"RoutingProfile must be one of: {', '.join(ROUTING_PROFILE_NAMES)}.")
+    route_threshold_mode = str(
+        values.get(KEY_ROUTE_THRESHOLD_MODE, "compatibility_advisory") or "compatibility_advisory"
+    ).strip().lower()
+    if route_threshold_mode not in ROUTE_THRESHOLD_MODE_NAMES:
+        errors.append(f"RouteThresholdMode must be one of: {', '.join(ROUTE_THRESHOLD_MODE_NAMES)}.")
     size_guard_mode = str(values.get(KEY_SIZE_GUARD_MODE, "advisory") or "advisory").strip().lower()
     if size_guard_mode not in SIZE_GUARD_MODE_NAMES:
         errors.append(f"SizeGuardMode must be one of: {', '.join(SIZE_GUARD_MODE_NAMES)}.")
     if size_guard_mode == "strict" and routing_profile == "archive_shrink":
         warnings.append("Archive Shrink with strict size guard can reject outputs that do not shrink enough; use advisory while tuning.")
+    promotion_verification = str(
+        values.get(KEY_FINAL_LIBRARY_PROMOTION_VERIFICATION_MODE, "cautious") or "cautious"
+    ).strip().lower()
+    if promotion_verification not in {"fast", "cautious"}:
+        errors.append("FinalLibraryPromotionVerificationMode must be fast or cautious.")
 
     audio_profile = str(values.get(KEY_AUDIO_PASSTHROUGH_PROFILE, AUDIO_PASSTHROUGH_PROFILE_DEFAULT) or AUDIO_PASSTHROUGH_PROFILE_DEFAULT).strip().lower()
     if audio_profile not in AUDIO_PASSTHROUGH_PROFILE_NAMES:

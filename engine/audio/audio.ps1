@@ -3,7 +3,7 @@
 # ==============================================================================
 # Audio stream selection, language preference, and ffmpeg audio-argument helpers.
 #
-# Dot-sourced from MediaPipeline_chatgpt.ps1. Reads at call time:
+# Dot-sourced from MediaPipeline.ps1. Reads at call time:
 #   $ffprobePath
 #   $CompatibleAudioCodecs
 #   $AudioPassthroughProfile
@@ -15,6 +15,8 @@
 # Cross-module helpers:
 #   Invoke-NativeCommand, Write-Log, DebugLog
 # ==============================================================================
+. (Join-Path $PSScriptRoot 'audio\stream_decisions.ps1')
+
 function Normalize-AudioLanguagePreferenceValue {
     param([string]$Value)
 
@@ -319,46 +321,7 @@ function Build-AudioArgs {
 
     $mapArgs   = [System.Collections.Generic.List[string]]::new()
     $codecArgs = [System.Collections.Generic.List[string]]::new()
-    $audioTrackMeta = [System.Collections.Generic.List[object]]::new()
-    $audioDecisionRecords = [System.Collections.Generic.List[object]]::new()
-    # CPU-A1 — track whether ANY audio stream is being transcoded so the
-    # caller can lower the ffmpeg process priority and apply the CPU
-    # thread cap.  A pure stream-copy AV stage is I/O-bound and doesn't
-    # benefit from priority lowering.
-    $transcodeActive = $false
-
-    # Language tag (ISO 639-2/B code) -> human display name for the track title.
-    # Unknown / untagged tracks get "Undefined". Codes not in the map fall back
-    # to an uppercased raw code (e.g. "THA" for Thai), which is still legible.
-    $LangDisplay = @{
-        'eng' = 'English';    'en'  = 'English'
-        'jpn' = 'Japanese';   'ja'  = 'Japanese'
-        'spa' = 'Spanish';    'es'  = 'Spanish'
-        'fre' = 'French';     'fra' = 'French';   'fr' = 'French'
-        'ger' = 'German';     'deu' = 'German';   'de' = 'German'
-        'ita' = 'Italian';    'it'  = 'Italian'
-        'por' = 'Portuguese'; 'pt'  = 'Portuguese'
-        'rus' = 'Russian';    'ru'  = 'Russian'
-        'chi' = 'Chinese';    'zho' = 'Chinese';  'zh' = 'Chinese'
-        'kor' = 'Korean';     'ko'  = 'Korean'
-        'hin' = 'Hindi';      'hi'  = 'Hindi'
-        'ara' = 'Arabic';     'ar'  = 'Arabic'
-        'und' = 'Undefined';  ''    = 'Undefined'
-    }
-
-    # Channel count -> Dolby-style layout label for the track title.
-    # Uses the post-downmix channel count, not the source channel_layout,
-    # so a 7.1 DTS-HD transcoded to 5.1 EAC3 reads "5.1 EAC3" not "7.1 EAC3".
-    $ChannelLabel = @{
-        1 = '1.0'; 2 = '2.0'; 3 = '2.1'; 4 = '4.0'
-        5 = '4.1'; 6 = '5.1'; 7 = '6.1'; 8 = '7.1'
-    }
-
-    # Commentary / descriptive / audio-description detector. Runs against the
-    # source title tag. These tracks are preserved but never marked default
-    # (a viewer who sets Plex to auto-play English shouldn't hear director
-    # commentary by accident).
-    $CommentaryRegex = '(?i)commentary|director|cast|audio\s*description|descriptive|behind.the.scenes|isolated\s*score'
+    $passthroughProfile = Get-EffectiveAudioPassthroughProfile
     $transcodeCodec = Get-EffectiveAudioTranscodeCodec
     $transcodeBitrate = Get-EffectiveAudioTranscodeBitrate
     # Suggestion #7 — when AudioTranscodeAutoBitrateByChannels is on,
@@ -367,6 +330,9 @@ function Build-AudioArgs {
     # static value is used as before.
     $autoScaleBitrate = Get-EffectiveAudioTranscodeAutoBitrateByChannels
     $transcodeCodecLabel = Get-MediaAudioCodecDisplayLabel -Codec $transcodeCodec
+    $downmixMode = Get-EffectiveAudioDownmixMode
+    $maxChannels = Get-EffectiveAudioMaxChannels
+    $preferredLanguages = @(Get-NormalizedPreferredAudioLanguages)
 
     if ($audioStreams.Count -eq 0) {
         $chk = Invoke-FFprobeCommand -ArgumentList @(
@@ -377,22 +343,7 @@ function Build-AudioArgs {
             $message = "SOURCE_MEDIA_AUDIO_MISSING: no audio streams found in $FilePath"
             if (Get-EffectiveAllowNoAudio) {
                 Write-Log "$message; AllowNoAudio is enabled, output will omit audio." "WARN"
-                Set-LastAudioDecisionRecords @([pscustomobject]@{
-                    audio_ordinal       = $null
-                    source_stream_index = $null
-            action              = 'omit_all'
-            reason              = 'allow_no_audio'
-            passthrough_profile = Get-EffectiveAudioPassthroughProfile
-            language            = 'und'
-                    source_codec        = ''
-                    source_channels     = 0
-                    output_codec        = ''
-                    output_channels     = 0
-                    is_default          = $false
-                    is_forced           = $false
-                    is_commentary       = $false
-                    title               = ''
-                })
+                Set-LastAudioDecisionRecords @((New-AudioOmitAllDecisionRecord -PassthroughProfile $passthroughProfile))
                 return @('-an')
             }
             Write-Log $message "ERROR"
@@ -407,210 +358,83 @@ function Build-AudioArgs {
 
     # Per-file override: resolve audio track filter + rename rules once before the loop.
     $audioOverride = Get-FileOverrideAudioSettings
-    # Separate output ordinal (may differ from source index when tracks are filtered).
-    $outOrdinal = 0
+    $decisionPlan = Build-AudioStreamDecisionPlan `
+        -AudioStreams @($audioStreams) `
+        -AudioOverride $audioOverride `
+        -EffectiveCompatibleAudioCodecs $effectiveCompat `
+        -PassthroughProfile $passthroughProfile `
+        -TranscodeCodec $transcodeCodec `
+        -TranscodeBitrate $transcodeBitrate `
+        -AutoScaleBitrate $autoScaleBitrate `
+        -TranscodeCodecLabel $transcodeCodecLabel `
+        -DownmixMode $downmixMode `
+        -MaxChannels $maxChannels `
+        -PreferredLanguages $preferredLanguages
 
-    for ($i = 0; $i -lt $audioStreams.Count; $i++) {
-        $s        = $audioStreams[$i]
-        $rawLang = "und"
-        try {
-            if ($s.tags -and $s.tags.language) { $rawLang = ([string]$s.tags.language).ToLowerInvariant() }
-        } catch {}
-        $rawTitle = ""
-        try {
-            if ($s.tags -and $s.tags.title) { $rawTitle = [string]$s.tags.title }
-        } catch {}
-        $codec = ([string]$s.codec_name).Trim().ToLowerInvariant()
-        if ([string]::IsNullOrWhiteSpace($codec)) {
-            throw "SOURCE_MEDIA_AUDIO_INVALID: audio stream $i is missing codec_name in ffprobe output"
-        }
-        $ch = 0
-        try { $ch = [int]$s.channels } catch { $ch = 0 }
-        if ($ch -le 0) {
-            throw "SOURCE_MEDIA_AUDIO_INVALID: audio stream $i has missing or invalid channel count in ffprobe output"
-        }
-        $outCh    = Get-TranscodedAudioChannelCount -SourceChannels $ch
-        $isForcedAudio = $false
-        try { $isForcedAudio = ($s.disposition.forced -eq 1) } catch {}
-
-        $isCommentary = ($rawTitle -match $CommentaryRegex)
-
-        # --- Per-file override: track filter ---
-        if (-not (Test-AudioTrackKeptByOverride -Language $rawLang -Channels $ch -Title $rawTitle -AudioOverride $audioOverride)) {
-            $audioDecisionRecords.Add([pscustomobject]@{
-                audio_ordinal       = $null
-                source_stream_index = if ($null -ne $s.PSObject.Properties['index']) { $s.index } else { $null }
-                action              = 'drop'
-                reason              = 'file_override'
-                passthrough_profile = Get-EffectiveAudioPassthroughProfile
-                language            = $rawLang
-                normalized_language = Normalize-AudioLanguagePreferenceValue $rawLang
-                source_codec        = $codec
-                source_channels     = $ch
-                output_codec        = ''
-                output_channels     = 0
-                bitrate             = ''
-                is_default          = $false
-                is_forced           = $isForcedAudio
-                is_commentary       = $isCommentary
-                title               = $rawTitle
-            }) | Out-Null
-            Write-Log "Audio $i ($codec, ${ch}ch, $rawLang) -> dropped by file override" "DEBUG"
+    foreach ($decision in @($decisionPlan.Tracks)) {
+        $i = [int]$decision.SourceOrdinal
+        if ($decision.Action -eq 'drop') {
+            Write-Log "Audio $i ($($decision.SourceCodec), $($decision.SourceChannels)ch, $($decision.Language)) -> dropped by file override" "DEBUG"
             continue
         }
 
+        $outOrdinal = [int]$decision.AudioOrdinal
         $mapArgs.AddRange([string[]]@("-map","0:a:$i"))
 
-        # Map channel count to a canonical layout tag for transcoded audio.
-        # Streamcopy preserves source packets/metadata and intentionally does
-        # not receive -channel_layout.
-        $LayoutTag = @{
-            1 = 'mono';  2 = 'stereo'; 3 = '2.1';      4 = 'quad'
-            5 = '4.1';   6 = '5.1';    7 = '6.1';      8 = '7.1'
-        }
-
-        # Decide copy vs transcode. effectiveCompat is the gate
-        # (CompatibleAudioCodecs merged with any active per-show overrides).
-        $standardizePcm = Test-IsPcmAudioCodec $codec
-        if ($standardizePcm -or $codec -notin $effectiveCompat) {
-            # Suggestion #7 — pick the per-stream bitrate from the
-            # channel-count table when auto-scale is on, else use the
-            # static configured bitrate. This lets a 2.0 commentary track
-            # transcode at 192k while a 5.1 main track still gets 448k,
-            # instead of both at 640k.
-            $effectiveBitrate = if ($autoScaleBitrate) {
-                Get-AudioTranscodeBitrateForChannels -Codec $transcodeCodec -Channels $outCh
-            } else {
-                $transcodeBitrate
+        if ($decision.Action -eq 'transcode') {
+            $codecArgs.AddRange([string[]]@("-c:a:$outOrdinal",$decision.OutputCodec,"-b:a:$outOrdinal",$decision.Bitrate,"-ac:$outOrdinal","$($decision.OutputChannels)"))
+            if (-not [string]::IsNullOrWhiteSpace($decision.ChannelLayout)) {
+                $codecArgs.AddRange([string[]]@("-channel_layout:a:$outOrdinal", $decision.ChannelLayout))
             }
-            $codecArgs.AddRange([string[]]@("-c:a:$outOrdinal",$transcodeCodec,"-b:a:$outOrdinal",$effectiveBitrate,"-ac:$outOrdinal","$outCh"))
-            if ($LayoutTag.ContainsKey($outCh)) {
-                $codecArgs.AddRange([string[]]@("-channel_layout:a:$outOrdinal", $LayoutTag[$outCh]))
-            }
-            $outCodecLabel = $transcodeCodecLabel
-            $outChannels   = $outCh
-            $reason = if ($standardizePcm) { 'PCM standardization' } else { 'codec outside compatibility list' }
-            $action = 'transcode'
-            $outputCodec = $transcodeCodec
-            $transcodeActive = $true
-            $bitrateSource = if ($autoScaleBitrate) { 'channel-scaled' } else { 'configured' }
-            Write-Log "Audio $i ($codec, ${ch}ch, $rawLang) -> $transcodeCodecLabel ${outCh}ch @ $effectiveBitrate ($reason; bitrate $bitrateSource)" "DEBUG"
+            Write-Log "Audio $i ($($decision.SourceCodec), $($decision.SourceChannels)ch, $($decision.Language)) -> $($decision.OutputCodecLabel) $($decision.OutputChannels)ch @ $($decision.Bitrate) ($($decision.Reason); bitrate $($decision.BitrateSource))" "DEBUG"
         } else {
             $codecArgs.AddRange([string[]]@("-c:a:$outOrdinal","copy"))
             # Do not emit channel_layout for streamcopy. FFmpeg cannot
             # reliably change codec properties while copying packets, and
             # some builds reject -channel_layout with -c:a copy.
-            # Keep common codec labels readable in generated track titles.
-            $outCodecLabel = Get-MediaAudioCodecDisplayLabel -Codec $codec
-            $outChannels = $ch
-            $reason = 'codec compatible'
-            $action = 'copy'
-            $outputCodec = $codec
-            Write-Log "Audio $i ($codec, ${ch}ch, $rawLang) -> copy" "DEBUG"
+            Write-Log "Audio $i ($($decision.SourceCodec), $($decision.SourceChannels)ch, $($decision.Language)) -> copy" "DEBUG"
         }
 
         # Language tag — THE critical fix. Previously this was logged but not
         # written back to the output. Plex uses this to match against the
         # user's audio language preference.
-        $codecArgs.AddRange([string[]]@("-metadata:s:a:$outOrdinal","language=$rawLang"))
+        $codecArgs.AddRange([string[]]@("-metadata:s:a:$outOrdinal","language=$($decision.Language)"))
+        $codecArgs.AddRange([string[]]@("-metadata:s:a:$outOrdinal","title=$($decision.Title)"))
 
-        # Title assembly. Format: "Language - Layout Codec [Commentary]"
-        # e.g. "English - 5.1 EAC3"
-        #      "Japanese - 2.0 FLAC"
-        #      "English - 2.0 AAC [Commentary]"
-        # NOTE: these locals are named with a `disp` suffix instead of the
-        # obvious `$langDisplay` / `$layoutLabel` because PowerShell variable
-        # names are CASE-INSENSITIVE. Using `$langDisplay` would rebind the
-        # outer `$LangDisplay` hashtable to the lookup result (a string) on
-        # the first loop iteration, and the second iteration would fail with
-        # "[String] does not contain a method ContainsKey".
-        $langDisp   = if ($LangDisplay.ContainsKey($rawLang)) { $LangDisplay[$rawLang] } else { $rawLang.ToUpper() }
-        $layoutDisp = if ($ChannelLabel.ContainsKey($outChannels)) { $ChannelLabel[$outChannels] } else { "${outChannels}ch" }
-        $title      = "$langDisp - $layoutDisp $outCodecLabel"
-        if ($isCommentary) { $title += " [Commentary]" }
-        # Per-file override: track title rename (applied after auto-generated title).
-        $titleOverride = Get-AudioTrackTitleOverride -Language $rawLang -Channels $outChannels -AudioOverride $audioOverride
-        if (-not [string]::IsNullOrWhiteSpace($titleOverride)) { $title = $titleOverride }
-        $codecArgs.AddRange([string[]]@("-metadata:s:a:$outOrdinal","title=$title"))
-
-        Write-Log "Audio $i -> out:$outOrdinal title: '$title'" "DEBUG"
-
-        $audioTrackMeta.Add([pscustomobject]@{
-            Index          = $outOrdinal
-            NormalizedLang = Normalize-AudioLanguagePreferenceValue $rawLang
-            IsCommentary   = $isCommentary
-            IsForced        = $isForcedAudio
-            FidelityScore  = Get-AudioFidelityScore -Codec $codec -Channels $ch
-            PreferenceRank = [int]::MaxValue
-        }) | Out-Null
-        $audioDecisionRecords.Add([pscustomobject]@{
-            audio_ordinal       = $outOrdinal
-            source_stream_index = if ($null -ne $s.PSObject.Properties['index']) { $s.index } else { $null }
-            action              = $action
-            reason              = $reason
-            passthrough_profile = Get-EffectiveAudioPassthroughProfile
-            language            = $rawLang
-            normalized_language = Normalize-AudioLanguagePreferenceValue $rawLang
-            source_codec        = $codec
-            source_channels     = $ch
-            output_codec        = $outputCodec
-            output_channels     = $outChannels
-            # Suggestion #7 — record the actual per-stream bitrate, not
-            # the static configured value, so sidecar audio_decisions
-            # accurately reflects what ffmpeg got told.
-            bitrate             = if ($action -eq 'transcode') { $effectiveBitrate } else { '' }
-            is_default          = $false
-            is_forced           = $isForcedAudio
-            is_commentary       = $isCommentary
-            title               = $title
-        }) | Out-Null
-        $outOrdinal++
+        Write-Log "Audio $i -> out:$outOrdinal title: '$($decision.Title)'" "DEBUG"
     }
 
     # If every stream was dropped by the per-file override, honour AllowNoAudio or throw.
-    if ($audioTrackMeta.Count -eq 0) {
+    if ($decisionPlan.TrackCount -eq 0) {
         $message = "SOURCE_MEDIA_AUDIO_OVERRIDE_STRIPPED: all audio streams dropped by file override for $FilePath"
         if (Get-EffectiveAllowNoAudio) {
             Write-Log "$message; AllowNoAudio is enabled, output will omit audio." "WARN"
-            Set-LastAudioDecisionRecords @($audioDecisionRecords)
+            Set-LastAudioDecisionRecords @($decisionPlan.Records)
             return @('-an')
         }
         Write-Log $message "ERROR"
         throw $message
     }
 
-    # Default track selection:
-    #   1st choice: first configured preferred language among non-commentary
-    #   2nd choice: highest-fidelity non-commentary track
-    #   last resort: highest-fidelity track overall if everything is commentary
-    $defaultIdx = Get-PreferredDefaultAudioIndex -TrackMetadata @($audioTrackMeta)
-    for ($j = 0; $j -lt $audioTrackMeta.Count; $j++) {
-        $sourceDisposition = if ($j -lt $audioTrackMeta.Count -and $audioTrackMeta[$j].IsForced) { "forced" } else { "0" }
-        $codecArgs.AddRange([string[]]@("-disposition:a:$j",$sourceDisposition))
+    foreach ($disposition in @($decisionPlan.Dispositions)) {
+        $codecArgs.AddRange([string[]]@("-disposition:a:$($disposition.AudioOrdinal)",$disposition.Value))
     }
-    $defaultDisposition = if ($defaultIdx -lt $audioTrackMeta.Count -and $audioTrackMeta[$defaultIdx].IsForced) { "default+forced" } else { "default" }
-    $codecArgs.AddRange([string[]]@("-disposition:a:$defaultIdx",$defaultDisposition))
-    foreach ($record in @($audioDecisionRecords)) {
-        if ($null -ne $record -and [int]$record.audio_ordinal -eq $defaultIdx) {
-            $record.is_default = $true
-        }
-    }
-    Set-LastAudioDecisionRecords @($audioDecisionRecords)
+    Set-LastAudioDecisionRecords @($decisionPlan.Records)
     # R9 fix — surface the chosen default audio index AND total audio
     # track count so Do-Remux can emit explicit `--default-track aN:yes/no`
     # flags to mkvmerge. ffmpeg's -disposition flags carry through to
     # temp_av and mkvmerge usually preserves them, but making the
     # mkvmerge args explicit removes any dependency on cross-version
     # disposition translation behavior.
-    $script:LastAudioDefaultIndex = [int]$defaultIdx
-    $script:LastAudioTrackCount   = [int]$audioTrackMeta.Count
+    $script:LastAudioDefaultIndex = [int]$decisionPlan.DefaultIndex
+    $script:LastAudioTrackCount   = [int]$decisionPlan.TrackCount
     # CPU-A1 — surface the transcode-active flag so Do-Remux's AV stage
     # (which would otherwise be pure stream-copy and I/O bound) can opt
     # into BelowNormal priority + CPU mutex when audio transcoding is
     # actually happening.
-    $script:LastAudioTranscodeActive = [bool]$transcodeActive
-    Write-Log "Audio default track: stream $defaultIdx" "DEBUG"
-    if ($transcodeActive) {
+    $script:LastAudioTranscodeActive = [bool]$decisionPlan.TranscodeActive
+    Write-Log "Audio default track: stream $($decisionPlan.DefaultIndex)" "DEBUG"
+    if ($decisionPlan.TranscodeActive) {
         Write-Log "Audio: at least one stream will be transcoded; AV stage will run as CPU-bound work" "DEBUG"
     }
 

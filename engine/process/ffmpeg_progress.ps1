@@ -3,7 +3,7 @@
 # ==============================================================================
 # FFmpeg progress parsing and progress-aware FFmpeg execution.
 #
-# Dot-sourced from MediaPipeline_chatgpt.ps1. Reads these at call time:
+# Dot-sourced from MediaPipeline.ps1. Reads these at call time:
 #
 #   $ffmpegPath, $StopFlag, $PauseFlag, $LocalFailed
 #   $script:FFmpegProgressWriteStepPercent
@@ -15,53 +15,10 @@
 #   Write-Log, Write-PipelineEvent
 # ==============================================================================
 
-function Convert-FFmpegProgressTimestampToSeconds {
-    param([string]$Value)
-
-    $text = ([string]$Value).Trim()
-    if ([string]::IsNullOrWhiteSpace($text)) { return $null }
-    if ($text -match '^(\d+):(\d{2}):(\d{2}(?:\.\d+)?)$') {
-        return ([double]$Matches[1] * 3600) + ([double]$Matches[2] * 60) + [double]$Matches[3]
-    }
-    return $null
-}
-
-function Get-FFmpegProgressPercentFromLine {
-    param(
-        [string]$Line,
-        [double]$DurationSeconds
-    )
-
-    if ($DurationSeconds -le 0 -or [string]::IsNullOrWhiteSpace($Line)) { return $null }
-
-    $seconds = $null
-    if ($Line -match '^out_time_(?:us|ms)=(\d+)\s*$') {
-        # FFmpeg progress reports both out_time_us and historical out_time_ms
-        # as microseconds on current bundled builds.
-        $seconds = [double]$Matches[1] / 1000000.0
-    } elseif ($Line -match '^out_time=(.+?)\s*$') {
-        $seconds = Convert-FFmpegProgressTimestampToSeconds $Matches[1]
-    } elseif ($Line -match '^time=(\d+:\d{2}:\d{2}(?:\.\d+)?)') {
-        $seconds = Convert-FFmpegProgressTimestampToSeconds $Matches[1]
-    }
-
-    if ($null -eq $seconds) { return $null }
-    return [math]::Min(100, [math]::Max(0, [math]::Round(([double]$seconds / $DurationSeconds) * 100, 1)))
-}
-
-function Add-FFmpegErrorTail {
-    param(
-        [Parameter(Mandatory)] [System.Text.StringBuilder]$Builder,
-        [AllowNull()] [string]$Text,
-        [int]$MaxChars = 262144
-    )
-    if ($null -eq $Text) { return }
-    [void]$Builder.AppendLine($Text)
-    if ($Builder.Length -gt $MaxChars) {
-        $remove = $Builder.Length - $MaxChars
-        try { [void]$Builder.Remove(0, $remove) } catch {}
-    }
-}
+$ffmpegProgressHelperRoot = Join-Path $PSScriptRoot 'ffmpeg_progress'
+. (Join-Path $ffmpegProgressHelperRoot 'parsing.ps1')
+. (Join-Path $ffmpegProgressHelperRoot 'tool_context.ps1')
+. (Join-Path $ffmpegProgressHelperRoot 'events.ps1')
 
 function Invoke-FFmpegWithProgress {
     param(
@@ -80,22 +37,6 @@ function Invoke-FFmpegWithProgress {
         [string]$ProcessPriority = 'inherit'
     )
 
-    if (-not (Get-Command -Name Add-FFmpegErrorTail -ErrorAction SilentlyContinue)) {
-        function Add-FFmpegErrorTail {
-            param(
-                [Parameter(Mandatory)] [System.Text.StringBuilder]$Builder,
-                [AllowNull()] [string]$Text,
-                [int]$MaxChars = 262144
-            )
-            if ($null -eq $Text) { return }
-            [void]$Builder.AppendLine($Text)
-            if ($Builder.Length -gt $MaxChars) {
-                $remove = $Builder.Length - $MaxChars
-                try { [void]$Builder.Remove(0, $remove) } catch {}
-            }
-        }
-    }
-
     $duration = 0
     $dr = Invoke-FFprobeCommand -ArgumentList @(
         "-v","error","-show_entries","format=duration",
@@ -107,40 +48,18 @@ function Invoke-FFmpegWithProgress {
         Set-ProgressStage -Stage $ProgressStage -Percent 0 -Route $ProgressRoute -SaveNow
     }
 
-    $ffmpegArgs = $FFArgs + @("-progress","pipe:2","-nostats")
-    $script:LastFFmpegCommandLine = Format-NativeCommandLine -FilePath $ffmpegPath -ArgumentList $ffmpegArgs
-    $script:LastFFmpegErrorLog    = $null
-    $script:LastFFmpegReproPath   = $null
-    $script:LastFFmpegToolErrorCode = $null
-    $script:LastFFmpegDurationSeconds = $null
-
     # Map the user-facing priority string before emitting tool_started so
     # diagnostics record the effective requested priority, not just the raw
     # config text.
-    $priorityClassEnum = $null
-    $priorityText = if ($ProcessPriority) { ([string]$ProcessPriority).Trim().ToLowerInvariant() } else { '' }
-    if ($CpuEncode -and $priorityText -and $priorityText -ne 'inherit') {
-        switch ($priorityText) {
-            'idle'        { $priorityClassEnum = [System.Diagnostics.ProcessPriorityClass]::Idle }
-            'belownormal' { $priorityClassEnum = [System.Diagnostics.ProcessPriorityClass]::BelowNormal }
-            'normal'      { $priorityClassEnum = [System.Diagnostics.ProcessPriorityClass]::Normal }
-            'abovenormal' { $priorityClassEnum = [System.Diagnostics.ProcessPriorityClass]::AboveNormal }
-            'high'        { $priorityClassEnum = [System.Diagnostics.ProcessPriorityClass]::High }
-            default       { $priorityClassEnum = $null }
-        }
-    }
-
-    # Suggestion #6 — track whether the priority class was actually
-    # applied so the tool_completed event can report it.
-    $script:LastFFmpegPriorityRequested = if ($priorityClassEnum) { [string]$priorityClassEnum } else { 'inherit' }
-    $script:LastFFmpegPriorityApplied   = ($null -eq $priorityClassEnum)
-    $script:LastFFmpegPriorityError     = ''
+    $ffmpegContext = New-FFmpegToolContext -FFArgs $FFArgs -Executable $ffmpegPath -CpuEncode:$CpuEncode -ProcessPriority $ProcessPriority
+    $ffmpegArgs = $ffmpegContext.Arguments
+    $priorityClassEnum = $ffmpegContext.PriorityClass
 
     Write-PipelineEvent -EventType 'tool_started' -Stage $ProgressStage -Route $ProgressRoute -Status 'started' -SourcePath $InputFile -Data @{
         tool_name        = 'ffmpeg'
         label            = $Label
         executable       = $ffmpegPath
-        command_line     = $script:LastFFmpegCommandLine
+        command_line     = $ffmpegContext.CommandLine
         timeout_seconds  = $TimeoutSeconds
         cpu_encode       = [bool]$CpuEncode
         process_priority = if ($priorityClassEnum) { [string]$priorityClassEnum } else { 'inherit' }
@@ -259,26 +178,20 @@ function Invoke-FFmpegWithProgress {
 
     # Expose full stderr text for caller inspection (e.g. NVENC fallback logic).
     # Kept at script scope so callers don't need to change signature.
-    $script:LastFFmpegStderr  = [string]$result.Stderr
-    $script:LastFFmpegExit    = $exitCode
-    $durationProp = $result.PSObject.Properties['DurationSeconds']
-    $script:LastFFmpegDurationSeconds = if ($durationProp) { [double]$durationProp.Value } else { [math]::Round(((Get-Date) - $startedAt).TotalSeconds, 3) }
-    $script:LastFFmpegToolErrorCode = Get-ExternalToolFailureCode -ToolName 'ffmpeg' -Result $result
-    Write-PipelineEvent -EventType 'tool_completed' -Stage $ProgressStage -Route $ProgressRoute -Status $(if ($exitCode -eq 0) { 'succeeded' } else { 'failed' }) -SourcePath $InputFile -Data @{
-        tool_name           = 'ffmpeg'
-        label               = $Label
-        executable          = $ffmpegPath
-        command_line        = $script:LastFFmpegCommandLine
-        timeout_seconds     = $TimeoutSeconds
-        exit_code           = $exitCode
-        timed_out           = $timedOut
-        stopped             = $stopped
-        error_code          = $script:LastFFmpegToolErrorCode
-        duration_seconds    = $script:LastFFmpegDurationSeconds
-        priority_requested  = [string]$script:LastFFmpegPriorityRequested
-        priority_applied    = [bool]$script:LastFFmpegPriorityApplied
-        priority_error      = [string]$script:LastFFmpegPriorityError
-    } | Out-Null
+    Complete-FFmpegToolEvent `
+        -Label $Label `
+        -Executable $ffmpegPath `
+        -CommandLine $ffmpegContext.CommandLine `
+        -TimeoutSeconds $TimeoutSeconds `
+        -ProgressStage $ProgressStage `
+        -ProgressRoute $ProgressRoute `
+        -InputFile $InputFile `
+        -Result $result `
+        -StartedAt $startedAt `
+        -ExitCode $exitCode `
+        -TimedOut $timedOut `
+        -Stopped $stopped `
+        -Stderr ([string]$result.Stderr) | Out-Null
 
     if ($script:StopRequested) { Write-Log "$Label : stopped by user request"; return $false }
 
@@ -320,31 +233,22 @@ function Invoke-FFmpegWithProgress {
         } catch {}
         Add-FFmpegErrorTail -Builder $errorLines -Text "[RUNNER EXCEPTION: $message]"
         if ($stderrLogPath) { try { [System.IO.File]::AppendAllText($stderrLogPath, "[RUNNER EXCEPTION: $message]" + [Environment]::NewLine) } catch {} }
-        $script:LastFFmpegStderr = $errorLines.ToString()
-        $script:LastFFmpegExit = -1
-        $script:LastFFmpegDurationSeconds = [math]::Round(((Get-Date) - $startedAt).TotalSeconds, 3)
-        $script:LastFFmpegToolErrorCode = Get-ExternalToolFailureCode -ToolName 'ffmpeg' -Result ([pscustomobject]@{
-            ExitCode = -1
-            TimedOut = $timedOut
-            Stopped  = $stopped
-        })
         try {
-            Write-PipelineEvent -EventType 'tool_completed' -Stage $ProgressStage -Route $ProgressRoute -Status 'failed' -SourcePath $InputFile -Data @{
-                tool_name           = 'ffmpeg'
-                label               = $Label
-                executable          = $ffmpegPath
-                command_line        = $script:LastFFmpegCommandLine
-                timeout_seconds     = $TimeoutSeconds
-                exit_code           = -1
-                timed_out           = $timedOut
-                stopped             = $stopped
-                error_code          = $script:LastFFmpegToolErrorCode
-                duration_seconds    = $script:LastFFmpegDurationSeconds
-                runner_exception    = $message
-                priority_requested  = [string]$script:LastFFmpegPriorityRequested
-                priority_applied    = [bool]$script:LastFFmpegPriorityApplied
-                priority_error      = [string]$script:LastFFmpegPriorityError
-            } | Out-Null
+            Complete-FFmpegToolEvent `
+                -Label $Label `
+                -Executable $ffmpegPath `
+                -CommandLine $script:LastFFmpegCommandLine `
+                -TimeoutSeconds $TimeoutSeconds `
+                -ProgressStage $ProgressStage `
+                -ProgressRoute $ProgressRoute `
+                -InputFile $InputFile `
+                -Result $null `
+                -StartedAt $startedAt `
+                -ExitCode -1 `
+                -TimedOut $timedOut `
+                -Stopped $stopped `
+                -Stderr ($errorLines.ToString()) `
+                -RunnerException $message | Out-Null
         } catch {}
         try {
             if (-not [string]::IsNullOrWhiteSpace($ReproStage)) {

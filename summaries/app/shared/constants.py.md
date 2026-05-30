@@ -3,9 +3,9 @@ file: app/shared/constants.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-05-28
+last_modified: 2026-05-29
 last_reviewed: 2026-05-28
-sha256: 4ea5a4f0db634b18693fa0f572c1be13565cf043afbe34ef2126f0fca0495909
+sha256: 0fa9dca1cfff7a708fa23477d4cdd0f48c974ec0c0ba238ee647817ac4ee7881
 ---
 # `app/shared/constants.py`
 

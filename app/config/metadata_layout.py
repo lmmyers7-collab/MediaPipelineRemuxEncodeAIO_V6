@@ -5,6 +5,7 @@ from __future__ import annotations
 
 CONFIG_SECTION_ORDER = (
     "Paths",
+    "Final Library Promotion",
     "Audio",
     "Routing",
     "Video",

@@ -1,7 +1,7 @@
 # ==============================================================================
 # engine\shared\failure_codes.ps1
 # ==============================================================================
-# Pure stderr-text classifiers extracted from MediaPipeline_chatgpt.ps1.
+# Pure stderr-text classifiers extracted from MediaPipeline.ps1.
 #
 # Every function in here takes plain strings/ints in and returns a stable
 # uppercase-snake-case error code (or summary string). They have NO side

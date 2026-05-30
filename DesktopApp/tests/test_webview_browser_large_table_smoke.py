@@ -227,6 +227,9 @@ def _browser_large_table_runner_source() -> str:
             window.renderCompleted({
               ok: true,
               count: 260,
+              encode_count: 130,
+              remux_count: 130,
+              missing_output_count: 1,
               rows: completedRows,
               manifest_exists: true,
               manifest_path: "C:/State/completed.json",
@@ -251,28 +254,40 @@ def _browser_large_table_runner_source() -> str:
                 }],
               },
             });
-            requireText("completed-status", ["250 shown / 260 filtered / 260 rows"]);
+            requireText("completed-count", ["259"]);
+            requireText("completed-encode-count", ["129"]);
+            requireText("completed-remux-count", ["130"]);
+            requireText("completed-missing-count", ["1"]);
+            requireText("completed-status", ["1 missing from expected destination / 250 shown / 259 filtered / 259 rows"]);
+            requireText("completed-current-summary", ["Current outputs present at expected destination: 259", "Current encoded/remuxed: 129 / 130", "Completed history rows not currently present: 1"]);
+            requireText("completed-reconciliation-hint", ["Backend publish reconciliation: not loaded.", "Advanced -> Refresh Backend Reconciliation"]);
             requireText("completed-inventory-progress-bars", ["Completed inventory", "100%", "Completed inventory loaded 260 row(s)."]);
-            requireText("completed-filter-summary", ["Display cap: only the first 250 filtered rows are rendered", "filtering Completed history does not mark outputs accepted"]);
-            requireText("completed-table-legend", ["Completed rows: 250 selectable rows"]);
+            requireText("completed-filter-summary", ["Display cap: only the first 250 filtered rows are rendered", "filtering Current Output Status does not mark outputs accepted"]);
+            requireText("completed-table-legend", ["Current output rows: 250 selectable rows"]);
             requireRenderedRows("#completed-rows tr[data-row-key]", 250);
+            requireRenderedRows("#completed-history-rows tr[data-row-key]", 250);
+            setValue("completed-history-filter", "Large Completed 260");
+            window.mediaPipelineCompletedView.renderCompletedRows();
+            requireText("completed-history-status", ["1 / 260 rows"]);
+            requireText("completed-history-filter-summary", ["Completed history filter", "Hidden review rows: 0"]);
+            requireRenderedRows("#completed-history-rows tr[data-row-key]", 1);
             setValue("completed-filter", "Large Completed 001");
             window.mediaPipelineCompletedView.renderCompletedRows();
-            requireText("completed-status", ["1 / 260 rows"]);
-            requireText("completed-filter-summary", ["Hidden review rows: 1", "blocked/warning rows are currently hidden"]);
+            requireText("completed-status", ["1 missing from expected destination / 1 / 259 rows"]);
+            requireText("completed-filter-summary", ["Hidden review rows: 0", "not hiding blocked/warning rows"]);
             requireText("completed-output-acceptance-summary", [
               "Daily-use handoff: Completed evidence supports an operator trust decision",
               "Operator outcome:",
-              "Scope boundary: Completed filters, selected rows, proof boards",
+              "Scope boundary: Current Output filters, Completed History filters",
               "display filter scope",
               "Blocked checkpoints",
               "Review checkpoints",
             ]);
             clickRowContaining("#completed-output-acceptance-rows tr", "Display filter / backend action scope");
-            requireText("completed-output-acceptance-detail", ["Completed display filter / backend action scope", "hidden blocked rows: 1", "hidden review rows: 1", "Completed filters never accept outputs"]);
+            requireText("completed-output-acceptance-detail", ["Current Output display filter / backend action scope", "hidden blocked rows: 0", "hidden review rows: 0", "Current Output filters never accept outputs"]);
             window.selectCompletedRow(completedRows[259]);
             requireText("completed-selected-summary", ["Selected Completed row: Large Completed 260.mkv", "at-a-glance=Broken proof", "Filter visibility: Selected row visible in table: no", "Authority: this summary is read-only"]);
-            requireText("completed-detail", ["Large Completed 260", "Selected row visible in table: no", "Hidden by current filters: text filter=\\"Large Completed 001\\"", "Mutation guardrail"]);
+            requireText("completed-detail", ["Large Completed 260", "Selected row visible in table: no", "not present in Current Output Status table", "text filter=\\"Large Completed 001\\"", "Mutation guardrail"]);
             if (!pressShortcut("3")) throw new Error("Output page shortcut should be handled");
             requireActivePage("completed");
             if (!pressShortcut("/")) throw new Error("Output search shortcut should be handled");
@@ -284,7 +299,7 @@ def _browser_large_table_runner_source() -> str:
             if (!pressShortcut("d")) throw new Error("Output detail shortcut should be handled");
             requireActiveElement("completed-detail");
             if (!pressShortcut("c")) throw new Error("Output clear-filter shortcut should be handled");
-            requireText("completed-status", ["250 shown / 260 filtered / 260 rows"]);
+            requireText("completed-status", ["1 missing from expected destination / 250 shown / 259 filtered / 259 rows"]);
 
             const pendingRows = Array.from({ length: 260 }, (_value, index) => {
               const label = "Large Pending " + pad(index);
@@ -531,7 +546,7 @@ class WebViewBrowserLargeTableSmokeTests(unittest.TestCase):
         self.assertTrue(result["ok"])
         browser_result = result["result"]
         self.assertEqual(browser_result["queueStatus"], "250 shown / 260 filtered / 260 rows")
-        self.assertEqual(browser_result["completedStatus"], "250 shown / 260 filtered / 260 rows")
+        self.assertEqual(browser_result["completedStatus"], "1 missing from expected destination / 250 shown / 259 filtered / 259 rows")
         self.assertEqual(browser_result["pendingStatus"], "250 shown / 260 filtered / 260 rows")
         self.assertEqual(browser_result["posts"], [])
 

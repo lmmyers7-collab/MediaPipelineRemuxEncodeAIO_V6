@@ -4,7 +4,7 @@
 # Compatibility facade for subtitle processing. The public function names remain
 # stable while implementation lives in focused subtitle module files.
 #
-# Dot-sourced from MediaPipeline_chatgpt.ps1. Child modules read the same
+# Dot-sourced from MediaPipeline.ps1. Child modules read the same
 # script-scope configuration and helper functions as the previous monolith.
 # ==============================================================================
 

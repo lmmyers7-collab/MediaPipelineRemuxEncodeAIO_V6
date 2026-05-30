@@ -50,6 +50,7 @@ Code constants live in `DesktopApp/mediapipeline_desktop_app/config_keys.py` and
 | Key | Purpose | Risk note | Builder |
 |---|---|---|---|
 | `RoutingProfile` | High-level route decision preset (e.g., Plex Direct Stream, forced encode) | Determines whether files are remuxed or encoded by default | Builder |
+| `RouteThresholdMode` | Initial route threshold selector: `compatibility_advisory`, `size`, `bitrate`, `size_or_bitrate` | Chooses whether size, bitrate, or both can force encode before remux/copy | Builder |
 | `SizeGuardMode` | How to enforce output size limits relative to source: `advisory`, `strict`, `off` | `strict` blocks completion if output is too large; `off` disables size check entirely | Builder |
 | `MaxEncodeGrowthPercent` | Maximum allowed encode output size as a percentage of source size | Outputs that grow beyond this percentage fail in strict mode | Builder |
 | `CompatibilityEncodeGrowthPercent` | Growth percent threshold used for compatibility-mode encode | Separate from MaxEncodeGrowthPercent to allow higher tolerance for compatibility encodes | Builder |

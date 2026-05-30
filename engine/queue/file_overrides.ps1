@@ -6,7 +6,7 @@
 # Reads file_overrides.json from the pipeline state root and resolves the
 # effective override object for any source path at processing time.
 #
-# Dot-sourced from MediaPipeline_chatgpt.ps1. Reads at call time:
+# Dot-sourced from MediaPipeline.ps1. Reads at call time:
 #   $script:LocalStateLayout  (used for file_overrides.json path)
 #
 # Cross-module helpers (loaded before this module):

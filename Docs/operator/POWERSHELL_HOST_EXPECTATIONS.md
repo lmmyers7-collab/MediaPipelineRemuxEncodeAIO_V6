@@ -39,7 +39,7 @@ This pattern is implemented in:
 - `scripts\release\build.ps1` (`Resolve-ReleasePowerShell`)
 - `scripts\release\test.ps1` (`Resolve-ReleasePowerShell`)
 - `scripts\verify-env.ps1` (`Resolve-CommandPath` with `-RelativePreferred`)
-- `Pipeline\Setup-MediaPipeline_chatgpt.ps1` (`Resolve-PwshPath`)
+- `Pipeline\Setup-MediaPipeline.ps1` (`Resolve-PwshPath`)
 - `scripts\dev\start-tauri-preview.bat` (inline check before script invocation)
 
 ---

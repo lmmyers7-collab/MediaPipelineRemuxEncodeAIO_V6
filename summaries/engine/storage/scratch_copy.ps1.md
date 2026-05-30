@@ -3,9 +3,9 @@ file: engine/storage/scratch_copy.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: storage
-last_modified: 2026-05-28
+last_modified: 2026-05-29
 last_reviewed: 2026-05-29
-sha256: cf9fc311bc32cc6dcaf134fb78bcba64a30a7075a4cea9e9425e8d9f7da9444b
+sha256: 82290e5ddcade7b7e4794293c71c353197a5ee4eb4c797105f83dd44966cb653
 ---
 # `engine/storage/scratch_copy.ps1`
 

@@ -4,7 +4,7 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..\..')
 . (Join-Path $repoRoot 'engine\config\config_keys.ps1')
 . (Join-Path $repoRoot 'engine\config\config_schema.ps1')
 
-$entrypointText = Get-Content -LiteralPath (Join-Path $repoRoot 'Pipeline\MediaPipeline_chatgpt.ps1') -Raw
+$entrypointText = Get-Content -LiteralPath (Join-Path $repoRoot 'Pipeline\MediaPipeline.ps1') -Raw
 if ($entrypointText -notmatch "'ConfigKeys\.ps1'") {
     throw 'Pipeline entrypoint module load list must include ConfigKeys.ps1.'
 }
@@ -41,7 +41,16 @@ if ($networkMissing.Count -gt 0) {
 }
 
 $templateConfig = Import-PowerShellDataFile -Path (Join-Path $repoRoot 'Pipeline\MediaPipeline_config_template.psd1')
-$liveConfig = Import-PowerShellDataFile -Path (Join-Path $repoRoot 'Pipeline\MediaPipeline_config_chatgpt.psd1')
+# Prefer the V7 convention; fall back to the legacy `_chatgpt` operator file
+# if the new file is absent on this machine.
+$liveConfigPath = @(
+    (Join-Path $repoRoot 'Pipeline\MediaPipeline_config.psd1'),
+    (Join-Path $repoRoot 'Pipeline\MediaPipeline_config_chatgpt.psd1')
+) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+if (-not $liveConfigPath) {
+    throw "No live config found at Pipeline\MediaPipeline_config.psd1 or Pipeline\MediaPipeline_config_chatgpt.psd1"
+}
+$liveConfig = Import-PowerShellDataFile -Path $liveConfigPath
 foreach ($pair in @(
     @{ Label = 'template'; Keys = @($templateConfig.Keys) },
     @{ Label = 'live'; Keys = @($liveConfig.Keys) }
@@ -63,7 +72,8 @@ if (Test-MediaPipelineKnownConfigKey -Key 'NotARealConfigKey') {
 }
 
 $scanFiles = @(
-    Get-Item -LiteralPath (Join-Path $repoRoot 'Pipeline\MediaPipeline_chatgpt.ps1')
+    Get-Item -LiteralPath (Join-Path $repoRoot 'Pipeline\MediaPipeline.ps1')
+    Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Pipeline\MediaPipeline') -Filter '*.ps1' -File -ErrorAction SilentlyContinue
     Get-ChildItem -LiteralPath (Join-Path $repoRoot 'engine') -Filter '*.ps1' -File -Recurse
 )
 $patterns = @(

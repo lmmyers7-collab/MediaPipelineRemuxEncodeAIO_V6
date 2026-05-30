@@ -2,7 +2,7 @@
 # Modules\Sidecar.ps1
 # ==============================================================================
 # .pipeline.json sidecar + completed_jobs.jsonl manifest helpers extracted
-# from MediaPipeline_chatgpt.ps1.
+# from MediaPipeline.ps1.
 #
 # Dot-sourced from the main script. Reads the following at call time:
 #

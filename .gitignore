@@ -16,6 +16,7 @@ __pycache__/
 /Pipeline/PowerShell-*-win-x64/
 
 # Tauri/WebView2 shell build artifacts
+node_modules/
 DesktopApp/tauri_shell/node_modules/
 DesktopApp/tauri_shell/src-tauri/target/
 DesktopApp/tauri_shell/src-tauri/gen/
@@ -52,6 +53,9 @@ Pipeline/*_progress.json
 Pipeline/pipeline_progress.json
 Pipeline/audit_progress.json
 Pipeline/.single_instance*
+Pipeline/MediaPipeline_config.psd1
+Pipeline/MediaPipeline_config.backup_*.psd1
+# Legacy operator config name (pre-V7 rename); kept until migration is complete.
 Pipeline/MediaPipeline_config_chatgpt.psd1
 Pipeline/MediaPipeline_config_chatgpt.backup_*.psd1
 

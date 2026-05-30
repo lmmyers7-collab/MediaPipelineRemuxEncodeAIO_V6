@@ -3,9 +3,97 @@
     return document.getElementById(id);
   }
 
+  function diagnosticCalloutText(value) {
+    return String(value === null || value === undefined ? "" : value);
+  }
+
+  function isDiagnosticCalloutText(value) {
+    const text = diagnosticCalloutText(value);
+    if (!text || text.split(/\r?\n/).filter((line) => line.trim()).length < 2) return false;
+    return /(^|\n).*(mutation|lifecycle|auth-token)?\s*guardrail:/i.test(text)
+      || /(^|\n).*button guard:/i.test(text)
+      || /(^|\n).*selected-row diagnostic order:/i.test(text)
+      || /(^|\n).*diagnostics? (handoff|order|allowlist|actions|links|bridge):/i.test(text)
+      || /read-only.*cannot\s+(launch|drain|save|rename|repair|delete|publish|mutate|touch)/i.test(text)
+      || /cannot\s+(launch|drain|save|rename|repair|delete|publish|mutate|touch).*files?/i.test(text);
+  }
+
+  function shouldRenderDiagnosticCallout(node, value) {
+    if (!node || node.dataset?.diagnosticCalloutBody === "true") return false;
+    const eligible = node.classList?.contains("prose-block") || node.classList?.contains("diagnostic-callout");
+    return Boolean(eligible && isDiagnosticCalloutText(value));
+  }
+
+  function ensureDiagnosticCalloutRoot(node) {
+    if (!node) return null;
+    if (node.dataset && !node.dataset.originalClass) {
+      node.dataset.originalClass = node.className || "";
+    }
+    if (node.tagName && String(node.tagName).toLowerCase() === "pre") {
+      const replacement = document.createElement("div");
+      Array.from(node.attributes || []).forEach((attr) => {
+        replacement.setAttribute(attr.name, attr.value);
+      });
+      replacement.dataset.originalClass = node.dataset?.originalClass || node.className || "";
+      node.replaceWith(replacement);
+      return replacement;
+    }
+    return node;
+  }
+
+  function resetDiagnosticCalloutNode(node, value) {
+    if (!node) return;
+    const originalClass = node.dataset?.originalClass;
+    if (originalClass !== undefined) {
+      node.className = originalClass;
+    }
+    node.textContent = diagnosticCalloutText(value);
+  }
+
+  function renderDiagnosticCalloutNode(node, value) {
+    const root = ensureDiagnosticCalloutRoot(node);
+    if (!root) return;
+    const text = diagnosticCalloutText(value);
+    root.className = "diagnostic-callout";
+    root.textContent = "";
+
+    const details = document.createElement("details");
+    details.className = "diagnostic-callout-details";
+    const summary = document.createElement("summary");
+    summary.textContent = "Why?";
+    details.appendChild(summary);
+    const detailsBody = document.createElement("pre");
+    detailsBody.className = "prose-block diagnostic-callout-body";
+    detailsBody.dataset.diagnosticCalloutBody = "true";
+    detailsBody.textContent = text;
+    details.appendChild(detailsBody);
+    root.appendChild(details);
+
+    const advancedBody = document.createElement("pre");
+    advancedBody.className = "prose-block diagnostic-callout-body diagnostic-callout-advanced";
+    advancedBody.dataset.diagnosticCalloutBody = "true";
+    advancedBody.setAttribute("data-advanced", "");
+    advancedBody.textContent = text;
+    root.appendChild(advancedBody);
+  }
+
   function setText(id, value) {
     const node = byId(id);
-    if (node) node.textContent = value;
+    if (!node) return;
+    if (shouldRenderDiagnosticCallout(node, value)) {
+      renderDiagnosticCalloutNode(node, value);
+      return;
+    }
+    resetDiagnosticCalloutNode(node, value);
+  }
+
+  function applyDiagnosticCallouts(root = document) {
+    if (!root?.querySelectorAll) return;
+    root.querySelectorAll(".prose-block").forEach((node) => {
+      if (shouldRenderDiagnosticCallout(node, node.textContent || "")) {
+        renderDiagnosticCalloutNode(node, node.textContent || "");
+      }
+    });
   }
 
   function clearRows(tbody, columns, message) {
@@ -655,6 +743,7 @@
   window.mediaPipelineDom = {
     byId,
     setText,
+    applyDiagnosticCallouts,
     stateFromStatusText,
     setTextState,
     clearRows,
@@ -686,6 +775,7 @@
   };
   window.byId = byId;
   window.setText = setText;
+  window.applyDiagnosticCallouts = applyDiagnosticCallouts;
   window.setTextState = setTextState;
   window.clearRows = clearRows;
   window.appendCells = appendCells;

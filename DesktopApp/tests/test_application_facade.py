@@ -79,6 +79,7 @@ class DummyFacadeService(AppStateScheduleServiceMixin):
         self.saved_config_calls: list[dict[str, object]] = []
         self.release_build_calls: list[dict[str, object]] = []
         self._completed_history_cache_key: str | None = None
+        self._completed_history_cache_limit_key = ""
         self._completed_history_cached_at = 0.0
         self._completed_history_manifest_mtime = 0.0
         self._completed_history_records = []

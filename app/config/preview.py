@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from app.config.library_profiles import mirror_legacy_keys_from_library_profiles
 from mediapipeline_desktop_app.models import ConfigPreview
 from app.shared.constants import (
     AUDIO_PASSTHROUGH_PROFILE_CODECS,
@@ -41,7 +42,9 @@ def build_config_preview(
     if audio_profile in AUDIO_PASSTHROUGH_PROFILE_CODECS and "CompatibleAudioCodecs" in managed_keys:
         merged["CompatibleAudioCodecs"] = list(AUDIO_PASSTHROUGH_PROFILE_CODECS[audio_profile])
 
-    errors, warnings = validate_values(managed_values)
+    merged = mirror_legacy_keys_from_library_profiles(merged, require_profiles=True)
+
+    errors, warnings = validate_values(merged)
     preview_text = serialize_document(merged)
     return ConfigPreview(
         merged_config=merged,

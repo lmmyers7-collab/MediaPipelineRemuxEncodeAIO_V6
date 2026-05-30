@@ -85,7 +85,7 @@ def _write_temp_config(root: Path) -> Path:
     for directory in (local_base, source_movies, source_tv, outsource):
         directory.mkdir(parents=True, exist_ok=True)
 
-    config_path = root / "MediaPipeline_config_chatgpt.psd1"
+    config_path = root / "MediaPipeline_config.psd1"
     config_path.write_text(
         "\n".join(
             [

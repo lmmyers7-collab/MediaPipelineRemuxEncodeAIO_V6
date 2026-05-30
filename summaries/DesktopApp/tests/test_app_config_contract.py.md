@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-05-29
 last_reviewed: 2026-05-29
-sha256: de11ace18e0d43651d99071441b4bb526c7e7bfd75ec06b85e66bf4d29b22ba6
+sha256: 557fc37a78bfa36dec975da2e7190552c99223ec7ce6180444b5fdff596ee034
 ---
 # `DesktopApp/tests/test_app_config_contract.py`
 

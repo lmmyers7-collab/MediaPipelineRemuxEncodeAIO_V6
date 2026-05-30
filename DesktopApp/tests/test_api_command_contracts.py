@@ -54,6 +54,9 @@ class ApiCommandContractsTests(unittest.TestCase):
             "/api/settings/preview-patch": {"changes": {}, "values": {}},
             "/api/settings/save-patch": {"changes": {}, "confirm_save": True, "values": {}},
             "/api/maintenance/release-build": {"destination_root": "C:/Deploy", "output_root": "C:/Other"},
+            "/api/final-library-promotion/promote-queue": {"confirm_promote": True, "row_key": "client-owned"},
+            "/api/final-library-promotion/pause": {"run_id": "run-1", "row_key": "client-owned"},
+            "/api/final-library-promotion/resume": {"run_id": "run-1", "row_key": "client-owned"},
         }
 
         for route, payload in high_risk_payloads.items():
@@ -73,6 +76,18 @@ class ApiCommandContractsTests(unittest.TestCase):
                 {"paths": [], "selected_sources": [], "confirm_apply": True, "allow_outside_configured_roots": False},
             ),
             {"paths": [], "selected_sources": [], "confirm_apply": True, "allow_outside_configured_roots": False},
+        )
+        self.assertEqual(
+            validate_api_payload("/api/final-library-promotion/promote-queue", {"confirm_promote": True}),
+            {"confirm_promote": True},
+        )
+        self.assertEqual(
+            validate_api_payload("/api/final-library-promotion/pause", {"run_id": "run-1"}),
+            {"run_id": "run-1"},
+        )
+        self.assertEqual(
+            validate_api_payload("/api/final-library-promotion/resume", {"run_id": "run-1"}),
+            {"run_id": "run-1"},
         )
 
     def test_non_object_payload_still_fails_at_api_boundary(self) -> None:

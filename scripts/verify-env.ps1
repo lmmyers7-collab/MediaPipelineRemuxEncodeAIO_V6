@@ -194,12 +194,18 @@ $pipelineRoot = Join-Path $script:Root 'Pipeline'
 $script:PipelineRoot = $pipelineRoot
 
 $desktopPackage = Join-Path $desktopRoot 'mediapipeline_desktop_app'
-$pipelineSetup = Join-Path $pipelineRoot 'Setup-MediaPipeline_chatgpt.ps1'
+$pipelineSetup = Join-Path $pipelineRoot 'Setup-MediaPipeline.ps1'
 $pipelineRun = Join-Path $script:Root 'scripts\dev\run.bat'
-$pipelineScript = Join-Path $pipelineRoot 'MediaPipeline_chatgpt.ps1'
-$pipelineConfig = Join-Path $pipelineRoot 'MediaPipeline_config_chatgpt.psd1'
-$auditScript = Join-Path $pipelineRoot 'Audit-MediaLibrary_chatgpt.ps1'
-$subtitleHelper = Join-Path $pipelineRoot 'ass_to_srt_chatgpt.py'
+$pipelineScript = Join-Path $pipelineRoot 'MediaPipeline.ps1'
+$pipelineConfig = @(
+    Join-Path $pipelineRoot 'MediaPipeline_config.psd1'
+    Join-Path $pipelineRoot 'MediaPipeline_config_chatgpt.psd1'
+) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+if (-not $pipelineConfig) {
+    $pipelineConfig = Join-Path $pipelineRoot 'MediaPipeline_config.psd1'
+}
+$auditScript = Join-Path $pipelineRoot 'Audit-MediaLibrary.ps1'
+$subtitleHelper = Join-Path $pipelineRoot 'ass_to_srt.py'
 
 $pythonGui = Resolve-CommandPath -Candidates @('pythonw','pythonw.exe','python','python.exe') -RelativePreferred @('DesktopApp\Runtime\Python\pythonw.exe','DesktopApp\Runtime\Python\python.exe','Pipeline\Runtime\Python\python.exe') -RejectWindowsApps
 $pythonCli = Resolve-CommandPath -Candidates @('python','python.exe') -RelativePreferred @('DesktopApp\Runtime\Python\python.exe','Pipeline\Runtime\Python\python.exe') -RejectWindowsApps

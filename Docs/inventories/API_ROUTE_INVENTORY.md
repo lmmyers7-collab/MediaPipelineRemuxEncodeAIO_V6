@@ -4,17 +4,17 @@ Date: 2026-05-20
 
 Full inventory of all Local API routes: route, method, effect class, backend contract/handler, mutation risk, primary frontend caller, and test coverage. Source: `contract_read.py`, `contract_command.py`, `routes_read.py`, `routes_command.py`.
 
-Total: 54 routes — 25 GET (read) + 29 POST (command).
+Total: 68 routes — 29 GET (read) + 39 POST (command).
 
 All routes require the bootstrap token (`X-Desktop-Token`) except `GET /api/health`.
 
 ---
 
-## GET Routes (Read — 25 routes)
+## GET Routes (Read — 29 routes)
 
 All GET routes return data only. None launch pipeline work, write config, drain pending outputs, rename files, or mutate queue or manifest state.
 
-### Status Group (10 routes)
+### Status Group (11 routes)
 
 | Route | Effect | Response Schema | Frontend Caller | Auth | Backend Test Coverage |
 |---|---|---|---|---|---|
@@ -26,12 +26,13 @@ All GET routes return data only. None launch pipeline work, write config, drain 
 | `GET /api/diagnostics/tail` | `none` | `desktop_diagnostics_tail.v1` | Diagnostics | Yes | `test_facade_diagnostics_policy.py`, `test_application_facade_local_api.py` |
 | `GET /api/diagnostics/state-summary` | `none` | `desktop_diagnostics_state_summary.v1` | Diagnostics | Yes | `test_facade_diagnostics_policy.py`, `test_application_facade_local_api.py` |
 | `GET /api/backend/close-readiness` | `none` | `desktop_close_readiness.v1` | Tauri shell (close flow) | Yes | `test_tauri_shell_scaffold.py`, `test_local_api_lifecycle_contract_smoke.py`, `test_application_facade_local_api.py` |
+| `GET /api/ui-preferences` | `none` | `desktop_ui_preferences.v1` | Chrome WebView, Tauri shell | Yes | `test_application_facade_core_contracts.py`, `test_webview_frontend_mutation_boundary.py` |
 | `GET /api/launch/preflight` | `none` | `desktop_launch_preflight.v1` + nested `desktop_launch_readiness.v1` | Launch | Yes | `test_service_process_readiness.py`, `test_facade_process_pipeline_policy.py`, `test_application_facade_process_launch.py`, `test_application_facade_local_api.py` |
 | `GET /api/commands` | `none` | `desktop_command_history.v1` | Diagnostics, Home | Yes | `test_api_command_journal_policy.py`, `test_application_facade_local_api.py` |
 
 Query params: `/api/diagnostics/tail` accepts `target` (allowlisted key) and `max_bytes` (1 KB–256 KB); backend tail evidence includes `evidence_authority=backend`, and any WebView fallback over older/no-evidence payloads must be labelled frontend advisory only. `/api/launch/preflight` accepts target-specific read-only start-intent fields and returns nested backend `operator_readiness` (`desktop_launch_readiness.v1`) so Launch readiness rendering does not have to infer start posture from DOM state. `/api/commands` accepts `limit`. `/api/failures` accepts `source` and `limit`. `/api/queue/file-overrides` accepts optional `path` and validates it under `SourceMovies`/`SourceTV`.
 
-### Inventory Group (9 routes)
+### Inventory Group (10 routes)
 
 | Route | Effect | Response Schema | Frontend Caller | Auth | Backend Test Coverage |
 |---|---|---|---|---|---|
@@ -40,6 +41,7 @@ Query params: `/api/diagnostics/tail` accepts `target` (allowlisted key) and `ma
 | `GET /api/queue/strategy` | `none` | `queue_strategy_state.v1` | Queue | Yes | `test_application_facade_local_api.py` |
 | `GET /api/queue/file-overrides` | `none` | `queue_file_overrides.v1` | Queue | Yes | `test_application_facade_local_api.py` |
 | `GET /api/completed` | `none` | `desktop_completed_preview.v1` | Completed | Yes | `test_facade_completed_policy.py`, `test_service_completed_manifest.py` |
+| `GET /api/final-library-promotion/status` | `none` | `desktop_final_library_promotion_status.v1` | Completed | Yes | `test_final_library_promotion.py` |
 | `GET /api/failures` | `none` | `desktop_failure_preview.v1` | Reports, Diagnostics | Yes | `test_facade_failures_policy.py`, `test_service_failure_markers.py` |
 | `GET /api/audit-results` | `none` | `desktop_audit_preview.v1` | Reports | Yes | `test_facade_audit_policy.py`, `test_service_audit_rerun_records.py` |
 | `GET /api/pending-publish` | `none` | `desktop_pending_publish_preview.v1` | Pending Publish | Yes | `test_facade_pending_publish_policy.py`, `test_service_pending_publish_manifest.py` |
@@ -51,7 +53,7 @@ Repair/reconcile mutation remains design-only. `/api/contract` publishes the fut
 
 Network lifecycle mutation remains design-only. `/api/contract` publishes the future dry-run, process cleanup/rollback, source-file, and route-exposure gates for coordinator/worker lifecycle commands, but there are no Network start/stop/reclaim/release/worker-polling POST routes in this inventory and no WebView controls may call one until `Docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` is satisfied.
 
-### Workspace Group (6 routes)
+### Workspace Group (8 routes)
 
 | Route | Effect | Response Schema | Frontend Caller | Auth | Backend Test Coverage |
 |---|---|---|---|---|---|
@@ -59,6 +61,8 @@ Network lifecycle mutation remains design-only. `/api/contract` publishes the fu
 | `GET /api/maintenance/progress` | `none` | `desktop_maintenance_health_progress.v1` | Maintenance | Yes | `test_application_facade_maintenance.py` |
 | `GET /api/schedule` | `none` | `desktop_schedule_workspace.v1` | Schedule | Yes | `test_facade_schedule_policy.py`, `test_application_facade_schedule.py` |
 | `GET /api/settings/workspace` | `none` | `desktop_settings_workspace.v1` | Settings | Yes | `test_facade_settings_policy.py`, `test_application_facade_settings_workspace.py` |
+| `GET /api/settings/wizard/status` | `none` | `desktop_settings_wizard_status.v1` | Settings Wizard | Yes | `test_api_command_contracts.py`, `test_application_facade_settings_workspace.py` |
+| `GET /api/settings/wizard/defaults` | `none` | `desktop_settings_wizard.v1` | Settings Wizard | Yes | `test_api_command_contracts.py`, `test_application_facade_settings_workspace.py` |
 | `GET /api/network/workers` | `none` | `desktop_network_workers.v1` | Network | Yes | `test_network_view_source_policy.py`, `test_application_facade_network.py` |
 | `GET /api/sample-validation` | `none` | `desktop_sample_validation_log.v1` + readiness + reconciliation + pilot plan/checkpoints + execution checklist + generated worksheet runs | Home (Validation Log) | Yes | `test_sample_validation_api.py` |
 
@@ -66,7 +70,7 @@ Network lifecycle mutation remains design-only. `/api/contract` publishes the fu
 
 ---
 
-## POST Routes (Command — 29 routes)
+## POST Routes (Command — 39 routes)
 
 All POST routes require auth. File-open routes pass row keys or allowlisted target keys. Queue state routes accept only absolute paths under backend-configured `SourceMovies`/`SourceTV` roots and write non-destructive state manifests.
 
@@ -99,6 +103,16 @@ Priority and file override path writes are rejected unless the submitted path is
 
 `recovery-plan` builds a backend-authored dry-run plan and returns it. No files are drained, moved, deleted, or published.
 
+### Final Library Promotion Commands (3 routes)
+
+| Route | Effect | Key Request Keys | Frontend Caller | Mutation Risk | Backend Test Coverage |
+|---|---|---|---|---|---|
+| `POST /api/final-library-promotion/promote-queue` | `filesystem-mutation` | `confirm_promote` | Completed | **High** — starts backend-owned final-library copy/promotion run after confirmation | `test_final_library_promotion.py`, `test_api_command_contracts.py` |
+| `POST /api/final-library-promotion/pause` | `control-state-write` | `run_id` | Completed | Medium — writes cooperative pause state for the active promotion run only | `test_final_library_promotion.py`, `test_api_command_contracts.py` |
+| `POST /api/final-library-promotion/resume` | `control-state-write` | `run_id` | Completed | Medium — clears cooperative pause state for the active promotion run only | `test_final_library_promotion.py`, `test_api_command_contracts.py` |
+
+Final-library promotion is backend-owned. The frontend can request the run, pause, or resume with allowlisted keys, but the backend owns destination resolution, completed-output eligibility, copy behavior, pause state, and any configured publish-output cleanup.
+
 ### Diagnostics Open Command (1 route)
 
 | Route | Effect | Allowed Targets | Frontend Caller | Mutation Risk | Backend Test Coverage |
@@ -108,6 +122,14 @@ Priority and file override path writes are rejected unless the submitted path is
 Allowlisted targets (20): `run_logs`, `cluster_log`, `config`, `config_folder`, `workspace`, `state`, `pending_publish`, `failed_reports`, `failed_markers`, `audit_reports`, `queue_snapshot`, `active_jobs`, `completed_manifest`, `latest_failure_report`, `latest_failure_json`, `latest_audit_csv`, `latest_priority_csv`, `last_stdout_log`, `last_stderr_log`, `sample_validation_log`.
 
 Full target catalog: `Docs/archive/completed-audits/DIAGNOSTICS_TARGET_ALLOWLIST_AUDIT.md`.
+
+### UI Preference Commands (1 route)
+
+| Route | Effect | Key Request Keys | Frontend Caller | Mutation Risk | Backend Test Coverage |
+|---|---|---|---|---|---|
+| `POST /api/ui-preferences` | `ui-state-write` | `storage`, `source_surface` | Chrome WebView, Tauri shell | Low — writes allowlisted UI preference JSON only | `test_application_facade_core_contracts.py`, `test_webview_frontend_mutation_boundary.py` |
+
+`ui-preferences` persists browser-local UI customization such as layout, theme, evidence visibility, and selected tabs under `LocalBase\State`. It does not save settings, mutate queue state, launch work, drain, rename, publish, or touch media files.
 
 ### Maintenance Commands (3 routes)
 
@@ -129,7 +151,7 @@ The dry-run routes do not write a release folder, zip, manifest, or completed ma
 
 `rename/browse` is a non-mutating path-selection helper: the backend opens the Windows file/folder browser and returns operator-selected paths for staging. It does not preview, apply, rename, move, delete, or touch media files. `rename/apply` requires `confirm_apply: true`. Backend rebuilds the rename plan from its own state, not from the frontend-submitted plan. If selected paths are outside backend-injected configured media roots, the backend also requires `allow_outside_configured_roots: true` after explicit operator review.
 
-### Settings Commands (5 routes)
+### Settings Commands (11 routes)
 
 | Route | Effect | Key Request Keys | Frontend Caller | Mutation Risk | Backend Test Coverage |
 |---|---|---|---|---|---|
@@ -137,9 +159,15 @@ The dry-run routes do not write a release folder, zip, manifest, or completed ma
 | `POST /api/settings/browse-path` | `shell-dialog` | `setting_key`, `selection_mode`, `initial_path` | Settings | Low — backend-owned native Windows folder browser for allowlisted path fields only | `test_application_facade_local_api.py`, `test_api_path_dialogs.py`, `test_webview_frontend_mutation_boundary.py` |
 | `POST /api/settings/preview-patch` | `none` | `changes`, `remove_keys` | Settings | None — returns redacted diff | `test_facade_settings_patch_policy.py`, `test_service_config_preview.py` |
 | `POST /api/settings/save-patch` | `config-write` | `changes`, `remove_keys`, `confirm_save` | Settings | **High** — writes PSD1 config | `test_facade_settings_patch_policy.py`, `test_service_config_save_runner.py` |
+| `POST /api/settings/wizard/validate-paths` | `none` | `wizard` | Settings Wizard | None — validation only | `test_api_command_contracts.py` |
+| `POST /api/settings/wizard/validate-tools` | `none` | `wizard` | Settings Wizard | None — validation only | `test_api_command_contracts.py` |
+| `POST /api/settings/wizard/probe-hardware` | `none` | `wizard` | Settings Wizard | None — bounded probe evidence only | `test_api_command_contracts.py` |
+| `POST /api/settings/wizard/validate-workers` | `none` | `wizard` | Settings Wizard | None — validation only | `test_api_command_contracts.py` |
+| `POST /api/settings/wizard/preview` | `none` | `wizard` | Settings Wizard | None — preview only | `test_api_command_contracts.py` |
+| `POST /api/settings/wizard/save` | `config-write` | `wizard`, `confirm_save` | Settings Wizard | **High** — writes PSD1 config through the normal backend save path | `test_api_command_contracts.py` |
 | `POST /api/settings/reload` | `none` | *(none)* | Settings | None — reloads cached state | `test_facade_settings_policy.py` |
 
-`browse-path` opens only the backend-owned Windows folder browser for allowlisted Settings path fields (`SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`) and returns selected-folder validation evidence for WebView staging. It does not save the PSD1, launch work, rewrite queue state, or touch media files. `save-patch` requires `confirm_save: true`. Backend backs up current config before writing. Frontend cannot write the PSD1 file directly.
+`browse-path` opens only the backend-owned Windows folder browser for allowlisted Settings path fields (`SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`) and returns selected-folder validation evidence for WebView staging. It does not save the PSD1, launch work, rewrite queue state, or touch media files. Settings Wizard validation/preview routes share the same backend policy without writing config. `settings/wizard/save` and `save-patch` require `confirm_save: true`; backend backs up current config before writing. Frontend cannot write the PSD1 file directly.
 
 ### Schedule Commands (2 routes)
 
@@ -177,19 +205,21 @@ The dry-run routes do not write a release folder, zip, manifest, or completed ma
 
 | Effect | Count | Routes |
 |---|---|---|
-| `none` (read-only) | 31 | All non-probing GET routes + preview/validate/reload POSTs |
+| `none` (read-only) | 40 | All non-probing GET routes + preview/validate/reload POSTs |
 | `bounded-health-check` | 1 | `GET /api/maintenance` |
 | `shell-open` | 4 | `POST /api/queue/open`, `completed/open`, `pending-publish/open`, `diagnostics/open` |
 | `shell-dialog` | 2 | `POST /api/rename/browse`, `POST /api/settings/browse-path` |
+| `ui-state-write` | 1 | `POST /api/ui-preferences` |
 | `queue-state-write` | 3 | `POST /api/queue/priority`, `queue/strategy`, `queue/file-overrides` |
 | `failure-marker-write` | 1 | `POST /api/failures/clear` |
 | `process-dry-run` | 2 | `POST /api/maintenance/release-dry-run`, `maintenance/completed-backfill-dry-run` |
 | `deployment-write` | 1 | `POST /api/maintenance/release-build` |
+| `control-state-write` | 2 | `POST /api/final-library-promotion/pause`, `final-library-promotion/resume` |
 | `control-flag-write` | 1 | `POST /api/pipeline/control` |
 | `validation-log-write` | 1 | `POST /api/sample-validation/append` |
 | `app-state-write` | 1 | `POST /api/schedule/save` |
-| `config-write` | 1 | `POST /api/settings/save-patch` |
-| `filesystem-mutation` | 1 | `POST /api/rename/apply` |
+| `config-write` | 2 | `POST /api/settings/save-patch`, `settings/wizard/save` |
+| `filesystem-mutation` | 2 | `POST /api/rename/apply`, `final-library-promotion/promote-queue` |
 | `process-launch` | 3 | `POST /api/pipeline/start`, `audit/start`, `rerun/start` |
 | `backend-lifecycle` | 1 | `POST /api/backend/shutdown` |
 

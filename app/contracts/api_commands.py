@@ -80,6 +80,11 @@ class SettingsSavePatchCommandPayload(StrictApiCommandPayload):
     confirm_save: Any = None
 
 
+class SettingsWizardCommandPayload(ApiCommandPayload):
+    wizard: Any = None
+    confirm_save: Any = None
+
+
 class SettingsBrowsePathCommandPayload(ApiCommandPayload):
     setting_key: Any = None
     selection_mode: Any = None
@@ -156,6 +161,11 @@ class BackendShutdownCommandPayload(StrictApiCommandPayload):
     force_active_work_shutdown: Any = None
 
 
+class UiPreferencesCommandPayload(StrictApiCommandPayload):
+    storage: Any = None
+    source_surface: Any = None
+
+
 class MaintenanceCommandPayload(ApiCommandPayload):
     dry_run: Any = None
     include_package_check: Any = None
@@ -189,6 +199,14 @@ class FailureCommandPayload(ApiCommandPayload):
     scope: Any = None
 
 
+class FinalLibraryPromoteQueueCommandPayload(StrictApiCommandPayload):
+    confirm_promote: Any = None
+
+
+class FinalLibraryPromotionRunCommandPayload(StrictApiCommandPayload):
+    run_id: Any = None
+
+
 COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/rename/preview": RenameCommandPayload,
     "/api/rename/browse": RenameCommandPayload,
@@ -206,6 +224,12 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/settings/browse-path": SettingsBrowsePathCommandPayload,
     "/api/settings/preview-patch": SettingsPreviewPatchCommandPayload,
     "/api/settings/save-patch": SettingsSavePatchCommandPayload,
+    "/api/settings/wizard/validate-paths": SettingsWizardCommandPayload,
+    "/api/settings/wizard/validate-tools": SettingsWizardCommandPayload,
+    "/api/settings/wizard/probe-hardware": SettingsWizardCommandPayload,
+    "/api/settings/wizard/validate-workers": SettingsWizardCommandPayload,
+    "/api/settings/wizard/preview": SettingsWizardCommandPayload,
+    "/api/settings/wizard/save": SettingsWizardCommandPayload,
     "/api/schedule/preview": ScheduleCommandPayload,
     "/api/schedule/save": ScheduleCommandPayload,
     "/api/maintenance/release-dry-run": MaintenanceCommandPayload,
@@ -219,6 +243,10 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/audit/start": ProcessControlCommandPayload,
     "/api/rerun/start": ProcessControlCommandPayload,
     "/api/backend/shutdown": BackendShutdownCommandPayload,
+    "/api/ui-preferences": UiPreferencesCommandPayload,
+    "/api/final-library-promotion/promote-queue": FinalLibraryPromoteQueueCommandPayload,
+    "/api/final-library-promotion/pause": FinalLibraryPromotionRunCommandPayload,
+    "/api/final-library-promotion/resume": FinalLibraryPromotionRunCommandPayload,
 }
 
 

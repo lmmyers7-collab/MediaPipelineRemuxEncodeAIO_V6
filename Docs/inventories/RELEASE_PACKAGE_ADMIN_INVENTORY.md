@@ -64,11 +64,11 @@ Documents what a clean release package is expected to include and exclude. Sourc
 
 | File / Path | Included by default | Notes |
 |---|---|---|
-| `Pipeline\MediaPipeline_chatgpt.ps1` | Yes | Backend pipeline entry point |
+| `Pipeline\MediaPipeline.ps1` | Yes | Backend pipeline entry point |
 | `engine\**\*.ps1` | Yes | Active PowerShell engine implementations |
 | `Pipeline\Modules\*.ps1` | Yes | Temporary compatibility shims for legacy dot-source paths |
-| `Pipeline\Setup-MediaPipeline_chatgpt.ps1` | Yes | Setup wizard |
-| `Pipeline\Audit-MediaLibrary_chatgpt.ps1` | Yes | Audit script |
+| `Pipeline\Setup-MediaPipeline.ps1` | Yes | Setup wizard |
+| `Pipeline\Audit-MediaLibrary.ps1` | Yes | Audit script |
 | `Pipeline\Invoke-RerunCsv.ps1` | Yes | CSV rerun script |
 | `Pipeline\Backfill-CompletedManifest.ps1` | Yes | Backfill script |
 | `Pipeline\MediaPipeline_config_template.psd1` | Yes | New-user config template |

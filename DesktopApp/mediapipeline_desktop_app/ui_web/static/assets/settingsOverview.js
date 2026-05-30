@@ -184,6 +184,7 @@
 
     [
       ["RoutingProfile", "Routing profile"],
+      ["RouteThresholdMode", "Route threshold mode"],
       ["SizeGuardMode", "Size guard mode"],
       ["AllowH264RemuxIfPlexCompatible", "H.264 remux when Plex-compatible"],
       ["H264RemuxMaxBitrateMbps", "H.264 remux max bitrate Mbps"],

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: contracts
 last_modified: 2026-05-29
 last_reviewed: 2026-05-28
-sha256: 42f92514475db7fa036d6aa20fa2bd957b4f48801aa7feab5b0aa25d57bae02a
+sha256: 55ae4097a685faa2636889eadb4a0da6b294932032e3a4b1959cf00469fd329e
 ---
 # `app/contracts/stages.py`
 

@@ -10,6 +10,7 @@ from ...config_keys import (
     KEY_AUDIO_PASSTHROUGH_PROFILE,
     KEY_DEFERRED_PUBLISH,
     KEY_OUTPUT_CONTAINER,
+    KEY_ROUTE_THRESHOLD_MODE,
     KEY_ROUTING_PROFILE,
     KEY_SIZE_GUARD_MODE,
 )
@@ -321,7 +322,14 @@ def _settings_readiness_row(resolved: ResolvedPaths) -> dict[str, Any]:
     config = resolved.config_data if isinstance(resolved.config_data, Mapping) else {}
     if not config:
         return _readiness_row("Saved media policy posture", "missing", "No saved config data is loaded.", "Open Settings and confirm routing, subtitle, audio, size, and pending-publish posture before recording evidence.")
-    keys = (KEY_ROUTING_PROFILE, KEY_SIZE_GUARD_MODE, KEY_OUTPUT_CONTAINER, KEY_DEFERRED_PUBLISH, KEY_AUDIO_PASSTHROUGH_PROFILE)
+    keys = (
+        KEY_ROUTING_PROFILE,
+        KEY_ROUTE_THRESHOLD_MODE,
+        KEY_SIZE_GUARD_MODE,
+        KEY_OUTPUT_CONTAINER,
+        KEY_DEFERRED_PUBLISH,
+        KEY_AUDIO_PASSTHROUGH_PROFILE,
+    )
     present = {key: _clean_text(config.get(key)) for key in keys if _clean_text(config.get(key))}
     evidence = "; ".join(f"{key}={value}" for key, value in present.items()) or "Config loaded without common media policy keys."
     status = "ready" if len(present) >= 3 else "review"

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: naming
 last_modified: 2026-05-29
 last_reviewed: 2026-05-29
-sha256: 01080b738a9e110c200b770b9ae929cd9122a544dc6c9cd54399646c6bf2cc94
+sha256: 6e27398155535fb0cbcf78c21df3a389252c8639f981cff510487fff2553a08f
 ---
 # `engine/naming/naming.ps1`
 

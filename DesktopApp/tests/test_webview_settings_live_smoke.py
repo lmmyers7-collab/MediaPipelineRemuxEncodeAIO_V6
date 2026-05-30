@@ -12,7 +12,7 @@ from mediapipeline_desktop_app.webview_settings_live_smoke import run_smoke
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 APP_ROOT = PROJECT_ROOT / "DesktopApp"
-PIPELINE_PATH = PROJECT_ROOT / "Pipeline" / "MediaPipeline_chatgpt.ps1"
+PIPELINE_PATH = PROJECT_ROOT / "Pipeline" / "MediaPipeline.ps1"
 
 
 def _ps_quote(path: Path) -> str:

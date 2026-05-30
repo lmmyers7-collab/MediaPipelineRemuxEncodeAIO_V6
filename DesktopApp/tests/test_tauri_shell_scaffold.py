@@ -23,7 +23,7 @@ RELEASE_TEST_SCRIPT = PROJECT_ROOT / "scripts" / "release" / "test.ps1"
 
 def _tauri_rust_source() -> str:
     """Return all Tauri shell Rust sources as one static-audit surface."""
-    return "\n".join(path.read_text(encoding="utf-8") for path in sorted(TAURI_SRC_ROOT.glob("*.rs")))
+    return "\n".join(path.read_text(encoding="utf-8") for path in sorted(TAURI_SRC_ROOT.rglob("*.rs")))
 
 
 class TauriShellScaffoldTests(unittest.TestCase):
@@ -125,7 +125,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("MEDIA_PIPELINE_TAURI_TEST_AUTOLAUNCH_SINGLE_FILE", source)
         self.assertIn('button.click();', source)
         self.assertIn("WebviewWindowBuilder", source)
-        self.assertNotIn("MediaPipeline_chatgpt.ps1", source)
+        self.assertNotIn("MediaPipeline.ps1", source)
         self.assertNotIn('.arg("ffmpeg")', source.casefold())
         self.assertNotIn("command::new(\"ffmpeg", source.casefold())
         self.assertNotIn("command::new('ffmpeg", source.casefold())
@@ -371,7 +371,11 @@ class TauriShellScaffoldTests(unittest.TestCase):
 
     def test_tauri_shell_required_routes_match_python_local_api_contract(self) -> None:
         source = _tauri_rust_source()
-        match = re.search(r"for \(method, path, auth_required\) in \[(.*?)\]\s*\{", source, re.S)
+        match = re.search(
+            r"REQUIRED_ROUTES:\s*&\[\(&str,\s*&str,\s*bool\)\]\s*=\s*&\[(.*?)\];",
+            source,
+            re.S,
+        )
         self.assertIsNotNone(match)
         rust_routes = set(
             re.findall(
@@ -627,7 +631,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("Docs\\PG3CleanMachineReports", source)
         self.assertNotIn("Start-Process", source)
         self.assertNotIn("/api/pipeline/start", source)
-        self.assertNotIn("MediaPipeline_chatgpt.ps1", source)
+        self.assertNotIn("MediaPipeline.ps1", source)
 
     def test_release_self_test_child_script_checks_are_bounded(self) -> None:
         source = RELEASE_TEST_SCRIPT.read_text(encoding="utf-8")
@@ -724,7 +728,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("$setupValidatorTimeoutSeconds = 180", source)
 
     def test_setup_validate_only_uses_bounded_path_probes(self) -> None:
-        source = (PROJECT_ROOT / "Pipeline" / "Setup-MediaPipeline_chatgpt.ps1").read_text(encoding="utf-8")
+        source = (PROJECT_ROOT / "Pipeline" / "Setup-MediaPipeline.ps1").read_text(encoding="utf-8")
 
         self.assertIn("function Invoke-SetupValidationProbe", source)
         self.assertIn("function Test-ValidationPathExists", source)
@@ -767,8 +771,8 @@ class TauriShellScaffoldTests(unittest.TestCase):
         config = json.loads((TAURI_ROOT / "src-tauri" / "tauri.conf.json").read_text(encoding="utf-8"))
 
         icons = config["bundle"]["icon"]
-        self.assertIn("icons/icon.ico", icons)
-        self.assertTrue((TAURI_ROOT / "src-tauri" / "icons" / "icon.ico").exists())
+        self.assertIn("icons/launcher-logo.ico", icons)
+        self.assertTrue((TAURI_ROOT / "src-tauri" / "icons" / "launcher-logo.ico").exists())
 
     def test_tauri_launch_checker_detects_window_and_backend_cleanup(self) -> None:
         source = (TAURI_ROOT / "Test-TauriShell-Launch.ps1").read_text(encoding="utf-8")
@@ -1110,19 +1114,19 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("test_real_browser_clicks_table_rows_before_read_only_diagnostics_handoffs", source)
         self.assertIn("tableClickRows", source)
         self.assertIn("#queue-rows tr[data-row-key]", source)
-        self.assertIn("#completed-rows tr[data-row-key]", source)
+        self.assertIn("#completed-history-rows tr[data-row-key]", source)
         self.assertIn("#pending-rows tr[data-row-key]", source)
         self.assertIn("queue-filter-summary", source)
         self.assertIn("completed-filter-summary", source)
         self.assertIn("pending-filter-summary", source)
         self.assertIn("queue-status-filter", source)
-        self.assertIn("completed-status-filter", source)
+        self.assertIn("completed-history-status-filter", source)
         self.assertIn("pending-status-filter", source)
         self.assertIn("queue-investigation-filter", source)
-        self.assertIn("completed-investigation-filter", source)
+        self.assertIn("completed-history-investigation-filter", source)
         self.assertIn("pending-investigation-filter", source)
         self.assertIn("queue-clear-filters-button", source)
-        self.assertIn("completed-clear-filters-button", source)
+        self.assertIn("completed-history-clear-filters-button", source)
         self.assertIn("pending-clear-filters-button", source)
         self.assertIn("Selected row visible in table: no", source)
         self.assertIn("Selected row visible in table: yes", source)
@@ -1649,10 +1653,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("DesktopApp.tests.test_webview_browser_layout_manager_smoke", source)
         self.assertIn("temporary local API against generated temporary state", source)
         self.assertIn("Chrome/Edge headless", source)
-        self.assertIn("real backend-served WebView customize mode", source)
+        self.assertIn("real backend-served Layout Editor drawer", source)
         self.assertIn("Queue, Completed, Settings, Diagnostics, Launch, and Reports", source)
-        self.assertIn("customize bars and draggable panel handles", source)
-        self.assertIn("inactive Settings-family subtabs", source)
+        self.assertIn("listed in the drawer", source)
+        self.assertIn("inactive Settings-family subtabs stay hidden", source)
         self.assertIn("no backend mutation routes are posted", source)
         self.assertIn("media/sidecar/manifest fixture artifacts stay unchanged", source)
         self.assertIn("does not process media", source)
@@ -1742,7 +1746,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
-        self.assertNotIn("MediaPipeline_chatgpt.ps1", source)
+        self.assertNotIn("MediaPipeline.ps1", source)
         self.assertNotIn("/api/rename/apply", source)
         self.assertNotIn("/api/settings/save-patch", source)
         self.assertNotIn("/api/pending-publish/drain", source)

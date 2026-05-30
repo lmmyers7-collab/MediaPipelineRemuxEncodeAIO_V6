@@ -7,6 +7,7 @@ instead of using snake_case aliases so round-trips do not need a key map.
 
 from __future__ import annotations
 
+import json
 from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -45,10 +46,12 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "SourceMovies",
     "SourceTV",
     "Outsource",
+    "LibraryProfiles",
     "LocalBase",
     "EncodeThresholdGB",
     "TVEncodeThresholdGB",
     "RoutingProfile",
+    "RouteThresholdMode",
     "MovieRouteMaxVideoBitrateMbps",
     "TVRouteMaxVideoBitrateMbps",
     "AllowH264RemuxIfPlexCompatible",
@@ -60,6 +63,11 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "MinFreeSpaceGB",
     "OutsourceMinFreeSpaceGB",
     "DeferredPublish",
+    "FinalLibraryPromotionEnabled",
+    "FinalLibraryPromotionRules",
+    "FinalLibraryPromotionVerificationMode",
+    "FinalLibraryPromotionCleanupAfterVerified",
+    "FinalLibraryPromotionOverwriteExisting",
     "VideoCodec",
     "VideoPreset",
     "VideoQuality",
@@ -169,7 +177,13 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "SourceMovies",
     "SourceTV",
     "Outsource",
+    "LibraryProfiles",
     "LocalBase",
+    "FinalLibraryPromotionEnabled",
+    "FinalLibraryPromotionRules",
+    "FinalLibraryPromotionVerificationMode",
+    "FinalLibraryPromotionCleanupAfterVerified",
+    "FinalLibraryPromotionOverwriteExisting",
     "CreateTVSubfolder",
     "AudioPassthroughProfile",
     "CompatibleAudioCodecs",
@@ -183,6 +197,7 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "EncodeThresholdGB",
     "TVEncodeThresholdGB",
     "RoutingProfile",
+    "RouteThresholdMode",
     "MovieRouteMaxVideoBitrateMbps",
     "TVRouteMaxVideoBitrateMbps",
     "AllowH264RemuxIfPlexCompatible",
@@ -368,6 +383,7 @@ class Config(BaseModel):
     SourceMovies: str = Field(default=r"C:\MediaPipeline\Incoming\Movies", min_length=1)
     SourceTV: str = Field(default=r"C:\MediaPipeline\Incoming\TV", min_length=1)
     Outsource: str = Field(default=r"C:\MediaPipeline\Processed", min_length=1)
+    LibraryProfiles: list[dict[str, Any]] = Field(default_factory=list)
     LocalBase: str = Field(default=r"C:\MediaPipeline\Scratch", min_length=1)
 
     EncodeThresholdGB: int = Field(default=8, ge=1)
@@ -379,6 +395,12 @@ class Config(BaseModel):
         "archive_quality",
         "manual",
     ] = "plex_direct_stream"
+    RouteThresholdMode: Literal[
+        "compatibility_advisory",
+        "size",
+        "bitrate",
+        "size_or_bitrate",
+    ] = "compatibility_advisory"
     MovieRouteMaxVideoBitrateMbps: float = Field(default=35, gt=0, le=500)
     TVRouteMaxVideoBitrateMbps: float = Field(default=18, gt=0, le=500)
     AllowH264RemuxIfPlexCompatible: bool = True
@@ -391,6 +413,11 @@ class Config(BaseModel):
     MinFreeSpaceGB: int = Field(default=50, ge=0)
     OutsourceMinFreeSpaceGB: int = Field(default=50, ge=0)
     DeferredPublish: bool = False
+    FinalLibraryPromotionEnabled: bool = False
+    FinalLibraryPromotionRules: list[dict[str, Any]] = Field(default_factory=list)
+    FinalLibraryPromotionVerificationMode: Literal["fast", "cautious"] = "cautious"
+    FinalLibraryPromotionCleanupAfterVerified: bool = False
+    FinalLibraryPromotionOverwriteExisting: bool = False
 
     VideoCodec: str = Field(default="hevc_nvenc", min_length=1)
     VideoPreset: str = Field(default="p7", min_length=1)
@@ -574,12 +601,62 @@ class Config(BaseModel):
             return [str(item) for item in value]
         return [str(value)]
 
+    @field_validator("FinalLibraryPromotionRules", mode="before")
+    @classmethod
+    def _coerce_final_library_promotion_rules(cls, value: Any) -> list[dict[str, Any]]:
+        if value in (None, "", False):
+            return []
+        if isinstance(value, str):
+            raw = value.strip()
+            if not raw:
+                return []
+            try:
+                value = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                raise ValueError("FinalLibraryPromotionRules must be JSON object/array data.") from exc
+        if isinstance(value, dict):
+            value = [value]
+        if not isinstance(value, (list, tuple)):
+            raise TypeError("FinalLibraryPromotionRules must be a list of rule objects.")
+        rules: list[dict[str, Any]] = []
+        for item in value:
+            if not isinstance(item, dict):
+                raise TypeError("FinalLibraryPromotionRules entries must be objects.")
+            rules.append(dict(item))
+        return rules
+
+    @field_validator("LibraryProfiles", mode="before")
+    @classmethod
+    def _coerce_library_profiles(cls, value: Any) -> list[dict[str, Any]]:
+        if value in (None, "", False):
+            return []
+        if isinstance(value, str):
+            raw = value.strip()
+            if not raw:
+                return []
+            try:
+                value = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                raise ValueError("LibraryProfiles must be JSON object/array data.") from exc
+        if isinstance(value, dict):
+            value = [value]
+        if not isinstance(value, (list, tuple)):
+            raise TypeError("LibraryProfiles must be a list of profile objects.")
+        profiles: list[dict[str, Any]] = []
+        for item in value:
+            if not isinstance(item, dict):
+                raise TypeError("LibraryProfiles entries must be objects.")
+            profiles.append({str(key): item_value for key, item_value in item.items()})
+        return profiles
+
     @field_validator(
         "RoutingProfile",
+        "RouteThresholdMode",
         "SizeGuardMode",
         "OutputContainer",
         "EncodeTuningPreset",
         "EncodeLadder",
+        "FinalLibraryPromotionVerificationMode",
         "AudioPassthroughProfile",
         "AudioTranscodeCodec",
         "AudioDownmixMode",

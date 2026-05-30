@@ -47,7 +47,7 @@
             <strong>Backend preview</strong>
           </div>
           <!-- S60 Priority toolbar -->
-          <div class="queue-priority-toolbar">
+          <div class="table-toolbar queue-priority-toolbar">
             <span class="toolbar-label">Set priority:</span>
             <button type="button" class="secondary-button" id="queue-priority-promote-btn" title="Promote selected row to High priority">⬆ High</button>
             <button type="button" class="secondary-button" id="queue-priority-normal-btn" title="Reset selected row to Normal priority">↺ Normal</button>
@@ -60,7 +60,7 @@
           <p id="queue-priority-status" class="note">Select a row, then set High, Normal, Low, or Hold. Hold writes a backend queue-state override only; it does not delete or rename media.</p>
           <!-- End S60 Priority toolbar -->
           <!-- S70 Queue ordering strategy selector -->
-          <div class="queue-strategy-toolbar">
+          <div class="table-toolbar queue-strategy-toolbar">
             <label class="toolbar-label" for="queue-strategy-select">Order strategy:</label>
             <select id="queue-strategy-select" class="queue-strategy-select" title="Choose how queue entries are ordered within each priority phase">
               <option value="Standard">Standard — Priority → Movies → TV</option>
@@ -76,21 +76,23 @@
           </div>
           <p id="queue-strategy-status" class="note">Order strategy affects the next backend queue build.</p>
           <!-- End S70 Queue ordering strategy selector -->
-          <div class="table-wrap">
+          <div class="table-wrap queue-table-wrap">
             <table class="workflow-table queue-table">
               <thead>
                 <tr>
                   <th scope="col" class="num">Order</th>
+                  <th scope="col">State</th>
+                  <th scope="col">Title</th>
                   <th scope="col">Kind</th>
-                  <th scope="col">Priority</th>
-                  <th scope="col">Name</th>
                   <th scope="col">Route</th>
-                  <th scope="col">Reason</th>
-                  <th scope="col" class="settings-col">Settings</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Priority</th>
+                  <th scope="col">Override</th>
+                  <th scope="col" class="settings-col" title="Actions">⚙</th>
                 </tr>
               </thead>
               <tbody id="queue-rows">
-                <tr><td colspan="7">No queue loaded. Click Refresh Queue, or run a fresh queue preview from Launch if the snapshot is stale.</td></tr>
+                <tr><td colspan="9">No queue loaded. Click Refresh Queue, or run a fresh queue preview from Launch if the snapshot is stale.</td></tr>
               </tbody>
             </table>
           <div class="empty-state" data-empty-state="hidden" style="display:none">

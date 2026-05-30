@@ -3,9 +3,9 @@ file: app/completed/service.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: completed
-last_modified: 2026-05-28
+last_modified: 2026-05-29
 last_reviewed: 2026-05-28
-sha256: e4225e70cd4232f47dcfc1d78e860a40692dec65832aaf2a9efe1f586990ab6e
+sha256: d1b4b0b372ef54a61b12e841c697c54297370050935f8d786b8ad0e85eb318fc
 ---
 # `app/completed/service.py`
 

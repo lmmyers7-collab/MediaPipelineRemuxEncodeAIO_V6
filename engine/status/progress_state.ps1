@@ -3,7 +3,7 @@
 # ==============================================================================
 # Operator control flags, progress JSON persistence, and round/session counters.
 #
-# Dot-sourced from MediaPipeline_chatgpt.ps1. Reads/writes at call time:
+# Dot-sourced from MediaPipeline.ps1. Reads/writes at call time:
 #   $PauseFlag, $StopFlag, $ProgressFile
 #   $script:pipelineStatus and current item/stage fields
 #   $script:total*, $script:Round*, $script:Session*

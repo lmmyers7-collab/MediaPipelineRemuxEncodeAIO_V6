@@ -550,7 +550,7 @@ Browser-backed smoke tests under `DesktopApp\tests\`. Require Chrome or Edge; sk
 | `test_webview_browser_sample_validation_smoke.py` | Home sample-validation pilot/readiness/reconciliation, worksheet detail, preview-only backend route |
 | `test_webview_browser_home_live_state_smoke.py` | Home Daily-Driver, Operator Readiness, active work, command history, live progress evidence, page-switch viewport reset |
 | `test_webview_browser_launch_queue_readiness_smoke.py` | Launch/Queue/Schedule readiness, scope reconciliation, sample proof handoff, no POSTs |
-| `test_webview_browser_layout_manager_smoke.py` | Customize-mode draggable boxes across page tabs, subtabs, and generated subsections with no mutation posts |
+| `test_webview_browser_layout_manager_smoke.py` | Layout Editor drawer coverage across page tabs, subtabs, and generated subsections with no mutation posts |
 | `test_webview_browser_rename_smoke.py` | Rename row click, Apply Readiness, duplicate-target blocking does not call apply |
 | `test_webview_browser_network_smoke.py` | Read-only Network worker visibility and filter guardrails |
 | `test_webview_browser_telemetry_smoke.py` | Idle NVENC at 0%, GPU detail rows, CPU/RAM-only fallback |

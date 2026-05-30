@@ -1,0 +1,22 @@
+"""Combined settings field definitions in public render order."""
+
+from __future__ import annotations
+
+from .advanced_fields import ADVANCED_CONFIG_FIELD_DEFINITIONS
+from .basic_fields import BASIC_CONFIG_FIELD_DEFINITIONS
+from .network_fields import NETWORK_CONFIG_FIELD_DEFINITIONS
+from .queue_fields import QUEUE_CONFIG_FIELD_DEFINITIONS
+from .subtitle_fields import SUBTITLE_CONFIG_FIELD_DEFINITIONS
+from .video_fields import VIDEO_CONFIG_FIELD_DEFINITIONS
+
+
+CONFIG_FIELD_DEFINITIONS = (
+    *BASIC_CONFIG_FIELD_DEFINITIONS,
+    *VIDEO_CONFIG_FIELD_DEFINITIONS,
+    *SUBTITLE_CONFIG_FIELD_DEFINITIONS,
+    *ADVANCED_CONFIG_FIELD_DEFINITIONS,
+    *QUEUE_CONFIG_FIELD_DEFINITIONS,
+    *NETWORK_CONFIG_FIELD_DEFINITIONS,
+)
+
+CONFIG_MANAGED_KEYS = [field["key"] for field in CONFIG_FIELD_DEFINITIONS]

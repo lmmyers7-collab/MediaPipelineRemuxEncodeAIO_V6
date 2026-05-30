@@ -103,9 +103,9 @@ class ProcessKillHelperTests(unittest.TestCase):
         return ResolvedPaths(
             app_root=root / "DesktopApp",
             workspace_root=root,
-            pipeline_path=root / "Pipeline" / "MediaPipeline_chatgpt.ps1",
+            pipeline_path=root / "Pipeline" / "MediaPipeline.ps1",
             config_path=root / "Pipeline" / "MediaPipeline_config_chatgpt.psd1",
-            audit_script_path=root / "Pipeline" / "Audit-MediaLibrary_chatgpt.ps1",
+            audit_script_path=root / "Pipeline" / "Audit-MediaLibrary.ps1",
             rerun_script_path=root / "Pipeline" / "Invoke-RerunCsv.ps1",
             powershell_host="pwsh",
         )
@@ -123,10 +123,10 @@ class ProcessKillHelperTests(unittest.TestCase):
             pid=1,
             name="pwsh.exe",
             exe=r"C:\Tools\pwsh.exe",
-            cmdline=[r"C:\Tools\pwsh.exe", "-File", r"C:\Bundle\Pipeline\MediaPipeline_chatgpt.ps1"],
+            cmdline=[r"C:\Tools\pwsh.exe", "-File", r"C:\Bundle\Pipeline\MediaPipeline.ps1"],
         )
 
-        self.assertTrue(process_text_contains_any(proc, [r"c:\bundle\pipeline\mediapipeline_chatgpt.ps1"]))
+        self.assertTrue(process_text_contains_any(proc, [r"c:\bundle\pipeline\mediapipeline.ps1"]))
         self.assertFalse(process_text_contains_any(proc, [r"c:\other\script.ps1"]))
 
     def test_find_related_pipeline_processes_filters_to_matching_powershell_processes(self) -> None:

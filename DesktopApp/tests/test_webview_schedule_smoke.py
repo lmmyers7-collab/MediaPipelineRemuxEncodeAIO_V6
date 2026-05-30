@@ -80,13 +80,6 @@ def _schedule_runner_source() -> str:
           return selectorElements.get(selector);
         }
 
-        function scheduleCopyTarget(day) {
-          const selector = `[data-schedule-copy-target="${day}"]`;
-          const node = selectorElement(selector);
-          node.dataset.scheduleCopyTarget = day;
-          return node;
-        }
-
         const context = {
           console: {
             log() {},
@@ -110,17 +103,9 @@ def _schedule_runner_source() -> str:
             return node;
           },
           querySelectorAll(selector) {
-            if (selector === "[data-schedule-copy-target]") {
-              return ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map(scheduleCopyTarget);
-            }
             return [];
           },
           querySelector(selector) {
-            if (selector === "[data-schedule-copy-source]") return selectorElement(selector);
-            if (selector === "[data-schedule-copy-apply]") return selectorElement(selector);
-            if (selector.startsWith('[data-schedule-copy-target="')) {
-              return scheduleCopyTarget(selector.slice(28, -2));
-            }
             return null;
           },
           addEventListener() {},
@@ -263,15 +248,6 @@ def _schedule_runner_source() -> str:
           throw new Error(`block editor did not generate a 30-minute window draft: ${JSON.stringify(request.day_windows)}`);
         }
         context.initScheduleViewEvents();
-        context.document.querySelector("[data-schedule-copy-source]").value = "Monday";
-        context.document.querySelector('[data-schedule-copy-target="Tuesday"]').checked = true;
-        context.document.querySelector('[data-schedule-copy-target="Wednesday"]').checked = true;
-        context.document.querySelector("[data-schedule-copy-apply]").click();
-        request = context.scheduleEditorRequest();
-        if (request.day_windows.Tuesday !== "09:00 - 10:00" || request.day_windows.Wednesday !== "09:00 - 10:00") {
-          throw new Error(`copy-day did not stage target days: ${JSON.stringify(request.day_windows)}`);
-        }
-        requireContains("copy-day result", text("schedule-editor-result"), ["Copied Monday schedule to Tuesday, Wednesday", "Mutation guardrail"]);
         await context.previewScheduleEditor();
         await context.saveScheduleEditor();
         if (!apiPosts.some((item) => item.url === "/api/schedule/preview")) {

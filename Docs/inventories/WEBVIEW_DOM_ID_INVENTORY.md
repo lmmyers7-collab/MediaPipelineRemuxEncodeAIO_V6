@@ -4,7 +4,7 @@ Date: 2026-05-29
 
 Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `DesktopApp/mediapipeline_desktop_app/ui_web/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 1077. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 1172. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -338,6 +338,7 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `settings-effective-policy-rows` | `<tbody>` | Effective policy trust checkpoint rows |
 | `settings-effective-policy-legend` | `<p>` | Effective policy read-only boundary legend |
 | `settings-effective-policy-detail` | `<pre>` | Selected effective policy checkpoint detail |
+| `settings-builder-route-threshold-mode` | `<select>` | Settings builder route threshold filter mode |
 | `settings-builder-movie-route-bitrate` | `<input>` | Settings builder movie remux/copy route bitrate ceiling |
 | `settings-builder-tv-route-bitrate` | `<input>` | Settings builder TV remux/copy route bitrate ceiling |
 | `settings-subtitle-bdpgs-ocr-tool-path` | `<input>` | Subtitle builder staged BDPGS OCR tool path |
@@ -543,10 +544,9 @@ Risk: Low — additive only; new IDs for queue drawer UI
 
 This section is generated from `DesktopApp/mediapipeline_desktop_app/ui_web/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 1077
+Count: 1172
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
-```text
 active-job-detail
 active-job-detail-rows
 active-job-detail-status
@@ -610,7 +610,12 @@ completed-breakdown-status
 completed-clear-filters-button
 completed-consistency
 completed-consistency-status
+completed-copy-evidence-button
+completed-copy-evidence-status
 completed-count
+completed-current-output-heading
+completed-current-status
+completed-current-summary
 completed-detail
 completed-diagnostics-actions
 completed-diagnostics-guidance
@@ -623,6 +628,15 @@ completed-final-trust-legend
 completed-final-trust-rows
 completed-final-trust-status
 completed-final-trust-summary
+completed-history-clear-filters-button
+completed-history-filter
+completed-history-filter-summary
+completed-history-investigation-filter
+completed-history-rows
+completed-history-status
+completed-history-status-filter
+completed-history-summary-heading
+completed-history-table-legend
 completed-integrity
 completed-integrity-status
 completed-inventory-progress-bars
@@ -651,11 +665,9 @@ completed-real-media-proof-legend
 completed-real-media-proof-rows
 completed-real-media-proof-status
 completed-real-media-proof-summary
+completed-reconciliation-hint
+completed-refresh-current-output-button
 completed-remux-count
-completed-review-board
-completed-review-legend
-completed-review-rows
-completed-review-status
 completed-route-agreement-detail
 completed-route-agreement-legend
 completed-route-agreement-rows
@@ -671,10 +683,6 @@ completed-size-evidence-legend
 completed-size-evidence-rows
 completed-size-evidence-status
 completed-size-evidence-summary
-completed-size-review-legend
-completed-size-review-rows
-completed-size-review-status
-completed-size-review-summary
 completed-status
 completed-status-filter
 completed-summary
@@ -807,6 +815,12 @@ failure-source-markers
 failure-status
 failure-summary
 failure-table-legend
+final-library-pause-button
+final-library-promote-button
+final-library-promotion-rows
+final-library-promotion-status
+final-library-promotion-summary
+final-library-resume-button
 fo-audio-drop-langs
 fo-audio-keep-langs
 fo-audio-max-channels
@@ -833,7 +847,6 @@ home-at-a-glance-current
 home-at-a-glance-detail
 home-at-a-glance-progress-bars
 home-at-a-glance-status
-home-at-a-glance-summary
 home-at-a-glance-up-next
 home-control-message
 home-control-readiness-status
@@ -1204,22 +1217,12 @@ rename-bulk-stage-button
 rename-bulk-suffix
 rename-bulk-use-pipeline-button
 rename-check-applicable-button
-rename-cleaning-filter-status
-rename-cleaning-filter-summary
-rename-cleaning-filters-reset-button
-rename-cleaning-filters-save-button
 rename-clear-checks-button
 rename-clear-override-button
 rename-clear-paths-button
 rename-detail
 rename-file-source-status
 rename-file-source-summary
-rename-filter-audio-channels
-rename-filter-editions
-rename-filter-file-size
-rename-filter-release-groups
-rename-filter-services-containers
-rename-filter-video-source
 rename-force-pipeline
 rename-last-apply-detail
 rename-last-apply-status
@@ -1235,7 +1238,6 @@ rename-pipeline-handoff-status
 rename-pipeline-preview
 rename-preview-button
 rename-preview-top-button
-rename-remove-terms
 rename-review-board
 rename-review-board-status
 rename-rows
@@ -1248,12 +1250,17 @@ rename-selection-audit
 rename-selection-audit-status
 rename-show
 rename-sidecars
+rename-stage-apply-heading
+rename-stage-files-heading
+rename-stage-mode-heading
+rename-stage-preview-heading
+rename-stage-result-heading
+rename-stage-review-heading
 rename-start
 rename-status
 rename-summary
 rename-table-legend
 rename-template-preset
-rename-use-editable-cleaning-filters
 rename-use-loaded-queue-button
 rename-use-selected-queue-button
 report-audit-csv-state
@@ -1423,6 +1430,7 @@ settings-builder-movie-route-bitrate
 settings-builder-movie-threshold
 settings-builder-output-container
 settings-builder-reset-button
+settings-builder-route-threshold-mode
 settings-builder-routing-profile
 settings-builder-size-guard
 settings-builder-status
@@ -1463,10 +1471,28 @@ settings-file-safety-source-tv-browse
 settings-file-safety-stability-wait
 settings-file-safety-valid-extensions
 settings-filter
+settings-final-library-add-rule-button
+settings-final-library-cleanup
+settings-final-library-enabled
+settings-final-library-guidance
+settings-final-library-overwrite
+settings-final-library-preview-button
+settings-final-library-reset-button
+settings-final-library-rule-count
+settings-final-library-rules-rows
+settings-final-library-save-button
+settings-final-library-status
+settings-final-library-verification-mode
 settings-launch-impact-legend
 settings-launch-impact-rows
 settings-launch-impact-status
 settings-launch-impact-summary
+settings-libraries-status
+settings-library-add-button
+settings-library-build-patch-button
+settings-library-profile-list
+settings-library-reset-button
+settings-library-warning-summary
 settings-media-policy-legend
 settings-media-policy-rows
 settings-media-policy-status
@@ -1534,6 +1560,18 @@ settings-raw-triage-legend
 settings-raw-triage-rows
 settings-raw-triage-status
 settings-reload-button
+settings-rename-cleaning-filter-status
+settings-rename-cleaning-filter-summary
+settings-rename-cleaning-filters-reset-button
+settings-rename-cleaning-filters-save-button
+settings-rename-filter-audio-channels
+settings-rename-filter-editions
+settings-rename-filter-file-size
+settings-rename-filter-release-groups
+settings-rename-filter-services-containers
+settings-rename-filter-video-source
+settings-rename-remove-terms
+settings-rename-use-editable-cleaning-filters
 settings-rows
 settings-runtime-allow-system-tools
 settings-runtime-apply-button
@@ -1619,10 +1657,66 @@ settings-video-preset
 settings-video-quality
 settings-video-remux-safe-codecs
 settings-video-reset-button
+settings-wizard-add-library-button
+settings-wizard-back-button
+settings-wizard-copy-diagnostics-button
+settings-wizard-detect-tools-button
+settings-wizard-hardware-result
+settings-wizard-library-list
+settings-wizard-next-button
+settings-wizard-preview-button
+settings-wizard-probe-hardware-button
+settings-wizard-review-summary
+settings-wizard-save-button
+settings-wizard-save-result
+settings-wizard-status
+settings-wizard-status-detail
+settings-wizard-summary-rows
+settings-wizard-tools-result
+settings-wizard-validate-paths-button
+settings-wizard-validate-workers-button
+settings-wizard-validation-summary
+settings-wizard-workers-result
 state-pill
 status-summary
 telemetry-readiness-status
 telemetry-readiness-summary
 theme-toggle
-```
+wizard-ack-AllowNoAudio
+wizard-ack-AllowSystemTools
+wizard-ack-CleanupRemoteStaging
+wizard-ack-ReprocessAll
+wizard-audio-codec
+wizard-audio-policy
+wizard-danger-allow-no-audio
+wizard-danger-allow-system-tools
+wizard-danger-cleanup-remote
+wizard-danger-reprocess-all
+wizard-existing-policy
+wizard-ffmpeg-path
+wizard-ffprobe-path
+wizard-keep-all-audio
+wizard-keep-unknown-subtitles
+wizard-library-category-list
+wizard-max-parallel-encodes
+wizard-min-free-space-gb
+wizard-mode
+wizard-output-container
+wizard-output-root
+wizard-outsource-min-free-space-gb
+wizard-parallel-encode-mode
+wizard-preferred-codec
+wizard-preserve-forced-subtitles
+wizard-publish-mode
+wizard-retry-limit
+wizard-safety-integrity
+wizard-safety-pending
+wizard-safety-skip-processed
+wizard-safety-stability
+wizard-scratch-path
+wizard-subtitle-languages
+wizard-subtitle-policy
+wizard-video-preset
+wizard-video-quality
+wizard-video-strategy
 <!-- END GENERATED DOM ID MANIFEST -->

@@ -32,20 +32,23 @@ function Get-MediaPipelineConfigArrayKeys {
         'SubSDHTitleKeywords','SubSupplementalKeywords','Tx3gExtractLanguages','BdpgsExtractLanguages',
         'PreferredDefaultAudioLanguages','RemuxSafeVideoCodecs',
         'ValidExtensions','RobocopyFlags','PriorityMarkers',
-        'ExcludeSubtitleStyles','IncludeSubtitleStyles'
+        'ExcludeSubtitleStyles','IncludeSubtitleStyles',
+        'FinalLibraryPromotionRules','LibraryProfiles'
     )
 }
 
 function Get-MediaPipelineConfigOrderedKeys {
     return @(
         'ConfigSchemaVersion',
-        'SourceMovies','SourceTV','Outsource','LocalBase',
+        'SourceMovies','SourceTV','Outsource','LibraryProfiles','LocalBase',
         'EncodeThresholdGB','TVEncodeThresholdGB',
-        'RoutingProfile','MovieRouteMaxVideoBitrateMbps','TVRouteMaxVideoBitrateMbps',
+        'RoutingProfile','RouteThresholdMode','MovieRouteMaxVideoBitrateMbps','TVRouteMaxVideoBitrateMbps',
         'AllowH264RemuxIfPlexCompatible','H264RemuxMaxBitrateMbps','H264RemuxMaxHeight',
         'SizeGuardMode','MaxEncodeGrowthPercent','CompatibilityEncodeGrowthPercent',
         'MinFreeSpaceGB','OutsourceMinFreeSpaceGB',
         'DeferredPublish',
+        'FinalLibraryPromotionEnabled','FinalLibraryPromotionRules','FinalLibraryPromotionVerificationMode',
+        'FinalLibraryPromotionCleanupAfterVerified','FinalLibraryPromotionOverwriteExisting',
         'VideoCodec','VideoPreset','VideoQuality','OutputContainer','EncodeTuningPreset','EncodeLadder','ExtraVideoFlags',
         'AudioPassthroughProfile','CompatibleAudioCodecs','PreferredDefaultAudioLanguages',
         'AudioTranscodeCodec','AudioTranscodeBitrate','AudioTranscodeAutoBitrateByChannels','AudioDownmixMode','AudioMaxChannels','AllowNoAudio',
@@ -172,6 +175,19 @@ function Get-MediaPipelineRoutingProfileDefault {
     return 'plex_direct_stream'
 }
 
+function Get-MediaPipelineRouteThresholdModeNames {
+    return @(
+        'compatibility_advisory',
+        'size',
+        'bitrate',
+        'size_or_bitrate'
+    )
+}
+
+function Get-MediaPipelineRouteThresholdModeDefault {
+    return 'compatibility_advisory'
+}
+
 function Get-MediaPipelineSizeGuardModeNames {
     return @(
         'advisory',
@@ -257,6 +273,19 @@ function Resolve-MediaPipelineRoutingProfile {
         return $normalized
     }
     return Get-MediaPipelineRoutingProfileDefault
+}
+
+function Resolve-MediaPipelineRouteThresholdMode {
+    param([string] $Mode)
+
+    $normalized = if ($Mode) { $Mode.Trim().ToLowerInvariant() } else { '' }
+    if ([string]::IsNullOrWhiteSpace($normalized)) {
+        return Get-MediaPipelineRouteThresholdModeDefault
+    }
+    if ($normalized -in (Get-MediaPipelineRouteThresholdModeNames)) {
+        return $normalized
+    }
+    return Get-MediaPipelineRouteThresholdModeDefault
 }
 
 function Resolve-MediaPipelineSizeGuardMode {
@@ -374,10 +403,55 @@ function Get-MediaPipelineConfigDefaultValues {
         SourceMovies               = Join-Path -Path $incomingRoot -ChildPath 'Movies'
         SourceTV                   = Join-Path -Path $incomingRoot -ChildPath 'TV'
         Outsource                  = Join-Path -Path $videosRoot -ChildPath 'Processed'
+        LibraryProfiles            = @(
+            [ordered]@{
+                id = 'movies'
+                name = 'Movies'
+                enabled = $true
+                designation = 'movie'
+                source_path = Join-Path -Path $incomingRoot -ChildPath 'Movies'
+                output_path = Join-Path -Path $videosRoot -ChildPath 'Processed'
+                promotion_enabled = $false
+                promotion_destination = ''
+                overrides = [ordered]@{
+                    editor = [ordered]@{}
+                    video = [ordered]@{}
+                    subtitles = [ordered]@{}
+                    audio = [ordered]@{}
+                }
+                default_tracking = [ordered]@{
+                    schema_version = 'library_profile_default_tracking.v1'
+                    inherited_fields = @('source_path','output_path')
+                    field_default_keys = [ordered]@{ source_path = 'SourceMovies'; output_path = 'Outsource' }
+                }
+            },
+            [ordered]@{
+                id = 'tv'
+                name = 'TV'
+                enabled = $true
+                designation = 'tv'
+                source_path = Join-Path -Path $incomingRoot -ChildPath 'TV'
+                output_path = Join-Path -Path $videosRoot -ChildPath 'Processed'
+                promotion_enabled = $false
+                promotion_destination = ''
+                overrides = [ordered]@{
+                    editor = [ordered]@{}
+                    video = [ordered]@{}
+                    subtitles = [ordered]@{}
+                    audio = [ordered]@{}
+                }
+                default_tracking = [ordered]@{
+                    schema_version = 'library_profile_default_tracking.v1'
+                    inherited_fields = @('source_path','output_path')
+                    field_default_keys = [ordered]@{ source_path = 'SourceTV'; output_path = 'Outsource' }
+                }
+            }
+        )
         LocalBase                  = Join-Path -Path $videosRoot -ChildPath 'Scratch'
         EncodeThresholdGB          = 8
         TVEncodeThresholdGB        = 3
         RoutingProfile             = Get-MediaPipelineRoutingProfileDefault
+        RouteThresholdMode         = Get-MediaPipelineRouteThresholdModeDefault
         MovieRouteMaxVideoBitrateMbps = 35
         TVRouteMaxVideoBitrateMbps = 18
         AllowH264RemuxIfPlexCompatible = $true
@@ -389,6 +463,11 @@ function Get-MediaPipelineConfigDefaultValues {
         MinFreeSpaceGB             = 50
         OutsourceMinFreeSpaceGB    = 50
         DeferredPublish            = $false
+        FinalLibraryPromotionEnabled = $false
+        FinalLibraryPromotionRules = @()
+        FinalLibraryPromotionVerificationMode = 'cautious'
+        FinalLibraryPromotionCleanupAfterVerified = $false
+        FinalLibraryPromotionOverwriteExisting = $false
         VideoCodec                 = 'hevc_nvenc'
         VideoPreset                = 'p7'
         VideoQuality               = 22
@@ -586,6 +665,50 @@ function Test-MediaPipelineConfigPathShape {
         $Warnings.Add('SourceMovies and SourceTV point to the same location.')
     }
 
+    if (Test-MediaPipelineConfigHasKey -Config $Config -Key 'LibraryProfiles') {
+        $profiles = @(Get-MediaPipelineConfigValue -Config $Config -Key 'LibraryProfiles')
+        $profileIds = @{}
+        foreach ($profile in $profiles) {
+            if ($null -eq $profile) { continue }
+            $id = [string](Get-MediaPipelineConfigValue -Config $profile -Key 'id')
+            $name = [string](Get-MediaPipelineConfigValue -Config $profile -Key 'name')
+            $label = if (-not [string]::IsNullOrWhiteSpace($name)) { $name } elseif (-not [string]::IsNullOrWhiteSpace($id)) { $id } else { 'Library profile' }
+            if ([string]::IsNullOrWhiteSpace($id)) {
+                $Errors.Add("$label is missing id.")
+            } elseif ($profileIds.ContainsKey($id.ToLowerInvariant())) {
+                $Errors.Add("Library profile id is duplicated: $id.")
+            } else {
+                $profileIds[$id.ToLowerInvariant()] = $true
+            }
+
+            $enabled = ConvertTo-MediaPipelineConfigBool -Config $profile -Key 'enabled' -Default $true
+            $promotionEnabled = ConvertTo-MediaPipelineConfigBool -Config $profile -Key 'promotion_enabled' -Default $false
+            $designation = ([string](Get-MediaPipelineConfigValue -Config $profile -Key 'designation')).Trim().ToLowerInvariant()
+            if ($designation -in @('mixed','custom')) {
+                $Warnings.Add("$label designation '$designation' is legacy; use auto.")
+                $designation = 'auto'
+            }
+            if ($designation -notin @('movie','tv','auto')) {
+                $Errors.Add("$label designation must be movie, tv, or auto.")
+            }
+            if ($id -in @('movies','tv') -and -not $enabled) {
+                $Errors.Add("$label is a required default library and cannot be disabled.")
+            }
+            $sourcePath = [string](Get-MediaPipelineConfigValue -Config $profile -Key 'source_path')
+            $outputPath = [string](Get-MediaPipelineConfigValue -Config $profile -Key 'output_path')
+            $promotionDestination = [string](Get-MediaPipelineConfigValue -Config $profile -Key 'promotion_destination')
+            if ($enabled -and [string]::IsNullOrWhiteSpace($sourcePath)) {
+                $Errors.Add("$label source_path cannot be empty.")
+            }
+            if ($enabled -and [string]::IsNullOrWhiteSpace($outputPath)) {
+                $Errors.Add("$label output_path cannot be empty.")
+            }
+            if ($enabled -and $promotionEnabled -and [string]::IsNullOrWhiteSpace($promotionDestination)) {
+                $Errors.Add("$label promotion_destination cannot be empty when promotion is enabled.")
+            }
+        }
+    }
+
     if (Test-MediaPipelineConfigHasKey -Config $Config -Key (Get-MediaPipelineConfigSchemaKey)) {
         $sameVolumeGroups = @{}
         foreach ($key in $pathKeys) {
@@ -669,6 +792,13 @@ function Test-MediaPipelineConfigEncodeAudioPolicy {
         $routingProfile = [string](Get-MediaPipelineConfigValue -Config $Config -Key 'RoutingProfile')
         if ((Resolve-MediaPipelineRoutingProfile -Profile $routingProfile) -ne $routingProfile.Trim().ToLowerInvariant()) {
             $Errors.Add("RoutingProfile must be one of: $((Get-MediaPipelineRoutingProfileNames) -join ', ').")
+        }
+    }
+
+    if (Test-MediaPipelineConfigHasKey -Config $Config -Key 'RouteThresholdMode') {
+        $routeThresholdMode = [string](Get-MediaPipelineConfigValue -Config $Config -Key 'RouteThresholdMode')
+        if ((Resolve-MediaPipelineRouteThresholdMode -Mode $routeThresholdMode) -ne $routeThresholdMode.Trim().ToLowerInvariant()) {
+            $Errors.Add("RouteThresholdMode must be one of: $((Get-MediaPipelineRouteThresholdModeNames) -join ', ').")
         }
     }
 

@@ -75,6 +75,44 @@
     return launchSettingsBool(value, false) ? "on" : "off";
   }
 
+  function launchBackendPolicyImpact(settings = launchSettingsWorkspace()) {
+    const impact = settings?.policy_impact || {};
+    if (!impact || impact.schema_version !== "settings_policy_impact.v1") return null;
+    return impact;
+  }
+
+  function launchSettingsNormalizeBackendRiskRow(row, request = collectPipelineStartRequest()) {
+    const mode = request?.mode || "unknown";
+    const launchModeLabel = pipelineModeLabel(mode);
+    const context = row?.launch_context && typeof row.launch_context === "object"
+      ? (row.launch_context[mode] || row.launch_context.default || null)
+      : null;
+    const replaceLaunchContext = (value) => String(value || "").split("{launch_mode}").join(launchModeLabel);
+    return {
+      key: String(row?.key || row?.area || "risk-row").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "risk-row",
+      area: row?.area || "Policy risk",
+      impact: context?.impact || row?.impact || "review",
+      evidence: replaceLaunchContext(row?.evidence),
+      action: replaceLaunchContext(context?.action || row?.action),
+      detail: Array.isArray(row?.detail) ? row.detail.map(replaceLaunchContext) : [],
+      source: row?.source || "backend",
+    };
+  }
+
+  function launchSettingsBackendRiskRows(settings = launchSettingsWorkspace(), request = collectPipelineStartRequest()) {
+    const handoff = launchBackendPolicyImpact(settings)?.launch_risk_handoff || {};
+    if (!handoff || handoff.schema_version !== "settings_launch_risk_handoff.v1") return [];
+    const sourceRows = Array.isArray(handoff.rows) ? handoff.rows : [];
+    const rows = sourceRows.map((row) => launchSettingsNormalizeBackendRiskRow(row, request));
+    if (request?.mode === "continuous" && rows.some((row) => row.impact !== "ready")) {
+      const continuousRow = handoff.continuous_mode_row && typeof handoff.continuous_mode_row === "object"
+        ? launchSettingsNormalizeBackendRiskRow(handoff.continuous_mode_row, request)
+        : null;
+      if (continuousRow && !rows.some((row) => row.key === continuousRow.key)) rows.push(continuousRow);
+    }
+    return rows.sort((left, right) => launchSettingsSeverityRank(left.impact) - launchSettingsSeverityRank(right.impact));
+  }
+
   function launchSettingsTrustStatus(settings = launchSettingsWorkspace()) {
     if (!settings || typeof settings !== "object" || !settings.schema_version) return "Not loaded";
     try {
@@ -264,6 +302,11 @@
   }
 
   function launchSettingsRiskRows(settings = launchSettingsWorkspace(), request = collectPipelineStartRequest()) {
+    const backendRows = launchSettingsBackendRiskRows(settings, request);
+    if (backendRows.length) return backendRows;
+
+    // Frontend advisory fallback only for older/missing backend DTOs; backend
+    // policy_impact.launch_risk_handoff is preferred when available.
     const config = settings?.config || {};
     const risk = settings?.risk_summary || {};
     const warnings = Array.isArray(settings?.warnings) ? settings.warnings : [];

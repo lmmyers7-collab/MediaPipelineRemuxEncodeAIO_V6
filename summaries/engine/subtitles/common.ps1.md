@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: subtitles
 last_modified: 2026-05-29
 last_reviewed: 2026-05-29
-sha256: 0474c305d74bf8cfd591c9698c1d4ba212768633ec132088f278a5f6a29cab21
+sha256: e328ea909f4cb33ae70720d4c00c966017b65fb48d18922d2a59a2726bde2687
 ---
 # `engine/subtitles/common.ps1`
 

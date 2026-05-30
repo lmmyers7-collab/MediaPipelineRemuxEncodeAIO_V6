@@ -1,7 +1,7 @@
 # ==============================================================================
 # engine\observability\logging.ps1
 # ==============================================================================
-# Logging primitives extracted from MediaPipeline_chatgpt.ps1.
+# Logging primitives extracted from MediaPipeline.ps1.
 #
 # Dot-sourced (NOT a `.psm1` module) so all of the following stay in the
 # main script's scope and don't need to be re-plumbed as parameters:

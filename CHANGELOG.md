@@ -18,6 +18,9 @@ intent is worth keeping, it goes here and/or in an ADR.
   `TVRouteMaxVideoBitrateMbps` defaults to `18` Mbps. Routing now uses
   those saved settings before choosing encode for `bitrate_over_threshold`,
   while folder `RouteMaxVideoBitrateMbps` remains the per-job override.
+- Added `RouteThresholdMode` so initial remux-vs-encode routing can use
+  current compatibility-advisory behavior, size-only, bitrate-only, or
+  size-or-bitrate hard thresholds.
 - Phase 2 config cleanup foundation:
   `app/contracts/config.py` is now the Pydantic v2 config contract,
   `app/config/load.py` owns PSD1 import plus PSD1 serialization helpers,
@@ -47,17 +50,27 @@ intent is worth keeping, it goes here and/or in an ADR.
   root callers, and new top-level report/checklist Markdown. The new
   `tests/contract/` tree mirrors config/stage contract checks while the
   legacy `DesktopApp/tests` entrypoints remain callable.
-- Phase 6 legacy-removal guardrail tightening:
-  root launcher shims remain as tracked compatibility files for now, but
-  `scripts/lint-naming.py` and
-  `scripts/dev/check_architecture_guardrails.py` now block new or
-  reintroduced root `.bat`/`.ps1` launchers, including exact old shim
-  names.
+- Phase 6 legacy-removal completion:
+  root launcher shims, flat Python facade/service compatibility paths,
+  old command-payload adapters, and `Pipeline/Modules` are no longer active
+  surfaces. Guardrails still block reintroduced root `.bat`/`.ps1` launchers,
+  new flat `facade_*`/`service_*`/payload modules, and new dotted
+  `Pipeline/Modules` files.
 - Phase 7 handoff documentation foundation:
   root `README.md` now exists as the operator entry point,
   `Docs/DOCS_INDEX.md` points agents to `AGENTS.md` instead of old
   redirect files, and active-doc checks now fail if the canonical
   handoff docs disappear.
+- WebView split tooling and generated baselines:
+  Node-based scripts now map WebView god-file candidates, check backend-served
+  asset order, preserve the public global contract, track DOM-ID review gaps,
+  enforce settings route ownership, and hold ESLint warning budgets. The new
+  runbook and guardrail docs keep future plain-script splits scoped and
+  reversible.
+- Domain/UI follow-up coverage for the current overhaul surface:
+  Rename Workbench V7 static/backend tests, library profile contract tests,
+  final-library promotion service/WebView settings tests, and settings-libraries
+  static coverage are present in the active test tree.
 - `Docs/RealMediaValidationRuns/README.md` records the non-sensitive
   operator-attested representative real-media validation status for
   2026-05-28.
@@ -96,18 +109,17 @@ intent is worth keeping, it goes here and/or in an ADR.
 - `V6_SPLIT_NOTES.md` moved from repo root to
   `Docs/archive/v6-split-notes-2026-05-20.md` (git history preserved
   via `git mv`). ADR-0011 is the durable architectural summary.
-- Root launchers relocated under `scripts/` (Phase-7 prep). Moves via
-  `git mv`; one-release deprecation shims left at the old root paths
-  that print a `[DEPRECATED]` warning and forward to the new location.
-  `AGENTS.md §6` updated to the new canonical paths.
+- Root launchers relocated under `scripts/`, and the one-release root shim
+  phase is now complete. The old root `.bat`/`.ps1` launcher paths are removed
+  from the active workspace; `AGENTS.md §6`, `README.md`, and active checklist
+  docs point to the canonical `scripts\` paths.
 - Phase 1 generated-context checks are now enforceable:
   `scripts/dev/generate_project_index.py --check` verifies
   `Docs/generated/PROJECT_INDEX.md` and
   `Docs/generated/DEPENDENCY_GRAPH.md`,
   `scripts/dev/generate_pipeline_map.py --check` verifies
   `Docs/generated/PIPELINE_MAP.md`, and `refresh_summaries.py --check`
-  now includes the one-release root PowerShell shims in its explicit
-  source set.
+  covers the active canonical script and source paths.
 - `.pre-commit-config.yaml` now runs summary, project-index, and
   pipeline-map drift hooks plus the Phase 2 config schema drift hook, and
   `.github/workflows/phase1-drift.yml` runs the same generated-artifact
@@ -127,14 +139,13 @@ intent is worth keeping, it goes here and/or in an ADR.
 - `.pre-commit-config.yaml` and `.github/workflows/phase1-drift.yml` now
   include Phase 5 naming lint and active-doc reference checks.
 - Phase 7 handoff docs now treat representative real-media validation as
-  closed by operator attestation while keeping PG-3 clean-machine
-  package-mode validation, Phase 6 destructive removal, and future
-  media-behavior revalidation as active gates.
+  closed by operator attestation and Phase 6 local legacy burn-down as
+  complete, while keeping PG-3 clean-machine package-mode validation, operator
+  acceptance, and future media-behavior revalidation as active gates.
 - `Docs/generated/PIPELINE_MAP.md` is generated from
-  `app/contracts/stages.py` instead of hand-synced. The full stale
-  summary baseline was refreshed from the current source tree; Phase 2
-  source additions bring `Docs/generated/PROJECT_INDEX.md` to 556
-  summaries.
+  `app/contracts/stages.py` instead of hand-synced. The stale summary baseline
+  was refreshed from the current source tree; `Docs/generated/PROJECT_INDEX.md`
+  now indexes 604 source files.
 
   | Old root path                                                     | New canonical path                                       |
   | ----------------------------------------------------------------- | -------------------------------------------------------- |
@@ -154,27 +165,16 @@ intent is worth keeping, it goes here and/or in an ADR.
   repo root. `%~dp0`-relative paths in the moved `.bat` files were
   patched to step up from their new subfolders.
   `scripts/release/Backup-PreOverhaul.ps1`
-  was updated to call `scripts/release/build.ps1` with a fallback to
-  the root shim. Release build verification and release self-test layout
-  checks now prefer the canonical `scripts\` paths while still requiring
-  the one-release root shims. Engine-internal launchers
-  (`Pipeline\Run-MediaPipelineRemuxEncodeAIO.bat`,
-  `Pipeline\Setup-MediaPipelineRemuxEncodeAIO.bat`) were **not**
-  moved; they belong to the PowerShell engine domain (ADR-0001) and
-  are out of scope until that domain re-folds.
+  calls `scripts/release/build.ps1` through the canonical script layout.
+  Release build verification and release self-test layout checks now use the
+  canonical `scripts\` paths without requiring root shims.
 
   `Docs/CURRENT_PROJECT_STATE.md` and `OPEN_WORK_CHECKLIST.md` were
   updated for the canonical launcher and worksheet paths.
 
-  Follow-ups not in this change:
-  - Active doc references to root paths in `Docs/operator/`,
-    `Docs/testing/`, `Docs/inventories/`,
-    `Docs/TLDR.md`, etc.
-  - Hardcoded launcher names in `DesktopApp/tests/test_*.py` and
-    `Pipeline/Tests/*.ps1`. Tests continue to pass through the
-    deprecation shims for one release.
-  - `service_release.py` packaging-file allowlist; current behavior
-    bundles the root shims, which is the desired transition state.
+  The remaining promotion follow-up is PG-3 package-mode launch/close on a
+  separate clean Windows machine plus operator acceptance; the local shim
+  removal gate is closed.
 
 ### Notes
 

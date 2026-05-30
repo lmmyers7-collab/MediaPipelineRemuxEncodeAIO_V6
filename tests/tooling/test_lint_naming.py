@@ -46,7 +46,7 @@ class NamingLintTests(unittest.TestCase):
         self.assertEqual(
             _rule_ids(
                 [
-                    "Pipeline/MediaPipeline_chatgpt.ps1",
+                    "Pipeline/MediaPipeline.ps1",
                     "app/config/load_old.py",
                     "engine/probe/runner_new.ps1",
                 ]
@@ -67,7 +67,7 @@ class NamingLintTests(unittest.TestCase):
             lint_naming.findings_for_paths(
                 [
                     "DesktopApp/mediapipeline_desktop_app/service_queue.py",
-                    "Pipeline/MediaPipeline_chatgpt.ps1",
+                    "Pipeline/MediaPipeline.ps1",
                     "Start-MediaPipelineRemuxEncodeAIO-LocalApi.bat",
                 ],
                 is_new=False,

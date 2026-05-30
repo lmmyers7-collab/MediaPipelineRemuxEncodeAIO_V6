@@ -43,6 +43,7 @@ VALID_PAYLOADS = {
         "duration_seconds": 3600,
         "video_codec": "hevc",
         "video_height": 1080,
+        "route_threshold_mode": "compatibility_advisory",
         "movie_route_max_video_bitrate_mbps": 35,
         "tv_route_max_video_bitrate_mbps": 18,
     },

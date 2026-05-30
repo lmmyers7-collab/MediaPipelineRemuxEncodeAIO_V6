@@ -70,8 +70,10 @@ function Get-MediaPipelineReleaseExclusionReason {
 
     if ($relative -like 'Pipeline\*.log' -or $relative -like 'Pipeline\*.tmp' -or $relative -like 'Pipeline\*.bak') { return 'pipeline runtime artifact' }
     if ($relative -like 'Pipeline\*_progress.json' -or $relative -eq 'Pipeline\pipeline_progress.json' -or $relative -eq 'Pipeline\audit_progress.json') { return 'pipeline runtime state' }
-    if ($relative -like 'Pipeline\MediaPipeline_config_chatgpt.backup_*.psd1' -or $relative -like 'Pipeline\MediaPipeline_config_chatgpt.psd1.bak.*') { return 'generated config backup' }
-    if ((-not $KeepPersonalConfig) -and $relative -eq 'Pipeline\MediaPipeline_config_chatgpt.psd1') { return 'personal live config' }
+    if ($relative -like 'Pipeline\MediaPipeline_config.backup_*.psd1' -or $relative -like 'Pipeline\MediaPipeline_config.psd1.bak.*') { return 'generated config backup' }
+    if ($relative -like 'Pipeline\MediaPipeline_config_chatgpt.backup_*.psd1' -or $relative -like 'Pipeline\MediaPipeline_config_chatgpt.psd1.bak.*') { return 'generated config backup (legacy)' }
+    if ((-not $KeepPersonalConfig) -and $relative -eq 'Pipeline\MediaPipeline_config.psd1') { return 'personal live config' }
+    if ((-not $KeepPersonalConfig) -and $relative -eq 'Pipeline\MediaPipeline_config_chatgpt.psd1') { return 'personal live config (legacy)' }
 
     if (-not $IncludeTests) {
         if ($relative -like 'Pipeline\Tests\*') { return 'test suite omitted' }
@@ -144,7 +146,8 @@ function Get-MediaPipelineReleaseHygieneRules {
         (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'DesktopApp\tauri_shell\src-tauri\gen' -Label 'Tauri generated schemas'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'DesktopApp\tauri_shell\src-tauri\target' -Label 'Tauri Rust build output'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'Docs\PG3CleanMachineReports' -Label 'PG-3 clean-machine operator reports'),
-        (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'Pipeline\MediaPipeline_config_chatgpt.backup_*.psd1' -Label 'generated config backups'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'Pipeline\MediaPipeline_config.backup_*.psd1' -Label 'generated config backups'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'Pipeline\MediaPipeline_config_chatgpt.backup_*.psd1' -Label 'generated config backups (legacy)'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'Pipeline\*.log' -Label 'pipeline runtime logs'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'Pipeline\*.tmp' -Label 'pipeline runtime temp files'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'Pipeline\*.bak' -Label 'pipeline runtime backup files'),
@@ -169,7 +172,8 @@ function Get-MediaPipelineReleaseHygieneRules {
     }
 
     if (-not $PersonalConfigIncluded) {
-        [void]$rules.Add((New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'Pipeline\MediaPipeline_config_chatgpt.psd1' -Label 'personal live config'))
+        [void]$rules.Add((New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'Pipeline\MediaPipeline_config.psd1' -Label 'personal live config'))
+        [void]$rules.Add((New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'Pipeline\MediaPipeline_config_chatgpt.psd1' -Label 'personal live config (legacy)'))
     }
 
     if (-not $OptionalToolsIncluded) {

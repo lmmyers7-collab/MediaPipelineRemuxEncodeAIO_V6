@@ -283,7 +283,15 @@ def _run_rename_readiness_smoke() -> dict[str, object]:
     if not node:
         raise unittest.SkipTest("Node.js is required for the WebView rename readiness smoke.")
     assets = []
-    for name in ("domHelpers.js", "renameLabels.js", "renameHistoryView.js", "renameView.js"):
+    for name in (
+        "domHelpers.js",
+        "renameLabels.js",
+        "renameHistoryView.js",
+        "rename/preview.js",
+        "rename/applyReadiness.js",
+        "rename/applyResult.js",
+        "renameView.js",
+    ):
         assets.append({"name": name, "source": (WEB_STATIC / name).read_text(encoding="utf-8")})
     with tempfile.TemporaryDirectory() as raw_tmp:
         tmp = Path(raw_tmp)

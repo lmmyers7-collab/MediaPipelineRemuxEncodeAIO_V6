@@ -172,15 +172,105 @@
       setText("completed-workflow", completedWorkflowLines(completed || {}, rowList).join("\n"));
     }
 
+    function completedRowHasBasicHealthyEvidence(row) {
+      const consistency = String(row?.consistency_status || "").toLowerCase();
+      return row?.output_exists !== false
+        && row?.sidecar_exists !== false
+        && !row?.size_growth_over_5
+        && !row?.size_policy_exceeded
+        && !completedRowHasIntegrityIssue(row)
+        && (!consistency || ["ok", "healthy", "consistent", "consistent-looking"].includes(consistency));
+    }
+
+    function completedRowHasSmallHealthySizeGrowth(row) {
+      const delta = completedSizeDeltaPercent(row);
+      if (!Number.isFinite(delta) || Math.abs(delta) > 1) return false;
+      const flags = Array.isArray(row?.review_flags)
+        ? row.review_flags.map((flag) => String(flag || "").trim().toLowerCase()).filter(Boolean)
+        : [];
+      const benignRuntimeAlreadyProcessed = String(row?.runtime_outcome_status || "").toLowerCase().includes("succeed")
+        && String(row?.runtime_outcome_error_code || row?.runtime_outcome_reason || "").toLowerCase() === "already_processed";
+      const benignFlags = ["size_growth", "remuxed", "encoded", "runtime_outcome", "runtime_outcome:succeeded"];
+      if (benignRuntimeAlreadyProcessed) benignFlags.push("runtime_error:already_processed");
+      const significantFlags = flags.filter((flag) => !benignFlags.includes(flag));
+      const concern = String(row?.primary_concern || "").trim().toLowerCase();
+      return completedRowHasBasicHealthyEvidence(row)
+        && !significantFlags.length
+        && (!concern || concern === "size_growth" || concern.includes("no output, sidecar, size, or runtime blocker"));
+    }
+
+    function completedRowLooksHealthy(row) {
+      const severity = String(row?.operator_severity || "").toLowerCase();
+      return completedRowHasBasicHealthyEvidence(row)
+        && severity !== "error"
+        && (severity !== "warning" || completedRowHasSmallHealthySizeGrowth(row));
+    }
+
+    function completedRuntimeAlreadyProcessedIsBenign(row) {
+      const runtimeStatus = String(row?.runtime_outcome_status || "").toLowerCase();
+      const runtimeError = String(row?.runtime_outcome_error_code || row?.runtime_outcome_reason || "").toLowerCase();
+      return completedRowLooksHealthy(row)
+        && runtimeStatus.includes("succeed")
+        && runtimeError === "already_processed";
+    }
+
+    function completedReviewFlagIsBenign(flag, row) {
+      const normalized = String(flag || "").trim().toLowerCase();
+      if (!normalized) return true;
+      if (["remuxed", "encoded"].includes(normalized)) return true;
+      if (["runtime_outcome", "runtime_outcome:succeeded"].includes(normalized) && completedRowLooksHealthy(row)) return true;
+      if (normalized === "runtime_error:already_processed" && completedRuntimeAlreadyProcessedIsBenign(row)) return true;
+      if (normalized === "size_growth") return completedRowHasSmallHealthySizeGrowth(row);
+      return false;
+    }
+
+    function completedPrimaryConcernIsBenign(row) {
+      const concern = String(row?.primary_concern || "").trim().toLowerCase();
+      if (!concern || !completedRowLooksHealthy(row)) return false;
+      return concern.includes("no output, sidecar, size, or runtime blocker")
+        || concern.includes("no blocker in the loaded")
+        || concern.includes("no current output blocker")
+        || concern.includes("no completed rows are locally flagged")
+        || concern.includes("completed outputs look healthy")
+        || (concern.includes("size_growth") && completedRowHasSmallHealthySizeGrowth(row))
+        || (concern.includes("runtime_outcome:succeeded") && concern.includes("runtime_error:already_processed") && completedRuntimeAlreadyProcessedIsBenign(row));
+    }
+
+    function completedRowHasBenignAlreadyProcessedOutcome(row) {
+      const concern = String(row?.primary_concern || "").trim().toLowerCase();
+      const flags = Array.isArray(row?.review_flags)
+        ? row.review_flags.map((flag) => String(flag || "").trim().toLowerCase()).filter(Boolean)
+        : [];
+      const runtimeStatus = String(row?.runtime_outcome_status || "").toLowerCase();
+      const runtimeError = String(row?.runtime_outcome_error_code || row?.runtime_outcome_reason || "").toLowerCase();
+      const delta = completedSizeDeltaPercent(row);
+      const benignFlags = ["size_growth", "remuxed", "encoded", "runtime_outcome", "runtime_outcome:succeeded", "runtime_error:already_processed"];
+      const concernTokens = concern.split(/[,;]/).map((token) => token.trim()).filter(Boolean);
+      const hasAlreadyProcessed = runtimeError === "already_processed"
+        || flags.includes("runtime_error:already_processed")
+        || concern.includes("runtime_error:already_processed");
+      const hasSucceeded = runtimeStatus.includes("succeed")
+        || flags.includes("runtime_outcome:succeeded")
+        || concern.includes("runtime_outcome:succeeded");
+      const significantFlags = flags.filter((flag) => !benignFlags.includes(flag));
+      return completedRowHasBasicHealthyEvidence(row)
+        && Number.isFinite(delta)
+        && Math.abs(delta) <= 1
+        && hasAlreadyProcessed
+        && hasSucceeded
+        && !significantFlags.length
+        && (!concern || completedPrimaryConcernIsBenign(row) || concernTokens.every((token) => benignFlags.includes(token)));
+    }
+
     function completedReviewRowReasons(row) {
       const reasons = [];
       const severity = String(row?.operator_severity || "").toLowerCase();
       const consistency = String(row?.consistency_status || "").toLowerCase();
       const runtimeStatus = String(row?.runtime_outcome_status || "").toLowerCase();
       const runtimeFreshness = String(row?.runtime_outcome_freshness_status || "").toLowerCase();
-      const reviewFlags = Array.isArray(row?.review_flags) ? row.review_flags.filter(Boolean) : [];
+      const reviewFlags = Array.isArray(row?.review_flags) ? row.review_flags.filter((flag) => !completedReviewFlagIsBenign(flag, row)) : [];
       if (severity === "error") reasons.push("backend error severity");
-      if (severity === "warning") reasons.push("backend warning severity");
+      if (severity === "warning" && !completedRowHasSmallHealthySizeGrowth(row)) reasons.push("backend warning severity");
       if (row?.output_exists === false) reasons.push("missing output");
       if (row?.size_growth_over_5) reasons.push("output grew more than 5%");
       if (consistency && !["ok", "healthy", "consistent", "consistent-looking"].includes(consistency)) reasons.push(`consistency: ${row.consistency_status}`);
@@ -190,8 +280,8 @@
         reasons.push(`fresh runtime outcome: ${row.runtime_outcome_status}`);
       }
       if (reviewFlags.length) reasons.push(`review flags: ${reviewFlags.join(", ")}`);
-      if (String(row?.operator_trust_state || "").toLowerCase().includes("review")) reasons.push(`trust state: ${row.operator_trust_state}`);
-      if (row?.primary_concern) reasons.push(`primary concern: ${row.primary_concern}`);
+      if (String(row?.operator_trust_state || "").toLowerCase().includes("review") && !completedRowLooksHealthy(row)) reasons.push(`trust state: ${row.operator_trust_state}`);
+      if (row?.primary_concern && !completedPrimaryConcernIsBenign(row)) reasons.push(`primary concern: ${row.primary_concern}`);
       return reasons.filter(Boolean);
     }
 
@@ -271,11 +361,33 @@
         || "Select this row, compare Completed detail with Diagnostics Cross-Links, then leave repair/rerun/reconcile decisions to backend-owned workflows.";
     }
 
+    function completedSizeDeltaPercent(item) {
+      if (typeof item?.size_delta_percent === "number") return Number(item.size_delta_percent);
+      return Number.parseFloat(String(item?.size_delta_label || "").replace("%", ""));
+    }
+
+    function completedHasSmallHealthySizeDelta(item) {
+      const delta = completedSizeDeltaPercent(item);
+      if (!Number.isFinite(delta) || Math.abs(delta) > 1) return false;
+      const severity = String(item?.operator_severity || "").toLowerCase();
+      return item?.output_exists !== false
+        && severity !== "warning"
+        && severity !== "error"
+        && !item?.size_growth_over_5
+        && !item?.size_policy_exceeded
+        && !completedRowHasIntegrityIssue(item)
+        && completedReviewRowReasons(item).length === 0;
+    }
+
     function completedTableRowStatus(item) {
       const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(item) : "";
+      const benignAlreadyProcessed = completedRowHasBenignAlreadyProcessedOutcome(item);
+      if (backendState === "changed" && completedHasSmallHealthySizeDelta(item)) return "match";
+      if (benignAlreadyProcessed && ["", "normal", "warning", "changed", "unknown"].includes(backendState)) return "match";
       if (backendState) return backendState;
       const severity = String(item?.operator_severity || "").toLowerCase();
       if (severity === "error" || item?.output_exists === false || completedRowHasIntegrityIssue(item)) return "blocked";
+      if (benignAlreadyProcessed) return "match";
       if (severity === "warning" || item?.size_growth_over_5 || completedReviewRowReasons(item).length) return "warning";
       return "match";
     }
@@ -304,7 +416,14 @@
       const routeReview = String(item?.route_decision_summary || item?.route_reason || item?.route_reason_code || "").toLowerCase();
       if (!normalized || normalized === "all") return true;
       if (normalized === "missing_output") return item?.output_exists === false || String(item?.output_health || "").toLowerCase().includes("missing");
-      if (normalized === "size_growth") return Boolean(item?.size_growth_over_5 || String(item?.size_delta_label || "").includes("+"));
+      if (normalized === "size_growth") {
+        const delta = completedSizeDeltaPercent(item);
+        return Boolean(
+          item?.size_policy_exceeded
+          || item?.size_growth_over_5
+          || (Number.isFinite(delta) && delta > 1)
+        );
+      }
       if (normalized === "sidecar_issues") {
         return item?.sidecar_exists === false
           || Number(item?.missing_sidecar_count || 0) > 0
@@ -334,13 +453,15 @@
       const normalizedInvestigation = String(investigationFilter || "all").trim().toLowerCase();
       const investigationMatches = !normalizedInvestigation || normalizedInvestigation === "all" || completedMatchesInvestigationFilter(item, normalizedInvestigation);
       const activeFilters = Boolean(String(filterText || "").trim()) || String(statusFilter || "all").toLowerCase() !== "all" || normalizedInvestigation !== "all";
+      const currentOutputPresent = item?.output_exists !== false;
       const reasons = [];
+      if (!currentOutputPresent) reasons.push("not present in Current Output Status table");
       if (!textMatches) reasons.push(`text filter="${String(filterText || "").trim()}"`);
       if (!statusMatches) reasons.push(`status filter=${typeof tableStatusFilterLabel === "function" ? tableStatusFilterLabel(statusFilter) : statusFilter}`);
       if (!investigationMatches) reasons.push(`investigation view=${completedInvestigationFilterLabel(investigationFilter)}`);
       const lines = [
         "Current filter visibility:",
-        `Selected row visible in table: ${textMatches && statusMatches && investigationMatches ? "yes" : "no"}`,
+        `Selected row visible in table: ${currentOutputPresent && textMatches && statusMatches && investigationMatches ? "yes" : "no"}`,
         `Active filters: ${activeFilters ? `text=${String(filterText || "").trim() || "none"}; status=${typeof tableStatusFilterLabel === "function" ? tableStatusFilterLabel(statusFilter) : statusFilter}; view=${completedInvestigationFilterLabel(investigationFilter)}` : "none"}`,
       ];
       if (reasons.length) {
@@ -349,7 +470,7 @@
       } else if (activeFilters) {
         lines.push("Operator note: this selected row is still visible under the active display filters.");
       } else {
-        lines.push("Operator note: no Completed display filter is hiding this selected row.");
+        lines.push("Operator note: no Current Output display filter is hiding this selected row.");
       }
       return lines;
     }
@@ -473,12 +594,15 @@
       return rowList
         .map((row, index) => ({ row, index }))
         .filter(({ row }) => {
-          const delta = row?.size_delta_percent;
-          return row?.size_policy_exceeded || row?.size_growth_over_5 || (typeof delta === "number" && delta > 0) || delta === null || delta === undefined;
+          const delta = completedSizeDeltaPercent(row);
+          return row?.size_policy_exceeded
+            || row?.size_growth_over_5
+            || (Number.isFinite(delta) && delta > 0 && !completedHasSmallHealthySizeDelta(row))
+            || !Number.isFinite(delta);
         })
         .sort((left, right) => {
-          const delta = (entry) => typeof entry.row?.size_delta_percent === "number" ? Number(entry.row.size_delta_percent) : -Infinity;
-          const rank = (entry) => entry.row?.size_policy_exceeded ? 0 : entry.row?.size_growth_over_5 && !entry.row?.size_policy_available ? 1 : typeof entry.row?.size_delta_percent === "number" && entry.row.size_delta_percent > 0 ? 2 : 3;
+          const delta = (entry) => Number.isFinite(completedSizeDeltaPercent(entry.row)) ? completedSizeDeltaPercent(entry.row) : -Infinity;
+          const rank = (entry) => entry.row?.size_policy_exceeded ? 0 : entry.row?.size_growth_over_5 && !entry.row?.size_policy_available ? 1 : Number.isFinite(completedSizeDeltaPercent(entry.row)) && completedSizeDeltaPercent(entry.row) > 0 ? 2 : 3;
           return rank(left) - rank(right) || delta(right) - delta(left) || left.index - right.index;
         });
     }
@@ -492,6 +616,7 @@
       if (Number(payload.size_policy_exceeded_count || 0) > 0) return "Policy exceeded";
       if (Number(payload.size_policy_within_limit_count || 0) > 0 && Number(payload.size_growth_count || 0) > 0) return "Within size policy";
       if (Number(payload.size_growth_over_5_count || 0) > 0) return "Legacy growth >+5%";
+      if (!completedSizeReviewRows(rowList).length && rowList.some(completedHasSmallHealthySizeDelta)) return "Neutral +/-1%";
       if (Number(payload.size_growth_count || 0) > 0) return "Growth under +5%";
       if (Number(payload.size_unknown_count || 0) > 0) return "Unknown size";
       return "No growth";
@@ -508,7 +633,7 @@
       if (row.size_growth_over_5) {
         return row.safe_next_action || "Compare source/output size, route metadata, encoder choice, Run Logs, and Last Stderr before accepting this output; no backend size_policy was recorded.";
       }
-      if (typeof row.size_delta_percent === "number" && row.size_delta_percent > 0) {
+      if (Number.isFinite(completedSizeDeltaPercent(row)) && completedSizeDeltaPercent(row) > 0) {
         return "Small growth can be normal for compatibility, subtitles, or audio normalization; compare route reason before rerun.";
       }
       return "Size comparison is missing. Open Completed Manifest and Run Logs before trusting this row as shrink/remux proof.";
@@ -519,10 +644,11 @@
       const rowList = Array.isArray(rows) ? rows : [];
       const reviewRows = completedSizeReviewRows(rowList);
       const policyExceeded = reviewRows.filter(({ row }) => row?.size_policy_exceeded).length;
-      const policyAllowed = reviewRows.filter(({ row }) => row?.size_policy_available && !row?.size_policy_exceeded && typeof row?.size_delta_percent === "number" && row.size_delta_percent > 0).length;
+      const policyAllowed = reviewRows.filter(({ row }) => row?.size_policy_available && !row?.size_policy_exceeded && Number.isFinite(completedSizeDeltaPercent(row)) && completedSizeDeltaPercent(row) > 0).length;
       const legacyOverFive = reviewRows.filter(({ row }) => row?.size_growth_over_5 && !row?.size_policy_available).length;
-      const positive = reviewRows.filter(({ row }) => typeof row?.size_delta_percent === "number" && row.size_delta_percent > 0 && !row.size_policy_exceeded && !row.size_growth_over_5).length;
-      const unknown = reviewRows.filter(({ row }) => row?.size_delta_percent === null || row?.size_delta_percent === undefined).length;
+      const positive = reviewRows.filter(({ row }) => Number.isFinite(completedSizeDeltaPercent(row)) && completedSizeDeltaPercent(row) > 0 && !row.size_policy_exceeded && !row.size_growth_over_5).length;
+      const unknown = reviewRows.filter(({ row }) => !Number.isFinite(completedSizeDeltaPercent(row))).length;
+      const neutralSmall = rowList.filter(completedHasSmallHealthySizeDelta).length;
       const lines = [
         "Size growth review board:",
         `Rows loaded: ${payload.count || rowList.length || 0}`,
@@ -530,6 +656,7 @@
         `Growth within recorded size policy: ${policyAllowed}`,
         `Legacy growth over +5% without size_policy: ${legacyOverFive}`,
         `Growth 0..5% or unclassified growth: ${positive}`,
+        `Healthy +/-1% deltas treated as neutral: ${neutralSmall}`,
         `Unknown source/output comparison: ${unknown}`,
         `Size policy modes: ${typeof window.formatStatusCounts === "function" ? window.formatStatusCounts(payload.size_policy_mode_counts) : "none"}`,
       ];
@@ -570,7 +697,15 @@
       tbody.replaceChildren();
       reviewRows.forEach(({ row: item }) => {
         const row = document.createElement("tr");
-        row.dataset.status = item.size_policy_exceeded ? "warning" : item.size_growth_over_5 && !item.size_policy_available ? "warning" : typeof item.size_delta_percent === "number" && item.size_delta_percent > 0 ? "changed" : "unknown";
+        row.dataset.status = item.size_policy_exceeded
+          ? "warning"
+          : item.size_growth_over_5 && !item.size_policy_available
+            ? "warning"
+            : completedHasSmallHealthySizeDelta(item)
+              ? "match"
+              : Number.isFinite(completedSizeDeltaPercent(item)) && completedSizeDeltaPercent(item) > 0
+                ? "changed"
+                : "unknown";
         appendCells(row, [
           item.size_delta_label || "unknown",
           item.route_decision_summary || item.route_label || item.route || "",
@@ -604,13 +739,14 @@
       const policyExceededRows = reviewRows.filter(({ row }) => row?.size_policy_exceeded).map(({ row }) => row);
       const legacyOverFiveRows = reviewRows.filter(({ row }) => row?.size_growth_over_5 && !row?.size_policy_available).map(({ row }) => row);
       const policyAllowedRows = reviewRows
-        .filter(({ row }) => row?.size_policy_available && !row?.size_policy_exceeded && typeof row?.size_delta_percent === "number" && row.size_delta_percent > 0)
+        .filter(({ row }) => row?.size_policy_available && !row?.size_policy_exceeded && Number.isFinite(completedSizeDeltaPercent(row)) && completedSizeDeltaPercent(row) > 0)
         .map(({ row }) => row);
       const positiveRows = reviewRows
-        .filter(({ row }) => typeof row?.size_delta_percent === "number" && row.size_delta_percent > 0 && !row.size_policy_exceeded && !row.size_growth_over_5)
+        .filter(({ row }) => Number.isFinite(completedSizeDeltaPercent(row)) && completedSizeDeltaPercent(row) > 0 && !row.size_policy_exceeded && !row.size_growth_over_5)
         .map(({ row }) => row);
+      const neutralSmallRows = rowList.filter(completedHasSmallHealthySizeDelta);
       const unknownRows = reviewRows
-        .filter(({ row }) => row?.size_delta_percent === null || row?.size_delta_percent === undefined)
+        .filter(({ row }) => !Number.isFinite(completedSizeDeltaPercent(row)))
         .map(({ row }) => row);
       const proofList = Array.isArray(proofRows) ? proofRows : [];
       const proofBlocked = proofList.filter((row) => row?.status === "blocked");
@@ -660,7 +796,9 @@
                 ? `${policyAllowedRows.length} row(s) grew but stayed within recorded size_policy; largest visible row: ${topGrowthLabel} (${topGrowthDelta}).`
                 : positiveRows.length
                   ? `${positiveRows.length} row(s) grew under +5% or without policy classification; largest visible row: ${topGrowthLabel} (${topGrowthDelta}).`
-              : "No loaded completed rows report positive output growth.",
+              : neutralSmallRows.length
+                ? `${neutralSmallRows.length} healthy row(s) have only +/-1% size delta and are treated as neutral.`
+                : "No loaded completed rows report review-level positive output growth.",
           action: policyExceededRows.length || legacyOverFiveRows.length
             ? "Select largest growth row and compare route/encoder/size_policy/log evidence before accepting output."
             : "Use this as supporting evidence only; backend size_policy may already allow compatibility growth.",
@@ -671,6 +809,7 @@
             `Rows within recorded size_policy: ${policyAllowedRows.length}`,
             `Legacy rows over +5% with no size_policy: ${legacyOverFiveRows.length}`,
             `Rows with smaller positive growth: ${positiveRows.length}`,
+            `Healthy +/-1% neutral rows: ${neutralSmallRows.length}`,
           ],
         },
         {
@@ -1184,7 +1323,9 @@
     function completedSelectedAtAGlanceState(item) {
       if (!item) return "unknown";
       const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(item) : "";
+      const benignAlreadyProcessed = completedRowHasBenignAlreadyProcessedOutcome(item);
       if (["blocked", "failed"].includes(backendState)) return "blocked";
+      if (benignAlreadyProcessed && ["", "normal", "warning", "changed", "unknown"].includes(backendState)) return "ready";
       if (["warning", "running", "skipped", "parked", "publishing", "health-check"].includes(backendState)) return "warning";
       if (["match", "ready", "completed"].includes(backendState)) return "ready";
       const reviewFlags = Array.isArray(item.review_flags) ? item.review_flags.filter(Boolean) : [];

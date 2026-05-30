@@ -39,6 +39,21 @@ from .worker_done import (
     build_crash_recovery_done_request,
     build_release_done_request,
 )
+from .worker_parts.reporting import (
+    claim_failure_status_message,
+    is_unauthorized_http_error as _is_unauthorized_http_error,  # noqa: F401 - compatibility re-export
+    notify_status_callback,
+    post_app_callback,
+    request_abort_reclaimed_job,
+)
+from .worker_parts.results import completion_cluster_event, release_cluster_event
+from .worker_parts.state_reports import save_active_worker_state, save_pending_worker_report
+from .worker_parts.tasks import (
+    build_claimed_job,
+    claim_with_source_path,
+    malformed_claim_identity,
+    parse_claim_response_payload,
+)
 from .worker_record import make_queue_record as _make_queue_record
 from .worker_state import atomic_write_text as _atomic_write_text
 from .worker_state import clear_worker_state, load_worker_state, save_worker_state
@@ -51,10 +66,6 @@ _log = logging.getLogger(__name__)
 _HEARTBEAT_INTERVAL = 30   # seconds between heartbeats
 # HTTP timeout and response-size caps live in network.http_json and are
 # imported here under their historical names for compatibility.
-
-
-def _is_unauthorized_http_error(error_text: str) -> bool:
-    return error_text.startswith("HTTP 401 ") or error_text.startswith("HTTP Error 401:")
 
 
 class WorkerDispatcher(QueueDispatcher):
@@ -388,48 +399,26 @@ class WorkerDispatcher(QueueDispatcher):
 
     def _save_worker_state(self, job: ClaimedJob) -> None:
         """Write job identity to disk so crash recovery can report it on next start."""
-        source_path = str(job.record.source_path)
-        try:
-            save_worker_state(
-                self._state_path,
-                job_id=job.job_id,
-                source_path=source_path,
-            )
-        except Exception as exc:
-            _log.warning("Failed to save worker_state.json for job %s: %s", job.job_id, exc)
-            self._notify_status("⚠ Worker crash recovery state save failed - check logs.")
-            self._safe_log_cluster_event(
-                "worker-state-save-failed",
-                level="WARN",
-                event="worker_state_save_failed",
-                message="Worker could not save crash-recovery state; restart recovery may miss this job.",
-                job_id=job.job_id,
-                source_path=source_path,
-            )
+        save_active_worker_state(
+            self._state_path,
+            job,
+            save_state=save_worker_state,
+            notify_status=self._notify_status,
+            safe_log_cluster_event=self._safe_log_cluster_event,
+            log=_log,
+        )
 
     def _save_pending_done_report(self, job: ClaimedJob, payload: dict[str, Any]) -> bool:
         """Persist an exact done/release payload for retry after restart."""
-        source_path = str(getattr(job.record, "source_path", "")) if job.record else ""
-        try:
-            save_worker_state(
-                self._state_path,
-                job_id=job.job_id,
-                source_path=source_path,
-                pending_done_report=payload,
-            )
-        except Exception as exc:
-            _log.warning("Failed to save pending done report for job %s: %s", job.job_id, exc)
-            self._notify_status("⚠ Pending done-report retry save failed - check logs.")
-            self._safe_log_cluster_event(
-                "pending-done-save-failed",
-                level="WARN",
-                event="pending_done_save_failed",
-                message="Worker could not save pending done/release report; restart retry may miss this report.",
-                job_id=job.job_id,
-                source_path=source_path,
-            )
-            return False
-        return True
+        return save_pending_worker_report(
+            self._state_path,
+            job,
+            payload,
+            save_state=save_worker_state,
+            notify_status=self._notify_status,
+            safe_log_cluster_event=self._safe_log_cluster_event,
+            log=_log,
+        )
 
     def _clear_worker_state(self) -> bool:
         try:
@@ -497,37 +486,26 @@ class WorkerDispatcher(QueueDispatcher):
 
     def _notify_status(self, msg: str) -> None:
         """Internal: invoke the status callback if one is registered."""
-        cb = getattr(self, "_status_callback", None)
-        if cb is not None:
-            try:
-                cb(msg)
-            except Exception as exc:
-                _log.warning("Worker status callback failed: %s", _worker_diagnostic_preview(exc))
+        notify_status_callback(
+            getattr(self, "_status_callback", None),
+            msg,
+            log=_log,
+            diagnostic_preview=_worker_diagnostic_preview,
+        )
 
     def _post_app_callback(self, name: str, callback: "Callable[[], None]") -> None:
         """Schedule an app callback through the configured app scheduler."""
-        poster = getattr(self.app, "post_ui", None)
-        if callable(poster):
-            poster(name, callback)
-            return
-        root = getattr(self.app, "root", None)
-        if root is None or not hasattr(root, "after"):
-            raise RuntimeError("app has no callback scheduler")
-        root.after(1, callback)
+        post_app_callback(self.app, name, callback)
 
     def _request_abort_reclaimed_job(self, job: ClaimedJob) -> None:
         """Ask the app callback scheduler to abort a job reclaimed by the coordinator."""
-        try:
-            self._post_app_callback(
-                "worker-abort-current-job",
-                self.app._worker_abort_current_job,
-            )
-        except Exception as exc:
-            _log.error(
-                "Failed to schedule abort for reclaimed job %s: %s",
-                job.job_id,
-                _worker_diagnostic_preview(exc),
-            )
+        request_abort_reclaimed_job(
+            self.app,
+            job,
+            post_callback=self._post_app_callback,
+            log=_log,
+            diagnostic_preview=_worker_diagnostic_preview,
+        )
 
     def _release_unstartable_claim(self, claim: ClaimResponse, reason: str) -> None:
         """Release a claimed job that cannot be converted into local work."""
@@ -554,12 +532,10 @@ class WorkerDispatcher(QueueDispatcher):
 
     def _release_malformed_claim_response(self, resp: object, reason: str) -> bool:
         """Release an already-claimed job when the claim body cannot be parsed."""
-        if not isinstance(resp, dict) or str(resp.get("status", "")).strip().lower() != "ok":
+        identity = malformed_claim_identity(resp)
+        if identity is None:
             return False
-        job_id = str(resp.get("job_id", "") or "").strip()
-        if not job_id:
-            return False
-        source_path = str(resp.get("source_path", "") or "")
+        job_id, source_path = identity
         reason_preview = _worker_diagnostic_preview(reason)
         _log.warning(
             "Malformed claimed response for job %s; releasing claim: %s",
@@ -654,7 +630,7 @@ class WorkerDispatcher(QueueDispatcher):
                         "worker_name": self._worker_name,
                     },
                 )
-                claim = ClaimResponse.from_dict(resp)
+                claim = parse_claim_response_payload(resp)
                 self._last_claim_failure_text = ""
             except Exception as exc:
                 try:
@@ -677,8 +653,13 @@ class WorkerDispatcher(QueueDispatcher):
                     self._last_claim_failure_text = err_str
                 else:
                     _log.debug("Claim request still failing: %s — sleeping.", reason_preview)
-                if _is_unauthorized_http_error(err_str):
-                    self._notify_status("⚠ Auth error — token does not match coordinator")
+                status_message, log_auth_event = claim_failure_status_message(
+                    err_str,
+                    reason_preview,
+                    self._base_url,
+                )
+                self._notify_status(status_message)
+                if log_auth_event:
                     # Auth error is loud — fire one cluster log so the
                     # operator sees it on the coordinator immediately.
                     # (Will only land if the token is at least valid enough
@@ -688,12 +669,6 @@ class WorkerDispatcher(QueueDispatcher):
                         level="ERROR", event="claim_unauthorized",
                         message="Coordinator returned 401 — token mismatch.",
                     )
-                elif "timed out" in err_str.lower() or "refused" in err_str.lower():
-                    self._notify_status(f"⚠ Cannot reach coordinator ({self._base_url})")
-                    # Connection errors aren't logged to the cluster (we
-                    # can't reach it anyway); local Python log carries it.
-                else:
-                    self._notify_status(f"⚠ Poll error: {reason_preview[:80]}")
                 self._wait_interruptible()
                 continue
 
@@ -746,19 +721,15 @@ class WorkerDispatcher(QueueDispatcher):
                 # Build a new ClaimResponse with the rewritten path so downstream
                 # code (heartbeat, mark_done, _make_queue_record) sees the local form.
                 # The coordinator still tracks the original path internally.
-                claim = ClaimResponse(
-                    status            = claim.status,
-                    job_id            = claim.job_id,
-                    source_path       = mapped_path,
-                    priority          = claim.priority,
-                    estimated_size_gb = claim.estimated_size_gb,
-                    encode_config     = claim.encode_config,
-                    retry_on_failure  = claim.retry_on_failure,
-                )
+                claim = claim_with_source_path(claim, mapped_path)
 
             # Build a synthetic QueueRecord for the claimed path.
             try:
-                record = _make_queue_record(claim)
+                job = build_claimed_job(
+                    claim,
+                    self._worker_id,
+                    record_builder=_make_queue_record,
+                )
             except Exception as exc:
                 reason_preview = _worker_diagnostic_preview(exc)
                 _log.error("Failed to build QueueRecord for claimed job: %s", reason_preview)
@@ -774,19 +745,6 @@ class WorkerDispatcher(QueueDispatcher):
                 self._wait_interruptible()
                 continue
 
-            # Stash retry_on_failure inside encode_config so it travels with
-            # the job without adding a new field to ClaimedJob (the base
-            # dataclass is shared across all three dispatcher modes).
-            encode_config = dict(claim.encode_config)
-            encode_config["__retry_on_failure"] = claim.retry_on_failure
-
-            job = ClaimedJob(
-                job_id        = claim.job_id,
-                record        = record,
-                encode_config = encode_config,
-                claimed_at    = datetime.now(),
-                worker_id     = self._worker_id,
-            )
             with self._active_job_lock:
                 self._active_job = job
 
@@ -1047,36 +1005,17 @@ class WorkerDispatcher(QueueDispatcher):
                 "Job %s completion report could not be saved for pending retry after coordinator POST failure.",
                 job.job_id,
             )
-        sp = str(getattr(job.record, "source_path", "")) if job.record else ""
-        if success:
-            mb = (output_size_bytes / (1024 * 1024)) if output_size_bytes else 0.0
-            state_suffix = ""
-            if publish_state:
-                state_suffix = f" publish={publish_state}"
-            self._safe_log_cluster_event(
-                "encode-done",
-                level="INFO",
-                event="encode_done",
-                message=(
-                    f"Finished {Path(sp).name} in {elapsed_seconds:.1f}s "
-                    f"({mb:.1f} MB out){state_suffix}"
-                ),
-                job_id=job.job_id,
-                source_path=sp,
-            )
-        else:
-            event_name = "encode_terminal" if queue_terminal else "encode_failed"
-            self._safe_log_cluster_event(
-                "encode-failed",
-                level="ERROR",
-                event=event_name,
-                message=(
-                    f"Pipeline failed for {Path(sp).name} after "
-                    f"{elapsed_seconds:.1f}s: {(completion_status or error or '(no detail)')[:200]}"
-                ),
-                job_id=job.job_id,
-                source_path=sp,
-            )
+        event_context, event_kwargs = completion_cluster_event(
+            job,
+            success=success,
+            elapsed_seconds=elapsed_seconds,
+            output_size_bytes=output_size_bytes,
+            completion_status=completion_status,
+            error=error,
+            publish_state=publish_state,
+            queue_terminal=queue_terminal,
+        )
+        self._safe_log_cluster_event(event_context, **event_kwargs)
 
     def release(self, job: ClaimedJob) -> None:
         """Return the job to the coordinator queue without a failure record.
@@ -1108,15 +1047,8 @@ class WorkerDispatcher(QueueDispatcher):
                 "Job %s release report could not be saved for pending retry after coordinator POST failure.",
                 job.job_id,
             )
-        sp = str(getattr(job.record, "source_path", "")) if job.record else ""
-        self._safe_log_cluster_event(
-            "job-released",
-            level="INFO",
-            event="job_released",
-            message=f"Returned {Path(sp).name} to the queue (clean release)",
-            job_id=job.job_id,
-            source_path=sp,
-        )
+        event_context, event_kwargs = release_cluster_event(job)
+        self._safe_log_cluster_event(event_context, **event_kwargs)
 
     # ------------------------------------------------------------------
     # Public accessors

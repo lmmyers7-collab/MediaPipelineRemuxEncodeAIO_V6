@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-05-29
 last_reviewed: 2026-05-29
-sha256: da68cb7ea8ccbc18006a91f15b49e094756cc871b4165a0808e4a807f20e8b11
+sha256: 3afc1b4f092f14a7d572b779673005306c8c711b7af02e21977017f12bc8d5f0
 ---
 # `DesktopApp/tests/test_stage_entrypoint.py`
 

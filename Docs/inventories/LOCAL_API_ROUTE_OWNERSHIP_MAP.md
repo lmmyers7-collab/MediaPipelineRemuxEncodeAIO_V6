@@ -2,7 +2,7 @@
 
 Documents all Local API routes, their mutation risk, auth requirements, backend owner confirmation, and primary frontend caller. Source of truth is `contract_read.py` and `contract_command.py`; handler dispatch is in `routes_read.py` and `routes_command.py`.
 
-Total routes: 54 (25 read, 29 command).
+Total routes: 68 (29 read, 39 command).
 
 All routes that mutate state are backend-owned. The WebView never resolves filesystem paths, selects output targets, chooses encode settings, or launches processes directly — it forwards requests with allowlisted parameters and the backend validates, plans, and executes.
 
@@ -24,6 +24,7 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 | `GET /api/diagnostics/tail` | Yes | `desktop_diagnostics_tail.v1` | Diagnostics | Query params: `target` (allowlisted key only), `max_bytes` (1 KB–256 KB); backend rejects arbitrary paths; response evidence is marked `evidence_authority=backend` |
 | `GET /api/diagnostics/state-summary` | Yes | `desktop_diagnostics_state_summary.v1` | Diagnostics | Bounded inline artifact summary; no arbitrary path accepted |
 | `GET /api/backend/close-readiness` | Yes | `desktop_close_readiness.v1` | Tauri shell (close flow) | Backend has authority over whether it is safe to close; shell must not decide unilaterally |
+| `GET /api/ui-preferences` | Yes | `desktop_ui_preferences.v1` | Chrome WebView, Tauri shell | Shared UI preference state for layout/theme/tab parity; no settings, queue, or media mutation |
 | `GET /api/launch/preflight` | Yes | `desktop_launch_preflight.v1` | Launch | Backend-authored pre-launch checks; no locks reserved, no processes started |
 | `GET /api/commands` | Yes | `desktop_command_history.v1` | Diagnostics, Home | Recent command journal entries; query param: `limit` |
 
@@ -36,6 +37,7 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 | `GET /api/queue/strategy` | Yes | `queue_strategy_state.v1` | Queue | Reads active queue strategy and valid backend strategy names |
 | `GET /api/queue/file-overrides` | Yes | `queue_file_overrides.v1` | Queue | Reads override manifest or one source-root-contained override entry |
 | `GET /api/completed` | Yes | `desktop_completed_preview.v1` | Completed | From local completed-jobs manifest; no output-share scan |
+| `GET /api/final-library-promotion/status` | Yes | `desktop_final_library_promotion_status.v1` | Completed | Reads backend-owned final-library promotion readiness, run state, pause state, counts, and destinations; no copy/move/delete action |
 | `GET /api/failures` | Yes | `desktop_failure_preview.v1` | Reports, Diagnostics | Query params: `source` (`latest_json` or `markers`), `limit` |
 | `GET /api/audit-results` | Yes | `desktop_audit_preview.v1` | Reports | Query params: `priority_only`, `limit`; no rerun CSV written |
 | `GET /api/pending-publish` | Yes | `desktop_pending_publish_preview.v1` | Pending Publish | Reads manifests and parked payloads; does not drain |
@@ -49,6 +51,8 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 | `GET /api/maintenance/progress` | Yes | `none` | `desktop_maintenance_health_progress.v1` | Maintenance | Reads latest maintenance progress; does not run probes |
 | `GET /api/schedule` | Yes | `none` | `desktop_schedule_workspace.v1` | Schedule | Reads persisted schedule state; schedule saves use separate backend command routes |
 | `GET /api/settings/workspace` | Yes | `none` | `desktop_settings_workspace.v1` | Settings | Read-only, redacted settings snapshot |
+| `GET /api/settings/wizard/status` | Yes | `none` | `desktop_settings_wizard_status.v1` | Settings Wizard | Reads availability and first-run recommendation state only |
+| `GET /api/settings/wizard/defaults` | Yes | `none` | `desktop_settings_wizard.v1` | Settings Wizard | Reads wizard defaults and tool candidates only |
 | `GET /api/network/workers` | Yes | `none` | `desktop_network_workers.v1` | Network | Coordinator/worker runtime state; no lifecycle controls |
 | `GET /api/sample-validation` | Yes | `none` | `desktop_sample_validation_log.v1` + `desktop_sample_validation_readiness.v1` + `desktop_sample_validation_reconciliation.v1` + `desktop_real_media_pilot_plan.v1` + `desktop_real_media_execution_checklist.v1` + `desktop_real_media_worksheet_runs.v1` | Home (Validation Log) | Recent validation records plus backend-authored read-only validation readiness, stale-evidence reconciliation, pilot plan, operator sample-execution checklist, and generated worksheet evidence from `Docs\RealMediaValidationRuns`; query param: `limit` |
 
@@ -87,6 +91,16 @@ Failure marker clear is backend-owned retry-blocker cleanup. It requires `confir
 
 `recovery-plan` effect is `none`: it builds a backend-authored dry-run plan and returns it. No files are drained, moved, deleted, or published.
 
+### Final Library Promotion Commands
+
+| Route | Effect | Request Keys | Mutation Risk | Frontend Caller |
+|---|---|---|---|---|
+| `POST /api/final-library-promotion/promote-queue` | `filesystem-mutation` | `confirm_promote` | **High** — copies verified completed outputs to configured final-library destinations after explicit confirmation | Completed |
+| `POST /api/final-library-promotion/pause` | `control-state-write` | `run_id` | Medium — writes cooperative pause state for the active promotion run only | Completed |
+| `POST /api/final-library-promotion/resume` | `control-state-write` | `run_id` | Medium — clears cooperative pause state for the active promotion run only | Completed |
+
+Final-library promotion remains backend-owned: the backend resolves destinations, eligible completed rows, active run state, pause/resume state, copy behavior, and any configured publish-output cleanup.
+
 ### Diagnostics Open Command (shell-open; no media mutation)
 
 | Route | Effect | Request Keys | Allowed Targets | Frontend Caller |
@@ -94,6 +108,14 @@ Failure marker clear is backend-owned retry-blocker cleanup. It requires `confir
 | `POST /api/diagnostics/open` | `shell-open` | `target` | 20 allowlisted keys (see below) | Diagnostics, all pages |
 
 Allowed targets for `/api/diagnostics/open`: `run_logs`, `cluster_log`, `config`, `config_folder`, `workspace`, `state`, `pending_publish`, `failed_reports`, `failed_markers`, `audit_reports`, `queue_snapshot`, `active_jobs`, `completed_manifest`, `latest_failure_report`, `latest_failure_json`, `latest_audit_csv`, `latest_priority_csv`, `last_stdout_log`, `last_stderr_log`, `sample_validation_log`.
+
+### UI Preference Commands
+
+| Route | Effect | Request Keys | Mutation Risk | Frontend Caller |
+|---|---|---|---|---|
+| `POST /api/ui-preferences` | `ui-state-write` | `storage`, `source_surface` | Low — writes allowlisted UI preference JSON only | Chrome WebView, Tauri shell |
+
+UI preference sync is backend-owned state persistence for browser-local customization only. It can store layout, theme, evidence visibility, and tab choices under `LocalBase\State`, but it cannot save settings, mutate queue state, launch work, drain, rename, publish, or touch media files.
 
 ### Maintenance Commands (deployment package + process dry-run)
 
@@ -123,9 +145,15 @@ The dry-run routes run existing backend scripts with `-DryRun` and write no rele
 | `POST /api/settings/browse-path` | `shell-dialog` | `setting_key`, `selection_mode`, `initial_path` | Low — backend-owned native Windows folder browser for allowlisted path fields only | Settings |
 | `POST /api/settings/preview-patch` | `none` | `changes`, `remove_keys` | None — returns redacted diff | Settings |
 | `POST /api/settings/save-patch` | `config-write` | `changes`, `remove_keys`, `confirm_save` | **High** — writes PSD1 config | Settings |
+| `POST /api/settings/wizard/validate-paths` | `none` | `wizard` | None — validation only | Settings Wizard |
+| `POST /api/settings/wizard/validate-tools` | `none` | `wizard` | None — validation only | Settings Wizard |
+| `POST /api/settings/wizard/probe-hardware` | `none` | `wizard` | None — bounded probe evidence only | Settings Wizard |
+| `POST /api/settings/wizard/validate-workers` | `none` | `wizard` | None — validation only | Settings Wizard |
+| `POST /api/settings/wizard/preview` | `none` | `wizard` | None — generated-patch preview only | Settings Wizard |
+| `POST /api/settings/wizard/save` | `config-write` | `wizard`, `confirm_save` | **High** — writes PSD1 config through the normal backend save path | Settings Wizard |
 | `POST /api/settings/reload` | `none` | *(none)* | None — reloads cached state | Settings |
 
-`browse-path` opens only the backend-owned Windows folder browser for allowlisted Settings path fields (`SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`) and returns selected-folder validation evidence for WebView staging. It does not save the PSD1, launch work, rewrite queue state, or touch media files. `save-patch` performs backup, atomic write, and backend state reload. `confirm_save` must be set. The browser smoke explicitly verifies that `save-patch` is NOT called during the staged-settings handoff test.
+`browse-path` opens only the backend-owned Windows folder browser for allowlisted Settings path fields (`SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`) and returns selected-folder validation evidence for WebView staging. It does not save the PSD1, launch work, rewrite queue state, or touch media files. Settings Wizard validation/preview routes do not write config. `settings/wizard/save` and `save-patch` perform backup, atomic write, and backend state reload. `confirm_save` must be set. The browser smoke explicitly verifies that `save-patch` is NOT called during the staged-settings handoff test.
 
 ### Schedule Commands
 
@@ -163,19 +191,21 @@ The dry-run routes run existing backend scripts with `-DryRun` and write no rele
 
 | Effect tag | Routes | Risk level |
 |---|---|---|
-| `none` | 31 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/reload, recovery-plan, sample-validation/preview, schedule/preview) | None |
+| `none` | 40 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, Settings Wizard validation/preview routes, settings/reload, recovery-plan, sample-validation/preview, schedule/preview) | None |
 | `bounded-health-check` | `GET /api/maintenance` | Read-only probes |
 | `shell-open` | `POST /api/queue/open`, `POST /api/completed/open`, `POST /api/pending-publish/open`, `POST /api/diagnostics/open` | OS open only; no file mutation |
 | `shell-dialog` | `POST /api/rename/browse`, `POST /api/settings/browse-path` | Native Windows picker only; no file mutation |
+| `ui-state-write` | `POST /api/ui-preferences` | Allowlisted UI preference JSON only |
 | `queue-state-write` | `POST /api/queue/priority`, `POST /api/queue/strategy`, `POST /api/queue/file-overrides` | Non-destructive queue state JSON only |
 | `failure-marker-write` | `POST /api/failures/clear` | Moves retry-blocker marker JSON out of the active marker folder only |
 | `process-dry-run` | `POST /api/maintenance/release-dry-run`, `POST /api/maintenance/completed-backfill-dry-run` | No output written |
 | `deployment-write` | `POST /api/maintenance/release-build` | Writes deployable release folder, manifest, and optional zip only |
+| `control-state-write` | `POST /api/final-library-promotion/pause`, `POST /api/final-library-promotion/resume` | Writes cooperative final-library promotion control state only |
 | `control-flag-write` | `POST /api/pipeline/control` | Pause/stop/rescan signal only |
 | `validation-log-write` | `POST /api/sample-validation/append` | Appends to operator evidence log only |
 | `app-state-write` | `POST /api/schedule/save` | Writes desktop app schedule keys only |
-| `config-write` | `POST /api/settings/save-patch` | Writes and reloads PSD1 config |
-| `filesystem-mutation` | `POST /api/rename/apply` | Renames files on disk |
+| `config-write` | `POST /api/settings/save-patch`, `POST /api/settings/wizard/save` | Writes and reloads PSD1 config |
+| `filesystem-mutation` | `POST /api/rename/apply`, `POST /api/final-library-promotion/promote-queue` | Renames files or promotes completed outputs through backend-owned file operations |
 | `process-launch` | `POST /api/pipeline/start`, `POST /api/audit/start`, `POST /api/rerun/start` | Spawns backend processes |
 | `backend-lifecycle` | `POST /api/backend/shutdown` | Initiates graceful shutdown |
 
@@ -195,6 +225,7 @@ Every mutation route enforces backend ownership:
 - **Rename browse** (`rename/browse`): backend opens the native Windows file/folder browser and returns operator-selected paths for staging only; preview/apply still use separate backend routes.
 - **Settings path browse** (`settings/browse-path`): backend opens the native Windows folder browser for allowlisted source/output/scratch settings and returns validation evidence for staging only; Preview/Save remains the only settings persistence path.
 - **Diagnostics open/tail**: frontend passes an allowlisted target key string; backend resolves the real path and rejects any key not in the allowlist.
+- **UI preferences**: frontend sends only allowlisted `mediapipeline-*`/`mediapipeline.*` local customization keys; backend stores them as UI state under `LocalBase\State` and never treats them as config or media policy.
 - **Queue state writes**: backend rejects priority/file-override path writes unless the path is absolute and under configured `SourceMovies`/`SourceTV`; strategy writes are constrained to backend valid strategy names.
 - **Recovery plan**: backend authors the dry-run plan; the frontend receives it read-only.
 - **Deployment build**: backend owns release packaging, active-work checks, confirmation, command locking, destination replacement, manifest creation, and optional zip creation; the frontend cannot copy files, write manifests, or zip folders itself.

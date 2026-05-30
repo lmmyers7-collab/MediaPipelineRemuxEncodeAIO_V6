@@ -60,6 +60,10 @@ class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
         self.assertTrue(any(item["code"] == "file_stability_check_disabled" for item in settings["risk_summary"]["items"]))
         self.assertEqual(settings["media_policy_readiness"]["schema_version"], "settings_media_policy_readiness.v1")
         self.assertTrue(settings["media_policy_readiness"]["read_only"])
+        self.assertEqual(settings["policy_impact"]["schema_version"], "settings_policy_impact.v1")
+        self.assertEqual(settings["policy_impact"]["evidence_authority"], "backend")
+        self.assertEqual(settings["policy_impact"]["launch_risk_handoff"]["schema_version"], "settings_launch_risk_handoff.v1")
+        self.assertTrue(settings["policy_impact"]["launch_risk_handoff"]["read_only"])
         self.assertEqual(settings["tool_path_evidence"]["schema_version"], "settings_tool_path_evidence.v1")
         self.assertEqual(settings["tool_path_evidence"]["bdpgs_ocr"]["operator_status"], "Ready")
         self.assertTrue(settings["tool_path_evidence"]["bdpgs_ocr"]["read_only"])
@@ -75,6 +79,10 @@ class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
         size_guard_field = next(field for field in settings["field_definitions"] if field["key"] == "SizeGuardMode")
         self.assertEqual(size_guard_field["choices"], ["advisory", "strict", "off"])
         self.assertIn("Reject oversized encodes", size_guard_field["choice_help"]["strict"])
+        threshold_mode_field = next(field for field in settings["field_definitions"] if field["key"] == "RouteThresholdMode")
+        self.assertEqual(threshold_mode_field["section"], "Routing")
+        self.assertEqual(threshold_mode_field["default"], "compatibility_advisory")
+        self.assertIn("size_or_bitrate", threshold_mode_field["choices"])
         movie_bitrate_field = next(field for field in settings["field_definitions"] if field["key"] == "MovieRouteMaxVideoBitrateMbps")
         self.assertEqual(movie_bitrate_field["section"], "Routing")
         self.assertEqual(movie_bitrate_field["default"], 35)
@@ -147,6 +155,55 @@ class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
         self.assertEqual(rows["Source preservation"]["posture"], "blocked")
         self.assertIn("DeleteSourceAfterProcessing", rows["Source preservation"]["keys"])
         self.assertIn("Backend media-policy readiness:", "\n".join(readiness["summary_lines"]))
+
+    def test_settings_workspace_reports_backend_policy_impact_launch_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "RoutingProfile": "plex_direct_stream",
+                "SizeGuardMode": "off",
+                "MaxEncodeGrowthPercent": 5,
+                "CompatibilityEncodeGrowthPercent": 15,
+                "EncodeThresholdGB": 8,
+                "TVEncodeThresholdGB": 3,
+                "MovieRouteMaxVideoBitrateMbps": 35,
+                "TVRouteMaxVideoBitrateMbps": 18,
+                "VideoCodec": "hevc_nvenc",
+                "EncodeTuningPreset": "balanced_nvenc",
+                "EncodeLadder": "auto",
+                "ExtraVideoFlags": ["-legacy"],
+                "AllowH264RemuxIfPlexCompatible": False,
+                "RemuxSafeVideoCodecs": ["hevc", "h265"],
+                "OutputContainer": "mp4",
+                "ConvertTx3gToSrt": False,
+                "DropTx3gAfterConversion": True,
+                "ConvertBdpgsToSrt": True,
+                "DropBdpgsAfterConversion": False,
+                "DropAssAfterConversion": False,
+                "AllowNoAudio": True,
+                "DeferredPublish": True,
+                "SkipStabilityCheck": True,
+                "EnableIntegrityCheck": False,
+                "AllowSystemTools": True,
+                "SourceMovies": str(root / "Movies"),
+                "SourceTV": str(root / "TV"),
+                "LocalBase": str(root / "Scratch"),
+                "Outsource": str(root / "Output"),
+            }
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v5-test")
+
+            impact = facade.get_settings_workspace(resolved).to_mapping()["policy_impact"]
+
+        self.assertEqual(impact["schema_version"], "settings_policy_impact.v1")
+        launch_risk = impact["launch_risk_handoff"]
+        self.assertEqual(launch_risk["schema_version"], "settings_launch_risk_handoff.v1")
+        rows = {row["area"]: row for row in launch_risk["rows"]}
+        self.assertEqual(rows["Remux / encode size posture"]["impact"], "review")
+        self.assertIn("legacy flags=1", rows["Remux / encode size posture"]["evidence"])
+        self.assertEqual(rows["Subtitle SRT routing"]["impact"], "blocked")
+        self.assertEqual(rows["Audio predictability"]["impact"], "blocked")
+        self.assertIn("Backend-authored saved-policy readiness", "\n".join(impact["summary_lines"]))
 
     def test_settings_workspace_compares_default_profile_without_exposing_values(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

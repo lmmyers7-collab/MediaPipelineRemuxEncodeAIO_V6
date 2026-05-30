@@ -32,9 +32,9 @@ $python = Resolve-WebViewBrowserLayoutManagerSmokePython -ProjectRoot $projectRo
 
 Write-Host 'WebView browser layout-manager smoke'
 Write-Host 'Boundary: starts a temporary local API against generated temporary state.'
-Write-Host 'Boundary: launches installed Chrome/Edge headless and drives real backend-served WebView customize mode.'
-Write-Host 'Boundary: verifies Queue, Completed, Settings, Diagnostics, Launch, and Reports tab/subtab/subsection boxes expose customize bars and draggable panel handles.'
-Write-Host 'Boundary: verifies inactive Settings-family subtabs are visible while customize mode is active.'
+Write-Host 'Boundary: launches installed Chrome/Edge headless and drives the real backend-served Layout Editor drawer.'
+Write-Host 'Boundary: verifies Queue, Completed, Settings, Diagnostics, Launch, and Reports tab/subtab/subsection boxes are listed in the drawer.'
+Write-Host 'Boundary: verifies inactive Settings-family subtabs stay hidden while the drawer is open.'
 Write-Host 'Boundary: verifies no backend mutation routes are posted and media/sidecar/manifest fixture artifacts stay unchanged.'
 Write-Host 'Boundary: does not process media, launch pipeline commands, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or modify source/output/scratch media.'
 Write-Host 'Boundary: skips cleanly when Chrome/Edge is not installed.'
@@ -51,4 +51,3 @@ try {
 finally {
     Pop-Location
 }
-

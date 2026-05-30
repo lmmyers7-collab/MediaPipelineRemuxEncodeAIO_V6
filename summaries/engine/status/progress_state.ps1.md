@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: status
 last_modified: 2026-05-29
 last_reviewed: 2026-05-29
-sha256: da9121243fddc496c82149fd6fac155b5931d5c4b15786a4d77f4bdd3f5217a3
+sha256: e4918220ae3d1962e477d6398c1716f10b5a6dd824cf2e820e0b0c2742eba7e5
 ---
 # `engine/status/progress_state.ps1`
 

@@ -43,13 +43,26 @@ def _python_command(script: str, *args: str) -> tuple[str, ...]:
 
 
 def build_check_plan(mode: Mode) -> list[CommandCheck]:
+    # One architectural-integrity gate covering the four drift vectors:
+    #   - structural drift / generated-artifact staleness (the generate_* --check
+    #     scripts plus active-doc-references),
+    #   - god files and bloat (check_godfiles.py),
+    #   - layout/naming architecture (check_architecture_guardrails.py, lint-naming),
+    #   - marketecture language (check_marketecture.py).
+    # Preflight and postflight run the same plan so the working tree is held to
+    # one standard before and after edits.
     common = [
         CommandCheck("summary-freshness", _python_command("scripts/dev/refresh_summaries.py", "--check")),
         CommandCheck("project-index", _python_command("scripts/dev/generate_project_index.py", "--check")),
         CommandCheck("pipeline-map", _python_command("scripts/dev/generate_pipeline_map.py", "--check")),
         CommandCheck("lifecycle-map", _python_command("scripts/dev/generate_lifecycle_map.py", "--check")),
+        CommandCheck("config-schema", _python_command("scripts/dev/generate_config_schema.py", "--check")),
+        CommandCheck("stage-schema", _python_command("scripts/dev/generate_stage_schema.py", "--check")),
+        CommandCheck("active-doc-references", _python_command("scripts/dev/check_active_doc_references.py")),
         CommandCheck("architecture-guardrails", _python_command("scripts/dev/check_architecture_guardrails.py")),
         CommandCheck("naming-lint", _python_command("scripts/lint-naming.py")),
+        CommandCheck("god-file-guard", _python_command("scripts/dev/check_godfiles.py")),
+        CommandCheck("marketecture-guard", _python_command("scripts/dev/check_marketecture.py")),
         CommandCheck("risky-file-registry", _python_command("scripts/dev/check_risky_file_registry.py")),
     ]
     if mode == "preflight":

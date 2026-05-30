@@ -135,6 +135,8 @@ class CompletedPreviewDto:
     inventory_progress: JsonMap = field(default_factory=dict)
     progress_bars: list[JsonMap] = field(default_factory=list)
     validation_state: JsonMap = field(default_factory=dict)
+    completed_pending_proof: JsonMap = field(default_factory=dict)
+    final_library_promotion: JsonMap = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
     schema_version: str = "desktop_completed_preview.v1"
 
@@ -170,6 +172,7 @@ class PendingPublishPreviewDto:
     missing_sidecar_count: int = 0
     recovery_summary: JsonMap = field(default_factory=dict)
     drain_summary: JsonMap = field(default_factory=dict)
+    drain_confidence: JsonMap = field(default_factory=dict)
     inventory_progress: JsonMap = field(default_factory=dict)
     progress_bars: list[JsonMap] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
@@ -201,6 +204,7 @@ class PublishReconciliationDto:
     missing_without_proof_count: int = 0
     warning_count: int = 0
     blocker_count: int = 0
+    completed_pending_proof: JsonMap = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
     error: str = ""
     schema_version: str = "desktop_publish_reconciliation.v1"

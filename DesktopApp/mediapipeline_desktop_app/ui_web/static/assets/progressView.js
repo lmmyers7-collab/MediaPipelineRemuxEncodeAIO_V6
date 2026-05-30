@@ -150,37 +150,143 @@
     if (summaryId) setText(summaryId, auditProgressSummaryLines(snapshot || {}, bars).join("\n"));
   }
 
+  function progressHasValue(value) {
+    return value !== undefined && value !== null && value !== "";
+  }
+
+  function progressBoolLabel(value) {
+    if (value === true || String(value).toLowerCase() === "true") return "yes";
+    if (value === false || String(value).toLowerCase() === "false") return "no";
+    return "not reported";
+  }
+
+  function progressNumericValue(value, fallback = 0) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
+  }
+
+  function progressIsEmptyText(value) {
+    const text = String(value || "").trim().toLowerCase();
+    return !text || text === "none" || text === "idle" || text === "unknown";
+  }
+
+  function progressDetailItems(progress) {
+    const payload = progress && typeof progress === "object" ? progress : {};
+    const status = payload.Status || payload.status || "Idle";
+    const stage = payload.CurrentStage || payload.current_stage || "";
+    const percent = payload.CurrentStagePercent;
+    const route = payload.CurrentRoute || payload.Route || "";
+    const reason = payload.RouteReason || payload.CurrentRouteReason || "";
+    const queueIndex = payload.CurrentQueueIndex;
+    const queueTotal = payload.CurrentQueueTotal;
+    const remuxed = progressNumericValue(payload.Remuxed);
+    const encoded = progressNumericValue(payload.Encoded);
+    const failed = progressNumericValue(payload.Failed);
+    const stopped = payload.StopRequested === true || String(payload.StopRequested).toLowerCase() === "true";
+    const paused = payload.PauseRequested === true || String(payload.PauseRequested).toLowerCase() === "true";
+    const file = payload.CurrentFileDisplay || payload.CurrentFile || payload.InputFile || "";
+    const updated = payload.UpdatedAt || payload.updated_at || payload.LastUpdated || "";
+    const active = progressStateIsActive(status) || progressStateIsActive(stage);
+    const items = [];
+    if (active || !progressIsEmptyText(status)) {
+      items.push({
+        label: "State",
+        value: formatProgressValue(status || "unknown"),
+        hint: active ? "Work is active" : "No active pipeline stage reported",
+        status: active ? "running" : "ok",
+      });
+    }
+    if (active || !progressIsEmptyText(stage) || progressHasValue(percent)) {
+      items.push({
+        label: "Stage",
+        value: stage ? formatProgressValue(stage) : "none",
+        hint: progressHasValue(percent) ? `Stage percent: ${formatProgressValue(percent)}` : "No stage percent",
+        status: stage ? (active ? "running" : "ok") : "empty",
+      });
+    }
+    items.push(
+      {
+        label: "Queue",
+        value: progressHasValue(queueIndex) || progressHasValue(queueTotal)
+          ? `${formatProgressValue(queueIndex || 0)} / ${formatProgressValue(queueTotal || 0)}`
+          : "none",
+        hint: "Current item position",
+        status: progressNumericValue(queueTotal) > 0 ? "running" : "empty",
+      },
+      {
+        label: "Route",
+        value: route ? formatProgressValue(route) : "none",
+        hint: reason ? formatProgressValue(reason) : "No route reason",
+        status: route ? "ok" : "empty",
+      },
+      {
+        label: "Done",
+        value: `${remuxed + encoded}`,
+        hint: `Remuxed ${remuxed}; encoded ${encoded}`,
+        status: remuxed + encoded > 0 ? "ok" : "empty",
+      },
+      {
+        label: "Issues",
+        value: String(failed),
+        hint: failed ? "Failures need review" : "No failures reported",
+        status: failed ? "blocked" : "ok",
+      },
+      {
+        label: "Controls",
+        value: paused || stopped ? "requested" : "clear",
+        hint: `Pause requested: ${progressBoolLabel(payload.PauseRequested)}; Stop requested: ${progressBoolLabel(payload.StopRequested)}`,
+        status: paused || stopped ? "warning" : "ok",
+      }
+    );
+    if (!progressIsEmptyText(file)) {
+      items.push({
+        label: "File",
+        value: file ? formatProgressValue(file) : "none",
+        hint: updated ? `Updated: ${formatProgressValue(updated)}` : "No current file",
+        status: file ? "running" : "empty",
+      });
+    }
+    return items;
+  }
+
   function renderProgressDetails(progress) {
-    const preferred = [
-      "Status",
-      "CurrentStage",
-      "CurrentStagePercent",
-      "CurrentFileDisplay",
-      "CurrentQueueIndex",
-      "CurrentQueueTotal",
-      "CurrentRoute",
-      "RouteReason",
-      "Remuxed",
-      "Encoded",
-      "Failed",
-      "StopRequested",
-      "PauseRequested",
-    ];
-    const keys = preferred.filter((key) => progress[key] !== undefined && progress[key] !== null && progress[key] !== "");
-    const extraKeys = Object.keys(progress).filter((key) => !preferred.includes(key)).sort((a, b) => a.localeCompare(b));
-    const rows = [...keys, ...extraKeys].slice(0, 40);
-    setText("progress-detail-status", rows.length ? `${rows.length} field${rows.length === 1 ? "" : "s"}` : "No details");
-    const tbody = byId("progress-detail-rows");
-    if (!tbody) return;
-    if (!rows.length) {
-      clearRows(tbody, 2, "No progress details loaded.");
+    const payload = progress && typeof progress === "object" ? progress : {};
+    const items = progressDetailItems(payload);
+    const loaded = Object.keys(payload).length > 0;
+    setText("progress-detail-status", loaded ? `${items.length} checks` : "No details");
+    const container = byId("progress-detail-rows");
+    if (!container) return;
+    if (!loaded) {
+      container.replaceChildren();
+      const empty = document.createElement("p");
+      empty.className = "note";
+      empty.textContent = "No progress details loaded.";
+      container.appendChild(empty);
       return;
     }
-    tbody.replaceChildren();
-    rows.forEach((key) => {
-      const row = document.createElement("tr");
-      appendCells(row, [key, formatProgressValue(progress[key])]);
-      tbody.appendChild(row);
+    container.replaceChildren();
+    items.forEach((item) => {
+      const card = document.createElement("div");
+      card.className = "progress-fact";
+      card.dataset.status = item.status;
+      card.setAttribute("role", "listitem");
+      const icon = document.createElement("span");
+      icon.className = "progress-fact-icon";
+      icon.setAttribute("aria-hidden", "true");
+      const body = document.createElement("span");
+      body.className = "progress-fact-body";
+      const label = document.createElement("span");
+      label.className = "progress-fact-label";
+      label.textContent = item.label;
+      const value = document.createElement("strong");
+      value.className = "progress-fact-value";
+      value.textContent = item.value;
+      const hint = document.createElement("span");
+      hint.className = "progress-fact-hint";
+      hint.textContent = item.hint;
+      body.append(label, value, hint);
+      card.append(icon, body);
+      container.appendChild(card);
     });
   }
 

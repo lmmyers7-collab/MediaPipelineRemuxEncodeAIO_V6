@@ -6,6 +6,7 @@
 @import url("./styles.controls.css");
 @import url("./styles.layout-manager.css");
 @import url("./styles.queue.css");
+@import url("./styles.rename.css");
 
 /* ===== REDUCED MOTION — disable transitions for users who opt out ===== */
 @media (prefers-reduced-motion: reduce) {

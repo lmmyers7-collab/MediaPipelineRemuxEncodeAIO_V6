@@ -387,6 +387,22 @@
     return 4;
   }
 
+  function pendingDrainConfidenceBackendRows(pending) {
+    const dto = pending?.drain_confidence;
+    if (!dto || typeof dto !== "object" || dto.schema_version !== "desktop_pending_drain_confidence.v1") return [];
+    return Array.isArray(dto.rows) ? dto.rows.filter((row) => row && typeof row === "object") : [];
+  }
+
+  function pendingDrainConfidenceBackendRowMap(pending) {
+    const rows = pendingDrainConfidenceBackendRows(pending);
+    const byCheck = new Map();
+    rows.forEach((row) => {
+      const check = String(row.check || "").trim();
+      if (check && !byCheck.has(check)) byCheck.set(check, row);
+    });
+    return byCheck;
+  }
+
   function pendingDrainConfidenceRows(pending, rows, snapshot, entries) {
     const payload = pending || {};
     const inputRows = Array.isArray(rows) ? rows : [];
@@ -406,8 +422,18 @@
     const recoveryBlocked = recoveryRows.filter((row) => pendingRecoveryPlanRowStatus(row) === "blocked").length;
     const recoveryReview = recoveryRows.filter((row) => pendingRecoveryPlanRowStatus(row) === "warning").length;
     const filterScope = pendingCurrentFilterScope(rowList);
+    const backendRows = pendingDrainConfidenceBackendRowMap(payload);
     const rowsOut = [];
-    const add = (check, confidence, evidence, action) => rowsOut.push({ check, confidence, evidence, action });
+    const add = (check, confidence, evidence, action) => {
+      const backendRow = backendRows.get(check);
+      rowsOut.push(backendRow ? {
+        check,
+        confidence: backendRow.confidence || confidence,
+        evidence: backendRow.evidence || evidence,
+        action: backendRow.action || action,
+        evidenceAuthority: backendRow.evidence_authority || payload.drain_confidence?.evidence_authority || "backend",
+      } : { check, confidence, evidence, action });
+    };
     if (payload.error) {
       add("Pending scan", "blocked", `scan unavailable: ${payload.error}`, "Open Diagnostics > Pending Publish, Run Logs, and Last Stderr before any drain attempt.");
       return rowsOut;
@@ -846,12 +872,36 @@
     return lines;
   }
 
+  function renderDiagnosticCallout(id, detailLines) {
+    const root = byId(id);
+    if (!root) return;
+    root.classList.add("diagnostic-callout");
+    root.textContent = "";
+
+    const details = document.createElement("details");
+    details.className = "diagnostic-callout-details";
+    const summary = document.createElement("summary");
+    summary.textContent = "Why?";
+    details.appendChild(summary);
+    const detailsBody = document.createElement("pre");
+    detailsBody.className = "prose-block diagnostic-callout-body";
+    detailsBody.textContent = (detailLines || []).filter(Boolean).join("\n");
+    details.appendChild(detailsBody);
+    root.appendChild(details);
+
+    const advancedBody = document.createElement("pre");
+    advancedBody.className = "prose-block diagnostic-callout-body diagnostic-callout-advanced";
+    advancedBody.setAttribute("data-advanced", "");
+    advancedBody.textContent = (detailLines || []).filter(Boolean).join("\n");
+    root.appendChild(advancedBody);
+  }
+
   function renderPendingDrainGuard(pending = getLastPendingPayload(), rows = getLastPendingRows(), snapshot = getLastPendingSnapshot(), entries) {
     const state = pendingDrainGuardState(pending, rows, snapshot, entries);
     setText("pending-drain-guard-status", state.allowed ? (state.review_required ? "Review confirm" : "Allowed") : "Blocked");
     const statusNode = byId("pending-drain-guard-status");
     if (statusNode) statusNode.dataset.state = state.allowed ? (state.review_required ? "warning" : "ready") : "blocked";
-    setText("pending-drain-guard-summary", pendingDrainGuardLines(state).join("\n"));
+    renderDiagnosticCallout("pending-drain-guard-summary", pendingDrainGuardLines(state));
     const button = byId("pending-drain-button");
     if (button) {
       button.title = state.allowed ? state.confirm_message : state.message;

@@ -37,16 +37,12 @@
           <div class="action-row action-row-left wrap-actions">
             <button type="button" class="secondary-button" data-open-diagnostics="run_logs">Run Logs</button>
             <button type="button" class="secondary-button" data-open-diagnostics="active_jobs">Active Jobs</button>
-            <button type="button" class="secondary-button" data-control-action="pause">Pause</button>
-            <button type="button" class="secondary-button" data-control-action="rescan" data-confirm-command="true">Rescan</button>
-            <button type="button" class="danger-button" data-control-action="stop" data-confirm-command="true">Stop</button>
-            <button type="button" class="danger-button" data-control-action="kill" data-confirm-command="true">Kill</button>
           </div>
-          <p id="home-control-message" class="note">No quick control command sent.</p>
+          <p id="home-control-message" class="note">Dashboard controls only navigate or open backend-allowlisted evidence. Use Launch for pipeline start and run controls.</p>
         </section>
 
         <!-- ═══ DAILY DRIVER: AT A GLANCE ═══ -->
-        <section class="panel home-at-a-glance-panel" data-panel-type="evidence">
+        <section class="panel home-at-a-glance-panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>At A Glance</h2>
             <strong id="home-at-a-glance-status">Checking</strong>
@@ -67,7 +63,6 @@
               </ol>
             </div>
           </div>
-          <p id="home-at-a-glance-summary" class="note">No dashboard summary loaded.</p>
         </section>
 
         <!-- ═══ DAILY DRIVER: QUEUE SNAPSHOT ═══ -->
@@ -128,7 +123,7 @@
             <pre id="home-readiness-summary" class="prose-block">No backend readiness data loaded yet.</pre>
           </section>
 
-          <section class="panel" data-panel-type="interactive">
+          <section class="panel" data-panel-type="interactive" data-advanced>
             <div class="panel-heading">
               <h2>Readiness Checklist</h2>
               <strong id="daily-driver-status">Not evaluated</strong>
@@ -164,7 +159,7 @@
             <pre id="home-active-work-summary" class="prose-block">No active-work data loaded yet.</pre>
           </section>
 
-          <section class="panel" data-panel-type="interactive">
+          <section class="panel" data-panel-type="interactive" data-advanced>
             <div class="panel-heading">
               <h2>Run Progress</h2>
               <strong id="progress-detail-status">No details</strong>
@@ -172,21 +167,11 @@
             <div id="progress-bar-list" class="progress-bar-list" aria-live="polite">
               <p class="note">No progress bars loaded.</p>
             </div>
-            <div class="table-wrap detail-table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th scope="col">Field</th>
-                    <th scope="col">Value</th>
-                  </tr>
-                </thead>
-                <tbody id="progress-detail-rows">
-                  <tr><td colspan="2">No progress details loaded.</td></tr>
-                </tbody>
-              </table>
+            <div id="progress-detail-rows" class="progress-fact-grid" role="list" aria-live="polite">
+              <p class="note">No progress details loaded.</p>
             <div class="empty-state" data-empty-state="hidden" style="display:none">
               <span class="empty-state-label">Pipeline not active</span>
-              <span class="empty-state-hint">Progress details appear here during an active pipeline run.</span>
+              <span class="empty-state-hint">Run status checks appear here during an active pipeline run.</span>
             </div>
             </div>
           </section>
@@ -236,7 +221,7 @@
             <pre id="home-external-dependencies-summary" class="prose-block">No external dependency evidence loaded.</pre>
           </section>
 
-          <section class="panel" data-panel-type="interactive">
+          <section class="panel" data-panel-type="interactive" data-advanced>
             <div class="panel-heading">
               <h2>Runtime Files</h2>
               <strong id="home-runtime-open-status">Idle</strong>
@@ -309,7 +294,7 @@
             <div id="command-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
           </section>
 
-          <section class="panel" data-panel-type="interactive">
+          <section class="panel" data-panel-type="interactive" data-advanced>
             <div class="panel-heading">
               <h2>Pipeline Overview</h2>
               <strong id="cross-page-context-status">Not loaded</strong>

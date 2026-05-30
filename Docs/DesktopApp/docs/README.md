@@ -27,7 +27,7 @@ The UI itself should not contain roadmap or changelog tabs. Notes belong here in
 
 ## Backend Integration Notes
 
-- The backend PowerShell pipeline entry point remains `Pipeline\MediaPipeline_chatgpt.ps1`; reusable PowerShell implementations now live under `engine\<domain>\*.ps1`, with `Pipeline\Modules\*.ps1` kept as temporary compatibility shims.
+- The backend PowerShell pipeline entry point remains `Pipeline\MediaPipeline.ps1`; reusable PowerShell implementations now live under `engine\<domain>\*.ps1`, with `Pipeline\Modules\*.ps1` kept as temporary compatibility shims.
 - Audit implementation is split into focused PowerShell modules: progress, issue policy, probe cache, report writers, and scanner orchestration. The desktop app consumes audit outputs instead of owning audit classification rules.
 - Subtitle implementation is under `engine\subtitles\`; the stable `Pipeline\Modules\Subtitles.ps1` path remains a compatibility facade until shim deletion gates close. Keep public subtitle entrypoints stable unless every pipeline/test call site is migrated in the same change.
 - Subtitle settings exposed in the app are grouped by shared policy, ASS/SSA, TX3G, and BDPGS controls. Keep those groups distinct because each subtitle class has different conversion risks and failure modes.

@@ -78,6 +78,7 @@ class AppConfigContractTests(unittest.TestCase):
         data = config_to_flat_dict(config)
 
         self.assertEqual(config.RoutingProfile, "plex_direct_stream")
+        self.assertEqual(config.RouteThresholdMode, "compatibility_advisory")
         self.assertEqual(config.MovieRouteMaxVideoBitrateMbps, 35)
         self.assertEqual(config.TVRouteMaxVideoBitrateMbps, 18)
         self.assertEqual(config.ConsoleLogLevel, "DEBUG")

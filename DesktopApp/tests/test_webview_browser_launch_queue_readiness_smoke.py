@@ -161,7 +161,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             function requireLaunchTab(tabId) {
               const active = activeLaunchTab();
               if (active !== tabId) throw new Error("expected Launch tab " + tabId + ", got " + active);
-              const visiblePanels = Array.from(document.querySelectorAll('[data-page-panel="launch"] > .launch-tab-panel[data-launch-tab-panel]:not(.is-launch-tab-hidden)'))
+              const visiblePanels = Array.from(document.querySelectorAll('[data-page-panel="launch"] > .settings-tab-pane.launch-tab-panel[data-launch-tab-panel].is-active'))
                 .map((panel) => panel.dataset.launchTabPanel);
               if (!visiblePanels.length || visiblePanels.some((tab) => tab !== tabId)) {
                 throw new Error("Launch tab " + tabId + " has unexpected visible panels: " + JSON.stringify(visiblePanels));
@@ -558,6 +558,54 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "Active work guard",
               "CSV Rerun",
             ]);
+            const originalBackendPreflightPayloads = window.mediaPipelineLaunchView.getLastLaunchBackendPreflightPayloads();
+            const originalPipelinePreflight = originalBackendPreflightPayloads.find((payload) => String(payload?.target || "").toLowerCase() === "pipeline");
+            if (!originalPipelinePreflight) throw new Error("missing pipeline backend preflight payload for gate smoke");
+            const idleSnapshot = { pipeline_state: "idle" };
+            const idleCloseReadiness = { safe_to_close: true, active_work: false, state: "idle" };
+            const validateStartButton = byId("pipeline-start-button");
+            setInput("pipeline-start-mode", "once");
+            window.mediaPipelineLaunchView.renderLaunchBackendPreflight([]);
+            window.mediaPipelineLaunchView.updateLaunchCommandButtonStates(idleSnapshot, idleCloseReadiness);
+            if (!validateStartButton.disabled || !validateStartButton.title.includes("Refresh Backend Preflight")) {
+              throw new Error("Run Once should require backend preflight before start; disabled=" + validateStartButton.disabled + "; title=" + validateStartButton.title);
+            }
+            setInput("pipeline-start-mode", "continuous");
+            const blockedPipelinePreflight = {
+              ...originalPipelinePreflight,
+              status: "blocked",
+              request: window.mediaPipelineLaunchView.collectPipelineStartRequest(),
+              checks: [
+                {
+                  key: "browser-smoke-blocker",
+                  label: "Browser smoke blocker",
+                  status: "blocked",
+                  evidence: "Injected cached Backend Preflight blocker for UI gate smoke.",
+                  action: "Resolve injected Backend Preflight blocker.",
+                },
+              ],
+            };
+            const blockedPreflightPayloads = [
+              blockedPipelinePreflight,
+              ...originalBackendPreflightPayloads.filter((payload) => String(payload?.target || "").toLowerCase() !== "pipeline"),
+            ];
+            window.mediaPipelineLaunchView.renderLaunchBackendPreflight(blockedPreflightPayloads);
+            window.mediaPipelineLaunchView.updateLaunchCommandButtonStates(idleSnapshot, idleCloseReadiness);
+            const launchGateChecks = [
+              ["pipeline-start-button", "Resolve blocked Backend Preflight checks"],
+              ["pending-drain-button", "Refresh Backend Preflight"],
+              ["audit-start-button", "Resolve blocked Backend Preflight checks"],
+              ["rerun-start-button", "Resolve blocked Backend Preflight checks"],
+            ];
+            launchGateChecks.forEach(([id, titleFragment]) => {
+              const button = byId(id);
+              if (!button) throw new Error("missing launch gate button " + id);
+              if (!button.disabled || !button.title.includes(titleFragment)) {
+                throw new Error(id + " did not expose blocked launch gate title; disabled=" + button.disabled + "; title=" + button.title);
+              }
+            });
+            window.mediaPipelineLaunchView.renderLaunchBackendPreflight(originalBackendPreflightPayloads);
+            window.mediaPipelineLaunchView.updateLaunchCommandButtonStates();
             requireText("launch-command-review-summary", [
               "Launch command review:",
               "Launch commands loaded: 1",

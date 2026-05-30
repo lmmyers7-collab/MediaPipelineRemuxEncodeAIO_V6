@@ -223,36 +223,36 @@ def _browser_diagnostics_handoff_runner_source() -> str:
             window.showPage("completed");
             window.renderCompleted(payload.completed);
             if (payload.tableClickRows) {
-              click('#completed-rows tr[data-row-key]', "completed table row");
+              click('#completed-history-rows tr[data-row-key]', "completed history table row");
               await waitFor(
                 () => text("completed-detail").includes("Row state: broken-output") && text("completed-detail").includes("publish_missing_output") && text("completed-detail").includes("Selected completed-row quick signal:") && text("completed-detail").includes("Combined completed-row review plan:") && text("completed-detail").includes("Investigation view matches:"),
                 "completed table row selection",
               );
-              setInput("#completed-filter", "definitely-no-completed-match", "completed filter");
+              setInput("#completed-history-filter", "definitely-no-completed-match", "completed history filter");
               await waitFor(
-                () => text("completed-filter-summary").includes("Hidden review rows: 1.") && text("completed-filter-summary").includes("clear or change this filter before rerun, cleanup, or library decisions"),
-                "completed filter hidden review guardrail",
+                () => text("completed-history-filter-summary").includes("Hidden review rows: 1.") && text("completed-history-filter-summary").includes("clear or change this filter before rerun, cleanup, or library decisions"),
+                "completed history filter hidden review guardrail",
               );
-              setInput("#completed-filter", "", "completed filter");
-              setSelect("#completed-status-filter", "ready", "completed status filter");
+              setInput("#completed-history-filter", "", "completed history filter");
+              setSelect("#completed-history-status-filter", "ready", "completed history status filter");
               await waitFor(
-                () => text("completed-filter-summary").includes("status=ready/healthy") && text("completed-filter-summary").includes("Hidden review rows: 1."),
-                "completed status filter hidden review guardrail",
+                () => text("completed-history-filter-summary").includes("status=ready/healthy") && text("completed-history-filter-summary").includes("Hidden review rows: 1."),
+                "completed history status filter hidden review guardrail",
               );
-              setSelect("#completed-status-filter", "all", "completed status filter");
-              setSelect("#completed-investigation-filter", "route_review", "completed investigation filter");
+              setSelect("#completed-history-status-filter", "all", "completed history status filter");
+              setSelect("#completed-history-investigation-filter", "route_review", "completed history investigation filter");
               await waitFor(
-                () => text("completed-filter-summary").includes("view=route review") && text("completed-filter-summary").includes("Hidden review rows: 1."),
-                "completed investigation filter hidden review guardrail",
+                () => text("completed-history-filter-summary").includes("view=route review") && text("completed-history-filter-summary").includes("Hidden review rows: 1."),
+                "completed history investigation filter hidden review guardrail",
               );
               await waitFor(
-                () => text("completed-detail").includes("Selected row visible in table: no") && text("completed-detail").includes("Hidden by current filters: investigation view=route review."),
-                "completed selected row hidden by investigation filter detail",
+                () => text("completed-detail").includes("Selected row visible in table: no") && text("completed-detail").includes("not present in Current Output Status table"),
+                "completed selected row absent from current-output detail",
               );
-              click("#completed-clear-filters-button", "completed clear filters");
+              click("#completed-history-clear-filters-button", "completed history clear filters");
               await waitFor(
-                () => text("completed-detail").includes("Selected row visible in table: yes") && text("completed-filter-summary").includes("view=all signals"),
-                "completed clear filters restores selected row visibility",
+                () => text("completed-history-filter-summary").includes("view=all signals") && text("completed-detail").includes("not present in Current Output Status table"),
+                "completed history clear filters restores history table",
               );
             } else {
               window.selectCompletedRow(completedRow);

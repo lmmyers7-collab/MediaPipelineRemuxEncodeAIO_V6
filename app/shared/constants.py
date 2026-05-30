@@ -53,6 +53,19 @@ ROUTING_PROFILE_DESCRIPTIONS = {
     "archive_quality": "Preserve quality first; keep compatible sources as copy/remux unless policy requires encode.",
     "manual": "Operator-driven routing. Folder force/prefer rules and explicit settings matter most.",
 }
+ROUTE_THRESHOLD_MODE_DEFAULT = "compatibility_advisory"
+ROUTE_THRESHOLD_MODE_NAMES = (
+    "compatibility_advisory",
+    "size",
+    "bitrate",
+    "size_or_bitrate",
+)
+ROUTE_THRESHOLD_MODE_DESCRIPTIONS = {
+    "compatibility_advisory": "Current behavior: bitrate is a hard route ceiling while size remains compatibility/profile-aware.",
+    "size": "Use movie/TV GB thresholds as the hard route filter; bitrate still informs compatibility scoring.",
+    "bitrate": "Use movie/TV Mbps ceilings as the hard route filter; size thresholds are advisory route evidence only.",
+    "size_or_bitrate": "Encode when either the GB threshold or Mbps ceiling is exceeded.",
+}
 SIZE_GUARD_MODE_DEFAULT = "advisory"
 SIZE_GUARD_MODE_NAMES = ("advisory", "strict", "off")
 SIZE_GUARD_MODE_DESCRIPTIONS = {

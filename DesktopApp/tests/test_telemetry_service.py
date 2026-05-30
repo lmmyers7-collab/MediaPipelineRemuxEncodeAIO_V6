@@ -137,7 +137,7 @@ class TelemetryServiceTests(unittest.TestCase):
             pipeline.mkdir()
             fallback = pipeline / "ass_to_srt.py"
             fallback.write_text("", encoding="utf-8")
-            preferred = pipeline / "ass_to_srt_chatgpt.py"
+            preferred = pipeline / "ass_to_srt.py"
             preferred.write_text("", encoding="utf-8")
 
             script = find_ass_to_srt_script(root, root / "DesktopApp")
@@ -167,7 +167,7 @@ class TelemetryServiceTests(unittest.TestCase):
                 path = root / rel
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("", encoding="utf-8")
-            script = root / "Pipeline" / "ass_to_srt_chatgpt.py"
+            script = root / "Pipeline" / "ass_to_srt.py"
             script.parent.mkdir(parents=True, exist_ok=True)
             script.write_text("", encoding="utf-8")
             service = DesktopAppService(app_root)

@@ -586,7 +586,7 @@ foreach ($entry in @(
     @{ Label = 'Desktop local API launcher'; Path = (Join-Path $script:BundleRoot 'DesktopApp\Launch-MediaPipelineRemuxEncodeAIO-LocalApi.bat'); Type = 'Leaf' },
     @{ Label = 'Environment verifier'; Path = $verifier; Type = 'Leaf' },
     @{ Label = 'Config template'; Path = (Join-Path $pipelineRoot 'MediaPipeline_config_template.psd1'); Type = 'Leaf' },
-    @{ Label = 'ASS to SRT helper'; Path = (Join-Path $pipelineRoot 'ass_to_srt_chatgpt.py'); Type = 'Leaf' },
+    @{ Label = 'ASS to SRT helper'; Path = (Join-Path $pipelineRoot 'ass_to_srt.py'); Type = 'Leaf' },
     @{ Label = 'Application DTO compatibility exports'; Path = (Join-Path $script:BundleRoot 'DesktopApp\mediapipeline_desktop_app\application\dto.py'); Type = 'Leaf' },
     @{ Label = 'Application DTO base helpers'; Path = (Join-Path $script:BundleRoot 'DesktopApp\mediapipeline_desktop_app\application\dto_base.py'); Type = 'Leaf' },
     @{ Label = 'Application command DTOs'; Path = (Join-Path $script:BundleRoot 'DesktopApp\mediapipeline_desktop_app\application\dto_commands.py'); Type = 'Leaf' },
@@ -702,9 +702,9 @@ $parseFiles = @(
     (Join-Path $script:BundleRoot 'DesktopApp\tauri_shell\Test-TauriShell-Build.ps1'),
     (Join-Path $script:BundleRoot 'DesktopApp\tauri_shell\Test-TauriShell-Launch.ps1'),
     (Join-Path $script:BundleRoot 'DesktopApp\tauri_shell\New-TauriShell-PG3CleanMachineReport.ps1'),
-    (Join-Path $pipelineRoot 'Setup-MediaPipeline_chatgpt.ps1'),
-    (Join-Path $pipelineRoot 'MediaPipeline_chatgpt.ps1'),
-    (Join-Path $pipelineRoot 'Audit-MediaLibrary_chatgpt.ps1'),
+    (Join-Path $pipelineRoot 'Setup-MediaPipeline.ps1'),
+    (Join-Path $pipelineRoot 'MediaPipeline.ps1'),
+    (Join-Path $pipelineRoot 'Audit-MediaLibrary.ps1'),
     (Join-Path $pipelineRoot 'Invoke-RerunCsv.ps1'),
     (Join-Path $pipelineRoot 'Backfill-CompletedManifest.ps1')
 )
@@ -728,7 +728,7 @@ if (-not $script:Failed) {
 
 Write-Section 'Python Syntax Checks'
 $pythonSyntaxFiles = @(
-    (Join-Path $pipelineRoot 'ass_to_srt_chatgpt.py'),
+    (Join-Path $pipelineRoot 'ass_to_srt.py'),
     (Join-Path $script:BundleRoot 'DesktopApp\mediapipeline_desktop_app\application\dto.py'),
     (Join-Path $script:BundleRoot 'DesktopApp\mediapipeline_desktop_app\application\dto_base.py'),
     (Join-Path $script:BundleRoot 'DesktopApp\mediapipeline_desktop_app\application\dto_commands.py'),

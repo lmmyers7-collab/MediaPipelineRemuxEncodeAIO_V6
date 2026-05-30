@@ -35,9 +35,9 @@ def _resolved(root: Path) -> ResolvedPaths:
     return ResolvedPaths(
         app_root=root / "DesktopApp",
         workspace_root=root,
-        pipeline_path=root / "Pipeline" / "MediaPipeline_chatgpt.ps1",
+        pipeline_path=root / "Pipeline" / "MediaPipeline.ps1",
         config_path=root / "Pipeline" / "MediaPipeline_config.psd1",
-        audit_script_path=root / "Pipeline" / "Audit-MediaLibrary_chatgpt.ps1",
+        audit_script_path=root / "Pipeline" / "Audit-MediaLibrary.ps1",
         rerun_script_path=root / "Pipeline" / "Invoke-RerunCsv.ps1",
         powershell_host="pwsh.exe",
     )

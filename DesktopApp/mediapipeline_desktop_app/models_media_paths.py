@@ -89,7 +89,7 @@ def _derive_media_type_from_path(raw_path: str) -> str:
 
     Older code only recognized literal 'TV' / 'Movies' library segments,
     which left movies blank for the default flat-Movie layout (see
-    Get-OutputPaths in MediaPipeline_chatgpt.ps1 — Movie branch does NOT
+    Get-OutputPaths in MediaPipeline.ps1 — Movie branch does NOT
     pass -IncludeLibraryFolder). New sidecars carry an explicit
     `media_type` field; this helper is the fallback for sidecars written
     before that fix.

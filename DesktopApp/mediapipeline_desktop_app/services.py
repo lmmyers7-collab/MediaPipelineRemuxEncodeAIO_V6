@@ -27,6 +27,7 @@ from app.config.service import ConfigProfileServiceMixin
 from app.completed.service import CompletedJobsServiceMixin
 from app.files.opening import FileOpenServiceMixin
 from app.failures.cleanup_service import FailureCleanupServiceMixin
+from app.final_library.service import FinalLibraryPromotionServiceMixin
 from app.folder_policy.service import FolderPolicyServiceMixin
 from app.publish.pending_service import PendingPublishServiceMixin
 from app.paths.service import PathResolutionServiceMixin
@@ -57,6 +58,7 @@ class DesktopAppService(
     QueueServiceMixin,
     ConfigProfileServiceMixin,
     CompletedJobsServiceMixin,
+    FinalLibraryPromotionServiceMixin,
     FileOpenServiceMixin,
     FailureCleanupServiceMixin,
     FolderPolicyServiceMixin,
@@ -75,6 +77,7 @@ class DesktopAppService(
         self._telemetry_thread: threading.Thread | None = None
         self._cached_telemetry = TelemetrySnapshot()
         self._completed_history_cache_key: str | None = None
+        self._completed_history_cache_limit_key = ""
         self._completed_history_cached_at = 0.0
         self._completed_history_manifest_mtime: float = 0.0
         self._completed_history_records: list[CompletedJobRecord] = []

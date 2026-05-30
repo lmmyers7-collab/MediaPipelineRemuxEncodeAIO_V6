@@ -1,7 +1,7 @@
 # ==============================================================================
 # engine\shared\path_helpers.ps1
 # ==============================================================================
-# Pure path / string / version helpers extracted from MediaPipeline_chatgpt.ps1.
+# Pure path / string / version helpers extracted from MediaPipeline.ps1.
 #
 # This file is dot-sourced by engine stages and legacy shims so every function
 # lives in the caller's scope. Extraction is purely a code-locality change with
@@ -219,6 +219,26 @@ function Resolve-SingleFileMediaKind {
         [string] $SourceMovies = '',
         [string] $SourceTV = ''
     )
+
+    if (Get-Command -Name Get-MediaPipelineLibraryProfileForPath -ErrorAction SilentlyContinue) {
+        $profile = Get-MediaPipelineLibraryProfileForPath -SourcePath $Path
+        if ($profile) {
+            $designation = ''
+            $sourceRoot = ''
+            if (Get-Command -Name Get-MediaPipelineProfileProperty -ErrorAction SilentlyContinue) {
+                $designation = ([string](Get-MediaPipelineProfileProperty -Profile $profile -Name 'designation' -Default '')).Trim().ToLowerInvariant()
+                $sourceRoot = [string](Get-MediaPipelineProfileProperty -Profile $profile -Name 'source_path' -Default '')
+            }
+            if ($designation -in @('movie','tv')) {
+                return [pscustomobject]@{
+                    MediaKind = $designation
+                    IsTV      = ($designation -eq 'tv')
+                    Reason    = 'library_profile_designation'
+                    Root      = if ([string]::IsNullOrWhiteSpace($sourceRoot)) { '' } else { Normalize-MediaPipelinePathForBoundary $sourceRoot }
+                }
+            }
+        }
+    }
 
     $bestRootMatch = $null
     foreach ($candidate in @(

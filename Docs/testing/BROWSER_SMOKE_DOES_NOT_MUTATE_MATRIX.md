@@ -165,7 +165,7 @@ As of 2026-05-20, every fixture-backed browser smoke captures a SHA-256/size sna
 
 | | |
 |---|---|
-| **Exercises** | Enters WebView customize mode in Chrome/Edge and verifies representative Queue, Completed, Settings, Diagnostics, Launch, and Reports boxes have independent customize bars and draggable panel handles, including generated subtab/subsection panels. |
+| **Exercises** | Opens the WebView Layout Editor drawer in Chrome/Edge and verifies representative Queue, Completed, Settings, Diagnostics, Launch, and Reports boxes are listed and can be locally reordered, hidden/gated, previewed, and reset without exposing inactive subtabs inline. |
 | **Does not** | Send POST routes, launch, process media, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths. |
 | **Skip** | Exits 0 when Chrome/Edge not installed. |
 

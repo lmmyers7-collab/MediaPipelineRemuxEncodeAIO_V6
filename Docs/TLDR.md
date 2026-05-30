@@ -127,8 +127,8 @@ Use `-IncludeOptionalTools` or `-IncludeToolDocs` only for a fuller maintenance 
 ## Important Paths
 
 - Local API/WebView app: `DesktopApp\mediapipeline_desktop_app`
-- Backend pipeline: `Pipeline\MediaPipeline_chatgpt.ps1`
-- Config wizard: `Pipeline\Setup-MediaPipeline_chatgpt.ps1`
+- Backend pipeline: `Pipeline\MediaPipeline.ps1`
+- Config wizard: `Pipeline\Setup-MediaPipeline.ps1`
 - Live config: `Pipeline\MediaPipeline_config_chatgpt.psd1`
 - New-user template: `Pipeline\MediaPipeline_config_template.psd1`
 - PowerShell engine implementations: `engine\<domain>`
@@ -351,7 +351,7 @@ For the browser-backed layout-manager smoke, run:
 .\SmokeTests\Test-WebViewBrowserLayoutManagerSmoke.ps1
 ```
 
-This starts a temporary local API with generated temporary media state, opens the real backend-served WebView page in installed Chrome/Edge headless, enters customize mode, and verifies representative Queue, Completed, Settings, Diagnostics, Launch, and Reports tab/subtab/subsection boxes expose independent customize bars and draggable handles. It skips cleanly if Chrome/Edge is unavailable and does not launch, process media, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, post mutation routes, or touch source/output/scratch paths.
+This starts a temporary local API with generated temporary media state, opens the real backend-served WebView page in installed Chrome/Edge headless, opens the Layout Editor drawer, and verifies representative Queue, Completed, Settings, Diagnostics, Launch, and Reports tab/subtab/subsection boxes are listed, locally reorderable, previewable, hideable/gateable, and scoped-resettable without exposing inactive subtabs inline. It skips cleanly if Chrome/Edge is unavailable and does not launch, process media, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, post mutation routes, or touch source/output/scratch paths.
 
 For the browser-backed Network smoke, run:
 

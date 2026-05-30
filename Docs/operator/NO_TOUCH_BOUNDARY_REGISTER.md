@@ -68,7 +68,7 @@ This register applies to all admin, documentation, and WebView frontend tasks. E
 
 ## Pending Publish Mutation Path
 
-**What**: The drain execution path in `Pipeline\MediaPipeline_chatgpt.ps1` that moves parked outputs to their final destination via Robocopy, updates manifests, and writes the drain summary.
+**What**: The drain execution path in `Pipeline\MediaPipeline.ps1` that moves parked outputs to their final destination via Robocopy, updates manifests, and writes the drain summary.
 
 **Why**: Drain moves files. A bug here can result in files moved to wrong destinations, partial copies, or manifest corruption that blocks future drain operations.
 

@@ -4,7 +4,7 @@
 # Round-failure records, persistent failure markers, retry escalation, and
 # failure-artifact preservation.
 #
-# Dot-sourced from MediaPipeline_chatgpt.ps1. Reads/writes at call time:
+# Dot-sourced from MediaPipeline.ps1. Reads/writes at call time:
 #   $LocalFailureReports, $LocalFailureMarkers, $LocalFailureArtifacts
 #   $script:RoundFailureRecords, $script:FailureMarkerIndex
 #   $script:TransientFailureRetryLimit, $script:SourceIdentityV2Algorithm

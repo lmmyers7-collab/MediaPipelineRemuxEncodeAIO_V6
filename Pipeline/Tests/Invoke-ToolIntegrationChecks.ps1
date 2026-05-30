@@ -259,7 +259,7 @@ try {
             Remove-Item -LiteralPath $assSrt -Force -ErrorAction SilentlyContinue
         }
         $assConvert = Invoke-PythonToolCommand -Stage 'integration-ass-convert' -TimeoutSeconds 60 -ArgumentList @(
-            (Join-Path $pipelineRoot 'ass_to_srt_chatgpt.py'),
+            (Join-Path $pipelineRoot 'ass_to_srt.py'),
             '--input', $assMkv,
             '--stream-index', ([string]$assIndex),
             '--output', $assSrt,

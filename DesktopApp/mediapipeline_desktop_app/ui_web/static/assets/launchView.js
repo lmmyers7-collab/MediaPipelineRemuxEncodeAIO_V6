@@ -66,7 +66,7 @@
       button.setAttribute("aria-selected", String(active));
     });
     panels.forEach((panel) => {
-      panel.classList.toggle("is-launch-tab-hidden", panel.dataset.launchTabPanel !== selected);
+      panel.classList.toggle("is-active", panel.dataset.launchTabPanel === selected);
     });
     try { localStorage.setItem(LAUNCH_TAB_STORAGE_KEY, selected); } catch (_) {}
     if (typeof updatePagePanelEmptyStates === "function") updatePagePanelEmptyStates();
@@ -97,6 +97,96 @@
     return Boolean(progress.PauseRequested || progress.pause_requested || progress.Paused || progress.paused);
   }
 
+  function launchRequestFieldValue(request, key) {
+    const value = request && typeof request === "object" ? request[key] : undefined;
+    if (value === undefined || value === null) return "";
+    return String(value);
+  }
+
+  function launchPreflightRequestMatches(payload, request, keys) {
+    if (!payload || typeof payload !== "object") return false;
+    const payloadRequest = payload.request && typeof payload.request === "object" ? payload.request : {};
+    return keys.every((key) => launchRequestFieldValue(payloadRequest, key) === launchRequestFieldValue(request, key));
+  }
+
+  function launchTargetGate(target, request, options = {}) {
+    const payload = launchBackendPreflightPayloadForTarget(target);
+    const allowMissing = Boolean(options.allowMissing);
+    const matchKeys = Array.isArray(options.matchKeys) ? options.matchKeys : [];
+    if (!payload) {
+      return allowMissing
+        ? { blocked: false, reason: "Backend start route will re-check queue, settings, schedule, and process locks at submission time." }
+        : { blocked: true, reason: "Refresh Backend Preflight before using this start control." };
+    }
+    if (matchKeys.length && !launchPreflightRequestMatches(payload, request, matchKeys)) {
+      return allowMissing
+        ? { blocked: false, reason: "Cached Backend Preflight is for different form values; Validate remains available and backend will re-check at submission time." }
+        : { blocked: true, reason: "Refresh Backend Preflight for the selected mode and form values before using this start control." };
+    }
+    const status = launchBackendPreflightOverallStatus([payload]);
+    if (launchStartDecisionPostureFromStatus(status) === "blocked") {
+      return { blocked: true, reason: "Resolve blocked Backend Preflight checks before using this start control." };
+    }
+    return { blocked: false, reason: "Backend start route will re-check queue, settings, schedule, and process locks at submission time." };
+  }
+
+  function launchStartDecisionGate(request) {
+    const rows = typeof launchStartDecisionRows === "function" ? launchStartDecisionRows(request) : [];
+    const posture = typeof launchStartDecisionStatus === "function"
+      ? launchStartDecisionPostureFromStatus(launchStartDecisionStatus(rows))
+      : launchStartDecisionWorstPosture(rows.map((row) => row.posture));
+    if (posture === "blocked") {
+      return { blocked: true, reason: "Resolve blocked Launch Start Summary rows before using this start control." };
+    }
+    return { blocked: false, reason: "" };
+  }
+
+  function launchButtonGate(id) {
+    if (id === "pipeline-start-button") {
+      const request = collectPipelineStartRequest();
+      const allowMissing = String(request.mode || "") === "validate";
+      const targetGate = launchTargetGate("pipeline", request, {
+        allowMissing,
+        matchKeys: ["mode", "sleep_seconds", "schedule_override", "single_file"],
+      });
+      if (targetGate.blocked) return targetGate;
+      const decisionGate = launchStartDecisionGate(request);
+      if (decisionGate.blocked) return decisionGate;
+      return targetGate;
+    }
+    if (id === "pending-drain-button") {
+      const request = { mode: "drain_pending_pushes", sleep_seconds: 30, schedule_override: "" };
+      const targetGate = launchTargetGate("pipeline", request, {
+        allowMissing: false,
+        matchKeys: ["mode", "sleep_seconds", "schedule_override"],
+      });
+      if (targetGate.blocked) return targetGate;
+      const decisionGate = launchStartDecisionGate(request);
+      return decisionGate.blocked ? decisionGate : targetGate;
+    }
+    if (id === "audit-start-button") {
+      const request = collectAuditStartRequest();
+      const targetGate = launchTargetGate("audit", request, {
+        allowMissing: false,
+        matchKeys: ["library_root", "include_sidecars"],
+      });
+      if (targetGate.blocked) return targetGate;
+      const decisionGate = launchStartDecisionGate(collectPipelineStartRequest());
+      return decisionGate.blocked ? decisionGate : targetGate;
+    }
+    if (id === "rerun-start-button") {
+      const request = collectRerunStartRequest();
+      const targetGate = launchTargetGate("rerun", request, {
+        allowMissing: false,
+        matchKeys: ["csv_path", "stage_mode", "original_mode", "return_mode"],
+      });
+      if (targetGate.blocked) return targetGate;
+      const decisionGate = launchStartDecisionGate(collectPipelineStartRequest());
+      return decisionGate.blocked ? decisionGate : targetGate;
+    }
+    return { blocked: false, reason: "Backend start route will re-check queue, settings, schedule, and process locks at submission time." };
+  }
+
   function setButtonClass(button, className) {
     if (!button) return;
     button.className = className;
@@ -122,7 +212,12 @@
       : "Backend start route will re-check queue, settings, schedule, and process locks at submission time.";
     launchCommandButtonIds.forEach((id) => {
       const button = byId(id);
-      setButtonDisabledWithReason(button, launchCommandInFlight || active, launchCommandInFlight ? "A launch command is already in progress." : startReason);
+      const gate = active || launchCommandInFlight ? { blocked: false, reason: "" } : launchButtonGate(id);
+      setButtonDisabledWithReason(
+        button,
+        launchCommandInFlight || active || gate.blocked,
+        launchCommandInFlight ? "A launch command is already in progress." : (active ? startReason : (gate.reason || startReason))
+      );
     });
 
     const pauseLabel = active ? (launchPauseRequested(snapshot) ? "Resume" : "Pause") : "Pause / Resume";
@@ -737,6 +832,10 @@
 
   function initLaunchViewEvents() {
     initLaunchTabNav();
+    const refreshLaunchControlsForInput = () => {
+      renderAllLaunchPreflights();
+      updateLaunchCommandButtonStates();
+    };
     [
       "pipeline-start-mode",
       "pipeline-start-sleep",
@@ -751,11 +850,16 @@
     ].forEach((id) => {
       const element = byId(id);
       if (!element) return;
-      element.addEventListener("input", renderAllLaunchPreflights);
-      element.addEventListener("change", renderAllLaunchPreflights);
+      element.addEventListener("input", refreshLaunchControlsForInput);
+      element.addEventListener("change", refreshLaunchControlsForInput);
     });
     const backendPreflightRefresh = byId("launch-backend-preflight-refresh-button");
-    if (backendPreflightRefresh) backendPreflightRefresh.addEventListener("click", () => refreshLaunchBackendPreflight());
+    if (backendPreflightRefresh) {
+      backendPreflightRefresh.addEventListener("click", async () => {
+        await refreshLaunchBackendPreflight();
+        updateLaunchCommandButtonStates();
+      });
+    }
     renderAllLaunchPreflights();
     updateLaunchCommandButtonStates();
   }

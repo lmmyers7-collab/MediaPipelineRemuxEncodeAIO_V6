@@ -14,8 +14,8 @@ if /i "%~1"=="validate" set "SETUP_ARGS=-ValidateOnly"
 if /i "%~1"=="quick" set "SETUP_ARGS=-AcceptDefaults"
 if /i "%~1"=="defaults" set "SETUP_ARGS=-ListDefaults"
 
-if not exist "%PIPELINE_ROOT%\Setup-MediaPipeline_chatgpt.ps1" (
-    echo ERROR: Setup-MediaPipeline_chatgpt.ps1 was not found in:
+if not exist "%PIPELINE_ROOT%\Setup-MediaPipeline.ps1" (
+    echo ERROR: Setup-MediaPipeline.ps1 was not found in:
     echo   %PIPELINE_ROOT%
     pause
     exit /b 1
@@ -47,10 +47,10 @@ if not defined PWSH_PATH (
 :pwsh_resolved
 if defined PWSH_PATH (
     echo Launching setup with PowerShell 7: !PWSH_PATH!
-    "!PWSH_PATH!" -NoProfile -ExecutionPolicy Bypass -File "%PIPELINE_ROOT%\Setup-MediaPipeline_chatgpt.ps1" !SETUP_ARGS!
+    "!PWSH_PATH!" -NoProfile -ExecutionPolicy Bypass -File "%PIPELINE_ROOT%\Setup-MediaPipeline.ps1" !SETUP_ARGS!
 ) else (
     echo PowerShell 7 was not found. Falling back to Windows PowerShell for setup only.
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PIPELINE_ROOT%\Setup-MediaPipeline_chatgpt.ps1" !SETUP_ARGS!
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PIPELINE_ROOT%\Setup-MediaPipeline.ps1" !SETUP_ARGS!
 )
 
 set "EXIT_CODE=!ERRORLEVEL!"

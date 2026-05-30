@@ -30,7 +30,7 @@ def annotate_completed_output_health(record: CompletedJobRecord) -> None:
 def read_completed_manifest_records(
     manifest_path: Path,
     *,
-    limit: int,
+    limit: int | None,
     logger: logging.Logger,
 ) -> list[CompletedJobRecord]:
     raw = manifest_path.read_text(encoding="utf-8", errors="replace")
@@ -51,4 +51,6 @@ def read_completed_manifest_records(
         annotate_completed_output_health(record)
         parsed.append(record)
     parsed.reverse()
+    if limit is None:
+        return parsed
     return parsed[:limit]

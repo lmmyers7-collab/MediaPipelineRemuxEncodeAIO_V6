@@ -156,6 +156,18 @@ try {
     $config['SourceTV'] = $sourceTv
     $config['Outsource'] = $outsource
     $config['LocalBase'] = $localBase
+    foreach ($profile in @($config['LibraryProfiles'])) {
+        if (-not ($profile -is [System.Collections.IDictionary])) { continue }
+        $designation = [string]$profile['designation']
+        $id = [string]$profile['id']
+        if ($designation -eq 'movie' -or $id -eq 'movies') {
+            $profile['source_path'] = $sourceMovies
+            $profile['output_path'] = $outsource
+        } elseif ($designation -eq 'tv' -or $id -eq 'tv') {
+            $profile['source_path'] = $sourceTv
+            $profile['output_path'] = $outsource
+        }
+    }
     $config['EncodeThresholdGB'] = 999
     $config['TVEncodeThresholdGB'] = 999
     $config['MinFreeSpaceGB'] = 1
@@ -193,7 +205,7 @@ try {
 
     Invoke-SmokeCommand -FilePath $bundledPwshPath -Label 'pipeline queue plan smoke' -ArgumentList @(
         '-NoProfile', '-ExecutionPolicy', 'Bypass',
-        '-File', (Join-Path $pipelineRoot 'MediaPipeline_chatgpt.ps1'),
+        '-File', (Join-Path $pipelineRoot 'MediaPipeline.ps1'),
         '-ConfigPath', $configPath,
         '-EmitQueuePlan',
         '-QueuePlanOutPath', $queuePath
@@ -206,7 +218,7 @@ try {
 
     Invoke-SmokeCommand -FilePath $bundledPwshPath -Label 'pipeline deferred-publish processing smoke' -ArgumentList @(
         '-NoProfile', '-ExecutionPolicy', 'Bypass',
-        '-File', (Join-Path $pipelineRoot 'MediaPipeline_chatgpt.ps1'),
+        '-File', (Join-Path $pipelineRoot 'MediaPipeline.ps1'),
         '-ConfigPath', $configPath,
         '-Once'
     ) | Out-Null
@@ -217,7 +229,7 @@ try {
 
     Invoke-SmokeCommand -FilePath $bundledPwshPath -Label 'pipeline deferred-publish drain smoke' -ArgumentList @(
         '-NoProfile', '-ExecutionPolicy', 'Bypass',
-        '-File', (Join-Path $pipelineRoot 'MediaPipeline_chatgpt.ps1'),
+        '-File', (Join-Path $pipelineRoot 'MediaPipeline.ps1'),
         '-ConfigPath', $configPath,
         '-DrainPendingPushes'
     ) | Out-Null

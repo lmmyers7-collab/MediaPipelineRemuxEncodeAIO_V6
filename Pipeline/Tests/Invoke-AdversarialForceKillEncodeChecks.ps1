@@ -309,7 +309,7 @@ try {
 
     Invoke-SmokeCommand -FilePath $bundledPwshPath -Label 'pipeline queue plan before force-kill' -ArgumentList @(
         '-NoProfile', '-ExecutionPolicy', 'Bypass',
-        '-File', (Join-Path $pipelineRoot 'MediaPipeline_chatgpt.ps1'),
+        '-File', (Join-Path $pipelineRoot 'MediaPipeline.ps1'),
         '-ConfigPath', $configPath,
         '-EmitQueuePlan',
         '-QueuePlanOutPath', $queueBeforePath
@@ -323,7 +323,7 @@ try {
 
     $pipelineArgs = @(
         '-NoProfile', '-ExecutionPolicy', 'Bypass',
-        '-File', (Join-Path $pipelineRoot 'MediaPipeline_chatgpt.ps1'),
+        '-File', (Join-Path $pipelineRoot 'MediaPipeline.ps1'),
         '-ConfigPath', $configPath,
         '-Once'
     )
@@ -376,7 +376,7 @@ try {
 
     Invoke-SmokeCommand -FilePath $bundledPwshPath -Label 'pipeline queue plan after force-kill' -ArgumentList @(
         '-NoProfile', '-ExecutionPolicy', 'Bypass',
-        '-File', (Join-Path $pipelineRoot 'MediaPipeline_chatgpt.ps1'),
+        '-File', (Join-Path $pipelineRoot 'MediaPipeline.ps1'),
         '-ConfigPath', $configPath,
         '-EmitQueuePlan',
         '-QueuePlanOutPath', $queueAfterPath

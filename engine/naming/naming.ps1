@@ -6,7 +6,7 @@
 # which MUST be dot-sourced before this module (Naming.ps1 calls
 # Remove-PriorityMarkersFromName defined there).
 #
-# Dot-sourced from MediaPipeline_chatgpt.ps1. Reads at call time:
+# Dot-sourced from MediaPipeline.ps1. Reads at call time:
 #   $script:AggressiveEpisodeParsing
 #   $script:ValidExtensions
 #   $CreateTVSubfolder

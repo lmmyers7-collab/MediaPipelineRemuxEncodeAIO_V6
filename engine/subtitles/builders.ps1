@@ -5,6 +5,12 @@
 # Dot-sourced by engine\subtitles\subtitles.ps1; preserves script-scope configuration.
 # ==============================================================================
 
+$subtitleBuilderDecisionModulePath = Join-Path $PSScriptRoot 'builders\decisions.ps1'
+if (-not (Test-Path -LiteralPath $subtitleBuilderDecisionModulePath -PathType Leaf)) {
+    throw "Required subtitle builder helper not found: $subtitleBuilderDecisionModulePath"
+}
+. $subtitleBuilderDecisionModulePath
+
 function Get-MkvmergeTidMap {
     param([string]$FilePath, [string]$Context = "")
     $tidMap = @{}
@@ -69,34 +75,19 @@ function Build-SubtitleTracksForMkvmerge {
     $bdpgsTracks    = [System.Collections.Generic.List[hashtable]]::new()
     $tempFiles      = [System.Collections.Generic.List[string]]::new()
     $failures       = [System.Collections.Generic.List[object]]::new()
-    $defaultSet     = $false
-    $fallbackDefaultCandidates = [System.Collections.Generic.List[hashtable]]::new()
+    $defaultState  = New-SubtitleBuilderDefaultState
+    $trackDecisions = Get-SubtitleBuilderTrackDecisionRecords -FilterResult $FilterResult -Builder 'Mkvmerge'
 
-    # Default subtitle disposition follows the configured subtitle language
-    # policy; undefined/blank tracks are only fallback candidates.
-    $IsPreferredDefaultSub = {
-        param($entry)
-        return (Test-SubtitleEntryLanguageIsPreferredDefault -Entry $entry)
-    }
-    $IsFallbackDefaultSub = {
-        param($entry)
-        return (Test-SubtitleEntryLanguageIsFallbackDefault -Entry $entry)
-    }
-
-    # Per-show overrides may replace conversion preservation policy.
-    $effectiveDropAss = Get-EffectiveSubtitleSwitch -Name 'DropAssAfterConversion' -Default $false
-    $effectiveDropTx3g = Get-EffectiveSubtitleSwitch -Name 'DropTx3gAfterConversion' -Default $false
-    $effectiveDropBdpgs = Get-EffectiveSubtitleSwitch -Name 'DropBdpgsAfterConversion' -Default $false
-
-    foreach ($entry in $FilterResult.Convert) {
+    foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'ConvertAss' })) {
+        $entry  = $decision.Entry
         $s      = $entry.Stream
         $mkvTid = if ($tidMap.ContainsKey($s.index)) { $tidMap[$s.index] } else { $s.index }
         $keptAssTrack = $null
-        if (-not $effectiveDropAss) {
+        if ([bool]$decision.PreserveOriginal) {
             $keptAssTrack = @{
                 MkvTid    = $mkvTid
                 Lang      = $entry.Lang
-                Title     = "$($entry.Title) [ASS]"
+                Title     = "$($entry.Title) $($decision.OriginalTitleSuffix)"
                 IsDefault = $false
                 IsForced  = $entry.IsForced
             }
@@ -107,11 +98,11 @@ function Build-SubtitleTracksForMkvmerge {
         if (-not $ass.Ok) {
             if ($ass.Failure) { $failures.Add($ass.Failure) }
             if ($keptAssTrack -and -not $entry.IsSupplemental) {
-                if ((& $IsPreferredDefaultSub $entry) -and -not $defaultSet) {
+                if ([bool]$decision.IsPreferredDefaultCandidate -and -not [bool]$defaultState.DefaultSet) {
                     $keptAssTrack.IsDefault = $true
-                    $defaultSet = $true
-                } elseif (& $IsFallbackDefaultSub $entry) {
-                    $fallbackDefaultCandidates.Add($keptAssTrack)
+                    $defaultState.DefaultSet = $true
+                } else {
+                    Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $keptAssTrack
                 }
             }
             Write-Log "${Context}ASS->SRT failed for stream $($s.index): $($ass.Reason)" "WARN"; continue
@@ -122,28 +113,22 @@ function Build-SubtitleTracksForMkvmerge {
         # FIX: only set $defaultSet AFTER the SRT is confirmed to exist.
         # Previously this was set before Convert-AssToSrt ran, so a conversion
         # failure left all subsequent tracks with disposition "0".
-        $isDefault = $false
-        if (-not $entry.IsSupplemental) {
-            if ((& $IsPreferredDefaultSub $entry) -and -not $defaultSet) {
-                $isDefault = $true; $defaultSet = $true
-            }
-        }
         $externalTrack = @{
             SrtPath=$srtPath; Lang=$entry.Lang; Title=$entry.Title
-            IsDefault=$isDefault; IsForced=$entry.IsForced
+            IsDefault=$false; IsForced=$entry.IsForced
         }
+        $isDefault = Set-SubtitleBuilderBoolDefaultDisposition -Track $externalTrack -DefaultState $defaultState -Decision $decision
         $externalTracks.Add($externalTrack)
-        if (-not $entry.IsSupplemental -and -not $isDefault -and (& $IsFallbackDefaultSub $entry)) {
-            $fallbackDefaultCandidates.Add($externalTrack)
+        if (-not $isDefault) {
+            Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $externalTrack
         }
     }
 
-    foreach ($entry in @($FilterResult.Tx3gConvert)) {
+    foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'ConvertTx3g' })) {
+        $entry = $decision.Entry
         $s = $entry.Stream
-        $tx3gPreserveReason = 'drop_original_tx3g_enabled'
-        if (-not $effectiveDropTx3g) {
-            $tx3gPreserveReason = 'container_does_not_preserve_tx3g'
-            Write-Log "${Context}TX3G original stream $($s.index) cannot be preserved as tx3g in Matroska remux output; muxing converted SRT only" "DEBUG"
+        if (-not [string]::IsNullOrWhiteSpace($decision.ContainerLogMessage)) {
+            Write-Log "${Context}$($decision.ContainerLogMessage)" "DEBUG"
         }
         $tempSrt = Join-Path $script:processingDir "sub_tx3g_$([guid]::NewGuid().ToString('N')).srt"
         $extract = Convert-Tx3gToSrt -SourceFile $SourceFile -StreamIndex ([int]$s.index) -StreamInfo $entry -DestinationPath $tempSrt -Context $Context
@@ -158,39 +143,35 @@ function Build-SubtitleTracksForMkvmerge {
         }
         $tempFiles.Add($extract.Path)
 
-        $isDefault = $false
-        if (-not $entry.IsSupplemental -and (& $IsPreferredDefaultSub $entry) -and -not $defaultSet) {
-            $isDefault = $true; $defaultSet = $true
-        }
-        $entry.IsDefault = $isDefault
         $externalTrack = @{
             SrtPath=$extract.Path; Lang=$entry.Lang; Title=$entry.Title
-            IsDefault=$isDefault; IsForced=$entry.IsForced
+            IsDefault=$false; IsForced=$entry.IsForced
         }
+        $isDefault = Set-SubtitleBuilderBoolDefaultDisposition -Track $externalTrack -DefaultState $defaultState -Decision $decision
+        $entry.IsDefault = $isDefault
         $externalTracks.Add($externalTrack)
-        if (-not $entry.IsSupplemental -and -not $isDefault -and (& $IsFallbackDefaultSub $entry)) {
-            $fallbackDefaultCandidates.Add($externalTrack)
+        if (-not $isDefault) {
+            Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $externalTrack
         }
         $tx3gTracks.Add(@{
             SrtPath    = $extract.Path
             StreamInfo = $entry
             CueCount   = $extract.CueCount
             OriginalPreserved = $false
-            OriginalPreserveReason = $tx3gPreserveReason
+            OriginalPreserveReason = $decision.OriginalPreserveReason
         })
     }
 
-    foreach ($entry in @($FilterResult.BdpgsConvert)) {
+    foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'ConvertBdpgs' })) {
+        $entry = $decision.Entry
         $s = $entry.Stream
         $mkvTid = if ($tidMap.ContainsKey($s.index)) { $tidMap[$s.index] } else { $s.index }
         $keptBdpgsTrack = $null
-        $bdpgsPreserveReason = 'drop_original_bdpgs_enabled'
-        if (-not $effectiveDropBdpgs) {
-            $bdpgsPreserveReason = 'preserved'
+        if ([bool]$decision.PreserveOriginal) {
             $keptBdpgsTrack = @{
                 MkvTid    = $mkvTid
                 Lang      = $entry.Lang
-                Title     = "$($entry.Title) [BDPGS]"
+                Title     = "$($entry.Title) $($decision.OriginalTitleSuffix)"
                 IsDefault = $false
                 IsForced  = $entry.IsForced
             }
@@ -202,11 +183,11 @@ function Build-SubtitleTracksForMkvmerge {
         if (-not $ocr.Ok) {
             if ($ocr.Failure) { $failures.Add($ocr.Failure) }
             if ($keptBdpgsTrack -and -not $entry.IsSupplemental) {
-                if ((& $IsPreferredDefaultSub $entry) -and -not $defaultSet) {
+                if ([bool]$decision.IsPreferredDefaultCandidate -and -not [bool]$defaultState.DefaultSet) {
                     $keptBdpgsTrack.IsDefault = $true
-                    $defaultSet = $true
-                } elseif (& $IsFallbackDefaultSub $entry) {
-                    $fallbackDefaultCandidates.Add($keptBdpgsTrack)
+                    $defaultState.DefaultSet = $true
+                } else {
+                    Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $keptBdpgsTrack
                 }
             }
             Write-Log "${Context}BDPGS->SRT failed for stream $($s.index): $($ocr.Reason)" "WARN"
@@ -214,55 +195,51 @@ function Build-SubtitleTracksForMkvmerge {
         }
         $tempFiles.Add($ocr.Path)
 
-        $isDefault = $false
-        if (-not $entry.IsSupplemental -and (& $IsPreferredDefaultSub $entry) -and -not $defaultSet) {
-            $isDefault = $true; $defaultSet = $true
-        }
-        $entry.IsDefault = $isDefault
         $externalTrack = @{
             SrtPath=$ocr.Path; Lang=$entry.Lang; Title=$entry.Title
-            IsDefault=$isDefault; IsForced=$entry.IsForced
+            IsDefault=$false; IsForced=$entry.IsForced
         }
+        $isDefault = Set-SubtitleBuilderBoolDefaultDisposition -Track $externalTrack -DefaultState $defaultState -Decision $decision
+        $entry.IsDefault = $isDefault
         $externalTracks.Add($externalTrack)
-        if (-not $entry.IsSupplemental -and -not $isDefault -and (& $IsFallbackDefaultSub $entry)) {
-            $fallbackDefaultCandidates.Add($externalTrack)
+        if (-not $isDefault) {
+            Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $externalTrack
         }
         $bdpgsTracks.Add(@{
             SrtPath    = $ocr.Path
             StreamInfo = $entry
             CueCount   = $ocr.CueCount
             OriginalPreserved = ($null -ne $keptBdpgsTrack)
-            OriginalPreserveReason = $bdpgsPreserveReason
+            OriginalPreserveReason = $decision.OriginalPreserveReason
         })
     }
 
-    foreach ($entry in $FilterResult.Keep) {
+    foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'Keep' })) {
+        $entry = $decision.Entry
         $s      = $entry.Stream
-        if ($entry.IsTx3g) {
-            $reason = "Matroska remux output cannot preserve TX3G stream $($s.index); enable ConvertTx3gToSrt to mux a converted SRT track."
-            $failures.Add((New-Tx3gFailureRecord -Entry $entry -Reason $reason -ErrorCode 'SUBTITLE_TX3G_CONTAINER_UNSUPPORTED'))
-            Write-Log "${Context}SUBTITLE FAILURE: $reason" "ERROR"
+        if ([bool]$decision.RoutesToReview) {
+            if ($decision.ReviewFailureKind -eq 'bdpgs') {
+                $failures.Add((New-BdpgsFailureRecord -Entry $entry -Reason $decision.ReviewReason -ErrorCode $decision.ReviewErrorCode))
+            } else {
+                $failures.Add((New-Tx3gFailureRecord -Entry $entry -Reason $decision.ReviewReason -ErrorCode $decision.ReviewErrorCode))
+            }
+            Write-Log "${Context}SUBTITLE FAILURE: $($decision.ReviewReason)" "ERROR"
             continue
         }
         $mkvTid = if ($tidMap.ContainsKey($s.index)) { $tidMap[$s.index] } else { $s.index }
 
-        $isDefault = $false
-        if (-not $entry.IsSupplemental -and (& $IsPreferredDefaultSub $entry) -and -not $defaultSet) {
-            $isDefault = $true; $defaultSet = $true
-        }
         $sourceTrack = @{
             MkvTid=$mkvTid; Lang=$entry.Lang; Title=$entry.Title
-            IsDefault=$isDefault; IsForced=$entry.IsForced
+            IsDefault=$false; IsForced=$entry.IsForced
         }
+        $isDefault = Set-SubtitleBuilderBoolDefaultDisposition -Track $sourceTrack -DefaultState $defaultState -Decision $decision
         $sourceTracks.Add($sourceTrack)
-        if (-not $entry.IsSupplemental -and -not $isDefault -and (& $IsFallbackDefaultSub $entry)) {
-            $fallbackDefaultCandidates.Add($sourceTrack)
+        if (-not $isDefault) {
+            Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $sourceTrack
         }
     }
 
-    if (-not $defaultSet -and $fallbackDefaultCandidates.Count -gt 0) {
-        $fallbackDefaultCandidates[0].IsDefault = $true
-    }
+    Set-SubtitleBuilderFallbackDefault -DefaultState $defaultState -Builder 'Mkvmerge'
 
     return @{
         SourceTracks   = @($sourceTracks)
@@ -277,23 +254,11 @@ function Build-SubtitleTracksForMkvmerge {
 function Build-SubtitleArgsForFFmpeg {
     param($FilterResult, [string]$DefaultAudioLang, [string]$SourceFile, [string]$Context = "")
 
-    # Default subtitle disposition follows the configured subtitle language
-    # policy; undefined/blank tracks are only fallback candidates.
-    $IsPreferredDefaultSub = {
-        param($entry)
-        return (Test-SubtitleEntryLanguageIsPreferredDefault -Entry $entry)
-    }
-    $IsFallbackDefaultSub = {
-        param($entry)
-        return (Test-SubtitleEntryLanguageIsFallbackDefault -Entry $entry)
-    }
-
-    $defaultSet = $false
+    $defaultState = New-SubtitleBuilderDefaultState
     $tempFiles  = [System.Collections.Generic.List[string]]::new()
     $tx3gTracks = [System.Collections.Generic.List[hashtable]]::new()
     $bdpgsTracks = [System.Collections.Generic.List[hashtable]]::new()
     $failures   = [System.Collections.Generic.List[object]]::new()
-    $fallbackDefaultCandidates = [System.Collections.Generic.List[hashtable]]::new()
 
     # Build a single ordered list of all output subtitle tracks.
     # ffmpeg assigns output subtitle indices 0,1,2... in -map order.
@@ -304,25 +269,23 @@ function Build-SubtitleArgsForFFmpeg {
     # -c:s:N and -disposition:s:N to reference the wrong output streams.
     $allTracks = [System.Collections.Generic.List[hashtable]]::new()
 
-    # Per-show overrides may replace conversion preservation policy.
-    $effectiveDropAss = Get-EffectiveSubtitleSwitch -Name 'DropAssAfterConversion' -Default $false
-    $effectiveDropTx3g = Get-EffectiveSubtitleSwitch -Name 'DropTx3gAfterConversion' -Default $false
-    $effectiveDropBdpgs = Get-EffectiveSubtitleSwitch -Name 'DropBdpgsAfterConversion' -Default $false
     $convertedSrtCodec = Get-ConvertedSrtCodecForFfmpegOutput
     $canPreserveTx3g = Test-CanPreserveTx3gInFfmpegOutput
     $canPreserveBdpgs = Test-CanPreserveBdpgsInFfmpegOutput
+    $trackDecisions = Get-SubtitleBuilderTrackDecisionRecords -FilterResult $FilterResult -Builder 'FFmpeg' -CanPreserveTx3g:$canPreserveTx3g -CanPreserveBdpgs:$canPreserveBdpgs
 
-    foreach ($entry in $FilterResult.Convert) {
+    foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'ConvertAss' })) {
+        $entry = $decision.Entry
         $s = $entry.Stream
         $keptAssTrack = $null
 
         # Optionally keep the original ASS track
-        if (-not $effectiveDropAss) {
+        if ([bool]$decision.PreserveOriginal) {
             $keptAssTrack = @{
                 MapArg  = "0:$($s.index)"
-                Title   = "$($entry.Title) [ASS]"
+                Title   = "$($entry.Title) $($decision.OriginalTitleSuffix)"
                 Lang    = $entry.Lang
-                Disp    = if ($entry.IsForced) { "forced" } else { "0" }
+                Disp    = Get-SubtitleBuilderFfmpegBaseDisposition -Decision $decision
                 SrtPath = $null
                 Codec   = "copy"
             }
@@ -333,11 +296,11 @@ function Build-SubtitleArgsForFFmpeg {
         if (-not $ass.Ok) {
             if ($ass.Failure) { $failures.Add($ass.Failure) }
             if ($keptAssTrack -and -not $entry.IsSupplemental) {
-                if ((& $IsPreferredDefaultSub $entry) -and -not $defaultSet) {
-                    $keptAssTrack.Disp = if ($entry.IsForced) { "default+forced" } else { "default" }
-                    $defaultSet = $true
-                } elseif (& $IsFallbackDefaultSub $entry) {
-                    $fallbackDefaultCandidates.Add($keptAssTrack)
+                if ([bool]$decision.IsPreferredDefaultCandidate -and -not [bool]$defaultState.DefaultSet) {
+                    Set-SubtitleBuilderFfmpegDefaultDisposition -Track $keptAssTrack
+                    $defaultState.DefaultSet = $true
+                } else {
+                    Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $keptAssTrack
                 }
             }
             Write-Log "${Context}SUB: ASS conversion failed for stream $($s.index): $($ass.Reason)" "WARN"
@@ -347,11 +310,7 @@ function Build-SubtitleArgsForFFmpeg {
         $tempFiles.Add($srtPath)
 
         # FIX: only update $defaultSet AFTER the SRT is confirmed to exist.
-        $disp = "0"
-        if (-not $entry.IsSupplemental -and (& $IsPreferredDefaultSub $entry) -and -not $defaultSet) {
-            $disp = "default"; $defaultSet = $true
-        }
-        if ($entry.IsForced) { $disp = if ($disp -eq "default") { "default+forced" } else { "forced" } }
+        $disp = Get-SubtitleBuilderFfmpegConvertedDisposition -Decision $decision -DefaultState $defaultState
 
         $track = @{
             MapArg  = $null       # assigned below when SRT inputs are numbered
@@ -362,32 +321,28 @@ function Build-SubtitleArgsForFFmpeg {
             Codec   = $convertedSrtCodec
         }
         $allTracks.Add($track)
-        if (-not $entry.IsSupplemental -and $disp -eq "0" -and (& $IsFallbackDefaultSub $entry)) {
-            $fallbackDefaultCandidates.Add($track)
+        if ($disp -eq "0") {
+            Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $track
         }
     }
 
-    foreach ($entry in @($FilterResult.Tx3gConvert)) {
+    foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'ConvertTx3g' })) {
+        $entry = $decision.Entry
         $s = $entry.Stream
         $keptTx3gTrack = $null
-        $tx3gPreserveReason = 'drop_original_tx3g_enabled'
 
-        if (-not $effectiveDropTx3g) {
-            if ($canPreserveTx3g) {
-                $tx3gPreserveReason = 'preserved'
-                $keptTx3gTrack = @{
-                    MapArg  = "0:$($s.index)"
-                    Title   = "$($entry.Title) [TX3G]"
-                    Lang    = $entry.Lang
-                    Disp    = if ($entry.IsForced) { "forced" } else { "0" }
-                    SrtPath = $null
-                    Codec   = "copy"
-                }
-                $allTracks.Add($keptTx3gTrack)
-            } else {
-                $tx3gPreserveReason = 'container_does_not_preserve_tx3g'
-                Write-Log "${Context}TX3G original stream $($s.index) cannot be preserved as tx3g in $((Get-ConfiguredOutputContainerName).ToUpperInvariant()) output; muxing converted SRT only" "DEBUG"
+        if ([bool]$decision.PreserveOriginal) {
+            $keptTx3gTrack = @{
+                MapArg  = "0:$($s.index)"
+                Title   = "$($entry.Title) $($decision.OriginalTitleSuffix)"
+                Lang    = $entry.Lang
+                Disp    = Get-SubtitleBuilderFfmpegBaseDisposition -Decision $decision
+                SrtPath = $null
+                Codec   = "copy"
             }
+            $allTracks.Add($keptTx3gTrack)
+        } elseif (-not [string]::IsNullOrWhiteSpace($decision.ContainerLogMessage)) {
+            Write-Log "${Context}$($decision.ContainerLogMessage)" "DEBUG"
         }
 
         $tempSrt = Join-Path $script:processingDir "sub_tx3g_$([guid]::NewGuid().ToString('N')).srt"
@@ -399,11 +354,11 @@ function Build-SubtitleArgsForFFmpeg {
                 $failures.Add((New-Tx3gFailureRecord -Entry $entry -Reason $extract.Reason -ErrorCode $extract.ErrorCode -ReproPath $extract.ReproPath -ErrorText $extract.ErrorText))
             }
             if ($keptTx3gTrack -and -not $entry.IsSupplemental) {
-                if ((& $IsPreferredDefaultSub $entry) -and -not $defaultSet) {
-                    $keptTx3gTrack.Disp = if ($entry.IsForced) { "default+forced" } else { "default" }
-                    $defaultSet = $true
-                } elseif (& $IsFallbackDefaultSub $entry) {
-                    $fallbackDefaultCandidates.Add($keptTx3gTrack)
+                if ([bool]$decision.IsPreferredDefaultCandidate -and -not [bool]$defaultState.DefaultSet) {
+                    Set-SubtitleBuilderFfmpegDefaultDisposition -Track $keptTx3gTrack
+                    $defaultState.DefaultSet = $true
+                } else {
+                    Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $keptTx3gTrack
                 }
             }
             Write-Log "${Context}SUB: TX3G conversion failed for stream $($s.index)" "WARN"
@@ -411,14 +366,8 @@ function Build-SubtitleArgsForFFmpeg {
         }
         $tempFiles.Add($extract.Path)
 
-        $disp = "0"
-        if (-not $entry.IsSupplemental -and (& $IsPreferredDefaultSub $entry) -and -not $defaultSet) {
-            $disp = "default"; $defaultSet = $true
-            $entry.IsDefault = $true
-        } else {
-            $entry.IsDefault = $false
-        }
-        if ($entry.IsForced) { $disp = if ($disp -eq "default") { "default+forced" } else { "forced" } }
+        $disp = Get-SubtitleBuilderFfmpegConvertedDisposition -Decision $decision -DefaultState $defaultState
+        $entry.IsDefault = ($disp -eq 'default' -or $disp -eq 'default+forced')
 
         $track = @{
             MapArg  = $null
@@ -429,39 +378,35 @@ function Build-SubtitleArgsForFFmpeg {
             Codec   = $convertedSrtCodec
         }
         $allTracks.Add($track)
-        if (-not $entry.IsSupplemental -and $disp -eq "0" -and (& $IsFallbackDefaultSub $entry)) {
-            $fallbackDefaultCandidates.Add($track)
+        if ($disp -eq "0") {
+            Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $track
         }
         $tx3gTracks.Add(@{
             SrtPath    = $extract.Path
             StreamInfo = $entry
             CueCount   = $extract.CueCount
             OriginalPreserved = ($null -ne $keptTx3gTrack)
-            OriginalPreserveReason = $tx3gPreserveReason
+            OriginalPreserveReason = $decision.OriginalPreserveReason
         })
     }
 
-    foreach ($entry in @($FilterResult.BdpgsConvert)) {
+    foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'ConvertBdpgs' })) {
+        $entry = $decision.Entry
         $s = $entry.Stream
         $keptBdpgsTrack = $null
-        $bdpgsPreserveReason = 'drop_original_bdpgs_enabled'
 
-        if (-not $effectiveDropBdpgs) {
-            if ($canPreserveBdpgs) {
-                $bdpgsPreserveReason = 'preserved'
-                $keptBdpgsTrack = @{
-                    MapArg  = "0:$($s.index)"
-                    Title   = "$($entry.Title) [BDPGS]"
-                    Lang    = $entry.Lang
-                    Disp    = if ($entry.IsForced) { "forced" } else { "0" }
-                    SrtPath = $null
-                    Codec   = "copy"
-                }
-                $allTracks.Add($keptBdpgsTrack)
-            } else {
-                $bdpgsPreserveReason = 'container_does_not_preserve_bdpgs'
-                Write-Log "${Context}BDPGS original stream $($s.index) cannot be preserved in $((Get-ConfiguredOutputContainerName).ToUpperInvariant()) output; muxing OCR SRT only" "DEBUG"
+        if ([bool]$decision.PreserveOriginal) {
+            $keptBdpgsTrack = @{
+                MapArg  = "0:$($s.index)"
+                Title   = "$($entry.Title) $($decision.OriginalTitleSuffix)"
+                Lang    = $entry.Lang
+                Disp    = Get-SubtitleBuilderFfmpegBaseDisposition -Decision $decision
+                SrtPath = $null
+                Codec   = "copy"
             }
+            $allTracks.Add($keptBdpgsTrack)
+        } elseif (-not [string]::IsNullOrWhiteSpace($decision.ContainerLogMessage)) {
+            Write-Log "${Context}$($decision.ContainerLogMessage)" "DEBUG"
         }
 
         $tempSrt = Join-Path $script:processingDir "sub_bdpgs_$([guid]::NewGuid().ToString('N')).srt"
@@ -469,11 +414,11 @@ function Build-SubtitleArgsForFFmpeg {
         if (-not $ocr.Ok) {
             if ($ocr.Failure) { $failures.Add($ocr.Failure) }
             if ($keptBdpgsTrack -and -not $entry.IsSupplemental) {
-                if ((& $IsPreferredDefaultSub $entry) -and -not $defaultSet) {
-                    $keptBdpgsTrack.Disp = if ($entry.IsForced) { "default+forced" } else { "default" }
-                    $defaultSet = $true
-                } elseif (& $IsFallbackDefaultSub $entry) {
-                    $fallbackDefaultCandidates.Add($keptBdpgsTrack)
+                if ([bool]$decision.IsPreferredDefaultCandidate -and -not [bool]$defaultState.DefaultSet) {
+                    Set-SubtitleBuilderFfmpegDefaultDisposition -Track $keptBdpgsTrack
+                    $defaultState.DefaultSet = $true
+                } else {
+                    Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $keptBdpgsTrack
                 }
             }
             Write-Log "${Context}SUB: BDPGS OCR failed for stream $($s.index): $($ocr.Reason)" "WARN"
@@ -481,14 +426,8 @@ function Build-SubtitleArgsForFFmpeg {
         }
         $tempFiles.Add($ocr.Path)
 
-        $disp = "0"
-        if (-not $entry.IsSupplemental -and (& $IsPreferredDefaultSub $entry) -and -not $defaultSet) {
-            $disp = "default"; $defaultSet = $true
-            $entry.IsDefault = $true
-        } else {
-            $entry.IsDefault = $false
-        }
-        if ($entry.IsForced) { $disp = if ($disp -eq "default") { "default+forced" } else { "forced" } }
+        $disp = Get-SubtitleBuilderFfmpegConvertedDisposition -Decision $decision -DefaultState $defaultState
+        $entry.IsDefault = ($disp -eq 'default' -or $disp -eq 'default+forced')
 
         $track = @{
             MapArg  = $null
@@ -499,37 +438,31 @@ function Build-SubtitleArgsForFFmpeg {
             Codec   = $convertedSrtCodec
         }
         $allTracks.Add($track)
-        if (-not $entry.IsSupplemental -and $disp -eq "0" -and (& $IsFallbackDefaultSub $entry)) {
-            $fallbackDefaultCandidates.Add($track)
+        if ($disp -eq "0") {
+            Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $track
         }
         $bdpgsTracks.Add(@{
             SrtPath    = $ocr.Path
             StreamInfo = $entry
             CueCount   = $ocr.CueCount
             OriginalPreserved = ($null -ne $keptBdpgsTrack)
-            OriginalPreserveReason = $bdpgsPreserveReason
+            OriginalPreserveReason = $decision.OriginalPreserveReason
         })
     }
 
-    foreach ($entry in $FilterResult.Keep) {
+    foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'Keep' })) {
+        $entry = $decision.Entry
         $s    = $entry.Stream
-        if ($entry.IsTx3g -and -not $canPreserveTx3g) {
-            $reason = "$((Get-ConfiguredOutputContainerName).ToUpperInvariant()) output cannot preserve TX3G stream $($s.index); enable ConvertTx3gToSrt for SRT conversion."
-            $failures.Add((New-Tx3gFailureRecord -Entry $entry -Reason $reason -ErrorCode 'SUBTITLE_TX3G_CONTAINER_UNSUPPORTED'))
-            Write-Log "${Context}SUBTITLE FAILURE: $reason" "ERROR"
+        if ([bool]$decision.RoutesToReview) {
+            if ($decision.ReviewFailureKind -eq 'bdpgs') {
+                $failures.Add((New-BdpgsFailureRecord -Entry $entry -Reason $decision.ReviewReason -ErrorCode $decision.ReviewErrorCode))
+            } else {
+                $failures.Add((New-Tx3gFailureRecord -Entry $entry -Reason $decision.ReviewReason -ErrorCode $decision.ReviewErrorCode))
+            }
+            Write-Log "${Context}SUBTITLE FAILURE: $($decision.ReviewReason)" "ERROR"
             continue
         }
-        if ($entry.IsBdpgs -and -not $canPreserveBdpgs) {
-            $reason = "$((Get-ConfiguredOutputContainerName).ToUpperInvariant()) output cannot preserve BDPGS stream $($s.index); enable ConvertBdpgsToSrt for OCR conversion."
-            $failures.Add((New-BdpgsFailureRecord -Entry $entry -Reason $reason -ErrorCode 'SUBTITLE_BDPGS_CONTAINER_UNSUPPORTED'))
-            Write-Log "${Context}SUBTITLE FAILURE: $reason" "ERROR"
-            continue
-        }
-        $disp = "0"
-        if (-not $entry.IsSupplemental -and (& $IsPreferredDefaultSub $entry) -and -not $defaultSet) {
-            $disp = "default"; $defaultSet = $true
-        }
-        if ($entry.IsForced) { $disp = if ($disp -eq "default") { "default+forced" } else { "forced" } }
+        $disp = Get-SubtitleBuilderFfmpegConvertedDisposition -Decision $decision -DefaultState $defaultState
         $track = @{
             MapArg  = "0:$($s.index)"
             Title   = $entry.Title
@@ -539,15 +472,12 @@ function Build-SubtitleArgsForFFmpeg {
             Codec   = "copy"
         }
         $allTracks.Add($track)
-        if (-not $entry.IsSupplemental -and $disp -eq "0" -and (& $IsFallbackDefaultSub $entry)) {
-            $fallbackDefaultCandidates.Add($track)
+        if ($disp -eq "0") {
+            Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $track
         }
     }
 
-    if (-not $defaultSet -and $fallbackDefaultCandidates.Count -gt 0) {
-        $fallback = $fallbackDefaultCandidates[0]
-        $fallback.Disp = if ([string]$fallback.Disp -eq "forced") { "default+forced" } else { "default" }
-    }
+    Set-SubtitleBuilderFallbackDefault -DefaultState $defaultState -Builder 'FFmpeg'
 
     # Number the SRT extra inputs (1, 2, 3...) and back-fill their MapArg
     $extraInputs = [System.Collections.Generic.List[string]]::new()

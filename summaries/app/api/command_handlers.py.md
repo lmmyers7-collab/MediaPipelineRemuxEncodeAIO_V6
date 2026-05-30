@@ -3,9 +3,9 @@ file: app/api/command_handlers.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-05-28
+last_modified: 2026-05-29
 last_reviewed: 2026-05-28
-sha256: 4e7b0bfd1061c1895d8aca3e22324ae426ca45b2500d054de764fe201cad8ab3
+sha256: af868801ece0ac27cbc8c651fbffd151156f8dc9fe7236f80699a74c262f212f
 ---
 # `app/api/command_handlers.py`
 

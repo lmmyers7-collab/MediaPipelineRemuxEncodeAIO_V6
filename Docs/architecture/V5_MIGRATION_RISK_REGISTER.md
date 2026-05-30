@@ -63,7 +63,7 @@ Key mitigation across all risks: V5 remains the external rollback workspace, and
 
 **Owner area**: Pipeline PS layer (`Versioning.ps1`).
 
-**Next action**: Bump `Versioning.ps1` to `'v5.000'` and update `Pipeline/Audit-MediaLibrary_chatgpt.ps1` and `DesktopApp/tests/test_contracts.py` in the same change.
+**Next action**: Bump `Versioning.ps1` to `'v5.000'` and update `Pipeline/Audit-MediaLibrary.ps1` and `DesktopApp/tests/test_contracts.py` in the same change.
 
 **Do not do**: Do not update `MinPipelineVersion` config values — that is a per-operator sidecar freshness gate, not a display label.
 

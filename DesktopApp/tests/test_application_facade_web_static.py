@@ -60,6 +60,29 @@ def _read_diagnostics_asset_bundle(assets_root: Path) -> str:
     )
 
 
+def _read_command_history_asset_bundle(assets_root: Path) -> str:
+    return "\n".join(
+        (assets_root / name).read_text(encoding="utf-8")
+        for name in [
+            "commandHistory/formatters.js",
+            "commandHistory/diagnostics.js",
+            "commandHistory.js",
+        ]
+    )
+
+
+def _read_rename_asset_bundle(assets_root: Path) -> str:
+    return "\n".join(
+        (assets_root / name).read_text(encoding="utf-8")
+        for name in [
+            "rename/preview.js",
+            "rename/applyReadiness.js",
+            "rename/applyResult.js",
+            "renameView.js",
+        ]
+    )
+
+
 def _assert_namespace_export(testcase: unittest.TestCase, source: str, namespace: str, symbol: str) -> None:
     testcase.assertRegex(
         source,
@@ -145,6 +168,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             "home-pipeline-start-button",
             "home-drain-button",
             "home-schedule-toggle-button",
+            'data-control-action=',
             "Run Controls",
             "Quick Actions",
             "Hard Kill",
@@ -152,7 +176,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         ]:
             self.assertNotIn(forbidden, home_html)
         home_actions = set(re.findall(r'data-control-action="([^"]+)"', home_html))
-        self.assertEqual(home_actions, {"pause", "rescan", "stop", "kill"})
+        self.assertEqual(home_actions, set())
         self.assertIn('id="pipeline-start-button"', html)
         self.assertIn('id="pending-drain-button"', html)
         self.assertIn('data-control-action="kill"', html)
@@ -168,6 +192,12 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('hidden aria-label="Emergency force stop active pipeline"', html)
         self.assertIn("function updateLaunchCommandButtonStates", launch_js)
         self.assertIn("launchPipelineIsActive", launch_js)
+        self.assertIn("function launchButtonGate", launch_js)
+        self.assertIn("launchBackendPreflightPayloadForTarget", launch_js)
+        self.assertIn("launchStartDecisionGate", launch_js)
+        self.assertIn("Resolve blocked Backend Preflight checks", launch_js)
+        self.assertIn("Resolve blocked Launch Start Summary rows", launch_js)
+        self.assertIn("Refresh Backend Preflight before using this start control", launch_js)
         self.assertIn('button.hidden = !active', launch_js)
         self.assertIn('setButtonClass(button, active ? "primary-button" : "secondary-button")', launch_js)
         self.assertIn("window.mediaPipelineLaunchView?.updateLaunchCommandButtonStates", app_js)
@@ -308,6 +338,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             "network": "Distributed Workers",
             "maintenance": "Maintenance Tools",
             "diagnostics": "System Diagnostics",
+            "libraries": "Library Profiles",
             "settings": "Pipeline Settings",
         }
 
@@ -402,12 +433,12 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
     def test_web_command_feedback_preserves_backend_warnings_and_errors(self) -> None:
         desktop_root = Path(__file__).resolve().parents[1]
         static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static" / "assets"
-        command_history_js = (static_root / "commandHistory.js").read_text(encoding="utf-8")
+        command_history_js = _read_command_history_asset_bundle(static_root)
         diagnostics_bridge_js = (static_root / "diagnosticsBridge.js").read_text(encoding="utf-8")
         queue_view_js = _read_queue_asset_bundle(static_root)
         completed_view_evidence_js = (static_root / "completedView.evidence.js").read_text(encoding="utf-8")
         completed_view_js = (static_root / "completedView.js").read_text(encoding="utf-8")
-        rename_view_js = (static_root / "renameView.js").read_text(encoding="utf-8")
+        rename_view_js = _read_rename_asset_bundle(static_root)
         rename_history_view_js = (static_root / "renameHistoryView.js").read_text(encoding="utf-8")
         maintenance_view_js = (static_root / "maintenanceView.js").read_text(encoding="utf-8")
         settings_command_history_js = (static_root / "settingsCommandHistory.js").read_text(encoding="utf-8")
@@ -545,8 +576,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         pending_view_drain_js = (assets_root / "pendingPublishView.drain.js").read_text(encoding="utf-8")
         pending_view_confidence_js = (assets_root / "pendingPublishView.confidence.js").read_text(encoding="utf-8")
         pending_view_js = (assets_root / "pendingPublishView.js").read_text(encoding="utf-8")
-        rename_view_js = (assets_root / "renameView.js").read_text(encoding="utf-8")
-        command_history_js = (assets_root / "commandHistory.js").read_text(encoding="utf-8")
+        rename_view_js = _read_rename_asset_bundle(assets_root)
+        command_history_js = _read_command_history_asset_bundle(assets_root)
         diagnostics_bridge_js = (assets_root / "diagnosticsBridge.js").read_text(encoding="utf-8")
         reports_view_js = (assets_root / "reportsView.js").read_text(encoding="utf-8")
         diagnostics_view_js = _read_diagnostics_asset_bundle(assets_root)
@@ -566,8 +597,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             "queue-backend-scope-legend",
             "queue-launch-decision-legend",
             "completed-table-legend",
-            "completed-review-legend",
-            "completed-size-review-legend",
+            "completed-history-table-legend",
             "completed-size-evidence-legend",
             "completed-pending-proof-legend",
             "publish-reconciliation-legend",
@@ -655,6 +685,11 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("function focusActivePageSearch", app_js)
         self.assertIn("function clearActivePageFilters", app_js)
         self.assertIn("function moveActivePageSelection", app_js)
+        self.assertIn("function _movePanelByStep", app_js)
+        self.assertIn("pcb-btn-move-up", app_js)
+        self.assertIn("pcb-btn-move-down", app_js)
+        self.assertIn("panel-layout-moved", styles_css)
+        self.assertIn("@keyframes panel-hold-pulse", styles_css)
         self.assertIn("function focusActivePageDetail", app_js)
         self.assertIn("Read-only shortcuts. They navigate, refresh, filter, focus, or select rows", app_js)
         self.assertIn('key: "/"', app_js)
@@ -679,6 +714,9 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn(".inline-actions", styles_css)
         self.assertIn('tr[data-selectable-row="true"]:focus-visible td', styles_css)
         self.assertIn('tr[data-status="failed"] td', styles_css)
+        self.assertIn(".output-overview-section-current", styles_css)
+        self.assertIn(".output-overview-section-history", styles_css)
+        self.assertIn('.completed-table tr[data-status="changed"] td', styles_css)
 
         for view_js, legend_id in [
             (queue_view_js, "queue-table-legend"),
@@ -686,8 +724,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             (queue_view_js, "queue-backend-scope-legend"),
             (queue_view_js, "queue-launch-decision-legend"),
             (completed_view_js, "completed-table-legend"),
-            (completed_view_review_js, "completed-review-legend"),
-            (completed_view_review_js, "completed-size-review-legend"),
+            (completed_view_js, "completed-history-table-legend"),
             (completed_view_review_js, "completed-size-evidence-legend"),
             (completed_view_evidence_js, "completed-pending-proof-legend"),
             (completed_view_evidence_js, "publish-reconciliation-legend"),
@@ -715,7 +752,11 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             (contract_view_js, "api-contract-table-legend"),
         ]:
             self.assertIn("makeRowSelectable(row", view_js)
-            self.assertIn(f'updateTableStatusLegend("{legend_id}"', view_js)
+            if f'updateTableStatusLegend("{legend_id}"' not in view_js:
+                self.assertIn(f'legendId: "{legend_id}"', view_js)
+                self.assertIn("updateTableStatusLegend(", view_js)
+            else:
+                self.assertIn(f'updateTableStatusLegend("{legend_id}"', view_js)
 
     def test_web_selected_rows_share_diagnostics_handoff(self) -> None:
         desktop_root = Path(__file__).resolve().parents[1]
@@ -727,7 +768,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         completed_view_js = (assets_root / "completedView.js").read_text(encoding="utf-8")
         pending_view_js = (assets_root / "pendingPublishView.js").read_text(encoding="utf-8")
         reports_view_js = (assets_root / "reportsView.js").read_text(encoding="utf-8")
-        command_history_js = (assets_root / "commandHistory.js").read_text(encoding="utf-8")
+        command_history_js = _read_command_history_asset_bundle(assets_root)
 
         for node_id in [
             "command-diagnostics-actions",
@@ -835,6 +876,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             "backfill-": "maintenance",
             "diagnostics-": "diagnostics",
             "settings-network-": "network",
+            "settings-library-": "libraries",
+            "settings-libraries-": "libraries",
             "settings-": "settings",
             "cpu-": "live",
             "gpu-": "live",
@@ -878,7 +921,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertEqual(payload["schema_version"], BOOTSTRAP_SCHEMA_VERSION)
         self.assertEqual(payload["token"], "headless-token")
         self.assertTrue(str(payload["url"]).startswith("http://127.0.0.1:"))
-        self.assertEqual(Path(str(payload["config_path"])).name, "MediaPipeline_config_chatgpt.psd1")
+        self.assertEqual(Path(str(payload["config_path"])).name, "MediaPipeline_config.psd1")
         self.assertEqual(payload["shell_surface"], "webview")
         self.assertEqual(payload["startup_progress"]["schema_version"], "desktop_startup_progress.v1")
         self.assertTrue(payload["startup_progress"]["steps"])

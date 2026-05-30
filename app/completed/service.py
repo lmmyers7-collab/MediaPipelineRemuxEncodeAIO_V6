@@ -28,14 +28,14 @@ class CompletedJobsServiceMixin:
         self,
         resolved: ResolvedPaths,
         *,
-        limit: int = COMPLETED_HISTORY_LIMIT,
+        limit: int | None = COMPLETED_HISTORY_LIMIT,
         force_refresh: bool = False,
     ) -> list[CompletedJobRecord]:
         """Read completed jobs from the local append-only JSONL manifest.
 
         The manifest at ``<LocalBase>/State/Completed/completed_jobs.jsonl`` is
         written by the pipeline itself (see Add-CompletedJobsManifestEntry
-        in MediaPipeline_chatgpt.ps1) or populated by the Backfill button,
+        in MediaPipeline.ps1) or populated by the Backfill button,
         which runs Backfill-CompletedManifest.ps1. Reading a local file is
         trivially fast; the earlier SMB-walk approach that this replaced
         was unreliable on UNC shares (30s+ scans, intermittent timeouts).
@@ -43,11 +43,13 @@ class CompletedJobsServiceMixin:
         manifest_path = resolved.completed_manifest_path
         if not manifest_path:
             self._completed_history_cache_key = None
+            self._completed_history_cache_limit_key = ""
             self._completed_history_cached_at = 0.0
             self._completed_history_records = []
             return []
 
         cache_key = str(manifest_path).casefold()
+        cache_limit_key = "all" if limit is None else str(limit)
         # Invalidate the cache if the manifest file has been rewritten
         # (e.g. by a backfill). mtime is cheap and avoids stale reads
         # after the user clicks Backfill.
@@ -59,9 +61,12 @@ class CompletedJobsServiceMixin:
         if (
             not force_refresh
             and cache_key == self._completed_history_cache_key
+            and cache_limit_key == getattr(self, "_completed_history_cache_limit_key", "")
             and manifest_mtime == getattr(self, "_completed_history_manifest_mtime", 0.0)
             and (now - self._completed_history_cached_at) < COMPLETED_HISTORY_CACHE_SECONDS
         ):
+            if limit is None:
+                return list(self._completed_history_records)
             return list(self._completed_history_records[:limit])
 
         records: list[CompletedJobRecord] = []
@@ -88,6 +93,7 @@ class CompletedJobsServiceMixin:
                 ) from exc
 
         self._completed_history_cache_key = cache_key
+        self._completed_history_cache_limit_key = cache_limit_key
         self._completed_history_cached_at = now
         self._completed_history_manifest_mtime = manifest_mtime
         self._completed_history_records = list(records)
@@ -152,5 +158,6 @@ class CompletedJobsServiceMixin:
             return False, message
         # Invalidate the cache so the very next load re-reads the fresh manifest.
         self._completed_history_cache_key = None
+        self._completed_history_cache_limit_key = ""
         self._completed_history_manifest_mtime = 0.0
         return True, message

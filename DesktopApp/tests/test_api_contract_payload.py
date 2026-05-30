@@ -191,11 +191,14 @@ class LocalApiContractPayloadTests(unittest.TestCase):
                 continue
             if route["response_schema"] != "desktop_command_result.v1":
                 non_command_result_posts.append(str(route["path"]))
-                self.assertEqual(route["effect"], "none", route["path"])
+                expected_effect = {
+                    "/api/ui-preferences": "ui-state-write",
+                }.get(str(route["path"]), "none")
+                self.assertEqual(route["effect"], expected_effect, route["path"])
 
         self.assertEqual(
             sorted(non_command_result_posts),
-            ["/api/rename/preview", "/api/sample-validation/preview"],
+            ["/api/rename/preview", "/api/sample-validation/preview", "/api/ui-preferences"],
         )
         self.assertIn("allow_outside_configured_roots", routes["/api/rename/apply"]["request_keys"])
         self.assertIn("outside-root confirmation", routes["/api/rename/apply"]["purpose"])
@@ -207,6 +210,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             "backend-lifecycle",
             "bounded-health-check",
             "config-write",
+            "control-state-write",
             "control-flag-write",
             "filesystem-mutation",
             "failure-marker-write",
@@ -216,6 +220,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             "queue-state-write",
             "shell-dialog",
             "shell-open",
+            "ui-state-write",
             "validation-log-write",
         }
 

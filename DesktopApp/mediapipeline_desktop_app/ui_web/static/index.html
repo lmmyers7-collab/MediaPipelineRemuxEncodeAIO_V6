@@ -40,28 +40,38 @@
 
       <!-- mp-include: partials/page-diagnostics.html -->
 
+      <!-- mp-include: partials/page-libraries.html -->
+
       <!-- mp-include: partials/page-settings.html -->
 
   <!-- mp-include: partials/app-shell-end.html -->
   <script src="/assets/apiClient.js"></script>
   <script src="/assets/domHelpers.js"></script>
   <script src="/assets/formatters.js"></script>
-    <script src="/assets/commandHistory.js"></script>
+    <script src="/assets/commandHistory/formatters.js"></script>
+  <script src="/assets/commandHistory/diagnostics.js"></script>
+  <script src="/assets/commandHistory.js"></script>
     <script src="/assets/diagnosticsBridge.js"></script>
     <script src="/assets/completedView.evidence.js"></script>
-    <script src="/assets/completedView.proof.js"></script>
-    <script src="/assets/completedView.review.js"></script>
-    <script src="/assets/completedView.diagnostics.js"></script>
-    <script src="/assets/completedView.js"></script>
+  <script src="/assets/completedView.proof.js"></script>
+  <script src="/assets/completedView.review.js"></script>
+  <script src="/assets/completedView.diagnostics.js"></script>
+  <script src="/assets/completed/filters.js"></script>
+  <script src="/assets/completed/table.js"></script>
+  <script src="/assets/completedView.js"></script>
   <script src="/assets/queueView.summary.js"></script>
   <script src="/assets/queueView.review.js"></script>
   <script src="/assets/queueView.detail.js"></script>
   <script src="/assets/queueView.launch.js"></script>
+  <script src="/assets/queue/table.js"></script>
   <script src="/assets/queueView.js"></script>
   <script src="/assets/pendingPublishView.recovery.js"></script>
   <script src="/assets/pendingPublishView.diagnostics.js"></script>
   <script src="/assets/pendingPublishView.drain.js"></script>
   <script src="/assets/pendingPublishView.confidence.js"></script>
+  <script src="/assets/pendingPublish/summary.js"></script>
+  <script src="/assets/pendingPublish/filters.js"></script>
+  <script src="/assets/pendingPublish/details.js"></script>
   <script src="/assets/pendingPublishView.js"></script>
   <script src="/assets/crossPageContextView.conflict.js"></script>
   <script src="/assets/crossPageContextView.sample.js"></script>
@@ -73,6 +83,9 @@
   <script src="/assets/crossPageContextView.js"></script>
   <script src="/assets/renameLabels.js"></script>
   <script src="/assets/renameHistoryView.js"></script>
+  <script src="/assets/rename/preview.js"></script>
+  <script src="/assets/rename/applyReadiness.js"></script>
+  <script src="/assets/rename/applyResult.js"></script>
   <script src="/assets/renameView.js"></script>
   <script src="/assets/settingsOverview.js"></script>
   <script src="/assets/settingsCommandHistory.js"></script>
@@ -87,7 +100,12 @@
   <script src="/assets/settingsView.builders.network.js"></script>
   <script src="/assets/settingsView.rawTriage.js"></script>
   <script src="/assets/settingsView.safetyLocks.js"></script>
+  <script src="/assets/settings/backendResult.js"></script>
+  <script src="/assets/settings/patchReview.js"></script>
+  <script src="/assets/settings/policyImpact.js"></script>
   <script src="/assets/settingsView.js"></script>
+  <script src="/assets/settingsLibraries.js"></script>
+  <script src="/assets/settingsWizard.js"></script>
   <script src="/assets/networkView.js"></script>
   <script src="/assets/diagnosticsTailView.js"></script>
   <script src="/assets/diagnosticsStateSummaryView.js"></script>
@@ -109,6 +127,10 @@
   <script src="/assets/launchView.preflight.js"></script>
   <script src="/assets/launchView.js"></script>
   <script src="/assets/contractView.js"></script>
+  <script src="/assets/app/lifecycle.js"></script>
+  <script src="/assets/app/refresh.js"></script>
+  <script src="/assets/app/home.js"></script>
+  <script src="/assets/app/layoutManager.js"></script>
   <script src="/assets/app.js"></script>
 </body>
 </html>

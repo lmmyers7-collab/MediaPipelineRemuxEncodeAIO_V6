@@ -15,7 +15,7 @@ $ErrorActionPreference = 'Stop'
 
 $testsRoot = Split-Path -Parent $PSCommandPath
 $pipelineRoot = Split-Path -Parent (Split-Path -Parent $testsRoot)
-$auditScript = Join-Path $pipelineRoot 'Audit-MediaLibrary_chatgpt.ps1'
+$auditScript = Join-Path $pipelineRoot 'Audit-MediaLibrary.ps1'
 $legacyGuiScript = Join-Path $pipelineRoot 'MediaPipelineRemuxEncodeAIO_LegacyGUI.ps1'
 
 function Assert-True {

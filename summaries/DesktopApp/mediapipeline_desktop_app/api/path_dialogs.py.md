@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/api/path_dialogs.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-05-28
+last_modified: 2026-05-29
 last_reviewed: 2026-05-28
-sha256: 0f9bd30ada640d01945f55f71ff112804ce6642fcf6d462b60f865f6fda2a354
+sha256: 87e1a02c7e2bf41dfc2dad00dab77a88f8efca5eddcc5aa47d22d2b49a76fc94
 ---
 # `DesktopApp/mediapipeline_desktop_app/api/path_dialogs.py`
 

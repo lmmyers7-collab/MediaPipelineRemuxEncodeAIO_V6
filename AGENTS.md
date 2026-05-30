@@ -24,12 +24,14 @@ Components:
 
 | Path                                                 | Purpose                                           |
 | ---------------------------------------------------- | ------------------------------------------------- |
-| `Pipeline/` (PowerShell engine, 168 `.ps1`)          | Media policy, FFmpeg, queue, probe, audit         |
-| `DesktopApp/mediapipeline_desktop_app/` (Python)     | Local API, services, facades, contracts          |
-| `DesktopApp/mediapipeline_desktop_app/ui_web/static/`| Vanilla-JS WebView SPA                            |
-| `DesktopApp/tauri_shell/`                            | Tauri/WebView2 desktop shell                      |
-| `Docs/`                                              | Operator/engineering docs (slim target: see plan) |
-| `LocalBase/` (gitignored)                            | Runtime state, JSON files                         |
+| `app/`                                              | Domain-organized Python contracts, services, facades, orchestration, storage, validation |
+| `engine/`                                           | Domain-organized PowerShell implementation for media policy, FFmpeg, queue, probe, audit |
+| `Pipeline/`                                         | Root engine entry scripts, config/profiles, schemas, bundled tools, helper scripts, tests |
+| `DesktopApp/mediapipeline_desktop_app/` (Python)    | Local API host, compatibility package, backend-served WebView integration |
+| `DesktopApp/mediapipeline_desktop_app/ui_web/static/`| Vanilla-JS WebView SPA and split asset folders    |
+| `DesktopApp/tauri_shell/`                           | Tauri/WebView2 desktop shell                      |
+| `Docs/`, `Docs/generated/`, `summaries/`            | Operator/engineering docs, generated maps, AI navigation summaries |
+| `LocalBase/` (gitignored)                           | Runtime state, JSON files, SQLite mirror          |
 
 V5 remains the external fallback/rollback workspace. V6 is where active
 work happens.
@@ -39,7 +41,11 @@ work happens.
 ## 2. The overhaul context (read before editing structure)
 
 This repository is mid-overhaul. The plan is in
-`Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md`. Highlights you must respect:
+`Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md`; execution status lives in
+`CHANGELOG.md`, `Docs/CURRENT_PROJECT_STATE.md`, and
+`OPEN_WORK_CHECKLIST.md`. Phase 6 local legacy-surface removal is complete as
+of 2026-05-29, but PG-3 clean-machine package-mode validation is still open.
+Highlights you must respect:
 
 - **Do not create new `facade_*.py`, `service_*.py`, or
   `command_payloads_*.py` files at the existing flat paths.** The target
@@ -171,17 +177,16 @@ From the V6 repository root (Windows). Canonical paths under `scripts\`:
 .\scripts\operator\New-RealMediaValidationWorksheet.ps1
 ```
 
-The legacy root paths
+The legacy root launcher paths
 (`.\Start-MediaPipelineRemuxEncodeAIO-*.bat`,
 `.\Run-MediaPipelineRemuxEncodeAIO.bat`,
 `.\Setup-MediaPipelineRemuxEncodeAIO.bat`,
 `.\Verify-MediaPipelineRemuxEncodeAIO-Environment.{bat,ps1}`,
 `.\Build-MediaPipelineRemuxEncodeAIO-Release.ps1`,
 `.\Test-MediaPipelineRemuxEncodeAIO-Release.ps1`,
-`.\New-RealMediaValidationWorksheet.ps1`) still exist as one-release
-deprecation shims that forward to the new locations with a warning.
-**Do not add new callers at the root paths.** They will be removed in
-a later release.
+`.\New-RealMediaValidationWorksheet.ps1`) were removed during the local Phase 6
+burn-down. **Do not reintroduce root launcher callers.** Use the canonical
+`scripts\` paths only.
 
 Python validation uses the bundled interpreter at
 `DesktopApp\Runtime\Python\python.exe`. System Python may lack `pytest`

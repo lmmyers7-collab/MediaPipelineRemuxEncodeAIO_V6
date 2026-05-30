@@ -3,9 +3,9 @@ file: tests/tooling/test_ai_guardrail.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-28
+last_modified: 2026-05-29
 last_reviewed: 2026-05-28
-sha256: 4454a77ad30d544a4b935d0812efcd337cca06b83d008ef5f917fbf19a7830d9
+sha256: 1fabdbc162f25567707fa33872df359dc5ee51fe059b200bd30bdc3803378a21
 ---
 # `tests/tooling/test_ai_guardrail.py`
 

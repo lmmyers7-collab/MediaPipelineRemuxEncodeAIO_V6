@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/models_media_paths.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-05-07
+last_modified: 2026-05-29
 last_reviewed: 2026-05-28
-sha256: ad12a3281ca777748eef6cc61463458126d39c846d3113bdc440ca3379920301
+sha256: 5451b6c4d774457bb18cd8fc6ea0587c3c3841185d2091875dc5d69cc211c849
 ---
 # `DesktopApp/mediapipeline_desktop_app/models_media_paths.py`
 

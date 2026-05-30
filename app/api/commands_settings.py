@@ -34,6 +34,14 @@ _SETTINGS_PATH_BROWSE_KEYS: dict[str, dict[str, str]] = {
         "label": "Scratch / LocalBase",
         "target_kind": "scratch_root",
     },
+    "FinalLibraryPromotionRuleSourceRoot": {
+        "label": "Final library promotion source root",
+        "target_kind": "promotion_source_root",
+    },
+    "FinalLibraryPromotionRuleDestinationRoot": {
+        "label": "Final library promotion destination root",
+        "target_kind": "promotion_destination_root",
+    },
 }
 
 
@@ -92,7 +100,7 @@ class LocalApiSettingsCommandPayloadMixin:
                 command="settings.browse_path",
                 ok=False,
                 severity="error",
-                message="Settings folder browse only supports allowlisted source, output, and scratch path keys.",
+                message="Settings folder browse only supports allowlisted source, output, scratch, and final library path keys.",
                 errors=["unsupported_setting_key"],
                 data={
                     "schema_version": "desktop_settings_path_browse.v1",
@@ -192,6 +200,44 @@ class LocalApiSettingsCommandPayloadMixin:
                 payload = settings_save_reload_success_payload(payload, reloaded)
             except Exception as exc:
                 self.logger.exception("local API settings reload after save failed")
+                payload = settings_save_reload_failure_payload(payload, exc)
+        return payload
+
+    def _settings_wizard_validate_paths_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        return self.facade.validate_settings_wizard_paths(request).to_mapping()
+
+    def _settings_wizard_validate_tools_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("settings.wizard.validate_tools", "settings")
+        return self.facade.validate_settings_wizard_tools(resolved, request).to_mapping()
+
+    def _settings_wizard_probe_hardware_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("settings.wizard.probe_hardware", "settings")
+        return self.facade.probe_settings_wizard_hardware(resolved, request).to_mapping()
+
+    def _settings_wizard_validate_workers_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        return self.facade.validate_settings_wizard_workers(request).to_mapping()
+
+    def _settings_wizard_preview_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("settings.wizard.preview", "settings")
+        return self.facade.preview_settings_wizard(resolved, request).to_mapping()
+
+    def _settings_wizard_save_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("settings.wizard.save", "settings")
+        payload = self.facade.save_settings_wizard(resolved, request).to_mapping()
+        if payload.get("ok") and self.resolved_reload is not None:
+            try:
+                reloaded = self.resolved_reload()
+                payload = settings_save_reload_success_payload(payload, reloaded)
+            except Exception as exc:
+                self.logger.exception("local API settings wizard reload after save failed")
                 payload = settings_save_reload_failure_payload(payload, exc)
         return payload
 

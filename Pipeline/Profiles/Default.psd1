@@ -9,6 +9,7 @@
     EncodeThresholdGB = 8
     TVEncodeThresholdGB = 2
     RoutingProfile = 'plex_direct_stream'
+    RouteThresholdMode = 'compatibility_advisory'
     MovieRouteMaxVideoBitrateMbps = 35
     TVRouteMaxVideoBitrateMbps = 18
     AllowH264RemuxIfPlexCompatible = $true

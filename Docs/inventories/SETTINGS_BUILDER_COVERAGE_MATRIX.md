@@ -12,7 +12,7 @@ Raw JSON only or intentionally hidden: 2.
 
 | Builder name | Fields covered | Purpose |
 |---|---|---|
-| Routing / Size | `RoutingProfile`, `SizeGuardMode`, `EncodeTuningPreset`, `EncodeLadder`, `VideoCodec`, `OutputContainer`, `MaxEncodeGrowthPercent`, `CompatibilityEncodeGrowthPercent`, `EncodeThresholdGB`, `TVEncodeThresholdGB`, `MovieRouteMaxVideoBitrateMbps`, `TVRouteMaxVideoBitrateMbps` | High-level route, bitrate, and size policy |
+| Routing / Size | `RoutingProfile`, `RouteThresholdMode`, `SizeGuardMode`, `EncodeTuningPreset`, `EncodeLadder`, `VideoCodec`, `OutputContainer`, `MaxEncodeGrowthPercent`, `CompatibilityEncodeGrowthPercent`, `EncodeThresholdGB`, `TVEncodeThresholdGB`, `MovieRouteMaxVideoBitrateMbps`, `TVRouteMaxVideoBitrateMbps` | High-level route, threshold, bitrate, and size policy |
 | Video Detail | `VideoPreset`, `VideoQuality`, `AllowH264RemuxIfPlexCompatible`, `H264RemuxMaxBitrateMbps`, `H264RemuxMaxHeight`, `RemuxSafeVideoCodecs`, `FallbackCpuQuality`, `CpuEncodePreset`, `CpuEncodeProcessPriority`, `CpuEncodeMaxThreads`, `ExtraVideoFlags` | NVENC/CPU encoder precision and copy policy |
 | File Safety / Publish | `SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`, `MinFreeSpaceGB`, `OutsourceMinFreeSpaceGB`, `FileStabilityWait`, `CleanupStaleAgeHours`, `OutputSizeMultiplier`, `ValidExtensions`, `RobocopyFlags`, `DeferredPublish`, `AggressiveEpisodeParsing`, `SkipStabilityCheck`, `EnableIntegrityCheck`, `CreateTVSubfolder`, `CleanupRemoteStaging` | Source/output/scratch paths, stability, integrity, deferred publish |
 | Pending Publish / Recovery | `DeferredPublish`, `CleanupRemoteStaging`, `TransientFailureRetryLimit`, `CleanupStaleAgeHours`, `RobocopyTimeoutSeconds`, `RobocopyFlags`, `OutsourceMinFreeSpaceGB`, `OutputSizeMultiplier`, `EnableIntegrityCheck`, `SkipStabilityCheck` | Drain behavior and recovery tuning |
@@ -78,7 +78,7 @@ Re-checked builder groups against current `settingsView.js` and `settingsOvervie
 
 | Builder | Status |
 |---|---|
-| Routing / Size | Pass — route, size, encode ladder, and movie/TV bitrate ceiling fields are builder-covered |
+| Routing / Size | Pass — route, threshold mode, size, encode ladder, and movie/TV bitrate ceiling fields are builder-covered |
 | Audio | Pass — `AudioPassthroughProfile`, passthrough/transcode/channel/language fields unchanged |
 | Subtitle | Pass — TX3G, BDPGS, ASS/SSA convert/drop/preserve fields unchanged; BDPGS OCR tool/tessdata paths and SDH/supplemental keyword lists now have structured fields |
 | Pending Publish / Recovery | Pass — `DeferredPublish`, `RobocopyFlags`, `CleanupStaleAgeHours` unchanged |

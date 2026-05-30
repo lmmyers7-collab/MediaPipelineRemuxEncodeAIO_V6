@@ -3,9 +3,9 @@ file: app/api/commands_rename.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: api
-last_modified: 2026-05-28
+last_modified: 2026-05-29
 last_reviewed: 2026-05-28
-sha256: 4792678f569473934e3c1355d42dd6f760b1671427b0e3bd2e8cd58428406332
+sha256: cd0d6e15b55f15a7a3b828c8bd24e7994abdcffb07f5244c407d2fef087cff88
 ---
 # `app/api/commands_rename.py`
 

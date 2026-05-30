@@ -1,6 +1,6 @@
 # Current Project State
 
-Last updated: 2026-05-29
+Last updated: 2026-05-30
 
 This is the fast entry point for future AI/code agents. Read this before older audits, Claude task files, or historical checklists.
 
@@ -36,6 +36,8 @@ V5 remains the external fallback/rollback workspace. V6 is where WebView/Tauri r
 - 2026-05-28 Phase 5 drift-prevention foundation is enforcement-only: `scripts/lint-naming.py` blocks new legacy-pattern filenames, `scripts/dev/check_active_doc_references.py` checks active docs for stale moved paths and removed shell wording, and `tests/contract/` now carries behavior-organized config/stage contract tests while legacy test entrypoints remain available.
 - 2026-05-29 Phase 6 legacy surface burn-down is locally complete: `scripts/dev/check_legacy_removal_readiness.py` reports config-schema compatibility files, former command-payload adapters, flat Python facades/services, root launcher shims, `Pipeline` root launcher shims, and `Pipeline\Modules` as removed or empty. The remaining active PowerShell implementations live under `engine\<domain>`, `Pipeline\Modules` has no files, post-move real-media evidence covers remux, encode/size, subtitles, audio, deferred pending publish, drain, and rename-output safety, and post-deletion source release plus copied package-mode Tauri validation passed locally. PG-3 clean-machine validation remains a separate default-launcher promotion gate, not a local shim-deletion gate.
 - 2026-05-28 Phase 7 handoff status was reconciled: representative real-media validation is complete by operator attestation; `Docs/RealMediaValidationRuns/README.md` is the non-sensitive evidence anchor; PG-3 clean-machine package-mode validation remains open.
+- 2026-05-30 active handoff docs were refreshed for the local Phase 6 state: old root launcher shims are no longer documented as available, PG-3 clean-machine package-mode validation remains the only open checklist blocker, and V7/default-launcher promotion still requires target-machine package-mode proof plus operator acceptance.
+- 2026-05-30 WebView split/tooling work is present for continued plain-script cleanup: generated WebView split maps, split-candidate reports, public-contract baselines, DOM-ID gap reports, route-ownership guards, ESLint warning budgets, and guardrail/runbook docs now exist. This is frontend maintainability and drift-prevention work; it does not change backend media policy or close PG-3.
 
 ## Main Launchers
 
@@ -55,9 +57,10 @@ V5 fallback should remain available outside this folder until V6 package-mode la
 
 ## Current Architecture
 
-- `Pipeline/`: PowerShell media pipeline, FFmpeg/ffprobe orchestration, remux/encode routing, subtitle/audio modules, publishing, queue planning, audit, config schema, state handling, and bundled tools.
-- `app/`: additive V7-target Python contracts/config/orchestration/storage/validation package. Current active contracts include generated config and stage schemas; the Phase 3 runner boundary is present and the read-only `probe` and `decide` stages are enabled through `engine/entrypoint.ps1`. Phase 4 SQLite storage is a mirror only; JSON state files remain authoritative.
-- `DesktopApp/mediapipeline_desktop_app/`: Python local API/WebView backend package. It owns service orchestration, local API routes, config/state adapters, command contracts, testable service modules, and backend-served WebView integration.
+- `app/`: domain-organized Python contracts/config/orchestration/storage/validation/services/facade adapters created by the overhaul. Current active contracts include generated config and stage schemas; the Phase 3 runner boundary is present and the read-only `probe` and `decide` stages are enabled through `engine/entrypoint.ps1`. Phase 4 SQLite storage is a mirror only; JSON state files remain authoritative.
+- `engine/`: active domain-organized PowerShell implementation for FFmpeg/ffprobe orchestration, remux/encode routing, subtitle/audio modules, publishing, queue planning, audit, config schema, and state handling.
+- `Pipeline/`: root engine entry scripts, config/profiles, schemas, bundled tools, setup/audit helpers, and PowerShell tests. `Pipeline\Modules` is no longer an active module surface.
+- `DesktopApp/mediapipeline_desktop_app/`: Python local API/WebView backend package. It owns local API routes, command contracts, compatibility imports, backend bootstrap, and backend-served WebView integration.
 - `DesktopApp/mediapipeline_desktop_app/ui_web/static/`: WebView frontend assets. These render state, submit backend-owned commands, and provide operator guidance. They must not implement filesystem mutation or media policy independently.
 - `DesktopApp/tauri_shell/`: Tauri/WebView2 preview shell and shell validation scripts.
 - `tests/`: V7-target behavior/domain test layout. Currently seeded with contract and tooling checks; existing `DesktopApp/tests` and PowerShell smoke wrappers remain compatibility entrypoints for one release.
@@ -79,6 +82,7 @@ V5 fallback should remain available outside this folder until V6 package-mode la
 
 - The WebView/Tauri foundation is strong enough for continued parity work.
 - The planned god-file split campaign is complete through Wave 6. Production UI/code ownership is now split across focused Python, PowerShell, Rust, HTML partial, CSS, and WebView JS child modules; command-adjacent Queue priority/strategy/file-overrides behavior intentionally remains in `queueView.js`.
+- Current WebView cleanup is now guarded by Node-based generated baselines and explicit runbooks: `npm run webview:prework:check` and `npm run webview:check` validate split candidates, route ownership, public globals, DOM-ID gaps, script order, and lint-budget drift before/after future plain-script slices.
 - WebView asset access is namespace-first through `window.mediaPipeline*` objects. As of 2026-05-20, direct compatibility flat exports remain at 756 across 64 files after the high-confidence removal scope; remaining flat-export decisions require page-owned smoke/static evidence.
 - WebView has many operator-trust panels: Home, Queue, Launch, Completed, Pending Publish, Rename, Settings, Diagnostics, Maintenance, Network, Telemetry, Schedule, Reports, Commands, and Contract coverage.
 - Queue/Completed/Pending Publish tables carry local filter-scope warnings and backend-scope reminders.
@@ -112,7 +116,7 @@ V5 fallback should remain available outside this folder until V6 package-mode la
 - 2026-05-19 Pending Publish safety coverage added `Pipeline\Tests\Unit\Invoke-PendingPublishSafetyChecks.ps1` and fixed ordered pending-transaction property lookup plus sidecar rollback restore behavior.
 - 2026-05-19 Rename undo manifests now default under `State\RenameUndo` when service state or app root is available, including legacy app-root `app_state.json` startup.
 - 2026-05-19 repo hygiene removed rebuildable ignored `.pytest_cache` and Tauri Rust `src-tauri\target` build output after path-boundary verification.
-- 2026-05-19 portable-path cleanup removed local operator UNC audit-root defaults from active audit/legacy GUI scripts. `Audit-MediaLibrary_chatgpt.ps1` now derives the default library root from config `SourceMovies`/`SourceTV` shared parent when `-LibraryRoot` is omitted, and a focused PowerShell guard covers the regression.
+- 2026-05-19 portable-path cleanup removed local operator UNC audit-root defaults from active audit/legacy GUI scripts. `Audit-MediaLibrary.ps1` now derives the default library root from config `SourceMovies`/`SourceTV` shared parent when `-LibraryRoot` is omitted, and a focused PowerShell guard covers the regression.
 - 2026-05-19 frontend media-policy risk helpers were labelled and tested as advisory-only. Backend Preview/Save and Launch validation remain authoritative for settings validation, source-deletion acceptance, queue scope, route safety, publish/drain safety, and PSD1 writes.
 - 2026-05-19 pending-publish ownership is now explicit in `Docs/architecture/MODULE_MAP.md` and guarded by `Pipeline\Tests\Unit\Invoke-PendingPublishOwnershipChecks.ps1`: parked output is media plus sidecars, drain safety remains backend-owned, and WebView/Tauri must not infer or mutate parked payloads.
 - 2026-05-20 sidecar overwrite fallback is locally guarded against the old delete gap. `Pipeline\Tests\Unit\Invoke-SidecarWriteSafetyChecks.ps1` and the V6 reliability gate verify the fallback uses overwrite move and does not explicitly delete the current sidecar before replacement; real Windows/UNC storage stress testing is still external validation.

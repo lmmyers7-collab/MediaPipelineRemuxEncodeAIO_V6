@@ -1,5 +1,5 @@
 # Publish result contract helpers.
-# Dot-sourced before PublishCompletion.ps1 by MediaPipeline_chatgpt.ps1.
+# Dot-sourced before PublishCompletion.ps1 by MediaPipeline.ps1.
 
 function New-PipelinePublishResult {
     param(

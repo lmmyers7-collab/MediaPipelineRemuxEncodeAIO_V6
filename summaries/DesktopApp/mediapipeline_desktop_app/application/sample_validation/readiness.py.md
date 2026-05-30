@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/application/sample_validation/readine
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: application
-last_modified: 2026-05-28
+last_modified: 2026-05-29
 last_reviewed: 2026-05-28
-sha256: 4d8a64bd94dee334836a3d13d5f51e481fb4063dab614d96c0a2c2b1094fb0a0
+sha256: 615255d8040dad3b43db21ed95d8e8c788edf902e387f6266a935cf69d3a815f
 ---
 # `DesktopApp/mediapipeline_desktop_app/application/sample_validation/readiness.py`
 

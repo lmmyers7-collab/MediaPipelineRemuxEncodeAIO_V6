@@ -57,6 +57,58 @@ def _browser_pending_drain_guard_runner_source() -> str:
                 if (!actual.includes(fragment)) throw new Error(id + " missing " + fragment + "\\nActual:\\n" + actual);
               }
             }
+            function diagnosticRegexText(value) {
+              return /(^|\\n).*(mutation|lifecycle|auth-token)?\\s*guardrail:/i.test(value)
+                || /(^|\\n).*button guard:/i.test(value)
+                || /(^|\\n).*selected-row diagnostic order:/i.test(value)
+                || /(^|\\n).*diagnostics? (handoff|order|allowlist|actions|links|bridge):/i.test(value)
+                || /read-only.*cannot\\s+(launch|drain|save|rename|repair|delete|publish|mutate|touch)/i.test(value)
+                || /cannot\\s+(launch|drain|save|rename|repair|delete|publish|mutate|touch).*files?/i.test(value);
+            }
+            function nodeVisible(node) {
+              if (!node) return false;
+              const style = getComputedStyle(node);
+              return style.display !== "none" && style.visibility !== "hidden" && node.getClientRects().length > 0;
+            }
+            async function scanVisibleDiagnosticCallouts() {
+              document.body.classList.remove("advanced-mode");
+              localStorage.setItem("mediapipeline-advanced-mode", "0");
+              const findings = [];
+              const pageButtons = Array.from(document.querySelectorAll("button[data-page]"));
+              for (const pageButton of pageButtons) {
+                pageButton.click();
+                await new Promise((resolve) => setTimeout(resolve, 25));
+                const page = pageButton.dataset.page || "unknown";
+                const tabButtons = Array.from(document.querySelectorAll(".page.is-visible button[role='tab']"));
+                const buttons = tabButtons.length ? tabButtons : [null];
+                for (const tabButton of buttons) {
+                  if (tabButton) {
+                    tabButton.click();
+                    await new Promise((resolve) => setTimeout(resolve, 25));
+                  }
+                  const tab = tabButton
+                    ? (tabButton.dataset.settingsTab || tabButton.dataset.launchTab || tabButton.dataset.completedTab || tabButton.dataset.diagTab || tabButton.dataset.reportsTab || tabButton.textContent || "tab")
+                    : "page";
+                  document.querySelectorAll(".page.is-visible pre.prose-block").forEach((node) => {
+                    if (node.closest(".diagnostic-callout")) return;
+                    if (nodeVisible(node) && diagnosticRegexText(node.textContent || "")) {
+                      findings.push(page + "/" + tab + ": raw prose " + (node.id || "(no id)"));
+                    }
+                  });
+                  document.querySelectorAll(".page.is-visible .diagnostic-callout-body").forEach((node) => {
+                    const details = node.closest("details");
+                    if (details && !details.open) return;
+                    if (nodeVisible(node) && !node.closest("details[open]")) {
+                      const owner = node.closest(".diagnostic-callout");
+                      findings.push(page + "/" + tab + ": visible diagnostic body " + (owner?.id || "(no id)"));
+                    }
+                  });
+                }
+              }
+              const pendingButton = document.querySelector("button[data-page='pending']");
+              if (pendingButton) pendingButton.click();
+              return findings;
+            }
             async function waitFor(predicate, label) {
               const deadline = Date.now() + 8000;
               let lastError = null;
@@ -244,11 +296,35 @@ def _browser_pending_drain_guard_runner_source() -> str:
               () => text("pending-drain-guard-status") === "Blocked" && text("pending-drain-guard-summary").includes("Decision: Do not drain") && text("pending-drain-decision-summary").includes("Blocked/review/read-first/unknown:"),
               "guard refresh after blocked recovery plan",
             );
+            const normalGuardBrief = document.querySelector("#pending-drain-guard-summary .diagnostic-callout-brief");
+            const normalGuardDetails = document.querySelector("#pending-drain-guard-summary .diagnostic-callout-details");
+            const normalGuardAdvanced = document.querySelector("#pending-drain-guard-summary .diagnostic-callout-advanced");
+            if (normalGuardBrief || !normalGuardDetails || !normalGuardAdvanced) {
+              throw new Error("normal mode guard did not render the compact Why-only diagnostic callout");
+            }
+            if (!normalGuardDetails.textContent.includes("Why?") || normalGuardDetails.open) {
+              throw new Error("normal mode guard Why disclosure missing or open by default");
+            }
+            if (getComputedStyle(normalGuardAdvanced).display !== "none") {
+              throw new Error("normal mode guard advanced diagnostics were visible");
+            }
+            const visibleDiagnosticFindings = await scanVisibleDiagnosticCallouts();
+            if (visibleDiagnosticFindings.length) {
+              throw new Error("normal mode exposed diagnostic callouts across pages/tabs:\\n" + visibleDiagnosticFindings.join("\\n"));
+            }
             requireText("pending-drain-guard-summary", [
               "Publish Parked Outputs blocked by WebView evidence: Do not drain.",
               "First action: select blocked/review checklist rows",
               "Mutation guardrail",
             ]);
+            byId("advanced-toggle").click();
+            await waitFor(
+              () => document.body.classList.contains("advanced-mode")
+                && getComputedStyle(document.querySelector("#pending-drain-guard-summary .diagnostic-callout-advanced")).display !== "none"
+                && text("pending-drain-guard-summary").includes("Mutation guardrail")
+                && text("pending-drain-guard-summary").includes("Pending table filter:"),
+              "advanced mode shows full pending drain guard diagnostics",
+            );
 
             await window.mediaPipelineLaunchView.startPendingPublishDrain();
             await waitFor(

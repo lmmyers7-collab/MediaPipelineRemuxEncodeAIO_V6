@@ -1,7 +1,7 @@
 # ==============================================================================
 # engine\storage\disk.ps1
 # ==============================================================================
-# Disk-space probes extracted from MediaPipeline_chatgpt.ps1.
+# Disk-space probes extracted from MediaPipeline.ps1.
 #
 # Dot-sourced from the main script. Reads the following from the shared
 # scope at call time:

@@ -16,6 +16,7 @@ graph LR
   diagnostics["diagnostics"]
   failures["failures"]
   files["files"]
+  final_library["final_library"]
   folder_policy["folder_policy"]
   library["library"]
   maintenance["maintenance"]
@@ -41,33 +42,38 @@ graph LR
   subtitles["subtitles"]
   telemetry["telemetry"]
   tests["tests"]
+  ui["ui"]
   unknown["unknown"]
-  unknown -->|75| api
+  webview["webview"]
+  unknown -->|80| api
+  tests -->|67| api
   unknown -->|30| shared
-  config -->|16| api
+  config -->|22| api
+  unknown -->|19| queue
   rename -->|12| shared
   audit -->|11| api
   completed -->|11| api
   unknown -->|11| processes
   unknown -->|11| status
-  unknown -->|9| queue
-  tests -->|7| config
+  tests -->|9| config
+  tests -->|7| contracts
   audit -->|6| shared
   config -->|6| shared
   failures -->|6| api
   publish -->|6| api
-  tests -->|6| contracts
+  tests -->|6| final_library
+  unknown -->|6| observability
   diagnostics -->|5| api
   observability -->|5| api
   rename -->|5| api
   unknown -->|5| maintenance
-  unknown -->|5| observability
   unknown -->|5| paths
   diagnostics -->|4| status
   unknown -->|4| folder_policy
   api -->|3| queue
   network -->|3| api
   observability -->|3| status
+  tests -->|3| completed
   unknown -->|3| contracts
   unknown -->|3| schedule
   unknown -->|3| storage
@@ -77,9 +83,13 @@ graph LR
   publish -->|2| shared
   rename -->|2| paths
   storage -->|2| shared
-  tests -->|2| api
+  tests -->|2| publish
+  unknown -->|2| completed
+  unknown -->|2| config
   unknown -->|2| telemetry
+  api -->|1| publish
   api -->|1| rename
+  api -->|1| ui
   application -->|1| config
   application -->|1| observability
   audit -->|1| failures
@@ -89,10 +99,9 @@ graph LR
   orchestration -->|1| contracts
   publish -->|1| completed
   unknown -->|1| audit
-  unknown -->|1| completed
-  unknown -->|1| config
   unknown -->|1| failures
   unknown -->|1| files
+  unknown -->|1| final_library
   unknown -->|1| publish
   unknown -->|1| rename
   unknown -->|1| sample_validation
@@ -102,32 +111,35 @@ graph LR
 
 | From | To | Edges |
 |---|---|---|
-| unknown | api | 75 |
+| unknown | api | 80 |
+| tests | api | 67 |
 | unknown | shared | 30 |
-| config | api | 16 |
+| config | api | 22 |
+| unknown | queue | 19 |
 | rename | shared | 12 |
 | audit | api | 11 |
 | completed | api | 11 |
 | unknown | processes | 11 |
 | unknown | status | 11 |
-| unknown | queue | 9 |
-| tests | config | 7 |
+| tests | config | 9 |
+| tests | contracts | 7 |
 | audit | shared | 6 |
 | config | shared | 6 |
 | failures | api | 6 |
 | publish | api | 6 |
-| tests | contracts | 6 |
+| tests | final_library | 6 |
+| unknown | observability | 6 |
 | diagnostics | api | 5 |
 | observability | api | 5 |
 | rename | api | 5 |
 | unknown | maintenance | 5 |
-| unknown | observability | 5 |
 | unknown | paths | 5 |
 | diagnostics | status | 4 |
 | unknown | folder_policy | 4 |
 | api | queue | 3 |
 | network | api | 3 |
 | observability | status | 3 |
+| tests | completed | 3 |
 | unknown | contracts | 3 |
 | unknown | schedule | 3 |
 | unknown | storage | 3 |
@@ -137,9 +149,13 @@ graph LR
 | publish | shared | 2 |
 | rename | paths | 2 |
 | storage | shared | 2 |
-| tests | api | 2 |
+| tests | publish | 2 |
+| unknown | completed | 2 |
+| unknown | config | 2 |
 | unknown | telemetry | 2 |
+| api | publish | 1 |
 | api | rename | 1 |
+| api | ui | 1 |
 | application | config | 1 |
 | application | observability | 1 |
 | audit | failures | 1 |
@@ -149,10 +165,9 @@ graph LR
 | orchestration | contracts | 1 |
 | publish | completed | 1 |
 | unknown | audit | 1 |
-| unknown | completed | 1 |
-| unknown | config | 1 |
 | unknown | failures | 1 |
 | unknown | files | 1 |
+| unknown | final_library | 1 |
 | unknown | publish | 1 |
 | unknown | rename | 1 |
 | unknown | sample_validation | 1 |

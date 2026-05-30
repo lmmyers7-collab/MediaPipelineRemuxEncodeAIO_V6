@@ -28,6 +28,7 @@ class ConfigContractTests(unittest.TestCase):
         data = config_to_flat_dict(config)
 
         self.assertEqual(config.RoutingProfile, "plex_direct_stream")
+        self.assertEqual(config.RouteThresholdMode, "compatibility_advisory")
         self.assertEqual(config.MovieRouteMaxVideoBitrateMbps, 35)
         self.assertEqual(config.TVRouteMaxVideoBitrateMbps, 18)
         self.assertEqual(config.ConsoleLogLevel, "DEBUG")
@@ -56,6 +57,7 @@ class ConfigContractTests(unittest.TestCase):
             ("MovieRouteMaxVideoBitrateMbps", 0),
             ("TVRouteMaxVideoBitrateMbps", -1),
             ("MovieRouteMaxVideoBitrateMbps", 501),
+            ("RouteThresholdMode", "unknown"),
         ):
             with self.subTest(key=key, value=value), self.assertRaises(Exception):
                 Config.model_validate({key: value})

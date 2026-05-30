@@ -669,8 +669,20 @@ window.__settingsRawTriageModule = { createSettingsRawTriageModule };"#;
 }
 function settingsSafetyLockRows() {}
 window.__settingsSafetyLocksModule = { createSettingsSafetyLocksModule };"#;
+        let settings_backend_result_script = r#"function createSettingsBackendResultModule() {}
+function settingsBackendResultRows() {
+  return "Patch JSON changed after the last preview. Preview again before saving.";
+}
+function settingsBackendResultDetailLines() {
+  return "Patch identity:";
+}
+function renderSettingsBackendResultFromEntries() {
+  return "Save Patch is the only persistence command";
+}
+window.__settingsBackendResultModule = { createSettingsBackendResultModule };"#;
         let settings_script = r#"const settingsRawTriageModule = window.__settingsRawTriageModule || {};
 const settingsSafetyLocksModule = window.__settingsSafetyLocksModule || {};
+const settingsBackendResultModule = window.__settingsBackendResultModule || {};
 function settingsBackendMediaPolicyReadiness() {}
 function renderSettingsBackendMediaPolicyReadiness() {
   return "Backend media-policy readiness: this table cannot stage settings, save config, launch work, run FFmpeg, publish files, or touch source media";
@@ -680,15 +692,6 @@ function settingsPolicyDeltaRows() {
 }
 function settingsEffectivePolicyRows() {
   return "Effective policy trust summary: Launch-active policy is the saved backend config";
-}
-function settingsBackendResultRows() {
-  return "Patch JSON changed after the last preview. Preview again before saving.";
-}
-function settingsBackendResultDetailLines() {
-  return "Patch identity:";
-}
-function renderSettingsBackendResultFromEntries() {
-  return "Save Patch is the only persistence command";
 }"#;
         let settings_overview_script = r#"function settingsMediaPolicyReadinessLine(settings) {
   return settings.media_policy_readiness;
@@ -765,6 +768,7 @@ const pendingConfidenceModule = window.__pendingPublishConfidenceModule || {};"#
             diagnostics_script,
             settings_raw_triage_script,
             settings_safety_locks_script,
+            settings_backend_result_script,
             settings_script,
             settings_overview_script,
             launch_risk_script,
@@ -784,7 +788,7 @@ const pendingConfidenceModule = window.__pendingPublishConfidenceModule || {};"#
         let (url, rx) = serve_sequence(responses);
 
         validate_backend_web_ui(&url, "secret-token").expect("web UI validation should pass");
-        let requests = (0..29)
+        let requests = (0..30)
             .map(|_| {
                 rx.recv_timeout(Duration::from_secs(2))
                     .expect("request received")
@@ -820,23 +824,24 @@ const pendingConfidenceModule = window.__pendingPublishConfidenceModule || {};"#
         assert!(requests[13].starts_with("GET /assets/diagnosticsView.js HTTP/1.1\r\n"));
         assert!(requests[14].starts_with("GET /assets/settingsView.rawTriage.js HTTP/1.1\r\n"));
         assert!(requests[15].starts_with("GET /assets/settingsView.safetyLocks.js HTTP/1.1\r\n"));
-        assert!(requests[16].starts_with("GET /assets/settingsView.js HTTP/1.1\r\n"));
-        assert!(requests[17].starts_with("GET /assets/settingsOverview.js HTTP/1.1\r\n"));
-        assert!(requests[18].starts_with("GET /assets/launchView.risk.js HTTP/1.1\r\n"));
-        assert!(requests[19].starts_with("GET /assets/launchView.scope.js HTTP/1.1\r\n"));
-        assert!(requests[20].starts_with("GET /assets/launchView.realmedia.js HTTP/1.1\r\n"));
-        assert!(requests[21].starts_with("GET /assets/launchView.preflight.js HTTP/1.1\r\n"));
-        assert!(requests[22].starts_with("GET /assets/launchView.js HTTP/1.1\r\n"));
-        assert!(requests[23].starts_with("GET /assets/diagnosticsStateSummaryView.js HTTP/1.1\r\n"));
-        assert!(requests[24].starts_with("GET /assets/pendingPublishView.recovery.js HTTP/1.1\r\n"));
+        assert!(requests[16].starts_with("GET /assets/settings/backendResult.js HTTP/1.1\r\n"));
+        assert!(requests[17].starts_with("GET /assets/settingsView.js HTTP/1.1\r\n"));
+        assert!(requests[18].starts_with("GET /assets/settingsOverview.js HTTP/1.1\r\n"));
+        assert!(requests[19].starts_with("GET /assets/launchView.risk.js HTTP/1.1\r\n"));
+        assert!(requests[20].starts_with("GET /assets/launchView.scope.js HTTP/1.1\r\n"));
+        assert!(requests[21].starts_with("GET /assets/launchView.realmedia.js HTTP/1.1\r\n"));
+        assert!(requests[22].starts_with("GET /assets/launchView.preflight.js HTTP/1.1\r\n"));
+        assert!(requests[23].starts_with("GET /assets/launchView.js HTTP/1.1\r\n"));
+        assert!(requests[24].starts_with("GET /assets/diagnosticsStateSummaryView.js HTTP/1.1\r\n"));
+        assert!(requests[25].starts_with("GET /assets/pendingPublishView.recovery.js HTTP/1.1\r\n"));
         assert!(
-            requests[25].starts_with("GET /assets/pendingPublishView.diagnostics.js HTTP/1.1\r\n")
+            requests[26].starts_with("GET /assets/pendingPublishView.diagnostics.js HTTP/1.1\r\n")
         );
-        assert!(requests[26].starts_with("GET /assets/pendingPublishView.drain.js HTTP/1.1\r\n"));
+        assert!(requests[27].starts_with("GET /assets/pendingPublishView.drain.js HTTP/1.1\r\n"));
         assert!(
-            requests[27].starts_with("GET /assets/pendingPublishView.confidence.js HTTP/1.1\r\n")
+            requests[28].starts_with("GET /assets/pendingPublishView.confidence.js HTTP/1.1\r\n")
         );
-        assert!(requests[28].starts_with("GET /assets/pendingPublishView.js HTTP/1.1\r\n"));
+        assert!(requests[29].starts_with("GET /assets/pendingPublishView.js HTTP/1.1\r\n"));
         assert!(requests
             .iter()
             .all(|request| request.contains("Authorization: Bearer secret-token\r\n")));

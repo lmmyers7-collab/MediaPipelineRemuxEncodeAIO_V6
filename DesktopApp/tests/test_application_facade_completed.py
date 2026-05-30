@@ -330,6 +330,71 @@ class ApplicationFacadeCompletedTests(unittest.TestCase):
         self.assertEqual(preview["validation_status_state_counts"], {"blocked": 1})
         self.assertEqual(preview["validation_state"]["blocked_count"], 1)
 
+    def test_completed_preview_limit_all_loads_full_history(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            manifest = root / "State" / "Completed" / "completed_jobs.jsonl"
+            manifest.parent.mkdir(parents=True)
+            manifest.write_text(
+                "\n".join(
+                    json.dumps(
+                        {
+                            "source_path": str(root / "Source" / f"Movie {index}.mkv"),
+                            "output_path": str(root / "Outsource" / f"Movie {index}.mkv"),
+                            "route": "remux",
+                            "encoded_at": "2026-05-07T21:00:00-04:00",
+                        }
+                    )
+                    for index in range(505)
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            resolved = _resolved(root)
+            resolved.completed_manifest_path = manifest
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+
+            bounded = facade.get_completed_preview(resolved, limit=999).to_mapping()
+            full = facade.get_completed_preview(resolved, limit="all").to_mapping()
+
+        self.assertEqual(bounded["count"], 500)
+        self.assertEqual(full["count"], 505)
+
+    def test_completed_preview_force_refresh_rechecks_output_existence(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            output = root / "Outsource" / "Movies" / "Movie.mkv"
+            output.parent.mkdir(parents=True)
+            output.write_text("media", encoding="utf-8")
+            manifest = root / "State" / "Completed" / "completed_jobs.jsonl"
+            manifest.parent.mkdir(parents=True)
+            manifest.write_text(
+                json.dumps(
+                    {
+                        "source_path": str(root / "Source" / "Movie.mkv"),
+                        "output_path": str(output),
+                        "route": "remux",
+                        "encoded_at": "2026-05-07T21:00:00-04:00",
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            resolved = _resolved(root)
+            resolved.completed_manifest_path = manifest
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service)
+
+            first = facade.get_completed_preview(resolved).to_mapping()
+            output.unlink()
+            cached = facade.get_completed_preview(resolved).to_mapping()
+            refreshed = facade.get_completed_preview(resolved, force_refresh=True).to_mapping()
+
+        self.assertTrue(first["rows"][0]["output_exists"])
+        self.assertTrue(cached["rows"][0]["output_exists"])
+        self.assertFalse(refreshed["rows"][0]["output_exists"])
+        self.assertEqual(refreshed["missing_output_count"], 1)
+
     def test_completed_open_uses_backend_manifest_row_key_not_frontend_path(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

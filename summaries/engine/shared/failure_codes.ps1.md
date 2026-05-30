@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: shared
 last_modified: 2026-05-29
 last_reviewed: 2026-05-29
-sha256: 8bd921b05b35966a193a03102485d04dcf30e33150922964965241a0f0a962b7
+sha256: 0680e9cb29ca7cc84b03e840f619984bf9b4febeae5ed8aa9da4a85b4ee67132
 ---
 # `engine/shared/failure_codes.ps1`
 

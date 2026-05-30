@@ -5,7 +5,7 @@
 # helpers.  Split from Naming.ps1; must be dot-sourced BEFORE Naming.ps1
 # because Naming.ps1 functions call Remove-PriorityMarkersFromName.
 #
-# Dot-sourced from MediaPipeline_chatgpt.ps1. Reads at call time:
+# Dot-sourced from MediaPipeline.ps1. Reads at call time:
 #   $script:PriorityMarkers
 #   $script:AggressiveEpisodeParsing
 #   $script:ValidExtensions
@@ -289,6 +289,10 @@ function New-MediaQueueItem {
         [int] $EpisodeSortOrder = 0,
         [string] $RelativePathSort = '',
         [datetime] $LastWriteUtc = [datetime]::MinValue,
+        [string] $LibraryId = '',
+        [string] $LibraryName = '',
+        [string] $LibraryDesignation = '',
+        [string] $LibraryOutputRoot = '',
         [hashtable] $Metadata = @{},
         # Manifest-derived priority level: "high" | "normal" | "low" | "hold"
         [string] $ManifestPriority = 'normal'
@@ -356,6 +360,10 @@ function New-MediaQueueItem {
         SeasonSortKey          = $SeasonSortKey
         EpisodeSortOrder       = $EpisodeSortOrder
         RelativePathSort       = $RelativePathSort
+        LibraryId              = $LibraryId
+        LibraryName            = $LibraryName
+        LibraryDesignation     = $LibraryDesignation
+        LibraryOutputRoot      = $LibraryOutputRoot
         LastWriteUtc           = $LastWriteUtc
         FullName               = $SourcePath
         Metadata               = if ($Metadata) { $Metadata } else { @{} }
@@ -381,6 +389,10 @@ function ConvertTo-MediaQueueItemRecord {
         queue_total             = [int]$QueueItem.QueueTotal
         sort_name               = [string]$QueueItem.SortName
         relative_path_sort      = [string]$QueueItem.RelativePathSort
+        library_id              = [string]$QueueItem.LibraryId
+        library_name            = [string]$QueueItem.LibraryName
+        library_designation     = [string]$QueueItem.LibraryDesignation
+        library_output_root     = [string]$QueueItem.LibraryOutputRoot
         metadata                = if ($QueueItem.Metadata) { $QueueItem.Metadata } else { @{} }
     }
 }
@@ -390,6 +402,7 @@ function Get-QueuedEntries {
         [array]$Files,
         [string]$RootPath,
         [switch]$IsTV,
+        [hashtable]$LibraryProfileMetadata = $null,
         # Caller may pass a pre-loaded manifest to avoid re-reading it per-batch.
         [hashtable]$PriorityManifest = $null
     )
@@ -397,6 +410,9 @@ function Get-QueuedEntries {
     # Load manifest once per call (caller may pass it in for efficiency)
     if ($null -eq $PriorityManifest) {
         $PriorityManifest = Get-PriorityManifest
+    }
+    if ($null -eq $LibraryProfileMetadata) {
+        $LibraryProfileMetadata = @{}
     }
 
     $entries = foreach ($file in @($Files)) {
@@ -449,6 +465,11 @@ function Get-QueuedEntries {
             -EpisodeSortOrder $episodeSortOrder `
             -RelativePathSort $relativePathSort `
             -LastWriteUtc $file.LastWriteTimeUtc `
+            -LibraryId ([string]($LibraryProfileMetadata['library_id'])) `
+            -LibraryName ([string]($LibraryProfileMetadata['library_name'])) `
+            -LibraryDesignation ([string]($LibraryProfileMetadata['designation'])) `
+            -LibraryOutputRoot ([string]($LibraryProfileMetadata['output_root'])) `
+            -Metadata $(if ($LibraryProfileMetadata) { $LibraryProfileMetadata } else { @{} }) `
             -ManifestPriority $manifestLevel
     }
 

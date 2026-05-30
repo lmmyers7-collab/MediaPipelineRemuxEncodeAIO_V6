@@ -37,6 +37,7 @@ function Invoke-DecideStage {
         -RouteHints $routeHints `
         -SourceMediaProfile $sourceMediaProfile `
         -RoutingProfile ([string](Get-ObjectValue -Object $Payload -Name 'routing_profile' -Default 'plex_direct_stream')) `
+        -RouteThresholdMode ([string](Get-ObjectValue -Object $Payload -Name 'route_threshold_mode' -Default 'compatibility_advisory')) `
         -SizeGuardMode ([string](Get-ObjectValue -Object $Payload -Name 'size_guard_mode' -Default 'advisory')) `
         -AllowH264RemuxIfPlexCompatible:([bool](Get-ObjectValue -Object $Payload -Name 'allow_h264_remux_if_plex_compatible' -Default $true)) `
         -H264RemuxMaxBitrateMbps ([double](Get-ObjectValue -Object $Payload -Name 'h264_remux_max_bitrate_mbps' -Default 35.0)) `
@@ -58,6 +59,7 @@ function Invoke-DecideStage {
         estimated_bitrate_mbps      = [double]$plan.EstimatedBitrateMbps
         plex_compatibility_score    = [double]$plan.PlexCompatibilityScore
         routing_profile             = [string]$plan.RoutingProfile
+        route_threshold_mode        = [string]$plan.RouteThresholdMode
         size_guard_mode             = [string]$plan.SizeGuardMode
         encoder_profile             = ''
         actions                     = (ConvertTo-OrderedMap $plan.Actions)

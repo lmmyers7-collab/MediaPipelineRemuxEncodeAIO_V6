@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: failures
 last_modified: 2026-05-29
 last_reviewed: 2026-05-29
-sha256: 390b1864be7d44bbb97a1114d940627cde1939fde1c288e073a48129c3c7930d
+sha256: 9bed477ff836c77a28e2ebf4817c3f805524e4462935ce4307b3a4b6deccb996
 ---
 # `engine/failures/failure_state.ps1`
 

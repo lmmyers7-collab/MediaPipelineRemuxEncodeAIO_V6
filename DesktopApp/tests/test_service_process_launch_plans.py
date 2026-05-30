@@ -49,8 +49,8 @@ class CapturingLaunchService(ProcessLifecycleServiceMixin):
 
 class ProcessLaunchPlanTests(unittest.TestCase):
     def _resolved(self, root: Path) -> ResolvedPaths:
-        pipeline = root / "Pipeline" / "MediaPipeline_chatgpt.ps1"
-        audit = root / "Pipeline" / "Audit-MediaLibrary_chatgpt.ps1"
+        pipeline = root / "Pipeline" / "MediaPipeline.ps1"
+        audit = root / "Pipeline" / "Audit-MediaLibrary.ps1"
         rerun = root / "Pipeline" / "Invoke-RerunCsv.ps1"
         config = root / "Pipeline" / "MediaPipeline_config_chatgpt.psd1"
         for path in (pipeline, audit, rerun, config):

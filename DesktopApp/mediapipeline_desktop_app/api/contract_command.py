@@ -98,6 +98,36 @@ LOCAL_API_FILE_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "data_schema": "pending_publish_recovery_plan.v1",
         "purpose": "Build a backend-authored dry-run recovery plan from the current pending-publish scan. This does not drain, repair, rewrite, move, delete, or publish files.",
     },
+    {
+        "method": "POST",
+        "path": "/api/final-library-promotion/promote-queue",
+        "auth_required": True,
+        "effect": "filesystem-mutation",
+        "request_keys": ["confirm_promote"],
+        "response_schema": "desktop_command_result.v1",
+        "data_schema": "final_library_promotion_run.v1",
+        "purpose": "Start the backend-owned queue-wide final-library promotion run after explicit confirmation. It copies verified completed outputs from Outsource to configured final-library destinations and may delete only verified publish-output files when cleanup is enabled.",
+    },
+    {
+        "method": "POST",
+        "path": "/api/final-library-promotion/pause",
+        "auth_required": True,
+        "effect": "control-state-write",
+        "request_keys": ["run_id"],
+        "response_schema": "desktop_command_result.v1",
+        "data_schema": "final_library_promotion_run.v1",
+        "purpose": "Request cooperative pause of the current final-library promotion run after the active item completes or fails.",
+    },
+    {
+        "method": "POST",
+        "path": "/api/final-library-promotion/resume",
+        "auth_required": True,
+        "effect": "control-state-write",
+        "request_keys": ["run_id"],
+        "response_schema": "desktop_command_result.v1",
+        "data_schema": "final_library_promotion_run.v1",
+        "purpose": "Resume a paused backend-owned final-library promotion run using the current completed-output queue state.",
+    },
 )
 
 LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
@@ -281,7 +311,14 @@ LOCAL_API_SETTINGS_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "auth_required": True,
         "effect": "shell-dialog",
         "request_keys": ["setting_key", "selection_mode", "initial_path"],
-        "allowed_setting_keys": ["SourceMovies", "SourceTV", "Outsource", "LocalBase"],
+        "allowed_setting_keys": [
+            "SourceMovies",
+            "SourceTV",
+            "Outsource",
+            "LocalBase",
+            "FinalLibraryPromotionRuleSourceRoot",
+            "FinalLibraryPromotionRuleDestinationRoot",
+        ],
         "allowed_selection_modes": ["folder"],
         "response_schema": "desktop_command_result.v1",
         "data_schema": "desktop_settings_path_browse.v1",
@@ -304,6 +341,66 @@ LOCAL_API_SETTINGS_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "request_keys": ["changes", "remove_keys", "confirm_save"],
         "response_schema": "desktop_command_result.v1",
         "purpose": "Merge explicit settings changes with the backend's unredacted config, validate, back up, atomically save the active PSD1, and reload backend resolved state.",
+    },
+    {
+        "method": "POST",
+        "path": "/api/settings/wizard/validate-paths",
+        "auth_required": True,
+        "effect": "none",
+        "request_keys": ["wizard"],
+        "response_schema": "desktop_command_result.v1",
+        "data_schema": "desktop_settings_wizard_path_validation.v1",
+        "purpose": "Validate Settings Wizard source, output, and scratch paths without saving config, launching work, or touching media files.",
+    },
+    {
+        "method": "POST",
+        "path": "/api/settings/wizard/validate-tools",
+        "auth_required": True,
+        "effect": "none",
+        "request_keys": ["wizard"],
+        "response_schema": "desktop_command_result.v1",
+        "data_schema": "desktop_settings_wizard_tools.v1",
+        "purpose": "Validate Settings Wizard FFmpeg/ffprobe tool path evidence without changing config or running media work.",
+    },
+    {
+        "method": "POST",
+        "path": "/api/settings/wizard/probe-hardware",
+        "auth_required": True,
+        "effect": "none",
+        "request_keys": ["wizard"],
+        "response_schema": "desktop_command_result.v1",
+        "data_schema": "desktop_settings_wizard_hardware_probe.v1",
+        "purpose": "Return conservative encoder probe evidence for wizard review without saving config, launching work, or touching media files.",
+    },
+    {
+        "method": "POST",
+        "path": "/api/settings/wizard/validate-workers",
+        "auth_required": True,
+        "effect": "none",
+        "request_keys": ["wizard"],
+        "response_schema": "desktop_command_result.v1",
+        "data_schema": "desktop_settings_wizard_worker_validation.v1",
+        "purpose": "Validate Settings Wizard worker/concurrency choices without saving config or starting worker lifecycle controls.",
+    },
+    {
+        "method": "POST",
+        "path": "/api/settings/wizard/preview",
+        "auth_required": True,
+        "effect": "none",
+        "request_keys": ["wizard"],
+        "response_schema": "desktop_command_result.v1",
+        "data_schema": "desktop_settings_wizard.v1",
+        "purpose": "Generate a Settings Wizard patch and preview it through the normal backend settings patch validation path without writing the PSD1 config.",
+    },
+    {
+        "method": "POST",
+        "path": "/api/settings/wizard/save",
+        "auth_required": True,
+        "effect": "config-write",
+        "request_keys": ["wizard", "confirm_save"],
+        "response_schema": "desktop_command_result.v1",
+        "data_schema": "desktop_settings_wizard.v1",
+        "purpose": "Generate a Settings Wizard patch and save it through the normal backend settings patch writer with confirmation, backup, atomic PSD1 write, and reload.",
     },
     {
         "method": "POST",
@@ -358,6 +455,18 @@ LOCAL_API_SAMPLE_VALIDATION_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] =
         "response_schema": "desktop_command_result.v1",
         "data_schema": "desktop_sample_validation_preview.v1",
         "purpose": "Append an operator evidence-only sample validation record under State\\Validation. This must not mark jobs complete, clear failures, drain pending publish, rewrite manifests/sidecars, launch work, or mutate media files.",
+    },
+)
+
+LOCAL_API_UI_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
+    {
+        "method": "POST",
+        "path": "/api/ui-preferences",
+        "auth_required": True,
+        "effect": "ui-state-write",
+        "request_keys": ["storage", "source_surface"],
+        "response_schema": "desktop_ui_preferences.v1",
+        "purpose": "Persist allowlisted local WebView UI preferences such as layout, theme, evidence visibility, and tab choices so Chrome and the Tauri shell share the same operator customization. This does not save config, mutate queue state, launch work, drain, rename, publish, or touch media files.",
     },
 )
 
@@ -422,6 +531,7 @@ LOCAL_API_COMMAND_ROUTE_CONTRACT = (
     + LOCAL_API_SETTINGS_COMMAND_ROUTE_CONTRACT
     + LOCAL_API_SCHEDULE_COMMAND_ROUTE_CONTRACT
     + LOCAL_API_SAMPLE_VALIDATION_COMMAND_ROUTE_CONTRACT
+    + LOCAL_API_UI_COMMAND_ROUTE_CONTRACT
     + LOCAL_API_PROCESS_COMMAND_ROUTE_CONTRACT
 )
 
@@ -436,4 +546,5 @@ __all__ = [
     "LOCAL_API_SCHEDULE_COMMAND_ROUTE_CONTRACT",
     "LOCAL_API_SAMPLE_VALIDATION_COMMAND_ROUTE_CONTRACT",
     "LOCAL_API_SETTINGS_COMMAND_ROUTE_CONTRACT",
+    "LOCAL_API_UI_COMMAND_ROUTE_CONTRACT",
 ]

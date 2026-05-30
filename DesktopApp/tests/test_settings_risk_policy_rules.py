@@ -8,8 +8,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.application.settings_risk_policy import (
+    build_launch_settings_risk_handoff,
     build_current_settings_risk_summary,
     build_settings_patch_risk_summary,
+    build_settings_policy_impact,
 )
 from mediapipeline_desktop_app.application.settings_risk_policy_rules import (
     changed_key_risk_item,
@@ -130,6 +132,71 @@ class SettingsRiskPolicyRulesTests(unittest.TestCase):
         self.assertIn("partial_download_extension_allowed", codes)
         self.assertIn("high_robocopy_thread_count", codes)
         self.assertNotIn("path_root_changed", codes)
+
+    def test_build_launch_settings_risk_handoff_matches_existing_launch_rows(self) -> None:
+        config = {
+            "RoutingProfile": "plex_direct_stream",
+            "RouteThresholdMode": "compatibility_advisory",
+            "SizeGuardMode": "off",
+            "MaxEncodeGrowthPercent": 5,
+            "CompatibilityEncodeGrowthPercent": 15,
+            "EncodeThresholdGB": 8,
+            "TVEncodeThresholdGB": 3,
+            "MovieRouteMaxVideoBitrateMbps": 35,
+            "TVRouteMaxVideoBitrateMbps": 18,
+            "VideoCodec": "hevc_nvenc",
+            "EncodeTuningPreset": "balanced_nvenc",
+            "EncodeLadder": "auto",
+            "ExtraVideoFlags": ["-x-test"],
+            "AllowH264RemuxIfPlexCompatible": False,
+            "RemuxSafeVideoCodecs": ["hevc", "h265"],
+            "OutputContainer": "mp4",
+            "ConvertTx3gToSrt": False,
+            "DropTx3gAfterConversion": True,
+            "ConvertBdpgsToSrt": True,
+            "DropBdpgsAfterConversion": False,
+            "DropAssAfterConversion": False,
+            "AllowNoAudio": True,
+            "AudioPassthroughProfile": "plex_balanced",
+            "AudioMaxChannels": 6,
+            "DeferredPublish": True,
+            "SkipStabilityCheck": True,
+            "EnableIntegrityCheck": False,
+            "AllowSystemTools": True,
+            "SourceMovies": r"D:\Movies",
+            "SourceTV": r"D:\TV",
+            "LocalBase": r"D:\Scratch",
+            "Outsource": r"D:\Output",
+        }
+
+        handoff = build_launch_settings_risk_handoff(
+            config,
+            risk_summary=build_current_settings_risk_summary(config),
+            errors=["validation failed"],
+            warnings=["warning"],
+        )
+
+        self.assertEqual(handoff["schema_version"], "settings_launch_risk_handoff.v1")
+        self.assertEqual(handoff["evidence_authority"], "backend")
+        self.assertTrue(handoff["read_only"])
+        rows = {row["area"]: row for row in handoff["rows"]}
+        self.assertEqual(rows["Backend settings risk"]["impact"], "blocked")
+        self.assertEqual(rows["Publish / pending-drain posture"]["evidence"], "deferred publish=enabled; launch mode={launch_mode}")
+        self.assertIn("movie>8GB/35Mbps", rows["Remux / encode size posture"]["evidence"])
+        self.assertIn("legacy flags=1", rows["Remux / encode size posture"]["evidence"])
+        self.assertEqual(rows["Subtitle SRT routing"]["impact"], "blocked")
+        self.assertEqual(rows["Audio predictability"]["impact"], "blocked")
+        self.assertEqual(handoff["continuous_mode_row"]["area"], "Continuous-mode sensitivity")
+
+    def test_build_settings_policy_impact_wraps_backend_readiness_and_launch_risk(self) -> None:
+        impact = build_settings_policy_impact({"RoutingProfile": "plex_direct_stream"})
+
+        self.assertEqual(impact["schema_version"], "settings_policy_impact.v1")
+        self.assertEqual(impact["evidence_authority"], "backend")
+        self.assertEqual(impact["source_route"], "/api/settings/workspace")
+        self.assertTrue(impact["read_only"])
+        self.assertEqual(impact["media_policy_readiness"]["schema_version"], "settings_media_policy_readiness.v1")
+        self.assertEqual(impact["launch_risk_handoff"]["schema_version"], "settings_launch_risk_handoff.v1")
 
 
 if __name__ == "__main__":

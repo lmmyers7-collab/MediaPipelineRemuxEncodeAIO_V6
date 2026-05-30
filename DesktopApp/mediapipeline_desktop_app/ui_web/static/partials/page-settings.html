@@ -2,10 +2,266 @@
         <h1 class="visually-hidden">Pipeline Settings</h1>
         <div class="settings-tab-bar" role="tablist" aria-label="Settings sections">
           <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="status" aria-selected="true">Status</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="editor" aria-selected="false">Editor</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="media" aria-selected="false">Media</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="wizard" aria-selected="false">Wizard</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="editor" aria-selected="false">Default Editor</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="paths" aria-selected="false">Paths</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="media" aria-selected="false">Default Media</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="rename-filters" aria-selected="false">Rename Filters</button>
           <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="system" aria-selected="false">System</button>
           <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="advanced" aria-selected="false">Advanced</button>
+        </div>
+
+        <!-- TAB: WIZARD -->
+        <div class="settings-tab-pane" data-settings-tab="wizard">
+        <section class="panel settings-wizard-panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Settings Wizard</h2>
+            <strong id="settings-wizard-status">Not loaded</strong>
+          </div>
+          <p class="note" id="settings-wizard-status-detail">Guided setup writes the same PSD1 config used by the manual editor. It validates locally and does not start media processing, drain pending publish, rename files, or touch source media.</p>
+          <div class="settings-wizard-shell">
+            <nav class="settings-wizard-steps" aria-label="Settings Wizard steps">
+              <button type="button" data-wizard-step-button="0" aria-current="step">Welcome</button>
+              <button type="button" data-wizard-step-button="1">Libraries</button>
+              <button type="button" data-wizard-step-button="2">Output</button>
+              <button type="button" data-wizard-step-button="3">Scratch</button>
+              <button type="button" data-wizard-step-button="4">Tools</button>
+              <button type="button" data-wizard-step-button="5">Hardware</button>
+              <button type="button" data-wizard-step-button="6">Audio</button>
+              <button type="button" data-wizard-step-button="7">Subtitles</button>
+              <button type="button" data-wizard-step-button="8">Workers</button>
+              <button type="button" data-wizard-step-button="9">Safety</button>
+              <button type="button" data-wizard-step-button="10">Review</button>
+              <button type="button" data-wizard-step-button="11">Save</button>
+            </nav>
+            <div class="settings-wizard-content">
+              <section class="settings-wizard-step is-active" data-wizard-step="0">
+                <h3>Welcome / Mode Selection</h3>
+                <div class="form-grid form-grid-dense">
+                  <label>Mode
+                    <select id="wizard-mode">
+                      <option value="first_run">First-run setup</option>
+                      <option value="reconfigure">Reconfigure existing install</option>
+                    </select>
+                  </label>
+                  <label>Preferred output container
+                    <select id="wizard-output-container">
+                      <option value="mkv">MKV</option>
+                      <option value="mp4">MP4</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
+              <section class="settings-wizard-step" data-wizard-step="1">
+                <h3>Media Libraries</h3>
+                <datalist id="wizard-library-category-list">
+                  <option value="movies"></option>
+                  <option value="tv"></option>
+                  <option value="movies_4k"></option>
+                  <option value="tv_4k"></option>
+                  <option value="manual_review"></option>
+                </datalist>
+                <div id="settings-wizard-library-list" class="settings-wizard-library-list"></div>
+                <div class="action-row action-row-left">
+                  <button type="button" class="secondary-button" id="settings-wizard-add-library-button">Add Library</button>
+                  <button type="button" class="secondary-button" id="settings-wizard-validate-paths-button">Validate Paths</button>
+                </div>
+              </section>
+              <section class="settings-wizard-step" data-wizard-step="2">
+                <h3>Output and Publish</h3>
+                <div class="form-grid form-grid-dense">
+                  <label>Final output root *
+                    <input id="wizard-output-root" type="text" autocomplete="off">
+                  </label>
+                  <label>Publish behavior
+                    <select id="wizard-publish-mode">
+                      <option value="staged_pending">Staged / pending publish</option>
+                      <option value="immediate">Immediate publish</option>
+                      <option value="review_required">Review required</option>
+                    </select>
+                  </label>
+                  <label>When output exists
+                    <select id="wizard-existing-policy">
+                      <option value="skip_existing">Skip already processed titles</option>
+                      <option value="review_existing">Require review</option>
+                      <option value="reprocess_all_once">Reprocess all once</option>
+                    </select>
+                  </label>
+                </div>
+              </section>
+              <section class="settings-wizard-step" data-wizard-step="3">
+                <h3>Local Scratch</h3>
+                <div class="form-grid form-grid-dense">
+                  <label>Scratch / LocalBase *
+                    <input id="wizard-scratch-path" type="text" autocomplete="off">
+                  </label>
+                  <label>Scratch free-space reserve (GB)
+                    <input id="wizard-min-free-space-gb" type="number" min="0" step="1">
+                  </label>
+                  <label>Output free-space reserve (GB)
+                    <input id="wizard-outsource-min-free-space-gb" type="number" min="0" step="1">
+                  </label>
+                </div>
+              </section>
+              <section class="settings-wizard-step" data-wizard-step="4">
+                <h3>FFmpeg / FFprobe Detection</h3>
+                <div class="form-grid form-grid-dense">
+                  <label>FFmpeg path
+                    <input id="wizard-ffmpeg-path" type="text" autocomplete="off" placeholder="C:\ffmpeg\bin\ffmpeg.exe">
+                  </label>
+                  <label>FFprobe path
+                    <input id="wizard-ffprobe-path" type="text" autocomplete="off" placeholder="C:\ffmpeg\bin\ffprobe.exe">
+                  </label>
+                </div>
+                <div class="action-row action-row-left">
+                  <button type="button" class="secondary-button" id="settings-wizard-detect-tools-button">Detect Tools</button>
+                </div>
+                <pre id="settings-wizard-tools-result" class="prose-block">No tool validation has run.</pre>
+              </section>
+              <section class="settings-wizard-step" data-wizard-step="5">
+                <h3>Hardware and Encoding</h3>
+                <div class="form-grid form-grid-dense">
+                  <label>Default video strategy
+                    <select id="wizard-video-strategy">
+                      <option value="remux_when_possible">Remux when possible</option>
+                      <option value="prefer_nvenc_cpu_fallback">Prefer NVENC, CPU fallback allowed</option>
+                      <option value="cpu_fallback">CPU fallback / CPU primary</option>
+                      <option value="manual_review_missing_hardware">Manual review if hardware is missing</option>
+                    </select>
+                  </label>
+                  <label>Preferred codec
+                    <select id="wizard-preferred-codec">
+                      <option value="hevc_nvenc">HEVC NVENC</option>
+                      <option value="h264_nvenc">H.264 NVENC</option>
+                      <option value="av1_nvenc">AV1 NVENC</option>
+                      <option value="libx265">CPU HEVC / libx265</option>
+                      <option value="libx264">CPU H.264 / libx264</option>
+                    </select>
+                  </label>
+                  <label>Video quality
+                    <input id="wizard-video-quality" type="number" min="1" max="51" step="1">
+                  </label>
+                  <label>NVENC preset
+                    <select id="wizard-video-preset">
+                      <option value="p4">p4</option>
+                      <option value="p5">p5</option>
+                      <option value="p6">p6</option>
+                      <option value="p7">p7</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="action-row action-row-left">
+                  <button type="button" class="secondary-button" id="settings-wizard-probe-hardware-button">Probe Encoders</button>
+                </div>
+                <pre id="settings-wizard-hardware-result" class="prose-block">No encoder probe has run.</pre>
+              </section>
+              <section class="settings-wizard-step" data-wizard-step="6">
+                <h3>Audio Policy</h3>
+                <div class="form-grid form-grid-dense">
+                  <label>Audio policy
+                    <select id="wizard-audio-policy">
+                      <option value="preserve_compatible_convert_incompatible">Preserve compatible audio; normalize incompatible tracks</option>
+                      <option value="keep_all_audio">Keep all audio tracks when possible</option>
+                      <option value="review_unusual_audio">Review unusual audio</option>
+                    </select>
+                  </label>
+                  <label>Transcode codec
+                    <select id="wizard-audio-codec">
+                      <option value="eac3">EAC3</option>
+                      <option value="aac">AAC</option>
+                      <option value="ac3">AC3</option>
+                    </select>
+                  </label>
+                  <label><input id="wizard-keep-all-audio" type="checkbox"> Keep all audio tracks</label>
+                </div>
+              </section>
+              <section class="settings-wizard-step" data-wizard-step="7">
+                <h3>Subtitle Policy</h3>
+                <div class="form-grid form-grid-dense">
+                  <label>Subtitle policy
+                    <select id="wizard-subtitle-policy">
+                      <option value="keep_english_convert_supported">Keep selected languages, convert supported formats</option>
+                      <option value="review_uncertain_subtitles">Review uncertain subtitle handling</option>
+                    </select>
+                  </label>
+                  <label>Subtitle languages to keep
+                    <input id="wizard-subtitle-languages" type="text" autocomplete="off" placeholder="eng, en, english, und">
+                  </label>
+                  <label><input id="wizard-keep-unknown-subtitles" type="checkbox"> Keep unknown / untagged subtitles</label>
+                  <label><input id="wizard-preserve-forced-subtitles" type="checkbox"> Preserve forced subtitles</label>
+                </div>
+              </section>
+              <section class="settings-wizard-step" data-wizard-step="8">
+                <h3>Worker / Parallel Processing</h3>
+                <div class="form-grid form-grid-dense">
+                  <label>Max parallel encodes
+                    <select id="wizard-max-parallel-encodes">
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                    </select>
+                  </label>
+                  <label>Parallel encode mode
+                    <select id="wizard-parallel-encode-mode">
+                      <option value="single">Single worker</option>
+                      <option value="local_worker_slots">Local worker slots</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="action-row action-row-left">
+                  <button type="button" class="secondary-button" id="settings-wizard-validate-workers-button">Validate Workers</button>
+                </div>
+                <pre id="settings-wizard-workers-result" class="prose-block">No worker validation has run.</pre>
+              </section>
+              <section class="settings-wizard-step" data-wizard-step="9">
+                <h3>Safety and Recovery</h3>
+                <div class="settings-wizard-safety-grid">
+                  <label><input id="wizard-safety-integrity" type="checkbox"> Output/source integrity checks</label>
+                  <label><input id="wizard-safety-stability" type="checkbox"> File stability checks</label>
+                  <label><input id="wizard-safety-pending" type="checkbox"> Pending publish safety</label>
+                  <label><input id="wizard-safety-skip-processed" type="checkbox"> Skip already processed titles</label>
+                  <label>Transient retry limit <input id="wizard-retry-limit" type="number" min="1" max="100" step="1"></label>
+                  <label class="danger-zone"><input id="wizard-danger-allow-system-tools" type="checkbox"> Allow PATH tool fallback</label>
+                  <label class="danger-zone"><input id="wizard-danger-allow-no-audio" type="checkbox"> Allow no-audio outputs</label>
+                  <label class="danger-zone"><input id="wizard-danger-cleanup-remote" type="checkbox"> Clean remote staging</label>
+                  <label class="danger-zone"><input id="wizard-danger-reprocess-all" type="checkbox"> Reprocess all once</label>
+                </div>
+              </section>
+              <section class="settings-wizard-step" data-wizard-step="10">
+                <h3>Review Summary</h3>
+                <div class="action-row action-row-left">
+                  <button type="button" class="secondary-button" id="settings-wizard-preview-button">Preview Generated Config</button>
+                  <button type="button" class="secondary-button" id="settings-wizard-copy-diagnostics-button">Copy Diagnostic Summary</button>
+                </div>
+                <pre id="settings-wizard-review-summary" class="prose-block">Preview has not run.</pre>
+                <pre id="settings-wizard-validation-summary" class="prose-block">Run Preview Generated Config to populate validation.</pre>
+                <div class="table-wrap detail-table-wrap">
+                  <table>
+                    <thead><tr><th scope="col">Category</th><th scope="col">Status</th><th scope="col">Detail</th></tr></thead>
+                    <tbody id="settings-wizard-summary-rows"><tr><td colspan="3">No summary loaded.</td></tr></tbody>
+                  </table>
+                </div>
+              </section>
+              <section class="settings-wizard-step" data-wizard-step="11">
+                <h3>Save</h3>
+                <p class="note">Save validates the generated patch, backs up the existing PSD1 when a write is needed, writes atomically, and reloads settings through the backend.</p>
+                <div class="settings-wizard-safety-grid">
+                  <label><input id="wizard-ack-AllowSystemTools" type="checkbox"> I understand AllowSystemTools can run PATH tools outside the portable bundle.</label>
+                  <label><input id="wizard-ack-AllowNoAudio" type="checkbox"> I understand no-audio outputs are unusual and should be deliberate.</label>
+                  <label><input id="wizard-ack-CleanupRemoteStaging" type="checkbox"> I understand remote staging cleanup can affect remote staging artifacts.</label>
+                  <label><input id="wizard-ack-ReprocessAll" type="checkbox"> I understand ReprocessAll can reconsider already completed titles.</label>
+                </div>
+                <div class="action-row action-row-left">
+                  <button type="button" class="primary-button" id="settings-wizard-save-button">Save Wizard Config</button>
+                </div>
+                <pre id="settings-wizard-save-result" class="prose-block">Nothing saved yet.</pre>
+              </section>
+            </div>
+          </div>
+          <div class="settings-wizard-footer action-row">
+            <button type="button" class="secondary-button" id="settings-wizard-back-button">Back</button>
+            <button type="button" class="secondary-button" id="settings-wizard-next-button">Next</button>
+          </div>
+        </section>
         </div>
 
         <!-- TAB: STATUS -->
@@ -96,7 +352,7 @@
         <div class="settings-tab-pane" data-settings-tab="editor">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Settings Editor <span class="impact-chip" data-impact="medium" title="Routing / size policy — affects remux-vs-encode decisions and output container">Medium Impact</span></h2>
+            <h2>Default Editor <span class="impact-chip" data-impact="medium" title="Routing / size policy — affects remux-vs-encode decisions and output container">Medium Impact</span></h2>
             <strong id="settings-builder-status">No patch built</strong>
           </div>
           <div class="form-grid launch-form-grid">
@@ -116,6 +372,15 @@
                 <option value="advisory">Advisory</option>
                 <option value="strict">Strict</option>
                 <option value="off">Off</option>
+              </select>
+            </label>
+            <label>
+              Route threshold mode
+              <select id="settings-builder-route-threshold-mode">
+                <option value="compatibility_advisory">Compatibility advisory</option>
+                <option value="size">Size only</option>
+                <option value="bitrate">Mbps only</option>
+                <option value="size_or_bitrate">Size or Mbps</option>
               </select>
             </label>
             <label>
@@ -402,11 +667,67 @@
         </section>
         </div>
 
+        <!-- TAB: PATHS -->
+        <div class="settings-tab-pane" data-settings-tab="paths">
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Final Library Promotion <span class="impact-chip" data-impact="high" title="Final library promotion — destination rules, verification, overwrite, and cleanup">High Impact</span></h2>
+            <strong id="settings-final-library-status">Not loaded</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label class="check-row launch-check-row">
+              <input id="settings-final-library-enabled" type="checkbox"> Enable manual promotion
+            </label>
+            <label>
+              Verification
+              <select id="settings-final-library-verification-mode">
+                <option value="cautious">Cautious hash verification</option>
+                <option value="fast">Fast size verification</option>
+              </select>
+            </label>
+            <label class="check-row launch-check-row">
+              <input id="settings-final-library-cleanup" type="checkbox"> Cleanup publish output after verified promotion
+            </label>
+            <label class="check-row launch-check-row">
+              <input id="settings-final-library-overwrite" type="checkbox"> Destructive overwrite existing final files
+            </label>
+          </div>
+          <div class="panel-heading panel-subheading">
+            <h3>Source-to-Destination Rules</h3>
+            <strong id="settings-final-library-rule-count">No rules</strong>
+          </div>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Use</th>
+                  <th scope="col">Label</th>
+                  <th scope="col">Source Root</th>
+                  <th scope="col">Destination Root</th>
+                  <th scope="col">Action</th>
+                </tr>
+              </thead>
+              <tbody id="settings-final-library-rules-rows">
+                <tr><td colspan="5">No final library promotion rules loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" id="settings-final-library-add-rule-button" class="secondary-button">Add Rule</button>
+            <button type="button" id="settings-final-library-preview-button" class="secondary-button">Preview Final Library Settings</button>
+            <button type="button" id="settings-final-library-save-button" class="primary-button">Save Final Library Settings</button>
+            <button type="button" id="settings-final-library-reset-button" class="secondary-button">Reset From Current</button>
+          </div>
+          <pre id="settings-final-library-guidance" class="prose-block">No final library promotion settings loaded.</pre>
+          <p class="note">This panel writes only backend settings. Promotion itself still happens from the Completed/Output page and still requires the manual Promote Queue button.</p>
+        </section>
+        </div>
+
         <!-- TAB: MEDIA -->
         <div class="settings-tab-pane" data-settings-tab="media">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Video Settings <span class="impact-chip" data-impact="medium" title="Encoder / GPU — NVENC preset, quality, codec, and container tuning">Medium Impact</span></h2>
+            <h2>Default Video Settings <span class="impact-chip" data-impact="medium" title="Encoder / GPU — NVENC preset, quality, codec, and container tuning">Medium Impact</span></h2>
             <strong id="settings-video-builder-status">No video detail patch built</strong>
           </div>
           <div class="form-grid launch-form-grid">
@@ -633,7 +954,7 @@
         </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Subtitle Settings <span class="impact-chip" data-impact="medium" title="Subtitles — language tracks, TX3G, BDPGS, merge thresholds, and extract timeouts">Medium Impact</span></h2>
+            <h2>Default Subtitle Settings <span class="impact-chip" data-impact="medium" title="Subtitles — language tracks, TX3G, BDPGS, merge thresholds, and extract timeouts">Medium Impact</span></h2>
             <strong id="settings-subtitle-builder-status">No subtitle patch built</strong>
           </div>
           <div class="form-grid launch-form-grid">
@@ -742,7 +1063,7 @@
         </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Audio Settings <span class="impact-chip" data-impact="medium" title="Audio — channel layout, codec selection, normalize, and passthrough thresholds">Medium Impact</span></h2>
+            <h2>Default Audio Settings <span class="impact-chip" data-impact="medium" title="Audio — channel layout, codec selection, normalize, and passthrough thresholds">Medium Impact</span></h2>
             <strong id="settings-audio-builder-status">No audio patch built</strong>
           </div>
           <div class="form-grid launch-form-grid">
@@ -837,6 +1158,64 @@
           </div>
           <p id="settings-media-policy-legend" class="note table-legend">Audio/subtitle policy rows are read-only and have no selectable actions.</p>
           <p class="note">This cross-check is read-only and does not change FFmpeg, subtitle, audio, remux, encode, or publish policy. Preview/Save remains backend-owned.</p>
+        </section>
+        </div>
+
+        <!-- TAB: RENAME FILTERS -->
+        <div class="settings-tab-pane" data-settings-tab="rename-filters">
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Rename Movie Cleaning Filters</h2>
+            <strong id="settings-rename-cleaning-filter-status">Backend built-ins</strong>
+          </div>
+          <p class="note">These browser-local terms are used by the Rename preview request only. They do not save to the PSD1 and cannot rename, launch, publish, or touch media files.</p>
+          <label class="full-field">
+            Custom negative terms
+            <textarea id="settings-rename-remove-terms" rows="3" spellcheck="false" data-default-terms="sample, trailer, extras, featurette, deleted scenes, behind the scenes" title="Custom negative terms are added to the backend rename planner. Built-in movie scrub filters below handle common release/source/audio/edition tags; this field is for local terms you want removed from preview names.">sample, trailer, extras, featurette, deleted scenes, behind the scenes</textarea>
+          </label>
+          <div class="option-grid">
+            <label class="check-row"><input type="checkbox" data-rename-movie-filter="video_source" checked> Video / source tags</label>
+            <label class="check-row"><input type="checkbox" data-rename-movie-filter="audio_channels" checked> Audio / channels</label>
+            <label class="check-row"><input type="checkbox" data-rename-movie-filter="editions" checked> Editions / cuts</label>
+            <label class="check-row"><input type="checkbox" data-rename-movie-filter="file_size" checked> File size tags</label>
+            <label class="check-row"><input type="checkbox" data-rename-movie-filter="services_containers" checked> Services / containers</label>
+            <label class="check-row"><input type="checkbox" data-rename-movie-filter="release_groups" checked> Release groups</label>
+          </div>
+          <label class="check-row launch-check-row">
+            <input id="settings-rename-use-editable-cleaning-filters" type="checkbox"> Use editable movie filter terms
+          </label>
+          <div class="form-grid">
+            <label>
+              Video / source
+              <textarea id="settings-rename-filter-video-source" data-rename-movie-filter-terms="video_source" data-default-terms="2160p, 1080p, 720p, 480p, uhd, hdr, hdr10, hdr10+, dv, dovi, dolby vision, hevc, h264, h.264, h265, h.265, x264, x265, av1, avc, blu ray, bluray, brrip, bdrip, webrip, web dl, webdl, web, hdtv, dvdrip, dvd, remux, 10 bit, 8 bit" rows="3" spellcheck="false">2160p, 1080p, 720p, 480p, uhd, hdr, hdr10, hdr10+, dv, dovi, dolby vision, hevc, h264, h.264, h265, h.265, x264, x265, av1, avc, blu ray, bluray, brrip, bdrip, webrip, web dl, webdl, web, hdtv, dvdrip, dvd, remux, 10 bit, 8 bit</textarea>
+            </label>
+            <label>
+              Audio / channels
+              <textarea id="settings-rename-filter-audio-channels" data-rename-movie-filter-terms="audio_channels" data-default-terms="truehd, atmos, flac, opus, eac3, ac3, aac, dd, ddp, dts, dts hd, dtshd, 1.0, 2.0, 5.1, 7.1, 6ch, 6 ch, 8ch, 8 ch" rows="3" spellcheck="false">truehd, atmos, flac, opus, eac3, ac3, aac, dd, ddp, dts, dts hd, dtshd, 1.0, 2.0, 5.1, 7.1, 6ch, 6 ch, 8ch, 8 ch</textarea>
+            </label>
+            <label>
+              Editions / cuts
+              <textarea id="settings-rename-filter-editions" data-rename-movie-filter-terms="editions" data-default-terms="imax, proper, repack, rerip, extended, remastered, remaster, unrated, theatrical, criterion, director cut, directors cut, director's cut, final cut, open matte" rows="3" spellcheck="false">imax, proper, repack, rerip, extended, remastered, remaster, unrated, theatrical, criterion, director cut, directors cut, director's cut, final cut, open matte</textarea>
+            </label>
+            <label>
+              File size
+              <textarea id="settings-rename-filter-file-size" data-rename-movie-filter-terms="file_size" data-default-terms="700mb, 1400mb, 1gb, 2gb, 4.7gb" rows="3" spellcheck="false">700mb, 1400mb, 1gb, 2gb, 4.7gb</textarea>
+            </label>
+            <label>
+              Services / containers
+              <textarea id="settings-rename-filter-services-containers" data-rename-movie-filter-terms="services_containers" data-default-terms="amzn, nf, dsnp, hmax, hulu, itunes, appletv, mkv, mp4, m4v" rows="3" spellcheck="false">amzn, nf, dsnp, hmax, hulu, itunes, appletv, mkv, mp4, m4v</textarea>
+            </label>
+            <label>
+              Release groups
+              <textarea id="settings-rename-filter-release-groups" data-rename-movie-filter-terms="release_groups" data-default-terms="rarbg, rbg, yify, yts, yts lt, galaxyrg, bone, psa, tigole, kris" rows="3" spellcheck="false">rarbg, rbg, yify, yts, yts lt, galaxyrg, bone, psa, tigole, kris</textarea>
+            </label>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" id="settings-rename-cleaning-filters-save-button" class="secondary-button">Save Rename Filters</button>
+            <button type="button" id="settings-rename-cleaning-filters-reset-button" class="secondary-button">Reset Rename Filters</button>
+            <button type="button" class="secondary-button" data-cross-page-target="rename">Open Rename</button>
+          </div>
+          <pre id="settings-rename-cleaning-filter-summary" class="prose-block">Using backend built-in movie cleaning filters.</pre>
         </section>
         </div>
 

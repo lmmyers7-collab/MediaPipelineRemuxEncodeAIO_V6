@@ -4,7 +4,7 @@
 # Outsource processed index, source scan caches, rescan flag consumption, and
 # already-processed decisions.
 #
-# Dot-sourced from MediaPipeline_chatgpt.ps1. Reads/writes at call time:
+# Dot-sourced from MediaPipeline.ps1. Reads/writes at call time:
 #   $Outsource, $SourceMovies, $SourceTV, $RescanFlag
 #   $script:IndexScanTimeoutSeconds, $script:SourceScanTimeoutSeconds
 #   $script:ProcessedIndexCache, $script:MovieScanCache, $script:TVScanCache
@@ -17,7 +17,7 @@
 function Build-ProcessedIndex {
     # FIX#9: the old version used Wait-Job -Timeout 120 and returned an
     # empty index on timeout, which caused Already-Processed to fall
-    # back to "not in index" and skip sidecar version checks entirely —
+    # back to "not in index" and skip sidecar version checks entirely -
     # meaning no reprocessing happened for any movie on a large library.
     # We now respect IndexScanTimeoutSeconds (default 1800s) and
     # never claim success with an empty index when the scan actually ran.
@@ -33,7 +33,7 @@ function Build-ProcessedIndex {
             $dirName = Split-Path $fdir -Leaf
 
             if ($fname -match '(.+?) - S(\d{2})E(\d{2})-E(\d{2})') {
-                # ④ Multi-episode output: index every episode in the range individually
+                # 4) Multi-episode output: index every episode in the range individually
                 $mShow = $Matches[1]; $mSeason = $Matches[2]
                 $mStart = [int]$Matches[3]; $mEnd = [int]$Matches[4]
                 for ($mEp = $mStart; $mEp -le $mEnd; $mEp++) {
@@ -60,7 +60,7 @@ function Build-ProcessedIndex {
             }
         }
         Write-Log "Indexed $($idx.Movies.Count) movies / $($idx.TVShows.Count) TV episodes"
-    } catch { Write-Log "Outsource scan failed — using empty index: $_" "WARN" }
+    } catch { Write-Log "Outsource scan failed - using empty index: $_" "WARN" }
     return $idx
 }
 
@@ -68,7 +68,7 @@ function Already-Processed {
     param($file, [bool]$isTV, $tvInfo, $idx)
 
     # Compute expected output path so we can inspect the sidecar.
-    # Process-File has already computed safeName; recompute here locally —
+    # Process-File has already computed safeName; recompute here locally -
     # the cost is negligible and keeps the function self-contained.
     $safeName = Get-SafeLocalName $file.Name
     $paths    = Get-OutputPaths $file $isTV $tvInfo $safeName
@@ -120,7 +120,7 @@ function Already-Processed {
     # Yes when: ReprocessAll=true, no sidecar, or sidecar version < min.
     if (Test-OutputNeedsReprocess -OutputPath $paths.ServerOut -SourceFile $file) {
         $reason = if ($script:ReprocessAll) { "ReprocessAll" } else { "stale pipeline version" }
-        Write-Log "REPROCESS ($reason): $(Split-Path $paths.ServerOut -Leaf) — keeping current output until replacement is verified"
+        Write-Log "REPROCESS ($reason): $(Split-Path $paths.ServerOut -Leaf) - keeping current output until replacement is verified"
         return $false
     }
 
@@ -210,6 +210,114 @@ function Get-MediaQueueDiscoveryPlan {
         [string] $TVRoot = $SourceTV,
         [bool] $ForceRefresh = $false
     )
+
+    $profiles = if (Get-Command -Name Get-MediaPipelineLibraryProfiles -ErrorAction SilentlyContinue) {
+        @(Get-MediaPipelineLibraryProfiles)
+    } else {
+        @()
+    }
+
+    if (@($profiles).Count -gt 0) {
+        $movieList = [System.Collections.Generic.List[object]]::new()
+        $tvList = [System.Collections.Generic.List[object]]::new()
+        foreach ($profile in $profiles) {
+            $enabled = Get-MediaPipelineProfileProperty -Profile $profile -Name 'enabled' -Default $true
+            if ($enabled -is [string]) {
+                $enabled = $enabled.Trim().ToLowerInvariant() -notin @('false','0','no','off','disabled')
+            }
+            if (-not [bool]$enabled) { continue }
+            $sourceRoot = [string](Get-MediaPipelineProfileProperty -Profile $profile -Name 'source_path' -Default '')
+            if ([string]::IsNullOrWhiteSpace($sourceRoot)) { continue }
+            $designation = ([string](Get-MediaPipelineProfileProperty -Profile $profile -Name 'designation' -Default 'auto')).Trim().ToLowerInvariant()
+            if ($designation -in @('mixed','custom','')) { $designation = 'auto' }
+            if ($designation -notin @('movie','tv','auto')) { $designation = 'auto' }
+            $isTvProfile = $designation -eq 'tv'
+            $isAutoProfile = $designation -eq 'auto'
+            $kind = if ($isTvProfile) { 'tv' } else { 'movies' }
+            $files = @()
+            if (-not $isAutoProfile -and (($isTvProfile -and $sourceRoot -eq $TVRoot) -or (-not $isTvProfile -and $sourceRoot -eq $MovieRoot))) {
+                $files = @(Get-CachedSourceFiles -Kind $kind -Path $sourceRoot -ForceRefresh:$ForceRefresh)
+            } else {
+                $files = @(Get-ChildItemWithRetry $sourceRoot)
+                Write-Log ("Source scan refreshed (library profile {0}): {1} file(s)" -f ([string](Get-MediaPipelineProfileProperty -Profile $profile -Name 'id' -Default '')), $files.Count) "DEBUG"
+            }
+            $settingsOverrides = if (Get-Command -Name Get-MediaPipelineLibraryProfileOverrideMap -ErrorAction SilentlyContinue) {
+                Get-MediaPipelineLibraryProfileOverrideMap -Profile $profile
+            } else {
+                [ordered]@{}
+            }
+            $effectiveSettings = if (Get-Command -Name Resolve-MediaPipelineLibraryEffectiveSettings -ErrorAction SilentlyContinue) {
+                Resolve-MediaPipelineLibraryEffectiveSettings -Profile $profile -Overrides $settingsOverrides
+            } else {
+                [ordered]@{}
+            }
+            $libraryMetadata = @{
+                library_id = [string](Get-MediaPipelineProfileProperty -Profile $profile -Name 'id' -Default '')
+                library_name = [string](Get-MediaPipelineProfileProperty -Profile $profile -Name 'name' -Default '')
+                designation = $designation
+                source_root = $sourceRoot
+                output_root = [string](Get-MediaPipelineProfileProperty -Profile $profile -Name 'output_path' -Default $Outsource)
+                settings_override_keys = @($settingsOverrides.Keys)
+                settings_overrides = $settingsOverrides
+                effective_settings = $effectiveSettings
+            }
+            if ($isAutoProfile) {
+                $movieFiles = [System.Collections.Generic.List[object]]::new()
+                $tvFiles = [System.Collections.Generic.List[object]]::new()
+                foreach ($file in @($files)) {
+                    if ($null -eq $file) { continue }
+                    $kindInfo = $null
+                    if (Get-Command -Name Resolve-SingleFileMediaKind -ErrorAction SilentlyContinue) {
+                        $kindInfo = Resolve-SingleFileMediaKind -Path ([string]$file.FullName) -SourceMovies $MovieRoot -SourceTV $TVRoot
+                    }
+                    $isTvFile = if ($kindInfo) {
+                        [bool]$kindInfo.IsTV
+                    } else {
+                        ([string]$file.FullName) -match '(?i)[/\\]Season\s+\d+[/\\]' -or
+                        ([string]$file.Name) -match '(?i)(?<!\d)S\d{1,2}E\d{1,3}(?!\d)'
+                    }
+                    if ($isTvFile) {
+                        [void]$tvFiles.Add($file)
+                    } else {
+                        [void]$movieFiles.Add($file)
+                    }
+                }
+                $priorityManifest = Get-PriorityManifest
+                $movieEntries = @(
+                    Get-QueuedEntries `
+                        @($movieFiles.ToArray()) `
+                        -RootPath $sourceRoot `
+                        -IsTV:$false `
+                        -LibraryProfileMetadata $libraryMetadata `
+                        -PriorityManifest $priorityManifest
+                )
+                $tvEntries = @(
+                    Get-QueuedEntries `
+                        @($tvFiles.ToArray()) `
+                        -RootPath $sourceRoot `
+                        -IsTV:$true `
+                        -LibraryProfileMetadata $libraryMetadata `
+                        -PriorityManifest $priorityManifest
+                )
+                foreach ($entry in $movieEntries) { [void]$movieList.Add($entry) }
+                foreach ($entry in $tvEntries) { [void]$tvList.Add($entry) }
+                continue
+            }
+            $entries = @(
+                Get-QueuedEntries `
+                    $files `
+                    -RootPath $sourceRoot `
+                    -IsTV:$isTvProfile `
+                    -LibraryProfileMetadata $libraryMetadata
+            )
+            if ($isTvProfile) {
+                foreach ($entry in $entries) { [void]$tvList.Add($entry) }
+            } else {
+                foreach ($entry in $entries) { [void]$movieList.Add($entry) }
+            }
+        }
+        return New-MediaQueuePhasePlan -MovieEntries @($movieList.ToArray()) -TVEntries @($tvList.ToArray())
+    }
 
     $movieEntries = @(
         Get-QueuedEntries `

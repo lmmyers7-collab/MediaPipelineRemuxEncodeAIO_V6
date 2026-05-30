@@ -14,7 +14,11 @@ from mediapipeline_desktop_app.api import path_dialogs
 
 
 class PathDialogTests(unittest.TestCase):
-    def test_windows_dialog_prefers_windows_powershell_over_pwsh(self) -> None:
+    def test_windows_dialog_prefers_pwsh_over_windows_powershell(self) -> None:
+        """PowerShell 7+ wins because only it exposes Microsoft.Win32.OpenFolderDialog
+        (the modern Windows Explorer-style folder picker). Windows PowerShell 5.1
+        falls back to the legacy FolderBrowserDialog tree, which we are trying to
+        avoid in the V7 Rename workbench."""
         existing = {
             r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
             r"C:\Program Files\PowerShell\7\pwsh.exe",
@@ -34,11 +38,38 @@ class PathDialogTests(unittest.TestCase):
             patch.dict(os.environ, {"SystemRoot": r"C:\Windows"}, clear=False),
             patch.object(path_dialogs.Path, "exists", fake_exists),
             patch("mediapipeline_desktop_app.api.path_dialogs.shutil.which", fake_which),
+            patch("mediapipeline_desktop_app.api.path_dialogs._bundled_pwsh_candidates", return_value=[]),
         ):
             candidates = path_dialogs._windows_powershell_candidates()
 
-        self.assertEqual(candidates[0], r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe")
-        self.assertIn(r"C:\Program Files\PowerShell\7\pwsh.exe", candidates)
+        # pwsh 7 must win.
+        self.assertEqual(candidates[0], r"C:\Program Files\PowerShell\7\pwsh.exe")
+        # Windows PowerShell remains a fallback for bare machines.
+        self.assertIn(r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe", candidates)
+
+    def test_windows_dialog_prefers_bundled_pwsh_over_system_pwsh(self) -> None:
+        """The repo-bundled pwsh in Pipeline/PowerShell-7.6.0-win-x64 should win
+        over any system pwsh.exe so the operator does not need pwsh installed."""
+        bundled = r"C:\Repo\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe"
+        system_pwsh = r"C:\Program Files\PowerShell\7\pwsh.exe"
+        existing = {bundled, system_pwsh}
+
+        def fake_exists(path: Path) -> bool:
+            return str(path) in existing
+
+        def fake_which(name: str) -> str | None:
+            return system_pwsh if name == "pwsh.exe" else None
+
+        with (
+            patch.dict(os.environ, {"SystemRoot": r"C:\Windows"}, clear=False),
+            patch.object(path_dialogs.Path, "exists", fake_exists),
+            patch("mediapipeline_desktop_app.api.path_dialogs.shutil.which", fake_which),
+            patch("mediapipeline_desktop_app.api.path_dialogs._bundled_pwsh_candidates", return_value=[bundled]),
+        ):
+            candidates = path_dialogs._windows_powershell_candidates()
+
+        self.assertEqual(candidates[0], bundled)
+        self.assertIn(system_pwsh, candidates)
 
     def test_select_windows_paths_uses_selected_host_and_parses_payload(self) -> None:
         captured: dict[str, object] = {}

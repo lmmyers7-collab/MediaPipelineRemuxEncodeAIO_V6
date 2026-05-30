@@ -64,11 +64,17 @@ if ($null -ne (Get-MediaPipelineFailureCodeMetadata -Code 'NOT_A_REAL_FAILURE_CO
 }
 
 $pipelineRoot = $root
-$scanFiles = @(
-    Get-Item -LiteralPath (Join-Path $pipelineRoot 'MediaPipeline_chatgpt.ps1')
-    Get-ChildItem -LiteralPath (Join-Path $pipelineRoot 'Modules') -Filter '*.ps1' -File
-    Get-ChildItem -LiteralPath (Join-Path $projectRoot 'engine') -Filter '*.ps1' -File -Recurse
-)
+$scanFiles = @()
+$scanFiles += Get-Item -LiteralPath (Join-Path $pipelineRoot 'MediaPipeline.ps1')
+$sliceRoot = Join-Path $pipelineRoot 'MediaPipeline'
+if (Test-Path -LiteralPath $sliceRoot -PathType Container) {
+    $scanFiles += Get-ChildItem -LiteralPath $sliceRoot -Filter '*.ps1' -File
+}
+$legacyModulesRoot = Join-Path $pipelineRoot 'Modules'
+if (Test-Path -LiteralPath $legacyModulesRoot -PathType Container) {
+    $scanFiles += Get-ChildItem -LiteralPath $legacyModulesRoot -Filter '*.ps1' -File
+}
+$scanFiles += Get-ChildItem -LiteralPath (Join-Path $projectRoot 'engine') -Filter '*.ps1' -File -Recurse
 $outcomeTokenPattern = '(?<![A-Z0-9_])(?<code>(?:ALREADY|AUDIO|BAD|ENCODE|ENCODER|FFMPEG|FILE|HDR|INTEGRITY|MEDIA|MKVMERGE|NATIVE|OPERATOR|OUTPUT|PENDING|PERMANENT|PROGRESS|PUBLISH|REMUX|SCRATCH|SIDECAR|SOURCE|STOP|SUBTITLE|SYSTEM|TRANSIENT|TV|UNKNOWN)[A-Z0-9]*_[A-Z0-9_]*[A-Z0-9]|OK)(?![A-Z0-9_])'
 $emittedCodes = @(
     foreach ($file in $scanFiles) {

@@ -1,0 +1,31 @@
+{
+  "name": "mediapipeline-webview-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "webview:check": "node scripts/dev/check-webview-assets.mjs",
+    "webview:lint": "eslint \"DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/**/*.js\"",
+    "webview:lint:budget": "node scripts/dev/check-webview-lint-budget.mjs --write",
+    "webview:lint:budget:check": "node scripts/dev/check-webview-lint-budget.mjs --check",
+    "webview:map": "node scripts/dev/analyze-webview-godfiles.mjs --write-default-report",
+    "webview:map:check": "node scripts/dev/analyze-webview-godfiles.mjs --check",
+    "webview:contract": "node scripts/dev/webview-public-contract.mjs --write",
+    "webview:contract:check": "node scripts/dev/webview-public-contract.mjs --check",
+    "webview:dom-gaps": "node scripts/dev/check-webview-dom-id-gaps.mjs --write",
+    "webview:dom-gaps:check": "node scripts/dev/check-webview-dom-id-gaps.mjs --check",
+    "webview:routes": "node scripts/dev/check-webview-route-ownership.mjs --write",
+    "webview:routes:check": "node scripts/dev/check-webview-route-ownership.mjs --check",
+    "webview:slices": "node scripts/dev/webview-split-candidates.mjs --write",
+    "webview:slices:check": "node scripts/dev/webview-split-candidates.mjs --check",
+    "webview:script-order:smoke": "node scripts/dev/smoke-webview-script-order.mjs",
+    "webview:prework:check": "npm run webview:check && npm run webview:lint:budget:check && npm run webview:map:check && npm run webview:contract:check && npm run webview:slices:check && npm run webview:dom-gaps:check && npm run webview:routes:check && npm run webview:script-order:smoke"
+  },
+  "devDependencies": {
+    "@babel/generator": "^7.26.0",
+    "@babel/parser": "^7.26.0",
+    "@babel/traverse": "^7.26.0",
+    "@eslint/js": "^9.17.0",
+    "eslint": "^9.17.0",
+    "globals": "^15.14.0"
+  }
+}

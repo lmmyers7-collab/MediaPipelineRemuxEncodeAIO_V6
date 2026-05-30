@@ -161,8 +161,8 @@ The Python browser-smoke modules share `DesktopApp\tests\webview_browser_smoke_s
 ### `Test-WebViewBrowserLayoutManagerSmoke.ps1`
 
 - **Unittest:** `DesktopApp.tests.test_webview_browser_layout_manager_smoke`
-- **What it does:** Starts a temporary local API with generated temporary media state, opens the real backend-served WebView in Chrome/Edge headless, enters customize mode, and checks representative boxes across Queue, Completed, Settings, Diagnostics, Launch, and Reports.
-- **Verifies:** Page panels, subtab panes, and generated subsection panels expose independent customize bars and draggable handles; inactive Settings-family subtabs are visible while customize mode is active; generated subsection panel count is present under the runtime layout manager.
+- **What it does:** Starts a temporary local API with generated temporary media state, opens the real backend-served WebView in Chrome/Edge headless, opens the Layout Editor drawer, and checks representative boxes across Queue, Completed, Settings, Diagnostics, Launch, and Reports.
+- **Verifies:** Page panels, subtab panes, and generated subsection panels are listed in the drawer; drawer move/drag, Hidden/Advanced toggles, selected-row preview, and scoped subtab reset work; inactive Settings-family subtabs remain hidden while the drawer is open; generated subsection panel count is present under the runtime layout manager.
 - **Does not:** Process media, launch pipeline commands, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, post mutation routes, or touch source/output/scratch paths. No Playwright or Puppeteer dependency.
 
 ### `Test-WebViewBrowserRenameSmoke.ps1`

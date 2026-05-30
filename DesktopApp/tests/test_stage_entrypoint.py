@@ -139,6 +139,87 @@ class StageEntrypointTests(unittest.TestCase):
         self.assertEqual(override_data.route, "encode")
         self.assertEqual(override_data.reason_code, "bitrate_over_threshold")
 
+    def test_decide_stage_route_threshold_mode_selects_size_bitrate_or_both(self) -> None:
+        base_payload = {
+            "schema_version": "v1",
+            "stage": "decide",
+            "payload": {
+                "file_size_bytes": 10 * 1024 * 1024 * 1024,
+                "duration_seconds": 7200,
+                "video_codec": "hevc",
+                "video_height": 1080,
+                "encode_threshold_gb": 8,
+                "tv_encode_threshold_gb": 3,
+                "movie_route_max_video_bitrate_mbps": 35,
+                "tv_route_max_video_bitrate_mbps": 18,
+            },
+        }
+
+        advisory = self.run_entrypoint("decide", base_payload)
+        self.assertEqual(advisory.returncode, 0, advisory.stderr)
+        advisory_data = DecideResult.model_validate(StageResult.model_validate(json.loads(advisory.stdout)).data)
+        self.assertEqual(advisory_data.route, "remux")
+        self.assertEqual(advisory_data.reason_code, "plex_compatible_size_advisory")
+        self.assertEqual(advisory_data.route_threshold_mode, "compatibility_advisory")
+
+        size_payload = json.loads(json.dumps(base_payload))
+        size_payload["payload"]["route_threshold_mode"] = "size"
+        size_only = self.run_entrypoint("decide", size_payload)
+        self.assertEqual(size_only.returncode, 0, size_only.stderr)
+        size_data = DecideResult.model_validate(StageResult.model_validate(json.loads(size_only.stdout)).data)
+        self.assertEqual(size_data.route, "encode")
+        self.assertEqual(size_data.reason_code, "size_over_threshold")
+
+        bitrate_payload = json.loads(json.dumps(base_payload))
+        bitrate_payload["payload"]["route_threshold_mode"] = "bitrate"
+        bitrate_only = self.run_entrypoint("decide", bitrate_payload)
+        self.assertEqual(bitrate_only.returncode, 0, bitrate_only.stderr)
+        bitrate_data = DecideResult.model_validate(StageResult.model_validate(json.loads(bitrate_only.stdout)).data)
+        self.assertEqual(bitrate_data.route, "remux")
+        self.assertEqual(bitrate_data.reason_code, "size_threshold_ignored")
+
+        both_payload = json.loads(json.dumps(base_payload))
+        both_payload["payload"]["route_threshold_mode"] = "size_or_bitrate"
+        both = self.run_entrypoint("decide", both_payload)
+        self.assertEqual(both.returncode, 0, both.stderr)
+        both_data = DecideResult.model_validate(StageResult.model_validate(json.loads(both.stdout)).data)
+        self.assertEqual(both_data.route, "encode")
+        self.assertEqual(both_data.reason_code, "size_over_threshold")
+
+        hint_payload = json.loads(json.dumps(base_payload))
+        hint_payload["payload"]["route_threshold_mode"] = "bitrate"
+        hint_payload["payload"]["route_hints"] = {"route_threshold_mode": "size"}
+        hint_override = self.run_entrypoint("decide", hint_payload)
+        self.assertEqual(hint_override.returncode, 0, hint_override.stderr)
+        hint_data = DecideResult.model_validate(StageResult.model_validate(json.loads(hint_override.stdout)).data)
+        self.assertEqual(hint_data.route, "encode")
+        self.assertEqual(hint_data.reason_code, "size_over_threshold")
+        self.assertEqual(hint_data.route_threshold_mode, "size")
+
+    def test_decide_stage_size_only_mode_ignores_bitrate_as_hard_filter(self) -> None:
+        completed = self.run_entrypoint(
+            "decide",
+            {
+                "schema_version": "v1",
+                "stage": "decide",
+                "payload": {
+                    "file_size_bytes": 20 * 1024 * 1024 * 1024,
+                    "duration_seconds": 3600,
+                    "video_codec": "hevc",
+                    "video_height": 1080,
+                    "encode_threshold_gb": 50,
+                    "movie_route_max_video_bitrate_mbps": 35,
+                    "route_threshold_mode": "size",
+                },
+            },
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        data = DecideResult.model_validate(StageResult.model_validate(json.loads(completed.stdout)).data)
+        self.assertEqual(data.route, "remux")
+        self.assertEqual(data.reason_code, "size_within_threshold")
+        self.assertEqual(data.route_threshold_mode, "size")
+
     def test_decide_stage_h264_ceiling_is_stricter_than_general_bitrate_filter(self) -> None:
         completed = self.run_entrypoint(
             "decide",

@@ -90,7 +90,7 @@ def nvidia_smi_health_row(nvidia_smi: str | None) -> HealthRow:
 
 
 def find_ass_to_srt_script(workspace_root: Path, app_root: Path) -> Path | None:
-    for name in ("ass_to_srt_chatgpt.py", "ass_to_srt.py"):
+    for name in ("ass_to_srt.py", "ass_to_srt.py"):
         for base in (workspace_root, app_root):
             candidate = base / "Pipeline" / name
             if candidate.exists():

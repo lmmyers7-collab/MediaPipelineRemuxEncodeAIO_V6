@@ -10,6 +10,14 @@
   const renderRenameApplyHistory = window.renderRenameApplyHistory || renameHistoryView.renderRenameApplyHistory || function () {};
   const RENAME_PREVIEW_RENDER_LIMIT = 250;
   const RENAME_CLEANING_FILTER_STORAGE_KEY = "mediapipeline.rename.cleaningFilters.v1";
+  const RENAME_CLEANING_IDS = {
+    editableToggle: ["settings-rename-use-editable-cleaning-filters", "rename-use-editable-cleaning-filters"],
+    removeTerms: ["settings-rename-remove-terms", "rename-remove-terms"],
+    status: ["settings-rename-cleaning-filter-status", "rename-cleaning-filter-status"],
+    summary: ["settings-rename-cleaning-filter-summary", "rename-cleaning-filter-summary"],
+    saveButton: ["settings-rename-cleaning-filters-save-button", "rename-cleaning-filters-save-button"],
+    resetButton: ["settings-rename-cleaning-filters-reset-button", "rename-cleaning-filters-reset-button"],
+  };
   let lastRenameRows = [];
   let selectedRenameSourceKey = "";
   const renameFinalOverrides = {};
@@ -22,16 +30,28 @@
   let renameApplyInFlight = false;
   const checkedRenameSourceKeys = new Set();
 
+  function byAnyId(ids) {
+    for (const id of ids) {
+      const node = byId(id);
+      if (node) return node;
+    }
+    return null;
+  }
+
+  function renameCleaningNode(name) {
+    return byAnyId(RENAME_CLEANING_IDS[name] || []);
+  }
+
   function collectRenameRequest() {
     const rawPaths = (byId("rename-paths")?.value || "")
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean);
     const movieFilterOptions = {};
-    document.querySelectorAll("[data-movie-filter]").forEach((input) => {
-      movieFilterOptions[input.dataset.movieFilter || ""] = Boolean(input.checked);
+    document.querySelectorAll("[data-rename-movie-filter], [data-movie-filter]").forEach((input) => {
+      movieFilterOptions[input.dataset.renameMovieFilter || input.dataset.movieFilter || ""] = Boolean(input.checked);
     });
-    const editableCleaningFilters = Boolean(byId("rename-use-editable-cleaning-filters")?.checked);
+    const editableCleaningFilters = Boolean(renameCleaningNode("editableToggle")?.checked);
     return {
       paths: rawPaths,
       mode: byId("rename-mode")?.value || "tv",
@@ -41,7 +61,7 @@
       start_episode: byId("rename-start")?.value || "E01",
       movie_title: byId("rename-movie-title")?.value || "",
       movie_year: byId("rename-movie-year")?.value || "",
-      remove_terms_text: byId("rename-remove-terms")?.value || "",
+      remove_terms_text: renameCleaningNode("removeTerms")?.value || "",
       movie_filter_options: movieFilterOptions,
       movie_filter_terms_enabled: editableCleaningFilters,
       movie_filter_terms: editableCleaningFilters ? collectRenameMovieFilterTerms() : {},
@@ -54,7 +74,7 @@
   }
 
   function renameCleaningFilterTextareas() {
-    return Array.from(document.querySelectorAll("[data-movie-filter-terms]"));
+    return Array.from(document.querySelectorAll("[data-rename-movie-filter-terms], [data-movie-filter-terms]"));
   }
 
   function parseRenameFilterTerms(value) {
@@ -73,7 +93,7 @@
   function collectRenameMovieFilterTermsText() {
     const terms = {};
     renameCleaningFilterTextareas().forEach((input) => {
-      const key = input.dataset.movieFilterTerms || "";
+      const key = input.dataset.renameMovieFilterTerms || input.dataset.movieFilterTerms || "";
       if (key) terms[key] = input.value || "";
     });
     return terms;
@@ -89,25 +109,28 @@
 
   function renameCleaningFilterState() {
     return {
-      use_editable_filters: Boolean(byId("rename-use-editable-cleaning-filters")?.checked),
-      remove_terms_text: byId("rename-remove-terms")?.value || "",
+      use_editable_filters: Boolean(renameCleaningNode("editableToggle")?.checked),
+      remove_terms_text: renameCleaningNode("removeTerms")?.value || "",
       movie_filter_terms_text: collectRenameMovieFilterTermsText(),
     };
   }
 
   function renderRenameCleaningFilterEditor(message = "") {
-    const editable = Boolean(byId("rename-use-editable-cleaning-filters")?.checked);
+    const editable = Boolean(renameCleaningNode("editableToggle")?.checked);
     const movieTerms = collectRenameMovieFilterTerms();
     const categoryCounts = Object.entries(movieTerms)
       .map(([key, values]) => `${key.replace(/_/g, " ")}=${values.length}`)
       .join("; ");
-    const customTermsCount = parseRenameFilterTerms(byId("rename-remove-terms")?.value || "").length;
-    setText("rename-cleaning-filter-status", editable ? "Editable terms" : "Backend built-ins");
-    setText("rename-cleaning-filter-summary", [
+    const customTermsCount = parseRenameFilterTerms(renameCleaningNode("removeTerms")?.value || "").length;
+    const statusNode = renameCleaningNode("status");
+    if (statusNode) statusNode.textContent = editable ? "Editable terms" : "Backend built-ins";
+    const summaryNode = renameCleaningNode("summary");
+    if (summaryNode) setText(summaryNode.id, [
       message,
       `Custom negative terms: ${customTermsCount}`,
       editable ? `Editable movie filters: ${categoryCounts || "none"}` : "Movie filters: backend built-in regex/categories",
       editable ? "Preview request will replace enabled built-in movie filter categories with these literal terms." : "Enable editable terms to replace built-in movie filter categories for preview.",
+      "Storage boundary: these terms are browser-local Rename preview preferences, not saved PSD1 settings.",
       "Mutation guardrail: editing cleaning filters changes rename preview/apply planning only; filesystem changes still require backend rename apply confirmation.",
     ].filter(Boolean).join("\n"));
   }
@@ -122,9 +145,9 @@
   }
 
   function resetRenameCleaningFilters() {
-    const removeTerms = byId("rename-remove-terms");
+    const removeTerms = renameCleaningNode("removeTerms");
     if (removeTerms) removeTerms.value = removeTerms.dataset.defaultTerms || "sample, trailer, extras, featurette, deleted scenes, behind the scenes";
-    const editableToggle = byId("rename-use-editable-cleaning-filters");
+    const editableToggle = renameCleaningNode("editableToggle");
     if (editableToggle) editableToggle.checked = false;
     renameCleaningFilterTextareas().forEach((input) => {
       input.value = input.dataset.defaultTerms || "";
@@ -141,15 +164,15 @@
       renderRenameCleaningFilterEditor();
       return;
     }
-    const editableToggle = byId("rename-use-editable-cleaning-filters");
+    const editableToggle = renameCleaningNode("editableToggle");
     if (editableToggle) editableToggle.checked = Boolean(state.use_editable_filters);
-    const removeTerms = byId("rename-remove-terms");
+    const removeTerms = renameCleaningNode("removeTerms");
     if (removeTerms && typeof state.remove_terms_text === "string") removeTerms.value = state.remove_terms_text;
     const textByKey = state.movie_filter_terms_text && typeof state.movie_filter_terms_text === "object"
       ? state.movie_filter_terms_text
       : {};
     renameCleaningFilterTextareas().forEach((input) => {
-      const key = input.dataset.movieFilterTerms || "";
+      const key = input.dataset.renameMovieFilterTerms || input.dataset.movieFilterTerms || "";
       if (Object.prototype.hasOwnProperty.call(textByKey, key)) input.value = String(textByKey[key] || "");
     });
     renderRenameCleaningFilterEditor("Cleaning filters loaded from browser storage.");
@@ -157,12 +180,12 @@
 
   function initRenameCleaningFilterEditorEvents() {
     loadRenameCleaningFilterState();
-    const editableToggle = byId("rename-use-editable-cleaning-filters");
+    const editableToggle = renameCleaningNode("editableToggle");
     if (editableToggle) editableToggle.addEventListener("change", () => {
       renderRenameCleaningFilterEditor();
       syncRenameCommandButtons();
     });
-    const removeTerms = byId("rename-remove-terms");
+    const removeTerms = renameCleaningNode("removeTerms");
     if (removeTerms) removeTerms.addEventListener("input", () => {
       renderRenameCleaningFilterEditor();
       syncRenameCommandButtons();
@@ -173,9 +196,9 @@
         syncRenameCommandButtons();
       });
     });
-    const saveButton = byId("rename-cleaning-filters-save-button");
+    const saveButton = renameCleaningNode("saveButton");
     if (saveButton) saveButton.addEventListener("click", saveRenameCleaningFilterState);
-    const resetButton = byId("rename-cleaning-filters-reset-button");
+    const resetButton = renameCleaningNode("resetButton");
     if (resetButton) resetButton.addEventListener("click", resetRenameCleaningFilters);
   }
 
@@ -340,7 +363,8 @@
       renderRenameFileSourceSummary("Rename path browser is busy. Wait for the current Rename command to finish.");
       return;
     }
-    const mode = String(selectionMode || "").toLowerCase() === "folder" ? "folder" : "files";
+    const rawMode = String(selectionMode || "").toLowerCase();
+    const mode = rawMode === "folder" || rawMode === "folder_files" ? rawMode : "files";
     const currentPaths = renameCurrentPathValues();
     const typedPath = String(byId("rename-add-path-input")?.value || "").trim();
     const initialPath = currentPaths[0] || typedPath;
@@ -511,290 +535,35 @@
     renderRenameRows();
   }
 
-  function renamePreviewAggregateObject(preview, aggregateKey, rowKey) {
-    const aggregate = preview?.[aggregateKey];
-    if (aggregate && typeof aggregate === "object" && !Array.isArray(aggregate) && Object.keys(aggregate).length) {
-      return aggregate;
-    }
-    const rows = Array.isArray(preview?.rows) ? preview.rows : [];
-    return rows.reduce((acc, row) => {
-      const key = String(row?.[rowKey] || "unknown").trim() || "unknown";
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {});
-  }
-
-  function renameFormatCounts(counts, labeler = null) {
-    if (!counts || typeof counts !== "object") return "none";
-    const parts = Object.keys(counts)
-      .sort()
-      .map((key) => `${labeler ? labeler(key) : key}: ${counts[key]}`);
-    return parts.length ? parts.join(", ") : "none";
-  }
-
-  function renameTemplateLabel(preview, key) {
-    const catalog = Array.isArray(preview?.template_catalog) ? preview.template_catalog : [];
-    const match = catalog.find((item) => item && item.key === key);
-    return match ? `${match.label || match.key}: ${match.description || ""}`.trim() : (key || "Backend default");
-  }
-
-  function renameDuplicateTargets(rows) {
-    const seen = {};
-    rows.forEach((row) => {
-      const key = String(row.destination || row.target_name || "").trim().toLowerCase();
-      if (!key) return;
-      seen[key] = (seen[key] || 0) + 1;
-    });
-    return Object.keys(seen).filter((key) => seen[key] > 1);
-  }
-
-  function renameReviewBoardStatus(preview) {
-    const rows = Array.isArray(preview?.rows) ? preview.rows : [];
-    if (!rows.length) return "No preview";
-    const counts = preview?.counts || {};
-    const confidenceCounts = renamePreviewAggregateObject(preview, "confidence_counts", "confidence");
-    if ((counts.blocked || 0) > 0) return "Blocked";
-    if ((counts.warning || 0) > 0) return "Review warnings";
-    if ((confidenceCounts.blocked || 0) > 0 || (confidenceCounts.low || 0) > 0 || (confidenceCounts.unknown || 0) > 0) return "Review confidence";
-    if ((confidenceCounts.medium || 0) > 0) return "Verify";
-    return "Ready";
-  }
-
-  function renameReviewBoardLines(preview) {
-    const request = collectRenameRequest();
-    const rows = Array.isArray(preview?.rows) ? preview.rows : [];
-    const counts = preview?.counts || {};
-    if (!rows.length) {
-      return [
-        "No rename preview rows loaded.",
-        "Next step: add one file path per line and run Preview.",
-        "Mutation guardrail: this board is read-only; Apply Checked / Selected still uses the backend selected_sources command.",
-      ];
-    }
-    const confidenceCounts = renamePreviewAggregateObject(preview, "confidence_counts", "confidence");
-    const sourceCounts = renamePreviewAggregateObject(preview, "preview_source_counts", "preview_source");
-    const changeCounts = renamePreviewAggregateObject(preview, "change_kind_counts", "change_kind");
-    const warningRows = rows.filter((row) => Array.isArray(row.warnings) && row.warnings.length).length;
-    const errorRows = rows.filter((row) => Array.isArray(row.errors) && row.errors.length).length;
-    const sidecarMoves = rows.reduce((acc, row) => acc + Number(row.sidecar_count || 0), 0);
-    const forcedRows = rows.filter((row) => Boolean(row.force_pipeline_name)).length;
-    const overrideRows = rows.filter((row) => Boolean(row.final_name_override || renameFinalOverrides[renameSourceKey(row)])).length;
-    const duplicates = renameDuplicateTargets(rows);
-    const firstTarget = rows[0]?.target_name || rows[0]?.destination || "";
-    const lastTarget = rows[rows.length - 1]?.target_name || rows[rows.length - 1]?.destination || "";
-    const lines = [
-      "Preview-wide review board. This is read-only; Apply Checked / Selected still calls the backend rename.apply command.",
-      `Template: ${renameTemplateLabel(preview, preview?.active_template || request.template_preset || "")}`,
-      `Rows/status: ${counts.total || rows.length} total; ready ${counts.ready || 0}, match ${counts.match || 0}, warning ${counts.warning || 0}, blocked ${counts.blocked || 0}`,
-      `Confidence mix: ${renameFormatCounts(confidenceCounts)}`,
-      `Source-of-truth signals: ${renameFormatCounts(sourceCounts, renamePreviewSourceLabel)}`,
-      `Change kinds: ${renameFormatCounts(changeCounts)}`,
-      `Review flags: ${warningRows} row(s) with warnings, ${errorRows} row(s) with errors, ${duplicates.length} duplicate destination target(s)`,
-      `Sidecars/forcing: ${sidecarMoves} sidecar move(s) planned, ${forcedRows} force-pipeline row(s), ${overrideRows} final-name override row(s)`,
-    ];
-    if (request.mode === "movie") {
-      lines.push(
-        `Movie seeds: title '${request.movie_title || "(scrub/backend)"}', year '${request.movie_year || "(scrub/backend)"}'`,
-        "Movie review: compare Current, Scrubbed / Pipeline, and Final before forcing a pipeline name."
-      );
-    } else {
-      lines.push(
-        `TV seeds: show '${request.show_name || "(auto/backend)"}', season '${request.season || "(auto/backend)"}', start '${request.start_episode || "(auto/backend)"}'`,
-        `TV range: first target '${firstTarget || "(none)"}'; last target '${lastTarget || "(none)"}'`,
-        "TV review: verify row order before applying because numbering follows the current Paths textarea order."
-      );
-    }
-    if (duplicates.length) {
-      lines.push(`Duplicate target examples: ${duplicates.slice(0, 3).join(" | ")}`);
-    }
-    if (Array.isArray(preview?.warnings) && preview.warnings.length) {
-      lines.push(`Preview warnings: ${preview.warnings.join(" | ")}`);
-    }
-    lines.push("Backend rename preview/apply remains the source of truth for filesystem changes.");
-    return lines;
-  }
-
-  function renderRenameReviewBoard(preview) {
-    setText("rename-review-board-status", renameReviewBoardStatus(preview || {}));
-    setText("rename-review-board", renameReviewBoardLines(preview || {}).join("\n"));
-  }
-
-  function renderRenameSummary(preview) {
-    const rows = Array.isArray(preview?.rows) ? preview.rows : [];
-    if (!rows.length) {
-      const warning = Array.isArray(preview?.warnings) && preview.warnings.length ? `\nWarnings: ${preview.warnings.join(" | ")}` : "";
-      setText("rename-summary", `${lastRenameEmptyMessage}${warning}`);
-      renderRenameBatchSafety(preview);
-      renderRenamePipelineHandoff(preview);
-      renderRenameReviewBoard(preview);
-      return;
-    }
-    const counts = preview.counts || {};
-    const confidenceCounts = renamePreviewAggregateObject(preview, "confidence_counts", "confidence");
-    const sourceCounts = renamePreviewAggregateObject(preview, "preview_source_counts", "preview_source");
-    const guidance = [
-      `Rows: ${counts.total || rows.length}; ready: ${counts.ready || 0}; match: ${counts.match || 0}; warning: ${counts.warning || 0}; blocked: ${counts.blocked || 0}`,
-      `Confidence: ${renameFormatCounts(confidenceCounts)}`,
-      `Preview source: ${renameFormatCounts(sourceCounts, renamePreviewSourceLabel)}`,
-      "Select a row to inspect confidence reasons, warnings, sidecar moves, and force-pipeline behavior before applying.",
-      "Checked-row apply still rebuilds the plan through the backend and mutates only explicit selected_sources.",
-    ];
-    if (Array.isArray(preview.warnings) && preview.warnings.length) {
-      guidance.push(`Preview warnings: ${preview.warnings.join(" | ")}`);
-    }
-    setText("rename-summary", guidance.join("\n"));
-    renderRenameBatchSafety(preview);
-    renderRenamePipelineHandoff(preview);
-    renderRenameReviewBoard(preview);
-  }
-
-  function renameBatchSafetyLines(preview) {
-    const request = collectRenameRequest();
-    const rows = Array.isArray(preview?.rows) ? preview.rows : [];
-    const counts = preview?.counts || {};
-    const overrides = Object.keys(renameFinalOverrides).length;
-    const forceOverrides = Object.keys(renameForceOverrides).filter((key) => renameForceOverrides[key]).length;
-    const lines = [
-      `Mode: ${request.mode === "movie" ? "Movie" : "TV"}`,
-      `Input paths: ${request.paths.length}; preview rows: ${rows.length}`,
-      `Rendered preview rows: ${renameRenderedRowsCount(rows)} of ${rows.length}`,
-      `Apply scope: checked rows are sent as selected_sources; if none are checked, Apply uses only the selected detail row.`,
-      `Sidecars: ${request.rename_sidecars ? "rename sidecar preview enabled" : "sidecar rename preview disabled"}`,
-      `Pipeline naming preview: ${request.use_pipeline_naming_preview ? "preferred when backend can provide it" : "disabled"}`,
-      `Global force pipeline name: ${request.force_pipeline_name ? "enabled" : "disabled"}`,
-      `Overrides staged: ${overrides} final-name override(s), ${forceOverrides} force-through-pipeline override(s)`,
-      `Status counts: ready ${counts.ready || 0}, match ${counts.match || 0}, warning ${counts.warning || 0}, blocked ${counts.blocked || 0}`,
-      `Checked rows: ${getCheckedRenameRows().length}`,
-    ];
-    if (request.mode !== "movie") {
-      lines.push(
-        `TV sequence seed: show '${request.show_name || "(auto/backend)"}', season '${request.season || "(auto/backend)"}', start '${request.start_episode || "(auto/backend)"}'`,
-        "TV ordering: backend preview follows the current Paths textarea order. Verify SxxEyy rows before checking and applying batch renames."
-      );
-    } else {
-      lines.push(
-        `Movie seed: title '${request.movie_title || "(scrub/backend)"}', year '${request.movie_year || "(scrub/backend)"}'`,
-        "Movie safety: forced names should be reviewed against the scrubbed/pipeline guess before applying."
-      );
-    }
-    if ((counts.blocked || 0) > 0) {
-      lines.push("Blocked rows will not apply until backend errors are fixed.");
-    }
-    if ((counts.warning || 0) > 0) {
-      lines.push("Warning rows can apply, but inspect row details before changing files.");
-    }
-    if (!rows.length) {
-      lines.push("No preview rows are available yet. Add paths and run Preview.");
-    } else if (rows.length > RENAME_PREVIEW_RENDER_LIMIT) {
-      lines.push(`Display cap: only ${RENAME_PREVIEW_RENDER_LIMIT} rows are rendered, but Check Applicable Rows and Apply scope use the full backend preview row set.`);
-    }
-    lines.push("Backend rename preview/apply remains the source of truth for filesystem changes.");
-    return lines;
-  }
-
-  function renderRenameBatchSafety(preview) {
-    setText("rename-batch-safety", renameBatchSafetyLines(preview || {}).join("\n"));
-  }
-
-  function renameSavedSettingsConfig() {
-    const settings = typeof getLastSettings === "function" ? getLastSettings() : {};
-    return settings && typeof settings.config === "object" && settings.config ? settings.config : {};
-  }
-
-  function renameConfigValue(config, key, fallback = "(not set)") {
-    const value = config && Object.prototype.hasOwnProperty.call(config, key) ? config[key] : undefined;
-    if (Array.isArray(value)) return value.join(", ") || fallback;
-    if (value === true) return "true";
-    if (value === false) return "false";
-    if (value === null || value === undefined || value === "") return fallback;
-    return String(value);
-  }
-
-  function renameExtensionName(name) {
-    const value = String(name || "").trim();
-    const dotIndex = value.lastIndexOf(".");
-    return dotIndex >= 0 ? value.slice(dotIndex).toLowerCase() : "";
-  }
-
-  function renamePipelineHandoffStatus(preview) {
-    const rows = Array.isArray(preview?.rows) ? preview.rows : [];
-    if (!rows.length) return "No preview";
-    const config = renameSavedSettingsConfig();
-    if (!Object.keys(config).length) return "Settings not loaded";
-    const request = collectRenameRequest();
-    const confidenceCounts = renamePreviewAggregateObject(preview, "confidence_counts", "confidence");
-    const forceRows = rows.filter((row) => Boolean(row.force_pipeline_name)).length;
-    const overrideRows = rows.filter((row) => Boolean(row.final_name_override || renameFinalOverrides[renameSourceKey(row)])).length;
-    const targetExtensions = new Set(rows.map((row) => renameExtensionName(row.target_name || row.destination || "")).filter(Boolean));
-    if ((preview?.counts || {}).blocked > 0) return "Blocked";
-    if (forceRows || overrideRows || !request.rename_sidecars) return "Review";
-    if ((confidenceCounts.low || 0) || (confidenceCounts.unknown || 0) || (confidenceCounts.medium || 0)) return "Review confidence";
-    if (targetExtensions.size > 1) return "Mixed extensions";
-    return "Ready";
-  }
-
-  function renamePipelineHandoffLines(preview) {
-    const rows = Array.isArray(preview?.rows) ? preview.rows : [];
-    const request = collectRenameRequest();
-    const config = renameSavedSettingsConfig();
-    if (!rows.length) {
-      return [
-        "No rename preview rows loaded.",
-        "Run Preview to compare target names against saved pipeline routing and sidecar/force-name behavior.",
-        "Mutation guardrail: this handoff is read-only and cannot rename, save settings, launch work, remux, encode, publish, rewrite sidecars, or touch media files.",
-      ];
-    }
-    const counts = preview?.counts || {};
-    const confidenceCounts = renamePreviewAggregateObject(preview, "confidence_counts", "confidence");
-    const sourceCounts = renamePreviewAggregateObject(preview, "preview_source_counts", "preview_source");
-    const forceRows = rows.filter((row) => Boolean(row.force_pipeline_name)).length;
-    const finalOverrideRows = rows.filter((row) => Boolean(row.final_name_override || renameFinalOverrides[renameSourceKey(row)])).length;
-    const sidecarMoves = rows.reduce((acc, row) => acc + Number(row.sidecar_count || 0), 0);
-    const sourceExtensions = new Set(rows.map((row) => renameExtensionName(row.source_name || row.source || "")).filter(Boolean));
-    const targetExtensions = new Set(rows.map((row) => renameExtensionName(row.target_name || row.destination || "")).filter(Boolean));
-    const lines = [
-      "Rename-to-pipeline handoff:",
-      `Preview rows: ${rows.length}; ready=${counts.ready || 0}; match=${counts.match || 0}; warning=${counts.warning || 0}; blocked=${counts.blocked || 0}`,
-      `Mode/template: ${request.mode === "movie" ? "Movie" : "TV"} / ${renameTemplateLabel(preview, preview?.active_template || request.template_preset || "")}`,
-      `Confidence mix: ${renameFormatCounts(confidenceCounts)}`,
-      `Source-of-truth signals: ${renameFormatCounts(sourceCounts, renamePreviewSourceLabel)}`,
-      `Saved routing profile: ${renameConfigValue(config, "RoutingProfile")}; size guard: ${renameConfigValue(config, "SizeGuardMode")}; output container: ${renameConfigValue(config, "OutputContainer")}`,
-      `Saved subtitle posture: TX3G convert=${renameConfigValue(config, "ConvertTx3gToSrt")}, drop=${renameConfigValue(config, "DropTx3gAfterConversion")}; BDPGS convert=${renameConfigValue(config, "ConvertBdpgsToSrt")}, drop=${renameConfigValue(config, "DropBdpgsAfterConversion")}; ASS drop=${renameConfigValue(config, "DropAssAfterConversion")}`,
-      `Saved publish posture: deferred publish=${renameConfigValue(config, "DeferredPublish")}; source delete=${renameConfigValue(config, "DeleteSourceAfterProcessing", "false")}`,
-      `Filename extensions: source=${Array.from(sourceExtensions).join(", ") || "unknown"}; target=${Array.from(targetExtensions).join(", ") || "unknown"}`,
-      `Sidecar/force state: sidecar preview ${request.rename_sidecars ? "enabled" : "disabled"}; planned sidecar move(s) ${sidecarMoves}; force-pipeline row(s) ${forceRows}; final-name override row(s) ${finalOverrideRows}`,
-    ];
-    lines.push("");
-    if (!Object.keys(config).length) {
-      lines.push("Operator check: saved settings are not loaded in this WebView session. Refresh before trusting routing/container/subtitle handoff text.");
-    } else {
-      lines.push("Operator check: renaming changes filenames only. It does not convert containers, change codecs, remux, encode, OCR subtitles, publish, or make staged Settings JSON active.");
-    }
-    if (String(config.OutputContainer || "").toLowerCase() === "mp4") {
-      lines.push("Container note: saved OutputContainer is MP4. MP4 cannot preserve every subtitle format, so subtitle drop/convert settings matter during pipeline processing even if rename preview looks clean.");
-    } else {
-      lines.push("Container note: filename extension here is not proof of final mux container; the pipeline output container is governed by saved backend settings at processing time.");
-    }
-    if (forceRows) {
-      lines.push("Force-name note: force-pipeline rows can affect future pipeline destination planning through backend sidecar/override behavior. Confirm Final names are Plex-ready before applying.");
-    }
-    if (finalOverrideRows) {
-      lines.push("Override note: final-name overrides are explicit operator choices. Compare them with Scrubbed / Pipeline before applying.");
-    }
-    if (!request.rename_sidecars) {
-      lines.push("Sidecar note: sidecar rename preview is disabled. Post-processing renames may leave associated sidecars behind unless the backend apply request is intentionally scoped that way.");
-    }
-    if ((confidenceCounts.low || 0) || (confidenceCounts.unknown || 0) || (confidenceCounts.medium || 0)) {
-      lines.push("Confidence note: one or more rows are below high confidence. Inspect row detail before applying to avoid bad Plex naming or wrong TV numbering.");
-    }
-    lines.push("Mutation guardrail: this handoff is read-only. Apply Checked / Selected still rebuilds the plan and mutates files only through backend rename.apply selected_sources.");
-    return lines;
-  }
-
-  function renderRenamePipelineHandoff(preview) {
-    setText("rename-pipeline-handoff-status", renamePipelineHandoffStatus(preview || {}));
-    setText("rename-pipeline-handoff", renamePipelineHandoffLines(preview || {}).join("\n"));
-  }
+  const renamePreviewSlice = window.mediaPipelineRenamePreviewSlice.create({
+    RENAME_PREVIEW_RENDER_LIMIT,
+    collectRenameRequest,
+    getCheckedRenameRows,
+    getLastRenameEmptyMessage: () => lastRenameEmptyMessage,
+    getLastSettings: () => (typeof window.getLastSettings === "function" ? window.getLastSettings() : {}),
+    getRenameFinalOverrides: () => renameFinalOverrides,
+    getRenameForceOverrides: () => renameForceOverrides,
+    renamePreviewSourceLabel,
+    renameRenderedRowsCount,
+    renameSourceKey,
+    setText,
+  });
+  const {
+    renderRenameBatchSafety,
+    renderRenamePipelineHandoff,
+    renderRenameReviewBoard,
+    renderRenameSummary,
+    renameBatchSafetyLines,
+    renameDuplicateTargets,
+    renameFormatCounts,
+    renamePipelineHandoffLines,
+    renamePipelineHandoffStatus,
+    renamePreviewAggregateObject,
+    renameReviewBoardLines,
+    renameReviewBoardStatus,
+    renameSavedSettingsConfig,
+    renameTemplateLabel,
+  } = renamePreviewSlice;
 
   function renameBulkScopeRows() {
     const scope = byId("rename-bulk-scope")?.value || "checked";
@@ -943,264 +712,34 @@
     refreshRenamePreview();
   }
 
-  function renameApplyScopeRows() {
-    const checked = getCheckedRenameRows();
-    if (checked.length) return { rows: checked, source: "checked rows" };
-    const selected = getSelectedRenameRow();
-    return selected ? { rows: [selected], source: "selected row" } : { rows: [], source: "none" };
-  }
-
-  function renameSelectionAuditStatus(rows) {
-    if (!rows.length) return "No selection";
-    const blocked = rows.filter((row) => !renameRowCanApply(row)).length;
-    const warning = rows.filter((row) => String(row.status || "").toLowerCase() === "warning").length;
-    const match = rows.filter((row) => String(row.status || "").toLowerCase() === "match").length;
-    if (blocked) return "Blocked";
-    if (warning) return "Review warnings";
-    if (match === rows.length) return "All match";
-    return "Ready";
-  }
-
-  function renameSelectionDuplicateTargets(rows) {
-    return renameDuplicateTargets(rows);
-  }
-
-  function renameApplyScopeBlockers(rows) {
-    const scopedRows = Array.isArray(rows) ? rows : [];
-    const duplicateTargets = renameDuplicateTargets(scopedRows);
-    const destinationExistsRows = scopedRows.filter((row) => Boolean(row.destination_exists) && !row.matches_target);
-    const blockers = [];
-    if (duplicateTargets.length) {
-      blockers.push(`duplicate destination target(s): ${duplicateTargets.slice(0, 3).join(" | ")}`);
-    }
-    if (destinationExistsRows.length) {
-      blockers.push(`${destinationExistsRows.length} existing destination path(s) outside match/no-op rows`);
-    }
-    return blockers;
-  }
-
-  function renderRenameSelectionAudit() {
-    const scope = renameApplyScopeRows();
-    const rows = scope.rows;
-    const renderedRows = renameRenderedRowsCount();
-    setText("rename-selection-audit-status", renameSelectionAuditStatus(rows));
-    if (!rows.length) {
-      setText("rename-selection-audit", [
-        "Apply scope: none",
-        "Next step: check one or more applicable rows, or select a single row, before applying.",
-        "Mutation guardrail: Apply still rebuilds the selected plan through the backend.",
-      ].join("\n"));
-      return;
-    }
-    const counts = rows.reduce((acc, row) => {
-      const status = String(row.status || "unknown").toLowerCase();
-      const change = String(row.change_kind || "unknown").toLowerCase();
-      acc.status[status] = (acc.status[status] || 0) + 1;
-      acc.change[change] = (acc.change[change] || 0) + 1;
-      if (row.force_pipeline_name) acc.force += 1;
-      acc.sidecars += Number(row.sidecar_count || 0);
-      return acc;
-    }, { status: {}, change: {}, force: 0, sidecars: 0 });
-    const duplicates = renameSelectionDuplicateTargets(rows);
-    const warnings = rows.flatMap((row) => Array.isArray(row.warnings) ? row.warnings : []);
-    const errors = rows.flatMap((row) => Array.isArray(row.errors) ? row.errors : []);
-    const lines = [
-      `Apply scope: ${scope.source}`,
-      `Rows in scope: ${rows.length}`,
-      `Rendered rows: ${renderedRows} of ${lastRenameRows.length}`,
-      `Statuses: ready ${counts.status.ready || 0}, match ${counts.status.match || 0}, warning ${counts.status.warning || 0}, blocked ${counts.status.blocked || 0}`,
-      `Actions: rename ${counts.change.rename || 0}, case-only ${counts.change.case_only || 0}, unchanged ${counts.change.unchanged || 0}, blocked ${counts.change.blocked || 0}`,
-      `Sidecar moves planned: ${counts.sidecars}`,
-      `Force pipeline override rows: ${counts.force}`,
-      `First source: ${rows[0]?.source_name || rows[0]?.source || ""}`,
-      `Last source: ${rows[rows.length - 1]?.source_name || rows[rows.length - 1]?.source || ""}`,
-    ];
-    if (duplicates.length) lines.push(`Duplicate destination(s) in scope: ${duplicates.length}`);
-    if (errors.length) lines.push(`Errors: ${errors.slice(0, 4).join(" | ")}`);
-    if (warnings.length) lines.push(`Warnings: ${warnings.slice(0, 4).join(" | ")}`);
-    if (lastRenameRows.length > RENAME_PREVIEW_RENDER_LIMIT) {
-      lines.push("Render cap note: checked scope may include rows not currently rendered; Apply uses backend selected_sources for checked rows, not visible table rows only.");
-    }
-    lines.push("Next step: if the audit looks correct, Apply sends only this scope as backend selected_sources.");
-    lines.push("Mutation guardrail: no frontend filesystem mutation is performed.");
-    setText("rename-selection-audit", lines.join("\n"));
-  }
-
-  function renameApplyReadinessRow(checkpoint, posture, evidence, operatorCheck) {
-    return {
-      checkpoint,
-      posture,
-      evidence,
-      operator_check: operatorCheck,
-    };
-  }
-
-  function renameApplyReadinessRows() {
-    const request = collectRenameRequest();
-    const scope = renameApplyScopeRows();
-    const rows = scope.rows;
-    const previewCount = lastRenameRows.length;
-    const renderedCount = renameRenderedRowsCount();
-    const blockedRows = rows.filter((row) => !renameRowCanApply(row));
-    const warningRows = rows.filter((row) => String(row.status || "").toLowerCase() === "warning");
-    const matchRows = rows.filter((row) => String(row.status || "").toLowerCase() === "match");
-    const duplicateTargets = renameDuplicateTargets(rows);
-    const destinationExistsRows = rows.filter((row) => Boolean(row.destination_exists) && !row.matches_target);
-    const sidecarMoves = rows.reduce((acc, row) => acc + Number(row.sidecar_count || 0), 0);
-    const forceRows = rows.filter((row) => Boolean(row.force_pipeline_name)).length;
-    const finalOverrideRows = rows.filter((row) => Boolean(row.final_name_override || renameFinalOverrides[renameSourceKey(row)])).length;
-    const firstTarget = rows[0]?.target_name || rows[0]?.destination || "";
-    const lastTarget = rows[rows.length - 1]?.target_name || rows[rows.length - 1]?.destination || "";
-    const readinessRows = [];
-
-    readinessRows.push(renameApplyReadinessRow(
-      "Backend preview",
-      previewCount ? "ready" : "waiting",
-      previewCount ? `${previewCount} backend preview row(s) loaded.` : "No backend preview rows loaded.",
-      previewCount ? "Review Current, Scrubbed / Pipeline, Final, confidence, and status before apply." : "Add paths and run Preview before applying any rename.",
-    ));
-    readinessRows.push(renameApplyReadinessRow(
-      "Render cap visibility",
-      previewCount > RENAME_PREVIEW_RENDER_LIMIT ? "review" : (previewCount ? "ready" : "waiting"),
-      previewCount ? `${renderedCount} of ${previewCount} preview row(s) are rendered; ${getCheckedRenameRows().length} checked row(s).` : "No preview rows are rendered.",
-      previewCount > RENAME_PREVIEW_RENDER_LIMIT ? "Use Selection Audit and checked count; applying checked rows can include unrendered backend preview rows after Check Applicable Rows." : "All backend preview rows are visible in the current table render.",
-    ));
-    readinessRows.push(renameApplyReadinessRow(
-      "Apply scope",
-      rows.length ? "ready" : "blocked",
-      `${scope.source}; ${rows.length} row(s) would be submitted as backend selected_sources.`,
-      rows.length ? "Confirm this is the intended batch. Checked rows win; otherwise the selected row is used." : "Check applicable rows or select one row before applying.",
-    ));
-    readinessRows.push(renameApplyReadinessRow(
-      "Blocked rows",
-      blockedRows.length ? "blocked" : "ready",
-      `${blockedRows.length} blocked/non-applicable row(s) in current apply scope.`,
-      blockedRows.length ? "Fix preview errors before applying. Blocked rows are not safe to send to rename.apply." : "No blocked rows in the selected apply scope.",
-    ));
-    readinessRows.push(renameApplyReadinessRow(
-      "Duplicate destinations",
-      duplicateTargets.length ? "blocked" : "ready",
-      duplicateTargets.length ? `${duplicateTargets.length} duplicate target(s): ${duplicateTargets.slice(0, 3).join(" | ")}` : "No duplicate destinations inside the current apply scope.",
-      duplicateTargets.length ? "Change row order, overrides, or template before applying to avoid collisions." : "Batch destinations are unique within this preview scope.",
-    ));
-    readinessRows.push(renameApplyReadinessRow(
-      "Existing destinations",
-      destinationExistsRows.length ? "blocked" : "ready",
-      `${destinationExistsRows.length} target path(s) already exist outside a match/no-op row.`,
-      destinationExistsRows.length ? "Inspect row errors/warnings and choose a unique final name before applying." : "No existing destination collision is reported in the current scope.",
-    ));
-    readinessRows.push(renameApplyReadinessRow(
-      "Warnings and matches",
-      warningRows.length ? "review" : "ready",
-      `${warningRows.length} warning row(s), ${matchRows.length} match/no-op row(s).`,
-      warningRows.length ? "Open selected-row detail and review warning text before applying." : "Warnings are not present in the current apply scope.",
-    ));
-    const outsideRootRows = rows.filter((row) => row.path_authority === "outside_configured_roots");
-    readinessRows.push(renameApplyReadinessRow(
-      "Path authority",
-      outsideRootRows.length ? "review" : "ready",
-      outsideRootRows.length
-        ? `${outsideRootRows.length} selected row(s) are outside configured SourceMovies, SourceTV, or output roots.`
-        : "Selected rows are inside configured media roots or no backend root scope was reported.",
-      outsideRootRows.length
-        ? "Browser confirmation must include outside-root review before backend rename.apply accepts standalone paths."
-        : "Continue comparing exact source and destination paths before applying.",
-    ));
-
-    if (request.mode === "movie") {
-      readinessRows.push(renameApplyReadinessRow(
-        "Movie scrub review",
-        rows.length ? "review" : "waiting",
-        `Movie seed title='${request.movie_title || "(scrub/backend)"}', year='${request.movie_year || "(scrub/backend)"}'.`,
-        "Compare source name, scrubbed/pipeline guess, and final name before forcing pipeline names.",
-      ));
-    } else {
-      readinessRows.push(renameApplyReadinessRow(
-        "TV ordering review",
-        rows.length > 1 ? "review" : rows.length ? "ready" : "waiting",
-        `TV seed show='${request.show_name || "(auto/backend)"}', season='${request.season || "(auto/backend)"}', start='${request.start_episode || "(auto/backend)"}'; first='${firstTarget || "(none)"}'; last='${lastTarget || "(none)"}'.`,
-        rows.length > 1 ? "Verify row order before apply because backend numbering follows the Paths textarea order." : "Single-row TV apply has no batch-order numbering risk.",
-      ));
-    }
-
-    readinessRows.push(renameApplyReadinessRow(
-      "Sidecars and pipeline force",
-      sidecarMoves || forceRows || finalOverrideRows || !request.rename_sidecars ? "review" : "ready",
-      `${sidecarMoves} sidecar move(s); ${forceRows} force-pipeline row(s); ${finalOverrideRows} final-name override row(s); sidecar preview ${request.rename_sidecars ? "enabled" : "disabled"}.`,
-      "Confirm sidecar and force settings match pre/post-processing intent before mutation.",
-    ));
-    readinessRows.push(renameApplyReadinessRow(
-      "Mutation boundary",
-      "ready",
-      "Apply posts confirm_apply plus selected_sources to /api/rename/apply; the frontend does not rename files.",
-      "Use the browser confirmation and Last Apply Result/command history to verify backend outcome.",
-    ));
-    return readinessRows;
-  }
-
-  function renameApplyReadinessStatus(rows) {
-    const items = Array.isArray(rows) ? rows : renameApplyReadinessRows();
-    if (!lastRenameRows.length || !renameApplyScopeRows().rows.length) return "No scope";
-    const postures = new Set(items.map((row) => String(row.posture || "").toLowerCase()));
-    if (postures.has("blocked")) return "Blocked";
-    if (postures.has("waiting")) return "No scope";
-    if (postures.has("review")) return "Review";
-    return "Ready";
-  }
-
-  function renderRenameApplyReadiness() {
-    const rows = renameApplyReadinessRows();
-    const tbody = byId("rename-apply-readiness-rows");
-    setText("rename-apply-readiness-status", renameApplyReadinessStatus(rows));
-    if (!tbody) return;
-    tbody.replaceChildren();
-    rows.forEach((item) => {
-      const row = document.createElement("tr");
-      row.dataset.status = item.posture || "";
-      appendCells(row, [item.checkpoint, item.posture, item.evidence, item.operator_check]);
-      tbody.appendChild(row);
-    });
-    const counts = rows.reduce((acc, item) => {
-      const key = String(item.posture || "unknown").toLowerCase();
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {});
-    const countText = Object.keys(counts).sort().map((key) => `${key}=${counts[key]}`).join(", ");
-    setText("rename-apply-readiness-legend", `Rename apply readiness: ${countText || "none"}. Read-only; backend rename.apply remains the only filesystem mutation path.`);
-  }
-
-  function renderRenameDetail(item) {
-    if (!item) {
-      setText("rename-detail", "No rename row selected. Select a preview row to inspect confidence, source logic, warnings, sidecar moves, and exact destination.");
-      return;
-    }
-    const warnings = Array.isArray(item.warnings) ? item.warnings : [];
-    const errors = Array.isArray(item.errors) ? item.errors : [];
-    const confidenceReasons = Array.isArray(item.confidence_reasons) ? item.confidence_reasons : [];
-    const sidecarMoves = Array.isArray(item.sidecar_moves) ? item.sidecar_moves : [];
-    const detail = [
-      `Source: ${item.source || ""}`,
-      `Destination: ${item.destination || ""}`,
-      `Source folder: ${item.source_parent || ""}`,
-      `Destination folder: ${item.destination_parent || ""}`,
-      `Pipeline guess: ${item.pipeline_guess || ""}`,
-      `Final: ${item.target_name || ""}`,
-      `Template: ${item.template_preset || ""}`,
-      `Change kind: ${item.change_kind || ""}`,
-      `Status: ${item.status || ""}`,
-      `Status meaning: ${renameStatusExplanation(item.status)}`,
-      `Confidence: ${renameConfidenceLabel(item) || "not reported"}`,
-      `Confidence meaning: ${renameConfidenceExplanation(item.confidence)}`,
-      confidenceReasons.length ? `Confidence reason(s): ${confidenceReasons.join(" | ")}` : "",
-      `Path authority: ${item.path_authority || "not reported"} (${item.path_authority_message || "no backend authority note"})`,
-      `Force pipeline name: ${item.force_pipeline_name ? "yes" : "no"}`,
-      `Matches current name: ${item.matches_target ? "yes" : "no"}`,
-      `Sidecar moves: ${item.sidecar_count ?? sidecarMoves.length}`,
-      warnings.length ? `Warnings: ${warnings.join(" | ")}` : "",
-      errors.length ? `Errors: ${errors.join(" | ")}` : "",
-    ].filter(Boolean);
-    setText("rename-detail", detail.join("\n"));
-  }
+  const renameApplyReadinessSlice = window.mediaPipelineRenameApplyReadinessSlice.create({
+    RENAME_PREVIEW_RENDER_LIMIT,
+    appendCells,
+    byId,
+    collectRenameRequest,
+    getCheckedRenameRows,
+    getLastRenameRows: () => lastRenameRows,
+    getRenameFinalOverrides: () => renameFinalOverrides,
+    getSelectedRenameRow,
+    renameConfidenceExplanation,
+    renameConfidenceLabel,
+    renameDuplicateTargets,
+    renameRenderedRowsCount,
+    renameRowCanApply,
+    renameSourceKey,
+    renameStatusExplanation,
+    setText,
+  });
+  const {
+    renderRenameApplyReadiness,
+    renderRenameDetail,
+    renderRenameSelectionAudit,
+    renameApplyReadinessRows,
+    renameApplyReadinessStatus,
+    renameApplyScopeBlockers,
+    renameSelectionAuditStatus,
+    renameSelectionDuplicateTargets,
+  } = renameApplyReadinessSlice;
 
   function applyRenameSelectedOverride() {
     const row = getSelectedRenameRow();
@@ -1250,240 +789,23 @@
     renderRenameFileSourceSummary();
   }
 
-  function renameApplyResultLines(result) {
-    const payload = result && typeof result === "object" ? result : {};
-    const data = payload.data && typeof payload.data === "object" ? payload.data : {};
-    const request = payload.request && typeof payload.request === "object" ? payload.request : {};
-    const rows = Array.isArray(data.rows) ? data.rows : [];
-    const selectedSources = Array.isArray(request.selected_sources) ? request.selected_sources : [];
-    const lines = [
-      `Command: ${payload.command || "rename.apply"}`,
-      `Result: ${payload.ok ? "ok" : payload.severity || "error"}`,
-      `Message: ${payload.message || ""}`,
-      `Selected rows: ${data.selected ?? selectedSources.length ?? ""}`,
-      `Applied rows: ${data.applied_count ?? rows.length}`,
-      `Renamed media files: ${data.renamed ?? ""}`,
-      `Unchanged media files: ${data.unchanged ?? ""}`,
-      `Sidecar moves: ${data.sidecars ?? ""}`,
-      `Media operations: ${data.media_operations ?? ""}`,
-      `Sidecar operations: ${data.sidecar_operations ?? ""}`,
-      `Undo manifest: ${data.undo_manifest || ""}`,
-    ];
-    const warnings = Array.isArray(payload.warnings) ? payload.warnings : [];
-    const errors = Array.isArray(payload.errors) ? payload.errors : [];
-    if (warnings.length) lines.push(`Warnings: ${warnings.join(" | ")}`);
-    if (errors.length) lines.push(`Errors: ${errors.join(" | ")}`);
-    if (rows.length) {
-      lines.push("", "Rows:");
-      rows.slice(0, 12).forEach((row) => {
-        const sidecars = row.sidecar_count ?? row.sidecars ?? "";
-        lines.push(`- ${row.source || ""} -> ${row.destination || ""} [${row.status || ""}; sidecars=${sidecars}]`);
-      });
-      if (rows.length > 12) lines.push(`...and ${rows.length - 12} more row(s)`);
-    }
-    lines.push("", "Backend rename preview/apply remains the source of truth for filesystem changes.");
-    return lines;
-  }
-
-  function renameApplyOutcomePayload(result) {
-    if (!result) return {};
-    return result.raw && typeof result.raw === "object" ? result.raw : result;
-  }
-
-  function renameApplyOutcomeNumber(value, fallback = 0) {
-    const numberValue = Number(value);
-    return Number.isFinite(numberValue) ? numberValue : fallback;
-  }
-
-  function renameApplyOutcomeStatus(result) {
-    const payload = renameApplyOutcomePayload(result);
-    if (!payload || !Object.keys(payload).length) return "No apply";
-    const data = payload.data && typeof payload.data === "object" ? payload.data : {};
-    const rows = Array.isArray(data.rows) ? data.rows : [];
-    const warnings = Array.isArray(payload.warnings) ? payload.warnings : [];
-    const errors = Array.isArray(payload.errors) ? payload.errors : [];
-    if (!payload.ok || errors.length) return "Failed";
-    if (warnings.length) return "Review";
-    const renamed = renameApplyOutcomeNumber(data.renamed, 0);
-    const applied = renameApplyOutcomeNumber(data.applied_count, rows.length);
-    const unchanged = renameApplyOutcomeNumber(data.unchanged, 0);
-    if (renamed > 0 || applied > 0) return "Applied";
-    if (unchanged > 0) return "No changes";
-    return "Recorded";
-  }
-
-  function renameApplyOutcomeStatusState(status) {
-    const normalized = String(status || "").toLowerCase();
-    if (normalized.includes("fail")) return "blocked";
-    if (normalized.includes("review")) return "warning";
-    if (normalized.includes("applied")) return "ready";
-    if (normalized.includes("recorded") || normalized.includes("no changes")) return "changed";
-    return "unknown";
-  }
-
-  function renameApplyOutcomeRow(checkpoint, posture, evidence, action) {
-    return { checkpoint, posture, evidence, action };
-  }
-
-  function renameApplyOutcomeRows(result) {
-    const payload = renameApplyOutcomePayload(result);
-    if (!payload || !Object.keys(payload).length) {
-      return [
-        renameApplyOutcomeRow(
-          "Backend result",
-          "waiting",
-          "No rename.apply command result is loaded.",
-          "Apply checked or selected rows only after preview/readiness agree.",
-        ),
-      ];
-    }
-    const data = payload.data && typeof payload.data === "object" ? payload.data : {};
-    const request = payload.request && typeof payload.request === "object" ? payload.request : {};
-    const rows = Array.isArray(data.rows) ? data.rows : [];
-    const selectedSources = Array.isArray(request.selected_sources) ? request.selected_sources : [];
-    const warnings = Array.isArray(payload.warnings) ? payload.warnings : [];
-    const errors = Array.isArray(payload.errors) ? payload.errors : [];
-    const selected = renameApplyOutcomeNumber(data.selected, selectedSources.length);
-    const applied = renameApplyOutcomeNumber(data.applied_count, rows.length);
-    const renamed = renameApplyOutcomeNumber(data.renamed, 0);
-    const unchanged = renameApplyOutcomeNumber(data.unchanged, 0);
-    const sidecars = renameApplyOutcomeNumber(data.sidecars, 0);
-    const mediaOperations = renameApplyOutcomeNumber(data.media_operations, renamed);
-    const sidecarOperations = renameApplyOutcomeNumber(data.sidecar_operations, sidecars);
-    return [
-      renameApplyOutcomeRow(
-        "Backend result",
-        payload.ok && !errors.length ? (warnings.length ? "review" : "ok") : "failed",
-        `${payload.command || "rename.apply"} returned ${payload.ok ? "ok" : payload.severity || "error"}; message=${payload.message || "(none)"}.`,
-        payload.ok && !errors.length ? "Compare row counts below and inspect command history for durable backend evidence." : "Do not assume any rename completed; inspect warnings/errors and backend command history.",
-      ),
-      renameApplyOutcomeRow(
-        "Selected scope",
-        selected ? "ok" : "review",
-        `${selected} selected source(s) submitted; request mode=${request.mode || "(unknown)"}; confirmed=${request.confirm_apply === true ? "yes" : "not reported"}.`,
-        "Confirm selected_sources matches the intended checked/selected preview scope.",
-      ),
-      renameApplyOutcomeRow(
-        "Applied rows",
-        applied ? "ok" : "review",
-        `${applied} applied row(s); ${renamed} renamed media file(s); ${unchanged} unchanged/no-op file(s).`,
-        applied ? "Spot-check renamed rows below and confirm expected no-op rows were intentional." : "If no rows applied, read backend message before retrying.",
-      ),
-      renameApplyOutcomeRow(
-        "Sidecar operations",
-        sidecarOperations || sidecars ? "review" : "ok",
-        `${sidecars} sidecar move(s) reported; media operations=${mediaOperations}; sidecar operations=${sidecarOperations}.`,
-        sidecarOperations || sidecars ? "Verify associated .pipeline.json/SRT sidecars followed the media file where expected." : "No sidecar move evidence reported.",
-      ),
-      renameApplyOutcomeRow(
-        "Undo / rollback evidence",
-        data.undo_manifest ? "ok" : "review",
-        data.undo_manifest ? `Undo manifest: ${data.undo_manifest}` : "No undo manifest path reported in the backend result.",
-        data.undo_manifest ? "Keep this path for manual recovery review if a later row looks wrong." : "Do not rely on WebView for undo; inspect backend logs before manual repair.",
-      ),
-      renameApplyOutcomeRow(
-        "Warnings and errors",
-        errors.length ? "failed" : warnings.length ? "review" : "ok",
-        `${warnings.length} warning(s), ${errors.length} error(s).${warnings.length ? ` warnings=${warnings.slice(0, 3).join(" | ")}` : ""}${errors.length ? ` errors=${errors.slice(0, 3).join(" | ")}` : ""}`,
-        errors.length || warnings.length ? "Resolve backend-reported issues before another batch apply." : "No backend warning/error evidence reported.",
-      ),
-      renameApplyOutcomeRow(
-        "Paths textarea update",
-        rows.length ? "ok" : "review",
-        rows.length ? `${rows.length} backend result row(s) available for local Paths textarea replacement.` : "No backend rows available for local Paths textarea replacement.",
-        "Treat updated textarea paths as local convenience only; backend command result remains source of truth.",
-      ),
-      renameApplyOutcomeRow(
-        "Mutation boundary",
-        "ok",
-        "Only /api/rename/apply can mutate files. This outcome review cannot rename, undo, retry, delete, or touch files.",
-        "For any doubt, compare preview, command history, output folders, and backend logs before applying another batch.",
-      ),
-    ];
-  }
-
-  function renameApplyOutcomeSummaryLines(result) {
-    const payload = renameApplyOutcomePayload(result);
-    const rows = renameApplyOutcomeRows(payload);
-    const status = renameApplyOutcomeStatus(payload);
-    if (!payload || !Object.keys(payload).length) {
-      return [
-        "Backend rename apply outcome review:",
-        "Status: No apply",
-        "Next step: run Preview, check intended rows, read Apply Readiness, then use backend-owned Apply Checked / Selected Rename.",
-        "Mutation guardrail: this panel is read-only and cannot rename, undo, retry, or touch files.",
-      ];
-    }
-    const data = payload.data && typeof payload.data === "object" ? payload.data : {};
-    const blocked = rows.filter((row) => ["failed", "blocked"].includes(String(row.posture || "").toLowerCase())).length;
-    const review = rows.filter((row) => String(row.posture || "").toLowerCase() === "review").length;
-    return [
-      "Backend rename apply outcome review:",
-      `Status: ${status}; checkpoints needing review=${review}; failed/blocked=${blocked}`,
-      `Applied: selected=${data.selected ?? ""}; applied=${data.applied_count ?? ""}; renamed=${data.renamed ?? ""}; unchanged=${data.unchanged ?? ""}; sidecars=${data.sidecars ?? ""}`,
-      `Undo manifest: ${data.undo_manifest || "(not reported)"}`,
-      "Next step: verify rows/sidecars on disk only after command result and history agree.",
-      "Mutation guardrail: this panel is read-only and cannot rename, undo, retry, delete, or touch files.",
-    ];
-  }
-
-  function renderRenameApplyOutcomeReview(result) {
-    const payload = renameApplyOutcomePayload(result);
-    const status = renameApplyOutcomeStatus(payload);
-    setText("rename-apply-outcome-status", status);
-    const statusNode = byId("rename-apply-outcome-status");
-    if (statusNode) statusNode.dataset.state = renameApplyOutcomeStatusState(status);
-    renderRenameApplyProgress(payload);
-    setText("rename-apply-outcome-summary", renameApplyOutcomeSummaryLines(payload).join("\n"));
-    const tbody = byId("rename-apply-outcome-rows");
-    if (!tbody) return;
-    const rows = renameApplyOutcomeRows(payload);
-    tbody.replaceChildren();
-    rows.forEach((item) => {
-      const row = document.createElement("tr");
-      row.dataset.status = item.posture || "";
-      appendCells(row, [item.checkpoint, item.posture, item.evidence, item.action]);
-      tbody.appendChild(row);
-    });
-    const counts = rows.reduce((acc, item) => {
-      const key = String(item.posture || "unknown").toLowerCase();
-      acc[key] = (acc[key] || 0) + 1;
-      return acc;
-    }, {});
-    const countText = Object.keys(counts).sort().map((key) => `${key}=${counts[key]}`).join(", ");
-    setText("rename-apply-outcome-legend", `Rename apply outcome review: ${countText || "none"}. Read-only; backend rename.apply remains the only filesystem mutation path.`);
-  }
-
-  function renameApplyProgressBars(payload) {
-    const data = payload?.data && typeof payload.data === "object" ? payload.data : {};
-    const progress = data.rename_progress && typeof data.rename_progress === "object" ? data.rename_progress : {};
-    if (Array.isArray(progress.progress_bars)) return progress.progress_bars.filter(Boolean);
-    if (Array.isArray(data.progress_bars)) return data.progress_bars.filter(Boolean);
-    return [];
-  }
-
-  function renderRenameApplyProgress(payload) {
-    if (typeof renderProgressBarsInto !== "function") return;
-    const data = payload?.data && typeof payload.data === "object" ? payload.data : {};
-    const progress = data.rename_progress && typeof data.rename_progress === "object" ? data.rename_progress : {};
-    renderProgressBarsInto("rename-apply-progress-bars", renameApplyProgressBars(payload), progress, "No rename apply progress loaded.");
-  }
-
-  function renderRenameApplyResult(result) {
-    if (!result) {
-      setText("rename-last-apply-status", "No apply");
-      setText("rename-last-apply-detail", "No rename apply result loaded.");
-      renderRenameApplyOutcomeReview(null);
-      return;
-    }
-    const payload = result.raw && typeof result.raw === "object" ? result.raw : result;
-    const data = payload.data && typeof payload.data === "object" ? payload.data : {};
-    const renamed = data.renamed ?? "";
-    const applied = data.applied_count ?? (Array.isArray(data.rows) ? data.rows.length : "");
-    setText("rename-last-apply-status", payload.ok ? `${renamed} renamed / ${applied} applied` : payload.severity || "failed");
-    setText("rename-last-apply-detail", renameApplyResultLines(payload).join("\n"));
-    renderRenameApplyOutcomeReview(payload);
-  }
+  const renameApplyResultSlice = window.mediaPipelineRenameApplyResultSlice.create({
+    appendCells,
+    byId,
+    renderProgressBarsInto: window.renderProgressBarsInto,
+    setText,
+  });
+  const {
+    renderRenameApplyOutcomeReview,
+    renderRenameApplyProgress,
+    renderRenameApplyResult,
+    renameApplyOutcomeRows,
+    renameApplyOutcomeStatus,
+    renameApplyOutcomeStatusState,
+    renameApplyOutcomeSummaryLines,
+    renameApplyProgressBars,
+    renameApplyResultLines,
+  } = renameApplyResultSlice;
 
   async function applySelectedRename() {
     if (renamePreviewInFlight) {
@@ -1843,7 +1165,283 @@
     isRenameApplyCommand,
     renameApplyHistoryLine,
     renderRenameApplyHistory,
+    applyRenameWorkbenchV7,
+    renameApplicablePreviewRows,
+    renameOpenConfirmDialog,
+    renameOpenResultDialog,
+    renameSyncModeFieldVisibility,
+    renameInitDropZone,
+    renameInitWorkbenchV7Events,
   };
+  /* --------------------------------------------------------------------
+   * V7 Rename workbench: 3-step standalone tool
+   *
+   * Adds: confirm dialog, result dialog, TV-only field visibility,
+   * drag-and-drop on the drop zone, Browse Folder uses folder_files mode,
+   * Apply operates on every non-blocked preview row by default.
+   *
+   * Older queue-coupled buttons (rename-use-selected-queue-button,
+   * rename-add-path-button, rename-paths textarea, etc.) are intentionally
+   * absent from the v7 HTML; the existing handlers above remain for
+   * historical compatibility and gracefully no-op when their DOM nodes
+   * are missing.
+   * -------------------------------------------------------------------- */
+
+  function renameDialogById(id) {
+    const el = byId(id);
+    return el && typeof el.showModal === "function" ? el : null;
+  }
+
+  function renameOpenConfirmDialog(rowsToApply, outsideRootRows) {
+    const dialog = renameDialogById("rename-confirm-dialog");
+    if (!dialog) return Promise.resolve(false);
+    const countEl = byId("rename-confirm-count");
+    if (countEl) countEl.textContent = `Renaming ${rowsToApply.length} file(s).`;
+    const listEl = byId("rename-confirm-list");
+    if (listEl) {
+      listEl.innerHTML = "";
+      rowsToApply.forEach((item) => {
+        const row = document.createElement("div");
+        row.className = "rename-modal-list-row";
+        row.setAttribute("role", "listitem");
+        const oldName = String(item.source_name || item.source || "");
+        const newName = String(item.target_name || item.destination || item.final_name || "");
+        const oldSpan = document.createElement("span");
+        oldSpan.className = "rename-modal-old";
+        oldSpan.textContent = oldName;
+        const arrow = document.createElement("span");
+        arrow.className = "rename-modal-arrow";
+        arrow.textContent = "->";
+        const newSpan = document.createElement("span");
+        newSpan.className = "rename-modal-new";
+        newSpan.textContent = newName;
+        row.append(oldSpan, arrow, newSpan);
+        listEl.appendChild(row);
+      });
+    }
+    const warningEl = byId("rename-confirm-warning");
+    if (warningEl) {
+      if (outsideRootRows && outsideRootRows.length) {
+        warningEl.textContent = `Warning: ${outsideRootRows.length} row(s) are outside configured media roots. Verify source/destination before continuing.`;
+        warningEl.hidden = false;
+      } else {
+        warningEl.textContent = "";
+        warningEl.hidden = true;
+      }
+    }
+    return new Promise((resolve) => {
+      const onClose = () => {
+        dialog.removeEventListener("close", onClose);
+        resolve(dialog.returnValue === "confirm");
+      };
+      dialog.addEventListener("close", onClose);
+      const cancelBtn = byId("rename-confirm-cancel-button");
+      if (cancelBtn) {
+        cancelBtn.onclick = () => dialog.close("cancel");
+      }
+      try {
+        dialog.showModal();
+      } catch (_err) {
+        dialog.removeEventListener("close", onClose);
+        resolve(false);
+      }
+    });
+  }
+
+  function renameOpenResultDialog(result) {
+    const dialog = renameDialogById("rename-result-dialog");
+    if (!dialog) return;
+    const payload = result && typeof result === "object" ? (result.raw && typeof result.raw === "object" ? result.raw : result) : {};
+    const data = payload.data && typeof payload.data === "object" ? payload.data : {};
+    const rows = Array.isArray(data.rows) ? data.rows : [];
+    let success = Number.isFinite(data.success_count) ? Number(data.success_count) : 0;
+    let failed = Number.isFinite(data.failed_count) ? Number(data.failed_count) : 0;
+    let skipped = Number.isFinite(data.skipped_count) ? Number(data.skipped_count) : 0;
+    if (!success && !failed && !skipped && rows.length) {
+      rows.forEach((row) => {
+        const status = String(row.status || row.outcome || "").toLowerCase();
+        if (status === "success" || status === "renamed" || status === "applied" || row.renamed === true) success += 1;
+        else if (status === "skipped" || status === "match" || row.skipped === true) skipped += 1;
+        else if (status === "failed" || status === "error" || row.failed === true) failed += 1;
+      });
+    }
+    if (!success && Number.isFinite(data.renamed)) success = Number(data.renamed);
+    if (!success && Number.isFinite(data.applied_count) && !failed && !skipped) success = Number(data.applied_count);
+    const setNum = (id, value) => {
+      const el = byId(id);
+      if (el) el.textContent = String(value);
+    };
+    setNum("rename-result-success", success);
+    setNum("rename-result-failed", failed);
+    setNum("rename-result-skipped", skipped);
+    const summaryEl = byId("rename-result-summary");
+    if (summaryEl) {
+      const summary = String(payload.message || (payload.ok ? "Rename completed." : "Rename did not complete."));
+      summaryEl.textContent = summary;
+    }
+    const errorsEl = byId("rename-result-errors");
+    const errors = Array.isArray(payload.errors) ? payload.errors.filter((value) => String(value || "").trim()) : [];
+    if (errorsEl) {
+      errorsEl.innerHTML = "";
+      if (errors.length || failed > 0) {
+        errorsEl.hidden = false;
+        const heading = document.createElement("strong");
+        heading.textContent = "Errors";
+        errorsEl.appendChild(heading);
+        const list = document.createElement("ul");
+        list.className = "rename-modal-error-list";
+        const messages = errors.length
+          ? errors
+          : rows.filter((row) => String(row.status || row.outcome || "").toLowerCase() === "failed").map((row) => String(row.error || row.message || row.source || "Unknown error"));
+        messages.forEach((msg) => {
+          const li = document.createElement("li");
+          li.textContent = String(msg);
+          list.appendChild(li);
+        });
+        errorsEl.appendChild(list);
+      } else {
+        errorsEl.hidden = true;
+      }
+    }
+    const openLogButton = byId("rename-result-open-log-button");
+    if (openLogButton) {
+      const logPath = String(data.log_path || data.log_folder || data.output_log || "");
+      if (logPath) {
+        openLogButton.hidden = false;
+        openLogButton.onclick = () => {
+          try {
+            window.open(`file://${logPath}`, "_blank");
+          } catch (_err) { /* swallow */ }
+        };
+      } else {
+        openLogButton.hidden = true;
+        openLogButton.onclick = null;
+      }
+    }
+    try {
+      dialog.showModal();
+    } catch (_err) { /* swallow */ }
+  }
+
+  function renameApplicablePreviewRows() {
+    return Array.isArray(lastRenameRows) ? lastRenameRows.filter((row) => renameRowCanApply(row)) : [];
+  }
+
+  async function applyRenameWorkbenchV7() {
+    if (renamePreviewInFlight || renameApplyInFlight) {
+      return;
+    }
+    const rowsToApply = renameApplicablePreviewRows();
+    if (!rowsToApply.length) {
+      const hint = byId("rename-apply-status-hint");
+      if (hint) hint.textContent = "Preview has no applicable rows. Run Preview, then resolve any blocked rows.";
+      return;
+    }
+    const readinessBlockers = typeof renameApplyScopeBlockers === "function" ? renameApplyScopeBlockers(rowsToApply) : [];
+    if (readinessBlockers.length) {
+      const hint = byId("rename-apply-status-hint");
+      if (hint) hint.textContent = `Blocked by readiness: ${readinessBlockers.join("; ")}`;
+      return;
+    }
+    const outsideRootRows = rowsToApply.filter((row) => row.path_authority === "outside_configured_roots");
+    const confirmed = await renameOpenConfirmDialog(rowsToApply, outsideRootRows);
+    if (!confirmed) return;
+    setRenameApplyBusy(true);
+    let visibleResult = null;
+    try {
+      const request = collectRenameRequest();
+      request.selected_sources = rowsToApply.map((row) => row.source);
+      request.confirm_apply = true;
+      request.allow_outside_configured_roots = outsideRootRows.length > 0;
+      const result = await apiPost("/api/rename/apply", request);
+      visibleResult = { ...result, request };
+      appendCommandResult(visibleResult);
+      renderRenameApplyResult(visibleResult);
+      if (result.ok) {
+        replaceRenamePathText((result.data || {}).rows || []);
+        await refreshRenamePreview();
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      visibleResult = { ok: false, severity: "error", message, errors: [message] };
+      appendCommandResult({ command: "rename.apply", ok: false, severity: "error", message });
+    } finally {
+      setRenameApplyBusy(false);
+      if (visibleResult) renameOpenResultDialog(visibleResult);
+    }
+  }
+
+  function renameSyncModeFieldVisibility() {
+    const modeSelect = byId("rename-mode");
+    const mode = String(modeSelect?.value || "tv").toLowerCase();
+    const isTv = mode === "tv";
+    document.querySelectorAll('[data-rename-mode-field="tv"]').forEach((node) => {
+      node.style.display = isTv ? "" : "none";
+    });
+    const titleLabel = document.querySelector('label > input#rename-show')?.parentElement;
+    if (titleLabel) {
+      const firstTextNode = Array.from(titleLabel.childNodes).find((node) => node.nodeType === Node.TEXT_NODE && String(node.textContent || "").trim());
+      if (firstTextNode) {
+        firstTextNode.textContent = "Title / Show";
+      }
+    }
+  }
+
+  function renameInitDropZone() {
+    const zone = byId("rename-drop-zone");
+    if (!zone) return;
+    const onDragOver = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      try { event.dataTransfer.dropEffect = "copy"; } catch (_err) { /* */ }
+      zone.classList.add("is-dragging");
+    };
+    const onDragLeave = () => zone.classList.remove("is-dragging");
+    const onDrop = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      zone.classList.remove("is-dragging");
+      const files = Array.from(event.dataTransfer?.files || []);
+      const collected = [];
+      files.forEach((file) => {
+        // Tauri / WebView2 may expose .path on the File object for OS files.
+        const path = file && (file.path || file.fullPath || file.name);
+        if (path) collected.push(String(path));
+      });
+      if (collected.length) {
+        appendRenamePaths(collected, "Drag and drop");
+      } else {
+        renderRenameFileSourceSummary("Drop captured 0 paths. On browsers without OS file path access, use Browse Files / Browse Folder instead.");
+      }
+    };
+    zone.addEventListener("dragenter", onDragOver);
+    zone.addEventListener("dragover", onDragOver);
+    zone.addEventListener("dragleave", onDragLeave);
+    zone.addEventListener("drop", onDrop);
+  }
+
+  function renameInitWorkbenchV7Events() {
+    const applyButton = byId("rename-apply-button");
+    if (applyButton) applyButton.addEventListener("click", () => applyRenameWorkbenchV7());
+    const previewButton = byId("rename-preview-button");
+    if (previewButton) previewButton.addEventListener("click", () => refreshRenamePreview());
+    const browseFilesButton = byId("rename-browse-files-button");
+    if (browseFilesButton) browseFilesButton.addEventListener("click", () => browseRenamePaths("files"));
+    const browseFolderButton = byId("rename-browse-folder-button");
+    if (browseFolderButton) browseFolderButton.addEventListener("click", () => browseRenamePaths("folder_files"));
+    const clearButton = byId("rename-clear-paths-button");
+    if (clearButton) clearButton.addEventListener("click", () => { clearRenamePaths(); refreshRenamePreview(); });
+    const modeSelect = byId("rename-mode");
+    if (modeSelect) {
+      modeSelect.addEventListener("change", () => {
+        renameSyncModeFieldVisibility();
+        refreshRenamePreview();
+      });
+    }
+    renameSyncModeFieldVisibility();
+    renameInitDropZone();
+  }
+
   window.refreshRenamePreview = refreshRenamePreview;
   window.renderRenameBulkEditor = renderRenameBulkEditor;
   window.stageRenameBulkEdit = stageRenameBulkEdit;

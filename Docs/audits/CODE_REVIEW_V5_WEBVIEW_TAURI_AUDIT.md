@@ -40,7 +40,7 @@ Process and authority model:
 - Rust owns shell lifetime only. `backend_process.rs:112-188` starts Python, captures stdout/stderr, reads the bootstrap URL/token, validates routes, and stores the child process.
 - Python local API owns operator commands. `local_api_main.py:202-215` creates `LocalApiServer` with resolved paths, command journal, and shell surface.
 - The application facade is the UI-neutral boundary. It owns locks for process launch/control, maintenance, rename apply, settings save, sample validation, and schedule save/watch state.
-- PowerShell pipeline remains the media mutation owner. `Pipeline\MediaPipeline_chatgpt.ps1` loads modules, resolves bundled tools, writes progress/events/state, handles flags, runs FFmpeg/ffprobe/mkvmerge, writes sidecars/completed manifests, and drains pending publish.
+- PowerShell pipeline remains the media mutation owner. `Pipeline\MediaPipeline.ps1` loads modules, resolves bundled tools, writes progress/events/state, handles flags, runs FFmpeg/ffprobe/mkvmerge, writes sidecars/completed manifests, and drains pending publish.
 - Frontend JS is a command client. `apiClient.js:1-10` reads `window.MEDIA_PIPELINE_BOOTSTRAP` and attaches the bearer token to API calls. UI state in `localStorage` is presentation-only.
 
 Important data/control surfaces:
@@ -162,7 +162,7 @@ Gaps:
 
 Strengths:
 
-- `MediaPipeline_chatgpt.ps1` continues to own actual media work and pipeline modes, including `drain_pending_pushes`.
+- `MediaPipeline.ps1` continues to own actual media work and pipeline modes, including `drain_pending_pushes`.
 - Native command execution generally uses `ProcessStartInfo.ArgumentList`, stdout/stderr redirection, polling, stop flag checks, timeout checks, and bounded drains (`Native.ps1:330-430`).
 - Native process defaults are conservative: ffprobe 30s, ffmpeg 86400s, mkvmerge 21600s, python 3600s, OCR 1800s.
 - Disk copy logic uses staging/partial/backup semantics and `File.Replace` in important paths (`Disk.ps1:363-478`).

@@ -19,12 +19,17 @@ Architecture
 * Retry policy: files already in the failure log get ``retry_on_failure=False``
   so workers won't re-queue them on failure (Phase 3).
 
+Source-policy anchors retained for split HTTP-server warning checks:
+* "Failed to send coordinator JSON response status=%s" / "client may not receive response"
+* "Failed to send oversized coordinator request response" / "client may not receive 413"
+* "Failed to send malformed Content-Length coordinator request response" / "client may not receive 400"
+* "Failed to read coordinator request body after Content-Length %d" / "request handler will stop"
+* "Failed to send coordinator OPTIONS response" / "client may not receive 204"
+
 Phase 1 + Phase 3: full implementation.
 """
 from __future__ import annotations
 
-import http.server
-import json
 import logging
 import threading
 import uuid
@@ -34,12 +39,6 @@ from typing import TYPE_CHECKING, Any
 
 from ..config_keys import KEY_COORDINATOR_AUTH_TOKEN
 
-# W3 — protocol version advertised in /api/health so workers can detect
-# coordinator/worker version skew before attempting incompatible RPCs.
-# Bump on any wire-format change (new required fields, renamed endpoints,
-# changed response shapes). Workers may treat a missing field as 0.
-_COORDINATOR_PROTOCOL_VERSION = 1
-
 from .auth import generate_token, validate_request_auth
 from .cluster_log import format_cluster_log_line
 from .coordinator_http import MAX_COORDINATOR_BODY_BYTES, parse_query_params, validate_content_length
@@ -47,6 +46,12 @@ from .coordinator_policy import RETRY_AFTER_ACTIVE_SECONDS as _RETRY_AFTER_ACTIV
 from .coordinator_policy import RETRY_AFTER_IDLE_SECONDS as _RETRY_AFTER_IDLE_SECONDS
 from .coordinator_policy import compute_retry_after_seconds
 from .coordinator_policy import coordinator_bind_address, coordinator_port, heartbeat_timeout_mins
+from .coordinator_parts.http_server import (
+    _COORDINATOR_PROTOCOL_VERSION,
+    _CoordHandler,
+    _CoordServer,
+    _coordinator_health_heartbeat_timeout_mins,
+)
 from .dispatcher import ClaimedJob, QueueDispatcher
 from .encode_config_snapshot import snapshot_encode_config
 from .failure_policy import source_has_prior_failure
@@ -67,6 +72,7 @@ from .protocol import (
     coerce_finite_float,
 )
 from .registry import InFlightRegistry
+from .use_cases.done_outcome import CoordinatorDoneOutcomeService, DoneOutcome
 
 if TYPE_CHECKING:
     from ..app import MediaPipelineApp
@@ -89,212 +95,6 @@ def _coerce_record_estimated_size_gb(record: object, source_path: str) -> float:
             exc,
         )
         return 0.0
-
-
-def _coordinator_health_heartbeat_timeout_mins(disp: "CoordinatorDispatcher") -> float:
-    try:
-        return disp._heartbeat_timeout_mins()
-    except Exception as exc:
-        _log.warning("Coordinator health heartbeat timeout lookup failed; using 5.0 minutes: %s", exc)
-        return 5.0
-
-
-# ---------------------------------------------------------------------------
-# Coordinator HTTP server internals
-# ---------------------------------------------------------------------------
-
-class _CoordServer(http.server.ThreadingHTTPServer):
-    """Coordinator-specific HTTP server.
-
-    Attributes set after construction by ``CoordinatorDispatcher.__init__``:
-    - ``dispatcher``: back-reference to the owning dispatcher.
-    """
-    # Claim/done/log handlers update coordinator state; let shutdown wait for their cleanup.
-    daemon_threads = False
-    allow_reuse_address = True
-
-    # Set by the dispatcher after server creation.
-    dispatcher: "CoordinatorDispatcher"
-
-
-class _CoordHandler(http.server.BaseHTTPRequestHandler):
-    """Per-request handler for the coordinator HTTP API."""
-
-    server: _CoordServer  # type: ignore[assignment]
-
-    # N4 — request bodies on this API are tiny JSON envelopes (claim
-    # responses, heartbeat payloads, log entries). 1 MB is generous
-    # cover for cluster log entries with embedded stack traces; reject
-    # anything larger with 413 instead of allocating arbitrary RAM.
-    MAX_BODY_BYTES = MAX_COORDINATOR_BODY_BYTES
-
-    # Silence the default access log — coordinator handles its own logging.
-    def log_message(self, fmt, *args) -> None:  # noqa: ANN001
-        pass
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
-
-    @property
-    def _disp(self) -> "CoordinatorDispatcher":
-        return self.server.dispatcher
-
-    def _send_json(self, data: dict[str, Any], status: int = 200) -> None:
-        try:
-            body = json.dumps(data, allow_nan=False).encode("utf-8")
-        except (TypeError, ValueError):
-            _log.exception("Coordinator attempted to send a non-strict JSON response.")
-            status = 500
-            body = json.dumps({"error": "internal non-strict JSON response"}, allow_nan=False).encode("utf-8")
-        try:
-            self.send_response(status)
-            self.send_header("Content-Type",   "application/json; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control",  "no-store")
-            self.end_headers()
-            self.wfile.write(body)
-        except Exception as exc:
-            _log.warning(
-                "Failed to send coordinator JSON response status=%s; client may not receive response: %s",
-                status,
-                exc,
-            )
-            raise
-
-    def _check_auth(self, *, method: str, path_with_query: str, body: bytes = b"") -> bool:
-        return self._disp._validate_request_auth(
-            dict(self.headers),
-            method=method,
-            path_with_query=path_with_query,
-            body=body,
-        )
-
-    def _parse_query_params(self) -> dict[str, str]:
-        return parse_query_params(self.path)
-
-    def _read_body(self) -> bytes | None:
-        """Read the request body, enforcing the configured size cap.
-
-        Returns ``None`` after sending an HTTP error response when the
-        Content-Length is malformed (N5) or exceeds ``MAX_BODY_BYTES``
-        (N4). Callers must short-circuit on ``None``.
-        """
-        decision = validate_content_length(self.headers.get("Content-Length", "0"), self.MAX_BODY_BYTES)
-        if not decision.ok and decision.status == 400:
-            # N5 — malformed Content-Length used to crash the request
-            # thread with ValueError. Reject with 400 cleanly instead.
-            try:
-                self._send_json(dict(decision.payload or {"error": "Invalid Content-Length header"}), 400)
-            except Exception as exc:
-                _log.warning(
-                    "Failed to send malformed Content-Length coordinator request response; client may not receive 400: %s",
-                    exc,
-                )
-            return None
-        if not decision.ok and decision.status == 413:
-            # N4 — refuse oversized bodies before allocating any buffer.
-            # Send 413 with Connection: close so the offending client
-            # has to reconnect (preventing a streaming-amplification
-            # follow-up on the same socket).
-            try:
-                body = json.dumps(decision.payload or {}, allow_nan=False).encode("utf-8")
-                self.send_response(413)
-                self.send_header("Content-Type",   "application/json; charset=utf-8")
-                self.send_header("Content-Length", str(len(body)))
-                self.send_header("Connection",     "close")
-                self.end_headers()
-                self.wfile.write(body)
-            except Exception as exc:
-                _log.warning(
-                    "Failed to send oversized coordinator request response; client may not receive 413: %s",
-                    exc,
-                )
-            return None
-        if decision.length <= 0:
-            return b""
-        try:
-            return self.rfile.read(decision.length)
-        except Exception as exc:
-            _log.warning(
-                "Failed to read coordinator request body after Content-Length %d; request handler will stop: %s",
-                decision.length,
-                exc,
-            )
-            return None
-
-    # ------------------------------------------------------------------
-    # HTTP verb dispatch
-    # ------------------------------------------------------------------
-
-    def do_OPTIONS(self) -> None:
-        try:
-            self.send_response(204)
-            self.send_header("Allow", "GET, POST, OPTIONS")
-            self.send_header("Content-Length", "0")
-            self.end_headers()
-        except Exception as exc:
-            _log.warning(
-                "Failed to send coordinator OPTIONS response; client may not receive 204: %s",
-                exc,
-            )
-            raise
-
-    def do_GET(self) -> None:
-        path_with_query = self.path or "/"
-        path   = path_with_query.split("?")[0].rstrip("/") or "/"
-        params = self._parse_query_params()
-
-        # /api/health is auth-free so workers and the UI can probe reachability
-        # without needing the token.  It returns nothing sensitive.
-        #
-        # W3 — payload is enriched with protocol_version, heartbeat_timeout_mins,
-        # and accepting_claims so workers can self-tune their poll cadence and
-        # detect a coordinator drain without needing to actually call /api/claim.
-        # Old workers that ignore these extra fields still see {"status": "ok"}.
-        if path == "/api/health":
-            disp = self._disp
-            hb_timeout = _coordinator_health_heartbeat_timeout_mins(disp)
-            self._send_json({
-                "status":                 "ok",
-                "service":                "mediapipeline-coordinator",
-                "protocol_version":       _COORDINATOR_PROTOCOL_VERSION,
-                "heartbeat_timeout_mins": hb_timeout,
-                "accepting_claims":       bool(disp._accepting_claims),
-            })
-            return
-
-        if not self._check_auth(method="GET", path_with_query=path_with_query):
-            self._send_json({"error": "unauthorized"}, 401)
-            return
-
-        if path == "/api/claim":
-            self._disp._http_claim(self, params)
-        elif path == "/api/workers":
-            self._disp._http_workers(self, params)
-        else:
-            self._send_json({"error": "not found", "path": path}, 404)
-
-    def do_POST(self) -> None:
-        path_with_query = self.path or "/"
-        path = path_with_query.split("?")[0].rstrip("/") or "/"
-        body = self._read_body()
-        # _read_body returns None after it has already sent 400/413 for
-        # malformed or oversized requests (N4/N5). Short-circuit so we
-        # don't double-respond on the same socket.
-        if body is None:
-            return
-        if not self._check_auth(method="POST", path_with_query=path_with_query, body=body):
-            self._send_json({"error": "unauthorized"}, 401)
-            return
-        if path == "/api/done":
-            self._disp._http_done(self, body)
-        elif path == "/api/heartbeat":
-            self._disp._http_heartbeat(self, body)
-        elif path == "/api/log":
-            self._disp._http_log(self, body)
-        else:
-            self._send_json({"error": "not found", "path": path}, 404)
 
 
 # ---------------------------------------------------------------------------
@@ -1413,105 +1213,34 @@ class CoordinatorDispatcher(QueueDispatcher):
         local-encode :meth:`mark_done` path so a job completed by the
         coordinator's own encode session leaves the same audit trail as
         one completed by a remote worker.
-        """
-        if success:
-            source_path = job.source_path
-            try:
-                self._app.root.after(
-                    0, lambda sp=source_path: self._remove_from_queue(sp)
-                )
-            except Exception as exc:
-                _log.warning(
-                    "Failed to schedule queue removal for completed job %s; queue record may remain claimable until manually removed: %s",
-                    job.job_id[:8],
-                    exc,
-                )
-            out_mb = (output_size_bytes / (1024 * 1024)) if output_size_bytes else 0.0
-            _log.info(
-                "Worker '%s' completed %s (%.1f s, %.1f MB out, status=%s, publish=%s/%s).",
-                job.worker_name or worker_id[:8],
-                Path(job.source_path).name,
-                elapsed_seconds, out_mb,
-                completion_status or "processed",
-                publish_state or "unknown",
-                publish_mode or "",
-            )
-            event_name = "job_completed"
-            if publish_state and publish_state != "published":
-                event_name = "job_completed_pending_publish"
-            self._safe_log_cluster_event(
-                event_name.replace("_", "-"),
-                level="INFO",
-                event=event_name,
-                message=(
-                    f"{Path(job.source_path).name} ({elapsed_seconds:.1f}s, "
-                    f"{out_mb:.1f} MB out, status={completion_status or 'processed'}, "
-                    f"publish={publish_state or 'unknown'}/{publish_mode or ''})"
-                ),
-                worker_id=worker_id,
-                worker_name=job.worker_name,
-                role="coordinator",
-                job_id=job.job_id,
-                source_path=job.source_path,
-            )
-        else:
-            err_msg = error_message or "(no detail)"
-            _log.warning(
-                "Worker '%s' failed %s: %s",
-                job.worker_name or worker_id[:8],
-                Path(job.source_path).name,
-                err_msg,
-            )
-            event_name = "job_terminal_failed" if queue_terminal else "job_failed"
-            self._safe_log_cluster_event(
-                event_name.replace("_", "-"),
-                level="ERROR",
-                event=event_name,
-                message=(
-                    f"{Path(job.source_path).name}: {err_msg[:200]}"
-                    f" status={completion_status or 'failed'}"
-                ),
-                worker_id=worker_id,
-                worker_name=job.worker_name,
-                role="coordinator",
-                job_id=job.job_id,
-                source_path=job.source_path,
-            )
-            # Retry policy: terminal worker outcomes have already produced
-            # a durable skip/failure decision and should not be re-claimed.
-            if queue_terminal or not retry_on_failure:
-                source_path = job.source_path
-                try:
-                    self._app.root.after(
-                        0, lambda sp=source_path: self._remove_from_queue(sp)
-                    )
-                except Exception as exc:
-                    _log.warning(
-                        "Failed to schedule queue removal after done report for %s; queue record may remain claimable until manually removed: %s",
-                        Path(job.source_path).name,
-                        exc,
-                    )
-                else:
-                    _log.info(
-                        "Retry policy: scheduled queue removal for %s (queue_terminal=%s, retry_on_failure=%s).",
-                        Path(job.source_path).name, queue_terminal, retry_on_failure,
-                    )
 
-        try:
-            self._registry.save(self._inflight_state_path())
-        except Exception as exc:
-            _log.exception("Failed to save registry after done report.")
-            self._safe_log_cluster_event(
-                "inflight-save-failed",
-                level="WARN",
-                event="inflight_save_failed",
-                message=f"Failed to save in-flight registry after done report: {exc}",
+        Source-policy guardrail phrases remain visible here while the
+        service owns the implementation: "Failed to schedule queue removal after done report",
+        "queue record may remain claimable until manually removed", and
+        "Retry policy: scheduled queue removal".
+        """
+        CoordinatorDoneOutcomeService(
+            app=getattr(self, "_app", None),
+            registry=self._registry,
+            inflight_state_path=self._inflight_state_path,
+            remove_from_queue=self._remove_from_queue,
+            safe_log_cluster_event=self._safe_log_cluster_event,
+            logger=_log,
+        ).handle(
+            DoneOutcome(
+                job=job,
+                success=success,
                 worker_id=worker_id,
-                worker_name=job.worker_name,
-                role="coordinator",
-                job_id=job.job_id,
-                source_path=job.source_path,
+                elapsed_seconds=elapsed_seconds,
+                output_size_bytes=output_size_bytes,
+                completion_status=completion_status,
+                publish_state=publish_state,
+                publish_mode=publish_mode,
+                error_message=error_message,
+                queue_terminal=queue_terminal,
+                retry_on_failure=retry_on_failure,
             )
+        )
 
     def _http_heartbeat(self, handler: _CoordHandler, body: bytes) -> None:
         """Handle ``POST /api/heartbeat``."""

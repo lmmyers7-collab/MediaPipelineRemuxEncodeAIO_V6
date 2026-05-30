@@ -152,6 +152,17 @@
           "title": "Routing Profile",
           "type": "string"
         },
+        "route_threshold_mode": {
+          "default": "compatibility_advisory",
+          "enum": [
+            "compatibility_advisory",
+            "size",
+            "bitrate",
+            "size_or_bitrate"
+          ],
+          "title": "Route Threshold Mode",
+          "type": "string"
+        },
         "size_guard_mode": {
           "default": "advisory",
           "enum": [
@@ -298,6 +309,11 @@
         "routing_profile": {
           "default": "",
           "title": "Routing Profile",
+          "type": "string"
+        },
+        "route_threshold_mode": {
+          "default": "",
+          "title": "Route Threshold Mode",
           "type": "string"
         },
         "size_guard_mode": {

@@ -1,15 +1,26 @@
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
 
 from mediapipeline_desktop_app.config_keys import (
     KEY_BDPGS_OCR_TOOL_PATH,
     KEY_CONVERT_BDPGS_TO_SRT,
+    KEY_FINAL_LIBRARY_PROMOTION_CLEANUP_AFTER_VERIFIED,
+    KEY_FINAL_LIBRARY_PROMOTION_ENABLED,
+    KEY_FINAL_LIBRARY_PROMOTION_OVERWRITE_EXISTING,
+    KEY_FINAL_LIBRARY_PROMOTION_RULES,
+    KEY_FINAL_LIBRARY_PROMOTION_VERIFICATION_MODE,
+    KEY_LIBRARY_PROFILES,
     KEY_MIN_FREE_SPACE_GB,
     KEY_OUTSOURCE_MIN_FREE_SPACE_GB,
     KEY_PROCESSED_INDEX_REFRESH_SECONDS,
     KEY_SOURCE_SCAN_INTERVAL_SECONDS,
+)
+from app.config.library_profiles import (
+    mirror_legacy_keys_from_library_profiles,
+    validate_library_profiles,
 )
 from app.config.option_policy import validate_option_config
 from app.config.path_warnings import (
@@ -47,6 +58,55 @@ def bdpgs_ocr_path_warning(values: dict[str, Any]) -> str | None:
     return "BdpgsOcrToolPath is blank while ConvertBdpgsToSrt is enabled; BDPGS OCR will be blocked until a bundled or configured OCR tool path is saved."
 
 
+def _coerce_promotion_rules(raw: Any) -> list[dict[str, Any]]:
+    if raw in (None, "", False):
+        return []
+    if isinstance(raw, str):
+        text = raw.strip()
+        if not text:
+            return []
+        raw = json.loads(text)
+    if isinstance(raw, dict):
+        raw = [raw]
+    if not isinstance(raw, list):
+        raise TypeError("FinalLibraryPromotionRules must be a JSON array or object.")
+    rules: list[dict[str, Any]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            raise TypeError("FinalLibraryPromotionRules entries must be objects.")
+        rules.append(dict(item))
+    return rules
+
+
+def validate_final_library_promotion_config(values: dict[str, Any], errors: list[str], warnings: list[str]) -> None:
+    mode = str(values.get(KEY_FINAL_LIBRARY_PROMOTION_VERIFICATION_MODE, "cautious") or "cautious").strip().casefold()
+    if mode not in {"fast", "cautious"}:
+        errors.append("FinalLibraryPromotionVerificationMode must be fast or cautious.")
+
+    try:
+        rules = _coerce_promotion_rules(values.get(KEY_FINAL_LIBRARY_PROMOTION_RULES))
+    except Exception as exc:
+        errors.append(f"FinalLibraryPromotionRules is invalid: {exc}")
+        rules = []
+
+    if truthy_config_value(values.get(KEY_FINAL_LIBRARY_PROMOTION_ENABLED, False)) and not rules:
+        warnings.append("FinalLibraryPromotionEnabled is on, but no source-to-destination rules are configured.")
+
+    for index, rule in enumerate(rules, start=1):
+        label = str(rule.get("label") or rule.get("id") or f"rule {index}").strip()
+        if rule.get("enabled", True) is False:
+            continue
+        if not str(rule.get("source_root") or "").strip():
+            warnings.append(f"Final Library Promotion {label} is enabled without a source_root.")
+        if not str(rule.get("destination_root") or "").strip():
+            warnings.append(f"Final Library Promotion {label} is enabled without a destination_root.")
+
+    if truthy_config_value(values.get(KEY_FINAL_LIBRARY_PROMOTION_OVERWRITE_EXISTING, False)):
+        warnings.append("FinalLibraryPromotionOverwriteExisting is destructive: existing final files are deleted before replacement copy starts.")
+    if truthy_config_value(values.get(KEY_FINAL_LIBRARY_PROMOTION_CLEANUP_AFTER_VERIFIED, False)):
+        warnings.append("FinalLibraryPromotionCleanupAfterVerified deletes verified publish-output files below Outsource after promotion.")
+
+
 def config_path_overlap_warning(
     left_key: str,
     right_key: str,
@@ -70,11 +130,22 @@ def validate_config_values(
     normalized_path_key: PathKeyFunc,
     path_within_root: PathWithinRootFunc,
 ) -> tuple[list[str], list[str]]:
+    values = mirror_legacy_keys_from_library_profiles(dict(values or {}))
     errors: list[str] = []
     warnings: list[str] = []
 
     validate_required_and_numeric_config(values, errors)
     validate_option_config(values, errors, warnings)
+    validate_final_library_promotion_config(values, errors, warnings)
+    validate_library_profiles(
+        values,
+        errors,
+        warnings,
+        normalized_path_key=normalized_path_key,
+        path_within_root=path_within_root,
+    )
+    if KEY_LIBRARY_PROFILES in values:
+        warnings.append("LibraryProfiles mirrors its primary Movie/TV paths back to SourceMovies, SourceTV, and Outsource for compatibility during the transition.")
 
     warnings.extend(
         config_root_path_warnings(

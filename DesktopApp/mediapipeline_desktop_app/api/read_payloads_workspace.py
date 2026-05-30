@@ -27,6 +27,18 @@ class LocalApiWorkspaceReadPayloadMixin:
             return read_unavailable_payload("settings workspace")
         return self.facade.get_settings_workspace(resolved).to_mapping()
 
+    def _settings_wizard_status_payload(self) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return read_unavailable_payload("settings wizard")
+        return self.facade.get_settings_wizard_status(resolved)
+
+    def _settings_wizard_defaults_payload(self) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return read_unavailable_payload("settings wizard defaults")
+        return self.facade.get_settings_wizard_defaults(resolved)
+
     def _network_workers_payload(self) -> dict[str, Any]:
         resolved = self._resolved()
         if resolved is None:

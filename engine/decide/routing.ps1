@@ -7,6 +7,7 @@
 #
 # Reads at call time only from compatibility wrappers:
 #   $EncodeThresholdGB, $TVEncodeThresholdGB
+#   $RouteThresholdMode
 #   $MovieRouteMaxVideoBitrateMbps, $TVRouteMaxVideoBitrateMbps
 # ==============================================================================
 
@@ -62,6 +63,7 @@ function ConvertTo-MediaRouteHintMap {
 
     $map = [ordered]@{
         routing_profile = ''
+        route_threshold_mode = ''
         size_guard_mode = ''
         allow_h264_remux_if_plex_compatible = $null
         h264_remux_max_bitrate_mbps = $null
@@ -98,6 +100,10 @@ function ConvertTo-MediaRouteHintMap {
             'routing_profile' {
                 $profile = ([string]$value).Trim().ToLowerInvariant()
                 if ($profile -in @('plex_direct_stream','plex_direct_play','archive_shrink','archive_quality','manual')) { $map[$key] = $profile }
+            }
+            'route_threshold_mode' {
+                $mode = ([string]$value).Trim().ToLowerInvariant()
+                if ($mode -in @('compatibility_advisory','size','bitrate','size_or_bitrate')) { $map[$key] = $mode }
             }
             'size_guard_mode' {
                 $mode = ([string]$value).Trim().ToLowerInvariant()
@@ -162,6 +168,7 @@ function Get-ActiveMediaRouteHints {
         @{ Key = 'RouteForce'; Name = 'force_route' },
         @{ Key = 'RoutePrefer'; Name = 'prefer_route' },
         @{ Key = 'RoutingProfile'; Name = 'routing_profile' },
+        @{ Key = 'RouteThresholdMode'; Name = 'route_threshold_mode' },
         @{ Key = 'SizeGuardMode'; Name = 'size_guard_mode' },
         @{ Key = 'AllowH264RemuxIfPlexCompatible'; Name = 'allow_h264_remux_if_plex_compatible' },
         @{ Key = 'H264RemuxMaxBitrateMbps'; Name = 'h264_remux_max_bitrate_mbps' },
@@ -211,6 +218,22 @@ function Resolve-MediaRouteRoutingProfileName {
         return $profile
     }
     return 'plex_direct_stream'
+}
+
+function Resolve-MediaRouteThresholdModeName {
+    param([string] $RouteThresholdMode = '')
+
+    $mode = if (-not [string]::IsNullOrWhiteSpace($RouteThresholdMode)) {
+        ([string]$RouteThresholdMode).Trim().ToLowerInvariant()
+    } elseif (Get-Variable -Name RouteThresholdMode -Scope Script -ErrorAction SilentlyContinue) {
+        ([string]$script:RouteThresholdMode).Trim().ToLowerInvariant()
+    } else {
+        'compatibility_advisory'
+    }
+    if ($mode -in @('compatibility_advisory','size','bitrate','size_or_bitrate')) {
+        return $mode
+    }
+    return 'compatibility_advisory'
 }
 
 function Resolve-MediaRouteSizeGuardModeName {
@@ -437,19 +460,27 @@ function New-MediaRoutePlan {
         [double] $EstimatedBitrateMbps = 0,
         [double] $PlexCompatibilityScore = 100,
         [string] $RoutingProfile = '',
+        [string] $RouteThresholdMode = '',
         [string] $SizeGuardMode = ''
     )
 
     $routeText = ([string]$Route).Trim().ToLowerInvariant()
     $encodeRoute = Get-MediaRouteEncodeName
     $effectiveRoutingProfile = Resolve-MediaRouteRoutingProfileName -RoutingProfile $RoutingProfile
-    $effectiveSizeGuardMode = Resolve-MediaRouteSizeGuardModeName -SizeGuardMode $SizeGuardMode
     $trace = @($DecisionTrace | Where-Object { $null -ne $_ })
     if ($trace.Count -eq 0) {
         $trace = @((New-MediaRouteDecisionTraceEntry -Code $ReasonCode -Message $Reason))
     }
     $effectiveActions = if ($Actions) { $Actions } else { New-MediaRouteActionSet -Route $routeText }
     $effectiveHints = ConvertTo-MediaRouteHintMap $RouteHints
+    $effectiveRouteThresholdMode = if (-not [string]::IsNullOrWhiteSpace($RouteThresholdMode)) {
+        Resolve-MediaRouteThresholdModeName -RouteThresholdMode $RouteThresholdMode
+    } elseif (-not [string]::IsNullOrWhiteSpace([string]$effectiveHints.route_threshold_mode)) {
+        Resolve-MediaRouteThresholdModeName -RouteThresholdMode ([string]$effectiveHints.route_threshold_mode)
+    } else {
+        Resolve-MediaRouteThresholdModeName
+    }
+    $effectiveSizeGuardMode = Resolve-MediaRouteSizeGuardModeName -SizeGuardMode $SizeGuardMode
     return [pscustomobject]@{
         Route              = $routeText
         ShouldEncode       = ($routeText -eq $encodeRoute)
@@ -469,6 +500,7 @@ function New-MediaRoutePlan {
         EstimatedBitrateMbps = [double]$EstimatedBitrateMbps
         PlexCompatibilityScore = [double]$PlexCompatibilityScore
         RoutingProfile     = $effectiveRoutingProfile
+        RouteThresholdMode = $effectiveRouteThresholdMode
         SizeGuardMode      = $effectiveSizeGuardMode
     }
 }
@@ -486,6 +518,7 @@ function Resolve-MediaRouteBySize {
         $RouteHints = $null,
         $SourceMediaProfile = $null,
         [string] $RoutingProfile = '',
+        [string] $RouteThresholdMode = '',
         [string] $SizeGuardMode = '',
         [bool] $AllowH264RemuxIfPlexCompatible = $true,
         [double] $H264RemuxMaxBitrateMbps = 35.0,
@@ -497,14 +530,19 @@ function Resolve-MediaRouteBySize {
     $sizeGB = [double]$FileSizeBytes / 1GB
     $threshold = if ($IsTV) { [double]$TVThresholdGB } else { [double]$MovieThresholdGB }
     $routingProfileName = Resolve-MediaRouteRoutingProfileName -RoutingProfile $RoutingProfile
+    $routeThresholdModeName = Resolve-MediaRouteThresholdModeName -RouteThresholdMode $RouteThresholdMode
     $sizeGuardModeName = Resolve-MediaRouteSizeGuardModeName -SizeGuardMode $SizeGuardMode
     $hints = ConvertTo-MediaRouteHintMap $RouteHints
     if (-not [string]::IsNullOrWhiteSpace([string]$hints.routing_profile)) {
         $routingProfileName = Resolve-MediaRouteRoutingProfileName -RoutingProfile ([string]$hints.routing_profile)
     }
+    if (-not [string]::IsNullOrWhiteSpace([string]$hints.route_threshold_mode)) {
+        $routeThresholdModeName = Resolve-MediaRouteThresholdModeName -RouteThresholdMode ([string]$hints.route_threshold_mode)
+    }
     if (-not [string]::IsNullOrWhiteSpace([string]$hints.size_guard_mode)) {
         $sizeGuardModeName = Resolve-MediaRouteSizeGuardModeName -SizeGuardMode ([string]$hints.size_guard_mode)
     }
+    $hints['route_threshold_mode'] = $routeThresholdModeName
     if ($null -ne $hints.allow_h264_remux_if_plex_compatible) {
         $AllowH264RemuxIfPlexCompatible = [bool]$hints.allow_h264_remux_if_plex_compatible
     }
@@ -530,7 +568,7 @@ function Resolve-MediaRouteBySize {
         $maxBitrate = [math]::Min([double]$maxBitrate, [double]$H264RemuxMaxBitrateMbps)
     }
     $trace = [System.Collections.Generic.List[object]]::new()
-    $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'routing_profile_selected' -Message ("routing profile {0}; size guard {1}" -f $routingProfileName, $sizeGuardModeName) -Data @{ routing_profile = $routingProfileName; size_guard_mode = $sizeGuardModeName; route_max_bitrate_mbps = [double]$routeMaxBitrate; effective_max_bitrate_mbps = [double]$maxBitrate; h264_plex_remux_enabled = [bool]$AllowH264RemuxIfPlexCompatible; h264_max_bitrate_mbps = [double]$H264RemuxMaxBitrateMbps; h264_max_height = [int]$H264RemuxMaxHeight }))
+    $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'routing_profile_selected' -Message ("routing profile {0}; route threshold mode {1}; size guard {2}" -f $routingProfileName, $routeThresholdModeName, $sizeGuardModeName) -Data @{ routing_profile = $routingProfileName; route_threshold_mode = $routeThresholdModeName; size_guard_mode = $sizeGuardModeName; route_max_bitrate_mbps = [double]$routeMaxBitrate; effective_max_bitrate_mbps = [double]$maxBitrate; h264_plex_remux_enabled = [bool]$AllowH264RemuxIfPlexCompatible; h264_max_bitrate_mbps = [double]$H264RemuxMaxBitrateMbps; h264_max_height = [int]$H264RemuxMaxHeight }))
     $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'size_evaluated' -Message ("source size {0:N2} GB; threshold {1:N2} GB" -f $sizeGB, $threshold) -Data @{ size_gb = $sizeGB; threshold_gb = $threshold; media_type = if ($IsTV) { 'tv' } else { 'movie' } }))
     if ($duration -gt 0) {
         $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'bitrate_estimated' -Message ("estimated source bitrate {0:N2} Mbps from duration {1:N1}s" -f $estimatedBitrate, $duration) -Data @{ bitrate_mbps = $estimatedBitrate; duration_seconds = $duration; max_bitrate_mbps = $maxBitrate }))
@@ -545,6 +583,10 @@ function Resolve-MediaRouteBySize {
     $plexScore = Get-MediaRoutePlexCompatibilityScore -VideoCodec $codec -VideoHeight $VideoHeight -EstimatedBitrateMbps $estimatedBitrate -MaxBitrateMbps $maxBitrate -AllowedVideoCodecs $allowed -IsHDR:$IsHDR
     $effectivePlexStrictMode = [bool]$hints.plex_strict_mode -or ($routingProfileName -eq 'plex_direct_play')
     $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'plex_compatibility_scored' -Message ("Plex compatibility score {0:N0}/100" -f $plexScore) -Data @{ score = $plexScore; strict_mode = [bool]$effectivePlexStrictMode }))
+    $sizeOverThreshold = ($sizeGB -gt $threshold)
+    $bitrateThresholdEnabled = ($routeThresholdModeName -in @('compatibility_advisory','bitrate','size_or_bitrate'))
+    $sizeThresholdEnabled = ($routeThresholdModeName -in @('compatibility_advisory','size','size_or_bitrate'))
+    $hardSizeThresholdMode = ($routeThresholdModeName -in @('size','size_or_bitrate'))
 
     if ($hints.force_route -eq 'encode') {
         $reasonText = if ([string]::IsNullOrWhiteSpace([string]$hints.reason)) { 'folder policy forced encode' } else { "folder policy forced encode: $($hints.reason)" }
@@ -575,10 +617,12 @@ function Resolve-MediaRouteBySize {
         return New-MediaRoutePlan -Route (Get-MediaRouteEncodeName) -ReasonCode 'resolution_over_policy' -Reason $reasonText -SizeGB $sizeGB -ThresholdGB $threshold -IsTV:$IsTV -SourceCodec $codec -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $SourceMediaProfile -EstimatedBitrateMbps $estimatedBitrate -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
     }
 
-    if ($duration -gt 0 -and $estimatedBitrate -gt $maxBitrate) {
+    if ($duration -gt 0 -and $bitrateThresholdEnabled -and $estimatedBitrate -gt $maxBitrate) {
         $reasonText = "estimated source bitrate {0:N2} Mbps exceeds {1:N2} Mbps threshold" -f $estimatedBitrate, $maxBitrate
         $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'bitrate_over_threshold' -Message $reasonText))
         return New-MediaRoutePlan -Route (Get-MediaRouteEncodeName) -ReasonCode 'bitrate_over_threshold' -Reason $reasonText -SizeGB $sizeGB -ThresholdGB $threshold -IsTV:$IsTV -SourceCodec $codec -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $SourceMediaProfile -EstimatedBitrateMbps $estimatedBitrate -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
+    } elseif ($duration -gt 0 -and -not $bitrateThresholdEnabled -and $estimatedBitrate -gt $maxBitrate) {
+        $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'bitrate_threshold_ignored' -Message ("estimated source bitrate {0:N2} Mbps exceeds {1:N2} Mbps threshold, but route threshold mode is {2}" -f $estimatedBitrate, $maxBitrate, $routeThresholdModeName) -Data @{ bitrate_mbps = $estimatedBitrate; threshold_mbps = $maxBitrate; route_threshold_mode = $routeThresholdModeName }))
     }
 
     $h264PlexCompatible = Test-MediaRouteH264PlexCompatible `
@@ -590,8 +634,11 @@ function Resolve-MediaRouteBySize {
         -AllowH264RemuxIfPlexCompatible:$AllowH264RemuxIfPlexCompatible `
         -H264RemuxMaxBitrateMbps $H264RemuxMaxBitrateMbps `
         -H264RemuxMaxHeight $H264RemuxMaxHeight
-    $archiveShrinkForcesSizeEncode = ($routingProfileName -eq 'archive_shrink' -and $sizeGB -gt $threshold)
-    if ($h264PlexCompatible -and -not $archiveShrinkForcesSizeEncode) {
+    $sizeThresholdBlocksEarlyCopy = $sizeOverThreshold -and (
+        $hardSizeThresholdMode -or
+        ($routeThresholdModeName -eq 'compatibility_advisory' -and $routingProfileName -eq 'archive_shrink')
+    )
+    if ($h264PlexCompatible -and -not $sizeThresholdBlocksEarlyCopy) {
         $reasonText = "H.264 source is Plex-compatible ({0:N2} Mbps, {1}p); copying video and applying container/subtitle policy" -f $estimatedBitrate, $VideoHeight
         $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'plex_compatible_h264_remux' -Message $reasonText -Data @{ codec = $codec; bitrate_mbps = $estimatedBitrate; height = $VideoHeight; max_bitrate_mbps = [double]$H264RemuxMaxBitrateMbps; max_height = [int]$H264RemuxMaxHeight }))
         return New-MediaRoutePlan `
@@ -612,8 +659,12 @@ function Resolve-MediaRouteBySize {
             -SizeGuardMode $sizeGuardModeName
     }
 
-    if ($sizeGB -gt $threshold) {
-        $sizeThresholdForcesEncode = (($routingProfileName -eq 'archive_shrink') -or ($sizeGuardModeName -eq 'strict')) -and ($routingProfileName -ne 'manual')
+    if ($sizeOverThreshold -and $sizeThresholdEnabled) {
+        $sizeThresholdForcesEncode = if ($hardSizeThresholdMode) {
+            $true
+        } else {
+            (($routingProfileName -eq 'archive_shrink') -or ($sizeGuardModeName -eq 'strict')) -and ($routingProfileName -ne 'manual')
+        }
         $minimumCopyScore = if ($routingProfileName -eq 'plex_direct_play') { 90.0 } else { 85.0 }
         $copyCandidate = Test-MediaRoutePlexCopyCandidate -CodecName $codec -VideoHeight $VideoHeight -EstimatedBitrateMbps $estimatedBitrate -MaxBitrateMbps $maxBitrate -PlexCompatibilityScore $plexScore -MinimumScore $minimumCopyScore
         if ($copyCandidate -and -not $sizeThresholdForcesEncode) {
@@ -654,7 +705,15 @@ function Resolve-MediaRouteBySize {
             -SizeGuardMode $sizeGuardModeName
     }
 
-    $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'size_within_threshold' -Message ("source size {0:N2} GB is within {1:N2} GB threshold; codec probe still required" -f $sizeGB, $threshold)))
+    $finalRouteReasonCode = 'size_within_threshold'
+    $finalRouteReason = "source size {0:N2} GB is within {1:N2} GB threshold; codec probe still required" -f $sizeGB, $threshold
+    if ($sizeOverThreshold -and -not $sizeThresholdEnabled) {
+        $finalRouteReasonCode = 'size_threshold_ignored'
+        $finalRouteReason = "source size {0:N2} GB exceeds {1:N2} GB threshold, but route threshold mode is {2}; codec probe still required" -f $sizeGB, $threshold, $routeThresholdModeName
+        $trace.Add((New-MediaRouteDecisionTraceEntry -Code $finalRouteReasonCode -Message $finalRouteReason -Data @{ size_gb = $sizeGB; threshold_gb = $threshold; route_threshold_mode = $routeThresholdModeName }))
+    } else {
+        $trace.Add((New-MediaRouteDecisionTraceEntry -Code $finalRouteReasonCode -Message $finalRouteReason))
+    }
     if ($hints.prefer_route -eq 'encode') {
         $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'folder_policy_prefer_encode' -Message 'folder policy prefers encode; size/bitrate did not force remux'))
         return New-MediaRoutePlan `
@@ -676,8 +735,8 @@ function Resolve-MediaRouteBySize {
 
     return New-MediaRoutePlan `
         -Route (Get-MediaRouteRemuxName) `
-        -ReasonCode 'size_within_threshold' `
-        -Reason ("source size {0:N2} GB is within {1:N2} GB threshold; codec probe still required" -f $sizeGB, $threshold) `
+        -ReasonCode $finalRouteReasonCode `
+        -Reason $finalRouteReason `
         -SizeGB $sizeGB `
         -ThresholdGB $threshold `
         -IsTV:$IsTV `
@@ -709,6 +768,7 @@ function Resolve-InitialMediaRoutePlan {
     $h264MaxHeight = if (Get-Variable -Name H264RemuxMaxHeight -Scope Script -ErrorAction SilentlyContinue) { [int]$script:H264RemuxMaxHeight } else { 1080 }
     $movieRouteMaxBitrate = if (Get-Variable -Name MovieRouteMaxVideoBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:MovieRouteMaxVideoBitrateMbps } else { 35.0 }
     $tvRouteMaxBitrate = if (Get-Variable -Name TVRouteMaxVideoBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVRouteMaxVideoBitrateMbps } else { 18.0 }
+    $routeThresholdMode = if (Get-Variable -Name RouteThresholdMode -Scope Script -ErrorAction SilentlyContinue) { [string]$script:RouteThresholdMode } else { 'compatibility_advisory' }
 
     return Resolve-MediaRouteBySize `
         -FileSizeBytes ([long]$File.Length) `
@@ -722,6 +782,7 @@ function Resolve-InitialMediaRoutePlan {
         -RouteHints $RouteHints `
         -SourceMediaProfile $MediaProfile `
         -RoutingProfile ([string]$script:RoutingProfile) `
+        -RouteThresholdMode $routeThresholdMode `
         -SizeGuardMode ([string]$script:SizeGuardMode) `
         -AllowH264RemuxIfPlexCompatible:$allowH264Remux `
         -H264RemuxMaxBitrateMbps $h264MaxBitrate `
@@ -838,6 +899,7 @@ function Get-ActiveMediaRoutePlanMetadata {
         estimated_bitrate_mbps = if ($plan.PSObject.Properties['EstimatedBitrateMbps']) { [double]$plan.EstimatedBitrateMbps } else { 0.0 }
         plex_compatibility_score = if ($plan.PSObject.Properties['PlexCompatibilityScore']) { [double]$plan.PlexCompatibilityScore } else { 100.0 }
         routing_profile       = if ($plan.PSObject.Properties['RoutingProfile']) { [string]$plan.RoutingProfile } else { Resolve-MediaRouteRoutingProfileName }
+        route_threshold_mode  = if ($plan.PSObject.Properties['RouteThresholdMode']) { [string]$plan.RouteThresholdMode } else { Resolve-MediaRouteThresholdModeName }
         size_guard_mode       = if ($plan.PSObject.Properties['SizeGuardMode']) { [string]$plan.SizeGuardMode } else { Resolve-MediaRouteSizeGuardModeName }
         h264_plex_remux_policy = [ordered]@{
             enabled          = if (Get-Variable -Name AllowH264RemuxIfPlexCompatible -Scope Script -ErrorAction SilentlyContinue) { [bool]$script:AllowH264RemuxIfPlexCompatible } else { $true }

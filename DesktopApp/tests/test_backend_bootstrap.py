@@ -17,7 +17,7 @@ class BackendBootstrapPayloadTests(unittest.TestCase):
             host="127.0.0.1",
             port=8765,
             config_path=Path("C:/MediaPipeline/Pipeline/MediaPipeline_config.psd1"),
-            pipeline_path=Path("C:/MediaPipeline/Pipeline/MediaPipeline_chatgpt.ps1"),
+            pipeline_path=Path("C:/MediaPipeline/Pipeline/MediaPipeline.ps1"),
             include_token=True,
         )
 
@@ -27,7 +27,7 @@ class BackendBootstrapPayloadTests(unittest.TestCase):
         self.assertEqual(payload["host"], "127.0.0.1")
         self.assertEqual(payload["port"], 8765)
         self.assertEqual(Path(str(payload["config_path"])).name, "MediaPipeline_config.psd1")
-        self.assertEqual(Path(str(payload["pipeline_path"])).name, "MediaPipeline_chatgpt.ps1")
+        self.assertEqual(Path(str(payload["pipeline_path"])).name, "MediaPipeline.ps1")
         self.assertEqual(payload["shell_surface"], "webview")
 
     def test_backend_bootstrap_payload_omits_token_when_not_required(self) -> None:

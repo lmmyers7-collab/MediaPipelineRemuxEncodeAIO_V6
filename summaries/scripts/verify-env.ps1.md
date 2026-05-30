@@ -3,9 +3,9 @@ file: scripts/verify-env.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-05-28
+last_modified: 2026-05-29
 last_reviewed: 2026-05-28
-sha256: bd336610eb8643f98d23385cd3e28c67e867c1bb6d43dee83e4ed2b0872b4712
+sha256: 59df91833c781b8a1841116c9ad7b6e2497264279d128102413d5b014d4b7585
 ---
 # `scripts/verify-env.ps1`
 

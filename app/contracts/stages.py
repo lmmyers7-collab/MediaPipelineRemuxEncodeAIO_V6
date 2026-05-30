@@ -124,6 +124,12 @@ class DecidePayload(StagePayload):
         "archive_quality",
         "manual",
     ] = "plex_direct_stream"
+    route_threshold_mode: Literal[
+        "compatibility_advisory",
+        "size",
+        "bitrate",
+        "size_or_bitrate",
+    ] = "compatibility_advisory"
     size_guard_mode: Literal["advisory", "strict", "off"] = "advisory"
     encode_threshold_gb: float = Field(default=8, gt=0)
     tv_encode_threshold_gb: float = Field(default=3, gt=0)
@@ -150,6 +156,7 @@ class DecideResult(StageData):
     estimated_bitrate_mbps: float = Field(default=0.0, ge=0)
     plex_compatibility_score: float = Field(default=0.0, ge=0, le=100)
     routing_profile: str = ""
+    route_threshold_mode: str = ""
     size_guard_mode: str = ""
     encoder_profile: str = ""
     actions: dict[str, Any] = Field(default_factory=dict)

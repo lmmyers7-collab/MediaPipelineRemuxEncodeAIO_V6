@@ -86,7 +86,7 @@
     }
 
     function completedCurrentFilterScope(rows = state.lastCompletedRows) {
-      const allRows = Array.isArray(rows) ? rows : [];
+      const allRows = (Array.isArray(rows) ? rows : []).filter((row) => row?.output_exists !== false);
       const filterText = byId("completed-filter")?.value || "";
       const statusFilter = byId("completed-status-filter")?.value || "all";
       const investigationFilter = byId("completed-investigation-filter")?.value || "all";
@@ -133,32 +133,32 @@
 
     function completedFilterScopeAction(scope) {
       if (!scope.active) {
-        return "No local Completed filter is narrowing the table, but backend manifests and rerun/cleanup decisions still use backend-owned evidence.";
+        return "No local Current Output filter is narrowing the table, but backend manifests and rerun/cleanup decisions still use backend-owned evidence.";
       }
       if (scope.hiddenBlocked || scope.hiddenReview) {
-        return "Clear Completed filters or inspect hidden review rows before accepting outputs, rerunning sources, deleting files, or cleaning up state.";
+        return "Clear Current Output filters or inspect hidden review rows before accepting outputs, rerunning sources, deleting files, or cleaning up state.";
       }
-      return "Treat filters as display-only search. Backend-owned actions do not receive Completed filter state or visible-row subsets.";
+      return "Treat filters as display-only search. Backend-owned actions do not receive Current Output filter state or visible-row subsets.";
     }
 
     function completedFilterScopeDetailLines(scope) {
       const lines = [
-        "Completed display filter / backend action scope:",
+        "Current Output display filter / backend action scope:",
         `Text filter: ${scope.filterText || "none"}`,
         `Status filter: ${scope.statusLabel || scope.statusFilter || "all"}`,
         `Investigation view: ${scope.investigationLabel || scope.investigationFilter || "all"}`,
         `Visible rows after filters: ${scope.visibleRows} of ${scope.totalRows}`,
         `Hidden rows: ${scope.hiddenRows}; hidden blocked rows: ${scope.hiddenBlocked}; hidden warning rows: ${scope.hiddenWarning}; hidden review rows: ${scope.hiddenReview}`,
         `Render cap: first ${scope.renderLimit} visible rows are rendered when a large filtered set remains.`,
-        "Backend action scope: unchanged. Completed filters do not narrow rerun, cleanup, reconciliation, diagnostics, or manifest authority.",
-        "Mutation guardrail: Completed filters never accept outputs, suppress reruns, delete files, rewrite manifests, repair sidecars, drain pending publish, or change media policy.",
+        "Backend action scope: unchanged. Current Output filters do not narrow rerun, cleanup, reconciliation, diagnostics, or manifest authority.",
+        "Mutation guardrail: Current Output filters never accept outputs, suppress reruns, delete files, rewrite manifests, repair sidecars, drain pending publish, or change media policy.",
       ];
       if (scope.active && (scope.hiddenBlocked || scope.hiddenReview)) {
         lines.push("Operator warning: the current filters hide completed rows that need review, so the visible table can look safer than the backend manifest evidence.");
       } else if (scope.active) {
         lines.push("Operator note: the current filters are active for visual search only.");
       } else {
-        lines.push("Operator note: no Completed display filter is active.");
+        lines.push("Operator note: no Current Output display filter is active.");
       }
       return lines;
     }
@@ -333,7 +333,7 @@
         `Review checkpoints: ${review}`,
         `Read-first checkpoints: ${readFirst}`,
         "Decision rule: acceptance requires display filter scope, output/sidecar proof, route/size explanation, pending-publish proof, and recent command evidence to agree.",
-        "Scope boundary: Completed filters, selected rows, proof boards, and rendered row caps never accept outputs, delete files, rerun jobs, repair manifests, or change pending-publish state.",
+        "Scope boundary: Current Output filters, Completed History filters, selected rows, proof boards, and rendered row caps never accept outputs, delete files, rerun jobs, repair manifests, or change pending-publish state.",
       ];
       if (blocked) {
         lines.push("First action: do not rerun, delete, cleanup, drain, or reprocess until blocked proof is explained.");
@@ -996,6 +996,42 @@
       ].join("|");
     }
 
+    function completedPendingProofDto(completed, pending) {
+      const candidates = [
+        completed?.completed_pending_proof,
+        pending?.completed_pending_proof,
+        state.lastPublishReconciliationPayload?.completed_pending_proof,
+      ];
+      return candidates.find((candidate) => (
+        candidate
+        && typeof candidate === "object"
+        && candidate.schema_version === "desktop_completed_pending_proof.v1"
+        && Array.isArray(candidate.rows)
+        && completedPendingProofDtoMatches(candidate, completed || {}, pending || {})
+      )) || null;
+    }
+
+    function completedPendingProofDtoMatches(dto, completed, pending) {
+      const expectedCompletedCount = Number(completed?.count || (Array.isArray(completed?.rows) ? completed.rows.length : 0) || 0);
+      if (Number.isFinite(Number(dto?.completed_count)) && Number(dto.completed_count) !== expectedCompletedCount) return false;
+      const pendingHasExplicitPayload = pending && typeof pending === "object" && (
+        Array.isArray(pending.rows)
+        || pending.count !== undefined
+        || (pending.drain_summary && typeof pending.drain_summary === "object")
+      );
+      if (pendingHasExplicitPayload) {
+        const expectedPendingCount = Number(pending?.count || (Array.isArray(pending?.rows) ? pending.rows.length : 0) || 0);
+        if (Number.isFinite(Number(dto?.pending_count)) && Number(dto.pending_count) !== expectedPendingCount) return false;
+        const expectedDrainItems = Array.isArray(pending?.drain_summary?.items) ? pending.drain_summary.items.length : 0;
+        if (expectedDrainItems && Number.isFinite(Number(dto?.drain_item_count)) && Number(dto.drain_item_count) !== expectedDrainItems) return false;
+      }
+      return true;
+    }
+
+    function completedPendingProofDtoRows(dto) {
+      return Array.isArray(dto?.rows) ? dto.rows.filter((row) => row && typeof row === "object") : [];
+    }
+
     function completedPendingProofSelectedRow(rows) {
       const list = Array.isArray(rows) ? rows : [];
       return list.find((row, index) => completedPendingProofRowKey(row, index) === state.selectedCompletedPendingProofKey)
@@ -1079,6 +1115,8 @@
     }
 
     function completedPendingProofRows(completed, rows, pending) {
+      const dto = completedPendingProofDto(completed || {}, pending || {});
+      if (dto) return completedPendingProofDtoRows(dto);
       const completedRows = Array.isArray(rows) ? rows : completedProofRows(completed || {});
       const pendingRows = completedProofRows(pending || {});
       const drainItems = completedProofDrainSummaryItems(pending || {});
@@ -1270,6 +1308,8 @@
     }
 
     function completedPendingProofStatus(completed, rows, pending) {
+      const dto = completedPendingProofDto(completed || {}, pending || {});
+      if (dto && dto.status) return String(dto.status);
       const rowList = Array.isArray(rows) ? rows : completedProofRows(completed || {});
       const pendingRows = completedProofRows(pending || {});
       const proofRows = completedPendingProofRows(completed || {}, rowList, pending || {});
@@ -1285,6 +1325,10 @@
     }
 
     function completedPendingProofSummaryLines(completed, rows, pending) {
+      const dto = completedPendingProofDto(completed || {}, pending || {});
+      if (dto && Array.isArray(dto.summary_lines) && dto.summary_lines.length) {
+        return dto.summary_lines.filter((line) => String(line || "").trim());
+      }
       const payload = completed || {};
       const pendingPayload = pending || {};
       const rowList = Array.isArray(rows) ? rows : completedProofRows(payload);
@@ -1558,6 +1602,13 @@
         state.lastPublishReconciliationPayload = payload;
         state.selectedPublishReconciliationKey = "";
         renderPublishReconciliation(payload);
+        renderCompletedPendingProof(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingPayload);
+        renderCompletedSizeEvidence(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows);
+        renderCompletedOutputAcceptance(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows);
+        renderCompletedRealMediaProof(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
+        renderCompletedFinalTrust(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
+        renderCompletedPilotEvidencePacket(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
+        window.mediaPipelineCompletedView?.renderCompletedReconciliationHint?.(state.lastCompletedPayload, state.lastCompletedRows);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         state.lastPublishReconciliationPayload = { status: "error", rows: [], summary_lines: [`Backend publish reconciliation failed: ${message}`] };
@@ -1569,6 +1620,7 @@
         ].join("\n"));
         clearRows(byId("publish-reconciliation-rows"), 5, "Backend reconciliation failed.");
         setText("publish-reconciliation-detail", "No backend reconciliation row selected.");
+        window.mediaPipelineCompletedView?.renderCompletedReconciliationHint?.(state.lastCompletedPayload, state.lastCompletedRows);
       } finally {
         setPublishReconciliationBusy(false);
       }

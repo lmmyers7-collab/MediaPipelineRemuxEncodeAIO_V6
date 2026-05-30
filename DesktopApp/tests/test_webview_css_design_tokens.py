@@ -19,6 +19,9 @@ COMPLETED_VIEW_PATH = ASSETS_ROOT / "completedView.js"
 PENDING_VIEW_PATH = ASSETS_ROOT / "pendingPublishView.js"
 LAUNCH_VIEW_PATH = ASSETS_ROOT / "launchView.js"
 LAUNCH_PARTIAL_PATH = STATIC_ROOT / "partials" / "page-launch.html"
+REPORTS_VIEW_PATH = ASSETS_ROOT / "reportsView.js"
+COMPLETED_PARTIAL_PATH = STATIC_ROOT / "partials" / "page-completed.html"
+RENAME_PARTIAL_PATH = STATIC_ROOT / "partials" / "page-rename.html"
 
 
 def _rendered_index_html() -> str:
@@ -106,6 +109,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertNotIn(".status-chip {", css)
         self.assertNotIn("#customize-layout-btn {", css)
         self.assertNotIn(".panel-customize-bar {", css)
+        self.assertNotIn(".layout-editor-drawer {", css)
         self.assertNotIn(".priority-badge {", css)
         self.assertNotIn(".queue-strategy-select {", css)
         self.assertNotIn(".fo-drawer {", css)
@@ -124,6 +128,9 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertIn(".route-chip {", controls)
         self.assertIn("#customize-layout-btn {", layout_manager)
         self.assertIn(".panel-customize-bar {", layout_manager)
+        self.assertIn(".layout-editor-drawer {", layout_manager)
+        self.assertIn(".layout-editor-panel-row {", layout_manager)
+        self.assertIn(".layout-panel-preview {", layout_manager)
         self.assertIn(".layout-drag-hint {", layout_manager)
         self.assertIn(".priority-badge {", queue)
         self.assertIn(".queue-strategy-select {", queue)
@@ -188,6 +195,93 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertIn('id="rerun-start-button" class="primary-button"', launch_html)
         self.assertIn("This does not start a new run or touch media", launch_js)
         self.assertIn("source media should not be touched", launch_js)
+
+    def test_theme_toggle_uses_dark_as_unstored_default(self) -> None:
+        app_js = (ASSETS_ROOT / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn("const STORAGE_KEY = \"mediapipeline-theme\";", app_js)
+        self.assertIn("const preferLight = stored === \"light\";", app_js)
+        self.assertNotIn("prefers-color-scheme: light", app_js)
+
+    def test_panel_and_tab_consistency_contract_is_wired(self) -> None:
+        html = _rendered_index_html()
+        pages = (ASSETS_ROOT / "styles.pages.css").read_text(encoding="utf-8")
+        components = (ASSETS_ROOT / "styles.components.css").read_text(encoding="utf-8")
+        rename_css = (ASSETS_ROOT / "styles.rename.css").read_text(encoding="utf-8")
+        app_js = (ASSETS_ROOT / "app.js").read_text(encoding="utf-8")
+        launch_js = LAUNCH_VIEW_PATH.read_text(encoding="utf-8")
+        reports_js = REPORTS_VIEW_PATH.read_text(encoding="utf-8")
+        completed_html = COMPLETED_PARTIAL_PATH.read_text(encoding="utf-8")
+        rename_html = RENAME_PARTIAL_PATH.read_text(encoding="utf-8")
+
+        for selector in [
+            ".settings-tab-btn:hover",
+            ".settings-tab-btn:focus-visible",
+            ".settings-tab-btn[aria-selected=\"true\"]",
+            ".settings-tab-btn:disabled",
+            ".settings-tab-btn[aria-disabled=\"true\"]",
+            ".settings-tab-btn[aria-busy=\"true\"]",
+            ".settings-tab-pane.is-active",
+        ]:
+            self.assertIn(selector, pages)
+
+        self.assertIn('id="layout-editor-drawer"', html)
+        self.assertIn('id="layout-editor-tree"', html)
+        self.assertNotIn(".layout-customize-mode .settings-tab-pane", pages)
+        self.assertNotIn("is-launch-tab-hidden", pages + launch_js + html)
+        self.assertNotIn("is-reports-tab-hidden", pages + reports_js + html)
+        self.assertIn('panel.classList.toggle("is-active"', launch_js)
+        self.assertIn('panel.classList.toggle("is-active"', reports_js)
+        self.assertIn(".settings-tab-pane[data-launch-tab-panel]", app_js)
+        self.assertIn(".settings-tab-pane[data-reports-tab-panel]", app_js)
+
+        self.assertIn('class="settings-tab-bar completed-tab-bar"', html)
+        self.assertIn('class="panel settings-tab-pane is-active output-overview-section output-overview-section-current" data-completed-tab="overview"', completed_html)
+        self.assertIn('class="panel settings-tab-pane is-active" data-completed-tab="overview"', completed_html)
+        self.assertIn('class="panel settings-tab-pane" data-completed-tab="advanced"', completed_html)
+        self.assertIn('class="panel settings-tab-pane" data-completed-tab="history"', completed_html)
+        self.assertIn("function _normalizeLayoutTabPaneContainers(page)", app_js)
+        self.assertIn('page.querySelectorAll("section.panel.settings-tab-pane")', app_js)
+        self.assertIn('className !== "panel"', app_js)
+        self.assertIn('while (pane.firstChild) existing.appendChild(pane.firstChild);', app_js)
+        self.assertIn('data-completed-tab="overview"', completed_html)
+        self.assertIn("output-overview-kicker", completed_html)
+        self.assertLess(
+            completed_html.index('<h2 id="completed-current-output-heading">Current Output Status</h2>'),
+            completed_html.index("<h2>Output Files</h2>"),
+        )
+        self.assertNotRegex(
+            completed_html,
+            r"<section class=\"panel settings-tab-pane is-active\" data-completed-tab=\"overview\"[\s\S]*?<div class=\"settings-tab-bar",
+        )
+
+        self.assertRegex(pages, r"\.settings-library-card\s*\{[^}]*border-radius: var\(--radius-sm\);")
+        self.assertRegex(pages, r"\.settings-wizard-library-row\s*\{[^}]*border-radius: var\(--radius-sm\);")
+        self.assertIn(".table-toolbar {", components)
+        self.assertIn('class="table-toolbar queue-priority-toolbar"', html)
+        self.assertIn('class="table-toolbar queue-strategy-toolbar"', html)
+        self.assertIn(".rename-workbench > h1.visually-hidden", rename_css)
+        self.assertIn('<h1 class="visually-hidden">Rename Files</h1>', rename_html)
+
+    def test_webview_shell_has_narrow_viewport_layout(self) -> None:
+        layout = (ASSETS_ROOT / "styles.layout.css").read_text(encoding="utf-8")
+        components = (ASSETS_ROOT / "styles.components.css").read_text(encoding="utf-8")
+        pages = (ASSETS_ROOT / "styles.pages.css").read_text(encoding="utf-8")
+
+        body_match = re.search(r"body\s*\{(?P<body>.*?)\}", layout, re.S)
+        self.assertIsNotNone(body_match)
+        self.assertNotIn("min-width: 1120px", body_match.group("body"))
+        self.assertIn("@media (max-width: 900px)", layout)
+        self.assertIn("@media (max-width: 900px)", components)
+        self.assertIn("@media (max-width: 900px)", pages)
+        self.assertRegex(layout, r"@media \(max-width: 900px\)[\s\S]*\.app-shell\s*\{[\s\S]*grid-template-columns: minmax\(0, 1fr\);")
+        self.assertRegex(layout, r"@media \(max-width: 900px\)[\s\S]*\.sidebar\s*\{[\s\S]*border-bottom: 1px solid var\(--grey-600\);")
+        self.assertRegex(layout, r"@media \(max-width: 900px\)[\s\S]*\.nav\s*\{[\s\S]*overflow-x: auto;")
+        self.assertRegex(layout, r"@media \(max-width: 900px\)[\s\S]*\.workspace\s*\{[\s\S]*min-width: 0;")
+        self.assertRegex(layout, r"@media \(max-width: 900px\)[\s\S]*\.topbar\s*\{[\s\S]*flex-direction: column;")
+        self.assertIn(".table-wrap,\n  .prose-block,\n  .log-block,\n  .status-block", components)
+        self.assertIn("max-width: 100%;", components)
+        self.assertIn(".home-up-next-list li", pages)
 
 
 if __name__ == "__main__":

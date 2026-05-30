@@ -33,7 +33,7 @@ def _resolved(root: Path) -> ResolvedPaths:
     return ResolvedPaths(
         app_root=root,
         workspace_root=root,
-        pipeline_path=root / "Pipeline" / "MediaPipeline_chatgpt.ps1",
+        pipeline_path=root / "Pipeline" / "MediaPipeline.ps1",
         config_path=root / "config.psd1",
         audit_script_path=root / "Pipeline" / "Audit-MediaLibrary.ps1",
         rerun_script_path=root / "Pipeline" / "Rerun-FailedFromCsv.ps1",
@@ -883,9 +883,14 @@ class SampleValidationApiTests(unittest.TestCase):
             )
         )
         cross_page_js = cross_page_js + "\n" + cross_page_sample_validation_js
-        command_history_js = (
-            PROJECT_ROOT / "DesktopApp" / "mediapipeline_desktop_app" / "ui_web" / "static" / "assets" / "commandHistory.js"
-        ).read_text(encoding="utf-8")
+        command_history_assets_root = PROJECT_ROOT / "DesktopApp" / "mediapipeline_desktop_app" / "ui_web" / "static" / "assets"
+        command_history_js = "\n".join(
+            (
+                (command_history_assets_root / "commandHistory" / "formatters.js").read_text(encoding="utf-8"),
+                (command_history_assets_root / "commandHistory" / "diagnostics.js").read_text(encoding="utf-8"),
+                (command_history_assets_root / "commandHistory.js").read_text(encoding="utf-8"),
+            )
+        )
 
         self.assertIn("sample-validation-preview-button", html)
         self.assertIn("/assets/crossPageContextView.sampleValidation.worksheet.js", html)

@@ -51,6 +51,7 @@ These keys have no structured WebView builder panel because they are auth secret
 | Key | Risk | Description | Launch handoff | Tests |
 |---|---|---|---|---|
 | `RoutingProfile` | **High** | High-level policy: `plex_direct_stream`, `plex_direct_play`, `archive_shrink`, `archive_quality`, `manual`. Drives all route decisions. | Yes — active route policy row | `test_service_config_profiles.py`, `test_service_config_validation.py` |
+| `RouteThresholdMode` | **High** | Selects whether initial routing treats size, bitrate, or both as hard thresholds. Default preserves compatibility-advisory behavior. | Yes — active route policy row | `test_service_config_option_policy.py`, `test_stage_entrypoint.py` |
 | `VideoCodec` | **High** | Encoder: `hevc_nvenc`, `libx265`, `h264_nvenc`, `libx264`, `av1_nvenc`. Wrong value causes encode failure if hardware not available. | Yes — active video codec row | `test_settings_risk_policy_rules.py` |
 | `OutputContainer` | **High** | `mkv` or `mp4`. Affects subtitle compatibility and muxing behavior. | Yes — container policy row | `test_service_config_validation.py` |
 | `EncodeThresholdGB` | **High** | Movie file size above which encode (rather than remux) is triggered. | Yes — route threshold row | `test_service_config_numeric_policy.py` |
@@ -131,7 +132,7 @@ The Launch page reads these config values (via `GET /api/launch/preflight` and `
 
 | Handoff row | Key(s) driving it |
 |---|---|
-| Route policy | `RoutingProfile`, `EncodeThresholdGB`, `TVEncodeThresholdGB`, `MovieRouteMaxVideoBitrateMbps`, `TVRouteMaxVideoBitrateMbps` |
+| Route policy | `RoutingProfile`, `RouteThresholdMode`, `EncodeThresholdGB`, `TVEncodeThresholdGB`, `MovieRouteMaxVideoBitrateMbps`, `TVRouteMaxVideoBitrateMbps` |
 | Video codec / preset | `VideoCodec`, `VideoPreset`, `VideoQuality` |
 | Audio policy | `AudioPassthroughProfile`, `AudioTranscodeCodec`, `AudioDownmixMode`, `AllowNoAudio` |
 | Subtitle policy | `SubKeepLanguages`, `ConvertTx3gToSrt`, `ConvertBdpgsToSrt` |

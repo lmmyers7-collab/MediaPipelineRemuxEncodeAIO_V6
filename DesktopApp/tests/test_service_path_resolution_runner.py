@@ -19,7 +19,7 @@ class DummyPathResolutionService:
         self.migrated_app_state_paths: list[Path] = []
 
     def default_audit_script_path(self) -> Path:
-        return self.workspace_root / "Pipeline" / "Audit-MediaLibrary_chatgpt.ps1"
+        return self.workspace_root / "Pipeline" / "Audit-MediaLibrary.ps1"
 
     def default_rerun_script_path(self) -> Path:
         return self.workspace_root / "Pipeline" / "Invoke-RerunCsv.ps1"

@@ -9,6 +9,18 @@ from app.completed.policy import bounded_completed_limit
 
 
 PUBLISH_RECONCILIATION_SCHEMA_VERSION = "desktop_publish_reconciliation.v1"
+COMPLETED_PENDING_PROOF_SCHEMA_VERSION = "desktop_completed_pending_proof.v1"
+
+_RENDER_SIGNAL_BY_BACKEND_SIGNAL = {
+    "pending_destination_overlap": "pending-destination-overlap",
+    "completed_source_still_pending": "completed-source-still-pending",
+    "drain_summary_output_proof": "drain-summary-output-proof",
+    "drain_summary_source_proof": "drain-summary-source-proof",
+    "same_leaf_hint": "same-leaf-review",
+    "missing_output_still_pending": "completed-missing-output-still-pending",
+    "missing_output_with_drain_proof": "completed-missing-output-with-drain-proof",
+    "missing_output_without_proof": "completed-missing-output-no-pending-proof",
+}
 
 
 def publish_reconciliation_limit(value: Any) -> int:
@@ -117,6 +129,73 @@ def _signal_label(signal: str) -> str:
     }.get(signal, signal or "Review")
 
 
+def _render_signal_label(signal: str) -> str:
+    return {
+        "pending-destination-overlap": "Pending destination overlap",
+        "completed-source-still-pending": "Completed source still pending",
+        "drain-summary-output-proof": "Drain output proof",
+        "drain-summary-source-proof": "Drain source proof",
+        "same-leaf-review": "Same leaf review",
+        "completed-missing-output-still-pending": "Missing output still parked",
+        "completed-missing-output-with-drain-proof": "Missing output with drain proof",
+        "completed-missing-output-no-pending-proof": "Missing output without pending proof",
+    }.get(signal, signal or "Review")
+
+
+def _render_evidence_text(item: Mapping[str, Any]) -> str:
+    signal = str(item.get("signal") or "")
+    pending = item.get("pending") if isinstance(item.get("pending"), Mapping) else {}
+    drain_item = item.get("drain_item") if isinstance(item.get("drain_item"), Mapping) else {}
+    parts: list[str] = []
+    if signal == "pending-destination-overlap":
+        parts.append("Exact completed output path matches a current pending publish destination.")
+    elif signal == "completed-source-still-pending":
+        parts.append("Exact completed source path also exists in current pending publish state.")
+    elif signal == "drain-summary-output-proof":
+        parts.append("Exact completed output path appears in the latest durable pending drain summary.")
+    elif signal == "drain-summary-source-proof":
+        parts.append("Exact completed source path appears in the latest durable pending drain summary.")
+    elif signal == "same-leaf-review":
+        parts.append("Only the filename leaf matches; full paths differ or are missing.")
+    elif signal == "completed-missing-output-still-pending":
+        parts.append("Completed row reports a missing output, but exact Pending Publish proof still exists for this source/output.")
+    elif signal == "completed-missing-output-with-drain-proof":
+        parts.append("Completed row reports a missing output, but exact durable drain-summary proof exists for this source/output.")
+    elif signal == "completed-missing-output-no-pending-proof":
+        parts.append("Completed row reports a missing output and no exact pending or durable drain proof matched this row.")
+    if item.get("match_path"):
+        parts.append(f"Path: {item.get('match_path')}")
+    if pending.get("state"):
+        parts.append(f"Pending state: {pending.get('state')}")
+    if pending.get("drain_recommendation"):
+        parts.append(f"Drain recommendation: {pending.get('drain_recommendation')}")
+    if drain_item.get("status"):
+        parts.append(f"Drain status: {drain_item.get('status')}")
+    if drain_item.get("error"):
+        parts.append(f"Drain error: {drain_item.get('error')}")
+    return " ".join(parts)
+
+
+def _render_safe_next_action(item: Mapping[str, Any]) -> str:
+    signal = str(item.get("signal") or "")
+    status = str(item.get("status") or "")
+    if signal == "same-leaf-review":
+        return "Treat as a duplicate-title/path review only; compare folders before taking action."
+    if signal == "completed-missing-output-still-pending":
+        return "Treat as deferred-publish or stale Completed proof; inspect Pending Publish and do not rerun, clean up, or delete until the parked payload is explained."
+    if signal == "completed-missing-output-with-drain-proof":
+        return "Treat as final-placement conflict; compare output folder, durable drain summary, Run Logs, and Last Stderr before rerun or cleanup."
+    if signal == "completed-missing-output-no-pending-proof":
+        return "Open Completed Manifest, Pending Publish, Run Logs, and Last Stderr before rerun; an empty Pending Publish page is not proof that the file published."
+    if status == "blocked":
+        return "Open Pending Publish and Diagnostics; do not drain or rerun until the blocker is explained."
+    if signal in {"pending-destination-overlap", "completed-source-still-pending"}:
+        return "Compare Completed, Pending Publish, and Run Logs before retrying or deleting any output."
+    if status == "match":
+        return "Use as supporting publish proof; Completed and Pending evidence still remain read-only here."
+    return "Review row detail and diagnostics before acting."
+
+
 def _safe_action(signal: str, status: str) -> str:
     if signal == "missing_output_still_pending":
         return "Treat as deferred-publish or stale Completed proof; inspect Pending Publish and do not rerun, clean up, or delete until the parked payload is explained."
@@ -208,6 +287,7 @@ def publish_reconciliation_from_payloads(
         match_path: str = "",
         pending: Mapping[str, Any] | None = None,
         drain_item: Mapping[str, Any] | None = None,
+        completed_index_value: int | None = None,
         pending_index_value: int | None = None,
         drain_index_value: int | None = None,
     ) -> None:
@@ -229,6 +309,7 @@ def publish_reconciliation_from_payloads(
             "completed_title": _completed_label(completed),
             "completed_output": _completed_output(completed),
             "completed_source": _completed_source(completed),
+            "completed_index": completed_index_value,
             "pending_row_key": _row_key(pending),
             "pending_title": _pending_label(pending) if pending else "",
             "pending_destination": _pending_destination(pending or {}),
@@ -276,6 +357,7 @@ def publish_reconciliation_from_payloads(
                 status="warning" if missing_output and _pending_status(record["row"]) == "match" else _pending_status(record["row"]),
                 match_path=record["destination"],
                 pending=record["row"],
+                completed_index_value=completed_index,
                 pending_index_value=record["index"],
             )
             exact_matches += 1
@@ -286,6 +368,7 @@ def publish_reconciliation_from_payloads(
                 status="warning" if missing_output and _pending_status(record["row"]) == "match" else _pending_status(record["row"]),
                 match_path=record["source"],
                 pending=record["row"],
+                completed_index_value=completed_index,
                 pending_index_value=record["index"],
             )
             exact_matches += 1
@@ -297,6 +380,7 @@ def publish_reconciliation_from_payloads(
                 status="warning" if missing_output and drain_status == "match" else drain_status,
                 match_path=record["destination"],
                 drain_item=record["row"],
+                completed_index_value=completed_index,
                 drain_index_value=record["index"],
             )
             exact_matches += 1
@@ -308,6 +392,7 @@ def publish_reconciliation_from_payloads(
                 status="warning" if missing_output and drain_status == "match" else drain_status,
                 match_path=record["source"],
                 drain_item=record["row"],
+                completed_index_value=completed_index,
                 drain_index_value=record["index"],
             )
             exact_matches += 1
@@ -323,6 +408,7 @@ def publish_reconciliation_from_payloads(
                     match_path=record.get("destination") or record.get("local") or "",
                     pending=record["row"] if not record.get("is_drain") else None,
                     drain_item=record["row"] if record.get("is_drain") else None,
+                    completed_index_value=completed_index,
                     pending_index_value=None if record.get("is_drain") else record["index"],
                     drain_index_value=record["index"] if record.get("is_drain") else None,
                 )
@@ -332,6 +418,7 @@ def publish_reconciliation_from_payloads(
                     completed,
                     status="blocked",
                     match_path=output,
+                    completed_index_value=completed_index,
                 )
 
     blocker_count = sum(1 for row in rows if row.get("status") == "blocked")
@@ -349,6 +436,15 @@ def publish_reconciliation_from_payloads(
         rows=rows,
         counts=counts,
         warnings=warnings,
+    )
+    completed_pending_proof = _completed_pending_proof_payload(
+        status=status,
+        completed_payload=completed_payload,
+        pending_payload=pending_payload,
+        drain_summary=drain_summary,
+        completed_rows=completed_rows,
+        pending_rows=pending_rows,
+        rows=rows,
     )
     return PublishReconciliationDto(
         rows=json_safe(rows),
@@ -370,6 +466,7 @@ def publish_reconciliation_from_payloads(
         missing_without_proof_count=counts["missing_without_proof_count"],
         warning_count=warning_count,
         blocker_count=blocker_count,
+        completed_pending_proof=json_safe(completed_pending_proof),
         warnings=warnings,
     )
 
@@ -427,6 +524,147 @@ def _overall_status(completed_payload: Mapping[str, Any], pending_payload: Mappi
     if any(row.get("signal") in {"drain_summary_output_proof", "drain_summary_source_proof"} for row in rows):
         return "proof_aligned"
     return "no_overlap"
+
+
+def _completed_pending_proof_status(
+    *,
+    status: str,
+    pending_rows: list[Mapping[str, Any]],
+    rows: list[Mapping[str, Any]],
+) -> str:
+    if status == "completed_unavailable":
+        return "Completed unavailable"
+    if status == "pending_unavailable":
+        return "Pending unavailable"
+    if status == "no_completed_rows":
+        return "No completed proof"
+    if any(row.get("status") == "blocked" for row in rows):
+        return "Review blockers"
+    if any(str(row.get("signal") or "") in {"completed-missing-output-still-pending", "completed-missing-output-with-drain-proof"} for row in rows):
+        return "Review final placement"
+    if any(str(row.get("signal") or "") in {"pending-destination-overlap", "completed-source-still-pending"} for row in rows):
+        return "Review overlaps"
+    if any(str(row.get("signal") or "") == "same-leaf-review" for row in rows):
+        return "Review leaf matches"
+    if any(row.get("status") == "match" for row in rows):
+        return "Proof with parked rows" if pending_rows else "Proof aligned"
+    return "No exact overlap" if pending_rows else "No overlap"
+
+
+def _completed_pending_proof_summary_lines(
+    *,
+    completed_payload: Mapping[str, Any],
+    pending_payload: Mapping[str, Any],
+    drain_summary: Mapping[str, Any],
+    completed_rows: list[Mapping[str, Any]],
+    pending_rows: list[Mapping[str, Any]],
+    rows: list[Mapping[str, Any]],
+) -> list[str]:
+    count = lambda signal: sum(1 for row in rows if row.get("signal") == signal)
+    exact_output = count("pending-destination-overlap")
+    exact_source = count("completed-source-still-pending")
+    drain_output = count("drain-summary-output-proof") + count("drain-summary-source-proof")
+    leaf_only = count("same-leaf-review")
+    missing_with_pending = count("completed-missing-output-still-pending")
+    missing_with_drain = count("completed-missing-output-with-drain-proof")
+    missing_without = count("completed-missing-output-no-pending-proof")
+    lines = [
+        "Completed-to-Pending output proof cross-check:",
+        f"Completed rows: {completed_payload.get('count') or len(completed_rows) or 0}",
+        f"Pending rows: {pending_payload.get('count') or len(pending_rows) or 0}",
+        f"Exact completed output -> pending destination: {exact_output}",
+        f"Exact completed source -> pending source: {exact_source}",
+        f"Completed row found in last drain summary: {drain_output}",
+        f"Missing completed output with pending proof: {missing_with_pending}",
+        f"Missing completed output with drain proof: {missing_with_drain}",
+        f"Missing completed output without pending/drain proof: {missing_without}",
+        f"Same leaf review matches: {leaf_only}",
+        f"Last drain summary: {'unreadable' if drain_summary.get('read_error') else 'not found' if drain_summary.get('exists') is False else 'loaded' if drain_summary.get('completed_at') or drain_summary.get('started_at') else 'not loaded'}",
+        "",
+        "Proof order:",
+        "1. Completed Manifest row",
+        "2. Completed output/source path",
+        "3. Pending Publish row/state",
+        "4. Last durable pending drain summary",
+        "5. Run Logs / Last Stderr from Diagnostics",
+        "",
+    ]
+    if completed_payload.get("error"):
+        lines.append(f"First action: Completed history is unavailable: {completed_payload.get('error')}. Open Diagnostics > Completed Manifest and Run Logs.")
+    elif pending_payload.get("error"):
+        lines.append(f"First action: Pending Publish state is unavailable: {pending_payload.get('error')}. Open Diagnostics > Pending Publish and Run Logs.")
+    elif missing_without:
+        lines.append("First action: missing completed outputs have no exact pending/drain proof. Open Completed Manifest, Pending Publish, Run Logs, and Last Stderr before rerun; empty Pending Publish is not proof of publish.")
+    elif missing_with_pending or missing_with_drain:
+        lines.append("First action: missing completed outputs have exact pending/drain proof. Treat this as a final-placement conflict; compare output folder, Pending Publish, durable drain summary, Run Logs, and Last Stderr before rerun or cleanup.")
+    elif any(row.get("status") == "blocked" for row in rows):
+        lines.append("First action: inspect blocked overlap rows before retrying drain, rerun, cleanup, or output deletion.")
+    elif exact_output or exact_source:
+        lines.append("First action: review exact overlaps. A completed row that is still parked can mean stale state, a deferred publish, or a failed drain.")
+    elif leaf_only:
+        lines.append("First action: review same-leaf rows as duplicate-title hints only; full paths do not prove the same file.")
+    elif drain_output:
+        lines.append("First action: use drain-summary matches as supporting publish evidence, then confirm with output folder and run logs if a title is missing.")
+    elif pending_rows:
+        lines.append("First action: no exact completed-to-pending overlap was found. Continue review from Pending Publish readiness and drain evidence.")
+    else:
+        lines.append("First action: no completed-to-pending overlap is visible in the loaded payloads.")
+    lines.append("Mutation guardrail: this cross-check is read-only; repair, reconciliation, rerun, drain, cleanup, and deletion remain backend-owned.")
+    return lines
+
+
+def _completed_pending_proof_payload(
+    *,
+    status: str,
+    completed_payload: Mapping[str, Any],
+    pending_payload: Mapping[str, Any],
+    drain_summary: Mapping[str, Any],
+    completed_rows: list[Mapping[str, Any]],
+    pending_rows: list[Mapping[str, Any]],
+    rows: list[Mapping[str, Any]],
+) -> dict[str, Any]:
+    render_rows: list[dict[str, Any]] = []
+    for row in rows:
+        signal = _RENDER_SIGNAL_BY_BACKEND_SIGNAL.get(str(row.get("signal") or ""), str(row.get("signal") or ""))
+        render_row = dict(row)
+        render_row["signal"] = signal
+        render_row["signal_label"] = _render_signal_label(signal)
+        render_row["evidence"] = _render_evidence_text(render_row)
+        render_row["safe_next_action"] = _render_safe_next_action(render_row)
+        render_rows.append(render_row)
+    status_label = _completed_pending_proof_status(status=status, pending_rows=pending_rows, rows=render_rows)
+    counts = {
+        "exact_pending_destination": sum(1 for row in render_rows if row.get("signal") == "pending-destination-overlap"),
+        "exact_pending_source": sum(1 for row in render_rows if row.get("signal") == "completed-source-still-pending"),
+        "drain_summary_proof": sum(1 for row in render_rows if row.get("signal") in {"drain-summary-output-proof", "drain-summary-source-proof"}),
+        "same_leaf_review": sum(1 for row in render_rows if row.get("signal") == "same-leaf-review"),
+        "missing_with_pending_proof": sum(1 for row in render_rows if row.get("signal") == "completed-missing-output-still-pending"),
+        "missing_with_drain_proof": sum(1 for row in render_rows if row.get("signal") == "completed-missing-output-with-drain-proof"),
+        "missing_without_proof": sum(1 for row in render_rows if row.get("signal") == "completed-missing-output-no-pending-proof"),
+        "blocked": sum(1 for row in render_rows if row.get("status") == "blocked"),
+        "warning": sum(1 for row in render_rows if row.get("status") == "warning"),
+        "match": sum(1 for row in render_rows if row.get("status") == "match"),
+    }
+    return {
+        "schema_version": COMPLETED_PENDING_PROOF_SCHEMA_VERSION,
+        "evidence_authority": "backend",
+        "render_contract": "completedView.evidence.js",
+        "status": status_label,
+        "completed_count": int(completed_payload.get("count") or len(completed_rows) or 0),
+        "pending_count": int(pending_payload.get("count") or len(pending_rows) or 0),
+        "drain_item_count": len([item for item in drain_summary.get("items") or [] if isinstance(item, Mapping)]),
+        "rows": json_safe(render_rows),
+        "counts": counts,
+        "summary_lines": _completed_pending_proof_summary_lines(
+            completed_payload=completed_payload,
+            pending_payload=pending_payload,
+            drain_summary=drain_summary,
+            completed_rows=completed_rows,
+            pending_rows=pending_rows,
+            rows=render_rows,
+        ),
+        "boundary": "read_only_no_media_mutation",
+    }
 
 
 def _status_label(status: str) -> str:
@@ -494,6 +732,7 @@ def _summary_lines(
 
 __all__ = [
     "PUBLISH_RECONCILIATION_SCHEMA_VERSION",
+    "COMPLETED_PENDING_PROOF_SCHEMA_VERSION",
     "publish_reconciliation_limit",
     "publish_reconciliation_from_payloads",
 ]

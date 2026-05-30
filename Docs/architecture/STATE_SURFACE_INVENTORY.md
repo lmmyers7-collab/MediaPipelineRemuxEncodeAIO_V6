@@ -20,7 +20,7 @@ PS1 modules are dot-sourced into the same script scope, so `$script:Foo` written
 
 ### 2.1 Config-derived constants (set once at startup, read everywhere)
 
-**Lifecycle:** Set during the config-loading section of `MediaPipeline_chatgpt.ps1` (and the script entrypoints in `Pipeline/*.ps1` like `Invoke-RerunCsv.ps1`, `Get-NamingPreview.ps1`). Read by helpers throughout the pipeline. **Never reassigned at runtime.**
+**Lifecycle:** Set during the config-loading section of `MediaPipeline.ps1` (and the script entrypoints in `Pipeline/*.ps1` like `Invoke-RerunCsv.ps1`, `Get-NamingPreview.ps1`). Read by helpers throughout the pipeline. **Never reassigned at runtime.**
 
 **Representative names** (not exhaustive — every config key has a `$script:*` mirror):
 

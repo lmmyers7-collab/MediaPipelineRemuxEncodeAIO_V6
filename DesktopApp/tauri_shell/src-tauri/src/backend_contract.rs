@@ -1,145 +1,19 @@
-use serde::Deserialize;
+mod formatting;
+mod health;
+mod route_contract;
+mod routes;
+mod types;
+
+#[allow(unused_imports)]
+pub(crate) use formatting::{format_list_preview, format_route_sample};
+pub(crate) use health::validate_backend_health;
+pub(crate) use route_contract::validate_backend_contract;
+#[allow(unused_imports)]
+pub(crate) use types::BackendRoute;
 
 use crate::dialogs::shell_error;
-use crate::http_helpers::{bounded_text, request_backend_json};
+use crate::http_helpers::request_backend_json;
 use crate::ShellResult;
-
-#[derive(Debug, Deserialize)]
-struct BackendHealth {
-    schema_version: String,
-    status: String,
-    capabilities: Vec<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct BackendContract {
-    schema_version: String,
-    routes: Vec<BackendRoute>,
-}
-
-#[derive(Debug, Deserialize)]
-pub(crate) struct BackendRoute {
-    pub(crate) method: String,
-    pub(crate) path: String,
-    pub(crate) auth_required: bool,
-}
-
-pub(crate) fn validate_backend_health(backend_url: &str, token: &str) -> ShellResult<()> {
-    let response = request_backend_json(backend_url, "GET", "/api/health", token, "")?;
-    let health: BackendHealth = serde_json::from_str(&response)
-        .map_err(|error| shell_error(format!("Backend health response was not JSON: {error}")))?;
-    if health.schema_version != "desktop_backend_health.v1" {
-        return Err(shell_error(format!(
-            "Unexpected backend health schema: {}",
-            health.schema_version
-        )));
-    }
-    if health.status != "ok" {
-        return Err(shell_error(format!(
-            "Backend health status is not ok: {}",
-            health.status
-        )));
-    }
-    for capability in [
-        "snapshot",
-        "telemetry",
-        "diagnostics",
-        "close-readiness",
-        "command-history",
-        "settings-workspace",
-        "settings-validate",
-        "pipeline-start",
-        "audit-start",
-        "rerun-start",
-    ] {
-        if !health.capabilities.iter().any(|item| item == capability) {
-            return Err(shell_error(format!(
-                "Backend health is missing required capability: {capability}; backend reported capabilities: {}",
-                format_list_preview(&health.capabilities, 12)
-            )));
-        }
-    }
-    Ok(())
-}
-
-pub(crate) fn validate_backend_contract(backend_url: &str, token: &str) -> ShellResult<()> {
-    let response = request_backend_json(backend_url, "GET", "/api/contract", token, "")?;
-    let contract: BackendContract = serde_json::from_str(&response)
-        .map_err(|error| shell_error(format!("Backend contract response was not JSON: {error}")))?;
-    if contract.schema_version != "desktop_local_api_contract.v1" {
-        return Err(shell_error(format!(
-            "Unexpected backend contract schema: {}",
-            contract.schema_version
-        )));
-    }
-    for (method, path, auth_required) in [
-        ("GET", "/api/health", false),
-        ("GET", "/api/contract", true),
-        ("GET", "/api/snapshot", true),
-        ("GET", "/api/telemetry", true),
-        ("GET", "/api/diagnostics", true),
-        ("GET", "/api/diagnostics/tail", true),
-        ("GET", "/api/diagnostics/state-summary", true),
-        ("GET", "/api/backend/close-readiness", true),
-        ("GET", "/api/launch/preflight", true),
-        ("GET", "/api/commands", true),
-        ("GET", "/api/queue", true),
-        ("GET", "/api/queue/priority", true),
-        ("GET", "/api/queue/strategy", true),
-        ("GET", "/api/queue/file-overrides", true),
-        ("GET", "/api/completed", true),
-        ("GET", "/api/failures", true),
-        ("GET", "/api/audit-results", true),
-        ("GET", "/api/pending-publish", true),
-        ("GET", "/api/publish-reconciliation", true),
-        ("GET", "/api/maintenance", true),
-        ("GET", "/api/maintenance/progress", true),
-        ("GET", "/api/schedule", true),
-        ("GET", "/api/settings/workspace", true),
-        ("GET", "/api/network/workers", true),
-        ("GET", "/api/sample-validation", true),
-        ("POST", "/api/queue/priority", true),
-        ("POST", "/api/queue/strategy", true),
-        ("POST", "/api/queue/file-overrides", true),
-        ("POST", "/api/queue/open", true),
-        ("POST", "/api/completed/open", true),
-        ("POST", "/api/failures/clear", true),
-        ("POST", "/api/pending-publish/open", true),
-        ("POST", "/api/pending-publish/recovery-plan", true),
-        ("POST", "/api/maintenance/release-dry-run", true),
-        ("POST", "/api/maintenance/release-build", true),
-        ("POST", "/api/maintenance/completed-backfill-dry-run", true),
-        ("POST", "/api/diagnostics/open", true),
-        ("POST", "/api/rename/preview", true),
-        ("POST", "/api/rename/browse", true),
-        ("POST", "/api/rename/apply", true),
-        ("POST", "/api/schedule/preview", true),
-        ("POST", "/api/schedule/save", true),
-        ("POST", "/api/settings/validate", true),
-        ("POST", "/api/settings/browse-path", true),
-        ("POST", "/api/settings/preview-patch", true),
-        ("POST", "/api/settings/save-patch", true),
-        ("POST", "/api/settings/reload", true),
-        ("POST", "/api/sample-validation/preview", true),
-        ("POST", "/api/sample-validation/append", true),
-        ("POST", "/api/pipeline/control", true),
-        ("POST", "/api/pipeline/start", true),
-        ("POST", "/api/audit/start", true),
-        ("POST", "/api/rerun/start", true),
-        ("POST", "/api/backend/shutdown", true),
-    ] {
-        if !contract.routes.iter().any(|route| {
-            route.method == method && route.path == path && route.auth_required == auth_required
-        }) {
-            return Err(shell_error(format!(
-                "Backend contract is missing required route: {method} {path} auth_required={auth_required}; backend reported {} route(s); sample: {}",
-                contract.routes.len(),
-                format_route_sample(&contract.routes, 12)
-            )));
-        }
-    }
-    Ok(())
-}
 
 pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellResult<()> {
     let index = request_backend_json(backend_url, "GET", "/", token, "")?;
@@ -720,6 +594,49 @@ pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellRe
             )));
         }
     }
+    let settings_backend_result_script = request_backend_json(
+        backend_url,
+        "GET",
+        "/assets/settings/backendResult.js",
+        token,
+        "",
+    )?;
+    for (label, fragment) in [
+        (
+            "settings backend result split factory",
+            "function createSettingsBackendResultModule",
+        ),
+        (
+            "settings preview/save result rows",
+            "function settingsBackendResultRows",
+        ),
+        (
+            "settings preview/save result detail",
+            "function settingsBackendResultDetailLines",
+        ),
+        (
+            "settings preview/save result renderer",
+            "function renderSettingsBackendResultFromEntries",
+        ),
+        (
+            "settings preview/save stale guard",
+            "Patch JSON changed after the last preview. Preview again before saving.",
+        ),
+        (
+            "settings preview/save persistence boundary",
+            "Save Patch is the only persistence command",
+        ),
+        (
+            "settings backend result split stash",
+            "window.__settingsBackendResultModule",
+        ),
+    ] {
+        if !settings_backend_result_script.contains(fragment) {
+            return Err(shell_error(format!(
+                "Backend WebView settings backend-result script is missing required fragment '{label}'."
+            )));
+        }
+    }
     let settings_script =
         request_backend_json(backend_url, "GET", "/assets/settingsView.js", token, "")?;
     for (label, fragment) in [
@@ -730,6 +647,10 @@ pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellRe
         (
             "settings safety locks child bridge",
             "const settingsSafetyLocksModule = window.__settingsSafetyLocksModule || {}",
+        ),
+        (
+            "settings backend result child bridge",
+            "const settingsBackendResultModule = window.__settingsBackendResultModule || {}",
         ),
         (
             "settings backend readiness reader",
@@ -757,26 +678,6 @@ pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellRe
         (
             "settings effective policy launch-active boundary",
             "Launch-active policy is the saved backend config",
-        ),
-        (
-            "settings preview/save result rows",
-            "function settingsBackendResultRows",
-        ),
-        (
-            "settings preview/save result detail",
-            "function settingsBackendResultDetailLines",
-        ),
-        (
-            "settings preview/save result renderer",
-            "function renderSettingsBackendResultFromEntries",
-        ),
-        (
-            "settings preview/save stale guard",
-            "Patch JSON changed after the last preview. Preview again before saving.",
-        ),
-        (
-            "settings preview/save persistence boundary",
-            "Save Patch is the only persistence command",
         ),
     ] {
         if !settings_script.contains(fragment) {
@@ -1138,37 +1039,4 @@ pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellRe
         }
     }
     Ok(())
-}
-
-pub(crate) fn format_list_preview(items: &[String], max_items: usize) -> String {
-    let preview = items
-        .iter()
-        .take(max_items)
-        .map(|item| bounded_text(item, 80))
-        .collect::<Vec<String>>()
-        .join(", ");
-    if items.len() > max_items {
-        format!("{preview}, ...")
-    } else {
-        preview
-    }
-}
-
-pub(crate) fn format_route_sample(routes: &[BackendRoute], max_items: usize) -> String {
-    let preview = routes
-        .iter()
-        .take(max_items)
-        .map(|route| {
-            format!(
-                "{} {} auth_required={}",
-                route.method, route.path, route.auth_required
-            )
-        })
-        .collect::<Vec<String>>()
-        .join("; ");
-    if routes.len() > max_items {
-        format!("{preview}; ...")
-    } else {
-        preview
-    }
 }

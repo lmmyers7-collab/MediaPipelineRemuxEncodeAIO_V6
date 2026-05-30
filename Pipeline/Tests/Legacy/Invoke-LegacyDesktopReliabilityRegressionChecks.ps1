@@ -83,18 +83,19 @@ function Invoke-PowerShellBehaviorCheck {
     }
 }
 
-$main = Join-Path $root 'MediaPipeline_chatgpt.ps1'
+$main = Join-Path $root 'MediaPipeline.ps1'
 $moduleFiles = @(Get-ChildItem -Path (Join-Path $root 'Modules') -Filter '*.ps1' -File -ErrorAction SilentlyContinue | Sort-Object Name | ForEach-Object { $_.FullName })
+$mediaPipelineSliceFiles = @(Get-ChildItem -Path (Join-Path $root 'MediaPipeline') -Filter '*.ps1' -File -ErrorAction SilentlyContinue | Sort-Object Name | ForEach-Object { $_.FullName })
 $engineFiles = @(Get-ChildItem -Path (Join-Path $projectRoot 'engine') -Filter '*.ps1' -File -Recurse -ErrorAction SilentlyContinue | Sort-Object FullName | ForEach-Object { $_.FullName })
-$pipelineFiles = @($main) + $moduleFiles + $engineFiles
-$audit = Join-Path $root 'Audit-MediaLibrary_chatgpt.ps1'
+$pipelineFiles = @($main) + $mediaPipelineSliceFiles + $moduleFiles + $engineFiles
+$audit = Join-Path $root 'Audit-MediaLibrary.ps1'
 $rerun = Join-Path $root 'Invoke-RerunCsv.ps1'
 $rerunMetadata = Join-Path $root 'Get-RerunSourceMetadata.ps1'
 $namingPreview = Join-Path $root 'Get-NamingPreview.ps1'
 $rerunIdentity = Join-Path $projectRoot 'engine\audit\rerun_source_identity.ps1'
 $backfill = Join-Path $root 'Backfill-CompletedManifest.ps1'
-$subtitle = Join-Path $root 'ass_to_srt_chatgpt.py'
-$setup = Join-Path $root 'Setup-MediaPipeline_chatgpt.ps1'
+$subtitle = Join-Path $root 'ass_to_srt.py'
+$setup = Join-Path $root 'Setup-MediaPipeline.ps1'
 $services = Join-Path $projectRoot 'DesktopApp\mediapipeline_desktop_app\services.py'
 $serviceAppState = Join-Path $projectRoot 'app\schedule\app_state.py'
 $serviceAppSchedule = Join-Path $projectRoot 'app\schedule\grid.py'
@@ -323,6 +324,9 @@ if (-not $deployabilityChecklist) {
 $configTemplate = Join-Path $root 'MediaPipeline_config_template.psd1'
 
 Test-PowerShellParse $main
+foreach ($mediaPipelineSliceFile in $mediaPipelineSliceFiles) {
+    Test-PowerShellParse $mediaPipelineSliceFile
+}
 foreach ($moduleFile in $moduleFiles) {
     Test-PowerShellParse $moduleFile
 }
@@ -350,7 +354,9 @@ if ($python) {
     Write-Warning "python not found on PATH; skipped Python compile checks."
 }
 
-$mainText = Get-Content -LiteralPath $main -Raw
+$mainFileText = Get-Content -LiteralPath $main -Raw
+$mediaPipelineSliceTexts = @($mediaPipelineSliceFiles | ForEach-Object { Get-Content -LiteralPath $_ -Raw })
+$mainText = (@($mainFileText) + $mediaPipelineSliceTexts) -join [Environment]::NewLine
 $moduleTexts = @($moduleFiles | ForEach-Object { Get-Content -LiteralPath $_ -Raw })
 $engineTexts = @($engineFiles | ForEach-Object { Get-Content -LiteralPath $_ -Raw })
 $pipelineText = (@($mainText) + $moduleTexts + $engineTexts) -join [Environment]::NewLine
@@ -587,7 +593,12 @@ $pathHelpersText = Get-Content -LiteralPath (Join-Path $projectRoot 'engine\shar
 $diskText = Get-Content -LiteralPath (Join-Path $projectRoot 'engine\storage\disk.ps1') -Raw
 $mediaProbeText = Get-Content -LiteralPath (Join-Path $projectRoot 'engine\probe\media_probe.ps1') -Raw
 $folderPolicyText = Get-Content -LiteralPath (Join-Path $projectRoot 'engine\policy\folder_policy.ps1') -Raw
-$audioText = Get-Content -LiteralPath (Join-Path $projectRoot 'engine\audio\audio.ps1') -Raw
+$audioText = @(
+    Get-Content -LiteralPath (Join-Path $projectRoot 'engine\audio\audio.ps1') -Raw
+    Get-ChildItem -LiteralPath (Join-Path $projectRoot 'engine\audio\audio') -Filter '*.ps1' -File -Recurse -ErrorAction SilentlyContinue |
+        Sort-Object FullName |
+        ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw }
+) -join [Environment]::NewLine
 $nativeProcessContractsText = Get-Content -LiteralPath (Join-Path $projectRoot 'engine\shared\native_process_contracts.ps1') -Raw
 $nativeText = Get-Content -LiteralPath (Join-Path $projectRoot 'engine\shared\native.ps1') -Raw
 $ffmpegProgressText = Get-Content -LiteralPath (Join-Path $projectRoot 'engine\process\ffmpeg_progress.ps1') -Raw
@@ -2672,6 +2683,10 @@ $audioFunctions = (Get-FunctionText -Path $pipelineFiles -Names @(
     'Get-MediaPipelineAudioPassthroughProfileDefault',
     'Resolve-MediaPipelineAudioPassthroughProfile',
     'Get-MediaPipelineAudioPassthroughProfileCodecs',
+    'Get-AudioDecisionOutputChannelCount',
+    'Get-AudioDecisionPreferredDefaultIndex',
+    'New-AudioOmitAllDecisionRecord',
+    'Build-AudioStreamDecisionPlan',
     'Normalize-AudioLanguagePreferenceValue',
     'Get-NormalizedPreferredAudioLanguages',
     'Get-AudioCodecFidelityRank',
@@ -3238,6 +3253,17 @@ $subtitleCleanupFunctions = (Get-FunctionText -Path $pipelineFiles -Names @(
     'New-BdpgsFailureRecord',
     'Extract-BdpgsToSup',
     'Convert-BdpgsToSrt',
+    'Test-SubtitleBuilderPreferredDefaultCandidate',
+    'Test-SubtitleBuilderFallbackDefaultCandidate',
+    'New-SubtitleBuilderTrackDecisionRecord',
+    'Get-SubtitleBuilderFfmpegBaseDisposition',
+    'Set-SubtitleBuilderFfmpegDefaultDisposition',
+    'Get-SubtitleBuilderFfmpegConvertedDisposition',
+    'Set-SubtitleBuilderBoolDefaultDisposition',
+    'Add-SubtitleBuilderFallbackDefaultCandidate',
+    'Set-SubtitleBuilderFallbackDefault',
+    'New-SubtitleBuilderDefaultState',
+    'Get-SubtitleBuilderTrackDecisionRecords',
     'Get-MkvmergeTidMap',
     'Build-SubtitleTracksForMkvmerge',
     'Build-SubtitleArgsForFFmpeg'
@@ -3257,7 +3283,7 @@ try {
     `$script:ffprobePath = Join-Path `$root 'ffprobe.exe'
     `$script:ffmpegPath = Join-Path `$root 'ffmpeg.exe'
     `$script:pythonPath = Join-Path `$root 'python.exe'
-    `$script:assToSrtScript = Join-Path `$root 'ass_to_srt_chatgpt.py'
+    `$script:assToSrtScript = Join-Path `$root 'ass_to_srt.py'
     `$ffprobePath = `$script:ffprobePath
     `$ffmpegPath = `$script:ffmpegPath
     `$pythonPath = `$script:pythonPath

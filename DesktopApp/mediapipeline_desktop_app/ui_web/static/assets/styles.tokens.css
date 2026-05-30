@@ -121,7 +121,7 @@
 
 /* ===== LIGHT MODE - Stage 15 ================================================
    Triggered by body.light-mode class (set by initThemeToggle in app.js).
-   initThemeToggle honours localStorage first, then system prefers-color-scheme.
+   initThemeToggle honours localStorage first, then dark mode by default.
    Grey scale is inverted; status palette tokens are mid-range and kept constant
    - per-component overrides below flip light-only tokens to dark-on-light.    */
 body.light-mode {

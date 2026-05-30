@@ -75,30 +75,10 @@
             <button type="button" id="schedule-editor-load-current-button" class="secondary-button">Load Current</button>
             <button type="button" id="schedule-editor-clear-button" class="secondary-button">Clear Week</button>
             <button type="button" id="schedule-editor-allow-all-button" class="secondary-button">Allow All</button>
-            <label>
-              Copy from day
-              <select data-schedule-copy-source>
-                <option>Monday</option>
-                <option>Tuesday</option>
-                <option>Wednesday</option>
-                <option>Thursday</option>
-                <option>Friday</option>
-                <option>Saturday</option>
-                <option>Sunday</option>
-              </select>
-            </label>
-            <label class="check-row launch-check-row"><input type="checkbox" data-schedule-copy-target="Monday"> Monday</label>
-            <label class="check-row launch-check-row"><input type="checkbox" data-schedule-copy-target="Tuesday"> Tuesday</label>
-            <label class="check-row launch-check-row"><input type="checkbox" data-schedule-copy-target="Wednesday"> Wednesday</label>
-            <label class="check-row launch-check-row"><input type="checkbox" data-schedule-copy-target="Thursday"> Thursday</label>
-            <label class="check-row launch-check-row"><input type="checkbox" data-schedule-copy-target="Friday"> Friday</label>
-            <label class="check-row launch-check-row"><input type="checkbox" data-schedule-copy-target="Saturday"> Saturday</label>
-            <label class="check-row launch-check-row"><input type="checkbox" data-schedule-copy-target="Sunday"> Sunday</label>
-            <button type="button" data-schedule-copy-apply class="secondary-button">Copy Day</button>
             <button type="button" id="schedule-editor-preview-button" class="secondary-button">Preview Schedule</button>
             <button type="button" id="schedule-editor-save-button" class="primary-button">Save Schedule</button>
           </div>
-          <p class="note">Select 30-minute blocks per day, or copy one completed day to selected target days. Preview Schedule sends the generated windows to backend validation before Save Schedule can write app state. Split overnight windows across adjacent days.</p>
+          <p class="note">Select 30-minute blocks per day. Preview Schedule sends the generated windows to backend validation before Save Schedule can write app state. Split overnight windows across adjacent days.</p>
           <div class="table-wrap">
             <table>
               <thead>

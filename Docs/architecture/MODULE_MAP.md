@@ -87,7 +87,7 @@
 ┌────────────────────────────────────────────────────────────────────┐
 │ PIPELINE RUNTIME  (Pipeline/)                                      │
 │                                                                    │
-│  MediaPipeline_chatgpt.ps1  ── orchestrator (entry + main loop)    │
+│  MediaPipeline.ps1  ── orchestrator (entry + main loop)    │
 │      ── Loads config, dot-sources compatibility Modules/*.ps1,     │
 │         and runs pipeline rounds (queue build → process → publish).│
 │                                                                    │
@@ -217,7 +217,7 @@ Each persistent state file is read by both DesktopApp and PS1 in different ways.
 | `Progress/pipeline_progress.json` | PS1 (`engine/status/progress_state.ps1`) | `app/status/*.py` (GET `/api/status`, `/api/progress`) |
 | `Progress/pipeline_events.jsonl` | PS1 (`engine/queue/pipeline_engine.ps1`) | `app/status/events.py` (GET `/api/progress`) |
 | `Progress/queue_snapshot.json` | PS1 (`engine/queue/pipeline_engine.ps1`) | `app/queue/snapshot.py` (GET `/api/queue`) |
-| `Pipeline/pipeline_{pause,stop,rescan}.flag` | `app/processes/control_flags.py` (POST `/api/pipeline/control`) | PS1 main loop (`MediaPipeline_chatgpt.ps1`) |
+| `Pipeline/pipeline_{pause,stop,rescan}.flag` | `app/processes/control_flags.py` (POST `/api/pipeline/control`) | PS1 main loop (`MediaPipeline.ps1`) |
 | `ActiveJobs/*.json` | PS1 (`ProgressState.ps1`) | `app/processes/active_jobs.py` |
 | `Completed/completed_jobs.jsonl` | PS1 (`engine/publish/publish_completion.ps1`) and `Backfill-CompletedManifest.ps1` | `app/completed/manifest.py` |
 | `Failures/{Markers,Reports,Artifacts}/` | PS1 (`engine/failures/failure_state.ps1`, `engine/publish/publish_completion.ps1`) | `app/failures/markers.py`, `app/failures/facade.py` |
@@ -246,7 +246,7 @@ Parked output is media plus sidecars. The backend owns every decision about what
 
 `MediaPipelineConfig.psd1` is the single config file. Read by:
 
-1. **PS1 entry** (`MediaPipeline_chatgpt.ps1`) at startup — via PowerShell `Import-PowerShellDataFile`.
+1. **PS1 entry** (`MediaPipeline.ps1`) at startup — via PowerShell `Import-PowerShellDataFile`.
 2. **DesktopApp** at API-resolution time — via the config PSD1 reader in `app/config/` invoking a PS1 helper to read and emit JSON.
 
 Both sides ingest the same keys. **Config-key names are documented in `Docs/architecture/CONFIG_KEY_GLOSSARY.md`**. Python-side key names are guarded in `DesktopApp/mediapipeline_desktop_app/config_keys.py`; PowerShell-side key names are guarded in `engine/config/config_keys.ps1` with `Pipeline/Modules/ConfigKeys.ps1` kept as a compatibility shim. Drift tests are `DesktopApp/tests/test_config_keys.py` and `Pipeline/Tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1`.

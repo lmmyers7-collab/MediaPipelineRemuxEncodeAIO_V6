@@ -2,7 +2,7 @@
 # engine\shared\native.ps1
 # ==============================================================================
 # External-process and bounded-job helpers extracted from
-# MediaPipeline_chatgpt.ps1.
+# MediaPipeline.ps1.
 #
 # Dot-sourced from the main script. These functions read several pieces of
 # shared state at call time (resolved via dynamic scope), which is exactly

@@ -28,6 +28,14 @@
       "title": "Outsource",
       "type": "string"
     },
+    "LibraryProfiles": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Libraryprofiles",
+      "type": "array"
+    },
     "LocalBase": {
       "default": "C:\\MediaPipeline\\Scratch",
       "minLength": 1,
@@ -56,6 +64,17 @@
         "manual"
       ],
       "title": "Routingprofile",
+      "type": "string"
+    },
+    "RouteThresholdMode": {
+      "default": "compatibility_advisory",
+      "enum": [
+        "compatibility_advisory",
+        "size",
+        "bitrate",
+        "size_or_bitrate"
+      ],
+      "title": "Routethresholdmode",
       "type": "string"
     },
     "MovieRouteMaxVideoBitrateMbps": {
@@ -130,6 +149,38 @@
     "DeferredPublish": {
       "default": false,
       "title": "Deferredpublish",
+      "type": "boolean"
+    },
+    "FinalLibraryPromotionEnabled": {
+      "default": false,
+      "title": "Finallibrarypromotionenabled",
+      "type": "boolean"
+    },
+    "FinalLibraryPromotionRules": {
+      "items": {
+        "additionalProperties": true,
+        "type": "object"
+      },
+      "title": "Finallibrarypromotionrules",
+      "type": "array"
+    },
+    "FinalLibraryPromotionVerificationMode": {
+      "default": "cautious",
+      "enum": [
+        "fast",
+        "cautious"
+      ],
+      "title": "Finallibrarypromotionverificationmode",
+      "type": "string"
+    },
+    "FinalLibraryPromotionCleanupAfterVerified": {
+      "default": false,
+      "title": "Finallibrarypromotioncleanupafterverified",
+      "type": "boolean"
+    },
+    "FinalLibraryPromotionOverwriteExisting": {
+      "default": false,
+      "title": "Finallibrarypromotionoverwriteexisting",
       "type": "boolean"
     },
     "VideoCodec": {

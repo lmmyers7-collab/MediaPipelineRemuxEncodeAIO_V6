@@ -82,7 +82,8 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedSampleValidationComparisonLines",
               "completedPolicyAlignmentOutputEvidence",
               "completedPolicyOutputCategorySignal",
-              "pendingSampleValidationComparisonLines"
+              "pendingSampleValidationComparisonLines",
+              "copyCompletedEvidencePacket"
             ].forEach(requireFunction);
 
             window.apiPost = async (path, body) => {
@@ -96,6 +97,18 @@ def _browser_completed_pending_proof_runner_source() -> str:
             window.renderCompletedPendingProof(payload.completed, payload.completed.rows, payload.pending);
             window.renderCompletedRealMediaProof(payload.completed, payload.completed.rows, window.getLastCompletedPendingProofRows ? window.getLastCompletedPendingProofRows() : [], payload.pending);
             window.mediaPipelineCompletedView.renderCompletedFinalTrust(payload.completed, payload.completed.rows, window.getLastCompletedPendingProofRows ? window.getLastCompletedPendingProofRows() : [], payload.pending);
+            const currentCompletedRows = (payload.completed.rows || []).filter((row) => row.output_exists !== false);
+            requireText("completed-count", [String(currentCompletedRows.length)]);
+            requireText("completed-encode-count", [String(currentCompletedRows.filter((row) => String(row.route || "").startsWith("encode")).length)]);
+            requireText("completed-remux-count", [String(currentCompletedRows.filter((row) => String(row.route || "") === "remux").length)]);
+            requireText("completed-missing-count", [String((payload.completed.rows || []).filter((row) => row.output_exists === false).length)]);
+            if (!document.getElementById("completed-history-rows")) throw new Error("expected Completed History table");
+            if (!document.getElementById("completed-refresh-current-output-button")) throw new Error("expected Refresh Current Output Status button");
+            requireText("completed-reconciliation-hint", [
+              "Backend publish reconciliation: not loaded.",
+              "Advanced -> Refresh Backend Reconciliation",
+              "Boundary: this hint is read-only"
+            ]);
             requireText("completed-real-media-proof-summary", [
               "Real-media output proof ladder:",
               "Checkpoints loaded: 8",
@@ -211,6 +224,22 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "Post-run capture: Preview Record now includes a copyable",
               "Mutation guardrail: this comparison is read-only",
             ]);
+            if (!document.getElementById("completed-copy-evidence-button")) throw new Error("expected Copy Evidence Packet button");
+            let copiedEvidence = "";
+            Object.defineProperty(navigator, "clipboard", {
+              configurable: true,
+              value: { writeText: async (text) => { copiedEvidence = String(text || ""); } }
+            });
+            return window.mediaPipelineCompletedView.copyCompletedEvidencePacket().then((copied) => {
+              if (copied !== true) throw new Error("expected evidence packet copy to succeed");
+              if (!copiedEvidence.includes("# Selected Completed Pilot Evidence Packet")) throw new Error("copied evidence packet missing markdown title");
+              requireText("completed-copy-evidence-status", [
+                "Copied evidence packet.",
+                "did not append evidence",
+                "touch media"
+              ]);
+              return true;
+            }).then(() => {
 
             const firstCompletedOutput = String((payload.completed.rows[0] || {}).output_path || "");
             const normalizedFirstCompletedOutput = firstCompletedOutput.replace(/\\//g, "\\\\").replace(/\\\\+/g, "\\\\").toLowerCase();
@@ -241,6 +270,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
 
             return window.mediaPipelineCompletedView.requestPublishReconciliation().then(() => {
               requireText("publish-reconciliation-status", ["Review overlaps"]);
+              requireText("completed-reconciliation-hint", ["Backend publish reconciliation:", "Use Advanced"]);
               requireText("publish-reconciliation-summary", [
                 "Backend publish reconciliation:",
                 "Exact completed output -> pending destination: 1",
@@ -429,6 +459,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               pendingDetail: text("pending-detail"),
               postCount: posts.length
             };
+            });
             });
           })()
           `;

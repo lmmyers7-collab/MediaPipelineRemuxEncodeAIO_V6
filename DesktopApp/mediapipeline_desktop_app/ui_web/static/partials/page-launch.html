@@ -7,21 +7,21 @@
           <button type="button" class="settings-tab-btn" role="tab" aria-selected="false" data-launch-tab="history">History</button>
           <button type="button" class="settings-tab-btn" role="tab" aria-selected="false" data-launch-tab="readiness">Readiness</button>
         </div>
-        <section class="panel launch-tab-panel" data-launch-tab-panel="readiness" data-panel-type="evidence">
+        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="readiness" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Readiness</h2>
             <strong id="launch-readiness-status">Not loaded</strong>
           </div>
           <pre id="launch-readiness" class="prose-block">No launch readiness loaded.</pre>
         </section>
-        <section class="panel launch-tab-panel" data-launch-tab-panel="readiness" data-panel-type="evidence">
+        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="readiness" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Schedule Alignment</h2>
             <strong id="launch-timing-status">Not loaded</strong>
           </div>
           <pre id="launch-timing" class="prose-block">No launch timing trust loaded.</pre>
         </section>
-        <section class="panel launch-tab-panel" data-launch-tab-panel="readiness" data-panel-type="interactive" id="launch-evidence-section">
+        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="readiness" data-panel-type="interactive" id="launch-evidence-section">
           <div class="panel-heading">
             <h2>Settings Check</h2>
             <div class="inline-actions">
@@ -258,7 +258,7 @@
           <pre id="launch-backend-preflight-detail" class="prose-block">Select a backend preflight check for details.</pre>
           </div><!-- end #launch-evidence-body -->
         </section>
-        <section class="panel launch-tab-panel" data-launch-tab-panel="pipeline" data-panel-type="interactive">
+        <section class="panel settings-tab-pane is-active launch-tab-panel" data-launch-tab-panel="pipeline" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Start Pipeline</h2>
             <strong id="pipeline-launch-status">Idle</strong>
@@ -341,7 +341,7 @@
           <pre id="status-summary" class="prose-block" style="display:none">No status loaded.</pre>
           <pre id="control-readiness" class="prose-block" style="display:none">No pipeline control readiness loaded.</pre>
         </section>
-        <section class="panel launch-tab-panel" data-launch-tab-panel="audit" data-panel-type="interactive">
+        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="audit" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Audit Mode Start</h2>
             <strong id="audit-launch-status">Idle</strong>
@@ -368,7 +368,7 @@
           </div>
           <pre id="audit-launch-detail" class="prose-block">No audit launch result.</pre>
         </section>
-        <section class="panel launch-tab-panel" data-launch-tab-panel="rerun" data-panel-type="interactive">
+        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="rerun" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Rerun from CSV</h2>
             <strong id="rerun-launch-status">Idle</strong>
@@ -398,7 +398,7 @@
           </div>
           <pre id="rerun-launch-detail" class="prose-block">No CSV rerun launch result.</pre>
         </section>
-        <section class="panel launch-tab-panel" data-launch-tab-panel="history" data-panel-type="evidence">
+        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="history" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Command History</h2>
             <strong id="launch-history-status">No launches</strong>

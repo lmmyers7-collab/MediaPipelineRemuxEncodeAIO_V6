@@ -204,9 +204,9 @@ $manifest = [ordered]@{
     schema_version = 'mediapipeline_release_manifest.v1'
     summary = $summary
     config_policy = if ($KeepPersonalConfig) {
-        'Pipeline\MediaPipeline_config_chatgpt.psd1 was copied as-is.'
+        'Pipeline\MediaPipeline_config.psd1 (and legacy Pipeline\MediaPipeline_config_chatgpt.psd1) were copied as-is.'
     } else {
-        'Pipeline\MediaPipeline_config_chatgpt.psd1 was excluded. New users should run setup; Pipeline\MediaPipeline_config_template.psd1 is included for reference.'
+        'Pipeline\MediaPipeline_config.psd1 and legacy Pipeline\MediaPipeline_config_chatgpt.psd1 were excluded. New users should run setup; Pipeline\MediaPipeline_config_template.psd1 is included for reference.'
     }
     tool_policy = if ($IncludeOptionalTools) {
         'Optional bundled tool binaries and GUI assets were included.'

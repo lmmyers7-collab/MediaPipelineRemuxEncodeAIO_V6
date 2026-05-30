@@ -12241,7 +12241,7 @@ Low. This only broadens the diagnostics-open allowlist to backend-derived paths 
 
 ### Root Problem
 
-The release self-test could hang indefinitely while it launched nested PowerShell validation scripts. The concrete hang was in `Verify-MediaPipelineRemuxEncodeAIO-Environment.ps1`, which called `Setup-MediaPipeline_chatgpt.ps1 -ValidateOnly`; that setup validator then blocked on UNC path availability checks when the configured media shares were slow or unreachable.
+The release self-test could hang indefinitely while it launched nested PowerShell validation scripts. The concrete hang was in `Verify-MediaPipelineRemuxEncodeAIO-Environment.ps1`, which called `Setup-MediaPipeline.ps1 -ValidateOnly`; that setup validator then blocked on UNC path availability checks when the configured media shares were slow or unreachable.
 
 The release self-test also still expected old local API route-contract leaf modules that had already been intentionally consolidated into `contract_read.py` and `contract_command.py`.
 
@@ -12249,7 +12249,7 @@ The release self-test also still expected old local API route-contract leaf modu
 
 - `Test-MediaPipelineRemuxEncodeAIO-Release.ps1`
 - `Verify-MediaPipelineRemuxEncodeAIO-Environment.ps1`
-- `Pipeline\Setup-MediaPipeline_chatgpt.ps1`
+- `Pipeline\Setup-MediaPipeline.ps1`
 - `DesktopApp\tests\test_tauri_shell_scaffold.py`
 - `Docs\REMEDIATION_CHANGELOG.md`
 - `Docs\V5_TAURI_TRANSITION_CURRENT_PLAN.md`
@@ -12267,7 +12267,7 @@ The release self-test also still expected old local API route-contract leaf modu
 - PowerShell parser checks passed for:
   - `Test-MediaPipelineRemuxEncodeAIO-Release.ps1`
   - `Verify-MediaPipelineRemuxEncodeAIO-Environment.ps1`
-  - `Pipeline\Setup-MediaPipeline_chatgpt.ps1`
+  - `Pipeline\Setup-MediaPipeline.ps1`
 - Focused Tauri scaffold/release-gate tests: passed.
 - Full desktop unittest discovery suite: 715 tests passed.
 - Direct setup validation now completes and reports the actual environment issue: `SourceMovies`, `SourceTV`, and `Outsource` UNC paths timed out after 12 seconds.
@@ -17127,7 +17127,7 @@ The bundled tool-integration check intermittently failed while converting a tiny
 
 ### Files Changed
 
-- `Pipeline\ass_to_srt_chatgpt.py`
+- `Pipeline\ass_to_srt.py`
 - `Test-MediaPipelineRemuxEncodeAIO-Release.ps1`
 - `Docs\REMEDIATION_CHANGELOG.md`
 
@@ -17140,7 +17140,7 @@ The bundled tool-integration check intermittently failed while converting a tiny
 
 ### Validation
 
-- Python syntax check for `Pipeline\ass_to_srt_chatgpt.py`: passed.
+- Python syntax check for `Pipeline\ass_to_srt.py`: passed.
 - Bundled tool-integration check repeated 5 times: passed.
 - Full desktop unittest discovery suite: 198 tests passed.
 - Release self-test: passed.
@@ -19375,7 +19375,7 @@ Medium-high. The behavior is intended to be unchanged, but the touched path deci
 
 - `Pipeline\Modules\PendingTransactions.ps1`
 - `Pipeline\Modules\PendingPush.ps1`
-- `Pipeline\MediaPipeline_chatgpt.ps1`
+- `Pipeline\MediaPipeline.ps1`
 - `Pipeline\Tests\Invoke-ReliabilityRegressionChecks.ps1`
 
 ### Implementation
@@ -19499,9 +19499,9 @@ Several audit findings were related rather than isolated: the app displayed a pr
 - `DesktopApp\mediapipeline_desktop_app\service_config.py`
 - `DesktopApp\mediapipeline_desktop_app\service_pending_publish.py`
 - `DesktopApp\tests\test_pending_publish_service.py`
-- `Pipeline\Audit-MediaLibrary_chatgpt.ps1`
+- `Pipeline\Audit-MediaLibrary.ps1`
 - `Pipeline\Invoke-RerunCsv.ps1`
-- `Pipeline\MediaPipeline_chatgpt.ps1`
+- `Pipeline\MediaPipeline.ps1`
 - `Pipeline\Modules\FfmpegProgress.ps1`
 - `Pipeline\Modules\Logging.ps1`
 - `Pipeline\Modules\Native.ps1`
@@ -19558,7 +19558,7 @@ The audit identified two related maintainability risks that could not be fixed s
 - `DesktopApp\mediapipeline_desktop_app\contracts\pending_publish.py`
 - `DesktopApp\mediapipeline_desktop_app\contracts\pipeline_events.py`
 - `DesktopApp\tests\test_contracts.py`
-- `Pipeline\MediaPipeline_chatgpt.ps1`
+- `Pipeline\MediaPipeline.ps1`
 - `Pipeline\Modules\Native.ps1`
 - `Pipeline\Modules\NativeProcessContracts.ps1`
 - `Pipeline\Modules\PendingManifestStore.ps1`
@@ -30382,14 +30382,14 @@ The first Wave B registry chunk added Python config constants, but the PowerShel
 - Added `Pipeline\Modules\ConfigKeys.ps1` with the PowerShell-side config-key registry, network-key subset, ordered non-network key list, lookup helper, and fail-closed known-key predicate.
 - Added `Pipeline\Tests\Unit\Invoke-ConfigKeyRegistryChecks.ps1`.
 - The new guard verifies registry/order alignment with `ConfigSchema.ps1`, known-key coverage for template and live PSD1 files, fail-closed helper behavior, literal PowerShell `$config[...]`, `$config.ContainsKey(...)`, and `Get-Config*` references, and entrypoint inclusion of `ConfigKeys.ps1`.
-- Added `ConfigKeys.ps1` to the explicit module load list in `Pipeline\MediaPipeline_chatgpt.ps1`.
+- Added `ConfigKeys.ps1` to the explicit module load list in `Pipeline\MediaPipeline.ps1`.
 - Updated the config glossary, module map, open-work status, active checklist, test coverage matrix, test subsystem inventory, validation ladder, and code-management plan.
 - No route, WebView, command, media policy, source/scratch/output, pending publish, package, or Tauri behavior changed.
 
 ### Validation
 
 - `.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-ConfigKeyRegistryChecks.ps1`
-- `.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -Command "<parser check for Pipeline\MediaPipeline_chatgpt.ps1, Pipeline\Modules\ConfigKeys.ps1, and Pipeline\Tests\Unit\Invoke-ConfigKeyRegistryChecks.ps1>"`
+- `.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -Command "<parser check for Pipeline\MediaPipeline.ps1, Pipeline\Modules\ConfigKeys.ps1, and Pipeline\Tests\Unit\Invoke-ConfigKeyRegistryChecks.ps1>"`
 - `.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-FailureCodeRegistryChecks.ps1`
 - `.\DesktopApp\Runtime\Python\python.exe -m unittest DesktopApp.tests.test_config_keys -q`
 - PowerShell module load smoke: parsed the entrypoint module list and dot-sourced 42 modules successfully.
@@ -30795,7 +30795,7 @@ Low. This is comments plus static test coverage around existing frontend advisor
 
 ### What Changed
 
-- Removed the local operator UNC default from `Pipeline\Audit-MediaLibrary_chatgpt.ps1`; `-LibraryRoot` now defaults to blank.
+- Removed the local operator UNC default from `Pipeline\Audit-MediaLibrary.ps1`; `-LibraryRoot` now defaults to blank.
 - Added config-derived audit-root selection: when `-LibraryRoot` is omitted, the audit script uses the shared parent of `SourceMovies` and `SourceTV` from the configured PSD1, or fails clearly if no safe shared root can be derived.
 - Removed the local operator UNC seed from `Pipeline\MediaPipelineRemuxEncodeAIO_LegacyGUI.ps1`; the legacy GUI starts the Audit Root field blank and fills it from loaded config source-root state when possible.
 - Added `Pipeline\Tests\Unit\Invoke-PortablePathChecks.ps1` to parse both PowerShell scripts and fail if those local audit defaults return.
@@ -30805,9 +30805,9 @@ Low. This is comments plus static test coverage around existing frontend advisor
 ### Validation
 
 - `.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-PortablePathChecks.ps1` - passed.
-- Audit default-root smoke passed against a temp config with `SourceMovies` and `SourceTV` under a shared temp `Library` parent; `Audit-MediaLibrary_chatgpt.ps1` derived the shared parent, enumerated zero media, and wrote reports under temp `LocalBase\AuditReports`.
+- Audit default-root smoke passed against a temp config with `SourceMovies` and `SourceTV` under a shared temp `Library` parent; `Audit-MediaLibrary.ps1` derived the shared parent, enumerated zero media, and wrote reports under temp `LocalBase\AuditReports`.
 - `python -m unittest DesktopApp.tests.test_webview_inventory_docs DesktopApp.tests.test_controllers_completed -q` - 9 tests passed.
-- Hardcoded local-default scan over `Audit-MediaLibrary_chatgpt.ps1` and `MediaPipelineRemuxEncodeAIO_LegacyGUI.ps1` returned no `\\LAYNE-SERVER\Video` default assignment matches.
+- Hardcoded local-default scan over `Audit-MediaLibrary.ps1` and `MediaPipelineRemuxEncodeAIO_LegacyGUI.ps1` returned no `\\LAYNE-SERVER\Video` default assignment matches.
 - Chunk-close Local API restart proof passed: previous verification API PID 32592 at `http://127.0.0.1:1552` stopped; existing no-token API PID 30888 was left running; new PID 22664 serves `http://127.0.0.1:6212` with token `codex-portable-audit-root-defaults-20260519-verify`, health status ok, close-readiness `safe_to_close=true`, contract schema `desktop_local_api_contract.v1`, 50 routes, root HTML with bootstrap plus `app.js` and no `mp-include`, and selected App/API/Reports/Maintenance assets HTTP 200 as JavaScript. No mutation route was submitted during verification.
 
 ### Risk
@@ -33911,20 +33911,20 @@ No DOM IDs, Local API routes, settings command routes, backend settings validati
 
 ## 2026-05-18 - God-File Split Wave 2: PowerShell Show Overrides Extraction
 
-Extracted per-show override resolution from `Pipeline\MediaPipeline_chatgpt.ps1` into `Pipeline\Modules\ShowOverrides.ps1`.
+Extracted per-show override resolution from `Pipeline\MediaPipeline.ps1` into `Pipeline\Modules\ShowOverrides.ps1`.
 
 ### Changes
 
 - Added `Pipeline\Modules\ShowOverrides.ps1` for `Resolve-ShowOverrides`.
 - Added `ShowOverrides.ps1` to the main pipeline module registry after `MediaConstants.ps1`, preserving the FLAC codec helper dependency used by `FlacAsCompatible`.
-- Kept `$script:ShowOverrides` initialization and `$script:ActiveOverrides` ownership in `MediaPipeline_chatgpt.ps1` because those are runtime config state, not helper implementation.
-- Removed the moved helper body from `MediaPipeline_chatgpt.ps1`, reducing the main script to 2,206 lines and leaving only `Invoke-Tx3gSidecarExportForExistingOutput`, `Do-Remux`, `Do-Encode`, and `Process-File` as main-script functions.
+- Kept `$script:ShowOverrides` initialization and `$script:ActiveOverrides` ownership in `MediaPipeline.ps1` because those are runtime config state, not helper implementation.
+- Removed the moved helper body from `MediaPipeline.ps1`, reducing the main script to 2,206 lines and leaving only `Invoke-Tx3gSidecarExportForExistingOutput`, `Do-Remux`, `Do-Encode`, and `Process-File` as main-script functions.
 - Updated `Docs\proposals\GOD_FILE_SPLIT_PLAN.md` and `Docs\DOC_TOUCH_LOG.md`.
 
 ### Validation
 
-- PowerShell parser checks for `Pipeline\MediaPipeline_chatgpt.ps1` and `Pipeline\Modules\ShowOverrides.ps1` - passed.
-- Extraction definition check confirmed `Resolve-ShowOverrides` now lives in `ShowOverrides.ps1`, no stale function definition remains in `MediaPipeline_chatgpt.ps1`, and the module is registered.
+- PowerShell parser checks for `Pipeline\MediaPipeline.ps1` and `Pipeline\Modules\ShowOverrides.ps1` - passed.
+- Extraction definition check confirmed `Resolve-ShowOverrides` now lives in `ShowOverrides.ps1`, no stale function definition remains in `MediaPipeline.ps1`, and the module is registered.
 - Focused show-override resolver smoke - passed, covering default fallback values, FLAC compatibility detection, longest-pattern matching, ignored non-hashtable override payloads, `ShowName` override application, include-style override application, and debug log emission.
 
 ### Boundary
@@ -33933,20 +33933,20 @@ No media routing policy, queue inclusion policy, audio/subtitle policy values, c
 
 ## 2026-05-18 - God-File Split Wave 2: PowerShell Scratch Copy Extraction
 
-Extracted scratch-copy planning, reuse, fingerprint, and cleanup helpers from `Pipeline\MediaPipeline_chatgpt.ps1` into `Pipeline\Modules\ScratchCopy.ps1`.
+Extracted scratch-copy planning, reuse, fingerprint, and cleanup helpers from `Pipeline\MediaPipeline.ps1` into `Pipeline\Modules\ScratchCopy.ps1`.
 
 ### Changes
 
 - Added `Pipeline\Modules\ScratchCopy.ps1` for `Get-SourceFingerprint`, `Get-FingerprintPath`, `Get-ScratchInputPath`, `Remove-EmptyScratchContainer`, `Write-ScratchFingerprint`, `Test-ScratchFingerprintMatches`, `Remove-ScratchFingerprint`, and `Ensure-ScratchCopy`.
 - Added `ScratchCopy.ps1` to the main pipeline module registry after `SourceIdentity.ps1` and before `FailureState.ps1`, preserving access to source identity helpers before scratch path selection and failure registration helpers after copy/integrity checks.
-- Removed the moved helper bodies from `MediaPipeline_chatgpt.ps1`, reducing the main script to 2,250 lines.
+- Removed the moved helper bodies from `MediaPipeline.ps1`, reducing the main script to 2,250 lines.
 - Fixed `Test-ScratchFingerprintMatches` timestamp normalization so PowerShell JSON `DateTime` materialization is compared in round-trip UTC format instead of culture-formatted text. This preserves the existing `.srcinfo` sidecar schema while allowing valid scratch reuse.
 - Updated `Docs\proposals\GOD_FILE_SPLIT_PLAN.md` and `Docs\DOC_TOUCH_LOG.md`.
 
 ### Validation
 
-- PowerShell parser checks for `Pipeline\MediaPipeline_chatgpt.ps1` and `Pipeline\Modules\ScratchCopy.ps1` - passed.
-- Extraction definition check confirmed all eight scratch helpers now live in `ScratchCopy.ps1` and no stale function definitions remain in `MediaPipeline_chatgpt.ps1`.
+- PowerShell parser checks for `Pipeline\MediaPipeline.ps1` and `Pipeline\Modules\ScratchCopy.ps1` - passed.
+- Extraction definition check confirmed all eight scratch helpers now live in `ScratchCopy.ps1` and no stale function definitions remain in `MediaPipeline.ps1`.
 - Focused scratch safety smoke - passed, covering initial source-to-scratch copy, fingerprint-based scratch reuse without recopy, same-safe-name different-source recopy, fingerprint update, and source A/B hash preservation.
 
 ### Boundary
@@ -33955,19 +33955,19 @@ No queue inclusion policy, routing/audit classification, media selection policy,
 
 ## 2026-05-18 - God-File Split Wave 2: PowerShell Temp Cleanup Extraction
 
-Extracted startup temp cleanup from `Pipeline\MediaPipeline_chatgpt.ps1` into `Pipeline\Modules\TempCleanup.ps1`.
+Extracted startup temp cleanup from `Pipeline\MediaPipeline.ps1` into `Pipeline\Modules\TempCleanup.ps1`.
 
 ### Changes
 
 - Added `Pipeline\Modules\TempCleanup.ps1` for `Clear-OldTempFiles`.
 - Added `TempCleanup.ps1` to the main pipeline module registry before startup cleanup runs.
 - Kept the existing call timing intact: cleanup still runs after state layout initialization, startup directory creation, log rotation, and startup warnings.
-- Removed the moved helper body from `MediaPipeline_chatgpt.ps1`, reducing the main script to 2,411 lines.
+- Removed the moved helper body from `MediaPipeline.ps1`, reducing the main script to 2,411 lines.
 - Updated `Docs\proposals\GOD_FILE_SPLIT_PLAN.md` and `Docs\DOC_TOUCH_LOG.md`.
 
 ### Validation
 
-- PowerShell parser checks for `Pipeline\MediaPipeline_chatgpt.ps1` and `Pipeline\Modules\TempCleanup.ps1` - passed.
+- PowerShell parser checks for `Pipeline\MediaPipeline.ps1` and `Pipeline\Modules\TempCleanup.ps1` - passed.
 - Focused temp cleanup smoke - passed in a temp-only sandbox, covering stale matching temp-file removal, fresh matching temp-file preservation, stale non-matching file preservation, stale `src_*` directory removal, and fresh `src_*` directory preservation.
 
 ### Boundary
@@ -33976,18 +33976,18 @@ No cleanup pattern, call timing, media orchestration, route behavior, WebView be
 
 ## 2026-05-18 - God-File Split Wave 2: PowerShell Output Path Planning Extraction
 
-Extracted output destination planning and path capability checks from `Pipeline\MediaPipeline_chatgpt.ps1` into `Pipeline\Modules\OutputPathPlanning.ps1`.
+Extracted output destination planning and path capability checks from `Pipeline\MediaPipeline.ps1` into `Pipeline\Modules\OutputPathPlanning.ps1`.
 
 ### Changes
 
 - Added `Pipeline\Modules\OutputPathPlanning.ps1` for `Get-OutputPaths`, `Test-PathComponentSupport`, and `Test-OutputPathCapability`.
 - Added `OutputPathPlanning.ps1` to the main pipeline module registry after `Naming.ps1`, preserving access to Plex destination plan helpers before remux, encode, library-index, and processing-preflight calls.
-- Removed the moved function bodies from `MediaPipeline_chatgpt.ps1`, reducing the main script to 2,423 lines.
+- Removed the moved function bodies from `MediaPipeline.ps1`, reducing the main script to 2,423 lines.
 - Updated `Docs\proposals\GOD_FILE_SPLIT_PLAN.md` and `Docs\DOC_TOUCH_LOG.md`.
 
 ### Validation
 
-- PowerShell parser checks for `Pipeline\MediaPipeline_chatgpt.ps1` and `Pipeline\Modules\OutputPathPlanning.ps1` - passed.
+- PowerShell parser checks for `Pipeline\MediaPipeline.ps1` and `Pipeline\Modules\OutputPathPlanning.ps1` - passed.
 - Focused output path planning smoke - passed, covering movie output planning, TV output planning, normal output path capability, and long-component rejection.
 
 ### Boundary
@@ -33996,7 +33996,7 @@ No output naming policy, media orchestration, route behavior, WebView behavior, 
 
 ## 2026-05-18 - God-File Split Wave 2: PowerShell Executable Resolution Extraction
 
-Extracted portable runtime tool discovery from `Pipeline\MediaPipeline_chatgpt.ps1` into `Pipeline\Modules\ExecutableResolution.ps1`.
+Extracted portable runtime tool discovery from `Pipeline\MediaPipeline.ps1` into `Pipeline\Modules\ExecutableResolution.ps1`.
 
 ### Changes
 
@@ -34004,12 +34004,12 @@ Extracted portable runtime tool discovery from `Pipeline\MediaPipeline_chatgpt.p
 - Added `ExecutableResolution.ps1` to the main pipeline module registry before dependency validation.
 - Kept the existing call order intact: `Resolve-BundledExecutable` still runs after `$scriptDir` and `$script:AllowSystemTools` are initialized, preserving bundled-first and explicit-system-fallback behavior.
 - Updated `Pipeline\Tests\Invoke-ReliabilityRegressionChecks.ps1` so the portability/static boundary assertions accept the helper in the module while still requiring the fail-fast messages in the main startup flow.
-- Reduced `Pipeline\MediaPipeline_chatgpt.ps1` to 2,529 lines.
+- Reduced `Pipeline\MediaPipeline.ps1` to 2,529 lines.
 - Updated `Docs\proposals\GOD_FILE_SPLIT_PLAN.md` and `Docs\DOC_TOUCH_LOG.md`.
 
 ### Validation
 
-- PowerShell parser checks for `Pipeline\MediaPipeline_chatgpt.ps1`, `Pipeline\Modules\ExecutableResolution.ps1`, and `Pipeline\Tests\Invoke-ReliabilityRegressionChecks.ps1` - passed.
+- PowerShell parser checks for `Pipeline\MediaPipeline.ps1`, `Pipeline\Modules\ExecutableResolution.ps1`, and `Pipeline\Tests\Invoke-ReliabilityRegressionChecks.ps1` - passed.
 - Focused `Resolve-BundledExecutable` smoke - passed, including bundled-candidate preference and no system fallback when `AllowSystemTools=false`.
 - `pwsh -NoProfile -ExecutionPolicy Bypass -File Pipeline\Tests\Invoke-ReliabilityRegressionChecks.ps1` - attempted; it failed before completion in an unrelated generated behavior check because `Get-FileOverrideAudioSettings` was not loaded in that temp harness.
 
@@ -34206,18 +34206,18 @@ No API routes, WebView assets, DOM IDs, global exports, backend media policy, la
 
 ## 2026-05-18 - God-File Split Wave 1: ConfigGetters Extraction
 
-Extracted the first low-risk Wave 1 PowerShell helper chunk from `Pipeline\MediaPipeline_chatgpt.ps1` into `Pipeline\Modules\ConfigGetters.ps1`.
+Extracted the first low-risk Wave 1 PowerShell helper chunk from `Pipeline\MediaPipeline.ps1` into `Pipeline\Modules\ConfigGetters.ps1`.
 
 ### Changes
 
 - Added `Pipeline\Modules\ConfigGetters.ps1` with `Get-ConfigBool`, `Get-ConfigInt`, `Get-ConfigDouble`, `Get-ConfigLogLevel`, and `Get-ConfigChoice`.
 - Updated the main pipeline module registry so `ConfigGetters.ps1` dot-sources immediately after `Logging.ps1`; the helpers still resolve `$config` and `Add-StartupWarning` from script scope at call time.
-- Removed the inline helper definitions from `MediaPipeline_chatgpt.ps1`, reducing the main orchestration file from 2,629 to 2,559 lines.
+- Removed the inline helper definitions from `MediaPipeline.ps1`, reducing the main orchestration file from 2,629 to 2,559 lines.
 - Updated `Docs\proposals\GOD_FILE_SPLIT_PLAN.md` and `Docs\DOC_TOUCH_LOG.md`.
 
 ### Validation
 
-- `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -Command <parser check for Pipeline\MediaPipeline_chatgpt.ps1 and Pipeline\Modules\ConfigGetters.ps1>` - passed.
+- `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -Command <parser check for Pipeline\MediaPipeline.ps1 and Pipeline\Modules\ConfigGetters.ps1>` - passed.
 - `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -Command <dot-source Logging.ps1 + ConfigGetters.ps1 helper smoke>` - passed.
 
 ### Boundary
@@ -34569,7 +34569,7 @@ The archived stale-version audit still listed the V5 product-version bump as ope
 
 ### Changes
 
-- Updated `Pipeline/Audit-MediaLibrary_chatgpt.ps1` default product version to `v5.000`; it still imports the central `Versioning.ps1` value before runtime use.
+- Updated `Pipeline/Audit-MediaLibrary.ps1` default product version to `v5.000`; it still imports the central `Versioning.ps1` value before runtime use.
 - Updated `DesktopApp/tests/test_contracts.py` product-version fixtures/assertions to `v5.000`.
 - Updated `Docs/archive/historical-reviews/V3_RELIABILITY_NOTES.md` to describe the V5 reliability baseline inherited from V4 hardening.
 - Marked `STALE_VERSION_LABEL_AUDIT.md` and its 2026-05-14 addendum resolved, and removed the version-bump item from active next-task lists.
@@ -34577,7 +34577,7 @@ The archived stale-version audit still listed the V5 product-version bump as ope
 ### Validation
 
 - `DesktopApp\Runtime\Python\python.exe -m unittest DesktopApp.tests.test_contracts -q` - 19 tests OK.
-- PowerShell parser check for `Pipeline\Audit-MediaLibrary_chatgpt.ps1` - passed.
+- PowerShell parser check for `Pipeline\Audit-MediaLibrary.ps1` - passed.
 - Central version probe through bundled PowerShell returned `v5.000`.
 - Docs/code stale-label scan confirmed the touched runtime/test/docs targets no longer carry stale `v4.000` or V4 reliability labels.
 - Rung 0 release self-test passed with tool integration and end-to-end smoke intentionally skipped; layout, parser, Python unit, environment verifier, Tauri prereq, and reliability gates passed.

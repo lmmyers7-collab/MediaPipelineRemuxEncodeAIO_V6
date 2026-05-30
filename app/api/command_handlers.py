@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .commands_failures import LocalApiFailureCommandPayloadMixin
+from .commands_final_library import LocalApiFinalLibraryPromotionCommandPayloadMixin
 from .commands_file_overrides import LocalApiFileOverridesCommandPayloadMixin
 from .commands_files import LocalApiFileCommandPayloadMixin
 from .commands_maintenance import LocalApiMaintenanceCommandPayloadMixin
@@ -11,10 +12,12 @@ from .commands_rename import LocalApiRenameCommandPayloadMixin
 from .commands_schedule import LocalApiScheduleCommandPayloadMixin
 from .commands_sample_validation import LocalApiSampleValidationCommandPayloadMixin
 from .commands_settings import LocalApiSettingsCommandPayloadMixin
+from .commands_ui_preferences import LocalApiUiPreferencesPayloadMixin
 
 
 class LocalApiCommandHandlerMixin(
     LocalApiFailureCommandPayloadMixin,
+    LocalApiFinalLibraryPromotionCommandPayloadMixin,
     LocalApiFileOverridesCommandPayloadMixin,
     LocalApiFileCommandPayloadMixin,
     LocalApiMaintenanceCommandPayloadMixin,
@@ -24,6 +27,7 @@ class LocalApiCommandHandlerMixin(
     LocalApiScheduleCommandPayloadMixin,
     LocalApiSampleValidationCommandPayloadMixin,
     LocalApiSettingsCommandPayloadMixin,
+    LocalApiUiPreferencesPayloadMixin,
     LocalApiProcessCommandPayloadMixin,
 ):
     """Aggregate POST command handlers for the local API server."""

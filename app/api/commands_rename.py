@@ -28,7 +28,11 @@ class LocalApiRenameCommandPayloadMixin:
 
     def _rename_browse_payload(self, request: dict[str, Any]) -> dict[str, Any]:
         picker = getattr(self, "_rename_path_picker", None)
-        selection_mode = "folder" if str(request.get("selection_mode") or "").strip().lower() == "folder" else "files"
+        raw_mode = str(request.get("selection_mode") or "").strip().lower()
+        if raw_mode in ("folder", "folder_files"):
+            selection_mode = raw_mode
+        else:
+            selection_mode = "files"
         initial_path = str(request.get("initial_path") or "")
         if callable(picker):
             result = picker(selection_mode=selection_mode, initial_path=initial_path)
@@ -41,7 +45,12 @@ class LocalApiRenameCommandPayloadMixin:
             message = "Windows file browser canceled."
             severity = "info"
         elif ok:
-            label = "folder" if selection_mode == "folder" else "file"
+            if selection_mode == "folder":
+                label = "folder"
+            elif selection_mode == "folder_files":
+                label = "file from selected folder"
+            else:
+                label = "file"
             message = f"Windows file browser selected {len(paths)} {label}{'' if len(paths) == 1 else 's'}."
             severity = "info"
         else:

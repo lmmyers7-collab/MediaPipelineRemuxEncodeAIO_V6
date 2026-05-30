@@ -24,7 +24,7 @@
           <button type="button" class="settings-tab-btn" role="tab" data-reports-tab="audit" aria-selected="false">Audit</button>
           <button type="button" class="settings-tab-btn" role="tab" data-reports-tab="files" aria-selected="false">Files</button>
         </div>
-        <section class="panel reports-tab-panel" data-reports-tab-panel="overview" data-panel-type="evidence">
+        <section class="panel settings-tab-pane is-active reports-tab-panel" data-reports-tab-panel="overview" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Audit Progress</h2>
             <strong id="report-progress-status">Not loaded</strong>
@@ -34,21 +34,21 @@
           </div>
           <pre id="report-progress-summary" class="prose-block">No audit report progress loaded.</pre>
         </section>
-        <section class="panel reports-tab-panel" data-reports-tab-panel="overview" data-advanced data-panel-type="interactive">
+        <section class="panel settings-tab-pane is-active reports-tab-panel" data-reports-tab-panel="overview" data-advanced data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Report Summary</h2>
             <strong id="report-triage-status">Not loaded</strong>
           </div>
           <pre id="report-triage" class="prose-block">No report triage loaded.</pre>
         </section>
-        <section class="panel reports-tab-panel" data-reports-tab-panel="overview" data-advanced data-panel-type="evidence">
+        <section class="panel settings-tab-pane is-active reports-tab-panel" data-reports-tab-panel="overview" data-advanced data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Investigation Steps</h2>
             <strong id="report-investigation-status">Not loaded</strong>
           </div>
           <pre id="report-investigation-checklist" class="prose-block">No report investigation checklist loaded.</pre>
         </section>
-        <section class="panel reports-tab-panel" data-reports-tab-panel="overview" data-advanced data-panel-type="interactive">
+        <section class="panel settings-tab-pane is-active reports-tab-panel" data-reports-tab-panel="overview" data-advanced data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Pre-Launch Context</h2>
             <strong id="report-launch-handoff-status">Not loaded</strong>
@@ -62,7 +62,7 @@
           <p id="report-launch-handoff-action-status" class="note">Navigation only. Reports does not fill CSV paths or start commands.</p>
         </section>
 
-<section class="panel reports-tab-panel" data-reports-tab-panel="failures" data-panel-type="interactive">
+<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="failures" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Failures</h2>
             <strong id="failure-status">No rows</strong>
@@ -123,14 +123,14 @@
           <pre id="failure-clear-summary" class="prose-block">Switch on Use failure markers, select a row, then preview the marker clear before confirming. This moves marker JSON out of the active marker folder only; it does not touch media or failure reports.</pre>
         </section>
 
-<section class="panel reports-tab-panel" data-reports-tab-panel="overview" data-panel-type="evidence">
+<section class="panel settings-tab-pane is-active reports-tab-panel" data-reports-tab-panel="overview" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Warnings</h2>
           </div>
           <pre id="report-warnings" class="prose-block">No snapshot warnings.</pre>
         </section>
 
-<section class="panel reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="interactive">
+<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Audit Log</h2>
             <strong id="audit-preview-status">No rows</strong>
@@ -174,7 +174,7 @@
           <div id="audit-preview-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
         </section>
 
-<section class="panel reports-tab-panel" data-reports-tab-panel="files" data-panel-type="evidence">
+<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="files" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Report Paths</h2>
             <strong id="report-path-status">No paths</strong>
@@ -199,7 +199,7 @@
           </div>
         </section>
 
-<section class="panel reports-tab-panel" data-reports-tab-panel="files" data-panel-type="evidence">
+<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="files" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Report Locations</h2>
             <strong id="report-root-status">No roots</strong>
@@ -224,7 +224,7 @@
           </div>
         </section>
 
-<section class="panel reports-tab-panel" data-reports-tab-panel="files" data-panel-type="evidence">
+<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="files" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Recently Opened</h2>
             <strong id="report-open-history-status">No opens</strong>
