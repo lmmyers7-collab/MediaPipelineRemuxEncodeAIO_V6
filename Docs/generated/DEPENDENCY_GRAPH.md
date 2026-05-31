@@ -44,13 +44,14 @@ graph LR
   tests["tests"]
   ui["ui"]
   unknown["unknown"]
+  validation["validation"]
   webview["webview"]
-  tests -->|85| api
+  tests -->|91| api
   unknown -->|81| api
+  tests -->|36| config
   unknown -->|30| shared
-  tests -->|29| config
   config -->|21| api
-  tests -->|19| contracts
+  tests -->|21| contracts
   unknown -->|19| queue
   rename -->|12| shared
   audit -->|11| api
@@ -91,6 +92,7 @@ graph LR
   rename -->|2| paths
   storage -->|2| shared
   tests -->|2| orchestration
+  tests -->|2| queue
   tests -->|2| shared
   unknown -->|2| completed
   unknown -->|2| config
@@ -108,9 +110,9 @@ graph LR
   failures -->|1| paths
   observability -->|1| telemetry
   publish -->|1| completed
-  tests -->|1| queue
   tests -->|1| rename
   tests -->|1| schedule
+  tests -->|1| validation
   unknown -->|1| audit
   unknown -->|1| failures
   unknown -->|1| files
@@ -124,12 +126,12 @@ graph LR
 
 | From | To | Edges |
 |---|---|---|
-| tests | api | 85 |
+| tests | api | 91 |
 | unknown | api | 81 |
+| tests | config | 36 |
 | unknown | shared | 30 |
-| tests | config | 29 |
 | config | api | 21 |
-| tests | contracts | 19 |
+| tests | contracts | 21 |
 | unknown | queue | 19 |
 | rename | shared | 12 |
 | audit | api | 11 |
@@ -170,6 +172,7 @@ graph LR
 | rename | paths | 2 |
 | storage | shared | 2 |
 | tests | orchestration | 2 |
+| tests | queue | 2 |
 | tests | shared | 2 |
 | unknown | completed | 2 |
 | unknown | config | 2 |
@@ -187,9 +190,9 @@ graph LR
 | failures | paths | 1 |
 | observability | telemetry | 1 |
 | publish | completed | 1 |
-| tests | queue | 1 |
 | tests | rename | 1 |
 | tests | schedule | 1 |
+| tests | validation | 1 |
 | unknown | audit | 1 |
 | unknown | failures | 1 |
 | unknown | files | 1 |

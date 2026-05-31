@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import sys
 import unittest
@@ -8,8 +9,68 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app import config_keys
+from app.config.library_profiles import LIBRARY_OVERRIDE_KEYS_BY_GROUP
 from app.config.metadata import CONFIG_FIELD_DEFINITIONS
 from app.config.metadata_network import NETWORK_CONFIG_DEFAULTS
+from app.contracts.config import Config
+
+
+VOBSUB_LIBRARY_OVERRIDE_KEYS = {
+    "ConvertVobSubToSrt",
+    "DropVobSubAfterConversion",
+    "VobSubExtractLanguages",
+    "VobSubOcrToolPath",
+    "VobSubOcrTimeoutSeconds",
+    "TreatVobSubSignsSongsAsForced",
+}
+FRIENDLY_LABEL_KEYS = {
+    "ProcessingStrategy",
+    "EnforcementMode",
+    "OutputSizeCheck",
+    "EncoderQualityPreset",
+    "EncodeTargetMode",
+    "EncoderSpeedPreset",
+    "Processing Strategy",
+    "Enforcement Mode",
+    "Output Size Check",
+}
+EVIDENCE_ONLY_KEYS = {
+    "library_effective_settings",
+    "runtime_effective_settings",
+}
+
+
+def _powershell_registry_keys() -> set[str]:
+    module_text = (Path(__file__).resolve().parents[2] / "engine" / "config" / "config_keys.ps1").read_text(encoding="utf-8")
+    match = re.search(
+        r"\$script:MediaPipelineConfigKeyRegistry\s*=\s*\[ordered\]@\{(?P<body>.*?)^\}",
+        module_text,
+        re.S | re.M,
+    )
+    if match is None:
+        raise AssertionError("PowerShell config key registry was not found.")
+    return set(re.findall(r"=\s*'([^']+)'", match.group("body")))
+
+
+def _powershell_library_override_keys() -> set[str]:
+    module_text = (Path(__file__).resolve().parents[2] / "engine" / "paths" / "output_path_planning.ps1").read_text(encoding="utf-8")
+    match = re.search(
+        r"function\s+Get-MediaPipelineLibraryOverrideConfigKeys\s*\{(?P<body>.*?)^\}",
+        module_text,
+        re.S | re.M,
+    )
+    if match is None:
+        raise AssertionError("PowerShell library override key allowlist was not found.")
+    return set(re.findall(r"'([^']+)'", match.group("body")))
+
+
+def _pipeline_json_schema_keys() -> set[str]:
+    schema = json.loads((Path(__file__).resolve().parents[2] / "Pipeline" / "Schemas" / "media_pipeline_config.schema.json").read_text(encoding="utf-8"))
+    return set(schema["properties"])
+
+
+def _backend_library_override_keys() -> set[str]:
+    return {key for keys in LIBRARY_OVERRIDE_KEYS_BY_GROUP.values() for key in keys}
 
 
 class ConfigKeyRegistryTests(unittest.TestCase):
@@ -39,6 +100,38 @@ class ConfigKeyRegistryTests(unittest.TestCase):
 
         self.assertEqual(tuple(config_keys.CONFIG_KEY_ORDER), ps_order)
         self.assertEqual(config_keys.KEY_CONFIG_SCHEMA_VERSION, ps_order[0])
+
+    def test_cross_surface_config_key_sets_reject_python_powershell_schema_drift(self) -> None:
+        powershell_keys = _powershell_registry_keys()
+        json_schema_keys = _pipeline_json_schema_keys()
+
+        self.assertEqual(powershell_keys, config_keys.ALL_CONFIG_KEYS)
+        self.assertEqual(set(Config.model_fields), config_keys.ALL_CONFIG_KEYS)
+        self.assertEqual(json_schema_keys, set(config_keys.CONFIG_KEY_ORDER))
+        self.assertEqual(json_schema_keys & set(config_keys.NETWORK_CONFIG_KEYS), set())
+        self.assertEqual((FRIENDLY_LABEL_KEYS | EVIDENCE_ONLY_KEYS) & powershell_keys, set())
+        self.assertEqual((FRIENDLY_LABEL_KEYS | EVIDENCE_ONLY_KEYS) & set(Config.model_fields), set())
+        self.assertEqual((FRIENDLY_LABEL_KEYS | EVIDENCE_ONLY_KEYS) & json_schema_keys, set())
+
+    def test_cross_surface_library_override_allowlist_rejects_python_powershell_drift(self) -> None:
+        powershell_overrides = _powershell_library_override_keys()
+        backend_overrides = _backend_library_override_keys()
+        metadata_keys = {str(field["key"]) for field in CONFIG_FIELD_DEFINITIONS}
+        global_or_evidence_keys = {
+            config_keys.KEY_CONFIG_SCHEMA_VERSION,
+            config_keys.KEY_SOURCE_MOVIES,
+            config_keys.KEY_SOURCE_TV,
+            config_keys.KEY_OUTSOURCE,
+            config_keys.KEY_LIBRARY_PROFILES,
+            config_keys.KEY_LOCAL_BASE,
+            config_keys.KEY_FINAL_LIBRARY_PROMOTION_RULES,
+        } | EVIDENCE_ONLY_KEYS | FRIENDLY_LABEL_KEYS
+
+        self.assertEqual(powershell_overrides, backend_overrides)
+        self.assertLessEqual(backend_overrides, metadata_keys)
+        self.assertLessEqual(backend_overrides, config_keys.ALL_CONFIG_KEYS)
+        self.assertLessEqual(VOBSUB_LIBRARY_OVERRIDE_KEYS, backend_overrides)
+        self.assertEqual(global_or_evidence_keys & powershell_overrides, set())
 
     def test_known_source_safety_keys_have_named_constants(self) -> None:
         for key in (

@@ -246,6 +246,36 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         ):
             self.assertIn(token, js)
 
+    def test_library_override_validation_hints_reuse_backend_metadata_and_persisted_groups(self) -> None:
+        libraries_js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+
+        for token in (
+            "settingsPatchLibraryOverrideValidationHints",
+            '["editor", "video", "subtitles", "audio"].forEach((group) => {',
+            "{ libraryOverride: true, overrideGroup: group }",
+            "field.library_override_allowed !== true",
+            "global-only and cannot be saved as a library override",
+            "read-only source/effective metadata and cannot be saved as a library override",
+            "belongs in overrides.",
+            "settingsPatchLocalValidationHintLines(changes)",
+        ):
+            self.assertIn(token, settings_js)
+
+        for token in (
+            "overrideStatus(groupKey, key)",
+            "field?.library_override_allowed === true",
+            'String(field?.override_group || "") === groupKey',
+            'overrides[group][key] = readOverrideControlValue(control, key)',
+            'data-library-override-group="${escapeHtml(groupKey)}"',
+            'data-library-override-key="${escapeHtml(fieldKey)}"',
+            'data-library-persisted-key="${escapeHtml(persistedKey)}"',
+            "Reset to inherited removes the persisted library override key",
+            "window.writeSettingsPatchJson(patch",
+            "libraryProfileResetRequest",
+        ):
+            self.assertIn(token, libraries_js)
+
     def test_libraries_page_is_main_nav_surface(self) -> None:
         shell_html = (STATIC_ROOT / "partials" / "app-shell-start.html").read_text(encoding="utf-8")
         libraries_html = (STATIC_ROOT / "partials" / "page-libraries.html").read_text(encoding="utf-8")
@@ -460,9 +490,12 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             'data-library-field="promotion_enabled"',
             "default_tracking: readRowJson",
             "overrides: readRowJson",
+            'apiPostLocal("/api/settings/wizard/preview", { wizard: collectWizardPayload() })',
             'apiPostLocal("/api/settings/wizard/save", { wizard: collectWizardPayload(), confirm_save: true })',
         ):
             self.assertIn(token, js)
+        self.assertNotIn("ProcessingStrategy", js)
+        self.assertNotIn("OutputSizeCheck", js)
 
 
 if __name__ == "__main__":

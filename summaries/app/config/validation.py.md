@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: 76acb35a7852552a553d6fcef89b550bf8da22eb3760be3e9129b5381b13e408
+sha256: 9254b2f05816bf251bb097f55c699b5f33a5548ab63fc61d4b269477d307062c
 ---
 # `app/config/validation.py`
 

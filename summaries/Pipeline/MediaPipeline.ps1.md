@@ -3,9 +3,9 @@ file: Pipeline/MediaPipeline.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-05-30
+last_modified: 2026-05-31
 last_reviewed: 2026-05-30
-sha256: 95aa8449a5fce0134a9aadc9f11d9452dfd1b4eb98b3e259e1d45a853ca8a0ca
+sha256: 0b7b2130d7bf1165ab0fb7cb36893a7ba0303c8d43be11fde99fd5227db61db9
 ---
 # `Pipeline/MediaPipeline.ps1`
 

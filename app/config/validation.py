@@ -36,6 +36,11 @@ from app.config.path_warnings import (
 from app.config.numeric_policy import validate_required_and_numeric_config
 from app.config.preset_migration import FRIENDLY_LABEL_PERSISTED_KEY_ALIASES
 
+EVIDENCE_ONLY_CONFIG_KEYS = {
+    "library_effective_settings",
+    "runtime_effective_settings",
+}
+
 
 def split_list_input(raw: str) -> list[str]:
     values: list[str] = []
@@ -156,6 +161,9 @@ def validate_config_values(
     for key in sorted(set(raw_values) & set(FRIENDLY_LABEL_PERSISTED_KEY_ALIASES)):
         persisted_key = FRIENDLY_LABEL_PERSISTED_KEY_ALIASES[key]
         errors.append(f"{key} is a display label only; use persisted key {persisted_key}.")
+
+    for key in sorted(set(raw_values) & EVIDENCE_ONLY_CONFIG_KEYS):
+        errors.append(f"{key} is diagnostic evidence only; it is not a persisted config key.")
 
     validate_required_and_numeric_config(values, errors)
     validate_option_config(values, errors, warnings)

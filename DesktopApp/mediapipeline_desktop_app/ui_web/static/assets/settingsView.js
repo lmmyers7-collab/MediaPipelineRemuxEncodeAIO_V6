@@ -175,6 +175,8 @@ const settingsImpactGroups = settingsMetadata.settingsImpactGroups || [];
 const settingsSpecificImpactHints = settingsMetadata.settingsSpecificImpactHints || {};
 const settingsChoiceLabels = settingsMetadata.settingsChoiceLabels || {};
 const settingsDisplayLabels = settingsMetadata.settingsDisplayLabels || {};
+const settingsFriendlyPersistedKeyAliases = settingsMetadata.settingsFriendlyPersistedKeyAliases || {};
+const settingsPatchComplexBackendKeys = new Set(["LibraryProfiles", "FinalLibraryPromotionRules"]);
 
 function settingsFieldDefaultValue(key, fallback) {
   const field = settingsFieldDefinition(key);
@@ -207,6 +209,176 @@ function settingsFieldAllowedValues(field) {
   if (Array.isArray(field?.allowed_values) && field.allowed_values.length) return field.allowed_values;
   if (Array.isArray(field?.choices) && field.choices.length) return field.choices;
   return [];
+}
+
+function settingsHasBackendFieldDefinitions() {
+  return Boolean(lastSettingsFieldMap && Object.keys(lastSettingsFieldMap).length);
+}
+
+function settingsLocalValidationHint(severity, context, key, message) {
+  return {
+    severity,
+    context,
+    key,
+    message,
+  };
+}
+
+function settingsAllowedValueHint(field, key, value, context) {
+  const allowedValues = settingsFieldAllowedValues(field);
+  if (!allowedValues.length) return [];
+  const allowedText = allowedValues.map((item) => String(item));
+  const values = Array.isArray(value) ? value : [value];
+  const badValues = values
+    .filter((item) => item !== null && item !== undefined && item !== "")
+    .map((item) => String(item))
+    .filter((item) => !allowedText.includes(item));
+  if (!badValues.length) return [];
+  return [
+    settingsLocalValidationHint(
+      "warning",
+      context,
+      key,
+      `${key} has value ${badValues.join(", ")} outside backend allowed_values (${allowedText.join(", ")}).`
+    ),
+  ];
+}
+
+function settingsNumericConstraintHints(field, key, value, context) {
+  if (value === null || value === undefined || value === "" || Array.isArray(value) || typeof value === "object") return [];
+  const valueType = String(field?.value_type || "");
+  const kind = String(field?.kind || "");
+  const numeric = ["integer", "number"].includes(valueType) || ["int", "optional_int", "combo_int", "optional_float"].includes(kind);
+  if (!numeric) return [];
+  const numberValue = Number(value);
+  if (!Number.isFinite(numberValue)) {
+    return [settingsLocalValidationHint("warning", context, key, `${key} should be numeric according to backend metadata.`)];
+  }
+  const hints = [];
+  if (field.min !== null && field.min !== undefined && numberValue < Number(field.min)) {
+    hints.push(settingsLocalValidationHint("warning", context, key, `${key} is below backend min ${field.min}.`));
+  }
+  if (field.max !== null && field.max !== undefined && numberValue > Number(field.max)) {
+    hints.push(settingsLocalValidationHint("warning", context, key, `${key} is above backend max ${field.max}.`));
+  }
+  if (field.step !== null && field.step !== undefined && field.step !== "") {
+    const step = Number(field.step);
+    const base = Number.isFinite(Number(field.min)) ? Number(field.min) : 0;
+    if (Number.isFinite(step) && step > 0) {
+      const ratio = (numberValue - base) / step;
+      if (Math.abs(ratio - Math.round(ratio)) > 1e-9) {
+        hints.push(settingsLocalValidationHint("warning", context, key, `${key} does not align to backend step ${field.step}.`));
+      }
+    }
+  }
+  return hints;
+}
+
+function settingsPatchLocalValidationHintsForKey(key, value, context = "settings", options = {}) {
+  const hints = [];
+  const friendlyTarget = settingsFriendlyPersistedKeyAliases[key];
+  if (friendlyTarget) {
+    hints.push(settingsLocalValidationHint(
+      "error",
+      context,
+      key,
+      `${key} is a display label only; use persisted key ${friendlyTarget}.`
+    ));
+  }
+  const field = settingsFieldDefinition(key);
+  if (!field) {
+    if (settingsHasBackendFieldDefinitions() && !settingsPatchComplexBackendKeys.has(key)) {
+      hints.push(settingsLocalValidationHint(
+        "warning",
+        context,
+        key,
+        `${key} is not in backend field metadata loaded by this WebView. Backend preview/save remains authoritative.`
+      ));
+    }
+    return hints;
+  }
+  if (options.libraryOverride === true) {
+    const scope = String(field.scope || "");
+    const overrideGroup = String(field.override_group || "");
+    if (field.library_override_allowed !== true) {
+      hints.push(settingsLocalValidationHint(
+        "error",
+        context,
+        key,
+        scope === "source_derived" || scope === "computed_only"
+          ? `${key} is read-only source/effective metadata and cannot be saved as a library override.`
+          : `${key} is global-only and cannot be saved as a library override.`
+      ));
+    } else if (options.overrideGroup && overrideGroup && overrideGroup !== options.overrideGroup) {
+      hints.push(settingsLocalValidationHint(
+        "error",
+        context,
+        key,
+        `${key} belongs in overrides.${overrideGroup}, not overrides.${options.overrideGroup}.`
+      ));
+    }
+  }
+  hints.push(...settingsAllowedValueHint(field, key, value, context));
+  hints.push(...settingsNumericConstraintHints(field, key, value, context));
+  return hints;
+}
+
+function settingsPatchLibraryOverrideValidationHints(libraryProfiles) {
+  if (!Array.isArray(libraryProfiles)) return [];
+  const hints = [];
+  libraryProfiles.forEach((profile, index) => {
+    if (!profile || typeof profile !== "object") return;
+    const profileLabel = String(profile.id || profile.name || `profile ${index + 1}`);
+    const overrides = profile.overrides && typeof profile.overrides === "object" && !Array.isArray(profile.overrides)
+      ? profile.overrides
+      : {};
+    ["editor", "video", "subtitles", "audio"].forEach((group) => {
+      const groupValues = overrides[group];
+      if (!groupValues || typeof groupValues !== "object" || Array.isArray(groupValues)) return;
+      Object.entries(groupValues).forEach(([key, value]) => {
+        hints.push(...settingsPatchLocalValidationHintsForKey(
+          String(key),
+          value,
+          `LibraryProfiles.${profileLabel}.overrides.${group}`,
+          { libraryOverride: true, overrideGroup: group }
+        ));
+      });
+    });
+    ["editor_overrides", "media_overrides"].forEach((legacyGroup) => {
+      const groupValues = profile[legacyGroup];
+      if (!groupValues || typeof groupValues !== "object" || Array.isArray(groupValues)) return;
+      Object.entries(groupValues).forEach(([key, value]) => {
+        hints.push(...settingsPatchLocalValidationHintsForKey(
+          String(key),
+          value,
+          `LibraryProfiles.${profileLabel}.${legacyGroup}`,
+          { libraryOverride: true }
+        ));
+      });
+    });
+  });
+  return hints;
+}
+
+function settingsPatchLocalValidationHints(changes) {
+  if (!changes || Array.isArray(changes) || typeof changes !== "object") return [];
+  const hints = [];
+  Object.entries(changes).forEach(([key, value]) => {
+    hints.push(...settingsPatchLocalValidationHintsForKey(String(key), value, "settings"));
+    if (key === "LibraryProfiles") {
+      hints.push(...settingsPatchLibraryOverrideValidationHints(value));
+    }
+  });
+  return hints;
+}
+
+function settingsPatchLocalValidationHintLines(changes) {
+  const hints = settingsPatchLocalValidationHints(changes);
+  if (!hints.length) return [];
+  return [
+    "Local validation hints (advisory only; backend preview/save remains authoritative):",
+    ...hints.map((hint) => `- [${hint.severity}] ${hint.context}.${hint.key}: ${hint.message}`),
+  ];
 }
 
 function settingsFieldLabel(key, fallback = "") {
@@ -1720,9 +1892,13 @@ async function previewSettingsPipelinePlan() {
   }
   const requestExtras = settingsPatchRequestExtras();
   const requestSignature = settingsPatchRequestSignature(changes, requestExtras);
+  const localHintLines = settingsPatchLocalValidationHintLines(changes);
   setSettingsCommandBusy(true);
   setText("settings-patch-status", "Previewing...");
-  setText("settings-patch-detail", "Requesting backend patch preview. This will not save the PSD1.");
+  setText("settings-patch-detail", [
+    "Requesting backend patch preview. This will not save the PSD1.",
+    ...localHintLines,
+  ].join("\n"));
   const requestId = ++settingsPatchPreviewRequestId;
   try {
     const result = await apiPost("/api/settings/preview-patch", { changes, ...requestExtras });
@@ -1748,6 +1924,7 @@ async function previewSettingsPipelinePlan() {
       `Changed keys: ${(data.changed_keys || []).join(", ") || "none"}`,
       `Removed keys: ${(data.removed_keys || []).join(", ") || "none"}`,
     ];
+    if (localHintLines.length) lines.push("", ...localHintLines);
     if ((result.errors || []).length) {
       lines.push("", "Errors:", ...(result.errors || []).map((item) => `- ${item}`));
     }
@@ -1831,6 +2008,7 @@ async function saveSettingsPatch() {
   }
   const requestExtras = settingsPatchRequestExtras();
   const signature = settingsPatchRequestSignature(changes, requestExtras);
+  const localHintLines = settingsPatchLocalValidationHintLines(changes);
   const previewMatches = Boolean(lastSettingsPatchPreviewEvidence && lastSettingsPatchPreviewEvidence.signature === signature);
   const previewOk = previewMatches && lastSettingsPatchPreviewEvidence.result?.ok === true;
   const previewWarning = previewOk
@@ -1866,6 +2044,7 @@ async function saveSettingsPatch() {
     `Save ${changedKeys.length} changed setting(s) to the active PSD1 config?`,
     "",
     previewWarning,
+    ...(localHintLines.length ? ["", ...localHintLines] : []),
     "",
     "Values being overwritten:",
     ...overwriteLines,
@@ -1895,7 +2074,11 @@ async function saveSettingsPatch() {
   });
   setSettingsCommandBusy(true);
   setText("settings-patch-status", "Saving...");
-  setText("settings-patch-detail", `Saving backend-validated patch to the active PSD1. A backup will be created first.\n${previewWarning}`);
+  setText("settings-patch-detail", [
+    "Saving backend-validated patch to the active PSD1. A backup will be created first.",
+    previewWarning,
+    ...localHintLines,
+  ].join("\n"));
   try {
     const result = await apiPost("/api/settings/save-patch", { changes, ...requestExtras, confirm_save: true });
     appendCommandResult(result);
@@ -1919,6 +2102,7 @@ async function saveSettingsPatch() {
       `Changed keys: ${(data.changed_keys || []).join(", ") || "none"}`,
       `Removed keys: ${(data.removed_keys || []).join(", ") || "none"}`,
     ];
+    if (localHintLines.length) lines.push("", ...localHintLines);
     if (result.ok) {
       lines.push("", ...settingsRuntimeRestartNoticeLines(result));
     }
@@ -2093,6 +2277,7 @@ async function reloadSettingsFromDisk() {
     settingsSafetyLockRows, settingsSafetyLockStatus, settingsSafetyLockSummaryLines, renderSettingsSafetyLocks,
     renderSettings, getLastSettings, validateCurrentSettings, reloadSettingsFromDisk, browseSettingsPath, settingsBrowsePathDetailLines,
     setSettingsCommandBusy, rejectSettingsCommandWhileBusy, previewSettingsPipelinePlan, previewSettingsPatch, saveSettingsPatch, isSettingsCommand, settingsCommandHistoryLine, renderSettingsCommandHistory,
+    settingsPatchLocalValidationHints, settingsPatchLocalValidationHintLines,
     renderSettingsPatchSummary, settingsPatchImpactEntries, renderSettingsPatchImpactSummaryFromEntries, settingsPatchSaveReadinessIssues, settingsPatchSaveReadinessStatus, renderSettingsPatchSaveReadinessFromEntries,
     settingsPolicyDeltaRows, settingsPolicyDeltaStatus, settingsPolicyDeltaSummaryLines, renderSettingsPolicyDeltaFromEntries,
     settingsEffectivePolicyRows, settingsEffectivePolicyTrustStatus, settingsEffectivePolicySummaryLines, settingsEffectivePolicyDetailLines, renderSettingsEffectivePolicyTrustFromEntries, renderSettingsEffectivePolicyTrustForError,
@@ -2121,6 +2306,7 @@ async function reloadSettingsFromDisk() {
   window.settingsRawActionPlanStatus = settingsRawActionPlanStatus; window.settingsRawActionPlanSummaryLines = settingsRawActionPlanSummaryLines; window.settingsRawActionPlanDetailLines = settingsRawActionPlanDetailLines; window.renderSettingsRawActionPlan = renderSettingsRawActionPlan;
   window.settingsSafetyLockRows = settingsSafetyLockRows; window.settingsSafetyLockStatus = settingsSafetyLockStatus; window.settingsSafetyLockSummaryLines = settingsSafetyLockSummaryLines; window.renderSettingsSafetyLocks = renderSettingsSafetyLocks;
   window.renderSettings = renderSettings; window.getLastSettings = getLastSettings; window.isSettingsCommand = isSettingsCommand; window.settingsCommandHistoryLine = settingsCommandHistoryLine; window.renderSettingsCommandHistory = renderSettingsCommandHistory;
+  window.settingsPatchLocalValidationHints = settingsPatchLocalValidationHints; window.settingsPatchLocalValidationHintLines = settingsPatchLocalValidationHintLines;
   window.settingsPolicyDeltaRows = settingsPolicyDeltaRows; window.settingsPolicyDeltaStatus = settingsPolicyDeltaStatus; window.settingsLaunchImpactRows = settingsLaunchImpactRows; window.settingsLaunchImpactStatus = settingsLaunchImpactStatus;
   window.settingsPatchIsTouched = settingsPatchIsTouched; window.settingsPatchEffectiveChangedEntries = settingsPatchEffectiveChangedEntries; window.syncVideoDetailSettingsBuilderFromConfig = syncVideoDetailSettingsBuilderFromConfig; window.collectVideoDetailSettingsBuilderPatch = collectVideoDetailSettingsBuilderPatch;
   window.applyVideoDetailSettingsBuilderToPatch = applyVideoDetailSettingsBuilderToPatch; window.renderVideoDetailSettingsBuilderGuidance = renderVideoDetailSettingsBuilderGuidance; window.markVideoDetailSettingsBuilderDirty = markVideoDetailSettingsBuilderDirty; window.syncFileSafetySettingsBuilderFromConfig = syncFileSafetySettingsBuilderFromConfig;

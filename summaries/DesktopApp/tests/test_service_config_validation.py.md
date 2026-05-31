@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-05-31
 last_reviewed: 2026-05-31
-sha256: 29efb64c4fe144d7c389d50417f1cd209cf1df2585d136f6eb542bb8590d3f5f
+sha256: 1c2f3ba7ecb50d4631de08095a2699d1308c18bf855621f3ffafbbd9254ce51e
 ---
 # `DesktopApp/tests/test_service_config_validation.py`
 

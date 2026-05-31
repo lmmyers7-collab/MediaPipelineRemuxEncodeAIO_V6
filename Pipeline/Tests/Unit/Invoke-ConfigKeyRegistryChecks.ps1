@@ -194,6 +194,32 @@ if ($friendlyKnown.Count -gt 0 -or $friendlyOverrides.Count -gt 0 -or $friendlyJ
     throw "Friendly display labels must not be persisted config keys. Known=[$($friendlyKnown -join ', ')] Overrides=[$($friendlyOverrides -join ', ')] Json=[$($friendlyJson -join ', ')]"
 }
 
+$evidenceOnlyKeys = @(
+    'library_effective_settings',
+    'runtime_effective_settings'
+)
+$evidenceKnown = @($evidenceOnlyKeys | Where-Object { $_ -in $knownKeys })
+$evidenceOverrides = @($evidenceOnlyKeys | Where-Object { $_ -in $libraryOverrideKeys })
+$evidenceJson = @($evidenceOnlyKeys | Where-Object { $_ -in $jsonSchemaKeys })
+if ($evidenceKnown.Count -gt 0 -or $evidenceOverrides.Count -gt 0 -or $evidenceJson.Count -gt 0) {
+    throw "Runtime/library effective-settings evidence must not be persisted config keys. Known=[$($evidenceKnown -join ', ')] Overrides=[$($evidenceOverrides -join ', ')] Json=[$($evidenceJson -join ', ')]"
+}
+
+$vobSubKeys = @(
+    'ConvertVobSubToSrt',
+    'DropVobSubAfterConversion',
+    'VobSubExtractLanguages',
+    'VobSubOcrToolPath',
+    'VobSubOcrTimeoutSeconds',
+    'TreatVobSubSignsSongsAsForced'
+)
+$vobSubMissingKnown = @($vobSubKeys | Where-Object { $_ -notin $knownKeys })
+$vobSubMissingJson = @($vobSubKeys | Where-Object { $_ -notin $jsonSchemaKeys })
+$vobSubMissingOverride = @($vobSubKeys | Where-Object { $_ -notin $libraryOverrideKeys })
+if ($vobSubMissingKnown.Count -gt 0 -or $vobSubMissingJson.Count -gt 0 -or $vobSubMissingOverride.Count -gt 0) {
+    throw "VobSub config keys must stay registered, schema-covered, and library-overridable. KnownMissing=[$($vobSubMissingKnown -join ', ')] JsonMissing=[$($vobSubMissingJson -join ', ')] OverrideMissing=[$($vobSubMissingOverride -join ', ')]"
+}
+
 foreach ($enumPolicy in @(
     @{ Key = 'VideoCodec'; Values = @(Get-MediaPipelineVideoCodecNames) },
     @{ Key = 'VideoPreset'; Values = @(Get-MediaPipelineVideoPresetNames) },

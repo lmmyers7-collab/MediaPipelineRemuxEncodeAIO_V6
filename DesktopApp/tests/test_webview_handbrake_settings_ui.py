@@ -112,6 +112,17 @@ def _settings_display_label_entries() -> dict[str, str]:
     }
 
 
+def _settings_friendly_alias_entries() -> dict[str, str]:
+    js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
+    start = js.index("const settingsFriendlyPersistedKeyAliases = {")
+    end = js.index("};", start)
+    block = js[start:end]
+    return {
+        match.group(1): match.group(2)
+        for match in re.finditer(r'(?m)^\s*"([^"]+)":\s*"([^"]+)"', block)
+    }
+
+
 def _settings_builder_fallback_default(key: str) -> str | None:
     sources = [
         STATIC_ROOT / "assets" / "settingsView.js",
@@ -401,6 +412,82 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertEqual(FRIENDLY_LABEL_PERSISTED_KEY_ALIASES["ProcessingStrategy"], "RoutingProfile")
         self.assertEqual(FRIENDLY_LABEL_PERSISTED_KEY_ALIASES["OutputSizeCheck"], "SizeGuardMode")
         self.assertEqual(FRIENDLY_LABEL_PERSISTED_KEY_ALIASES["EncoderSpeedPreset"], "VideoPreset")
+
+    def test_webview_validation_hints_are_advisory_and_share_backend_alias_policy(self) -> None:
+        metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+
+        self.assertEqual(_settings_friendly_alias_entries(), FRIENDLY_LABEL_PERSISTED_KEY_ALIASES)
+        for token in (
+            "settingsFriendlyPersistedKeyAliases",
+            '"ProcessingStrategy": "RoutingProfile"',
+            '"OutputSizeCheck": "SizeGuardMode"',
+            '"EncoderSpeedPreset": "VideoPreset"',
+        ):
+            self.assertIn(token, metadata_js)
+
+        for token in (
+            "function settingsPatchLocalValidationHints(changes)",
+            "function settingsPatchLocalValidationHintLines(changes)",
+            "settingsPatchLocalValidationHintsForKey",
+            "settingsAllowedValueHint(field, key, value, context)",
+            "settingsNumericConstraintHints(field, key, value, context)",
+            "settingsFieldAllowedValues(field)",
+            "field.min",
+            "field.max",
+            "field.step",
+            "display label only; use persisted key",
+            "Local validation hints (advisory only; backend preview/save remains authoritative):",
+            'apiPost("/api/settings/preview-patch", { changes, ...requestExtras })',
+            'apiPost("/api/settings/save-patch", { changes, ...requestExtras, confirm_save: true })',
+        ):
+            self.assertIn(token, settings_js)
+
+    def test_webview_validation_hints_do_not_replace_backend_preview_or_save_authority(self) -> None:
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+
+        self.assertIn("const localHintLines = settingsPatchLocalValidationHintLines(changes);", settings_js)
+        self.assertIn('"Requesting backend patch preview. This will not save the PSD1."', settings_js)
+        self.assertIn("await apiPost", settings_js)
+        self.assertIn("Backend preview/save remains authoritative", settings_js)
+        self.assertNotIn("return settingsPatchLocalValidationHintLines(changes);", settings_js)
+        self.assertIn("setText(\"settings-patch-status\", result.ok ? \"Preview ready\" : result.severity || \"Preview failed\");", settings_js)
+        self.assertIn("setText(\"settings-patch-status\", result.ok ? \"Saved\" : result.severity || \"Save failed\");", settings_js)
+
+    def test_phase5_completion_gate_webview_surfaces_backend_errors_without_save_authority(self) -> None:
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        libraries_js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        wizard_js = (STATIC_ROOT / "assets" / "settingsWizard.js").read_text(encoding="utf-8")
+
+        for token in (
+            'apiPost("/api/settings/preview-patch", { changes, ...requestExtras })',
+            'apiPost("/api/settings/save-patch", { changes, ...requestExtras, confirm_save: true })',
+            'if ((result.errors || []).length) {',
+            'lines.push("", "Errors:", ...(result.errors || []).map((item) => `- ${item}`));',
+            "Backend preview/save remains authoritative",
+            "settingsPatchLocalValidationHintLines(changes)",
+            "is not in backend field metadata loaded by this WebView",
+            "display label only; use persisted key",
+        ):
+            self.assertIn(token, settings_js)
+
+        for token in (
+            "previewLibraryProfiles",
+            "saveLibraryProfiles",
+            "buildPatchFromLibraries",
+            "window.writeSettingsPatchJson(patch",
+            "Previewing staged LibraryProfiles through backend validation.",
+            "Saving staged LibraryProfiles through the backend settings route.",
+        ):
+            self.assertIn(token, libraries_js)
+
+        for token in (
+            'apiPostLocal("/api/settings/wizard/preview", { wizard: collectWizardPayload() })',
+            'apiPostLocal("/api/settings/wizard/save", { wizard: collectWizardPayload(), confirm_save: true })',
+            "overrides: readRowJson",
+            "default_tracking: readRowJson",
+        ):
+            self.assertIn(token, wizard_js)
 
     def test_static_label_fallbacks_are_backend_known_and_cannot_create_editable_keys(self) -> None:
         backend = _backend_metadata_by_key()

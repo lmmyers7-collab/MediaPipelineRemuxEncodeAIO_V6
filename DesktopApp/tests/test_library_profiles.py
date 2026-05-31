@@ -1036,6 +1036,8 @@ class LibraryProfileTests(unittest.TestCase):
         self.assertNotIn("ProcessingStrategy", document_text)
         self.assertNotIn("OutputSizeCheck", document_text)
         self.assertNotIn("EnforcementMode", document_text)
+        self.assertNotIn("library_effective_settings", document_text)
+        self.assertNotIn("runtime_effective_settings", document_text)
 
         with tempfile.TemporaryDirectory() as raw_root:
             config_path = Path(raw_root) / "MediaPipelineConfig.psd1"
@@ -1053,6 +1055,8 @@ class LibraryProfileTests(unittest.TestCase):
 
         self.assertEqual(reloaded["RoutingProfile"], "manual")
         self.assertNotIn("ProcessingStrategy", reloaded)
+        self.assertNotIn("library_effective_settings", reloaded)
+        self.assertNotIn("runtime_effective_settings", reloaded)
         self.assertEqual(reloaded["SourceMovies"], r"F:\Movies")
         self.assertEqual(reloaded["SourceTV"], r"F:\TV")
         self.assertEqual(reloaded["Outsource"], r"D:\Processed")

@@ -21,6 +21,7 @@ from app.contracts.config import (
     PS_CONFIG_KEY_ORDER,
     Config,
 )
+from mediapipeline_desktop_app import config_keys
 
 
 PS_SCHEMA_ONLY_KEYS = {
@@ -35,6 +36,18 @@ VOBSUB_CONFIG_KEYS = {
     "VobSubOcrToolPath",
     "VobSubOcrTimeoutSeconds",
     "TreatVobSubSignsSongsAsForced",
+}
+FRIENDLY_LABEL_KEYS = {
+    "ProcessingStrategy",
+    "EnforcementMode",
+    "OutputSizeCheck",
+    "EncoderQualityPreset",
+    "EncodeTargetMode",
+    "EncoderSpeedPreset",
+}
+EVIDENCE_ONLY_KEYS = {
+    "library_effective_settings",
+    "runtime_effective_settings",
 }
 
 
@@ -75,6 +88,21 @@ class ConfigContractTests(unittest.TestCase):
         self.assertLessEqual({"RoutingProfile", "RouteThresholdMode", "SizeGuardMode", "VideoPreset"}, set(Config.model_fields))
         self.assertEqual(friendly_aliases & set(Config.model_fields), set())
         self.assertEqual(friendly_aliases & set(schema["properties"]), set())
+
+    def test_contract_and_pipeline_schema_do_not_expose_display_or_evidence_keys(self) -> None:
+        schema_path = REPO_ROOT / "Pipeline" / "Schemas" / "media_pipeline_config.schema.json"
+        pipeline_schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        generated_schema = Config.model_json_schema()
+        forbidden = FRIENDLY_LABEL_KEYS | EVIDENCE_ONLY_KEYS
+
+        self.assertEqual(set(Config.model_fields), config_keys.ALL_CONFIG_KEYS)
+        self.assertEqual(forbidden & set(Config.model_fields), set())
+        self.assertEqual(forbidden & set(generated_schema["properties"]), set())
+        self.assertEqual(forbidden & set(pipeline_schema["properties"]), set())
+        profile_overrides = pipeline_schema["properties"]["LibraryProfiles"]["items"]["properties"]["overrides"]["properties"]
+        for group_schema in profile_overrides.values():
+            with self.subTest(group=group_schema):
+                self.assertEqual(forbidden & set(group_schema["properties"]), set())
 
     def test_library_profiles_contract_preserves_phase4_inheritance_shape(self) -> None:
         config = Config.model_validate(

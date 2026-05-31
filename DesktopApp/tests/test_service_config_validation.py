@@ -175,6 +175,7 @@ class ServiceConfigValidationTests(unittest.TestCase):
             {
                 "ProcessingStrategy": "manual",
                 "OutputSizeCheck": "strict",
+                "EnforcementMode": "bitrate",
                 "EncoderSpeedPreset": "p6",
             }
         )
@@ -187,7 +188,44 @@ class ServiceConfigValidationTests(unittest.TestCase):
 
         self.assertIn("ProcessingStrategy is a display label only; use persisted key RoutingProfile.", errors)
         self.assertIn("OutputSizeCheck is a display label only; use persisted key SizeGuardMode.", errors)
+        self.assertIn("EnforcementMode is a display label only; use persisted key RouteThresholdMode.", errors)
         self.assertIn("EncoderSpeedPreset is a display label only; use persisted key VideoPreset.", errors)
+
+    def test_validate_config_values_rejects_runtime_evidence_as_persisted_keys(self) -> None:
+        values = _valid_config_values()
+        values.update(
+            {
+                "library_effective_settings": {"video": {"VideoPreset": "p5"}},
+                "runtime_effective_settings": {"folder": {"VideoPreset": "p5"}},
+            }
+        )
+
+        errors, _warnings = validate_config_values(
+            values,
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        self.assertIn("library_effective_settings is diagnostic evidence only; it is not a persisted config key.", errors)
+        self.assertIn("runtime_effective_settings is diagnostic evidence only; it is not a persisted config key.", errors)
+
+    def test_validate_config_values_accepts_stable_persisted_key_names(self) -> None:
+        values = _valid_config_values()
+        values.update(
+            {
+                "RoutingProfile": "manual",
+                "RouteThresholdMode": "bitrate",
+                "SizeGuardMode": "strict",
+            }
+        )
+
+        errors, _warnings = validate_config_values(
+            values,
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        self.assertEqual(errors, [])
 
     def test_config_path_overlap_warning_reports_same_source_roots(self) -> None:
         warning = config_path_overlap_warning(

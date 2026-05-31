@@ -3,9 +3,9 @@ file: app/config/encoding_capabilities.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-05-30
+last_modified: 2026-05-31
 last_reviewed: 2026-05-30
-sha256: 40945b75159830d38ec739b019ca18592d181d3485b8440ee069a308e1a89738
+sha256: aa61472cdbcd63c26b128efb54c0b36fca03ca9daa7a5414ed62e025f7527714
 ---
 # `app/config/encoding_capabilities.py`
 
