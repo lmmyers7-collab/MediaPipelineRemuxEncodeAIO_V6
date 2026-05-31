@@ -50,8 +50,8 @@ graph LR
   unknown -->|81| api
   tests -->|36| config
   unknown -->|30| shared
+  tests -->|23| contracts
   config -->|21| api
-  tests -->|21| contracts
   unknown -->|19| queue
   rename -->|12| shared
   audit -->|11| api
@@ -130,8 +130,8 @@ graph LR
 | unknown | api | 81 |
 | tests | config | 36 |
 | unknown | shared | 30 |
+| tests | contracts | 23 |
 | config | api | 21 |
-| tests | contracts | 21 |
 | unknown | queue | 19 |
 | rename | shared | 12 |
 | audit | api | 11 |

@@ -9,6 +9,7 @@ This package is the single source of truth for:
 - Configuration shape (`config.py`, Pydantic v2).
 - Local API command payload shapes (`api_commands.py`).
 - File lifecycle/state-machine documentation source (`lifecycle.py`).
+- Runtime diagnostic evidence (`runtime_evidence.py`).
 - Cross-stage data shapes (jobs, manifests, events) — added in later phases.
 
 `config.py` generates `schemas/config.v1.schema.json`. `stages.py`
