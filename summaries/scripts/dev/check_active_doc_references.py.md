@@ -3,9 +3,9 @@ file: scripts/dev/check_active_doc_references.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-05-28
+last_modified: 2026-05-30
 last_reviewed: 2026-05-28
-sha256: 9096b7c3a14862c79c929d5344252db17748ed5eb55fd5e080294bdb2fcd9d39
+sha256: 08c22019a0af8f86ec9ea8d670ff759aa7fa857646a3efd49002c8cb8221e57f
 ---
 # `scripts/dev/check_active_doc_references.py`
 

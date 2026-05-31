@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/application/settings_risk_policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: application
-last_modified: 2026-05-30
+last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: 9cc0ca939f0de195ca2e0f2caf04acd0e88dbfb688a06f8d1f85071246cade48
+sha256: 1fa66e1636269b127de0dcbe6ee63d35e4d11e995296035ff16419c5b44feba3
 ---
 # `DesktopApp/mediapipeline_desktop_app/application/settings_risk_policy.py`
 

@@ -132,13 +132,16 @@
           </div>
         </section>
 
-        <section class="panel settings-tab-pane is-active" data-completed-tab="overview" data-panel-type="evidence">
+        <section class="panel settings-tab-pane is-active" data-completed-tab="overview" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Selected File</h2>
             <strong id="completed-selected-status">No selection</strong>
           </div>
           <pre id="completed-selected-summary" class="prose-block">Select a completed row to see trust, output health, route/size proof, safe next step, filter visibility, and backend authority.</pre>
           <div class="action-row action-row-left wrap-actions" data-open-target-row-actions="completed"></div>
+          <div class="action-row action-row-left wrap-actions completed-promotion-action-row">
+            <button type="button" class="secondary-button" data-completed-promote-selected disabled>Promote Selected File</button>
+          </div>
           <p id="completed-open-status" class="note">Select a completed row to open a backend-selected location.</p>
           <pre id="completed-open-history" class="prose-block">No completed open command history loaded.</pre>
           <pre id="completed-detail" class="prose-block">No completed row selected.</pre>

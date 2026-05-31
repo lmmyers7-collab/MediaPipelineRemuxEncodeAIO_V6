@@ -127,11 +127,12 @@ function Get-SubtitlePreferredDefaultLanguages {
     param(
         [bool]$IsTx3g = $false,
         [bool]$IsBdpgs = $false,
+        [bool]$IsVobSub = $false,
         [bool]$IsAss = $false
     )
 
     $preferred = [System.Collections.Generic.List[string]]::new()
-    foreach ($language in @(Get-SubtitleLanguagePolicy -IsTx3g:$IsTx3g -IsBdpgs:$IsBdpgs -IsAss:$IsAss)) {
+    foreach ($language in @(Get-SubtitleLanguagePolicy -IsTx3g:$IsTx3g -IsBdpgs:$IsBdpgs -IsVobSub:$IsVobSub -IsAss:$IsAss)) {
         $normalized = Get-NormalizedSubtitleLanguage ([string]$language)
         if ($normalized -eq 'und') { continue }
         if (-not $preferred.Contains($normalized)) {
@@ -146,11 +147,12 @@ function Test-SubtitleLanguageIsPreferredDefault {
         [string]$Language,
         [bool]$IsTx3g = $false,
         [bool]$IsBdpgs = $false,
+        [bool]$IsVobSub = $false,
         [bool]$IsAss = $false
     )
 
     $normalized = Get-NormalizedSubtitleLanguage $Language
-    return (@(Get-SubtitlePreferredDefaultLanguages -IsTx3g:$IsTx3g -IsBdpgs:$IsBdpgs -IsAss:$IsAss) -contains $normalized)
+    return (@(Get-SubtitlePreferredDefaultLanguages -IsTx3g:$IsTx3g -IsBdpgs:$IsBdpgs -IsVobSub:$IsVobSub -IsAss:$IsAss) -contains $normalized)
 }
 
 function Test-SubtitleLanguageIsFallbackDefault {
@@ -168,6 +170,7 @@ function Test-SubtitleEntryLanguageIsPreferredDefault {
         -Language ([string](Get-SubtitleEntryPropertyValue -Entry $Entry -Name 'Lang' -Default '')) `
         -IsTx3g:([bool](Get-SubtitleEntryPropertyValue -Entry $Entry -Name 'IsTx3g' -Default $false)) `
         -IsBdpgs:([bool](Get-SubtitleEntryPropertyValue -Entry $Entry -Name 'IsBdpgs' -Default $false)) `
+        -IsVobSub:([bool](Get-SubtitleEntryPropertyValue -Entry $Entry -Name 'IsVobSub' -Default $false)) `
         -IsAss:($codec -in (Get-MediaSubtitleCodecAssNames)))
 }
 
@@ -348,6 +351,20 @@ function Register-SubtitleExtractionFailure {
         return
     }
 
+    $vobSubFailures = @($failureList | Where-Object { (Get-SubtitleFailureText -Failure $_ -Name 'ErrorCode') -like 'SUBTITLE_VOBSUB_*' })
+    if ($vobSubFailures.Count -gt 0) {
+        $first = $vobSubFailures[0]
+        $streamText = Get-SubtitleFailureStreamText -Failure $first -Fallback 'a VobSub subtitle stream or sidecar'
+        $more = if ($vobSubFailures.Count -gt 1) { " (+$($vobSubFailures.Count - 1) more)" } else { "" }
+        $firstReason = Get-SubtitleFailureText -Failure $first -Name 'Reason' -Fallback 'failure record was malformed'
+        $reason = "VobSub subtitle OCR failed for ${streamText}${more}: $firstReason"
+        $errorCode = Get-SubtitleFailureText -Failure $first -Name 'ErrorCode' -Fallback 'SUBTITLE_VOBSUB_OCR_FAILED'
+        $reproPath = Get-SubtitleFailureText -Failure $first -Name 'ReproPath' -Fallback ''
+        $suggestedAction = 'Configure Subtitle Edit seconv.exe and bundled Tesseract, inspect the repro command/log, or disable ConvertVobSubToSrt to preserve supported embedded VobSub tracks without OCR.'
+        $null = Register-SourceFailure -SourceFile $SourceFile -ScratchPath $ScratchPath -Classification 'transient' -Reason $reason -Stage $Stage -ErrorCode $errorCode -ReproPath $reproPath -SuggestedAction $suggestedAction
+        return
+    }
+
     $assFailures = @($failureList | Where-Object { (Get-SubtitleFailureText -Failure $_ -Name 'ErrorCode') -like 'SUBTITLE_ASS_*' })
     if ($assFailures.Count -gt 0) {
         $first = $assFailures[0]
@@ -413,6 +430,7 @@ function Get-SubtitleLanguagePolicy {
     param(
         [bool]$IsTx3g = $false,
         [bool]$IsBdpgs = $false,
+        [bool]$IsVobSub = $false,
         [bool]$IsAss = $false
     )
 
@@ -421,6 +439,9 @@ function Get-SubtitleLanguagePolicy {
     }
     if ($IsBdpgs -and $script:ActiveOverrides -and $script:ActiveOverrides.ContainsKey('BdpgsExtractLanguages') -and @($script:ActiveOverrides['BdpgsExtractLanguages']).Count -gt 0) {
         return @($script:ActiveOverrides['BdpgsExtractLanguages'])
+    }
+    if ($IsVobSub -and $script:ActiveOverrides -and $script:ActiveOverrides.ContainsKey('VobSubExtractLanguages') -and @($script:ActiveOverrides['VobSubExtractLanguages']).Count -gt 0) {
+        return @($script:ActiveOverrides['VobSubExtractLanguages'])
     }
     if ($IsAss -and $script:ActiveOverrides -and $script:ActiveOverrides.ContainsKey('AssKeepLanguages') -and @($script:ActiveOverrides['AssKeepLanguages']).Count -gt 0) {
         return @($script:ActiveOverrides['AssKeepLanguages'])
@@ -432,18 +453,23 @@ function Get-SubtitleLanguagePolicy {
     if ($IsBdpgs -and $script:BdpgsExtractLanguages -and $script:BdpgsExtractLanguages.Count -gt 0) {
         return @($script:BdpgsExtractLanguages)
     }
+    if ($IsVobSub -and $script:VobSubExtractLanguages -and $script:VobSubExtractLanguages.Count -gt 0) {
+        return @($script:VobSubExtractLanguages)
+    }
     return @($SubKeepLanguages)
 }
 
 function Get-SubtitleSupplementalForcedSwitchName {
     param(
         [string]$Codec,
-        [bool]$IsTx3g,
-        [bool]$IsBdpgs
+        [bool]$IsTx3g = $false,
+        [bool]$IsBdpgs = $false,
+        [bool]$IsVobSub = $false
     )
 
     if ($IsTx3g) { return 'TreatTx3gSignsSongsAsForced' }
     if ($IsBdpgs) { return 'TreatBdpgsSignsSongsAsForced' }
+    if ($IsVobSub) { return 'TreatVobSubSignsSongsAsForced' }
     if ($Codec -in (Get-MediaSubtitleCodecAssNames)) { return 'TreatAssSignsSongsAsForced' }
     return ''
 }
@@ -482,8 +508,9 @@ function Resolve-SubtitleStreamPolicy {
     $codecTag    = if ($Stream.codec_tag_string)  { ([string]$Stream.codec_tag_string).ToLowerInvariant() } else { "" }
     $isTx3g      = Test-IsTx3gSubtitleStream -Stream $Stream
     $isBdpgs     = Test-IsBdpgsSubtitleStream -Stream $Stream
+    $isVobSub    = Test-IsVobSubSubtitleStream -Stream $Stream
     $rawLang     = if ($Stream.tags.language)     { ([string]$Stream.tags.language).ToLowerInvariant() } else { "" }
-    $lang        = if ($isTx3g -or $isBdpgs) { Get-NormalizedSubtitleLanguage $rawLang } else { $rawLang }
+    $lang        = if ($isTx3g -or $isBdpgs -or $isVobSub) { Get-NormalizedSubtitleLanguage $rawLang } else { $rawLang }
     $titleLower  = if ($Stream.tags.title)        { ([string]$Stream.tags.title).ToLowerInvariant() } else { "" }
     $rawTitle    = if ($Stream.tags.title)        { [string]$Stream.tags.title } else { "" }
     $isForced    = ($Stream.disposition.forced -eq 1)
@@ -493,14 +520,14 @@ function Resolve-SubtitleStreamPolicy {
     $isSupplemental = Test-SubtitleTitleMatchesAnyKeyword -TitleLower $titleLower -Keywords $SubSupplementalKeywords
     $treatSupplementalAsForced = $false
     if ($isSupplemental) {
-        $switchName = Get-SubtitleSupplementalForcedSwitchName -Codec $codec -IsTx3g:$isTx3g -IsBdpgs:$isBdpgs
+        $switchName = Get-SubtitleSupplementalForcedSwitchName -Codec $codec -IsTx3g:$isTx3g -IsBdpgs:$isBdpgs -IsVobSub:$isVobSub
         if ($switchName) {
             $treatSupplementalAsForced = Get-EffectiveSubtitleSwitch -Name $switchName -Default $false
             if ($treatSupplementalAsForced) { $isForced = $true }
         }
     }
 
-    $languagePolicy = Get-SubtitleLanguagePolicy -IsTx3g:$isTx3g -IsBdpgs:$isBdpgs -IsAss:($codec -in (Get-MediaSubtitleCodecAssNames))
+    $languagePolicy = Get-SubtitleLanguagePolicy -IsTx3g:$isTx3g -IsBdpgs:$isBdpgs -IsVobSub:$isVobSub -IsAss:($codec -in (Get-MediaSubtitleCodecAssNames))
     $langOk = ($languagePolicy -contains $lang)
     if ($isSdh -and -not $langOk) { $langOk = $true }
     if ($isForced -and -not $langOk) { $langOk = $true }
@@ -523,6 +550,7 @@ function Resolve-SubtitleStreamPolicy {
         SupplementalForced = $treatSupplementalAsForced
         IsTx3g             = $isTx3g
         IsBdpgs            = $isBdpgs
+        IsVobSub           = $isVobSub
     }
 }
 
@@ -545,12 +573,14 @@ function New-SubtitleFilterEntry {
         SupplementalForced = $Policy.SupplementalForced
         IsTx3g             = $Policy.IsTx3g
         IsBdpgs            = $Policy.IsBdpgs
+        IsVobSub           = $Policy.IsVobSub
+        SourceKind         = 'embedded'
     }
 }
 
 function New-SubtitleRoutingDecision {
     param(
-        [Parameter(Mandatory)] [ValidateSet('Keep','ConvertAss','ConvertTx3g','ConvertBdpgs','Drop')] [string] $Action,
+        [Parameter(Mandatory)] [ValidateSet('Keep','ConvertAss','ConvertTx3g','ConvertBdpgs','ConvertVobSub','Drop')] [string] $Action,
         [Parameter(Mandatory)] [string] $Message,
         [ValidateSet('DEBUG','WARN')] [string] $Level = 'DEBUG'
     )
@@ -580,6 +610,7 @@ function New-SubtitleDecisionRecord {
     $stream = $Entry.Stream
     [pscustomobject]@{
         source_stream_index = if ($stream -and $null -ne $stream.PSObject.Properties['index']) { $stream.index } else { $null }
+        source_kind         = if ($Entry.ContainsKey('SourceKind')) { [string]$Entry.SourceKind } else { 'embedded' }
         subtitle_ordinal    = if ($Entry.ContainsKey('SubtitleOrdinal')) { $Entry.SubtitleOrdinal } else { $null }
         action              = ([string]$Decision.Action).ToLowerInvariant()
         reason              = [string]$Decision.Message
@@ -595,6 +626,7 @@ function New-SubtitleDecisionRecord {
         is_supplemental     = [bool]$Entry.IsSupplemental
         is_tx3g             = [bool]$Entry.IsTx3g
         is_bdpgs            = [bool]$Entry.IsBdpgs
+        is_vobsub           = [bool]$Entry.IsVobSub
         is_ass              = ([string]$Entry.Codec -in (Get-MediaSubtitleCodecAssNames))
     }
 }
@@ -641,6 +673,18 @@ function Get-SubtitleRoutingPolicyChain {
         },
         {
             param($Entry)
+            if (-not [bool]$Entry.IsVobSub) { return $null }
+            $sourceText = if ($Entry.ContainsKey('SourceKind') -and [string]$Entry.SourceKind -eq 'sidecar') { "sidecar $([System.IO.Path]::GetFileName([string]$Entry.IdxPath))" } else { "stream $($Entry.Stream.index)" }
+            if (Get-EffectiveSubtitleSwitch -Name 'ConvertVobSubToSrt' -Default ([bool]$script:ConvertVobSubToSrt)) {
+                return New-SubtitleRoutingDecision -Action 'ConvertVobSub' -Message "CONVERT VobSub $sourceText ($($Entry.Lang)) '$($Entry.Title)' via OCR"
+            }
+            if ($Entry.ContainsKey('SourceKind') -and [string]$Entry.SourceKind -eq 'sidecar') {
+                return New-SubtitleRoutingDecision -Action 'Drop' -Message "IGNORE VobSub $sourceText ($($Entry.Lang)) '$($Entry.Title)': ConvertVobSubToSrt disabled" -Level 'DEBUG'
+            }
+            return New-SubtitleRoutingDecision -Action 'Keep' -Message "KEEP VobSub $sourceText ($($Entry.Lang)) '$($Entry.Title)'"
+        },
+        {
+            param($Entry)
             return New-SubtitleRoutingDecision -Action 'Drop' -Message "DROP stream $($Entry.Stream.index): unsupported codec '$($Entry.Codec)'" -Level 'WARN'
         }
     )
@@ -665,6 +709,7 @@ function Add-SubtitleRoutingDecision {
         [Parameter(Mandatory)] $Convert,
         [Parameter(Mandatory)] $Tx3gConvert,
         [Parameter(Mandatory)] $BdpgsConvert,
+        [Parameter(Mandatory)] $VobSubConvert,
         [Parameter(Mandatory)] $Drop,
         [string] $Context = ''
     )
@@ -675,17 +720,23 @@ function Add-SubtitleRoutingDecision {
         'ConvertAss'  { $Convert.Add($Entry); break }
         'ConvertTx3g' { $Tx3gConvert.Add($Entry); break }
         'ConvertBdpgs' { $BdpgsConvert.Add($Entry); break }
+        'ConvertVobSub' { $VobSubConvert.Add($Entry); break }
         default       { $Drop.Add($Entry); break }
     }
 }
 
 function Filter-SubtitleStreams {
-    param([string]$FilePath, [string]$Context = "")
+    param(
+        [string]$FilePath,
+        [string]$Context = "",
+        [string]$OriginalSourcePath = ""
+    )
     Set-LastSubtitleDecisionRecords @()
     $keep        = [System.Collections.Generic.List[hashtable]]::new()
     $convert     = [System.Collections.Generic.List[hashtable]]::new()
     $tx3gConvert = [System.Collections.Generic.List[hashtable]]::new()
     $bdpgsConvert = [System.Collections.Generic.List[hashtable]]::new()
+    $vobSubConvert = [System.Collections.Generic.List[hashtable]]::new()
     $drop        = [System.Collections.Generic.List[hashtable]]::new()
     $decisions   = [System.Collections.Generic.List[object]]::new()
 
@@ -699,16 +750,15 @@ function Filter-SubtitleStreams {
         $reason = "${Context}Subtitle probe failed with exit $($r.ExitCode)"
         if ($r.Error) { $reason = "$reason`: $($r.Error)" }
         Write-Log $reason "ERROR"
-        return @{ Ok=$false; ProbeFailed=$true; ErrorCode='SUBTITLE_PROBE_FAILED'; Reason=$reason; Keep=@($keep); Convert=@($convert); Tx3gConvert=@($tx3gConvert); BdpgsConvert=@($bdpgsConvert); Drop=@($drop); Decisions=@($decisions) }
+        return @{ Ok=$false; ProbeFailed=$true; ErrorCode='SUBTITLE_PROBE_FAILED'; Reason=$reason; Keep=@($keep); Convert=@($convert); Tx3gConvert=@($tx3gConvert); BdpgsConvert=@($bdpgsConvert); VobSubConvert=@($vobSubConvert); Drop=@($drop); Decisions=@($decisions) }
     }
     try { $probe = $r.Output | ConvertFrom-Json } catch {
         $reason = "${Context}Subtitle probe returned invalid JSON: $($_.Exception.Message)"
         Write-Log $reason "ERROR"
-        return @{ Ok=$false; ProbeFailed=$true; ErrorCode='SUBTITLE_PROBE_JSON_INVALID'; Reason=$reason; Keep=@($keep); Convert=@($convert); Tx3gConvert=@($tx3gConvert); BdpgsConvert=@($bdpgsConvert); Drop=@($drop); Decisions=@($decisions) }
+        return @{ Ok=$false; ProbeFailed=$true; ErrorCode='SUBTITLE_PROBE_JSON_INVALID'; Reason=$reason; Keep=@($keep); Convert=@($convert); Tx3gConvert=@($tx3gConvert); BdpgsConvert=@($bdpgsConvert); VobSubConvert=@($vobSubConvert); Drop=@($drop); Decisions=@($decisions) }
     }
     if (-not $probe.streams -or $probe.streams.Count -eq 0) {
-        Set-LastSubtitleDecisionRecords @($decisions)
-        return @{ Ok=$true; ProbeFailed=$false; ErrorCode=''; Reason=''; Keep=@($keep); Convert=@($convert); Tx3gConvert=@($tx3gConvert); BdpgsConvert=@($bdpgsConvert); Drop=@($drop); Decisions=@($decisions) }
+        $probe = [pscustomobject]@{ streams = @() }
     }
 
     # Per-file override: resolve subtitle track filter + rename rules once before the loop.
@@ -736,6 +786,7 @@ function Filter-SubtitleStreams {
                 is_supplemental     = [bool]$policy.IsSupplemental
                 is_tx3g             = [bool]$policy.IsTx3g
                 is_bdpgs            = [bool]$policy.IsBdpgs
+                is_vobsub           = [bool]$policy.IsVobSub
                 is_ass              = ([string]$policy.Codec -in (Get-MediaSubtitleCodecAssNames))
             }) | Out-Null
             continue
@@ -761,6 +812,7 @@ function Filter-SubtitleStreams {
                 is_supplemental     = [bool]$policy.IsSupplemental
                 is_tx3g             = [bool]$policy.IsTx3g
                 is_bdpgs            = [bool]$policy.IsBdpgs
+                is_vobsub           = [bool]$policy.IsVobSub
                 is_ass              = ([string]$policy.Codec -in (Get-MediaSubtitleCodecAssNames))
             }) | Out-Null
             continue
@@ -779,11 +831,88 @@ function Filter-SubtitleStreams {
             -Convert $convert `
             -Tx3gConvert $tx3gConvert `
             -BdpgsConvert $bdpgsConvert `
+            -VobSubConvert $vobSubConvert `
             -Drop $drop `
             -Context $Context
         $decisions.Add((New-SubtitleDecisionRecord -Entry $entry -Decision $routingDecision)) | Out-Null
     }
-    Write-Log "${Context}Subtitles: $($keep.Count) keep-as-is, $($convert.Count) ASS->SRT, $($tx3gConvert.Count) TX3G->SRT, $($bdpgsConvert.Count) BDPGS->SRT, $($drop.Count) dropped"
+
+    $sidecarSourcePath = if (-not [string]::IsNullOrWhiteSpace($OriginalSourcePath)) { $OriginalSourcePath } else { $FilePath }
+    $scanVobSubSidecars = (Get-EffectiveSubtitleSwitch -Name 'ConvertVobSubToSrt' -Default ([bool]$script:ConvertVobSubToSrt))
+    if ($scanVobSubSidecars -and (Get-Command -Name Find-VobSubSidecarPairs -ErrorAction SilentlyContinue) -and (Get-Command -Name New-VobSubSidecarSubtitleEntry -ErrorAction SilentlyContinue)) {
+        foreach ($pair in @(Find-VobSubSidecarPairs -MediaPath $sidecarSourcePath -Context $Context)) {
+            $entry = New-VobSubSidecarSubtitleEntry -Pair $pair -SubtitleOrdinal $subtitleOrdinal
+            if (-not [bool]$entry.Retain) {
+                $drop.Add($entry)
+                $decisions.Add([pscustomobject]@{
+                    source_stream_index = $null
+                    source_kind         = 'sidecar'
+                    subtitle_ordinal    = $subtitleOrdinal
+                    action              = 'drop'
+                    reason              = 'language_or_title_policy'
+                    language            = [string]$entry.Lang
+                    source_codec        = [string]$entry.Codec
+                    codec_tag_string    = [string]$entry.CodecTagString
+                    title               = [string]$entry.RawTitle
+                    raw_title           = [string]$entry.RawTitle
+                    is_default          = [bool]$entry.IsDefault
+                    source_is_default   = [bool]$entry.SourceIsDefault
+                    is_forced           = [bool]$entry.IsForced
+                    is_sdh              = [bool]$entry.IsSdh
+                    is_supplemental     = [bool]$entry.IsSupplemental
+                    is_tx3g             = [bool]$entry.IsTx3g
+                    is_bdpgs            = [bool]$entry.IsBdpgs
+                    is_vobsub           = [bool]$entry.IsVobSub
+                    is_ass              = $false
+                }) | Out-Null
+                $subtitleOrdinal++
+                continue
+            }
+
+            if (-not (Test-SubtitleTrackKeptByOverride -Language $entry.Lang -IsForced:([bool]$entry.IsForced) -Title $entry.RawTitle -SubtitleOverride $subtitleOverride)) {
+                $drop.Add($entry)
+                $decisions.Add([pscustomobject]@{
+                    source_stream_index = $null
+                    source_kind         = 'sidecar'
+                    subtitle_ordinal    = $subtitleOrdinal
+                    action              = 'drop'
+                    reason              = 'file_override'
+                    language            = [string]$entry.Lang
+                    source_codec        = [string]$entry.Codec
+                    codec_tag_string    = [string]$entry.CodecTagString
+                    title               = [string]$entry.RawTitle
+                    raw_title           = [string]$entry.RawTitle
+                    is_default          = [bool]$entry.IsDefault
+                    source_is_default   = [bool]$entry.SourceIsDefault
+                    is_forced           = [bool]$entry.IsForced
+                    is_sdh              = [bool]$entry.IsSdh
+                    is_supplemental     = [bool]$entry.IsSupplemental
+                    is_tx3g             = [bool]$entry.IsTx3g
+                    is_bdpgs            = [bool]$entry.IsBdpgs
+                    is_vobsub           = [bool]$entry.IsVobSub
+                    is_ass              = $false
+                }) | Out-Null
+                $subtitleOrdinal++
+                continue
+            }
+
+            $routingDecision = Resolve-SubtitleRoutingDecision -Entry $entry
+            Add-SubtitleRoutingDecision `
+                -Entry $entry `
+                -Decision $routingDecision `
+                -Keep $keep `
+                -Convert $convert `
+                -Tx3gConvert $tx3gConvert `
+                -BdpgsConvert $bdpgsConvert `
+                -VobSubConvert $vobSubConvert `
+                -Drop $drop `
+                -Context $Context
+            $decisions.Add((New-SubtitleDecisionRecord -Entry $entry -Decision $routingDecision)) | Out-Null
+            $subtitleOrdinal++
+        }
+    }
+
+    Write-Log "${Context}Subtitles: $($keep.Count) keep-as-is, $($convert.Count) ASS->SRT, $($tx3gConvert.Count) TX3G->SRT, $($bdpgsConvert.Count) BDPGS->SRT, $($vobSubConvert.Count) VobSub->SRT, $($drop.Count) dropped"
     Set-LastSubtitleDecisionRecords @($decisions)
-    return @{ Ok=$true; ProbeFailed=$false; ErrorCode=''; Reason=''; Keep=@($keep); Convert=@($convert); Tx3gConvert=@($tx3gConvert); BdpgsConvert=@($bdpgsConvert); Drop=@($drop); Decisions=@($decisions) }
+    return @{ Ok=$true; ProbeFailed=$false; ErrorCode=''; Reason=''; Keep=@($keep); Convert=@($convert); Tx3gConvert=@($tx3gConvert); BdpgsConvert=@($bdpgsConvert); VobSubConvert=@($vobSubConvert); Drop=@($drop); Decisions=@($decisions) }
 }

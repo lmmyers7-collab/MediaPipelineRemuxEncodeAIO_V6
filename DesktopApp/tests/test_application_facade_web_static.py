@@ -71,6 +71,46 @@ def _read_command_history_asset_bundle(assets_root: Path) -> str:
     )
 
 
+def _read_completed_asset_bundle(assets_root: Path) -> str:
+    return "\n".join(
+        (assets_root / name).read_text(encoding="utf-8")
+        for name in [
+            "completed/table.js",
+            "completedView.review.js",
+            "completedView.evidence.js",
+            "completedView.proof.js",
+            "completedView.js",
+        ]
+    )
+
+
+def _read_pending_publish_asset_bundle(assets_root: Path) -> str:
+    return "\n".join(
+        (assets_root / name).read_text(encoding="utf-8")
+        for name in [
+            "pendingPublish/details.js",
+            "pendingPublish/summary.js",
+            "pendingPublishView.drain.js",
+            "pendingPublishView.confidence.js",
+            "pendingPublishView.recovery.js",
+            "pendingPublishView.js",
+        ]
+    )
+
+
+def _read_settings_asset_bundle(assets_root: Path) -> str:
+    return "\n".join(
+        (assets_root / name).read_text(encoding="utf-8")
+        for name in [
+            "settings/backendResult.js",
+            "settings/patchReview.js",
+            "settings/policyImpact.js",
+            "settingsView.rawTriage.js",
+            "settingsView.js",
+        ]
+    )
+
+
 def _read_rename_asset_bundle(assets_root: Path) -> str:
     return "\n".join(
         (assets_root / name).read_text(encoding="utf-8")
@@ -168,7 +208,6 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             "home-pipeline-start-button",
             "home-drain-button",
             "home-schedule-toggle-button",
-            'data-control-action=',
             "Run Controls",
             "Quick Actions",
             "Hard Kill",
@@ -176,7 +215,14 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         ]:
             self.assertNotIn(forbidden, home_html)
         home_actions = set(re.findall(r'data-control-action="([^"]+)"', home_html))
-        self.assertEqual(home_actions, set())
+        self.assertEqual(home_actions, {"pause", "stop", "kill"})
+        self.assertNotIn('data-control-action="rescan"', home_html)
+        self.assertIn("Pause / Resume", home_html)
+        self.assertIn("Stop After Current", home_html)
+        self.assertIn("Force Stop", home_html)
+        self.assertIn("submit backend-owned pipeline control requests", home_html)
+        self.assertIn('data-cross-page-target="completed" data-home-promotion-entry', home_html)
+        self.assertIn("Promote Files", home_html)
         self.assertIn('id="pipeline-start-button"', html)
         self.assertIn('id="pending-drain-button"', html)
         self.assertIn('data-control-action="kill"', html)
@@ -205,7 +251,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
     def test_command_surfaces_do_not_treat_backend_rejections_as_success(self) -> None:
         desktop_root = Path(__file__).resolve().parents[1]
         assets_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static" / "assets"
-        settings_js = (assets_root / "settingsView.js").read_text(encoding="utf-8")
+        settings_js = _read_settings_asset_bundle(assets_root)
         launch_js = (assets_root / "launchView.js").read_text(encoding="utf-8")
         helpers_js = (assets_root / "domHelpers.js").read_text(encoding="utf-8")
 
@@ -382,15 +428,19 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
 
         self.assertIn('id="settings-subtitle-bdpgs-ocr-tool-path"', html)
         self.assertIn('id="settings-subtitle-bdpgs-ocr-tessdata-path"', html)
+        self.assertIn('id="settings-subtitle-vobsub-ocr-tool-path"', html)
         self.assertIn('id="settings-subtitle-sdh-keywords"', html)
         self.assertIn('id="settings-subtitle-supplemental-keywords"', html)
         self.assertNotIn("settings-subtitle-bdpgs-ocr-browse", html)
+        self.assertNotIn("settings-subtitle-vobsub-ocr-browse", html)
         self.assertIn('["BdpgsOcrToolPath", "settings-subtitle-bdpgs-ocr-tool-path", "text"]', metadata_js)
         self.assertIn('["BdpgsOcrTessdataPath", "settings-subtitle-bdpgs-ocr-tessdata-path", "text"]', metadata_js)
+        self.assertIn('["VobSubOcrToolPath", "settings-subtitle-vobsub-ocr-tool-path", "text"]', metadata_js)
         self.assertIn('["SubSDHTitleKeywords", "settings-subtitle-sdh-keywords", "list"]', metadata_js)
         self.assertIn('["SubSupplementalKeywords", "settings-subtitle-supplemental-keywords", "list"]', metadata_js)
         self.assertIn('setSubtitleBuilderControl("settings-subtitle-bdpgs-ocr-tool-path", "BdpgsOcrToolPath", "text"', subtitle_js)
         self.assertIn('setSubtitleBuilderControl("settings-subtitle-bdpgs-ocr-tessdata-path", "BdpgsOcrTessdataPath", "text"', subtitle_js)
+        self.assertIn('setSubtitleBuilderControl("settings-subtitle-vobsub-ocr-tool-path", "VobSubOcrToolPath", "text"', subtitle_js)
         self.assertIn('setSubtitleBuilderControl("settings-subtitle-sdh-keywords", "SubSDHTitleKeywords", "list"', subtitle_js)
         self.assertIn('setSubtitleBuilderControl("settings-subtitle-supplemental-keywords", "SubSupplementalKeywords", "list"', subtitle_js)
         self.assertIn('if (kind === "text") return String(element.value || "").trim();', subtitle_js)
@@ -572,10 +622,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         queue_view_js = _read_queue_asset_bundle(assets_root)
         completed_view_evidence_js = (assets_root / "completedView.evidence.js").read_text(encoding="utf-8")
         completed_view_review_js = (assets_root / "completedView.review.js").read_text(encoding="utf-8")
-        completed_view_js = (assets_root / "completedView.js").read_text(encoding="utf-8")
+        completed_view_js = _read_completed_asset_bundle(assets_root)
         pending_view_drain_js = (assets_root / "pendingPublishView.drain.js").read_text(encoding="utf-8")
         pending_view_confidence_js = (assets_root / "pendingPublishView.confidence.js").read_text(encoding="utf-8")
-        pending_view_js = (assets_root / "pendingPublishView.js").read_text(encoding="utf-8")
+        pending_view_js = _read_pending_publish_asset_bundle(assets_root)
         rename_view_js = _read_rename_asset_bundle(assets_root)
         command_history_js = _read_command_history_asset_bundle(assets_root)
         diagnostics_bridge_js = (assets_root / "diagnosticsBridge.js").read_text(encoding="utf-8")
@@ -765,8 +815,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         assets_root = static_root / "assets"
         diagnostics_bridge_js = (assets_root / "diagnosticsBridge.js").read_text(encoding="utf-8")
         queue_view_js = _read_queue_asset_bundle(assets_root)
-        completed_view_js = (assets_root / "completedView.js").read_text(encoding="utf-8")
-        pending_view_js = (assets_root / "pendingPublishView.js").read_text(encoding="utf-8")
+        completed_view_js = _read_completed_asset_bundle(assets_root)
+        pending_view_js = _read_pending_publish_asset_bundle(assets_root)
         reports_view_js = (assets_root / "reportsView.js").read_text(encoding="utf-8")
         command_history_js = _read_command_history_asset_bundle(assets_root)
 
@@ -874,6 +924,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             "release-dry-run-": "maintenance",
             "release-build-": "maintenance",
             "backfill-": "maintenance",
+            "dependency-atlas-": "maintenance",
             "diagnostics-": "diagnostics",
             "settings-network-": "network",
             "settings-library-": "libraries",

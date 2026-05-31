@@ -1,0 +1,204 @@
+param()
+
+$ErrorActionPreference = 'Stop'
+
+$repoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
+. (Join-Path $repoRoot 'engine\process\pipeline_plan_executor.ps1')
+
+function Assert-True {
+    param(
+        [bool] $Condition,
+        [string] $Message
+    )
+    if (-not $Condition) { throw $Message }
+}
+
+function Assert-Equal {
+    param(
+        $Actual,
+        $Expected,
+        [string] $Message
+    )
+    if ($Actual -ne $Expected) {
+        throw "$Message Expected '$Expected' but got '$Actual'."
+    }
+}
+
+function Assert-SequenceEqual {
+    param(
+        [array] $Actual,
+        [array] $Expected,
+        [string] $Message
+    )
+    if ($Actual.Count -ne $Expected.Count) {
+        throw "$Message Expected $($Expected.Count) items but got $($Actual.Count). Actual: $($Actual -join '|')"
+    }
+    for ($i = 0; $i -lt $Expected.Count; $i++) {
+        if ([string]$Actual[$i] -ne [string]$Expected[$i]) {
+            throw "$Message Difference at index $i. Expected '$($Expected[$i])' but got '$($Actual[$i])'. Actual: $($Actual -join '|')"
+        }
+    }
+}
+
+function Assert-ContainsText {
+    param(
+        [string] $Text,
+        [string] $Needle,
+        [string] $Message
+    )
+    if ($Text -notlike "*$Needle*") {
+        throw "$Message Missing '$Needle' in '$Text'."
+    }
+}
+
+function Assert-DoesNotContainText {
+    param(
+        [string] $Text,
+        [string] $Needle,
+        [string] $Message
+    )
+    if ($Text -like "*$Needle*") {
+        throw "$Message Unexpected '$Needle' in '$Text'."
+    }
+}
+
+function ConvertTo-NormalizedPlanCommand {
+    param(
+        [array] $ArgumentList,
+        [string] $InputPath,
+        [string] $OutputPath
+    )
+    return @($ArgumentList | ForEach-Object {
+        $text = [string]$_
+        if ($text -eq $InputPath) { '<input>' }
+        elseif ($text -eq $OutputPath) { '<output>' }
+        elseif ($text -like '*.temp_av.mkv') { '<temp-av>' }
+        else { $text }
+    })
+}
+
+function New-ExpectedLegacyRemuxAvArgs {
+    param(
+        $Plan,
+        [string] $InputPath,
+        [string] $TempAvPath
+    )
+    $videoAction = Get-PipelinePlanSingleStreamAction -Plan $Plan -StreamType 'video'
+    $expected = [System.Collections.Generic.List[string]]::new()
+    $expected.AddRange([string[]]@('-i', $InputPath, '-map', '0:V', '-c:v', 'copy'))
+    if (([string]$videoAction.inputCodec).Trim().ToLowerInvariant() -in (Get-MediaVideoCodecHevcNames)) {
+        $expected.AddRange([string[]]@('-bsf:v', 'hevc_mp4toannexb'))
+    }
+    $expected.AddRange([string[]]@('-map', '0:t?', '-map_chapters', '0', '-map_metadata', '0'))
+    $expected.AddRange([string[]](New-PipelinePlanExecutorAudioArgumentList -Plan $Plan))
+    $expected.AddRange([string[]]@('-y', $TempAvPath))
+    return @($expected.ToArray())
+}
+
+function Get-Phase07BFixturePlans {
+    $python = Join-Path $repoRoot 'DesktopApp\Runtime\Python\python.exe'
+    $script = @'
+import json
+from pathlib import Path
+from app.contracts.source_media import source_media_from_ffprobe
+from app.orchestration.planner import build_pipeline_plan_from_preset
+
+root = Path("tests/fixtures/source_media")
+for path in sorted(root.glob("*.json")):
+    source = source_media_from_ffprobe(json.loads(path.read_text(encoding="utf-8")))
+    plan = build_pipeline_plan_from_preset(source, plan_id=path.stem)
+    print(json.dumps({"fixture": path.name, "plan": plan.model_dump(mode="json", by_alias=True)}, separators=(",", ":")))
+'@
+    $output = & $python -c $script
+    if ($LASTEXITCODE -ne 0) {
+        throw "Python plan generation failed with exit $LASTEXITCODE."
+    }
+    $cases = [System.Collections.Generic.List[object]]::new()
+    foreach ($line in @($output)) {
+        if ([string]::IsNullOrWhiteSpace([string]$line)) { continue }
+        $cases.Add(($line | ConvertFrom-Json -Depth 100)) | Out-Null
+    }
+    return @($cases.ToArray())
+}
+
+$fixtureCases = @(Get-Phase07BFixturePlans)
+Assert-Equal $fixtureCases.Count 10 'Phase 07B parity harness must cover every Phase 03 source-media fixture.'
+
+$matched = [System.Collections.Generic.List[string]]::new()
+foreach ($case in $fixtureCases) {
+    $planJson = $case.plan | ConvertTo-Json -Depth 100
+    $plan = ConvertFrom-PipelinePlanJson -Json $planJson
+    $dryRun = New-PipelinePlanExecutorDryRun -Plan $plan
+    Assert-Equal $dryRun.schemaVersion 'pipeline_plan_executor_dry_run.v1' "Dry-run schema mismatch for $($case.fixture)."
+    Assert-True $dryRun.dryRunOnly "Executor result must be dry-run only for $($case.fixture)."
+    Assert-True (-not $dryRun.wouldExecute) "Executor result must not execute for $($case.fixture)."
+
+    if ([string]$plan.routeSummary -eq 'REMUX') {
+        Assert-Equal $dryRun.commands.Count 2 "REMUX fixture $($case.fixture) should produce remux AV and mux commands."
+        $remuxAv = $dryRun.commands[0]
+        Assert-Equal $remuxAv.label 'REMUX-AV' "First REMUX command label mismatch for $($case.fixture)."
+        Assert-Equal $remuxAv.tool 'ffmpeg' "First REMUX command tool mismatch for $($case.fixture)."
+        $expectedTemp = [System.IO.Path]::ChangeExtension([string]$dryRun.outputPath, '.temp_av.mkv')
+        $expected = New-ExpectedLegacyRemuxAvArgs -Plan $plan -InputPath ([string]$dryRun.inputPath) -TempAvPath $expectedTemp
+        Assert-SequenceEqual `
+            (ConvertTo-NormalizedPlanCommand -ArgumentList $remuxAv.argumentList -InputPath ([string]$dryRun.inputPath) -OutputPath ([string]$dryRun.outputPath)) `
+            (ConvertTo-NormalizedPlanCommand -ArgumentList $expected -InputPath ([string]$dryRun.inputPath) -OutputPath ([string]$dryRun.outputPath)) `
+            "REMUX AV command drift for $($case.fixture)."
+        $joined = $remuxAv.argumentList -join ' '
+        Assert-ContainsText $joined '-c:v copy' "REMUX fixture $($case.fixture) must copy video."
+        Assert-DoesNotContainText $joined 'hevc_nvenc' "REMUX fixture $($case.fixture) must not invoke hardware video encode."
+        Assert-DoesNotContainText $joined 'libx265' "REMUX fixture $($case.fixture) must not invoke CPU video encode."
+        $matched.Add($case.fixture) | Out-Null
+    } elseif ([string]$plan.routeSummary -eq 'ENCODE') {
+        Assert-Equal $dryRun.commands.Count 1 "ENCODE fixture $($case.fixture) should produce one ffmpeg command."
+        $encode = $dryRun.commands[0]
+        Assert-Equal $encode.label 'ENCODE' "Encode command label mismatch for $($case.fixture)."
+        Assert-Equal $encode.tool 'ffmpeg' "Encode command tool mismatch for $($case.fixture)."
+        Assert-True (@($encode.builtWith) -contains 'New-EncodeAttemptPlan') "Encode fixture $($case.fixture) must use the existing encode attempt builder."
+        $joined = $encode.argumentList -join ' '
+        Assert-ContainsText $joined '-map 0:V' "Encode fixture $($case.fixture) must keep existing non-attached-picture video map."
+        Assert-ContainsText $joined '-map 0:t?' "Encode fixture $($case.fixture) must preserve attachments like the legacy builder."
+        Assert-ContainsText $joined '-f matroska' "Encode fixture $($case.fixture) must keep the existing Matroska muxer posture."
+        Assert-ContainsText $joined '-c:v hevc_nvenc' "Encode fixture $($case.fixture) must use the plan-selected encoder."
+        $matched.Add($case.fixture) | Out-Null
+    } elseif ([string]$plan.routeSummary -eq 'COPY') {
+        Assert-Equal $dryRun.commands.Count 1 "COPY fixture $($case.fixture) should produce one copy-source dry-run command."
+        Assert-Equal $dryRun.commands[0].tool 'copy_source' "COPY fixture $($case.fixture) must stay out of FFmpeg."
+        $matched.Add($case.fixture) | Out-Null
+    } else {
+        throw "Unexpected fixture route $($plan.routeSummary) for $($case.fixture)."
+    }
+}
+
+Assert-Equal $matched.Count $fixtureCases.Count 'Not every Phase 03 fixture reached a parity assertion.'
+
+$invalidPlan = $fixtureCases[0].plan | ConvertTo-Json -Depth 100 | ConvertFrom-Json -Depth 100
+$invalidPlan | Add-Member -NotePropertyName 'extraField' -NotePropertyValue 'not allowed'
+$invalidJson = $invalidPlan | ConvertTo-Json -Depth 100
+$rejected = $false
+try {
+    ConvertFrom-PipelinePlanJson -Json $invalidJson | Out-Null
+} catch {
+    $rejected = ([string]$_.Exception.Message -like '*unknown property*')
+}
+Assert-True $rejected 'PipelinePlan validator must reject unknown plan fields.'
+
+$remuxPlan = @($fixtureCases | Where-Object { [string]$_.plan.routeSummary -eq 'REMUX' } | Select-Object -First 1).plan
+$remuxPlan.commandPlans[0].steps += [pscustomobject]@{
+    stepId = 'bad-encode'
+    operation = 'encode_video'
+    streamType = 'video'
+    streamIndex = 0
+    label = 'Bad encode'
+    dryRunText = 'Invalid remux encode step'
+    details = @{}
+}
+$remuxRejected = $false
+try {
+    ConvertFrom-PipelinePlanJson -Json ($remuxPlan | ConvertTo-Json -Depth 100) | Out-Null
+} catch {
+    $remuxRejected = ([string]$_.Exception.Message -like '*contains encode_video step*')
+}
+Assert-True $remuxRejected 'PipelinePlan validator must reject encode_video steps in REMUX/COPY plans.'
+
+Write-Host 'Pipeline plan executor checks passed.'

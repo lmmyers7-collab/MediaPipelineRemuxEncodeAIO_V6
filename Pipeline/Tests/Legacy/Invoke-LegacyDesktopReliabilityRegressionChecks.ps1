@@ -5072,7 +5072,7 @@ function Write-PipelineEvent { param([string]`$EventType, [string]`$Stage = '', 
 function Get-FailureSuggestedAction { param([string]`$Stage, [string]`$Reason) return 'action' }
 function Get-MediaFailureCode { param([string]`$Stage, [string]`$Reason, [string]`$Classification = 'transient') return 'TRANSIENT_FAILURE' }
 function Set-ProgressStage { param([string]`$Stage, [string]`$Status, [string]`$PushState, `$Percent, [switch]`$SaveNow, [string]`$Route, [string]`$SidecarState) }
-function Set-ProgressItemContext { param([string]`$DisplayName, [string]`$FilePath, [string]`$MediaType, [string]`$QueuePhase, [int]`$QueueIndex, [int]`$QueueTotal) }
+function Set-ProgressItemContext { param([string]`$DisplayName, [string]`$FilePath, [string]`$MediaType, [string]`$LibraryId, [string]`$LibraryName, [string]`$LibraryDesignation, [string]`$LibrarySourceRoot, [string]`$LibraryOutputRoot, [string]`$QueuePhase, [int]`$QueueIndex, [int]`$QueueTotal) }
 function Reset-ProgressItemContext {}
 `$script:WrittenSidecars = @()
 `$script:CompletedManifestAdds = @()

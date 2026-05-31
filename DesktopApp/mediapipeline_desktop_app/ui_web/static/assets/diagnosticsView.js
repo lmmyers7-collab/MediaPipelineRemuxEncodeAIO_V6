@@ -70,7 +70,7 @@
     return [
       "Real-media validation lens:",
       "- Diagnostics can prove only evidence that exists in backend logs, ActiveJobs, state artifacts, command history, manifests, sidecars, and pending-publish records.",
-      "- A clean preview launch, build check, or release self-test is not proof of FFmpeg route correctness, subtitle OCR/SRT output, audio selection, size guard behavior, source stability, or publish completion for a real media file.",
+      "- A clean preview launch, build check, or release self-test is not proof of FFmpeg route correctness, subtitle OCR/SRT output, audio selection, Output Size Check behavior, source stability, or publish completion for a real media file.",
       "- Missing diagnostics evidence is not success. For first daily-driver validation, compare Last Stderr, Run Logs, Queue route fields, Completed output proof/size growth, and Pending Publish drain summary after a small known run.",
     ];
   }
@@ -158,6 +158,29 @@
     if (logSeverity) logSeverity.addEventListener("change", () => renderDiagnosticsLogTable());
     const tailButton = byId("diagnostics-tail-refresh-button");
     if (tailButton) tailButton.addEventListener("click", requestDiagnosticsTail);
+    const forceResetButton = byId("diagnostics-force-reset-button");
+    if (forceResetButton) forceResetButton.addEventListener("click", async () => {
+      const confirmed = window.confirm(
+        "Reset stuck progress to idle?\n\nThis sends the Force Stop command, which terminates any remaining pipeline processes and resets the progress state to idle.\n\nUse only when the pipeline shows an active stage but no process is actually running."
+      );
+      if (!confirmed) return;
+      const statusEl = byId("diagnostics-force-reset-status");
+      if (statusEl) statusEl.textContent = "Sending force reset...";
+      forceResetButton.disabled = true;
+      try {
+        const post = typeof apiPost === "function" ? apiPost : (typeof window.apiPost === "function" ? window.apiPost : null);
+        if (!post) throw new Error("apiPost not available.");
+        const result = await post("/api/pipeline/control", { action: "kill" });
+        const msg = String(result?.message || "Reset sent.");
+        if (statusEl) statusEl.textContent = msg;
+        if (typeof appendCommandResult === "function") appendCommandResult(result);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        if (statusEl) statusEl.textContent = `Reset failed: ${msg}`;
+      } finally {
+        forceResetButton.disabled = false;
+      }
+    });
   }
 
   const diagnosticsArtifactTargets = [
@@ -166,6 +189,12 @@
       target: "",
       patterns: [/\bbdpgs\b/i, /\bpgs(?:tosrt|[-_\s]to[-_\s]srt)?\b/i, /\bpgstosrt\b/i, /\btessdata\b/i, /\btesseract\b/i, /\bocr\b/i, /\bsubtitle(?:s)?\b.*\bsrt\b/i],
       hint: "Select the Diagnostics State Artifact Summary row 'settings_bdpgs_ocr_paths' and then review Settings > Subtitles if saved OCR tool or tessdata path evidence is blocked. Diagnostics does not edit settings or run OCR.",
+    },
+    {
+      name: "VobSub OCR settings evidence",
+      target: "",
+      patterns: [/\bvobsub\b/i, /\bdvd[_\s-]?subtitle\b/i, /\bs[_-]?vobsub\b/i, /\bseconv\b/i, /\btesseract\b/i, /\bidx\b/i, /\bsub\b/i, /\bocr\b/i, /\bsubtitle(?:s)?\b.*\bsrt\b/i],
+      hint: "Select the Diagnostics State Artifact Summary row 'settings_vobsub_ocr_paths' and then review Settings > Subtitles if saved Subtitle Edit or Tesseract evidence is blocked. Diagnostics does not edit settings or run OCR.",
     },
     {
       name: "ActiveJobs",

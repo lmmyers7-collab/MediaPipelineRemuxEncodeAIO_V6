@@ -113,6 +113,7 @@ $script:HighPriorityIssueCodes = @(
     'commentary-default-audio',
     'tx3g-extraction-failed',
     'bdpgs-ocr-failed',
+    'vobsub-ocr-failed',
     'foreign-audio-no-subtitles',
     'foreign-audio-no-text-subtitles'
 )
@@ -130,6 +131,8 @@ $script:MediumPriorityIssueCodes = @(
     'tx3g-subtitles-extractable',
     'bdpgs-only-subtitles',
     'bdpgs-subtitles-ocr-candidate',
+    'vobsub-only-subtitles',
+    'vobsub-subtitles-ocr-candidate',
     'default-image-subtitle',
     'image-only-subtitles',
     'audio-language-tags-unknown',
@@ -359,6 +362,21 @@ function Test-AuditBdpgsSubtitleStream {
     )
 }
 
+function Test-AuditVobSubSubtitleStream {
+    param($Stream)
+
+    if ($null -eq $Stream) { return $false }
+    $codecName = Convert-ToLowerInvariantSafe (Get-TagValue -Object $Stream -Name 'codec_name')
+    $codecTag = Convert-ToLowerInvariantSafe (Get-TagValue -Object $Stream -Name 'codec_tag_string')
+    $codecLong = Convert-ToLowerInvariantSafe (Get-TagValue -Object $Stream -Name 'codec_long_name')
+
+    return (
+        $codecName -in (Get-MediaSubtitleCodecVobSubNames) -or
+        $codecTag -match 's_vobsub|vobsub|dvd' -or
+        $codecLong -match 'vobsub|dvd\s+subtitle'
+    )
+}
+
 function Get-AuditTx3gGenericSrtSuffixes {
     param([array]$Tx3gSubtitleStreams)
 
@@ -453,7 +471,7 @@ function Test-AuditEmbeddedSrtRecordMatchesStream {
     param(
         $Record,
         $Stream,
-        [ValidateSet('tx3g','bdpgs')] [string]$SourceKind = 'tx3g'
+        [ValidateSet('tx3g','bdpgs','vobsub')] [string]$SourceKind = 'tx3g'
     )
 
     if ($null -eq $Record -or $null -eq $Stream) { return $false }
@@ -486,7 +504,7 @@ function Get-AuditValidatedEmbeddedSrtRecordCount {
     param(
         [array]$Records = @(),
         [array]$SubtitleStreams = @(),
-        [ValidateSet('tx3g','bdpgs')] [string]$SourceKind = 'tx3g'
+        [ValidateSet('tx3g','bdpgs','vobsub')] [string]$SourceKind = 'tx3g'
     )
 
     $usableTextStreams = @($SubtitleStreams | Where-Object {
@@ -748,6 +766,11 @@ function New-AuditResult {
         BdpgsEmbeddedSrtRecords = @()
         BdpgsEmbeddedSrtInvalidCount = 0
         BdpgsSidecarFailureCount = 0
+        VobSubSubtitleCount      = 0
+        VobSubEmbeddedSrtCount   = 0
+        VobSubEmbeddedSrtRecords = @()
+        VobSubEmbeddedSrtInvalidCount = 0
+        VobSubSidecarFailureCount = 0
         DefaultAudioCodec       = 'none'
         DefaultAudioLanguage    = 'none'
         DefaultAudioTitle       = ''
@@ -963,6 +986,20 @@ function Analyze-Sidecar {
         Add-AuditIssue -Result $Result -Bucket 'RERUN_PIPELINE' -Code 'bdpgs-ocr-failed' -Message "The pipeline sidecar records $($bdpgsFailures.Count) failed BDPGS OCR attempt(s)." -SuggestedAction 'Configure the BDPGS OCR tool/Tesseract data, inspect the saved repro command, or disable ConvertBdpgsToSrt to keep image subtitles without OCR.'
     }
 
+    $vobSubEmbeddedProp = $sidecar.PSObject.Properties['vobsub_embedded_srt_tracks']
+    if ($vobSubEmbeddedProp) {
+        $Result.VobSubEmbeddedSrtRecords = @($vobSubEmbeddedProp.Value | Where-Object { $null -ne $_ })
+    }
+    $vobSubFailures = @()
+    $vobSubFailureProp = $sidecar.PSObject.Properties['vobsub_srt_failures']
+    if ($vobSubFailureProp) {
+        $vobSubFailures = @($vobSubFailureProp.Value | Where-Object { $null -ne $_ })
+    }
+    $Result.VobSubSidecarFailureCount = $vobSubFailures.Count
+    if ($vobSubFailures.Count -gt 0) {
+        Add-AuditIssue -Result $Result -Bucket 'RERUN_PIPELINE' -Code 'vobsub-ocr-failed' -Message "The pipeline sidecar records $($vobSubFailures.Count) failed VobSub OCR attempt(s)." -SuggestedAction 'Configure Subtitle Edit seconv.exe and Tesseract, inspect the saved repro command, or disable ConvertVobSubToSrt to preserve supported embedded VobSub tracks without OCR.'
+    }
+
     $tx3gTrackProp = $sidecar.PSObject.Properties['tx3g_srt_tracks']
     if ($tx3gTrackProp) {
         $validTx3gSidecarSrtFiles = [System.Collections.Generic.List[string]]::new()
@@ -1015,6 +1052,7 @@ function Add-AuditSubtitleCompatibilityIssues {
         [array]$SubtitleStreams = @(),
         [array]$Tx3gSubtitleStreams = @(),
         [array]$BdpgsSubtitleStreams = @(),
+        [array]$VobSubSubtitleStreams = @(),
         $DefaultSubtitle = $null
     )
 
@@ -1033,6 +1071,7 @@ function Add-AuditSubtitleCompatibilityIssues {
     $hasExternalFriendlyTextSubs = @($Result.SubtitleCodecs | Where-Object { $_ -in $externalFriendlyTextCodecs }).Count -gt 0
     $hasTx3gSubs = @($Tx3gSubtitleStreams).Count -gt 0
     $hasBdpgsSubs = @($BdpgsSubtitleStreams).Count -gt 0
+    $hasVobSubSubs = @($VobSubSubtitleStreams).Count -gt 0
     $hasAssSubs  = @($Result.SubtitleCodecs | Where-Object { $_ -in $assSubtitleCodecs }).Count -gt 0
     $hasImageSubs = @($Result.SubtitleCodecs | Where-Object { $_ -in $imageSubtitleCodecs }).Count -gt 0
     $Result.HasTextSubtitle = $hasTextSubs
@@ -1052,6 +1091,14 @@ function Add-AuditSubtitleCompatibilityIssues {
 
     if ($hasBdpgsSubs -and $Result.BdpgsEmbeddedSrtCount -lt @($BdpgsSubtitleStreams).Count) {
         Add-AuditIssue -Result $Result -Bucket 'REVIEW' -Code 'bdpgs-subtitles-ocr-candidate' -Message ("ffprobe found {0} embedded BDPGS subtitle track(s); {1} pipeline OCR SRT track record(s) were found." -f @($BdpgsSubtitleStreams).Count, $Result.BdpgsEmbeddedSrtCount) -SuggestedAction 'Enable ConvertBdpgsToSrt only after configuring a PGS/SUP OCR tool such as PgsToSrt with Tesseract language data.'
+    }
+
+    if ($hasVobSubSubs -and -not $hasExternalFriendlyTextSubs -and -not $hasAssSubs -and -not $hasTx3gSubs -and -not $hasBdpgsSubs) {
+        Add-AuditIssue -Result $Result -Bucket 'REVIEW' -Code 'vobsub-only-subtitles' -Message 'This file only has embedded VobSub/DVD bitmap subtitles and no embedded SRT/WebVTT-style subtitle track.' -SuggestedAction 'Keep VobSub for MKV playback, or enable ConvertVobSubToSrt with Subtitle Edit seconv.exe and Tesseract when text subtitles are required.'
+    }
+
+    if ($hasVobSubSubs -and $Result.VobSubEmbeddedSrtCount -lt @($VobSubSubtitleStreams).Count) {
+        Add-AuditIssue -Result $Result -Bucket 'REVIEW' -Code 'vobsub-subtitles-ocr-candidate' -Message ("ffprobe found {0} embedded VobSub subtitle track(s); {1} pipeline OCR SRT track record(s) were found." -f @($VobSubSubtitleStreams).Count, $Result.VobSubEmbeddedSrtCount) -SuggestedAction 'Enable ConvertVobSubToSrt only after configuring Subtitle Edit seconv.exe and bundled Tesseract.'
     }
 
     if ($hasAssSubs -and -not $hasTextSubs -and -not $hasImageSubs) {
@@ -1115,6 +1162,7 @@ function Get-AuditResultForFile {
     $subtitleStreams = @($streams | Where-Object { $_.codec_type -eq 'subtitle' })
     $tx3gSubtitleStreams = @($subtitleStreams | Where-Object { Test-AuditTx3gSubtitleStream $_ })
     $bdpgsSubtitleStreams = @($subtitleStreams | Where-Object { Test-AuditBdpgsSubtitleStream $_ })
+    $vobSubSubtitleStreams = @($subtitleStreams | Where-Object { Test-AuditVobSubSubtitleStream $_ })
     if (@($result.Tx3gEmbeddedSrtRecords).Count -gt 0) {
         $result.Tx3gEmbeddedSrtCount = Get-AuditValidatedEmbeddedSrtRecordCount -Records @($result.Tx3gEmbeddedSrtRecords) -SubtitleStreams $subtitleStreams -SourceKind 'tx3g'
         $result.Tx3gEmbeddedSrtInvalidCount = @($result.Tx3gEmbeddedSrtRecords).Count - $result.Tx3gEmbeddedSrtCount
@@ -1129,6 +1177,13 @@ function Get-AuditResultForFile {
             Add-AuditIssue -Result $result -Bucket 'RERUN_PIPELINE' -Code 'bdpgs-embedded-srt-stale' -Message "The pipeline sidecar lists $($result.BdpgsEmbeddedSrtInvalidCount) BDPGS OCR SRT record(s) that do not match a current text subtitle stream." -SuggestedAction 'Rerun this file through MediaPipeline or refresh the sidecar if the file was modified outside the pipeline.'
         }
     }
+    if (@($result.VobSubEmbeddedSrtRecords).Count -gt 0) {
+        $result.VobSubEmbeddedSrtCount = Get-AuditValidatedEmbeddedSrtRecordCount -Records @($result.VobSubEmbeddedSrtRecords) -SubtitleStreams $subtitleStreams -SourceKind 'vobsub'
+        $result.VobSubEmbeddedSrtInvalidCount = @($result.VobSubEmbeddedSrtRecords).Count - $result.VobSubEmbeddedSrtCount
+        if ($result.VobSubEmbeddedSrtInvalidCount -gt 0) {
+            Add-AuditIssue -Result $result -Bucket 'RERUN_PIPELINE' -Code 'vobsub-embedded-srt-stale' -Message "The pipeline sidecar lists $($result.VobSubEmbeddedSrtInvalidCount) VobSub OCR SRT record(s) that do not match a current text subtitle stream." -SuggestedAction 'Rerun this file through MediaPipeline or refresh the sidecar if the file was modified outside the pipeline.'
+        }
+    }
 
     $result.Container = [string](Get-TagValue -Object $data.format -Name 'format_name')
     $result.DurationSeconds = [math]::Round((Try-ParseDoubleInvariant (Get-TagValue -Object $data.format -Name 'duration')), 3)
@@ -1139,6 +1194,7 @@ function Get-AuditResultForFile {
     $result.SubtitleCount = $subtitleStreams.Count
     $result.Tx3gSubtitleCount = $tx3gSubtitleStreams.Count
     $result.BdpgsSubtitleCount = $bdpgsSubtitleStreams.Count
+    $result.VobSubSubtitleCount = $vobSubSubtitleStreams.Count
     if ($tx3gSubtitleStreams.Count -gt 0) {
         $matchingExternalSrts = @(Get-MatchingExternalSrtFilesForAudit -FileInfo $FileInfo -Tx3gSubtitleStreams $tx3gSubtitleStreams -KnownTx3gSrtFiles @($result.Tx3gSidecarSrtFiles))
         $result.Tx3gExternalSrtFiles = @($matchingExternalSrts)
@@ -1232,7 +1288,7 @@ function Get-AuditResultForFile {
     }
 
     if ($subtitleStreams.Count -gt 0) {
-        Add-AuditSubtitleCompatibilityIssues -Result $result -SubtitleStreams $subtitleStreams -Tx3gSubtitleStreams $tx3gSubtitleStreams -BdpgsSubtitleStreams $bdpgsSubtitleStreams -DefaultSubtitle $defaultSubtitle
+        Add-AuditSubtitleCompatibilityIssues -Result $result -SubtitleStreams $subtitleStreams -Tx3gSubtitleStreams $tx3gSubtitleStreams -BdpgsSubtitleStreams $bdpgsSubtitleStreams -VobSubSubtitleStreams $vobSubSubtitleStreams -DefaultSubtitle $defaultSubtitle
     }
 
     $englishAudioLangs = @('eng', 'en')

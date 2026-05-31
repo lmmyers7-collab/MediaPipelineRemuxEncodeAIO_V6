@@ -7,6 +7,7 @@ $repoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScript
 . (Join-Path $repoRoot 'engine\shared\path_helpers.ps1')
 . (Join-Path $repoRoot 'engine\queue\queue_plan.ps1')
 . (Join-Path $repoRoot 'engine\library\library_index.ps1')
+. (Join-Path $repoRoot 'engine\config\config_schema.ps1')
 
 function Write-Log {
     param([string] $Message, [string] $Level = 'INFO')
@@ -42,6 +43,14 @@ function Assert-Contains {
     if (-not (@($Items) -contains $Expected)) {
         throw "$Message Expected collection to contain '$Expected'."
     }
+}
+
+function Assert-True {
+    param(
+        [Parameter(Mandatory)] [bool] $Condition,
+        [Parameter(Mandatory)] [string] $Message
+    )
+    if (-not $Condition) { throw $Message }
 }
 
 $script:SourceMovies = 'C:\Incoming\Movies'
@@ -126,6 +135,48 @@ Assert-Equal $animeEvidence['effective_settings']['OutputContainer'] 'mkv' 'Expe
 
 $movieOutput = Get-MediaPipelineLibraryOutputRootForPath -SourcePath 'C:\Incoming\Movies\Movie.mkv'
 Assert-Equal $movieOutput 'D:\Processed' 'Expected default movie output root to mirror Outsource.'
+
+$script:LibraryProfiles = @(
+    [pscustomobject]@{
+        id = 'alpha'
+        name = 'Alpha'
+        enabled = $true
+        designation = 'movie'
+        source_path = 'C:\SharedLibrary'
+        output_path = 'D:\AlphaProcessed'
+        overrides = [pscustomobject]@{ audio = [pscustomobject]@{ AudioMaxChannels = 2 } }
+    },
+    [pscustomobject]@{
+        id = 'beta'
+        name = 'Beta'
+        enabled = $true
+        designation = 'movie'
+        source_path = 'C:\SharedLibrary'
+        output_path = 'D:\BetaProcessed'
+        overrides = [pscustomobject]@{ audio = [pscustomobject]@{ AudioMaxChannels = 8 } }
+    },
+    [pscustomobject]@{
+        id = 'separate'
+        name = 'Separate'
+        enabled = $true
+        designation = 'movie'
+        source_path = 'C:\SeparateLibrary'
+        output_path = 'D:\SeparateProcessed'
+        overrides = [pscustomobject]@{ audio = [pscustomobject]@{ AudioMaxChannels = 4 } }
+    }
+)
+
+$selectedBetaOverrides = Resolve-MediaPipelineLibraryOverridesForPath -SourcePath 'C:\SharedLibrary\Movie.mkv' -LibraryProfileId 'beta'
+Assert-Equal $selectedBetaOverrides['AudioMaxChannels'] 8 'Expected selected library profile id to win when source root matches.'
+$script:CurrentLibraryProfileId = 'beta'
+$selectedBetaEvidence = Get-MediaPipelineLibraryProfileEvidenceForPath -SourcePath 'C:\SharedLibrary\Movie.mkv'
+Assert-Equal $selectedBetaEvidence['library_id'] 'beta' 'Expected current queue-selected library id to flow into evidence.'
+Assert-Equal $selectedBetaEvidence['output_root'] 'D:\BetaProcessed' 'Expected selected library output root to flow into evidence.'
+
+$script:CurrentLibraryProfileId = 'beta'
+$separateOverrides = Resolve-MediaPipelineLibraryOverridesForPath -SourcePath 'C:\SeparateLibrary\Movie.mkv'
+Assert-Equal $separateOverrides['AudioMaxChannels'] 4 'Expected mismatched selected library id not to cross source-root boundaries.'
+$script:CurrentLibraryProfileId = ''
 
 $queueItem = New-MediaQueueItem `
     -SourcePath 'E:\AnimeSource\Show\Season 01\Show - S01E01.mkv' `
@@ -234,5 +285,53 @@ try {
         Remove-Item -LiteralPath $tempRoot -Recurse -Force
     }
 }
+
+$invalidOverrideConfig = Get-MediaPipelineConfigDefaultValues
+$invalidOverrideConfig['LibraryProfiles'] = @(
+    [ordered]@{
+        id = 'movies'
+        name = 'Movies'
+        enabled = $true
+        designation = 'movie'
+        source_path = 'C:\Incoming\Movies'
+        output_path = 'D:\Processed'
+        overrides = [ordered]@{
+            editor = [ordered]@{
+                RouteThresholdMode = 'all'
+                EncodeThresholdGB = -1
+                MovieRouteMaxVideoBitrateMbps = 'many'
+                TVRouteMaxVideoBitrateMbps = 0
+            }
+        }
+    },
+    [ordered]@{
+        id = 'tv'
+        name = 'TV'
+        enabled = $true
+        designation = 'tv'
+        source_path = 'C:\Incoming\TV'
+        output_path = 'D:\Processed'
+        overrides = [ordered]@{}
+    }
+)
+$invalidOverrideResult = Test-MediaPipelineConfigSchema -Config $invalidOverrideConfig
+$invalidOverrideErrors = (@($invalidOverrideResult.Errors) -join "`n")
+Assert-True (-not [bool]$invalidOverrideResult.Ok) 'Expected invalid library route overrides to fail config validation.'
+Assert-True ($invalidOverrideErrors -match 'Library profile Movies override is invalid: RouteThresholdMode must be one of') 'Expected invalid RouteThresholdMode override error.'
+Assert-True ($invalidOverrideErrors -match 'Library profile Movies override is invalid: MovieRouteMaxVideoBitrateMbps must be an integer') 'Expected malformed movie bitrate override error.'
+Assert-True ($invalidOverrideErrors -match 'Library profile Movies override is invalid: TVRouteMaxVideoBitrateMbps must be between 1 and 500') 'Expected zero TV bitrate override error.'
+Assert-True ($invalidOverrideErrors -match 'Library profile Movies override is invalid: EncodeThresholdGB must be at least 1') 'Expected negative size threshold override error.'
+
+$duplicateRootConfig = Get-MediaPipelineConfigDefaultValues
+$duplicateRootConfig['LibraryProfiles'] = @(
+    [ordered]@{ id = 'movies'; name = 'Movies'; enabled = $true; designation = 'movie'; source_path = 'C:\Incoming\Movies'; output_path = 'D:\Processed'; overrides = [ordered]@{} },
+    [ordered]@{ id = 'tv'; name = 'TV'; enabled = $true; designation = 'tv'; source_path = 'C:\Incoming\TV'; output_path = 'D:\Processed'; overrides = [ordered]@{} },
+    [ordered]@{ id = 'alpha'; name = 'Alpha'; enabled = $true; designation = 'movie'; source_path = 'C:\SharedLibrary'; output_path = 'D:\AlphaProcessed'; overrides = [ordered]@{} },
+    [ordered]@{ id = 'beta'; name = 'Beta'; enabled = $true; designation = 'movie'; source_path = 'C:\SharedLibrary'; output_path = 'D:\BetaProcessed'; overrides = [ordered]@{} }
+)
+$duplicateRootResult = Test-MediaPipelineConfigSchema -Config $duplicateRootConfig
+$duplicateRootErrors = (@($duplicateRootResult.Errors) -join "`n")
+Assert-True (-not [bool]$duplicateRootResult.Ok) 'Expected duplicate enabled library source roots to fail config validation.'
+Assert-True ($duplicateRootErrors -match 'Beta shares an enabled source root with Alpha') 'Expected duplicate enabled source root error.'
 
 Write-Host 'Library profile routing checks passed.'

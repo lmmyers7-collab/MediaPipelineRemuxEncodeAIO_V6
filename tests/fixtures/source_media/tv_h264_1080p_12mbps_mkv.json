@@ -1,0 +1,46 @@
+{
+  "source": {
+    "path": "fixtures/tv_h264_1080p_12mbps_mkv.mkv",
+    "file_size_bytes": 5400000000,
+    "media_type": "tv"
+  },
+  "format": {
+    "format_name": "matroska,webm",
+    "duration": "3600.0",
+    "bit_rate": "12000000",
+    "tags": { "title": "Pilot" }
+  },
+  "streams": [
+    {
+      "index": 0,
+      "codec_type": "video",
+      "codec_name": "h264",
+      "profile": "High",
+      "level": 41,
+      "pix_fmt": "yuv420p",
+      "width": 1920,
+      "height": 1080,
+      "display_aspect_ratio": "16:9",
+      "avg_frame_rate": "24000/1001",
+      "field_order": "progressive",
+      "bit_rate": "12000000"
+    },
+    {
+      "index": 1,
+      "codec_type": "audio",
+      "codec_name": "ac3",
+      "channels": 6,
+      "channel_layout": "5.1(side)",
+      "bit_rate": "640000",
+      "tags": { "language": "eng", "title": "English 5.1" },
+      "disposition": { "default": 1, "forced": 0 }
+    },
+    {
+      "index": 2,
+      "codec_type": "subtitle",
+      "codec_name": "subrip",
+      "tags": { "language": "eng" },
+      "disposition": { "default": 0, "forced": 0 }
+    }
+  ]
+}

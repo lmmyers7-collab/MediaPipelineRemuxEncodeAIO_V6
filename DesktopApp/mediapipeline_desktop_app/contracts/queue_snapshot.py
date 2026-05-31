@@ -26,6 +26,13 @@ class QueuePlanRow:
     route: str
     route_reason_code: str
     route_reason: str
+    route_decision_trace: list[Any]
+    estimated_bitrate_mbps: float
+    route_size_threshold_gb: float
+    route_bitrate_threshold_mbps: float
+    route_threshold_mode: str
+    size_over_threshold: bool
+    bitrate_over_threshold: bool
     blocked_reason_code: str
     blocked_reason: str
     runtime_checks_deferred: bool
@@ -54,6 +61,13 @@ class QueuePlanRow:
             route=text_field(data, "route"),
             route_reason_code=text_field(data, "route_reason_code"),
             route_reason=text_field(data, "route_reason"),
+            route_decision_trace=list_field(data, "route_decision_trace"),
+            estimated_bitrate_mbps=float_field(data, "estimated_bitrate_mbps"),
+            route_size_threshold_gb=float_field(data, "route_size_threshold_gb"),
+            route_bitrate_threshold_mbps=float_field(data, "route_bitrate_threshold_mbps"),
+            route_threshold_mode=text_field(data, "route_threshold_mode"),
+            size_over_threshold=bool_field(data, "size_over_threshold"),
+            bitrate_over_threshold=bool_field(data, "bitrate_over_threshold"),
             blocked_reason_code=text_field(data, "blocked_reason_code"),
             blocked_reason=text_field(data, "blocked_reason"),
             runtime_checks_deferred=bool_field(data, "runtime_checks_deferred"),

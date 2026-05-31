@@ -51,7 +51,7 @@ function Invoke-MediaQueuePhasePlan {
         Write-Log "PRIORITY PHASE (mixed): $($mixedPriority.Count) item(s) queued first (movies: $($highMovies.Count), tv: $($highTV.Count))"
         foreach ($entry in $mixedPriority) {
             Check-ControlFlags; if ($script:StopRequested) { break }
-            Process-File $entry.File ([bool]$entry.IsTV) $ProcessedIndex -QueueIndex $entry.QueueIndex -QueueTotal $entry.QueueTotal -PriorityInfo $entry.PriorityInfo
+            Process-File $entry.File ([bool]$entry.IsTV) $ProcessedIndex -QueueIndex $entry.QueueIndex -QueueTotal $entry.QueueTotal -PriorityInfo $entry.PriorityInfo -LibraryProfileId ([string]$entry.LibraryId)
         }
     } else {
         # Default: priority movies first, then priority TV
@@ -60,7 +60,7 @@ function Invoke-MediaQueuePhasePlan {
             for ($i = 0; $i -lt $highMovies.Count; $i++) {
                 Check-ControlFlags; if ($script:StopRequested) { break }
                 $entry = $highMovies[$i]
-                Process-File $entry.File ([bool]$entry.IsTV) $ProcessedIndex -QueueIndex $entry.QueueIndex -QueueTotal $entry.QueueTotal -PriorityInfo $entry.PriorityInfo
+                Process-File $entry.File ([bool]$entry.IsTV) $ProcessedIndex -QueueIndex $entry.QueueIndex -QueueTotal $entry.QueueTotal -PriorityInfo $entry.PriorityInfo -LibraryProfileId ([string]$entry.LibraryId)
             }
         }
         if (-not $script:StopRequested -and $highTV.Count -gt 0) {
@@ -68,7 +68,7 @@ function Invoke-MediaQueuePhasePlan {
             for ($i = 0; $i -lt $highTV.Count; $i++) {
                 Check-ControlFlags; if ($script:StopRequested) { break }
                 $entry = $highTV[$i]
-                Process-File $entry.File ([bool]$entry.IsTV) $ProcessedIndex -QueueIndex $entry.QueueIndex -QueueTotal $entry.QueueTotal -PriorityInfo $entry.PriorityInfo
+                Process-File $entry.File ([bool]$entry.IsTV) $ProcessedIndex -QueueIndex $entry.QueueIndex -QueueTotal $entry.QueueTotal -PriorityInfo $entry.PriorityInfo -LibraryProfileId ([string]$entry.LibraryId)
             }
         }
     }
@@ -79,7 +79,7 @@ function Invoke-MediaQueuePhasePlan {
         for ($i = 0; $i -lt $normalMovieEntries.Count; $i++) {
             Check-ControlFlags; if ($script:StopRequested) { break }
             $entry = $normalMovieEntries[$i]
-            Process-File $entry.File ([bool]$entry.IsTV) $ProcessedIndex -QueueIndex $entry.QueueIndex -QueueTotal $entry.QueueTotal -PriorityInfo $entry.PriorityInfo
+            Process-File $entry.File ([bool]$entry.IsTV) $ProcessedIndex -QueueIndex $entry.QueueIndex -QueueTotal $entry.QueueTotal -PriorityInfo $entry.PriorityInfo -LibraryProfileId ([string]$entry.LibraryId)
         }
     }
 
@@ -89,7 +89,7 @@ function Invoke-MediaQueuePhasePlan {
         for ($i = 0; $i -lt $normalTvEntries.Count; $i++) {
             Check-ControlFlags; if ($script:StopRequested) { break }
             $entry = $normalTvEntries[$i]
-            Process-File $entry.File ([bool]$entry.IsTV) $ProcessedIndex -QueueIndex $entry.QueueIndex -QueueTotal $entry.QueueTotal -PriorityInfo $entry.PriorityInfo
+            Process-File $entry.File ([bool]$entry.IsTV) $ProcessedIndex -QueueIndex $entry.QueueIndex -QueueTotal $entry.QueueTotal -PriorityInfo $entry.PriorityInfo -LibraryProfileId ([string]$entry.LibraryId)
         }
     }
 
@@ -101,7 +101,7 @@ function Invoke-MediaQueuePhasePlan {
             for ($i = 0; $i -lt $lowEntries.Count; $i++) {
                 Check-ControlFlags; if ($script:StopRequested) { break }
                 $entry = $lowEntries[$i]
-                Process-File $entry.File ([bool]$entry.IsTV) $ProcessedIndex -QueueIndex $entry.QueueIndex -QueueTotal $entry.QueueTotal -PriorityInfo $entry.PriorityInfo
+                Process-File $entry.File ([bool]$entry.IsTV) $ProcessedIndex -QueueIndex $entry.QueueIndex -QueueTotal $entry.QueueTotal -PriorityInfo $entry.PriorityInfo -LibraryProfileId ([string]$entry.LibraryId)
             }
         }
     }
@@ -445,7 +445,18 @@ function Build-QueuePlanSnapshotRows {
         }
         if (-not $blocked) {
             try {
-                if (Already-Processed $file $isTV $tvInfo $ProcessedIndex) {
+                $previousLibraryProfileId = Get-Variable -Name CurrentLibraryProfileId -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+                $script:CurrentLibraryProfileId = [string]$entry.LibraryId
+                try {
+                    $alreadyProcessed = Already-Processed $file $isTV $tvInfo $ProcessedIndex
+                } finally {
+                    if ($null -ne $previousLibraryProfileId) {
+                        $script:CurrentLibraryProfileId = $previousLibraryProfileId
+                    } else {
+                        Remove-Variable -Name CurrentLibraryProfileId -Scope Script -ErrorAction SilentlyContinue
+                    }
+                }
+                if ($alreadyProcessed) {
                     $excludedRowsTotal++
                     if ($excludedRows.Count -lt $excludedRowsLimit) {
                         $excludedRows.Add((New-QueuePlanExcludedSnapshotRow `
@@ -466,6 +477,12 @@ function Build-QueuePlanSnapshotRows {
         $sizeGb = 0.0
         try { $sizeGb = [math]::Round([double]$file.Length / 1GB, 3) } catch {}
         $route = $null; $routeReason = $null; $routeReasonCode = $null; $routeDecisionTrace = @()
+        $routeEstimatedBitrateMbps = 0.0
+        $routeSizeThresholdGb = 0.0
+        $routeBitrateThresholdMbps = 0.0
+        $routeThresholdMode = ''
+        $routeSizeOverThreshold = $false
+        $routeBitrateOverThreshold = $false
         $routeLibraryOverrideKeys = if ($entry.Metadata -and $entry.Metadata.ContainsKey('settings_override_keys')) { @($entry.Metadata['settings_override_keys']) } else { @() }
         $routeLibrarySettingsOverrides = if ($entry.Metadata -and $entry.Metadata.ContainsKey('settings_overrides')) { $entry.Metadata['settings_overrides'] } else { [ordered]@{} }
         $routeLibraryEffectiveSettings = if ($entry.Metadata -and $entry.Metadata.ContainsKey('effective_settings')) { $entry.Metadata['effective_settings'] } else { [ordered]@{} }
@@ -489,7 +506,7 @@ function Build-QueuePlanSnapshotRows {
             $activeConfigOverrideSnapshot = $null
             try {
                 $libraryOverrides = if (Get-Command -Name Resolve-MediaPipelineLibraryOverridesForPath -ErrorAction SilentlyContinue) {
-                    Resolve-MediaPipelineLibraryOverridesForPath -SourcePath $file.FullName
+                    Resolve-MediaPipelineLibraryOverridesForPath -SourcePath $file.FullName -LibraryProfileId ([string]$entry.LibraryId)
                 } else {
                     $null
                 }
@@ -541,6 +558,12 @@ function Build-QueuePlanSnapshotRows {
                 $routeReason = [string]$rp.Reason
                 $routeReasonCode = [string]$rp.ReasonCode
                 $routeDecisionTrace = @($rp.DecisionTrace)
+                if ($rp.PSObject.Properties['EstimatedBitrateMbps']) { $routeEstimatedBitrateMbps = [double]$rp.EstimatedBitrateMbps }
+                if ($rp.PSObject.Properties['ThresholdGB']) { $routeSizeThresholdGb = [double]$rp.ThresholdGB }
+                if ($rp.PSObject.Properties['BitrateThresholdMbps']) { $routeBitrateThresholdMbps = [double]$rp.BitrateThresholdMbps }
+                if ($rp.PSObject.Properties['RouteThresholdMode']) { $routeThresholdMode = [string]$rp.RouteThresholdMode }
+                if ($rp.PSObject.Properties['SizeOverThreshold']) { $routeSizeOverThreshold = [bool]$rp.SizeOverThreshold }
+                if ($rp.PSObject.Properties['BitrateOverThreshold']) { $routeBitrateOverThreshold = [bool]$rp.BitrateOverThreshold }
             }
         } catch {
             $routeReason = "route preview failed: $($_.Exception.Message)"
@@ -574,6 +597,12 @@ function Build-QueuePlanSnapshotRows {
             route_reason_code       = $routeReasonCode
             route_reason            = $routeReason
             route_decision_trace    = @($routeDecisionTrace)
+            estimated_bitrate_mbps  = [double]$routeEstimatedBitrateMbps
+            route_size_threshold_gb = [double]$routeSizeThresholdGb
+            route_bitrate_threshold_mbps = [double]$routeBitrateThresholdMbps
+            route_threshold_mode    = [string]$routeThresholdMode
+            size_over_threshold     = [bool]$routeSizeOverThreshold
+            bitrate_over_threshold  = [bool]$routeBitrateOverThreshold
             library_settings_override_keys = @($routeLibraryOverrideKeys)
             library_settings_overrides = $routeLibrarySettingsOverrides
             library_effective_settings = $routeLibraryEffectiveSettings
@@ -594,6 +623,9 @@ function Build-QueuePlanSnapshotRows {
         try { $holdSizeGb = [math]::Round([double]$holdFile.Length / 1GB, 3) } catch {}
         $holdLastWriteUtc = ''
         try { $holdLastWriteUtc = ([datetime]$holdEntry.LastWriteUtc).ToString('o') } catch {}
+        $holdLibraryOverrideKeys = if ($holdEntry.Metadata -and $holdEntry.Metadata.ContainsKey('settings_override_keys')) { @($holdEntry.Metadata['settings_override_keys']) } else { @() }
+        $holdLibrarySettingsOverrides = if ($holdEntry.Metadata -and $holdEntry.Metadata.ContainsKey('settings_overrides')) { $holdEntry.Metadata['settings_overrides'] } else { [ordered]@{} }
+        $holdLibraryEffectiveSettings = if ($holdEntry.Metadata -and $holdEntry.Metadata.ContainsKey('effective_settings')) { $holdEntry.Metadata['effective_settings'] } else { [ordered]@{} }
         $globalOrder++
         $rows.Add([ordered]@{
             global_order            = $globalOrder
@@ -611,6 +643,9 @@ function Build-QueuePlanSnapshotRows {
             library_name            = [string]$holdEntry.LibraryName
             library_designation     = [string]$holdEntry.LibraryDesignation
             library_output_root     = [string]$holdEntry.LibraryOutputRoot
+            library_settings_override_keys = @($holdLibraryOverrideKeys)
+            library_settings_overrides = $holdLibrarySettingsOverrides
+            library_effective_settings = $holdLibraryEffectiveSettings
             relative_path           = [string]$holdEntry.RelativePathSort
             display_name            = [string]$holdEntry.SortName
             show_sort_key           = [string]$holdEntry.ShowSortKey
@@ -623,6 +658,12 @@ function Build-QueuePlanSnapshotRows {
             route_reason_code       = 'hold'
             route_reason            = 'Operator hold — excluded from processing this round.'
             route_decision_trace    = @()
+            estimated_bitrate_mbps  = 0.0
+            route_size_threshold_gb = 0.0
+            route_bitrate_threshold_mbps = 0.0
+            route_threshold_mode    = ''
+            size_over_threshold     = $false
+            bitrate_over_threshold  = $false
             blocked_reason_code     = 'hold'
             blocked_reason          = 'Operator hold.'
             runtime_checks_deferred = $false

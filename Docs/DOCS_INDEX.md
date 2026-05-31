@@ -2,14 +2,14 @@
 
 Last updated: 2026-05-28
 
-This is the active documentation map for the current V6 tree. It reflects the quarantine move plus the operator's later manual deletion of several active doc folders. The legacy desktop shell is not part of this V6 folder. V5 remains an external fallback workspace only.
+This is the active documentation map for the current promoted V6 tree. It reflects the quarantine move plus the operator's later manual deletion of several active doc folders. The legacy desktop shell is not part of this V6 folder, and WebView/Tauri is the promoted operator surface.
 
 ## Start Here
 
 - `..\README.md`: root operator entry point.
 - `..\AGENTS.md`: root entry point for AI/code agents.
-- `CURRENT_PROJECT_STATE.md`: current architecture, launch paths, migration state, safety assumptions, and obsolete instructions.
-- `..\OPEN_WORK_CHECKLIST.md`: single active unresolved work queue.
+- `CURRENT_PROJECT_STATE.md`: current architecture, launch paths, operating state, safety assumptions, and obsolete instructions.
+- `..\OPEN_WORK_CHECKLIST.md`: active work queue and closed promotion-gate record.
 - `TLDR.md`: fast operator summary.
 - `README_MediaPipelineRemuxEncodeAIO.md`: bundle overview, launchers, setup, release packaging, and important paths.
 - `DOCS_INDEX.md`: this file.
@@ -25,9 +25,8 @@ This is the active documentation map for the current V6 tree. It reflects the qu
 - `..\README.md`: root operator entry point.
 - `..\AGENTS.md`: root AI/code-agent entry point.
 - `architecture/ARCHITECTURE.md`: concise architecture map.
-- `architecture/ARCHITECTURAL_OVERHAUL_PLAN.md`: V6 to V7 plan of record.
 - `..\CHANGELOG.md`: canonical shipped-status log.
-- `..\OPEN_WORK_CHECKLIST.md`: active task queue and promotion blockers.
+- `..\OPEN_WORK_CHECKLIST.md`: active work queue and promotion-gate record.
 - `generated/PROJECT_INDEX.md`: generated per-source navigation index.
 - `generated/PIPELINE_MAP.md`: generated stage contract map.
 - `generated/DEPENDENCY_GRAPH.md`: generated cross-domain dependency graph.

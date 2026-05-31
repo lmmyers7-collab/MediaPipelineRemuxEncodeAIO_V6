@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsLibrarie
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-30
+last_modified: 2026-05-31
 last_reviewed: 2026-05-29
-sha256: 44e47bd276377b8721fa24cd61835babaa9142bd4aff12b3e1a95dbfa67d8dad
+sha256: c78d47e6bca633267052fb1f183efba96e91742968f3af3c94050d59948a983d
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsLibraries.js`
 

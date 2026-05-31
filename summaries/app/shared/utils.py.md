@@ -3,9 +3,9 @@ file: app/shared/utils.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-05-05
+last_modified: 2026-05-30
 last_reviewed: 2026-05-28
-sha256: 85034bbed32095567a7413eab232045dda0123425634509455a4527748b9e8f1
+sha256: 5909714ff302c0a8fa19ccf501c27ba7293aace231c7b0096368d9d3f74b2119
 ---
 # `app/shared/utils.py`
 

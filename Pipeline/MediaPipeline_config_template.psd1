@@ -50,6 +50,10 @@
     BdpgsExtractLanguages = @('eng', 'en', 'und')
     BdpgsOcrToolPath = 'Tools\PgsToSrt\PgsToSrt.exe'
     BdpgsOcrTessdataPath = 'Tools\PgsToSrt\tessdata'
+    ConvertVobSubToSrt = $false
+    DropVobSubAfterConversion = $false
+    VobSubExtractLanguages = @('eng', 'en', 'und')
+    VobSubOcrToolPath = 'Tools\SubtitleEdit\seconv.exe'
     SubSDHTitleKeywords = @('sdh', 'hearing impaired', 'hearing-impaired', 'cc', 'closed caption', 'closedcaption')
     SubSupplementalKeywords = @('sign', 'song', 'karaoke', 'chapter', 'opening', 'ending')
     DropAssAfterConversion = $false
@@ -61,6 +65,7 @@
     TreatAssSignsSongsAsForced = $false
     TreatTx3gSignsSongsAsForced = $false
     TreatBdpgsSignsSongsAsForced = $false
+    TreatVobSubSignsSongsAsForced = $false
     ExcludeSubtitleStyles = @('Sign', 'Sign *', 'Sign-*', 'Signs', 'Signs *', 'Signs-*', 'OP', 'OP *', 'OP-*', 'OP_*', 'Opening*', 'ED', 'ED *', 'ED-*', 'ED_*', 'Ending*', '*Lyrics*', '*Romaji*', '*Kanji*', 'Song', 'Song *', 'Song-*', 'Title', 'Show Title', 'Episode Title', 'Next Episode', 'Next *', 'Credits', 'Credit*', 'Note', 'Note*', 'Caption', 'Caption*', 'fs')
     IncludeSubtitleStyles = @()
     RemuxSafeVideoCodecs = @('hevc', 'h265', 'h.265')
@@ -88,6 +93,7 @@
     SubtitleExtractTimeoutSeconds = 180
     SubtitleProbeTimeoutSeconds = 30
     BdpgsOcrTimeoutSeconds = 1800
+    VobSubOcrTimeoutSeconds = 1800
     OutputValidationProbeTimeoutSeconds = 60
     OutputValidationMinSizeBytes = 1024
     OutputValidationDurationToleranceSeconds = 2

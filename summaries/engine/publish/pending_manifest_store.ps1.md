@@ -3,9 +3,9 @@ file: engine/publish/pending_manifest_store.ps1
 pipeline_stage: publish
 token_priority: high
 owner_domain: publish
-last_modified: 2026-05-29
+last_modified: 2026-05-31
 last_reviewed: 2026-05-29
-sha256: 4b003469c28cce7996e92c34e29d722ffc0efe9c446f05e894159aa573f278d3
+sha256: 0c124a30fe6e19b544f2bf46a18b8299e6f1cf639cd2dfbbbf4b071380feb923
 ---
 # `engine/publish/pending_manifest_store.ps1`
 

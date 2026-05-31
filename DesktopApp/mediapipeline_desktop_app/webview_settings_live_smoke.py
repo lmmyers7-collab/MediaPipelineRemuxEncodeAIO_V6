@@ -16,7 +16,7 @@ from .services import DesktopAppService
 
 
 EXPECTED_READINESS_AREAS = {
-    "Routing / size guard",
+    "Routing / Output Size Check",
     "Container / subtitle preservation",
     "Subtitle language routing",
     "TX3G / mov_text SRT",

@@ -3,9 +3,9 @@ file: engine/subtitles/builders/decisions.ps1
 pipeline_stage: subtitles
 token_priority: high
 owner_domain: subtitles
-last_modified: 2026-05-30
+last_modified: 2026-05-31
 last_reviewed: 2026-05-30
-sha256: e0503329abf983c97e08391659a8ff4e65d633d9d2f2b9277f5be4705ec7a9e7
+sha256: 58c846d6277ba7f9154d4bdcb81d9cdc5af5b3f3aa38458a6c3f33a6b59dca6f
 ---
 # `engine/subtitles/builders/decisions.ps1`
 

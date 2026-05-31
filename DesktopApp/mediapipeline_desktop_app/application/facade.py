@@ -11,6 +11,7 @@ from app.failures.facade import FailureFacadeMixin
 from app.final_library.facade import FinalLibraryPromotionFacadeMixin
 from app.maintenance.backfill_facade import MaintenanceBackfillFacadeMixin
 from app.maintenance.commands_facade import MaintenanceCommandFacadeMixin
+from app.maintenance.dependency_atlas_facade import MaintenanceDependencyAtlasFacadeMixin
 from app.maintenance.facade import MaintenanceFacadeMixin
 from app.maintenance.release_facade import MaintenanceReleaseFacadeMixin
 from app.network.facade import NetworkFacadeMixin
@@ -53,6 +54,7 @@ class MediaPipelineApplicationFacade(
     MaintenanceCommandFacadeMixin,
     MaintenanceReleaseFacadeMixin,
     MaintenanceBackfillFacadeMixin,
+    MaintenanceDependencyAtlasFacadeMixin,
     NetworkFacadeMixin,
     QueueFacadeMixin,
     FailureFacadeMixin,

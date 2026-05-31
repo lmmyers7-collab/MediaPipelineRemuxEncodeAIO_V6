@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsOverview
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-29
+last_modified: 2026-05-31
 last_reviewed: 2026-05-29
-sha256: c6b8dcfe92714eb436310529859d23a44596bee8cb8dd4a1813044c2088413d3
+sha256: 3ebe1773e38c5628d25be9cb90d54c68f30420e4d8251c4f15f048a8c34de48c
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsOverview.js`
 

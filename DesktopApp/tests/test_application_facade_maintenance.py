@@ -118,6 +118,31 @@ class ApplicationFacadeMaintenanceTests(unittest.TestCase):
         self.assertTrue(service.release_build_calls[-1]["force"])
         self.assertEqual(service.release_build_calls[-1]["timeout_seconds"], 14400)
 
+    def test_dependency_atlas_command_updates_tooling_artifact_result(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+
+            result = facade.run_dependency_atlas(
+                {
+                    "timeout_seconds": 99999,
+                    "min_overview_edge_count": 5,
+                    "min_overview_files": 3,
+                }
+            )
+
+        self.assertTrue(result.ok)
+        self.assertEqual(result.command, "maintenance.dependency_atlas")
+        self.assertTrue(result.data["writes_dependency_atlas"])
+        self.assertFalse(result.data["writes_media"])
+        self.assertEqual(result.data["modules"], "377")
+        self.assertEqual(result.data["dependency_atlas_progress"]["schema_version"], "desktop_dependency_atlas_progress.v1")
+        self.assertEqual(result.data["progress_bars"][0]["id"], "dependency_atlas")
+        self.assertEqual(service.dependency_atlas_calls[-1]["timeout_seconds"], 1800)
+        self.assertEqual(service.dependency_atlas_calls[-1]["min_overview_edge_count"], 5)
+        self.assertEqual(service.dependency_atlas_calls[-1]["min_overview_files"], 3)
+
     def test_maintenance_dry_run_commands_share_backend_command_lock(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -136,16 +161,22 @@ class ApplicationFacadeMaintenanceTests(unittest.TestCase):
             try:
                 release = facade.run_release_dry_run({"destination_root": str(root / "Deploy")}).to_mapping()
                 backfill = facade.run_completed_backfill_dry_run(resolved, {}).to_mapping()
+                atlas = facade.run_dependency_atlas({}).to_mapping()
             finally:
                 facade._maintenance_command_lock.release()  # type: ignore[attr-defined]
 
         self.assertFalse(release["ok"])
         self.assertFalse(backfill["ok"])
+        self.assertFalse(atlas["ok"])
         self.assertEqual(release["command"], "maintenance.release_dry_run")
         self.assertEqual(backfill["command"], "maintenance.completed_backfill_dry_run")
+        self.assertEqual(atlas["command"], "maintenance.dependency_atlas")
         self.assertEqual(release["severity"], "warning")
         self.assertEqual(backfill["severity"], "warning")
+        self.assertEqual(atlas["severity"], "warning")
         self.assertIn("another maintenance command is already in progress", release["message"])
         self.assertIn("another maintenance command is already in progress", backfill["message"])
+        self.assertIn("another maintenance command is already in progress", atlas["message"])
         self.assertEqual(service.release_build_calls, [])
+        self.assertEqual(service.dependency_atlas_calls, [])
         self.assertEqual(backfill_calls, [])

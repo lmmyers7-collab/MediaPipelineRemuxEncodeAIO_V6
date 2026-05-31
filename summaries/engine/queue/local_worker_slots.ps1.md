@@ -3,9 +3,9 @@ file: engine/queue/local_worker_slots.ps1
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-05-29
+last_modified: 2026-05-30
 last_reviewed: 2026-05-29
-sha256: 07935fd03b646d3c679994069ddc0c064d87806facb99806af8f73d62778289e
+sha256: 319fc13f291741fbfbc60218ee666c258ee804c794be92bbe18c4582ccb67796
 ---
 # `engine/queue/local_worker_slots.ps1`
 

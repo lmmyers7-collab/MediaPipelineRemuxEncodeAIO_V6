@@ -73,6 +73,7 @@ function Build-SubtitleTracksForMkvmerge {
     $externalTracks = [System.Collections.Generic.List[hashtable]]::new()
     $tx3gTracks     = [System.Collections.Generic.List[hashtable]]::new()
     $bdpgsTracks    = [System.Collections.Generic.List[hashtable]]::new()
+    $vobSubTracks   = [System.Collections.Generic.List[hashtable]]::new()
     $tempFiles      = [System.Collections.Generic.List[string]]::new()
     $failures       = [System.Collections.Generic.List[object]]::new()
     $defaultState  = New-SubtitleBuilderDefaultState
@@ -214,12 +215,70 @@ function Build-SubtitleTracksForMkvmerge {
         })
     }
 
+    foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'ConvertVobSub' })) {
+        $entry = $decision.Entry
+        $s = $entry.Stream
+        $sourceKind = if ($entry.ContainsKey('SourceKind')) { [string]$entry.SourceKind } else { 'embedded' }
+        $keptVobSubTrack = $null
+        if ($sourceKind -ne 'sidecar' -and $s) {
+            $mkvTid = if ($tidMap.ContainsKey($s.index)) { $tidMap[$s.index] } else { $s.index }
+            if ([bool]$decision.PreserveOriginal) {
+                $keptVobSubTrack = @{
+                    MkvTid    = $mkvTid
+                    Lang      = $entry.Lang
+                    Title     = "$($entry.Title) $($decision.OriginalTitleSuffix)"
+                    IsDefault = $false
+                    IsForced  = $entry.IsForced
+                }
+                $sourceTracks.Add($keptVobSubTrack)
+            }
+        }
+
+        $tempSrt = Join-Path $script:processingDir "sub_vobsub_$([guid]::NewGuid().ToString('N')).srt"
+        $ocr = Convert-VobSubToSrt -SourceFile $SourceFile -StreamIndex $(if ($s) { [int]$s.index } else { -1 }) -StreamInfo $entry -DestinationPath $tempSrt -Context $Context
+        if (-not $ocr.Ok) {
+            if ($ocr.Failure) { $failures.Add($ocr.Failure) }
+            if ($keptVobSubTrack -and -not $entry.IsSupplemental) {
+                if ([bool]$decision.IsPreferredDefaultCandidate -and -not [bool]$defaultState.DefaultSet) {
+                    $keptVobSubTrack.IsDefault = $true
+                    $defaultState.DefaultSet = $true
+                } else {
+                    Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $keptVobSubTrack
+                }
+            }
+            $sourceText = if ($s) { "stream $($s.index)" } else { "sidecar $([System.IO.Path]::GetFileName([string]$entry.IdxPath))" }
+            Write-Log "${Context}VobSub->SRT failed for ${sourceText}: $($ocr.Reason)" "WARN"
+            continue
+        }
+        $tempFiles.Add($ocr.Path)
+
+        $externalTrack = @{
+            SrtPath=$ocr.Path; Lang=$entry.Lang; Title=$entry.Title
+            IsDefault=$false; IsForced=$entry.IsForced
+        }
+        $isDefault = Set-SubtitleBuilderBoolDefaultDisposition -Track $externalTrack -DefaultState $defaultState -Decision $decision
+        $entry.IsDefault = $isDefault
+        $externalTracks.Add($externalTrack)
+        if (-not $isDefault) {
+            Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $externalTrack
+        }
+        $vobSubTracks.Add(@{
+            SrtPath    = $ocr.Path
+            StreamInfo = $entry
+            CueCount   = $ocr.CueCount
+            OriginalPreserved = ($null -ne $keptVobSubTrack)
+            OriginalPreserveReason = $decision.OriginalPreserveReason
+        })
+    }
+
     foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'Keep' })) {
         $entry = $decision.Entry
         $s      = $entry.Stream
         if ([bool]$decision.RoutesToReview) {
             if ($decision.ReviewFailureKind -eq 'bdpgs') {
                 $failures.Add((New-BdpgsFailureRecord -Entry $entry -Reason $decision.ReviewReason -ErrorCode $decision.ReviewErrorCode))
+            } elseif ($decision.ReviewFailureKind -eq 'vobsub') {
+                $failures.Add((New-VobSubFailureRecord -Entry $entry -Reason $decision.ReviewReason -ErrorCode $decision.ReviewErrorCode))
             } else {
                 $failures.Add((New-Tx3gFailureRecord -Entry $entry -Reason $decision.ReviewReason -ErrorCode $decision.ReviewErrorCode))
             }
@@ -246,6 +305,7 @@ function Build-SubtitleTracksForMkvmerge {
         ExternalTracks = @($externalTracks)
         Tx3gTracks     = @($tx3gTracks)
         BdpgsTracks    = @($bdpgsTracks)
+        VobSubTracks   = @($vobSubTracks)
         TempFiles      = @($tempFiles)
         Failures       = @($failures)
     }
@@ -258,6 +318,7 @@ function Build-SubtitleArgsForFFmpeg {
     $tempFiles  = [System.Collections.Generic.List[string]]::new()
     $tx3gTracks = [System.Collections.Generic.List[hashtable]]::new()
     $bdpgsTracks = [System.Collections.Generic.List[hashtable]]::new()
+    $vobSubTracks = [System.Collections.Generic.List[hashtable]]::new()
     $failures   = [System.Collections.Generic.List[object]]::new()
 
     # Build a single ordered list of all output subtitle tracks.
@@ -272,7 +333,12 @@ function Build-SubtitleArgsForFFmpeg {
     $convertedSrtCodec = Get-ConvertedSrtCodecForFfmpegOutput
     $canPreserveTx3g = Test-CanPreserveTx3gInFfmpegOutput
     $canPreserveBdpgs = Test-CanPreserveBdpgsInFfmpegOutput
-    $trackDecisions = Get-SubtitleBuilderTrackDecisionRecords -FilterResult $FilterResult -Builder 'FFmpeg' -CanPreserveTx3g:$canPreserveTx3g -CanPreserveBdpgs:$canPreserveBdpgs
+    $canPreserveVobSub = if (Get-Command -Name Test-CanPreserveVobSubInFfmpegOutput -ErrorAction SilentlyContinue) {
+        Test-CanPreserveVobSubInFfmpegOutput
+    } else {
+        $false
+    }
+    $trackDecisions = Get-SubtitleBuilderTrackDecisionRecords -FilterResult $FilterResult -Builder 'FFmpeg' -CanPreserveTx3g:$canPreserveTx3g -CanPreserveBdpgs:$canPreserveBdpgs -CanPreserveVobSub:$canPreserveVobSub
 
     foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'ConvertAss' })) {
         $entry = $decision.Entry
@@ -450,12 +516,76 @@ function Build-SubtitleArgsForFFmpeg {
         })
     }
 
+    foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'ConvertVobSub' })) {
+        $entry = $decision.Entry
+        $s = $entry.Stream
+        $sourceKind = if ($entry.ContainsKey('SourceKind')) { [string]$entry.SourceKind } else { 'embedded' }
+        $keptVobSubTrack = $null
+
+        if ($sourceKind -ne 'sidecar' -and $s -and [bool]$decision.PreserveOriginal) {
+            $keptVobSubTrack = @{
+                MapArg  = "0:$($s.index)"
+                Title   = "$($entry.Title) $($decision.OriginalTitleSuffix)"
+                Lang    = $entry.Lang
+                Disp    = Get-SubtitleBuilderFfmpegBaseDisposition -Decision $decision
+                SrtPath = $null
+                Codec   = "copy"
+            }
+            $allTracks.Add($keptVobSubTrack)
+        } elseif (-not [string]::IsNullOrWhiteSpace($decision.ContainerLogMessage)) {
+            Write-Log "${Context}$($decision.ContainerLogMessage)" "DEBUG"
+        }
+
+        $tempSrt = Join-Path $script:processingDir "sub_vobsub_$([guid]::NewGuid().ToString('N')).srt"
+        $ocr = Convert-VobSubToSrt -SourceFile $SourceFile -StreamIndex $(if ($s) { [int]$s.index } else { -1 }) -StreamInfo $entry -DestinationPath $tempSrt -Context $Context
+        if (-not $ocr.Ok) {
+            if ($ocr.Failure) { $failures.Add($ocr.Failure) }
+            if ($keptVobSubTrack -and -not $entry.IsSupplemental) {
+                if ([bool]$decision.IsPreferredDefaultCandidate -and -not [bool]$defaultState.DefaultSet) {
+                    Set-SubtitleBuilderFfmpegDefaultDisposition -Track $keptVobSubTrack
+                    $defaultState.DefaultSet = $true
+                } else {
+                    Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $keptVobSubTrack
+                }
+            }
+            $sourceText = if ($s) { "stream $($s.index)" } else { "sidecar $([System.IO.Path]::GetFileName([string]$entry.IdxPath))" }
+            Write-Log "${Context}SUB: VobSub OCR failed for ${sourceText}: $($ocr.Reason)" "WARN"
+            continue
+        }
+        $tempFiles.Add($ocr.Path)
+
+        $disp = Get-SubtitleBuilderFfmpegConvertedDisposition -Decision $decision -DefaultState $defaultState
+        $entry.IsDefault = ($disp -eq 'default' -or $disp -eq 'default+forced')
+
+        $track = @{
+            MapArg  = $null
+            Title   = $entry.Title
+            Lang    = $entry.Lang
+            Disp    = $disp
+            SrtPath = $ocr.Path
+            Codec   = $convertedSrtCodec
+        }
+        $allTracks.Add($track)
+        if ($disp -eq "0") {
+            Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $track
+        }
+        $vobSubTracks.Add(@{
+            SrtPath    = $ocr.Path
+            StreamInfo = $entry
+            CueCount   = $ocr.CueCount
+            OriginalPreserved = ($null -ne $keptVobSubTrack)
+            OriginalPreserveReason = $decision.OriginalPreserveReason
+        })
+    }
+
     foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'Keep' })) {
         $entry = $decision.Entry
         $s    = $entry.Stream
         if ([bool]$decision.RoutesToReview) {
             if ($decision.ReviewFailureKind -eq 'bdpgs') {
                 $failures.Add((New-BdpgsFailureRecord -Entry $entry -Reason $decision.ReviewReason -ErrorCode $decision.ReviewErrorCode))
+            } elseif ($decision.ReviewFailureKind -eq 'vobsub') {
+                $failures.Add((New-VobSubFailureRecord -Entry $entry -Reason $decision.ReviewReason -ErrorCode $decision.ReviewErrorCode))
             } else {
                 $failures.Add((New-Tx3gFailureRecord -Entry $entry -Reason $decision.ReviewReason -ErrorCode $decision.ReviewErrorCode))
             }
@@ -509,6 +639,7 @@ function Build-SubtitleArgsForFFmpeg {
         TempFiles   = @($tempFiles)
         Tx3gTracks  = @($tx3gTracks)
         BdpgsTracks = @($bdpgsTracks)
+        VobSubTracks = @($vobSubTracks)
         Failures    = @($failures)
         TrackCount  = $allTracks.Count
     }

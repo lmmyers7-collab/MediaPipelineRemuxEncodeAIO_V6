@@ -12,6 +12,7 @@
       setText,
       settingsBuilderConfigValue,
       settingsBuilderInputValue,
+      settingsDisplayLabels,
       settingsFieldDefinition,
       settingsSpecificImpactHints,
       videoDetailSettingsBuilderFields,
@@ -115,7 +116,7 @@
       ];
       videoDetailSettingsBuilderFields.forEach(([key, id, kind]) => {
         const field = settingsFieldDefinition(key);
-        const label = field?.label || key;
+        const label = settingsDisplayLabels?.[key] || field?.label || key;
         let valueText = "";
         if (kind === "bool") {
           valueText = byId(id)?.checked ? "enabled" : "disabled";

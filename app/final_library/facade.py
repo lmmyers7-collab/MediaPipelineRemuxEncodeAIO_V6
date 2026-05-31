@@ -52,7 +52,7 @@ class FinalLibraryPromotionFacadeMixin:
             )
         try:
             records = loader(resolved, limit=500, force_refresh=True)
-            result = starter(resolved, records)
+            result = starter(resolved, records, row_keys=request.get("row_keys"))
         except Exception as exc:
             return CommandResult(
                 command="final_library.promote_queue",

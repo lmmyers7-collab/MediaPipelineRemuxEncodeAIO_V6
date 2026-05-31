@@ -282,3 +282,73 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
         self.assertFalse(saved.ok)
         self.assertIn("no changes", saved.message)
         self.assertEqual(service.saved_config_calls, [])
+
+    def test_library_profile_resets_preview_and_save_remove_explicit_state_without_copying_globals(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            config_path = root / "config.psd1"
+            config_path.write_text("@{ LibraryProfiles = @() }\n", encoding="utf-8")
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_path = config_path
+            resolved.config_data = {
+                "SourceMovies": r"C:\Incoming\Movies",
+                "SourceTV": r"C:\Incoming\TV",
+                "Outsource": r"D:\Processed",
+                "RoutingProfile": "plex_direct_stream",
+                "VideoPreset": "p5",
+                "ConvertVobSubToSrt": False,
+                "LibraryProfiles": [
+                    {
+                        "id": "movies",
+                        "designation": "movie",
+                        "source_path": r"C:\Incoming\Movies",
+                        "output_path": r"D:\Processed",
+                        "overrides": {
+                            "editor": {"RoutingProfile": "manual"},
+                            "video": {"VideoPreset": "p5"},
+                            "subtitles": {"ConvertVobSubToSrt": True},
+                            "audio": {},
+                        },
+                    },
+                    {
+                        "id": "concerts",
+                        "designation": "auto",
+                        "source_path": r"F:\Concerts",
+                        "output_path": r"G:\ConcertsProcessed",
+                    },
+                ],
+            }
+            request = {
+                "changes": {},
+                "library_profile_resets": [
+                    {
+                        "library_id": "movies",
+                        "overrides": {
+                            "editor": ["RoutingProfile"],
+                            "video": ["VideoPreset"],
+                            "subtitles": ["ConvertVobSubToSrt"],
+                        },
+                    },
+                    {"library_id": "concerts", "path_fields": ["output_path"]},
+                ],
+            }
+
+            preview = facade.preview_settings_patch(resolved, request)
+            saved = facade.save_settings_patch(resolved, {**request, "confirm_save": True})
+
+        self.assertTrue(preview.ok)
+        self.assertIn("LibraryProfiles", preview.data["changed_keys"])
+        state_by_id = {state["library_id"]: state for state in preview.data["library_profile_state"]}
+        self.assertEqual(state_by_id["concerts"]["path_fields"]["output_path"]["state"], "inherited")
+        self.assertTrue(saved.ok)
+        profiles = {profile["id"]: profile for profile in service.saved_config_calls[-1]["config_values"]["LibraryProfiles"]}
+        movie = profiles["movies"]
+        concerts = profiles["concerts"]
+        self.assertNotIn("RoutingProfile", movie["overrides"]["editor"])
+        self.assertNotIn("VideoPreset", movie["overrides"]["video"])
+        self.assertNotIn("ConvertVobSubToSrt", movie["overrides"]["subtitles"])
+        self.assertEqual(concerts["output_path"], r"D:\Processed")
+        self.assertIn("output_path", concerts["default_tracking"]["inherited_fields"])
+        self.assertEqual(concerts["default_tracking"]["field_default_keys"]["output_path"], "Outsource")

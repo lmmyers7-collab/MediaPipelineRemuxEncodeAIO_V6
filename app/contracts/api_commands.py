@@ -9,7 +9,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+from app.contracts.source_media import SourceMediaInfo
 
 
 class ApiCommandPayload(BaseModel):
@@ -72,12 +74,23 @@ class SettingsCommandPayload(ApiCommandPayload):
 class SettingsPreviewPatchCommandPayload(StrictApiCommandPayload):
     changes: Any = None
     remove_keys: Any = None
+    library_profile_resets: Any = None
 
 
 class SettingsSavePatchCommandPayload(StrictApiCommandPayload):
     changes: Any = None
     remove_keys: Any = None
+    library_profile_resets: Any = None
     confirm_save: Any = None
+
+
+class SettingsPipelinePlanPreviewCommandPayload(StrictApiCommandPayload):
+    source_media: SourceMediaInfo
+    changes: dict[str, Any] = Field(default_factory=dict)
+    remove_keys: list[Any] = Field(default_factory=list)
+
+    def to_wire_payload(self) -> dict[str, Any]:
+        return dict(self.model_dump(mode="json"))
 
 
 class SettingsWizardCommandPayload(ApiCommandPayload):
@@ -186,6 +199,12 @@ class MaintenanceReleaseBuildCommandPayload(StrictApiCommandPayload):
     timeout_seconds: Any = None
 
 
+class MaintenanceDependencyAtlasCommandPayload(StrictApiCommandPayload):
+    timeout_seconds: Any = None
+    min_overview_edge_count: Any = None
+    min_overview_files: Any = None
+
+
 class SampleValidationCommandPayload(ApiCommandPayload):
     sample_path: Any = None
     worksheet_path: Any = None
@@ -201,6 +220,7 @@ class FailureCommandPayload(ApiCommandPayload):
 
 class FinalLibraryPromoteQueueCommandPayload(StrictApiCommandPayload):
     confirm_promote: Any = None
+    row_keys: Any = None
 
 
 class FinalLibraryPromotionRunCommandPayload(StrictApiCommandPayload):
@@ -223,6 +243,7 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/settings/validate": SettingsCommandPayload,
     "/api/settings/browse-path": SettingsBrowsePathCommandPayload,
     "/api/settings/preview-patch": SettingsPreviewPatchCommandPayload,
+    "/api/settings/pipeline-plan-preview": SettingsPipelinePlanPreviewCommandPayload,
     "/api/settings/save-patch": SettingsSavePatchCommandPayload,
     "/api/settings/wizard/validate-paths": SettingsWizardCommandPayload,
     "/api/settings/wizard/validate-tools": SettingsWizardCommandPayload,
@@ -235,6 +256,7 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/maintenance/release-dry-run": MaintenanceCommandPayload,
     "/api/maintenance/release-build": MaintenanceReleaseBuildCommandPayload,
     "/api/maintenance/completed-backfill-dry-run": MaintenanceCommandPayload,
+    "/api/maintenance/dependency-atlas": MaintenanceDependencyAtlasCommandPayload,
     "/api/settings/reload": EmptyCommandPayload,
     "/api/sample-validation/preview": SampleValidationCommandPayload,
     "/api/sample-validation/append": SampleValidationCommandPayload,

@@ -17,6 +17,9 @@ CSS_PATHS = sorted(ASSETS_ROOT.glob("styles*.css"))
 DOM_HELPERS_PATH = ASSETS_ROOT / "domHelpers.js"
 COMPLETED_VIEW_PATH = ASSETS_ROOT / "completedView.js"
 PENDING_VIEW_PATH = ASSETS_ROOT / "pendingPublishView.js"
+COMPLETED_TABLE_PATH = ASSETS_ROOT / "completed" / "table.js"
+APP_LIFECYCLE_PATH = ASSETS_ROOT / "app" / "lifecycle.js"
+APP_LAYOUT_MANAGER_PATH = ASSETS_ROOT / "app" / "layoutManager.js"
 LAUNCH_VIEW_PATH = ASSETS_ROOT / "launchView.js"
 LAUNCH_PARTIAL_PATH = STATIC_ROOT / "partials" / "page-launch.html"
 REPORTS_VIEW_PATH = ASSETS_ROOT / "reportsView.js"
@@ -154,7 +157,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
     def test_status_chip_helper_and_owner_tables_are_wired(self) -> None:
         helpers = DOM_HELPERS_PATH.read_text(encoding="utf-8")
         controls = (ASSETS_ROOT / "styles.controls.css").read_text(encoding="utf-8")
-        completed = COMPLETED_VIEW_PATH.read_text(encoding="utf-8")
+        completed = COMPLETED_TABLE_PATH.read_text(encoding="utf-8")
         pending = PENDING_VIEW_PATH.read_text(encoding="utf-8")
 
         self.assertIn("function makeStatusChip", helpers)
@@ -197,9 +200,9 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertIn("source media should not be touched", launch_js)
 
     def test_theme_toggle_uses_dark_as_unstored_default(self) -> None:
-        app_js = (ASSETS_ROOT / "app.js").read_text(encoding="utf-8")
+        app_js = APP_LIFECYCLE_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("const STORAGE_KEY = \"mediapipeline-theme\";", app_js)
+        self.assertIn("localStorage.getItem(THEME_STORAGE_KEY)", app_js)
         self.assertIn("const preferLight = stored === \"light\";", app_js)
         self.assertNotIn("prefers-color-scheme: light", app_js)
 
@@ -208,7 +211,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         pages = (ASSETS_ROOT / "styles.pages.css").read_text(encoding="utf-8")
         components = (ASSETS_ROOT / "styles.components.css").read_text(encoding="utf-8")
         rename_css = (ASSETS_ROOT / "styles.rename.css").read_text(encoding="utf-8")
-        app_js = (ASSETS_ROOT / "app.js").read_text(encoding="utf-8")
+        app_js = APP_LAYOUT_MANAGER_PATH.read_text(encoding="utf-8")
         launch_js = LAUNCH_VIEW_PATH.read_text(encoding="utf-8")
         reports_js = REPORTS_VIEW_PATH.read_text(encoding="utf-8")
         completed_html = COMPLETED_PARTIAL_PATH.read_text(encoding="utf-8")

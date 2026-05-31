@@ -189,6 +189,12 @@ class LocalApiSettingsCommandPayloadMixin:
             return resolved_paths_unavailable_payload("settings.preview_patch", "settings")
         return self.facade.preview_settings_patch(resolved, request).to_mapping()
 
+    def _settings_pipeline_plan_preview_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("settings.pipeline_plan_preview", "settings")
+        return self.facade.preview_settings_pipeline_plan(resolved, request).to_mapping()
+
     def _settings_save_patch_payload(self, request: dict[str, Any]) -> dict[str, Any]:
         resolved = self._resolved()
         if resolved is None:
@@ -201,6 +207,15 @@ class LocalApiSettingsCommandPayloadMixin:
             except Exception as exc:
                 self.logger.exception("local API settings reload after save failed")
                 payload = settings_save_reload_failure_payload(payload, exc)
+        elif payload.get("ok"):
+            data = dict(payload.get("data") or {})
+            data["reloaded"] = False
+            warnings = list(payload.get("warnings") or [])
+            warnings.append(
+                "Settings were written to disk but the backend reload function is not configured. "
+                "Use Reload From Disk to apply."
+            )
+            payload = {**payload, "data": data, "warnings": warnings}
         return payload
 
     def _settings_wizard_validate_paths_payload(self, request: dict[str, Any]) -> dict[str, Any]:
@@ -239,6 +254,15 @@ class LocalApiSettingsCommandPayloadMixin:
             except Exception as exc:
                 self.logger.exception("local API settings wizard reload after save failed")
                 payload = settings_save_reload_failure_payload(payload, exc)
+        elif payload.get("ok"):
+            data = dict(payload.get("data") or {})
+            data["reloaded"] = False
+            warnings = list(payload.get("warnings") or [])
+            warnings.append(
+                "Settings were written to disk but the backend reload function is not configured. "
+                "Use Reload From Disk to apply."
+            )
+            payload = {**payload, "data": data, "warnings": warnings}
         return payload
 
     def _settings_reload_payload(self, request: dict[str, Any]) -> dict[str, Any]:

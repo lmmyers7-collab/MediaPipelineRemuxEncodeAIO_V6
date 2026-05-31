@@ -30,15 +30,22 @@
           <div class="action-row action-row-left wrap-actions">
             <button type="button" id="home-refresh-button" class="secondary-button">Refresh Dashboard</button>
             <button type="button" class="primary-button" data-cross-page-target="launch">Start / Launch</button>
+            <button type="button" class="secondary-button" data-cross-page-target="completed" data-home-promotion-entry disabled>Promote Files</button>
             <button type="button" class="secondary-button" data-cross-page-target="queue">Queue</button>
             <button type="button" class="secondary-button" data-cross-page-target="pending">Publish</button>
             <button type="button" class="secondary-button" data-cross-page-target="diagnostics">Diagnostics</button>
           </div>
           <div class="action-row action-row-left wrap-actions">
+            <span class="action-group-label">Active pipeline</span>
+            <button type="button" class="secondary-button" data-control-action="pause">Pause / Resume</button>
+            <button type="button" class="danger-button" data-control-action="stop" data-confirm-command="true">Stop After Current</button>
+            <button type="button" class="danger-button" data-control-action="kill" data-confirm-command="true">Force Stop</button>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
             <button type="button" class="secondary-button" data-open-diagnostics="run_logs">Run Logs</button>
             <button type="button" class="secondary-button" data-open-diagnostics="active_jobs">Active Jobs</button>
           </div>
-          <p id="home-control-message" class="note">Dashboard controls only navigate or open backend-allowlisted evidence. Use Launch for pipeline start and run controls.</p>
+          <p id="home-control-message" class="note">Dashboard controls navigate, open backend-allowlisted evidence, or submit backend-owned pipeline control requests. Use Launch for starts and full readiness detail.</p>
         </section>
 
         <!-- ═══ DAILY DRIVER: AT A GLANCE ═══ -->
@@ -48,6 +55,7 @@
             <strong id="home-at-a-glance-status">Checking</strong>
           </div>
           <div class="home-at-a-glance-body">
+            <p class="pipeline-startup-banner note" hidden></p>
             <div class="home-now-processing">
               <span class="home-section-label">Now processing</span>
               <strong id="home-at-a-glance-current">No active item</strong>

@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
+from app.config.library_profiles import library_profile_state_from_config
 from app.config.settings_policy import (
     settings_validation_exception_result,
     settings_validation_missing_values_result,
@@ -57,6 +58,11 @@ class SettingsFacadeMixin:
                 warnings.append(f"Config profiles unavailable: {exc}")
         risk_summary = build_current_settings_risk_summary(config)
         media_policy_readiness = build_media_policy_readiness(config)
+        library_profile_state: list[dict[str, Any]] = []
+        try:
+            library_profile_state = library_profile_state_from_config(config)
+        except Exception as exc:
+            warnings.append(f"Library profile inheritance evidence unavailable: {exc}")
         return _settings_workspace_dto(
             app_version=self.app_version,
             config_path=str(resolved.config_path),
@@ -65,6 +71,7 @@ class SettingsFacadeMixin:
             paths=settings_workspace_paths(resolved, config),
             config=self._redacted_config(config),
             field_definitions=self._settings_field_definitions(),
+            library_profile_state=library_profile_state,
             key_count=len(config),
             profiles=profiles,
             profile_summary=self._settings_profile_summary(resolved, config, profiles),

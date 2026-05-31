@@ -97,6 +97,76 @@ class QueueFacadePolicyTests(unittest.TestCase):
         self.assertEqual(rows[1]["raw"], {"source_path": "bad", "raw_value": 5})
         self.assertEqual(rows[1]["available_open_targets"], [])
 
+    def test_queue_preview_rows_surface_library_profile_evidence(self) -> None:
+        def factory(_raw: dict[str, object]) -> object:
+            return _record()
+
+        rows = queue_preview_rows(
+            [
+                {
+                    "source_path": "C:/Anime/Show/Season 01/Show - S01E01.mkv",
+                    "root_path": "C:/Anime",
+                    "library_id": "anime",
+                    "library_name": "Anime",
+                    "library_designation": "tv",
+                    "library_output_root": "D:/AnimeProcessed",
+                    "library_settings_override_keys": ["AudioMaxChannels", "SubKeepLanguages"],
+                    "library_settings_overrides": {"AudioMaxChannels": 6},
+                    "library_effective_settings": {"AudioMaxChannels": 6, "VideoQuality": 22},
+                    "route_decision_trace": [{"code": "routing_profile_selected"}, {"code": "size_evaluated"}],
+                    "estimated_bitrate_mbps": 12.5,
+                    "route_size_threshold_gb": 3,
+                    "route_bitrate_threshold_mbps": 18,
+                    "route_threshold_mode": "bitrate",
+                    "size_over_threshold": False,
+                    "bitrate_over_threshold": False,
+                }
+            ],
+            factory,
+        )
+
+        self.assertEqual(rows[0]["library_id"], "anime")
+        self.assertEqual(rows[0]["library_designation"], "tv")
+        self.assertEqual(rows[0]["library_source_root"], "C:/Anime")
+        self.assertEqual(rows[0]["library_output_root"], "D:/AnimeProcessed")
+        self.assertEqual(rows[0]["library_settings_overrides"], {"AudioMaxChannels": 6})
+        self.assertEqual(rows[0]["library_effective_settings"]["VideoQuality"], 22)
+        self.assertEqual(rows[0]["estimated_bitrate_mbps"], 12.5)
+        self.assertEqual(rows[0]["route_size_threshold_gb"], 3.0)
+        self.assertEqual(rows[0]["route_bitrate_threshold_mbps"], 18.0)
+        self.assertEqual(rows[0]["route_threshold_mode"], "bitrate")
+        self.assertIn("Library profile: Anime (anime)", rows[0]["route_evidence_lines"])
+        self.assertIn("Library source root: C:/Anime", rows[0]["route_evidence_lines"])
+        self.assertIn("Library output root: D:/AnimeProcessed", rows[0]["route_evidence_lines"])
+        self.assertIn("Library override keys: AudioMaxChannels, SubKeepLanguages", rows[0]["route_evidence_lines"])
+        self.assertIn("Route threshold mode: bitrate", rows[0]["route_evidence_lines"])
+        self.assertIn("Size threshold: 3 GB; over threshold: no", rows[0]["route_evidence_lines"])
+        self.assertIn("Bitrate estimate: 12.5 Mbps; threshold: 18 Mbps; over threshold: no", rows[0]["route_evidence_lines"])
+        self.assertIn("Route trace: routing_profile_selected, size_evaluated", rows[0]["route_evidence_lines"])
+
+    def test_queue_preview_library_effective_settings_stays_library_only(self) -> None:
+        def factory(_raw: dict[str, object]) -> object:
+            return _record()
+
+        rows = queue_preview_rows(
+            [
+                {
+                    "source_path": "C:/Anime/Show/Season 01/Show - S01E01.mkv",
+                    "root_path": "C:/Anime",
+                    "library_id": "anime",
+                    "library_name": "Anime",
+                    "library_output_root": "D:/AnimeProcessed",
+                    "library_settings_overrides": {"VideoPreset": "p5"},
+                    "library_effective_settings": {"VideoPreset": "p5", "RoutingProfile": "plex"},
+                    "runtime_effective_settings": {"VideoPreset": "p7", "FolderOverride": "not-library"},
+                }
+            ],
+            factory,
+        )
+
+        self.assertEqual(rows[0]["library_effective_settings"], {"VideoPreset": "p5", "RoutingProfile": "plex"})
+        self.assertNotIn("runtime_effective_settings", rows[0])
+
     def test_queue_preview_metadata_counts_backend_open_targets(self) -> None:
         rows = [queue_record_to_row(_record())]
         metadata = queue_preview_metadata(

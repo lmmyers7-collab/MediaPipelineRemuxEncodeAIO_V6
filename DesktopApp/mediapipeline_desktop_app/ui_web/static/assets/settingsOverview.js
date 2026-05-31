@@ -104,7 +104,7 @@
       `- Robocopy flags: ${trustConfigValue(config, "RobocopyFlags", "(default)")}`,
       "",
       "Remux/encode routing:",
-      `- Routing profile: ${trustConfigValue(config, "RoutingProfile", "default")}; size guard=${trustConfigValue(config, "SizeGuardMode", "default")}; output container=${trustConfigValue(config, "OutputContainer", "default")}.`,
+      `- Routing profile: ${trustConfigValue(config, "RoutingProfile", "default")}; Output Size Check=${trustConfigValue(config, "SizeGuardMode", "default")}; output container=${trustConfigValue(config, "OutputContainer", "default")}.`,
       `- Remux/copy bitrate ceilings: movies=${trustConfigValue(config, "MovieRouteMaxVideoBitrateMbps", "35")} Mbps; TV=${trustConfigValue(config, "TVRouteMaxVideoBitrateMbps", "18")} Mbps.`,
       `- Encode growth limits: default=${trustConfigValue(config, "MaxEncodeGrowthPercent", "default")}; compatibility=${trustConfigValue(config, "CompatibilityEncodeGrowthPercent", "default")}.`,
       `- H.264 remux when Plex-compatible: ${settingsTrustBool(config, "AllowH264RemuxIfPlexCompatible")}; max bitrate=${trustConfigValue(config, "H264RemuxMaxBitrateMbps", "default")} Mbps; max height=${trustConfigValue(config, "H264RemuxMaxHeight", "default")}.`,
@@ -117,6 +117,7 @@
       `- Preferred keep languages: ${trustConfigValue(config, "SubKeepLanguages", "default")}.`,
       `- TX3G: convert=${settingsTrustBool(config, "ConvertTx3gToSrt")}; drop original=${settingsTrustBool(config, "DropTx3gAfterConversion")}; extract languages=${trustConfigValue(config, "Tx3gExtractLanguages", "default")}.`,
       `- BDPGS: convert=${settingsTrustBool(config, "ConvertBdpgsToSrt")}; drop original=${settingsTrustBool(config, "DropBdpgsAfterConversion")}; extract languages=${trustConfigValue(config, "BdpgsExtractLanguages", "default")}.`,
+      `- VobSub: convert=${settingsTrustBool(config, "ConvertVobSubToSrt")}; drop original=${settingsTrustBool(config, "DropVobSubAfterConversion")}; extract languages=${trustConfigValue(config, "VobSubExtractLanguages", "default")}.`,
       `- ASS/SSA: drop after conversion=${settingsTrustBool(config, "DropAssAfterConversion")}; strip formatting=${settingsTrustBool(config, "StripFormatting")}; remove karaoke=${settingsTrustBool(config, "RemoveKaraoke")}.`,
       "",
       "Audio routing:",
@@ -185,7 +186,7 @@
     [
       ["RoutingProfile", "Routing profile"],
       ["RouteThresholdMode", "Route threshold mode"],
-      ["SizeGuardMode", "Size guard mode"],
+      ["SizeGuardMode", "Output Size Check"],
       ["AllowH264RemuxIfPlexCompatible", "H.264 remux when Plex-compatible"],
       ["H264RemuxMaxBitrateMbps", "H.264 remux max bitrate Mbps"],
       ["H264RemuxMaxHeight", "H.264 remux max height"],
@@ -237,6 +238,9 @@
       ["ConvertBdpgsToSrt", "Convert BDPGS to SRT"],
       ["DropBdpgsAfterConversion", "Drop BDPGS after conversion"],
       ["BdpgsExtractLanguages", "BDPGS extract languages"],
+      ["ConvertVobSubToSrt", "Convert VobSub to SRT"],
+      ["DropVobSubAfterConversion", "Drop VobSub after conversion"],
+      ["VobSubExtractLanguages", "VobSub extract languages"],
       ["DropAssAfterConversion", "Drop ASS after conversion"],
       ["StripFormatting", "Strip formatting"],
       ["RemoveKaraoke", "Remove karaoke"],
@@ -245,6 +249,7 @@
       ["SubtitleExtractTimeoutSeconds", "Subtitle extract timeout seconds"],
       ["SubtitleProbeTimeoutSeconds", "Subtitle probe timeout seconds"],
       ["BdpgsOcrTimeoutSeconds", "BDPGS OCR timeout seconds"],
+      ["VobSubOcrTimeoutSeconds", "VobSub OCR timeout seconds"],
     ].forEach(([key, label]) => add("Subtitles", key, label));
 
     [

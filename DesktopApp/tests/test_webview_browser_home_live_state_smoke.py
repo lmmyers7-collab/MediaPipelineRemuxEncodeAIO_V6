@@ -321,12 +321,18 @@ def _browser_home_live_state_runner_source() -> str:
                 && text("progress-bar-list").includes("Current stage")
                 && text("progress-bar-list").includes("42.5%")
                 && text("progress-bar-list").includes("Run total")
-                && tableText("progress-detail-rows").includes("Stage percent")
-                && tableText("progress-detail-rows").includes("42.5")
+                && tableText("progress-detail-rows").includes("Library")
+                && tableText("progress-detail-rows").includes("Anime Library")
                 && text("progress-evidence-summary").includes("Progress evidence board:")
                 && tableText("progress-evidence-rows").includes("Current item"),
               "Live progress details and evidence",
             );
+            const progressDetailText = tableText("progress-detail-rows");
+            for (const hiddenLabel of ["State", "Stage", "Controls", "File"]) {
+              if (progressDetailText.includes(hiddenLabel)) {
+                throw new Error("Progress detail hidden card is still visible: " + hiddenLabel + "\\n" + progressDetailText);
+              }
+            }
             requireText("progress-bar-list", [
               "Current stage",
               "active · 42.5%",
@@ -334,21 +340,17 @@ def _browser_home_live_state_runner_source() -> str:
               "source: pipeline_progress.json",
             ]);
             requireTableText("progress-detail-rows", [
-              "State",
-              "Processing",
-              "Stage",
-              "Encoding",
-              "Stage percent",
-              "42.5",
-              "File",
-              "Current Fixture.mkv",
+              "Library",
+              "Anime Library",
+              "Profile: anime",
+              "Source:",
               "Route",
               "encode",
               "operator-trust smoke fixture",
               "Done",
               "Remuxed",
-              "Controls",
-              "clear",
+              "Issues",
+              "No failures reported",
             ]);
             requireText("progress-evidence-summary", [
               "Progress evidence board:",
@@ -577,6 +579,11 @@ class WebViewBrowserHomeLiveStateSmokeTests(unittest.TestCase):
                 "CurrentStagePercent": 42.5,
                 "CurrentFileDisplay": "Current Fixture.mkv",
                 "CurrentFile": str(source),
+                "CurrentLibraryId": "anime",
+                "CurrentLibraryName": "Anime Library",
+                "CurrentLibraryDesignation": "TV",
+                "CurrentLibrarySourceRoot": str(source.parent),
+                "CurrentLibraryOutputRoot": str(output.parent),
                 "CurrentQueueIndex": 2,
                 "CurrentQueueTotal": 5,
                 "CurrentRoute": "encode",
@@ -670,8 +677,8 @@ class WebViewBrowserHomeLiveStateSmokeTests(unittest.TestCase):
             self.assertIn("Stage Encoding", browser_result["atAGlanceDetail"])
             self.assertIn("Serial Experiments Lain S02E01 Weird.mkv", browser_result["atAGlanceQueue"])
             self.assertIn("Daily-driver readiness checklist:", browser_result["dailyDriver"])
-            self.assertIn("Stage percent", browser_result["progressDetails"])
-            self.assertIn("42.5", browser_result["progressDetails"])
+            self.assertIn("Anime Library", browser_result["progressDetails"])
+            self.assertNotIn("Controls", browser_result["progressDetails"])
             self.assertIn("Current stage", browser_result["progressBars"])
             self.assertIn("active", browser_result["progressBars"])
             self.assertIn("42.5%", browser_result["progressBars"])

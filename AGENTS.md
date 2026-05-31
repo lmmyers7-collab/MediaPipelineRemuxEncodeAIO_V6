@@ -6,7 +6,7 @@ etc.) working in this repository. It supersedes the archived
 and `AI_HANDOFF.md`.
 
 If you are a human, you probably want `README.md` and
-`Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md`.
+`Docs/CURRENT_PROJECT_STATE.md`.
 
 ---
 
@@ -33,18 +33,19 @@ Components:
 | `Docs/`, `Docs/generated/`, `summaries/`            | Operator/engineering docs, generated maps, AI navigation summaries |
 | `LocalBase/` (gitignored)                           | Runtime state, JSON files, SQLite mirror          |
 
-V5 remains the external fallback/rollback workspace. V6 is where active
-work happens.
+V6 is the active promoted workspace for operator and AI/code-agent work.
+The structural cleanup and default-launcher promotion are complete by
+operator confirmation on 2026-05-30.
 
 ---
 
-## 2. The overhaul context (read before editing structure)
+## 2. Repository structure (read before editing structure)
 
-This repository is mid-overhaul. The plan is in
-`Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md`; execution status lives in
+Current execution status lives in
 `CHANGELOG.md`, `Docs/CURRENT_PROJECT_STATE.md`, and
-`OPEN_WORK_CHECKLIST.md`. Phase 6 local legacy-surface removal is complete as
-of 2026-05-29, but PG-3 clean-machine package-mode validation is still open.
+`OPEN_WORK_CHECKLIST.md`. The legacy-surface removal and package/default
+launcher promotion work are complete; remaining work should build on the
+current domain layout.
 Highlights you must respect:
 
 - **Do not create new `facade_*.py`, `service_*.py`, or
@@ -62,9 +63,8 @@ Highlights you must respect:
   - `README.md`
   - `CHANGELOG.md`
   - `AGENTS.md` (this file)
-  - `Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md` (plan of record until V7 ships)
-  - `Docs/CURRENT_PROJECT_STATE.md` (interim until consolidated)
-  - `OPEN_WORK_CHECKLIST.md` (interim until moved to issues)
+  - `Docs/CURRENT_PROJECT_STATE.md`
+  - `OPEN_WORK_CHECKLIST.md`
 
 ---
 
@@ -93,11 +93,10 @@ current-state doc. Internalize them.
 7. **Command journal, strict JSON route handling, duplicate-command
    guards, close-readiness checks** are release-critical safety
    mechanisms.
-8. **V5 fallback** must remain available externally until V6 package-mode
-   launch and operator workflows are proven. Representative real-media
-   validation is operator-attested complete as of 2026-05-28, but must be
-   rerun after media-policy, FFmpeg, subtitle, audio, publish/drain, source
-   movement, or cleanup behavior changes.
+8. **Promotion and representative real-media validation** are
+   operator-confirmed complete as of 2026-05-30, but representative media
+   validation must be rerun after media-policy, FFmpeg, subtitle, audio,
+   publish/drain, source movement, or cleanup behavior changes.
 
 ---
 
@@ -109,7 +108,6 @@ many tokens.
 
 1. **Start each session by reading**, in order:
    - This file (`AGENTS.md`)
-   - `Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md`
    - `Docs/CURRENT_PROJECT_STATE.md`
    - `OPEN_WORK_CHECKLIST.md`
    - `Docs/generated/PROJECT_INDEX.md` (once it exists)
@@ -143,12 +141,13 @@ many tokens.
 | Tauri files                                           | Tauri shell checks                                         |
 | Media policy / FFmpeg / subtitle / audio / publish    | Release gate plus real-media validation                    |
 
-At the end of every overhaul phase, agents must also prove the operator
-surface still opens: start the local API from the `DesktopApp` working
-directory, confirm it reaches the bootstrap/listening state, and run the
-app-opening smoke appropriate to the changed surface (`start-api-and-browser`
-or Tauri preview/check-only). If a GUI/browser open cannot be performed in
-the current environment, report the exact substitute command and evidence.
+For broad structural, packaging, launcher, or operator-surface changes,
+agents must also prove the operator surface still opens: start the local API
+from the `DesktopApp` working directory, confirm it reaches the
+bootstrap/listening state, and run the app-opening smoke appropriate to the
+changed surface (`start-api-and-browser` or Tauri preview/check-only). If a
+GUI/browser open cannot be performed in the current environment, report the
+exact substitute command and evidence.
 
 References:
 
@@ -184,8 +183,8 @@ The legacy root launcher paths
 `.\Verify-MediaPipelineRemuxEncodeAIO-Environment.{bat,ps1}`,
 `.\Build-MediaPipelineRemuxEncodeAIO-Release.ps1`,
 `.\Test-MediaPipelineRemuxEncodeAIO-Release.ps1`,
-`.\New-RealMediaValidationWorksheet.ps1`) were removed during the local Phase 6
-burn-down. **Do not reintroduce root launcher callers.** Use the canonical
+`.\New-RealMediaValidationWorksheet.ps1`) were removed during the legacy
+surface cleanup. **Do not reintroduce root launcher callers.** Use the canonical
 `scripts\` paths only.
 
 Python validation uses the bundled interpreter at
@@ -196,8 +195,7 @@ and is not the canonical portable-bundle test environment.
 
 ## 7. High-risk areas (do not casually change)
 
-- External rollback workspace and removed legacy desktop-shell
-  assumptions.
+- Removed legacy desktop-shell and package-layout assumptions.
 - FFmpeg command generation and stream mapping.
 - Subtitle ASS/TX3G/BDPGS/SRT conversion paths.
 - Audio passthrough/transcode/downmix policy.
@@ -243,16 +241,15 @@ Do not treat the following as active guidance:
   only.
 - V3/V4 historical docs — context only.
 - `node_modules` Markdown — vendor material.
-- "Tauri/WebView2 preview is the production replacement" — not yet true;
-  PG-3 clean-machine validation is still required. Representative real-media
-  validation is operator-attested complete as of 2026-05-28, but becomes stale
-  after future media behavior changes.
+- Historical text that says Tauri/WebView2 is pre-promotion or not yet the
+  default launcher is superseded by the 2026-05-30 operator-confirmed V6
+  promotion. Representative real-media validation still becomes stale after
+  future media behavior changes.
 
 ---
 
 ## 10. Where to look next
 
-- Engineering plan: `Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md`
 - Current state: `Docs/CURRENT_PROJECT_STATE.md`
 - Backlog: `OPEN_WORK_CHECKLIST.md`
 - ADRs: `docs/adr/` (once seeded)

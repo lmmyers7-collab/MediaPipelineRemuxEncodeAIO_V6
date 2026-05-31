@@ -250,6 +250,9 @@
     if (target === "settings_bdpgs_ocr_paths") {
       return "Subtitle OCR settings evidence. BDPGS OCR to SRT can fail before FFmpeg route proof if the saved OCR tool or tessdata path is blocked.";
     }
+    if (target === "settings_vobsub_ocr_paths") {
+      return "Subtitle OCR settings evidence. VobSub OCR to SRT can fail before FFmpeg route proof if the saved Subtitle Edit tool or Tesseract dependency is blocked.";
+    }
     if (target === "active_jobs" || target.includes("active")) {
       return "Process lifecycle evidence. Compare with Close Readiness before closing, clearing runtime state, or assuming a process is orphaned.";
     }
@@ -278,6 +281,9 @@
     const target = String(item?.target || "").toLowerCase();
     if (target === "settings_bdpgs_ocr_paths") {
       return "Open Settings > Subtitles, verify the saved BDPGS OCR tool/tessdata evidence, save if needed, then refresh Diagnostics before rerunning OCR work.";
+    }
+    if (target === "settings_vobsub_ocr_paths") {
+      return "Open Settings > Subtitles, verify the saved VobSub OCR tool and Tesseract evidence, save if needed, then refresh Diagnostics before rerunning OCR work.";
     }
     const openTarget = String(item?.recommended_open_target || "").trim();
     const tailTarget = String(item?.recommended_tail_target || "").trim();

@@ -194,69 +194,96 @@ def diagnostics_state_summary_payload(
 def diagnostics_settings_tool_path_summary_rows(evidence: Mapping[str, Any] | None) -> list[dict[str, Any]]:
     if not isinstance(evidence, Mapping):
         return []
-    bdpgs = evidence.get("bdpgs_ocr")
-    if not isinstance(bdpgs, Mapping):
-        return []
-    enabled = bool(bdpgs.get("enabled"))
-    operator_status = str(bdpgs.get("operator_status") or "").strip()
-    normalized_status = operator_status.casefold()
-    if not enabled or normalized_status not in {"blocked", "review"}:
-        return []
-    row_status = "error" if normalized_status == "blocked" else "warning"
-    issue_rows = [
-        row
-        for row in bdpgs.get("rows", [])
-        if isinstance(row, Mapping) and str(row.get("status") or "").strip().casefold() in {"blocked", "review"}
-    ]
-    messages = [str(row.get("message") or "").strip() for row in issue_rows if str(row.get("message") or "").strip()]
-    summary_lines = [str(line).strip() for line in bdpgs.get("summary_lines", []) if str(line).strip()]
-    facts = [
-        f"OCR enabled in saved config: {'yes' if enabled else 'no'}",
-        f"AllowSystemTools/PATH fallback: {'yes' if bool(bdpgs.get('allow_system_tools')) else 'no'}",
-        f"Blocked settings path rows: {int(bdpgs.get('blocked_count') or 0)}",
-        f"Review settings path rows: {int(bdpgs.get('review_count') or 0)}",
-    ]
-    for row in issue_rows:
-        key = str(row.get("key") or "").strip()
-        configured = str(row.get("configured") or "").strip() or "(not configured)"
-        resolved = str(row.get("resolved") or "").strip() or "(not resolved)"
-        status = str(row.get("status") or "").strip() or "unknown"
-        facts.append(f"{key}: {status}; configured={configured}; resolved={resolved}")
-    warnings: list[str] = []
-    errors: list[str] = []
-    if normalized_status == "blocked":
-        errors.extend(messages or ["BDPGS OCR is enabled, but saved OCR tool path evidence is blocked."])
-    else:
-        warnings.extend(messages or ["BDPGS OCR saved path evidence needs review."])
-    return [
+    specs = [
         {
+            "key": "bdpgs_ocr",
             "target": "settings_bdpgs_ocr_paths",
             "label": "Settings BDPGS OCR path evidence",
-            "path": "",
-            "exists": False,
-            "kind": "settings",
-            "size_bytes": None,
-            "modified_at": "",
-            "status": row_status,
-            "operator_status": normalized_status,
-            "operator_status_state": diagnostics_operator_status_state(normalized_status, row_status),
-            "operator_guidance": (
+            "format_label": "BDPGS",
+            "guidance": (
                 "Settings says BDPGS OCR to SRT is enabled, but the saved OCR tool/tessdata path evidence is not ready. "
                 "Open Settings > Subtitles, fix the saved OCR paths or disable OCR intentionally, save, then refresh Diagnostics before rerunning subtitle conversion."
             ),
-            "recovery_stage": "settings_subtitle_ocr_readiness",
-            "unsafe_if_ignored": (
+            "unsafe": (
                 "Ignoring blocked BDPGS OCR path evidence can make PGS subtitle conversion fail and leave files marked for manual review even though the media route itself looks healthy."
             ),
-            "recommended_open_target": "",
-            "recommended_tail_target": "",
-            "facts": facts[:DIAGNOSTICS_STATE_SUMMARY_FACT_LIMIT],
-            "recent_entries": [],
-            "warnings": warnings[:DIAGNOSTICS_STATE_SUMMARY_FACT_LIMIT],
-            "errors": errors[:DIAGNOSTICS_STATE_SUMMARY_FACT_LIMIT],
-            "summary_lines": summary_lines[:DIAGNOSTICS_STATE_SUMMARY_FACT_LIMIT],
-        }
+        },
+        {
+            "key": "vobsub_ocr",
+            "target": "settings_vobsub_ocr_paths",
+            "label": "Settings VobSub OCR path evidence",
+            "format_label": "VobSub",
+            "guidance": (
+                "Settings says VobSub OCR to SRT is enabled, but the saved Subtitle Edit/Tesseract path evidence is not ready. "
+                "Open Settings > Subtitles, fix the saved OCR tool path or disable OCR intentionally, save, then refresh Diagnostics before rerunning subtitle conversion."
+            ),
+            "unsafe": (
+                "Ignoring blocked VobSub OCR path evidence can make VobSub subtitle conversion fail and leave files marked for manual review even though the media route itself looks healthy."
+            ),
+        },
     ]
+    rows: list[dict[str, Any]] = []
+    for spec in specs:
+        ocr_evidence = evidence.get(spec["key"])
+        if not isinstance(ocr_evidence, Mapping):
+            continue
+        enabled = bool(ocr_evidence.get("enabled"))
+        operator_status = str(ocr_evidence.get("operator_status") or "").strip()
+        normalized_status = operator_status.casefold()
+        if not enabled or normalized_status not in {"blocked", "review"}:
+            continue
+        row_status = "error" if normalized_status == "blocked" else "warning"
+        issue_rows = [
+            row
+            for row in ocr_evidence.get("rows", [])
+            if isinstance(row, Mapping) and str(row.get("status") or "").strip().casefold() in {"blocked", "review"}
+        ]
+        messages = [str(row.get("message") or "").strip() for row in issue_rows if str(row.get("message") or "").strip()]
+        summary_lines = [str(line).strip() for line in ocr_evidence.get("summary_lines", []) if str(line).strip()]
+        facts = [
+            f"OCR enabled in saved config: {'yes' if enabled else 'no'}",
+            f"AllowSystemTools/PATH fallback: {'yes' if bool(ocr_evidence.get('allow_system_tools')) else 'no'}",
+            f"Blocked settings path rows: {int(ocr_evidence.get('blocked_count') or 0)}",
+            f"Review settings path rows: {int(ocr_evidence.get('review_count') or 0)}",
+        ]
+        for row in issue_rows:
+            key = str(row.get("key") or "").strip()
+            configured = str(row.get("configured") or "").strip() or "(not configured)"
+            resolved = str(row.get("resolved") or "").strip() or "(not resolved)"
+            status = str(row.get("status") or "").strip() or "unknown"
+            facts.append(f"{key}: {status}; configured={configured}; resolved={resolved}")
+        warnings: list[str] = []
+        errors: list[str] = []
+        format_label = str(spec["format_label"])
+        if normalized_status == "blocked":
+            errors.extend(messages or [f"{format_label} OCR is enabled, but saved OCR tool path evidence is blocked."])
+        else:
+            warnings.extend(messages or [f"{format_label} OCR saved path evidence needs review."])
+        rows.append(
+            {
+                "target": spec["target"],
+                "label": spec["label"],
+                "path": "",
+                "exists": False,
+                "kind": "settings",
+                "size_bytes": None,
+                "modified_at": "",
+                "status": row_status,
+                "operator_status": normalized_status,
+                "operator_status_state": diagnostics_operator_status_state(normalized_status, row_status),
+                "operator_guidance": spec["guidance"],
+                "recovery_stage": "settings_subtitle_ocr_readiness",
+                "unsafe_if_ignored": spec["unsafe"],
+                "recommended_open_target": "",
+                "recommended_tail_target": "",
+                "facts": facts[:DIAGNOSTICS_STATE_SUMMARY_FACT_LIMIT],
+                "recent_entries": [],
+                "warnings": warnings[:DIAGNOSTICS_STATE_SUMMARY_FACT_LIMIT],
+                "errors": errors[:DIAGNOSTICS_STATE_SUMMARY_FACT_LIMIT],
+                "summary_lines": summary_lines[:DIAGNOSTICS_STATE_SUMMARY_FACT_LIMIT],
+            }
+        )
+    return rows
 
 
 def _payload_operator_status(operator_counts: dict[str, int], summaries: list[dict[str, Any]]) -> str:

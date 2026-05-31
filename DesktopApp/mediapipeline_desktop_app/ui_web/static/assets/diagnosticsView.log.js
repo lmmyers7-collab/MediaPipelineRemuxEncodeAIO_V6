@@ -217,7 +217,7 @@
     } else {
       lines.push("Next step: no visible error/warning lines. Use Artifact Drilldown or State Artifact Summary if another page still looks inconsistent.");
     }
-    lines.push("Proof boundary: an empty or clean log view means no visible log evidence in this payload; it does not prove a real-media route, subtitle conversion, audio selection, size guard, or publish path is safe.");
+    lines.push("Proof boundary: an empty or clean log view means no visible log evidence in this payload; it does not prove a real-media route, subtitle conversion, audio selection, Output Size Check, or publish path is safe.");
     lines.push("Mutation guardrail: log triage is read-only; open/read actions use backend allowlisted targets only.");
     return lines;
   }

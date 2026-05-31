@@ -1,0 +1,478 @@
+from __future__ import annotations
+
+import re
+import sys
+import unittest
+from pathlib import Path
+
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from app.config.metadata_parts.field_definitions import CONFIG_FIELD_DEFINITIONS
+from app.config.preset_migration import (
+    FRIENDLY_LABEL_PERSISTED_KEY_ALIASES,
+    LABEL_ONLY_RENAMES as MIGRATION_LABEL_ONLY_RENAMES,
+    LABEL_ONLY_RENAME_POLICIES,
+)
+
+
+STATIC_ROOT = Path(__file__).resolve().parents[1] / "mediapipeline_desktop_app" / "ui_web" / "static"
+REPRESENTATIVE_SETTINGS_METADATA_KEYS = {
+    "VideoPreset",
+    "ConvertBdpgsToSrt",
+    "CompatibleAudioCodecs",
+    "RemuxSafeVideoCodecs",
+    "RoutingProfile",
+    "SizeGuardMode",
+    "OutputContainer",
+    "ConvertVobSubToSrt",
+}
+REPRESENTATIVE_DEFAULT_KEYS = {
+    "RoutingProfile",
+    "RouteThresholdMode",
+    "SizeGuardMode",
+    "VideoQuality",
+}
+SETTINGS_METADATA_ADVISORY_ONLY_KEYS = {
+    "DeleteSourceAfterProcessing",
+    "ScratchRoot",
+}
+LABEL_ONLY_RENAMES = {
+    "RoutingProfile": "Processing Strategy",
+    "RouteThresholdMode": "Enforcement Mode",
+    "SizeGuardMode": "Output Size Check",
+    "EncodeTuningPreset": "Encoder Quality Preset",
+    "EncodeLadder": "Encode Target Mode",
+    "MaxEncodeGrowthPercent": "Quality-encode size tolerance",
+    "CompatibilityEncodeGrowthPercent": "Compatibility-encode size tolerance",
+    "EncodeThresholdGB": "Movie target output size",
+    "TVEncodeThresholdGB": "TV target output size",
+    "MovieRouteMaxVideoBitrateMbps": "Movie max bitrate for direct copy",
+    "TVRouteMaxVideoBitrateMbps": "TV max bitrate for direct copy",
+    "VideoPreset": "Encoder Speed Preset",
+    "ExtraVideoFlags": "Advanced Encoder Flags",
+    "RemuxSafeVideoCodecs": "Direct Copy Video Codec Allowlist",
+}
+EDITOR_BUILDER_KEYS = {
+    "RoutingProfile",
+    "RouteThresholdMode",
+    "SizeGuardMode",
+    "EncodeTuningPreset",
+    "EncodeLadder",
+    "MaxEncodeGrowthPercent",
+    "CompatibilityEncodeGrowthPercent",
+    "EncodeThresholdGB",
+    "TVEncodeThresholdGB",
+    "MovieRouteMaxVideoBitrateMbps",
+    "TVRouteMaxVideoBitrateMbps",
+}
+VIDEO_DETAIL_BUILDER_KEYS = {
+    "VideoPreset",
+    "ExtraVideoFlags",
+    "RemuxSafeVideoCodecs",
+}
+
+
+def _backend_metadata_by_key() -> dict[str, dict[str, object]]:
+    return {str(field["key"]): field for field in CONFIG_FIELD_DEFINITIONS}
+
+
+def _settings_metadata_builder_keys() -> set[str]:
+    js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
+    return set(re.findall(r'\["([A-Za-z0-9_]+)"\s*,\s*"settings-', js))
+
+
+def _settings_metadata_config_key_mentions() -> set[str]:
+    js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
+    keys = set(re.findall(r'\["([A-Za-z][A-Za-z0-9_]*)"\s*,\s*"settings-', js))
+    keys.update(re.findall(r'\bkey:\s*"([A-Za-z][A-Za-z0-9_]*)"', js))
+
+    impact_start = js.index("const settingsImpactGroups = [")
+    impact_end = js.index("];", impact_start)
+    impact_block = js[impact_start:impact_end]
+    for match in re.finditer(r"keys:\s*\[([^\]]*)\]", impact_block, re.S):
+        keys.update(re.findall(r'"([A-Za-z][A-Za-z0-9_]*)"', match.group(1)))
+
+    hints_start = js.index("const settingsSpecificImpactHints = {")
+    hints_end = js.index("};", hints_start)
+    hints_block = js[hints_start:hints_end]
+    keys.update(re.findall(r"(?m)^\s*([A-Za-z][A-Za-z0-9_]*):\s*\"", hints_block))
+    return keys
+
+
+def _settings_display_label_entries() -> dict[str, str]:
+    js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
+    start = js.index("const settingsDisplayLabels = {")
+    end = js.index("};", start)
+    block = js[start:end]
+    return {
+        match.group(1): match.group(2)
+        for match in re.finditer(r'(?m)^\s*([A-Za-z][A-Za-z0-9_]*):\s*"([^"]+)"', block)
+    }
+
+
+def _settings_builder_fallback_default(key: str) -> str | None:
+    sources = [
+        STATIC_ROOT / "assets" / "settingsView.js",
+        STATIC_ROOT / "assets" / "settings" / "patchReview.js",
+        STATIC_ROOT / "assets" / "settingsView.builders.video.js",
+        STATIC_ROOT / "assets" / "settingsView.builders.audio.js",
+        STATIC_ROOT / "assets" / "settingsView.builders.subtitle.js",
+    ]
+    for path in sources:
+        js = path.read_text(encoding="utf-8")
+        match = re.search(rf'settingsBuilderConfigValue\("{re.escape(key)}",\s*([^)]+)\)', js)
+        if match:
+            return match.group(1).strip()
+        match = re.search(rf'set[A-Za-z]+BuilderControl\("[^"]+",\s*"{re.escape(key)}",\s*"[^"]+",\s*([^)]+)\)', js)
+        if match:
+            return match.group(1).strip()
+    return None
+
+
+def _normalize_js_literal(value: str | None) -> object:
+    if value is None:
+        return None
+    text = value.strip().rstrip(";")
+    if len(text) >= 2 and text[0] in {'"', "'"} and text[-1] == text[0]:
+        return text[1:-1]
+    if re.fullmatch(r"-?\d+", text):
+        return int(text)
+    if re.fullmatch(r"-?\d+\.\d+", text):
+        return float(text)
+    if text == "true":
+        return True
+    if text == "false":
+        return False
+    return text
+
+
+class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
+    def test_settings_tabs_follow_phase_08_grouping(self) -> None:
+        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+
+        expected_order = [
+            "Summary",
+            "Source / Compatibility",
+            "Routing",
+            "Dimensions",
+            "Filters",
+            "Video / Audio / Subtitles",
+            "Container / Output Size Check",
+            "Verification / Publish",
+            "Wizard",
+        ]
+        cursor = -1
+        for label in expected_order:
+            position = html.index(f">{label}</button>")
+            self.assertGreater(position, cursor)
+            cursor = position
+
+        for tab in (
+            'data-settings-tab="source-compat"',
+            'data-settings-tab="dimensions"',
+            'data-settings-tab="filters"',
+            'data-settings-tab="container-size"',
+        ):
+            self.assertIn(tab, html)
+
+    def test_decision_preview_is_honest_and_read_only(self) -> None:
+        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+
+        for token in (
+            "Decision Preview",
+            "Predicted pending cutover",
+            "Legacy path still executes",
+            "No backend SourceMediaInfo payload loaded",
+            "The WebView does not compute copy/remux/encode routing",
+            "pipeline_plan.v1 results from /api/settings/pipeline-plan-preview",
+            "cannot launch, save settings, encode, remux, publish, rename, drain pending publish, or touch media files",
+        ):
+            self.assertIn(token, html)
+
+    def test_source_compatibility_accepts_source_facts_for_backend_preview(self) -> None:
+        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+
+        for token in (
+            'id="settings-source-media-json"',
+            'id="settings-preview-plan-button"',
+            'id="settings-source-facts-rows"',
+            "SourceMediaInfo source facts JSON",
+            "Backend validation remains authoritative",
+        ):
+            self.assertIn(token, html)
+
+        for token in (
+            'apiPost("/api/settings/pipeline-plan-preview", {',
+            "source_media: sourceMedia",
+            "renderSettingsPipelinePlanPreview(result, sourceMedia)",
+            "Stream actions:",
+            "Verification / publish:",
+            "Output Size Check:",
+            "Command preview:",
+            "Preview label remains Predicted pending cutover",
+        ):
+            self.assertIn(token, settings_js)
+
+        self.assertIn('bindSettingsClick("settings-preview-plan-button", addSettingsEventHandlers.previewSettingsPipelinePlan)', review_js)
+
+    def test_routing_badges_and_handbrake_labels_are_visible(self) -> None:
+        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+
+        for token in (
+            "Processing Strategy",
+            "Output Size Check",
+            "Enforcement Mode",
+            "Encoder Quality Preset",
+            "Encode Target Mode",
+            "Video Encoder",
+            "Movie target output size",
+            "TV target output size",
+            "Movie max bitrate for direct copy",
+            "TV max bitrate for direct copy",
+            'data-rule-kind="route">ROUTE',
+            'data-rule-kind="hard">HARD',
+            'data-rule-kind="soft">SOFT',
+            'data-rule-kind="advisory">ADVISORY',
+            "Bitrate strict, size flexible",
+            "Target size strict",
+            "Direct-copy bitrate strict",
+            "Block publish",
+        ):
+            self.assertIn(token, html)
+
+        self.assertNotIn(">Default Editor</button>", html)
+        self.assertNotIn(">Default Media</button>", html)
+        self.assertNotIn(">Encode tuning", html)
+        self.assertNotIn("Compatibility advisory", html)
+        self.assertNotIn("fallback tuning", html)
+
+    def test_advanced_encoder_controls_are_collapsed_by_default(self) -> None:
+        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+
+        details_start = html.index('<details class="settings-advanced-disclosure">')
+        summary_index = html.index("<summary>Advanced encoder controls</summary>", details_start)
+        extra_flags_index = html.index('id="settings-video-extra-flags"', summary_index)
+        details_end = html.index("</details>", extra_flags_index)
+
+        self.assertLess(details_start, summary_index)
+        self.assertLess(summary_index, extra_flags_index)
+        self.assertLess(extra_flags_index, details_end)
+
+    def test_display_label_metadata_overrides_legacy_terms(self) -> None:
+        js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+
+        for token in (
+            "settingsDisplayLabels",
+            'RoutingProfile: "Processing Strategy"',
+            'RouteThresholdMode: "Enforcement Mode"',
+            'SizeGuardMode: "Output Size Check"',
+            'EncodeTuningPreset: "Encoder Quality Preset"',
+            'EncodeLadder: "Encode Target Mode"',
+            'EncodeThresholdGB: "Movie target output size"',
+            'TVEncodeThresholdGB: "TV target output size"',
+            'MovieRouteMaxVideoBitrateMbps: "Movie max bitrate for direct copy"',
+            'TVRouteMaxVideoBitrateMbps: "TV max bitrate for direct copy"',
+            'VideoPreset: "Encoder Speed Preset"',
+            'ExtraVideoFlags: "Advanced Encoder Flags"',
+        ):
+            self.assertIn(token, js)
+        self.assertIn("return field?.label || settingsDisplayLabels[key] || fallback || key;", settings_js)
+        self.assertIn("settingsDisplayLabel(key", review_js)
+        self.assertIn("if (field?.label) return field.label;", review_js)
+        self.assertIn("renderHandbrakePreviewSummary(settings)", review_js)
+
+    def test_static_settings_metadata_keys_have_backend_metadata(self) -> None:
+        metadata_keys = _settings_metadata_builder_keys()
+        backend_keys = set(_backend_metadata_by_key())
+
+        self.assertEqual(sorted(metadata_keys - backend_keys), [])
+        self.assertLessEqual(REPRESENTATIVE_SETTINGS_METADATA_KEYS, metadata_keys)
+
+    def test_settings_metadata_key_mentions_are_backend_known_or_explicitly_advisory(self) -> None:
+        mentioned_keys = _settings_metadata_config_key_mentions()
+        backend_keys = set(_backend_metadata_by_key())
+
+        self.assertEqual(sorted(mentioned_keys - backend_keys), sorted(SETTINGS_METADATA_ADVISORY_ONLY_KEYS))
+        self.assertLessEqual(REPRESENTATIVE_SETTINGS_METADATA_KEYS, mentioned_keys)
+
+    def test_main_settings_ui_prefers_backend_field_metadata(self) -> None:
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
+
+        self.assertIn("Backend field_definitions owns labels, options, defaults, constraints", metadata_js)
+        for token in (
+            "function settingsFieldDefaultValue(key, fallback)",
+            "field.default_value",
+            "function settingsFieldAllowedValues(field)",
+            "field?.allowed_values",
+            "function settingsFieldLabel(key, fallback = \"\")",
+            "function settingsFieldHelpText(field)",
+            "field?.help_text || field?.help",
+            "function renderSettingsFieldTaxonomyBadges(label, control, field)",
+            "field.rule_taxonomy",
+            "field.strictness",
+            "settings-field-metadata-badge",
+            "function applySettingsFieldMetadataToControl([key, id, fallbackKind])",
+            "if (!field || !element) return;",
+            "dataset.settingsKey",
+            "dataset.settingsPersistedKey",
+            "dataset.settingsValueType",
+            "dataset.settingsDefaultValue",
+            "dataset.settingsAdvancedVisibility",
+            "dataset.settingsSection",
+            "dataset.settingsRuleTaxonomy",
+            "dataset.settingsStrictness",
+            "field.min",
+            "field.max",
+            "field.step",
+            "applySettingsFieldMetadataToControls();",
+        ):
+            self.assertIn(token, settings_js)
+        self.assertNotIn("rule_taxonomy", metadata_js)
+        self.assertNotIn("strictness", metadata_js)
+
+    def test_settings_workspace_payload_exposes_phase3_display_metadata(self) -> None:
+        helper = (Path(__file__).resolve().parents[2] / "app" / "config" / "settings_helpers_facade.py").read_text(encoding="utf-8")
+
+        for token in (
+            '"short_label"',
+            '"help_text"',
+            '"rule_taxonomy"',
+            '"strictness"',
+            '"unavailable_reason"',
+        ):
+            self.assertIn(token, helper)
+
+    def test_patch_preview_keeps_persisted_keys_for_backend_labels(self) -> None:
+        review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+
+        for key in ("RoutingProfile", "RouteThresholdMode", "SizeGuardMode"):
+            self.assertIn(f"{key}: settingsBuilderInputValue", review_js)
+        for renamed_key in ("ProcessingStrategy", "EnforcementMode", "OutputSizeCheck"):
+            self.assertIsNone(re.search(rf"\b{renamed_key}\s*:", review_js))
+        self.assertIn("key,", review_js)
+        self.assertIn("settingsDisplayLabel(key, field?.label || key)", review_js)
+
+    def test_label_only_renames_remain_display_only_in_main_settings_and_patch_builders(self) -> None:
+        backend = _backend_metadata_by_key()
+        metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+        video_builder_js = (STATIC_ROOT / "assets" / "settingsView.builders.video.js").read_text(encoding="utf-8")
+        display_labels = _settings_display_label_entries()
+        patch_sources = review_js + video_builder_js
+
+        self.assertIn("return field?.label || settingsDisplayLabels[key] || fallback || key;", settings_js)
+        self.assertIn("applySettingsFieldMetadataToControls();", settings_js)
+        self.assertIn("patch[key] = readVideoDetailBuilderValue", video_builder_js)
+        for key, label in LABEL_ONLY_RENAMES.items():
+            with self.subTest(key=key):
+                field = backend[key]
+                self.assertEqual(field["label"], label)
+                self.assertEqual(field["persisted_key"], key)
+                if key in display_labels:
+                    self.assertEqual(display_labels[key], label)
+                if key in EDITOR_BUILDER_KEYS:
+                    self.assertRegex(review_js, rf"\b{key}\s*:")
+                if key in VIDEO_DETAIL_BUILDER_KEYS:
+                    self.assertIn(f'"{key}"', metadata_js)
+                    self.assertIn("patch[key]", video_builder_js)
+                renamed_identifier = re.sub(r"[^A-Za-z0-9]", "", label)
+                self.assertIsNone(re.search(rf"\b{renamed_identifier}\s*:", patch_sources))
+
+    def test_backend_migration_policy_matches_display_label_renames(self) -> None:
+        self.assertEqual(MIGRATION_LABEL_ONLY_RENAMES, LABEL_ONLY_RENAMES)
+        policies = {str(policy["persisted_key"]): policy for policy in LABEL_ONLY_RENAME_POLICIES}
+
+        self.assertEqual(set(policies), set(MIGRATION_LABEL_ONLY_RENAMES))
+        for key, label in MIGRATION_LABEL_ONLY_RENAMES.items():
+            with self.subTest(key=key):
+                self.assertEqual(_backend_metadata_by_key()[key]["label"], label)
+                self.assertEqual(policies[key]["display_label"], label)
+                self.assertEqual(policies[key]["status"], "label_only_rename")
+                self.assertFalse(policies[key]["accepted_as_persisted_key"])
+
+        self.assertEqual(FRIENDLY_LABEL_PERSISTED_KEY_ALIASES["ProcessingStrategy"], "RoutingProfile")
+        self.assertEqual(FRIENDLY_LABEL_PERSISTED_KEY_ALIASES["OutputSizeCheck"], "SizeGuardMode")
+        self.assertEqual(FRIENDLY_LABEL_PERSISTED_KEY_ALIASES["EncoderSpeedPreset"], "VideoPreset")
+
+    def test_static_label_fallbacks_are_backend_known_and_cannot_create_editable_keys(self) -> None:
+        backend = _backend_metadata_by_key()
+        display_labels = _settings_display_label_entries()
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+
+        self.assertEqual(sorted(set(display_labels) - set(backend)), [])
+        for key, fallback_label in display_labels.items():
+            with self.subTest(key=key):
+                self.assertEqual(fallback_label, backend[key]["label"])
+        self.assertIn("if (!field || !element) return;", settings_js)
+        self.assertIn("settingsDisplayLabel(key, field?.label || key)", review_js)
+
+    def test_size_target_and_direct_copy_bitrate_labels_are_not_swapped(self) -> None:
+        backend = _backend_metadata_by_key()
+
+        self.assertEqual(backend["EncodeThresholdGB"]["label"], "Movie target output size")
+        self.assertEqual(backend["EncodeThresholdGB"]["unit"], "GB")
+        self.assertIn("GB target output size", backend["EncodeThresholdGB"]["help_text"])
+        self.assertIn("not the Mbps max bitrate for direct copy", backend["EncodeThresholdGB"]["help_text"])
+        self.assertEqual(backend["TVEncodeThresholdGB"]["label"], "TV target output size")
+        self.assertEqual(backend["TVEncodeThresholdGB"]["unit"], "GB")
+        self.assertIn("GB target output size", backend["TVEncodeThresholdGB"]["help_text"])
+        self.assertIn("not the Mbps max bitrate for direct copy", backend["TVEncodeThresholdGB"]["help_text"])
+        self.assertEqual(backend["MovieRouteMaxVideoBitrateMbps"]["label"], "Movie max bitrate for direct copy")
+        self.assertEqual(backend["MovieRouteMaxVideoBitrateMbps"]["unit"], "Mbps")
+        self.assertIn("Maximum movie video bitrate in Mbps", backend["MovieRouteMaxVideoBitrateMbps"]["help_text"])
+        self.assertIn("direct copy/remux remains eligible", backend["MovieRouteMaxVideoBitrateMbps"]["help_text"])
+        self.assertEqual(backend["TVRouteMaxVideoBitrateMbps"]["label"], "TV max bitrate for direct copy")
+        self.assertEqual(backend["TVRouteMaxVideoBitrateMbps"]["unit"], "Mbps")
+        self.assertIn("Maximum TV video bitrate in Mbps", backend["TVRouteMaxVideoBitrateMbps"]["help_text"])
+        self.assertIn("direct copy/remux remains eligible", backend["TVRouteMaxVideoBitrateMbps"]["help_text"])
+
+    def test_phase3e_help_text_disambiguates_routing_encode_and_publish_copy(self) -> None:
+        backend = _backend_metadata_by_key()
+        metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
+        libraries_js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+
+        self.assertIn("Used before processing to decide copy/remux versus encode.", backend["RouteThresholdMode"]["help_text"])
+        self.assertNotIn("threshold", backend["RouteThresholdMode"]["help_text"].lower())
+        self.assertIn("Checked after encode.", backend["SizeGuardMode"]["help_text"])
+        self.assertIn("Warns but does not block", backend["SizeGuardMode"]["help_text"])
+        self.assertIn("Blocks publish when configured to block", backend["SizeGuardMode"]["help_text"])
+        self.assertIn("Applies only when encoding is required.", backend["EncodeTuningPreset"]["help_text"])
+        self.assertIn("Applies only when encoding is required.", backend["VideoPreset"]["help_text"])
+
+        for source in (metadata_js, libraries_js, html):
+            with self.subTest(source=source[:24]):
+                self.assertNotIn("Compatibility advisory", source)
+                self.assertNotIn("fallback tuning", source)
+
+        for token in (
+            "Bitrate strict, size flexible",
+            "Warn only",
+            "Block publish",
+            "direct-copy allowlists and fallback encode controls",
+        ):
+            self.assertIn(token, metadata_js + libraries_js + html)
+
+    def test_representative_backend_defaults_match_js_fallbacks(self) -> None:
+        backend = _backend_metadata_by_key()
+
+        for key in REPRESENTATIVE_DEFAULT_KEYS:
+            with self.subTest(key=key):
+                default_value = backend[key].get("default_value")
+                self.assertIsNotNone(default_value)
+                fallback = _settings_builder_fallback_default(key)
+                self.assertIsNotNone(fallback)
+                self.assertEqual(_normalize_js_literal(fallback), default_value)
+
+
+if __name__ == "__main__":
+    unittest.main()

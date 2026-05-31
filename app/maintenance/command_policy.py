@@ -14,8 +14,10 @@ MAINTENANCE_REFRESH_HINT = "maintenance"
 RELEASE_DRY_RUN_COMMAND = "maintenance.release_dry_run"
 RELEASE_BUILD_COMMAND = "maintenance.release_build"
 COMPLETED_BACKFILL_DRY_RUN_COMMAND = "maintenance.completed_backfill_dry_run"
+DEPENDENCY_ATLAS_COMMAND = "maintenance.dependency_atlas"
 RELEASE_PROGRESS_SCHEMA_VERSION = "desktop_release_package_progress.v1"
 BACKFILL_PROGRESS_SCHEMA_VERSION = "desktop_maintenance_backfill_progress.v1"
+DEPENDENCY_ATLAS_PROGRESS_SCHEMA_VERSION = "desktop_dependency_atlas_progress.v1"
 RELEASE_PROGRESS_STEPS = [
     ("layout", "Layout"),
     ("copy", "Copy plan"),
@@ -320,6 +322,96 @@ def completed_backfill_progress_payload(ok: bool, output: str, *, dry_run: bool 
     }
 
 
+def dependency_atlas_message(result: dict[str, Any]) -> str:
+    stdout = str(result.get("stdout") or "")
+    modules = release_stdout_value(stdout, "Modules")
+    domains = release_stdout_value(stdout, "Domains")
+    links = release_stdout_value(stdout, "HTML local links checked")
+    if modules or domains or links:
+        return f"Dependency atlas updated: {modules or '?'} module(s), {domains or '?'} domain(s), {links or '?'} HTML link(s) checked."
+    return "Dependency atlas updated."
+
+
+def dependency_atlas_progress_payload(result: dict[str, Any], request: dict[str, Any]) -> dict[str, Any]:
+    del request
+    success = bool(result.get("success"))
+    timed_out = bool(result.get("timed_out"))
+    returncode = maintenance_int_value(result.get("returncode"))
+    stdout = str(result.get("stdout") or "")
+    modules = release_stdout_value(stdout, "Modules")
+    domain_edges = release_stdout_value(stdout, "Domain edges")
+    diagrams = release_stdout_value(stdout, "Detail diagrams")
+    links = release_stdout_value(stdout, "HTML local links checked")
+    status = "complete" if success else "blocked" if timed_out else "error"
+    detail = (
+        f"Dependency atlas generated; modules {modules or '?'}, domain edges {domain_edges or '?'}, diagrams {diagrams or '?'}, links checked {links or '?'}."
+        if success
+        else f"Dependency atlas generation failed with exit {returncode}."
+    )
+    updated_at = datetime.now().isoformat(timespec="seconds")
+    step_status = "complete" if success else "blocked" if timed_out else "error"
+    output_status = (
+        "complete"
+        if success and bool(result.get("html_exists")) and bool(result.get("png_exists")) and bool(result.get("svg_exists"))
+        else "blocked" if success else step_status
+    )
+    csv_status = (
+        "complete"
+        if success and bool(result.get("summary_csv_exists")) and bool(result.get("domain_edges_csv_exists")) and bool(result.get("module_edges_csv_exists"))
+        else "blocked" if success else step_status
+    )
+    steps = [
+        {
+            "key": "parse",
+            "label": "Parse imports",
+            "status": step_status,
+            "detail": f"Parsed local Python imports; modules reported: {modules or '?'}." if success else f"Return code {returncode}.",
+        },
+        {
+            "key": "overview",
+            "label": "Render overview",
+            "status": output_status,
+            "detail": f"Overview HTML/PNG/SVG: {result.get('atlas_html', '')}",
+        },
+        {
+            "key": "detail",
+            "label": "Render detail diagrams",
+            "status": step_status,
+            "detail": f"Focused diagrams reported: {diagrams or '?'}." if success else "Detail diagrams were not trusted.",
+        },
+        {
+            "key": "csv",
+            "label": "Write CSV exports",
+            "status": csv_status,
+            "detail": f"CSV outputs: {result.get('summary_csv', '')}",
+        },
+        {
+            "key": "validate",
+            "label": "Validate links",
+            "status": step_status,
+            "detail": f"HTML local links checked: {links or '?'}." if success else "HTML link validation did not complete cleanly.",
+        },
+    ]
+    bar = maintenance_progress_bar_from_steps(
+        bar_id="dependency_atlas",
+        label="Dependency atlas",
+        steps=steps,
+        status=status,
+        detail=detail,
+        source=DEPENDENCY_ATLAS_COMMAND,
+        updated_at=updated_at,
+    )
+    return {
+        "schema_version": DEPENDENCY_ATLAS_PROGRESS_SCHEMA_VERSION,
+        "status": status,
+        "dry_run": False,
+        "detail": detail,
+        "updated_at": updated_at,
+        "steps": steps,
+        "progress_bars": [bar],
+    }
+
+
 def maintenance_command_blocked_result(command: str, message: str) -> CommandResult:
     return _command_result(
         command=command,
@@ -518,6 +610,94 @@ def completed_backfill_exception_result(exc: Exception) -> CommandResult:
     )
 
 
+def dependency_atlas_unavailable_result() -> CommandResult:
+    return _command_result(
+        command=DEPENDENCY_ATLAS_COMMAND,
+        ok=False,
+        message="Dependency atlas generator is not available.",
+        severity="error",
+        errors=["generate_dependency_atlas is required."],
+        refresh_hint=MAINTENANCE_REFRESH_HINT,
+    )
+
+
+def dependency_atlas_exception_result(exc: Exception) -> CommandResult:
+    return _command_result(
+        command=DEPENDENCY_ATLAS_COMMAND,
+        ok=False,
+        message=f"Dependency atlas generation failed: {exc}",
+        severity="error",
+        errors=[str(exc)],
+        refresh_hint=MAINTENANCE_REFRESH_HINT,
+    )
+
+
+def dependency_atlas_invalid_result() -> CommandResult:
+    return _command_result(
+        command=DEPENDENCY_ATLAS_COMMAND,
+        ok=False,
+        message="Dependency atlas generation returned an invalid result.",
+        severity="error",
+        errors=["generate_dependency_atlas must return a dictionary."],
+        refresh_hint=MAINTENANCE_REFRESH_HINT,
+    )
+
+
+def dependency_atlas_result(result: dict[str, Any], request: dict[str, Any]) -> CommandResult:
+    success = bool(result.get("success"))
+    timed_out = bool(result.get("timed_out"))
+    returncode = maintenance_int_value(result.get("returncode"))
+    severity = "info" if success else "warning" if timed_out else "error"
+    progress = dependency_atlas_progress_payload(result, request)
+    stdout = str(result.get("stdout") or "")
+    return _command_result(
+        command=DEPENDENCY_ATLAS_COMMAND,
+        ok=success,
+        message=dependency_atlas_message(result) if success else f"Dependency atlas generation failed with exit {returncode}.",
+        severity=severity,
+        errors=[] if success else [str(result.get("stderr") or result.get("stdout") or f"returncode={returncode}")],
+        refresh_hint=MAINTENANCE_REFRESH_HINT,
+        data=_json_safe(
+            {
+                "dry_run": False,
+                "writes_dependency_atlas": success,
+                "writes_media": False,
+                "atlas_html": result.get("atlas_html", ""),
+                "atlas_png": result.get("atlas_png", ""),
+                "atlas_svg": result.get("atlas_svg", ""),
+                "assets_dir": result.get("assets_dir", ""),
+                "summary_csv": result.get("summary_csv", ""),
+                "domain_edges_csv": result.get("domain_edges_csv", ""),
+                "module_edges_csv": result.get("module_edges_csv", ""),
+                "html_exists": bool(result.get("html_exists", False)),
+                "png_exists": bool(result.get("png_exists", False)),
+                "svg_exists": bool(result.get("svg_exists", False)),
+                "summary_csv_exists": bool(result.get("summary_csv_exists", False)),
+                "domain_edges_csv_exists": bool(result.get("domain_edges_csv_exists", False)),
+                "module_edges_csv_exists": bool(result.get("module_edges_csv_exists", False)),
+                "modules": release_stdout_value(stdout, "Modules"),
+                "module_edges": release_stdout_value(stdout, "Module edges"),
+                "domains": release_stdout_value(stdout, "Domains"),
+                "domain_edges": release_stdout_value(stdout, "Domain edges"),
+                "detail_diagrams": release_stdout_value(stdout, "Detail diagrams"),
+                "html_links_checked": release_stdout_value(stdout, "HTML local links checked"),
+                "returncode": returncode,
+                "timed_out": timed_out,
+                "elapsed_seconds": result.get("elapsed_seconds", 0.0),
+                "command": result.get("command", ""),
+                "stdout": stdout,
+                "stderr": result.get("stderr", ""),
+                "options": {
+                    "min_overview_edge_count": maintenance_int_value(request.get("min_overview_edge_count")) or 4,
+                    "min_overview_files": maintenance_int_value(request.get("min_overview_files")) or 2,
+                },
+                "dependency_atlas_progress": progress,
+                "progress_bars": progress["progress_bars"],
+            }
+        ),
+    )
+
+
 def completed_backfill_dry_run_result(
     ok: bool,
     message: object,
@@ -560,8 +740,10 @@ __all__ = [
     "RELEASE_DRY_RUN_COMMAND",
     "RELEASE_BUILD_COMMAND",
     "COMPLETED_BACKFILL_DRY_RUN_COMMAND",
+    "DEPENDENCY_ATLAS_COMMAND",
     "RELEASE_PROGRESS_SCHEMA_VERSION",
     "BACKFILL_PROGRESS_SCHEMA_VERSION",
+    "DEPENDENCY_ATLAS_PROGRESS_SCHEMA_VERSION",
     "RELEASE_PROGRESS_STEPS",
     "maintenance_int_value",
     "release_stdout_value",
@@ -573,6 +755,8 @@ __all__ = [
     "release_dry_run_progress_payload",
     "release_build_progress_payload",
     "completed_backfill_progress_payload",
+    "dependency_atlas_message",
+    "dependency_atlas_progress_payload",
     "maintenance_command_blocked_result",
     "release_builder_unavailable_result",
     "release_build_confirmation_required_result",
@@ -585,5 +769,9 @@ __all__ = [
     "release_build_result",
     "completed_backfill_unavailable_result",
     "completed_backfill_exception_result",
+    "dependency_atlas_unavailable_result",
+    "dependency_atlas_exception_result",
+    "dependency_atlas_invalid_result",
+    "dependency_atlas_result",
     "completed_backfill_dry_run_result",
 ]

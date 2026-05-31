@@ -216,6 +216,7 @@ function Invoke-ParkPendingPushWithTx3gSidecars {
         [string] $ScratchPath,
         [array] $Tx3gTracks,
         [array] $BdpgsTracks = @(),
+        [array] $VobSubTracks = @(),
         [Parameter(Mandatory)] [string] $MediaOutputPath,
         [Parameter(Mandatory)] [hashtable] $ParkArgs,
         [string] $Context = '',
@@ -232,13 +233,17 @@ function Invoke-ParkPendingPushWithTx3gSidecars {
     $ParkArgs['Tx3gSrtTracks'] = @($plan.Tracks)
     $ParkArgs['Tx3gSrtFailures'] = @($plan.Failures)
     $ParkArgs['BdpgsSrtFailures'] = @()
+    $ParkArgs['VobSubSrtFailures'] = @()
     $ParkArgs['Tx3gEmbeddedSrtTracks'] = @(ConvertTo-Tx3gEmbeddedSrtTrackRecords -Tx3gTracks @($Tx3gTracks))
     $ParkArgs['BdpgsEmbeddedSrtTracks'] = @(ConvertTo-BdpgsEmbeddedSrtTrackRecords -BdpgsTracks @($BdpgsTracks))
+    $ParkArgs['VobSubEmbeddedSrtTracks'] = @(ConvertTo-VobSubEmbeddedSrtTrackRecords -VobSubTracks @($VobSubTracks))
     $ParkArgs['Tx3gSrtConversionEnabled'] = [bool]$script:ConvertTx3gToSrt
     $ParkArgs['Tx3gExternalSrtSidecarsEnabled'] = [bool]$script:CreateExternalTx3gSrtSidecars
     $ParkArgs['DropTx3gAfterConversion'] = [bool]$script:DropTx3gAfterConversion
     $ParkArgs['BdpgsSrtConversionEnabled'] = [bool]$script:ConvertBdpgsToSrt
     $ParkArgs['DropBdpgsAfterConversion'] = [bool]$script:DropBdpgsAfterConversion
+    $ParkArgs['VobSubSrtConversionEnabled'] = [bool]$script:ConvertVobSubToSrt
+    $ParkArgs['DropVobSubAfterConversion'] = [bool]$script:DropVobSubAfterConversion
     if (-not $ParkArgs.ContainsKey('FolderPolicyMetadata') -and (Get-Command -Name Get-ActiveFolderPolicyMetadata -ErrorAction SilentlyContinue)) {
         $ParkArgs['FolderPolicyMetadata'] = Get-ActiveFolderPolicyMetadata
     }
@@ -278,13 +283,17 @@ function Invoke-ParkPendingPush {
         [array] $Tx3gSrtTracks = @(),
         [array] $Tx3gSrtFailures = @(),
         [array] $BdpgsSrtFailures = @(),
+        [array] $VobSubSrtFailures = @(),
         [array] $Tx3gEmbeddedSrtTracks = @(),
         [array] $BdpgsEmbeddedSrtTracks = @(),
+        [array] $VobSubEmbeddedSrtTracks = @(),
         [bool] $Tx3gSrtConversionEnabled = $false,
         [bool] $Tx3gExternalSrtSidecarsEnabled = $false,
         [bool] $DropTx3gAfterConversion = $false,
         [bool] $BdpgsSrtConversionEnabled = $false,
         [bool] $DropBdpgsAfterConversion = $false,
+        [bool] $VobSubSrtConversionEnabled = $false,
+        [bool] $DropVobSubAfterConversion = $false,
         [object] $FolderPolicyMetadata = $null,
         [object] $RoutePlanMetadata = $null,
         [string] $MediaType = ''
@@ -311,13 +320,17 @@ function Invoke-ParkPendingPush {
         -Tx3gSrtTracks @($Tx3gSrtTracks) `
         -Tx3gSrtFailures @($Tx3gSrtFailures) `
         -BdpgsSrtFailures @($BdpgsSrtFailures) `
+        -VobSubSrtFailures @($VobSubSrtFailures) `
         -Tx3gEmbeddedSrtTracks @($Tx3gEmbeddedSrtTracks) `
         -BdpgsEmbeddedSrtTracks @($BdpgsEmbeddedSrtTracks) `
+        -VobSubEmbeddedSrtTracks @($VobSubEmbeddedSrtTracks) `
         -Tx3gSrtConversionEnabled:$Tx3gSrtConversionEnabled `
         -Tx3gExternalSrtSidecarsEnabled:$Tx3gExternalSrtSidecarsEnabled `
         -DropTx3gAfterConversion:$DropTx3gAfterConversion `
         -BdpgsSrtConversionEnabled:$BdpgsSrtConversionEnabled `
         -DropBdpgsAfterConversion:$DropBdpgsAfterConversion `
+        -VobSubSrtConversionEnabled:$VobSubSrtConversionEnabled `
+        -DropVobSubAfterConversion:$DropVobSubAfterConversion `
         -FolderPolicyMetadata $FolderPolicyMetadata `
         -RoutePlanMetadata $RoutePlanMetadata `
         -MediaType $MediaType

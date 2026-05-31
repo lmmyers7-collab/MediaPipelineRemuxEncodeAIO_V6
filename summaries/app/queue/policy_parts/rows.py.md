@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-05-30
 last_reviewed: 2026-05-30
-sha256: 12b764db42a227e4f23bad047e7248dd2fcc456ad62a760f213c3867b310720e
+sha256: e489f25a3dfe7ce68a811d88ce855f6b4303c3d832faa327b91b6e66536c3eab
 ---
 # `app/queue/policy_parts/rows.py`
 

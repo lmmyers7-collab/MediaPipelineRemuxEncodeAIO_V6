@@ -7,6 +7,7 @@ from typing import Any
 from mediapipeline_desktop_app.config_keys import (
     KEY_BDPGS_OCR_TOOL_PATH,
     KEY_CONVERT_BDPGS_TO_SRT,
+    KEY_CONVERT_VOBSUB_TO_SRT,
     KEY_FINAL_LIBRARY_PROMOTION_CLEANUP_AFTER_VERIFIED,
     KEY_FINAL_LIBRARY_PROMOTION_ENABLED,
     KEY_FINAL_LIBRARY_PROMOTION_OVERWRITE_EXISTING,
@@ -17,10 +18,13 @@ from mediapipeline_desktop_app.config_keys import (
     KEY_OUTSOURCE_MIN_FREE_SPACE_GB,
     KEY_PROCESSED_INDEX_REFRESH_SECONDS,
     KEY_SOURCE_SCAN_INTERVAL_SECONDS,
+    KEY_VOBSUB_OCR_TOOL_PATH,
 )
 from app.config.library_profiles import (
     mirror_legacy_keys_from_library_profiles,
+    normalize_library_profile_config_values,
     validate_library_profiles,
+    validate_raw_library_profile_override_groups,
 )
 from app.config.option_policy import validate_option_config
 from app.config.path_warnings import (
@@ -30,6 +34,7 @@ from app.config.path_warnings import (
     config_root_path_warnings,
 )
 from app.config.numeric_policy import validate_required_and_numeric_config
+from app.config.preset_migration import FRIENDLY_LABEL_PERSISTED_KEY_ALIASES
 
 
 def split_list_input(raw: str) -> list[str]:
@@ -56,6 +61,15 @@ def bdpgs_ocr_path_warning(values: dict[str, Any]) -> str | None:
     if tool_path:
         return None
     return "BdpgsOcrToolPath is blank while ConvertBdpgsToSrt is enabled; BDPGS OCR will be blocked until a bundled or configured OCR tool path is saved."
+
+
+def vobsub_ocr_path_warning(values: dict[str, Any]) -> str | None:
+    if not truthy_config_value(values.get(KEY_CONVERT_VOBSUB_TO_SRT, False)):
+        return None
+    tool_path = str(values.get(KEY_VOBSUB_OCR_TOOL_PATH, "") or "").strip()
+    if tool_path:
+        return None
+    return "VobSubOcrToolPath is blank while ConvertVobSubToSrt is enabled; VobSub OCR will be blocked until Subtitle Edit seconv.exe is configured."
 
 
 def _coerce_promotion_rules(raw: Any) -> list[dict[str, Any]]:
@@ -130,9 +144,18 @@ def validate_config_values(
     normalized_path_key: PathKeyFunc,
     path_within_root: PathWithinRootFunc,
 ) -> tuple[list[str], list[str]]:
-    values = mirror_legacy_keys_from_library_profiles(dict(values or {}))
-    errors: list[str] = []
+    raw_values = dict(values or {})
+    had_library_profiles = KEY_LIBRARY_PROFILES in raw_values
+    raw_errors: list[str] = []
+    validate_raw_library_profile_override_groups(raw_values, raw_errors)
+    values = normalize_library_profile_config_values(raw_values)
+    values = mirror_legacy_keys_from_library_profiles(values)
+    errors: list[str] = list(raw_errors)
     warnings: list[str] = []
+
+    for key in sorted(set(raw_values) & set(FRIENDLY_LABEL_PERSISTED_KEY_ALIASES)):
+        persisted_key = FRIENDLY_LABEL_PERSISTED_KEY_ALIASES[key]
+        errors.append(f"{key} is a display label only; use persisted key {persisted_key}.")
 
     validate_required_and_numeric_config(values, errors)
     validate_option_config(values, errors, warnings)
@@ -144,7 +167,7 @@ def validate_config_values(
         normalized_path_key=normalized_path_key,
         path_within_root=path_within_root,
     )
-    if KEY_LIBRARY_PROFILES in values:
+    if had_library_profiles:
         warnings.append("LibraryProfiles mirrors its primary Movie/TV paths back to SourceMovies, SourceTV, and Outsource for compatibility during the transition.")
 
     warnings.extend(
@@ -157,6 +180,9 @@ def validate_config_values(
     bdpgs_warning = bdpgs_ocr_path_warning(values)
     if bdpgs_warning:
         warnings.append(bdpgs_warning)
+    vobsub_warning = vobsub_ocr_path_warning(values)
+    if vobsub_warning:
+        warnings.append(vobsub_warning)
     if isinstance(values.get(KEY_OUTSOURCE_MIN_FREE_SPACE_GB), int) and isinstance(values.get(KEY_MIN_FREE_SPACE_GB), int):
         if int(values[KEY_OUTSOURCE_MIN_FREE_SPACE_GB]) < int(values[KEY_MIN_FREE_SPACE_GB]):
             warnings.append("OutsourceMinFreeSpaceGB is lower than MinFreeSpaceGB.")

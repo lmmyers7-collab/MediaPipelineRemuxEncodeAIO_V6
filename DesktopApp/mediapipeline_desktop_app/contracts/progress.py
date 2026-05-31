@@ -45,6 +45,11 @@ class ProgressState:
     current_file_display: str | None = None
     current_file_path: str | None = None
     current_media_type: str | None = None
+    current_library_id: str | None = None
+    current_library_name: str | None = None
+    current_library_designation: str | None = None
+    current_library_source_root: str | None = None
+    current_library_output_root: str | None = None
     current_queue_phase: str | None = None
     current_queue_index: int = 0
     current_queue_total: int = 0
@@ -88,6 +93,11 @@ class ProgressState:
             current_file_display=_nullable_text_field(data, "CurrentFileDisplay"),
             current_file_path=_nullable_text_field(data, "CurrentFilePath"),
             current_media_type=_nullable_text_field(data, "CurrentMediaType"),
+            current_library_id=_nullable_text_field(data, "CurrentLibraryId"),
+            current_library_name=_nullable_text_field(data, "CurrentLibraryName"),
+            current_library_designation=_nullable_text_field(data, "CurrentLibraryDesignation"),
+            current_library_source_root=_nullable_text_field(data, "CurrentLibrarySourceRoot"),
+            current_library_output_root=_nullable_text_field(data, "CurrentLibraryOutputRoot"),
             current_queue_phase=_nullable_text_field(data, "CurrentQueuePhase"),
             current_queue_index=_nonnegative_int_field(data, "CurrentQueueIndex"),
             current_queue_total=_nonnegative_int_field(data, "CurrentQueueTotal"),
@@ -121,6 +131,11 @@ class ProgressState:
             "CurrentFileDisplay": self.current_file_display,
             "CurrentFilePath": self.current_file_path,
             "CurrentMediaType": self.current_media_type,
+            "CurrentLibraryId": self.current_library_id,
+            "CurrentLibraryName": self.current_library_name,
+            "CurrentLibraryDesignation": self.current_library_designation,
+            "CurrentLibrarySourceRoot": self.current_library_source_root,
+            "CurrentLibraryOutputRoot": self.current_library_output_root,
             "CurrentQueuePhase": self.current_queue_phase,
             "CurrentQueueIndex": self.current_queue_index,
             "CurrentQueueTotal": self.current_queue_total,

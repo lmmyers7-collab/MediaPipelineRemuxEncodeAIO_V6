@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+import json
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
 from mediapipeline_desktop_app.application.dto_commands import CommandResult
 from mediapipeline_desktop_app.models import ResolvedPaths
 
@@ -12,6 +17,84 @@ from app.processes.control_policy import (
     pipeline_control_command,
     pipeline_control_success_data,
 )
+from app.shared.utils import _atomic_write_text
+
+_IDLE_STAGES = frozenset({"idle", "startup", ""})
+
+
+def _write_idle_progress_file(progress_file: Path | None, logger: Any = None) -> str:
+    """Reset a stuck pipeline_progress.json to idle stage.
+
+    Best-effort: logs on failure but never raises so it does not mask the kill result.
+    Returns a short human-readable status string.
+    """
+    if not progress_file:
+        return "progress file path not configured"
+    if not progress_file.exists():
+        return "progress file not found; nothing to reset"
+    try:
+        existing: dict[str, Any] = json.loads(progress_file.read_text(encoding="utf-8")) or {}
+    except Exception as exc:
+        if logger is not None:
+            try:
+                logger.warning("force-reset: could not read progress file %s: %s", progress_file, exc)
+            except Exception:
+                pass
+        return f"could not read progress file: {exc}"
+
+    current_stage = str(existing.get("CurrentStage") or "").lower()
+    if current_stage in _IDLE_STAGES:
+        return "progress file was already idle; no change needed"
+
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    idle_payload: dict[str, Any] = {
+        "ProgressVersion": existing.get("ProgressVersion", 2),
+        "LastUpdate": now,
+        "SessionStartedAt": existing.get("SessionStartedAt"),
+        "CurrentFile": None,
+        "CurrentFileDisplay": None,
+        "CurrentFilePath": None,
+        "CurrentMediaType": None,
+        "CurrentQueuePhase": None,
+        "CurrentQueueIndex": 0,
+        "CurrentQueueTotal": 0,
+        "CurrentRoute": None,
+        "CurrentStage": "idle",
+        "CurrentStagePercent": None,
+        "CurrentItemStartedAt": None,
+        "CurrentStageStartedAt": None,
+        "CopyState": None,
+        "PushState": None,
+        "SidecarState": None,
+        "CopyBytesCopied": None,
+        "CopyTotalBytes": None,
+        "CopyPercent": None,
+        "CopyAttempt": None,
+        "CopySource": None,
+        "CopyDestination": None,
+        "CopyUpdatedAt": None,
+        "SubtitleProgress": None,
+        "PauseRequested": False,
+        "StopRequested": False,
+        "ControlRequests": existing.get("ControlRequests"),
+        "Status": "Idle",
+        "TotalProcessed": existing.get("TotalProcessed", 0),
+        "Encoded": existing.get("Encoded", 0),
+        "Remuxed": existing.get("Remuxed", 0),
+        "Failed": existing.get("Failed", 0),
+        "Movies": existing.get("Movies", 0),
+        "TVEpisodes": existing.get("TVEpisodes", 0),
+    }
+    try:
+        _atomic_write_text(progress_file, json.dumps(idle_payload, indent=2) + "\n")
+        return f"progress stage reset from '{current_stage}' to idle"
+    except Exception as exc:
+        if logger is not None:
+            try:
+                logger.warning("force-reset: could not write idle progress to %s: %s", progress_file, exc)
+            except Exception:
+                pass
+        return f"progress reset failed: {exc}"
 
 
 class ProcessControlFacadeMixin:
@@ -63,11 +146,10 @@ class ProcessControlFacadeMixin:
                 if not callable(method):
                     raise RuntimeError("Kill control service is not available.")
                 messages = method(resolved)
-                message = (
-                    "; ".join(messages)
-                    if messages
-                    else "No active pipeline processes found to kill."
-                )
+                logger = getattr(getattr(self, "service", None), "logger", None)
+                reset_msg = _write_idle_progress_file(resolved.progress_file, logger)
+                kill_summary = "; ".join(messages) if messages else "No active pipeline processes found to kill."
+                message = f"{kill_summary}; {reset_msg}"
                 flag_path = None
         except Exception as exc:
             return CommandResult(

@@ -220,6 +220,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             "queue-state-write",
             "shell-dialog",
             "shell-open",
+            "tooling-artifact-write",
             "ui-state-write",
             "validation-log-write",
         }

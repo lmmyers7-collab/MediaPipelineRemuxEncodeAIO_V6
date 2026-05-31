@@ -3,9 +3,9 @@ file: app/config/metadata_choices.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-05-28
+last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: 65c374598a13eca2e3c3abf71719ddd8851ef1243486aa413882cc808e951662
+sha256: 74f7ba0f95f52808c7185c93c1660fd51f05187854dc09f30a8c00d568b7bd99
 ---
 # `app/config/metadata_choices.py`
 

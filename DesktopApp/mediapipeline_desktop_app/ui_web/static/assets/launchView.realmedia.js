@@ -200,7 +200,7 @@
       return hasAny(["h.264", "h264", "direct-stream", "direct stream", "remux", "copy"]) ? "visible-route-signal" : "not-visible";
     }
     if (category === "subtitle-srt-generation") {
-      return hasAny(["subtitle", "srt", "tx3g", "mov_text", "mov text", "bdpgs", "pgs", "ass", "ssa"]) ? "visible-route-signal" : "not-visible";
+      return hasAny(["subtitle", "srt", "tx3g", "mov_text", "mov text", "bdpgs", "pgs", "vobsub", "dvd_subtitle", "ass", "ssa"]) ? "visible-route-signal" : "not-visible";
     }
     if (category === "audio-routing") {
       return hasAny(["audio", "aac", "ac3", "eac3", "dts", "truehd", "flac", "channel", "default track", "passthrough", "downmix"]) ? "visible-route-signal" : "not-visible";

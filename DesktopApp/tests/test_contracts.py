@@ -19,10 +19,19 @@ from mediapipeline_desktop_app.contracts import (
     ProgressState,
     QueuePlanSnapshot,
 )
+from app.contracts.config import DESKTOP_SCHEMA_CONFIG_KEYS, NETWORK_CONFIG_KEYS
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_DIR = PROJECT_ROOT / "Pipeline" / "Schemas"
+VOBSUB_CONFIG_KEYS = {
+    "ConvertVobSubToSrt",
+    "DropVobSubAfterConversion",
+    "VobSubExtractLanguages",
+    "VobSubOcrToolPath",
+    "VobSubOcrTimeoutSeconds",
+    "TreatVobSubSignsSongsAsForced",
+}
 
 
 class ContractTests(unittest.TestCase):
@@ -59,6 +68,28 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(properties["CpuEncodeMaxThreads"]["minimum"], 0)
         self.assertEqual(properties["CpuEncodeMaxThreads"]["maximum"], 256)
         self.assertEqual(properties["FFmpegCpuEncodeTimeoutSeconds"]["minimum"], 1)
+
+    def test_config_schema_covers_non_network_desktop_schema_keys(self) -> None:
+        payload = json.loads((SCHEMA_DIR / "media_pipeline_config.schema.json").read_text(encoding="utf-8"))
+        properties = set(payload["properties"])
+        non_network_desktop_keys = set(DESKTOP_SCHEMA_CONFIG_KEYS) - set(NETWORK_CONFIG_KEYS)
+
+        self.assertEqual(sorted(non_network_desktop_keys - properties), [])
+
+    def test_generated_config_contract_includes_vobsub_controls(self) -> None:
+        payload = json.loads((SCHEMA_DIR / "media_pipeline_config.schema.json").read_text(encoding="utf-8"))
+        properties = payload["properties"]
+
+        self.assertLessEqual(VOBSUB_CONFIG_KEYS, set(properties))
+        self.assertEqual(properties["ConvertVobSubToSrt"]["type"], "boolean")
+        self.assertEqual(properties["DropVobSubAfterConversion"]["type"], "boolean")
+        self.assertEqual(properties["VobSubExtractLanguages"]["type"], "array")
+        self.assertEqual(properties["VobSubExtractLanguages"]["items"]["type"], "string")
+        self.assertEqual(properties["VobSubOcrToolPath"]["type"], "string")
+        self.assertEqual(properties["VobSubOcrTimeoutSeconds"]["type"], "integer")
+        self.assertEqual(properties["VobSubOcrTimeoutSeconds"]["minimum"], 60)
+        self.assertEqual(properties["VobSubOcrTimeoutSeconds"]["maximum"], 14400)
+        self.assertEqual(properties["TreatVobSubSignsSongsAsForced"]["type"], "boolean")
 
     def test_pipeline_event_contract_accepts_job_completed_shape(self) -> None:
         payload = {
@@ -143,6 +174,11 @@ class ContractTests(unittest.TestCase):
             "CurrentFileDisplay": "Movie.mkv",
             "CurrentFilePath": r"C:\Media\Movie.mkv",
             "CurrentMediaType": "movie",
+            "CurrentLibraryId": "movies",
+            "CurrentLibraryName": "Movies",
+            "CurrentLibraryDesignation": "movie",
+            "CurrentLibrarySourceRoot": r"C:\Media",
+            "CurrentLibraryOutputRoot": r"D:\Plex\Movies",
             "CurrentQueuePhase": "movie",
             "CurrentQueueIndex": 1,
             "CurrentQueueTotal": 4,
@@ -170,7 +206,9 @@ class ContractTests(unittest.TestCase):
 
         self.assertEqual(progress.progress_version, 2)
         self.assertEqual(progress.current_stage_percent, 42.5)
+        self.assertEqual(progress.current_library_name, "Movies")
         self.assertEqual(progress.to_mapping()["CurrentQueueIndex"], 1)
+        self.assertEqual(progress.to_mapping()["CurrentLibrarySourceRoot"], r"C:\Media")
 
     def test_process_result_contract_accepts_powershell_pascal_case_shape(self) -> None:
         payload = {
@@ -230,6 +268,13 @@ class ContractTests(unittest.TestCase):
                     "route": "REMUX",
                     "route_reason_code": "CONTAINER_ONLY",
                     "route_reason": "Container normalization only",
+                    "route_decision_trace": [{"code": "size_evaluated"}],
+                    "estimated_bitrate_mbps": 12.5,
+                    "route_size_threshold_gb": 8.0,
+                    "route_bitrate_threshold_mbps": 35.0,
+                    "route_threshold_mode": "compatibility_advisory",
+                    "size_over_threshold": False,
+                    "bitrate_over_threshold": False,
                     "blocked_reason_code": "",
                     "blocked_reason": "",
                     "runtime_checks_deferred": True,
@@ -246,6 +291,13 @@ class ContractTests(unittest.TestCase):
 
         self.assertEqual(snapshot.runnable_count, 1)
         self.assertEqual(snapshot.rows[0].source_path, r"C:\Media\Source\Movie.mkv")
+        self.assertEqual(snapshot.rows[0].route_decision_trace, [{"code": "size_evaluated"}])
+        self.assertEqual(snapshot.rows[0].estimated_bitrate_mbps, 12.5)
+        self.assertEqual(snapshot.rows[0].route_size_threshold_gb, 8.0)
+        self.assertEqual(snapshot.rows[0].route_bitrate_threshold_mbps, 35.0)
+        self.assertEqual(snapshot.rows[0].route_threshold_mode, "compatibility_advisory")
+        self.assertFalse(snapshot.rows[0].size_over_threshold)
+        self.assertFalse(snapshot.rows[0].bitrate_over_threshold)
         self.assertEqual(snapshot.rows[0].blocked_reason_code, "")
         self.assertTrue(snapshot.rows[0].runtime_checks_deferred)
         self.assertEqual(snapshot.rows[0].runtime_check_codes, ["source_stability", "output_path_capability"])

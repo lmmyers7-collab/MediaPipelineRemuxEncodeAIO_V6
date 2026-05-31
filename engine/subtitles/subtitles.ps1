@@ -19,6 +19,7 @@ $subtitleEngineModulePaths = @{
     'Subtitles.Srt.ps1' = Join-Path $repoRootForSubtitleModules 'engine\subtitles\srt.ps1'
     'Subtitles.Tx3g.ps1' = Join-Path $repoRootForSubtitleModules 'engine\subtitles\tx3g.ps1'
     'Subtitles.Bdpgs.ps1' = Join-Path $repoRootForSubtitleModules 'engine\subtitles\bdpgs.ps1'
+    'Subtitles.VobSub.ps1' = Join-Path $repoRootForSubtitleModules 'engine\subtitles\vobsub.ps1'
     'Subtitles.Builders.ps1' = Join-Path $repoRootForSubtitleModules 'engine\subtitles\builders.ps1'
 }
 foreach ($subtitleModule in @(
@@ -27,6 +28,7 @@ foreach ($subtitleModule in @(
     'Subtitles.Ass.ps1',
     'Subtitles.Tx3g.ps1',
     'Subtitles.Bdpgs.ps1',
+    'Subtitles.VobSub.ps1',
     'Subtitles.Builders.ps1'
 )) {
     $subtitleModulePath = $subtitleEngineModulePaths[$subtitleModule]

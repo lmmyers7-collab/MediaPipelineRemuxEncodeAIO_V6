@@ -10,6 +10,7 @@
   function normalizeDeps(deps = {}) {
     return {
       appendCells: typeof deps.appendCells === "function" ? deps.appendCells : noop,
+      appendCompletedPromotionCellAction: typeof deps.appendCompletedPromotionCellAction === "function" ? deps.appendCompletedPromotionCellAction : noop,
       byId: typeof deps.byId === "function" ? deps.byId : function () { return null; },
       clearRows: typeof deps.clearRows === "function" ? deps.clearRows : noop,
       completedCurrentRows: typeof deps.completedCurrentRows === "function" ? deps.completedCurrentRows : function (rows) { return Array.isArray(rows) ? rows : []; },
@@ -155,7 +156,7 @@
     ].filter(Boolean).join("\n");
   }
 
-  function renderCompletedRow(ctx, item, rowLabel) {
+  function renderCompletedRow(ctx, item, rowLabel, options = {}) {
     const row = document.createElement("tr");
     const model = completedRowModel(item);
     row.dataset.status = ctx.completedDisplayRowStatus(item);
@@ -176,6 +177,7 @@
     if (typeof ctx.setCellStatusChip === "function" && ctx.finalLibraryPromotionStatusText(item)) {
       ctx.setCellStatusChip(promotionCell, ctx.finalLibraryPromotionStatusText(item), ctx.finalLibraryPromotionChipState(item));
     }
+    if (options.allowPromotionAction) ctx.appendCompletedPromotionCellAction(promotionCell, item);
     if (typeof ctx.setCellStatusChip === "function") ctx.setCellStatusChip(healthCell, model.healthText, row.dataset.status);
     ctx.makeRowSelectable(row, () => ctx.selectCompletedRow(item), {
       selected: Boolean(item.row_key && item.row_key === ctx.state.selectedCompletedRowKey),
@@ -194,8 +196,9 @@
       return;
     }
     tbody.replaceChildren();
+    const allowPromotionAction = tbodyId === "completed-rows";
     rowList.slice(0, renderLimit).forEach((item) => {
-      tbody.appendChild(renderCompletedRow(ctx, item, rowLabel));
+      tbody.appendChild(renderCompletedRow(ctx, item, rowLabel, { allowPromotionAction }));
     });
     ctx.updateTableStatusLegend(legendId, tbody, legendLabel);
   }

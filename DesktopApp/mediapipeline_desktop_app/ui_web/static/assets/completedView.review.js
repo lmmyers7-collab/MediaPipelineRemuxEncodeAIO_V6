@@ -194,9 +194,13 @@
       if (benignRuntimeAlreadyProcessed) benignFlags.push("runtime_error:already_processed");
       const significantFlags = flags.filter((flag) => !benignFlags.includes(flag));
       const concern = String(row?.primary_concern || "").trim().toLowerCase();
+      const concernTokens = concern.split(/[,;]/).map((token) => token.trim()).filter(Boolean);
       return completedRowHasBasicHealthyEvidence(row)
         && !significantFlags.length
-        && (!concern || concern === "size_growth" || concern.includes("no output, sidecar, size, or runtime blocker"));
+        && (!concern
+          || concern === "size_growth"
+          || concern.includes("no output, sidecar, size, or runtime blocker")
+          || concernTokens.every((token) => benignFlags.includes(token)));
     }
 
     function completedRowLooksHealthy(row) {
@@ -233,6 +237,7 @@
         || concern.includes("no completed rows are locally flagged")
         || concern.includes("completed outputs look healthy")
         || (concern.includes("size_growth") && completedRowHasSmallHealthySizeGrowth(row))
+        || concern.split(/[,;]/).map((token) => token.trim()).filter(Boolean).every((token) => ["size_growth", "runtime_outcome", "runtime_outcome:succeeded", "remuxed", "encoded"].includes(token))
         || (concern.includes("runtime_outcome:succeeded") && concern.includes("runtime_error:already_processed") && completedRuntimeAlreadyProcessedIsBenign(row));
     }
 
@@ -383,6 +388,7 @@
       const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(item) : "";
       const benignAlreadyProcessed = completedRowHasBenignAlreadyProcessedOutcome(item);
       if (backendState === "changed" && completedHasSmallHealthySizeDelta(item)) return "match";
+      if (completedRowLooksHealthy(item) && ["", "normal", "warning", "changed", "unknown"].includes(backendState)) return "match";
       if (benignAlreadyProcessed && ["", "normal", "warning", "changed", "unknown"].includes(backendState)) return "match";
       if (backendState) return backendState;
       const severity = String(item?.operator_severity || "").toLowerCase();
@@ -874,7 +880,7 @@
           key: "policy-boundary",
           checkpoint: "Policy boundary",
           posture: "Read-only",
-          evidence: "This board does not alter size guards, media policy, manifests, pending publish state, or filesystem contents.",
+          evidence: "This board does not alter Output Size Check settings, media policy, manifests, pending publish state, or filesystem contents.",
           action: "Change policy only through Settings preview/save and verify the backend risk preview.",
           detail: [
             "Frontend remains read-only here.",
@@ -1325,10 +1331,11 @@
       const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(item) : "";
       const benignAlreadyProcessed = completedRowHasBenignAlreadyProcessedOutcome(item);
       if (["blocked", "failed"].includes(backendState)) return "blocked";
+      if (completedRowLooksHealthy(item) && ["", "normal", "warning", "changed", "unknown"].includes(backendState)) return "ready";
       if (benignAlreadyProcessed && ["", "normal", "warning", "changed", "unknown"].includes(backendState)) return "ready";
       if (["warning", "running", "skipped", "parked", "publishing", "health-check"].includes(backendState)) return "warning";
       if (["match", "ready", "completed"].includes(backendState)) return "ready";
-      const reviewFlags = Array.isArray(item.review_flags) ? item.review_flags.filter(Boolean) : [];
+      const reviewFlags = Array.isArray(item.review_flags) ? item.review_flags.filter((flag) => !completedReviewFlagIsBenign(flag, item)) : [];
       const consistencyIssues = Array.isArray(item.consistency_issues) ? item.consistency_issues.filter(Boolean) : [];
       const runtimeStatus = String(item.runtime_outcome_status || "").toLowerCase();
       const runtimeFreshness = String(item.runtime_outcome_freshness_status || "").toLowerCase();
@@ -1372,7 +1379,10 @@
             "Authority: this summary is read-only. Completed history is proof to inspect, not acceptance or cleanup authority.",
           ];
       }
-      const concern = item.primary_concern
+      const healthy = completedRowLooksHealthy(item);
+      const concern = healthy && completedPrimaryConcernIsBenign(item)
+        ? "row has no output, sidecar, size, or runtime blocker in the loaded completed manifest"
+        : item.primary_concern
         || (item.output_exists === false ? "completed row points to a missing output" : "")
         || (item.size_growth_over_5 ? "output grew beyond policy threshold" : "")
         || item.operator_guidance
@@ -1383,12 +1393,13 @@
           ? "Compare output/sidecar proof and Pending Publish state before treating this as accepted."
           : "Read Completed Manifest, Pending Publish, Run Logs, and Last Stderr before rerun or cleanup.");
       const outputReview = `${item.output_path || "output not reported"}; ${item.route_decision_summary || item.route_label || item.route || "route not reported"}; size=${item.size_delta_label || item.size_reduction_text || "unknown"}; audio=${item.audio_decision_count || 0}; subtitles=${item.subtitle_decision_count || 0}; health=${item.output_health || "unknown"}`;
+      const trustStatus = healthy ? "consistent-looking" : item.operator_trust_state || item.output_health || item.consistency_status || "not reported";
       if (typeof sharedSummary === "function") {
         return sharedSummary({
           title: "Selected Completed row",
           item,
           label: item.output_file || item.lookup_title || item.output_path || item.source_path || "(unnamed row)",
-          trustStatus: item.operator_trust_state || item.output_health || item.consistency_status || "not reported",
+          trustStatus,
           atAGlanceStatus: completedSelectedAtAGlanceStatus(item),
           proofLabel: "Output review",
           proof: outputReview,
@@ -1400,7 +1411,7 @@
       }
       return [
         `Selected Completed row: ${item.output_file || item.lookup_title || item.output_path || item.source_path || "(unnamed row)"}`,
-        `Trust/status: ${item.operator_trust_state || item.output_health || item.consistency_status || "not reported"}; at-a-glance=${completedSelectedAtAGlanceStatus(item)}`,
+        `Trust/status: ${trustStatus}; at-a-glance=${completedSelectedAtAGlanceStatus(item)}`,
         `Output review: ${outputReview}`,
         `Primary concern: ${concern}`,
         `Safe next step: ${safeAction}`,
@@ -1419,7 +1430,7 @@
 
     function completedRowIssueDigestLines(item) {
       if (!item) return [];
-      const reviewFlags = Array.isArray(item.review_flags) ? item.review_flags.filter(Boolean) : [];
+      const reviewFlags = Array.isArray(item.review_flags) ? item.review_flags.filter((flag) => !completedReviewFlagIsBenign(flag, item)) : [];
       const consistencyIssues = Array.isArray(item.consistency_issues) ? item.consistency_issues.filter(Boolean) : [];
       const runtimeStatus = String(item.runtime_outcome_status || "").toLowerCase();
       const runtimeFreshness = String(item.runtime_outcome_freshness_status || "").toLowerCase();
@@ -1434,7 +1445,7 @@
       consistencyIssues.forEach((issue) => issues.push(`consistency issue: ${issue}`));
       reviewFlags.forEach((flag) => issues.push(`review flag: ${flag}`));
       const level = missingOutput ? "broken-output" : issues.length ? "review" : "consistent-looking";
-      const backendTrustState = String(item.operator_trust_state || "").trim();
+      const backendTrustState = completedRowLooksHealthy(item) ? "consistent-looking" : String(item.operator_trust_state || "").trim();
       const lines = [
         "Selected completed issue digest:",
         `Issue level: ${backendTrustState || level}`,

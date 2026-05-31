@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-05-30
 last_reviewed: 2026-05-29
-sha256: 881975a53dd49b466ad5d9fc9411364d1696475cc9cee3231029c9a0a27c4eff
+sha256: 4edf583aef1c3774692b88e0d08d67f1262e8eb994720246053e2b441865f89e
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.js`
 

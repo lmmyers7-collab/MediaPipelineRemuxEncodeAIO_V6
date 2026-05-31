@@ -15,6 +15,7 @@ from app.config.settings_policy import (
     settings_validation_missing_values_result,
     settings_validation_result,
     settings_validation_unavailable_result,
+    settings_vobsub_ocr_path_evidence,
     settings_workspace_paths,
 )
 from mediapipeline_desktop_app.models import ResolvedPaths
@@ -123,13 +124,51 @@ class SettingsFacadePolicyTests(unittest.TestCase):
             )
 
         bdpgs = evidence["bdpgs_ocr"]
+        vobsub = evidence["vobsub_ocr"]
         self.assertEqual(evidence["schema_version"], "settings_tool_path_evidence.v1")
         self.assertEqual(bdpgs["operator_status"], "Blocked")
+        self.assertEqual(vobsub["operator_status"], "Inactive")
         rows = {row["key"]: row for row in bdpgs["rows"]}
         self.assertEqual(rows["BdpgsOcrToolPath"]["status"], "blocked")
         self.assertEqual(rows["BdpgsOcrToolPath"]["path_type"], "missing")
         self.assertEqual(rows["BdpgsOcrTessdataPath"]["status"], "ready")
         self.assertIn("Mutation guardrail", "\n".join(bdpgs["summary_lines"]))
+
+    def test_vobsub_ocr_path_evidence_is_inactive_until_enabled(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            evidence = settings_vobsub_ocr_path_evidence(
+                _resolved(root),
+                {
+                    "ConvertVobSubToSrt": False,
+                    "AllowSystemTools": False,
+                    "VobSubOcrToolPath": "",
+                },
+            )
+
+        self.assertEqual(evidence["schema_version"], "settings_vobsub_ocr_path_evidence.v1")
+        self.assertEqual(evidence["operator_status"], "Inactive")
+        rows = {row["key"]: row for row in evidence["rows"]}
+        self.assertEqual(rows["VobSubOcrToolPath"]["status"], "inactive")
+        self.assertIn(rows["tesseract"]["status"], {"inactive", "ready"})
+
+    def test_vobsub_ocr_path_evidence_blocks_missing_tool_when_enabled(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            evidence = settings_vobsub_ocr_path_evidence(
+                _resolved(root),
+                {
+                    "ConvertVobSubToSrt": True,
+                    "AllowSystemTools": False,
+                    "VobSubOcrToolPath": r"Tools\SubtitleEdit\missing.exe",
+                },
+            )
+
+        self.assertEqual(evidence["operator_status"], "Blocked")
+        rows = {row["key"]: row for row in evidence["rows"]}
+        self.assertEqual(rows["VobSubOcrToolPath"]["status"], "blocked")
+        self.assertIn(rows["tesseract"]["status"], {"blocked", "ready"})
+        self.assertIn("Tesseract", "\n".join(evidence["summary_lines"]))
 
 
 if __name__ == "__main__":

@@ -3,9 +3,9 @@ file: app/processes/readiness.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-05-28
+last_modified: 2026-05-30
 last_reviewed: 2026-05-28
-sha256: 9f5cc18b5cf09b96beba7657eeee3d1bb44d35a245e64cf41d15ba1318e0f7fd
+sha256: d0725bde85d902245d470bd6ceeb5b8279edb73ce9c37804a2f87ff9ddefbfe4
 ---
 # `app/processes/readiness.py`
 

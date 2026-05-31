@@ -14,6 +14,7 @@
       const finalLibraryPromotion = attachRefreshMetadata("final library promotion", promotionRaw);
       renderCompleted(completed);
       window.mediaPipelineCompletedView?.renderFinalLibraryPromotion?.(finalLibraryPromotion);
+      window.mediaPipelineAppHome?.renderHomePromotionEntry?.(finalLibraryPromotion);
       renderHomeRecentCompleted(completed || {});
       renderTopbarActivity({
         activity: "Current Output Status refreshed from completed history."

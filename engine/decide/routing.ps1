@@ -458,6 +458,9 @@ function New-MediaRoutePlan {
         $RouteHints = $null,
         $SourceMediaProfile = $null,
         [double] $EstimatedBitrateMbps = 0,
+        [double] $BitrateThresholdMbps = 0,
+        [bool] $SizeOverThreshold = $false,
+        [bool] $BitrateOverThreshold = $false,
         [double] $PlexCompatibilityScore = 100,
         [string] $RoutingProfile = '',
         [string] $RouteThresholdMode = '',
@@ -481,6 +484,15 @@ function New-MediaRoutePlan {
         Resolve-MediaRouteThresholdModeName
     }
     $effectiveSizeGuardMode = Resolve-MediaRouteSizeGuardModeName -SizeGuardMode $SizeGuardMode
+    $effectiveBitrateThreshold = [double]$BitrateThresholdMbps
+    $effectiveSizeOverThreshold = [bool]$SizeOverThreshold
+    if (-not $effectiveSizeOverThreshold -and $ThresholdGB -gt 0 -and $SizeGB -gt $ThresholdGB) {
+        $effectiveSizeOverThreshold = $true
+    }
+    $effectiveBitrateOverThreshold = [bool]$BitrateOverThreshold
+    if (-not $effectiveBitrateOverThreshold -and $effectiveBitrateThreshold -gt 0 -and $EstimatedBitrateMbps -gt $effectiveBitrateThreshold) {
+        $effectiveBitrateOverThreshold = $true
+    }
     return [pscustomobject]@{
         Route              = $routeText
         ShouldEncode       = ($routeText -eq $encodeRoute)
@@ -498,6 +510,9 @@ function New-MediaRoutePlan {
         RouteHints         = $effectiveHints
         SourceMediaProfile = $SourceMediaProfile
         EstimatedBitrateMbps = [double]$EstimatedBitrateMbps
+        BitrateThresholdMbps = $effectiveBitrateThreshold
+        SizeOverThreshold = $effectiveSizeOverThreshold
+        BitrateOverThreshold = $effectiveBitrateOverThreshold
         PlexCompatibilityScore = [double]$PlexCompatibilityScore
         RoutingProfile     = $effectiveRoutingProfile
         RouteThresholdMode = $effectiveRouteThresholdMode
@@ -591,36 +606,36 @@ function Resolve-MediaRouteBySize {
     if ($hints.force_route -eq 'encode') {
         $reasonText = if ([string]::IsNullOrWhiteSpace([string]$hints.reason)) { 'folder policy forced encode' } else { "folder policy forced encode: $($hints.reason)" }
         $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'folder_policy_force_encode' -Message $reasonText))
-        return New-MediaRoutePlan -Route (Get-MediaRouteEncodeName) -ReasonCode 'folder_policy_force_encode' -Reason $reasonText -SizeGB $sizeGB -ThresholdGB $threshold -IsTV:$IsTV -SourceCodec $codec -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $SourceMediaProfile -EstimatedBitrateMbps $estimatedBitrate -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
+        return New-MediaRoutePlan -Route (Get-MediaRouteEncodeName) -ReasonCode 'folder_policy_force_encode' -Reason $reasonText -SizeGB $sizeGB -ThresholdGB $threshold -IsTV:$IsTV -SourceCodec $codec -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $SourceMediaProfile -EstimatedBitrateMbps $estimatedBitrate -BitrateThresholdMbps $maxBitrate -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
     }
     if ($hints.force_route -eq 'remux') {
         $reasonText = if ([string]::IsNullOrWhiteSpace([string]$hints.reason)) { 'folder policy forced remux' } else { "folder policy forced remux: $($hints.reason)" }
         $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'folder_policy_force_remux' -Message $reasonText))
-        return New-MediaRoutePlan -Route (Get-MediaRouteRemuxName) -ReasonCode 'folder_policy_force_remux' -Reason $reasonText -SizeGB $sizeGB -ThresholdGB $threshold -IsTV:$IsTV -SourceCodec $codec -RequiresCodecProbe:$true -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $SourceMediaProfile -EstimatedBitrateMbps $estimatedBitrate -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
+        return New-MediaRoutePlan -Route (Get-MediaRouteRemuxName) -ReasonCode 'folder_policy_force_remux' -Reason $reasonText -SizeGB $sizeGB -ThresholdGB $threshold -IsTV:$IsTV -SourceCodec $codec -RequiresCodecProbe:$true -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $SourceMediaProfile -EstimatedBitrateMbps $estimatedBitrate -BitrateThresholdMbps $maxBitrate -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
     }
 
     if ($allowed.Count -gt 0 -and $codec -ne 'unknown' -and $allowed -notcontains $codec) {
         $reasonText = "codec '$codec' is outside folder-policy allowed codecs: $($allowed -join ', ')"
         $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'codec_outside_policy' -Message $reasonText))
-        return New-MediaRoutePlan -Route (Get-MediaRouteEncodeName) -ReasonCode 'codec_outside_policy' -Reason $reasonText -SizeGB $sizeGB -ThresholdGB $threshold -IsTV:$IsTV -SourceCodec $codec -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $SourceMediaProfile -EstimatedBitrateMbps $estimatedBitrate -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
+        return New-MediaRoutePlan -Route (Get-MediaRouteEncodeName) -ReasonCode 'codec_outside_policy' -Reason $reasonText -SizeGB $sizeGB -ThresholdGB $threshold -IsTV:$IsTV -SourceCodec $codec -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $SourceMediaProfile -EstimatedBitrateMbps $estimatedBitrate -BitrateThresholdMbps $maxBitrate -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
     }
 
     if ($effectivePlexStrictMode -and $plexScore -lt 90) {
         $reasonText = "Plex strict mode score $([math]::Round($plexScore,0))/100 is below 90"
         $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'plex_strict_score_below_threshold' -Message $reasonText))
-        return New-MediaRoutePlan -Route (Get-MediaRouteEncodeName) -ReasonCode 'plex_strict_score_below_threshold' -Reason $reasonText -SizeGB $sizeGB -ThresholdGB $threshold -IsTV:$IsTV -SourceCodec $codec -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $SourceMediaProfile -EstimatedBitrateMbps $estimatedBitrate -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
+        return New-MediaRoutePlan -Route (Get-MediaRouteEncodeName) -ReasonCode 'plex_strict_score_below_threshold' -Reason $reasonText -SizeGB $sizeGB -ThresholdGB $threshold -IsTV:$IsTV -SourceCodec $codec -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $SourceMediaProfile -EstimatedBitrateMbps $estimatedBitrate -BitrateThresholdMbps $maxBitrate -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
     }
 
     if ($null -ne $hints.max_resolution_height -and $VideoHeight -gt [int]$hints.max_resolution_height) {
         $reasonText = "source height ${VideoHeight}p exceeds folder-policy maximum $($hints.max_resolution_height)p"
         $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'resolution_over_policy' -Message $reasonText))
-        return New-MediaRoutePlan -Route (Get-MediaRouteEncodeName) -ReasonCode 'resolution_over_policy' -Reason $reasonText -SizeGB $sizeGB -ThresholdGB $threshold -IsTV:$IsTV -SourceCodec $codec -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $SourceMediaProfile -EstimatedBitrateMbps $estimatedBitrate -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
+        return New-MediaRoutePlan -Route (Get-MediaRouteEncodeName) -ReasonCode 'resolution_over_policy' -Reason $reasonText -SizeGB $sizeGB -ThresholdGB $threshold -IsTV:$IsTV -SourceCodec $codec -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $SourceMediaProfile -EstimatedBitrateMbps $estimatedBitrate -BitrateThresholdMbps $maxBitrate -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
     }
 
     if ($duration -gt 0 -and $bitrateThresholdEnabled -and $estimatedBitrate -gt $maxBitrate) {
         $reasonText = "estimated source bitrate {0:N2} Mbps exceeds {1:N2} Mbps threshold" -f $estimatedBitrate, $maxBitrate
         $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'bitrate_over_threshold' -Message $reasonText))
-        return New-MediaRoutePlan -Route (Get-MediaRouteEncodeName) -ReasonCode 'bitrate_over_threshold' -Reason $reasonText -SizeGB $sizeGB -ThresholdGB $threshold -IsTV:$IsTV -SourceCodec $codec -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $SourceMediaProfile -EstimatedBitrateMbps $estimatedBitrate -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
+        return New-MediaRoutePlan -Route (Get-MediaRouteEncodeName) -ReasonCode 'bitrate_over_threshold' -Reason $reasonText -SizeGB $sizeGB -ThresholdGB $threshold -IsTV:$IsTV -SourceCodec $codec -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $SourceMediaProfile -EstimatedBitrateMbps $estimatedBitrate -BitrateThresholdMbps $maxBitrate -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
     } elseif ($duration -gt 0 -and -not $bitrateThresholdEnabled -and $estimatedBitrate -gt $maxBitrate) {
         $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'bitrate_threshold_ignored' -Message ("estimated source bitrate {0:N2} Mbps exceeds {1:N2} Mbps threshold, but route threshold mode is {2}" -f $estimatedBitrate, $maxBitrate, $routeThresholdModeName) -Data @{ bitrate_mbps = $estimatedBitrate; threshold_mbps = $maxBitrate; route_threshold_mode = $routeThresholdModeName }))
     }
@@ -654,6 +669,7 @@ function Resolve-MediaRouteBySize {
             -RouteHints $hints `
             -SourceMediaProfile $SourceMediaProfile `
             -EstimatedBitrateMbps $estimatedBitrate `
+            -BitrateThresholdMbps $maxBitrate `
             -PlexCompatibilityScore $plexScore `
             -RoutingProfile $routingProfileName `
             -SizeGuardMode $sizeGuardModeName
@@ -683,6 +699,7 @@ function Resolve-MediaRouteBySize {
                 -RouteHints $hints `
                 -SourceMediaProfile $SourceMediaProfile `
                 -EstimatedBitrateMbps $estimatedBitrate `
+                -BitrateThresholdMbps $maxBitrate `
                 -PlexCompatibilityScore $plexScore `
                 -RoutingProfile $routingProfileName `
                 -SizeGuardMode $sizeGuardModeName
@@ -700,6 +717,7 @@ function Resolve-MediaRouteBySize {
             -RouteHints $hints `
             -SourceMediaProfile $SourceMediaProfile `
             -EstimatedBitrateMbps $estimatedBitrate `
+            -BitrateThresholdMbps $maxBitrate `
             -PlexCompatibilityScore $plexScore `
             -RoutingProfile $routingProfileName `
             -SizeGuardMode $sizeGuardModeName
@@ -728,6 +746,7 @@ function Resolve-MediaRouteBySize {
             -RouteHints $hints `
             -SourceMediaProfile $SourceMediaProfile `
             -EstimatedBitrateMbps $estimatedBitrate `
+            -BitrateThresholdMbps $maxBitrate `
             -PlexCompatibilityScore $plexScore `
             -RoutingProfile $routingProfileName `
             -SizeGuardMode $sizeGuardModeName
@@ -746,6 +765,7 @@ function Resolve-MediaRouteBySize {
         -RouteHints $hints `
         -SourceMediaProfile $SourceMediaProfile `
         -EstimatedBitrateMbps $estimatedBitrate `
+        -BitrateThresholdMbps $maxBitrate `
         -PlexCompatibilityScore $plexScore `
         -RoutingProfile $routingProfileName `
         -SizeGuardMode $sizeGuardModeName
@@ -821,6 +841,9 @@ function Resolve-RemuxCodecRoutePlan {
     $sizeGB = if ($BasePlan) { [double]$BasePlan.SizeGB } else { 0.0 }
     $thresholdGB = if ($BasePlan) { [double]$BasePlan.ThresholdGB } else { 0.0 }
     $estimatedBitrate = if ($BasePlan -and $BasePlan.PSObject.Properties['EstimatedBitrateMbps']) { [double]$BasePlan.EstimatedBitrateMbps } else { 0.0 }
+    $bitrateThreshold = if ($BasePlan -and $BasePlan.PSObject.Properties['BitrateThresholdMbps']) { [double]$BasePlan.BitrateThresholdMbps } else { 0.0 }
+    $sizeOverThreshold = if ($BasePlan -and $BasePlan.PSObject.Properties['SizeOverThreshold']) { [bool]$BasePlan.SizeOverThreshold } else { $false }
+    $bitrateOverThreshold = if ($BasePlan -and $BasePlan.PSObject.Properties['BitrateOverThreshold']) { [bool]$BasePlan.BitrateOverThreshold } else { $false }
     $plexScore = if ($BasePlan -and $BasePlan.PSObject.Properties['PlexCompatibilityScore']) { [double]$BasePlan.PlexCompatibilityScore } else { 100.0 }
     $isTV = if ($BasePlan) { [bool]$BasePlan.IsTV } else { $false }
     $routingProfileName = if ($BasePlan -and $BasePlan.PSObject.Properties['RoutingProfile']) { Resolve-MediaRouteRoutingProfileName -RoutingProfile ([string]$BasePlan.RoutingProfile) } else { Resolve-MediaRouteRoutingProfileName }
@@ -830,22 +853,22 @@ function Resolve-RemuxCodecRoutePlan {
     if ($BasePlan -and [string]$BasePlan.ReasonCode -eq 'folder_policy_force_remux') {
         if (Test-IsRemuxSafeVideoCodec -CodecName $codec -SafeCodecs $RemuxSafeVideoCodecs) {
             $trace = @($baseTrace) + (New-MediaRouteDecisionTraceEntry -Code 'forced_remux_codec_safe' -Message "folder policy forced remux and codec '$codec' is remux-safe")
-            return New-MediaRoutePlan -Route (Get-MediaRouteRemuxName) -ReasonCode 'folder_policy_force_remux' -Reason ([string]$BasePlan.Reason) -SourceCodec $codec -SizeGB $sizeGB -ThresholdGB $thresholdGB -IsTV:$isTV -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $profile -EstimatedBitrateMbps $estimatedBitrate -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
+            return New-MediaRoutePlan -Route (Get-MediaRouteRemuxName) -ReasonCode 'folder_policy_force_remux' -Reason ([string]$BasePlan.Reason) -SourceCodec $codec -SizeGB $sizeGB -ThresholdGB $thresholdGB -IsTV:$isTV -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $profile -EstimatedBitrateMbps $estimatedBitrate -BitrateThresholdMbps $bitrateThreshold -SizeOverThreshold:$sizeOverThreshold -BitrateOverThreshold:$bitrateOverThreshold -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
         }
         if ($hints -and [bool]$hints.allow_unsafe_forced_remux) {
             $trace = @($baseTrace) + (New-MediaRouteDecisionTraceEntry -Code 'unsafe_forced_remux_allowed' -Message "folder policy explicitly allowed unsafe forced remux; codec '$codec' will be attempted as stream copy")
-            return New-MediaRoutePlan -Route (Get-MediaRouteRemuxName) -ReasonCode 'folder_policy_force_remux_unsafe' -Reason ([string]$BasePlan.Reason) -SourceCodec $codec -SizeGB $sizeGB -ThresholdGB $thresholdGB -IsTV:$isTV -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $profile -EstimatedBitrateMbps $estimatedBitrate -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
+            return New-MediaRoutePlan -Route (Get-MediaRouteRemuxName) -ReasonCode 'folder_policy_force_remux_unsafe' -Reason ([string]$BasePlan.Reason) -SourceCodec $codec -SizeGB $sizeGB -ThresholdGB $thresholdGB -IsTV:$isTV -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $profile -EstimatedBitrateMbps $estimatedBitrate -BitrateThresholdMbps $bitrateThreshold -SizeOverThreshold:$sizeOverThreshold -BitrateOverThreshold:$bitrateOverThreshold -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
         }
         $reasonText = "folder policy forced remux, but codec '$codec' is not remux-safe; encoding instead"
         $trace = @($baseTrace) + (New-MediaRouteDecisionTraceEntry -Code 'forced_remux_rejected_unsafe_codec' -Message $reasonText)
-        return New-MediaRoutePlan -Route (Get-MediaRouteEncodeName) -ReasonCode 'forced_remux_rejected_unsafe_codec' -Reason $reasonText -SourceCodec $codec -FallbackFromRemux:$true -SizeGB $sizeGB -ThresholdGB $thresholdGB -IsTV:$isTV -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $profile -EstimatedBitrateMbps $estimatedBitrate -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
+        return New-MediaRoutePlan -Route (Get-MediaRouteEncodeName) -ReasonCode 'forced_remux_rejected_unsafe_codec' -Reason $reasonText -SourceCodec $codec -FallbackFromRemux:$true -SizeGB $sizeGB -ThresholdGB $thresholdGB -IsTV:$isTV -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $profile -EstimatedBitrateMbps $estimatedBitrate -BitrateThresholdMbps $bitrateThreshold -SizeOverThreshold:$sizeOverThreshold -BitrateOverThreshold:$bitrateOverThreshold -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
     }
 
     if ($BasePlan -and (([string]$BasePlan.ReasonCode) -in @('plex_compatible_h264_remux','plex_compatible_size_advisory'))) {
         $minimumCopyScore = if ($routingProfileName -eq 'plex_direct_play') { 90.0 } else { 85.0 }
         if (Test-MediaRoutePlexCopyCandidate -CodecName $codec -VideoHeight $videoHeight -EstimatedBitrateMbps $estimatedBitrate -MaxBitrateMbps 0 -PlexCompatibilityScore $plexScore -MinimumScore $minimumCopyScore) {
             $trace = @($baseTrace) + (New-MediaRouteDecisionTraceEntry -Code 'codec_allowed_by_routing_profile' -Message "codec '$codec' allowed by routing profile '$routingProfileName' for stream copy")
-            return New-MediaRoutePlan -Route (Get-MediaRouteRemuxName) -ReasonCode ([string]$BasePlan.ReasonCode) -Reason ([string]$BasePlan.Reason) -SourceCodec $codec -SizeGB $sizeGB -ThresholdGB $thresholdGB -IsTV:$isTV -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $profile -EstimatedBitrateMbps $estimatedBitrate -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
+            return New-MediaRoutePlan -Route (Get-MediaRouteRemuxName) -ReasonCode ([string]$BasePlan.ReasonCode) -Reason ([string]$BasePlan.Reason) -SourceCodec $codec -SizeGB $sizeGB -ThresholdGB $thresholdGB -IsTV:$isTV -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $profile -EstimatedBitrateMbps $estimatedBitrate -BitrateThresholdMbps $bitrateThreshold -SizeOverThreshold:$sizeOverThreshold -BitrateOverThreshold:$bitrateOverThreshold -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
         }
     }
 
@@ -863,6 +886,9 @@ function Resolve-RemuxCodecRoutePlan {
             -RouteHints $hints `
             -SourceMediaProfile $profile `
             -EstimatedBitrateMbps $estimatedBitrate `
+            -BitrateThresholdMbps $bitrateThreshold `
+            -SizeOverThreshold:$sizeOverThreshold `
+            -BitrateOverThreshold:$bitrateOverThreshold `
             -PlexCompatibilityScore $plexScore `
             -RoutingProfile $routingProfileName `
             -SizeGuardMode $sizeGuardModeName
@@ -882,6 +908,9 @@ function Resolve-RemuxCodecRoutePlan {
         -RouteHints $hints `
         -SourceMediaProfile $profile `
         -EstimatedBitrateMbps $estimatedBitrate `
+        -BitrateThresholdMbps $bitrateThreshold `
+        -SizeOverThreshold:$sizeOverThreshold `
+        -BitrateOverThreshold:$bitrateOverThreshold `
         -PlexCompatibilityScore $plexScore `
         -RoutingProfile $routingProfileName `
         -SizeGuardMode $sizeGuardModeName
@@ -897,6 +926,9 @@ function Get-ActiveMediaRoutePlanMetadata {
         size_gb                = [double]$plan.SizeGB
         threshold_gb           = [double]$plan.ThresholdGB
         estimated_bitrate_mbps = if ($plan.PSObject.Properties['EstimatedBitrateMbps']) { [double]$plan.EstimatedBitrateMbps } else { 0.0 }
+        bitrate_threshold_mbps = if ($plan.PSObject.Properties['BitrateThresholdMbps']) { [double]$plan.BitrateThresholdMbps } else { 0.0 }
+        size_over_threshold    = if ($plan.PSObject.Properties['SizeOverThreshold']) { [bool]$plan.SizeOverThreshold } else { $false }
+        bitrate_over_threshold = if ($plan.PSObject.Properties['BitrateOverThreshold']) { [bool]$plan.BitrateOverThreshold } else { $false }
         plex_compatibility_score = if ($plan.PSObject.Properties['PlexCompatibilityScore']) { [double]$plan.PlexCompatibilityScore } else { 100.0 }
         routing_profile       = if ($plan.PSObject.Properties['RoutingProfile']) { [string]$plan.RoutingProfile } else { Resolve-MediaRouteRoutingProfileName }
         route_threshold_mode  = if ($plan.PSObject.Properties['RouteThresholdMode']) { [string]$plan.RouteThresholdMode } else { Resolve-MediaRouteThresholdModeName }

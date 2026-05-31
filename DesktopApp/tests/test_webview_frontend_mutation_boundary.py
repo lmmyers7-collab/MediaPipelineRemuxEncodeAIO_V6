@@ -31,6 +31,7 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/maintenance/release-dry-run": {"maintenanceView.js"},
     "/api/maintenance/release-build": {"maintenanceView.js"},
     "/api/maintenance/completed-backfill-dry-run": {"maintenanceView.js"},
+    "/api/maintenance/dependency-atlas": {"maintenanceView.js"},
     "/api/sample-validation/preview": {"crossPageContextView.sampleValidation.js"},
     "/api/sample-validation/append": {"crossPageContextView.sampleValidation.js"},
     "/api/diagnostics/open": {"diagnosticsView.js"},
@@ -48,6 +49,7 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/schedule/save": {"scheduleView.js"},
     "/api/settings/validate": {"settingsView.js"},
     "/api/settings/browse-path": {"settingsView.js"},
+    "/api/settings/pipeline-plan-preview": {"settingsView.js"},
     "/api/settings/preview-patch": {"settingsView.js"},
     "/api/settings/save-patch": {"settingsView.js"},
     "/api/settings/reload": {"settingsView.js"},
@@ -181,9 +183,27 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn('apiPost("/api/rename/apply", request)', _asset_sources()["renameView.js"])
         self.assertIn('apiPost("/api/failures/clear", {', _asset_sources()["reportsView.js"])
         self.assertIn("confirm_clear: !dryRun", _asset_sources()["reportsView.js"])
-        self.assertIn('apiPost("/api/settings/save-patch", { changes, confirm_save: true })', _asset_sources()["settingsView.js"])
+        self.assertIn('apiPost("/api/settings/save-patch", { changes, ...requestExtras, confirm_save: true })', _asset_sources()["settingsView.js"])
         self.assertIn('apiPost("/api/schedule/save", { ...request, confirm_save: true })', _asset_sources()["scheduleView.js"])
-        self.assertIn('apiPost("/api/final-library-promotion/promote-queue", { confirm_promote: true })', _asset_sources()["completedView.js"])
+        completed_js = _asset_sources()["completedView.js"]
+        self.assertIn("const request = { confirm_promote: true };", completed_js)
+        self.assertIn("if (selectedRowKeys.length) request.row_keys = selectedRowKeys;", completed_js)
+        self.assertIn('apiPost("/api/final-library-promotion/promote-queue", request)', completed_js)
+
+    def test_settings_save_warns_active_runtime_keeps_startup_config(self) -> None:
+        settings_view = _asset_sources()["settingsView.js"]
+        settings_wizard = _asset_sources()["settingsWizard.js"]
+        for token in (
+            "function settingsRuntimeRestartConfirmationLine",
+            "function settingsRuntimeRestartNoticeLines",
+            "Running pipeline/audit/rerun work keeps the settings loaded when it started.",
+            "Restarting the Tauri shell is not required when reload succeeds.",
+            "maybeShowSettingsRuntimeRestartNotice(result)",
+        ):
+            self.assertIn(token, settings_view)
+        self.assertIn("settingsRuntimeRestartConfirmationLine", settings_wizard)
+        self.assertIn("settingsRuntimeRestartNoticeLines(result)", settings_wizard)
+        self.assertIn("maybeShowSettingsRuntimeRestartNotice?.(result)", settings_wizard)
 
     def test_settings_path_browse_is_allowlisted_staging_only(self) -> None:
         payload = _payload_for_route("settingsView.js", "/api/settings/browse-path")
@@ -207,6 +227,20 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         )
         self.assertIn("staging only", browse_contract["purpose"])
         self.assertIn("touch media files", browse_contract["purpose"])
+
+    def test_settings_pipeline_plan_preview_is_non_mutating(self) -> None:
+        payload = _payload_for_route("settingsView.js", "/api/settings/pipeline-plan-preview")
+        self.assertIn("source_media: sourceMedia", payload)
+        self.assertIn("changes: patchRequest.changes", payload)
+        self.assertIn("remove_keys: patchRequest.removeKeys", payload)
+        self.assertNotIn("confirm_save", payload)
+
+        preview_contract = next(route for route in LOCAL_API_ROUTE_CONTRACT if route["path"] == "/api/settings/pipeline-plan-preview")
+        self.assertEqual(preview_contract["effect"], "none")
+        self.assertEqual(preview_contract["data_schema"], "pipeline_plan.v1")
+        self.assertIn("without probing paths", preview_contract["purpose"])
+        self.assertIn("saving config", preview_contract["purpose"])
+        self.assertIn("touching media files", preview_contract["purpose"])
 
     def test_repair_reconcile_mutation_remains_design_only_and_not_webview_callable(self) -> None:
         payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")
@@ -284,8 +318,8 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             with self.subTest(asset="settingsView.js", snippet=snippet):
                 self.assertIn(snippet, settings_view)
 
-        self.assertIn("UI metadata is advisory copy only", settings_metadata)
-        self.assertIn("backend preview/save owns settings validation and persistence", settings_metadata)
+        self.assertIn("UI arrays are display/order bindings", settings_metadata)
+        self.assertIn("Backend field_definitions owns labels, options, defaults, constraints, validation, and persistence", settings_metadata)
 
         for snippet in [
             "Frontend advisory only",

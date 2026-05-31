@@ -31,6 +31,219 @@
     "LibraryProfiles": {
       "items": {
         "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "designation": {
+            "enum": [
+              "movie",
+              "tv",
+              "auto",
+              "mixed",
+              "custom"
+            ],
+            "type": "string"
+          },
+          "source_path": {
+            "type": "string"
+          },
+          "output_path": {
+            "type": "string"
+          },
+          "promotion_enabled": {
+            "type": "boolean"
+          },
+          "promotion_destination": {
+            "type": "string"
+          },
+          "overrides": {
+            "additionalProperties": false,
+            "properties": {
+              "editor": {
+                "additionalProperties": false,
+                "properties": {
+                  "RoutingProfile": {},
+                  "RouteThresholdMode": {},
+                  "SizeGuardMode": {},
+                  "EncodeTuningPreset": {},
+                  "EncodeLadder": {},
+                  "VideoCodec": {},
+                  "OutputContainer": {},
+                  "EncodeThresholdGB": {},
+                  "TVEncodeThresholdGB": {},
+                  "MovieRouteMaxVideoBitrateMbps": {},
+                  "TVRouteMaxVideoBitrateMbps": {},
+                  "MaxEncodeGrowthPercent": {},
+                  "CompatibilityEncodeGrowthPercent": {}
+                },
+                "type": "object"
+              },
+              "video": {
+                "additionalProperties": false,
+                "properties": {
+                  "VideoPreset": {},
+                  "VideoQuality": {},
+                  "AllowH264RemuxIfPlexCompatible": {},
+                  "H264RemuxMaxBitrateMbps": {},
+                  "H264RemuxMaxHeight": {},
+                  "RemuxSafeVideoCodecs": {},
+                  "FallbackCpuQuality": {},
+                  "CpuEncodePreset": {},
+                  "CpuEncodeProcessPriority": {},
+                  "CpuEncodeMaxThreads": {},
+                  "ExtraVideoFlags": {}
+                },
+                "type": "object"
+              },
+              "subtitles": {
+                "additionalProperties": false,
+                "properties": {
+                  "SubKeepLanguages": {},
+                  "ConvertTx3gToSrt": {},
+                  "DropTx3gAfterConversion": {},
+                  "CreateExternalTx3gSrtSidecars": {},
+                  "Tx3gExtractLanguages": {},
+                  "Tx3gPreserveExistingSrt": {},
+                  "Tx3gTreatForcedAsSeparate": {},
+                  "ConvertBdpgsToSrt": {},
+                  "DropBdpgsAfterConversion": {},
+                  "BdpgsExtractLanguages": {},
+                  "BdpgsOcrToolPath": {},
+                  "BdpgsOcrTessdataPath": {},
+                  "ConvertVobSubToSrt": {},
+                  "DropVobSubAfterConversion": {},
+                  "VobSubExtractLanguages": {},
+                  "VobSubOcrToolPath": {},
+                  "SubtitleExtractTimeoutSeconds": {},
+                  "SubtitleProbeTimeoutSeconds": {},
+                  "BdpgsOcrTimeoutSeconds": {},
+                  "VobSubOcrTimeoutSeconds": {},
+                  "SubSDHTitleKeywords": {},
+                  "SubSupplementalKeywords": {},
+                  "DropAssAfterConversion": {},
+                  "StripFormatting": {},
+                  "RemoveKaraoke": {},
+                  "MergeAdjacent": {},
+                  "MergeThresholdMs": {},
+                  "KeepSignsAndSongs": {},
+                  "TreatAssSignsSongsAsForced": {},
+                  "TreatTx3gSignsSongsAsForced": {},
+                  "TreatBdpgsSignsSongsAsForced": {},
+                  "TreatVobSubSignsSongsAsForced": {},
+                  "ExcludeSubtitleStyles": {},
+                  "IncludeSubtitleStyles": {}
+                },
+                "type": "object"
+              },
+              "audio": {
+                "additionalProperties": false,
+                "properties": {
+                  "AudioPassthroughProfile": {},
+                  "CompatibleAudioCodecs": {},
+                  "PreferredDefaultAudioLanguages": {},
+                  "AudioTranscodeCodec": {},
+                  "AudioTranscodeBitrate": {},
+                  "AudioTranscodeAutoBitrateByChannels": {},
+                  "AudioDownmixMode": {},
+                  "AudioMaxChannels": {},
+                  "AllowNoAudio": {}
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          },
+          "editor_overrides": {
+            "additionalProperties": false,
+            "properties": {
+              "RoutingProfile": {},
+              "RouteThresholdMode": {},
+              "SizeGuardMode": {},
+              "EncodeTuningPreset": {},
+              "EncodeLadder": {},
+              "VideoCodec": {},
+              "OutputContainer": {},
+              "EncodeThresholdGB": {},
+              "TVEncodeThresholdGB": {},
+              "MovieRouteMaxVideoBitrateMbps": {},
+              "TVRouteMaxVideoBitrateMbps": {},
+              "MaxEncodeGrowthPercent": {},
+              "CompatibilityEncodeGrowthPercent": {}
+            },
+            "type": "object"
+          },
+          "media_overrides": {
+            "additionalProperties": false,
+            "properties": {
+              "VideoPreset": {},
+              "VideoQuality": {},
+              "AllowH264RemuxIfPlexCompatible": {},
+              "H264RemuxMaxBitrateMbps": {},
+              "H264RemuxMaxHeight": {},
+              "RemuxSafeVideoCodecs": {},
+              "FallbackCpuQuality": {},
+              "CpuEncodePreset": {},
+              "CpuEncodeProcessPriority": {},
+              "CpuEncodeMaxThreads": {},
+              "ExtraVideoFlags": {},
+              "SubKeepLanguages": {},
+              "ConvertTx3gToSrt": {},
+              "DropTx3gAfterConversion": {},
+              "CreateExternalTx3gSrtSidecars": {},
+              "Tx3gExtractLanguages": {},
+              "Tx3gPreserveExistingSrt": {},
+              "Tx3gTreatForcedAsSeparate": {},
+              "ConvertBdpgsToSrt": {},
+              "DropBdpgsAfterConversion": {},
+              "BdpgsExtractLanguages": {},
+              "BdpgsOcrToolPath": {},
+              "BdpgsOcrTessdataPath": {},
+              "ConvertVobSubToSrt": {},
+              "DropVobSubAfterConversion": {},
+              "VobSubExtractLanguages": {},
+              "VobSubOcrToolPath": {},
+              "SubtitleExtractTimeoutSeconds": {},
+              "SubtitleProbeTimeoutSeconds": {},
+              "BdpgsOcrTimeoutSeconds": {},
+              "VobSubOcrTimeoutSeconds": {},
+              "SubSDHTitleKeywords": {},
+              "SubSupplementalKeywords": {},
+              "DropAssAfterConversion": {},
+              "StripFormatting": {},
+              "RemoveKaraoke": {},
+              "MergeAdjacent": {},
+              "MergeThresholdMs": {},
+              "KeepSignsAndSongs": {},
+              "TreatAssSignsSongsAsForced": {},
+              "TreatTx3gSignsSongsAsForced": {},
+              "TreatBdpgsSignsSongsAsForced": {},
+              "TreatVobSubSignsSongsAsForced": {},
+              "ExcludeSubtitleStyles": {},
+              "IncludeSubtitleStyles": {},
+              "AudioPassthroughProfile": {},
+              "CompatibleAudioCodecs": {},
+              "PreferredDefaultAudioLanguages": {},
+              "AudioTranscodeCodec": {},
+              "AudioTranscodeBitrate": {},
+              "AudioTranscodeAutoBitrateByChannels": {},
+              "AudioDownmixMode": {},
+              "AudioMaxChannels": {},
+              "AllowNoAudio": {}
+            },
+            "type": "object"
+          },
+          "default_tracking": {
+            "additionalProperties": true,
+            "type": "object"
+          }
+        },
         "type": "object"
       },
       "title": "Libraryprofiles",
@@ -79,17 +292,17 @@
     },
     "MovieRouteMaxVideoBitrateMbps": {
       "default": 35,
-      "exclusiveMinimum": 0,
       "maximum": 500,
+      "minimum": 1,
       "title": "Movieroutemaxvideobitratembps",
-      "type": "number"
+      "type": "integer"
     },
     "TVRouteMaxVideoBitrateMbps": {
       "default": 18,
-      "exclusiveMinimum": 0,
       "maximum": 500,
+      "minimum": 1,
       "title": "Tvroutemaxvideobitratembps",
-      "type": "number"
+      "type": "integer"
     },
     "AllowH264RemuxIfPlexCompatible": {
       "default": true,
@@ -98,10 +311,10 @@
     },
     "H264RemuxMaxBitrateMbps": {
       "default": 35,
-      "exclusiveMinimum": 0,
       "maximum": 500,
+      "minimum": 1,
       "title": "H264Remuxmaxbitratembps",
-      "type": "number"
+      "type": "integer"
     },
     "H264RemuxMaxHeight": {
       "default": 1080,
@@ -125,14 +338,14 @@
       "maximum": 1000,
       "minimum": 0,
       "title": "Maxencodegrowthpercent",
-      "type": "number"
+      "type": "integer"
     },
     "CompatibilityEncodeGrowthPercent": {
       "default": 15,
       "maximum": 1000,
       "minimum": 0,
       "title": "Compatibilityencodegrowthpercent",
-      "type": "number"
+      "type": "integer"
     },
     "MinFreeSpaceGB": {
       "default": 50,
@@ -159,6 +372,32 @@
     "FinalLibraryPromotionRules": {
       "items": {
         "additionalProperties": true,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "source_root": {
+            "type": "string"
+          },
+          "output_root": {
+            "type": "string"
+          },
+          "destination_root": {
+            "type": "string"
+          },
+          "library_id": {
+            "type": "string"
+          },
+          "designation": {
+            "type": "string"
+          }
+        },
         "type": "object"
       },
       "title": "Finallibrarypromotionrules",
@@ -185,19 +424,34 @@
     },
     "VideoCodec": {
       "default": "hevc_nvenc",
-      "minLength": 1,
+      "enum": [
+        "hevc_nvenc",
+        "libx265",
+        "h264_nvenc",
+        "libx264",
+        "av1_nvenc"
+      ],
       "title": "Videocodec",
       "type": "string"
     },
     "VideoPreset": {
       "default": "p7",
-      "minLength": 1,
+      "enum": [
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5",
+        "p6",
+        "p7"
+      ],
       "title": "Videopreset",
       "type": "string"
     },
     "VideoQuality": {
       "default": 22,
-      "minimum": 0,
+      "maximum": 51,
+      "minimum": 1,
       "title": "Videoquality",
       "type": "integer"
     },
@@ -376,6 +630,28 @@
       "title": "Bdpgsocrtessdatapath",
       "type": "string"
     },
+    "ConvertVobSubToSrt": {
+      "default": false,
+      "title": "Convertvobsubtosrt",
+      "type": "boolean"
+    },
+    "DropVobSubAfterConversion": {
+      "default": false,
+      "title": "Dropvobsubafterconversion",
+      "type": "boolean"
+    },
+    "VobSubExtractLanguages": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Vobsubextractlanguages",
+      "type": "array"
+    },
+    "VobSubOcrToolPath": {
+      "default": "Tools\\SubtitleEdit\\seconv.exe",
+      "title": "Vobsubocrtoolpath",
+      "type": "string"
+    },
     "SubSDHTitleKeywords": {
       "items": {
         "type": "string"
@@ -412,6 +688,7 @@
     },
     "MergeThresholdMs": {
       "default": 150,
+      "maximum": 5000,
       "minimum": 0,
       "title": "Mergethresholdms",
       "type": "integer"
@@ -434,6 +711,11 @@
     "TreatBdpgsSignsSongsAsForced": {
       "default": false,
       "title": "Treatbdpgssignssongsasforced",
+      "type": "boolean"
+    },
+    "TreatVobSubSignsSongsAsForced": {
+      "default": false,
+      "title": "Treatvobsubsignssongsasforced",
       "type": "boolean"
     },
     "ExcludeSubtitleStyles": {
@@ -578,7 +860,8 @@
     "FallbackCpuQuality": {
       "anyOf": [
         {
-          "minimum": 0,
+          "maximum": 51,
+          "minimum": 1,
           "type": "integer"
         },
         {
@@ -628,7 +911,8 @@
     "OutputSizeMultiplier": {
       "anyOf": [
         {
-          "exclusiveMinimum": 0,
+          "maximum": 2.0,
+          "minimum": 0.1,
           "type": "number"
         },
         {
@@ -665,20 +949,30 @@
     },
     "SubtitleExtractTimeoutSeconds": {
       "default": 180,
-      "minimum": 1,
+      "maximum": 3600,
+      "minimum": 30,
       "title": "Subtitleextracttimeoutseconds",
       "type": "integer"
     },
     "SubtitleProbeTimeoutSeconds": {
       "default": 30,
-      "minimum": 1,
+      "maximum": 600,
+      "minimum": 5,
       "title": "Subtitleprobetimeoutseconds",
       "type": "integer"
     },
     "BdpgsOcrTimeoutSeconds": {
       "default": 1800,
-      "minimum": 1,
+      "maximum": 14400,
+      "minimum": 60,
       "title": "Bdpgsocrtimeoutseconds",
+      "type": "integer"
+    },
+    "VobSubOcrTimeoutSeconds": {
+      "default": 1800,
+      "maximum": 14400,
+      "minimum": 60,
+      "title": "Vobsubocrtimeoutseconds",
       "type": "integer"
     },
     "OutputValidationProbeTimeoutSeconds": {
@@ -706,31 +1000,36 @@
     },
     "RobocopyTimeoutSeconds": {
       "default": 14400,
-      "minimum": 1,
+      "maximum": 172800,
+      "minimum": 60,
       "title": "Robocopytimeoutseconds",
       "type": "integer"
     },
     "TransientFailureRetryLimit": {
       "default": 3,
+      "maximum": 100,
       "minimum": 1,
       "title": "Transientfailureretrylimit",
       "type": "integer"
     },
     "IndexScanTimeoutSeconds": {
       "default": 1800,
-      "minimum": 1,
+      "maximum": 86400,
+      "minimum": 30,
       "title": "Indexscantimeoutseconds",
       "type": "integer"
     },
     "SourceScanTimeoutSeconds": {
       "default": 1800,
-      "minimum": 1,
+      "maximum": 86400,
+      "minimum": 30,
       "title": "Sourcescantimeoutseconds",
       "type": "integer"
     },
     "CleanupScanTimeoutSeconds": {
       "default": 300,
-      "minimum": 1,
+      "maximum": 7200,
+      "minimum": 30,
       "title": "Cleanupscantimeoutseconds",
       "type": "integer"
     },
@@ -741,7 +1040,8 @@
     },
     "CleanupStaleAgeHours": {
       "default": 24,
-      "minimum": 0,
+      "maximum": 720,
+      "minimum": 1,
       "title": "Cleanupstaleagehours",
       "type": "integer"
     },

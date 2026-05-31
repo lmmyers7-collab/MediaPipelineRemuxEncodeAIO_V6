@@ -232,7 +232,7 @@
     const review = rows.filter((row) => row.status === "warning").length;
     const unknown = rows.filter((row) => row.status === "unknown").length;
     if (["ok", "info", "none"].includes(issue)) {
-      return blockers || review || unknown ? "Post-start review evidence" : "No visible mismatch";
+      return blockers || review || unknown ? "Command accepted; advisory evidence" : "No visible mismatch";
     }
     if (blockers || review) return "Predicted by checklist";
     if (unknown) return "Evidence incomplete";

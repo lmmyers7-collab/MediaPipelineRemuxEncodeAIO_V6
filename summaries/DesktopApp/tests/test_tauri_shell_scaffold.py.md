@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-05-30
 last_reviewed: 2026-05-29
-sha256: ec98a001bb350e2dcd48ffe7eb8f5c8cb2883cc270eeb4cdb40528b02bf9e2b8
+sha256: 8a6171c15bcb495b75a3f209b3600ae77ba08c6450222480e2809c0c483f42c2
 ---
 # `DesktopApp/tests/test_tauri_shell_scaffold.py`
 

@@ -154,12 +154,6 @@
     return value !== undefined && value !== null && value !== "";
   }
 
-  function progressBoolLabel(value) {
-    if (value === true || String(value).toLowerCase() === "true") return "yes";
-    if (value === false || String(value).toLowerCase() === "false") return "no";
-    return "not reported";
-  }
-
   function progressNumericValue(value, fallback = 0) {
     const number = Number(value);
     return Number.isFinite(number) ? number : fallback;
@@ -170,11 +164,67 @@
     return !text || text === "none" || text === "idle" || text === "unknown";
   }
 
+  function progressTextFromKeys(payload, keys = []) {
+    for (const key of keys) {
+      const value = payload?.[key];
+      if (!progressIsEmptyText(value)) return String(value).trim();
+    }
+    return "";
+  }
+
+  function progressMediaTypeLabel(value) {
+    const text = String(value || "").trim();
+    const normalized = text.toLowerCase();
+    if (!normalized) return "";
+    if (normalized === "tv" || normalized === "episode" || normalized === "episodes") return "TV";
+    if (normalized === "movie" || normalized === "movies") return "Movies";
+    if (normalized === "pending" || normalized === "pending_push") return "Pending publish";
+    return text.replace(/_/g, " ");
+  }
+
+  function progressLibraryItem(payload) {
+    const name = progressTextFromKeys(payload, [
+      "CurrentLibraryName",
+      "CurrentLibraryProfileName",
+      "LibraryName",
+      "library_name",
+    ]);
+    const id = progressTextFromKeys(payload, [
+      "CurrentLibraryId",
+      "CurrentLibraryProfileId",
+      "LibraryId",
+      "library_id",
+    ]);
+    const designation = progressTextFromKeys(payload, [
+      "CurrentLibraryDesignation",
+      "LibraryDesignation",
+      "library_designation",
+    ]);
+    const sourceRoot = progressTextFromKeys(payload, [
+      "CurrentLibrarySourceRoot",
+      "LibrarySourceRoot",
+      "library_source_root",
+      "source_root",
+    ]);
+    const mediaType = progressMediaTypeLabel(payload.CurrentMediaType || payload.CurrentQueuePhase);
+    const value = name || id || mediaType || "not reported";
+    const hintParts = [];
+    if (designation && designation !== value) hintParts.push(designation);
+    if (id && id !== value) hintParts.push(`Profile: ${id}`);
+    if (sourceRoot) hintParts.push(`Source: ${sourceRoot}`);
+    if (!hintParts.length && mediaType && !name && !id) {
+      hintParts.push("Progress file reports media type, not a library profile.");
+    }
+    return {
+      label: "Library",
+      value: formatProgressValue(value),
+      hint: hintParts.join("; ") || "No library profile detail reported",
+      status: name || id || sourceRoot ? "ok" : (mediaType ? "warning" : "empty"),
+    };
+  }
+
   function progressDetailItems(progress) {
     const payload = progress && typeof progress === "object" ? progress : {};
-    const status = payload.Status || payload.status || "Idle";
-    const stage = payload.CurrentStage || payload.current_stage || "";
-    const percent = payload.CurrentStagePercent;
     const route = payload.CurrentRoute || payload.Route || "";
     const reason = payload.RouteReason || payload.CurrentRouteReason || "";
     const queueIndex = payload.CurrentQueueIndex;
@@ -182,28 +232,8 @@
     const remuxed = progressNumericValue(payload.Remuxed);
     const encoded = progressNumericValue(payload.Encoded);
     const failed = progressNumericValue(payload.Failed);
-    const stopped = payload.StopRequested === true || String(payload.StopRequested).toLowerCase() === "true";
-    const paused = payload.PauseRequested === true || String(payload.PauseRequested).toLowerCase() === "true";
-    const file = payload.CurrentFileDisplay || payload.CurrentFile || payload.InputFile || "";
-    const updated = payload.UpdatedAt || payload.updated_at || payload.LastUpdated || "";
-    const active = progressStateIsActive(status) || progressStateIsActive(stage);
     const items = [];
-    if (active || !progressIsEmptyText(status)) {
-      items.push({
-        label: "State",
-        value: formatProgressValue(status || "unknown"),
-        hint: active ? "Work is active" : "No active pipeline stage reported",
-        status: active ? "running" : "ok",
-      });
-    }
-    if (active || !progressIsEmptyText(stage) || progressHasValue(percent)) {
-      items.push({
-        label: "Stage",
-        value: stage ? formatProgressValue(stage) : "none",
-        hint: progressHasValue(percent) ? `Stage percent: ${formatProgressValue(percent)}` : "No stage percent",
-        status: stage ? (active ? "running" : "ok") : "empty",
-      });
-    }
+    items.push(progressLibraryItem(payload));
     items.push(
       {
         label: "Queue",
@@ -230,22 +260,8 @@
         value: String(failed),
         hint: failed ? "Failures need review" : "No failures reported",
         status: failed ? "blocked" : "ok",
-      },
-      {
-        label: "Controls",
-        value: paused || stopped ? "requested" : "clear",
-        hint: `Pause requested: ${progressBoolLabel(payload.PauseRequested)}; Stop requested: ${progressBoolLabel(payload.StopRequested)}`,
-        status: paused || stopped ? "warning" : "ok",
       }
     );
-    if (!progressIsEmptyText(file)) {
-      items.push({
-        label: "File",
-        value: file ? formatProgressValue(file) : "none",
-        hint: updated ? `Updated: ${formatProgressValue(updated)}` : "No current file",
-        status: file ? "running" : "empty",
-      });
-    }
     return items;
   }
 

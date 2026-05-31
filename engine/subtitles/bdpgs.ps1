@@ -241,6 +241,50 @@ function Extract-BdpgsToSup {
     }
 }
 
+function Repair-BdpgsOcrSrtPipeGlyphText {
+    param([AllowNull()] [string]$Text)
+
+    if ([string]::IsNullOrEmpty($Text)) {
+        return [pscustomobject]@{ Text = [string]$Text; ReplacementCount = 0; Changed = $false }
+    }
+
+    $timePattern = '^\s*\d{1,2}:\d{2}:\d{2}[,\.]\d{2,3}\s+-->\s+\d{1,2}:\d{2}:\d{2}[,\.]\d{2,3}'
+    $indexPattern = '^\s*\d+\s*$'
+    $parts = [System.Text.RegularExpressions.Regex]::Split($Text, '(\r\n|\n|\r)')
+    $builder = [System.Text.StringBuilder]::new()
+    $replacementCount = 0
+
+    for ($i = 0; $i -lt $parts.Count; $i++) {
+        $part = [string]$parts[$i]
+        if (($i % 2) -eq 0 -and $part -match '\|' -and $part -notmatch $indexPattern -and $part -notmatch $timePattern) {
+            $replacementCount += [System.Text.RegularExpressions.Regex]::Matches($part, '\|').Count
+            $part = $part.Replace('|', 'I')
+        }
+        [void]$builder.Append($part)
+    }
+
+    return [pscustomobject]@{
+        Text             = $builder.ToString()
+        ReplacementCount = $replacementCount
+        Changed          = ($replacementCount -gt 0)
+    }
+}
+
+function Repair-BdpgsOcrSrtPipeGlyphs {
+    param(
+        [Parameter(Mandatory)] [string]$Path,
+        [string]$Context = ""
+    )
+
+    $raw = [System.IO.File]::ReadAllText($Path, [System.Text.Encoding]::UTF8)
+    $repair = Repair-BdpgsOcrSrtPipeGlyphText -Text $raw
+    if ($repair.Changed) {
+        [System.IO.File]::WriteAllText($Path, [string]$repair.Text, [System.Text.UTF8Encoding]::new($false))
+        Write-Log "${Context}BDPGS OCR: repaired $($repair.ReplacementCount) pipe glyph(s) in cue text as uppercase I" "DEBUG"
+    }
+    return $repair
+}
+
 function Convert-BdpgsToSrt {
     param(
         [Parameter(Mandatory)] [string]$SourceFile,
@@ -337,6 +381,7 @@ function Convert-BdpgsToSrt {
             }
 
             Write-SubtitleTrackProgress -Kind 'bdpgs' -StreamIndex $StreamIndex -Stage 'validate' -Status 'Validating BDPGS OCR SRT' -StepIndex 3 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail ([System.IO.Path]::GetFileName($ocrTempSrt))
+            [void](Repair-BdpgsOcrSrtPipeGlyphs -Path $ocrTempSrt -Context $Context)
             $preMoveValidation = Test-SrtFileUsable -Path $ocrTempSrt
             if (-not $preMoveValidation.Ok) {
                 $reason = "BDPGS OCR SRT is not usable: $($preMoveValidation.Reason)"

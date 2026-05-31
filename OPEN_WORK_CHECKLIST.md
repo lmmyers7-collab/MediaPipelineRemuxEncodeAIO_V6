@@ -1,14 +1,14 @@
 # Open Work Checklist
 
-> **Generated:** 2026-05-19 by full scan of all non-archived Markdown files; reconciled 2026-05-20 after stale-gate review; refreshed 2026-05-30 after local Phase 6 legacy burn-down.
+> **Generated:** 2026-05-19 by full scan of all non-archived Markdown files; reconciled 2026-05-20 after stale-gate review; refreshed 2026-05-30 after legacy-surface cleanup and operator-confirmed default-launcher promotion.
 > **Sources:** archived housekeeping and transition-review evidence under `Docs/archive/docs-housekeeping/2026-05-20-review/`, `Docs/architecture/V5_MIGRATION_RISK_REGISTER.md`, `Docs/testing/TEST_COVERAGE_MATRIX.md`, `Docs/testing/VALIDATION_LADDER_RUNBOOK.md`, `Docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md`, `Docs/inventories/RENAME_SAFETY_TEST_INVENTORY.md`, `Docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md`, `Docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`, `Docs/architecture/SETTINGS_RAW_KEY_TRIAGE.md`, `Docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`, `Docs/DOC_TOUCH_LOG.md`, and `Docs/REMEDIATION_CHANGELOG.md`.
 > **Excludes:** `Docs/archive/`, config backups, run logs.
 
 ---
 
-## P0 — Blockers (fix before promotion to daily driver / clean-machine handoff)
+## P0 — Closed Promotion Gates
 
-These remaining open blockers are external/operator validation gates, not stale local protected gates. Local source/dev gates are tracked as closed below unless a later scan reopens them.
+No P0 promotion gates remain unresolved. Local source/dev gates are tracked as closed below unless a later scan reopens them.
 
 - [x] **Backend shutdown safety** — Reconciled as complete: `/api/backend/shutdown` now returns `ok: false` and does not request shutdown when close-readiness is unsafe, including an armed schedule-stop watcher; WebView shutdown stays disabled until backend close-readiness is safe. Validation on 2026-05-19: lifecycle smoke, route inventory, and contract payload tests passed. Source: `REMEDIATION_CHANGELOG.md` row "Shutdown fail-closed" plus 2026-05-19 stale-blocker reconciliation.
 
@@ -16,7 +16,7 @@ These remaining open blockers are external/operator validation gates, not stale 
 
 - [x] **PowerShell reliability regression** — Reconciled as complete: queue priority phase contract and deferred-publish drain smoke are restored. Validation on 2026-05-19: `Invoke-ReliabilityRegressionChecks.ps1` passed and `Invoke-EndToEndSmokeChecks.ps1` passed. Current V6 validation uses `Invoke-ReliabilityRegressionChecks.ps1` as the active WebView/backend compatibility wrapper, with archived legacy desktop-shell checks available only through `-RunLegacyDesktopChecks`. Source: `DOC_TOUCH_LOG.md` row "Queue plan reliability and end-to-end smoke restoration" plus 2026-05-19 stale-blocker reconciliation.
 
-- [ ] **PG-3 clean-machine validation** — Package-mode launch/close on a separate clean Windows machine has not been run. This is a hard gate before promoting WebView/Tauri as the default launcher. Source: `VALIDATION_LADDER_RUNBOOK.md` and `RELEASE_PACKAGE_ADMIN_INVENTORY.md`.
+- [x] **Package-mode/default-launcher validation** — Closed on 2026-05-30 by operator confirmation. WebView/Tauri is promoted as the default V6 launcher; future launcher, package, Tauri, or Local API changes still require package/open/close validation. Source: operator confirmation plus `VALIDATION_LADDER_RUNBOOK.md` and `RELEASE_PACKAGE_ADMIN_INVENTORY.md`.
 
 - [x] **Real-media validation playbook** — Closed on 2026-05-28 by operator attestation. Representative real-media validation covered remux, encode/size policy, subtitle conversion, audio policy, and pending-publish/final-placement behavior. `Docs/RealMediaValidationRuns/README.md` records the non-sensitive status anchor; detailed run worksheets may remain local or excluded from release packaging when they contain personal paths. Re-run this validation after any FFmpeg/media-policy, subtitle, audio, publish/drain, source/scratch/output movement, or cleanup behavior change.
 
@@ -24,7 +24,7 @@ These remaining open blockers are external/operator validation gates, not stale 
 
 ## High — Closed Local Legacy / Packaging Work
 
-- [x] **Phase 6 destructive legacy removal gate** — Closed on 2026-05-29 for the local legacy surface burn-down: config-schema compatibility files, former command-payload adapters, flat Python facades/services, root launcher shims, `Pipeline` root launcher shims, and `Pipeline\Modules` are removed or empty, with active implementations under `app\<domain>` and `engine\<domain>`. Post-deletion validation covered active-reference cleanup, full source release wrapper validation, copied package-mode Tauri launch/close, Local API health plus WebView open, and fresh representative real-media validation for remux, encode/size, subtitles, audio, deferred pending publish, drain, and rename-output safety. PG-3 clean-machine validation remains a separate default-launcher promotion gate. Guardrails still block reintroducing old root launcher shim names and new dotted `Pipeline\Modules` files.
+- [x] **Legacy surface removal gate** — Closed on 2026-05-29 for the local legacy surface cleanup: config-schema compatibility files, former command-payload adapters, flat Python facades/services, root launcher shims, `Pipeline` root launcher shims, and `Pipeline\Modules` are removed or empty, with active implementations under `app\<domain>` and `engine\<domain>`. Post-deletion validation covered active-reference cleanup, full source release wrapper validation, copied package-mode Tauri launch/close, Local API health plus WebView open, and fresh representative real-media validation for remux, encode/size, subtitles, audio, deferred pending publish, drain, and rename-output safety. Guardrails still block reintroducing old root launcher shim names and new dotted `Pipeline\Modules` files.
 
 - [x] **Rename undo manifest state-root cleanup** — New rename undo manifests now resolve under `State\RenameUndo` when service state or app root is available; focused rename tests passed. Source: `DOC_TOUCH_LOG.md` row "Rename undo state-root safety cleanup".
 
@@ -32,7 +32,7 @@ These remaining open blockers are external/operator validation gates, not stale 
 
 - [x] **Pending publish module ownership** — `MODULE_MAP.md`, pending-publish fixture inventory, and focused PowerShell guards now document/test parked media-plus-sidecars and backend-owned drain safety. Source: `DOC_TOUCH_LOG.md` rows "Pending publish safety guardrail tests and rollback fix" and "Pending Publish Ownership Boundary Guard".
 
-- [x] **Dashboard command-surface drift** — Reconciled as complete: the rendered Home/Dashboard page does not expose pipeline start/control or pending-drain command controls, while the Launch/Pending Publish owning pages still expose the backend-owned command controls. `test_application_facade_web_static.py` pins this command-surface boundary.
+- [x] **Dashboard command-surface drift** — Reconciled as complete: the rendered Home/Dashboard page does not expose pipeline start or pending-drain command controls, while it does expose backend-owned Pause/Resume, Stop After Current, and Force Stop shortcuts through the existing `/api/pipeline/control` command surface. Launch remains the owner for starting work and full readiness detail, and Pending Publish remains the owner for pending-drain commands. `test_application_facade_web_static.py` pins this command-surface boundary.
 
 - [x] **Evidence panel type violations and H1 title drift** — Closed with rendered WebView static checks: all panels declare `data-panel-type="evidence"` or `data-panel-type="interactive"`, evidence panels contain no buttons, and all 13 rendered page H1 titles match `V5_UI_DESIGN_REFERENCE.md` canonical page titles.
 
@@ -68,7 +68,7 @@ These remaining open blockers are external/operator validation gates, not stale 
 
 - [x] **Test god-file splits (Wave 5)** — Wave 5 test-file splits are complete; `test_application_facade.py` and `test_controllers.py` are now shared fixture/import-boundary modules with focused child test files. Full split history is quarantined at `Docs\archive\docs-housekeeping\2026-05-20-review\archive-historical\Docs\archive\completed-checklists\GOD_FILE_SPLIT_PLAN.md`.
 
-- [x] **Tauri production-hardening lifecycle** — Closed on 2026-05-19 for the V5 preview shell: spawn/bootstrap resilience remains bounded, Tauri now emits backend health/crash lifecycle events, WebView renders a visible read-only recovery banner through an event-only Tauri bridge, a per-user Windows mutex rejects second Tauri shell instances before backend startup, ActiveJobs orphan reconciliation remains backend-owned and guarded, and `Test-TauriShell-ProductionSurface.ps1` checks no production devtools flags, no token-adjacent runtime logging, one dynamic main window, the single-instance guard, and event-only bridge posture. This does not prove PG-3 clean-machine launch; representative real-media validation was later closed by operator attestation on 2026-05-28. Source: `TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`.
+- [x] **Tauri production-hardening lifecycle** — Closed on 2026-05-19 for the WebView/Tauri shell: spawn/bootstrap resilience remains bounded, Tauri now emits backend health/crash lifecycle events, WebView renders a visible read-only recovery banner through an event-only Tauri bridge, a per-user Windows mutex rejects second Tauri shell instances before backend startup, ActiveJobs orphan reconciliation remains backend-owned and guarded, and `Test-TauriShell-ProductionSurface.ps1` checks no production devtools flags, no token-adjacent runtime logging, one dynamic main window, the single-instance guard, and event-only bridge posture. Representative real-media validation was later closed by operator attestation on 2026-05-28, and default-launcher promotion was closed by operator confirmation on 2026-05-30. Source: `TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`.
 
 - [x] **Network page lifecycle controls** — Closed as a backend-contract gate, not as WebView buttons. WebView Network remains read-only; `/api/contract` now publishes design-only Network lifecycle contracts for coordinator start, coordinator stop, and worker polling lifecycle, `Docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` records the dry-run/cleanup/journal/source-policy gates, and static/API tests prove no Network lifecycle POST route or WebView control is exposed yet. Future controls still require backend dry-run routes, command journaling, cleanup/orphan tests, browser no-mutation coverage, and inventory updates.
 
@@ -90,8 +90,8 @@ These remaining open blockers are external/operator validation gates, not stale 
 
 | Priority | Open Count |
 |---|---:|
-| P0 — Blocker | 1 |
+| P0 — Blocker | 0 |
 | High | 0 |
 | Medium | 0 |
 | Low | 0 |
-| **Total Open** | **1** |
+| **Total Open** | **0** |

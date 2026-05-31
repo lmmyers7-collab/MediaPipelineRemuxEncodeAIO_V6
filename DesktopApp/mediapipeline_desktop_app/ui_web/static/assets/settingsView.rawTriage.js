@@ -15,6 +15,8 @@
     const settingsFieldDefinition = deps.settingsFieldDefinition || function () { return null; };
     const settingsBdpgsOcrPathEvidenceStatus = deps.settingsBdpgsOcrPathEvidenceStatus || function () { return "Not loaded"; };
     const settingsBdpgsOcrPathEvidenceLines = deps.settingsBdpgsOcrPathEvidenceLines || function () { return []; };
+    const settingsVobSubOcrPathEvidenceStatus = deps.settingsVobSubOcrPathEvidenceStatus || function () { return "Not loaded"; };
+    const settingsVobSubOcrPathEvidenceLines = deps.settingsVobSubOcrPathEvidenceLines || function () { return []; };
     const getLastSettingsValues = deps.getLastSettingsValues || function () { return {}; };
     const getLastSettingsFieldDefinitions = deps.getLastSettingsFieldDefinitions || function () { return []; };
 
@@ -274,6 +276,29 @@
       detail: [
         ...settingsBdpgsOcrPathEvidenceLines().slice(0, 12),
         "Path policy: WebView can stage configured path text, but backend Preview/Save and saved path evidence remain authoritative; WebView does not browse arbitrary paths or resolve paths. Any folder picker must be backend-owned and allowlisted.",
+      ],
+    });
+
+    const vobSubRows = ["VobSubOcrToolPath"].map((key) => byKey[key]).filter(Boolean);
+    const vobSubKeys = vobSubRows.map((row) => row.key);
+    const vobSubRawKeys = vobSubRows.filter((row) => row.coverage !== "structured builder").map((row) => row.key);
+    const vobSubStructuredKeys = vobSubRows.filter((row) => row.coverage === "structured builder").map((row) => row.key);
+    const vobSubStatus = settingsVobSubOcrPathEvidenceStatus();
+    rows.push({
+      key: "vobsub-ocr-paths",
+      area: "VobSub OCR path evidence",
+      posture: vobSubKeys.length ? (vobSubStatus.toLowerCase().includes("blocked") ? "blocked review" : vobSubStatus.toLowerCase().includes("review") ? "high review" : "evidence available") : "not configured",
+      evidence: vobSubKeys.length
+        ? vobSubRawKeys.length
+          ? `${vobSubRawKeys.join(", ")} remain raw-only path key(s); saved backend evidence reports ${vobSubStatus}.`
+          : `${vobSubStructuredKeys.join(", ")} are covered by the Subtitle builder; saved backend evidence reports ${vobSubStatus}.`
+        : "No VobSub OCR path keys were present in the loaded config.",
+      action: vobSubKeys.length
+        ? "Use the Subtitle builder or raw JSON to stage OCR path changes, then backend Preview/Save and re-check saved path evidence; do not add a frontend-owned path picker."
+        : "If VobSub OCR is enabled later, require backend path evidence before real-media validation.",
+      detail: [
+        ...settingsVobSubOcrPathEvidenceLines().slice(0, 12),
+        "Path policy: WebView can stage configured path text, but backend Preview/Save and saved path evidence remain authoritative; WebView does not browse arbitrary paths or resolve paths.",
       ],
     });
 

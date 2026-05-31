@@ -8,7 +8,11 @@ from app.config.settings_patch_policy import (
     settings_patch_changes_from_request,
     settings_patch_remove_keys_from_request,
 )
-from app.config.library_profiles import mirror_legacy_keys_from_library_profiles
+from app.config.library_profiles import (
+    apply_library_profile_resets,
+    library_profile_state_from_config,
+    normalize_library_profile_config_values,
+)
 from mediapipeline_desktop_app.models import ResolvedPaths
 
 if TYPE_CHECKING:
@@ -61,14 +65,30 @@ class SettingsPatchCandidateFacadeMixin:
             merged[key] = safe_value
             changed_keys.append(key)
 
-        mirrored = mirror_legacy_keys_from_library_profiles(merged, require_profiles=True)
-        for key, value in mirrored.items():
+        raw_library_profile_resets = request.get("library_profile_resets")
+        if raw_library_profile_resets:
+            before_resets = _json_safe(merged.get("LibraryProfiles"))
+            merged, reset_errors = apply_library_profile_resets(merged, raw_library_profile_resets)
+            errors.extend(reset_errors)
+            after_resets = _json_safe(merged.get("LibraryProfiles"))
+            if before_resets != after_resets and "LibraryProfiles" not in changed_keys:
+                changed_keys.append("LibraryProfiles")
+
+        normalized = normalize_library_profile_config_values(merged, require_profiles=True)
+        for key, value in normalized.items():
             safe_value = _json_safe(value)
             if key in merged and _json_safe(merged.get(key)) == safe_value:
                 continue
             merged[key] = safe_value
             if key not in changed_keys and _json_safe(base_config.get(key)) != safe_value:
                 changed_keys.append(key)
+
+        library_profile_state: list[dict[str, Any]] = []
+        if "LibraryProfiles" in merged:
+            try:
+                library_profile_state = library_profile_state_from_config(merged)
+            except Exception as exc:
+                warnings.append(f"Library profile inheritance evidence unavailable: {exc}")
 
         if not changed_keys and not removed_keys and not errors:
             warnings.append("No settings changes were proposed.")
@@ -100,6 +120,7 @@ class SettingsPatchCandidateFacadeMixin:
             "removed_keys": removed_keys,
             "diff_lines": diff_lines,
             "risk_summary": risk_summary,
+            "library_profile_state": library_profile_state,
         }
 
 __all__ = [

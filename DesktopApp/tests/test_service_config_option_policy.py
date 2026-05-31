@@ -5,8 +5,21 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from app.config.metadata_parts.field_definitions import CONFIG_FIELD_DEFINITIONS
 from app.config.option_policy import validate_option_config
+from app.shared.constants import (
+    AUDIO_PASSTHROUGH_PROFILE_NAMES,
+    LOG_LEVEL_VALUES,
+    ROUTE_THRESHOLD_MODE_NAMES,
+    ROUTING_PROFILE_NAMES,
+    SIZE_GUARD_MODE_NAMES,
+)
+
+
+def _metadata_by_key() -> dict[str, dict[str, object]]:
+    return {str(field["key"]): field for field in CONFIG_FIELD_DEFINITIONS}
 
 
 def _option_baseline() -> dict:
@@ -42,6 +55,43 @@ class ServiceConfigOptionPolicyTests(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertEqual(warnings, [])
 
+    def test_backend_metadata_allowed_values_match_option_policy_enums(self) -> None:
+        metadata = _metadata_by_key()
+        expected_allowed_values = {
+            "OutputContainer": ("mkv", "mp4"),
+            "EncodeTuningPreset": (
+                "balanced_nvenc",
+                "quality_nvenc",
+                "fast_nvenc",
+                "compatibility",
+                "custom_legacy_flags",
+            ),
+            "EncodeLadder": (
+                "auto",
+                "tv_balanced",
+                "tv_space_saver",
+                "movie_balanced",
+                "movie_archive",
+                "plex_compat",
+            ),
+            "RoutingProfile": ROUTING_PROFILE_NAMES,
+            "RouteThresholdMode": ROUTE_THRESHOLD_MODE_NAMES,
+            "SizeGuardMode": SIZE_GUARD_MODE_NAMES,
+            "VideoCodec": ("hevc_nvenc", "libx265", "h264_nvenc", "libx264", "av1_nvenc"),
+            "VideoPreset": ("p1", "p2", "p3", "p4", "p5", "p6", "p7"),
+            "FinalLibraryPromotionVerificationMode": ("cautious", "fast"),
+            "AudioPassthroughProfile": AUDIO_PASSTHROUGH_PROFILE_NAMES,
+            "AudioTranscodeCodec": ("eac3", "ac3", "aac"),
+            "AudioTranscodeBitrate": ("384k", "448k", "640k", "768k"),
+            "AudioDownmixMode": ("max_channels", "preserve", "stereo"),
+            "ConsoleLogLevel": LOG_LEVEL_VALUES,
+            "FileLogLevel": LOG_LEVEL_VALUES,
+        }
+
+        for key, expected in expected_allowed_values.items():
+            with self.subTest(key=key):
+                self.assertEqual(tuple(metadata[key]["allowed_values"]), tuple(expected))
+
     def test_option_policy_reports_enums_lists_and_audio_bitrate(self) -> None:
         values = _option_baseline()
         values.update(
@@ -54,6 +104,8 @@ class ServiceConfigOptionPolicyTests(unittest.TestCase):
                 "CompatibleAudioCodecs": [],
                 "ValidExtensions": ["mkv"],
                 "RobocopyFlags": ["R:3"],
+                "VideoCodec": "vp9",
+                "VideoPreset": "p9",
             }
         )
         errors: list[str] = []
@@ -69,6 +121,8 @@ class ServiceConfigOptionPolicyTests(unittest.TestCase):
         self.assertIn("CompatibleAudioCodecs must contain at least one value.", errors)
         self.assertIn("ValidExtensions entries must start with a dot and contain only extension-safe characters.", errors)
         self.assertIn("RobocopyFlags entries must be non-empty robocopy switches beginning with '/'.", errors)
+        self.assertIn("VideoCodec must be one of: av1_nvenc, h264_nvenc, hevc_nvenc, libx264, libx265.", errors)
+        self.assertIn("VideoPreset must be one of: p1, p2, p3, p4, p5, p6, p7.", errors)
         self.assertEqual(warnings, [])
 
     def test_option_policy_warns_on_ignored_custom_flags_and_strict_archive(self) -> None:
@@ -87,7 +141,7 @@ class ServiceConfigOptionPolicyTests(unittest.TestCase):
 
         self.assertEqual(errors, [])
         self.assertIn("ExtraVideoFlags are ignored unless EncodeTuningPreset is custom_legacy_flags; Save In Place will write an empty ExtraVideoFlags list.", warnings)
-        self.assertIn("Archive Shrink with strict size guard can reject outputs that do not shrink enough; use advisory while tuning.", warnings)
+        self.assertIn("Archive Shrink with strict Output Size Check can reject outputs that do not shrink enough; use advisory while tuning.", warnings)
 
     def test_option_policy_warns_when_structured_audio_profile_reconciles_custom_codecs(self) -> None:
         values = _option_baseline()

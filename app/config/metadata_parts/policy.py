@@ -39,15 +39,15 @@ ROUTE_THRESHOLD_MODE_NAMES = (
     "size_or_bitrate",
 )
 ROUTE_THRESHOLD_MODE_DESCRIPTIONS = {
-    "compatibility_advisory": "Current behavior: bitrate is hard, while size is compatibility/profile-aware.",
-    "size": "Use movie/TV GB thresholds as the hard route filter; bitrate still informs compatibility scoring.",
-    "bitrate": "Use movie/TV Mbps ceilings as the hard route filter; size thresholds stay advisory.",
-    "size_or_bitrate": "Encode when either the GB threshold or Mbps ceiling is exceeded.",
+    "compatibility_advisory": "Bitrate is strict; target output size stays profile-aware and flexible before processing.",
+    "size": "Use movie/TV GB target output sizes as the hard route gate; bitrate still informs compatibility scoring.",
+    "bitrate": "Use movie/TV Mbps max bitrate for direct copy as the hard route gate; GB size budgets stay flexible.",
+    "size_or_bitrate": "Encode when either the GB target output size or Mbps direct-copy cap is exceeded.",
 }
 SIZE_GUARD_MODE_DEFAULT = "advisory"
 SIZE_GUARD_MODE_NAMES = ("advisory", "strict", "off")
 SIZE_GUARD_MODE_DESCRIPTIONS = {
-    "advisory": "Warn and record when an encode grows past the configured size limit, but still publish if verification passes.",
-    "strict": "Reject oversized encodes for manual review instead of publishing them.",
+    "advisory": "Warns but does not block when an encode grows past the configured size budget; publish can continue if verification passes.",
+    "strict": "Blocks publish when an encode grows past the configured size budget and routes the result to manual review.",
     "off": "Disable post-encode size growth checks.",
 }

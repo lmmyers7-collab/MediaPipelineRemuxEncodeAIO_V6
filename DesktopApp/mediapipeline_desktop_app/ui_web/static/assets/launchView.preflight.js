@@ -725,7 +725,7 @@
     lines.push(
       "",
       "Real-media validation boundary:",
-      "- Audit can prove library/sidecar/report evidence after files exist; it does not prove a new FFmpeg route, subtitle OCR/SRT output, audio selection, size guard, or pending-publish result for an unprocessed file.",
+      "- Audit can prove library/sidecar/report evidence after files exist; it does not prove a new FFmpeg route, subtitle OCR/SRT output, audio selection, Output Size Check, or pending-publish result for an unprocessed file.",
       "- Use Audit with Diagnostics and Completed proof after a sample run when validating the Tauri/WebView path for daily use.",
     );
     lines.push("Backend validation and process locking remain the source of truth.");

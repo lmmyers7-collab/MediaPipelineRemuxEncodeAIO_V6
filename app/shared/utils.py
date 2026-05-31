@@ -86,7 +86,16 @@ def _atomic_write_text(path: Path, text: str, *, encoding: str = "utf-8") -> Non
             handle.write(text)
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(tmp_name, path)
+        delay_seconds = 0.05
+        for attempt in range(7):
+            try:
+                os.replace(tmp_name, path)
+                break
+            except PermissionError:
+                if attempt >= 6:
+                    raise
+                time.sleep(delay_seconds)
+                delay_seconds = min(delay_seconds * 2, 1.0)
     except Exception:
         with contextlib.suppress(OSError):
             os.remove(tmp_name)

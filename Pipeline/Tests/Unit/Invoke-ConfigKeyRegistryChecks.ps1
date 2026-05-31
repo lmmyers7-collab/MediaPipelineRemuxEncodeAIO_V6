@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..\..')
 . (Join-Path $repoRoot 'engine\config\config_keys.ps1')
 . (Join-Path $repoRoot 'engine\config\config_schema.ps1')
+. (Join-Path $repoRoot 'engine\paths\output_path_planning.ps1')
 
 $entrypointText = Get-Content -LiteralPath (Join-Path $repoRoot 'Pipeline\MediaPipeline.ps1') -Raw
 if ($entrypointText -notmatch "'ConfigKeys\.ps1'") {
@@ -14,6 +15,55 @@ $knownKeys = @(Get-MediaPipelineKnownConfigKeys)
 $keyOrder = @(Get-MediaPipelineConfigKeyOrder)
 $schemaOrder = @(Get-MediaPipelineConfigOrderedKeys)
 $networkKeys = @(Get-MediaPipelineNetworkConfigKeys)
+$jsonSchema = Get-Content -LiteralPath (Join-Path $repoRoot 'Pipeline\Schemas\media_pipeline_config.schema.json') -Raw | ConvertFrom-Json
+$jsonSchemaKeys = @($jsonSchema.properties.PSObject.Properties.Name)
+
+function Assert-StringSequenceEqual {
+    param(
+        [Parameter(Mandatory)] [array] $Actual,
+        [Parameter(Mandatory)] [array] $Expected,
+        [Parameter(Mandatory)] [string] $Label
+    )
+
+    if ($Actual.Count -ne $Expected.Count) {
+        throw "$Label count mismatch. Actual=$($Actual.Count) Expected=$($Expected.Count)"
+    }
+    for ($i = 0; $i -lt $Expected.Count; $i++) {
+        if ([string]$Actual[$i] -ne [string]$Expected[$i]) {
+            throw "$Label sequence drift at index $i. Actual='$($Actual[$i])' Expected='$($Expected[$i])'"
+        }
+    }
+}
+
+function Assert-StringSetEqual {
+    param(
+        [Parameter(Mandatory)] [array] $Actual,
+        [Parameter(Mandatory)] [array] $Expected,
+        [Parameter(Mandatory)] [string] $Label
+    )
+
+    $missing = @($Expected | Where-Object { $_ -notin $Actual })
+    $extra = @($Actual | Where-Object { $_ -notin $Expected })
+    if ($missing.Count -gt 0 -or $extra.Count -gt 0) {
+        throw "$Label set drift. Missing=[$($missing -join ', ')] Extra=[$($extra -join ', ')]"
+    }
+}
+
+function Get-JsonSchemaProperty {
+    param([Parameter(Mandatory)] [string] $Key)
+
+    $property = $jsonSchema.properties.PSObject.Properties[$Key]
+    if (-not $property) { return $null }
+    return $property.Value
+}
+
+function Get-JsonSchemaEnum {
+    param([Parameter(Mandatory)] [string] $Key)
+
+    $property = Get-JsonSchemaProperty -Key $Key
+    if (-not $property -or -not $property.PSObject.Properties['enum']) { return @() }
+    return @($property.enum)
+}
 
 if ($registry.Count -ne $knownKeys.Count) {
     throw "Config-key registry count $($registry.Count) does not match known key count $($knownKeys.Count)."
@@ -38,6 +88,21 @@ for ($i = 0; $i -lt $schemaOrder.Count; $i++) {
 $networkMissing = @($networkKeys | Where-Object { $_ -notin $knownKeys })
 if ($networkMissing.Count -gt 0) {
     throw "Network config keys missing from known registry: $($networkMissing -join ', ')"
+}
+
+$missingFromJsonSchema = @($schemaOrder | Where-Object { $_ -notin $jsonSchemaKeys })
+if ($missingFromJsonSchema.Count -gt 0) {
+    throw "JSON config schema missing ordered config keys: $($missingFromJsonSchema -join ', ')"
+}
+
+$unknownJsonSchemaKeys = @($jsonSchemaKeys | Where-Object { $_ -notin $knownKeys })
+if ($unknownJsonSchemaKeys.Count -gt 0) {
+    throw "JSON config schema includes unknown config keys: $($unknownJsonSchemaKeys -join ', ')"
+}
+
+$networkJsonSchemaKeys = @($jsonSchemaKeys | Where-Object { $_ -in $networkKeys })
+if ($networkJsonSchemaKeys.Count -gt 0) {
+    throw "Desktop JSON config schema should not include network-only keys: $($networkJsonSchemaKeys -join ', ')"
 }
 
 $templateConfig = Import-PowerShellDataFile -Path (Join-Path $repoRoot 'Pipeline\MediaPipeline_config_template.psd1')
@@ -69,6 +134,170 @@ if (-not (Test-MediaPipelineKnownConfigKey -Key 'SourceMovies')) {
 }
 if (Test-MediaPipelineKnownConfigKey -Key 'NotARealConfigKey') {
     throw 'Test-MediaPipelineKnownConfigKey accepted NotARealConfigKey.'
+}
+
+$libraryOverrideKeys = @(Get-MediaPipelineLibraryOverrideConfigKeys)
+$missingVobSubLibraryOverrideKeys = @(
+    'ConvertVobSubToSrt',
+    'DropVobSubAfterConversion',
+    'VobSubExtractLanguages',
+    'VobSubOcrToolPath',
+    'VobSubOcrTimeoutSeconds',
+    'TreatVobSubSignsSongsAsForced'
+) | Where-Object { $_ -notin $libraryOverrideKeys }
+if ($missingVobSubLibraryOverrideKeys.Count -gt 0) {
+    throw "Library override allowlist missing VobSub keys: $($missingVobSubLibraryOverrideKeys -join ', ')"
+}
+
+$unknownLibraryOverrideKeys = @($libraryOverrideKeys | Where-Object { $_ -notin $knownKeys })
+if ($unknownLibraryOverrideKeys.Count -gt 0) {
+    throw "Library override allowlist includes unknown config keys: $($unknownLibraryOverrideKeys -join ', ')"
+}
+
+$schemaLibraryOverrideKeys = @(Get-MediaPipelineConfigLibraryOverrideKeys)
+Assert-StringSequenceEqual -Actual $libraryOverrideKeys -Expected $schemaLibraryOverrideKeys -Label 'PowerShell runtime/schema library override allowlist'
+
+$globalOnlyOverrideKeys = @(
+    'ConfigSchemaVersion',
+    'SourceMovies',
+    'SourceTV',
+    'Outsource',
+    'LibraryProfiles',
+    'LocalBase',
+    'DeferredPublish',
+    'FinalLibraryPromotionEnabled',
+    'FinalLibraryPromotionRules',
+    'FinalLibraryPromotionVerificationMode',
+    'FinalLibraryPromotionCleanupAfterVerified',
+    'FinalLibraryPromotionOverwriteExisting',
+    'ShowOverrides',
+    'NetworkRole'
+) | Where-Object { $_ -in $libraryOverrideKeys }
+if ($globalOnlyOverrideKeys.Count -gt 0) {
+    throw "Library override allowlist includes global-only/config-shape keys: $($globalOnlyOverrideKeys -join ', ')"
+}
+
+$friendlyLabelKeys = @(
+    'ProcessingStrategy',
+    'EnforcementMode',
+    'OutputSizeCheck',
+    'EncoderQualityPreset',
+    'EncodeTargetMode',
+    'Processing Strategy',
+    'Enforcement Mode',
+    'Output Size Check'
+)
+$friendlyKnown = @($friendlyLabelKeys | Where-Object { $_ -in $knownKeys })
+$friendlyOverrides = @($friendlyLabelKeys | Where-Object { $_ -in $libraryOverrideKeys })
+$friendlyJson = @($friendlyLabelKeys | Where-Object { $_ -in $jsonSchemaKeys })
+if ($friendlyKnown.Count -gt 0 -or $friendlyOverrides.Count -gt 0 -or $friendlyJson.Count -gt 0) {
+    throw "Friendly display labels must not be persisted config keys. Known=[$($friendlyKnown -join ', ')] Overrides=[$($friendlyOverrides -join ', ')] Json=[$($friendlyJson -join ', ')]"
+}
+
+foreach ($enumPolicy in @(
+    @{ Key = 'VideoCodec'; Values = @(Get-MediaPipelineVideoCodecNames) },
+    @{ Key = 'VideoPreset'; Values = @(Get-MediaPipelineVideoPresetNames) },
+    @{ Key = 'OutputContainer'; Values = @(Get-MediaPipelineOutputContainerNames) },
+    @{ Key = 'EncodeTuningPreset'; Values = @(Get-MediaPipelineEncodeTuningPresetNames) },
+    @{ Key = 'EncodeLadder'; Values = @(Get-MediaPipelineEncodeLadderNames) },
+    @{ Key = 'RoutingProfile'; Values = @(Get-MediaPipelineRoutingProfileNames) },
+    @{ Key = 'RouteThresholdMode'; Values = @(Get-MediaPipelineRouteThresholdModeNames) },
+    @{ Key = 'SizeGuardMode'; Values = @(Get-MediaPipelineSizeGuardModeNames) },
+    @{ Key = 'AudioPassthroughProfile'; Values = @(Get-MediaPipelineAudioPassthroughProfileNames) },
+    @{ Key = 'AudioTranscodeCodec'; Values = @(Get-MediaPipelineAudioTranscodeCodecNames) },
+    @{ Key = 'AudioDownmixMode'; Values = @(Get-MediaPipelineAudioDownmixModeNames) },
+    @{ Key = 'FinalLibraryPromotionVerificationMode'; Values = @(Get-MediaPipelineFinalLibraryPromotionVerificationModeNames) },
+    @{ Key = 'CpuEncodePreset'; Values = @(Get-MediaPipelineCpuEncodePresetNames) },
+    @{ Key = 'CpuEncodeProcessPriority'; Values = @(Get-MediaPipelineCpuEncodeProcessPriorityNames) },
+    @{ Key = 'ParallelEncodeMode'; Values = @(Get-MediaPipelineParallelEncodeModeNames) }
+)) {
+    $jsonEnum = @(Get-JsonSchemaEnum -Key ([string]$enumPolicy.Key))
+    Assert-StringSetEqual -Actual @($enumPolicy.Values) -Expected $jsonEnum -Label "$($enumPolicy.Key) PowerShell/JSON enum"
+}
+
+$defaultSchemaCheck = Test-MediaPipelineConfigSchema -Config (Get-MediaPipelineConfigDefaultValues)
+if (-not [bool]$defaultSchemaCheck.Ok) {
+    throw "PowerShell default config failed schema validation: $(@($defaultSchemaCheck.Errors) -join '; ')"
+}
+
+$blankCustomOutputConfig = Get-MediaPipelineConfigDefaultValues
+$blankCustomOutputConfig['LibraryProfiles'] = @(
+    [ordered]@{ id = 'movies'; name = 'Movies'; enabled = $true; designation = 'movie'; source_path = 'C:\Incoming\Movies'; output_path = 'D:\Processed'; overrides = [ordered]@{} },
+    [ordered]@{ id = 'tv'; name = 'TV'; enabled = $true; designation = 'tv'; source_path = 'C:\Incoming\TV'; output_path = 'D:\Processed'; overrides = [ordered]@{} },
+    [ordered]@{ id = 'concerts'; name = 'Concerts'; enabled = $true; designation = 'auto'; source_path = 'C:\Incoming\Concerts'; output_path = ''; overrides = [ordered]@{} }
+)
+$blankCustomOutputCheck = Test-MediaPipelineConfigSchema -Config $blankCustomOutputConfig
+if (-not [bool]$blankCustomOutputCheck.Ok) {
+    throw "PowerShell schema must allow custom blank output_path inheritance: $(@($blankCustomOutputCheck.Errors) -join '; ')"
+}
+
+$promotionDestinationConfig = Get-MediaPipelineConfigDefaultValues
+$promotionDestinationConfig['LibraryProfiles'] = @(
+    [ordered]@{ id = 'movies'; name = 'Movies'; enabled = $true; designation = 'movie'; source_path = 'C:\Incoming\Movies'; output_path = 'D:\Processed'; overrides = [ordered]@{} },
+    [ordered]@{ id = 'tv'; name = 'TV'; enabled = $true; designation = 'tv'; source_path = 'C:\Incoming\TV'; output_path = 'D:\Processed'; overrides = [ordered]@{} },
+    [ordered]@{ id = 'concerts'; name = 'Concerts'; enabled = $true; designation = 'auto'; source_path = 'C:\Incoming\Concerts'; output_path = ''; promotion_enabled = $true; promotion_destination = ''; overrides = [ordered]@{} }
+)
+$promotionDestinationCheck = Test-MediaPipelineConfigSchema -Config $promotionDestinationConfig
+$promotionDestinationErrors = @($promotionDestinationCheck.Errors) -join "`n"
+if ([bool]$promotionDestinationCheck.Ok -or $promotionDestinationErrors -notmatch 'Concerts promotion_destination cannot be empty when promotion is enabled') {
+    throw 'PowerShell schema must still require explicit promotion_destination when promotion is enabled.'
+}
+
+$friendlyOverrideConfig = Get-MediaPipelineConfigDefaultValues
+$friendlyOverrideConfig['LibraryProfiles'] = @(
+    [ordered]@{
+        id = 'movies'
+        name = 'Movies'
+        enabled = $true
+        designation = 'movie'
+        source_path = 'C:\Incoming\Movies'
+        output_path = 'D:\Processed'
+        overrides = [ordered]@{ editor = [ordered]@{ ProcessingStrategy = 'manual' } }
+    },
+    [ordered]@{ id = 'tv'; name = 'TV'; enabled = $true; designation = 'tv'; source_path = 'C:\Incoming\TV'; output_path = 'D:\Processed'; overrides = [ordered]@{} }
+)
+$friendlyOverrideCheck = Test-MediaPipelineConfigSchema -Config $friendlyOverrideConfig
+$friendlyOverrideErrors = @($friendlyOverrideCheck.Errors) -join "`n"
+if ([bool]$friendlyOverrideCheck.Ok -or $friendlyOverrideErrors -notmatch 'ProcessingStrategy is not a supported library override key') {
+    throw 'PowerShell schema must reject friendly label aliases inside library overrides.'
+}
+
+foreach ($numericPolicy in @(
+    @{ Key = 'EncodeThresholdGB'; Below = 0 },
+    @{ Key = 'TVEncodeThresholdGB'; Below = 0 },
+    @{ Key = 'MovieRouteMaxVideoBitrateMbps'; Below = 0; Above = 501 },
+    @{ Key = 'TVRouteMaxVideoBitrateMbps'; Below = 0; Above = 501 },
+    @{ Key = 'H264RemuxMaxBitrateMbps'; Below = 0; Above = 501 },
+    @{ Key = 'H264RemuxMaxHeight'; Below = 0; Above = 4321 },
+    @{ Key = 'MaxEncodeGrowthPercent'; Below = -1; Above = 1001 },
+    @{ Key = 'CompatibilityEncodeGrowthPercent'; Below = -1; Above = 1001 },
+    @{ Key = 'VideoQuality'; Below = 0; Above = 52 },
+    @{ Key = 'AudioMaxChannels'; Below = 0; Above = 17 },
+    @{ Key = 'MergeThresholdMs'; Below = -1; Above = 5001 },
+    @{ Key = 'SubtitleExtractTimeoutSeconds'; Below = 29; Above = 3601 },
+    @{ Key = 'SubtitleProbeTimeoutSeconds'; Below = 4; Above = 601 },
+    @{ Key = 'BdpgsOcrTimeoutSeconds'; Below = 59; Above = 14401 },
+    @{ Key = 'VobSubOcrTimeoutSeconds'; Below = 59; Above = 14401 },
+    @{ Key = 'TransientFailureRetryLimit'; Below = 0; Above = 101 },
+    @{ Key = 'RobocopyTimeoutSeconds'; Below = 59; Above = 172801 },
+    @{ Key = 'SourceScanTimeoutSeconds'; Below = 29; Above = 86401 },
+    @{ Key = 'IndexScanTimeoutSeconds'; Below = 29; Above = 86401 },
+    @{ Key = 'CleanupScanTimeoutSeconds'; Below = 29; Above = 7201 },
+    @{ Key = 'CleanupStaleAgeHours'; Below = 0; Above = 721 },
+    @{ Key = 'CpuEncodeMaxThreads'; Below = -1; Above = 257 },
+    @{ Key = 'FallbackCpuQuality'; Below = 0; Above = 52 },
+    @{ Key = 'OutputSizeMultiplier'; Below = 0.09; Above = 2.1 }
+)) {
+    foreach ($side in @('Below','Above')) {
+        if (-not $numericPolicy.ContainsKey($side)) { continue }
+        $badConfig = Get-MediaPipelineConfigDefaultValues
+        $badConfig[[string]$numericPolicy.Key] = $numericPolicy[$side]
+        $badResult = Test-MediaPipelineConfigSchema -Config $badConfig
+        $badErrors = @($badResult.Errors) -join "`n"
+        if ([bool]$badResult.Ok -or $badErrors -notmatch [regex]::Escape([string]$numericPolicy.Key)) {
+            throw "PowerShell schema did not reject $($numericPolicy.Key) $side JSON/Python numeric range."
+        }
+    }
 }
 
 $scanFiles = @(

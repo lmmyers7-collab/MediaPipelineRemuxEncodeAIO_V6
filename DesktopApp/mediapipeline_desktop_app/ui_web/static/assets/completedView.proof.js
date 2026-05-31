@@ -91,7 +91,7 @@
         return "not-visible";
       }
       if (category === "subtitle-srt-generation") {
-        if (Number(item?.subtitle_decision_count || 0) > 0 || hasAny(["subtitle", "srt", "tx3g", "mov_text", "mov text", "bdpgs", "pgs", "ass", "ssa"])) return "completed-media-signal";
+        if (Number(item?.subtitle_decision_count || 0) > 0 || hasAny(["subtitle", "srt", "tx3g", "mov_text", "mov text", "bdpgs", "pgs", "vobsub", "dvd_subtitle", "ass", "ssa"])) return "completed-media-signal";
         return "not-visible";
       }
       if (category === "audio-routing") {

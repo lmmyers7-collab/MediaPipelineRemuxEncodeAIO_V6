@@ -27,6 +27,17 @@ COMPLETED_HISTORY_EMPTY_MESSAGE = "No completed jobs are available from the loca
 COMPLETED_MANIFEST_STALE_AFTER_SECONDS = 604800
 COMPLETED_INVENTORY_PROGRESS_SCHEMA_VERSION = "desktop_completed_inventory_progress.v1"
 COMPLETED_HISTORY_ALL_LIMIT = "all"
+COMPLETED_NEUTRAL_SIZE_DELTA_PERCENT = 1.0
+COMPLETED_RUNTIME_FAILURE_STATUSES = {
+    "failed",
+    "skipped",
+    "stopped",
+    "transient_failure",
+    "permanent_failure",
+    "operator_required_failure",
+    "failure_recorded",
+}
+COMPLETED_BENIGN_RUNTIME_ERROR_CODES = {"already_processed"}
 
 
 def _completed_preview_dto(**fields: Any) -> "CompletedPreviewDto":
@@ -261,7 +272,7 @@ def completed_row_operator_status_state(
     if runtime_recent and (
         runtime_success is False
         or runtime_success_text == "false"
-        or runtime_status in {"failed", "skipped", "stopped", "transient_failure", "permanent_failure", "operator_required_failure", "failure_recorded"}
+        or runtime_status in COMPLETED_RUNTIME_FAILURE_STATUSES
     ):
         return "warning"
     if operator_severity == "warning" or warning_flags:
@@ -370,15 +381,21 @@ def completed_row_operator_guidance(row: dict[str, Any]) -> dict[str, Any]:
     runtime_success = row.get("runtime_outcome_success")
     runtime_success_text = str(runtime_success).casefold() if runtime_success is not None else ""
     runtime_recent = bool(runtime_outcome_status) and runtime_outcome_freshness != "stale"
-    runtime_failed = runtime_success is False or runtime_success_text == "false" or runtime_outcome_status.casefold() in {
-        "failed",
-        "skipped",
-        "stopped",
-        "transient_failure",
-        "permanent_failure",
-        "operator_required_failure",
-        "failure_recorded",
+    runtime_failed = (
+        runtime_success is False
+        or runtime_success_text == "false"
+        or runtime_outcome_status.casefold() in COMPLETED_RUNTIME_FAILURE_STATUSES
+    )
+    runtime_successful = runtime_success is True or runtime_success_text == "true" or runtime_outcome_status.casefold() in {
+        "ok",
+        "success",
+        "succeeded",
+        "completed",
+        "published",
     }
+    runtime_error_review = bool(runtime_error_code) and not (
+        runtime_successful and runtime_error_code.casefold() in COMPLETED_BENIGN_RUNTIME_ERROR_CODES
+    )
 
     if not output_exists:
         flags.append("missing_output")
@@ -401,7 +418,10 @@ def completed_row_operator_guidance(row: dict[str, Any]) -> dict[str, Any]:
             flags.append("size_growth_over_5")
             if severity != "error":
                 severity = "warning"
-        elif isinstance(size_delta, (int, float)) and float(size_delta) > 0.0:
+        elif (
+            isinstance(size_delta, (int, float))
+            and float(size_delta) > COMPLETED_NEUTRAL_SIZE_DELTA_PERCENT
+        ):
             flags.append("size_growth")
             if severity == "ok":
                 severity = "warning"
@@ -417,7 +437,7 @@ def completed_row_operator_guidance(row: dict[str, Any]) -> dict[str, Any]:
         flags.append("encoded")
     elif route == "remux":
         flags.append("remuxed")
-    if runtime_outcome_status:
+    if runtime_outcome_status and (runtime_failed or runtime_error_review):
         flags.append("runtime_outcome")
         flags.append(f"runtime_outcome:{runtime_outcome_status.casefold()}")
         if runtime_error_code:
@@ -438,7 +458,7 @@ def completed_row_operator_guidance(row: dict[str, Any]) -> dict[str, Any]:
         guidance = "This completed row exists, but the latest backend runtime event for the same source/output failed or skipped. Inspect runtime history, pending publish, and logs before treating this manifest row as current."
     elif "size_policy_enforced" in flags:
         label = "Size policy blocked"
-        guidance = "Completed history reports an output that exceeded a strict size guard. Inspect route metadata, Run Logs, and sidecar size_policy before trusting this row."
+        guidance = "Completed history reports an output that exceeded a strict Output Size Check. Inspect route metadata, Run Logs, and sidecar size_policy before trusting this row."
     elif "size_policy_exceeded" in flags:
         label = "Review size policy"
         guidance = "Output exceeded the recorded size policy but the guard was advisory. Confirm this was an intentional compatibility encode before accepting the result."

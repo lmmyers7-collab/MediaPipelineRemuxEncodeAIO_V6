@@ -103,10 +103,10 @@ LOCAL_API_FILE_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "path": "/api/final-library-promotion/promote-queue",
         "auth_required": True,
         "effect": "filesystem-mutation",
-        "request_keys": ["confirm_promote"],
+        "request_keys": ["confirm_promote", "row_keys"],
         "response_schema": "desktop_command_result.v1",
         "data_schema": "final_library_promotion_run.v1",
-        "purpose": "Start the backend-owned queue-wide final-library promotion run after explicit confirmation. It copies verified completed outputs from Outsource to configured final-library destinations and may delete only verified publish-output files when cleanup is enabled.",
+        "purpose": "Start the backend-owned queue-wide or selected-row final-library promotion run after explicit confirmation. It copies verified completed outputs from Outsource to configured final-library destinations and may delete only verified publish-output files when cleanup is enabled.",
     },
     {
         "method": "POST",
@@ -202,6 +202,20 @@ LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "safe_defaults": {"timeout_seconds": 600},
         "response_schema": "desktop_command_result.v1",
         "purpose": "Run the completed-jobs manifest backfill with -DryRun only. The completed manifest is not rewritten.",
+    },
+    {
+        "method": "POST",
+        "path": "/api/maintenance/dependency-atlas",
+        "auth_required": True,
+        "effect": "tooling-artifact-write",
+        "request_keys": ["timeout_seconds", "min_overview_edge_count", "min_overview_files"],
+        "safe_defaults": {
+            "timeout_seconds": 600,
+            "min_overview_edge_count": 4,
+            "min_overview_files": 2,
+        },
+        "response_schema": "desktop_command_result.v1",
+        "purpose": "Regenerate V6_dependency_atlas HTML, PNG/SVG diagrams, and CSV exports under the repository root through the backend tooling runner. It does not touch media, queue, settings, manifests, or pipeline state.",
     },
 )
 
@@ -332,6 +346,16 @@ LOCAL_API_SETTINGS_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "request_keys": ["changes", "remove_keys"],
         "response_schema": "desktop_command_result.v1",
         "purpose": "Merge explicit settings changes with the backend's unredacted config and return a redacted diff without writing the PSD1 config.",
+    },
+    {
+        "method": "POST",
+        "path": "/api/settings/pipeline-plan-preview",
+        "auth_required": True,
+        "effect": "none",
+        "request_keys": ["source_media", "changes", "remove_keys"],
+        "response_schema": "desktop_command_result.v1",
+        "data_schema": "pipeline_plan.v1",
+        "purpose": "Validate strict SourceMediaInfo facts, merge optional staged Settings patch values in memory, and return a backend-owned dry-run PipelinePlan preview without probing paths, saving config, launching work, changing queue state, publishing, draining, renaming, or touching media files.",
     },
     {
         "method": "POST",

@@ -33,6 +33,7 @@ pub(crate) struct BackendProcess {
     child: Mutex<Option<Child>>,
     url: String,
     token: String,
+    startup_warnings: Vec<String>,
 }
 
 impl BackendProcess {
@@ -42,6 +43,10 @@ impl BackendProcess {
 
     pub(crate) fn token(&self) -> &str {
         &self.token
+    }
+
+    pub(crate) fn startup_warnings(&self) -> &[String] {
+        &self.startup_warnings
     }
 
     pub(crate) fn health_check(&self) -> ShellResult<()> {
@@ -179,18 +184,46 @@ pub(crate) fn start_backend(desktop_root: &Path) -> ShellResult<BackendProcess> 
             bootstrap.url
         )));
     }
+    let mut startup_warnings = Vec::new();
     if let Err(error) = validate_backend_web_ui(&bootstrap.url, &bootstrap.token) {
-        terminate_child(&mut child);
-        return Err(shell_error(format!(
-            "Backend WebView asset validation failed for '{}': {error}",
-            bootstrap.url
-        )));
+        let detail = redact_validation_detail(&error.to_string(), &bootstrap.token);
+        if web_ui_validation_error_is_fatal(&detail) {
+            terminate_child(&mut child);
+            return Err(shell_error(format!(
+                "Backend WebView asset validation failed for '{}': {detail}",
+                bootstrap.url
+            )));
+        }
+        let warning = format!(
+            "Backend WebView asset validation warning for '{}': {}",
+            bootstrap.url,
+            bounded_text(&detail, 700)
+        );
+        eprintln!("[mediapipeline-shell] {warning}");
+        startup_warnings.push(warning);
     }
     Ok(BackendProcess {
         child: Mutex::new(Some(child)),
         url: bootstrap.url,
         token: bootstrap.token,
+        startup_warnings,
     })
+}
+
+pub(crate) fn web_ui_validation_error_is_fatal(detail: &str) -> bool {
+    detail.contains("Backend WebView index leaked the bearer token")
+        || detail.contains("Backend WebView index still contains the raw bootstrap placeholder")
+        || detail
+            .contains("Backend WebView index is missing required fragment 'bootstrap assignment'")
+}
+
+fn redact_validation_detail(detail: &str, token: &str) -> String {
+    let redacted = redact_bootstrap_stdout(detail);
+    if token.trim().is_empty() {
+        redacted
+    } else {
+        redacted.replace(token, "[redacted]")
+    }
 }
 
 pub(crate) fn read_backend_bootstrap(

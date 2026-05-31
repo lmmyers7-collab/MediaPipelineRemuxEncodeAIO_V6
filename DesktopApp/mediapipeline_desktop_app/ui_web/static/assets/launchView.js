@@ -29,7 +29,7 @@
   const controlConfirmMessages = {
     rescan: "Request a queue rescan flag for the running pipeline? This does not start a new run or touch media, but it can change what the active loop sees next.",
     stop: "Request Stop After Current? The current file may finish; no new file should start. Use Force Stop only if the run is stalled.",
-    kill: "Force stop immediately? This asks the backend to terminate the active process tree. The current file can be left partial in scratch and will need review; source media should not be touched.",
+    kill: "Force stop immediately? This terminates any active pipeline processes and resets stuck progress state to idle. The current file may be left partial in scratch; source media is not touched.",
   };
 
   const launchCommandButtonIds = [
@@ -90,6 +90,11 @@
     if (closeReadiness?.safe_to_close === false || closeReadiness?.active_work === true) return true;
     const state = String(snapshot?.pipeline_state || closeReadiness?.state || "").trim().toLowerCase();
     return ["processing", "running", "active", "publishing", "audit", "rerun", "stopping", "paused"].includes(state);
+  }
+
+  function pipelineProgressIsStuck(snapshot = lastLaunchCommandState.snapshot) {
+    const stage = String(snapshot?.progress?.CurrentStage || "").toLowerCase().trim();
+    return !!stage && stage !== "idle" && stage !== "startup";
   }
 
   function launchPauseRequested(snapshot = lastLaunchCommandState.snapshot) {
@@ -204,9 +209,27 @@
     setText("home-control-message", message);
   }
 
+  function setStartupBanner(text) {
+    document.querySelectorAll(".pipeline-startup-banner").forEach((el) => {
+      el.textContent = text;
+      el.hidden = false;
+      el.dataset.state = "loading";
+    });
+  }
+
+  function clearStartupBanner() {
+    document.querySelectorAll(".pipeline-startup-banner").forEach((el) => {
+      el.hidden = true;
+      el.textContent = "";
+      delete el.dataset.state;
+    });
+  }
+
   function updateLaunchCommandButtonStates(snapshot = lastLaunchCommandState.snapshot, closeReadiness = lastLaunchCommandState.closeReadiness) {
     lastLaunchCommandState = { snapshot: snapshot || null, closeReadiness: closeReadiness || null };
     const active = launchPipelineIsActive(snapshot, closeReadiness);
+    const stuck = pipelineProgressIsStuck(snapshot);
+    if (active) clearStartupBanner();
     const startReason = active
       ? "Disabled while backend close-readiness reports active work. Stop or wait for idle before starting another pipeline/audit/rerun command."
       : "Backend start route will re-check queue, settings, schedule, and process locks at submission time.";
@@ -226,24 +249,28 @@
     });
     document.querySelectorAll("[data-control-action]").forEach((button) => {
       const action = String(button.dataset.controlAction || "").toLowerCase();
-      const disabled = controlCommandInFlight || !active;
+      const killable = active || stuck;
+      const disabled = action === "kill" ? (controlCommandInFlight || !killable) : (controlCommandInFlight || !active);
       const busyReason = "A pipeline control command is already in progress.";
-      const idleReason = "Disabled while no active backend work is reported.";
+      const idleReason = action === "kill"
+        ? "Disabled: no active backend work and no stuck progress state detected."
+        : "Disabled while no active backend work is reported.";
       const activeReason = {
         pause: `${pauseLabel} the active backend pipeline.`,
         rescan: "Request a queue rescan flag for the running backend pipeline.",
         stop: "Request graceful Stop After Current for the active backend pipeline.",
-        kill: "Emergency force stop for the active backend process tree. Requires confirmation.",
+        kill: "Force stop: terminates active processes and resets stuck progress to idle.",
       }[action] || "Backend-owned pipeline control.";
-      setButtonDisabledWithReason(button, disabled, controlCommandInFlight ? busyReason : (active ? activeReason : idleReason));
+      const effective = action === "kill" ? killable : active;
+      setButtonDisabledWithReason(button, disabled, controlCommandInFlight ? busyReason : (effective ? activeReason : idleReason));
       if (action === "pause") setButtonClass(button, active ? "primary-button" : "secondary-button");
       if (action === "rescan") setButtonClass(button, "secondary-button");
       if (action === "stop") setButtonClass(button, active ? "primary-button" : "secondary-button");
       if (action === "kill") {
         setButtonClass(button, button.classList.contains("topbar-emergency-control") ? "danger-button emergency-button topbar-emergency-control" : "danger-button emergency-button");
         if (button.classList.contains("topbar-emergency-control")) {
-          button.hidden = !active;
-          button.setAttribute("aria-hidden", active ? "false" : "true");
+          button.hidden = !killable;
+          button.setAttribute("aria-hidden", killable ? "false" : "true");
         }
       }
     });
@@ -362,11 +389,16 @@
     };
     const status = typeof launchCommandCorrelationStatus === "function" ? launchCommandCorrelationStatus(entry) : "not evaluated";
     const rows = launchCommandCorrelationRows(entry);
+    const issue = payload.ok ? String(payload.severity || "info").toLowerCase() : "error";
+    const success = payload.ok === true && !["warning", "error", "blocked"].includes(issue);
     const lines = [
       "",
       "Checklist correlation:",
       `Status: ${status}`,
     ];
+    if (success) {
+      lines.push("Backend command accepted. Rows below are cached advisory evidence; they did not block this submitted command.");
+    }
     if (!rows.length) {
       lines.push("- No cached Backend Preflight, Launch intent, or Queue checklist rows were available.");
     } else {
@@ -377,11 +409,16 @@
     }
     if (typeof launchCommandDiagnosticsActions === "function") {
       const actions = launchCommandDiagnosticsActions(entry);
-      const readTargets = actions.filter((action) => action.kind === "tail").map((action) => action.target).join(", ") || "none";
-      const openTargets = actions.filter((action) => action.kind !== "tail").map((action) => action.target).join(", ") || "none";
-      lines.push("Diagnostics retry guidance:");
-      lines.push(`Read-first targets: ${readTargets}`);
-      lines.push(`Open-next targets: ${openTargets}`);
+      if (success) {
+        lines.push("Diagnostics guidance:");
+        lines.push("Use Diagnostics only if Home, Launch, Progress, or ActiveJobs disagree with this successful backend result.");
+      } else {
+        const readTargets = actions.filter((action) => action.kind === "tail").map((action) => action.target).join(", ") || "none";
+        const openTargets = actions.filter((action) => action.kind !== "tail").map((action) => action.target).join(", ") || "none";
+        lines.push("Diagnostics retry guidance:");
+        lines.push(`Read-first targets: ${readTargets}`);
+        lines.push(`Open-next targets: ${openTargets}`);
+      }
     }
     lines.push("Correlation is explanatory only; backend start routes remain authoritative at submission time.");
     return lines;
@@ -945,6 +982,8 @@
       setText("pipeline-launch-detail", canceled.message);
       return;
     }
+    const startBtn = byId("pipeline-start-button");
+    if (startBtn) startBtn.textContent = "Launching…";
     setLaunchCommandBusy(true);
     setText("pipeline-launch-status", "Starting...");
     renderJsonDetail("pipeline-launch-detail", {
@@ -958,6 +997,17 @@
       renderLaunchCommandResult("pipeline-launch-status", "pipeline-launch-detail", result, request);
       if ((result.refresh_hint || "") === "snapshot") {
         await refreshAll();
+      }
+      if (result.ok) {
+        const pidMatch = String(result.message || "").match(/\bPID\s*(\d+)\b/i);
+        const pid = pidMatch ? pidMatch[1] : "";
+        setStartupBanner(pid
+          ? `Pipeline starting — PID ${pid}. Waiting for first status update…`
+          : "Pipeline starting. Waiting for first status update…"
+        );
+        window.setTimeout(refreshAll, 2000);
+        window.setTimeout(refreshAll, 6000);
+        window.setTimeout(refreshAll, 12000);
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -974,6 +1024,7 @@
         message,
       }, request);
     } finally {
+      if (startBtn) startBtn.textContent = "Start Pipeline";
       setLaunchCommandBusy(false);
     }
   }

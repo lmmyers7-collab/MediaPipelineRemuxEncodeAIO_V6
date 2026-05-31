@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/contracts/pending_publish.py
 pipeline_stage: publish
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-05-28
+last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: fc6a0334787a097f9f37984de65937d3da2f58f8a8de6abb9560d7141cf3a087
+sha256: ef467948f4ada0cf71ca35e01cf4ce8ca4d231a97e8c126b03b3de4827e8c8eb
 ---
 # `DesktopApp/mediapipeline_desktop_app/contracts/pending_publish.py`
 

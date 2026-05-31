@@ -170,7 +170,8 @@ function Invoke-MediaPipelineProcessFile {
         $idx,
         [int]$QueueIndex = 0,
         [int]$QueueTotal = 0,
-        $PriorityInfo = $null
+        $PriorityInfo = $null,
+        [string]$LibraryProfileId = ''
     )
 
     if ($script:ProgressWriteFailures -ge 3) {
@@ -220,7 +221,7 @@ function Invoke-MediaPipelineProcessFile {
     if ($result) { return $result }
     $tvInfo = $showNameDecision.TvInfo
 
-    $alreadyProcessedDecision = Test-MediaPipelineAlreadyProcessedPreflight -File $file -IsTV:$isTV -TvInfo $tvInfo -ProcessedIndex $idx -MediaType $mediaType
+    $alreadyProcessedDecision = Test-MediaPipelineAlreadyProcessedPreflight -File $file -IsTV:$isTV -TvInfo $tvInfo -ProcessedIndex $idx -MediaType $mediaType -LibraryProfileId ([string]$LibraryProfileId)
     $result = Invoke-MediaPipelineProcessPreflightDecision -Decision $alreadyProcessedDecision -File $file -CollectedChecks $preflightChecks
     if ($result) { return $result }
 
@@ -228,7 +229,7 @@ function Invoke-MediaPipelineProcessFile {
     $result = Invoke-MediaPipelineProcessPreflightDecision -Decision $stabilityDecision -File $file -CollectedChecks $preflightChecks
     if ($result) { return $result }
 
-    $outputPathDecision = Test-MediaPipelineOutputPathPreflight -File $file -IsTV:$isTV -TvInfo $tvInfo -MediaType $mediaType
+    $outputPathDecision = Test-MediaPipelineOutputPathPreflight -File $file -IsTV:$isTV -TvInfo $tvInfo -MediaType $mediaType -LibraryProfileId ([string]$LibraryProfileId)
     $result = Invoke-MediaPipelineProcessPreflightDecision -Decision $outputPathDecision -File $file -CollectedChecks $preflightChecks
     if ($result) { return $result }
 
@@ -236,7 +237,21 @@ function Invoke-MediaPipelineProcessFile {
     $displayName = "$queuePrefix$($file.Name)"
     $script:CurrentJobId = Get-SourceIdentityKeyV2 $file
     if (-not $script:CurrentJobId) { $script:CurrentJobId = Get-SourceIdentityKey $file }
-    Set-ProgressItemContext -DisplayName $displayName -FilePath $file.FullName -MediaType $queueLabel.ToLowerInvariant() -QueuePhase $queuePhase -QueueIndex $QueueIndex -QueueTotal $QueueTotal
+    $previousLibraryProfileId = Get-Variable -Name CurrentLibraryProfileId -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+    $script:CurrentLibraryProfileId = [string]$LibraryProfileId
+    $libraryEvidenceForJob = Get-MediaPipelineLibraryProfileEvidenceForPath -SourcePath ([string]$file.FullName) -LibraryProfileId ([string]$LibraryProfileId)
+    Set-ProgressItemContext `
+        -DisplayName $displayName `
+        -FilePath $file.FullName `
+        -MediaType $queueLabel.ToLowerInvariant() `
+        -LibraryId ([string]$libraryEvidenceForJob['library_id']) `
+        -LibraryName ([string]$libraryEvidenceForJob['library_name']) `
+        -LibraryDesignation ([string]$libraryEvidenceForJob['designation']) `
+        -LibrarySourceRoot ([string]$libraryEvidenceForJob['source_root']) `
+        -LibraryOutputRoot ([string]$libraryEvidenceForJob['output_root']) `
+        -QueuePhase $queuePhase `
+        -QueueIndex $QueueIndex `
+        -QueueTotal $QueueTotal
     Set-ProgressStage -Stage 'processing' -Status 'Processing' -Percent $null -CopyState $null -PushState $null -SidecarState $null -SaveNow
     Write-PipelineEvent -EventType 'job_started' -Stage 'processing' -Status 'started' -SourcePath $file.FullName -Data @{
         media_type   = $queueLabel.ToLowerInvariant()
@@ -245,6 +260,12 @@ function Invoke-MediaPipelineProcessFile {
         queue_total  = $QueueTotal
         priority     = [bool]$PriorityInfo.IsPriority
         display_name = $displayName
+        library_profile = $libraryEvidenceForJob
+        library_id = [string]$libraryEvidenceForJob['library_id']
+        library_name = [string]$libraryEvidenceForJob['library_name']
+        library_designation = [string]$libraryEvidenceForJob['designation']
+        library_source_root = [string]$libraryEvidenceForJob['source_root']
+        library_output_root = [string]$libraryEvidenceForJob['output_root']
     } | Out-Null
 
     Write-Log "=========================================="
@@ -252,6 +273,9 @@ function Invoke-MediaPipelineProcessFile {
     if ($isTV) {
         Write-Log "${queuePrefix}TV: $($tvInfo.ShowName) S$($tvInfo.Season.ToString('00'))E$($tvInfo.Episode.ToString('00'))"
     } else { Write-Log "${queuePrefix}TYPE: Movie" }
+    $libraryLogName = if ([string]::IsNullOrWhiteSpace([string]$libraryEvidenceForJob['library_name'])) { [string]$libraryEvidenceForJob['library_id'] } else { [string]$libraryEvidenceForJob['library_name'] }
+    $libraryOverrideKeyText = (@($libraryEvidenceForJob['settings_override_keys']) | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join ', '
+    Write-Log "${queuePrefix}LIBRARY: $libraryLogName ($($libraryEvidenceForJob['library_id'])) source=$($libraryEvidenceForJob['source_root']) output=$($libraryEvidenceForJob['output_root']) overrides=$libraryOverrideKeyText" "INFO"
 
     # Resolve effective per-job overrides before route selection so folder
     # and library policy can influence routing, encode ladders, audio, and
@@ -259,7 +283,7 @@ function Invoke-MediaPipelineProcessFile {
     # finally block.
     $showOverrides = if ($isTV -and $tvInfo.ShowName) { Resolve-ShowOverrides $tvInfo.ShowName } else { $null }
     $folderOverrides = Resolve-FolderPolicyOverrides -SourceFile $file
-    $libraryOverrides = Resolve-MediaPipelineLibraryOverridesForPath -SourcePath $file.FullName
+    $libraryOverrides = Resolve-MediaPipelineLibraryOverridesForPath -SourcePath $file.FullName -LibraryProfileId ([string]$LibraryProfileId)
     $script:ActiveOverrides = Merge-MediaPipelineActiveOverrides -Base $libraryOverrides -Override $showOverrides
     $script:ActiveOverrides = Merge-MediaPipelineActiveOverrides -Base $script:ActiveOverrides -Override $folderOverrides
     # Merge per-file à-la-carte overrides from file_overrides.json (Phase 3).
@@ -297,6 +321,12 @@ function Invoke-MediaPipelineProcessFile {
             source_media_profile = $routePlan.SourceMediaProfile
             requires_probe     = [bool]$routePlan.RequiresCodecProbe
             media_type         = $queueLabel.ToLowerInvariant()
+            library_profile    = $libraryEvidenceForJob
+            library_id         = [string]$libraryEvidenceForJob['library_id']
+            library_name       = [string]$libraryEvidenceForJob['library_name']
+            library_designation = [string]$libraryEvidenceForJob['designation']
+            library_source_root = [string]$libraryEvidenceForJob['source_root']
+            library_output_root = [string]$libraryEvidenceForJob['output_root']
             library_settings_override_keys = @($libraryOverrides.Keys)
             library_settings_overrides = $libraryOverrides
             library_effective_settings = $libraryEffectiveSettings
@@ -340,6 +370,11 @@ function Invoke-MediaPipelineProcessFile {
         Pop-MediaPipelineActiveConfigOverrides -Snapshot $activeConfigOverrideSnapshot
         $script:ActiveOverrides = $null
         $script:CurrentJobId = $null
+        if ($null -ne $previousLibraryProfileId) {
+            $script:CurrentLibraryProfileId = $previousLibraryProfileId
+        } else {
+            Remove-Variable -Name CurrentLibraryProfileId -Scope Script -ErrorAction SilentlyContinue
+        }
         $script:CurrentRoutePlan = $null
         $script:CurrentEncodeAttempts = $null
         $script:CurrentSizePolicyResult = $null

@@ -3,7 +3,7 @@
 All notable changes to this project are recorded here. The format is based
 on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this
 project adheres to a date-based release cadence rather than semantic
-versioning until V7 ships.
+versioning.
 
 This is the single canonical changelog (ADR-0009). Per-feature
 `*_REPORT.md` and `*_FIXES.md` at the repo root are deprecated; if a PR's
@@ -13,6 +13,11 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Added
 
+- Route policy evidence lockdown:
+  `Resolve-MediaRouteBySize` now carries size/bitrate threshold evidence
+  through decide-stage results and queue preview rows, with characterization
+  coverage for route threshold modes, H.264 shortcut semantics, and missing
+  duration bitrate behavior.
 - Configurable movie/TV remux-copy bitrate ceilings:
   `MovieRouteMaxVideoBitrateMbps` defaults to `35` Mbps and
   `TVRouteMaxVideoBitrateMbps` defaults to `18` Mbps. Routing now uses
@@ -67,10 +72,15 @@ intent is worth keeping, it goes here and/or in an ADR.
   enforce settings route ownership, and hold ESLint warning budgets. The new
   runbook and guardrail docs keep future plain-script splits scoped and
   reversible.
-- Domain/UI follow-up coverage for the current overhaul surface:
-  Rename Workbench V7 static/backend tests, library profile contract tests,
+- Domain/UI follow-up coverage for the current V6 surface:
+  Rename Workbench static/backend tests, library profile contract tests,
   final-library promotion service/WebView settings tests, and settings-libraries
   static coverage are present in the active test tree.
+- Promotion-state documentation refresh:
+  `AGENTS.md`, `README.md`, `Docs/CURRENT_PROJECT_STATE.md`,
+  `OPEN_WORK_CHECKLIST.md`, and `Docs/DOCS_INDEX.md` now treat V6
+  default-launcher/package-mode promotion as closed by 2026-05-30 operator
+  confirmation while preserving media-policy and revalidation safety rules.
 - `Docs/RealMediaValidationRuns/README.md` records the non-sensitive
   operator-attested representative real-media validation status for
   2026-05-28.
@@ -79,7 +89,7 @@ intent is worth keeping, it goes here and/or in an ADR.
   absolute local handoff paths, and removed legacy desktop-shell wording.
 - `CHANGELOG.md` (this file) as the single canonical changelog (ADR-0009).
 - `Docs/architecture/ARCHITECTURE.md` — short, human-maintained
-  architecture summary that cites the ADRs and the overhaul plan.
+  architecture summary that cites the ADRs and current architecture docs.
 - `Docs/generated/PIPELINE_MAP.md` — auto-generatable index of the
   nine canonical stages and their payload/result types from
   `app/contracts/stages.py`.
@@ -87,15 +97,15 @@ intent is worth keeping, it goes here and/or in an ADR.
   directory, the per-source-file summary scheme, and the SHA-256 drift
   rule.
 - `Docs/archive/sessions/SESSION.md` — archived session scope notes from
-  the overhaul workspace; current startup guidance lives in `AGENTS.md`.
+  the structural cleanup workspace; current startup guidance lives in
+  `AGENTS.md`.
 - `Docs/adr/` seeded with `README.md`, `0000-template.md`, and
   ADRs `0001`–`0011`. ADR-0011 (V5 → V6 split) was written from the
   surviving `V6_SPLIT_NOTES.md` at the repo root; the source notes were
   moved to `Docs/archive/v6-split-notes-2026-05-20.md` in the same
   change so the validation evidence and live-API proof survive.
 - `Docs/audits/latest.md` capturing current known issues distilled from
-  `Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md` §Current-State
-  Audit.
+  active architecture and status docs.
 - `scripts/release/Backup-PreOverhaul.ps1` — operator-run script that
   produces a tagged source archive, a release-package copy, and a
   `LocalBase/State/` snapshot under an external `-Destination`, with
@@ -106,6 +116,10 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Changed
 
+- Library Profiles override controls no longer render per-field
+  taxonomy/strictness chips. Backend metadata remains available for parity
+  and row data attributes, while inherited/default versus explicit override
+  state is shown with simple text color across all library override subtabs.
 - `V6_SPLIT_NOTES.md` moved from repo root to
   `Docs/archive/v6-split-notes-2026-05-20.md` (git history preserved
   via `git mv`). ADR-0011 is the durable architectural summary.
@@ -140,8 +154,9 @@ intent is worth keeping, it goes here and/or in an ADR.
   include Phase 5 naming lint and active-doc reference checks.
 - Phase 7 handoff docs now treat representative real-media validation as
   closed by operator attestation and Phase 6 local legacy burn-down as
-  complete, while keeping PG-3 clean-machine package-mode validation, operator
-  acceptance, and future media-behavior revalidation as active gates.
+  complete. Default-launcher/package-mode promotion is now closed by
+  2026-05-30 operator confirmation, while future media-behavior changes still
+  require revalidation.
 - `Docs/generated/PIPELINE_MAP.md` is generated from
   `app/contracts/stages.py` instead of hand-synced. The stale summary baseline
   was refreshed from the current source tree; `Docs/generated/PROJECT_INDEX.md`
@@ -172,9 +187,8 @@ intent is worth keeping, it goes here and/or in an ADR.
   `Docs/CURRENT_PROJECT_STATE.md` and `OPEN_WORK_CHECKLIST.md` were
   updated for the canonical launcher and worksheet paths.
 
-  The remaining promotion follow-up is PG-3 package-mode launch/close on a
-  separate clean Windows machine plus operator acceptance; the local shim
-  removal gate is closed.
+  Default-launcher/package-mode promotion is closed by 2026-05-30 operator
+  confirmation; the local shim removal gate is also closed.
 
 ### Notes
 
@@ -192,8 +206,8 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Added
 
-- `Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md` — V6 → V7 plan of
-  record.
+- Initial architecture planning material was added for the now-complete
+  structural cleanup.
 - `AGENTS.md` — canonical AI entry point, superseding
   `AI_AGENT_START_HERE.md`, `AI_DIRECTIVE.md`, `AI_HANDOFF.md`.
 - `app/` Python skeleton with empty domain dirs; `app/contracts/`

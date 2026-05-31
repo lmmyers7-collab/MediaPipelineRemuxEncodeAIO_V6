@@ -26,7 +26,7 @@ function New-SubtitleBuilderTrackDecisionRecord {
         [string] $Builder,
 
         [Parameter(Mandatory)]
-        [ValidateSet('Keep','ConvertAss','ConvertTx3g','ConvertBdpgs')]
+        [ValidateSet('Keep','ConvertAss','ConvertTx3g','ConvertBdpgs','ConvertVobSub')]
         [string] $Action,
 
         [Parameter(Mandatory)]
@@ -56,7 +56,7 @@ function New-SubtitleBuilderTrackDecisionRecord {
         ReviewFailureKind                = [string]$ReviewFailureKind
         ContainerLogMessage              = [string]$ContainerLogMessage
         ConversionKind                   = [string]$ConversionKind
-        ConversionFailureRoutesToReview  = ($Action -in @('ConvertAss','ConvertTx3g','ConvertBdpgs'))
+        ConversionFailureRoutesToReview  = ($Action -in @('ConvertAss','ConvertTx3g','ConvertBdpgs','ConvertVobSub'))
         IsPreferredDefaultCandidate      = (Test-SubtitleBuilderPreferredDefaultCandidate -Entry $Entry)
         IsFallbackDefaultCandidate       = (Test-SubtitleBuilderFallbackDefaultCandidate -Entry $Entry)
         IsForced                         = [bool]$Entry.IsForced
@@ -155,13 +155,15 @@ function Get-SubtitleBuilderTrackDecisionRecords {
         [ValidateSet('FFmpeg','Mkvmerge')]
         [string] $Builder,
         [bool] $CanPreserveTx3g = $false,
-        [bool] $CanPreserveBdpgs = $false
+        [bool] $CanPreserveBdpgs = $false,
+        [bool] $CanPreserveVobSub = $false
     )
 
     $records = [System.Collections.Generic.List[object]]::new()
     $effectiveDropAss = Get-EffectiveSubtitleSwitch -Name 'DropAssAfterConversion' -Default $false
     $effectiveDropTx3g = Get-EffectiveSubtitleSwitch -Name 'DropTx3gAfterConversion' -Default $false
     $effectiveDropBdpgs = Get-EffectiveSubtitleSwitch -Name 'DropBdpgsAfterConversion' -Default $false
+    $effectiveDropVobSub = Get-EffectiveSubtitleSwitch -Name 'DropVobSubAfterConversion' -Default $false
     $containerName = (Get-ConfiguredOutputContainerName).ToUpperInvariant()
 
     foreach ($entry in @($FilterResult.Convert)) {
@@ -231,6 +233,38 @@ function Get-SubtitleBuilderTrackDecisionRecords {
             -ConversionKind 'bdpgs_to_srt')) | Out-Null
     }
 
+    foreach ($entry in @($FilterResult.VobSubConvert | Where-Object { $null -ne $_ })) {
+        $preserveOriginal = $false
+        $sourceKind = if ($entry -is [hashtable] -and $entry.ContainsKey('SourceKind')) {
+            [string]$entry.SourceKind
+        } elseif ($entry.PSObject.Properties['SourceKind']) {
+            [string]$entry.SourceKind
+        } else {
+            'embedded'
+        }
+        $preserveReason = if ($sourceKind -eq 'sidecar') { 'external_sidecar_preserved_outside_output' } else { 'drop_original_vobsub_enabled' }
+        $containerLogMessage = ''
+        if ($sourceKind -ne 'sidecar' -and -not $effectiveDropVobSub) {
+            if ($Builder -eq 'Mkvmerge' -or $CanPreserveVobSub) {
+                $preserveOriginal = $true
+                $preserveReason = 'preserved'
+            } else {
+                $preserveReason = 'container_does_not_preserve_vobsub'
+                $containerLogMessage = "VobSub original stream $($entry.Stream.index) cannot be preserved in $containerName output; muxing OCR SRT only"
+            }
+        }
+
+        $records.Add((New-SubtitleBuilderTrackDecisionRecord `
+            -Builder $Builder `
+            -Action 'ConvertVobSub' `
+            -Entry $entry `
+            -PreserveOriginal:$preserveOriginal `
+            -OriginalPreserveReason $preserveReason `
+            -OriginalTitleSuffix '[VobSub]' `
+            -ContainerLogMessage $containerLogMessage `
+            -ConversionKind 'vobsub_to_srt')) | Out-Null
+    }
+
     foreach ($entry in @($FilterResult.Keep)) {
         $routesToReview = $false
         $reviewErrorCode = ''
@@ -253,6 +287,11 @@ function Get-SubtitleBuilderTrackDecisionRecords {
             $reviewErrorCode = 'SUBTITLE_BDPGS_CONTAINER_UNSUPPORTED'
             $reviewKind = 'bdpgs'
             $reviewReason = "$containerName output cannot preserve BDPGS stream $($entry.Stream.index); enable ConvertBdpgsToSrt for OCR conversion."
+        } elseif ([bool]$entry.IsVobSub -and $Builder -eq 'FFmpeg' -and -not $CanPreserveVobSub) {
+            $routesToReview = $true
+            $reviewErrorCode = 'SUBTITLE_VOBSUB_CONTAINER_UNSUPPORTED'
+            $reviewKind = 'vobsub'
+            $reviewReason = "$containerName output cannot preserve VobSub stream $($entry.Stream.index); enable ConvertVobSubToSrt for OCR conversion."
         }
 
         $preserveKeepOriginal = -not $routesToReview

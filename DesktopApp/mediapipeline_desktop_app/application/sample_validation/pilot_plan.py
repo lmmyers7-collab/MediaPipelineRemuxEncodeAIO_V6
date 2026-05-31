@@ -204,7 +204,7 @@ def sample_validation_pilot_plan_payload(readiness: Mapping[str, Any], reconcili
             "Confirm saved route/media policy",
             stage_rows.get("Confirm saved route/media policy", {}),
             "Settings / Launch",
-            "Saved settings evidence should match the route, size guard, subtitle, audio, pending-publish, and source-safety behavior expected for the sample.",
+            "Saved settings evidence should match the route, Output Size Check, subtitle, audio, pending-publish, and source-safety behavior expected for the sample.",
             "Operator confirms staged JSON is either saved/reloaded or irrelevant; Launch will use saved backend settings only.",
             "Unsaved/stale media policy can make the pilot prove a different encode/remux path than the one the operator intended.",
         ),

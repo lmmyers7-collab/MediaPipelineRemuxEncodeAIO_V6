@@ -64,6 +64,7 @@ class SettingsWorkspaceDto:
     paths: JsonMap = field(default_factory=dict)
     config: JsonMap = field(default_factory=dict)
     field_definitions: list[JsonMap] = field(default_factory=list)
+    library_profile_state: list[JsonMap] = field(default_factory=list)
     key_count: int = 0
     profiles: list[str] = field(default_factory=list)
     profile_summary: JsonMap = field(default_factory=dict)

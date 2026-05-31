@@ -148,6 +148,14 @@
             <strong id="diagnostics-state-recovery-status">Not loaded</strong>
           </div>
           <pre id="diagnostics-state-recovery" class="prose-block">No diagnostics state recovery checklist loaded.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Stuck Progress Reset</h3>
+          </div>
+          <p class="note">Use this when the pipeline shows an active stage (e.g. <em>copy_to_scratch</em>, <em>Remuxing Movie</em>) but no process is actually running. Force Stop on the Launch tab performs the same reset automatically. This button is always available regardless of reported pipeline state.</p>
+          <div class="action-row action-row-left">
+            <button id="diagnostics-force-reset-button" class="danger-button" type="button">Reset Stuck Progress to Idle</button>
+            <strong id="diagnostics-force-reset-status"></strong>
+          </div>
           <div data-advanced>
           <div class="panel-heading panel-subheading">
             <h3>Read Order</h3>

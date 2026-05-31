@@ -7,7 +7,7 @@
     Outsource = '//LAYNE-SERVER/Users/Layne/Videos/outsource'
     LocalBase = 'E:/Videos/Scratch'
     EncodeThresholdGB = 8
-    TVEncodeThresholdGB = 2
+    TVEncodeThresholdGB = 3
     RoutingProfile = 'plex_direct_stream'
     RouteThresholdMode = 'compatibility_advisory'
     MovieRouteMaxVideoBitrateMbps = 35
@@ -81,6 +81,14 @@
     )
     BdpgsOcrToolPath = 'Tools\PgsToSrt\PgsToSrt.exe'
     BdpgsOcrTessdataPath = 'Tools\PgsToSrt\tessdata'
+    ConvertVobSubToSrt = $false
+    DropVobSubAfterConversion = $false
+    VobSubExtractLanguages = @(
+        'eng',
+        'en',
+        'und'
+    )
+    VobSubOcrToolPath = 'Tools\SubtitleEdit\seconv.exe'
     SubSDHTitleKeywords = @(
         'sdh',
         'hearing impaired',
@@ -106,6 +114,7 @@
     TreatAssSignsSongsAsForced = $false
     TreatTx3gSignsSongsAsForced = $false
     TreatBdpgsSignsSongsAsForced = $false
+    TreatVobSubSignsSongsAsForced = $false
     ExcludeSubtitleStyles = @(
         'Sign',
         'Sign *',
@@ -194,6 +203,7 @@
     SubtitleExtractTimeoutSeconds = 180
     SubtitleProbeTimeoutSeconds = 30
     BdpgsOcrTimeoutSeconds = 1800
+    VobSubOcrTimeoutSeconds = 1800
     OutputValidationProbeTimeoutSeconds = 60
     OutputValidationMinSizeBytes = 1024
     OutputValidationDurationToleranceSeconds = 2

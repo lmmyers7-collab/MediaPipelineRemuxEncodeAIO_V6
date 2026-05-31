@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: completed
 last_modified: 2026-05-30
 last_reviewed: 2026-05-28
-sha256: 4382d578e453d9c2c38d98dc96e56248ce636808164dc8e22f049c2cdab72655
+sha256: b0bc197350b59b1a522ee2a3d5e72f552c3d8214408f13a49e459607e46afabd
 ---
 # `app/completed/policy.py`
 

@@ -127,7 +127,7 @@ function Do-Encode {
             return $false
         }
         $defaultAudioLang = Get-DefaultAudioLang $localIn
-        $subFilter        = Filter-SubtitleStreams $localIn "ENCODE: "
+        $subFilter        = Filter-SubtitleStreams $localIn "ENCODE: " -OriginalSourcePath $file.FullName
         if ($subFilter.ProbeFailed) {
             Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'transient' -Reason ([string]$subFilter.Reason) -Stage 'subtitle-probe' -ErrorCode ([string]$subFilter.ErrorCode) -SuggestedAction 'Inspect ffprobe subtitle output and the source file; the pipeline will not silently encode with unknown subtitle state.' | Out-Null
             $localIn = $null
@@ -491,7 +491,7 @@ function Do-Encode {
         $route = if ($usingCpu) { "encode-cpu-fallback" } elseif ($usingSafeRetry) { "encode-safe-retry" } else { "encode" }
         $routeReasonCode = [string]$script:CurrentRouteReasonCode
         $routeReason     = [string]$script:CurrentRouteReason
-        $publishResult = Complete-PipelineOutputPublish -SourceFile $file -ScratchPath $localIn -Paths $paths -Route $route -ProgressRoute 'encode' -StagePrefix 'encode' -Context "ENCODE: " -RouteReasonCode $routeReasonCode -RouteReason $routeReason -Tx3gTracks @($subResult.Tx3gTracks) -BdpgsTracks @($subResult.BdpgsTracks)
+        $publishResult = Complete-PipelineOutputPublish -SourceFile $file -ScratchPath $localIn -Paths $paths -Route $route -ProgressRoute 'encode' -StagePrefix 'encode' -Context "ENCODE: " -RouteReasonCode $routeReasonCode -RouteReason $routeReason -Tx3gTracks @($subResult.Tx3gTracks) -BdpgsTracks @($subResult.BdpgsTracks) -VobSubTracks @($subResult.VobSubTracks)
         $script:LastPublishResult = $publishResult
         if ($publishResult.DeleteLocalOutput) { $pushOk = $true }
         if ($publishResult.KeepScratchInput) { $localIn = $null }

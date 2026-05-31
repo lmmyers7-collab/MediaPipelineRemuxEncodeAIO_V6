@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_webview_browser_completed_pending_proof_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-29
+last_modified: 2026-05-30
 last_reviewed: 2026-05-29
-sha256: e8dbdab3d5d845e35a01cf2edb82c8f9504998ed6a7d60f6da87d1ae336bc819
+sha256: 65dc29edc22694311740d4e1346470c5d412509405ba83983c4816bddba0271b
 ---
 # `DesktopApp/tests/test_webview_browser_completed_pending_proof_smoke.py`
 

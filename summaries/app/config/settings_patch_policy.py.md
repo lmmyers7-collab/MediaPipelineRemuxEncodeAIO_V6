@@ -3,9 +3,9 @@ file: app/config/settings_patch_policy.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-05-28
+last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: d7865c4dd4e1f81b87080e698a3943bc485dfc83f65b2fd8ba8f8ff619983dab
+sha256: e8d56a9c2b726794f9d17072cca6fca753e3789952c825d09022c8a3c307dbc7
 ---
 # `app/config/settings_patch_policy.py`
 

@@ -6,11 +6,11 @@ to scratch, decides remux versus encode, runs FFmpeg/ffprobe plus helper
 tools, handles subtitles and audio, writes sidecars and manifests, publishes
 completed outputs, and parks unsafe final-output moves for later drain.
 
-This repository is still a V6.x maintenance/overhaul workspace, not a V7
-release. The local Phase 6 legacy-surface burn-down is complete, but V7/default
-launcher promotion remains blocked until the PG-3 clean-machine package-mode
-gate and operator acceptance are complete. Representative real-media validation
-is complete by operator attestation as of 2026-05-28.
+This repository is the active promoted V6 workspace. The legacy-surface
+cleanup and default-launcher promotion are complete by operator confirmation
+on 2026-05-30. Representative real-media validation is complete by operator
+attestation as of 2026-05-28 and becomes stale after high-risk media behavior
+changes.
 
 ## Start Here
 
@@ -28,7 +28,7 @@ The canonical browser launcher is `scripts\dev\start-api-and-browser.bat`.
 It starts the Local API and opens the backend-served browser WebView.
 
 For AI/code agents, start with [AGENTS.md](AGENTS.md). For current project
-state and open gates, read [Docs/CURRENT_PROJECT_STATE.md](Docs/CURRENT_PROJECT_STATE.md)
+state and remaining work, read [Docs/CURRENT_PROJECT_STATE.md](Docs/CURRENT_PROJECT_STATE.md)
 and [OPEN_WORK_CHECKLIST.md](OPEN_WORK_CHECKLIST.md).
 
 ## Supported Operator Paths
@@ -42,14 +42,14 @@ and [OPEN_WORK_CHECKLIST.md](OPEN_WORK_CHECKLIST.md).
 - `scripts\operator\New-RealMediaValidationWorksheet.ps1` creates a
   worksheet for representative real-media validation.
 
-The old root launcher shims were removed during the local Phase 6 burn-down.
+The old root launcher shims were removed during the legacy-surface cleanup.
 Documentation and automation should use the `scripts\` paths above.
 
 ## Current Progress
 
 As of 2026-05-30:
 
-- Phase 6 local legacy removal is complete: removed root launcher shims, flat
+- Legacy-surface removal is complete: removed root launcher shims, flat
   Python facade/service compatibility paths, old command-payload adapters, and
   `Pipeline\Modules` are no longer active surfaces.
 - Active domain code now lives under `app\<domain>` and `engine\<domain>`,
@@ -58,14 +58,13 @@ As of 2026-05-30:
 - WebView split guardrails, generated WebView baselines, route-ownership checks,
   public-contract checks, and lint-budget checks are in place for continued
   plain-script asset cleanup.
-- PG-3 clean-machine package-mode validation is still open and remains the hard
-  default-launcher promotion gate.
+- Default-launcher promotion is complete by operator confirmation on
+  2026-05-30.
 
 ## Current Architecture
 
 - `app/` contains the active domain-organized Python contracts, services,
-  facades, orchestration, storage, validation, and policy adapters created by
-  the overhaul.
+  facades, orchestration, storage, validation, and policy adapters.
 - `DesktopApp/mediapipeline_desktop_app/` hosts the current Python Local API,
   compatibility package, and backend-served WebView integration.
 - `DesktopApp/mediapipeline_desktop_app/ui_web/static/` contains the vanilla
@@ -81,29 +80,22 @@ The backend owns media policy, filesystem mutation, settings persistence,
 queue mutation, pending-publish drain, rename apply, and process lifecycle.
 The WebView/Tauri surface must stay an operator UI over backend-owned routes.
 
-## Promotion Gates
+## Validation And Revalidation
 
-Before any daily-driver or V7 promotion claim:
-
-- PG-3 package-mode launch/close must pass on a separate clean Windows
-  machine.
-- Operator acceptance must confirm WebView/Tauri package-mode workflows on the
-  target machine.
+Default-launcher promotion is complete by operator confirmation on
+2026-05-30. Continue to validate package launch, close behavior, and the
+operator surface after launcher, packaging, Local API, or Tauri changes.
 
 Representative real-media validation has covered remux, encode/size,
 subtitle conversion, audio policy, and pending-publish/final placement by
 operator attestation. Rerun it after any media-policy, subtitle, audio,
 publish, drain, source/scratch/output movement, or cleanup behavior change.
 
-Until the remaining gates pass, keep the external V5 fallback available.
-
 ## Documentation
 
 - [CHANGELOG.md](CHANGELOG.md): shipped-status log.
 - [Docs/architecture/ARCHITECTURE.md](Docs/architecture/ARCHITECTURE.md):
   concise architecture map.
-- [Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md](Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md): plan of
-  record until V7 ships.
 - [Docs/generated/PROJECT_INDEX.md](Docs/generated/PROJECT_INDEX.md) and
   [Docs/generated/PIPELINE_MAP.md](Docs/generated/PIPELINE_MAP.md):
   generated navigation artifacts.

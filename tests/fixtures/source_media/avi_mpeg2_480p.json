@@ -1,0 +1,36 @@
+{
+  "source": {
+    "path": "fixtures/avi_mpeg2_480p.avi",
+    "file_size_bytes": 1800000000,
+    "media_type": "movie"
+  },
+  "format": {
+    "format_name": "avi",
+    "duration": "5400.0",
+    "bit_rate": "2666666"
+  },
+  "streams": [
+    {
+      "index": 0,
+      "codec_type": "video",
+      "codec_name": "mpeg2video",
+      "profile": "Main",
+      "pix_fmt": "yuv420p",
+      "width": 720,
+      "height": 480,
+      "display_aspect_ratio": "4:3",
+      "avg_frame_rate": "30000/1001",
+      "field_order": "progressive",
+      "bit_rate": "2500000"
+    },
+    {
+      "index": 1,
+      "codec_type": "audio",
+      "codec_name": "mp3",
+      "channels": 2,
+      "channel_layout": "stereo",
+      "tags": { "language": "und" },
+      "disposition": { "default": 1, "forced": 0 }
+    }
+  ]
+}

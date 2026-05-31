@@ -1,3 +1,4 @@
+/* global refreshAll, refreshCurrentOutputStatus */
 (function () {
   let lastCompletedRows = [];
   let lastCompletedPayload = {};
@@ -184,6 +185,7 @@
       commandHistorySuggestedAction: window.commandHistorySuggestedAction,
       completedEvidenceState,
       completedFilterFields: COMPLETED_FILTER_FIELDS,
+      completedCurrentRows: (...args) => completedCurrentRows(...args),
       completedInvestigationFilterLabel: (...args) => completedInvestigationFilterLabel(...args),
       completedMatchesInvestigationFilter: (...args) => completedMatchesInvestigationFilter(...args),
       completedReviewRowReasons: (...args) => completedReviewRowReasons(...args),
@@ -476,8 +478,32 @@
     return true;
   }
 
+  function completedCurrentOutputIdentity(item) {
+    const candidates = [
+      item?.output_path,
+      item?.manifest_output_path,
+      item?.final_library_source_path,
+    ];
+    for (const candidate of candidates) {
+      const text = String(candidate || "").trim();
+      if (text) return text.replace(/\\/g, "/").replace(/\/+/g, "/").toLowerCase();
+    }
+    return "";
+  }
+
   function completedCurrentRows(rows = lastCompletedRows) {
-    return (Array.isArray(rows) ? rows : []).filter((row) => row?.output_exists !== false);
+    const seen = new Set();
+    const currentRows = [];
+    (Array.isArray(rows) ? rows : []).forEach((row) => {
+      if (row?.output_exists === false) return;
+      const identity = completedCurrentOutputIdentity(row);
+      if (identity) {
+        if (seen.has(identity)) return;
+        seen.add(identity);
+      }
+      currentRows.push(row);
+    });
+    return currentRows;
   }
 
   function completedMissingRows(rows = lastCompletedRows) {
@@ -532,6 +558,71 @@
     return "unknown";
   }
 
+  function finalLibraryPromotionActionState(item = {}) {
+    const enabled = Boolean(lastFinalLibraryPromotionStatus?.enabled);
+    if (!item) return { available: false, reason: "Select a completed output first." };
+    if (finalLibraryPromotionCommandInFlight) return { available: false, reason: "A promotion command is already in progress." };
+    if (!enabled) return { available: false, reason: "Final Library Promotion is disabled in Settings." };
+    if (finalLibraryPromotionRunActive(lastFinalLibraryPromotionStatus)) return { available: false, reason: "A final-library promotion run is already active." };
+    if (item.promoted || item.promoted_cleaned) return { available: false, reason: "This output has already been promoted." };
+    if (item.output_exists === false) return { available: false, reason: "The reviewed output is not present at the promotion source location." };
+    if (item.no_destination_rule) return { available: false, reason: "No final-library destination rule is configured for this output." };
+    if (item.destination_offline) return { available: false, reason: "The configured final-library destination is offline." };
+    if (!item.final_library_destination_path) return { available: false, reason: "No final-library destination path is configured for this output." };
+    if (!item.ready_for_promotion) return { available: false, reason: "This output is not currently marked ready for final-library promotion." };
+    if (!item.row_key) return { available: false, reason: "This completed output has no backend row key." };
+    return { available: true, reason: "Promote this reviewed file to its final destination." };
+  }
+
+  function finalLibraryPromotionConfirmMessage(rowCount) {
+    const count = Number(rowCount || 0);
+    if (count === 1) {
+      return "Promote this file to its final destination?\n\nThis means you have reviewed it and are ready for it to be delivered.";
+    }
+    return "Promote these files to their final destination?\n\nThis means you have reviewed them and are ready for them to be delivered.";
+  }
+
+  function shouldConfirmFinalLibraryPromotion(rowCount) {
+    if (typeof window.confirm !== "function") return true;
+    return window.confirm(finalLibraryPromotionConfirmMessage(rowCount));
+  }
+
+  function createCompletedPromotionButton(item = {}) {
+    const action = finalLibraryPromotionActionState(item);
+    if (!action.available) return null;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "secondary-button completed-row-promotion-button";
+    button.textContent = "Promote";
+    button.title = "Promote this reviewed file to its final destination after confirmation.";
+    button.dataset.completedPromoteRowKey = item.row_key || "";
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      selectCompletedRow(item);
+      requestSelectedFinalLibraryPromotion(item);
+    });
+    return button;
+  }
+
+  function appendCompletedPromotionCellAction(cell, item = {}) {
+    if (!cell) return;
+    const button = createCompletedPromotionButton(item);
+    if (!button) return;
+    cell.classList.add("completed-promotion-cell");
+    cell.appendChild(button);
+  }
+
+  function renderCompletedPromotionActions(item = getSelectedCompletedRow()) {
+    const action = finalLibraryPromotionActionState(item);
+    document.querySelectorAll("[data-completed-promote-selected]").forEach((button) => {
+      button.disabled = !action.available;
+      button.setAttribute("aria-disabled", String(!action.available));
+      button.textContent = "Promote Selected File";
+      button.title = action.reason;
+    });
+  }
+
   function finalLibraryPromotionActiveRun(status = lastFinalLibraryPromotionStatus) {
     const active = status?.active_run && typeof status.active_run === "object" ? status.active_run : {};
     return active?.run_id ? active : {};
@@ -577,7 +668,12 @@
     const promoteButton = byId("final-library-promote-button");
     const pauseButton = byId("final-library-pause-button");
     const resumeButton = byId("final-library-resume-button");
-    if (promoteButton) promoteButton.disabled = finalLibraryPromotionCommandInFlight || !enabled || finalLibraryPromotionRunActive(payload) || eligible <= 0;
+    if (promoteButton) {
+      promoteButton.disabled = finalLibraryPromotionCommandInFlight || !enabled || finalLibraryPromotionRunActive(payload) || eligible <= 0;
+      promoteButton.title = promoteButton.disabled
+        ? (enabled ? "No eligible reviewed files are ready for final-library promotion, or a promotion run is active." : "Final Library Promotion is disabled in Settings.")
+        : `Promote ${eligible} reviewed file${eligible === 1 ? "" : "s"} to final-library destinations after confirmation.`;
+    }
     if (pauseButton) pauseButton.disabled = finalLibraryPromotionCommandInFlight || !(active.run_id && ["running", "pausing"].includes(activeStatus));
     if (resumeButton) resumeButton.disabled = finalLibraryPromotionCommandInFlight || !(active.run_id && activeStatus === "paused");
 
@@ -601,6 +697,8 @@
         tbody.appendChild(tr);
       });
     }
+    renderCompletedPromotionActions(getSelectedCompletedRow());
+    window.mediaPipelineAppHome?.renderHomePromotionEntry?.(payload);
     renderCompletedRows();
   }
 
@@ -640,6 +738,7 @@
   const completedTable = typeof completedTableModule.createCompletedTableModule === "function"
     ? completedTableModule.createCompletedTableModule({
       appendCells: typeof appendCells === "function" ? appendCells : window.appendCells,
+      appendCompletedPromotionCellAction: (...args) => appendCompletedPromotionCellAction(...args),
       byId: typeof byId === "function" ? byId : window.byId,
       clearRows: typeof clearRows === "function" ? clearRows : window.clearRows,
       completedCurrentRows: (...args) => completedCurrentRows(...args),
@@ -648,7 +747,7 @@
       completedInvestigationFilterLabel: (...args) => completedInvestigationFilterLabel(...args),
       completedRiskStatusLine: (...args) => completedRiskStatusLine(...args),
       completedRowsStatusLine: (...args) => completedRowsStatusLine(...args),
-      filterResultSummaryLines: window.filterResultSummaryLines,
+      filterResultSummaryLines: window.filterResultSummaryLines || window.mediaPipelineDom?.filterResultSummaryLines,
       finalLibraryPromotionChipState: (...args) => finalLibraryPromotionChipState(...args),
       finalLibraryPromotionStatusText: (...args) => finalLibraryPromotionStatusText(...args),
       getSelectedCompletedRow: (...args) => getSelectedCompletedRow(...args),
@@ -729,7 +828,7 @@
       `Current encoded/remuxed: ${metricCounts.encoded} / ${metricCounts.remuxed}`,
       `Current rows needing review: ${currentReviewCount}`,
       `Completed history rows not currently present: ${metricCounts.missing}`,
-      "Current table rule: a row appears here only when the completed output is still present at the expected destination.",
+      "Current table rule: a row appears here once per expected output path when the completed output is still present at that destination.",
       "Refresh Current Output Status rereads the completed manifest and rechecks output existence; it does not accept, delete, rerun, drain, publish, or move media.",
     ].join("\n"));
     renderCompletedReconciliationHint(payload, rows);
@@ -873,6 +972,7 @@
       setText("completed-detail", detailLines.join("\n"));
       setText("completed-open-status", "Select a completed row to open a backend-selected location.");
       renderCompletedDiagnosticsLinks(null);
+      renderCompletedPromotionActions(null);
       return;
     }
     const audioPreview = Array.isArray(item.audio_decision_preview) ? item.audio_decision_preview : [];
@@ -984,6 +1084,7 @@
       : detail;
     setText("completed-detail", detailLines.join("\n"));
     setText("completed-open-status", "Selected completed row. Open commands use backend-selected paths from the manifest.");
+    renderCompletedPromotionActions(item);
     renderCompletedDiagnosticsLinks(item);
   }
 
@@ -996,16 +1097,29 @@
     renderFinalLibraryPromotion(lastFinalLibraryPromotionStatus);
   }
 
-  async function requestFinalLibraryPromotion() {
+  async function requestFinalLibraryPromotion(rowKeys = []) {
     if (finalLibraryPromotionCommandInFlight) return;
+    const selectedRowKeys = (Array.isArray(rowKeys) ? rowKeys : [rowKeys])
+      .map((value) => String(value || "").trim())
+      .filter(Boolean);
+    if (!shouldConfirmFinalLibraryPromotion(selectedRowKeys.length || Number(lastFinalLibraryPromotionStatus?.counts?.eligible || 0))) return;
     setFinalLibraryPromotionCommandBusy(true);
     setText("final-library-promotion-status", "Starting");
     try {
-      const result = await apiPost("/api/final-library-promotion/promote-queue", { confirm_promote: true });
+      const request = { confirm_promote: true };
+      if (selectedRowKeys.length) request.row_keys = selectedRowKeys;
+      const result = await apiPost("/api/final-library-promotion/promote-queue", request);
       appendCommandResult(result);
       setText("final-library-promotion-status", result.ok ? "Started" : "Start failed");
       if (result?.data && typeof result.data === "object") {
         renderFinalLibraryPromotion({ ...lastFinalLibraryPromotionStatus, active_run: result.data });
+      }
+      if (result?.ok) {
+        if (typeof refreshCurrentOutputStatus === "function") {
+          await refreshCurrentOutputStatus();
+        } else if (typeof refreshAll === "function") {
+          await refreshAll();
+        }
       }
     } catch (error) {
       const message = error?.message || String(error);
@@ -1019,6 +1133,18 @@
     } finally {
       setFinalLibraryPromotionCommandBusy(false);
     }
+  }
+
+  async function requestSelectedFinalLibraryPromotion(item = getSelectedCompletedRow()) {
+    const row = item || getSelectedCompletedRow();
+    const action = finalLibraryPromotionActionState(row);
+    if (!action.available) {
+      setText("completed-open-status", action.reason);
+      renderCompletedPromotionActions(row || null);
+      return;
+    }
+    setText("completed-open-status", "Promotion request will be sent after confirmation. The backend owns destination selection and file movement.");
+    await requestFinalLibraryPromotion([row.row_key]);
   }
 
   async function requestFinalLibraryPromotionPause() {
@@ -1190,8 +1316,11 @@
     completedCurrentRows,
     completedMissingRows,
     completedMetricCounts,
+    finalLibraryPromotionActionState,
+    renderCompletedPromotionActions,
     renderFinalLibraryPromotion,
     requestFinalLibraryPromotion,
+    requestSelectedFinalLibraryPromotion,
     requestFinalLibraryPromotionPause,
     requestFinalLibraryPromotionResume,
     currentFinalLibraryPromotionRunId,

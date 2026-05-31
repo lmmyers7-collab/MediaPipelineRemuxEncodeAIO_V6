@@ -190,6 +190,56 @@ class FinalLibraryPromotionTests(unittest.TestCase):
                 str(promotion_root / "TV" / "Show" / "Season 01" / "Show - S01E01.mkv"),
             )
 
+    def test_status_uses_profile_inherited_output_before_stale_fallback_rule(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            outsource = root / "Processed"
+            source_root = root / "ConcertsSource"
+            promotion_root = root / "FinalConcerts"
+            stale_destination = root / "OldFinalConcerts"
+            source = source_root / "Concert.mkv"
+            output = outsource / "Concerts" / "Concert.mkv"
+            source_root.mkdir()
+            output.parent.mkdir(parents=True)
+            promotion_root.mkdir()
+            stale_destination.mkdir()
+            output.write_bytes(b"media")
+            resolved = _resolved(
+                root,
+                outsource,
+                {
+                    KEY_FINAL_LIBRARY_PROMOTION_RULES: [
+                        {
+                            "id": "stale-concerts",
+                            "enabled": True,
+                            "source_root": str(source_root),
+                            "destination_root": str(stale_destination),
+                        }
+                    ],
+                    "LibraryProfiles": [
+                        {
+                            "id": "concerts",
+                            "name": "Concerts",
+                            "enabled": True,
+                            "designation": "auto",
+                            "source_path": str(source_root),
+                            "output_path": "",
+                            "promotion_enabled": True,
+                            "promotion_destination": str(promotion_root),
+                        }
+                    ],
+                },
+            )
+
+            item = promotion_status_payload(resolved, [_record(source, output, title="Concert")])["items"][0]
+
+            self.assertTrue(item["ready_for_promotion"])
+            self.assertEqual(item["library_profile_id"], "concerts")
+            self.assertEqual(item["library_output_root"], str(outsource))
+            self.assertEqual(item["final_library_rule_id"], "library-profile-concerts")
+            self.assertEqual(item["final_library_destination_root"], str(promotion_root))
+            self.assertEqual(item["final_library_destination_path"], str(promotion_root / "Concerts" / "Concert.mkv"))
+
     def test_fast_and_cautious_transfer_copy_sidecars_and_cleanup_verified_outputs(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
@@ -415,6 +465,81 @@ class _PromotionHarness(FinalLibraryPromotionServiceMixin):
 
 
 class FinalLibraryPromotionServiceTests(unittest.TestCase):
+    def test_service_promotes_selected_row_keys_only(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            outsource = root / "Outsource"
+            dest = root / "Final"
+            source_root = root / "Source"
+            outsource.mkdir()
+            dest.mkdir()
+            source_root.mkdir()
+            records = []
+            for index in range(2):
+                source = source_root / f"Movie{index}.mkv"
+                output = outsource / f"Movie{index}.mkv"
+                source.write_bytes(b"source")
+                output.write_bytes(b"media")
+                records.append(_record(source, output, title=f"Movie {index}"))
+            resolved = _resolved(
+                root,
+                outsource,
+                {
+                    KEY_FINAL_LIBRARY_PROMOTION_RULES: [
+                        {"id": "movies", "enabled": True, "source_root": str(source_root), "destination_root": str(dest)}
+                    ],
+                    KEY_FINAL_LIBRARY_PROMOTION_VERIFICATION_MODE: "fast",
+                },
+            )
+            selected_key = promotion_status_payload(resolved, records)["items"][1]["row_key"]
+            harness = _PromotionHarness(records)
+            promoted_keys: list[str] = []
+
+            def record_success(item, settings):
+                promoted_keys.append(str(item["row_key"]))
+                return {
+                    "row_key": item["row_key"],
+                    "success": True,
+                    "destination_path": item.get("final_library_destination_path"),
+                    "failures": [],
+                    "cleanup_result": {"completed": False},
+                }
+
+            with patch.object(promotion_service, "promote_item", side_effect=record_success):
+                started = harness.start_final_library_promotion_run(resolved, records, row_keys=[selected_key])
+                self.assertTrue(started["ok"])
+                self.assertEqual(started["data"]["requested_row_keys"], [selected_key])
+                deadline = time.time() + 5
+                while harness._final_library_promotion_active_snapshot() and time.time() < deadline:
+                    time.sleep(0.05)
+
+            self.assertIsNone(harness._final_library_promotion_active_snapshot())
+            self.assertEqual(promoted_keys, [selected_key])
+            self.assertEqual(set(read_item_evidence(resolved)), {selected_key})
+
+    def test_service_rejects_selected_rows_that_are_not_eligible(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            outsource = root / "Outsource"
+            dest = root / "Final"
+            source = root / "Source" / "Movie.mkv"
+            output = outsource / "Movie.mkv"
+            output.parent.mkdir(parents=True)
+            dest.mkdir()
+            source.parent.mkdir(parents=True)
+            source.write_bytes(b"source")
+            output.write_bytes(b"media")
+            resolved = _resolved(root, outsource)
+            records = [_record(source, output)]
+            selected_key = promotion_status_payload(resolved, records)["items"][0]["row_key"]
+            harness = _PromotionHarness(records)
+
+            result = harness.start_final_library_promotion_run(resolved, records, row_keys=[selected_key])
+
+            self.assertFalse(result["ok"])
+            self.assertIn("no_eligible_selected_items", result["errors"])
+            self.assertFalse(read_item_evidence(resolved))
+
     def test_service_rejects_duplicate_active_run_and_records_success_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
@@ -529,6 +654,45 @@ class FinalLibraryPromotionWebViewSettingsTests(unittest.TestCase):
         self.assertIn("confirm_save: true", settings_script_text)
         self.assertIn("It never promotes, overwrites, cleans up, or touches media files", settings_script_text)
         self.assertIn("finalLibraryPromotionSettingsBuilderFields", metadata_js)
+
+    def test_webview_exposes_dashboard_and_selected_file_promotion_entry_points(self) -> None:
+        static_root = REPO_ROOT / "DesktopApp" / "mediapipeline_desktop_app" / "ui_web" / "static"
+        home_html = (static_root / "partials" / "page-home.html").read_text(encoding="utf-8")
+        completed_html = (static_root / "partials" / "page-completed.html").read_text(encoding="utf-8")
+        app_js = (static_root / "assets" / "app.js").read_text(encoding="utf-8")
+        home_js = (static_root / "assets" / "app" / "home.js").read_text(encoding="utf-8")
+        refresh_js = (static_root / "assets" / "app" / "refresh.js").read_text(encoding="utf-8")
+        completed_js = (static_root / "assets" / "completedView.js").read_text(encoding="utf-8")
+        completed_table_js = (static_root / "assets" / "completed" / "table.js").read_text(encoding="utf-8")
+        lifecycle_js = (static_root / "assets" / "app" / "lifecycle.js").read_text(encoding="utf-8")
+
+        self.assertIn('data-cross-page-target="completed" data-home-promotion-entry disabled>Promote Files</button>', home_html)
+        self.assertIn("function renderHomePromotionEntry", home_js)
+        self.assertIn("counts.eligible", home_js)
+        self.assertIn("homePromotionRunActive", home_js)
+        self.assertIn('renderHomePromotionEntry(values["final library promotion"] || {})', app_js)
+        self.assertIn("renderHomePromotionEntry?.(finalLibraryPromotion)", refresh_js)
+
+        self.assertIn("data-completed-promote-selected disabled", completed_html)
+        self.assertIn("function finalLibraryPromotionActionState", completed_js)
+        self.assertIn("item.promoted || item.promoted_cleaned", completed_js)
+        self.assertIn("item.output_exists === false", completed_js)
+        self.assertIn("item.no_destination_rule", completed_js)
+        self.assertIn("item.destination_offline", completed_js)
+        self.assertIn("!item.final_library_destination_path", completed_js)
+        self.assertIn("!item.ready_for_promotion", completed_js)
+        self.assertIn("button.dataset.completedPromoteRowKey = item.row_key || \"\";", completed_js)
+        self.assertIn("requestSelectedFinalLibraryPromotion", completed_js)
+        self.assertIn("if (selectedRowKeys.length) request.row_keys = selectedRowKeys;", completed_js)
+        self.assertIn('apiPost("/api/final-library-promotion/promote-queue", request)', completed_js)
+        self.assertIn("Promote these files to their final destination?", completed_js)
+        self.assertIn("window.confirm(finalLibraryPromotionConfirmMessage(rowCount))", completed_js)
+        self.assertIn("await refreshCurrentOutputStatus();", completed_js)
+        self.assertIn("Start failed", completed_js)
+        self.assertIn("appendCompletedPromotionCellAction", completed_table_js)
+        self.assertIn('tbodyId === "completed-rows"', completed_table_js)
+        self.assertIn("[data-completed-promote-selected]", app_js)
+        self.assertIn("[data-home-promotion-entry]", lifecycle_js)
 
 
 if __name__ == "__main__":

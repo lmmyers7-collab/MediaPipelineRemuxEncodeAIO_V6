@@ -299,6 +299,22 @@
           "title": "Estimated Bitrate Mbps",
           "type": "number"
         },
+        "bitrate_threshold_mbps": {
+          "default": 0.0,
+          "minimum": 0,
+          "title": "Bitrate Threshold Mbps",
+          "type": "number"
+        },
+        "size_over_threshold": {
+          "default": false,
+          "title": "Size Over Threshold",
+          "type": "boolean"
+        },
+        "bitrate_over_threshold": {
+          "default": false,
+          "title": "Bitrate Over Threshold",
+          "type": "boolean"
+        },
         "plex_compatibility_score": {
           "default": 0.0,
           "maximum": 100,

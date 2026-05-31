@@ -154,6 +154,9 @@ class DecideResult(StageData):
     requires_codec_probe: bool = False
     fallback_from_remux: bool = False
     estimated_bitrate_mbps: float = Field(default=0.0, ge=0)
+    bitrate_threshold_mbps: float = Field(default=0.0, ge=0)
+    size_over_threshold: bool = False
+    bitrate_over_threshold: bool = False
     plex_compatibility_score: float = Field(default=0.0, ge=0, le=100)
     routing_profile: str = ""
     route_threshold_mode: str = ""

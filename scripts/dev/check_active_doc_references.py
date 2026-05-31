@@ -73,7 +73,6 @@ REQUIRED_ACTIVE_DOCS = (
     "AGENTS.md",
     "CHANGELOG.md",
     "Docs/architecture/ARCHITECTURE.md",
-    "Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md",
     "Docs/CURRENT_PROJECT_STATE.md",
     "OPEN_WORK_CHECKLIST.md",
 )
@@ -133,6 +132,8 @@ def collect_active_markdown_files(root: Path = REPO_ROOT) -> list[Path]:
 def missing_moved_doc_targets(root: Path = REPO_ROOT, moved_docs: dict[str, str] = MOVED_DOCS) -> list[str]:
     missing: list[str] = []
     for target in moved_docs.values():
+        if _is_archive_path(target):
+            continue
         if not (root / PurePosixPath(target)).is_file():
             missing.append(target)
     return missing

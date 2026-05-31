@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -46,6 +48,7 @@ def _valid_config_values() -> dict:
         "SubtitleExtractTimeoutSeconds": 300,
         "SubtitleProbeTimeoutSeconds": 30,
         "BdpgsOcrTimeoutSeconds": 1800,
+        "VobSubOcrTimeoutSeconds": 1800,
         "TransientFailureRetryLimit": 3,
         "SourceScanIntervalSeconds": 60,
         "ProcessedIndexRefreshSeconds": 120,
@@ -74,6 +77,14 @@ def _valid_config_values() -> dict:
 
 
 class _ConfigValidationWrapperService(ConfigProfileServiceMixin):
+    logger = logging.getLogger("test_service_config_validation")
+
+    def _subprocess_kwargs_hidden(self) -> dict:
+        return {}
+
+    def resolve_powershell_host(self) -> str:
+        return "powershell"
+
     def _normalized_path_key(self, path: Path) -> str:
         return _path_key(path)
 
@@ -95,6 +106,38 @@ class ServiceConfigValidationTests(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertEqual(warnings, [])
 
+    def test_validate_config_values_allows_custom_blank_output_but_requires_source(self) -> None:
+        values = _valid_config_values()
+        values["LibraryProfiles"] = [
+            {
+                "id": "concerts",
+                "name": "Concerts",
+                "designation": "auto",
+                "enabled": True,
+                "source_path": r"C:\Media\Concerts",
+                "output_path": "",
+            }
+        ]
+
+        errors, warnings = validate_config_values(
+            values,
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        self.assertEqual(errors, [])
+        self.assertTrue(any("mirrors its primary Movie/TV paths" in warning for warning in warnings))
+
+        values["LibraryProfiles"][0]["source_path"] = ""
+        errors, _warnings = validate_config_values(
+            values,
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        self.assertIn("Library profile Concerts source_path is required.", errors)
+        self.assertFalse(any("output_path is required" in error for error in errors))
+
     def test_validate_config_values_reports_ranges_enums_and_lists(self) -> None:
         values = _valid_config_values()
         values.update(
@@ -105,6 +148,8 @@ class ServiceConfigValidationTests(unittest.TestCase):
                 "ConsoleLogLevel": "TRACE",
                 "CompatibleAudioCodecs": [],
                 "RoutingProfile": "unknown",
+                "VideoCodec": "vp9",
+                "VideoPreset": "p9",
             }
         )
 
@@ -120,7 +165,29 @@ class ServiceConfigValidationTests(unittest.TestCase):
         self.assertIn("ConsoleLogLevel must be one of: ERROR, WARN, INFO, DEBUG, or blank.", errors)
         self.assertIn("CompatibleAudioCodecs must contain at least one value.", errors)
         self.assertTrue(any(error.startswith("RoutingProfile must be one of:") for error in errors))
+        self.assertIn("VideoCodec must be one of: av1_nvenc, h264_nvenc, hevc_nvenc, libx264, libx265.", errors)
+        self.assertIn("VideoPreset must be one of: p1, p2, p3, p4, p5, p6, p7.", errors)
         self.assertEqual(warnings, [])
+
+    def test_validate_config_values_rejects_friendly_display_labels_as_persisted_keys(self) -> None:
+        values = _valid_config_values()
+        values.update(
+            {
+                "ProcessingStrategy": "manual",
+                "OutputSizeCheck": "strict",
+                "EncoderSpeedPreset": "p6",
+            }
+        )
+
+        errors, _warnings = validate_config_values(
+            values,
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        self.assertIn("ProcessingStrategy is a display label only; use persisted key RoutingProfile.", errors)
+        self.assertIn("OutputSizeCheck is a display label only; use persisted key SizeGuardMode.", errors)
+        self.assertIn("EncoderSpeedPreset is a display label only; use persisted key VideoPreset.", errors)
 
     def test_config_path_overlap_warning_reports_same_source_roots(self) -> None:
         warning = config_path_overlap_warning(
@@ -164,6 +231,23 @@ class ServiceConfigValidationTests(unittest.TestCase):
             warnings,
         )
 
+    def test_validate_config_values_warns_when_vobsub_ocr_enabled_without_tool_path(self) -> None:
+        values = _valid_config_values()
+        values["ConvertVobSubToSrt"] = True
+        values["VobSubOcrToolPath"] = " "
+
+        errors, warnings = validate_config_values(
+            values,
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        self.assertEqual(errors, [])
+        self.assertIn(
+            "VobSubOcrToolPath is blank while ConvertVobSubToSrt is enabled; VobSub OCR will be blocked until Subtitle Edit seconv.exe is configured.",
+            warnings,
+        )
+
     def test_service_mixin_preserves_validation_wrapper_methods(self) -> None:
         service = _ConfigValidationWrapperService()
 
@@ -171,6 +255,42 @@ class ServiceConfigValidationTests(unittest.TestCase):
         errors, warnings = service.validate_config_values(_valid_config_values())
         self.assertEqual(errors, [])
         self.assertEqual(warnings, [])
+
+    def test_save_config_document_rejects_invalid_values_before_write(self) -> None:
+        service = _ConfigValidationWrapperService()
+        values = _valid_config_values()
+        values["LibraryProfiles"] = [
+            {
+                "id": "movies",
+                "designation": "movie",
+                "source_path": r"C:\Media\Movies",
+                "output_path": r"D:\MediaOut",
+                "overrides": {"editor": {"ProcessingStrategy": "manual"}},
+            },
+        ]
+        document_text = service.serialize_psd1_document(values)
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            config_path = Path(raw_root) / "MediaPipelineConfig.psd1"
+            original_text = "@{ RoutingProfile = 'plex_direct_stream' }\n"
+            config_path.write_text(original_text, encoding="utf-8")
+
+            with self.assertRaises(ValueError) as raised:
+                service.save_config_document(
+                    config_path,
+                    document_text,
+                    True,
+                    config_values=values,
+                    powershell_host="powershell",
+                )
+
+            self.assertEqual(config_path.read_text(encoding="utf-8"), original_text)
+
+        self.assertIn("Config document failed validation before save", str(raised.exception))
+        self.assertIn(
+            "Library profile Movies override editor.ProcessingStrategy is not a supported library override key.",
+            str(raised.exception),
+        )
 
 
 if __name__ == "__main__":

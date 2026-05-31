@@ -779,7 +779,7 @@ Validation: DesktopApp\Runtime\Python\python.exe -m unittest DesktopApp.tests.te
 
 ## Freshness Review — 2026-05-19 (WebView Design-Reference Static Guards)
 
-`test_application_facade_web_static.py` now explicitly pins the rendered WebView design-reference boundaries that closed the stale High UI rows: Home/Dashboard must not duplicate Launch or Pending Publish command controls, every rendered panel must declare either `data-panel-type="evidence"` or `data-panel-type="interactive"`, evidence panels must remain button-free/read-only, and all 13 rendered page H1 titles must match the canonical titles in `V5_UI_DESIGN_REFERENCE.md`.
+`test_application_facade_web_static.py` now explicitly pins the rendered WebView design-reference boundaries that closed the stale High UI rows. Current Dashboard coverage allows the restored backend-owned Pause/Resume, Stop After Current, and Force Stop shortcuts while still blocking Dashboard-owned start, pending-drain, schedule-toggle, and raw mutation controls. Every rendered panel must declare either `data-panel-type="evidence"` or `data-panel-type="interactive"`, evidence panels must remain button-free/read-only, and all 13 rendered page H1 titles must match the canonical titles in `V5_UI_DESIGN_REFERENCE.md`.
 
 ```text
 Task ID: WebView UI command surface and page title compliance

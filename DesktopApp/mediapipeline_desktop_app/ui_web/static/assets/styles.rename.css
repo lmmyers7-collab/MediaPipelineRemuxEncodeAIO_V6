@@ -325,13 +325,13 @@ body.light-mode .rename-disclosure {
 }
 
 .rename-drop-zone.is-dragging {
-  border-color: var(--accent, #4ea1ff);
+  border-color: var(--blue-500);
   background: var(--grey-800);
   color: var(--grey-50);
 }
 
 .rename-drop-zone:focus {
-  outline: 2px solid var(--accent, #4ea1ff);
+  outline: 2px solid var(--blue-500);
   outline-offset: 2px;
 }
 
@@ -343,11 +343,11 @@ body.light-mode .rename-disclosure {
   padding: 0;
   max-width: 720px;
   width: min(720px, 92vw);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow-5);
 }
 
 .rename-modal::backdrop {
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--overlay-backdrop-bg);
 }
 
 .rename-modal-form {
@@ -377,7 +377,7 @@ body.light-mode .rename-disclosure {
   border: 1px solid var(--grey-700);
   border-radius: 6px;
   padding: var(--space-2);
-  background: var(--grey-1000, #0e0e10);
+  background: var(--grey-900);
   font-family: var(--mono-font, "Cascadia Code", Consolas, monospace);
   font-size: var(--text-xs);
 }
@@ -386,7 +386,7 @@ body.light-mode .rename-disclosure {
   display: grid;
   grid-template-columns: 1fr 24px 1fr;
   gap: var(--space-2);
-  padding: 4px 6px;
+  padding: var(--space-2) var(--space-3);
   border-bottom: 1px dashed var(--grey-800);
   align-items: center;
 }
@@ -400,9 +400,9 @@ body.light-mode .rename-disclosure {
 .rename-modal-warning {
   margin: 0;
   padding: var(--space-2) var(--space-3);
-  background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.35);
-  color: #f59e0b;
+  background: var(--amber-900);
+  border: 1px solid var(--amber-700);
+  color: var(--amber-500);
   border-radius: 6px;
   font-size: var(--text-xs);
 }
@@ -440,11 +440,11 @@ body.light-mode .rename-disclosure {
 
 .rename-modal-errors {
   padding: var(--space-3);
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.35);
+  background: var(--red-900);
+  border: 1px solid var(--red-700);
   border-radius: 6px;
   font-size: var(--text-xs);
-  color: #fca5a5;
+  color: var(--red-100);
 }
 
 .rename-modal-error-list {

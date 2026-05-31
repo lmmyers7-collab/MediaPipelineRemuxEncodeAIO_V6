@@ -3,9 +3,9 @@ file: app/config/metadata_parts/basic_fields.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-05-30
+last_modified: 2026-05-31
 last_reviewed: 2026-05-30
-sha256: e1862290eed8ae9ac7af478020ca03e05285ca4243d991fdd2b1685039332028
+sha256: 1689c7eed3053a33fd33b2378a89cac919bad8e5ea7bb53436ea867ca8e18da9
 ---
 # `app/config/metadata_parts/basic_fields.py`
 

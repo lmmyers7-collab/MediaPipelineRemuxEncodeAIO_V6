@@ -49,6 +49,29 @@ def queue_record_to_row(record: QueueRecord) -> dict[str, Any]:
     return row
 
 
+def _json_mapping(value: Any) -> dict[str, Any]:
+    return dict(value) if isinstance(value, Mapping) else {}
+
+
+def _json_list(value: Any) -> list[str]:
+    return [str(item) for item in value if str(item).strip()] if isinstance(value, list) else []
+
+
+def _float_value(value: Any) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _bool_value(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value in (None, ""):
+        return False
+    return str(value).strip().casefold() in {"1", "true", "yes", "y", "on"}
+
+
 def queue_row_available_open_targets(row: dict[str, Any]) -> list[str]:
     targets: list[str] = []
     if str(row.get("source_path") or "").strip():
@@ -306,6 +329,33 @@ def queue_row_route_evidence_lines(row: dict[str, Any]) -> list[str]:
         if blocked_reason_code:
             lines.append(f"Blocked reason code: {blocked_reason_code}")
         lines.append(f"Blocked reason: {blocked_reason}")
+    threshold_mode = str(row.get("route_threshold_mode") or "").strip()
+    if threshold_mode:
+        lines.append(f"Route threshold mode: {threshold_mode}")
+    size_threshold = _float_value(row.get("route_size_threshold_gb"))
+    if size_threshold > 0:
+        lines.append(f"Size threshold: {size_threshold:g} GB; over threshold: {'yes' if _bool_value(row.get('size_over_threshold')) else 'no'}")
+    estimated_bitrate = _float_value(row.get("estimated_bitrate_mbps"))
+    bitrate_threshold = _float_value(row.get("route_bitrate_threshold_mbps"))
+    if estimated_bitrate > 0 or bitrate_threshold > 0:
+        lines.append(
+            "Bitrate estimate: "
+            f"{estimated_bitrate:g} Mbps; threshold: {bitrate_threshold:g} Mbps; "
+            f"over threshold: {'yes' if _bool_value(row.get('bitrate_over_threshold')) else 'no'}"
+        )
+    trace = row.get("route_decision_trace")
+    if isinstance(trace, list) and trace:
+        codes = []
+        for item in trace:
+            if isinstance(item, Mapping):
+                code = str(item.get("code") or "").strip()
+            else:
+                code = ""
+            if code:
+                codes.append(code)
+        if codes:
+            suffix = "..." if len(codes) > 8 else ""
+            lines.append(f"Route trace: {', '.join(codes[:8])}{suffix}")
     media_type = str(row.get("media_type") or "").strip()
     phase = str(row.get("phase") or "").strip()
     if media_type or phase:
@@ -345,6 +395,19 @@ def queue_row_route_evidence_lines(row: dict[str, Any]) -> list[str]:
         lines.append(f"Runtime checks deferred: {', '.join(runtime_codes) if runtime_codes else 'yes'}")
         for note in runtime_notes[:4]:
             lines.append(f"Runtime note: {note}")
+    library_id = str(row.get("library_id") or "").strip()
+    library_name = str(row.get("library_name") or "").strip()
+    library_output_root = str(row.get("library_output_root") or "").strip()
+    library_source_root = str(row.get("library_source_root") or row.get("source_root") or "").strip()
+    library_override_keys = _json_list(row.get("library_settings_override_keys"))
+    if library_id or library_name or library_output_root:
+        label = library_name or library_id or "not reported"
+        lines.append(f"Library profile: {label}{f' ({library_id})' if library_id and library_id != label else ''}")
+        if library_source_root:
+            lines.append(f"Library source root: {library_source_root}")
+        if library_output_root:
+            lines.append(f"Library output root: {library_output_root}")
+        lines.append(f"Library override keys: {', '.join(library_override_keys) if library_override_keys else 'none'}")
     runtime_status = str(row.get("runtime_outcome_status") or "").strip()
     if runtime_status:
         runtime_at = str(row.get("runtime_outcome_at") or "").strip()
@@ -413,12 +476,27 @@ def queue_preview_rows(
         if isinstance(record, QueueRecord):
             safe_row = queue_record_to_row(record)
             safe_row["route_reason_code"] = str(raw_row.get("route_reason_code") or "").strip()
+            safe_row["route_decision_trace"] = raw_row.get("route_decision_trace") if isinstance(raw_row.get("route_decision_trace"), list) else []
+            safe_row["estimated_bitrate_mbps"] = _float_value(raw_row.get("estimated_bitrate_mbps"))
+            safe_row["route_size_threshold_gb"] = _float_value(raw_row.get("route_size_threshold_gb"))
+            safe_row["route_bitrate_threshold_mbps"] = _float_value(raw_row.get("route_bitrate_threshold_mbps"))
+            safe_row["route_threshold_mode"] = str(raw_row.get("route_threshold_mode") or "").strip()
+            safe_row["size_over_threshold"] = _bool_value(raw_row.get("size_over_threshold"))
+            safe_row["bitrate_over_threshold"] = _bool_value(raw_row.get("bitrate_over_threshold"))
             safe_row["blocked_reason_code"] = str(raw_row.get("blocked_reason_code") or "").strip()
             safe_row["blocked_reason"] = str(raw_row.get("blocked_reason") or "").strip()
             safe_row["last_write_utc"] = str(raw_row.get("last_write_utc") or "").strip()
             safe_row["runtime_checks_deferred"] = bool(raw_row.get("runtime_checks_deferred", False))
             safe_row["runtime_check_codes"] = [str(item) for item in raw_row.get("runtime_check_codes") or [] if str(item).strip()] if isinstance(raw_row.get("runtime_check_codes"), list) else []
             safe_row["runtime_check_notes"] = [str(item) for item in raw_row.get("runtime_check_notes") or [] if str(item).strip()] if isinstance(raw_row.get("runtime_check_notes"), list) else []
+            safe_row["library_id"] = str(raw_row.get("library_id") or "").strip()
+            safe_row["library_name"] = str(raw_row.get("library_name") or "").strip()
+            safe_row["library_designation"] = str(raw_row.get("library_designation") or "").strip()
+            safe_row["library_source_root"] = str(raw_row.get("library_source_root") or raw_row.get("root_path") or "").strip()
+            safe_row["library_output_root"] = str(raw_row.get("library_output_root") or "").strip()
+            safe_row["library_settings_override_keys"] = _json_list(raw_row.get("library_settings_override_keys"))
+            safe_row["library_settings_overrides"] = _json_mapping(raw_row.get("library_settings_overrides"))
+            safe_row["library_effective_settings"] = _json_mapping(raw_row.get("library_effective_settings"))
             safe_row["row_key"] = queue_row_key(safe_row)
             safe_row["available_open_targets"] = queue_row_available_open_targets(safe_row)
             safe_row.update(queue_row_operator_guidance(safe_row))
@@ -443,4 +521,3 @@ __all__ = [
     "queue_preview_rows",
     "queue_preview_warnings",
 ]
-

@@ -1,0 +1,363 @@
+from __future__ import annotations
+
+import json
+import unittest
+from pathlib import Path
+
+from app.config.preset_migration import (
+    BLOCKED_FUTURE_PERSISTED_KEYS,
+    FRIENDLY_LABEL_PERSISTED_KEY_ALIASES,
+    LABEL_ONLY_RENAMES,
+    LABEL_ONLY_RENAME_POLICIES,
+    LEGACY_COMPATIBILITY_KEY_STATUSES,
+    MIGRATION_STATUS_VALUES,
+    PERSISTED_KEY_MIGRATION_STATUS,
+    effective_decision_policy_from_legacy_or_preset,
+    effective_decision_policy_from_preset_v2,
+    legacy_config_patch_from_preset_v2,
+    preset_v2_from_legacy_config,
+)
+from app.config.encoding_capabilities import EncodingCapabilityFacts, validate_encoding_capabilities
+from app.config.preset_policy import (
+    PRESET_POLICY_WRITE_FORMAT,
+    PRESET_POLICY_SCHEMA_VERSION,
+    PresetV2,
+    preset_v2_validation_issues,
+)
+from app.contracts.source_media import SourceMediaInfo, source_media_from_ffprobe
+from app.decide import build_processing_decision, decision_policy_from_mapping
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+FIXTURE_ROOT = REPO_ROOT / "tests" / "fixtures" / "source_media"
+
+
+def load_source(name: str) -> SourceMediaInfo:
+    raw = json.loads((FIXTURE_ROOT / name).read_text(encoding="utf-8"))
+    return source_media_from_ffprobe(raw)
+
+
+class PresetPolicyContractTests(unittest.TestCase):
+    def test_migration_policy_declares_label_only_and_legacy_statuses(self) -> None:
+        expected_statuses = {
+            "stable_persisted_key",
+            "label_only_rename",
+            "legacy_alias_accepted",
+            "deprecated_warn_only",
+            "accepted_one_release",
+            "accepted_forever",
+            "blocked_future_key",
+            "migration_deferred",
+        }
+
+        self.assertEqual(set(MIGRATION_STATUS_VALUES), expected_statuses)
+        for key, label in {
+            "RoutingProfile": "Processing Strategy",
+            "RouteThresholdMode": "Enforcement Mode",
+            "SizeGuardMode": "Output Size Check",
+            "EncodeTuningPreset": "Encoder Quality Preset",
+            "EncodeLadder": "Encode Target Mode",
+            "MaxEncodeGrowthPercent": "Quality-encode size tolerance",
+            "CompatibilityEncodeGrowthPercent": "Compatibility-encode size tolerance",
+            "EncodeThresholdGB": "Movie target output size",
+            "TVEncodeThresholdGB": "TV target output size",
+            "MovieRouteMaxVideoBitrateMbps": "Movie max bitrate for direct copy",
+            "TVRouteMaxVideoBitrateMbps": "TV max bitrate for direct copy",
+            "VideoPreset": "Encoder Speed Preset",
+            "ExtraVideoFlags": "Advanced Encoder Flags",
+            "RemuxSafeVideoCodecs": "Direct Copy Video Codec Allowlist",
+        }.items():
+            with self.subTest(key=key):
+                self.assertEqual(LABEL_ONLY_RENAMES[key], label)
+                self.assertEqual(PERSISTED_KEY_MIGRATION_STATUS[key], "stable_persisted_key")
+
+        policies = {str(policy["persisted_key"]): policy for policy in LABEL_ONLY_RENAME_POLICIES}
+        self.assertEqual(set(policies), set(LABEL_ONLY_RENAMES))
+        for key, policy in policies.items():
+            with self.subTest(policy=key):
+                self.assertEqual(policy["status"], "label_only_rename")
+                self.assertFalse(policy["accepted_as_persisted_key"])
+
+        self.assertEqual(FRIENDLY_LABEL_PERSISTED_KEY_ALIASES["ProcessingStrategy"], "RoutingProfile")
+        self.assertEqual(FRIENDLY_LABEL_PERSISTED_KEY_ALIASES["OutputSizeCheck"], "SizeGuardMode")
+        self.assertEqual(BLOCKED_FUTURE_PERSISTED_KEYS["ProcessingStrategy"], "blocked_future_key")
+        self.assertEqual(LEGACY_COMPATIBILITY_KEY_STATUSES["editor_overrides"], "legacy_alias_accepted")
+        self.assertEqual(LEGACY_COMPATIBILITY_KEY_STATUSES["media_overrides"], "legacy_alias_accepted")
+        self.assertEqual(LEGACY_COMPATIBILITY_KEY_STATUSES["SourceMovies"], "accepted_forever")
+
+    def test_legacy_config_migrates_to_preset_v2_and_matching_effective_policy(self) -> None:
+        legacy = {
+            "RoutingProfile": "plex_direct_play",
+            "RouteThresholdMode": "bitrate",
+            "EncodeThresholdGB": 9,
+            "TVEncodeThresholdGB": 4,
+            "MovieRouteMaxVideoBitrateMbps": 40,
+            "TVRouteMaxVideoBitrateMbps": 20,
+            "AllowH264RemuxIfPlexCompatible": True,
+            "H264RemuxMaxBitrateMbps": 30,
+            "H264RemuxMaxHeight": 720,
+            "SizeGuardMode": "strict",
+            "OutputContainer": "mp4",
+            "RemuxSafeVideoCodecs": ["hevc", "h264"],
+            "VideoCodec": "hevc_nvenc",
+            "EncodeLadder": "plex_compat",
+            "FutureLegacyKey": {"preserve": True},
+        }
+
+        preset = preset_v2_from_legacy_config(legacy, name="Legacy compatibility view")
+        effective = effective_decision_policy_from_preset_v2(preset)
+        direct_effective = decision_policy_from_mapping(
+            {
+                key: legacy[key]
+                for key in (
+                    "RoutingProfile",
+                    "RouteThresholdMode",
+                    "EncodeThresholdGB",
+                    "TVEncodeThresholdGB",
+                    "MovieRouteMaxVideoBitrateMbps",
+                    "TVRouteMaxVideoBitrateMbps",
+                    "AllowH264RemuxIfPlexCompatible",
+                    "H264RemuxMaxBitrateMbps",
+                    "H264RemuxMaxHeight",
+                    "SizeGuardMode",
+                    "OutputContainer",
+                    "RemuxSafeVideoCodecs",
+                )
+            }
+        )
+
+        self.assertEqual(preset.version, PRESET_POLICY_SCHEMA_VERSION)
+        self.assertEqual(preset.name, "Legacy compatibility view")
+        self.assertEqual(preset.processing_strategy, "plex_direct_play")
+        self.assertEqual(preset.routing.enforcement_mode, "bitrate")
+        self.assertEqual(preset.guards.size.mode, "strict")
+        self.assertEqual(preset.guards.size.on_exceeded, "fail_job")
+        self.assertEqual(preset.container.format, "mp4")
+        self.assertEqual(preset.video.target_selection, "plex_compat")
+        self.assertEqual(preset.advanced.legacy_passthrough["FutureLegacyKey"], {"preserve": True})
+        self.assertEqual(effective, direct_effective)
+
+    def test_v2_config_validates_and_feeds_decision_engine(self) -> None:
+        preset = PresetV2.model_validate(
+            {
+                "version": 2,
+                "name": "Plex MP4 compatibility",
+                "processingStrategy": "plex_direct_stream",
+                "routing": {
+                    "enforcementMode": "compatibility_advisory",
+                    "directCopyMaxBitrate": {"movieMbps": 35, "tvMbps": 18},
+                    "directCopyVideoCodecAllowlist": ["hevc", "h265", "h.265"],
+                },
+                "video": {"codec": "hevc_nvenc", "encoderQualityPreset": "balanced_nvenc"},
+                "audio": {"mp4CopyCodecs": ["aac", "ac3", "eac3", "mp3", "alac"]},
+                "subtitles": {"mp4CopyCodecs": ["mov_text", "tx3g"]},
+                "container": {"format": "mp4", "forceRemux": True},
+                "guards": {"size": {"mode": "advisory", "movieRouteSizeLimitGb": 8, "tvRouteSizeLimitGb": 3}},
+            }
+        )
+
+        effective = effective_decision_policy_from_preset_v2(preset)
+        decision = build_processing_decision(load_source("multi_audio_tracks.json"), effective)
+
+        self.assertEqual(effective.output_container, "mp4")
+        self.assertEqual(decision.effective_settings.output_container, "mp4")
+        self.assertEqual(decision.stream_actions.audio[0].action, "transcode")
+        self.assertEqual(decision.route_summary, "REMUX")
+
+    def test_v2_output_size_check_can_request_block_publish(self) -> None:
+        preset = PresetV2.model_validate(
+            {
+                "version": 2,
+                "name": "Block publish on oversized output",
+                "guards": {"size": {"mode": "advisory", "onExceeded": "block_publish"}},
+            }
+        )
+        effective = effective_decision_policy_from_preset_v2(preset)
+
+        self.assertEqual(preset.guards.size.on_exceeded, "block_publish")
+        self.assertEqual(effective.output_size_check_action, "block_publish")
+
+    def test_handbrake_style_encoding_sections_validate(self) -> None:
+        preset = PresetV2.model_validate(
+            {
+                "version": 2,
+                "name": "HandBrake style model",
+                "dimensions": {
+                    "resolutionLimit": "720p",
+                    "scalingPolicy": "never_upscale",
+                    "aspectPolicy": "preserve_display_aspect",
+                    "cropMode": "custom",
+                    "pixelAspectMode": "source",
+                },
+                "filters": {
+                    "detelecine": "auto",
+                    "deinterlace": "decomb",
+                    "denoise": "medium",
+                    "sharpen": "low",
+                    "deblock": "off",
+                    "chromaSmooth": "off",
+                    "colorspace": "source",
+                },
+                "video": {
+                    "codec": "hevc_nvenc",
+                    "codecFamily": "hevc",
+                    "encoderBackend": "nvenc",
+                    "targetMode": "constant_quality",
+                    "qualityTarget": 23,
+                    "framerateMode": "same_as_source",
+                    "tune": "film",
+                },
+                "audio": {"passthroughDefault": True, "forceTranscode": False},
+                "subtitles": {"mode": "convert_preferred", "generatePreferredSrt": True},
+                "container": {"format": "mkv", "remuxWhenPossible": True},
+            }
+        )
+
+        self.assertEqual(preset.dimensions.resolution_limit, "720p")
+        self.assertEqual(preset.filters.deinterlace, "decomb")
+        self.assertEqual(preset.video.target_mode, "constant_quality")
+        self.assertEqual(preset.subtitles.mode, "convert_preferred")
+
+    def test_encoding_capability_validation_uses_supplied_facts(self) -> None:
+        preset = PresetV2.model_validate(
+            {
+                "version": 2,
+                "name": "Unsupported request",
+                "filters": {"denoise": "high"},
+                "video": {"codec": "av1_nvenc", "codecFamily": "av1", "encoderBackend": "nvenc"},
+            }
+        )
+        issues = validate_encoding_capabilities(
+            preset,
+            EncodingCapabilityFacts(
+                supported_video_codecs=["h264", "hevc"],
+                supported_encoder_backends=["x265"],
+                supported_video_filters=["deinterlace"],
+            ),
+        )
+        issue_paths = {issue.path for issue in issues}
+
+        self.assertIn("video.codecFamily", issue_paths)
+        self.assertIn("video.encoderBackend", issue_paths)
+        self.assertIn("filters.denoise", issue_paths)
+
+    def test_legacy_or_preset_adapter_reads_both_shapes(self) -> None:
+        legacy_effective = effective_decision_policy_from_legacy_or_preset({"OutputContainer": "mp4"})
+        preset_effective = effective_decision_policy_from_legacy_or_preset(
+            {
+                "version": 2,
+                "name": "V2",
+                "container": {"format": "mp4"},
+            }
+        )
+
+        self.assertEqual(legacy_effective.output_container, "mp4")
+        self.assertEqual(preset_effective.output_container, "mp4")
+
+    def test_validation_issues_use_user_facing_sections(self) -> None:
+        issues = preset_v2_validation_issues(
+            {
+                "version": 2,
+                "name": "Invalid",
+                "routing": {"enforcementMode": "definitely-not-valid"},
+                "video": {"codec": ""},
+                "container": {"format": "avi"},
+            }
+        )
+        sections = {issue.section for issue in issues}
+        paths = {issue.path for issue in issues}
+
+        self.assertIn("Routing", sections)
+        self.assertIn("Video", sections)
+        self.assertIn("Container", sections)
+        self.assertIn("routing.enforcementMode", paths)
+        self.assertIn("video.codec", paths)
+        self.assertIn("container.format", paths)
+
+    def test_source_facts_are_rejected_from_persisted_presets(self) -> None:
+        issues = preset_v2_validation_issues(
+            {
+                "version": 2,
+                "name": "Invalid source facts",
+                "sourceFacts": {"codec": "h264"},
+            }
+        )
+
+        self.assertEqual(len(issues), 1)
+        self.assertEqual(issues[0].section, "Preset")
+        self.assertIn("source facts are read-only", issues[0].message)
+
+    def test_unknown_future_fields_round_trip(self) -> None:
+        preset = PresetV2.model_validate(
+            {
+                "version": 2,
+                "name": "Future tolerant",
+                "futureTopLevel": {"keep": True},
+                "routing": {
+                    "futureRoutingField": "preserved",
+                },
+            }
+        )
+        dumped = preset.model_dump(by_alias=True)
+
+        self.assertEqual(dumped["futureTopLevel"], {"keep": True})
+        self.assertEqual(dumped["routing"]["futureRoutingField"], "preserved")
+
+    def test_rollout_write_target_remains_legacy_until_cutover(self) -> None:
+        self.assertEqual(PRESET_POLICY_WRITE_FORMAT, "legacy")
+
+    def test_preset_v2_adapter_emits_stable_legacy_keys_not_display_aliases(self) -> None:
+        patch = legacy_config_patch_from_preset_v2(
+            {
+                "version": 2,
+                "name": "Legacy writer",
+                "processingStrategy": "plex_direct_play",
+                "routing": {
+                    "enforcementMode": "bitrate",
+                    "directCopyMaxBitrate": {"movieMbps": 40, "tvMbps": 20},
+                    "directCopyVideoCodecAllowlist": ["hevc", "h264"],
+                },
+                "guards": {
+                    "size": {
+                        "mode": "strict",
+                        "qualityEncodeGrowthTolerancePct": 7,
+                        "compatibilityEncodeGrowthTolerancePct": 12,
+                        "movieRouteSizeLimitGb": 9,
+                        "tvRouteSizeLimitGb": 4,
+                    }
+                },
+                "video": {
+                    "codec": "hevc_nvenc",
+                    "encoderSpeedPreset": "p6",
+                    "encoderQualityPreset": "quality_nvenc",
+                    "targetSelection": "plex_compat",
+                },
+                "container": {"format": "mp4"},
+                "advanced": {"extraVideoFlags": ["-spatial-aq", "1"]},
+            }
+        )
+
+        self.assertEqual(patch["RoutingProfile"], "plex_direct_play")
+        self.assertEqual(patch["RouteThresholdMode"], "bitrate")
+        self.assertEqual(patch["SizeGuardMode"], "strict")
+        self.assertEqual(patch["EncodeTuningPreset"], "quality_nvenc")
+        self.assertEqual(patch["EncodeLadder"], "plex_compat")
+        self.assertEqual(patch["VideoPreset"], "p6")
+        self.assertEqual(patch["OutputContainer"], "mp4")
+        self.assertEqual(patch["RemuxSafeVideoCodecs"], ["hevc", "h264"])
+        for alias in ("ProcessingStrategy", "OutputSizeCheck", "EncoderQualityPreset", "EncoderSpeedPreset"):
+            self.assertNotIn(alias, patch)
+
+    def test_preset_v2_legacy_patch_validation_uses_current_config_contract(self) -> None:
+        with self.assertRaises(Exception):
+            legacy_config_patch_from_preset_v2(
+                {
+                    "version": 2,
+                    "name": "Invalid legacy patch",
+                    "routing": {"directCopyMaxBitrate": {"movieMbps": 0}},
+                }
+            )
+
+
+if __name__ == "__main__":
+    unittest.main()

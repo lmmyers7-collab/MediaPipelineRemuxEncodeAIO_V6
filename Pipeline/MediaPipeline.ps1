@@ -448,6 +448,10 @@ $script:DropBdpgsAfterConversion = Get-ConfigBool 'DropBdpgsAfterConversion' $fa
 $script:TreatBdpgsSignsSongsAsForced = Get-ConfigBool 'TreatBdpgsSignsSongsAsForced' $false
 $script:BdpgsOcrToolPath = if ($config.ContainsKey('BdpgsOcrToolPath')) { [string]$config['BdpgsOcrToolPath'] } else { '' }
 $script:BdpgsOcrTessdataPath = if ($config.ContainsKey('BdpgsOcrTessdataPath')) { [string]$config['BdpgsOcrTessdataPath'] } else { '' }
+$script:ConvertVobSubToSrt = Get-ConfigBool 'ConvertVobSubToSrt' $false
+$script:DropVobSubAfterConversion = Get-ConfigBool 'DropVobSubAfterConversion' $false
+$script:TreatVobSubSignsSongsAsForced = Get-ConfigBool 'TreatVobSubSignsSongsAsForced' $false
+$script:VobSubOcrToolPath = if ($config.ContainsKey('VobSubOcrToolPath')) { [string]$config['VobSubOcrToolPath'] } else { 'Tools\SubtitleEdit\seconv.exe' }
 $script:TreatAssSignsSongsAsForced = Get-ConfigBool 'TreatAssSignsSongsAsForced' $false
 $script:TreatTx3gSignsSongsAsForced = Get-ConfigBool 'TreatTx3gSignsSongsAsForced' $false
 $script:AggressiveEpisodeParsing = Get-ConfigBool 'AggressiveEpisodeParsing' $false
@@ -469,6 +473,7 @@ $script:MkvmergeRemuxTimeoutSeconds = Get-ConfigInt 'MkvmergeRemuxTimeoutSeconds
 $script:SubtitleExtractTimeoutSeconds = Get-ConfigInt 'SubtitleExtractTimeoutSeconds' 180 30 3600
 $script:SubtitleProbeTimeoutSeconds   = Get-ConfigInt 'SubtitleProbeTimeoutSeconds' 30 5 600
 $script:BdpgsOcrTimeoutSeconds        = Get-ConfigInt 'BdpgsOcrTimeoutSeconds' 1800 60 14400
+$script:VobSubOcrTimeoutSeconds       = Get-ConfigInt 'VobSubOcrTimeoutSeconds' 1800 60 14400
 $script:SourceScanIntervalSeconds    = Get-ConfigInt 'SourceScanIntervalSeconds' 300 0 86400
 $script:ProcessedIndexRefreshSeconds = Get-ConfigInt 'ProcessedIndexRefreshSeconds' 900 0 86400
 $script:RobocopyTimeoutSeconds       = Get-ConfigInt 'RobocopyTimeoutSeconds' 14400 60 172800
@@ -565,6 +570,27 @@ $script:BdpgsExtractLanguages = @(
 )
 if ($script:BdpgsExtractLanguages.Count -eq 0) {
     $script:BdpgsExtractLanguages = @($SubKeepLanguages)
+}
+
+if ($config.ContainsKey('VobSubExtractLanguages')) {
+    $v = $config['VobSubExtractLanguages']
+    if     ($null -eq $v)       { $script:VobSubExtractLanguages = @() }
+    elseif ($v -isnot [array])  { $script:VobSubExtractLanguages = @($v) }
+    else                         { $script:VobSubExtractLanguages = @($v) }
+} else {
+    $script:VobSubExtractLanguages = @($SubKeepLanguages)
+}
+$script:VobSubExtractLanguages = @(
+    $script:VobSubExtractLanguages |
+        ForEach-Object {
+            $text = [string]$_
+            if ([string]::IsNullOrWhiteSpace($text)) { 'und' } else { $text.Trim().ToLowerInvariant() }
+        } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Select-Object -Unique
+)
+if ($script:VobSubExtractLanguages.Count -eq 0) {
+    $script:VobSubExtractLanguages = @($SubKeepLanguages)
 }
 
 if ($config.ContainsKey('PriorityMarkers')) {
@@ -948,6 +974,7 @@ $script:SourceIdentityV2Algorithm = 'size-duration-codec-sample-v1'
 $ffmpegPath   = Resolve-BundledExecutable -CommandName 'ffmpeg'   -RelativeCandidates @('Tools\ffmpeg\bin\ffmpeg.exe')
 $ffprobePath  = Resolve-BundledExecutable -CommandName 'ffprobe'  -RelativeCandidates @('Tools\ffmpeg\bin\ffprobe.exe')
 $mkvmergePath = Resolve-BundledExecutable -CommandName 'mkvmerge' -RelativeCandidates @('Tools\MKVToolNix\mkvmerge.exe')
+$mkvextractPath = Resolve-BundledExecutable -CommandName 'mkvextract' -RelativeCandidates @('Tools\MKVToolNix\mkvextract.exe')
 
 if (-not $ffmpegPath -or -not $ffprobePath) {
     Write-Host "FATAL: bundled ffmpeg/ffprobe not found in Tools\\ffmpeg\\bin. Set AllowSystemTools=true only for development fallback." -ForegroundColor Red; exit 1
@@ -1130,10 +1157,11 @@ function Process-File {
         $idx,
         [int]$QueueIndex = 0,
         [int]$QueueTotal = 0,
-        $PriorityInfo = $null
+        $PriorityInfo = $null,
+        [string]$LibraryProfileId = ''
     )
 
-    Invoke-MediaPipelineProcessFile -file $file -isTV:$isTV -idx $idx -QueueIndex $QueueIndex -QueueTotal $QueueTotal -PriorityInfo $PriorityInfo
+    Invoke-MediaPipelineProcessFile -file $file -isTV:$isTV -idx $idx -QueueIndex $QueueIndex -QueueTotal $QueueTotal -PriorityInfo $PriorityInfo -LibraryProfileId $LibraryProfileId
 }
 
 # Queue snapshot helpers live in engine\queue\pipeline_engine.ps1.
@@ -1186,10 +1214,13 @@ Write-Log "Audio policy  : transcode=$script:AudioTranscodeCodec $script:AudioTr
 Write-Log "Drop ASS      : $DropAssAfterConversion"
 $tx3gLanguageText = ($script:Tx3gExtractLanguages -join ', ')
 $bdpgsLanguageText = ($script:BdpgsExtractLanguages -join ', ')
+$vobSubLanguageText = ($script:VobSubExtractLanguages -join ', ')
 $bdpgsOcrToolText = if ($script:BdpgsOcrToolPath) { $script:BdpgsOcrToolPath } else { '(not configured)' }
+$vobSubOcrToolText = if ($script:VobSubOcrToolPath) { $script:VobSubOcrToolPath } else { '(not configured)' }
 Write-Log ("Convert TX3G  : {0} (languages: {1}; drop original: {2}; external sidecars: {3}; preserve existing SRT: {4})" -f $script:ConvertTx3gToSrt, $tx3gLanguageText, $script:DropTx3gAfterConversion, $script:CreateExternalTx3gSrtSidecars, $script:Tx3gPreserveExistingSrt)
 Write-Log ("Convert BDPGS : {0} (languages: {1}; drop original: {2}; OCR tool: {3})" -f $script:ConvertBdpgsToSrt, $bdpgsLanguageText, $script:DropBdpgsAfterConversion, $bdpgsOcrToolText)
-Write-Log "Signs/Songs   : keep ASS=$($script:KeepSignsAndSongs) | ASS forced=$($script:TreatAssSignsSongsAsForced) | TX3G forced=$($script:TreatTx3gSignsSongsAsForced) | BDPGS forced=$($script:TreatBdpgsSignsSongsAsForced)"
+Write-Log ("Convert VobSub: {0} (languages: {1}; drop original: {2}; OCR tool: {3})" -f $script:ConvertVobSubToSrt, $vobSubLanguageText, $script:DropVobSubAfterConversion, $vobSubOcrToolText)
+Write-Log "Signs/Songs   : keep ASS=$($script:KeepSignsAndSongs) | ASS forced=$($script:TreatAssSignsSongsAsForced) | TX3G forced=$($script:TreatTx3gSignsSongsAsForced) | BDPGS forced=$($script:TreatBdpgsSignsSongsAsForced) | VobSub forced=$($script:TreatVobSubSignsSongsAsForced)"
 Write-Log "Merge adjacent: $($script:MergeAdjacent) (threshold: $($script:MergeThresholdMs)ms)"
 Write-Log "Remove karaoke: $($script:RemoveKaraoke)"
 if ($script:ExcludeSubtitleStyles.Count -gt 0) {
@@ -1205,7 +1236,7 @@ Write-Log "ReprocessAll  : $($script:ReprocessAll)"
 Write-Log "Deferred publish : $($script:DeferredPublish)"
 Write-Log "Aggressive TV parse : $($script:AggressiveEpisodeParsing)"
 Write-Log ("CPU fallback  : {0} CRF {1} preset {2} threads={3} (process priority: {4})" -f (Get-MediaVideoCodecLibx265Name), $script:FallbackCpuQuality, $script:CpuEncodePreset, $(if ($script:CpuEncodeMaxThreads -gt 0) { [string]$script:CpuEncodeMaxThreads } else { 'auto' }), $script:CpuEncodeProcessPriority)
-Write-Log "FFmpeg timeouts: encode $($script:FFmpegEncodeTimeoutSeconds)s | encode-cpu $($script:FFmpegCpuEncodeTimeoutSeconds)s | remux $($script:FFmpegRemuxTimeoutSeconds)s | mkvmerge $($script:MkvmergeRemuxTimeoutSeconds)s | subtitle extract $($script:SubtitleExtractTimeoutSeconds)s | subtitle probe $($script:SubtitleProbeTimeoutSeconds)s | BDPGS OCR $($script:BdpgsOcrTimeoutSeconds)s"
+Write-Log "FFmpeg timeouts: encode $($script:FFmpegEncodeTimeoutSeconds)s | encode-cpu $($script:FFmpegCpuEncodeTimeoutSeconds)s | remux $($script:FFmpegRemuxTimeoutSeconds)s | mkvmerge $($script:MkvmergeRemuxTimeoutSeconds)s | subtitle extract $($script:SubtitleExtractTimeoutSeconds)s | subtitle probe $($script:SubtitleProbeTimeoutSeconds)s | BDPGS OCR $($script:BdpgsOcrTimeoutSeconds)s | VobSub OCR $($script:VobSubOcrTimeoutSeconds)s"
 
 # F-new-2 — probe NVENC availability once at startup and cache. The
 # probe binds to the configured VideoCodec when it's an nvenc encoder so

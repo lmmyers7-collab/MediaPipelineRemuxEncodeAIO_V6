@@ -80,9 +80,10 @@
       addEvidence("Output container", ["OutputContainer", "Container"]);
       addEvidence("H.264 copy/remux", ["AllowH264RemuxIfPlexCompatible", "H264RemuxMaxBitrateMbps", "H264RemuxMaxHeight"]);
       addEvidence("Size-growth guard", ["MaxEncodeGrowthPercent", "ForcedEncodeMaxGrowthPercent", "StrictEncodeGrowthLimit", "EnforceEncodeGrowthLimit"]);
-      addEvidence("Preferred subtitle languages", ["SubKeepLanguages", "PreferredSubtitleLanguages", "Tx3gExtractLanguages", "BdpgsExtractLanguages"]);
+      addEvidence("Preferred subtitle languages", ["SubKeepLanguages", "PreferredSubtitleLanguages", "Tx3gExtractLanguages", "BdpgsExtractLanguages", "VobSubExtractLanguages"]);
       addEvidence("TX3G SRT/original policy", ["ConvertTx3gToSrt", "DropTx3gAfterConversion"]);
       addEvidence("BDPGS SRT/original policy", ["ConvertBdpgsToSrt", "DropBdpgsAfterConversion"]);
+      addEvidence("VobSub SRT/original policy", ["ConvertVobSubToSrt", "DropVobSubAfterConversion"]);
       addEvidence("ASS original policy", ["ConvertAssToSrt", "DropAssAfterConversion", "AssConversionMode"]);
       addEvidence("Audio policy", ["AudioPassthroughProfile", "CompatibleAudioCodecs", "PreferredDefaultAudioLanguages", "AudioTranscodeCodec", "AudioMaxChannels", "AllowNoAudio"]);
       addEvidence("Pending publish policy", ["EnableDeferredPublish", "DeferredPublish", "PendingPublishEnabled", "CleanupRemoteStagingAfterPublish", "TransientPublishRetries"]);

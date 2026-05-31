@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/styles.rename.cs
 pipeline_stage: rename
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-29
+last_modified: 2026-05-30
 last_reviewed: 2026-05-29
-sha256: e89c3af0d2841e39237467427c4a4d80001e10cba5020123b1b99ad81e004b13
+sha256: 4b8890797d2a058dde0dde46485793364846f60c8606fec2a8856f046e132543
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/styles.rename.css`
 

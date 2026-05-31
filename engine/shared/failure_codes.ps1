@@ -139,6 +139,15 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'SUBTITLE_TX3G_SRT_PUBLISH_FAILED',
         'SUBTITLE_TX3G_UNKNOWN_FAILURE',
         'SUBTITLE_UNKNOWN_FAILURE',
+        'SUBTITLE_VOBSUB_CONTAINER_UNSUPPORTED',
+        'SUBTITLE_VOBSUB_EXTRACT_FAILED',
+        'SUBTITLE_VOBSUB_EXTRACT_TOOL_MISSING',
+        'SUBTITLE_VOBSUB_EXTRACT_UNSUPPORTED_CONTAINER',
+        'SUBTITLE_VOBSUB_OCR_EMPTY',
+        'SUBTITLE_VOBSUB_OCR_FAILED',
+        'SUBTITLE_VOBSUB_OCR_TOOL_MISSING',
+        'SUBTITLE_VOBSUB_PAIR_MISSING',
+        'SUBTITLE_VOBSUB_TESSERACT_MISSING',
         'TRANSIENT_FAILURE',
         'TV_PARSE_UNRELIABLE',
         'UNKNOWN_FAILURE'
@@ -185,6 +194,7 @@ function Get-MediaPipelineCodeStage {
     $codeText = if ($Code) { ([string]$Code).Trim().ToUpperInvariant() } else { '' }
     switch -Regex ($codeText) {
         '^SUBTITLE_BDPGS_' { return 'subtitle-bdpgs' }
+        '^SUBTITLE_VOBSUB_' { return 'subtitle-vobsub' }
         '^SUBTITLE_TX3G_'  { return 'subtitle-tx3g' }
         '^SUBTITLE_ASS_'   { return 'subtitle-ass' }
         '^SUBTITLE_'       { return 'subtitle' }
@@ -212,6 +222,7 @@ function Get-MediaPipelineCodeHandledBy {
     $codeText = if ($Code) { ([string]$Code).Trim().ToUpperInvariant() } else { '' }
     switch -Regex ($codeText) {
         '^SUBTITLE_BDPGS_' { return 'Subtitles.Bdpgs.ps1' }
+        '^SUBTITLE_VOBSUB_' { return 'Subtitles.VobSub.ps1' }
         '^SUBTITLE_TX3G_'  { return 'Subtitles.Tx3g.ps1' }
         '^SUBTITLE_ASS_'   { return 'Subtitles.Ass.ps1' }
         '^SUBTITLE_'       { return 'Subtitles.ps1' }
@@ -310,6 +321,9 @@ function Get-MediaPipelineCodeOperatorAction {
         }
         'SUBTITLE_BDPGS_OCR_TOOL_MISSING|SUBTITLE_BDPGS_TESSDATA_MISSING' {
             return 'Fix the BDPGS OCR tool/tessdata setting or disable BDPGS OCR before retrying the source.'
+        }
+        'SUBTITLE_VOBSUB_OCR_TOOL_MISSING|SUBTITLE_VOBSUB_TESSERACT_MISSING|SUBTITLE_VOBSUB_EXTRACT_TOOL_MISSING' {
+            return 'Fix the VobSub OCR/extraction tool settings, ensure bundled Tesseract is available, or disable VobSub OCR before retrying the source.'
         }
         'AUDIO_MISSING|AUDIO_OVERRIDE_STRIPPED|AUDIO_INVALID' {
             return 'Review source audio streams and per-file audio overrides before retrying or accepting no-audio output.'

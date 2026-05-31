@@ -63,6 +63,10 @@ function Convert-ResultForSerialization {
         BdpgsEmbeddedSrtCount   = $Result.BdpgsEmbeddedSrtCount
         BdpgsEmbeddedSrtInvalidCount = $Result.BdpgsEmbeddedSrtInvalidCount
         BdpgsSidecarFailureCount = $Result.BdpgsSidecarFailureCount
+        VobSubSubtitleCount     = $Result.VobSubSubtitleCount
+        VobSubEmbeddedSrtCount  = $Result.VobSubEmbeddedSrtCount
+        VobSubEmbeddedSrtInvalidCount = $Result.VobSubEmbeddedSrtInvalidCount
+        VobSubSidecarFailureCount = $Result.VobSubSidecarFailureCount
         DefaultAudioCodec       = $Result.DefaultAudioCodec
         DefaultAudioLanguage    = $Result.DefaultAudioLanguage
         DefaultAudioTitle       = $Result.DefaultAudioTitle
@@ -150,6 +154,9 @@ function Write-TextReport {
             if ($entry.BdpgsSubtitleCount -gt 0) {
                 $lines.Add(('{0,-15}: {1} embedded, {2} OCR SRT record(s)' -f 'BDPGS', $entry.BdpgsSubtitleCount, $entry.BdpgsEmbeddedSrtCount))
             }
+            if ($entry.VobSubSubtitleCount -gt 0) {
+                $lines.Add(('{0,-15}: {1} embedded, {2} OCR SRT record(s)' -f 'VobSub', $entry.VobSubSubtitleCount, $entry.VobSubEmbeddedSrtCount))
+            }
             if ($IncludeSidecars) {
                 $lines.Add(('{0,-15}: {1}' -f 'Sidecar', $sidecarPathText))
                 $lines.Add(('{0,-15}: {1}' -f 'Sidecar ver', $sidecarVersionText))
@@ -198,6 +205,10 @@ function New-AuditCsvRows {
             BdpgsEmbeddedSrtCount   = $_.BdpgsEmbeddedSrtCount
             BdpgsEmbeddedSrtInvalidCount = $_.BdpgsEmbeddedSrtInvalidCount
             BdpgsSidecarFailureCount = $_.BdpgsSidecarFailureCount
+            VobSubSubtitleCount     = $_.VobSubSubtitleCount
+            VobSubEmbeddedSrtCount  = $_.VobSubEmbeddedSrtCount
+            VobSubEmbeddedSrtInvalidCount = $_.VobSubEmbeddedSrtInvalidCount
+            VobSubSidecarFailureCount = $_.VobSubSidecarFailureCount
             HasEnglishAudio         = $_.HasEnglishAudio
             HasEnglishSubtitle      = $_.HasEnglishSubtitle
             HasTextSubtitle         = $_.HasTextSubtitle
@@ -285,6 +296,10 @@ function Get-AuditCsvColumnNames {
         'BdpgsEmbeddedSrtCount',
         'BdpgsEmbeddedSrtInvalidCount',
         'BdpgsSidecarFailureCount',
+        'VobSubSubtitleCount',
+        'VobSubEmbeddedSrtCount',
+        'VobSubEmbeddedSrtInvalidCount',
+        'VobSubSidecarFailureCount',
         'HasEnglishAudio',
         'HasEnglishSubtitle',
         'HasTextSubtitle',

@@ -370,6 +370,7 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             "home-refresh-button",
             "home-control-message",
             'data-cross-page-target="launch"',
+            'data-cross-page-target="completed" data-home-promotion-entry',
             'data-cross-page-target="queue"',
             'data-cross-page-target="pending"',
             'data-open-diagnostics="run_logs"',

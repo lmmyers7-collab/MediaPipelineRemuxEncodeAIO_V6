@@ -162,6 +162,13 @@ def changed_key_risk_item(key: str, value: Any) -> RiskItem | None:
             key,
             "ConvertBdpgsToSrt is disabled. Preferred-language PGS subtitles will not be OCRed to SRT for Plex clients.",
         )
+    if normalized_key == "convertvobsubtosrt" and not truthy_setting(value):
+        return make_risk_item(
+            "medium",
+            "vobsub_srt_conversion_disabled",
+            key,
+            "ConvertVobSubToSrt is disabled. Preferred-language VobSub subtitles will not be OCRed to SRT for Plex clients.",
+        )
     if normalized_key == "allowsystemtools" and truthy_setting(value):
         return make_risk_item(
             "high",
@@ -251,16 +258,16 @@ def changed_key_risk_item(key: str, value: Any) -> RiskItem | None:
                 "high",
                 "size_guard_disabled",
                 key,
-                "SizeGuardMode is off. Encodes that grow far beyond source size will not be blocked or warned by the size guard.",
+                "SizeGuardMode is off. Encodes that grow far beyond source size will not be blocked or warned by Output Size Check.",
             )
         if mode == "strict":
             return make_risk_item(
                 "medium",
                 "strict_size_guard",
                 key,
-                "SizeGuardMode is strict. Oversized encodes will be rejected for manual review instead of publishing.",
+                "SizeGuardMode is strict. Oversized encodes will fail before publishing.",
             )
-    if normalized_key in {"droptx3gafterconversion", "dropbdpgsafterconversion", "dropassafterconversion"} and truthy_setting(value):
+    if normalized_key in {"droptx3gafterconversion", "dropbdpgsafterconversion", "dropvobsubafterconversion", "dropassafterconversion"} and truthy_setting(value):
         return make_risk_item(
             "medium",
             "drops_original_subtitle",
@@ -272,7 +279,7 @@ def changed_key_risk_item(key: str, value: Any) -> RiskItem | None:
             "medium",
             "mp4_container_limits",
             key,
-            "OutputContainer is MP4. Incompatible subtitle types such as ASS/PGS cannot be preserved in that container.",
+            "OutputContainer is MP4. Incompatible subtitle types such as ASS/PGS/VobSub cannot be preserved in that container.",
         )
     if normalized_key == "validextensions":
         extensions = [str(item or "").strip().casefold() for item in value] if isinstance(value, list | tuple | set) else []

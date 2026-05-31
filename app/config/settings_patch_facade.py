@@ -4,6 +4,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from pydantic import ValidationError
+
+from app.config.rollout import planner_comparison_from_decision_snapshot, resolve_planner_rollout_config
+from app.contracts.source_media import SourceMediaInfo
+from app.orchestration.planner import build_pipeline_plan_from_preset
 from app.config.settings_patch_policy import (
     settings_patch_preview_result,
     settings_save_busy_result,
@@ -20,6 +25,12 @@ if TYPE_CHECKING:
     from mediapipeline_desktop_app.application.dto_commands import CommandResult
 
 
+_PIPELINE_PLAN_PREVIEW_AUTHORITY = "python_preview_legacy_execution_still_authoritative"
+_PIPELINE_PLAN_PREVIEW_WARNING = (
+    "Settings PipelinePlan preview is dry-run only; production execution still uses the legacy PowerShell path until cutover."
+)
+
+
 class SettingsPatchFacadeMixin:
     """Settings patch preview and save command adapters."""
 
@@ -29,6 +40,94 @@ class SettingsPatchFacadeMixin:
         if patch["fatal_result"] is not None:
             return patch["fatal_result"]
         return settings_patch_preview_result(resolved, patch)
+
+    def preview_settings_pipeline_plan(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
+        """Preview the Python planner result from strict source facts without saving settings."""
+        from mediapipeline_desktop_app.application.dto_commands import CommandResult
+
+        try:
+            source = SourceMediaInfo.model_validate(request.get("source_media"))
+        except ValidationError as exc:
+            return CommandResult(
+                command="settings.pipeline_plan_preview",
+                ok=False,
+                severity="error",
+                message="Settings PipelinePlan preview requires a strict source_media.v1 SourceMediaInfo object.",
+                errors=[str(error.get("msg") or error) for error in exc.errors()],
+                data={
+                    "schema_version": "pipeline_plan_preview_error.v1",
+                    "dry_run_only": True,
+                    "can_execute": False,
+                    "authority": _PIPELINE_PLAN_PREVIEW_AUTHORITY,
+                    "writes_config": False,
+                    "mutates_media": False,
+                },
+            )
+
+        patch_request = dict(request)
+        patch_request.setdefault("changes", {})
+        patch_request.setdefault("remove_keys", [])
+        patch = self._settings_patch_candidate(resolved, patch_request, command="settings.pipeline_plan_preview")
+        if patch["fatal_result"] is not None:
+            return patch["fatal_result"]
+        warnings = list(patch["warnings"])
+        if patch["errors"]:
+            return CommandResult(
+                command="settings.pipeline_plan_preview",
+                ok=False,
+                severity="error",
+                message="Settings PipelinePlan preview was blocked by settings patch validation.",
+                warnings=warnings,
+                errors=list(patch["errors"]),
+                data={
+                    "schema_version": "pipeline_plan_preview_error.v1",
+                    "dry_run_only": True,
+                    "can_execute": False,
+                    "authority": _PIPELINE_PLAN_PREVIEW_AUTHORITY,
+                    "writes_config": False,
+                    "mutates_media": False,
+                    "changed_keys": list(patch["changed_keys"]),
+                    "removed_keys": list(patch["removed_keys"]),
+                    "risk_summary": patch["risk_summary"],
+                },
+            )
+
+        plan = build_pipeline_plan_from_preset(source, patch["merged"])
+        data = plan.model_dump(mode="json", by_alias=True)
+        rollout_state = resolve_planner_rollout_config(patch["merged"])
+        planner_comparison = planner_comparison_from_decision_snapshot(
+            data.get("decisionSnapshot", {}),
+            rollout_state=rollout_state,
+        )
+        data.setdefault("warnings", [])
+        if _PIPELINE_PLAN_PREVIEW_WARNING not in data["warnings"]:
+            data["warnings"].append(_PIPELINE_PLAN_PREVIEW_WARNING)
+        for warning in rollout_state.warnings:
+            if warning not in data["warnings"]:
+                data["warnings"].append(warning)
+        data.setdefault("effectivePresetSnapshot", {})
+        data["effectivePresetSnapshot"]["rollout"] = rollout_state.model_dump(mode="json", by_alias=True)
+        data["effectivePresetSnapshot"]["plannerComparison"] = planner_comparison.model_dump(mode="json", by_alias=True)
+        data["effectivePresetSnapshot"]["settingsPreview"] = {
+            "dryRunOnly": True,
+            "canExecute": False,
+            "authority": _PIPELINE_PLAN_PREVIEW_AUTHORITY,
+            "writesConfig": False,
+            "mutatesMedia": False,
+            "changedKeys": list(patch["changed_keys"]),
+            "removedKeys": list(patch["removed_keys"]),
+            "riskSummary": patch["risk_summary"],
+        }
+        warnings.append(_PIPELINE_PLAN_PREVIEW_WARNING)
+        warnings.extend(rollout_state.warnings)
+        return CommandResult(
+            command="settings.pipeline_plan_preview",
+            ok=True,
+            severity="warning",
+            message="Settings PipelinePlan preview ready. Dry-run only; legacy execution remains authoritative.",
+            warnings=warnings,
+            data=data,
+        )
 
     def save_settings_patch(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
         """Validate and save explicit settings changes to the active PSD1 config."""

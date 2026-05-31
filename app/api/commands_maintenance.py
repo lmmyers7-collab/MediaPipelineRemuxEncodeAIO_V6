@@ -20,3 +20,6 @@ class LocalApiMaintenanceCommandPayloadMixin:
         if resolved is None:
             return resolved_paths_unavailable_payload("maintenance.completed_backfill_dry_run", "maintenance")
         return self.facade.run_completed_backfill_dry_run(resolved, request).to_mapping()
+
+    def _maintenance_dependency_atlas_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        return self.facade.run_dependency_atlas(request).to_mapping()

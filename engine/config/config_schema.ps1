@@ -29,12 +29,103 @@ function Get-MediaPipelineConfigRequiredKeys {
 function Get-MediaPipelineConfigArrayKeys {
     return @(
         'ExtraVideoFlags','CompatibleAudioCodecs','SubKeepLanguages',
-        'SubSDHTitleKeywords','SubSupplementalKeywords','Tx3gExtractLanguages','BdpgsExtractLanguages',
+        'SubSDHTitleKeywords','SubSupplementalKeywords','Tx3gExtractLanguages','BdpgsExtractLanguages','VobSubExtractLanguages',
         'PreferredDefaultAudioLanguages','RemuxSafeVideoCodecs',
         'ValidExtensions','RobocopyFlags','PriorityMarkers',
         'ExcludeSubtitleStyles','IncludeSubtitleStyles',
         'FinalLibraryPromotionRules','LibraryProfiles'
     )
+}
+
+function Get-MediaPipelineConfigLibraryOverrideKeysByGroup {
+    return [ordered]@{
+        editor = @(
+            'RoutingProfile',
+            'RouteThresholdMode',
+            'SizeGuardMode',
+            'EncodeTuningPreset',
+            'EncodeLadder',
+            'VideoCodec',
+            'OutputContainer',
+            'EncodeThresholdGB',
+            'TVEncodeThresholdGB',
+            'MovieRouteMaxVideoBitrateMbps',
+            'TVRouteMaxVideoBitrateMbps',
+            'MaxEncodeGrowthPercent',
+            'CompatibilityEncodeGrowthPercent'
+        )
+        video = @(
+            'VideoPreset',
+            'VideoQuality',
+            'AllowH264RemuxIfPlexCompatible',
+            'H264RemuxMaxBitrateMbps',
+            'H264RemuxMaxHeight',
+            'RemuxSafeVideoCodecs',
+            'FallbackCpuQuality',
+            'CpuEncodePreset',
+            'CpuEncodeProcessPriority',
+            'CpuEncodeMaxThreads',
+            'ExtraVideoFlags'
+        )
+        subtitles = @(
+            'SubKeepLanguages',
+            'ConvertTx3gToSrt',
+            'DropTx3gAfterConversion',
+            'CreateExternalTx3gSrtSidecars',
+            'Tx3gExtractLanguages',
+            'Tx3gPreserveExistingSrt',
+            'Tx3gTreatForcedAsSeparate',
+            'ConvertBdpgsToSrt',
+            'DropBdpgsAfterConversion',
+            'BdpgsExtractLanguages',
+            'BdpgsOcrToolPath',
+            'BdpgsOcrTessdataPath',
+            'ConvertVobSubToSrt',
+            'DropVobSubAfterConversion',
+            'VobSubExtractLanguages',
+            'VobSubOcrToolPath',
+            'SubtitleExtractTimeoutSeconds',
+            'SubtitleProbeTimeoutSeconds',
+            'BdpgsOcrTimeoutSeconds',
+            'VobSubOcrTimeoutSeconds',
+            'SubSDHTitleKeywords',
+            'SubSupplementalKeywords',
+            'DropAssAfterConversion',
+            'StripFormatting',
+            'RemoveKaraoke',
+            'MergeAdjacent',
+            'MergeThresholdMs',
+            'KeepSignsAndSongs',
+            'TreatAssSignsSongsAsForced',
+            'TreatTx3gSignsSongsAsForced',
+            'TreatBdpgsSignsSongsAsForced',
+            'TreatVobSubSignsSongsAsForced',
+            'ExcludeSubtitleStyles',
+            'IncludeSubtitleStyles'
+        )
+        audio = @(
+            'AudioPassthroughProfile',
+            'CompatibleAudioCodecs',
+            'PreferredDefaultAudioLanguages',
+            'AudioTranscodeCodec',
+            'AudioTranscodeBitrate',
+            'AudioTranscodeAutoBitrateByChannels',
+            'AudioDownmixMode',
+            'AudioMaxChannels',
+            'AllowNoAudio'
+        )
+    }
+}
+
+function Get-MediaPipelineConfigLibraryOverrideKeys {
+    $keys = New-Object System.Collections.Generic.List[string]
+    $groups = Get-MediaPipelineConfigLibraryOverrideKeysByGroup
+    foreach ($group in @('editor','video','subtitles','audio')) {
+        foreach ($key in @($groups[$group])) {
+            [void]$keys.Add([string]$key)
+        }
+    }
+    return @($keys)
 }
 
 function Get-MediaPipelineConfigOrderedKeys {
@@ -55,9 +146,10 @@ function Get-MediaPipelineConfigOrderedKeys {
         'SubKeepLanguages','ConvertTx3gToSrt','DropTx3gAfterConversion','CreateExternalTx3gSrtSidecars',
         'Tx3gExtractLanguages','Tx3gPreserveExistingSrt','Tx3gTreatForcedAsSeparate',
         'ConvertBdpgsToSrt','DropBdpgsAfterConversion','BdpgsExtractLanguages','BdpgsOcrToolPath','BdpgsOcrTessdataPath',
+        'ConvertVobSubToSrt','DropVobSubAfterConversion','VobSubExtractLanguages','VobSubOcrToolPath',
         'SubSDHTitleKeywords','SubSupplementalKeywords',
         'DropAssAfterConversion','StripFormatting','RemoveKaraoke',
-        'MergeAdjacent','MergeThresholdMs','KeepSignsAndSongs','TreatAssSignsSongsAsForced','TreatTx3gSignsSongsAsForced','TreatBdpgsSignsSongsAsForced',
+        'MergeAdjacent','MergeThresholdMs','KeepSignsAndSongs','TreatAssSignsSongsAsForced','TreatTx3gSignsSongsAsForced','TreatBdpgsSignsSongsAsForced','TreatVobSubSignsSongsAsForced',
         'ExcludeSubtitleStyles','IncludeSubtitleStyles',
         'RemuxSafeVideoCodecs',
         'ValidExtensions','FileStabilityWait','SkipStabilityCheck',
@@ -66,7 +158,7 @@ function Get-MediaPipelineConfigOrderedKeys {
         'DebugMode','LogRetentionDays','PriorityMarkers','MixPriorityPhase','QueueOrderingStrategy','ConsoleLogLevel','FileLogLevel',
         'MaxParallelEncodes','ParallelEncodeMode',
         'FallbackCpuQuality','CpuEncodePreset','CpuEncodeProcessPriority','CpuEncodeMaxThreads','OutputSizeMultiplier',
-        'FFmpegEncodeTimeoutSeconds','FFmpegCpuEncodeTimeoutSeconds','FFmpegRemuxTimeoutSeconds','MkvmergeRemuxTimeoutSeconds','SubtitleExtractTimeoutSeconds','SubtitleProbeTimeoutSeconds','BdpgsOcrTimeoutSeconds',
+        'FFmpegEncodeTimeoutSeconds','FFmpegCpuEncodeTimeoutSeconds','FFmpegRemuxTimeoutSeconds','MkvmergeRemuxTimeoutSeconds','SubtitleExtractTimeoutSeconds','SubtitleProbeTimeoutSeconds','BdpgsOcrTimeoutSeconds','VobSubOcrTimeoutSeconds',
         'OutputValidationProbeTimeoutSeconds','OutputValidationMinSizeBytes','OutputValidationDurationToleranceSeconds',
         'AllowSystemTools','RobocopyTimeoutSeconds','TransientFailureRetryLimit',
         'IndexScanTimeoutSeconds','SourceScanTimeoutSeconds','CleanupScanTimeoutSeconds',
@@ -93,6 +185,18 @@ function Get-MediaPipelineConfigExtraVideoFlagsDefault {
         )
     }
     return @()
+}
+
+function Get-MediaPipelineVideoCodecNames {
+    return @('hevc_nvenc','libx265','h264_nvenc','libx264','av1_nvenc')
+}
+
+function Get-MediaPipelineVideoPresetNames {
+    return @('p1','p2','p3','p4','p5','p6','p7')
+}
+
+function Get-MediaPipelineOutputContainerNames {
+    return @('mkv','mp4')
 }
 
 function Get-MediaPipelineEncodeTuningPresetNames {
@@ -200,6 +304,10 @@ function Get-MediaPipelineSizeGuardModeDefault {
     return 'advisory'
 }
 
+function Get-MediaPipelineFinalLibraryPromotionVerificationModeNames {
+    return @('fast','cautious')
+}
+
 function Get-MediaPipelineAudioPassthroughProfileNames {
     return @(
         'plex_balanced',
@@ -211,6 +319,14 @@ function Get-MediaPipelineAudioPassthroughProfileNames {
 
 function Get-MediaPipelineAudioPassthroughProfileDefault {
     return 'plex_balanced'
+}
+
+function Get-MediaPipelineAudioTranscodeCodecNames {
+    return @('eac3','ac3','aac')
+}
+
+function Get-MediaPipelineAudioDownmixModeNames {
+    return @('preserve','max_channels','stereo')
 }
 
 function Resolve-MediaPipelineAudioPassthroughProfile {
@@ -496,6 +612,10 @@ function Get-MediaPipelineConfigDefaultValues {
         BdpgsExtractLanguages      = @('eng','en','und')
         BdpgsOcrToolPath           = 'Tools\PgsToSrt\PgsToSrt.exe'
         BdpgsOcrTessdataPath       = 'Tools\PgsToSrt\tessdata'
+        ConvertVobSubToSrt         = $false
+        DropVobSubAfterConversion  = $false
+        VobSubExtractLanguages     = @('eng','en','und')
+        VobSubOcrToolPath          = 'Tools\SubtitleEdit\seconv.exe'
         SubSDHTitleKeywords        = @('sdh','hearing impaired','hearing-impaired','cc','closed caption','closedcaption')
         SubSupplementalKeywords    = @('sign','song','karaoke','chapter','opening','ending')
         DropAssAfterConversion     = $false
@@ -507,6 +627,7 @@ function Get-MediaPipelineConfigDefaultValues {
         TreatAssSignsSongsAsForced = $false
         TreatTx3gSignsSongsAsForced = $false
         TreatBdpgsSignsSongsAsForced = $false
+        TreatVobSubSignsSongsAsForced = $false
         ExcludeSubtitleStyles      = @(
             'Sign','Sign *','Sign-*',
             'Signs','Signs *','Signs-*',
@@ -547,6 +668,7 @@ function Get-MediaPipelineConfigDefaultValues {
         SubtitleExtractTimeoutSeconds = 180
         SubtitleProbeTimeoutSeconds   = 30
         BdpgsOcrTimeoutSeconds        = 1800
+        VobSubOcrTimeoutSeconds       = 1800
         OutputValidationProbeTimeoutSeconds = 60
         OutputValidationMinSizeBytes = 1024
         OutputValidationDurationToleranceSeconds = 2
@@ -607,6 +729,120 @@ function ConvertTo-MediaPipelineConfigBool {
     return $Default
 }
 
+function ConvertTo-MediaPipelineConfigMap {
+    param($Value)
+
+    $map = [ordered]@{}
+    if ($null -eq $Value) { return $map }
+    if ($Value -is [System.Collections.IDictionary]) {
+        foreach ($key in $Value.Keys) {
+            if ($null -ne $key) { $map[[string]$key] = $Value[$key] }
+        }
+        return $map
+    }
+    foreach ($property in @($Value.PSObject.Properties)) {
+        if ($property -and -not [string]::IsNullOrWhiteSpace([string]$property.Name)) {
+            $map[[string]$property.Name] = $property.Value
+        }
+    }
+    return $map
+}
+
+function Test-MediaPipelineConfigChoiceValue {
+    param(
+        [Parameter(Mandatory)] $Config,
+        [Parameter(Mandatory)] [string] $Key,
+        [Parameter(Mandatory)] [string] $Label,
+        [Parameter(Mandatory)] [array] $AllowedValues,
+        [switch] $AllowBlank,
+        [System.Collections.Generic.List[string]] $Errors
+    )
+
+    if (-not (Test-MediaPipelineConfigHasKey -Config $Config -Key $Key)) { return }
+    $raw = Get-MediaPipelineConfigValue -Config $Config -Key $Key
+    $value = ([string]$raw).Trim().ToLowerInvariant()
+    if ($AllowBlank -and [string]::IsNullOrWhiteSpace($value)) { return }
+    $allowed = @($AllowedValues | ForEach-Object { ([string]$_).Trim().ToLowerInvariant() })
+    if ($value -notin $allowed) {
+        $Errors.Add("$Label must be one of: $($allowed -join ', ').")
+    }
+}
+
+function Test-MediaPipelineConfigIntegerRange {
+    param(
+        [Parameter(Mandatory)] $Config,
+        [Parameter(Mandatory)] [string] $Key,
+        [Parameter(Mandatory)] [string] $Label,
+        [Nullable[int64]] $Minimum = $null,
+        [Nullable[int64]] $Maximum = $null,
+        [switch] $Optional,
+        [System.Collections.Generic.List[string]] $Errors
+    )
+
+    if (-not (Test-MediaPipelineConfigHasKey -Config $Config -Key $Key)) { return }
+    $raw = Get-MediaPipelineConfigValue -Config $Config -Key $Key
+    if ($Optional -and ($null -eq $raw -or [string]::IsNullOrWhiteSpace([string]$raw))) { return }
+    if (-not ($raw -is [byte] -or $raw -is [sbyte] -or $raw -is [int16] -or $raw -is [uint16] -or
+              $raw -is [int] -or $raw -is [uint32] -or $raw -is [long] -or $raw -is [uint64])) {
+        $Errors.Add("$Label must be an integer.")
+        return
+    }
+    $number = [int64]$raw
+    if ($null -ne $Minimum -and $number -lt [int64]$Minimum) {
+        if ($null -ne $Maximum) {
+            $Errors.Add("$Label must be between $Minimum and $Maximum.")
+        } else {
+            $Errors.Add("$Label must be at least $Minimum.")
+        }
+        return
+    }
+    if ($null -ne $Maximum -and $number -gt [int64]$Maximum) {
+        if ($null -ne $Minimum) {
+            $Errors.Add("$Label must be between $Minimum and $Maximum.")
+        } else {
+            $Errors.Add("$Label must be at most $Maximum.")
+        }
+    }
+}
+
+function Test-MediaPipelineConfigNumberRange {
+    param(
+        [Parameter(Mandatory)] $Config,
+        [Parameter(Mandatory)] [string] $Key,
+        [Parameter(Mandatory)] [string] $Label,
+        [Nullable[double]] $Minimum = $null,
+        [Nullable[double]] $Maximum = $null,
+        [switch] $Optional,
+        [System.Collections.Generic.List[string]] $Errors
+    )
+
+    if (-not (Test-MediaPipelineConfigHasKey -Config $Config -Key $Key)) { return }
+    $raw = Get-MediaPipelineConfigValue -Config $Config -Key $Key
+    if ($Optional -and ($null -eq $raw -or [string]::IsNullOrWhiteSpace([string]$raw))) { return }
+    if (-not ($raw -is [byte] -or $raw -is [sbyte] -or $raw -is [int16] -or $raw -is [uint16] -or
+              $raw -is [int] -or $raw -is [uint32] -or $raw -is [long] -or $raw -is [uint64] -or
+              $raw -is [float] -or $raw -is [double] -or $raw -is [decimal])) {
+        $Errors.Add("$Label must be numeric.")
+        return
+    }
+    $number = [double]$raw
+    if ($null -ne $Minimum -and $number -lt [double]$Minimum) {
+        if ($null -ne $Maximum) {
+            $Errors.Add("$Label must be between $Minimum and $Maximum.")
+        } else {
+            $Errors.Add("$Label must be at least $Minimum.")
+        }
+        return
+    }
+    if ($null -ne $Maximum -and $number -gt [double]$Maximum) {
+        if ($null -ne $Minimum) {
+            $Errors.Add("$Label must be between $Minimum and $Maximum.")
+        } else {
+            $Errors.Add("$Label must be at most $Maximum.")
+        }
+    }
+}
+
 function Normalize-MediaPipelineConfigPathForCompare {
     param([string] $Path)
 
@@ -617,6 +853,121 @@ function Normalize-MediaPipelineConfigPathForCompare {
         return [System.IO.Path]::GetFullPath($trimmed).TrimEnd('\','/').ToLowerInvariant()
     } catch {
         return $trimmed.ToLowerInvariant()
+    }
+}
+
+function Add-MediaPipelineLibraryOverrideValuesToMap {
+    param(
+        [Parameter(Mandatory)] [System.Collections.IDictionary] $Target,
+        $Values
+    )
+
+    if ($null -eq $Values) { return }
+    if ($Values -is [System.Collections.IDictionary]) {
+        foreach ($key in $Values.Keys) {
+            if ($null -ne $key) { $Target[[string]$key] = $Values[$key] }
+        }
+        return
+    }
+    foreach ($property in @($Values.PSObject.Properties)) {
+        if ($property -and -not [string]::IsNullOrWhiteSpace([string]$property.Name)) {
+            $Target[[string]$property.Name] = $property.Value
+        }
+    }
+}
+
+function Get-MediaPipelineLibraryProfileOverrideValues {
+    param($Profile)
+
+    $values = [ordered]@{}
+    $overrides = Get-MediaPipelineConfigValue -Config $Profile -Key 'overrides'
+    foreach ($group in @('editor','video','subtitles','subtitle','audio')) {
+        if ($overrides) {
+            Add-MediaPipelineLibraryOverrideValuesToMap -Target $values -Values (Get-MediaPipelineConfigValue -Config $overrides -Key $group)
+        }
+    }
+    Add-MediaPipelineLibraryOverrideValuesToMap -Target $values -Values (Get-MediaPipelineConfigValue -Config $Profile -Key 'editor_overrides')
+    Add-MediaPipelineLibraryOverrideValuesToMap -Target $values -Values (Get-MediaPipelineConfigValue -Config $Profile -Key 'media_overrides')
+    return $values
+}
+
+function Get-MediaPipelineLibraryProfileOverrideKeyErrors {
+    param(
+        [Parameter(Mandatory)] $Profile,
+        [Parameter(Mandatory)] [string] $Label
+    )
+
+    $errors = New-Object System.Collections.Generic.List[string]
+    $keysByGroup = Get-MediaPipelineConfigLibraryOverrideKeysByGroup
+    $allKeys = @(Get-MediaPipelineConfigLibraryOverrideKeys)
+    $rawOverrides = Get-MediaPipelineConfigValue -Config $Profile -Key 'overrides'
+    if ($rawOverrides) {
+        $overrideMap = ConvertTo-MediaPipelineConfigMap -Value $rawOverrides
+        foreach ($rawGroup in $overrideMap.Keys) {
+            $group = if ([string]$rawGroup -eq 'subtitle') { 'subtitles' } else { [string]$rawGroup }
+            if (-not $keysByGroup.Contains($group)) {
+                $errors.Add("Library profile $Label override group is unsupported: $rawGroup.")
+                continue
+            }
+            $values = ConvertTo-MediaPipelineConfigMap -Value $overrideMap[$rawGroup]
+            foreach ($key in $values.Keys) {
+                $keyText = [string]$key
+                if ($keyText -notin @($keysByGroup[$group])) {
+                    $errors.Add("Library profile $Label override $group.$keyText is not a supported library override key.")
+                }
+            }
+        }
+    }
+
+    foreach ($legacyField in @('editor_overrides','media_overrides')) {
+        $legacyValues = ConvertTo-MediaPipelineConfigMap -Value (Get-MediaPipelineConfigValue -Config $Profile -Key $legacyField)
+        foreach ($key in $legacyValues.Keys) {
+            $keyText = [string]$key
+            if ($keyText -notin $allKeys) {
+                $errors.Add("Library profile $Label $legacyField.$keyText is not a supported library override key.")
+            }
+        }
+    }
+    return @($errors)
+}
+
+function Test-MediaPipelineLibraryProfileOverrides {
+    param(
+        [Parameter(Mandatory)] $Config,
+        [Parameter(Mandatory)] $Profile,
+        [Parameter(Mandatory)] [string] $Label,
+        [System.Collections.Generic.List[string]] $Errors,
+        [System.Collections.Generic.List[string]] $Warnings
+    )
+
+    $keyErrors = @(Get-MediaPipelineLibraryProfileOverrideKeyErrors -Profile $Profile -Label $Label)
+    foreach ($message in $keyErrors) {
+        $Errors.Add($message)
+    }
+    if ($keyErrors.Count -gt 0) { return }
+
+    $overrides = Get-MediaPipelineLibraryProfileOverrideValues -Profile $Profile
+    if ($overrides.Count -le 0) { return }
+
+    $candidate = Get-MediaPipelineConfigDefaultValues
+    foreach ($key in @(Get-MediaPipelineConfigOrderedKeys)) {
+        if (Test-MediaPipelineConfigHasKey -Config $Config -Key $key) {
+            $candidate[$key] = Get-MediaPipelineConfigValue -Config $Config -Key $key
+        }
+    }
+    foreach ($key in $overrides.Keys) {
+        $candidate[$key] = $overrides[$key]
+    }
+
+    $overrideErrors = [System.Collections.Generic.List[string]]::new()
+    $overrideWarnings = [System.Collections.Generic.List[string]]::new()
+    Test-MediaPipelineConfigEncodeAudioPolicy -Config $candidate -Errors $overrideErrors -Warnings $overrideWarnings
+
+    foreach ($message in @($overrideErrors)) {
+        $Errors.Add("Library profile $Label override is invalid: $message")
+    }
+    foreach ($message in @($overrideWarnings)) {
+        $Warnings.Add("Library profile $Label override review: $message")
     }
 }
 
@@ -668,6 +1019,7 @@ function Test-MediaPipelineConfigPathShape {
     if (Test-MediaPipelineConfigHasKey -Config $Config -Key 'LibraryProfiles') {
         $profiles = @(Get-MediaPipelineConfigValue -Config $Config -Key 'LibraryProfiles')
         $profileIds = @{}
+        $profileSourceRoots = @{}
         foreach ($profile in $profiles) {
             if ($null -eq $profile) { continue }
             $id = [string](Get-MediaPipelineConfigValue -Config $profile -Key 'id')
@@ -700,12 +1052,20 @@ function Test-MediaPipelineConfigPathShape {
             if ($enabled -and [string]::IsNullOrWhiteSpace($sourcePath)) {
                 $Errors.Add("$label source_path cannot be empty.")
             }
-            if ($enabled -and [string]::IsNullOrWhiteSpace($outputPath)) {
-                $Errors.Add("$label output_path cannot be empty.")
-            }
             if ($enabled -and $promotionEnabled -and [string]::IsNullOrWhiteSpace($promotionDestination)) {
                 $Errors.Add("$label promotion_destination cannot be empty when promotion is enabled.")
             }
+            if ($enabled -and -not [string]::IsNullOrWhiteSpace($sourcePath)) {
+                $sourceKey = Normalize-MediaPipelineConfigPathForCompare -Path $sourcePath
+                if (-not [string]::IsNullOrWhiteSpace($sourceKey)) {
+                    if ($profileSourceRoots.ContainsKey($sourceKey)) {
+                        $Errors.Add("$label shares an enabled source root with $($profileSourceRoots[$sourceKey]).")
+                    } else {
+                        $profileSourceRoots[$sourceKey] = $label
+                    }
+                }
+            }
+            Test-MediaPipelineLibraryProfileOverrides -Config $Config -Profile $profile -Label $label -Errors $Errors -Warnings $Warnings
         }
     }
 
@@ -761,6 +1121,18 @@ function Test-MediaPipelineConfigSubtitleToggles {
             $Errors.Add('ConvertBdpgsToSrt requires BdpgsOcrToolPath.')
         }
     }
+
+    $convertVobSub = ConvertTo-MediaPipelineConfigBool -Config $Config -Key 'ConvertVobSubToSrt' -Default $false
+    $dropVobSub = ConvertTo-MediaPipelineConfigBool -Config $Config -Key 'DropVobSubAfterConversion' -Default $false
+    if (-not $convertVobSub -and $dropVobSub) {
+        $Errors.Add('DropVobSubAfterConversion requires ConvertVobSubToSrt.')
+    }
+    if ($convertVobSub) {
+        $toolPath = [string](Get-MediaPipelineConfigValue -Config $Config -Key 'VobSubOcrToolPath')
+        if ([string]::IsNullOrWhiteSpace($toolPath)) {
+            $Errors.Add('ConvertVobSubToSrt requires VobSubOcrToolPath.')
+        }
+    }
 }
 
 function Test-MediaPipelineConfigEncodeAudioPolicy {
@@ -769,6 +1141,18 @@ function Test-MediaPipelineConfigEncodeAudioPolicy {
         [System.Collections.Generic.List[string]] $Errors,
         [System.Collections.Generic.List[string]] $Warnings
     )
+
+    foreach ($optionPolicy in @(
+        @{ Key = 'VideoCodec'; Label = 'VideoCodec'; Allowed = @(Get-MediaPipelineVideoCodecNames) },
+        @{ Key = 'VideoPreset'; Label = 'VideoPreset'; Allowed = @(Get-MediaPipelineVideoPresetNames) },
+        @{ Key = 'OutputContainer'; Label = 'OutputContainer'; Allowed = @(Get-MediaPipelineOutputContainerNames) },
+        @{ Key = 'FinalLibraryPromotionVerificationMode'; Label = 'FinalLibraryPromotionVerificationMode'; Allowed = @(Get-MediaPipelineFinalLibraryPromotionVerificationModeNames); AllowBlank = $true },
+        @{ Key = 'CpuEncodePreset'; Label = 'CpuEncodePreset'; Allowed = @(Get-MediaPipelineCpuEncodePresetNames); AllowBlank = $true },
+        @{ Key = 'CpuEncodeProcessPriority'; Label = 'CpuEncodeProcessPriority'; Allowed = @(Get-MediaPipelineCpuEncodeProcessPriorityNames); AllowBlank = $true },
+        @{ Key = 'ParallelEncodeMode'; Label = 'ParallelEncodeMode'; Allowed = @(Get-MediaPipelineParallelEncodeModeNames); AllowBlank = $true }
+    )) {
+        Test-MediaPipelineConfigChoiceValue -Config $Config -Key ([string]$optionPolicy.Key) -Label ([string]$optionPolicy.Label) -AllowedValues @($optionPolicy.Allowed) -AllowBlank:([bool]$optionPolicy.AllowBlank) -Errors $Errors
+    }
 
     if (Test-MediaPipelineConfigHasKey -Config $Config -Key 'EncodeTuningPreset') {
         $preset = [string](Get-MediaPipelineConfigValue -Config $Config -Key 'EncodeTuningPreset')
@@ -810,22 +1194,42 @@ function Test-MediaPipelineConfigEncodeAudioPolicy {
     }
 
     foreach ($numericPolicy in @(
-        @{ Key = 'MovieRouteMaxVideoBitrateMbps'; Label = 'MovieRouteMaxVideoBitrateMbps'; Min = 1; Max = 500 },
-        @{ Key = 'TVRouteMaxVideoBitrateMbps'; Label = 'TVRouteMaxVideoBitrateMbps'; Min = 1; Max = 500 },
-        @{ Key = 'H264RemuxMaxBitrateMbps'; Label = 'H264RemuxMaxBitrateMbps'; Min = 1; Max = 500 },
-        @{ Key = 'H264RemuxMaxHeight'; Label = 'H264RemuxMaxHeight'; Min = 1; Max = 4320 },
-        @{ Key = 'MaxEncodeGrowthPercent'; Label = 'MaxEncodeGrowthPercent'; Min = 0; Max = 1000 },
-        @{ Key = 'CompatibilityEncodeGrowthPercent'; Label = 'CompatibilityEncodeGrowthPercent'; Min = 0; Max = 1000 }
+        @{ Kind = 'int'; Key = 'EncodeThresholdGB'; Label = 'EncodeThresholdGB'; Min = 1 },
+        @{ Kind = 'int'; Key = 'TVEncodeThresholdGB'; Label = 'TVEncodeThresholdGB'; Min = 1 },
+        @{ Kind = 'int'; Key = 'MovieRouteMaxVideoBitrateMbps'; Label = 'MovieRouteMaxVideoBitrateMbps'; Min = 1; Max = 500 },
+        @{ Kind = 'int'; Key = 'TVRouteMaxVideoBitrateMbps'; Label = 'TVRouteMaxVideoBitrateMbps'; Min = 1; Max = 500 },
+        @{ Kind = 'int'; Key = 'H264RemuxMaxBitrateMbps'; Label = 'H264RemuxMaxBitrateMbps'; Min = 1; Max = 500 },
+        @{ Kind = 'int'; Key = 'H264RemuxMaxHeight'; Label = 'H264RemuxMaxHeight'; Min = 1; Max = 4320 },
+        @{ Kind = 'int'; Key = 'MaxEncodeGrowthPercent'; Label = 'MaxEncodeGrowthPercent'; Min = 0; Max = 1000 },
+        @{ Kind = 'int'; Key = 'CompatibilityEncodeGrowthPercent'; Label = 'CompatibilityEncodeGrowthPercent'; Min = 0; Max = 1000 },
+        @{ Kind = 'int'; Key = 'MinFreeSpaceGB'; Label = 'MinFreeSpaceGB'; Min = 0 },
+        @{ Kind = 'int'; Key = 'OutsourceMinFreeSpaceGB'; Label = 'OutsourceMinFreeSpaceGB'; Min = 0 },
+        @{ Kind = 'int'; Key = 'VideoQuality'; Label = 'VideoQuality'; Min = 1; Max = 51 },
+        @{ Kind = 'int'; Key = 'MergeThresholdMs'; Label = 'MergeThresholdMs'; Min = 0; Max = 5000 },
+        @{ Kind = 'int'; Key = 'FFmpegEncodeTimeoutSeconds'; Label = 'FFmpegEncodeTimeoutSeconds'; Min = 1 },
+        @{ Kind = 'int'; Key = 'FFmpegCpuEncodeTimeoutSeconds'; Label = 'FFmpegCpuEncodeTimeoutSeconds'; Min = 1 },
+        @{ Kind = 'int'; Key = 'FFmpegRemuxTimeoutSeconds'; Label = 'FFmpegRemuxTimeoutSeconds'; Min = 1 },
+        @{ Kind = 'int'; Key = 'MkvmergeRemuxTimeoutSeconds'; Label = 'MkvmergeRemuxTimeoutSeconds'; Min = 60; Max = 86400 },
+        @{ Kind = 'int'; Key = 'SubtitleExtractTimeoutSeconds'; Label = 'SubtitleExtractTimeoutSeconds'; Min = 30; Max = 3600 },
+        @{ Kind = 'int'; Key = 'SubtitleProbeTimeoutSeconds'; Label = 'SubtitleProbeTimeoutSeconds'; Min = 5; Max = 600 },
+        @{ Kind = 'int'; Key = 'BdpgsOcrTimeoutSeconds'; Label = 'BdpgsOcrTimeoutSeconds'; Min = 60; Max = 14400 },
+        @{ Kind = 'int'; Key = 'VobSubOcrTimeoutSeconds'; Label = 'VobSubOcrTimeoutSeconds'; Min = 60; Max = 14400 },
+        @{ Kind = 'int'; Key = 'TransientFailureRetryLimit'; Label = 'TransientFailureRetryLimit'; Min = 1; Max = 100 },
+        @{ Kind = 'int'; Key = 'SourceScanIntervalSeconds'; Label = 'SourceScanIntervalSeconds'; Min = 0 },
+        @{ Kind = 'int'; Key = 'ProcessedIndexRefreshSeconds'; Label = 'ProcessedIndexRefreshSeconds'; Min = 0 },
+        @{ Kind = 'int'; Key = 'RobocopyTimeoutSeconds'; Label = 'RobocopyTimeoutSeconds'; Min = 60; Max = 172800 },
+        @{ Kind = 'int'; Key = 'SourceScanTimeoutSeconds'; Label = 'SourceScanTimeoutSeconds'; Min = 30; Max = 86400 },
+        @{ Kind = 'int'; Key = 'IndexScanTimeoutSeconds'; Label = 'IndexScanTimeoutSeconds'; Min = 30; Max = 86400 },
+        @{ Kind = 'int'; Key = 'CleanupScanTimeoutSeconds'; Label = 'CleanupScanTimeoutSeconds'; Min = 30; Max = 7200 },
+        @{ Kind = 'int'; Key = 'CleanupStaleAgeHours'; Label = 'CleanupStaleAgeHours'; Min = 1; Max = 720 },
+        @{ Kind = 'int'; Key = 'CpuEncodeMaxThreads'; Label = 'CpuEncodeMaxThreads'; Min = 0; Max = 256 },
+        @{ Kind = 'int'; Key = 'FallbackCpuQuality'; Label = 'FallbackCpuQuality'; Min = 1; Max = 51; Optional = $true },
+        @{ Kind = 'number'; Key = 'OutputSizeMultiplier'; Label = 'OutputSizeMultiplier'; Min = 0.1; Max = 2.0; Optional = $true }
     )) {
-        $policyKey = [string]$numericPolicy.Key
-        if (-not (Test-MediaPipelineConfigHasKey -Config $Config -Key $policyKey)) { continue }
-        try {
-            $number = [double](Get-MediaPipelineConfigValue -Config $Config -Key $policyKey)
-            if ($number -lt [double]$numericPolicy.Min -or $number -gt [double]$numericPolicy.Max) {
-                $Errors.Add("$($numericPolicy.Label) must be between $($numericPolicy.Min) and $($numericPolicy.Max).")
-            }
-        } catch {
-            $Errors.Add("$($numericPolicy.Label) must be numeric.")
+        if ([string]$numericPolicy.Kind -eq 'number') {
+            Test-MediaPipelineConfigNumberRange -Config $Config -Key ([string]$numericPolicy.Key) -Label ([string]$numericPolicy.Label) -Minimum $numericPolicy.Min -Maximum $numericPolicy.Max -Optional:([bool]$numericPolicy.Optional) -Errors $Errors
+        } else {
+            Test-MediaPipelineConfigIntegerRange -Config $Config -Key ([string]$numericPolicy.Key) -Label ([string]$numericPolicy.Label) -Minimum $numericPolicy.Min -Maximum $numericPolicy.Max -Optional:([bool]$numericPolicy.Optional) -Errors $Errors
         }
     }
 
@@ -838,8 +1242,8 @@ function Test-MediaPipelineConfigEncodeAudioPolicy {
 
     if (Test-MediaPipelineConfigHasKey -Config $Config -Key 'AudioTranscodeCodec') {
         $codec = ([string](Get-MediaPipelineConfigValue -Config $Config -Key 'AudioTranscodeCodec')).Trim().ToLowerInvariant()
-        if ($codec -notin @('eac3','ac3','aac')) {
-            $Errors.Add('AudioTranscodeCodec must be one of: eac3, ac3, aac.')
+        if ($codec -notin @(Get-MediaPipelineAudioTranscodeCodecNames)) {
+            $Errors.Add("AudioTranscodeCodec must be one of: $((Get-MediaPipelineAudioTranscodeCodecNames) -join ', ').")
         }
     }
 
@@ -852,21 +1256,12 @@ function Test-MediaPipelineConfigEncodeAudioPolicy {
 
     if (Test-MediaPipelineConfigHasKey -Config $Config -Key 'AudioDownmixMode') {
         $mode = ([string](Get-MediaPipelineConfigValue -Config $Config -Key 'AudioDownmixMode')).Trim().ToLowerInvariant()
-        if ($mode -notin @('preserve','max_channels','stereo')) {
-            $Errors.Add('AudioDownmixMode must be one of: preserve, max_channels, stereo.')
+        if ($mode -notin @(Get-MediaPipelineAudioDownmixModeNames)) {
+            $Errors.Add("AudioDownmixMode must be one of: $((Get-MediaPipelineAudioDownmixModeNames) -join ', ').")
         }
     }
 
-    if (Test-MediaPipelineConfigHasKey -Config $Config -Key 'AudioMaxChannels') {
-        try {
-            $maxChannels = [int](Get-MediaPipelineConfigValue -Config $Config -Key 'AudioMaxChannels')
-            if ($maxChannels -lt 1 -or $maxChannels -gt 16) {
-                $Errors.Add('AudioMaxChannels must be between 1 and 16.')
-            }
-        } catch {
-            $Errors.Add('AudioMaxChannels must be an integer.')
-        }
-    }
+    Test-MediaPipelineConfigIntegerRange -Config $Config -Key 'AudioMaxChannels' -Label 'AudioMaxChannels' -Minimum 1 -Maximum 16 -Errors $Errors
 }
 
 function Resolve-MediaPipelineConfigSchemaVersion {

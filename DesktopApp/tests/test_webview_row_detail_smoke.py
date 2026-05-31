@@ -25,6 +25,8 @@ except ImportError:  # pragma: no cover - fallback for direct test execution
 ROW_DETAIL_ASSETS = [
     "domHelpers.js",
     "formatters.js",
+    "commandHistory/formatters.js",
+    "commandHistory/diagnostics.js",
     "commandHistory.js",
     "diagnosticsBridge.js",
     "queueView.summary.js",
@@ -36,11 +38,16 @@ ROW_DETAIL_ASSETS = [
     "completedView.proof.js",
     "completedView.review.js",
     "completedView.diagnostics.js",
+    "completed/filters.js",
+    "completed/table.js",
     "completedView.js",
     "pendingPublishView.recovery.js",
     "pendingPublishView.diagnostics.js",
     "pendingPublishView.drain.js",
     "pendingPublishView.confidence.js",
+    "pendingPublish/summary.js",
+    "pendingPublish/filters.js",
+    "pendingPublish/details.js",
     "pendingPublishView.js",
 ]
 
@@ -352,6 +359,48 @@ def _node_runner_source() -> str:
         ]) {
           if (!pilotMarkdown.includes(fragment)) throw new Error(`pilot evidence markdown missing ${fragment}\nActual:\n${pilotMarkdown}`);
         }
+
+        const currentBaseRow = payload.completed.rows[0];
+        const currentDuplicateRows = [
+          Object.assign({}, currentBaseRow, {
+            row_key: "current-output-newest",
+            route: "remux",
+            route_label: "REMUX",
+            completed_at: "May 30 10:08 PM",
+          }),
+          Object.assign({}, currentBaseRow, {
+            row_key: "current-output-older",
+            route: "encode",
+            route_label: "ENCODE",
+            completed_at: "May 23 12:20 PM",
+            output_path: String(currentBaseRow.output_path || "").replace(/\\/g, "/").toUpperCase(),
+          }),
+        ];
+        const duplicateCurrentPayload = Object.assign({}, payload.completed, {
+          count: currentDuplicateRows.length,
+          rows: currentDuplicateRows,
+        });
+        context.renderCompleted(duplicateCurrentPayload);
+        const currentRows = context.mediaPipelineCompletedView.completedCurrentRows(currentDuplicateRows);
+        if (currentRows.length !== 1 || currentRows[0].row_key !== "current-output-newest") {
+          throw new Error(`Current Output Status should keep only the newest row per output path; got ${currentRows.map((row) => row.row_key).join(",")}`);
+        }
+        const renderedCurrentRows = context.document.getElementById("completed-rows").children
+          .filter((row) => row.dataset && row.dataset.rowKey);
+        if (renderedCurrentRows.length !== 1 || renderedCurrentRows[0].dataset.rowKey !== "current-output-newest") {
+          throw new Error(`Current Output Status table should render one newest row per output path; got ${renderedCurrentRows.map((row) => row.dataset.rowKey).join(",")}`);
+        }
+        const currentScope = context.completedCurrentFilterScope(currentDuplicateRows);
+        if (!currentScope || currentScope.totalRows !== 1 || currentScope.visibleRows !== 1) {
+          throw new Error(`Current Output Status filter scope should use de-duplicated current rows; got ${JSON.stringify(currentScope)}`);
+        }
+        requireText("completed-current-summary", [
+          "Current outputs present at expected destination: 1",
+          "Current encoded/remuxed: 0 / 1",
+          "Current table rule: a row appears here once per expected output path",
+        ]);
+        context.renderCompleted(payload.completed);
+        context.selectCompletedRow(payload.completed.rows[0]);
 
         requireText("pending-detail", [
           "Selected pending-row quick signal:",
@@ -780,6 +829,30 @@ def _node_runner_source() -> str:
           const alreadyProcessedAtAGlance = context.mediaPipelineCompletedView.completedSelectedAtAGlanceStatus(alreadyProcessedRow);
           if (alreadyProcessedAtAGlance !== "Consistent-looking") {
             throw new Error(`benign already-processed completed row should not require review, got ${alreadyProcessedAtAGlance}`);
+          }
+          const successfulRuntimeRow = Object.assign({}, alreadyProcessedRow, {
+            operator_trust_state: "review-before-rerun-or-cleanup",
+            review_flags: ["runtime_outcome", "runtime_outcome:succeeded"],
+            runtime_outcome_error_code: "",
+            runtime_outcome_reason: "",
+            primary_concern: "runtime_outcome, runtime_outcome:succeeded",
+          });
+          const successfulRuntimeStatus = context.mediaPipelineCompletedView.completedTableRowStatus(successfulRuntimeRow);
+          if (successfulRuntimeStatus !== "match") {
+            throw new Error(`healthy successful-runtime completed row should render neutral match status, got ${successfulRuntimeStatus}`);
+          }
+          const successfulRuntimeAtAGlance = context.mediaPipelineCompletedView.completedSelectedAtAGlanceStatus(successfulRuntimeRow);
+          if (successfulRuntimeAtAGlance !== "Consistent-looking") {
+            throw new Error(`healthy successful-runtime completed row should not require review, got ${successfulRuntimeAtAGlance}`);
+          }
+          const successfulRuntimeAtAGlanceLines = context.mediaPipelineCompletedView.completedSelectedAtAGlanceLines(successfulRuntimeRow).join("\n");
+          for (const fragment of [
+            "Trust/status: consistent-looking; at-a-glance=Consistent-looking",
+            "Primary concern: row has no output, sidecar, size, or runtime blocker",
+          ]) {
+            if (!successfulRuntimeAtAGlanceLines.includes(fragment)) {
+              throw new Error(`healthy successful-runtime completed row detail missing ${fragment}\nActual:\n${successfulRuntimeAtAGlanceLines}`);
+            }
           }
           requireText("completed-detail", [
             "Row state: broken-output",

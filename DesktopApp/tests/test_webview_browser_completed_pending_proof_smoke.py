@@ -640,7 +640,7 @@ class WebViewBrowserCompletedPendingProofSmokeTests(unittest.TestCase):
                                 "required": True,
                                 "status": "ready",
                                 "severity": "info",
-                                "evidence": "Routing / size guard: H.264 remux-safe; Source preservation: copy-to-scratch.",
+                                "evidence": "Routing / Output Size Check: H.264 remux-safe; Source preservation: copy-to-scratch.",
                                 "safe_next_action": "Confirm completed route stayed remux/copy.",
                             },
                             {
@@ -667,7 +667,7 @@ class WebViewBrowserCompletedPendingProofSmokeTests(unittest.TestCase):
                                 "required": True,
                                 "status": "ready",
                                 "severity": "info",
-                                "evidence": "Routing / size guard: advisory size guard enabled.",
+                                "evidence": "Routing / Output Size Check: advisory Output Size Check enabled.",
                                 "safe_next_action": "Confirm Completed size policy evidence.",
                             },
                             {

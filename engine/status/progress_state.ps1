@@ -170,6 +170,11 @@ function Reset-ProgressItemContext {
     $script:currentFileDisplay = $null
     $script:currentFilePath = $null
     $script:currentMediaType = $null
+    $script:currentLibraryId = $null
+    $script:currentLibraryName = $null
+    $script:currentLibraryDesignation = $null
+    $script:currentLibrarySourceRoot = $null
+    $script:currentLibraryOutputRoot = $null
     $script:currentQueuePhase = $null
     $script:currentQueueIndex = 0
     $script:currentQueueTotal = 0
@@ -188,6 +193,11 @@ function Set-ProgressItemContext {
         [string]$DisplayName,
         [string]$FilePath,
         [string]$MediaType,
+        [string]$LibraryId,
+        [string]$LibraryName,
+        [string]$LibraryDesignation,
+        [string]$LibrarySourceRoot,
+        [string]$LibraryOutputRoot,
         [string]$QueuePhase,
         [int]$QueueIndex = 0,
         [int]$QueueTotal = 0
@@ -197,6 +207,11 @@ function Set-ProgressItemContext {
     $script:currentFileDisplay = if ([string]::IsNullOrWhiteSpace($DisplayName)) { $null } else { $DisplayName }
     $script:currentFilePath = if ([string]::IsNullOrWhiteSpace($FilePath)) { $null } else { $FilePath }
     $script:currentMediaType = if ([string]::IsNullOrWhiteSpace($MediaType)) { $null } else { $MediaType }
+    $script:currentLibraryId = if ([string]::IsNullOrWhiteSpace($LibraryId)) { $null } else { $LibraryId }
+    $script:currentLibraryName = if ([string]::IsNullOrWhiteSpace($LibraryName)) { $null } else { $LibraryName }
+    $script:currentLibraryDesignation = if ([string]::IsNullOrWhiteSpace($LibraryDesignation)) { $null } else { $LibraryDesignation }
+    $script:currentLibrarySourceRoot = if ([string]::IsNullOrWhiteSpace($LibrarySourceRoot)) { $null } else { $LibrarySourceRoot }
+    $script:currentLibraryOutputRoot = if ([string]::IsNullOrWhiteSpace($LibraryOutputRoot)) { $null } else { $LibraryOutputRoot }
     $script:currentQueuePhase = if ([string]::IsNullOrWhiteSpace($QueuePhase)) { $null } else { $QueuePhase }
     $script:currentQueueIndex = [int]$QueueIndex
     $script:currentQueueTotal = [int]$QueueTotal
@@ -508,6 +523,11 @@ function Save-Progress {
             CurrentFileDisplay    = $script:currentFileDisplay
             CurrentFilePath       = $script:currentFilePath
             CurrentMediaType      = $script:currentMediaType
+            CurrentLibraryId      = $script:currentLibraryId
+            CurrentLibraryName    = $script:currentLibraryName
+            CurrentLibraryDesignation = $script:currentLibraryDesignation
+            CurrentLibrarySourceRoot  = $script:currentLibrarySourceRoot
+            CurrentLibraryOutputRoot  = $script:currentLibraryOutputRoot
             CurrentQueuePhase     = $script:currentQueuePhase
             CurrentQueueIndex     = $script:currentQueueIndex
             CurrentQueueTotal     = $script:currentQueueTotal

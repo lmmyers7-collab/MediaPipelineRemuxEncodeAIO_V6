@@ -246,6 +246,8 @@ function Get-MediaFailureCode {
         '^subtitle-probe$'           { if ($combined -match 'json') { return 'SUBTITLE_PROBE_JSON_INVALID' }; return 'SUBTITLE_PROBE_FAILED' }
         '^subtitle-tx3g-extract$'    { if ($combined -match 'timeout') { return 'SUBTITLE_TX3G_EXTRACT_TIMEOUT' }; return 'SUBTITLE_TX3G_EXTRACT_FAILED' }
         '^subtitle-tx3g-publish$'    { return 'SUBTITLE_TX3G_SRT_PUBLISH_FAILED' }
+        '^subtitle-vobsub-extract$'  { if ($combined -match 'tool|mkvextract') { return 'SUBTITLE_VOBSUB_EXTRACT_TOOL_MISSING' }; return 'SUBTITLE_VOBSUB_EXTRACT_FAILED' }
+        '^subtitle-vobsub-ocr$'      { if ($combined -match 'tesseract') { return 'SUBTITLE_VOBSUB_TESSERACT_MISSING' }; if ($combined -match 'tool|seconv') { return 'SUBTITLE_VOBSUB_OCR_TOOL_MISSING' }; return 'SUBTITLE_VOBSUB_OCR_FAILED' }
         'deferred-publish'           { return 'PENDING_PARK_FAILED' }
         '^path-capability$|^path-limit$' { return 'OUTPUT_PATH_UNSUPPORTED' }
         '^remux-exception$'          { return 'REMUX_UNEXPECTED_EXCEPTION' }

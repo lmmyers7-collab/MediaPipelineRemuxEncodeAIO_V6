@@ -700,7 +700,7 @@ class WebViewRealMediaSmokeTests(unittest.TestCase):
         self.assertEqual(readiness["counts"]["review"], 0)  # type: ignore[index]
         areas = {row["area"] for row in readiness["rows"]}  # type: ignore[index]
         for area in (
-            "Routing / size guard",
+            "Routing / Output Size Check",
             "Container / subtitle preservation",
             "Subtitle language routing",
             "TX3G / mov_text SRT",

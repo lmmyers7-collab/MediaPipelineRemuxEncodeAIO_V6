@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -20,6 +22,7 @@ from app.processes.active_jobs import (
     write_active_job_payload,
 )
 from app.processes.lifecycle import ProcessLifecycleServiceMixin
+from app.shared.utils import _atomic_write_text
 
 
 class FakeProc:
@@ -86,6 +89,25 @@ class ProcessActiveJobHelperTests(unittest.TestCase):
             self.assertEqual(payload["app_pid"], 999)
             self.assertEqual(payload["stdout_log"], str(stdout))
             self.assertEqual(payload["stderr_log"], str(stderr))
+
+    def test_atomic_write_retries_transient_replace_permission_error(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            target = root / "record.json"
+            real_replace = os.replace
+            calls: list[tuple[str, str]] = []
+
+            def flaky_replace(src: str, dst: str) -> None:
+                calls.append((src, dst))
+                if len(calls) == 1:
+                    raise PermissionError("locked")
+                real_replace(src, dst)
+
+            with patch("app.shared.utils.os.replace", flaky_replace), patch("app.shared.utils.time.sleep", lambda _delay: None):
+                _atomic_write_text(target, '{"ok": true}\n')
+
+            self.assertEqual(target.read_text(encoding="utf-8"), '{"ok": true}\n')
+            self.assertEqual(len(calls), 2)
 
     def test_update_active_job_record_preserves_contract_and_sets_terminal_time(self) -> None:
         with tempfile.TemporaryDirectory() as td:

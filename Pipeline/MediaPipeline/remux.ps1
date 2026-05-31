@@ -108,7 +108,7 @@ function Do-Remux {
         # (TX3G->SRT, BDPGS OCR, ASS->SRT). Previously the OCR ran first
         # and was wasted whenever the AV stage exited corrupt.
         $defaultAudioLang = Get-DefaultAudioLang $localIn
-        $subFilter        = Filter-SubtitleStreams $localIn "REMUX: "
+        $subFilter        = Filter-SubtitleStreams $localIn "REMUX: " -OriginalSourcePath $file.FullName
         if ($subFilter.ProbeFailed) {
             Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'transient' -Reason ([string]$subFilter.Reason) -Stage 'subtitle-probe' -ErrorCode ([string]$subFilter.ErrorCode) -SuggestedAction 'Inspect ffprobe subtitle output and the source file; the pipeline will not silently remux with unknown subtitle state.' | Out-Null
             $localIn = $null
@@ -338,7 +338,7 @@ function Do-Remux {
 
         Write-PlexCompatibilityReport -FilePath $paths.LocalOut -Context "REMUX: "
 
-        $publishResult = Complete-PipelineOutputPublish -SourceFile $file -ScratchPath $localIn -Paths $paths -Route 'remux' -ProgressRoute 'remux' -StagePrefix 'remux' -Context "REMUX: " -RouteReasonCode ([string]$script:CurrentRouteReasonCode) -RouteReason ([string]$script:CurrentRouteReason) -Tx3gTracks @($subTracks.Tx3gTracks) -BdpgsTracks @($subTracks.BdpgsTracks)
+        $publishResult = Complete-PipelineOutputPublish -SourceFile $file -ScratchPath $localIn -Paths $paths -Route 'remux' -ProgressRoute 'remux' -StagePrefix 'remux' -Context "REMUX: " -RouteReasonCode ([string]$script:CurrentRouteReasonCode) -RouteReason ([string]$script:CurrentRouteReason) -Tx3gTracks @($subTracks.Tx3gTracks) -BdpgsTracks @($subTracks.BdpgsTracks) -VobSubTracks @($subTracks.VobSubTracks)
         $script:LastPublishResult = $publishResult
         if ($publishResult.DeleteLocalOutput) { $pushOk = $true }
         if ($publishResult.KeepScratchInput) { $localIn = $null }

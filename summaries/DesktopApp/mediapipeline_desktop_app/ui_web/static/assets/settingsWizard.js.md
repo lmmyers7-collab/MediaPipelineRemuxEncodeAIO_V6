@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsWizard.j
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-29
+last_modified: 2026-05-30
 last_reviewed: 2026-05-29
-sha256: e1db8896db53bbaef891845ac145301d9cbb1bf234ccf9fd240f99657b5b0883
+sha256: 2e6623efed877a8d504f2ffd204475f50a7476a2db060ddbf7279ef532948954
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsWizard.js`
 

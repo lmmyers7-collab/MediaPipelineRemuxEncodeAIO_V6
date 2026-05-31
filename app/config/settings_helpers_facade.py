@@ -30,7 +30,38 @@ class SettingsHelperFacadeMixin:
     """Shared settings schema, redaction, and diff helpers."""
 
     def _settings_field_definitions(self) -> list[dict[str, Any]]:
-        keys_to_copy = ("page", "section", "key", "label", "kind", "choices", "default", "choice_help", "help")
+        keys_to_copy = (
+            "page",
+            "section",
+            "key",
+            "label",
+            "short_label",
+            "kind",
+            "choices",
+            "default",
+            "choice_help",
+            "help",
+            "help_text",
+            "rule_taxonomy",
+            "strictness",
+            "unavailable_reason",
+            "persisted_key",
+            "override_group",
+            "scope",
+            "value_type",
+            "allowed_values",
+            "min",
+            "max",
+            "step",
+            "unit",
+            "default_source",
+            "default_value",
+            "library_override_allowed",
+            "advanced_visibility",
+            "validation_owner",
+            "runtime_consumer",
+            "migration_status",
+        )
         definitions: list[dict[str, Any]] = []
         for field in CONFIG_FIELD_DEFINITIONS:
             definition = {key: _json_safe(field[key]) for key in keys_to_copy if key in field}

@@ -33,6 +33,7 @@ from app.publish.pending_service import PendingPublishServiceMixin
 from app.paths.service import PathResolutionServiceMixin
 from app.processes.lifecycle import ProcessLifecycleServiceMixin
 from app.queue.service import QueueServiceMixin
+from app.maintenance.dependency_atlas import DependencyAtlasServiceMixin
 from app.maintenance.release import ReleasePackageServiceMixin
 from app.rename.service import RenameServiceMixin
 from app.status.service import StatusServiceMixin
@@ -53,6 +54,7 @@ class DesktopAppService(
     ProcessLifecycleServiceMixin,
     AppStateScheduleServiceMixin,
     ReleasePackageServiceMixin,
+    DependencyAtlasServiceMixin,
     PendingPublishServiceMixin,
     AuditRerunServiceMixin,
     QueueServiceMixin,

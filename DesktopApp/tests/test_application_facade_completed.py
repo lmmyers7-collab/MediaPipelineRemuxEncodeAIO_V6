@@ -283,6 +283,84 @@ class ApplicationFacadeCompletedTests(unittest.TestCase):
         self.assertIn("Runtime error code: OUTPUT_DESTINATION_LOW_SPACE", row["route_evidence_lines"])
         self.assertIn("Runtime match: exact_source_path", row["route_evidence_lines"])
 
+    def test_completed_preview_treats_successful_runtime_and_small_delta_as_healthy(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            source = root / "Source" / "Jennifer.mkv"
+            output = root / "Outsource" / "Movies" / "Jennifer's Body (2009)" / "Jennifer's Body (2009).mkv"
+            output.parent.mkdir(parents=True)
+            output.write_bytes(b"x" * 5261)
+            output.with_suffix(".pipeline.json").write_text("{}", encoding="utf-8")
+            manifest = root / "State" / "Completed" / "completed_jobs.jsonl"
+            event_file = root / "State" / "Progress" / "pipeline_events.jsonl"
+            manifest.parent.mkdir(parents=True)
+            event_file.parent.mkdir(parents=True, exist_ok=True)
+            manifest.write_text(
+                json.dumps(
+                    {
+                        "source_path": str(source),
+                        "output_path": str(output),
+                        "route": "remux",
+                        "route_reason_code": "codec_remux_safe",
+                        "encoded_at": "2026-05-30T22:41:00-04:00",
+                        "source_size": 5240,
+                        "output_size": 5261,
+                        "publish_state": "published",
+                        "audio_decisions": [{"action": "copy"}, {"action": "copy"}],
+                        "subtitle_decisions": [{"action": "copy"} for _ in range(5)],
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            events = [
+                {
+                    "schema_version": "pipeline_event.v1",
+                    "event_id": "evt-completed-succeeded",
+                    "event_type": "job_completed",
+                    "timestamp": "2999-01-01T00:00:00Z",
+                    "created_at": "2999-01-01T00:00:00Z",
+                    "stage": "publish",
+                    "route": "remux",
+                    "status": "succeeded",
+                    "source_path": str(source),
+                    "data": {
+                        "success": True,
+                        "completion_status": "succeeded",
+                        "queue_terminal": True,
+                        "route": "remux",
+                        "publish_state": "published",
+                        "publish_mode": "immediate",
+                        "output_path": str(output),
+                    },
+                }
+            ]
+            event_file.write_text("\n".join(json.dumps(event) for event in events), encoding="utf-8")
+            service = DummyWorkflowFacadeService(root)
+            service.read_pipeline_events_tail = lambda _resolved, line_count=300: events  # type: ignore[method-assign]
+            facade = MediaPipelineApplicationFacade(service)
+            resolved = _resolved(root)
+            resolved.completed_manifest_path = manifest
+            resolved.event_file = event_file
+
+            preview = facade.get_completed_preview(resolved).to_mapping()
+
+        row = preview["rows"][0]
+        self.assertEqual(row["runtime_outcome_status"], "succeeded")
+        self.assertEqual(row["runtime_outcome_match"], "exact_source_path")
+        self.assertEqual(row["size_delta_percent"], 0.4)
+        self.assertEqual(row["operator_status"], "Healthy")
+        self.assertEqual(row["operator_status_state"], "match")
+        self.assertEqual(row["operator_severity"], "ok")
+        self.assertEqual(row["operator_trust_state"], "consistent-looking")
+        self.assertIn("no output, sidecar, size, or runtime blocker", row["primary_concern"])
+        self.assertNotIn("runtime_outcome", row["review_flags"])
+        self.assertNotIn("runtime_outcome:succeeded", row["review_flags"])
+        self.assertNotIn("size_growth", row["review_flags"])
+        self.assertEqual(preview["operator_status_counts"], {"Healthy": 1})
+        self.assertEqual(preview["operator_status_state_counts"], {"match": 1})
+        self.assertEqual(preview["operator_trust_state_counts"], {"consistent-looking": 1})
+
     def test_completed_preview_flags_missing_output_consistency(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

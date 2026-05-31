@@ -1,10 +1,10 @@
 # API Route Inventory
 
-Date: 2026-05-20
+Date: 2026-05-31
 
 Full inventory of all Local API routes: route, method, effect class, backend contract/handler, mutation risk, primary frontend caller, and test coverage. Source: `contract_read.py`, `contract_command.py`, `routes_read.py`, `routes_command.py`.
 
-Total: 68 routes — 29 GET (read) + 39 POST (command).
+Total: 70 routes — 29 GET (read) + 41 POST (command).
 
 All routes require the bootstrap token (`X-Desktop-Token`) except `GET /api/health`.
 
@@ -70,7 +70,7 @@ Network lifecycle mutation remains design-only. `/api/contract` publishes the fu
 
 ---
 
-## POST Routes (Command — 39 routes)
+## POST Routes (Command — 41 routes)
 
 All POST routes require auth. File-open routes pass row keys or allowlisted target keys. Queue state routes accept only absolute paths under backend-configured `SourceMovies`/`SourceTV` roots and write non-destructive state manifests.
 
@@ -107,7 +107,7 @@ Priority and file override path writes are rejected unless the submitted path is
 
 | Route | Effect | Key Request Keys | Frontend Caller | Mutation Risk | Backend Test Coverage |
 |---|---|---|---|---|---|
-| `POST /api/final-library-promotion/promote-queue` | `filesystem-mutation` | `confirm_promote` | Completed | **High** — starts backend-owned final-library copy/promotion run after confirmation | `test_final_library_promotion.py`, `test_api_command_contracts.py` |
+| `POST /api/final-library-promotion/promote-queue` | `filesystem-mutation` | `confirm_promote`, `row_keys` | Completed | **High** — starts backend-owned queue-wide or selected-row final-library copy/promotion run after confirmation | `test_final_library_promotion.py`, `test_api_command_contracts.py` |
 | `POST /api/final-library-promotion/pause` | `control-state-write` | `run_id` | Completed | Medium — writes cooperative pause state for the active promotion run only | `test_final_library_promotion.py`, `test_api_command_contracts.py` |
 | `POST /api/final-library-promotion/resume` | `control-state-write` | `run_id` | Completed | Medium — clears cooperative pause state for the active promotion run only | `test_final_library_promotion.py`, `test_api_command_contracts.py` |
 
@@ -131,15 +131,16 @@ Full target catalog: `Docs/archive/completed-audits/DIAGNOSTICS_TARGET_ALLOWLIST
 
 `ui-preferences` persists browser-local UI customization such as layout, theme, evidence visibility, and selected tabs under `LocalBase\State`. It does not save settings, mutate queue state, launch work, drain, rename, publish, or touch media files.
 
-### Maintenance Commands (3 routes)
+### Maintenance Commands (4 routes)
 
 | Route | Effect | Key Request Keys | Frontend Caller | Mutation Risk | Backend Test Coverage |
 |---|---|---|---|---|---|
 | `POST /api/maintenance/release-dry-run` | `process-dry-run` | `destination_root`, `zip_package`, `verify`, `include_tests` | Maintenance | None — `-DryRun` only | `test_facade_maintenance_command_policy.py`, `test_application_facade_maintenance.py` |
 | `POST /api/maintenance/release-build` | `deployment-write` | `destination_root`, `zip_package`, `verify`, `include_tests`, `force`, `confirm_create` | Maintenance | Medium — creates deployable release folder, manifest, and optional zip through the backend release builder; `force` may replace the destination | `test_facade_maintenance_command_policy.py`, `test_application_facade_maintenance.py` |
 | `POST /api/maintenance/completed-backfill-dry-run` | `process-dry-run` | `timeout_seconds` | Maintenance | None — `-DryRun` only | `test_facade_maintenance_command_policy.py`, `test_application_facade_maintenance.py` |
+| `POST /api/maintenance/dependency-atlas` | `tooling-artifact-write` | `timeout_seconds`, `min_overview_edge_count`, `min_overview_files` | Maintenance | Low — regenerates repository-root dependency atlas HTML, PNG/SVG, and CSV tooling artifacts only | `test_application_facade_maintenance.py`, `test_application_facade_local_api.py` |
 
-The dry-run routes do not write a release folder, zip, manifest, or completed manifest. `release-build` requires `confirm_create: true`, is blocked while active work is present, and writes deployment artifacts only through the backend release builder.
+The dry-run routes do not write a release folder, zip, manifest, or completed manifest. `dependency-atlas` writes generated tooling artifacts under the repository root only; it does not touch media, queue, settings, manifests, pending publish state, or pipeline state. `release-build` requires `confirm_create: true`, is blocked while active work is present, and writes deployment artifacts only through the backend release builder.
 
 ### Rename Commands (3 routes)
 
@@ -151,13 +152,14 @@ The dry-run routes do not write a release folder, zip, manifest, or completed ma
 
 `rename/browse` is a non-mutating path-selection helper: the backend opens the Windows file/folder browser and returns operator-selected paths for staging. It does not preview, apply, rename, move, delete, or touch media files. `rename/apply` requires `confirm_apply: true`. Backend rebuilds the rename plan from its own state, not from the frontend-submitted plan. If selected paths are outside backend-injected configured media roots, the backend also requires `allow_outside_configured_roots: true` after explicit operator review.
 
-### Settings Commands (11 routes)
+### Settings Commands (12 routes)
 
 | Route | Effect | Key Request Keys | Frontend Caller | Mutation Risk | Backend Test Coverage |
 |---|---|---|---|---|---|
 | `POST /api/settings/validate` | `none` | `values` | Settings | None — validation only | `test_facade_settings_policy.py`, `test_service_config_validation.py`, `test_application_facade_settings_workspace.py` |
 | `POST /api/settings/browse-path` | `shell-dialog` | `setting_key`, `selection_mode`, `initial_path` | Settings | Low — backend-owned native Windows folder browser for allowlisted path fields only | `test_application_facade_local_api.py`, `test_api_path_dialogs.py`, `test_webview_frontend_mutation_boundary.py` |
 | `POST /api/settings/preview-patch` | `none` | `changes`, `remove_keys` | Settings | None — returns redacted diff | `test_facade_settings_patch_policy.py`, `test_service_config_preview.py` |
+| `POST /api/settings/pipeline-plan-preview` | `none` | `source_media`, `changes`, `remove_keys` | Settings | None — validates supplied source facts and returns a backend-owned dry-run pipeline plan only | `test_settings_pipeline_plan_preview.py` |
 | `POST /api/settings/save-patch` | `config-write` | `changes`, `remove_keys`, `confirm_save` | Settings | **High** — writes PSD1 config | `test_facade_settings_patch_policy.py`, `test_service_config_save_runner.py` |
 | `POST /api/settings/wizard/validate-paths` | `none` | `wizard` | Settings Wizard | None — validation only | `test_api_command_contracts.py` |
 | `POST /api/settings/wizard/validate-tools` | `none` | `wizard` | Settings Wizard | None — validation only | `test_api_command_contracts.py` |
@@ -205,7 +207,7 @@ The dry-run routes do not write a release folder, zip, manifest, or completed ma
 
 | Effect | Count | Routes |
 |---|---|---|
-| `none` (read-only) | 40 | All non-probing GET routes + preview/validate/reload POSTs |
+| `none` (read-only) | 41 | All non-probing GET routes + preview/validate/reload POSTs |
 | `bounded-health-check` | 1 | `GET /api/maintenance` |
 | `shell-open` | 4 | `POST /api/queue/open`, `completed/open`, `pending-publish/open`, `diagnostics/open` |
 | `shell-dialog` | 2 | `POST /api/rename/browse`, `POST /api/settings/browse-path` |
@@ -213,6 +215,7 @@ The dry-run routes do not write a release folder, zip, manifest, or completed ma
 | `queue-state-write` | 3 | `POST /api/queue/priority`, `queue/strategy`, `queue/file-overrides` |
 | `failure-marker-write` | 1 | `POST /api/failures/clear` |
 | `process-dry-run` | 2 | `POST /api/maintenance/release-dry-run`, `maintenance/completed-backfill-dry-run` |
+| `tooling-artifact-write` | 1 | `POST /api/maintenance/dependency-atlas` |
 | `deployment-write` | 1 | `POST /api/maintenance/release-build` |
 | `control-state-write` | 2 | `POST /api/final-library-promotion/pause`, `final-library-promotion/resume` |
 | `control-flag-write` | 1 | `POST /api/pipeline/control` |

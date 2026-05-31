@@ -256,6 +256,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
             "/api/telemetry",
             "/api/diagnostics",
             "/api/backend/close-readiness",
+            "/api/settings/pipeline-plan-preview",
             "/api/settings/save-patch",
             "/api/pipeline/start",
             "/api/backend/shutdown",
@@ -268,9 +269,15 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("validate_backend_web_ui(&bootstrap.url, &bootstrap.token)", source)
         self.assertIn("fn validate_backend_web_ui", source)
         self.assertIn('"GET", "/", token', source)
-        self.assertIn("tauri_bootstrap_initialization_script(backend.token())", source)
+        self.assertIn(
+            "tauri_bootstrap_initialization_script(backend.token(), backend.startup_warnings())",
+            source,
+        )
         self.assertIn(".initialization_script(initialization_script)", source)
         self.assertIn("window.MEDIA_PIPELINE_TAURI_BOOTSTRAP", source)
+        self.assertIn("startupWarnings", source)
+        self.assertIn("Backend WebView asset validation warning", source)
+        self.assertIn("web_ui_validation_error_is_fatal", source)
         self.assertIn('"/assets/app.js"', source)
         self.assertIn('"/assets/crossPageContextView.js"', source)
         self.assertIn('"/assets/crossPageContextView.conflict.js"', source)
@@ -286,6 +293,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn('"/assets/diagnosticsView.js"', source)
         self.assertIn('"/assets/settingsView.rawTriage.js"', source)
         self.assertIn('"/assets/settingsView.safetyLocks.js"', source)
+        self.assertIn('"/assets/settings/patchReview.js"', source)
         self.assertIn('"/assets/settingsView.js"', source)
         self.assertIn('"/assets/settingsOverview.js"', source)
         self.assertIn('"/assets/launchView.risk.js"', source)
@@ -316,6 +324,14 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("id=\\\"settings-policy-delta-rows\\\"", source)
         self.assertIn("id=\\\"settings-effective-policy-rows\\\"", source)
         self.assertIn("id=\\\"settings-effective-policy-detail\\\"", source)
+        self.assertIn("id=\\\"settings-handbrake-preview-status\\\"", source)
+        self.assertIn("id=\\\"settings-handbrake-decision\\\"", source)
+        self.assertIn("id=\\\"settings-handbrake-active-preset\\\"", source)
+        self.assertIn("id=\\\"settings-source-media-json\\\"", source)
+        self.assertIn("id=\\\"settings-preview-plan-button\\\"", source)
+        self.assertIn("id=\\\"settings-source-facts-rows\\\"", source)
+        self.assertIn("id=\\\"settings-builder-routing-profile\\\"", source)
+        self.assertIn("id=\\\"settings-builder-output-container\\\"", source)
         self.assertIn("id=\\\"launch-settings-risk-rows\\\"", source)
         self.assertIn("id=\\\"diagnostics-state-triage-status\\\"", source)
         self.assertIn("id=\\\"diagnostics-close-readiness\\\"", source)
@@ -347,6 +363,18 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("function settingsBackendMediaPolicyReadiness", source)
         self.assertIn("function renderSettingsBackendMediaPolicyReadiness", source)
         self.assertIn("settings-backend-result-rows", source)
+        self.assertIn("function renderHandbrakePreviewSummary", source)
+        self.assertIn("function collectSettingsBuilderPatch", source)
+        self.assertIn("RoutingProfile: settingsBuilderInputValue(\\\"settings-builder-routing-profile\\\")", source)
+        self.assertIn("OutputContainer: settingsBuilderInputValue(\\\"settings-builder-output-container\\\")", source)
+        self.assertIn("bindSettingsClick(\\\"settings-preview-plan-button\\\", addSettingsEventHandlers.previewSettingsPipelinePlan)", source)
+        self.assertIn("function parseSettingsSourceMediaJson", source)
+        self.assertIn("function renderSettingsPipelinePlanPreview", source)
+        self.assertIn("async function previewSettingsPipelinePlan", source)
+        self.assertIn("/api/settings/pipeline-plan-preview", source)
+        self.assertIn("source_media: sourceMedia", source)
+        self.assertIn("Preview label remains Predicted pending cutover", source)
+        self.assertIn("This did not save settings, launch work, mutate queue state, publish, rename, drain pending publish, or touch media files.", source)
         self.assertIn("function settingsPolicyDeltaRows", source)
         self.assertIn("Staged media-policy delta:", source)
         self.assertIn("function settingsEffectivePolicyRows", source)
@@ -364,7 +392,9 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("Backend WebView index still contains the raw bootstrap placeholder", source)
         self.assertIn("Backend WebView cross-page script is missing required fragment", source)
         self.assertIn("Backend WebView diagnostics script is missing required fragment", source)
+        self.assertIn("Backend WebView settings patch-review script is missing required fragment", source)
         self.assertIn("Backend WebView settings script is missing required fragment", source)
+        self.assertIn("Backend WebView settings policy-impact script is missing required fragment", source)
         self.assertIn("Backend WebView settings overview script is missing required fragment", source)
         self.assertIn("Backend WebView launch script is missing required fragment", source)
         self.assertIn("Backend WebView diagnostics state script is missing required fragment", source)
@@ -728,7 +758,16 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("$setupValidatorTimeoutSeconds = 180", source)
 
     def test_setup_validate_only_uses_bounded_path_probes(self) -> None:
-        source = (PROJECT_ROOT / "Pipeline" / "Setup-MediaPipeline.ps1").read_text(encoding="utf-8")
+        setup_root = PROJECT_ROOT / "Pipeline" / "Setup-MediaPipeline.ps1"
+        setup_slices = PROJECT_ROOT / "Pipeline" / "Setup-MediaPipeline"
+        source = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in (
+                setup_root,
+                setup_slices / "Validation.ps1",
+                setup_slices / "PathValidation.ps1",
+            )
+        )
 
         self.assertIn("function Invoke-SetupValidationProbe", source)
         self.assertIn("function Test-ValidationPathExists", source)

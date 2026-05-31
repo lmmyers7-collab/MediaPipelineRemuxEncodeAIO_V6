@@ -5,8 +5,14 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
+from app.config.metadata_parts.field_definitions import CONFIG_FIELD_DEFINITIONS
 from app.config.numeric_policy import validate_required_and_numeric_config
+
+
+def _metadata_by_key() -> dict[str, dict[str, object]]:
+    return {str(field["key"]): field for field in CONFIG_FIELD_DEFINITIONS}
 
 
 def _numeric_baseline() -> dict:
@@ -31,6 +37,7 @@ def _numeric_baseline() -> dict:
         "SubtitleExtractTimeoutSeconds": 300,
         "SubtitleProbeTimeoutSeconds": 30,
         "BdpgsOcrTimeoutSeconds": 1800,
+        "VobSubOcrTimeoutSeconds": 1800,
         "TransientFailureRetryLimit": 3,
         "SourceScanIntervalSeconds": 60,
         "ProcessedIndexRefreshSeconds": 120,
@@ -50,6 +57,46 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
 
         self.assertEqual(errors, [])
 
+    def test_backend_metadata_numeric_limits_match_numeric_policy_representatives(self) -> None:
+        metadata = _metadata_by_key()
+        expected_limits = {
+            "EncodeThresholdGB": {"min": 1, "max": None, "step": 1, "unit": "GB"},
+            "TVEncodeThresholdGB": {"min": 1, "max": None, "step": 1, "unit": "GB"},
+            "MovieRouteMaxVideoBitrateMbps": {"min": 1, "max": 500, "step": 1, "unit": "Mbps"},
+            "TVRouteMaxVideoBitrateMbps": {"min": 1, "max": 500, "step": 1, "unit": "Mbps"},
+            "VideoQuality": {"min": 1, "max": 51, "step": 1, "unit": None},
+            "AudioMaxChannels": {"min": 1, "max": 16, "step": 1, "unit": "channels"},
+            "SubtitleExtractTimeoutSeconds": {"min": 30, "max": 3600, "step": 1, "unit": "seconds"},
+            "SubtitleProbeTimeoutSeconds": {"min": 5, "max": 600, "step": 1, "unit": "seconds"},
+            "BdpgsOcrTimeoutSeconds": {"min": 60, "max": 14400, "step": 1, "unit": "seconds"},
+            "VobSubOcrTimeoutSeconds": {"min": 60, "max": 14400, "step": 1, "unit": "seconds"},
+            "OutputSizeMultiplier": {"min": 0.1, "max": 2.0, "step": "any", "unit": None},
+            "CpuEncodeMaxThreads": {"min": 0, "max": 256, "step": 1, "unit": "threads"},
+        }
+
+        for key, expected in expected_limits.items():
+            with self.subTest(key=key):
+                self.assertEqual(
+                    {name: metadata[key].get(name) for name in ("min", "max", "step", "unit")},
+                    expected,
+                )
+
+    def test_numeric_choice_metadata_stays_inside_numeric_policy_bounds(self) -> None:
+        metadata = _metadata_by_key()
+
+        for key in ("AudioMaxChannels", "H264RemuxMaxHeight", "VideoQuality"):
+            field = metadata[key]
+            minimum = field.get("min")
+            maximum = field.get("max")
+            choices = field.get("allowed_values") or ()
+            for choice in choices:
+                value = int(str(choice))
+                with self.subTest(key=key, choice=choice):
+                    if minimum is not None:
+                        self.assertGreaterEqual(value, minimum)
+                    if maximum is not None:
+                        self.assertLessEqual(value, maximum)
+
     def test_numeric_policy_reports_required_and_bounds_errors(self) -> None:
         values = _numeric_baseline()
         values.update(
@@ -58,6 +105,7 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
                 "VideoQuality": 99,
                 "IndexScanTimeoutSeconds": 10,
                 "TransientFailureRetryLimit": 101,
+                "VobSubOcrTimeoutSeconds": 59,
                 "OutputSizeMultiplier": 3.0,
                 "MovieRouteMaxVideoBitrateMbps": 0,
                 "TVRouteMaxVideoBitrateMbps": 501,
@@ -71,6 +119,7 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
         self.assertIn("VideoQuality must be <= 51.", errors)
         self.assertIn("IndexScanTimeoutSeconds must be >= 30.", errors)
         self.assertIn("TransientFailureRetryLimit must be <= 100.", errors)
+        self.assertIn("VobSubOcrTimeoutSeconds must be >= 60.", errors)
         self.assertIn("OutputSizeMultiplier must be <= 2.0.", errors)
         self.assertIn("MovieRouteMaxVideoBitrateMbps must be >= 1.", errors)
         self.assertIn("TVRouteMaxVideoBitrateMbps must be <= 500.", errors)

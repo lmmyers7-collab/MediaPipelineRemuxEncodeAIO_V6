@@ -65,12 +65,15 @@ function settingsMediaPolicyRows() {
   const keepLanguages = settingsMediaPolicyList("settings-subtitle-languages", "SubKeepLanguages", ["eng", "und"]);
   const tx3gLanguages = settingsMediaPolicyList("settings-subtitle-tx3g-languages", "Tx3gExtractLanguages", ["eng", "und"]);
   const bdpgsLanguages = settingsMediaPolicyList("settings-subtitle-bdpgs-languages", "BdpgsExtractLanguages", ["eng", "und"]);
+  const vobSubLanguages = settingsMediaPolicyList("settings-subtitle-vobsub-languages", "VobSubExtractLanguages", ["eng", "und"]);
   const convertTx3g = settingsMediaPolicyBool("settings-subtitle-convert-tx3g", "ConvertTx3gToSrt", true);
   const dropTx3g = settingsMediaPolicyBool("settings-subtitle-drop-tx3g", "DropTx3gAfterConversion", false);
   const sidecarTx3g = settingsMediaPolicyBool("settings-subtitle-sidecar-tx3g", "CreateExternalTx3gSrtSidecars", false);
   const preserveTx3gSrt = settingsMediaPolicyBool("settings-subtitle-preserve-tx3g-srt", "Tx3gPreserveExistingSrt", true);
   const convertBdpgs = settingsMediaPolicyBool("settings-subtitle-convert-bdpgs", "ConvertBdpgsToSrt", true);
   const dropBdpgs = settingsMediaPolicyBool("settings-subtitle-drop-bdpgs", "DropBdpgsAfterConversion", false);
+  const convertVobSub = settingsMediaPolicyBool("settings-subtitle-convert-vobsub", "ConvertVobSubToSrt", false);
+  const dropVobSub = settingsMediaPolicyBool("settings-subtitle-drop-vobsub", "DropVobSubAfterConversion", false);
   const dropAss = settingsMediaPolicyBool("settings-subtitle-drop-ass", "DropAssAfterConversion", false);
   const stripFormatting = settingsMediaPolicyBool("settings-subtitle-strip-formatting", "StripFormatting", true);
   const removeKaraoke = settingsMediaPolicyBool("settings-subtitle-remove-karaoke", "RemoveKaraoke", true);
@@ -78,6 +81,7 @@ function settingsMediaPolicyRows() {
   const extractTimeout = settingsMediaPolicyNumber("settings-subtitle-extract-timeout", "SubtitleExtractTimeoutSeconds", 180);
   const probeTimeout = settingsMediaPolicyNumber("settings-subtitle-probe-timeout", "SubtitleProbeTimeoutSeconds", 30);
   const bdpgsTimeout = settingsMediaPolicyNumber("settings-subtitle-bdpgs-timeout", "BdpgsOcrTimeoutSeconds", 1800);
+  const vobSubTimeout = settingsMediaPolicyNumber("settings-subtitle-vobsub-timeout", "VobSubOcrTimeoutSeconds", 1800);
   const passthroughProfile = settingsMediaPolicyValue("settings-audio-passthrough-profile", "AudioPassthroughProfile", "plex_balanced") || "plex_balanced";
   const compatibleCodecs = settingsMediaPolicyList("settings-audio-compatible-codecs", "CompatibleAudioCodecs", ["aac", "ac3", "eac3", "mp3", "opus", "vorbis"]);
   const defaultAudioLanguages = settingsMediaPolicyList("settings-audio-preferred-languages", "PreferredDefaultAudioLanguages", ["english"]);
@@ -89,13 +93,14 @@ function settingsMediaPolicyRows() {
   const allowNoAudio = settingsMediaPolicyBool("settings-audio-allow-no-audio", "AllowNoAudio", false);
   const tx3gGaps = settingsMediaPolicyLanguageGaps(keepLanguages, tx3gLanguages);
   const bdpgsGaps = settingsMediaPolicyLanguageGaps(keepLanguages, bdpgsLanguages);
+  const vobSubGaps = settingsMediaPolicyLanguageGaps(keepLanguages, vobSubLanguages);
   const rows = [
     {
       area: "Subtitle language routing",
-      posture: !keepLanguages.length ? "warning" : (tx3gGaps.length || bdpgsGaps.length ? "review" : "coherent"),
-      evidence: `keep=${keepLanguages.join(", ") || "(empty)"}; TX3G=${tx3gLanguages.join(", ") || "(empty)"}; BDPGS=${bdpgsLanguages.join(", ") || "(empty)"}`,
-      action: tx3gGaps.length || bdpgsGaps.length
-        ? `Review extract-only language gaps: TX3G ${tx3gGaps.join(", ") || "none"}; BDPGS ${bdpgsGaps.join(", ") || "none"}.`
+      posture: !keepLanguages.length ? "warning" : (tx3gGaps.length || bdpgsGaps.length || vobSubGaps.length ? "review" : "coherent"),
+      evidence: `keep=${keepLanguages.join(", ") || "(empty)"}; TX3G=${tx3gLanguages.join(", ") || "(empty)"}; BDPGS=${bdpgsLanguages.join(", ") || "(empty)"}; VobSub=${vobSubLanguages.join(", ") || "(empty)"}`,
+      action: tx3gGaps.length || bdpgsGaps.length || vobSubGaps.length
+        ? `Review extract-only language gaps: TX3G ${tx3gGaps.join(", ") || "none"}; BDPGS ${bdpgsGaps.join(", ") || "none"}; VobSub ${vobSubGaps.join(", ") || "none"}.`
         : "Preferred subtitle language policy is visible before backend preview/save.",
     },
     {
@@ -115,6 +120,14 @@ function settingsMediaPolicyRows() {
         : "Preferred-language BDPGS should generate SRT for Plex while original image subtitles stay unless drop is intentional.",
     },
     {
+      area: "VobSub OCR to SRT",
+      posture: dropVobSub && !convertVobSub ? "blocked" : (!convertVobSub || dropVobSub ? "review" : "coherent"),
+      evidence: `OCR=${convertVobSub ? "on" : "off"}; drop original=${dropVobSub ? "on" : "off"}; timeout=${vobSubTimeout}s`,
+      action: dropVobSub && !convertVobSub
+        ? "Do not drop embedded VobSub while OCR is disabled; that can remove image subtitles without creating SRT."
+        : "Preferred-language VobSub should generate SRT for Plex while embedded originals stay unless drop is intentional.",
+    },
+    {
       area: "ASS / SSA preservation",
       posture: dropAss ? "review" : "coherent",
       evidence: `drop original=${dropAss ? "on" : "off"}; strip formatting=${stripFormatting ? "on" : "off"}; remove karaoke=${removeKaraoke ? "on" : "off"}; keep signs/songs=${keepSigns ? "on" : "off"}`,
@@ -122,8 +135,8 @@ function settingsMediaPolicyRows() {
     },
     {
       area: "Subtitle timeout posture",
-      posture: extractTimeout <= 0 || probeTimeout <= 0 || bdpgsTimeout <= 0 ? "blocked" : (extractTimeout < 60 || probeTimeout < 10 || bdpgsTimeout < 600 ? "review" : "coherent"),
-      evidence: `extract=${extractTimeout}s; probe=${probeTimeout}s; BDPGS OCR=${bdpgsTimeout}s`,
+      posture: extractTimeout <= 0 || probeTimeout <= 0 || bdpgsTimeout <= 0 || vobSubTimeout <= 0 ? "blocked" : (extractTimeout < 60 || probeTimeout < 10 || bdpgsTimeout < 600 || vobSubTimeout < 600 ? "review" : "coherent"),
+      evidence: `extract=${extractTimeout}s; probe=${probeTimeout}s; BDPGS OCR=${bdpgsTimeout}s; VobSub OCR=${vobSubTimeout}s`,
       action: "Short timeout ceilings can turn slow disks, network shares, or OCR-heavy files into manual-review failures.",
     },
     {
@@ -179,6 +192,8 @@ function settingsActiveMediaPolicyRows() {
   const dropTx3g = settingsMediaPolicyBool("settings-subtitle-drop-tx3g", "DropTx3gAfterConversion", false);
   const convertBdpgs = settingsMediaPolicyBool("settings-subtitle-convert-bdpgs", "ConvertBdpgsToSrt", true);
   const dropBdpgs = settingsMediaPolicyBool("settings-subtitle-drop-bdpgs", "DropBdpgsAfterConversion", false);
+  const convertVobSub = settingsMediaPolicyBool("settings-subtitle-convert-vobsub", "ConvertVobSubToSrt", false);
+  const dropVobSub = settingsMediaPolicyBool("settings-subtitle-drop-vobsub", "DropVobSubAfterConversion", false);
   const dropAss = settingsMediaPolicyBool("settings-subtitle-drop-ass", "DropAssAfterConversion", false);
   const allowNoAudio = settingsMediaPolicyBool("settings-audio-allow-no-audio", "AllowNoAudio", false);
   const passthroughProfile = settingsMediaPolicyValue("settings-audio-passthrough-profile", "AudioPassthroughProfile", "plex_balanced") || "plex_balanced";
@@ -189,9 +204,9 @@ function settingsActiveMediaPolicyRows() {
   const integrity = settingsMediaPolicyBool("settings-pending-enable-integrity", "EnableIntegrityCheck", true);
   const rows = [
     {
-      area: "Routing profile / size guard",
+      area: "Routing profile / Output Size Check",
       posture: ["off", "disabled"].includes(String(sizeGuard).toLowerCase()) ? "review" : "coherent",
-      evidence: `profile=${formatSettingsChoiceLabel(routingProfile)}; threshold=${formatSettingsChoiceLabel(routeThresholdMode)}; size guard=${formatSettingsChoiceLabel(sizeGuard)}; normal growth=${maxGrowth}%; compatibility growth=${compatGrowth}%; movie>${movieThreshold}GB/${movieRouteMaxBitrate}Mbps; TV>${tvThreshold}GB/${tvRouteMaxBitrate}Mbps`,
+      evidence: `profile=${formatSettingsChoiceLabel(routingProfile)}; threshold=${formatSettingsChoiceLabel(routeThresholdMode)}; Output Size Check=${formatSettingsChoiceLabel(sizeGuard)}; normal growth=${maxGrowth}%; compatibility growth=${compatGrowth}%; movie>${movieThreshold}GB/${movieRouteMaxBitrate}Mbps; TV>${tvThreshold}GB/${tvRouteMaxBitrate}Mbps`,
       handoff: "Launch should show these saved route/size values before Start. Strict mode can block growth; advisory mode should warn without changing policy by itself.",
     },
     {
@@ -204,16 +219,16 @@ function settingsActiveMediaPolicyRows() {
     },
     {
       area: "Container / subtitle mux posture",
-      posture: String(outputContainer).toLowerCase() === "mp4" && (!dropBdpgs || !dropAss) ? "review" : "coherent",
-      evidence: `container=${formatSettingsChoiceLabel(outputContainer)}; TX3G convert/drop=${convertTx3g ? "on" : "off"}/${dropTx3g ? "on" : "off"}; BDPGS OCR/drop=${convertBdpgs ? "on" : "off"}/${dropBdpgs ? "on" : "off"}; ASS drop=${dropAss ? "on" : "off"}`,
+      posture: String(outputContainer).toLowerCase() === "mp4" && (!dropBdpgs || !dropVobSub || !dropAss) ? "review" : "coherent",
+      evidence: `container=${formatSettingsChoiceLabel(outputContainer)}; TX3G convert/drop=${convertTx3g ? "on" : "off"}/${dropTx3g ? "on" : "off"}; BDPGS OCR/drop=${convertBdpgs ? "on" : "off"}/${dropBdpgs ? "on" : "off"}; VobSub OCR/drop=${convertVobSub ? "on" : "off"}/${dropVobSub ? "on" : "off"}; ASS drop=${dropAss ? "on" : "off"}`,
       handoff: String(outputContainer).toLowerCase() === "mp4"
         ? "MP4 cannot carry every original subtitle format. Backend routing must externalize or drop unsupported tracks deliberately."
         : "MKV remains the safer container for preserving original subtitle/audio streams while adding Plex-friendly SRT.",
     },
     {
       area: "SRT generation / original preservation",
-      posture: (dropTx3g && !convertTx3g) || (dropBdpgs && !convertBdpgs) ? "blocked" : (!convertTx3g || !convertBdpgs || dropTx3g || dropBdpgs || dropAss ? "review" : "coherent"),
-      evidence: `TX3G SRT=${convertTx3g ? "on" : "off"}; BDPGS OCR=${convertBdpgs ? "on" : "off"}; drop originals=${[dropTx3g ? "TX3G" : "", dropBdpgs ? "BDPGS" : "", dropAss ? "ASS" : ""].filter(Boolean).join(", ") || "none"}`,
+      posture: (dropTx3g && !convertTx3g) || (dropBdpgs && !convertBdpgs) || (dropVobSub && !convertVobSub) ? "blocked" : (!convertTx3g || !convertBdpgs || !convertVobSub || dropTx3g || dropBdpgs || dropVobSub || dropAss ? "review" : "coherent"),
+      evidence: `TX3G SRT=${convertTx3g ? "on" : "off"}; BDPGS OCR=${convertBdpgs ? "on" : "off"}; VobSub OCR=${convertVobSub ? "on" : "off"}; drop originals=${[dropTx3g ? "TX3G" : "", dropBdpgs ? "BDPGS" : "", dropVobSub ? "VobSub" : "", dropAss ? "ASS" : ""].filter(Boolean).join(", ") || "none"}`,
       handoff: "Default Plex posture is add SRT for preferred languages while preserving originals unless a drop toggle is explicitly enabled.",
     },
     {
@@ -873,11 +888,11 @@ function settingsPolicyDeltaRows(entries) {
   const currentCompatGrowth = settingsPatchCurrentNumber("CompatibilityEncodeGrowthPercent", 15);
   const nextCompatGrowth = settingsPatchCandidateNumber(entries, "CompatibilityEncodeGrowthPercent", 15);
   rows.push({
-    area: "Routing / size guard",
+    area: "Routing / Output Size Check",
     posture: ["off", "disabled"].includes(nextSizeGuard) || nextMaxGrowth > 15 || nextCompatGrowth > 30 ? "review" : (settingsPolicyDeltaChangedLabels(entries, routingKeys).length ? "preview required" : "unchanged"),
     current: `profile=${formatSettingsChoiceLabel(settingsPatchCurrentText("RoutingProfile", "plex_direct_stream"))}; threshold=${formatSettingsChoiceLabel(currentRouteThresholdMode)}; guard=${formatSettingsChoiceLabel(currentSizeGuard)}; growth=${currentMaxGrowth}%/${currentCompatGrowth}%; movie>${settingsPatchCurrentNumber("EncodeThresholdGB", 8)}GB/${settingsPatchCurrentNumber("MovieRouteMaxVideoBitrateMbps", 35)}Mbps; TV>${settingsPatchCurrentNumber("TVEncodeThresholdGB", 3)}GB/${settingsPatchCurrentNumber("TVRouteMaxVideoBitrateMbps", 18)}Mbps`,
     candidate: `profile=${formatSettingsChoiceLabel(settingsPatchCandidateText(entries, "RoutingProfile", "plex_direct_stream"))}; threshold=${formatSettingsChoiceLabel(nextRouteThresholdMode)}; guard=${formatSettingsChoiceLabel(nextSizeGuard)}; growth=${nextMaxGrowth}%/${nextCompatGrowth}%; movie>${settingsPatchCandidateNumber(entries, "EncodeThresholdGB", 8)}GB/${settingsPatchCandidateNumber(entries, "MovieRouteMaxVideoBitrateMbps", 35)}Mbps; TV>${settingsPatchCandidateNumber(entries, "TVEncodeThresholdGB", 3)}GB/${settingsPatchCandidateNumber(entries, "TVRouteMaxVideoBitrateMbps", 18)}Mbps`,
-    check: `${settingsPolicyDeltaChangedText(entries, routingKeys)} Size guards and growth limits affect remux-vs-encode trust and oversized-output review.`,
+    check: `${settingsPolicyDeltaChangedText(entries, routingKeys)} Output Size Check and growth limits affect remux-vs-encode trust and oversized-output review.`,
   });
 
   const videoKeys = [
@@ -907,11 +922,14 @@ function settingsPolicyDeltaRows(entries) {
     "SubKeepLanguages",
     "Tx3gExtractLanguages",
     "BdpgsExtractLanguages",
+    "VobSubExtractLanguages",
     "ConvertTx3gToSrt",
     "DropTx3gAfterConversion",
     "CreateExternalTx3gSrtSidecars",
     "ConvertBdpgsToSrt",
     "DropBdpgsAfterConversion",
+    "ConvertVobSubToSrt",
+    "DropVobSubAfterConversion",
     "DropAssAfterConversion",
     "StripFormatting",
     "RemoveKaraoke",
@@ -922,15 +940,17 @@ function settingsPolicyDeltaRows(entries) {
   const nextDropTx3g = settingsPatchCandidateBool(entries, "DropTx3gAfterConversion", false);
   const nextConvertBdpgs = settingsPatchCandidateBool(entries, "ConvertBdpgsToSrt", true);
   const nextDropBdpgs = settingsPatchCandidateBool(entries, "DropBdpgsAfterConversion", false);
+  const nextConvertVobSub = settingsPatchCandidateBool(entries, "ConvertVobSubToSrt", false);
+  const nextDropVobSub = settingsPatchCandidateBool(entries, "DropVobSubAfterConversion", false);
   const nextDropAss = settingsPatchCandidateBool(entries, "DropAssAfterConversion", false);
-  const subtitleBlocked = (nextDropTx3g && !nextConvertTx3g) || (nextDropBdpgs && !nextConvertBdpgs);
+  const subtitleBlocked = (nextDropTx3g && !nextConvertTx3g) || (nextDropBdpgs && !nextConvertBdpgs) || (nextDropVobSub && !nextConvertVobSub);
   rows.push({
     area: "Container / subtitle preservation",
-    posture: subtitleBlocked ? "blocked" : (nextContainer === "mp4" || nextDropTx3g || nextDropBdpgs || nextDropAss || !nextConvertTx3g || !nextConvertBdpgs ? "review" : (settingsPolicyDeltaChangedLabels(entries, subtitleKeys).length ? "preview required" : "unchanged")),
-    current: `container=${formatSettingsChoiceLabel(settingsPatchCurrentText("OutputContainer", "mkv"))}; TX3G=${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("ConvertTx3gToSrt", true))}/${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("DropTx3gAfterConversion", false))}; BDPGS=${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("ConvertBdpgsToSrt", true))}/${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("DropBdpgsAfterConversion", false))}; ASS drop=${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("DropAssAfterConversion", false))}`,
-    candidate: `container=${formatSettingsChoiceLabel(nextContainer)}; keep=${settingsPatchCandidateList(entries, "SubKeepLanguages", ["eng", "und"]).join(", ") || "(empty)"}; TX3G=${settingsPolicyDeltaBoolText(nextConvertTx3g)}/${settingsPolicyDeltaBoolText(nextDropTx3g)}; BDPGS=${settingsPolicyDeltaBoolText(nextConvertBdpgs)}/${settingsPolicyDeltaBoolText(nextDropBdpgs)}; ASS drop=${settingsPolicyDeltaBoolText(nextDropAss)}`,
+    posture: subtitleBlocked ? "blocked" : (nextContainer === "mp4" || nextDropTx3g || nextDropBdpgs || nextDropVobSub || nextDropAss || !nextConvertTx3g || !nextConvertBdpgs || !nextConvertVobSub ? "review" : (settingsPolicyDeltaChangedLabels(entries, subtitleKeys).length ? "preview required" : "unchanged")),
+    current: `container=${formatSettingsChoiceLabel(settingsPatchCurrentText("OutputContainer", "mkv"))}; TX3G=${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("ConvertTx3gToSrt", true))}/${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("DropTx3gAfterConversion", false))}; BDPGS=${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("ConvertBdpgsToSrt", true))}/${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("DropBdpgsAfterConversion", false))}; VobSub=${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("ConvertVobSubToSrt", false))}/${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("DropVobSubAfterConversion", false))}; ASS drop=${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("DropAssAfterConversion", false))}`,
+    candidate: `container=${formatSettingsChoiceLabel(nextContainer)}; keep=${settingsPatchCandidateList(entries, "SubKeepLanguages", ["eng", "und"]).join(", ") || "(empty)"}; TX3G=${settingsPolicyDeltaBoolText(nextConvertTx3g)}/${settingsPolicyDeltaBoolText(nextDropTx3g)}; BDPGS=${settingsPolicyDeltaBoolText(nextConvertBdpgs)}/${settingsPolicyDeltaBoolText(nextDropBdpgs)}; VobSub=${settingsPolicyDeltaBoolText(nextConvertVobSub)}/${settingsPolicyDeltaBoolText(nextDropVobSub)}; ASS drop=${settingsPolicyDeltaBoolText(nextDropAss)}`,
     check: subtitleBlocked
-      ? "Do not drop TX3G/BDPGS originals when the matching SRT/OCR conversion is disabled."
+      ? "Do not drop TX3G/BDPGS/VobSub originals when the matching SRT/OCR conversion is disabled."
       : `${settingsPolicyDeltaChangedText(entries, subtitleKeys)} Default Plex posture is add preferred-language SRT while preserving original subtitles unless a drop toggle is explicit.`,
   });
 

@@ -2,7 +2,7 @@
 
 Documents all Local API routes, their mutation risk, auth requirements, backend owner confirmation, and primary frontend caller. Source of truth is `contract_read.py` and `contract_command.py`; handler dispatch is in `routes_read.py` and `routes_command.py`.
 
-Total routes: 68 (29 read, 39 command).
+Total routes: 70 (29 read, 41 command).
 
 All routes that mutate state are backend-owned. The WebView never resolves filesystem paths, selects output targets, chooses encode settings, or launches processes directly — it forwards requests with allowlisted parameters and the backend validates, plans, and executes.
 
@@ -95,7 +95,7 @@ Failure marker clear is backend-owned retry-blocker cleanup. It requires `confir
 
 | Route | Effect | Request Keys | Mutation Risk | Frontend Caller |
 |---|---|---|---|---|
-| `POST /api/final-library-promotion/promote-queue` | `filesystem-mutation` | `confirm_promote` | **High** — copies verified completed outputs to configured final-library destinations after explicit confirmation | Completed |
+| `POST /api/final-library-promotion/promote-queue` | `filesystem-mutation` | `confirm_promote`, `row_keys` | **High** — copies verified completed outputs to configured final-library destinations after explicit confirmation, queue-wide or selected-row scoped | Completed |
 | `POST /api/final-library-promotion/pause` | `control-state-write` | `run_id` | Medium — writes cooperative pause state for the active promotion run only | Completed |
 | `POST /api/final-library-promotion/resume` | `control-state-write` | `run_id` | Medium — clears cooperative pause state for the active promotion run only | Completed |
 
@@ -124,8 +124,9 @@ UI preference sync is backend-owned state persistence for browser-local customiz
 | `POST /api/maintenance/release-dry-run` | `process-dry-run` | `destination_root`, `zip_package`, `verify`, `include_tests`, … | Maintenance |
 | `POST /api/maintenance/release-build` | `deployment-write` | `destination_root`, `zip_package`, `verify`, `include_tests`, `force`, `confirm_create`, … | Maintenance |
 | `POST /api/maintenance/completed-backfill-dry-run` | `process-dry-run` | `timeout_seconds` | Maintenance |
+| `POST /api/maintenance/dependency-atlas` | `tooling-artifact-write` | `timeout_seconds`, `min_overview_edge_count`, `min_overview_files` | Maintenance |
 
-The dry-run routes run existing backend scripts with `-DryRun` and write no release folder, zip, manifest, or completed manifest. `release-build` requires explicit `confirm_create`, is blocked during active work, runs under the backend maintenance command lock, and writes only release deployment artifacts through the backend release builder.
+The dry-run routes run existing backend scripts with `-DryRun` and write no release folder, zip, manifest, or completed manifest. `dependency-atlas` writes generated dependency-atlas tooling artifacts under the repository root only and does not touch media, queue, settings, manifests, pending publish state, or pipeline state. `release-build` requires explicit `confirm_create`, is blocked during active work, runs under the backend maintenance command lock, and writes only release deployment artifacts through the backend release builder.
 
 ### Rename Commands
 
@@ -144,6 +145,7 @@ The dry-run routes run existing backend scripts with `-DryRun` and write no rele
 | `POST /api/settings/validate` | `none` | `values` | None — validation only | Settings |
 | `POST /api/settings/browse-path` | `shell-dialog` | `setting_key`, `selection_mode`, `initial_path` | Low — backend-owned native Windows folder browser for allowlisted path fields only | Settings |
 | `POST /api/settings/preview-patch` | `none` | `changes`, `remove_keys` | None — returns redacted diff | Settings |
+| `POST /api/settings/pipeline-plan-preview` | `none` | `source_media`, `changes`, `remove_keys` | None — validates supplied source facts and returns a backend-owned dry-run pipeline plan only | Settings |
 | `POST /api/settings/save-patch` | `config-write` | `changes`, `remove_keys`, `confirm_save` | **High** — writes PSD1 config | Settings |
 | `POST /api/settings/wizard/validate-paths` | `none` | `wizard` | None — validation only | Settings Wizard |
 | `POST /api/settings/wizard/validate-tools` | `none` | `wizard` | None — validation only | Settings Wizard |
@@ -191,7 +193,7 @@ The dry-run routes run existing backend scripts with `-DryRun` and write no rele
 
 | Effect tag | Routes | Risk level |
 |---|---|---|
-| `none` | 40 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, Settings Wizard validation/preview routes, settings/reload, recovery-plan, sample-validation/preview, schedule/preview) | None |
+| `none` | 41 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, Settings Wizard validation/preview routes, settings/reload, recovery-plan, sample-validation/preview, schedule/preview) | None |
 | `bounded-health-check` | `GET /api/maintenance` | Read-only probes |
 | `shell-open` | `POST /api/queue/open`, `POST /api/completed/open`, `POST /api/pending-publish/open`, `POST /api/diagnostics/open` | OS open only; no file mutation |
 | `shell-dialog` | `POST /api/rename/browse`, `POST /api/settings/browse-path` | Native Windows picker only; no file mutation |
@@ -199,6 +201,7 @@ The dry-run routes run existing backend scripts with `-DryRun` and write no rele
 | `queue-state-write` | `POST /api/queue/priority`, `POST /api/queue/strategy`, `POST /api/queue/file-overrides` | Non-destructive queue state JSON only |
 | `failure-marker-write` | `POST /api/failures/clear` | Moves retry-blocker marker JSON out of the active marker folder only |
 | `process-dry-run` | `POST /api/maintenance/release-dry-run`, `POST /api/maintenance/completed-backfill-dry-run` | No output written |
+| `tooling-artifact-write` | `POST /api/maintenance/dependency-atlas` | Generated repository tooling artifacts only |
 | `deployment-write` | `POST /api/maintenance/release-build` | Writes deployable release folder, manifest, and optional zip only |
 | `control-state-write` | `POST /api/final-library-promotion/pause`, `POST /api/final-library-promotion/resume` | Writes cooperative final-library promotion control state only |
 | `control-flag-write` | `POST /api/pipeline/control` | Pause/stop/rescan signal only |

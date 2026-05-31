@@ -79,6 +79,10 @@ function Test-CanPreserveBdpgsInFfmpegOutput {
     return [bool]$script:CanPreserveBdpgs
 }
 
+function Test-CanPreserveVobSubInFfmpegOutput {
+    return [bool]$script:CanPreserveVobSub
+}
+
 function New-Tx3gFailureRecord {
     param($Entry, [string] $Reason, [string] $ErrorCode, [string] $ReproPath, [string] $ErrorText)
     return [pscustomobject]@{
@@ -103,6 +107,18 @@ function New-BdpgsFailureRecord {
     }
 }
 
+function New-VobSubFailureRecord {
+    param($Entry, [string] $Reason, [string] $ErrorCode, [string] $ReproPath, [string] $ErrorText)
+    return [pscustomobject]@{
+        error_code  = $ErrorCode
+        ErrorCode   = $ErrorCode
+        reason      = $Reason
+        stream_index = if ($Entry.Stream) { $Entry.Stream.index } else { -1 }
+        ReproPath   = $ReproPath
+        ErrorText   = $ErrorText
+    }
+}
+
 function New-TestSubtitleEntry {
     param(
         [int] $Index,
@@ -112,7 +128,9 @@ function New-TestSubtitleEntry {
         [switch] $Supplemental,
         [switch] $Forced,
         [switch] $Tx3g,
-        [switch] $Bdpgs
+        [switch] $Bdpgs,
+        [switch] $VobSub,
+        [string] $SourceKind = 'embedded'
     )
     return @{
         Stream = [pscustomobject]@{ index = $Index }
@@ -125,6 +143,8 @@ function New-TestSubtitleEntry {
         IsForced = [bool]$Forced
         IsTx3g = [bool]$Tx3g
         IsBdpgs = [bool]$Bdpgs
+        IsVobSub = [bool]$VobSub
+        SourceKind = $SourceKind
     }
 }
 
@@ -177,20 +197,37 @@ function Convert-BdpgsToSrt {
     return [pscustomobject]@{ Ok = $true; Path = $DestinationPath; CueCount = 1 }
 }
 
+function Convert-VobSubToSrt {
+    param([string] $SourceFile, [int] $StreamIndex, $StreamInfo, [string] $DestinationPath, [string] $Context)
+    $script:ConversionCalls.Add("vobsub:$StreamIndex") | Out-Null
+    if ($script:VobSubConversionMode -eq 'fail') {
+        return [pscustomobject]@{
+            Ok = $false
+            Reason = 'vobsub ocr failed'
+            Failure = [pscustomobject]@{ error_code = 'SUBTITLE_VOBSUB_OCR_FAILED'; ErrorCode = 'SUBTITLE_VOBSUB_OCR_FAILED'; reason = 'vobsub ocr failed'; StreamIndex = $StreamIndex }
+        }
+    }
+    Write-TestSrt -Path $DestinationPath -Text "VobSub $StreamIndex"
+    return [pscustomobject]@{ Ok = $true; Path = $DestinationPath; CueCount = 1 }
+}
+
 $script:LogRows = [System.Collections.Generic.List[object]]::new()
 $script:ConversionCalls = [System.Collections.Generic.List[string]]::new()
 $script:SubtitleSwitches = @{
     DropAssAfterConversion = $false
     DropTx3gAfterConversion = $false
     DropBdpgsAfterConversion = $false
+    DropVobSubAfterConversion = $false
 }
 $script:OutputContainer = 'mp4'
 $script:PreferredSubtitleLanguage = 'eng'
 $script:CanPreserveTx3g = $false
 $script:CanPreserveBdpgs = $false
+$script:CanPreserveVobSub = $false
 $script:AssConversionMode = 'success'
 $script:Tx3gConversionMode = 'success'
 $script:BdpgsConversionMode = 'success'
+$script:VobSubConversionMode = 'success'
 $script:processingDir = Join-Path ([System.IO.Path]::GetTempPath()) ('mp-subtitle-builder-decisions-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $script:processingDir -Force | Out-Null
 
@@ -245,6 +282,45 @@ try {
     $mkvBdpgsDecision = @($mkvRecords | Where-Object { $_.Action -eq 'ConvertBdpgs' })[0]
     Assert-True $mkvBdpgsDecision.PreserveOriginal 'mkvmerge BDPGS conversion should preserve the original image subtitle when drop-original is disabled.'
     Assert-Equal $mkvBdpgsDecision.OriginalPreserveReason 'preserved' 'mkvmerge BDPGS preserve reason should remain preserved.'
+
+    $vobSubFilter = @{
+        Convert = @()
+        Tx3gConvert = @()
+        BdpgsConvert = @()
+        VobSubConvert = @(
+            (New-TestSubtitleEntry -Index 15 -Lang 'eng' -Title 'English VobSub' -Codec 'dvd_subtitle' -VobSub)
+        )
+        Keep = @(
+            (New-TestSubtitleEntry -Index 16 -Lang 'eng' -Title 'Kept VobSub' -Codec 'dvd_subtitle' -VobSub)
+        )
+    }
+    $vobSubRecords = @(Get-SubtitleBuilderTrackDecisionRecords -FilterResult $vobSubFilter -Builder 'FFmpeg' -CanPreserveVobSub:$false)
+    $vobSubConvertDecision = @($vobSubRecords | Where-Object { $_.Action -eq 'ConvertVobSub' })[0]
+    Assert-True (-not $vobSubConvertDecision.PreserveOriginal) 'VobSub should not be preserved when the FFmpeg output container cannot carry it.'
+    Assert-Equal $vobSubConvertDecision.OriginalPreserveReason 'container_does_not_preserve_vobsub' 'VobSub preserve reason should record container incompatibility.'
+    Assert-Equal $vobSubConvertDecision.ConversionKind 'vobsub_to_srt' 'VobSub conversion decision should name the SRT conversion kind.'
+    Assert-True $vobSubConvertDecision.ConversionFailureRoutesToReview 'VobSub OCR failure should remain review-routed.'
+    $vobSubKeepDecision = @($vobSubRecords | Where-Object { $_.Action -eq 'Keep' -and $_.Entry.IsVobSub })[0]
+    Assert-True $vobSubKeepDecision.RoutesToReview 'Kept VobSub should route to review when FFmpeg output cannot preserve it.'
+    Assert-Equal $vobSubKeepDecision.ReviewErrorCode 'SUBTITLE_VOBSUB_CONTAINER_UNSUPPORTED' 'Kept VobSub review route should use the VobSub error code.'
+
+    $mkvVobSubRecords = @(Get-SubtitleBuilderTrackDecisionRecords -FilterResult $vobSubFilter -Builder 'Mkvmerge')
+    $mkvVobSubDecision = @($mkvVobSubRecords | Where-Object { $_.Action -eq 'ConvertVobSub' })[0]
+    Assert-True $mkvVobSubDecision.PreserveOriginal 'mkvmerge VobSub conversion should preserve the original image subtitle when drop-original is disabled.'
+    Assert-Equal $mkvVobSubDecision.OriginalPreserveReason 'preserved' 'mkvmerge VobSub preserve reason should remain preserved.'
+
+    $vobSubSidecarFilter = @{
+        Convert = @()
+        Tx3gConvert = @()
+        BdpgsConvert = @()
+        VobSubConvert = @(
+            (New-TestSubtitleEntry -Index -1 -Lang 'eng' -Title 'English VobSub sidecar' -Codec 'vobsub' -VobSub -SourceKind 'sidecar')
+        )
+        Keep = @()
+    }
+    $vobSubSidecarDecision = @(Get-SubtitleBuilderTrackDecisionRecords -FilterResult $vobSubSidecarFilter -Builder 'Mkvmerge' | Where-Object { $_.Action -eq 'ConvertVobSub' })[0]
+    Assert-True (-not $vobSubSidecarDecision.PreserveOriginal) 'External VobSub sidecars should not be muxed as original tracks.'
+    Assert-Equal $vobSubSidecarDecision.OriginalPreserveReason 'external_sidecar_preserved_outside_output' 'External VobSub sidecar preserve reason should not imply source deletion.'
 
     $script:ConversionCalls.Clear()
     $build = Build-SubtitleArgsForFFmpeg -FilterResult $filter -DefaultAudioLang 'jpn' -SourceFile (Join-Path $script:processingDir 'source.mkv') -Context 'TEST: '
@@ -336,6 +412,69 @@ try {
     Assert-Equal $failedOcrBuild.TempFiles.Count 0 'Failed TX3G/BDPGS conversion should not register temp SRT artifacts.'
     Assert-Equal @($failedOcrBuild.Failures | Where-Object { $_.error_code -eq 'SUBTITLE_TX3G_EXTRACT_FAILED' }).Count 1 'TX3G conversion failure should remain review-routed.'
     Assert-Equal @($failedOcrBuild.Failures | Where-Object { $_.error_code -eq 'SUBTITLE_BDPGS_OCR_FAILED' }).Count 1 'BDPGS OCR failure should remain review-routed.'
+
+    . (Join-Path $repoRoot 'engine\subtitles\srt.ps1')
+    . (Join-Path $repoRoot 'engine\subtitles\bdpgs.ps1')
+    $bdpgsPipeGlyphText = "1`r`n00:00:00,200 --> 00:00:01,400`r`n| never said |t was over.`r`n`r`n2`r`n00:00:01,500 --> 00:00:02,000`r`nNo pipe here.`r`n"
+    $bdpgsPipeGlyphRepair = Repair-BdpgsOcrSrtPipeGlyphText -Text $bdpgsPipeGlyphText
+    Assert-Equal $bdpgsPipeGlyphRepair.ReplacementCount 2 'BDPGS OCR pipe-glyph repair should count only cue text replacements.'
+    Assert-ContainsText $bdpgsPipeGlyphRepair.Text 'I never said It was over.' 'BDPGS OCR pipe-glyph repair should replace pipe glyphs in cue text with uppercase I.'
+    Assert-ContainsText $bdpgsPipeGlyphRepair.Text '00:00:00,200 --> 00:00:01,400' 'BDPGS OCR pipe-glyph repair should preserve timing lines.'
+
+    $bdpgsPipeGlyphPath = Join-Path $script:processingDir 'bdpgs-pipe-glyph.srt'
+    [System.IO.File]::WriteAllText($bdpgsPipeGlyphPath, $bdpgsPipeGlyphText, [System.Text.UTF8Encoding]::new($false))
+    $bdpgsPipeGlyphFileRepair = Repair-BdpgsOcrSrtPipeGlyphs -Path $bdpgsPipeGlyphPath -Context 'TEST: '
+    $bdpgsPipeGlyphFileText = [System.IO.File]::ReadAllText($bdpgsPipeGlyphPath, [System.Text.Encoding]::UTF8)
+    Assert-Equal $bdpgsPipeGlyphFileRepair.ReplacementCount 2 'BDPGS OCR pipe-glyph file repair should report rewritten cue text replacements.'
+    Assert-ContainsText $bdpgsPipeGlyphFileText 'I never said It was over.' 'BDPGS OCR pipe-glyph file repair should persist uppercase I replacements.'
+    Assert-True (-not ($bdpgsPipeGlyphFileText -match '\|')) 'BDPGS OCR pipe-glyph file repair should remove OCR pipe glyphs from cue text.'
+
+    function Get-NormalizedSubtitleLanguage {
+        param([string] $Language)
+        if ([string]::IsNullOrWhiteSpace($Language)) { return 'und' }
+        return $Language
+    }
+
+    function Get-SubtitleOperationTimeoutSeconds {
+        param([string] $ScriptVariableName, [int] $DefaultSeconds)
+        return $DefaultSeconds
+    }
+
+    function Extract-BdpgsToSup {
+        param(
+            [Parameter(Mandatory)] [string]$SourceFile,
+            [Parameter(Mandatory)] [int]$StreamIndex,
+            [Parameter(Mandatory)] [string]$DestinationPath,
+            [hashtable]$StreamInfo = @{},
+            [string]$Context = ""
+        )
+        [System.IO.File]::WriteAllText($DestinationPath, 'fake sup payload', [System.Text.UTF8Encoding]::new($false))
+        return [pscustomobject]@{ Ok = $true; Path = $DestinationPath; Reason = 'ok'; Failure = $null }
+    }
+
+    function Invoke-BdpgsOcrCommand {
+        param(
+            [string] $FilePath,
+            [array] $ArgumentList,
+            [int] $TimeoutSeconds,
+            [string] $Stage,
+            [switch] $SaveReproOnFailure,
+            [string] $ProcessPriority
+        )
+        $outputIndex = [array]::IndexOf($ArgumentList, '--output')
+        $outputPath = [string]$ArgumentList[$outputIndex + 1]
+        [System.IO.File]::WriteAllText($outputPath, "1`r`n00:00:00,200 --> 00:00:01,400`r`n| am here.`r`n", [System.Text.UTF8Encoding]::new($false))
+        return [pscustomobject]@{ ExitCode = 0; Error = ''; ReproPath = $null }
+    }
+
+    $script:BdpgsOcrToolPath = $PSCommandPath
+    $script:BdpgsOcrTessdataPath = ''
+    $bdpgsConvertedPath = Join-Path $script:processingDir 'bdpgs-converted-pipe-glyph.srt'
+    $bdpgsConverted = Convert-BdpgsToSrt -SourceFile (Join-Path $script:processingDir 'source.mkv') -StreamIndex 40 -StreamInfo (New-TestSubtitleEntry -Index 40 -Lang 'eng' -Title 'English PGS' -Codec 'hdmv_pgs_subtitle' -Bdpgs) -DestinationPath $bdpgsConvertedPath -Context 'TEST: '
+    $bdpgsConvertedText = [System.IO.File]::ReadAllText($bdpgsConvertedPath, [System.Text.Encoding]::UTF8)
+    Assert-True ([bool]$bdpgsConverted.Ok) ("BDPGS OCR conversion with pipe-glyph repair should succeed: {0}" -f $bdpgsConverted.Reason)
+    Assert-ContainsText $bdpgsConvertedText 'I am here.' 'BDPGS OCR conversion should repair pipe glyphs before accepting the SRT.'
+    Assert-True (-not ($bdpgsConvertedText -match '\|')) 'BDPGS OCR conversion should not publish OCR pipe glyphs in cue text.'
 } finally {
     Remove-Item -LiteralPath $script:processingDir -Recurse -Force -ErrorAction SilentlyContinue
 }

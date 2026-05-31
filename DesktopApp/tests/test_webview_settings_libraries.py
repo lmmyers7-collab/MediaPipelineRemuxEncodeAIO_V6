@@ -1,13 +1,251 @@
 from __future__ import annotations
 
+import re
+import sys
 import unittest
 from pathlib import Path
 
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from app.config.library_profiles import LIBRARY_OVERRIDE_KEYS_BY_GROUP
+from app.config.metadata_parts.field_definitions import CONFIG_FIELD_DEFINITIONS
+
+
 STATIC_ROOT = Path(__file__).resolve().parents[1] / "mediapipeline_desktop_app" / "ui_web" / "static"
+VOBSUB_LIBRARY_OVERRIDE_KEYS = {
+    "ConvertVobSubToSrt",
+    "DropVobSubAfterConversion",
+    "VobSubExtractLanguages",
+    "VobSubOcrToolPath",
+    "VobSubOcrTimeoutSeconds",
+    "TreatVobSubSignsSongsAsForced",
+}
+LABEL_ONLY_RENAMES = {
+    "RoutingProfile": "Processing Strategy",
+    "RouteThresholdMode": "Enforcement Mode",
+    "SizeGuardMode": "Output Size Check",
+    "EncodeTuningPreset": "Encoder Quality Preset",
+    "EncodeLadder": "Encode Target Mode",
+    "MaxEncodeGrowthPercent": "Quality-encode size tolerance",
+    "CompatibilityEncodeGrowthPercent": "Compatibility-encode size tolerance",
+    "EncodeThresholdGB": "Movie target output size",
+    "TVEncodeThresholdGB": "TV target output size",
+    "MovieRouteMaxVideoBitrateMbps": "Movie max bitrate for direct copy",
+    "TVRouteMaxVideoBitrateMbps": "TV max bitrate for direct copy",
+    "VideoPreset": "Encoder Speed Preset",
+    "ExtraVideoFlags": "Advanced Encoder Flags",
+    "RemuxSafeVideoCodecs": "Direct Copy Video Codec Allowlist",
+}
+
+
+def _backend_library_override_keys() -> set[str]:
+    return {key for keys in LIBRARY_OVERRIDE_KEYS_BY_GROUP.values() for key in keys}
+
+
+def _backend_field_metadata() -> dict[str, dict[str, object]]:
+    return {str(field["key"]): field for field in CONFIG_FIELD_DEFINITIONS}
+
+
+def _backend_library_override_group_by_key() -> dict[str, str]:
+    return {
+        key: group
+        for group, keys in LIBRARY_OVERRIDE_KEYS_BY_GROUP.items()
+        for key in keys
+    }
+
+
+def _settings_metadata_keys() -> set[str]:
+    js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
+    return set(re.findall(r'\["([A-Za-z0-9_]+)"\s*,\s*"settings-', js))
+
+
+def _scan_js_array(source: str, array_start: int) -> tuple[str, int]:
+    depth = 0
+    quote = ""
+    escaped = False
+    for index in range(array_start, len(source)):
+        char = source[index]
+        if quote:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == quote:
+                quote = ""
+            continue
+        if char in {'"', "'", "`"}:
+            quote = char
+            continue
+        if char == "[":
+            depth += 1
+        elif char == "]":
+            depth -= 1
+            if depth == 0:
+                return source[array_start : index + 1], index + 1
+    raise AssertionError("Unclosed JavaScript array in settingsLibraries.js")
+
+
+def _settings_library_layout_keys_by_group() -> dict[str, set[str]]:
+    js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+    start = js.index("const overrideLayouts = {")
+    end = js.index("const fallbackGroupByField", start)
+    layout_text = js[start:end]
+    groups: dict[str, set[str]] = {}
+    for group in LIBRARY_OVERRIDE_KEYS_BY_GROUP:
+        group_start = layout_text.index(f"    {group}: [")
+        array_start = layout_text.index("[", group_start)
+        group_text, _array_end = _scan_js_array(layout_text, array_start)
+        keys: set[str] = set()
+        for match in re.finditer(r"\b(?:fields|gridFields):\s*\[([^\]]*)\]", group_text):
+            keys.update(re.findall(r'"([A-Za-z][A-Za-z0-9_]*)"', match.group(1)))
+        groups[group] = keys
+    return groups
+
+
+def _settings_library_override_group_order() -> tuple[str, ...]:
+    js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+    match = re.search(r"const overrideGroupOrder = \[([^\]]+)\]", js)
+    if match is None:
+        raise AssertionError("overrideGroupOrder was not found in settingsLibraries.js")
+    return tuple(re.findall(r'"([A-Za-z0-9_]+)"', match.group(1)))
+
+
+def _settings_library_layout_keys() -> set[str]:
+    return {key for keys in _settings_library_layout_keys_by_group().values() for key in keys}
 
 
 class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
+    def test_settings_metadata_covers_backend_library_override_keys(self) -> None:
+        metadata_keys = _settings_metadata_keys()
+        backend_keys = _backend_library_override_keys()
+
+        self.assertEqual(sorted(backend_keys - metadata_keys), [])
+        self.assertLessEqual(VOBSUB_LIBRARY_OVERRIDE_KEYS, metadata_keys)
+
+    def test_settings_library_layout_covers_backend_library_override_keys(self) -> None:
+        layout_keys = _settings_library_layout_keys()
+        backend_keys = _backend_library_override_keys()
+
+        self.assertEqual(sorted(backend_keys - layout_keys), [])
+        self.assertLessEqual(VOBSUB_LIBRARY_OVERRIDE_KEYS, layout_keys)
+
+    def test_settings_library_layout_keys_are_backend_known_and_editable(self) -> None:
+        metadata = _backend_field_metadata()
+        group_by_key = _backend_library_override_group_by_key()
+        layout_by_group = _settings_library_layout_keys_by_group()
+
+        self.assertEqual(_settings_library_override_group_order(), tuple(LIBRARY_OVERRIDE_KEYS_BY_GROUP))
+        for group, keys in layout_by_group.items():
+            with self.subTest(group=group):
+                self.assertEqual(sorted(keys - set(metadata)), [])
+            for key in keys:
+                with self.subTest(group=group, key=key):
+                    field = metadata[key]
+                    self.assertTrue(field["library_override_allowed"])
+                    self.assertEqual(field["override_group"], group)
+                    self.assertEqual(group_by_key[key], group)
+
+        rendered_keys = {key for keys in layout_by_group.values() for key in keys}
+        self.assertEqual(sorted(_backend_library_override_keys() - rendered_keys), [])
+
+    def test_settings_libraries_asset_uses_backend_metadata_for_override_rows(self) -> None:
+        js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+
+        for token in (
+            "function overrideFieldsForGroup(groupKey)",
+            "function overrideGroupList()",
+            "function overrideStatus(groupKey, key)",
+            "field?.library_override_allowed === true",
+            'String(field?.override_group || "") === groupKey',
+            "field?.allowed_values",
+            "field?.help_text || field?.help",
+            "metadataTags(field?.rule_taxonomy)",
+            'String(field?.strictness || "")',
+            '"default_value"',
+            "field.default_value",
+            "buildOverrideControl(fieldKey, value, !editable)",
+            'data-library-persisted-key="${escapeHtml(persistedKey)}"',
+            'data-library-override-eligible="${editable ? "true" : "false"}"',
+            'data-library-section="${escapeHtml(section)}"',
+            'data-library-rule-taxonomy="${escapeHtml(ruleTaxonomy)}"',
+            'data-library-strictness="${escapeHtml(strictness)}"',
+            'data-library-advanced-visibility="${escapeHtml(advancedVisibility)}"',
+            'data-library-unavailable-reason="${escapeHtml(unavailableReason)}"',
+            "Global only — cannot be overridden per library",
+            "Read-only source/effective value",
+            'advancedVisibility === "advanced" ? " data-advanced" : ""',
+            "return fields.filter((fieldKey) => overrideStatus(groupKey, fieldKey).render);",
+        ):
+            self.assertIn(token, js)
+        for token in (
+            "renderMetadataBadges",
+            "settings-library-metadata-badge",
+            "settings-library-metadata-badges",
+            "rule-badge settings-library",
+            "data-metadata-kind",
+        ):
+            self.assertNotIn(token, js)
+
+    def test_phase3_library_override_labels_match_backend_metadata(self) -> None:
+        metadata = _backend_field_metadata()
+        expected = {
+            "RoutingProfile": "Processing Strategy",
+            "SizeGuardMode": "Output Size Check",
+            "RouteThresholdMode": "Enforcement Mode",
+            "VideoPreset": "Encoder Speed Preset",
+            "ConvertVobSubToSrt": "OCR VobSub to SRT",
+        }
+
+        for key, label in expected.items():
+            with self.subTest(key=key):
+                self.assertEqual(metadata[key]["label"], label)
+                self.assertTrue(metadata[key]["library_override_allowed"])
+
+        js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        self.assertIn("if (field?.label) return field.label;", js)
+        self.assertIn("fieldHelpText(field)", js)
+
+    def test_phase3_label_only_keys_are_rendered_as_persisted_library_overrides(self) -> None:
+        metadata = _backend_field_metadata()
+        layout_keys = _settings_library_layout_keys()
+        group_by_key = _backend_library_override_group_by_key()
+        js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+
+        for key, label in LABEL_ONLY_RENAMES.items():
+            with self.subTest(key=key):
+                field = metadata[key]
+                self.assertEqual(field["label"], label)
+                self.assertEqual(field["persisted_key"], key)
+                self.assertEqual(field["override_group"], group_by_key[key])
+                self.assertTrue(field["library_override_allowed"])
+                self.assertIn(key, layout_keys)
+                self.assertTrue(str(field["help_text"]).strip())
+
+        for token in (
+            'data-library-override-group="${escapeHtml(groupKey)}"',
+            'data-library-override-key="${escapeHtml(fieldKey)}"',
+            'data-library-persisted-key="${escapeHtml(persistedKey)}"',
+            'overrides[group][key] = readOverrideControlValue(control, key)',
+            'if (row.dataset.libraryOverride !== "true") return;',
+        ):
+            self.assertIn(token, js)
+
+    def test_library_override_unavailable_and_read_only_copy_is_display_only(self) -> None:
+        js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+
+        for token in (
+            'field.library_override_allowed !== true',
+            'scope === "source_derived" || scope === "computed_only"',
+            "Read-only source/effective value",
+            "Global only — cannot be overridden per library",
+            "buildOverrideControl(fieldKey, value, !editable)",
+            'data-library-override-eligible="${editable ? "true" : "false"}"',
+            'if (!status.render) return "";',
+        ):
+            self.assertIn(token, js)
+
     def test_libraries_page_is_main_nav_surface(self) -> None:
         shell_html = (STATIC_ROOT / "partials" / "app-shell-start.html").read_text(encoding="utf-8")
         libraries_html = (STATIC_ROOT / "partials" / "page-libraries.html").read_text(encoding="utf-8")
@@ -16,8 +254,8 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertLess(shell_html.index('data-page="libraries"'), shell_html.index('data-page="settings"'))
         self.assertIn('data-page-panel="libraries"', libraries_html)
         self.assertNotIn('data-settings-tab="libraries"', settings_html)
-        self.assertIn("Default Editor", settings_html)
-        self.assertIn("Default Media", settings_html)
+        self.assertIn("Routing", settings_html)
+        self.assertIn("Video / Audio / Subtitles", settings_html)
         self.assertIn("settings-library-actions-panel", libraries_html)
         self.assertIn("settings-library-command-box", libraries_html)
         self.assertIn("settings-library-active-title", libraries_html)
@@ -57,6 +295,11 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "Default Subtitle Overrides",
             "Default Audio Overrides",
             "overrides",
+            "editor: {}",
+            "video: {}",
+            "subtitles: {}",
+            "audio: {}",
+            'const overrideGroupOrder = ["editor", "video", "subtitles", "audio"]',
             "emptyOverrides",
             "normalizeOverrides",
             "data-library-override-control",
@@ -64,13 +307,27 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "settings-library-override-use-default",
             "settings-library-override-summary",
             "settings-library-override-label-text",
+            "settings-library-state",
             "openOverrideSectionsByLibrary",
             "captureOpenOverrideSections",
             "closeOverrideSections(activeLibraryTabId)",
-            "Use default",
+            "Use global default",
+            "Reset to inherited",
             "promotion_destination",
+            "promotion_enabled",
+            "settings-library-promotion-toggle",
             "data-library-profile-tab",
             "data-library-profile-pane",
+            "library_profile_state",
+            "profileState",
+            "pathEvidence",
+            "pathCanReset",
+            "data-library-path-source",
+            "data-library-can-reset",
+            "data-library-path-reset-pending",
+            "localInheritedFields",
+            "libraryProfileResetRequest",
+            "collectLibraryProfileResetsFromDom",
             "activateLibraryTab",
             "deleteActiveLibrary",
             "replaceActiveLibraryValuesWithDefaults",
@@ -85,19 +342,27 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         ):
             self.assertIn(token, js)
         self.assertIn("<details", js)
-        self.assertIn('hidden disabled"}>Use default</button>', js)
+        self.assertIn('hidden disabled"}>Reset to inherited</button>', js)
         self.assertNotIn('["movie", "tv", "mixed", "custom"]', js)
         self.assertNotIn("editor_overrides:", js)
         self.assertNotIn("media_overrides:", js)
 
     def test_settings_libraries_asset_tracks_explicit_override_state(self) -> None:
         js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        css = (STATIC_ROOT / "assets" / "styles.pages.css").read_text(encoding="utf-8")
 
         for token in (
             'data-library-override="${isOverride ? "true" : "false"}"',
+            'data-library-override-state-label',
+            "Inherited from global",
+            "Library override",
+            "Library override — currently same as global",
             'row.dataset.libraryOverride = isOverride ? "true" : "false"',
             'row.classList.toggle("is-custom", isOverride)',
             'button.hidden = !isOverride',
+            "Reset to inherited removes the persisted library override key",
+            'row.dataset.libraryResetPending = "true"',
+            'delete row.dataset.libraryResetPending',
             'const isOpen = openSections instanceof Set && openSections.has(group.key)',
             '${isOpen ? " open" : ""}',
             'list.addEventListener("toggle"',
@@ -109,9 +374,57 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             'setOverrideControlValue(control, key, defaultSettingValue(key))',
         ):
             self.assertIn(token, js)
-        self.assertNotIn("data-library-override-state", js)
+        self.assertRegex(css, r"\.settings-library-state\s*\{[^}]*display: inline;")
+        self.assertRegex(css, r"\.settings-library-state\.is-inherited\s*\{[^}]*color: var\(--grey-400\);")
+        self.assertRegex(css, r"\.settings-library-state\.is-custom\s*\{[^}]*color: var\(--blue-200\);")
+        self.assertNotRegex(css, r"\.settings-library-state\s*\{[^}]*background:")
+        self.assertNotRegex(css, r"\.settings-library-state\.is-inherited\s*\{[^}]*background:")
+        self.assertNotRegex(css, r"\.settings-library-state\.is-custom\s*\{[^}]*background:")
+        self.assertRegex(css, r"\.settings-library-promotion-toggle\s*\{[^}]*display: inline-flex;")
+        self.assertRegex(css, r"\.settings-library-promotion-toggle\s+input\s*\{[^}]*width: 16px;")
+        self.assertRegex(css, r"\.settings-library-promotion-toggle\s+input\s*\{[^}]*flex: 0 0 16px;")
+        self.assertNotIn('data-library-override-state="${isOverride ? "custom" : "inherited"}"', js)
         self.assertNotIn("Settings overrides:", js)
         self.assertNotIn("Inherited path fields:", js)
+        self.assertNotIn("card.dataset.inheritedFields", js)
+
+    def test_phase4e_library_inheritance_display_and_reset_wiring_is_backend_evidence_based(self) -> None:
+        libraries_js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+
+        for token in (
+            "return Array.isArray(lastSettings?.library_profile_state) ? lastSettings.library_profile_state : [];",
+            "function profileState(profile)",
+            "profileState(profile)?.path_fields?.[field]",
+            "profileState(profile)?.setting_overrides?.[groupKey]?.[fieldKey]",
+            'state === "synthesized_builtin_default"',
+            'state === "invalid_unresolved"',
+            'state === "not_configured"',
+            'if (field === "promotion_destination") return false;',
+            'if (field === "source_path") return profile.id === "movies" || profile.id === "tv";',
+            'if (field === "output_path") return Boolean(evidence);',
+            'data-library-can-reset="${canReset ? "true" : "false"}"',
+            'input.dataset.libraryPathResetPending = "true";',
+            'delete target.dataset.libraryPathResetPending;',
+            'row.dataset.libraryResetPending = "true";',
+            'delete row.dataset.libraryResetPending;',
+            "card.dataset.localInheritedFields = JSON.stringify(Array.from(inherited));",
+            "function localInheritedFields(card)",
+            "function setLocalInheritedFields(card, inherited)",
+            'return Boolean(parsed && typeof parsed === "object" && !Array.isArray(parsed) && Object.prototype.hasOwnProperty.call(parsed, "LibraryProfiles"));',
+            "if (!currentPatchIncludesLibraryProfiles()) return [];",
+        ):
+            self.assertIn(token, libraries_js)
+
+        for token in (
+            "function settingsPatchRequestExtras()",
+            "window.mediaPipelineSettingsLibraries?.libraryProfileResetRequest",
+            "library_profile_resets",
+            'apiPost("/api/settings/preview-patch", { changes, ...requestExtras })',
+            'apiPost("/api/settings/save-patch", { changes, ...requestExtras, confirm_save: true })',
+            "settingsPatchRequestSignature(changes, requestExtras)",
+        ):
+            self.assertIn(token, settings_js)
 
     def test_settings_libraries_asset_preserves_unsaved_cards_during_refresh(self) -> None:
         js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
@@ -134,6 +447,22 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
 
         self.assertLess(html.index("/assets/settingsView.js"), html.index("/assets/settingsLibraries.js"))
         self.assertLess(html.index("/assets/settingsLibraries.js"), html.index("/assets/settingsWizard.js"))
+
+    def test_settings_wizard_library_rows_collect_backend_profile_model(self) -> None:
+        js = (STATIC_ROOT / "assets" / "settingsWizard.js").read_text(encoding="utf-8")
+
+        for token in (
+            "section.dataset.defaultTracking = safeJson(library.default_tracking);",
+            "section.dataset.overrides = safeJson(library.overrides);",
+            'data-library-field="designation"',
+            'data-library-field="output_path"',
+            'data-library-field="promotion_destination"',
+            'data-library-field="promotion_enabled"',
+            "default_tracking: readRowJson",
+            "overrides: readRowJson",
+            'apiPostLocal("/api/settings/wizard/save", { wizard: collectWizardPayload(), confirm_save: true })',
+        ):
+            self.assertIn(token, js)
 
 
 if __name__ == "__main__":

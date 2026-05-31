@@ -293,10 +293,23 @@ function Test-MediaPipelineAlreadyProcessedPreflight {
         [bool] $IsTV = $false,
         $TvInfo = $null,
         $ProcessedIndex = $null,
-        [string] $MediaType = ''
+        [string] $MediaType = '',
+        [string] $LibraryProfileId = ''
     )
 
-    if (Already-Processed $File $IsTV $TvInfo $ProcessedIndex) {
+    $previousLibraryProfileId = Get-Variable -Name CurrentLibraryProfileId -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+    $script:CurrentLibraryProfileId = [string]$LibraryProfileId
+    try {
+        $alreadyProcessed = Already-Processed $File $IsTV $TvInfo $ProcessedIndex
+    } finally {
+        if ($null -ne $previousLibraryProfileId) {
+            $script:CurrentLibraryProfileId = $previousLibraryProfileId
+        } else {
+            Remove-Variable -Name CurrentLibraryProfileId -Scope Script -ErrorAction SilentlyContinue
+        }
+    }
+
+    if ($alreadyProcessed) {
         $check = New-MediaPipelinePreflightCheckResult -Name 'already_processed' -State 'already_processed' -Terminal:$true -Reason 'Already processed' -ErrorCode 'ALREADY_PROCESSED'
         return New-MediaPipelineProcessPreflightDecision `
             -Terminal:$true `
@@ -354,11 +367,22 @@ function Test-MediaPipelineOutputPathPreflight {
         [Parameter(Mandatory)] $File,
         [bool] $IsTV = $false,
         $TvInfo = $null,
-        [string] $MediaType = ''
+        [string] $MediaType = '',
+        [string] $LibraryProfileId = ''
     )
 
     $safeName = Get-SafeLocalName $File.Name
-    $outputPaths = Get-OutputPaths $File $IsTV $TvInfo $safeName
+    $previousLibraryProfileId = Get-Variable -Name CurrentLibraryProfileId -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+    $script:CurrentLibraryProfileId = [string]$LibraryProfileId
+    try {
+        $outputPaths = Get-OutputPaths $File $IsTV $TvInfo $safeName
+    } finally {
+        if ($null -ne $previousLibraryProfileId) {
+            $script:CurrentLibraryProfileId = $previousLibraryProfileId
+        } else {
+            Remove-Variable -Name CurrentLibraryProfileId -Scope Script -ErrorAction SilentlyContinue
+        }
+    }
     $pathCheck = Test-OutputPathCapability -Paths $outputPaths
 
     if (-not $pathCheck.Ok) {

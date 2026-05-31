@@ -152,6 +152,7 @@ function Invoke-Validation {
         @{ Key = 'SubtitleExtractTimeoutSeconds'; Min = 30; Max = 3600 },
         @{ Key = 'SubtitleProbeTimeoutSeconds';   Min = 5;  Max = 600  },
         @{ Key = 'BdpgsOcrTimeoutSeconds';         Min = 60; Max = 14400 },
+        @{ Key = 'VobSubOcrTimeoutSeconds';        Min = 60; Max = 14400 },
         @{ Key = 'SourceScanTimeoutSeconds';  Min = 30; Max = 86400  },
         @{ Key = 'IndexScanTimeoutSeconds';   Min = 30; Max = 86400  },
         @{ Key = 'CleanupScanTimeoutSeconds'; Min = 30; Max = 7200   },
@@ -183,8 +184,9 @@ function Invoke-Validation {
         'AggressiveEpisodeParsing','AllowSystemTools','CleanupRemoteStaging',
         'ConvertTx3gToSrt','DropTx3gAfterConversion','CreateExternalTx3gSrtSidecars',
         'ConvertBdpgsToSrt','DropBdpgsAfterConversion',
+        'ConvertVobSubToSrt','DropVobSubAfterConversion',
         'Tx3gPreserveExistingSrt','Tx3gTreatForcedAsSeparate',
-        'TreatAssSignsSongsAsForced','TreatTx3gSignsSongsAsForced','TreatBdpgsSignsSongsAsForced'
+        'TreatAssSignsSongsAsForced','TreatTx3gSignsSongsAsForced','TreatBdpgsSignsSongsAsForced','TreatVobSubSignsSongsAsForced'
     )) {
         if ($Config.ContainsKey($boolKey) -and $Config[$boolKey] -isnot [bool]) {
             $failures.Add("$boolKey must be `$true or `$false.")
@@ -341,6 +343,11 @@ function Initialize-ProgressSkeleton {
             CurrentFileDisplay    = $null
             CurrentFilePath       = $null
             CurrentMediaType      = $null
+            CurrentLibraryId      = $null
+            CurrentLibraryName    = $null
+            CurrentLibraryDesignation = $null
+            CurrentLibrarySourceRoot  = $null
+            CurrentLibraryOutputRoot  = $null
             CurrentQueuePhase     = $null
             CurrentQueueIndex     = 0
             CurrentQueueTotal     = 0

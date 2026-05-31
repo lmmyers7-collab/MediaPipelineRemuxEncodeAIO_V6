@@ -38,6 +38,7 @@ from mediapipeline_desktop_app.config_keys import (
     KEY_TRANSIENT_FAILURE_RETRY_LIMIT,
     KEY_TV_ENCODE_THRESHOLD_GB,
     KEY_TV_ROUTE_MAX_VIDEO_BITRATE_MBPS,
+    KEY_VOBSUB_OCR_TIMEOUT_SECONDS,
     KEY_VIDEO_CODEC,
     KEY_VIDEO_PRESET,
     KEY_VIDEO_QUALITY,
@@ -112,6 +113,7 @@ def validate_required_and_numeric_config(values: dict[str, Any], errors: list[st
     validate_int(values, errors, KEY_SUBTITLE_EXTRACT_TIMEOUT_SECONDS, "SubtitleExtractTimeoutSeconds", minimum=30, maximum=3600)
     validate_int(values, errors, KEY_SUBTITLE_PROBE_TIMEOUT_SECONDS, "SubtitleProbeTimeoutSeconds", minimum=5, maximum=600)
     validate_int(values, errors, KEY_BDPGS_OCR_TIMEOUT_SECONDS, "BdpgsOcrTimeoutSeconds", minimum=60, maximum=14400)
+    validate_int(values, errors, KEY_VOBSUB_OCR_TIMEOUT_SECONDS, "VobSubOcrTimeoutSeconds", minimum=60, maximum=14400)
     validate_int(values, errors, KEY_TRANSIENT_FAILURE_RETRY_LIMIT, "TransientFailureRetryLimit", minimum=1, maximum=100)
     validate_int(values, errors, KEY_SOURCE_SCAN_INTERVAL_SECONDS, "SourceScanIntervalSeconds", minimum=0)
     validate_int(values, errors, KEY_PROCESSED_INDEX_REFRESH_SECONDS, "ProcessedIndexRefreshSeconds", minimum=0)

@@ -1,0 +1,50 @@
+{
+  "source": {
+    "path": "fixtures/movie_hevc_4k_hdr_high_bitrate_mkv.mkv",
+    "file_size_bytes": 54000000000,
+    "media_type": "movie"
+  },
+  "format": {
+    "format_name": "matroska,webm",
+    "duration": "7200.0",
+    "bit_rate": "75000000"
+  },
+  "streams": [
+    {
+      "index": 0,
+      "codec_type": "video",
+      "codec_name": "hevc",
+      "profile": "Main 10",
+      "level": 153,
+      "pix_fmt": "yuv420p10le",
+      "width": 3840,
+      "height": 2160,
+      "display_aspect_ratio": "16:9",
+      "avg_frame_rate": "24000/1001",
+      "field_order": "progressive",
+      "color_transfer": "smpte2084",
+      "bits_per_raw_sample": "10",
+      "bit_rate": "75000000",
+      "side_data_list": [
+        { "side_data_type": "Mastering display metadata" },
+        { "side_data_type": "Content light level metadata" }
+      ]
+    },
+    {
+      "index": 1,
+      "codec_type": "audio",
+      "codec_name": "truehd",
+      "channels": 8,
+      "channel_layout": "7.1",
+      "tags": { "language": "eng" },
+      "disposition": { "default": 1, "forced": 0 }
+    },
+    {
+      "index": 2,
+      "codec_type": "subtitle",
+      "codec_name": "hdmv_pgs_subtitle",
+      "tags": { "language": "eng" },
+      "disposition": { "default": 0, "forced": 1 }
+    }
+  ]
+}

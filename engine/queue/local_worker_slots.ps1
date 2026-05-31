@@ -515,6 +515,11 @@ function Write-MediaPipelineLocalWorkerActiveJobs {
         $status = if ($progress -and $progress.PSObject.Properties['Status']) { [string]$progress.Status } else { [string]$job.Status }
         $route = if ($progress -and $progress.PSObject.Properties['CurrentRoute']) { [string]$progress.CurrentRoute } else { '' }
         $percent = if ($progress -and $progress.PSObject.Properties['CurrentStagePercent']) { $progress.CurrentStagePercent } else { $null }
+        $libraryId = if ($progress -and $progress.PSObject.Properties['CurrentLibraryId']) { [string]$progress.CurrentLibraryId } else { '' }
+        $libraryName = if ($progress -and $progress.PSObject.Properties['CurrentLibraryName']) { [string]$progress.CurrentLibraryName } else { '' }
+        $libraryDesignation = if ($progress -and $progress.PSObject.Properties['CurrentLibraryDesignation']) { [string]$progress.CurrentLibraryDesignation } else { '' }
+        $librarySourceRoot = if ($progress -and $progress.PSObject.Properties['CurrentLibrarySourceRoot']) { [string]$progress.CurrentLibrarySourceRoot } else { '' }
+        $libraryOutputRoot = if ($progress -and $progress.PSObject.Properties['CurrentLibraryOutputRoot']) { [string]$progress.CurrentLibraryOutputRoot } else { '' }
         $fileName = if ($claim -and $claim.PSObject.Properties['source_name']) { [string]$claim.source_name } else { [System.IO.Path]::GetFileName([string]$claim.source_path) }
         [void]$jobs.Add([ordered]@{
             schema_version       = 'local_worker_active_job.v1'
@@ -529,6 +534,11 @@ function Write-MediaPipelineLocalWorkerActiveJobs {
             stage                = $stage
             status               = $status
             percent              = $percent
+            library_id           = $libraryId
+            library_name         = $libraryName
+            library_designation  = $libraryDesignation
+            library_source_root  = $librarySourceRoot
+            library_output_root  = $libraryOutputRoot
             eta                  = ''
             speed                = ''
             fps                  = ''
@@ -563,6 +573,11 @@ function Write-MediaPipelineLocalWorkerActiveJobs {
             CurrentFileDisplay    = if ($first) { "Slot $($first.slot): $($first.file_name)" } else { $null }
             CurrentFilePath       = if ($first) { [string]$first.source_path } else { $null }
             CurrentMediaType      = if ($first) { [string]$first.media_kind } else { $null }
+            CurrentLibraryId      = if ($first) { [string]$first.library_id } else { $null }
+            CurrentLibraryName    = if ($first) { [string]$first.library_name } else { $null }
+            CurrentLibraryDesignation = if ($first) { [string]$first.library_designation } else { $null }
+            CurrentLibrarySourceRoot  = if ($first) { [string]$first.library_source_root } else { $null }
+            CurrentLibraryOutputRoot  = if ($first) { [string]$first.library_output_root } else { $null }
             CurrentQueuePhase     = if ($first) { 'local_worker_slots' } else { $null }
             CurrentQueueIndex     = if ($first) { [int]$first.queue_index } else { 0 }
             CurrentQueueTotal     = if ($first) { [int]$first.queue_total } else { 0 }

@@ -26,6 +26,8 @@ from mediapipeline_desktop_app.config_keys import (
     KEY_SIZE_GUARD_MODE,
     KEY_SUB_KEEP_LANGUAGES,
     KEY_VALID_EXTENSIONS,
+    KEY_VIDEO_CODEC,
+    KEY_VIDEO_PRESET,
 )
 from app.shared.constants import (
     AUDIO_PASSTHROUGH_PROFILE_CODECS,
@@ -83,7 +85,15 @@ def validate_option_config(values: dict[str, Any], errors: list[str], warnings: 
     if size_guard_mode not in SIZE_GUARD_MODE_NAMES:
         errors.append(f"SizeGuardMode must be one of: {', '.join(SIZE_GUARD_MODE_NAMES)}.")
     if size_guard_mode == "strict" and routing_profile == "archive_shrink":
-        warnings.append("Archive Shrink with strict size guard can reject outputs that do not shrink enough; use advisory while tuning.")
+        warnings.append("Archive Shrink with strict Output Size Check can reject outputs that do not shrink enough; use advisory while tuning.")
+
+    video_codec = str(values.get(KEY_VIDEO_CODEC, "") or "").strip().lower()
+    if video_codec and video_codec not in {"hevc_nvenc", "libx265", "h264_nvenc", "libx264", "av1_nvenc"}:
+        errors.append("VideoCodec must be one of: av1_nvenc, h264_nvenc, hevc_nvenc, libx264, libx265.")
+    video_preset = str(values.get(KEY_VIDEO_PRESET, "") or "").strip().lower()
+    if video_preset and video_preset not in {"p1", "p2", "p3", "p4", "p5", "p6", "p7"}:
+        errors.append("VideoPreset must be one of: p1, p2, p3, p4, p5, p6, p7.")
+
     promotion_verification = str(
         values.get(KEY_FINAL_LIBRARY_PROMOTION_VERIFICATION_MODE, "cautious") or "cautious"
     ).strip().lower()

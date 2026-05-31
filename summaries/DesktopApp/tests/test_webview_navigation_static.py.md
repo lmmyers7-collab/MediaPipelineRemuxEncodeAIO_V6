@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_webview_navigation_static.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-29
+last_modified: 2026-05-30
 last_reviewed: 2026-05-29
-sha256: 077fa0cf0bf43e922c5534d40399a2ded9128f60df8ae3632abf18ed1e71739b
+sha256: 1382190a3a083fb77ff53a4e7880599fe53c96182e2b901bb61c8d1004bcd588
 ---
 # `DesktopApp/tests/test_webview_navigation_static.py`
 

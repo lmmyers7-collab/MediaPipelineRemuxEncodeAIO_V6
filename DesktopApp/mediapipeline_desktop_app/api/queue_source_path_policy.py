@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from app.config.library_profiles import library_profiles_from_config
+
 
 def _path_key(value: str | Path) -> str:
     return str(Path(str(value))).replace("\\", "/").rstrip("/").lower()
@@ -14,6 +16,16 @@ def queue_source_roots(resolved: Any) -> list[Path]:
         value = getattr(resolved, attr, None)
         if value:
             roots.append(Path(value))
+    try:
+        profiles = library_profiles_from_config(getattr(resolved, "config_data", {}) or {})
+    except Exception:
+        profiles = []
+    for profile in profiles:
+        if not profile.get("enabled", True):
+            continue
+        source_path = str(profile.get("source_path") or "").strip()
+        if source_path:
+            roots.append(Path(source_path))
     return roots
 
 
@@ -37,7 +49,7 @@ def validate_queue_source_path(resolved: Any, raw_path: Any) -> tuple[str | None
         return None, "'path' must be an absolute source path selected from the backend queue snapshot."
     roots = queue_source_roots(resolved)
     if not roots:
-        return None, "SourceMovies and SourceTV are not configured; queue source path updates are unavailable."
+        return None, "SourceMovies, SourceTV, and LibraryProfiles are not configured; queue source path updates are unavailable."
     if not path_is_under_or_equal(candidate, roots):
-        return None, "Path is outside configured SourceMovies/SourceTV roots."
+        return None, "Path is outside configured SourceMovies/SourceTV roots or LibraryProfiles source roots."
     return str(candidate), None

@@ -3,9 +3,9 @@ file: engine/failures/failure_state.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: failures
-last_modified: 2026-05-29
+last_modified: 2026-05-31
 last_reviewed: 2026-05-29
-sha256: 9bed477ff836c77a28e2ebf4817c3f805524e4462935ce4307b3a4b6deccb996
+sha256: 9fc91c4348e8da80e17f36cdb2288756ecbfafa7bd3ca2dc4d7e670b929ad313
 ---
 # `engine/failures/failure_state.ps1`
 

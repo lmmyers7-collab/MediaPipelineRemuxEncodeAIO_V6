@@ -5,9 +5,74 @@ from __future__ import annotations
 from typing import Any
 
 
+COMPLETED_TRUST_NEUTRAL_SIZE_DELTA_PERCENT = 1.0
+COMPLETED_TRUST_RUNTIME_FAILURE_STATUSES = {
+    "failed",
+    "skipped",
+    "stopped",
+    "transient_failure",
+    "permanent_failure",
+    "operator_required_failure",
+    "failure_recorded",
+}
+COMPLETED_TRUST_BENIGN_RUNTIME_ERROR_CODES = {"already_processed"}
+
+
+def _size_delta_percent(row: dict[str, Any]) -> float | None:
+    value = row.get("size_delta_percent")
+    if isinstance(value, (int, float)):
+        return float(value)
+    label = str(row.get("size_delta_label") or "").strip().replace("%", "")
+    if not label:
+        return None
+    try:
+        return float(label)
+    except ValueError:
+        return None
+
+
+def _runtime_is_successful(row: dict[str, Any]) -> bool:
+    runtime_status = str(row.get("runtime_outcome_status") or "").strip().casefold()
+    runtime_success = row.get("runtime_outcome_success")
+    runtime_success_text = str(runtime_success).casefold() if runtime_success is not None else ""
+    return runtime_success is True or runtime_success_text == "true" or runtime_status in {
+        "ok",
+        "success",
+        "succeeded",
+        "completed",
+        "published",
+    }
+
+
+def _runtime_is_failed(row: dict[str, Any]) -> bool:
+    runtime_status = str(row.get("runtime_outcome_status") or "").strip().casefold()
+    runtime_success = row.get("runtime_outcome_success")
+    runtime_success_text = str(runtime_success).casefold() if runtime_success is not None else ""
+    return (
+        runtime_success is False
+        or runtime_success_text == "false"
+        or runtime_status in COMPLETED_TRUST_RUNTIME_FAILURE_STATUSES
+    )
+
+
+def _benign_trust_flags(row: dict[str, Any]) -> set[str]:
+    benign = {"encoded", "remuxed", "size_policy_within_limit"}
+    size_delta = _size_delta_percent(row)
+    if size_delta is not None and abs(size_delta) <= COMPLETED_TRUST_NEUTRAL_SIZE_DELTA_PERCENT:
+        benign.add("size_growth")
+    runtime_status = str(row.get("runtime_outcome_status") or "").strip().casefold()
+    runtime_error = str(row.get("runtime_outcome_error_code") or "").strip().casefold()
+    if runtime_status and _runtime_is_successful(row) and not _runtime_is_failed(row):
+        benign.update({"runtime_outcome", f"runtime_outcome:{runtime_status}"})
+        if runtime_error in COMPLETED_TRUST_BENIGN_RUNTIME_ERROR_CODES:
+            benign.add(f"runtime_error:{runtime_error}")
+    return benign
+
+
 def build_completed_row_trust_fields(row: dict[str, Any]) -> dict[str, Any]:
     flags = [str(item) for item in row.get("review_flags") or [] if str(item).strip()]
-    trust_flags = [flag for flag in flags if flag not in {"encoded", "remuxed", "size_policy_within_limit"}]
+    benign_flags = _benign_trust_flags(row)
+    trust_flags = [flag for flag in flags if flag.casefold() not in benign_flags]
     consistency_issues = [str(item) for item in row.get("consistency_issues") or [] if str(item).strip()]
     runtime_status = str(row.get("runtime_outcome_status") or "").strip()
     runtime_freshness = str(row.get("runtime_outcome_freshness_status") or "").strip().casefold()
@@ -15,15 +80,7 @@ def build_completed_row_trust_fields(row: dict[str, Any]) -> dict[str, Any]:
     runtime_success = row.get("runtime_outcome_success")
     runtime_success_text = str(runtime_success).casefold() if runtime_success is not None else ""
     runtime_recent = bool(runtime_status) and runtime_freshness != "stale"
-    runtime_failed = runtime_success is False or runtime_success_text == "false" or runtime_status.casefold() in {
-        "failed",
-        "skipped",
-        "stopped",
-        "transient_failure",
-        "permanent_failure",
-        "operator_required_failure",
-        "failure_recorded",
-    }
+    runtime_failed = _runtime_is_failed(row)
     missing_output = row.get("output_exists") is False or str(row.get("output_health") or "").strip().casefold() in {
         "missing",
         "missing_output",

@@ -78,6 +78,7 @@ class DummyFacadeService(AppStateScheduleServiceMixin):
         self.opened_paths: list[Path] = []
         self.saved_config_calls: list[dict[str, object]] = []
         self.release_build_calls: list[dict[str, object]] = []
+        self.dependency_atlas_calls: list[dict[str, object]] = []
         self._completed_history_cache_key: str | None = None
         self._completed_history_cache_limit_key = ""
         self._completed_history_cached_at = 0.0
@@ -277,6 +278,43 @@ class DummyFacadeService(AppStateScheduleServiceMixin):
             "dry_run": dry_run,
             "elapsed_seconds": 1.25,
             "manifest": {"schema_version": "mediapipeline_release_manifest.v1"} if not dry_run else None,
+        }
+
+    def generate_dependency_atlas(self, **kwargs: object) -> dict[str, object]:
+        self.dependency_atlas_calls.append(dict(kwargs))
+        assets_dir = self.workspace_root / "V6_dependency_atlas_assets"
+        return {
+            "success": True,
+            "timed_out": False,
+            "returncode": 0,
+            "command": "python scripts\\dev\\generate_dependency_atlas.py",
+            "stdout": "\n".join(
+                [
+                    "Graphviz dot: C:\\Program Files\\Graphviz\\bin\\dot.exe",
+                    "Modules: 377",
+                    "Module edges: 839",
+                    "Domains: 47",
+                    "Domain edges: 170",
+                    "Detail diagrams: 46",
+                    "HTML local links checked: 144",
+                    f"Open: {self.workspace_root / 'V6_dependency_atlas.html'}",
+                ]
+            ),
+            "stderr": "",
+            "elapsed_seconds": 2.5,
+            "atlas_html": str(self.workspace_root / "V6_dependency_atlas.html"),
+            "atlas_png": str(self.workspace_root / "V6_dependency_atlas.png"),
+            "atlas_svg": str(self.workspace_root / "V6_dependency_atlas.svg"),
+            "assets_dir": str(assets_dir),
+            "summary_csv": str(assets_dir / "dependency_summary.csv"),
+            "domain_edges_csv": str(assets_dir / "dependency_edges.csv"),
+            "module_edges_csv": str(assets_dir / "dependency_module_edges.csv"),
+            "html_exists": True,
+            "png_exists": True,
+            "svg_exists": True,
+            "summary_csv_exists": True,
+            "domain_edges_csv_exists": True,
+            "module_edges_csv_exists": True,
         }
 
     def open_path(self, path: Path | str | None) -> None:

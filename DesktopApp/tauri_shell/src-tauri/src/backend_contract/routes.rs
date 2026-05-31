@@ -51,6 +51,7 @@ pub(crate) const REQUIRED_ROUTES: &[(&str, &str, bool)] = &[
     ("POST", "/api/schedule/save", true),
     ("POST", "/api/settings/validate", true),
     ("POST", "/api/settings/browse-path", true),
+    ("POST", "/api/settings/pipeline-plan-preview", true),
     ("POST", "/api/settings/preview-patch", true),
     ("POST", "/api/settings/save-patch", true),
     ("POST", "/api/settings/wizard/validate-paths", true),

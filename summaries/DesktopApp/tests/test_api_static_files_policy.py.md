@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_api_static_files_policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-29
+last_modified: 2026-05-31
 last_reviewed: 2026-05-29
-sha256: 6df40c2757d5e781ebf975acff1ed203d5d55ab04016e5cbb3af7b537130e564
+sha256: ee136db8cc13ee3bb1c44d28b4e6fb4d0e7bb9990ee6f58e2dd7e435316f259d
 ---
 # `DesktopApp/tests/test_api_static_files_policy.py`
 

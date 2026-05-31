@@ -113,9 +113,14 @@ function Get-MediaPipelineLibraryOverrideConfigKeys {
         'BdpgsExtractLanguages',
         'BdpgsOcrToolPath',
         'BdpgsOcrTessdataPath',
+        'ConvertVobSubToSrt',
+        'DropVobSubAfterConversion',
+        'VobSubExtractLanguages',
+        'VobSubOcrToolPath',
         'SubtitleExtractTimeoutSeconds',
         'SubtitleProbeTimeoutSeconds',
         'BdpgsOcrTimeoutSeconds',
+        'VobSubOcrTimeoutSeconds',
         'SubSDHTitleKeywords',
         'SubSupplementalKeywords',
         'DropAssAfterConversion',
@@ -127,6 +132,7 @@ function Get-MediaPipelineLibraryOverrideConfigKeys {
         'TreatAssSignsSongsAsForced',
         'TreatTx3gSignsSongsAsForced',
         'TreatBdpgsSignsSongsAsForced',
+        'TreatVobSubSignsSongsAsForced',
         'ExcludeSubtitleStyles',
         'IncludeSubtitleStyles',
         'AudioPassthroughProfile',
@@ -176,9 +182,12 @@ function Get-MediaPipelineLibraryProfileOverrideMap {
 }
 
 function Resolve-MediaPipelineLibraryOverridesForPath {
-    param([string] $SourcePath)
+    param(
+        [string] $SourcePath,
+        [string] $LibraryProfileId = ''
+    )
 
-    $profile = Get-MediaPipelineLibraryProfileForPath -SourcePath $SourcePath
+    $profile = Get-MediaPipelineLibraryProfileForPath -SourcePath $SourcePath -LibraryProfileId $LibraryProfileId
     if (-not $profile) { return [ordered]@{} }
     return Get-MediaPipelineLibraryProfileOverrideMap -Profile $profile
 }
@@ -215,9 +224,12 @@ function Resolve-MediaPipelineLibraryEffectiveSettings {
 }
 
 function Resolve-MediaPipelineLibraryEffectiveSettingsForPath {
-    param([string] $SourcePath)
+    param(
+        [string] $SourcePath,
+        [string] $LibraryProfileId = ''
+    )
 
-    $profile = Get-MediaPipelineLibraryProfileForPath -SourcePath $SourcePath
+    $profile = Get-MediaPipelineLibraryProfileForPath -SourcePath $SourcePath -LibraryProfileId $LibraryProfileId
     if (-not $profile) { return Get-MediaPipelineLibraryDefaultConfigMap }
     $overrides = Get-MediaPipelineLibraryProfileOverrideMap -Profile $profile
     return Resolve-MediaPipelineLibraryEffectiveSettings -Profile $profile -Overrides $overrides
@@ -286,16 +298,54 @@ function Test-MediaPipelinePathUnderRoot {
     }
 }
 
+function Test-MediaPipelineLibraryProfileEnabled {
+    param($Profile)
+
+    $enabled = Get-MediaPipelineProfileProperty -Profile $Profile -Name 'enabled' -Default $true
+    if ($enabled -is [string]) {
+        $enabled = $enabled.Trim().ToLowerInvariant() -notin @('false','0','no','off','disabled')
+    }
+    return [bool]$enabled
+}
+
+function Get-MediaPipelineLibraryProfileById {
+    param([string] $LibraryProfileId)
+
+    if ([string]::IsNullOrWhiteSpace($LibraryProfileId)) { return $null }
+    $target = $LibraryProfileId.Trim().ToLowerInvariant()
+    foreach ($profile in Get-MediaPipelineLibraryProfiles) {
+        $profileId = ([string](Get-MediaPipelineProfileProperty -Profile $profile -Name 'id' -Default '')).Trim().ToLowerInvariant()
+        if ($profileId -eq $target) { return $profile }
+    }
+    return $null
+}
+
+function Get-MediaPipelineSelectedLibraryProfileId {
+    $selected = Get-Variable -Name CurrentLibraryProfileId -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+    if ($null -eq $selected) { return '' }
+    return [string]$selected
+}
+
 function Get-MediaPipelineLibraryProfileForPath {
-    param([string] $SourcePath)
+    param(
+        [string] $SourcePath,
+        [string] $LibraryProfileId = ''
+    )
+
+    $selectedId = if ([string]::IsNullOrWhiteSpace($LibraryProfileId)) { Get-MediaPipelineSelectedLibraryProfileId } else { $LibraryProfileId }
+    if (-not [string]::IsNullOrWhiteSpace($selectedId)) {
+        $selectedProfile = Get-MediaPipelineLibraryProfileById -LibraryProfileId $selectedId
+        if ($selectedProfile -and (Test-MediaPipelineLibraryProfileEnabled -Profile $selectedProfile)) {
+            $selectedRoot = [string](Get-MediaPipelineProfileProperty -Profile $selectedProfile -Name 'source_path' -Default '')
+            if (-not [string]::IsNullOrWhiteSpace($selectedRoot) -and (Test-MediaPipelinePathUnderRoot -Path $SourcePath -Root $selectedRoot)) {
+                return $selectedProfile
+            }
+        }
+    }
 
     $matches = @()
     foreach ($profile in Get-MediaPipelineLibraryProfiles) {
-        $enabled = Get-MediaPipelineProfileProperty -Profile $profile -Name 'enabled' -Default $true
-        if ($enabled -is [string]) {
-            $enabled = $enabled.Trim().ToLowerInvariant() -notin @('false','0','no','off','disabled')
-        }
-        if (-not [bool]$enabled) { continue }
+        if (-not (Test-MediaPipelineLibraryProfileEnabled -Profile $profile)) { continue }
         $sourceRoot = [string](Get-MediaPipelineProfileProperty -Profile $profile -Name 'source_path' -Default '')
         if ([string]::IsNullOrWhiteSpace($sourceRoot)) { continue }
         if (Test-MediaPipelinePathUnderRoot -Path $SourcePath -Root $sourceRoot) {
@@ -318,9 +368,12 @@ function Get-MediaPipelineLibraryOutputRootForPath {
 }
 
 function Get-MediaPipelineLibraryProfileEvidenceForPath {
-    param([string] $SourcePath)
+    param(
+        [string] $SourcePath,
+        [string] $LibraryProfileId = ''
+    )
 
-    $profile = Get-MediaPipelineLibraryProfileForPath -SourcePath $SourcePath
+    $profile = Get-MediaPipelineLibraryProfileForPath -SourcePath $SourcePath -LibraryProfileId $LibraryProfileId
     if (-not $profile) {
         return [ordered]@{
             library_id = ''

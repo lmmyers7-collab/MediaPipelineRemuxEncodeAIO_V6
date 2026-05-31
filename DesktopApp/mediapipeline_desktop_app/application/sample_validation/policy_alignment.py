@@ -656,7 +656,7 @@ def sample_validation_policy_alignment_payload(resolved: ResolvedPaths) -> dict[
             "h264-remux-safe",
             "H.264 remux/direct-play copy",
             True,
-            ("Routing / size guard", "Container / subtitle preservation", "Source preservation"),
+            ("Routing / Output Size Check", "Container / subtitle preservation", "Source preservation"),
             "Before pilot launch, confirm the selected H.264 sample is expected to copy/remux and that any encode size growth remains advisory/strict according to saved policy.",
         ),
         category_row(
@@ -683,8 +683,8 @@ def sample_validation_policy_alignment_payload(resolved: ResolvedPaths) -> dict[
             "encode-size-policy",
             "Encode and size policy",
             True,
-            ("Routing / size guard", "Publish / recovery safety"),
-            "Before pilot launch, confirm the route profile and size guard explain whether the sample may encode, copy, warn, reject, or require manual review.",
+            ("Routing / Output Size Check", "Publish / recovery safety"),
+            "Before pilot launch, confirm the route profile and Output Size Check explain whether the sample may encode, copy, warn, reject, or require manual review.",
         ),
         category_row(
             "deferred-publish",

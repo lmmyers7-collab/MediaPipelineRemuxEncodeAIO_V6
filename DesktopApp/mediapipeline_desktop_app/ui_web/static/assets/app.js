@@ -241,6 +241,7 @@ async function requestBackendShutdown() {
   renderBackendLifecycle(lastCloseReadiness, lastSnapshot);
   setText("backend-shutdown-status", "Requesting backend shutdown...");
   try {
+    // Backend authority: the Local API owns the lifecycle request; WebView only submits the guarded command.
     const result = await apiPost("/api/backend/shutdown", { reason: "webview-safe-close-request" }, { timeoutMs: 10000 });
     appendBackendShutdownResult(result);
   } catch (error) {
@@ -415,6 +416,10 @@ function renderHomeQueueSnapshot(queue) {
 
 function renderHomeRecentCompleted(completed) {
   return window.mediaPipelineAppHome?.renderHomeRecentCompleted?.(completed);
+}
+
+function renderHomePromotionEntry(status = {}) {
+  return window.mediaPipelineAppHome?.renderHomePromotionEntry?.(status);
 }
 
 function externalDependencyRows(context = {}) {
@@ -637,6 +642,7 @@ async function refreshAllNow() {
   renderHomeQueueSnapshot(values.queue || {});
   if (values.completed) renderCompleted(values.completed);
   if (values["final library promotion"]) window.mediaPipelineCompletedView?.renderFinalLibraryPromotion?.(values["final library promotion"]);
+  renderHomePromotionEntry(values["final library promotion"] || {});
   renderHomeRecentCompleted(values.completed || {});
   if (values.failures) window.mediaPipelineReportsView?.renderFailurePreview?.(values.failures);
   if (values["audit results"]) window.mediaPipelineReportsView?.renderAuditPreview?.(values["audit results"]);
@@ -1428,6 +1434,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (releaseBuildButton) releaseBuildButton.addEventListener("click", () => window.mediaPipelineMaintenanceView?.runReleaseBuild?.());
   const backfillDryRunButton = byId("backfill-dry-run-button");
   if (backfillDryRunButton) backfillDryRunButton.addEventListener("click", runBackfillDryRun);
+  const dependencyAtlasButton = byId("dependency-atlas-button");
+  if (dependencyAtlasButton) dependencyAtlasButton.addEventListener("click", () => window.mediaPipelineMaintenanceView?.runDependencyAtlas?.());
   const queueFilter = byId("queue-filter");
   if (queueFilter) queueFilter.addEventListener("input", () => window.mediaPipelineQueueView?.renderQueueRows?.());
   const queueStatusFilter = byId("queue-status-filter");
@@ -1460,6 +1468,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (completedCopyEvidenceButton) completedCopyEvidenceButton.addEventListener("click", () => window.mediaPipelineCompletedView?.copyCompletedEvidencePacket?.());
   const finalLibraryPromoteButton = byId("final-library-promote-button");
   if (finalLibraryPromoteButton) finalLibraryPromoteButton.addEventListener("click", () => window.mediaPipelineCompletedView?.requestFinalLibraryPromotion?.());
+  document.querySelectorAll("[data-completed-promote-selected]").forEach((button) => {
+    button.addEventListener("click", () => window.mediaPipelineCompletedView?.requestSelectedFinalLibraryPromotion?.());
+  });
   const finalLibraryPauseButton = byId("final-library-pause-button");
   if (finalLibraryPauseButton) finalLibraryPauseButton.addEventListener("click", () => window.mediaPipelineCompletedView?.requestFinalLibraryPromotionPause?.());
   const finalLibraryResumeButton = byId("final-library-resume-button");

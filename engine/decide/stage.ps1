@@ -57,6 +57,9 @@ function Invoke-DecideStage {
         requires_codec_probe        = [bool]$plan.RequiresCodecProbe
         fallback_from_remux         = [bool]$plan.FallbackFromRemux
         estimated_bitrate_mbps      = [double]$plan.EstimatedBitrateMbps
+        bitrate_threshold_mbps      = [double]$plan.BitrateThresholdMbps
+        size_over_threshold         = [bool]$plan.SizeOverThreshold
+        bitrate_over_threshold      = [bool]$plan.BitrateOverThreshold
         plex_compatibility_score    = [double]$plan.PlexCompatibilityScore
         routing_profile             = [string]$plan.RoutingProfile
         route_threshold_mode        = [string]$plan.RouteThresholdMode

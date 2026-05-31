@@ -45,19 +45,22 @@ graph LR
   ui["ui"]
   unknown["unknown"]
   webview["webview"]
-  unknown -->|80| api
-  tests -->|67| api
+  tests -->|85| api
+  unknown -->|81| api
   unknown -->|30| shared
-  config -->|22| api
+  tests -->|29| config
+  config -->|21| api
+  tests -->|19| contracts
   unknown -->|19| queue
   rename -->|12| shared
   audit -->|11| api
   completed -->|11| api
   unknown -->|11| processes
   unknown -->|11| status
-  tests -->|9| config
-  tests -->|7| contracts
+  decide -->|7| contracts
+  unknown -->|7| maintenance
   audit -->|6| shared
+  config -->|6| contracts
   config -->|6| shared
   failures -->|6| api
   publish -->|6| api
@@ -66,38 +69,48 @@ graph LR
   diagnostics -->|5| api
   observability -->|5| api
   rename -->|5| api
-  unknown -->|5| maintenance
+  tests -->|5| decide
   unknown -->|5| paths
   diagnostics -->|4| status
+  tests -->|4| completed
+  tests -->|4| processes
   unknown -->|4| folder_policy
   api -->|3| queue
   network -->|3| api
   observability -->|3| status
-  tests -->|3| completed
+  orchestration -->|3| contracts
+  orchestration -->|3| decide
+  tests -->|3| publish
   unknown -->|3| contracts
   unknown -->|3| schedule
   unknown -->|3| storage
   completed -->|2| observability
-  config -->|2| contracts
   failures -->|2| shared
+  orchestration -->|2| config
   publish -->|2| shared
   rename -->|2| paths
   storage -->|2| shared
-  tests -->|2| publish
+  tests -->|2| orchestration
+  tests -->|2| shared
   unknown -->|2| completed
   unknown -->|2| config
   unknown -->|2| telemetry
+  api -->|1| config
   api -->|1| publish
   api -->|1| rename
   api -->|1| ui
   application -->|1| config
   application -->|1| observability
   audit -->|1| failures
+  config -->|1| decide
+  config -->|1| orchestration
   diagnostics -->|1| config
   failures -->|1| paths
   observability -->|1| telemetry
-  orchestration -->|1| contracts
   publish -->|1| completed
+  tests -->|1| queue
+  tests -->|1| rename
+  tests -->|1| schedule
   unknown -->|1| audit
   unknown -->|1| failures
   unknown -->|1| files
@@ -111,19 +124,22 @@ graph LR
 
 | From | To | Edges |
 |---|---|---|
-| unknown | api | 80 |
-| tests | api | 67 |
+| tests | api | 85 |
+| unknown | api | 81 |
 | unknown | shared | 30 |
-| config | api | 22 |
+| tests | config | 29 |
+| config | api | 21 |
+| tests | contracts | 19 |
 | unknown | queue | 19 |
 | rename | shared | 12 |
 | audit | api | 11 |
 | completed | api | 11 |
 | unknown | processes | 11 |
 | unknown | status | 11 |
-| tests | config | 9 |
-| tests | contracts | 7 |
+| decide | contracts | 7 |
+| unknown | maintenance | 7 |
 | audit | shared | 6 |
+| config | contracts | 6 |
 | config | shared | 6 |
 | failures | api | 6 |
 | publish | api | 6 |
@@ -132,38 +148,48 @@ graph LR
 | diagnostics | api | 5 |
 | observability | api | 5 |
 | rename | api | 5 |
-| unknown | maintenance | 5 |
+| tests | decide | 5 |
 | unknown | paths | 5 |
 | diagnostics | status | 4 |
+| tests | completed | 4 |
+| tests | processes | 4 |
 | unknown | folder_policy | 4 |
 | api | queue | 3 |
 | network | api | 3 |
 | observability | status | 3 |
-| tests | completed | 3 |
+| orchestration | contracts | 3 |
+| orchestration | decide | 3 |
+| tests | publish | 3 |
 | unknown | contracts | 3 |
 | unknown | schedule | 3 |
 | unknown | storage | 3 |
 | completed | observability | 2 |
-| config | contracts | 2 |
 | failures | shared | 2 |
+| orchestration | config | 2 |
 | publish | shared | 2 |
 | rename | paths | 2 |
 | storage | shared | 2 |
-| tests | publish | 2 |
+| tests | orchestration | 2 |
+| tests | shared | 2 |
 | unknown | completed | 2 |
 | unknown | config | 2 |
 | unknown | telemetry | 2 |
+| api | config | 1 |
 | api | publish | 1 |
 | api | rename | 1 |
 | api | ui | 1 |
 | application | config | 1 |
 | application | observability | 1 |
 | audit | failures | 1 |
+| config | decide | 1 |
+| config | orchestration | 1 |
 | diagnostics | config | 1 |
 | failures | paths | 1 |
 | observability | telemetry | 1 |
-| orchestration | contracts | 1 |
 | publish | completed | 1 |
+| tests | queue | 1 |
+| tests | rename | 1 |
+| tests | schedule | 1 |
 | unknown | audit | 1 |
 | unknown | failures | 1 |
 | unknown | files | 1 |

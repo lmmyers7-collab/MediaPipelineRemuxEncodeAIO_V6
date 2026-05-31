@@ -629,6 +629,20 @@ function Invoke-MkvmergeCommand {
     return Invoke-ExternalToolCommand -ToolName 'mkvmerge' -FilePath $mkvmergePath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority
 }
 
+function Invoke-MkvextractCommand {
+    param(
+        [Parameter(Mandatory)] [string]$FilePath,
+        [Parameter(Mandatory)] [array]$ArgumentList,
+        [int]$TimeoutSeconds = (Get-NativeToolDefaultTimeoutSeconds -ToolName 'mkvmerge'),
+        [string]$Stage = 'mkvextract',
+        [switch]$SaveReproOnFailure,
+        [scriptblock]$ErrorHandler,
+        [string]$ProcessPriority = 'inherit'
+    )
+
+    return Invoke-ExternalToolCommand -ToolName 'mkvextract' -FilePath $FilePath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority
+}
+
 function Invoke-PythonToolCommand {
     param(
         [Parameter(Mandatory)] [array]$ArgumentList,
@@ -654,6 +668,20 @@ function Invoke-BdpgsOcrCommand {
     )
 
     return Invoke-ExternalToolCommand -ToolName 'bdpgs-ocr' -FilePath $FilePath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority
+}
+
+function Invoke-VobSubOcrCommand {
+    param(
+        [Parameter(Mandatory)] [string]$FilePath,
+        [Parameter(Mandatory)] [array]$ArgumentList,
+        [int]$TimeoutSeconds = 1800,
+        [string]$Stage = 'subtitle-vobsub-ocr',
+        [switch]$SaveReproOnFailure,
+        [scriptblock]$ErrorHandler,
+        [string]$ProcessPriority = 'inherit'
+    )
+
+    return Invoke-ExternalToolCommand -ToolName 'vobsub-ocr' -FilePath $FilePath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority
 }
 
 # Drops a copy-pasteable command line into Failed\Reports\ next to the

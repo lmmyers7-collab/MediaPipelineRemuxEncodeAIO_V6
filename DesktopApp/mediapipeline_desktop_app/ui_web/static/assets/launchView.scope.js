@@ -446,6 +446,10 @@
     return "ready";
   }
 
+  function launchStartDecisionAdvisoryPosture(posture) {
+    return String(posture || "").toLowerCase() === "blocked" ? "review" : posture;
+  }
+
   function launchStartDecisionRank(posture) {
     const normalized = String(posture || "").toLowerCase();
     if (normalized === "blocked") return 0;
@@ -471,8 +475,10 @@
     const queueRows = typeof getLastQueueRows === "function" ? getLastQueueRows() : [];
     const queuePayload = typeof getLastQueuePayload === "function" ? getLastQueuePayload() : null;
     const backendPayloads = getLastLaunchBackendPreflightPayloads();
-    const backendRows = launchBackendPreflightRows(backendPayloads);
-    const backendNonReady = backendRows.filter((row) => String(row.posture || "").toLowerCase() !== "ready");
+    const pipelineBackendPreflight = launchBackendPreflightPayloadForTarget("pipeline");
+    const pipelineBackendPayloads = pipelineBackendPreflight ? [pipelineBackendPreflight] : [];
+    const pipelineBackendRows = launchBackendPreflightRows(pipelineBackendPayloads);
+    const pipelineBackendNonReady = pipelineBackendRows.filter((row) => String(row.posture || "").toLowerCase() !== "ready");
     const settingsIntentRows = launchSettingsIntentRows(request, context);
     const policyRows = launchPolicyBoundaryRows();
     const scopeRows = launchScopeReconciliationRows(request, context);
@@ -489,7 +495,6 @@
       detail: Array.isArray(detail) ? detail.filter(Boolean) : [],
     });
 
-    const pipelineBackendPreflight = launchBackendPreflightPayloadForTarget("pipeline");
     const readinessPayload = {
       snapshot,
       closeReadiness,
@@ -526,18 +531,18 @@
       typeof launchTimingTrustLines === "function" ? launchTimingTrustLines(context, request) : [],
     );
 
-    const backendStatus = launchBackendPreflightOverallStatus(backendPayloads);
+    const backendStatus = launchBackendPreflightOverallStatus(pipelineBackendPayloads);
     add(
       "backend-preflight",
       "Backend preflight",
       launchStartDecisionPostureFromStatus(backendStatus),
-      `status=${backendStatus}; targets=${backendPayloads.length}; checks=${backendRows.length}; non-ready=${backendNonReady.length}; fetch failures=${getLastLaunchBackendPreflightRefreshInfo().fetch_failure_count || 0}.`,
-      backendPayloads.length
-        ? backendNonReady.length
-          ? "Select Backend Launch Preflight non-ready rows before submitting a start."
-          : "Cached backend preflight is ready-looking; the start route still re-checks state."
-        : "Refresh Backend Preflight before trusting a start decision.",
-      launchBackendPreflightSummaryLines(backendPayloads),
+      `status=${backendStatus}; target=pipeline; checks=${pipelineBackendRows.length}; non-ready=${pipelineBackendNonReady.length}; other targets=${Math.max(backendPayloads.length - pipelineBackendPayloads.length, 0)}; fetch failures=${getLastLaunchBackendPreflightRefreshInfo().fetch_failure_count || 0}.`,
+      pipelineBackendPayloads.length
+        ? pipelineBackendNonReady.length
+          ? "Select Pipeline Backend Launch Preflight non-ready rows before submitting a pipeline start."
+          : "Cached Pipeline backend preflight is ready-looking; the start route still re-checks state."
+        : "Refresh Pipeline Backend Preflight before trusting a pipeline start decision.",
+      launchBackendPreflightSummaryLines(pipelineBackendPayloads),
     );
 
     const queueStatus = typeof queueLaunchDecisionStatus === "function"
@@ -585,7 +590,7 @@
     add(
       "scope-reconciliation",
       "Scope reconciliation",
-      launchStartDecisionPostureFromStatus(scopeStatus),
+      launchStartDecisionAdvisoryPosture(launchStartDecisionPostureFromStatus(scopeStatus)),
       `status=${scopeStatus}; scope signals=${scopeRows.length}.`,
       scopeRows.some((row) => row.posture !== "ready")
         ? "Read scope mismatches before treating visible rows, filters, commands, and backend preflight as aligned."
@@ -597,7 +602,7 @@
     add(
       "real-media-proof",
       "Real-media proof",
-      launchStartDecisionPostureFromStatus(proofStatus),
+      launchStartDecisionAdvisoryPosture(launchStartDecisionPostureFromStatus(proofStatus)),
       `status=${proofStatus}; proof rows=${realMediaRows.length}; sample=${launchRealMediaSample(getLaunchRealMediaContext())?.label || "none selected"}.`,
       proofStatus === "Evidence loaded"
         ? "Loaded sample proof has no local proof blocker."

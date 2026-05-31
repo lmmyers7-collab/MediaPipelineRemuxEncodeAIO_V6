@@ -98,6 +98,9 @@ class StageEntrypointTests(unittest.TestCase):
         data = DecideResult.model_validate(result.data)
         self.assertEqual(data.route, "remux")
         self.assertEqual(data.reason_code, "size_within_threshold")
+        self.assertEqual(data.bitrate_threshold_mbps, 35.0)
+        self.assertFalse(data.size_over_threshold)
+        self.assertFalse(data.bitrate_over_threshold)
         self.assertGreaterEqual(len(data.decision_trace), 1)
 
     def test_decide_stage_uses_movie_tv_bitrate_filters_and_folder_override(self) -> None:
@@ -161,6 +164,10 @@ class StageEntrypointTests(unittest.TestCase):
         self.assertEqual(advisory_data.route, "remux")
         self.assertEqual(advisory_data.reason_code, "plex_compatible_size_advisory")
         self.assertEqual(advisory_data.route_threshold_mode, "compatibility_advisory")
+        self.assertEqual(advisory_data.threshold_gb, 8)
+        self.assertEqual(advisory_data.bitrate_threshold_mbps, 35)
+        self.assertTrue(advisory_data.size_over_threshold)
+        self.assertFalse(advisory_data.bitrate_over_threshold)
 
         size_payload = json.loads(json.dumps(base_payload))
         size_payload["payload"]["route_threshold_mode"] = "size"
@@ -219,6 +226,38 @@ class StageEntrypointTests(unittest.TestCase):
         self.assertEqual(data.route, "remux")
         self.assertEqual(data.reason_code, "size_within_threshold")
         self.assertEqual(data.route_threshold_mode, "size")
+        self.assertEqual(data.bitrate_threshold_mbps, 35)
+        self.assertTrue(data.bitrate_over_threshold)
+
+    def test_decide_stage_missing_duration_does_not_fall_back_to_probe_estimated_bitrate(self) -> None:
+        completed = self.run_entrypoint(
+            "decide",
+            {
+                "schema_version": "v1",
+                "stage": "decide",
+                "payload": {
+                    "file_size_bytes": 4 * 1024 * 1024 * 1024,
+                    "duration_seconds": 0,
+                    "video_codec": "hevc",
+                    "video_height": 1080,
+                    "encode_threshold_gb": 8,
+                    "movie_route_max_video_bitrate_mbps": 35,
+                    "route_threshold_mode": "bitrate",
+                    "source_media_profile": {"estimated_bitrate_mbps": 80.0, "duration_seconds": 0},
+                },
+            },
+        )
+
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        data = DecideResult.model_validate(StageResult.model_validate(json.loads(completed.stdout)).data)
+        self.assertEqual(data.route, "remux")
+        self.assertEqual(data.reason_code, "size_within_threshold")
+        self.assertEqual(data.estimated_bitrate_mbps, 0)
+        self.assertEqual(data.bitrate_threshold_mbps, 35)
+        self.assertFalse(data.bitrate_over_threshold)
+        trace_codes = {str(item.get("code") or "") for item in data.decision_trace}
+        self.assertNotIn("bitrate_over_threshold", trace_codes)
+        self.assertNotIn("bitrate_estimated", trace_codes)
 
     def test_decide_stage_h264_ceiling_is_stricter_than_general_bitrate_filter(self) -> None:
         completed = self.run_entrypoint(

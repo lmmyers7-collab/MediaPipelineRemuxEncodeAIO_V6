@@ -3,9 +3,9 @@ file: app/final_library/facade.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-05-29
+last_modified: 2026-05-30
 last_reviewed: 2026-05-29
-sha256: c04325bb8c8e8b7ad870e513a02000afa5c7013aa136f7d75b4bc6ba731b4689
+sha256: 2f10897dadc1e9b31dd88d0002cbee2f5ed1f6847ea2e66867577ac872117607
 ---
 # `app/final_library/facade.py`
 

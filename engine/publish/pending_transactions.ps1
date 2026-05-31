@@ -434,13 +434,17 @@ function New-PendingParkManifest {
         [array] $Tx3gSrtTracks = @(),
         [array] $Tx3gSrtFailures = @(),
         [array] $BdpgsSrtFailures = @(),
+        [array] $VobSubSrtFailures = @(),
         [array] $Tx3gEmbeddedSrtTracks = @(),
         [array] $BdpgsEmbeddedSrtTracks = @(),
+        [array] $VobSubEmbeddedSrtTracks = @(),
         [bool] $Tx3gSrtConversionEnabled = $false,
         [bool] $Tx3gExternalSrtSidecarsEnabled = $false,
         [bool] $DropTx3gAfterConversion = $false,
         [bool] $BdpgsSrtConversionEnabled = $false,
         [bool] $DropBdpgsAfterConversion = $false,
+        [bool] $VobSubSrtConversionEnabled = $false,
+        [bool] $DropVobSubAfterConversion = $false,
         [object] $FolderPolicyMetadata = $null,
         [object] $RoutePlanMetadata = $null,
         # S9 — carry MediaType through park so the deferred-publish
@@ -478,13 +482,17 @@ function New-PendingParkManifest {
         tx3g_srt_tracks        = @($Tx3gSrtTracks)
         tx3g_srt_failures      = @($Tx3gSrtFailures)
         bdpgs_srt_failures     = @($BdpgsSrtFailures)
+        vobsub_srt_failures    = @($VobSubSrtFailures)
         tx3g_embedded_srt_tracks = @($Tx3gEmbeddedSrtTracks)
         bdpgs_embedded_srt_tracks = @($BdpgsEmbeddedSrtTracks)
+        vobsub_embedded_srt_tracks = @($VobSubEmbeddedSrtTracks)
         tx3g_srt_conversion_enabled = [bool]$Tx3gSrtConversionEnabled
         tx3g_external_srt_sidecars_enabled = [bool]$Tx3gExternalSrtSidecarsEnabled
         drop_tx3g_after_conversion = [bool]$DropTx3gAfterConversion
         bdpgs_srt_conversion_enabled = [bool]$BdpgsSrtConversionEnabled
         drop_bdpgs_after_conversion = [bool]$DropBdpgsAfterConversion
+        vobsub_srt_conversion_enabled = [bool]$VobSubSrtConversionEnabled
+        drop_vobsub_after_conversion = [bool]$DropVobSubAfterConversion
     }
     if ($FolderPolicyMetadata) {
         $manifest['folder_policy'] = $FolderPolicyMetadata
@@ -513,13 +521,17 @@ function Invoke-PendingParkTransaction {
         [array] $Tx3gSrtTracks = @(),
         [array] $Tx3gSrtFailures = @(),
         [array] $BdpgsSrtFailures = @(),
+        [array] $VobSubSrtFailures = @(),
         [array] $Tx3gEmbeddedSrtTracks = @(),
         [array] $BdpgsEmbeddedSrtTracks = @(),
+        [array] $VobSubEmbeddedSrtTracks = @(),
         [bool] $Tx3gSrtConversionEnabled = $false,
         [bool] $Tx3gExternalSrtSidecarsEnabled = $false,
         [bool] $DropTx3gAfterConversion = $false,
         [bool] $BdpgsSrtConversionEnabled = $false,
         [bool] $DropBdpgsAfterConversion = $false,
+        [bool] $VobSubSrtConversionEnabled = $false,
+        [bool] $DropVobSubAfterConversion = $false,
         [object] $FolderPolicyMetadata = $null,
         [object] $RoutePlanMetadata = $null,
         [string] $MediaType = ''
@@ -577,13 +589,17 @@ function Invoke-PendingParkTransaction {
             -Tx3gSrtTracks @($Tx3gSrtTracks) `
             -Tx3gSrtFailures @($Tx3gSrtFailures) `
             -BdpgsSrtFailures @($BdpgsSrtFailures) `
+            -VobSubSrtFailures @($VobSubSrtFailures) `
             -Tx3gEmbeddedSrtTracks @($Tx3gEmbeddedSrtTracks) `
             -BdpgsEmbeddedSrtTracks @($BdpgsEmbeddedSrtTracks) `
+            -VobSubEmbeddedSrtTracks @($VobSubEmbeddedSrtTracks) `
             -Tx3gSrtConversionEnabled:$Tx3gSrtConversionEnabled `
             -Tx3gExternalSrtSidecarsEnabled:$Tx3gExternalSrtSidecarsEnabled `
             -DropTx3gAfterConversion:$DropTx3gAfterConversion `
             -BdpgsSrtConversionEnabled:$BdpgsSrtConversionEnabled `
             -DropBdpgsAfterConversion:$DropBdpgsAfterConversion `
+            -VobSubSrtConversionEnabled:$VobSubSrtConversionEnabled `
+            -DropVobSubAfterConversion:$DropVobSubAfterConversion `
             -FolderPolicyMetadata $FolderPolicyMetadata `
             -RoutePlanMetadata $RoutePlanMetadata `
             -MediaType $MediaType
@@ -715,6 +731,10 @@ function New-PendingDrainSidecarExtra {
     if ($bdpgsFailureProp) {
         $sidecarExtra['bdpgs_srt_failures'] = @($bdpgsFailureProp.Value)
     }
+    $vobSubFailureProp = $Manifest.PSObject.Properties['vobsub_srt_failures']
+    if ($vobSubFailureProp) {
+        $sidecarExtra['vobsub_srt_failures'] = @($vobSubFailureProp.Value)
+    }
     $embeddedTx3gProp = $Manifest.PSObject.Properties['tx3g_embedded_srt_tracks']
     if ($embeddedTx3gProp) {
         $sidecarExtra['tx3g_embedded_srt_tracks'] = @($embeddedTx3gProp.Value)
@@ -723,7 +743,11 @@ function New-PendingDrainSidecarExtra {
     if ($embeddedBdpgsProp) {
         $sidecarExtra['bdpgs_embedded_srt_tracks'] = @($embeddedBdpgsProp.Value)
     }
-    foreach ($policyKey in @('tx3g_srt_conversion_enabled', 'tx3g_external_srt_sidecars_enabled', 'drop_tx3g_after_conversion', 'bdpgs_srt_conversion_enabled', 'drop_bdpgs_after_conversion')) {
+    $embeddedVobSubProp = $Manifest.PSObject.Properties['vobsub_embedded_srt_tracks']
+    if ($embeddedVobSubProp) {
+        $sidecarExtra['vobsub_embedded_srt_tracks'] = @($embeddedVobSubProp.Value)
+    }
+    foreach ($policyKey in @('tx3g_srt_conversion_enabled', 'tx3g_external_srt_sidecars_enabled', 'drop_tx3g_after_conversion', 'bdpgs_srt_conversion_enabled', 'drop_bdpgs_after_conversion', 'vobsub_srt_conversion_enabled', 'drop_vobsub_after_conversion')) {
         $policyProp = $Manifest.PSObject.Properties[$policyKey]
         if ($policyProp) {
             $sidecarExtra[$policyKey] = [bool]$policyProp.Value

@@ -143,6 +143,20 @@
           </div>
           <pre id="backfill-dry-run-detail" class="prose-block">No completed-manifest backfill dry run has been executed from this shell.</pre>
         </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Dependency Atlas</h2>
+            <strong id="dependency-atlas-status">Idle</strong>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="dependency-atlas-button" class="secondary-button">Update Atlas</button>
+          </div>
+          <div id="dependency-atlas-progress-bars" class="progress-bar-list" aria-live="polite">
+            <p class="note">No dependency atlas progress loaded.</p>
+          </div>
+          <pre id="dependency-atlas-detail" class="prose-block">No dependency atlas update has been executed from this shell.</pre>
+          <p class="note">Regenerates V6_dependency_atlas HTML, PNG/SVG diagrams, and CSV exports through backend tooling only. It does not touch media, queue, settings, manifests, or pipeline state.</p>
+        </section>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>History</h2>

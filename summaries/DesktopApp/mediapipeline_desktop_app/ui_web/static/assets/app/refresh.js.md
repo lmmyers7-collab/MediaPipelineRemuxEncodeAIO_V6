@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app/refresh.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-29
+last_modified: 2026-05-30
 last_reviewed: 2026-05-29
-sha256: caa913305a3982e56c43f69fcc7c59b68e0b41708c82b1bb5ed808b761898956
+sha256: 71d8047016f2852b268798d953a0703bb19a795ebde5980d2a40433e4ea728fc
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app/refresh.js`
 

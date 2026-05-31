@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-05-30
 last_reviewed: 2026-05-28
-sha256: b43299d4afea87fca8e8fa63c0eab3034c33628f632c7147707d4e98ddf955ef
+sha256: 172c60188b9b38e7a3921d6b7f61a28112f77254553601b38382b4db27919566
 ---
 # `Pipeline/Tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1`
 

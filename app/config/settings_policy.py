@@ -11,7 +11,9 @@ from mediapipeline_desktop_app.config_keys import (
     KEY_BDPGS_OCR_TESSDATA_PATH,
     KEY_BDPGS_OCR_TOOL_PATH,
     KEY_CONVERT_BDPGS_TO_SRT,
+    KEY_CONVERT_VOBSUB_TO_SRT,
     KEY_OUTSOURCE,
+    KEY_VOBSUB_OCR_TOOL_PATH,
 )
 from mediapipeline_desktop_app.models import ResolvedPaths
 
@@ -20,6 +22,13 @@ if TYPE_CHECKING:
 
 
 SETTINGS_VALIDATE_COMMAND = "settings.validate"
+VOBSUB_TESSERACT_BUNDLED_CANDIDATES = (
+    Path("Tools") / "SubtitleEdit" / "Tesseract550" / "tesseract.exe",
+    Path("Tools") / "SubtitleEdit" / "Tesseract-OCR" / "tesseract.exe",
+    Path("Tools") / "SubtitleEdit" / "Tesseract" / "tesseract.exe",
+    Path("Tools") / "Tesseract-OCR" / "tesseract.exe",
+    Path("Tools") / "Tesseract" / "tesseract.exe",
+)
 
 
 def _command_result(**fields: Any) -> "CommandResult":
@@ -101,6 +110,26 @@ def settings_resolve_configured_path(resolved: ResolvedPaths, raw_value: object,
         return raw, str(candidate.resolve(strict=False)), False
     except OSError:
         return raw, str(candidate), False
+
+
+def settings_resolve_vobsub_tesseract_path(resolved: ResolvedPaths, *, allow_command_lookup: bool = False) -> tuple[str, str, bool]:
+    pipeline_base = settings_pipeline_base(resolved)
+    for relative in VOBSUB_TESSERACT_BUNDLED_CANDIDATES:
+        candidate = pipeline_base / relative
+        if candidate.is_file():
+            try:
+                return str(relative), str(candidate.resolve()), False
+            except OSError:
+                return str(relative), str(candidate), False
+    if allow_command_lookup:
+        found = shutil.which("tesseract")
+        if found:
+            return "PATH", found, True
+    first = pipeline_base / VOBSUB_TESSERACT_BUNDLED_CANDIDATES[0]
+    try:
+        return str(VOBSUB_TESSERACT_BUNDLED_CANDIDATES[0]), str(first.resolve(strict=False)), False
+    except OSError:
+        return str(VOBSUB_TESSERACT_BUNDLED_CANDIDATES[0]), str(first), False
 
 
 def settings_path_evidence_row(
@@ -216,16 +245,99 @@ def settings_bdpgs_ocr_path_evidence(resolved: ResolvedPaths, config: dict[str, 
     }
 
 
+def settings_vobsub_ocr_path_evidence(resolved: ResolvedPaths, config: dict[str, Any]) -> dict[str, Any]:
+    enabled = settings_bool(config, KEY_CONVERT_VOBSUB_TO_SRT, False)
+    allow_system_tools = settings_bool(config, KEY_ALLOW_SYSTEM_TOOLS, False)
+    tool_configured, tool_resolved, tool_from_path = settings_resolve_configured_path(
+        resolved,
+        config.get(KEY_VOBSUB_OCR_TOOL_PATH),
+        allow_command_lookup=allow_system_tools,
+    )
+    tool_row = settings_path_evidence_row(
+        key=KEY_VOBSUB_OCR_TOOL_PATH,
+        label="VobSub OCR tool",
+        raw_value=tool_configured,
+        resolved_path=tool_resolved,
+        command_lookup=tool_from_path,
+        required_kind="file",
+        required_when_enabled=enabled,
+    )
+    if Path(tool_resolved).suffix.casefold() == ".dll" and tool_row["status"] == "ready":
+        dotnet = shutil.which("dotnet")
+        if dotnet:
+            tool_row["message"] = f"VobSub OCR .dll is accessible and dotnet was found at {dotnet}."
+            tool_row["prefix_executable"] = dotnet
+        else:
+            tool_row["status"] = "blocked" if enabled else "review"
+            tool_row["message"] = "VobSub OCR tool is a .dll but dotnet was not found on PATH."
+            tool_row["prefix_executable"] = ""
+
+    tesseract_configured, tesseract_path, tesseract_from_path = settings_resolve_vobsub_tesseract_path(
+        resolved,
+        allow_command_lookup=allow_system_tools,
+    )
+    tesseract_exists = bool(tesseract_path and (Path(tesseract_path).is_file() or tesseract_from_path))
+    tesseract_status = "ready" if tesseract_exists else "blocked" if enabled else "inactive"
+    tesseract_missing_message = (
+        "Tesseract was not found in bundled VobSub OCR tool paths or PATH."
+        if allow_system_tools
+        else "Tesseract was not found in bundled VobSub OCR tool paths."
+    )
+    tesseract_row = {
+        "key": "tesseract",
+        "label": "Tesseract OCR",
+        "configured": tesseract_configured,
+        "resolved": tesseract_path,
+        "exists": tesseract_exists,
+        "path_type": "command" if tesseract_from_path else "file" if tesseract_exists else "missing",
+        "required_kind": "file",
+        "status": tesseract_status,
+        "message": f"Tesseract was found at {tesseract_path}." if tesseract_exists else tesseract_missing_message,
+        "command_lookup": tesseract_from_path,
+    }
+    rows = [tool_row, tesseract_row]
+    blocked = [row for row in rows if row["status"] == "blocked"]
+    review = [row for row in rows if row["status"] == "review"]
+    operator_status = "Blocked" if blocked else "Review" if review else "Ready" if enabled else "Inactive"
+    summary_lines = [
+        f"VobSub OCR path evidence: {operator_status}",
+        f"OCR enabled in saved config: {'yes' if enabled else 'no'}",
+        f"AllowSystemTools/PATH fallback: {'yes' if allow_system_tools else 'no'}",
+        f"Tool: {tool_row['message']}",
+        f"Tesseract: {tesseract_row['message']}",
+        "Mutation guardrail: this evidence is read-only and comes from saved backend config; WebView does not resolve arbitrary paths or run OCR.",
+    ]
+    return {
+        "schema_version": "settings_vobsub_ocr_path_evidence.v1",
+        "read_only": True,
+        "operator_status": operator_status,
+        "enabled": enabled,
+        "allow_system_tools": allow_system_tools,
+        "rows": rows,
+        "blocked_count": len(blocked),
+        "review_count": len(review),
+        "summary_lines": summary_lines,
+    }
+
+
+def settings_worst_operator_status(*statuses: str) -> str:
+    order = {"Blocked": 3, "Review": 2, "Ready": 1, "Inactive": 0}
+    return max(statuses, key=lambda value: order.get(value, 0), default="Inactive")
+
+
 def settings_tool_path_evidence(resolved: ResolvedPaths, config: dict[str, Any]) -> dict[str, Any]:
     bdpgs = settings_bdpgs_ocr_path_evidence(resolved, config)
+    vobsub = settings_vobsub_ocr_path_evidence(resolved, config)
     return {
         "schema_version": "settings_tool_path_evidence.v1",
         "read_only": True,
         "bdpgs_ocr": bdpgs,
-        "operator_status": bdpgs["operator_status"],
+        "vobsub_ocr": vobsub,
+        "operator_status": settings_worst_operator_status(bdpgs["operator_status"], vobsub["operator_status"]),
         "summary_lines": [
             "Settings tool-path evidence:",
             *bdpgs["summary_lines"],
+            *vobsub["summary_lines"],
         ],
     }
 
@@ -290,6 +402,7 @@ __all__ = [
     "settings_resolve_configured_path",
     "settings_path_evidence_row",
     "settings_bdpgs_ocr_path_evidence",
+    "settings_vobsub_ocr_path_evidence",
     "settings_tool_path_evidence",
     "settings_validation_missing_values_result",
     "settings_validation_unavailable_result",

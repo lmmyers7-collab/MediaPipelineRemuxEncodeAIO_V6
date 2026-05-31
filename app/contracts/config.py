@@ -96,6 +96,10 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "BdpgsExtractLanguages",
     "BdpgsOcrToolPath",
     "BdpgsOcrTessdataPath",
+    "ConvertVobSubToSrt",
+    "DropVobSubAfterConversion",
+    "VobSubExtractLanguages",
+    "VobSubOcrToolPath",
     "SubSDHTitleKeywords",
     "SubSupplementalKeywords",
     "DropAssAfterConversion",
@@ -107,6 +111,7 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "TreatAssSignsSongsAsForced",
     "TreatTx3gSignsSongsAsForced",
     "TreatBdpgsSignsSongsAsForced",
+    "TreatVobSubSignsSongsAsForced",
     "ExcludeSubtitleStyles",
     "IncludeSubtitleStyles",
     "RemuxSafeVideoCodecs",
@@ -138,6 +143,7 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "SubtitleExtractTimeoutSeconds",
     "SubtitleProbeTimeoutSeconds",
     "BdpgsOcrTimeoutSeconds",
+    "VobSubOcrTimeoutSeconds",
     "OutputValidationProbeTimeoutSeconds",
     "OutputValidationMinSizeBytes",
     "OutputValidationDurationToleranceSeconds",
@@ -234,12 +240,17 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "BdpgsExtractLanguages",
     "BdpgsOcrToolPath",
     "BdpgsOcrTessdataPath",
+    "ConvertVobSubToSrt",
+    "DropVobSubAfterConversion",
+    "VobSubExtractLanguages",
+    "VobSubOcrToolPath",
     "DropAssAfterConversion",
     "RemoveKaraoke",
     "KeepSignsAndSongs",
     "TreatAssSignsSongsAsForced",
     "TreatTx3gSignsSongsAsForced",
     "TreatBdpgsSignsSongsAsForced",
+    "TreatVobSubSignsSongsAsForced",
     "StripFormatting",
     "MergeAdjacent",
     "MergeThresholdMs",
@@ -247,22 +258,31 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "SubSupplementalKeywords",
     "ExcludeSubtitleStyles",
     "IncludeSubtitleStyles",
+    "ConfigSchemaVersion",
+    "MaxParallelEncodes",
+    "ParallelEncodeMode",
     "DebugMode",
     "ConsoleLogLevel",
     "FileLogLevel",
     "LogRetentionDays",
     "MinFreeSpaceGB",
+    "FileStabilityWait",
+    "SkipStabilityCheck",
     "OutsourceMinFreeSpaceGB",
     "FFmpegEncodeTimeoutSeconds",
     "FFmpegRemuxTimeoutSeconds",
     "SubtitleExtractTimeoutSeconds",
     "SubtitleProbeTimeoutSeconds",
     "BdpgsOcrTimeoutSeconds",
+    "VobSubOcrTimeoutSeconds",
     "AllowSystemTools",
     "RobocopyTimeoutSeconds",
     "TransientFailureRetryLimit",
     "MinPipelineVersion",
     "OutputSizeMultiplier",
+    "OutputValidationProbeTimeoutSeconds",
+    "OutputValidationMinSizeBytes",
+    "OutputValidationDurationToleranceSeconds",
     "EnableIntegrityCheck",
     "RobocopyFlags",
     "PriorityMarkers",
@@ -285,6 +305,7 @@ LIST_CONFIG_KEYS: tuple[str, ...] = (
     "SubKeepLanguages",
     "Tx3gExtractLanguages",
     "BdpgsExtractLanguages",
+    "VobSubExtractLanguages",
     "SubSDHTitleKeywords",
     "SubSupplementalKeywords",
     "ExcludeSubtitleStyles",
@@ -293,6 +314,110 @@ LIST_CONFIG_KEYS: tuple[str, ...] = (
     "ValidExtensions",
     "RobocopyFlags",
     "PriorityMarkers",
+)
+
+LIBRARY_PROFILE_OVERRIDE_KEYS_BY_GROUP: dict[str, tuple[str, ...]] = {
+    "editor": (
+        "RoutingProfile",
+        "RouteThresholdMode",
+        "SizeGuardMode",
+        "EncodeTuningPreset",
+        "EncodeLadder",
+        "VideoCodec",
+        "OutputContainer",
+        "EncodeThresholdGB",
+        "TVEncodeThresholdGB",
+        "MovieRouteMaxVideoBitrateMbps",
+        "TVRouteMaxVideoBitrateMbps",
+        "MaxEncodeGrowthPercent",
+        "CompatibilityEncodeGrowthPercent",
+    ),
+    "video": (
+        "VideoPreset",
+        "VideoQuality",
+        "AllowH264RemuxIfPlexCompatible",
+        "H264RemuxMaxBitrateMbps",
+        "H264RemuxMaxHeight",
+        "RemuxSafeVideoCodecs",
+        "FallbackCpuQuality",
+        "CpuEncodePreset",
+        "CpuEncodeProcessPriority",
+        "CpuEncodeMaxThreads",
+        "ExtraVideoFlags",
+    ),
+    "subtitles": (
+        "SubKeepLanguages",
+        "ConvertTx3gToSrt",
+        "DropTx3gAfterConversion",
+        "CreateExternalTx3gSrtSidecars",
+        "Tx3gExtractLanguages",
+        "Tx3gPreserveExistingSrt",
+        "Tx3gTreatForcedAsSeparate",
+        "ConvertBdpgsToSrt",
+        "DropBdpgsAfterConversion",
+        "BdpgsExtractLanguages",
+        "BdpgsOcrToolPath",
+        "BdpgsOcrTessdataPath",
+        "ConvertVobSubToSrt",
+        "DropVobSubAfterConversion",
+        "VobSubExtractLanguages",
+        "VobSubOcrToolPath",
+        "SubtitleExtractTimeoutSeconds",
+        "SubtitleProbeTimeoutSeconds",
+        "BdpgsOcrTimeoutSeconds",
+        "VobSubOcrTimeoutSeconds",
+        "SubSDHTitleKeywords",
+        "SubSupplementalKeywords",
+        "DropAssAfterConversion",
+        "StripFormatting",
+        "RemoveKaraoke",
+        "MergeAdjacent",
+        "MergeThresholdMs",
+        "KeepSignsAndSongs",
+        "TreatAssSignsSongsAsForced",
+        "TreatTx3gSignsSongsAsForced",
+        "TreatBdpgsSignsSongsAsForced",
+        "TreatVobSubSignsSongsAsForced",
+        "ExcludeSubtitleStyles",
+        "IncludeSubtitleStyles",
+    ),
+    "audio": (
+        "AudioPassthroughProfile",
+        "CompatibleAudioCodecs",
+        "PreferredDefaultAudioLanguages",
+        "AudioTranscodeCodec",
+        "AudioTranscodeBitrate",
+        "AudioTranscodeAutoBitrateByChannels",
+        "AudioDownmixMode",
+        "AudioMaxChannels",
+        "AllowNoAudio",
+    ),
+}
+
+LIBRARY_PROFILE_TOP_LEVEL_KEYS: tuple[str, ...] = (
+    "id",
+    "name",
+    "enabled",
+    "designation",
+    "source_path",
+    "output_path",
+    "promotion_enabled",
+    "promotion_destination",
+    "overrides",
+    "editor_overrides",
+    "media_overrides",
+    "default_tracking",
+)
+
+FINAL_LIBRARY_PROMOTION_RULE_KEYS: tuple[str, ...] = (
+    "id",
+    "label",
+    "enabled",
+    "source_root",
+    "output_root",
+    "destination_root",
+    "library_id",
+    "designation",
 )
 
 COMPATIBLE_AUDIO_CODECS_DEFAULT: tuple[str, ...] = (
@@ -365,6 +490,69 @@ def _list_default(values: tuple[str, ...]) -> list[str]:
     return list(values)
 
 
+def _override_group_schema(keys: tuple[str, ...]) -> dict[str, Any]:
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {key: {} for key in keys},
+    }
+
+
+def _library_profiles_schema_extra() -> dict[str, Any]:
+    media_keys = (
+        *LIBRARY_PROFILE_OVERRIDE_KEYS_BY_GROUP["video"],
+        *LIBRARY_PROFILE_OVERRIDE_KEYS_BY_GROUP["subtitles"],
+        *LIBRARY_PROFILE_OVERRIDE_KEYS_BY_GROUP["audio"],
+    )
+    override_group_properties = {
+        group: _override_group_schema(keys)
+        for group, keys in LIBRARY_PROFILE_OVERRIDE_KEYS_BY_GROUP.items()
+    }
+    return {
+        "items": {
+            "type": "object",
+            "additionalProperties": True,
+            "properties": {
+                "id": {"type": "string"},
+                "name": {"type": "string"},
+                "enabled": {"type": "boolean"},
+                "designation": {"type": "string", "enum": ["movie", "tv", "auto", "mixed", "custom"]},
+                "source_path": {"type": "string"},
+                "output_path": {"type": "string"},
+                "promotion_enabled": {"type": "boolean"},
+                "promotion_destination": {"type": "string"},
+                "overrides": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": override_group_properties,
+                },
+                "editor_overrides": _override_group_schema(LIBRARY_PROFILE_OVERRIDE_KEYS_BY_GROUP["editor"]),
+                "media_overrides": _override_group_schema(media_keys),
+                "default_tracking": {"type": "object", "additionalProperties": True},
+            },
+        }
+    }
+
+
+def _final_library_promotion_rules_schema_extra() -> dict[str, Any]:
+    return {
+        "items": {
+            "type": "object",
+            "additionalProperties": True,
+            "properties": {
+                "id": {"type": "string"},
+                "label": {"type": "string"},
+                "enabled": {"type": "boolean"},
+                "source_root": {"type": "string"},
+                "output_root": {"type": "string"},
+                "destination_root": {"type": "string"},
+                "library_id": {"type": "string"},
+                "designation": {"type": "string"},
+            },
+        }
+    }
+
+
 class Config(BaseModel):
     """Flat config model matching PSD1 keys and WebView JSON payloads."""
 
@@ -383,7 +571,10 @@ class Config(BaseModel):
     SourceMovies: str = Field(default=r"C:\MediaPipeline\Incoming\Movies", min_length=1)
     SourceTV: str = Field(default=r"C:\MediaPipeline\Incoming\TV", min_length=1)
     Outsource: str = Field(default=r"C:\MediaPipeline\Processed", min_length=1)
-    LibraryProfiles: list[dict[str, Any]] = Field(default_factory=list)
+    LibraryProfiles: list[dict[str, Any]] = Field(
+        default_factory=list,
+        json_schema_extra=_library_profiles_schema_extra(),
+    )
     LocalBase: str = Field(default=r"C:\MediaPipeline\Scratch", min_length=1)
 
     EncodeThresholdGB: int = Field(default=8, ge=1)
@@ -401,27 +592,30 @@ class Config(BaseModel):
         "bitrate",
         "size_or_bitrate",
     ] = "compatibility_advisory"
-    MovieRouteMaxVideoBitrateMbps: float = Field(default=35, gt=0, le=500)
-    TVRouteMaxVideoBitrateMbps: float = Field(default=18, gt=0, le=500)
+    MovieRouteMaxVideoBitrateMbps: int = Field(default=35, ge=1, le=500)
+    TVRouteMaxVideoBitrateMbps: int = Field(default=18, ge=1, le=500)
     AllowH264RemuxIfPlexCompatible: bool = True
-    H264RemuxMaxBitrateMbps: float = Field(default=35, gt=0, le=500)
+    H264RemuxMaxBitrateMbps: int = Field(default=35, ge=1, le=500)
     H264RemuxMaxHeight: int = Field(default=1080, ge=1, le=4320)
     SizeGuardMode: Literal["advisory", "strict", "off"] = "advisory"
-    MaxEncodeGrowthPercent: float = Field(default=5, ge=0, le=1000)
-    CompatibilityEncodeGrowthPercent: float = Field(default=15, ge=0, le=1000)
+    MaxEncodeGrowthPercent: int = Field(default=5, ge=0, le=1000)
+    CompatibilityEncodeGrowthPercent: int = Field(default=15, ge=0, le=1000)
 
     MinFreeSpaceGB: int = Field(default=50, ge=0)
     OutsourceMinFreeSpaceGB: int = Field(default=50, ge=0)
     DeferredPublish: bool = False
     FinalLibraryPromotionEnabled: bool = False
-    FinalLibraryPromotionRules: list[dict[str, Any]] = Field(default_factory=list)
+    FinalLibraryPromotionRules: list[dict[str, Any]] = Field(
+        default_factory=list,
+        json_schema_extra=_final_library_promotion_rules_schema_extra(),
+    )
     FinalLibraryPromotionVerificationMode: Literal["fast", "cautious"] = "cautious"
     FinalLibraryPromotionCleanupAfterVerified: bool = False
     FinalLibraryPromotionOverwriteExisting: bool = False
 
-    VideoCodec: str = Field(default="hevc_nvenc", min_length=1)
-    VideoPreset: str = Field(default="p7", min_length=1)
-    VideoQuality: int = Field(default=22, ge=0)
+    VideoCodec: Literal["hevc_nvenc", "libx265", "h264_nvenc", "libx264", "av1_nvenc"] = "hevc_nvenc"
+    VideoPreset: Literal["p1", "p2", "p3", "p4", "p5", "p6", "p7"] = "p7"
+    VideoQuality: int = Field(default=22, ge=1, le=51)
     OutputContainer: Literal["mkv", "mp4"] = "mkv"
     EncodeTuningPreset: Literal[
         "balanced_nvenc",
@@ -475,6 +669,12 @@ class Config(BaseModel):
     )
     BdpgsOcrToolPath: str = r"Tools\PgsToSrt\PgsToSrt.exe"
     BdpgsOcrTessdataPath: str = r"Tools\PgsToSrt\tessdata"
+    ConvertVobSubToSrt: bool = False
+    DropVobSubAfterConversion: bool = False
+    VobSubExtractLanguages: list[str] = Field(
+        default_factory=lambda: _list_default(SUBTITLE_EXTRACT_LANGUAGE_DEFAULT)
+    )
+    VobSubOcrToolPath: str = r"Tools\SubtitleEdit\seconv.exe"
     SubSDHTitleKeywords: list[str] = Field(
         default_factory=lambda: _list_default(SUB_SDH_KEYWORD_DEFAULT)
     )
@@ -485,11 +685,12 @@ class Config(BaseModel):
     StripFormatting: bool = True
     RemoveKaraoke: bool = True
     MergeAdjacent: bool = True
-    MergeThresholdMs: int = Field(default=150, ge=0)
+    MergeThresholdMs: int = Field(default=150, ge=0, le=5000)
     KeepSignsAndSongs: bool = True
     TreatAssSignsSongsAsForced: bool = False
     TreatTx3gSignsSongsAsForced: bool = False
     TreatBdpgsSignsSongsAsForced: bool = False
+    TreatVobSubSignsSongsAsForced: bool = False
     ExcludeSubtitleStyles: list[str] = Field(
         default_factory=lambda: _list_default(EXCLUDE_SUBTITLE_STYLES_DEFAULT)
     )
@@ -529,7 +730,7 @@ class Config(BaseModel):
 
     MaxParallelEncodes: int = Field(default=1, ge=1, le=2)
     ParallelEncodeMode: Literal["single", "local_worker_slots"] = "single"
-    FallbackCpuQuality: int | None = Field(default=20, ge=0)
+    FallbackCpuQuality: int | None = Field(default=20, ge=1, le=51)
     CpuEncodePreset: Literal[
         "ultrafast",
         "superfast",
@@ -551,26 +752,27 @@ class Config(BaseModel):
         "high",
     ] = "belownormal"
     CpuEncodeMaxThreads: int = Field(default=0, ge=0, le=256)
-    OutputSizeMultiplier: float | None = Field(default=0.7, gt=0)
+    OutputSizeMultiplier: float | None = Field(default=0.7, ge=0.1, le=2.0)
 
     FFmpegEncodeTimeoutSeconds: int = Field(default=21600, ge=1)
     FFmpegCpuEncodeTimeoutSeconds: int = Field(default=43200, ge=1)
     FFmpegRemuxTimeoutSeconds: int = Field(default=7200, ge=1)
     MkvmergeRemuxTimeoutSeconds: int = Field(default=7200, ge=60, le=86400)
-    SubtitleExtractTimeoutSeconds: int = Field(default=180, ge=1)
-    SubtitleProbeTimeoutSeconds: int = Field(default=30, ge=1)
-    BdpgsOcrTimeoutSeconds: int = Field(default=1800, ge=1)
+    SubtitleExtractTimeoutSeconds: int = Field(default=180, ge=30, le=3600)
+    SubtitleProbeTimeoutSeconds: int = Field(default=30, ge=5, le=600)
+    BdpgsOcrTimeoutSeconds: int = Field(default=1800, ge=60, le=14400)
+    VobSubOcrTimeoutSeconds: int = Field(default=1800, ge=60, le=14400)
     OutputValidationProbeTimeoutSeconds: int = Field(default=60, ge=1)
     OutputValidationMinSizeBytes: int = Field(default=1024, ge=0)
     OutputValidationDurationToleranceSeconds: int = Field(default=2, ge=0)
     AllowSystemTools: bool = False
-    RobocopyTimeoutSeconds: int = Field(default=14400, ge=1)
-    TransientFailureRetryLimit: int = Field(default=3, ge=1)
-    IndexScanTimeoutSeconds: int = Field(default=1800, ge=1)
-    SourceScanTimeoutSeconds: int = Field(default=1800, ge=1)
-    CleanupScanTimeoutSeconds: int = Field(default=300, ge=1)
+    RobocopyTimeoutSeconds: int = Field(default=14400, ge=60, le=172800)
+    TransientFailureRetryLimit: int = Field(default=3, ge=1, le=100)
+    IndexScanTimeoutSeconds: int = Field(default=1800, ge=30, le=86400)
+    SourceScanTimeoutSeconds: int = Field(default=1800, ge=30, le=86400)
+    CleanupScanTimeoutSeconds: int = Field(default=300, ge=30, le=7200)
     CleanupRemoteStaging: bool = False
-    CleanupStaleAgeHours: int = Field(default=24, ge=0)
+    CleanupStaleAgeHours: int = Field(default=24, ge=1, le=720)
     SourceScanIntervalSeconds: int = Field(default=300, ge=0)
     ProcessedIndexRefreshSeconds: int = Field(default=900, ge=0)
     MinPipelineVersion: str = ""
@@ -653,6 +855,8 @@ class Config(BaseModel):
         "RoutingProfile",
         "RouteThresholdMode",
         "SizeGuardMode",
+        "VideoCodec",
+        "VideoPreset",
         "OutputContainer",
         "EncodeTuningPreset",
         "EncodeLadder",
@@ -732,6 +936,10 @@ class Config(BaseModel):
             raise ValueError("DropBdpgsAfterConversion requires ConvertBdpgsToSrt.")
         if self.ConvertBdpgsToSrt and not self.BdpgsOcrToolPath.strip():
             raise ValueError("ConvertBdpgsToSrt requires BdpgsOcrToolPath.")
+        if not self.ConvertVobSubToSrt and self.DropVobSubAfterConversion:
+            raise ValueError("DropVobSubAfterConversion requires ConvertVobSubToSrt.")
+        if self.ConvertVobSubToSrt and not self.VobSubOcrToolPath.strip():
+            raise ValueError("ConvertVobSubToSrt requires VobSubOcrToolPath.")
         return self
 
 
@@ -749,6 +957,9 @@ __all__ = [
     "CONFIG_KEY_ORDER",
     "DESKTOP_SCHEMA_CONFIG_KEYS",
     "LIST_CONFIG_KEYS",
+    "LIBRARY_PROFILE_OVERRIDE_KEYS_BY_GROUP",
+    "LIBRARY_PROFILE_TOP_LEVEL_KEYS",
+    "FINAL_LIBRARY_PROMOTION_RULE_KEYS",
     "Config",
     "default_config",
 ]

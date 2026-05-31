@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-05-30
 last_reviewed: 2026-05-30
-sha256: c7a0c695d93d4391dccdb9e9488551076f4bdd1dbbc8c65b536308a9cfe29d68
+sha256: 1eb92290a428fd1dd9c0f4a0b7a33fe34eabb5a4da8a990f47ec620977786dda
 ---
 # `Pipeline/Setup-MediaPipeline/Validation.ps1`
 

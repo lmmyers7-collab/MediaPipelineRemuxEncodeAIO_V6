@@ -26,6 +26,7 @@ APP_CAPABILITIES = (
     "maintenance-workspace",
     "maintenance-release-dry-run",
     "maintenance-completed-backfill-dry-run",
+    "maintenance-dependency-atlas",
     "rename-preview",
     "rename-apply",
     "schedule-workspace",

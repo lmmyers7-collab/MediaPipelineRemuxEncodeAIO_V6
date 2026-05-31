@@ -17,6 +17,20 @@ LaunchLogSummaryFunc = Callable[[], str]
 SpawnLogTailFunc = Callable[[Path | None], str]
 
 
+def _update_active_job_record_best_effort(
+    update_active_job_record: UpdateActiveJobFunc,
+    proc: subprocess.Popen[Any],
+    *,
+    status: str,
+    return_code: int | None,
+    logger: InfoWarningLogger,
+) -> None:
+    try:
+        update_active_job_record(proc, status=status, return_code=return_code)
+    except Exception as exc:
+        logger.warning("Failed to update ActiveJobs record to %s: %s", status, exc)
+
+
 def verify_spawn_readiness(
     proc: subprocess.Popen[Any],
     command_line: str,
@@ -32,12 +46,24 @@ def verify_spawn_readiness(
     time.sleep(ready_check_seconds)
     return_code = proc.poll()
     if return_code is None:
-        update_active_job_record(proc, status="active", return_code=None)
+        _update_active_job_record_best_effort(
+            update_active_job_record,
+            proc,
+            status="active",
+            return_code=None,
+            logger=logger,
+        )
         return
 
     logs = launch_log_summary()
     if return_code == 0:
-        update_active_job_record(proc, status="completed_immediate", return_code=return_code)
+        _update_active_job_record_best_effort(
+            update_active_job_record,
+            proc,
+            status="completed_immediate",
+            return_code=return_code,
+            logger=logger,
+        )
         logger.info("Launched process exited quickly with code 0. Logs: %s", logs)
         return
 
@@ -52,5 +78,11 @@ def verify_spawn_readiness(
     detail = f" Logs: {logs}." if logs else ""
     if tail_text:
         detail = f"{detail}\n{tail_text}"
-    update_active_job_record(proc, status="failed_immediate", return_code=return_code)
+    _update_active_job_record_best_effort(
+        update_active_job_record,
+        proc,
+        status="failed_immediate",
+        return_code=return_code,
+        logger=logger,
+    )
     raise RuntimeError(f"Launched process exited immediately with code {return_code}.{detail}\nCommand: {command_line}")

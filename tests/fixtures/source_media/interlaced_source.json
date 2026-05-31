@@ -1,0 +1,36 @@
+{
+  "source": {
+    "path": "fixtures/interlaced_source.mkv",
+    "file_size_bytes": 7200000000,
+    "media_type": "tv"
+  },
+  "format": {
+    "format_name": "matroska,webm",
+    "duration": "3600.0",
+    "bit_rate": "16000000"
+  },
+  "streams": [
+    {
+      "index": 0,
+      "codec_type": "video",
+      "codec_name": "h264",
+      "profile": "High",
+      "pix_fmt": "yuv420p",
+      "width": 1920,
+      "height": 1080,
+      "display_aspect_ratio": "16:9",
+      "avg_frame_rate": "30000/1001",
+      "field_order": "tt",
+      "bit_rate": "16000000"
+    },
+    {
+      "index": 1,
+      "codec_type": "audio",
+      "codec_name": "aac",
+      "channels": 2,
+      "channel_layout": "stereo",
+      "tags": { "language": "eng" },
+      "disposition": { "default": 1, "forced": 0 }
+    }
+  ]
+}

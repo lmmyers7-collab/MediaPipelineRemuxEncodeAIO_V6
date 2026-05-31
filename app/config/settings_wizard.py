@@ -8,9 +8,13 @@ same backend-owned PSD1 validation, backup, serialization, and reload flow.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from mediapipeline_desktop_app.application.dto_commands import CommandResult
+from app.config.library_profiles import (
+    library_profiles_from_config,
+    library_profiles_from_wizard_payload,
+    normalize_library_profile_config_values,
+)
 from mediapipeline_desktop_app.config_keys import (
     KEY_ALLOW_NO_AUDIO,
     KEY_ALLOW_SYSTEM_TOOLS,
@@ -20,6 +24,8 @@ from mediapipeline_desktop_app.config_keys import (
     KEY_DEFERRED_PUBLISH,
     KEY_ENABLE_INTEGRITY_CHECK,
     KEY_ENCODE_TUNING_PRESET,
+    KEY_FINAL_LIBRARY_PROMOTION_ENABLED,
+    KEY_LIBRARY_PROFILES,
     KEY_LOCAL_BASE,
     KEY_MAX_PARALLEL_ENCODES,
     KEY_MIN_FREE_SPACE_GB,
@@ -39,6 +45,9 @@ from mediapipeline_desktop_app.config_keys import (
     KEY_VIDEO_QUALITY,
 )
 from mediapipeline_desktop_app.models import ResolvedPaths
+
+if TYPE_CHECKING:
+    from mediapipeline_desktop_app.application.dto_commands import CommandResult
 
 
 WIZARD_REFRESH_HINT = "settings"
@@ -130,12 +139,15 @@ def settings_wizard_defaults(resolved: ResolvedPaths, service: object) -> dict[s
 
 
 def preview_settings_wizard(facade: object, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
+    from mediapipeline_desktop_app.application.dto_commands import CommandResult
+
     wizard = _wizard_from_request(request)
     validation = validate_wizard_payload(wizard)
-    patch_request = {"changes": wizard_changes(wizard)}
+    base_config = dict(resolved.config_data or {})
+    patch_request = {"changes": wizard_changes(wizard, base_config)}
     preview = facade.preview_settings_patch(resolved, patch_request)
     data = dict(preview.data)
-    data["wizard"] = _wizard_preview_payload(wizard, validation, data, writes_config=False)
+    data["wizard"] = _wizard_preview_payload(wizard, validation, data, writes_config=False, base_config=base_config)
     ok = bool(preview.ok) and validation["ok"]
     return CommandResult(
         command="settings.wizard.preview",
@@ -150,6 +162,8 @@ def preview_settings_wizard(facade: object, resolved: ResolvedPaths, request: di
 
 
 def save_settings_wizard(facade: object, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
+    from mediapipeline_desktop_app.application.dto_commands import CommandResult
+
     if not bool(request.get("confirm_save", False)):
         return CommandResult(
             command="settings.wizard.save",
@@ -170,12 +184,13 @@ def save_settings_wizard(facade: object, resolved: ResolvedPaths, request: dict[
             errors=validation["errors"],
             warnings=validation["warnings"],
             refresh_hint=WIZARD_REFRESH_HINT,
-            data={"wizard": _wizard_preview_payload(wizard, validation, {}, writes_config=False)},
+            data={"wizard": _wizard_preview_payload(wizard, validation, {}, writes_config=False, base_config=dict(resolved.config_data or {}))},
         )
-    saved = facade.save_settings_patch(resolved, {"changes": wizard_changes(wizard), "confirm_save": True})
+    base_config = dict(resolved.config_data or {})
+    saved = facade.save_settings_patch(resolved, {"changes": wizard_changes(wizard, base_config), "confirm_save": True})
     data = dict(saved.data)
     completion = mark_settings_wizard_completed(getattr(facade, "service", None)) if saved.ok else {"wizard_completed": False}
-    data["wizard"] = _wizard_preview_payload(wizard, validation, data, writes_config=bool(saved.ok))
+    data["wizard"] = _wizard_preview_payload(wizard, validation, data, writes_config=bool(saved.ok), base_config=base_config)
     data["wizard_completion"] = completion
     return CommandResult(
         command="settings.wizard.save",
@@ -238,10 +253,13 @@ def validate_wizard_paths(wizard: dict[str, Any]) -> dict[str, Any]:
                 row["status"] = "ready"
         rows.append(row)
 
+    output = wizard.get("output", {}) if isinstance(wizard.get("output"), dict) else {}
     for library in wizard.get("libraries", []) if isinstance(wizard.get("libraries"), list) else []:
         if library.get("enabled", True):
             check(f"Library {library.get('name') or 'source'}", library.get("source_path"), must_exist=True)
-    output = wizard.get("output", {}) if isinstance(wizard.get("output"), dict) else {}
+            check(f"Library {library.get('name') or 'output'} output", library.get("output_path") or output.get("root"), must_exist=False)
+            if library.get("promotion_enabled", False):
+                check(f"Library {library.get('name') or 'promotion'} promotion", library.get("promotion_destination"), must_exist=False)
     scratch = wizard.get("scratch", {}) if isinstance(wizard.get("scratch"), dict) else {}
     check("Final output", output.get("root"), must_exist=False)
     check("Scratch / LocalBase", scratch.get("path"), must_exist=False)
@@ -333,7 +351,7 @@ def mark_settings_wizard_completed(service: object | None) -> dict[str, Any]:
     return {"wizard_completed": True}
 
 
-def wizard_changes(wizard: dict[str, Any]) -> dict[str, Any]:
+def wizard_changes(wizard: dict[str, Any], base_config: dict[str, Any] | None = None) -> dict[str, Any]:
     output = wizard.get("output", {}) if isinstance(wizard.get("output"), dict) else {}
     scratch = wizard.get("scratch", {}) if isinstance(wizard.get("scratch"), dict) else {}
     hardware = wizard.get("hardware", {}) if isinstance(wizard.get("hardware"), dict) else {}
@@ -369,6 +387,11 @@ def wizard_changes(wizard: dict[str, Any]) -> dict[str, Any]:
         KEY_ALLOW_NO_AUDIO: bool(safety.get("allow_no_audio", False)),
         KEY_CLEANUP_REMOTE_STAGING: bool(safety.get("cleanup_remote_staging", False)),
     }
+    library_profiles = library_profiles_from_wizard_payload(wizard, {**dict(base_config or {}), **changes})
+    changes[KEY_LIBRARY_PROFILES] = library_profiles
+    if any(profile.get("enabled", True) and profile.get("promotion_enabled") for profile in library_profiles):
+        changes[KEY_FINAL_LIBRARY_PROMOTION_ENABLED] = True
+    changes = normalize_library_profile_config_values(changes, require_profiles=True)
     return {key: value for key, value in changes.items() if value not in ("", None)}
 
 
@@ -377,8 +400,8 @@ def _wizard_from_request(request: dict[str, Any]) -> dict[str, Any]:
     return dict(wizard) if isinstance(wizard, dict) else {}
 
 
-def _wizard_preview_payload(wizard: dict[str, Any], validation: dict[str, Any], preview_data: dict[str, Any], *, writes_config: bool) -> dict[str, Any]:
-    changes = wizard_changes(wizard)
+def _wizard_preview_payload(wizard: dict[str, Any], validation: dict[str, Any], preview_data: dict[str, Any], *, writes_config: bool, base_config: dict[str, Any] | None = None) -> dict[str, Any]:
+    changes = wizard_changes(wizard, base_config)
     categories = [
         {"category": "Paths", "status": "blocked" if validation["path_validation"]["errors"] else "ready", "detail": f"{len(validation['path_validation']['rows'])} path(s) checked."},
         {"category": "Workers", "status": "blocked" if validation["worker_validation"]["errors"] else "ready", "detail": validation["worker_validation"]["parallel_encode_mode"]},
@@ -416,10 +439,28 @@ def _value(config: dict[str, Any], key: str, fallback: Any) -> Any:
 
 
 def _default_libraries(config: dict[str, Any]) -> list[dict[str, Any]]:
-    return [
-        {"id": "movies", "name": "Movies", "media_kind": "movie", "category": "movies", "default_source_role": "source_movies", "source_path": _value(config, KEY_SOURCE_MOVIES, ""), "enabled": True, "profile": "general_plex_direct_play"},
-        {"id": "tv", "name": "TV", "media_kind": "tv", "category": "tv", "default_source_role": "source_tv", "source_path": _value(config, KEY_SOURCE_TV, ""), "enabled": True, "profile": "general_plex_direct_play"},
-    ]
+    return [_wizard_library_row(profile) for profile in library_profiles_from_config(config)]
+
+
+def _wizard_library_row(profile: dict[str, Any]) -> dict[str, Any]:
+    designation = str(profile.get("designation") or "auto").strip().casefold()
+    profile_id = str(profile.get("id") or "").strip()
+    return {
+        "id": profile_id,
+        "name": str(profile.get("name") or ("TV" if profile_id == "tv" else "Movies" if profile_id == "movies" else "Library")),
+        "designation": designation if designation in {"movie", "tv", "auto"} else "auto",
+        "media_kind": "tv" if designation == "tv" else "movie" if designation == "movie" else "auto",
+        "category": "tv" if profile_id == "tv" else "movies" if profile_id == "movies" else designation or "auto",
+        "default_source_role": "source_tv" if profile_id == "tv" else "source_movies" if profile_id == "movies" else "",
+        "source_path": str(profile.get("source_path") or ""),
+        "output_path": str(profile.get("output_path") or ""),
+        "promotion_enabled": bool(profile.get("promotion_enabled", False)),
+        "promotion_destination": str(profile.get("promotion_destination") or ""),
+        "enabled": True if profile_id in {"movies", "tv"} else bool(profile.get("enabled", True)),
+        "profile": "general_plex_direct_play",
+        "overrides": profile.get("overrides") or {},
+        "default_tracking": profile.get("default_tracking") or {},
+    }
 
 
 def _tool_defaults(resolved: ResolvedPaths, config: dict[str, Any]) -> dict[str, str]:

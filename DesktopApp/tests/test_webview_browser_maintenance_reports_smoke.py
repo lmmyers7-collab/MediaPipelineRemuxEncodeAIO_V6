@@ -462,6 +462,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               "/api/maintenance/release-dry-run",
               "/api/maintenance/release-build",
               "/api/maintenance/completed-backfill-dry-run",
+              "/api/maintenance/dependency-atlas",
               "/api/settings/save-patch",
               "/api/rename/apply",
               "/api/pending-publish/drain",

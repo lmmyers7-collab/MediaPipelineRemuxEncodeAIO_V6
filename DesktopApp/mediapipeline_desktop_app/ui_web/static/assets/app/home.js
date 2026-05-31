@@ -595,6 +595,36 @@
     });
   }
 
+  function homePromotionRunActive(status = {}) {
+    const active = status?.active_run && typeof status.active_run === "object" ? status.active_run : {};
+    const state = String(active.status || "").toLowerCase();
+    return Boolean(active.run_id && ["running", "pausing", "paused"].includes(state));
+  }
+
+  function renderHomePromotionEntry(status = {}) {
+    const payload = status && typeof status === "object" ? status : {};
+    const buttons = Array.from(document.querySelectorAll("[data-home-promotion-entry]"));
+    if (!buttons.length) return;
+    const counts = payload.counts && typeof payload.counts === "object" ? payload.counts : {};
+    const enabled = Boolean(payload.enabled);
+    const eligible = Number(counts.eligible || 0);
+    const active = homePromotionRunActive(payload);
+    const disabled = !enabled || active || eligible <= 0;
+    const title = !enabled
+      ? "Final Library Promotion is disabled in Settings."
+      : active
+        ? "A final-library promotion run is already active."
+        : eligible > 0
+          ? `Open Output to promote ${eligible} reviewed file${eligible === 1 ? "" : "s"} to the final library.`
+          : "No reviewed files are currently eligible for final-library promotion.";
+    buttons.forEach((button) => {
+      button.disabled = disabled;
+      button.setAttribute("aria-disabled", String(disabled));
+      button.textContent = "Promote Files";
+      button.title = title;
+    });
+  }
+
   function externalDependencyRows(context = {}) {
     const payload = context || {};
     const settings = payload.settings || {};
@@ -619,6 +649,24 @@
         nextStep: "Refresh Settings before diagnosing OCR path failures."
       });
     }
+    const vobsub = settings?.tool_path_evidence?.vobsub_ocr;
+    if (vobsub && typeof vobsub === "object") {
+      const status = dependencyStatusLabel(vobsub.operator_status || (vobsub.enabled ? "unknown" : "ready"));
+      const attention = Boolean(vobsub.enabled) && status !== "ready";
+      rows.push({
+        area: "Settings VobSub OCR paths",
+        status: attention ? status : "ready",
+        evidence: `enabled=${vobsub.enabled ? "yes" : "no"}; blocked=${vobsub.blocked_count || 0}; review=${vobsub.review_count || 0}`,
+        nextStep: attention ? "Open Settings > Subtitles and fix saved Subtitle Edit/Tesseract path evidence or disable OCR intentionally before rerunning VobSub subtitle conversion." : "Saved VobSub OCR path evidence is not blocking in the loaded Settings payload."
+      });
+    } else {
+      rows.push({
+        area: "Settings VobSub OCR paths",
+        status: "unknown",
+        evidence: "settings tool-path evidence not loaded",
+        nextStep: "Refresh Settings before diagnosing OCR path failures."
+      });
+    }
     const settingsIssues = Array.isArray(stateSummary?.settings_tool_path_issues) ? stateSummary.settings_tool_path_issues : [];
     if (settingsIssues.length) {
       const blocked = settingsIssues.filter(item => dependencyStatusLabel(item?.operator_status || item?.status) === "blocked").length;
@@ -637,11 +685,12 @@
         const highRows = rawActionRows.filter(row => String(row.posture || "").toLowerCase().includes("high"));
         const reviewRows = rawActionRows.filter(row => String(row.posture || "").toLowerCase().includes("review") || String(row.posture || "").toLowerCase().includes("exclusion"));
         const schemaRow = rawActionRows.find(row => row.key === "schema-drift");
-        const ocrRow = rawActionRows.find(row => row.key === "bdpgs-ocr-paths");
+        const ocrRows = rawActionRows.filter(row => row.key === "bdpgs-ocr-paths" || row.key === "vobsub-ocr-paths");
+        const ocrPosture = ocrRows.map(row => row.posture || "unknown").join(" / ") || "unknown";
         rows.push({
           area: "Settings raw-key action plan",
           status: blockedRows.length ? "blocked" : highRows.length ? "review" : "ready",
-          evidence: `status=${rawStatus}; rows=${rawActionRows.length}; blocked=${blockedRows.length}; high=${highRows.length}; review/exclusion=${reviewRows.length}; schema=${schemaRow?.posture || "unknown"}; OCR=${ocrRow?.posture || "unknown"}`,
+          evidence: `status=${rawStatus}; rows=${rawActionRows.length}; blocked=${blockedRows.length}; high=${highRows.length}; review/exclusion=${reviewRows.length}; schema=${schemaRow?.posture || "unknown"}; OCR=${ocrPosture}`,
           nextStep: blockedRows.length ? "Open Settings > Raw-Key Action Plan before save, launch, rerun, or OCR decisions; schema drift and blocked raw keys need backend Preview Patch evidence." : highRows.length ? "Open Settings > Raw-Key Action Plan and verify OCR path evidence or advanced settings before unattended processing." : "Raw-key action plan has no blocking/high-review row in the loaded Settings workspace; subtitle keyword builder coverage and auth-token exclusions remain read-only guidance."
         });
       } else {
@@ -793,6 +842,8 @@
     renderHomePendingCount,
     renderHomeNetworkRole,
     renderHomeQueueSnapshot,
-    renderHomeRecentCompleted
+    renderHomeRecentCompleted,
+    homePromotionRunActive,
+    renderHomePromotionEntry
   };
 })();

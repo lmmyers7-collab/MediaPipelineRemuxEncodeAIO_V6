@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-05-30
 last_reviewed: 2026-05-30
-sha256: feeb05090820cd694fe0a21e8b5bd82d63a85e94dccfa33f38b5ce6ba467c4fc
+sha256: 2a0349a0edf6af7cd4e89078134bc09f53077f9053531cfe194d46acf19dc754
 ---
 # `engine/process/pipeline_processing/preflight.ps1`
 

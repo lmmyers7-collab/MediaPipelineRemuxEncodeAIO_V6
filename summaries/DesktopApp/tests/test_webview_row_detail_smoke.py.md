@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_webview_row_detail_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-29
+last_modified: 2026-05-30
 last_reviewed: 2026-05-29
-sha256: 45d24014ab0dd13a7fe769252c704937e6bacadfe057ea2d4fa7c2892423a8b0
+sha256: d0251d10845eb01f6a77de54e579cbe036331cf3295329d6dd9363580974edfe
 ---
 # `DesktopApp/tests/test_webview_row_detail_smoke.py`
 

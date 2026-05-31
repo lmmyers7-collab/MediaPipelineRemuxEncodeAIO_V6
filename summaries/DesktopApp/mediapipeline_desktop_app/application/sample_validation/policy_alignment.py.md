@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/application/sample_validation/policy_
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: application
-last_modified: 2026-05-28
+last_modified: 2026-05-30
 last_reviewed: 2026-05-28
-sha256: db824ccec9bdb5e8b77486f76101e46e1543e3980c60f8eddab2417dba4f1aee
+sha256: 2ce817bcfa6e2b2c5b2001cf4b205493e1a4bd41dc0673630145de1fa053a175
 ---
 # `DesktopApp/mediapipeline_desktop_app/application/sample_validation/policy_alignment.py`
 

@@ -1,14 +1,31 @@
       <section class="page" data-page-panel="settings">
         <h1 class="visually-hidden">Pipeline Settings</h1>
-        <div class="settings-tab-bar" role="tablist" aria-label="Settings sections">
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="status" aria-selected="true">Status</button>
+        <div class="settings-tab-bar" role="tablist" aria-label="HandBrake-style settings sections">
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="status" aria-selected="true">Summary</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="source-compat" aria-selected="false">Source / Compatibility</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="editor" aria-selected="false">Routing</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="dimensions" aria-selected="false">Dimensions</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="filters" aria-selected="false">Filters</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="media" aria-selected="false">Video / Audio / Subtitles</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="container-size" aria-selected="false">Container / Output Size Check</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="paths" aria-selected="false">Verification / Publish</button>
           <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="wizard" aria-selected="false">Wizard</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="editor" aria-selected="false">Default Editor</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="paths" aria-selected="false">Paths</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="media" aria-selected="false">Default Media</button>
           <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="rename-filters" aria-selected="false">Rename Filters</button>
           <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="system" aria-selected="false">System</button>
           <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="advanced" aria-selected="false">Advanced</button>
+        </div>
+
+        <!-- SAVE HEADER: visible across all settings subtabs -->
+        <div class="settings-save-header" id="settings-save-header" role="region" aria-label="Settings save controls">
+          <div class="settings-save-header-status">
+            <span><span class="settings-mini-label">Patch</span><strong id="settings-save-header-patch-status">No patch</strong></span>
+            <span><span class="settings-mini-label">Reloaded</span><strong id="settings-save-header-reload-status">&#x2014;</strong></span>
+          </div>
+          <div class="settings-save-header-actions">
+            <button type="button" id="settings-save-header-preview-button" class="secondary-button">Preview Patch</button>
+            <button type="button" id="settings-save-header-save-button" class="primary-button">Save Settings</button>
+            <button type="button" id="settings-save-header-reload-button" class="secondary-button">Reload From Disk</button>
+          </div>
         </div>
 
         <!-- TAB: WIZARD -->
@@ -141,7 +158,7 @@
                   <label>Video quality
                     <input id="wizard-video-quality" type="number" min="1" max="51" step="1">
                   </label>
-                  <label>NVENC preset
+                  <label>Encoder speed preset
                     <select id="wizard-video-preset">
                       <option value="p4">p4</option>
                       <option value="p5">p5</option>
@@ -264,8 +281,50 @@
         </section>
         </div>
 
-        <!-- TAB: STATUS -->
+        <!-- TAB: SUMMARY -->
         <div class="settings-tab-pane is-active" data-settings-tab="status">
+        <section class="panel settings-handbrake-preview-panel" data-panel-type="evidence" data-handbrake-section="summary">
+          <div class="panel-heading">
+            <h2>Decision Preview</h2>
+            <strong id="settings-handbrake-preview-status">Predicted pending cutover</strong>
+          </div>
+          <div class="settings-handbrake-decision-strip" aria-label="Backend planner preview status">
+            <div>
+              <span class="settings-mini-label">Decision</span>
+              <strong id="settings-handbrake-decision">UNKNOWN</strong>
+            </div>
+            <div>
+              <span class="settings-mini-label">Active preset</span>
+              <strong id="settings-handbrake-active-preset">Saved settings</strong>
+            </div>
+            <div>
+              <span class="settings-mini-label">Authority</span>
+              <strong>Legacy path still executes</strong>
+            </div>
+          </div>
+          <div class="settings-handbrake-preview-grid">
+            <section class="settings-readonly-facts" aria-label="Source facts summary">
+              <h3>Source Facts</h3>
+              <dl>
+                <div><dt>Container</dt><dd id="settings-handbrake-source-container">No source selected</dd></div>
+                <div><dt>Video</dt><dd id="settings-handbrake-source-video">No backend SourceMediaInfo payload loaded</dd></div>
+                <div><dt>Audio</dt><dd id="settings-handbrake-source-audio">No source track facts loaded</dd></div>
+                <div><dt>Subtitles</dt><dd id="settings-handbrake-source-subtitles">No source subtitle facts loaded</dd></div>
+              </dl>
+            </section>
+            <section class="settings-readonly-facts" aria-label="Output settings summary">
+              <h3>Output Settings</h3>
+              <dl>
+                <div><dt>Video encoder</dt><dd id="settings-handbrake-output-video">Not loaded</dd></div>
+                <div><dt>Container</dt><dd id="settings-handbrake-output-container">Not loaded</dd></div>
+                <div><dt>Output Size Check</dt><dd id="settings-handbrake-output-guards">Not loaded</dd></div>
+                <div><dt>Publish</dt><dd id="settings-handbrake-publish-requirements">Not loaded</dd></div>
+              </dl>
+            </section>
+          </div>
+          <pre id="settings-handbrake-preview-detail" class="prose-block">Load a SourceMediaInfo source-facts payload in Source / Compatibility, then use Preview Plan. The WebView does not compute copy/remux/encode routing; this panel renders backend pipeline_plan.v1 results from /api/settings/pipeline-plan-preview and stays marked predicted until production cutover.</pre>
+          <p class="note">Planner honesty gate: this preview is not ground truth while the legacy execution path remains authoritative. It cannot launch, save settings, encode, remux, publish, rename, drain pending publish, or touch media files.</p>
+        </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Current Config</h2>
@@ -348,16 +407,63 @@
         </section>
         </div>
 
-        <!-- TAB: EDITOR -->
+        <!-- TAB: SOURCE / COMPATIBILITY -->
+        <div class="settings-tab-pane" data-settings-tab="source-compat">
+        <section class="panel settings-handbrake-source-panel" data-panel-type="interactive" data-handbrake-section="source-compatibility">
+          <div class="panel-heading">
+            <h2>Source / Compatibility</h2>
+            <strong id="settings-source-media-json-status">No source facts loaded</strong>
+          </div>
+          <p class="note">Read-only source facts must come from backend probe/planner payloads. Settings does not probe files or infer compatibility in JavaScript.</p>
+          <div class="form-grid launch-form-grid">
+            <label class="wide-field">
+              SourceMediaInfo source facts JSON
+              <textarea id="settings-source-media-json" rows="12" spellcheck="false" placeholder='{"schema_version":"source_media.v1","container":{"path":"...","format_name":"matroska,webm","media_type":"tv"},"video_streams":[],"audio_streams":[],"subtitle_streams":[],"derived":{}}'></textarea>
+            </label>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="settings-preview-plan-button" class="secondary-button">Preview Plan</button>
+          </div>
+          <pre id="settings-source-media-json-detail" class="prose-block">Paste a strict SourceMediaInfo source-facts payload. Backend validation remains authoritative; this editor only checks JSON syntax before requesting a dry-run plan preview.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Fact</th>
+                  <th scope="col">Backend Evidence</th>
+                  <th scope="col">UI Posture</th>
+                </tr>
+              </thead>
+              <tbody id="settings-source-facts-rows">
+                <tr><td>Container</td><td>No SourceMediaInfo payload loaded.</td><td>Read-only placeholder</td></tr>
+                <tr><td>Video codec / profile / level</td><td>No selected source facts in Settings.</td><td>Await backend planner preview</td></tr>
+                <tr><td>Dimensions / aspect / bitrate</td><td>No selected source facts in Settings.</td><td>Await backend planner preview</td></tr>
+                <tr><td>Audio tracks</td><td>No selected source track facts in Settings.</td><td>Await backend planner preview</td></tr>
+                <tr><td>Subtitle tracks</td><td>No selected source subtitle facts in Settings.</td><td>Await backend planner preview</td></tr>
+                <tr><td>Compatibility verdict</td><td>No backend verdict is exposed here yet.</td><td>Do not infer in frontend</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="note table-legend">Source facts table: no selectable rows. It is intentionally separate from editable output settings.</p>
+        </section>
+        </div>
+
+        <!-- TAB: ROUTING -->
         <div class="settings-tab-pane" data-settings-tab="editor">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Default Editor <span class="impact-chip" data-impact="medium" title="Routing / size policy — affects remux-vs-encode decisions and output container">Medium Impact</span></h2>
+            <h2>Routing <span class="impact-chip" data-impact="medium" title="Routing / size policy — used before processing to decide copy/remux versus encode">Medium Impact</span></h2>
             <strong id="settings-builder-status">No patch built</strong>
+          </div>
+          <div class="settings-rule-badge-row" aria-label="Routing rule classifications">
+            <span class="rule-badge" data-rule-kind="route">ROUTE</span>
+            <span class="rule-badge" data-rule-kind="hard">HARD</span>
+            <span class="rule-badge" data-rule-kind="soft">SOFT</span>
+            <span class="rule-badge" data-rule-kind="advisory">ADVISORY</span>
           </div>
           <div class="form-grid launch-form-grid">
             <label>
-              Routing profile
+              Processing Strategy
               <select id="settings-builder-routing-profile">
                 <option value="plex_direct_stream">Plex direct/stream</option>
                 <option value="plex_direct_play">Plex direct play</option>
@@ -367,24 +473,24 @@
               </select>
             </label>
             <label>
-              Size guard
+              Output Size Check
               <select id="settings-builder-size-guard">
-                <option value="advisory">Advisory</option>
-                <option value="strict">Strict</option>
-                <option value="off">Off</option>
+                <option value="advisory">Warn only</option>
+                <option value="strict">Block publish</option>
+                <option value="off">Disabled</option>
               </select>
             </label>
             <label>
-              Route threshold mode
+              Enforcement Mode
               <select id="settings-builder-route-threshold-mode">
-                <option value="compatibility_advisory">Compatibility advisory</option>
-                <option value="size">Size only</option>
-                <option value="bitrate">Mbps only</option>
-                <option value="size_or_bitrate">Size or Mbps</option>
+                <option value="compatibility_advisory">Bitrate strict, size flexible</option>
+                <option value="size">Target size strict</option>
+                <option value="bitrate">Direct-copy bitrate strict</option>
+                <option value="size_or_bitrate">Size or bitrate strict</option>
               </select>
             </label>
             <label>
-              Encode tuning
+              Encoder Quality Preset
               <select id="settings-builder-encode-tuning">
                 <option value="balanced_nvenc">Balanced NVENC</option>
                 <option value="quality_nvenc">Quality NVENC</option>
@@ -394,7 +500,7 @@
               </select>
             </label>
             <label>
-              Encode ladder
+              Encode Target Mode
               <select id="settings-builder-encode-ladder">
                 <option value="auto">Auto</option>
                 <option value="tv_balanced">TV balanced</option>
@@ -405,7 +511,7 @@
               </select>
             </label>
             <label>
-              Video codec
+              Video Encoder
               <select id="settings-builder-video-codec">
                 <option value="hevc_nvenc">HEVC NVENC</option>
                 <option value="h264_nvenc">H.264 NVENC</option>
@@ -415,34 +521,34 @@
               </select>
             </label>
             <label>
-              Container
+              Output Container
               <select id="settings-builder-output-container">
                 <option value="mkv">MKV</option>
                 <option value="mp4">MP4</option>
               </select>
             </label>
             <label>
-              Normal growth %
+              Quality-encode size tolerance
               <input id="settings-builder-max-growth" type="number" min="0" step="1">
             </label>
             <label>
-              Compatibility growth %
+              Compatibility-encode size tolerance
               <input id="settings-builder-compat-growth" type="number" min="0" step="1">
             </label>
             <label>
-              Movie threshold GB
+              Movie target output size
               <input id="settings-builder-movie-threshold" type="number" min="0" step="1">
             </label>
             <label>
-              TV threshold GB
+              TV target output size
               <input id="settings-builder-tv-threshold" type="number" min="0" step="1">
             </label>
             <label>
-              Movie copy max Mbps
+              Movie max bitrate for direct copy
               <input id="settings-builder-movie-route-bitrate" type="number" min="1" max="500" step="1">
             </label>
             <label>
-              TV copy max Mbps
+              TV max bitrate for direct copy
               <input id="settings-builder-tv-route-bitrate" type="number" min="1" max="500" step="1">
             </label>
           </div>
@@ -667,7 +773,60 @@
         </section>
         </div>
 
-        <!-- TAB: PATHS -->
+        <!-- TAB: DIMENSIONS -->
+        <div class="settings-tab-pane" data-settings-tab="dimensions">
+        <section class="panel" data-panel-type="evidence" data-handbrake-section="dimensions">
+          <div class="panel-heading">
+            <h2>Dimensions</h2>
+            <strong>Read-only pending backend exposure</strong>
+          </div>
+          <p class="note">Dimensions controls become editable only when backend preset/schema data exposes stable crop, scale, pixel aspect, and resolution policy through the settings workspace or planner preview. Phase 08 does not add new persistence keys.</p>
+          <div class="settings-section-map">
+            <div><strong>Resolution</strong><span>Current legacy UI exposes route-affecting H.264 max height under Video.</span></div>
+            <div><strong>Crop</strong><span>No saved editable crop policy is exposed in this WebView settings workspace.</span></div>
+            <div><strong>Scale consequence</strong><span>Any future downscale control must show that it forces encode.</span></div>
+          </div>
+        </section>
+        </div>
+
+        <!-- TAB: FILTERS -->
+        <div class="settings-tab-pane" data-settings-tab="filters">
+        <section class="panel" data-panel-type="evidence" data-handbrake-section="filters">
+          <div class="panel-heading">
+            <h2>Filters</h2>
+            <strong>Read-only pending backend exposure</strong>
+          </div>
+          <p class="note">Filter controls are intentionally not staged from JavaScript in this phase. Future filter toggles must be backed by saved backend fields and must show when they require encode before entering Changes JSON.</p>
+          <div class="settings-rule-badge-row" aria-label="Filter consequence badges">
+            <span class="rule-badge" data-rule-kind="hard">FORCES ENCODE</span>
+            <span class="rule-badge" data-rule-kind="advisory">ADVISORY</span>
+          </div>
+          <div class="settings-section-map">
+            <div><strong>Deinterlace / detelecine</strong><span>No editable saved field exposed here.</span></div>
+            <div><strong>Denoise / sharpen</strong><span>No editable saved field exposed here.</span></div>
+            <div><strong>Color / HDR transforms</strong><span>No editable saved field exposed here.</span></div>
+          </div>
+        </section>
+        </div>
+
+        <!-- TAB: CONTAINER / OUTPUT SIZE CHECK -->
+        <div class="settings-tab-pane" data-settings-tab="container-size">
+        <section class="panel" data-panel-type="evidence" data-handbrake-section="container-size-guards">
+          <div class="panel-heading">
+            <h2>Container / Output Size Check</h2>
+            <strong>Linked to Routing</strong>
+          </div>
+          <p class="note">Editable container, source-size route gates, bitrate caps, and growth tolerances live in Routing so the route consequence is visible before Changes JSON is staged.</p>
+          <div class="settings-section-map">
+            <div><strong>Container</strong><span id="settings-container-size-container">Output container is loaded from saved settings.</span></div>
+            <div><strong>Output Size Check</strong><span id="settings-container-size-guard">Output Size Check mode and growth tolerances are loaded from saved settings.</span></div>
+            <div><strong>Bitrate gates</strong><span id="settings-container-size-bitrate">Movie and TV copy bitrate caps are loaded from saved settings.</span></div>
+          </div>
+          <p class="note">Use the Routing tab to change these values. Backend Preview Patch remains the source of truth before save.</p>
+        </section>
+        </div>
+
+        <!-- TAB: VERIFICATION / PUBLISH -->
         <div class="settings-tab-pane" data-settings-tab="paths">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
@@ -723,16 +882,16 @@
         </section>
         </div>
 
-        <!-- TAB: MEDIA -->
+        <!-- TAB: VIDEO / AUDIO / SUBTITLES -->
         <div class="settings-tab-pane" data-settings-tab="media">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Default Video Settings <span class="impact-chip" data-impact="medium" title="Encoder / GPU — NVENC preset, quality, codec, and container tuning">Medium Impact</span></h2>
+            <h2>Video <span class="impact-chip" data-impact="medium" title="Encoder / GPU — speed preset, quality, codec, and container selection">Medium Impact</span></h2>
             <strong id="settings-video-builder-status">No video detail patch built</strong>
           </div>
           <div class="form-grid launch-form-grid">
             <label>
-              NVENC preset
+              Encoder speed preset
               <select id="settings-video-preset">
                 <option value="p1">p1 fastest</option>
                 <option value="p2">p2</option>
@@ -744,7 +903,7 @@
               </select>
             </label>
             <label>
-              NVENC quality
+              Quality target
               <select id="settings-video-quality">
                 <option value="18">18 larger</option>
                 <option value="19">19</option>
@@ -771,58 +930,64 @@
                 <option value="2160">2160p</option>
               </select>
             </label>
-            <label>
-              CPU fallback CRF
-              <input id="settings-video-cpu-quality" type="number" min="14" max="28" step="1">
-            </label>
-            <label>
-              CPU preset
-              <select id="settings-video-cpu-preset">
-                <option value="ultrafast">ultrafast</option>
-                <option value="superfast">superfast</option>
-                <option value="veryfast">veryfast</option>
-                <option value="faster">faster</option>
-                <option value="fast">fast</option>
-                <option value="medium">medium</option>
-                <option value="slow">slow</option>
-                <option value="slower">slower</option>
-                <option value="veryslow">veryslow</option>
-                <option value="placebo">placebo</option>
-              </select>
-            </label>
-            <label>
-              CPU priority
-              <select id="settings-video-cpu-priority">
-                <option value="inherit">inherit</option>
-                <option value="idle">idle</option>
-                <option value="belownormal">belownormal</option>
-                <option value="normal">normal</option>
-                <option value="abovenormal">abovenormal</option>
-                <option value="high">high</option>
-              </select>
-            </label>
-            <label>
-              CPU max threads
-              <input id="settings-video-cpu-threads" type="number" min="0" step="1">
-            </label>
           </div>
           <div class="option-grid option-grid-compact">
             <label class="check-row"><input id="settings-video-h264-remux" type="checkbox"> Copy Plex-compatible H.264</label>
           </div>
-          <label class="full-field">
-            Remux-safe video codecs
-            <input id="settings-video-remux-safe-codecs" type="text" autocomplete="off" spellcheck="false" placeholder="hevc, h265, h264, avc">
-          </label>
-          <label class="full-field">
-            Legacy extra video flags
-            <input id="settings-video-extra-flags" type="text" autocomplete="off" spellcheck="false" placeholder="-spatial-aq 1, -aq-strength 8">
-          </label>
+          <details class="settings-advanced-disclosure">
+            <summary>Advanced encoder controls</summary>
+            <div class="form-grid launch-form-grid">
+              <label>
+                CPU fallback CRF
+                <input id="settings-video-cpu-quality" type="number" min="14" max="28" step="1">
+              </label>
+              <label>
+                CPU speed preset
+                <select id="settings-video-cpu-preset">
+                  <option value="ultrafast">ultrafast</option>
+                  <option value="superfast">superfast</option>
+                  <option value="veryfast">veryfast</option>
+                  <option value="faster">faster</option>
+                  <option value="fast">fast</option>
+                  <option value="medium">medium</option>
+                  <option value="slow">slow</option>
+                  <option value="slower">slower</option>
+                  <option value="veryslow">veryslow</option>
+                  <option value="placebo">placebo</option>
+                </select>
+              </label>
+              <label>
+                CPU priority
+                <select id="settings-video-cpu-priority">
+                  <option value="inherit">inherit</option>
+                  <option value="idle">idle</option>
+                  <option value="belownormal">belownormal</option>
+                  <option value="normal">normal</option>
+                  <option value="abovenormal">abovenormal</option>
+                  <option value="high">high</option>
+                </select>
+              </label>
+              <label>
+                CPU max threads
+                <input id="settings-video-cpu-threads" type="number" min="0" step="1">
+              </label>
+            </div>
+            <label class="full-field">
+              Remux-safe video codecs
+              <input id="settings-video-remux-safe-codecs" type="text" autocomplete="off" spellcheck="false" placeholder="hevc, h265, h264, avc">
+            </label>
+            <label class="full-field">
+              Advanced encoder flags
+              <input id="settings-video-extra-flags" type="text" autocomplete="off" spellcheck="false" placeholder="-spatial-aq 1, -aq-strength 8">
+            </label>
+            <p class="note">Advanced controls preserve existing keys. Use them only when the backend policy and validation evidence justify the override.</p>
+          </details>
           <div class="action-row action-row-left">
             <button type="button" id="settings-video-apply-button" class="secondary-button">Merge Video Detail Patch</button>
             <button type="button" id="settings-video-reset-button" class="secondary-button">Reset From Current</button>
           </div>
           <pre id="settings-video-guidance" class="prose-block">No video detail guidance loaded.</pre>
-          <p class="note">Use this for precise remux and fallback tuning. Backend preview/save remains authoritative before any future run uses these values.</p>
+          <p class="note">Use this for direct-copy allowlists and fallback encode controls. Backend preview/save remains authoritative before any future run uses these values.</p>
         </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
@@ -954,7 +1119,7 @@
         </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Default Subtitle Settings <span class="impact-chip" data-impact="medium" title="Subtitles — language tracks, TX3G, BDPGS, merge thresholds, and extract timeouts">Medium Impact</span></h2>
+            <h2>Subtitles <span class="impact-chip" data-impact="medium" title="Subtitles — language tracks, TX3G, BDPGS, merge windows, and extract timeouts">Medium Impact</span></h2>
             <strong id="settings-subtitle-builder-status">No subtitle patch built</strong>
           </div>
           <div class="form-grid launch-form-grid">
@@ -971,6 +1136,10 @@
               <input id="settings-subtitle-bdpgs-languages" type="text" autocomplete="off" placeholder="eng, und">
             </label>
             <label>
+              VobSub languages
+              <input id="settings-subtitle-vobsub-languages" type="text" autocomplete="off" placeholder="eng, en, und">
+            </label>
+            <label>
               SDH title keywords
               <input id="settings-subtitle-sdh-keywords" type="text" autocomplete="off" placeholder="sdh, hearing impaired">
             </label>
@@ -979,7 +1148,7 @@
               <input id="settings-subtitle-supplemental-keywords" type="text" autocomplete="off" placeholder="signs, songs">
             </label>
             <label>
-              Merge threshold ms
+              Merge window ms
               <input id="settings-subtitle-merge-threshold" type="number" min="0" step="1">
             </label>
             <label>
@@ -993,6 +1162,10 @@
             <label>
               BDPGS OCR timeout s
               <input id="settings-subtitle-bdpgs-timeout" type="number" min="0" step="1">
+            </label>
+            <label>
+              VobSub OCR timeout s
+              <input id="settings-subtitle-vobsub-timeout" type="number" min="0" step="1">
             </label>
             <label>
               Excluded ASS styles
@@ -1042,6 +1215,25 @@
           </section>
           <section class="option-panel">
             <div class="option-panel-heading">
+              <strong>VobSub</strong>
+              <span>DVD bitmap subtitle OCR policy</span>
+              <strong id="settings-subtitle-vobsub-path-status">Not loaded</strong>
+            </div>
+            <div class="option-grid option-grid-compact">
+              <label class="check-row"><input id="settings-subtitle-convert-vobsub" type="checkbox"> OCR VobSub to SRT</label>
+              <label class="check-row"><input id="settings-subtitle-drop-vobsub" type="checkbox"> Drop VobSub after OCR</label>
+              <label class="check-row"><input id="settings-subtitle-vobsub-signs-forced" type="checkbox"> VobSub signs/songs forced</label>
+            </div>
+            <div class="form-grid launch-form-grid">
+              <label>
+                OCR tool path
+                <input id="settings-subtitle-vobsub-ocr-tool-path" type="text" autocomplete="off" spellcheck="false" placeholder="Tools\SubtitleEdit\seconv.exe">
+              </label>
+            </div>
+            <pre id="settings-subtitle-vobsub-path-evidence" class="prose-block">No VobSub OCR path evidence loaded.</pre>
+          </section>
+          <section class="option-panel">
+            <div class="option-panel-heading">
               <strong>ASS / SSA</strong>
               <span>Styled subtitle conversion policy</span>
             </div>
@@ -1063,7 +1255,7 @@
         </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Default Audio Settings <span class="impact-chip" data-impact="medium" title="Audio — channel layout, codec selection, normalize, and passthrough thresholds">Medium Impact</span></h2>
+            <h2>Audio <span class="impact-chip" data-impact="medium" title="Audio — channel layout, codec selection, normalization, and passthrough policy">Medium Impact</span></h2>
             <strong id="settings-audio-builder-status">No audio patch built</strong>
           </div>
           <div class="form-grid launch-form-grid">

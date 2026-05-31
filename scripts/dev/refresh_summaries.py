@@ -1,9 +1,10 @@
 """Generate per-source-file summaries under summaries/.
 
-One summary file per Python or PowerShell source file in the configured
-roots. Summaries carry YAML frontmatter (file path, sha256, last_modified,
-token_priority, owner_domain) and a short Markdown body listing module
-purpose plus public symbols.
+One summary file per source file in the configured roots, plus existing
+summary records whose source files still exist. Summaries carry YAML
+frontmatter (file path, sha256, last_modified, token_priority, owner_domain)
+and a short Markdown body listing module purpose plus public symbols when the
+file type can be parsed cheaply.
 
 Modes:
   --all                Regenerate summaries for every in-scope source file.
@@ -60,7 +61,7 @@ EXCLUDE_DIR_PARTS = {
     "PowerShell-7.6.0-win-x64",
 }
 
-SOURCE_EXTS = {".py", ".ps1", ".psm1", ".psd1", ".rs"}
+SOURCE_EXTS = {".py", ".ps1", ".psm1", ".psd1", ".rs", ".js", ".css", ".html"}
 
 OWNER_DOMAIN_HINTS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"app/api"), "api"),
@@ -181,6 +182,34 @@ def iter_source_files() -> Iterable[Path]:
             yield path
 
 
+def iter_existing_summary_sources() -> Iterable[Path]:
+    repo_root = REPO_ROOT.resolve()
+    for summary_path in iter_summary_files():
+        recorded = summary_recorded_file(summary_path)
+        if not recorded:
+            continue
+        recorded_path = Path(recorded)
+        if recorded_path.is_absolute():
+            continue
+        source = (REPO_ROOT / recorded_path).resolve()
+        try:
+            source.relative_to(repo_root)
+        except ValueError:
+            continue
+        if source.is_file():
+            yield source
+
+
+def iter_known_source_files() -> Iterable[Path]:
+    seen: set[Path] = set()
+    for path in list(iter_source_files()) + list(iter_existing_summary_sources()):
+        resolved = path.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        yield path
+
+
 def summary_path_for_source(rel_path: str | Path, suffix: str) -> Path:
     return SUMMARY_ROOT / Path(rel_path).with_suffix(suffix + ".md")
 
@@ -210,7 +239,7 @@ def summary_recorded_file(summary_path: Path) -> str | None:
 
 
 def orphan_summaries(sources: Iterable[Path] | None = None) -> list[OrphanSummary]:
-    source_paths = list(iter_source_files() if sources is None else sources)
+    source_paths = list(iter_known_source_files() if sources is None else sources)
     expected: dict[str, Path] = {}
     for source in source_paths:
         try:
@@ -517,7 +546,7 @@ def collect_sources(args: argparse.Namespace) -> list[Path]:
         return git_changed(staged=False)
     if args.staged:
         return git_changed(staged=True)
-    return list(iter_source_files())
+    return list(iter_known_source_files())
 
 
 def cmd_check(sources: list[Path], *, check_orphans: bool = False) -> int:
@@ -622,7 +651,7 @@ def main(argv: list[str]) -> int:
         # In --check mode, always check the full inventory unless paths/changed/staged is set.
         check_orphans = not (args.paths or args.changed or args.staged)
         if check_orphans:
-            sources = list(iter_source_files())
+            sources = list(iter_known_source_files())
         return cmd_check(sources, check_orphans=check_orphans)
 
     return cmd_generate(sources, prune_orphans=args.prune_orphans)

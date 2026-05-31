@@ -3,9 +3,9 @@ file: app/diagnostics/state_summary.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: diagnostics
-last_modified: 2026-05-28
+last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: 2846f9be674bb724ae2b5b5041274c088f6a9e5eb114eaad328aaf6007714bdb
+sha256: 126a6fccda2aab0fd6ac63b51d6e54a2605555a43fc169af738b45b501da50e0
 ---
 # `app/diagnostics/state_summary.py`
 

@@ -3,9 +3,9 @@ file: engine/status/progress_state.ps1
 pipeline_stage: observability
 token_priority: medium
 owner_domain: status
-last_modified: 2026-05-29
+last_modified: 2026-05-30
 last_reviewed: 2026-05-29
-sha256: e4918220ae3d1962e477d6398c1716f10b5a6dd824cf2e820e0b0c2742eba7e5
+sha256: fb6663d4912dd95209507de5c9003866439ca906a229b24dcef43bd92f087d5e
 ---
 # `engine/status/progress_state.ps1`
 

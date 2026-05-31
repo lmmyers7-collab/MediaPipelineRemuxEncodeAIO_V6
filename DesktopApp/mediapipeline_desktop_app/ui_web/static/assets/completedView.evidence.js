@@ -11,6 +11,7 @@
       commandHistorySuggestedAction,
       completedEvidenceState: state,
       completedFilterFields,
+      completedCurrentRows,
       completedInvestigationFilterLabel,
       completedMatchesInvestigationFilter,
       completedReviewRowReasons,
@@ -86,7 +87,9 @@
     }
 
     function completedCurrentFilterScope(rows = state.lastCompletedRows) {
-      const allRows = (Array.isArray(rows) ? rows : []).filter((row) => row?.output_exists !== false);
+      const allRows = typeof completedCurrentRows === "function"
+        ? completedCurrentRows(rows)
+        : (Array.isArray(rows) ? rows : []).filter((row) => row?.output_exists !== false);
       const filterText = byId("completed-filter")?.value || "";
       const statusFilter = byId("completed-status-filter")?.value || "all";
       const investigationFilter = byId("completed-investigation-filter")?.value || "all";

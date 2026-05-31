@@ -24,10 +24,11 @@ $script:MediaSubtitleCodecMovText = 'mov_text'
 $script:MediaSubtitleCodecAssAliases = @('ass', 'ssa')
 $script:MediaSubtitleCodecSrtAliases = @('subrip', 'srt')
 $script:MediaSubtitleCodecBdpgsAliases = @('hdmv_pgs_subtitle', 'pgs')
+$script:MediaSubtitleCodecVobSubAliases = @('dvd_subtitle', 'dvdsub', 'vobsub')
 $script:MediaSubtitleCodecWebVtt = 'webvtt'
 $script:MediaSubtitleCodecExternalFriendlyTextAliases = @('subrip', 'srt', 'webvtt')
 $script:MediaSubtitleCodecTextAliases = @('subrip', 'srt', 'mov_text', 'webvtt')
-$script:MediaSubtitleCodecImageAliases = @('hdmv_pgs_subtitle', 'pgs', 'dvd_subtitle', 'xsub')
+$script:MediaSubtitleCodecImageAliases = @('hdmv_pgs_subtitle', 'pgs', 'dvd_subtitle', 'dvdsub', 'vobsub', 'xsub')
 
 $script:MediaAudioCodecFlac = 'flac'
 $script:MediaAudioCodecPlexTranscodeRisk = @('truehd', 'dts', 'dts_hd_ma', 'dts-hd', 'flac')
@@ -135,6 +136,12 @@ function Get-MediaSubtitleCodecBdpgsNames {
     return @($values)
 }
 
+function Get-MediaSubtitleCodecVobSubNames {
+    $values = @($script:MediaSubtitleCodecVobSubAliases | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+    if ($values.Count -eq 0) { return @('dvd_subtitle', 'dvdsub', 'vobsub') }
+    return @($values)
+}
+
 function Get-MediaSubtitleCodecWebVttName {
     if ([string]::IsNullOrWhiteSpace([string]$script:MediaSubtitleCodecWebVtt)) { return 'webvtt' }
     return [string]$script:MediaSubtitleCodecWebVtt
@@ -154,7 +161,7 @@ function Get-MediaSubtitleCodecTextNames {
 
 function Get-MediaSubtitleCodecImageNames {
     $values = @($script:MediaSubtitleCodecImageAliases | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
-    if ($values.Count -eq 0) { return @('hdmv_pgs_subtitle', 'pgs', 'dvd_subtitle', 'xsub') }
+    if ($values.Count -eq 0) { return @('hdmv_pgs_subtitle', 'pgs', 'dvd_subtitle', 'dvdsub', 'vobsub', 'xsub') }
     return @($values)
 }
 

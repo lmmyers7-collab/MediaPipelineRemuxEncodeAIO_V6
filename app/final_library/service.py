@@ -51,6 +51,7 @@ class FinalLibraryPromotionServiceMixin:
             "warnings": list(active.get("warnings") or []),
             "errors": list(active.get("errors") or []),
             "item_states": dict(active.get("item_states") or {}),
+            "requested_row_keys": list(active.get("requested_row_keys") or []),
         }
 
     def _final_library_promotion_active_snapshot(self) -> dict[str, Any] | None:
@@ -112,13 +113,34 @@ class FinalLibraryPromotionServiceMixin:
             annotated.append(copy)
         return annotated, {key: value for key, value in status.items() if key not in {"items", "item_rows"}}
 
+    def _final_library_promotion_selected_row_keys(self, row_keys: Any) -> set[str]:
+        if row_keys is None:
+            return set()
+        if isinstance(row_keys, str):
+            values = [row_keys]
+        elif isinstance(row_keys, (list, tuple, set)):
+            values = list(row_keys)
+        else:
+            return set()
+        return {text for text in (str(value or "").strip() for value in values) if text}
+
     def start_final_library_promotion_run(
         self,
         resolved: ResolvedPaths,
         records: list[CompletedJobRecord],
+        row_keys: Any = None,
     ) -> dict[str, Any]:
         self._ensure_final_library_promotion_state()
         status = self.get_final_library_promotion_status(resolved, records=records)
+        selected_row_keys = self._final_library_promotion_selected_row_keys(row_keys)
+        selected_filter_requested = row_keys is not None
+        if selected_filter_requested and not selected_row_keys:
+            return {
+                "ok": False,
+                "message": "Selected final-library promotion request did not include any completed output row keys.",
+                "errors": ["missing_selected_row_keys"],
+                "data": status,
+            }
         eligible_items = [
             dict(item)
             for item in status.get("items") or []
@@ -132,6 +154,18 @@ class FinalLibraryPromotionServiceMixin:
                 "errors": ["promotion_disabled"],
                 "data": status,
             }
+        if selected_row_keys:
+            eligible_items = [
+                item for item in eligible_items
+                if str(item.get("row_key") or "") in selected_row_keys
+            ]
+            if not eligible_items:
+                return {
+                    "ok": False,
+                    "message": "No selected completed output rows are eligible for final-library promotion.",
+                    "errors": ["no_eligible_selected_items"],
+                    "data": status,
+                }
         if not eligible_items:
             return {
                 "ok": False,
@@ -167,6 +201,7 @@ class FinalLibraryPromotionServiceMixin:
                 "warnings": list(status.get("warnings") or []),
                 "errors": [],
                 "item_states": {},
+                "requested_row_keys": sorted(selected_row_keys),
             }
             thread = threading.Thread(
                 target=self._final_library_promotion_worker,

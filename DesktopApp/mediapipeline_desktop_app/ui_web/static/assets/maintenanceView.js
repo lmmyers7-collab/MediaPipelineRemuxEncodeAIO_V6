@@ -9,6 +9,7 @@
     "release-dry-run-button",
     "release-build-button",
     "backfill-dry-run-button",
+    "dependency-atlas-button",
   ];
   let maintenanceDryRunInFlight = false;
 
@@ -303,7 +304,7 @@
     return [
       "Real-media validation boundary:",
       "- Maintenance health and dry-run commands prove packaging/backfill environment posture only.",
-      "- They do not prove FFmpeg route correctness, subtitle OCR/SRT output, audio selection, source stability, copy-to-scratch behavior, size guard results, completed sidecars, or pending-publish completion for real media.",
+      "- They do not prove FFmpeg route correctness, subtitle OCR/SRT output, audio selection, source stability, copy-to-scratch behavior, Output Size Check results, completed sidecars, or pending-publish completion for real media.",
       "- Daily-driver confidence still requires a small known processing run and comparison across Queue evidence, Diagnostics logs, Completed output proof, and Pending Publish drain summary.",
     ];
   }
@@ -334,7 +335,7 @@
     } else {
       lines.push("", "No backend tool rows were returned. Run Environment Health before trusting maintenance dry-run output.");
     }
-    lines.push("", "Real-media boundary: toolchain readiness does not prove FFmpeg route correctness, subtitle/audio output, size guard behavior, Completed sidecars, or Pending Publish completion for a real media file.");
+    lines.push("", "Real-media boundary: toolchain readiness does not prove FFmpeg route correctness, subtitle/audio output, Output Size Check behavior, Completed sidecars, or Pending Publish completion for a real media file.");
     lines.push("Mutation guardrail: WebView does not resolve arbitrary tools, edit PATH, install dependencies, launch media jobs, or mutate files from this panel.");
     return lines;
   }
@@ -866,6 +867,95 @@
     }
   }
 
+  function dependencyAtlasProgressBars(result) {
+    const data = result?.data && typeof result.data === "object" ? result.data : {};
+    const progress = data.dependency_atlas_progress && typeof data.dependency_atlas_progress === "object" ? data.dependency_atlas_progress : {};
+    if (Array.isArray(progress.progress_bars)) return progress.progress_bars.filter(Boolean);
+    if (Array.isArray(data.progress_bars)) return data.progress_bars.filter(Boolean);
+    return [];
+  }
+
+  function renderDependencyAtlasProgress(result) {
+    if (typeof renderProgressBarsInto !== "function") return;
+    const data = result?.data && typeof result.data === "object" ? result.data : {};
+    const progress = data.dependency_atlas_progress && typeof data.dependency_atlas_progress === "object" ? data.dependency_atlas_progress : {};
+    renderProgressBarsInto("dependency-atlas-progress-bars", dependencyAtlasProgressBars(result), progress, "No dependency atlas progress loaded.");
+  }
+
+  function renderDependencyAtlasResult(result) {
+    const data = result?.data || {};
+    renderDependencyAtlasProgress(result);
+    const lines = [
+      "Dependency atlas update summary:",
+      `Command accepted: ${result?.ok ? "yes" : "no"}`,
+      `Writes dependency atlas artifacts: ${data.writes_dependency_atlas === true ? "yes" : "no"}`,
+      `Writes media or pipeline state: ${data.writes_media === true ? "unexpected yes" : "no"}`,
+      `Safe next action: ${result?.ok ? "Open V6_dependency_atlas.html or V6_dependency_atlas.png from the repository root." : "Read errors and Diagnostics before trusting the atlas files."}`,
+      "Guardrail: this WebView action only asks the backend to run scripts/dev/generate_dependency_atlas.py. It must not mutate media, queue state, settings, completed manifests, pending publish state, or pipeline execution.",
+      "",
+      result?.message || "Dependency atlas generation finished.",
+      "",
+      `HTML: ${data.atlas_html || ""}`,
+      `PNG: ${data.atlas_png || ""}`,
+      `SVG: ${data.atlas_svg || ""}`,
+      `Assets: ${data.assets_dir || ""}`,
+      `Summary CSV: ${data.summary_csv || ""}`,
+      `Module edges CSV: ${data.module_edges_csv || ""}`,
+      `Modules: ${data.modules || ""}`,
+      `Domain edges: ${data.domain_edges || ""}`,
+      `Detail diagrams: ${data.detail_diagrams || ""}`,
+      `HTML links checked: ${data.html_links_checked || ""}`,
+      `Return code: ${data.returncode ?? ""}`,
+      `Elapsed: ${Number(data.elapsed_seconds || 0).toFixed(1)}s`,
+      `Command: ${data.command || ""}`,
+    ];
+    if ((result?.errors || []).length) {
+      lines.push("", "Errors:", ...(result.errors || []).map((item) => `- ${item}`));
+    }
+    if ((result?.warnings || []).length) {
+      lines.push("", "Warnings:", ...(result.warnings || []).map((item) => `- ${item}`));
+    }
+    if (data.stdout) {
+      lines.push("", "STDOUT", data.stdout);
+    }
+    if (data.stderr) {
+      lines.push("", "STDERR", data.stderr);
+    }
+    setText("dependency-atlas-detail", lines.join("\n"));
+  }
+
+  async function runDependencyAtlas() {
+    if (rejectMaintenanceDryRunWhileBusy("maintenance.dependency_atlas", "dependency-atlas-status", "dependency-atlas-detail")) return;
+    setMaintenanceDryRunBusy(true);
+    setText("dependency-atlas-status", "Running...");
+    setText("dependency-atlas-detail", "Generating dependency atlas artifacts through backend tooling. This updates V6_dependency_atlas HTML, PNG/SVG, and CSV files only.");
+    try {
+      const result = await apiPost("/api/maintenance/dependency-atlas", {
+        timeout_seconds: 600,
+        min_overview_edge_count: 4,
+        min_overview_files: 2,
+      });
+      appendCommandResult(result);
+      setText("dependency-atlas-status", result.ok ? "Complete" : result.severity || "Failed");
+      renderDependencyAtlasResult(result);
+      if ((result.refresh_hint || "") === "maintenance") {
+        await refreshMaintenance();
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      appendCommandResult({
+        command: "maintenance.dependency_atlas",
+        ok: false,
+        severity: "error",
+        message,
+      });
+      setText("dependency-atlas-status", "Error");
+      setText("dependency-atlas-detail", message);
+    } finally {
+      setMaintenanceDryRunBusy(false);
+    }
+  }
+
   /**
    * Public namespace for the Maintenance page module.
    * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.
@@ -914,9 +1004,13 @@
     renderBackfillDryRunResult,
     renderBackfillProgress,
     backfillProgressBars,
+    renderDependencyAtlasResult,
+    renderDependencyAtlasProgress,
+    dependencyAtlasProgressBars,
     isMaintenanceDryRunCommand,
     renderMaintenanceDryRunHistory,
     runBackfillDryRun,
+    runDependencyAtlas,
   };
   window.hasMaintenanceLoaded = hasMaintenanceLoaded;
   window.getLastMaintenance = getLastMaintenance;

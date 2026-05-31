@@ -3,6 +3,9 @@
 This package is the single source of truth for:
 
 - Pipeline stage I/O shapes (`stages.py`).
+- Source media facts normalized from probe JSON (`source_media.py`).
+- Abstract dry-run pipeline plans (`pipeline_plan.py`).
+- Verification and publish guard results (`verification.py`).
 - Configuration shape (`config.py`, Pydantic v2).
 - Local API command payload shapes (`api_commands.py`).
 - File lifecycle/state-machine documentation source (`lifecycle.py`).

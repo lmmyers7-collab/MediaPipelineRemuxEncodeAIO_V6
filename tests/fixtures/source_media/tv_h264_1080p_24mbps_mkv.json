@@ -1,0 +1,38 @@
+{
+  "source": {
+    "path": "fixtures/tv_h264_1080p_24mbps_mkv.mkv",
+    "file_size_bytes": 10800000000,
+    "media_type": "tv"
+  },
+  "format": {
+    "format_name": "matroska,webm",
+    "duration": "3600.0",
+    "bit_rate": "24000000"
+  },
+  "streams": [
+    {
+      "index": 0,
+      "codec_type": "video",
+      "codec_name": "h264",
+      "profile": "High",
+      "level": 41,
+      "pix_fmt": "yuv420p",
+      "width": 1920,
+      "height": 1080,
+      "display_aspect_ratio": "16:9",
+      "avg_frame_rate": "24000/1001",
+      "field_order": "progressive",
+      "bit_rate": "24000000"
+    },
+    {
+      "index": 1,
+      "codec_type": "audio",
+      "codec_name": "eac3",
+      "channels": 6,
+      "channel_layout": "5.1(side)",
+      "bit_rate": "768000",
+      "tags": { "language": "eng" },
+      "disposition": { "default": 1, "forced": 0 }
+    }
+  ]
+}

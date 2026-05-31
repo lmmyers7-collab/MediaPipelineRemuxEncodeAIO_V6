@@ -3,9 +3,9 @@ file: app/config/settings_patch_candidate_facade.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-05-29
+last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: 4641faffa4f0530b6e8f51e342a07714f433229a1118bfc9350af8c56042fbea
+sha256: 11466028382d6713e06786c0dd55e807cfadfc5b9040bb271f1edf732568078c
 ---
 # `app/config/settings_patch_candidate_facade.py`
 

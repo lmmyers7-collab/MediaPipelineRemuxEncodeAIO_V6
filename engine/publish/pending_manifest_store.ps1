@@ -176,8 +176,10 @@ function Test-PendingManifestRoundTripValid {
         'tx3g_srt_tracks',
         'tx3g_srt_failures',
         'bdpgs_srt_failures',
+        'vobsub_srt_failures',
         'tx3g_embedded_srt_tracks',
-        'bdpgs_embedded_srt_tracks'
+        'bdpgs_embedded_srt_tracks',
+        'vobsub_embedded_srt_tracks'
     )
     foreach ($key in $requiredArrays) {
         if ($null -eq $RoundTrip.PSObject.Properties[$key]) {

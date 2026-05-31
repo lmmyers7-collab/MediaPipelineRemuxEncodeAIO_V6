@@ -32,6 +32,7 @@
     const renderSettingsPolicyDeltaForError = dep("renderSettingsPolicyDeltaForError", function () {});
     const renderSettingsPolicyDeltaFromEntries = dep("renderSettingsPolicyDeltaFromEntries", function () {});
     const settingsBuilderFields = dep("settingsBuilderFields", []);
+    const settingsDisplayLabels = dep("settingsDisplayLabels", {});
     const settingsFieldDefinition = dep("settingsFieldDefinition", function () { return null; });
     const settingsPatchImpactEntries = dep("settingsPatchImpactEntries", function () { return []; });
     const settingsValuesEqual = dep("settingsValuesEqual", function (left, right) { return JSON.stringify(left) === JSON.stringify(right); });
@@ -57,6 +58,7 @@
     const renderSettingsActiveMediaPolicyHandoff = dep("renderSettingsActiveMediaPolicyHandoff", function () {});
     const renderSettingsBackendMediaPolicyReadiness = dep("renderSettingsBackendMediaPolicyReadiness", function () {});
     const renderSettingsBdpgsOcrPathEvidence = dep("renderSettingsBdpgsOcrPathEvidence", function () {});
+    const renderSettingsVobSubOcrPathEvidence = dep("renderSettingsVobSubOcrPathEvidence", function () {});
     const renderSettingsMediaPolicyCrossCheck = dep("renderSettingsMediaPolicyCrossCheck", function () {});
     const renderSettingsOperatorTrust = dep("renderSettingsOperatorTrust", function () {});
     const renderSettingsOverview = dep("renderSettingsOverview", function () {});
@@ -479,7 +481,7 @@
         row.dataset.status = statusKey;
         appendCells(row, [
           key,
-          field?.label || key,
+          settingsDisplayLabel(key, field?.label || key),
           current === undefined ? "(not set)" : formatConfigValue(current),
           formatConfigValue(staged),
           status,
@@ -499,7 +501,7 @@
       const lines = [];
       settingsBuilderFields.forEach(([key, id]) => {
         const field = settingsFieldDefinition(key);
-        const label = field?.label || key;
+        const label = settingsDisplayLabel(key, field?.label || key);
         const value = settingsBuilderInputValue(id);
         const formattedValue = value ? formatSettingsChoiceLabel(value) : "(not set)";
         lines.push(`${label}: ${formattedValue}`);
@@ -511,6 +513,66 @@
         }
       });
       setText("settings-builder-guidance", lines.join("\n") || "No builder guidance loaded.");
+    }
+
+    function settingsDisplayLabel(key, fallback) {
+      const field = settingsFieldDefinition(key);
+      if (field?.label) return field.label;
+      return settingsDisplayLabels && settingsDisplayLabels[key] ? settingsDisplayLabels[key] : (fallback || key);
+    }
+
+    function formatSettingsSummaryValue(key, fallback = "not loaded") {
+      const value = settingsRawConfigValue(key);
+      if (value === undefined || value === null || value === "") return fallback;
+      return formatConfigValue(value);
+    }
+
+    function formatSettingsOutputSizeCheckMode(value) {
+      const normalized = String(value || "").trim().toLowerCase();
+      if (normalized === "advisory") return "Warn only";
+      if (normalized === "strict") return "Fail job";
+      if (normalized === "off") return "Disabled";
+      return formatSettingsChoiceLabel(value);
+    }
+
+    function renderHandbrakePreviewSummary(settings) {
+      const summary = settings?.profile_summary && typeof settings.profile_summary === "object" ? settings.profile_summary : {};
+      const activePreset = summary.default_profile_status === "ready" || summary.default_profile_status === "matched"
+        ? "Default profile"
+        : "Saved settings";
+      const videoCodec = formatSettingsSummaryValue("VideoCodec", "backend default");
+      const videoPreset = formatSettingsSummaryValue("VideoPreset", "backend default");
+      const videoQuality = formatSettingsSummaryValue("VideoQuality", "backend default");
+      const outputContainer = formatSettingsSummaryValue("OutputContainer", "backend default");
+      const sizeGuard = formatSettingsSummaryValue("SizeGuardMode", "backend default");
+      const maxGrowth = formatSettingsSummaryValue("MaxEncodeGrowthPercent", "backend default");
+      const compatGrowth = formatSettingsSummaryValue("CompatibilityEncodeGrowthPercent", "backend default");
+      const deferredPublish = settingsRawConfigValue("DeferredPublish");
+      const publishText = deferredPublish === true || String(deferredPublish).toLowerCase() === "true"
+        ? "Deferred publish enabled"
+        : "Saved publish policy loaded";
+      setText("settings-handbrake-active-preset", activePreset);
+      setText("settings-handbrake-output-video", `${formatSettingsChoiceLabel(videoCodec)}; preset ${formatSettingsChoiceLabel(videoPreset)}; quality ${videoQuality}`);
+      setText("settings-handbrake-output-container", formatSettingsChoiceLabel(outputContainer));
+      setText("settings-handbrake-output-guards", `Output Size Check ${formatSettingsOutputSizeCheckMode(sizeGuard)}; normal growth ${maxGrowth}%; compatibility growth ${compatGrowth}%`);
+      setText("settings-handbrake-publish-requirements", publishText);
+      setText("settings-container-size-container", `Output container: ${formatSettingsChoiceLabel(outputContainer)}.`);
+      setText("settings-container-size-guard", `Output Size Check: ${formatSettingsOutputSizeCheckMode(sizeGuard)}; growth tolerances ${maxGrowth}% normal / ${compatGrowth}% compatibility.`);
+      setText(
+        "settings-container-size-bitrate",
+        `Movie ${formatSettingsSummaryValue("MovieRouteMaxVideoBitrateMbps", "default")} Mbps; TV ${formatSettingsSummaryValue("TVRouteMaxVideoBitrateMbps", "default")} Mbps.`
+      );
+      setText("settings-handbrake-preview-status", "Predicted pending cutover");
+      setText("settings-handbrake-decision", "UNKNOWN");
+      setText("settings-handbrake-preview-detail", [
+        "The WebView does not compute copy/remux/encode routing.",
+        "Loaded saved output policy is shown for orientation only:",
+        `- video encoder: ${formatSettingsChoiceLabel(videoCodec)}`,
+        `- output container: ${formatSettingsChoiceLabel(outputContainer)}`,
+        `- Output Size Check: ${formatSettingsOutputSizeCheckMode(sizeGuard)}`,
+        "Use Source / Compatibility Preview Plan with a strict SourceMediaInfo payload to render backend pipeline_plan.v1 route summary, stream actions, output proposal, warnings, reasons, and command preview lines.",
+        "Preview remains predicted until production cutover because legacy execution still owns production work.",
+      ].join("\n"));
     }
 
     function settingsProfileSummaryLines(settings) {
@@ -651,12 +713,12 @@
         EncodeLadder: settingsBuilderInputValue("settings-builder-encode-ladder"),
         VideoCodec: settingsBuilderInputValue("settings-builder-video-codec"),
         OutputContainer: settingsBuilderInputValue("settings-builder-output-container"),
-        MaxEncodeGrowthPercent: readSettingsBuilderNumber("settings-builder-max-growth", "Normal growth percent"),
-        CompatibilityEncodeGrowthPercent: readSettingsBuilderNumber("settings-builder-compat-growth", "Compatibility growth percent"),
-        EncodeThresholdGB: readSettingsBuilderNumber("settings-builder-movie-threshold", "Movie threshold GB"),
-        TVEncodeThresholdGB: readSettingsBuilderNumber("settings-builder-tv-threshold", "TV threshold GB"),
-        MovieRouteMaxVideoBitrateMbps: readSettingsBuilderNumber("settings-builder-movie-route-bitrate", "Movie route max video bitrate Mbps"),
-        TVRouteMaxVideoBitrateMbps: readSettingsBuilderNumber("settings-builder-tv-route-bitrate", "TV route max video bitrate Mbps"),
+        MaxEncodeGrowthPercent: readSettingsBuilderNumber("settings-builder-max-growth", settingsDisplayLabel("MaxEncodeGrowthPercent", "Normal growth percent")),
+        CompatibilityEncodeGrowthPercent: readSettingsBuilderNumber("settings-builder-compat-growth", settingsDisplayLabel("CompatibilityEncodeGrowthPercent", "Compatibility growth percent")),
+        EncodeThresholdGB: readSettingsBuilderNumber("settings-builder-movie-threshold", settingsDisplayLabel("EncodeThresholdGB", "Movie threshold GB")),
+        TVEncodeThresholdGB: readSettingsBuilderNumber("settings-builder-tv-threshold", settingsDisplayLabel("TVEncodeThresholdGB", "TV threshold GB")),
+        MovieRouteMaxVideoBitrateMbps: readSettingsBuilderNumber("settings-builder-movie-route-bitrate", settingsDisplayLabel("MovieRouteMaxVideoBitrateMbps", "Movie route max video bitrate Mbps")),
+        TVRouteMaxVideoBitrateMbps: readSettingsBuilderNumber("settings-builder-tv-route-bitrate", settingsDisplayLabel("TVRouteMaxVideoBitrateMbps", "TV route max video bitrate Mbps")),
       };
       Object.entries(patch).forEach(([key, value]) => {
         if (typeof value === "string" && !value.trim()) {
@@ -702,6 +764,7 @@
       setText("settings-profiles", settingsProfileSummaryLines(settings));
       setText("settings-validation", warnings.join("\n") || "No validation warnings.");
       renderSettingsOverview(config);
+      renderHandbrakePreviewSummary(settings);
       renderSettingsOperatorTrust(settings);
       renderSettingsBackendMediaPolicyReadiness(settings);
       const builderState = getSettingsBuilderState();
@@ -763,6 +826,7 @@
       renderSettingsMediaPolicyCrossCheck();
       renderSettingsActiveMediaPolicyHandoff();
       renderSettingsBdpgsOcrPathEvidence();
+      renderSettingsVobSubOcrPathEvidence();
       renderSettingsPatchSummary();
       renderSettingsSafetyLocks();
       renderSettingsRawTriage();
@@ -787,6 +851,7 @@
     function initSettingsViewEvents() {
       bindSettingsClick("settings-validate-button", addSettingsEventHandlers.validateCurrentSettings);
       bindSettingsClick("settings-reload-button", addSettingsEventHandlers.reloadSettingsFromDisk);
+      bindSettingsClick("settings-preview-plan-button", addSettingsEventHandlers.previewSettingsPipelinePlan);
       bindSettingsClick("settings-preview-patch-button", addSettingsEventHandlers.previewSettingsPatch);
       bindSettingsClick("settings-save-patch-button", addSettingsEventHandlers.saveSettingsPatch);
       bindSettingsClick("settings-summarize-patch-button", renderSettingsPatchSummary);
@@ -892,6 +957,9 @@
       if (changedKey("DropBdpgsAfterConversion") && boolValue("DropBdpgsAfterConversion") === true) {
         issues.push(settingsReadinessIssue("medium", "BDPGS originals will be dropped after OCR. Keep disabled when preserving image subtitle tracks matters."));
       }
+      if (changedKey("DropVobSubAfterConversion") && boolValue("DropVobSubAfterConversion") === true) {
+        issues.push(settingsReadinessIssue("medium", "Embedded VobSub originals will be dropped after OCR. External .idx/.sub source files are never deleted."));
+      }
       if (changedKey("DropAssAfterConversion") && boolValue("DropAssAfterConversion") === true) {
         issues.push(settingsReadinessIssue("medium", "ASS/SSA originals will be dropped after conversion. Keep disabled to preserve styling."));
       }
@@ -901,6 +969,9 @@
       if ((changedKey("DropBdpgsAfterConversion") || changedKey("ConvertBdpgsToSrt")) && boolValue("DropBdpgsAfterConversion") === true && boolValue("ConvertBdpgsToSrt") === false) {
         issues.push(settingsReadinessIssue("high", "Drop BDPGS is enabled while BDPGS OCR is disabled."));
       }
+      if ((changedKey("DropVobSubAfterConversion") || changedKey("ConvertVobSubToSrt")) && boolValue("DropVobSubAfterConversion") === true && boolValue("ConvertVobSubToSrt") === false) {
+        issues.push(settingsReadinessIssue("high", "Drop VobSub is enabled while VobSub OCR is disabled."));
+      }
       if (changedKey("SubKeepLanguages") && !listValue("SubKeepLanguages").length) {
         issues.push(settingsReadinessIssue("medium", "SubKeepLanguages is empty. Preferred-language subtitle routing may become unpredictable."));
       }
@@ -909,6 +980,9 @@
       }
       if (changedKey("ConvertBdpgsToSrt") && boolValue("ConvertBdpgsToSrt") === false) {
         issues.push(settingsReadinessIssue("medium", "ConvertBdpgsToSrt is disabled. Preferred-language PGS subtitles will not produce OCR SRT copies."));
+      }
+      if (changedKey("ConvertVobSubToSrt") && boolValue("ConvertVobSubToSrt") === false) {
+        issues.push(settingsReadinessIssue("medium", "ConvertVobSubToSrt is disabled. Preferred-language VobSub subtitles will not produce OCR SRT copies."));
       }
       if (changedKey("PreferredDefaultAudioLanguages") && !listValue("PreferredDefaultAudioLanguages").length) {
         issues.push(settingsReadinessIssue("medium", "PreferredDefaultAudioLanguages is empty. Default audio selection will depend on source metadata."));

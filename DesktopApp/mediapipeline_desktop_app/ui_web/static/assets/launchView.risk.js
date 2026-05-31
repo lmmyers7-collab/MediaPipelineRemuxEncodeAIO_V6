@@ -274,7 +274,7 @@
     lines.push(`- Deferred publish: ${deferred ? "enabled; monitor and drain Pending Publish" : "disabled"}`);
     lines.push(`- Stability check: ${stabilitySkipped ? "disabled" : "enabled"}`);
     lines.push(`- Integrity check: ${integrity ? "enabled" : "disabled"}`);
-    lines.push(`- Size guard: ${sizeGuard}`);
+    lines.push(`- Output Size Check: ${sizeGuard}`);
     lines.push(`- Output container: ${outputContainer}`);
     lines.push(`- No-audio outputs: ${allowNoAudio ? "allowed" : "blocked"}`);
     lines.push(`- PATH tool fallback: ${allowSystemTools ? "allowed" : "disabled"}`);
@@ -328,6 +328,8 @@
     const dropTx3g = launchSettingsBool(launchSettingsConfigValue(config, "DropTx3gAfterConversion"), false);
     const convertBdpgs = launchSettingsBool(launchSettingsConfigValue(config, "ConvertBdpgsToSrt"), true);
     const dropBdpgs = launchSettingsBool(launchSettingsConfigValue(config, "DropBdpgsAfterConversion"), false);
+    const convertVobSub = launchSettingsBool(launchSettingsConfigValue(config, "ConvertVobSubToSrt"), false);
+    const dropVobSub = launchSettingsBool(launchSettingsConfigValue(config, "DropVobSubAfterConversion"), false);
     const dropAss = launchSettingsBool(launchSettingsConfigValue(config, "DropAssAfterConversion"), false);
     const sizeGuard = String(launchSettingsConfigValue(config, "SizeGuardMode") || "advisory").toLowerCase();
     const outputContainer = String(launchSettingsConfigValue(config, "OutputContainer") || "mkv").toLowerCase();
@@ -435,12 +437,12 @@
     add(
       "Remux / encode size posture",
       sizeGuard === "off" || sizeGuard === "disabled" || sizeGuard === "strict" || extraVideoFlags.length ? "review" : "ready",
-      `routing=${routingProfile}; size guard=${sizeGuard}; normal growth=${maxGrowth}%; compatibility growth=${compatGrowth}%; movie>${movieThreshold}GB/${movieRouteMaxBitrate}Mbps; TV>${tvThreshold}GB/${tvRouteMaxBitrate}Mbps; codec=${videoCodec}; tuning=${encodeTuning}; ladder=${encodeLadder}; legacy flags=${extraVideoFlags.length}`,
+      `routing=${routingProfile}; Output Size Check=${sizeGuard}; normal growth=${maxGrowth}%; compatibility growth=${compatGrowth}%; movie>${movieThreshold}GB/${movieRouteMaxBitrate}Mbps; TV>${tvThreshold}GB/${tvRouteMaxBitrate}Mbps; codec=${videoCodec}; tuning=${encodeTuning}; ladder=${encodeLadder}; legacy flags=${extraVideoFlags.length}`,
       sizeGuard === "off" || sizeGuard === "disabled"
         ? "Size-growth guard is not enforcing or warning normally; confirm this before testing low-bitrate sources that can balloon."
         : "Use Settings Preview before long runs if route, growth limits, encoder, or output container differs from the intended Plex direct/stream profile.",
       [
-        "Proof source: saved routing profile, size guard, thresholds, encoder choice, ladder, and legacy flags.",
+        "Proof source: saved routing profile, Output Size Check, thresholds, encoder choice, ladder, and legacy flags.",
         "Operator proof: compare Completed source/output size evidence after the first sample file.",
         "Boundary: this is not a media-policy change and does not force remux or encode.",
       ],
@@ -460,8 +462,8 @@
     );
     add(
       "Container / original subtitle preservation",
-      outputContainer === "mp4" && (!dropBdpgs || !dropAss) ? "review" : "ready",
-      `container=${outputContainer}; TX3G drop=${dropTx3g ? "on" : "off"}; BDPGS drop=${dropBdpgs ? "on" : "off"}; ASS drop=${dropAss ? "on" : "off"}`,
+      outputContainer === "mp4" && (!dropBdpgs || !dropVobSub || !dropAss) ? "review" : "ready",
+      `container=${outputContainer}; TX3G drop=${dropTx3g ? "on" : "off"}; BDPGS drop=${dropBdpgs ? "on" : "off"}; VobSub drop=${dropVobSub ? "on" : "off"}; ASS drop=${dropAss ? "on" : "off"}`,
       outputContainer === "mp4"
         ? "MP4 cannot carry every original subtitle format. Confirm backend routing externalizes or drops unsupported tracks deliberately instead of misboxing them."
         : "MKV remains the safer container for preserving original subtitle/audio streams while adding Plex-friendly SRT.",
@@ -473,13 +475,13 @@
     );
     add(
       "Subtitle SRT routing",
-      (dropTx3g && !convertTx3g) || (dropBdpgs && !convertBdpgs) ? "blocked" : (!convertTx3g || !convertBdpgs || dropTx3g || dropBdpgs ? "review" : "ready"),
-      `TX3G convert=${convertTx3g ? "on" : "off"} drop=${dropTx3g ? "on" : "off"}; BDPGS OCR=${convertBdpgs ? "on" : "off"} drop=${dropBdpgs ? "on" : "off"}`,
-      (dropTx3g && !convertTx3g) || (dropBdpgs && !convertBdpgs)
+      (dropTx3g && !convertTx3g) || (dropBdpgs && !convertBdpgs) || (dropVobSub && !convertVobSub) ? "blocked" : (!convertTx3g || !convertBdpgs || !convertVobSub || dropTx3g || dropBdpgs || dropVobSub ? "review" : "ready"),
+      `TX3G convert=${convertTx3g ? "on" : "off"} drop=${dropTx3g ? "on" : "off"}; BDPGS OCR=${convertBdpgs ? "on" : "off"} drop=${dropBdpgs ? "on" : "off"}; VobSub OCR=${convertVobSub ? "on" : "off"} drop=${dropVobSub ? "on" : "off"}`,
+      (dropTx3g && !convertTx3g) || (dropBdpgs && !convertBdpgs) || (dropVobSub && !convertVobSub)
         ? "Do not launch media work with drop-without-convert subtitle contradictions."
         : "Preferred-language non-SRT subtitles should create SRT while originals stay unless drop toggles are intentional.",
       [
-        "Proof source: saved TX3G/BDPGS conversion and drop toggles.",
+        "Proof source: saved TX3G/BDPGS/VobSub conversion and drop toggles.",
         "Operator proof: confirm SRT creation and original subtitle preservation on a known subtitle sample.",
         "Boundary: subtitle OCR/conversion failures still require backend manual-review classification.",
       ],
@@ -710,10 +712,13 @@
     const keep = launchSettingsList(launchPolicyCandidateValue(config, entryMap, "SubKeepLanguages", ["eng", "und"]), ["eng", "und"]);
     const tx3gLang = launchSettingsList(launchPolicyCandidateValue(config, entryMap, "Tx3gExtractLanguages", ["eng", "und"]), ["eng", "und"]);
     const bdpgsLang = launchSettingsList(launchPolicyCandidateValue(config, entryMap, "BdpgsExtractLanguages", ["eng", "und"]), ["eng", "und"]);
+    const vobSubLang = launchSettingsList(launchPolicyCandidateValue(config, entryMap, "VobSubExtractLanguages", ["eng", "und"]), ["eng", "und"]);
     const convertTx3g = launchSettingsBool(launchPolicyCandidateValue(config, entryMap, "ConvertTx3gToSrt", true), true);
     const dropTx3g = launchSettingsBool(launchPolicyCandidateValue(config, entryMap, "DropTx3gAfterConversion", false), false);
     const convertBdpgs = launchSettingsBool(launchPolicyCandidateValue(config, entryMap, "ConvertBdpgsToSrt", true), true);
     const dropBdpgs = launchSettingsBool(launchPolicyCandidateValue(config, entryMap, "DropBdpgsAfterConversion", false), false);
+    const convertVobSub = launchSettingsBool(launchPolicyCandidateValue(config, entryMap, "ConvertVobSubToSrt", false), false);
+    const dropVobSub = launchSettingsBool(launchPolicyCandidateValue(config, entryMap, "DropVobSubAfterConversion", false), false);
     const dropAss = launchSettingsBool(launchPolicyCandidateValue(config, entryMap, "DropAssAfterConversion", false), false);
     const strip = launchSettingsBool(launchPolicyCandidateValue(config, entryMap, "StripFormatting", true), true);
     return {
@@ -721,13 +726,16 @@
       keep,
       tx3gLang,
       bdpgsLang,
+      vobSubLang,
       convertTx3g,
       dropTx3g,
       convertBdpgs,
       dropBdpgs,
+      convertVobSub,
+      dropVobSub,
       dropAss,
       strip,
-      evidence: `container=${launchPolicyChoiceLabel(container)}; keep=${keep.join(", ") || "(empty)"}; TX3G lang=${tx3gLang.join(", ") || "(empty)"} convert/drop=${launchPolicyBoolText(convertTx3g)}/${launchPolicyBoolText(dropTx3g)}; BDPGS lang=${bdpgsLang.join(", ") || "(empty)"} OCR/drop=${launchPolicyBoolText(convertBdpgs)}/${launchPolicyBoolText(dropBdpgs)}; ASS drop=${launchPolicyBoolText(dropAss)}; strip ASS=${launchPolicyBoolText(strip)}`,
+      evidence: `container=${launchPolicyChoiceLabel(container)}; keep=${keep.join(", ") || "(empty)"}; TX3G lang=${tx3gLang.join(", ") || "(empty)"} convert/drop=${launchPolicyBoolText(convertTx3g)}/${launchPolicyBoolText(dropTx3g)}; BDPGS lang=${bdpgsLang.join(", ") || "(empty)"} OCR/drop=${launchPolicyBoolText(convertBdpgs)}/${launchPolicyBoolText(dropBdpgs)}; VobSub lang=${vobSubLang.join(", ") || "(empty)"} OCR/drop=${launchPolicyBoolText(convertVobSub)}/${launchPolicyBoolText(dropVobSub)}; ASS drop=${launchPolicyBoolText(dropAss)}; strip ASS=${launchPolicyBoolText(strip)}`,
     };
   }
 

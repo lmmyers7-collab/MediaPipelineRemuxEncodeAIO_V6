@@ -3,9 +3,9 @@ file: app/config/settings_helpers_facade.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-05-28
+last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: ebd2b78560f8174ae531cb0b0300f932e8672b05b3dc5be8f548e8baa45e2938
+sha256: f22aeaf586ebacf684bba80aa480d817d3ec29e468afd8e2967782777ca01b4b
 ---
 # `app/config/settings_helpers_facade.py`
 

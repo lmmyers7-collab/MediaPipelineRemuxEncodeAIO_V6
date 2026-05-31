@@ -53,6 +53,7 @@ def _patch(diff_count: int = 2) -> dict[str, object]:
         "removed_keys": ["Old"],
         "diff_lines": [f"line-{index}" for index in range(diff_count)],
         "risk_summary": {"risk": "low"},
+        "library_profile_state": [{"library_id": "movies"}],
     }
 
 
@@ -119,6 +120,7 @@ class SettingsPatchPolicyTests(unittest.TestCase):
         self.assertEqual(result.data["preview_key_count"], 2)
         self.assertEqual(len(result.data["redacted_diff_lines"]), SETTINGS_DIFF_LINE_LIMIT)
         self.assertTrue(result.data["diff_truncated"])
+        self.assertEqual(result.data["library_profile_state"], [{"library_id": "movies"}])
         self.assertFalse(result.data["writes_config"])
 
     def test_preview_message_handles_error_and_no_change_states(self) -> None:
@@ -150,6 +152,7 @@ class SettingsPatchPolicyTests(unittest.TestCase):
         self.assertEqual(result.data["changed_keys"], ["A", "B"])
         self.assertEqual(result.data["removed_keys"], ["Old"])
         self.assertEqual(result.data["key_count"], 2)
+        self.assertEqual(result.data["library_profile_state"], [{"library_id": "movies"}])
         self.assertTrue(result.data["writes_config"])
 
 

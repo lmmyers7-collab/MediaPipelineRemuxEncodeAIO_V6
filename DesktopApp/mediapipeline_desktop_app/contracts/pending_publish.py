@@ -50,6 +50,8 @@ class PendingPushManifest:
     drop_tx3g_after_conversion: bool = False
     bdpgs_srt_conversion_enabled: bool = False
     drop_bdpgs_after_conversion: bool = False
+    vobsub_srt_conversion_enabled: bool = False
+    drop_vobsub_after_conversion: bool = False
     raw: Mapping[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
     @classmethod
@@ -86,5 +88,7 @@ class PendingPushManifest:
             drop_tx3g_after_conversion=bool_field(data, "drop_tx3g_after_conversion"),
             bdpgs_srt_conversion_enabled=bool_field(data, "bdpgs_srt_conversion_enabled"),
             drop_bdpgs_after_conversion=bool_field(data, "drop_bdpgs_after_conversion"),
+            vobsub_srt_conversion_enabled=bool_field(data, "vobsub_srt_conversion_enabled"),
+            drop_vobsub_after_conversion=bool_field(data, "drop_vobsub_after_conversion"),
             raw=data,
         )

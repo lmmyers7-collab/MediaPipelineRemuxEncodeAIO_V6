@@ -91,6 +91,13 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
                                 "route": "remux",
                                 "route_reason_code": "copy_compatible",
                                 "route_reason": "already compatible",
+                                "route_decision_trace": [{"code": "routing_profile_selected"}, {"code": "copy_compatible"}],
+                                "estimated_bitrate_mbps": 12.5,
+                                "route_size_threshold_gb": 3,
+                                "route_bitrate_threshold_mbps": 18,
+                                "route_threshold_mode": "compatibility_advisory",
+                                "size_over_threshold": False,
+                                "bitrate_over_threshold": False,
                                 "blocked_reason": "",
                                 "runtime_checks_deferred": True,
                                 "runtime_check_codes": ["source_stability", "output_path_capability"],
@@ -191,8 +198,16 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
         self.assertIn("runtime:source_stability", preview["rows"][0]["review_flags"])
         self.assertIn("snapshot is fresh", preview["rows"][0]["operator_guidance"])
         self.assertEqual(preview["rows"][0]["route_decision_summary"], "remux (copy_compatible)")
+        self.assertEqual(preview["rows"][0]["estimated_bitrate_mbps"], 12.5)
+        self.assertEqual(preview["rows"][0]["route_size_threshold_gb"], 3.0)
+        self.assertEqual(preview["rows"][0]["route_bitrate_threshold_mbps"], 18.0)
+        self.assertEqual(preview["rows"][0]["route_threshold_mode"], "compatibility_advisory")
         self.assertIn("Route: remux", preview["rows"][0]["route_evidence_lines"])
         self.assertIn("Reason code: copy_compatible", preview["rows"][0]["route_evidence_lines"])
+        self.assertIn("Route threshold mode: compatibility_advisory", preview["rows"][0]["route_evidence_lines"])
+        self.assertIn("Size threshold: 3 GB; over threshold: no", preview["rows"][0]["route_evidence_lines"])
+        self.assertIn("Bitrate estimate: 12.5 Mbps; threshold: 18 Mbps; over threshold: no", preview["rows"][0]["route_evidence_lines"])
+        self.assertIn("Route trace: routing_profile_selected, copy_compatible", preview["rows"][0]["route_evidence_lines"])
         self.assertIn("Runtime checks deferred: source_stability, output_path_capability", preview["rows"][0]["route_evidence_lines"])
         self.assertIn("Runtime note: Source stability is checked by Test-FileStable only when processing starts.", preview["rows"][0]["route_evidence_lines"])
         self.assertIn("TV parse: show=Show; folder=Season 01; S01E01", preview["rows"][0]["route_evidence_lines"])

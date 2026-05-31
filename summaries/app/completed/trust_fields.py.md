@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: completed
 last_modified: 2026-05-30
 last_reviewed: 2026-05-30
-sha256: bdc54157fc52850bb522819293b849cc0f2c8f50464d3bc50826185e11a691c8
+sha256: 2e908e94fa3df579d030271d211de4c54b43f1f565f3d15ee1051ae0bf9183aa
 ---
 # `app/completed/trust_fields.py`
 

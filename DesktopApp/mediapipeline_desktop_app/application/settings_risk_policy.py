@@ -17,11 +17,13 @@ from ..config_keys import (
     KEY_COMPATIBLE_AUDIO_CODECS,
     KEY_CONVERT_BDPGS_TO_SRT,
     KEY_CONVERT_TX3G_TO_SRT,
+    KEY_CONVERT_VOBSUB_TO_SRT,
     KEY_CREATE_EXTERNAL_TX3G_SRT_SIDECARS,
     KEY_DEFERRED_PUBLISH,
     KEY_DROP_ASS_AFTER_CONVERSION,
     KEY_DROP_BDPGS_AFTER_CONVERSION,
     KEY_DROP_TX3G_AFTER_CONVERSION,
+    KEY_DROP_VOBSUB_AFTER_CONVERSION,
     KEY_ENCODE_LADDER,
     KEY_ENCODE_THRESHOLD_GB,
     KEY_ENCODE_TUNING_PRESET,
@@ -52,6 +54,8 @@ from ..config_keys import (
     KEY_TV_ENCODE_THRESHOLD_GB,
     KEY_TV_ROUTE_MAX_VIDEO_BITRATE_MBPS,
     KEY_TX3G_EXTRACT_LANGUAGES,
+    KEY_VOBSUB_EXTRACT_LANGUAGES,
+    KEY_VOBSUB_OCR_TOOL_PATH,
     KEY_VIDEO_CODEC,
 )
 from app.config.metadata import CONFIG_MANAGED_KEYS
@@ -320,6 +324,8 @@ def build_launch_settings_risk_handoff(
     drop_tx3g = _bool_value(config, KEY_DROP_TX3G_AFTER_CONVERSION, False)
     convert_bdpgs = _bool_value(config, KEY_CONVERT_BDPGS_TO_SRT, True)
     drop_bdpgs = _bool_value(config, KEY_DROP_BDPGS_AFTER_CONVERSION, False)
+    convert_vobsub = _bool_value(config, KEY_CONVERT_VOBSUB_TO_SRT, False)
+    drop_vobsub = _bool_value(config, KEY_DROP_VOBSUB_AFTER_CONVERSION, False)
     drop_ass = _bool_value(config, KEY_DROP_ASS_AFTER_CONVERSION, False)
     size_guard = _text_value(config, KEY_SIZE_GUARD_MODE, "advisory").casefold() or "advisory"
     output_container = _text_value(config, KEY_OUTPUT_CONTAINER, "mkv").casefold() or "mkv"
@@ -422,12 +428,12 @@ def build_launch_settings_risk_handoff(
         rows,
         "Remux / encode size posture",
         "review" if size_guard in {"off", "disabled", "strict"} or extra_video_flags else "ready",
-        f"routing={routing_profile}; size guard={size_guard}; normal growth={max_growth}%; compatibility growth={compat_growth}%; movie>{movie_threshold}GB/{movie_route_max_bitrate}Mbps; TV>{tv_threshold}GB/{tv_route_max_bitrate}Mbps; codec={video_codec}; tuning={encode_tuning}; ladder={encode_ladder}; legacy flags={len(extra_video_flags)}",
-        "Size-growth guard is not enforcing or warning normally; confirm this before testing low-bitrate sources that can balloon."
+        f"routing={routing_profile}; output_size_check={size_guard}; normal growth={max_growth}%; compatibility growth={compat_growth}%; movie>{movie_threshold}GB/{movie_route_max_bitrate}Mbps; TV>{tv_threshold}GB/{tv_route_max_bitrate}Mbps; codec={video_codec}; tuning={encode_tuning}; ladder={encode_ladder}; legacy flags={len(extra_video_flags)}",
+        "Output Size Check is not enforcing or warning normally; confirm this before testing low-bitrate sources that can balloon."
         if size_guard in {"off", "disabled"}
         else "Use Settings Preview before long runs if route, growth limits, encoder, or output container differs from the intended Plex direct/stream profile.",
         [
-            "Proof source: saved routing profile, size guard, thresholds, encoder choice, ladder, and legacy flags.",
+            "Proof source: saved routing profile, Output Size Check mode, thresholds, encoder choice, ladder, and legacy flags.",
             "Operator proof: compare Completed source/output size evidence after the first sample file.",
             "Boundary: this is not a media-policy change and does not force remux or encode.",
         ],
@@ -449,8 +455,8 @@ def build_launch_settings_risk_handoff(
     _launch_risk_row(
         rows,
         "Container / original subtitle preservation",
-        "review" if output_container == "mp4" and (not drop_bdpgs or not drop_ass) else "ready",
-        f"container={output_container}; TX3G drop={'on' if drop_tx3g else 'off'}; BDPGS drop={'on' if drop_bdpgs else 'off'}; ASS drop={'on' if drop_ass else 'off'}",
+        "review" if output_container == "mp4" and (not drop_bdpgs or not drop_vobsub or not drop_ass) else "ready",
+        f"container={output_container}; TX3G drop={'on' if drop_tx3g else 'off'}; BDPGS drop={'on' if drop_bdpgs else 'off'}; VobSub drop={'on' if drop_vobsub else 'off'}; ASS drop={'on' if drop_ass else 'off'}",
         "MP4 cannot carry every original subtitle format. Confirm backend routing externalizes or drops unsupported tracks deliberately instead of misboxing them."
         if output_container == "mp4"
         else "MKV remains the safer container for preserving original subtitle/audio streams while adding Plex-friendly SRT.",
@@ -460,17 +466,21 @@ def build_launch_settings_risk_handoff(
             "Boundary: this row cannot mux, externalize, or drop streams.",
         ],
     )
-    subtitle_blocked = (drop_tx3g and not convert_tx3g) or (drop_bdpgs and not convert_bdpgs)
+    subtitle_blocked = (
+        (drop_tx3g and not convert_tx3g)
+        or (drop_bdpgs and not convert_bdpgs)
+        or (drop_vobsub and not convert_vobsub)
+    )
     _launch_risk_row(
         rows,
         "Subtitle SRT routing",
-        "blocked" if subtitle_blocked else "review" if (not convert_tx3g or not convert_bdpgs or drop_tx3g or drop_bdpgs) else "ready",
-        f"TX3G convert={'on' if convert_tx3g else 'off'} drop={'on' if drop_tx3g else 'off'}; BDPGS OCR={'on' if convert_bdpgs else 'off'} drop={'on' if drop_bdpgs else 'off'}",
+        "blocked" if subtitle_blocked else "review" if (not convert_tx3g or not convert_bdpgs or not convert_vobsub or drop_tx3g or drop_bdpgs or drop_vobsub) else "ready",
+        f"TX3G convert={'on' if convert_tx3g else 'off'} drop={'on' if drop_tx3g else 'off'}; BDPGS OCR={'on' if convert_bdpgs else 'off'} drop={'on' if drop_bdpgs else 'off'}; VobSub OCR={'on' if convert_vobsub else 'off'} drop={'on' if drop_vobsub else 'off'}",
         "Do not launch media work with drop-without-convert subtitle contradictions."
         if subtitle_blocked
         else "Preferred-language non-SRT subtitles should create SRT while originals stay unless drop toggles are intentional.",
         [
-            "Proof source: saved TX3G/BDPGS conversion and drop toggles.",
+            "Proof source: saved TX3G/BDPGS/VobSub conversion and drop toggles.",
             "Operator proof: confirm SRT creation and original subtitle preservation on a known subtitle sample.",
             "Boundary: subtitle OCR/conversion failures still require backend manual-review classification.",
         ],
@@ -614,11 +624,14 @@ def build_media_policy_readiness(config: dict[str, Any]) -> dict[str, Any]:
     keep_languages = _list_value(config, KEY_SUB_KEEP_LANGUAGES, ["eng", "und"])
     tx3g_languages = _list_value(config, KEY_TX3G_EXTRACT_LANGUAGES, ["eng", "und"])
     bdpgs_languages = _list_value(config, KEY_BDPGS_EXTRACT_LANGUAGES, ["eng", "und"])
+    vobsub_languages = _list_value(config, KEY_VOBSUB_EXTRACT_LANGUAGES, ["eng", "und"])
     convert_tx3g = _bool_value(config, KEY_CONVERT_TX3G_TO_SRT, True)
     drop_tx3g = _bool_value(config, KEY_DROP_TX3G_AFTER_CONVERSION, False)
     tx3g_sidecars = _bool_value(config, KEY_CREATE_EXTERNAL_TX3G_SRT_SIDECARS, False)
     convert_bdpgs = _bool_value(config, KEY_CONVERT_BDPGS_TO_SRT, True)
     drop_bdpgs = _bool_value(config, KEY_DROP_BDPGS_AFTER_CONVERSION, False)
+    convert_vobsub = _bool_value(config, KEY_CONVERT_VOBSUB_TO_SRT, False)
+    drop_vobsub = _bool_value(config, KEY_DROP_VOBSUB_AFTER_CONVERSION, False)
     drop_ass = _bool_value(config, KEY_DROP_ASS_AFTER_CONVERSION, False)
     strip_formatting = _bool_value(config, KEY_STRIP_FORMATTING, True)
     remove_karaoke = _bool_value(config, KEY_REMOVE_KARAOKE, True)
@@ -644,34 +657,35 @@ def build_media_policy_readiness(config: dict[str, Any]) -> dict[str, Any]:
     size_posture = "review" if size_guard.casefold() in {"off", "disabled"} or max_growth <= 0 or compat_growth <= 0 else "coherent"
     rows.append(
         _readiness_row(
-            "Routing / size guard",
+            "Routing / Output Size Check",
             size_posture,
-            f"profile={routing_profile}; size_guard={size_guard}; normal_growth={_int_text(max_growth)}%; compatibility_growth={_int_text(compat_growth)}%",
-            "Keep size guard advisory/strict for unattended Plex batches; off or non-positive growth caps can allow oversized encodes without a clear hold point.",
+            f"profile={routing_profile}; output_size_check={size_guard}; normal_growth={_int_text(max_growth)}%; compatibility_growth={_int_text(compat_growth)}%",
+            "Keep Output Size Check warn-only or fail-job for unattended Plex batches; off or non-positive growth caps can allow oversized encodes without a clear hold point.",
             [KEY_ROUTING_PROFILE, KEY_SIZE_GUARD_MODE, KEY_MAX_ENCODE_GROWTH_PERCENT, KEY_COMPATIBILITY_ENCODE_GROWTH_PERCENT],
         )
     )
 
-    mp4_preserves_incompatible = output_container.casefold() == "mp4" and (not drop_bdpgs or not drop_ass)
+    mp4_preserves_incompatible = output_container.casefold() == "mp4" and (not drop_bdpgs or not drop_vobsub or not drop_ass)
     rows.append(
         _readiness_row(
             "Container / subtitle preservation",
             "review" if mp4_preserves_incompatible else "coherent",
-            f"container={output_container}; drop_ass={drop_ass}; drop_bdpgs={drop_bdpgs}; drop_tx3g={drop_tx3g}; tx3g_sidecars={tx3g_sidecars}",
+            f"container={output_container}; drop_ass={drop_ass}; drop_bdpgs={drop_bdpgs}; drop_vobsub={drop_vobsub}; drop_tx3g={drop_tx3g}; tx3g_sidecars={tx3g_sidecars}",
             "MKV is the safest preservation container. If MP4 is selected, verify unsupported original subtitle types are externalized or deliberately dropped instead of misboxed.",
-            [KEY_OUTPUT_CONTAINER, KEY_DROP_ASS_AFTER_CONVERSION, KEY_DROP_BDPGS_AFTER_CONVERSION, KEY_DROP_TX3G_AFTER_CONVERSION, KEY_CREATE_EXTERNAL_TX3G_SRT_SIDECARS],
+            [KEY_OUTPUT_CONTAINER, KEY_DROP_ASS_AFTER_CONVERSION, KEY_DROP_BDPGS_AFTER_CONVERSION, KEY_DROP_VOBSUB_AFTER_CONVERSION, KEY_DROP_TX3G_AFTER_CONVERSION, KEY_CREATE_EXTERNAL_TX3G_SRT_SIDECARS],
         )
     )
 
     tx3g_gaps = _language_gaps(keep_languages, tx3g_languages)
     bdpgs_gaps = _language_gaps(keep_languages, bdpgs_languages)
+    vobsub_gaps = _language_gaps(keep_languages, vobsub_languages)
     rows.append(
         _readiness_row(
             "Subtitle language routing",
-            "review" if not keep_languages or tx3g_gaps or bdpgs_gaps else "coherent",
-            f"keep={', '.join(keep_languages) or '(empty)'}; tx3g={', '.join(tx3g_languages) or '(empty)'}; bdpgs={', '.join(bdpgs_languages) or '(empty)'}",
-            "Preferred subtitle language drives SRT generation; keep TX3G/BDPGS extract languages aligned unless extract-only language gaps are intentional.",
-            [KEY_SUB_KEEP_LANGUAGES, KEY_TX3G_EXTRACT_LANGUAGES, KEY_BDPGS_EXTRACT_LANGUAGES],
+            "review" if not keep_languages or tx3g_gaps or bdpgs_gaps or vobsub_gaps else "coherent",
+            f"keep={', '.join(keep_languages) or '(empty)'}; tx3g={', '.join(tx3g_languages) or '(empty)'}; bdpgs={', '.join(bdpgs_languages) or '(empty)'}; vobsub={', '.join(vobsub_languages) or '(empty)'}",
+            "Preferred subtitle language drives SRT generation; keep TX3G/BDPGS/VobSub extract languages aligned unless extract-only language gaps are intentional.",
+            [KEY_SUB_KEEP_LANGUAGES, KEY_TX3G_EXTRACT_LANGUAGES, KEY_BDPGS_EXTRACT_LANGUAGES, KEY_VOBSUB_EXTRACT_LANGUAGES],
         )
     )
 
@@ -692,6 +706,16 @@ def build_media_policy_readiness(config: dict[str, Any]) -> dict[str, Any]:
             f"ocr={convert_bdpgs}; drop_original={drop_bdpgs}",
             "Preferred-language PGS should OCR to SRT for Plex clients, and OCR failures should remain visible for manual review.",
             [KEY_CONVERT_BDPGS_TO_SRT, KEY_DROP_BDPGS_AFTER_CONVERSION, KEY_BDPGS_OCR_TOOL_PATH, KEY_BDPGS_OCR_TESSDATA_PATH],
+        )
+    )
+
+    rows.append(
+        _readiness_row(
+            "VobSub OCR to SRT",
+            "blocked" if drop_vobsub and not convert_vobsub else "review" if (not convert_vobsub or drop_vobsub) else "coherent",
+            f"ocr={convert_vobsub}; drop_original={drop_vobsub}",
+            "Preferred-language VobSub should OCR to SRT for Plex clients, external .idx/.sub pairs should remain untouched, and OCR failures should remain visible for manual review.",
+            [KEY_CONVERT_VOBSUB_TO_SRT, KEY_DROP_VOBSUB_AFTER_CONVERSION, KEY_VOBSUB_OCR_TOOL_PATH],
         )
     )
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-05-30
 last_reviewed: 2026-05-30
-sha256: a0109972f16f8fd71bfaca4236be2aa7d334df9c474445a6069484d4ea460f65
+sha256: 8cb362ec5682e1ac55bd5f6ad839b2dcc527d03513c05ec12535d3c91fcf3cb9
 ---
 # `DesktopApp/tests/test_webview_real_media_smoke.py`
 

@@ -24,7 +24,7 @@ use backend_lifecycle_monitor::start_backend_lifecycle_monitor;
 #[cfg(test)]
 use backend_process::{
     bootstrap_error, push_bootstrap_stdout_context, redact_bootstrap_stdout,
-    MAX_BOOTSTRAP_STDOUT_CHARS, MAX_BOOTSTRAP_STDOUT_LINES,
+    web_ui_validation_error_is_fatal, MAX_BOOTSTRAP_STDOUT_CHARS, MAX_BOOTSTRAP_STDOUT_LINES,
 };
 use backend_process::{confirm_close_if_needed, shutdown_backend_state, start_backend};
 #[cfg(test)]
@@ -42,6 +42,8 @@ use single_instance_guard::acquire_single_instance_guard;
 
 type ShellResult<T> = Result<T, Box<dyn Error>>;
 const MAX_BACKEND_RESPONSE_BYTES: usize = 16 * 1024 * 1024;
+const MAX_STARTUP_VALIDATION_WARNINGS: usize = 4;
+const MAX_STARTUP_VALIDATION_WARNING_CHARS: usize = 280;
 const MAX_CLOSE_READINESS_WARNINGS: usize = 5;
 const MAX_CLOSE_READINESS_WARNING_CHARS: usize = 240;
 const MAX_OPERATOR_PATH_CHARS: usize = 320;
@@ -53,7 +55,8 @@ pub fn run() {
             app.manage(single_instance_guard);
             let desktop_root = resolve_desktop_root()?;
             let backend = start_backend(&desktop_root)?;
-            let initialization_script = tauri_bootstrap_initialization_script(backend.token());
+            let initialization_script =
+                tauri_bootstrap_initialization_script(backend.token(), backend.startup_warnings());
             let url = url::Url::parse(backend.url())?;
             app.manage(backend);
             start_backend_lifecycle_monitor(app.app_handle().clone());
@@ -96,11 +99,35 @@ pub fn run() {
     });
 }
 
-pub(crate) fn tauri_bootstrap_initialization_script(token: &str) -> String {
+pub(crate) fn tauri_bootstrap_initialization_script(
+    token: &str,
+    startup_warnings: &[String],
+) -> String {
     let token_json = serde_json::to_string(token).unwrap_or_else(|_| "\"\"".to_string());
+    let warnings_json =
+        serde_json::to_string(&bounded_startup_validation_warnings(startup_warnings))
+            .unwrap_or_else(|_| "[]".to_string());
     format!(
-        "window.MEDIA_PIPELINE_TAURI_BOOTSTRAP = Object.freeze({{token:{token_json},tokenSource:\"tauri-initialization-script\"}});"
+        r#"(function(){{const startupWarnings={warnings_json};window.MEDIA_PIPELINE_TAURI_BOOTSTRAP=Object.freeze({{token:{token_json},tokenSource:"tauri-initialization-script",startupWarnings}});if(startupWarnings.length){{console.warn("MediaPipeline Tauri startup validation warnings",startupWarnings);const render=function(){{if(!document.body||document.querySelector("[data-tauri-startup-validation-warning]"))return;const node=document.createElement("div");node.className="tauri-lifecycle-alert";node.dataset.state="warning";node.dataset.tauriStartupValidationWarning="true";node.setAttribute("role","alert");const title=document.createElement("strong");title.textContent="Startup validation warning";const detail=document.createElement("span");detail.textContent=startupWarnings.slice(0,3).join(" | ");const hint=document.createElement("span");hint.textContent="The backend opened, but Tauri detected WebView asset drift. Open Diagnostics before starting, draining, saving, renaming, publishing, or closing.";node.replaceChildren(title,detail,hint);const topbar=document.querySelector(".topbar");if(topbar&&topbar.parentNode)topbar.insertAdjacentElement("afterend",node);else document.body.prepend(node);}};if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",render,{{once:true}});else render();}}}})();"#
     )
+}
+
+fn bounded_startup_validation_warnings(startup_warnings: &[String]) -> Vec<String> {
+    startup_warnings
+        .iter()
+        .take(MAX_STARTUP_VALIDATION_WARNINGS)
+        .map(|warning| {
+            let mut preview = String::new();
+            for (index, ch) in warning.chars().enumerate() {
+                if index >= MAX_STARTUP_VALIDATION_WARNING_CHARS {
+                    preview.push_str("...");
+                    break;
+                }
+                preview.push(ch);
+            }
+            preview
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -188,13 +215,55 @@ mod tests {
 
     #[test]
     fn tauri_bootstrap_initialization_script_injects_token_without_index_assignment() {
-        let script = tauri_bootstrap_initialization_script("secret-token\"<");
+        let script = tauri_bootstrap_initialization_script("secret-token\"<", &[]);
 
         assert!(script.contains("window.MEDIA_PIPELINE_TAURI_BOOTSTRAP"));
         assert!(script.contains("Object.freeze"));
         assert!(script.contains("tauri-initialization-script"));
+        assert!(script.contains("startupWarnings"));
         assert!(script.contains(r#"secret-token\"<"#));
         assert!(!script.contains("window.MEDIA_PIPELINE_BOOTSTRAP ="));
+    }
+
+    #[test]
+    fn tauri_bootstrap_initialization_script_includes_bounded_startup_warnings() {
+        let warnings = (0..(MAX_STARTUP_VALIDATION_WARNINGS + 3))
+            .map(|index| {
+                format!(
+                    "warning-{index}-{}",
+                    "x".repeat(MAX_STARTUP_VALIDATION_WARNING_CHARS + 20)
+                )
+            })
+            .collect::<Vec<String>>();
+        let script = tauri_bootstrap_initialization_script("secret-token", &warnings);
+
+        assert!(script.contains("Startup validation warning"));
+        assert!(script.contains("WebView asset drift"));
+        assert!(script.contains("warning-0-"));
+        assert!(script.contains(&format!("warning-{}-", MAX_STARTUP_VALIDATION_WARNINGS - 1)));
+        assert!(!script.contains(&format!("warning-{}-", MAX_STARTUP_VALIDATION_WARNINGS)));
+        assert!(script.contains("..."));
+        assert!(script.contains("secret-token"));
+        assert!(!script.contains("window.MEDIA_PIPELINE_BOOTSTRAP ="));
+    }
+
+    #[test]
+    fn web_ui_validation_only_treats_bootstrap_security_failures_as_fatal() {
+        assert!(web_ui_validation_error_is_fatal(
+            "Backend WebView index leaked the bearer token instead of relying on Tauri shell injection."
+        ));
+        assert!(web_ui_validation_error_is_fatal(
+            "Backend WebView index still contains the raw bootstrap placeholder."
+        ));
+        assert!(web_ui_validation_error_is_fatal(
+            "Backend WebView index is missing required fragment 'bootstrap assignment'."
+        ));
+        assert!(!web_ui_validation_error_is_fatal(
+            "Backend WebView settings script is missing required fragment 'settings backend readiness guardrail'."
+        ));
+        assert!(!web_ui_validation_error_is_fatal(
+            "Backend request did not return HTTP 200: HTTP/1.0 404 Not Found"
+        ));
     }
 
     #[test]
@@ -562,6 +631,13 @@ mod tests {
   <pre id="home-external-dependencies-summary"></pre>
 </section>
 <section data-page-panel="settings">
+  <strong id="settings-handbrake-preview-status">Predicted pending cutover</strong>
+  <strong id="settings-handbrake-decision">UNKNOWN</strong>
+  <strong id="settings-handbrake-active-preset">Saved settings</strong>
+  <dd id="settings-handbrake-source-container"></dd>
+  <dd id="settings-handbrake-output-video"></dd>
+  <dd id="settings-handbrake-output-guards"></dd>
+  <pre id="settings-handbrake-preview-detail"></pre>
   <strong id="settings-backend-media-policy-status">Not loaded</strong>
   <tbody id="settings-backend-media-policy-rows"></tbody>
   <tbody id="settings-policy-delta-rows"></tbody>
@@ -569,6 +645,13 @@ mod tests {
   <pre id="settings-effective-policy-detail"></pre>
   <tbody id="settings-backend-result-rows"></tbody>
   <pre id="settings-backend-result-detail"></pre>
+  <textarea id="settings-source-media-json"></textarea>
+  <button id="settings-preview-plan-button"></button>
+  <tbody id="settings-source-facts-rows"></tbody>
+  <pre id="settings-source-media-json-detail"></pre>
+  <select id="settings-builder-routing-profile"></select>
+  <select id="settings-builder-size-guard"></select>
+  <select id="settings-builder-output-container"></select>
 </section>
 <section data-page-panel="launch">
   <tbody id="launch-settings-risk-rows"></tbody>
@@ -680,9 +763,33 @@ function renderSettingsBackendResultFromEntries() {
   return "Save Patch is the only persistence command";
 }
 window.__settingsBackendResultModule = { createSettingsBackendResultModule };"#;
+        let settings_patch_review_script = r#"function renderHandbrakePreviewSummary(settings) {
+  return "Use Source / Compatibility Preview Plan with a strict SourceMediaInfo payload";
+}
+function collectSettingsBuilderPatch() {
+  return {
+    RoutingProfile: settingsBuilderInputValue("settings-builder-routing-profile"),
+    OutputContainer: settingsBuilderInputValue("settings-builder-output-container"),
+  };
+}
+function bindSettingsClick() {}
+bindSettingsClick("settings-preview-plan-button", addSettingsEventHandlers.previewSettingsPipelinePlan);"#;
         let settings_script = r#"const settingsRawTriageModule = window.__settingsRawTriageModule || {};
 const settingsSafetyLocksModule = window.__settingsSafetyLocksModule || {};
 const settingsBackendResultModule = window.__settingsBackendResultModule || {};
+const settingsPolicyImpactModule = window.__settingsPolicyImpactModule || {};
+delete window.__settingsPolicyImpactModule;
+function parseSettingsSourceMediaJson() {}
+function renderSettingsPipelinePlanPreview(result, sourceMedia) {
+  return "Preview label remains Predicted pending cutover";
+}
+async function previewSettingsPipelinePlan() {
+  const result = await apiPost("/api/settings/pipeline-plan-preview", {
+    source_media: sourceMedia,
+  });
+  return "This did not save settings, launch work, mutate queue state, publish, rename, drain pending publish, or touch media files.";
+}"#;
+        let settings_policy_impact_script = r#"function createSettingsPolicyImpactModule() {}
 function settingsBackendMediaPolicyReadiness() {}
 function renderSettingsBackendMediaPolicyReadiness() {
   return "Backend media-policy readiness: this table cannot stage settings, save config, launch work, run FFmpeg, publish files, or touch source media";
@@ -692,7 +799,8 @@ function settingsPolicyDeltaRows() {
 }
 function settingsEffectivePolicyRows() {
   return "Effective policy trust summary: Launch-active policy is the saved backend config";
-}"#;
+}
+window.__settingsPolicyImpactModule = { createSettingsPolicyImpactModule };"#;
         let settings_overview_script = r#"function settingsMediaPolicyReadinessLine(settings) {
   return settings.media_policy_readiness;
 }"#;
@@ -746,7 +854,7 @@ window.__pendingPublishDrainModule = { createPendingPublishDrainModule };"#;
 function pendingDrainGuardState() {}
 function renderPendingDrainDecisionChecklist() {}
 window.__pendingPublishConfidenceModule = { createPendingPublishConfidenceModule };"#;
-        let pending_publish_script = r#"function pendingSampleValidationHandoffLines() {}
+        let pending_publish_script = r#"let pendingSampleValidationHandoffLines = function () {};
 const pendingRecoveryModule = window.__pendingPublishRecoveryModule || {};
 const pendingDiagnosticsModule = window.__pendingPublishDiagnosticsModule || {};
 const pendingDrainModule = window.__pendingPublishDrainModule || {};
@@ -769,7 +877,9 @@ const pendingConfidenceModule = window.__pendingPublishConfidenceModule || {};"#
             settings_raw_triage_script,
             settings_safety_locks_script,
             settings_backend_result_script,
+            settings_patch_review_script,
             settings_script,
+            settings_policy_impact_script,
             settings_overview_script,
             launch_risk_script,
             launch_scope_script,
@@ -788,7 +898,7 @@ const pendingConfidenceModule = window.__pendingPublishConfidenceModule || {};"#
         let (url, rx) = serve_sequence(responses);
 
         validate_backend_web_ui(&url, "secret-token").expect("web UI validation should pass");
-        let requests = (0..30)
+        let requests = (0..32)
             .map(|_| {
                 rx.recv_timeout(Duration::from_secs(2))
                     .expect("request received")
@@ -825,23 +935,25 @@ const pendingConfidenceModule = window.__pendingPublishConfidenceModule || {};"#
         assert!(requests[14].starts_with("GET /assets/settingsView.rawTriage.js HTTP/1.1\r\n"));
         assert!(requests[15].starts_with("GET /assets/settingsView.safetyLocks.js HTTP/1.1\r\n"));
         assert!(requests[16].starts_with("GET /assets/settings/backendResult.js HTTP/1.1\r\n"));
-        assert!(requests[17].starts_with("GET /assets/settingsView.js HTTP/1.1\r\n"));
-        assert!(requests[18].starts_with("GET /assets/settingsOverview.js HTTP/1.1\r\n"));
-        assert!(requests[19].starts_with("GET /assets/launchView.risk.js HTTP/1.1\r\n"));
-        assert!(requests[20].starts_with("GET /assets/launchView.scope.js HTTP/1.1\r\n"));
-        assert!(requests[21].starts_with("GET /assets/launchView.realmedia.js HTTP/1.1\r\n"));
-        assert!(requests[22].starts_with("GET /assets/launchView.preflight.js HTTP/1.1\r\n"));
-        assert!(requests[23].starts_with("GET /assets/launchView.js HTTP/1.1\r\n"));
-        assert!(requests[24].starts_with("GET /assets/diagnosticsStateSummaryView.js HTTP/1.1\r\n"));
-        assert!(requests[25].starts_with("GET /assets/pendingPublishView.recovery.js HTTP/1.1\r\n"));
+        assert!(requests[17].starts_with("GET /assets/settings/patchReview.js HTTP/1.1\r\n"));
+        assert!(requests[18].starts_with("GET /assets/settingsView.js HTTP/1.1\r\n"));
+        assert!(requests[19].starts_with("GET /assets/settings/policyImpact.js HTTP/1.1\r\n"));
+        assert!(requests[20].starts_with("GET /assets/settingsOverview.js HTTP/1.1\r\n"));
+        assert!(requests[21].starts_with("GET /assets/launchView.risk.js HTTP/1.1\r\n"));
+        assert!(requests[22].starts_with("GET /assets/launchView.scope.js HTTP/1.1\r\n"));
+        assert!(requests[23].starts_with("GET /assets/launchView.realmedia.js HTTP/1.1\r\n"));
+        assert!(requests[24].starts_with("GET /assets/launchView.preflight.js HTTP/1.1\r\n"));
+        assert!(requests[25].starts_with("GET /assets/launchView.js HTTP/1.1\r\n"));
+        assert!(requests[26].starts_with("GET /assets/diagnosticsStateSummaryView.js HTTP/1.1\r\n"));
+        assert!(requests[27].starts_with("GET /assets/pendingPublishView.recovery.js HTTP/1.1\r\n"));
         assert!(
-            requests[26].starts_with("GET /assets/pendingPublishView.diagnostics.js HTTP/1.1\r\n")
+            requests[28].starts_with("GET /assets/pendingPublishView.diagnostics.js HTTP/1.1\r\n")
         );
-        assert!(requests[27].starts_with("GET /assets/pendingPublishView.drain.js HTTP/1.1\r\n"));
+        assert!(requests[29].starts_with("GET /assets/pendingPublishView.drain.js HTTP/1.1\r\n"));
         assert!(
-            requests[28].starts_with("GET /assets/pendingPublishView.confidence.js HTTP/1.1\r\n")
+            requests[30].starts_with("GET /assets/pendingPublishView.confidence.js HTTP/1.1\r\n")
         );
-        assert!(requests[29].starts_with("GET /assets/pendingPublishView.js HTTP/1.1\r\n"));
+        assert!(requests[31].starts_with("GET /assets/pendingPublishView.js HTTP/1.1\r\n"));
         assert!(requests
             .iter()
             .all(|request| request.contains("Authorization: Bearer secret-token\r\n")));
@@ -865,6 +977,13 @@ const pendingConfidenceModule = window.__pendingPublishConfidenceModule || {};"#
   <pre id="home-external-dependencies-summary"></pre>
 </section>
 <section data-page-panel="settings">
+  <strong id="settings-handbrake-preview-status">Predicted pending cutover</strong>
+  <strong id="settings-handbrake-decision">UNKNOWN</strong>
+  <strong id="settings-handbrake-active-preset">Saved settings</strong>
+  <dd id="settings-handbrake-source-container"></dd>
+  <dd id="settings-handbrake-output-video"></dd>
+  <dd id="settings-handbrake-output-guards"></dd>
+  <pre id="settings-handbrake-preview-detail"></pre>
   <strong id="settings-backend-media-policy-status">Not loaded</strong>
   <tbody id="settings-backend-media-policy-rows"></tbody>
   <tbody id="settings-policy-delta-rows"></tbody>
@@ -872,6 +991,13 @@ const pendingConfidenceModule = window.__pendingPublishConfidenceModule || {};"#
   <pre id="settings-effective-policy-detail"></pre>
   <tbody id="settings-backend-result-rows"></tbody>
   <pre id="settings-backend-result-detail"></pre>
+  <textarea id="settings-source-media-json"></textarea>
+  <button id="settings-preview-plan-button"></button>
+  <tbody id="settings-source-facts-rows"></tbody>
+  <pre id="settings-source-media-json-detail"></pre>
+  <select id="settings-builder-routing-profile"></select>
+  <select id="settings-builder-size-guard"></select>
+  <select id="settings-builder-output-container"></select>
 </section>
 <section data-page-panel="launch">
   <tbody id="launch-settings-risk-rows"></tbody>

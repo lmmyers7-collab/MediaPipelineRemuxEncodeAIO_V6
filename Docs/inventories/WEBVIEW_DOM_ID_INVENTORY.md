@@ -1,10 +1,10 @@
 # WebView DOM ID Inventory
 
-Date: 2026-05-29
+Date: 2026-05-31
 
 Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `DesktopApp/mediapipeline_desktop_app/ui_web/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 1172. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 1176. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -372,6 +372,10 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `backfill-dry-run-button` | `<button>` | Trigger `/api/maintenance/completed-backfill-dry-run` |
 | `backfill-dry-run-detail` | `<div>` | Backfill dry-run result detail |
 | `backfill-dry-run-status` | `<span>` | Backfill status |
+| `dependency-atlas-button` | `<button>` | Trigger `/api/maintenance/dependency-atlas` |
+| `dependency-atlas-detail` | `<pre>` | Dependency atlas result detail |
+| `dependency-atlas-progress-bars` | `<div>` | Dependency atlas progress bars |
+| `dependency-atlas-status` | `<strong>` | Dependency atlas status |
 
 ---
 
@@ -540,11 +544,11 @@ Risk: Low — additive only; new IDs for queue drawer UI
 
 ---
 
-## Machine-Generated Full DOM ID Manifest — 2026-05-29
+## Machine-Generated Full DOM ID Manifest — 2026-05-31
 
 This section is generated from `DesktopApp/mediapipeline_desktop_app/ui_web/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 1172
+Count: 1176
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
 active-job-detail
@@ -717,6 +721,10 @@ daily-driver-legend
 daily-driver-rows
 daily-driver-status
 daily-driver-summary
+dependency-atlas-button
+dependency-atlas-detail
+dependency-atlas-progress-bars
+dependency-atlas-status
 diagnostics-close-readiness
 diagnostics-close-status
 diagnostics-command-drilldown-actions

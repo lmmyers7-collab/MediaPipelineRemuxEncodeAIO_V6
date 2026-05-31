@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/page-home.html
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-29
+last_modified: 2026-05-30
 last_reviewed: 2026-05-29
-sha256: 7ae694da0a1fe0b4a9a8d663d2334cb6392ec4440ba24cfc06a7297761a75973
+sha256: a93d1d11c2c325c38548c3cdeb7a1449a3d3b621adb3546f7ca354301a3ecb65
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/page-home.html`
 

@@ -82,6 +82,34 @@ pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellRe
         ("backend shutdown button", "id=\"backend-shutdown-button\""),
         ("settings page", "data-page-panel=\"settings\""),
         (
+            "settings handbrake preview status",
+            "id=\"settings-handbrake-preview-status\"",
+        ),
+        (
+            "settings handbrake decision",
+            "id=\"settings-handbrake-decision\"",
+        ),
+        (
+            "settings handbrake active preset",
+            "id=\"settings-handbrake-active-preset\"",
+        ),
+        (
+            "settings handbrake source facts",
+            "id=\"settings-handbrake-source-container\"",
+        ),
+        (
+            "settings handbrake output video",
+            "id=\"settings-handbrake-output-video\"",
+        ),
+        (
+            "settings handbrake output guards",
+            "id=\"settings-handbrake-output-guards\"",
+        ),
+        (
+            "settings handbrake preview detail",
+            "id=\"settings-handbrake-preview-detail\"",
+        ),
+        (
             "settings backend media policy status",
             "id=\"settings-backend-media-policy-status\"",
         ),
@@ -108,6 +136,34 @@ pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellRe
         (
             "settings effective policy trust detail",
             "id=\"settings-effective-policy-detail\"",
+        ),
+        (
+            "settings source media editor",
+            "id=\"settings-source-media-json\"",
+        ),
+        (
+            "settings pipeline plan preview button",
+            "id=\"settings-preview-plan-button\"",
+        ),
+        (
+            "settings source facts rows",
+            "id=\"settings-source-facts-rows\"",
+        ),
+        (
+            "settings source media detail",
+            "id=\"settings-source-media-json-detail\"",
+        ),
+        (
+            "settings builder routing profile",
+            "id=\"settings-builder-routing-profile\"",
+        ),
+        (
+            "settings builder size guard",
+            "id=\"settings-builder-size-guard\"",
+        ),
+        (
+            "settings builder output container",
+            "id=\"settings-builder-output-container\"",
         ),
         (
             "launch settings risk rows",
@@ -637,6 +693,45 @@ pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellRe
             )));
         }
     }
+    let settings_patch_review_script = request_backend_json(
+        backend_url,
+        "GET",
+        "/assets/settings/patchReview.js",
+        token,
+        "",
+    )?;
+    for (label, fragment) in [
+        (
+            "settings handbrake preview summary renderer",
+            "function renderHandbrakePreviewSummary",
+        ),
+        (
+            "settings builder patch collector",
+            "function collectSettingsBuilderPatch",
+        ),
+        (
+            "settings builder routing profile patch key",
+            "RoutingProfile: settingsBuilderInputValue(\"settings-builder-routing-profile\")",
+        ),
+        (
+            "settings builder output container patch key",
+            "OutputContainer: settingsBuilderInputValue(\"settings-builder-output-container\")",
+        ),
+        (
+            "settings pipeline plan preview button binding",
+            "bindSettingsClick(\"settings-preview-plan-button\", addSettingsEventHandlers.previewSettingsPipelinePlan)",
+        ),
+        (
+            "settings source compatibility preview guidance",
+            "Use Source / Compatibility Preview Plan with a strict SourceMediaInfo payload",
+        ),
+    ] {
+        if !settings_patch_review_script.contains(fragment) {
+            return Err(shell_error(format!(
+                "Backend WebView settings patch-review script is missing required fragment '{label}'."
+            )));
+        }
+    }
     let settings_script =
         request_backend_json(backend_url, "GET", "/assets/settingsView.js", token, "")?;
     for (label, fragment) in [
@@ -651,6 +746,61 @@ pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellRe
         (
             "settings backend result child bridge",
             "const settingsBackendResultModule = window.__settingsBackendResultModule || {}",
+        ),
+        (
+            "settings policy impact child bridge",
+            "const settingsPolicyImpactModule = window.__settingsPolicyImpactModule || {}",
+        ),
+        (
+            "settings policy impact child cleanup",
+            "delete window.__settingsPolicyImpactModule",
+        ),
+        (
+            "settings source media parser",
+            "function parseSettingsSourceMediaJson",
+        ),
+        (
+            "settings pipeline plan preview renderer",
+            "function renderSettingsPipelinePlanPreview",
+        ),
+        (
+            "settings pipeline plan preview command",
+            "async function previewSettingsPipelinePlan",
+        ),
+        (
+            "settings pipeline plan preview route",
+            "apiPost(\"/api/settings/pipeline-plan-preview\", {",
+        ),
+        (
+            "settings pipeline plan source payload",
+            "source_media: sourceMedia",
+        ),
+        (
+            "settings pipeline plan no-mutation boundary",
+            "This did not save settings, launch work, mutate queue state, publish, rename, drain pending publish, or touch media files.",
+        ),
+    ] {
+        if !settings_script.contains(fragment) {
+            return Err(shell_error(format!(
+                "Backend WebView settings script is missing required fragment '{label}'."
+            )));
+        }
+    }
+    let settings_policy_impact_script = request_backend_json(
+        backend_url,
+        "GET",
+        "/assets/settings/policyImpact.js",
+        token,
+        "",
+    )?;
+    for (label, fragment) in [
+        (
+            "settings policy impact split factory",
+            "function createSettingsPolicyImpactModule",
+        ),
+        (
+            "settings policy impact split stash",
+            "window.__settingsPolicyImpactModule",
         ),
         (
             "settings backend readiness reader",
@@ -680,9 +830,9 @@ pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellRe
             "Launch-active policy is the saved backend config",
         ),
     ] {
-        if !settings_script.contains(fragment) {
+        if !settings_policy_impact_script.contains(fragment) {
             return Err(shell_error(format!(
-                "Backend WebView settings script is missing required fragment '{label}'."
+                "Backend WebView settings policy-impact script is missing required fragment '{label}'."
             )));
         }
     }
@@ -1013,7 +1163,7 @@ pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellRe
     for (label, fragment) in [
         (
             "pending sample validation handoff",
-            "function pendingSampleValidationHandoffLines",
+            "let pendingSampleValidationHandoffLines",
         ),
         (
             "pending recovery parent stash read",

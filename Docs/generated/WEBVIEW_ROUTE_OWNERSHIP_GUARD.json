@@ -278,6 +278,12 @@
       ]
     },
     {
+      "route": "/api/settings/pipeline-plan-preview",
+      "files": [
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js"
+      ]
+    },
+    {
       "route": "/api/settings/preview-patch",
       "files": [
         "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js"

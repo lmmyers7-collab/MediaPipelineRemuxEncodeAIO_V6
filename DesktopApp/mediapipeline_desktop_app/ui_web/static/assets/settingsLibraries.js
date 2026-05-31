@@ -4,13 +4,21 @@
   const pathFields = ["source_path", "output_path", "promotion_destination"];
   const designationValues = ["movie", "tv", "auto"];
 
-  const overrideGroups = [
-    { key: "editor", title: "Default Editor Overrides", fields: metadata.settingsBuilderFields || [] },
-    { key: "video", title: "Default Video / Media Overrides", fields: metadata.videoDetailSettingsBuilderFields || [] },
-    { key: "subtitles", title: "Default Subtitle Overrides", fields: metadata.subtitleSettingsBuilderFields || [] },
-    { key: "audio", title: "Default Audio Overrides", fields: metadata.audioSettingsBuilderFields || [] },
+  const overrideGroupTitles = {
+    editor: "Default Editor Overrides",
+    video: "Default Video / Media Overrides",
+    subtitles: "Default Subtitle Overrides",
+    audio: "Default Audio Overrides",
+  };
+  const overrideGroupOrder = ["editor", "video", "subtitles", "audio"];
+  const fallbackOverrideGroups = [
+    { key: "editor", fields: metadata.settingsBuilderFields || [] },
+    { key: "video", fields: metadata.videoDetailSettingsBuilderFields || [] },
+    { key: "subtitles", fields: metadata.subtitleSettingsBuilderFields || [] },
+    { key: "audio", fields: metadata.audioSettingsBuilderFields || [] },
   ].map((group) => ({
     ...group,
+    title: overrideGroupTitles[group.key],
     fields: group.fields.map((field) => String(field?.[0] || "")).filter(Boolean),
   }));
 
@@ -23,12 +31,13 @@
       { type: "grid", fields: ["VideoPreset", "VideoQuality", "H264RemuxMaxBitrateMbps", "H264RemuxMaxHeight", "FallbackCpuQuality", "CpuEncodePreset", "CpuEncodeProcessPriority", "CpuEncodeMaxThreads"] },
       { type: "options", fields: ["AllowH264RemuxIfPlexCompatible"] },
       { type: "full", fields: ["RemuxSafeVideoCodecs", "ExtraVideoFlags"] },
-      { type: "note", text: "Use this for precise remux and fallback tuning. Backend preview/save remains authoritative before any future run uses these values." },
+      { type: "note", text: "Use this for direct-copy allowlists and fallback encode controls. Backend preview/save remains authoritative before any future run uses these values." },
     ],
     subtitles: [
-      { type: "grid", fields: ["SubKeepLanguages", "Tx3gExtractLanguages", "BdpgsExtractLanguages", "SubSDHTitleKeywords", "SubSupplementalKeywords", "MergeThresholdMs", "SubtitleExtractTimeoutSeconds", "SubtitleProbeTimeoutSeconds", "BdpgsOcrTimeoutSeconds", "ExcludeSubtitleStyles", "IncludeSubtitleStyles"] },
+      { type: "grid", fields: ["SubKeepLanguages", "Tx3gExtractLanguages", "BdpgsExtractLanguages", "VobSubExtractLanguages", "SubSDHTitleKeywords", "SubSupplementalKeywords", "MergeThresholdMs", "SubtitleExtractTimeoutSeconds", "SubtitleProbeTimeoutSeconds", "BdpgsOcrTimeoutSeconds", "VobSubOcrTimeoutSeconds", "ExcludeSubtitleStyles", "IncludeSubtitleStyles"] },
       { type: "panel", title: "TX3G", note: "MP4 timed text / mov_text policy", fields: ["ConvertTx3gToSrt", "DropTx3gAfterConversion", "CreateExternalTx3gSrtSidecars", "Tx3gPreserveExistingSrt", "Tx3gTreatForcedAsSeparate", "TreatTx3gSignsSongsAsForced"] },
       { type: "panel", title: "BDPGS", note: "Blu-ray image subtitle OCR policy", fields: ["ConvertBdpgsToSrt", "DropBdpgsAfterConversion", "TreatBdpgsSignsSongsAsForced"], gridFields: ["BdpgsOcrToolPath", "BdpgsOcrTessdataPath"] },
+      { type: "panel", title: "VobSub", note: "DVD bitmap subtitle OCR policy", fields: ["ConvertVobSubToSrt", "DropVobSubAfterConversion", "TreatVobSubSignsSongsAsForced"], gridFields: ["VobSubOcrToolPath"] },
       { type: "panel", title: "ASS / SSA", note: "Styled subtitle conversion policy", fields: ["DropAssAfterConversion", "RemoveKaraoke", "StripFormatting", "MergeAdjacent", "KeepSignsAndSongs", "TreatAssSignsSongsAsForced"] },
       { type: "note", text: "Original subtitle tracks remain governed by the selected drop toggles." },
     ],
@@ -38,10 +47,10 @@
     ],
   };
 
-  const groupByField = new Map();
-  overrideGroups.forEach((group) => {
+  const fallbackGroupByField = new Map();
+  fallbackOverrideGroups.forEach((group) => {
     group.fields.forEach((field) => {
-      if (!groupByField.has(field)) groupByField.set(field, group.key);
+      if (!fallbackGroupByField.has(field)) fallbackGroupByField.set(field, group.key);
     });
   });
 
@@ -49,6 +58,7 @@
   let profiles = [];
   let activeLibraryTabId = "movies";
   let libraryEditorDirty = false;
+  let lastLibraryProfileResetRequest = [];
   const openOverrideSectionsByLibrary = new Map();
 
   function byId(id) {
@@ -76,8 +86,73 @@
     return Array.isArray(lastSettings?.field_definitions) ? lastSettings.field_definitions : [];
   }
 
+  function libraryProfileStates() {
+    return Array.isArray(lastSettings?.library_profile_state) ? lastSettings.library_profile_state : [];
+  }
+
+  function profileState(profile) {
+    const profileId = String(profile?.id || "");
+    return libraryProfileStates().find((state) => String(state?.library_id || "") === profileId) || null;
+  }
+
   function fieldDefinition(key) {
     return fieldDefinitions().find((field) => String(field?.key || "") === key) || null;
+  }
+
+  function hasBackendFieldDefinitions() {
+    return fieldDefinitions().length > 0;
+  }
+
+  function fallbackOverrideGroup(groupKey) {
+    return fallbackOverrideGroups.find((group) => group.key === groupKey) || null;
+  }
+
+  function backendOverrideFieldsForGroup(groupKey) {
+    return fieldDefinitions()
+      .filter((field) => field?.library_override_allowed === true && String(field?.override_group || "") === groupKey)
+      .map((field) => String(field?.key || ""))
+      .filter(Boolean);
+  }
+
+  function overrideFieldsForGroup(groupKey) {
+    if (hasBackendFieldDefinitions()) return backendOverrideFieldsForGroup(groupKey);
+    return fallbackOverrideGroup(groupKey)?.fields || [];
+  }
+
+  function overrideGroupList() {
+    return overrideGroupOrder.map((groupKey) => ({
+      key: groupKey,
+      title: overrideGroupTitles[groupKey] || groupKey,
+      fields: overrideFieldsForGroup(groupKey),
+    }));
+  }
+
+  function groupForField(key, fallbackGroup) {
+    const field = fieldDefinition(key);
+    if (field?.library_override_allowed === true && field?.override_group) return String(field.override_group);
+    return fallbackGroupByField.get(key) || fallbackGroup;
+  }
+
+  function overrideStatus(groupKey, key) {
+    const field = fieldDefinition(key);
+    if (!hasBackendFieldDefinitions()) {
+      const editable = Boolean(fallbackOverrideGroup(groupKey)?.fields.includes(key));
+      return { field, render: editable, editable, reason: "" };
+    }
+    if (!field) {
+      return { field: null, render: false, editable: false, reason: "backend-unknown" };
+    }
+    if (field.library_override_allowed !== true) {
+      const scope = String(field.scope || "global_only");
+      if (scope === "source_derived" || scope === "computed_only") {
+        return { field, render: true, editable: false, reason: "Read-only source/effective value" };
+      }
+      return { field, render: true, editable: false, reason: "Global only — cannot be overridden per library" };
+    }
+    if (String(field.override_group || "") !== groupKey) {
+      return { field, render: true, editable: false, reason: `belongs to ${field.override_group || "another"} overrides` };
+    }
+    return { field, render: true, editable: true, reason: "" };
   }
 
   function text(value) {
@@ -119,10 +194,10 @@
       fieldDefaultKeys.source_path = "SourceTV";
       inheritedFields.push("source_path");
     }
-    const editorFields = overrideGroups.find((group) => group.key === "editor")?.fields || [];
-    const videoFields = overrideGroups.find((group) => group.key === "video")?.fields || [];
-    const subtitleFields = overrideGroups.find((group) => group.key === "subtitles")?.fields || [];
-    const audioFields = overrideGroups.find((group) => group.key === "audio")?.fields || [];
+    const editorFields = overrideFieldsForGroup("editor");
+    const videoFields = overrideFieldsForGroup("video");
+    const subtitleFields = overrideFieldsForGroup("subtitles");
+    const audioFields = overrideFieldsForGroup("audio");
     return {
       schema_version: "library_profile_default_tracking.v1",
       inherited_fields: inheritedFields,
@@ -142,20 +217,86 @@
     return designationValues.includes(fallback) ? fallback : "auto";
   }
 
-  function fieldDefaultValue(profile, field) {
+  function fieldDefaultKey(profile, field) {
     const tracking = profile.default_tracking || {};
     const key = tracking.field_default_keys && tracking.field_default_keys[field];
-    if (key) return text(config()[key]);
-    if (field === "output_path") return text(config().Outsource);
-    if (field === "source_path" && profile.id === "movies") return text(config().SourceMovies);
-    if (field === "source_path" && profile.id === "tv") return text(config().SourceTV);
+    if (key) return text(key);
+    if (field === "output_path") return "Outsource";
+    if (field === "source_path" && profile.id === "movies") return "SourceMovies";
+    if (field === "source_path" && profile.id === "tv") return "SourceTV";
     return "";
+  }
+
+  function fieldDefaultValue(profile, field) {
+    const key = fieldDefaultKey(profile, field);
+    if (key) return text(config()[key]);
+    return "";
+  }
+
+  function backendPathEvidence(profile, field) {
+    const evidence = profileState(profile)?.path_fields?.[field];
+    return evidence && typeof evidence === "object" && !Array.isArray(evidence) ? evidence : null;
+  }
+
+  function fallbackPathEvidence(profile, field) {
+    const inherited = inheritedSet(profile).has(field);
+    const value = inherited ? fieldDefaultValue(profile, field) : text(profile?.[field]);
+    return {
+      field,
+      state: inherited ? "inherited" : value ? "explicit" : "not_configured",
+      source_key: inherited ? fieldDefaultKey(profile, field) : "",
+      effective_value: value,
+      explicit_value: inherited ? null : value,
+    };
+  }
+
+  function pathEvidence(profile, field) {
+    return backendPathEvidence(profile, field) || fallbackPathEvidence(profile, field);
+  }
+
+  function pathIsInherited(evidence) {
+    const state = String(evidence?.state || "");
+    return state === "inherited" || state === "synthesized_builtin_default";
+  }
+
+  function pathCanReset(profile, field, evidence = pathEvidence(profile, field)) {
+    if (field === "promotion_destination") return false;
+    if (field === "source_path") return profile.id === "movies" || profile.id === "tv";
+    if (field === "output_path") return Boolean(evidence);
+    return false;
+  }
+
+  function pathState(profile, field) {
+    const evidence = pathEvidence(profile, field);
+    const state = String(evidence?.state || "");
+    if (state === "invalid_unresolved") return "Invalid pending edit";
+    if (state === "not_configured") return "Read-only source/effective value";
+    if (pathIsInherited(evidence)) return "Inherited from global";
+    return "Library-specific";
+  }
+
+  function pathSourceText(evidence) {
+    const state = String(evidence?.state || "");
+    const sourceKey = text(evidence?.source_key);
+    if ((state === "inherited" || state === "synthesized_builtin_default") && sourceKey) {
+      return `from ${sourceKey}`;
+    }
+    if (state === "invalid_unresolved") return "required path is unresolved";
+    return "";
+  }
+
+  function pathStateClass(stateText) {
+    if (stateText === "Library-specific") return "is-custom";
+    if (stateText === "Invalid pending edit") return "is-invalid";
+    if (stateText === "Read-only source/effective value") return "is-readonly";
+    return "is-inherited";
   }
 
   function defaultSettingValue(key) {
     const cfg = config();
     if (Object.prototype.hasOwnProperty.call(cfg, key)) return cfg[key];
     const field = fieldDefinition(key);
+    if (field && Object.prototype.hasOwnProperty.call(field, "default_value")) return field.default_value;
     if (field && Object.prototype.hasOwnProperty.call(field, "default")) return field.default;
     return "";
   }
@@ -185,7 +326,7 @@
 
   function mergeLegacyOverrides(target, values, fallbackGroup) {
     Object.entries(normalizeOverrideMap(values)).forEach(([key, value]) => {
-      const group = groupByField.get(key) || fallbackGroup;
+      const group = groupForField(key, fallbackGroup);
       target[group][key] = value;
     });
   }
@@ -193,7 +334,7 @@
   function normalizeOverrides(raw) {
     const overrides = emptyOverrides();
     const nested = normalizeOverrideMap(raw?.overrides);
-    overrideGroups.forEach((group) => mergeOverrideGroup(overrides, group.key, nested[group.key]));
+    overrideGroupList().forEach((group) => mergeOverrideGroup(overrides, group.key, nested[group.key]));
     mergeOverrideGroup(overrides, "subtitles", nested.subtitle);
     mergeLegacyOverrides(overrides, raw?.editor_overrides, "editor");
     mergeLegacyOverrides(overrides, raw?.media_overrides, "subtitles");
@@ -324,28 +465,41 @@
     return choiceLabels[key] || key.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
 
+  function fieldHelpText(field) {
+    return String(field?.help_text || field?.help || "").trim();
+  }
+
+  function metadataTags(value) {
+    if (Array.isArray(value)) return value.map((item) => String(item || "").trim()).filter(Boolean);
+    const textValue = String(value || "").trim();
+    return textValue ? [textValue] : [];
+  }
+
   function choiceValueLabel(value) {
     const key = String(value ?? "");
     return choiceLabels[key] || key.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
   }
 
   function inputTypeForField(field) {
+    if (["integer", "number"].includes(field?.value_type)) return "number";
     if (field?.kind === "optional_float") return "number";
     if (["int", "optional_int", "combo_int"].includes(field?.kind)) return "number";
     return "text";
   }
 
-  function buildOverrideControl(key, value) {
+  function buildOverrideControl(key, value, disabled = false) {
     const field = fieldDefinition(key);
     const kind = field?.kind || "";
+    const disabledAttr = disabled ? " disabled" : "";
     if (kind === "bool") {
-      return `<input type="checkbox" data-library-override-control data-library-override-key="${escapeHtml(key)}" ${boolValue(value) ? "checked" : ""}>`;
+      return `<input type="checkbox"${disabledAttr} data-library-override-control data-library-override-key="${escapeHtml(key)}" ${boolValue(value) ? "checked" : ""}>`;
     }
-    if (Array.isArray(field?.choices) && field.choices.length) {
-      const choices = field.choices.map((choice) => String(choice));
+    const allowedValues = Array.isArray(field?.allowed_values) && field.allowed_values.length ? field.allowed_values : field?.choices;
+    if (Array.isArray(allowedValues) && allowedValues.length) {
+      const choices = allowedValues.map((choice) => String(choice));
       const valueText = String(value ?? "");
       const hasCurrent = choices.includes(valueText);
-      const options = field.choices.map((choice) => {
+      const options = allowedValues.map((choice) => {
         const optionValue = String(choice);
         const title = field.choice_help && field.choice_help[optionValue] ? ` title="${escapeHtml(field.choice_help[optionValue])}"` : "";
         return `<option value="${escapeHtml(optionValue)}"${optionValue === valueText ? " selected" : ""}${title}>${escapeHtml(choiceValueLabel(optionValue))}</option>`;
@@ -353,12 +507,13 @@
       if (valueText && !hasCurrent) {
         options.unshift(`<option value="${escapeHtml(valueText)}" selected>${escapeHtml(valueText)}</option>`);
       }
-      return `<select data-library-override-control data-library-override-key="${escapeHtml(key)}">${options.join("")}</select>`;
+      return `<select${disabledAttr} data-library-override-control data-library-override-key="${escapeHtml(key)}">${options.join("")}</select>`;
     }
     const inputType = inputTypeForField(field);
-    const step = field?.kind === "optional_float" ? ' step="any"' : "";
+    const stepValue = field?.step || (field?.kind === "optional_float" ? "any" : "");
+    const step = stepValue ? ` step="${escapeHtml(stepValue)}"` : "";
     const textAttrs = inputType === "text" ? ' autocomplete="off" spellcheck="false"' : "";
-    return `<input type="${inputType}"${step}${textAttrs} data-library-override-control data-library-override-key="${escapeHtml(key)}" value="${escapeHtml(formatValue(value))}">`;
+    return `<input type="${inputType}"${step}${textAttrs}${disabledAttr} data-library-override-control data-library-override-key="${escapeHtml(key)}" value="${escapeHtml(formatValue(value))}">`;
   }
 
   function effectiveOverrideValue(profile, groupKey, fieldKey) {
@@ -369,33 +524,76 @@
     return defaultSettingValue(fieldKey);
   }
 
+  function settingOverrideEvidence(profile, groupKey, fieldKey) {
+    const evidence = profileState(profile)?.setting_overrides?.[groupKey]?.[fieldKey];
+    return evidence && typeof evidence === "object" && !Array.isArray(evidence) ? evidence : null;
+  }
+
+  function overrideValuesEqual(left, right) {
+    return JSON.stringify(stableComparable(left)) === JSON.stringify(stableComparable(right));
+  }
+
+  function overrideStateText(isOverride, value, inheritedValue) {
+    if (!isOverride) return "Inherited from global";
+    if (overrideValuesEqual(value, inheritedValue)) return "Library override — currently same as global";
+    return "Library override";
+  }
+
   function renderUseDefaultButton(groupKey, fieldKey, isOverride) {
-    return `<button type="button" class="tertiary-button settings-library-override-use-default" data-library-use-default-override data-library-override-group="${escapeHtml(groupKey)}" data-library-override-key="${escapeHtml(fieldKey)}"${isOverride ? "" : " hidden disabled"}>Use default</button>`;
+    return `<button type="button" class="tertiary-button settings-library-override-use-default" data-library-use-default-override data-library-override-group="${escapeHtml(groupKey)}" data-library-override-key="${escapeHtml(fieldKey)}" title="Reset to inherited removes the persisted library override key; it does not write the global value into this library."${isOverride ? "" : " hidden disabled"}>Reset to inherited</button>`;
   }
 
   function renderOverrideField(profile, groupKey, fieldKey, variant = "grid") {
-    const field = fieldDefinition(fieldKey);
+    const status = overrideStatus(groupKey, fieldKey);
+    if (!status.render) return "";
+    const field = status.field;
+    const editable = status.editable;
     const groupOverrides = profile.overrides?.[groupKey] || {};
-    const isOverride = Object.prototype.hasOwnProperty.call(groupOverrides, fieldKey);
-    const value = effectiveOverrideValue(profile, groupKey, fieldKey);
+    const evidence = settingOverrideEvidence(profile, groupKey, fieldKey);
+    const hasLocalOverride = Object.prototype.hasOwnProperty.call(groupOverrides, fieldKey);
+    const isOverride = editable && (hasLocalOverride || evidence?.state === "explicit");
+    const value = hasLocalOverride
+      ? groupOverrides[fieldKey]
+      : evidence && Object.prototype.hasOwnProperty.call(evidence, "effective_value")
+        ? evidence.effective_value
+        : effectiveOverrideValue(profile, groupKey, fieldKey);
+    const inheritedValue = evidence && Object.prototype.hasOwnProperty.call(evidence, "inherited_value")
+      ? evidence.inherited_value
+      : defaultSettingValue(fieldKey);
     const label = escapeHtml(choiceLabel(fieldKey));
-    const title = field?.help ? ` title="${escapeHtml(field.help)}"` : "";
+    const unavailableReason = editable ? "" : status.reason || "not available for library overrides";
+    const stateText = overrideStateText(isOverride, value, inheritedValue);
+    const state = `<span class="settings-library-state ${isOverride ? "is-custom" : "is-inherited"}" data-library-override-state-label>${escapeHtml(stateText)}</span>`;
+    const titleText = [fieldHelpText(field), unavailableReason ? `Unavailable: ${unavailableReason}` : ""].filter(Boolean).join(" ");
+    const title = titleText ? ` title="${escapeHtml(titleText)}"` : "";
+    const advancedVisibility = field?.advanced_visibility || "standard";
+    const persistedKey = String(field?.persisted_key || fieldKey);
+    const section = String(field?.section || "");
+    const scope = String(field?.scope || "");
+    const ruleTaxonomy = metadataTags(field?.rule_taxonomy).join(",");
+    const strictness = String(field?.strictness || "");
     const baseClass = [
       variant === "check" ? "check-row" : "",
       variant === "check-grid" ? "check-row launch-check-row" : "",
       variant === "full" ? "full-field" : "",
       "settings-library-override-row",
+      advancedVisibility === "advanced" ? "is-advanced-field" : "",
+      editable ? "" : "is-unavailable",
       isOverride ? "is-custom" : "is-inherited",
     ].filter(Boolean).join(" ");
-    const rowAttrs = `class="${baseClass}" data-library-override-row data-library-override-group="${escapeHtml(groupKey)}" data-library-override-key="${escapeHtml(fieldKey)}" data-library-override="${isOverride ? "true" : "false"}"${title}`;
-    const control = buildOverrideControl(fieldKey, value);
-    const button = renderUseDefaultButton(groupKey, fieldKey, isOverride);
+    const advancedAttr = advancedVisibility === "advanced" ? " data-advanced" : "";
+    const rowAttrs = `class="${baseClass}" data-library-override-row data-library-override-group="${escapeHtml(groupKey)}" data-library-override-key="${escapeHtml(fieldKey)}" data-library-persisted-key="${escapeHtml(persistedKey)}" data-library-override="${isOverride ? "true" : "false"}" data-library-override-eligible="${editable ? "true" : "false"}" data-library-section="${escapeHtml(section)}" data-library-scope="${escapeHtml(scope)}" data-library-rule-taxonomy="${escapeHtml(ruleTaxonomy)}" data-library-strictness="${escapeHtml(strictness)}" data-library-advanced-visibility="${escapeHtml(advancedVisibility)}" data-library-unavailable-reason="${escapeHtml(unavailableReason)}"${advancedAttr}${title}`;
+    const control = buildOverrideControl(fieldKey, value, !editable);
+    const button = editable ? renderUseDefaultButton(groupKey, fieldKey, isOverride) : "";
+    const unavailable = unavailableReason ? `<span class="note settings-library-override-unavailable">${escapeHtml(unavailableReason)}</span>` : "";
     if (field?.kind === "bool") {
       return `
         <label ${rowAttrs}>
           ${control}
           <span class="settings-library-override-label-text">${label}</span>
+          ${state}
           ${button}
+          ${unavailable}
         </label>
       `;
     }
@@ -403,16 +601,17 @@
       <label ${rowAttrs}>
         <span class="settings-library-override-field-heading">
           <span class="settings-library-override-label-text">${label}</span>
+          ${state}
           ${button}
         </span>
         ${control}
+        ${unavailable}
       </label>
     `;
   }
 
   function fieldsForGroup(groupKey, fields) {
-    const allowed = new Set((overrideGroups.find((group) => group.key === groupKey)?.fields || []));
-    return fields.filter((fieldKey) => allowed.has(fieldKey));
+    return fields.filter((fieldKey) => overrideStatus(groupKey, fieldKey).render);
   }
 
   function renderFieldGrid(profile, groupKey, fields) {
@@ -451,7 +650,7 @@
   }
 
   function renderOverrideLayout(profile, groupKey) {
-    const blocks = overrideLayouts[groupKey] || [{ type: "grid", fields: overrideGroups.find((group) => group.key === groupKey)?.fields || [] }];
+    const blocks = overrideLayouts[groupKey] || [{ type: "grid", fields: overrideFieldsForGroup(groupKey) }];
     return blocks.map((block) => {
       if (block.type === "grid") return renderFieldGrid(profile, groupKey, block.fields || []);
       if (block.type === "options") return renderOptionGrid(profile, groupKey, block.fields || []);
@@ -494,21 +693,13 @@
     });
   }
 
-  function pathState(profile, field) {
-    const inherited = inheritedSet(profile);
-    if (inherited.has(field)) {
-      return profile._trackingWasMissing ? "New inherited" : "Inherited";
-    }
-    return "Custom";
-  }
-
   function renderCard(profile) {
     const nonDeletable = profile.id === "movies" || profile.id === "tv";
     const inherited = inheritedSet(profile);
     const card = document.createElement("article");
     card.className = "settings-library-card";
     card.dataset.libraryId = profile.id;
-    card.dataset.inheritedFields = JSON.stringify(Array.from(inherited));
+    card.dataset.localInheritedFields = JSON.stringify(Array.from(inherited));
     card.innerHTML = `
       <div class="settings-library-card-heading">
         <div>
@@ -531,7 +722,7 @@
       </div>
       <div class="settings-library-path-grid"></div>
       <div class="settings-library-overrides">
-        ${overrideGroups.map((group) => renderOverrideSection(profile, group)).join("")}
+        ${overrideGroupList().map((group) => renderOverrideSection(profile, group)).join("")}
       </div>
     `;
     const pathGrid = card.querySelector(".settings-library-path-grid");
@@ -541,13 +732,19 @@
       ["promotion_destination", "Promotion destination", profile.promotion_destination],
     ].forEach(([field, label, value]) => {
       const row = document.createElement("label");
+      const evidence = pathEvidence(profile, field);
       const state = pathState(profile, field);
+      const sourceText = pathSourceText(evidence);
+      const canReset = pathCanReset(profile, field, evidence);
+      const isInherited = pathIsInherited(evidence);
       row.className = "settings-library-path-row";
+      row.dataset.libraryPathStateKind = String(evidence?.state || "");
+      row.dataset.libraryPathSourceKey = text(evidence?.source_key);
       row.innerHTML = `
-        <span>${escapeHtml(label)} <span class="settings-library-state ${state === "Custom" ? "is-custom" : "is-inherited"}" data-library-path-state="${field}">${escapeHtml(state)}</span></span>
+        <span>${escapeHtml(label)} <span class="settings-library-state ${pathStateClass(state)}" data-library-path-state="${field}">${escapeHtml(state)}</span><span class="note settings-library-path-source" data-library-path-source="${field}">${escapeHtml(sourceText)}</span></span>
         <div class="settings-library-path-control">
-          <input type="text" data-library-field="${field}" data-inherited="${inherited.has(field) ? "true" : "false"}" value="${escapeHtml(value || "")}">
-          <button type="button" class="tertiary-button" data-library-use-default="${field}">Use default</button>
+          <input type="text" data-library-field="${field}" data-inherited="${isInherited ? "true" : "false"}" value="${escapeHtml(value || "")}">
+          <button type="button" class="tertiary-button" data-library-use-default="${field}" data-library-can-reset="${canReset ? "true" : "false"}" title="${canReset ? "Reset to inherited removes explicit path state; it does not write the global path into this library." : "This field does not support inherited reset."}"${canReset && !isInherited ? "" : " hidden disabled"}>Use global default</button>
         </div>
       `;
       pathGrid.appendChild(row);
@@ -750,10 +947,30 @@
     control.value = field?.kind === "list" ? formatValue(value) : String(value ?? "");
   }
 
+  function localInheritedFields(card) {
+    try {
+      return new Set(JSON.parse(card.dataset.localInheritedFields || "[]").map(String));
+    } catch (_error) {
+      return new Set();
+    }
+  }
+
+  function setLocalInheritedFields(card, inherited) {
+    card.dataset.localInheritedFields = JSON.stringify(Array.from(inherited));
+  }
+
   function updateOverrideRowState(row, isOverride) {
     row.dataset.libraryOverride = isOverride ? "true" : "false";
     row.classList.toggle("is-custom", isOverride);
     row.classList.toggle("is-inherited", !isOverride);
+    const key = row.getAttribute("data-library-override-key") || "";
+    const control = row.querySelector("[data-library-override-control]");
+    const state = row.querySelector("[data-library-override-state-label]");
+    if (state && control) {
+      state.textContent = overrideStateText(isOverride, readOverrideControlValue(control, key), defaultSettingValue(key));
+      state.classList.toggle("is-custom", isOverride);
+      state.classList.toggle("is-inherited", !isOverride);
+    }
     const button = row.querySelector("[data-library-use-default-override]");
     if (button) {
       button.hidden = !isOverride;
@@ -762,16 +979,31 @@
   }
 
   function setPathRowState(card, field, inherited) {
+    const row = card.querySelector(`[data-library-field="${field}"]`)?.closest(".settings-library-path-row");
     const state = card.querySelector(`[data-library-path-state="${field}"]`);
     if (!state) return;
-    state.textContent = inherited ? "Inherited" : "Custom";
+    const stateText = inherited ? "Inherited from global" : "Library-specific";
+    state.textContent = stateText;
     state.classList.toggle("is-custom", !inherited);
     state.classList.toggle("is-inherited", inherited);
+    state.classList.toggle("is-invalid", false);
+    state.classList.toggle("is-readonly", false);
+    const source = card.querySelector(`[data-library-path-source="${field}"]`);
+    if (source) {
+      const sourceKey = text(row?.dataset.libraryPathSourceKey);
+      source.textContent = inherited && sourceKey ? `from ${sourceKey}` : "";
+    }
+    const button = card.querySelector(`[data-library-use-default="${field}"]`);
+    if (button) {
+      const canReset = button.getAttribute("data-library-can-reset") === "true";
+      button.hidden = !canReset || inherited;
+      button.disabled = !canReset || inherited;
+    }
   }
 
   function profileFromCard(card, index) {
     const currentId = card.dataset.libraryId || `library-${index}`;
-    const inherited = new Set(JSON.parse(card.dataset.inheritedFields || "[]"));
+    const inherited = localInheritedFields(card);
     const fieldValue = (field) => {
       const input = card.querySelector(`[data-library-field="${field}"]`);
       if (!input) return "";
@@ -841,6 +1073,45 @@
     return rules;
   }
 
+  function collectLibraryProfileResetsFromDom() {
+    return profileCardsFromDom().map((card) => {
+      const request = { library_id: card.dataset.libraryId || "" };
+      const pathFieldsToReset = Array.from(card.querySelectorAll('[data-library-path-reset-pending="true"]'))
+        .map((input) => input.getAttribute("data-library-field") || "")
+        .filter(Boolean);
+      if (pathFieldsToReset.length) request.path_fields = Array.from(new Set(pathFieldsToReset));
+      const overrides = {};
+      card.querySelectorAll('[data-library-override-row][data-library-reset-pending="true"]').forEach((row) => {
+        const group = row.getAttribute("data-library-override-group") || "";
+        const key = row.getAttribute("data-library-override-key") || "";
+        if (!group || !key) return;
+        if (!overrides[group]) overrides[group] = [];
+        overrides[group].push(key);
+      });
+      Object.keys(overrides).forEach((group) => {
+        overrides[group] = Array.from(new Set(overrides[group]));
+      });
+      if (Object.keys(overrides).length) request.overrides = overrides;
+      return request;
+    }).filter((request) => request.library_id && (Array.isArray(request.path_fields) || request.overrides));
+  }
+
+  function currentPatchIncludesLibraryProfiles() {
+    const raw = byId("settings-patch-json")?.value || "{}";
+    try {
+      const parsed = JSON.parse(raw);
+      return Boolean(parsed && typeof parsed === "object" && !Array.isArray(parsed) && Object.prototype.hasOwnProperty.call(parsed, "LibraryProfiles"));
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  function libraryProfileResetRequest() {
+    if (!currentPatchIncludesLibraryProfiles()) return [];
+    lastLibraryProfileResetRequest = collectLibraryProfileResetsFromDom();
+    return lastLibraryProfileResetRequest;
+  }
+
   function buildPatchFromLibraries() {
     try {
       const libraryProfiles = collectProfilesFromDom();
@@ -856,6 +1127,7 @@
         patch.FinalLibraryPromotionEnabled = true;
       }
       patch.FinalLibraryPromotionRules = generatedPromotionRules(libraryProfiles, config().FinalLibraryPromotionRules);
+      lastLibraryProfileResetRequest = collectLibraryProfileResetsFromDom();
       if (typeof window.writeSettingsPatchJson === "function") {
         window.writeSettingsPatchJson(patch, "LibraryProfiles patch built. Preview/Save will validate paths, overrides, and mirrored Movie/TV compatibility keys.");
       }
@@ -992,10 +1264,12 @@
     if (!card) return;
     const name = activeLibraryName(card);
     card.querySelectorAll("[data-library-override-row]").forEach((row) => {
+      const wasOverride = row.dataset.libraryOverride === "true";
       const key = row.getAttribute("data-library-override-key") || "";
       const control = row.querySelector("[data-library-override-control]");
       if (control) setOverrideControlValue(control, key, defaultSettingValue(key));
       updateOverrideRowState(row, false);
+      if (wasOverride) row.dataset.libraryResetPending = "true";
     });
     try {
       profiles = profileCardsFromDom().map((profileCard, index) => profileFromCard(profileCard, index + 1));
@@ -1028,13 +1302,16 @@
         if (defaultField) {
           const input = card.querySelector(`[data-library-field="${defaultField}"]`);
           const profile = normalizeProfile(profileFromCard(card, 1), 1);
+          const button = target.closest?.("[data-library-use-default]");
+          if (button && button.getAttribute("data-library-can-reset") !== "true") return;
           if (input) {
             input.value = fieldDefaultValue(profile, defaultField);
             input.dataset.inherited = "true";
+            input.dataset.libraryPathResetPending = "true";
           }
-          const inherited = new Set(JSON.parse(card.dataset.inheritedFields || "[]"));
+          const inherited = localInheritedFields(card);
           inherited.add(defaultField);
-          card.dataset.inheritedFields = JSON.stringify(Array.from(inherited));
+          setLocalInheritedFields(card, inherited);
           setPathRowState(card, defaultField, true);
           markLibraryEditorDirty();
           renderLibraryWarningSummary();
@@ -1047,6 +1324,7 @@
           if (row && control) {
             setOverrideControlValue(control, key, defaultSettingValue(key));
             updateOverrideRowState(row, false);
+            row.dataset.libraryResetPending = "true";
           }
           markLibraryEditorDirty();
           renderLibraryWarningSummary();
@@ -1067,15 +1345,19 @@
           renderActiveLibraryCommandState();
         }
         if (pathFields.includes(field)) {
-          const inherited = new Set(JSON.parse(card.dataset.inheritedFields || "[]"));
+          const inherited = localInheritedFields(card);
           inherited.delete(field);
-          card.dataset.inheritedFields = JSON.stringify(Array.from(inherited));
+          setLocalInheritedFields(card, inherited);
           target.dataset.inherited = "false";
+          delete target.dataset.libraryPathResetPending;
           setPathRowState(card, field, false);
         }
         if (target.matches?.("[data-library-override-control]")) {
           const row = target.closest("[data-library-override-row]");
-          if (row) updateOverrideRowState(row, true);
+          if (row) {
+            delete row.dataset.libraryResetPending;
+            updateOverrideRowState(row, true);
+          }
         }
         if (field || target.matches?.("[data-library-override-control]")) markLibraryEditorDirty();
         renderLibraryWarningSummary();
@@ -1084,7 +1366,10 @@
         const target = event.target;
         if (target instanceof Element && target.matches?.("[data-library-override-control]")) {
           const row = target.closest("[data-library-override-row]");
-          if (row) updateOverrideRowState(row, true);
+          if (row) {
+            delete row.dataset.libraryResetPending;
+            updateOverrideRowState(row, true);
+          }
         }
         if (target instanceof Element && (target.getAttribute?.("data-library-field") || target.matches?.("[data-library-override-control]"))) {
           markLibraryEditorDirty();
@@ -1119,6 +1404,7 @@
     buildPatchFromLibraries,
     deleteActiveLibrary,
     replaceActiveLibraryValuesWithDefaults,
+    libraryProfileResetRequest,
     previewLibraryProfiles,
     saveLibraryProfiles,
   };
