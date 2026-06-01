@@ -3,9 +3,9 @@ file: scripts/dev/ai_guardrail.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-05-30
+last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: 473a7a8363b1fd84c74f100680047240b32ff796f94ec3cc0fea0f06bd0af798
+sha256: 8fe82ca66830a1bc3509c7ba4093bd25db08f533a0d57d2f03150aab938372fc
 ---
 # `scripts/dev/ai_guardrail.py`
 

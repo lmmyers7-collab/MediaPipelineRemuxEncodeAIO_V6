@@ -93,6 +93,24 @@ function Get-MediaEncodeLadderProfile {
     }
 }
 
+function Get-MediaEncodeOutputMuxerName {
+    param([string] $OutputPath = '')
+
+    $extension = ''
+    if (-not [string]::IsNullOrWhiteSpace($OutputPath)) {
+        $extension = [System.IO.Path]::GetExtension($OutputPath).TrimStart('.').ToLowerInvariant()
+    }
+    $mp4Family = if (Get-Command -Name Get-MediaContainerMp4FamilyNames -ErrorAction SilentlyContinue) {
+        @(Get-MediaContainerMp4FamilyNames | ForEach-Object { ([string]$_).ToLowerInvariant() })
+    } else {
+        @('mp4','m4v','mov')
+    }
+    if (-not [string]::IsNullOrWhiteSpace($extension) -and $mp4Family -contains $extension) {
+        return 'mp4'
+    }
+    return (Get-MediaContainerMuxerMatroskaName)
+}
+
 function Get-MediaEncodeBoundedQuality {
     param(
         [int] $Quality,
@@ -252,6 +270,7 @@ function New-EncodeFfmpegArgumentList {
         [Parameter(Mandatory)] [string] $OutputPath
     )
 
+    $muxerName = Get-MediaEncodeOutputMuxerName -OutputPath $OutputPath
     return @('-i', $InputPath) + @($ExtraInputs) + @(
         # 0:V maps only non-attached-picture video streams. Lowercase 0:v
         # would include embedded cover art and can fail encoders.
@@ -262,7 +281,7 @@ function New-EncodeFfmpegArgumentList {
         '-metadata', "title=$GlobalTitle"
     ) + @($VideoFlags) + @($AudioArgs) + @($SubtitleMapArgs) + @(
         '-c:t', 'copy',
-            '-f', (Get-MediaContainerMuxerMatroskaName),
+            '-f', $muxerName,
         '-max_muxing_queue_size', '1024',
         '-y',
         $OutputPath

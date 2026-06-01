@@ -1,4 +1,4 @@
-"""Versioned preset/policy schema for Phase 05."""
+"""Versioned preset/policy schema."""
 
 from __future__ import annotations
 

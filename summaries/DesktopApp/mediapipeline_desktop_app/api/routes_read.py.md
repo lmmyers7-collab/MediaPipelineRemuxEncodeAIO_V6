@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/api/routes_read.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-05-29
+last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: 262686300a4d28d57dc615c8681aa99c87bd344ae559312e465d8f30e0d5c6a7
+sha256: b19d51e3fbc66d7128f8965a775def9c0efcb4b18dbc3b5635be777ac510bc25
 ---
 # `DesktopApp/mediapipeline_desktop_app/api/routes_read.py`
 

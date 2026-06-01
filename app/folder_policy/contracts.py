@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from app.shared.constants import FOLDER_POLICY_SCHEMA_VERSION
+from app.folder_policy.constants import FOLDER_POLICY_SCHEMA_VERSION
 
 
 def default_folder_policy(folder: Path) -> dict[str, Any]:

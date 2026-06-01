@@ -12,7 +12,7 @@ from .release_plan import (
     resolve_release_destination,
 )
 from .release_result import release_result_payload
-from app.shared.utils import _read_json_file
+from app.maintenance.file_io import read_json_file
 from mediapipeline_desktop_app.subprocess_runner import run_capture
 
 
@@ -83,7 +83,7 @@ class ReleasePackageServiceMixin:
         manifest: Any | None = None
         if manifest_path.exists():
             try:
-                manifest = _read_json_file(manifest_path)
+                manifest = read_json_file(manifest_path)
             except Exception as exc:
                 self.logger.warning("Release manifest read failed: %s", exc)
                 manifest = None
@@ -105,4 +105,3 @@ class ReleasePackageServiceMixin:
         if isinstance(value, bytes):
             return value.decode("utf-8", errors="replace")
         return str(value)
-

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from mediapipeline_desktop_app.models import ResolvedPaths, Snapshot
-from app.shared.protocols import StatusSnapshotServiceProtocol
+from app.status.contracts import StatusSnapshotServiceProtocol
 
 
 def build_snapshot_for_service(service: StatusSnapshotServiceProtocol, resolved: ResolvedPaths, audit_root: str) -> Snapshot:

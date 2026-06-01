@@ -499,25 +499,6 @@
     worker: "Worker",
   };
 
-  const settingsDisplayLabels = {
-    RoutingProfile: "Processing Strategy",
-    RouteThresholdMode: "Enforcement Mode",
-    SizeGuardMode: "Output Size Check",
-    EncodeTuningPreset: "Encoder Quality Preset",
-    EncodeLadder: "Encode Target Mode",
-    VideoCodec: "Video Encoder",
-    OutputContainer: "Output Container",
-    MaxEncodeGrowthPercent: "Quality-encode size tolerance",
-    CompatibilityEncodeGrowthPercent: "Compatibility-encode size tolerance",
-    EncodeThresholdGB: "Movie target output size",
-    TVEncodeThresholdGB: "TV target output size",
-    MovieRouteMaxVideoBitrateMbps: "Movie max bitrate for direct copy",
-    TVRouteMaxVideoBitrateMbps: "TV max bitrate for direct copy",
-    VideoPreset: "Encoder Speed Preset",
-    VideoQuality: "Quality Target",
-    ExtraVideoFlags: "Advanced Encoder Flags",
-  };
-
   const settingsFriendlyPersistedKeyAliases = {
     "ProcessingStrategy": "RoutingProfile",
     "Processing Strategy": "RoutingProfile",
@@ -549,6 +530,32 @@
     "Direct Copy Video Codec Allowlist": "RemuxSafeVideoCodecs",
   };
 
+  const settingsAdvancedFallbackKeys = [
+    "ExtraVideoFlags",
+    "FallbackCpuQuality",
+    "CpuEncodePreset",
+    "CpuEncodeProcessPriority",
+    "CpuEncodeMaxThreads",
+    "SubtitleExtractTimeoutSeconds",
+    "SubtitleProbeTimeoutSeconds",
+    "BdpgsOcrToolPath",
+    "BdpgsOcrTessdataPath",
+    "BdpgsOcrTimeoutSeconds",
+    "VobSubOcrToolPath",
+    "VobSubOcrTimeoutSeconds",
+    "ExcludeSubtitleStyles",
+    "IncludeSubtitleStyles",
+    "SubSDHTitleKeywords",
+    "SubSupplementalKeywords",
+    "MergeThresholdMs",
+    "DropAssAfterConversion",
+    "RemoveKaraoke",
+    "StripFormatting",
+    "MergeAdjacent",
+    "KeepSignsAndSongs",
+    "TreatAssSignsSongsAsForced",
+  ];
+
   /**
    * Public namespace for the settings metadata module.
    * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.
@@ -568,7 +575,7 @@
     settingsImpactGroups,
     settingsSpecificImpactHints,
     settingsChoiceLabels,
-    settingsDisplayLabels,
     settingsFriendlyPersistedKeyAliases,
+    settingsAdvancedFallbackKeys,
   };
 })();

@@ -26,7 +26,7 @@ from app.telemetry.nvidia import (
     select_active_gpu_row,
 )
 from app.telemetry.gpu_usage import GPU_ENCODER_USAGE_SCHEMA_VERSION, gpu_encoder_usage_payload
-from app.observability.system_metrics import apply_system_metrics_to_snapshot, prime_cpu_sampler
+from app.telemetry.system_metrics import apply_system_metrics_to_snapshot, prime_cpu_sampler
 from mediapipeline_desktop_app.services import DesktopAppService
 from mediapipeline_desktop_app.subprocess_runner import CapturedCommandResult
 

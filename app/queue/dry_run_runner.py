@@ -7,11 +7,11 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from app.queue.contracts import QueueDryRunServiceProtocol
 from app.queue.dry_run import build_queue_dry_run_command, queue_dry_run_temp_snapshot_path
+from app.queue.file_io import atomic_write_text
 from app.queue.snapshot import queue_dry_run_tail
 from mediapipeline_desktop_app.models import ResolvedPaths
-from app.shared.protocols import QueueDryRunServiceProtocol
-from app.shared.utils import _atomic_write_text
 from mediapipeline_desktop_app.subprocess_runner import run_capture
 
 
@@ -111,7 +111,7 @@ def run_queue_dry_run_for_service(
         )
 
     snapshot["desktop_queue_preview_request_id"] = request_id
-    _atomic_write_text(snap_path, json.dumps(snapshot, indent=2, sort_keys=True) + "\n")
+    atomic_write_text(snap_path, json.dumps(snapshot, indent=2, sort_keys=True) + "\n")
     if resolved.state_root is not None:
         try:
             from app.storage.db import open_state_db

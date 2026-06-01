@@ -116,6 +116,17 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Changed
 
+- Settings and Library Profiles documentation now reflects the completed
+  settings/library rewrite: backend field metadata is canonical for labels,
+  help text, options, defaults, advanced/display taxonomy, and override
+  eligibility; the WebView remains staging/display only; persisted V6 keys and
+  override groups stay stable; HandBrake-style sections are display metadata
+  only; `library_effective_settings` remains library-only;
+  `runtime_effective_settings`, where present, is diagnostic-only; promotion
+  rules are generated from normalized `LibraryProfiles` before legacy
+  `FinalLibraryPromotionRules` fallback; and legacy compatibility shapes such
+  as `SourceMovies`, `SourceTV`, `Outsource`, `editor_overrides`, and
+  `media_overrides` remain supported.
 - Library Profiles override controls no longer render per-field
   taxonomy/strictness chips. Backend metadata remains available for parity
   and row data attributes, while inherited/default versus explicit override

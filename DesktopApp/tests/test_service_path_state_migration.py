@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from app.shared.constants import APP_STATE_NAME
+from app.storage.constants import APP_STATE_NAME
 from app.storage.state_migration import (
     app_state_path_for_state_root,
     migrate_app_state_path,

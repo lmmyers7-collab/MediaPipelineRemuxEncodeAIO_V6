@@ -369,6 +369,10 @@
   color: var(--blue-200);
 }
 
+.settings-library-state.is-readonly {
+  color: var(--amber-100);
+}
+
 .settings-library-override-section {
   border-top: 1px solid var(--grey-700);
   padding-top: var(--space-3);
@@ -435,6 +439,75 @@
   color: var(--blue-200);
 }
 
+.settings-library-override-row.is-unavailable {
+  opacity: 0.82;
+}
+
+.settings-library-metadata-badges {
+  display: none;
+}
+
+.rename-sep-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.rename-sep-label {
+  font-size: var(--text-sm);
+  color: var(--grey-400);
+  white-space: nowrap;
+}
+
+.rename-filter-preview {
+  margin-top: var(--space-5);
+}
+
+.rename-preview-output {
+  margin-top: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--grey-800);
+  border: 1px solid var(--grey-700);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--grey-300);
+  min-height: 2.25rem;
+  word-break: break-all;
+  white-space: pre-wrap;
+  transition: border-color 150ms ease, color 150ms ease;
+}
+
+.rename-preview-output:empty {
+  display: none;
+}
+
+.rename-preview-output[data-state="changed"] {
+  border-color: var(--green-500);
+  color: var(--green-100);
+}
+
+.rename-preview-output[data-state="unchanged"] {
+  border-color: var(--grey-700);
+  color: var(--grey-400);
+}
+
+[data-page-panel="network"] .settings-field-metadata-badges {
+  display: none;
+}
+
+.settings-library-metadata-badge {
+  min-height: 1.25rem;
+  padding: 0 var(--space-1);
+  font-size: var(--text-2xs);
+}
+
+.settings-library-override-unavailable {
+  color: var(--grey-400);
+}
+
 .settings-library-override-use-default {
   flex: 0 0 auto;
   margin-left: auto;
@@ -493,6 +566,14 @@ body.light-mode .settings-library-state.is-inherited {
 
 body.light-mode .settings-library-state.is-custom {
   color: var(--blue-700);
+}
+
+body.light-mode .settings-library-state.is-readonly {
+  color: var(--amber-700);
+}
+
+body.light-mode .settings-library-override-unavailable {
+  color: var(--grey-500);
 }
 
 .reports-tab-bar {

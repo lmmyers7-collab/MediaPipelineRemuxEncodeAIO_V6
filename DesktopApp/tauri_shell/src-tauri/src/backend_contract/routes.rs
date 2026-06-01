@@ -14,6 +14,7 @@ pub(crate) const REQUIRED_ROUTES: &[(&str, &str, bool)] = &[
     ("GET", "/api/queue/priority", true),
     ("GET", "/api/queue/strategy", true),
     ("GET", "/api/queue/file-overrides", true),
+    ("GET", "/api/queue/file-overrides/effective", true),
     ("GET", "/api/completed", true),
     ("GET", "/api/final-library-promotion/status", true),
     ("GET", "/api/failures", true),

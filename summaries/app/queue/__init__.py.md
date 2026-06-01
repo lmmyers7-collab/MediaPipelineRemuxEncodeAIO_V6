@@ -3,9 +3,9 @@ file: app/queue/__init__.py
 pipeline_stage: orchestration
 token_priority: low
 owner_domain: unknown
-last_modified: 2026-05-28
+last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: 227559c94eee0b60915d8ee07c26fdb38bf25f993c204e358a27b0457fa29a35
+sha256: ac34b1aeebfcd4975432a587097ee969ef70981f4ccf86309e0b91e0f2b95502
 ---
 # `app/queue/__init__.py`
 

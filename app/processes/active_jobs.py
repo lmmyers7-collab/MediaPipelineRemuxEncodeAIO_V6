@@ -9,8 +9,8 @@ from typing import Any, Protocol
 
 from mediapipeline_desktop_app.contracts import ActiveJobRecord, ContractError
 from mediapipeline_desktop_app.models import ResolvedPaths
-from app.shared.constants import ACTIVE_JOB_SCHEMA_VERSION
-from app.shared.utils import _atomic_write_text, _read_json_file
+from app.processes.constants import ACTIVE_JOB_SCHEMA_VERSION
+from app.processes.file_io import atomic_write_text, read_json_file
 
 
 class InfoWarningLogger(Protocol):
@@ -49,7 +49,7 @@ def write_active_job_payload(record_path: Path, payload: dict[str, Any]) -> None
         normalized = ActiveJobRecord.from_mapping(payload).to_mapping()
     except ContractError as exc:
         raise RuntimeError(f"ActiveJobs record contract invalid for {record_path}: {exc}") from exc
-    _atomic_write_text(record_path, json.dumps(normalized, indent=2, sort_keys=True) + "\n")
+    atomic_write_text(record_path, json.dumps(normalized, indent=2, sort_keys=True) + "\n")
 
 
 def write_active_job_launch_record(
@@ -209,7 +209,7 @@ def active_job_close_block_messages(
     messages: list[str] = []
     for record_path in records[:max_items]:
         try:
-            payload = _read_json_file(record_path, retries=1)
+            payload = read_json_file(record_path, retries=1)
             record = ActiveJobRecord.from_mapping(payload)
         except Exception as exc:
             messages.append(f"ActiveJobs record {record_path.name} could not be verified: {exc}")
@@ -263,7 +263,7 @@ def reconcile_active_job_records(
     now = datetime.now().astimezone().isoformat(timespec="seconds")
     for record_path in records[:max_items]:
         try:
-            payload = _read_json_file(record_path, retries=1)
+            payload = read_json_file(record_path, retries=1)
             record = ActiveJobRecord.from_mapping(payload)
         except Exception as exc:
             message = f"ActiveJobs record {record_path.name} could not be reconciled: {exc}"
@@ -313,7 +313,7 @@ def update_active_job_record(
     if record_path is None or not record_path.exists():
         return
     try:
-        payload = _read_json_file(record_path, retries=1)
+        payload = read_json_file(record_path, retries=1)
         if not isinstance(payload, dict):
             if logger is not None:
                 logger.warning("ActiveJobs record %s had unexpected JSON shape; repairing with default fields.", record_path.name)

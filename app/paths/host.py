@@ -5,7 +5,7 @@ import subprocess
 from collections.abc import Callable
 from typing import Any
 
-from app.shared.protocols import PowerShellHostServiceProtocol
+from app.paths.contracts import PowerShellHostServiceProtocol
 
 
 def resolve_powershell_host_for_service(

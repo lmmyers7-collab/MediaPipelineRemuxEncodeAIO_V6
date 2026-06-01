@@ -7,6 +7,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -215,6 +216,79 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
         self.assertEqual(preview["rows"][0]["last_write_utc"], "2026-05-07T21:00:00Z")
         self.assertEqual(preview["rows"][0]["queue_index"], 1)
         self.assertTrue(preview["rows"][0]["row_key"])
+
+    def test_queue_preview_loads_file_override_manifest_once_for_row_annotations(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            source_one = root / "TV" / "Show" / "Season 01" / "Show - S01E01.mkv"
+            source_two = root / "TV" / "Show" / "Season 01" / "Show - S01E02.mkv"
+            source_one.parent.mkdir(parents=True, exist_ok=True)
+            source_one.write_bytes(b"one")
+            source_two.write_bytes(b"two")
+            snapshot_path = root / "State" / "Progress" / "queue_snapshot.json"
+            snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+            rows = []
+            for index, source in enumerate([source_one, source_two], start=1):
+                rows.append(
+                    {
+                        "global_order": index,
+                        "phase": "tv",
+                        "media_kind": "tv",
+                        "queue_index": index,
+                        "queue_total": 2,
+                        "is_priority": False,
+                        "source_path": str(source),
+                        "root_path": str(root / "TV"),
+                        "relative_path": source.name,
+                        "display_name": source.name,
+                        "size_gb": 1.0,
+                        "route": "remux",
+                        "route_reason": "already compatible",
+                        "blocked_reason": "",
+                        "season_number": 1,
+                        "episode_number": index,
+                        "last_write_utc": "2026-05-07T21:00:00Z",
+                    }
+                )
+            snapshot_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "queue_plan_snapshot.v1",
+                        "produced_at": "2026-05-07T21:00:00-04:00",
+                        "config_path": str(root / "config.psd1"),
+                        "local_base": str(root),
+                        "source_movies": str(root / "Movies"),
+                        "source_tv": str(root / "TV"),
+                        "outsource": str(root / "Outsource"),
+                        "movie_count_total": 0,
+                        "tv_count_total": 2,
+                        "priority_count": 0,
+                        "runnable_count": 2,
+                        "excluded_count": 0,
+                        "excluded_row_limit": 500,
+                        "excluded_rows_truncated": False,
+                        "excluded_rows": [],
+                        "rows": rows,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            resolved = _resolved(root)
+            resolved.queue_snapshot_path = snapshot_path
+            resolved.file_overrides_path = root / "State" / "file_overrides.json"
+            manifest = {
+                "version": 1,
+                "entries": {str(source_one).replace("\\", "/").lower(): {"audio": {"maxChannels": 6}}},
+            }
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+
+            with patch("app.queue.facade.read_file_overrides", return_value=manifest) as read_manifest:
+                preview = facade.get_queue_preview(resolved).to_mapping()
+
+        read_manifest.assert_called_once_with(resolved.file_overrides_path)
+        self.assertTrue(preview["rows"][0]["has_file_override"])
+        self.assertEqual(preview["rows"][0]["file_override_scope"], "file")
+        self.assertFalse(preview["rows"][1]["has_file_override"])
 
     def test_queue_preview_reports_visible_blocked_rows_separately_from_exclusions(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

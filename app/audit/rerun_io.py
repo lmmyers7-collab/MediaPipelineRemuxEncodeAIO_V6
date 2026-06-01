@@ -6,7 +6,7 @@ from pathlib import Path
 
 from mediapipeline_desktop_app.models import AuditRecord, FailureRecord, ResolvedPaths
 from app.failures.markers import failure_record_from_marker_payload
-from app.shared.utils import _atomic_write_text, _read_json_file
+from app.audit.rerun_file_io import atomic_write_text, read_json_file
 
 
 def load_audit_records(csv_path: Path) -> list[AuditRecord]:
@@ -40,14 +40,14 @@ def save_audit_records_csv(output_path: Path, records: list[AuditRecord]) -> int
     writer.writeheader()
     for record in records:
         writer.writerow({key: record.row.get(key, "") for key in fieldnames})
-    _atomic_write_text(output_path, buffer.getvalue(), encoding="utf-8")
+    atomic_write_text(output_path, buffer.getvalue(), encoding="utf-8")
     return len(records)
 
 
 def load_failure_records(json_path: Path) -> list[FailureRecord]:
     if not json_path.exists():
         raise FileNotFoundError(f"Failure JSON not found: {json_path}")
-    raw = _read_json_file(json_path) or []
+    raw = read_json_file(json_path) or []
     if not isinstance(raw, list):
         raise RuntimeError(f"Failure JSON has an unexpected shape: {json_path}")
     records: list[FailureRecord] = []
@@ -65,7 +65,7 @@ def load_failure_marker_records(resolved: ResolvedPaths) -> list[FailureRecord]:
     records: list[FailureRecord] = []
     for marker_file in sorted(markers_dir.glob("*.json")):
         try:
-            raw = _read_json_file(marker_file)
+            raw = read_json_file(marker_file)
             record = failure_record_from_marker_payload(marker_file, raw)
             if record is not None:
                 records.append(record)

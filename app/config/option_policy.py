@@ -29,7 +29,7 @@ from mediapipeline_desktop_app.config_keys import (
     KEY_VIDEO_CODEC,
     KEY_VIDEO_PRESET,
 )
-from app.shared.constants import (
+from app.config.constants import (
     AUDIO_PASSTHROUGH_PROFILE_CODECS,
     AUDIO_PASSTHROUGH_PROFILE_DEFAULT,
     AUDIO_PASSTHROUGH_PROFILE_NAMES,

@@ -136,7 +136,7 @@ class LocalApiServer(LocalApiReadPayloadMixin, LocalApiCommandHandlerMixin):
         return self.resolved_provider()
 
     def _validate_api_payload(self, route: str, body: dict[str, Any]) -> dict[str, Any]:
-        from app.validation import validate_api_payload
+        from app.validation.boundary import validate_api_payload
 
         return validate_api_payload(route, body)
 

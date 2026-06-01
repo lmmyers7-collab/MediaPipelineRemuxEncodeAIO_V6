@@ -1,0 +1,10 @@
+from __future__ import annotations
+
+from mediapipeline_desktop_app.contracts.active_job import ACTIVE_JOB_SCHEMA_VERSION
+from mediapipeline_desktop_app.contracts.control_flag import CONTROL_FLAG_SCHEMA_VERSION
+
+CONTROL_FLAG_STALE_AFTER_SECONDS = 3600.0
+PROCESS_LAUNCH_ERROR_TAIL_LINES = 24
+PROCESS_LAUNCH_READY_CHECK_SECONDS = 0.35
+PIPELINE_PROGRESS_LAUNCH_CLEANUP_STALE_SECONDS = 120.0
+AUDIT_PROGRESS_LAUNCH_CLEANUP_STALE_SECONDS = 120.0

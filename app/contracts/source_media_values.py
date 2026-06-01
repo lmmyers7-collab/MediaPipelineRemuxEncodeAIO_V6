@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from fractions import Fraction
 from typing import Any
 
-from app.contracts.source_media import MediaType, ScanType
+from app.contracts.source_media_models import MediaType, ScanType
 
 
 def model_or_mapping(value: Any) -> dict[str, Any]:

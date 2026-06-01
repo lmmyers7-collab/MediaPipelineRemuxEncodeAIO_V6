@@ -4,8 +4,8 @@ from pathlib import Path
 
 from mediapipeline_desktop_app.config_keys import KEY_LOCAL_BASE, KEY_PRIORITY_MARKERS, KEY_SOURCE_MOVIES, KEY_SOURCE_TV
 from mediapipeline_desktop_app.models import ResolvedPaths
+from app.paths.contracts import PathResolutionServiceProtocol
 from app.storage.state_migration import app_state_path_for_state_root
-from app.shared.protocols import PathResolutionServiceProtocol
 
 
 def resolve_paths_for_service(service: PathResolutionServiceProtocol, pipeline_path: str, config_path: str) -> ResolvedPaths:

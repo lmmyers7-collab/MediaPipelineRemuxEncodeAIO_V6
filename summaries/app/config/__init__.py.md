@@ -3,9 +3,9 @@ file: app/config/__init__.py
 pipeline_stage: config
 token_priority: low
 owner_domain: config
-last_modified: 2026-05-29
+last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: 011a55624f644f6e85676d673d98a581e9fe0acd7dbc818003b0182be67afbc1
+sha256: 200b37be7d69bad838fe50a3098f6190c776414c5c3bafdf232da013f6b94951
 ---
 # `app/config/__init__.py`
 

@@ -1,17 +1,19 @@
       <section class="page" data-page-panel="settings">
         <h1 class="visually-hidden">Pipeline Settings</h1>
         <div class="settings-tab-bar" role="tablist" aria-label="HandBrake-style settings sections">
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="status" aria-selected="true">Summary</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="source-compat" aria-selected="false">Source / Compatibility</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="status" aria-selected="true">Summary / Effective Decision</button>
           <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="editor" aria-selected="false">Routing</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="source-compat" aria-selected="false">Source / Compatibility</button>
           <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="dimensions" aria-selected="false">Dimensions</button>
           <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="filters" aria-selected="false">Filters</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="media" aria-selected="false">Video / Audio / Subtitles</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="container-size" aria-selected="false">Container / Output Size Check</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="video" aria-selected="false">Video</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="audio" aria-selected="false">Audio</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="subtitles" aria-selected="false">Subtitles</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="container" aria-selected="false">Container</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="size-bitrate" aria-selected="false">Size / Bitrate Guards</button>
           <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="paths" aria-selected="false">Verification / Publish</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="wizard" aria-selected="false">Wizard</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="rename-filters" aria-selected="false">Rename Filters</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="system" aria-selected="false">System</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="presets" aria-selected="false">Presets</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="rename" aria-selected="false">Rename</button>
           <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="advanced" aria-selected="false">Advanced</button>
         </div>
 
@@ -28,8 +30,8 @@
           </div>
         </div>
 
-        <!-- TAB: WIZARD -->
-        <div class="settings-tab-pane" data-settings-tab="wizard">
+        <!-- TAB: PRESETS -->
+        <div class="settings-tab-pane" data-settings-tab="presets">
         <section class="panel settings-wizard-panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Settings Wizard</h2>
@@ -302,6 +304,17 @@
               <strong>Legacy path still executes</strong>
             </div>
           </div>
+          <section class="settings-readonly-facts" aria-label="Effective intent summary">
+            <h3>Effective Intent Summary</h3>
+            <dl>
+              <div><dt>Processing strategy</dt><dd id="settings-summary-processing-strategy" data-settings-summary-key="RoutingProfile">Not loaded</dd></div>
+              <div><dt>Copy/remux-first intent</dt><dd id="settings-summary-copy-remux-intent" data-settings-summary-key="RoutingProfile">Saved strategy not loaded.</dd></div>
+              <div><dt>Output container</dt><dd id="settings-summary-output-container" data-settings-summary-key="OutputContainer">Not loaded</dd></div>
+              <div><dt>Encode if required</dt><dd id="settings-summary-encode-if-required" data-settings-summary-key="VideoCodec">Not loaded</dd></div>
+              <div><dt>Size / bitrate guards</dt><dd id="settings-summary-size-bitrate-guards" data-settings-summary-key="SizeGuardMode">Not loaded</dd></div>
+              <div><dt>Evidence scope</dt><dd id="settings-summary-evidence-scope">Saved global settings shown here. library_effective_settings is library-only when shown in queue rows; final runtime decision is resolved during queue/job processing.</dd></div>
+            </dl>
+          </section>
           <div class="settings-handbrake-preview-grid">
             <section class="settings-readonly-facts" aria-label="Source facts summary">
               <h3>Source Facts</h3>
@@ -456,7 +469,7 @@
             <strong id="settings-builder-status">No patch built</strong>
           </div>
           <div class="settings-rule-badge-row" aria-label="Routing rule classifications">
-            <span class="rule-badge" data-rule-kind="route">ROUTE</span>
+            <span class="rule-badge" data-rule-kind="routing">ROUTING</span>
             <span class="rule-badge" data-rule-kind="hard">HARD</span>
             <span class="rule-badge" data-rule-kind="soft">SOFT</span>
             <span class="rule-badge" data-rule-kind="advisory">ADVISORY</span>
@@ -809,16 +822,30 @@
         </section>
         </div>
 
-        <!-- TAB: CONTAINER / OUTPUT SIZE CHECK -->
-        <div class="settings-tab-pane" data-settings-tab="container-size">
-        <section class="panel" data-panel-type="evidence" data-handbrake-section="container-size-guards">
+        <!-- TAB: CONTAINER -->
+        <div class="settings-tab-pane" data-settings-tab="container">
+        <section class="panel" data-panel-type="evidence" data-handbrake-section="container">
           <div class="panel-heading">
-            <h2>Container / Output Size Check</h2>
+            <h2>Container</h2>
             <strong>Linked to Routing</strong>
           </div>
-          <p class="note">Editable container, source-size route gates, bitrate caps, and growth tolerances live in Routing so the route consequence is visible before Changes JSON is staged.</p>
+          <p class="note">Editable container policy currently lives in Routing so route consequences are visible before Changes JSON is staged. This section is display-only orientation from saved settings.</p>
           <div class="settings-section-map">
             <div><strong>Container</strong><span id="settings-container-size-container">Output container is loaded from saved settings.</span></div>
+          </div>
+          <p class="note">Use the Routing tab to change OutputContainer. Backend Preview Patch remains the source of truth before save.</p>
+        </section>
+        </div>
+
+        <!-- TAB: SIZE / BITRATE GUARDS -->
+        <div class="settings-tab-pane" data-settings-tab="size-bitrate">
+        <section class="panel" data-panel-type="evidence" data-handbrake-section="size-bitrate-guards">
+          <div class="panel-heading">
+            <h2>Size / Bitrate Guards</h2>
+            <strong>Linked to Routing</strong>
+          </div>
+          <p class="note">Editable source-size route gates, direct-copy bitrate caps, and growth tolerances live in Routing so route consequences are visible before Changes JSON is staged.</p>
+          <div class="settings-section-map">
             <div><strong>Output Size Check</strong><span id="settings-container-size-guard">Output Size Check mode and growth tolerances are loaded from saved settings.</span></div>
             <div><strong>Bitrate gates</strong><span id="settings-container-size-bitrate">Movie and TV copy bitrate caps are loaded from saved settings.</span></div>
           </div>
@@ -882,8 +909,8 @@
         </section>
         </div>
 
-        <!-- TAB: VIDEO / AUDIO / SUBTITLES -->
-        <div class="settings-tab-pane" data-settings-tab="media">
+        <!-- TAB: VIDEO -->
+        <div class="settings-tab-pane" data-settings-tab="video">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Video <span class="impact-chip" data-impact="medium" title="Encoder / GPU — speed preset, quality, codec, and container selection">Medium Impact</span></h2>
@@ -989,6 +1016,10 @@
           <pre id="settings-video-guidance" class="prose-block">No video detail guidance loaded.</pre>
           <p class="note">Use this for direct-copy allowlists and fallback encode controls. Backend preview/save remains authoritative before any future run uses these values.</p>
         </section>
+        </div>
+
+        <!-- TAB: VERIFICATION / PUBLISH CONTINUED -->
+        <div class="settings-tab-pane" data-settings-tab="paths">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>File Safety Settings <span class="impact-chip" data-impact="high" title="Paths / file safety — verify source, output, and scratch roots before running unattended jobs">High Impact</span></h2>
@@ -1117,6 +1148,10 @@
           <pre id="settings-pending-guidance" class="prose-block">No pending-publish guidance loaded.</pre>
           <p class="note">This stages existing deferred-publish, copy, retry, cleanup, and safety keys only. Publishing and cleanup remain backend-owned workflows.</p>
         </section>
+        </div>
+
+        <!-- TAB: SUBTITLES -->
+        <div class="settings-tab-pane" data-settings-tab="subtitles">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Subtitles <span class="impact-chip" data-impact="medium" title="Subtitles — language tracks, TX3G, BDPGS, merge windows, and extract timeouts">Medium Impact</span></h2>
@@ -1253,6 +1288,10 @@
           <pre id="settings-subtitle-guidance" class="prose-block">No subtitle guidance loaded.</pre>
           <p class="note">Subtitle patch keys are staged into the same Changes JSON field. Original subtitle tracks remain governed by the selected drop toggles.</p>
         </section>
+        </div>
+
+        <!-- TAB: AUDIO -->
+        <div class="settings-tab-pane" data-settings-tab="audio">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Audio <span class="impact-chip" data-impact="medium" title="Audio — channel layout, codec selection, normalization, and passthrough policy">Medium Impact</span></h2>
@@ -1354,7 +1393,7 @@
         </div>
 
         <!-- TAB: RENAME FILTERS -->
-        <div class="settings-tab-pane" data-settings-tab="rename-filters">
+        <div class="settings-tab-pane" data-settings-tab="rename">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Rename Movie Cleaning Filters</h2>
@@ -1373,34 +1412,52 @@
             <label class="check-row"><input type="checkbox" data-rename-movie-filter="services_containers" checked> Services / containers</label>
             <label class="check-row"><input type="checkbox" data-rename-movie-filter="release_groups" checked> Release groups</label>
           </div>
+          <div class="option-grid">
+            <label class="check-row"><input type="checkbox" id="settings-rename-strip-trailing-year"> Strip trailing year</label>
+            <label class="check-row"><input type="checkbox" id="settings-rename-aggressive-match"> Aggressive matching</label>
+          </div>
+          <div class="rename-sep-row">
+            <span class="rename-sep-label">Normalize separators</span>
+            <label class="check-row"><input type="checkbox" id="settings-rename-sep-dots" checked> Dots</label>
+            <label class="check-row"><input type="checkbox" id="settings-rename-sep-underscores" checked> Underscores</label>
+            <label class="check-row"><input type="checkbox" id="settings-rename-sep-dashes"> Dashes</label>
+            <label class="check-row"><input type="checkbox" id="settings-rename-sep-none"> None</label>
+          </div>
           <label class="check-row launch-check-row">
             <input id="settings-rename-use-editable-cleaning-filters" type="checkbox"> Use editable movie filter terms
           </label>
           <div class="form-grid">
             <label>
               Video / source
-              <textarea id="settings-rename-filter-video-source" data-rename-movie-filter-terms="video_source" data-default-terms="2160p, 1080p, 720p, 480p, uhd, hdr, hdr10, hdr10+, dv, dovi, dolby vision, hevc, h264, h.264, h265, h.265, x264, x265, av1, avc, blu ray, bluray, brrip, bdrip, webrip, web dl, webdl, web, hdtv, dvdrip, dvd, remux, 10 bit, 8 bit" rows="3" spellcheck="false">2160p, 1080p, 720p, 480p, uhd, hdr, hdr10, hdr10+, dv, dovi, dolby vision, hevc, h264, h.264, h265, h.265, x264, x265, av1, avc, blu ray, bluray, brrip, bdrip, webrip, web dl, webdl, web, hdtv, dvdrip, dvd, remux, 10 bit, 8 bit</textarea>
+              <textarea id="settings-rename-filter-video-source" data-rename-movie-filter-terms="video_source" data-default-terms="2160p, 1080p, 1080i, 720p, 720i, 480p, 4k, uhd, hdr, hdr10, hdr10+, hlg, dv, dovi, dolby vision, hevc, h264, h.264, h265, h.265, x264, x265, av1, avc, xvid, divx, blu ray, bluray, brrip, bdrip, webrip, web dl, webdl, web, hdtv, hdrip, dvdrip, dvd, dvdscr, ts, cam, scr, remux, hybrid, 10 bit, 8 bit" rows="3" spellcheck="false">2160p, 1080p, 1080i, 720p, 720i, 480p, 4k, uhd, hdr, hdr10, hdr10+, hlg, dv, dovi, dolby vision, hevc, h264, h.264, h265, h.265, x264, x265, av1, avc, xvid, divx, blu ray, bluray, brrip, bdrip, webrip, web dl, webdl, web, hdtv, hdrip, dvdrip, dvd, dvdscr, ts, cam, scr, remux, hybrid, 10 bit, 8 bit</textarea>
             </label>
             <label>
               Audio / channels
-              <textarea id="settings-rename-filter-audio-channels" data-rename-movie-filter-terms="audio_channels" data-default-terms="truehd, atmos, flac, opus, eac3, ac3, aac, dd, ddp, dts, dts hd, dtshd, 1.0, 2.0, 5.1, 7.1, 6ch, 6 ch, 8ch, 8 ch" rows="3" spellcheck="false">truehd, atmos, flac, opus, eac3, ac3, aac, dd, ddp, dts, dts hd, dtshd, 1.0, 2.0, 5.1, 7.1, 6ch, 6 ch, 8ch, 8 ch</textarea>
+              <textarea id="settings-rename-filter-audio-channels" data-rename-movie-filter-terms="audio_channels" data-default-terms="truehd, atmos, flac, opus, eac3, ac3, aac, dd, dd+, ddp, dts, dts hd, dts-x, dtsx, dtshd, lpcm, pcm, mp3, mp2, 1.0, 2.0, 5.1, 7.1, stereo, mono, 6ch, 6 ch, 8ch, 8 ch" rows="3" spellcheck="false">truehd, atmos, flac, opus, eac3, ac3, aac, dd, dd+, ddp, dts, dts hd, dts-x, dtsx, dtshd, lpcm, pcm, mp3, mp2, 1.0, 2.0, 5.1, 7.1, stereo, mono, 6ch, 6 ch, 8ch, 8 ch</textarea>
             </label>
             <label>
               Editions / cuts
-              <textarea id="settings-rename-filter-editions" data-rename-movie-filter-terms="editions" data-default-terms="imax, proper, repack, rerip, extended, remastered, remaster, unrated, theatrical, criterion, director cut, directors cut, director's cut, final cut, open matte" rows="3" spellcheck="false">imax, proper, repack, rerip, extended, remastered, remaster, unrated, theatrical, criterion, director cut, directors cut, director's cut, final cut, open matte</textarea>
+              <textarea id="settings-rename-filter-editions" data-rename-movie-filter-terms="editions" data-default-terms="imax, proper, repack, rerip, extended, remastered, remaster, restored, restoration, unrated, theatrical, criterion, director cut, directors cut, director's cut, dc, final cut, open matte, redux, special edition, se, anniversary, collectors edition, supercut" rows="3" spellcheck="false">imax, proper, repack, rerip, extended, remastered, remaster, restored, restoration, unrated, theatrical, criterion, director cut, directors cut, director's cut, dc, final cut, open matte, redux, special edition, se, anniversary, collectors edition, supercut</textarea>
             </label>
             <label>
               File size
-              <textarea id="settings-rename-filter-file-size" data-rename-movie-filter-terms="file_size" data-default-terms="700mb, 1400mb, 1gb, 2gb, 4.7gb" rows="3" spellcheck="false">700mb, 1400mb, 1gb, 2gb, 4.7gb</textarea>
+              <textarea id="settings-rename-filter-file-size" data-rename-movie-filter-terms="file_size" data-default-terms="500mb, 700mb, 1400mb, 1gb, 1.5gb, 2gb, 3gb, 4.7gb, 5gb, 6gb, 8gb, 10gb, 15gb, 20gb, 25gb, 30gb" rows="3" spellcheck="false">500mb, 700mb, 1400mb, 1gb, 1.5gb, 2gb, 3gb, 4.7gb, 5gb, 6gb, 8gb, 10gb, 15gb, 20gb, 25gb, 30gb</textarea>
             </label>
             <label>
               Services / containers
-              <textarea id="settings-rename-filter-services-containers" data-rename-movie-filter-terms="services_containers" data-default-terms="amzn, nf, dsnp, hmax, hulu, itunes, appletv, mkv, mp4, m4v" rows="3" spellcheck="false">amzn, nf, dsnp, hmax, hulu, itunes, appletv, mkv, mp4, m4v</textarea>
+              <textarea id="settings-rename-filter-services-containers" data-rename-movie-filter-terms="services_containers" data-default-terms="amzn, nf, dsnp, hmax, hulu, itunes, appletv, atvp, peacock, pck, vudu, stan, sho, mkv, mp4, m4v, avi, mov, wmv" rows="3" spellcheck="false">amzn, nf, dsnp, hmax, hulu, itunes, appletv, atvp, peacock, pck, vudu, stan, sho, mkv, mp4, m4v, avi, mov, wmv</textarea>
             </label>
             <label>
               Release groups
-              <textarea id="settings-rename-filter-release-groups" data-rename-movie-filter-terms="release_groups" data-default-terms="rarbg, rbg, yify, yts, yts lt, galaxyrg, bone, psa, tigole, kris" rows="3" spellcheck="false">rarbg, rbg, yify, yts, yts lt, galaxyrg, bone, psa, tigole, kris</textarea>
+              <textarea id="settings-rename-filter-release-groups" data-rename-movie-filter-terms="release_groups" data-default-terms="rarbg, rbg, yify, yts, yts lt, galaxyrg, bone, psa, tigole, kris, sparks, ntb, evo, tepes, flux, framestor, cmrg" rows="3" spellcheck="false">rarbg, rbg, yify, yts, yts lt, galaxyrg, bone, psa, tigole, kris, sparks, ntb, evo, tepes, flux, framestor, cmrg</textarea>
             </label>
+          </div>
+          <div class="rename-filter-preview">
+            <label class="full-field">
+              Test a filename
+              <input type="text" id="settings-rename-preview-input" autocomplete="off" spellcheck="false" placeholder="Movie.Title.2001.1080p.BluRay.x265-GROUP.mkv">
+            </label>
+            <div id="settings-rename-preview-output" class="rename-preview-output" aria-live="polite"></div>
           </div>
           <div class="action-row action-row-left wrap-actions">
             <button type="button" id="settings-rename-cleaning-filters-save-button" class="secondary-button">Save Rename Filters</button>
@@ -1411,8 +1468,8 @@
         </section>
         </div>
 
-        <!-- TAB: SYSTEM -->
-        <div class="settings-tab-pane" data-settings-tab="system">
+        <!-- TAB: ADVANCED / SYSTEM -->
+        <div class="settings-tab-pane" data-settings-tab="advanced">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Worker Mode Settings</h2>

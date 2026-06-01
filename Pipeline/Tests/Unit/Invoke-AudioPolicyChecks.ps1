@@ -111,6 +111,8 @@ function Test-AudioTrackKeptByOverride {
         [string] $Language,
         [int] $Channels,
         [string] $Title,
+        [string] $Codec = '',
+        $StreamIndex = $null,
         [object] $AudioOverride
     )
 

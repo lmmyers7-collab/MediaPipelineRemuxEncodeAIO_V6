@@ -18,6 +18,8 @@ GET_ROUTE_HANDLERS: dict[str, RouteHandlerSpec] = {
     "/api/queue/priority": RouteHandlerSpec("_queue_priority_read_payload"),
     "/api/queue/strategy": RouteHandlerSpec("_queue_strategy_read_payload"),
     "/api/queue/file-overrides": RouteHandlerSpec("_file_overrides_read_payload", needs_query=True),
+    "/api/queue/file-overrides/effective": RouteHandlerSpec("_file_overrides_effective_read_payload", needs_query=True),
+    "/api/queue/file-overrides/tracks": RouteHandlerSpec("_file_overrides_tracks_read_payload", needs_query=True),
     "/api/completed": RouteHandlerSpec("_completed_payload", needs_query=True),
     "/api/final-library-promotion/status": RouteHandlerSpec("_final_library_promotion_status_payload"),
     "/api/failures": RouteHandlerSpec("_failures_payload", needs_query=True),

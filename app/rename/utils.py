@@ -4,7 +4,7 @@ import re
 from collections.abc import Callable
 from pathlib import Path
 
-from app.shared.constants import MEDIA_FILE_SUFFIXES
+from app.files.constants import MEDIA_FILE_SUFFIXES
 
 
 def natural_sort_key(path: Path) -> tuple[object, ...]:

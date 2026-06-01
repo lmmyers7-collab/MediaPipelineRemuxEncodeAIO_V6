@@ -4,6 +4,7 @@ import json
 import unittest
 from pathlib import Path
 
+import app.config.preset_migration as preset_migration
 from app.config.preset_migration import (
     BLOCKED_FUTURE_PERSISTED_KEYS,
     FRIENDLY_LABEL_PERSISTED_KEY_ALIASES,
@@ -25,7 +26,8 @@ from app.config.preset_policy import (
     preset_v2_validation_issues,
 )
 from app.contracts.source_media import SourceMediaInfo, source_media_from_ffprobe
-from app.decide import build_processing_decision, decision_policy_from_mapping
+from app.decide.processing_decision import decision_policy_from_mapping
+from app.decide.routing import build_processing_decision
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -84,6 +86,10 @@ class PresetPolicyContractTests(unittest.TestCase):
         self.assertEqual(LEGACY_COMPATIBILITY_KEY_STATUSES["editor_overrides"], "legacy_alias_accepted")
         self.assertEqual(LEGACY_COMPATIBILITY_KEY_STATUSES["media_overrides"], "legacy_alias_accepted")
         self.assertEqual(LEGACY_COMPATIBILITY_KEY_STATUSES["SourceMovies"], "accepted_forever")
+
+    def test_removed_temporary_helpers_are_not_public_migration_surface(self) -> None:
+        self.assertNotIn("blocked_friendly_label_aliases", preset_migration.__all__)
+        self.assertNotIn("migration_status_for_persisted_key", preset_migration.__all__)
 
     def test_legacy_config_migrates_to_preset_v2_and_matching_effective_policy(self) -> None:
         legacy = {
@@ -342,10 +348,24 @@ class PresetPolicyContractTests(unittest.TestCase):
         self.assertEqual(patch["SizeGuardMode"], "strict")
         self.assertEqual(patch["EncodeTuningPreset"], "quality_nvenc")
         self.assertEqual(patch["EncodeLadder"], "plex_compat")
+        self.assertEqual(patch["MaxEncodeGrowthPercent"], 7)
+        self.assertEqual(patch["CompatibilityEncodeGrowthPercent"], 12)
+        self.assertEqual(patch["EncodeThresholdGB"], 9)
+        self.assertEqual(patch["TVEncodeThresholdGB"], 4)
+        self.assertEqual(patch["MovieRouteMaxVideoBitrateMbps"], 40)
+        self.assertEqual(patch["TVRouteMaxVideoBitrateMbps"], 20)
         self.assertEqual(patch["VideoPreset"], "p6")
         self.assertEqual(patch["OutputContainer"], "mp4")
         self.assertEqual(patch["RemuxSafeVideoCodecs"], ["hevc", "h264"])
-        for alias in ("ProcessingStrategy", "OutputSizeCheck", "EncoderQualityPreset", "EncoderSpeedPreset"):
+        for alias in (
+            "ProcessingStrategy",
+            "EnforcementMode",
+            "OutputSizeCheck",
+            "EncoderQualityPreset",
+            "EncodeTargetMode",
+            "EncoderSpeedPreset",
+            "DirectCopyVideoCodecAllowlist",
+        ):
             self.assertNotIn(alias, patch)
 
     def test_preset_v2_legacy_patch_validation_uses_current_config_contract(self) -> None:

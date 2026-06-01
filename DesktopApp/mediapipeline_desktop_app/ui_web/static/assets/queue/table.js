@@ -222,7 +222,7 @@
     cell.appendChild(badge);
   }
 
-  function createQueueFileSettingsButton(item, openFileSettingsDrawer) {
+  function createQueueFileSettingsButton(item) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "fo-open-btn queue-row-action-button";
@@ -236,13 +236,13 @@
     if (sourcePath) button.dataset.sourcePath = sourcePath;
     button.addEventListener("click", (event) => {
       event.stopPropagation();
-      openFileSettingsDrawer(item);
+      openFileSettingsDrawer(item, { trigger: button });
     });
     return button;
   }
 
-  function appendQueueFileSettingsButton(cell, item, openFileSettingsDrawer) {
-    if (cell) cell.appendChild(createQueueFileSettingsButton(item, openFileSettingsDrawer));
+  function appendQueueFileSettingsButton(cell, item) {
+    if (cell) cell.appendChild(createQueueFileSettingsButton(item));
   }
 
   function appendQueueRowCells(row, item, visibleIndex, context) {
@@ -271,7 +271,7 @@
     if (cells[5]) cells[5].title = queueEvidenceText(item, routeParts, context.queueTableRowStatus);
     appendQueuePriorityBadge(cells[6], level);
     if (cells[7]) cells[7].appendChild(makeOverrideChip(item));
-    appendQueueFileSettingsButton(cells[8], item, context.openFileSettingsDrawer);
+    appendQueueFileSettingsButton(cells[8], item);
   }
 
   function renderQueueTableRow(item, visibleIndex, context) {
@@ -299,7 +299,6 @@
   function createQueueTableModule({
     appendCells: appendCellsDependency,
     makeRowSelectable,
-    openFileSettingsDrawer,
     queueRowKey,
     queueTableRowStatus,
     selectQueueRow,
@@ -307,7 +306,6 @@
   } = {}) {
     appendCells = typeof appendCellsDependency === "function" ? appendCellsDependency : function () {};
     makeRowSelectable = typeof makeRowSelectable === "function" ? makeRowSelectable : function () {};
-    openFileSettingsDrawer = typeof openFileSettingsDrawer === "function" ? openFileSettingsDrawer : function () {};
     queueRowKey = typeof queueRowKey === "function" ? queueRowKey : function () { return ""; };
     queueTableRowStatus = typeof queueTableRowStatus === "function" ? queueTableRowStatus : function () { return "queued"; };
     selectQueueRow = typeof selectQueueRow === "function" ? selectQueueRow : function () {};
@@ -328,11 +326,13 @@
       queueRowWithOverrideMarker,
       makeOverrideChip,
       makeRouteChip,
+      setOpenFileSettingsDrawer: (handler) => {
+        openFileSettingsDrawer = typeof handler === "function" ? handler : function () {};
+      },
       renderQueueTableRows: (context = {}) => renderQueueTableRows({
         ...context,
         appendCells,
         makeRowSelectable,
-        openFileSettingsDrawer,
         queueRowKey,
         queueTableRowStatus,
         selectQueueRow,
@@ -342,6 +342,7 @@
   }
 
   let appendCells = function () {};
+  let openFileSettingsDrawer = function () {};
 
   window.__queueTableModule = { createQueueTableModule };
 })();

@@ -16,7 +16,7 @@ from app.folder_policy.io import (
     save_folder_policy_file,
 )
 from app.folder_policy.probe import parse_ffprobe_stream_signature
-from app.shared.constants import MEDIA_FILE_SUFFIXES
+from app.files.constants import MEDIA_FILE_SUFFIXES
 from mediapipeline_desktop_app.subprocess_runner import run_capture
 
 

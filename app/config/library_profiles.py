@@ -9,7 +9,10 @@ from typing import Any
 
 from app.config.numeric_policy import validate_required_and_numeric_config
 from app.config.option_policy import validate_option_config
-from app.config.metadata_parts.field_definitions import CONFIG_FIELD_DEFINITIONS
+from app.config.metadata_parts.field_definitions import (
+    CONFIG_FIELD_DEFINITIONS,
+    METADATA_LIBRARY_OVERRIDE_KEYS_BY_GROUP,
+)
 from mediapipeline_desktop_app.config_keys import (
     KEY_FINAL_LIBRARY_PROMOTION_RULES,
     KEY_LIBRARY_PROFILES,
@@ -30,94 +33,16 @@ LIBRARY_PROFILE_PATH_FIELDS: tuple[str, ...] = (
     "promotion_destination",
 )
 
-DEFAULT_EDITOR_KEYS: tuple[str, ...] = (
-    "RoutingProfile",
-    "RouteThresholdMode",
-    "SizeGuardMode",
-    "EncodeTuningPreset",
-    "EncodeLadder",
-    "VideoCodec",
-    "OutputContainer",
-    "EncodeThresholdGB",
-    "TVEncodeThresholdGB",
-    "MovieRouteMaxVideoBitrateMbps",
-    "TVRouteMaxVideoBitrateMbps",
-    "MaxEncodeGrowthPercent",
-    "CompatibilityEncodeGrowthPercent",
-)
-
-DEFAULT_VIDEO_KEYS: tuple[str, ...] = (
-    "VideoPreset",
-    "VideoQuality",
-    "AllowH264RemuxIfPlexCompatible",
-    "H264RemuxMaxBitrateMbps",
-    "H264RemuxMaxHeight",
-    "RemuxSafeVideoCodecs",
-    "FallbackCpuQuality",
-    "CpuEncodePreset",
-    "CpuEncodeProcessPriority",
-    "CpuEncodeMaxThreads",
-    "ExtraVideoFlags",
-)
-
-DEFAULT_SUBTITLE_KEYS: tuple[str, ...] = (
-    "SubKeepLanguages",
-    "ConvertTx3gToSrt",
-    "DropTx3gAfterConversion",
-    "CreateExternalTx3gSrtSidecars",
-    "Tx3gExtractLanguages",
-    "Tx3gPreserveExistingSrt",
-    "Tx3gTreatForcedAsSeparate",
-    "ConvertBdpgsToSrt",
-    "DropBdpgsAfterConversion",
-    "BdpgsExtractLanguages",
-    "BdpgsOcrToolPath",
-    "BdpgsOcrTessdataPath",
-    "ConvertVobSubToSrt",
-    "DropVobSubAfterConversion",
-    "VobSubExtractLanguages",
-    "VobSubOcrToolPath",
-    "SubtitleExtractTimeoutSeconds",
-    "SubtitleProbeTimeoutSeconds",
-    "BdpgsOcrTimeoutSeconds",
-    "VobSubOcrTimeoutSeconds",
-    "SubSDHTitleKeywords",
-    "SubSupplementalKeywords",
-    "DropAssAfterConversion",
-    "StripFormatting",
-    "RemoveKaraoke",
-    "MergeAdjacent",
-    "MergeThresholdMs",
-    "KeepSignsAndSongs",
-    "TreatAssSignsSongsAsForced",
-    "TreatTx3gSignsSongsAsForced",
-    "TreatBdpgsSignsSongsAsForced",
-    "TreatVobSubSignsSongsAsForced",
-    "ExcludeSubtitleStyles",
-    "IncludeSubtitleStyles",
-)
-
-DEFAULT_AUDIO_KEYS: tuple[str, ...] = (
-    "AudioPassthroughProfile",
-    "CompatibleAudioCodecs",
-    "PreferredDefaultAudioLanguages",
-    "AudioTranscodeCodec",
-    "AudioTranscodeBitrate",
-    "AudioTranscodeAutoBitrateByChannels",
-    "AudioDownmixMode",
-    "AudioMaxChannels",
-    "AllowNoAudio",
-)
-
-DEFAULT_MEDIA_KEYS: tuple[str, ...] = DEFAULT_VIDEO_KEYS + DEFAULT_SUBTITLE_KEYS + DEFAULT_AUDIO_KEYS
-
 LIBRARY_OVERRIDE_GROUPS: tuple[str, ...] = ("editor", "video", "subtitles", "audio")
 LIBRARY_OVERRIDE_KEYS_BY_GROUP: dict[str, tuple[str, ...]] = {
-    "editor": DEFAULT_EDITOR_KEYS,
-    "video": DEFAULT_VIDEO_KEYS,
-    "subtitles": DEFAULT_SUBTITLE_KEYS,
-    "audio": DEFAULT_AUDIO_KEYS,
+    group: tuple(METADATA_LIBRARY_OVERRIDE_KEYS_BY_GROUP[group])
+    for group in LIBRARY_OVERRIDE_GROUPS
 }
+DEFAULT_EDITOR_KEYS: tuple[str, ...] = LIBRARY_OVERRIDE_KEYS_BY_GROUP["editor"]
+DEFAULT_VIDEO_KEYS: tuple[str, ...] = LIBRARY_OVERRIDE_KEYS_BY_GROUP["video"]
+DEFAULT_SUBTITLE_KEYS: tuple[str, ...] = LIBRARY_OVERRIDE_KEYS_BY_GROUP["subtitles"]
+DEFAULT_AUDIO_KEYS: tuple[str, ...] = LIBRARY_OVERRIDE_KEYS_BY_GROUP["audio"]
+DEFAULT_MEDIA_KEYS: tuple[str, ...] = DEFAULT_VIDEO_KEYS + DEFAULT_SUBTITLE_KEYS + DEFAULT_AUDIO_KEYS
 LIBRARY_OVERRIDE_GROUP_BY_KEY: dict[str, str] = {
     key: group
     for group, keys in LIBRARY_OVERRIDE_KEYS_BY_GROUP.items()
@@ -904,6 +829,35 @@ def effective_library_profiles_from_config(config: Mapping[str, Any]) -> list[di
     return effective
 
 
+def _profile_source_path_key(value: Any) -> str:
+    return str(value or "").replace("\\", "/").rstrip("/").casefold()
+
+
+def effective_library_profile_for_source_path(
+    config: Mapping[str, Any],
+    source_path: str | os.PathLike[str],
+) -> dict[str, Any] | None:
+    """Return the enabled effective Library profile with the deepest matching source root."""
+    candidate = _profile_source_path_key(source_path)
+    if not candidate:
+        return None
+    matches: list[dict[str, Any]] = []
+    for profile in effective_library_profiles_from_config(config):
+        if not profile.get("enabled", True):
+            continue
+        root = _profile_source_path_key(profile.get("effective_source_root") or profile.get("source_path"))
+        if root and (candidate == root or candidate.startswith(root + "/")):
+            matches.append(profile)
+    if not matches:
+        return None
+    return max(
+        matches,
+        key=lambda profile: len(
+            _profile_source_path_key(profile.get("effective_source_root") or profile.get("source_path"))
+        ),
+    )
+
+
 def _wizard_designation(row: Mapping[str, Any], profile_id: str) -> str:
     raw = _text(row.get("designation") or row.get("media_kind") or row.get("category")).casefold()
     if raw in {"movies", "movie"}:
@@ -1384,6 +1338,7 @@ __all__ = [
     "default_media_values",
     "default_subtitle_values",
     "default_video_values",
+    "effective_library_profile_for_source_path",
     "effective_library_profiles_from_config",
     "empty_library_overrides",
     "flatten_library_settings",

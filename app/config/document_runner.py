@@ -5,8 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from app.config.load import load_psd1_mapping
-
-from app.shared.protocols import ConfigDocumentServiceProtocol, RunCaptureFunc
+from app.config.contracts import ConfigDocumentServiceProtocol, RunCaptureFunc
 
 def load_config_data_for_service(
     service: ConfigDocumentServiceProtocol,

@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from app.shared.constants import RENAME_MOVIE_FILTER_OPTION_KEYS
+from app.rename.constants import RENAME_MOVIE_FILTER_OPTION_KEYS
 from app.rename.utils import normalize_plex_filename_component, remove_default_priority_markers
 
 

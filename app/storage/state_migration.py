@@ -3,8 +3,8 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from app.shared.constants import APP_STATE_NAME
-from app.shared.protocols import AppStateMigrationServiceProtocol, WarningLogger
+from app.storage.constants import APP_STATE_NAME
+from app.storage.contracts import AppStateMigrationServiceProtocol, WarningLogger
 
 
 def app_state_path_for_state_root(state_root: Path) -> Path:

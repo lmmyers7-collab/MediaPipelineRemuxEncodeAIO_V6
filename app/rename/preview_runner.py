@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from app.shared.protocols import RenamePreviewLoadServiceProtocol, RenamePreviewScriptServiceProtocol, RunCaptureFunc
+from app.rename.contracts import RenamePreviewLoadServiceProtocol, RenamePreviewScriptServiceProtocol, RunCaptureFunc
 from app.rename.preview import find_naming_preview_script, load_pipeline_name_previews
 from mediapipeline_desktop_app.subprocess_runner import CapturedCommandResult
 

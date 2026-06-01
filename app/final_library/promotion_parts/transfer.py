@@ -7,7 +7,7 @@ import shutil
 from typing import Any
 import uuid
 
-from app.shared.constants import MEDIA_FILE_SUFFIXES
+from app.files.constants import MEDIA_FILE_SUFFIXES
 
 from .planning import normalized_path_key, path_within_root
 from .results import utc_now_text

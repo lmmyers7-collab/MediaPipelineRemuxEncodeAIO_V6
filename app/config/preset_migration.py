@@ -1,10 +1,11 @@
-"""Legacy config and PresetV2 adapters for Phase 05."""
+"""Stable V6 config and PresetV2 display adapters."""
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any, Literal
 
+from app.contracts.decision_policy import EffectiveDecisionPolicy
 from app.contracts.verification import OutputSizeCheckAction, output_size_check_action_from_settings
 from app.config.preset_policy import (
     PRESET_POLICY_SCHEMA_VERSION,
@@ -25,7 +26,6 @@ from app.config.preset_policy import (
 )
 from app.config.encoding_capabilities import active_video_filter_names
 from app.contracts.config import Config, default_config
-from app.decide.processing_decision import EffectiveDecisionPolicy
 
 MigrationStatus = Literal[
     "stable_persisted_key",
@@ -179,20 +179,12 @@ def _legacy_number(value: float | int | None) -> float | int | None:
     return value
 
 
-def migration_status_for_persisted_key(key: str) -> MigrationStatus:
-    return PERSISTED_KEY_MIGRATION_STATUS.get(str(key), "migration_deferred")
-
-
-def blocked_friendly_label_aliases() -> dict[str, str]:
-    return dict(FRIENDLY_LABEL_PERSISTED_KEY_ALIASES)
-
-
 def legacy_config_patch_from_preset_v2(
     value: PresetV2 | Mapping[str, Any],
     *,
     validate: bool = True,
 ) -> dict[str, Any]:
-    """Return a legacy PSD1-key patch for a PresetV2 adapter/display model."""
+    """Return a stable V6 PSD1-key patch for a PresetV2 adapter/display model."""
 
     preset = value if isinstance(value, PresetV2) else PresetV2.model_validate(value)
     patch: dict[str, Any] = {
@@ -356,7 +348,7 @@ def preset_v2_from_legacy_config(
 
 
 def effective_decision_policy_from_preset_v2(value: PresetV2 | Mapping[str, Any]) -> EffectiveDecisionPolicy:
-    """Project a PresetV2 document into the Phase 04 decision-engine input."""
+    """Project a PresetV2 document into the current decision-engine input."""
 
     preset = value if isinstance(value, PresetV2) else PresetV2.model_validate(value)
     return EffectiveDecisionPolicy(
@@ -421,10 +413,8 @@ __all__ = [
     "LEGACY_COMPATIBILITY_KEY_STATUSES",
     "MIGRATION_STATUS_VALUES",
     "PERSISTED_KEY_MIGRATION_STATUS",
-    "blocked_friendly_label_aliases",
     "effective_decision_policy_from_legacy_or_preset",
     "effective_decision_policy_from_preset_v2",
     "legacy_config_patch_from_preset_v2",
-    "migration_status_for_persisted_key",
     "preset_v2_from_legacy_config",
 ]

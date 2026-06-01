@@ -3,9 +3,9 @@ file: app/folder_policy/__init__.py
 pipeline_stage: n/a
 token_priority: low
 owner_domain: unknown
-last_modified: 2026-05-28
+last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: d96ea9a97c61d531ca79ed5925818285627044c10ded82189f5f9227d24aeaeb
+sha256: 63310d1cfa91fbcb373be9f17979b2b374aaee96fb7d517df2aa4d3dba8b3c7b
 ---
 # `app/folder_policy/__init__.py`
 

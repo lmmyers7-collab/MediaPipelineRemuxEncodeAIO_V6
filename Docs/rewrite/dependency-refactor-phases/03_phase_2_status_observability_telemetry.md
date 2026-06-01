@@ -109,19 +109,20 @@ substitution.
 | Date | Agent | Action | Evidence | Next |
 |---|---|---|---|---|
 | 2026-05-31 | Codex | Split Phase 2 into its own operating file | Original plan inspected; no status or telemetry imports changed | Start Phase 2 after baseline and prior handoff |
+| 2026-05-31 | Codex | Completed Phase 2 status/observability/telemetry direction cleanup | Checker reports 0 forbidden `app.observability` to `app.status`, 0 forbidden `app.telemetry` to `app.observability`, 0 forbidden `app.telemetry` to `app.status`, and 0 package-level cycles; focused status/telemetry tests passed | Start Phase 3 when requested |
 
 ## Completion Handoff
 
 ```text
 Phase: 2 - Status, observability, and telemetry direction
-Status:
-Files changed:
-Behavior changes:
-Checks run:
-Dependency checker result:
-Generated artifacts updated:
-Summaries refreshed:
-Known risks:
-Explicit deferrals:
+Status: Complete
+Files changed: app/observability/status_facade.py removed; app/status/facade.py; app/observability/system_metrics.py removed; app/telemetry/system_metrics.py; app/observability/__init__.py; app/telemetry/service.py; DesktopApp/mediapipeline_desktop_app/application/facade.py; DesktopApp/tests/test_telemetry_service.py; Docs/architecture/DEPENDENCY_BOUNDARY_RULES.md; Docs/generated/PROJECT_INDEX.md; Docs/generated/DEPENDENCY_GRAPH.md; refreshed summaries for touched source files; this phase file; 00_navigation_and_tracker.md.
+Behavior changes: None intended. This phase moved Python ownership boundaries only: status-facing aggregation now lives in app.status, and raw CPU/memory metric sampling now lives in app.telemetry.
+Checks run: .\DesktopApp\Runtime\Python\python.exe -m pytest DesktopApp\tests\test_status_service.py DesktopApp\tests\test_telemetry_service.py DesktopApp\tests\test_facade_status_policy.py DesktopApp\tests\test_service_status_active_jobs.py DesktopApp\tests\test_service_status_eta.py DesktopApp\tests\test_service_status_ffmpeg_progress.py DesktopApp\tests\test_service_status_files.py DesktopApp\tests\test_service_status_snapshot_runner.py DesktopApp\tests\test_service_status_readers.py DesktopApp\tests\test_service_status_progress.py DesktopApp\tests\test_service_status_presentation.py DesktopApp\tests\test_service_status_summary.py DesktopApp\tests\test_service_status_summary_sections.py DesktopApp\tests\test_service_status_errors.py (73 passed); .\DesktopApp\Runtime\Python\python.exe .\scripts\dev\check_dependency_boundaries.py --max-internal-imports 1 (report-only baseline completed); .\DesktopApp\Runtime\Python\python.exe .\scripts\dev\refresh_summaries.py --check (passed); .\DesktopApp\Runtime\Python\python.exe .\scripts\dev\generate_project_index.py --check (passed); .\DesktopApp\Runtime\Python\python.exe .\scripts\dev\check_active_doc_references.py (passed).
+Dependency checker result: 1407 internal app import entries; 1 module-level cycle remains in app.contracts.source_media*; 0 package-level cycles; 0 direct app.shared imports; 32 direct app.shared.utils imports; 38 direct app.shared.constants imports; 19 direct app.shared.protocols imports; 0 forbidden app.config higher-level imports; 3 app.api to app.ui imports remain; 0 app.observability to app.status imports; 0 app.telemetry to app.observability imports; 0 app.telemetry to app.status imports.
+Generated artifacts updated: Docs/generated/PROJECT_INDEX.md and Docs/generated/DEPENDENCY_GRAPH.md regenerated from 740 summaries.
+Summaries refreshed: Full refresh wrote 5 summaries, left 735 unchanged, and pruned 2 orphan summaries. Final check reported 740 source files all current with no orphan summaries.
+Known risks: The dependency checker is static AST analysis only. The remaining module-level source_media contract cycle and shared/API-UI findings are outside Phase 2. Unrelated dirty files in queue/engine/test areas remain untouched.
+Explicit deferrals: Did not address app.api to app.ui imports, the source_media contract module cycle, or app.shared submodule imports. No WebView telemetry JavaScript was moved.
 Next phase: 3 - API/UI boundary
 ```

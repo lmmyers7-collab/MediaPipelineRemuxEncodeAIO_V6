@@ -142,13 +142,13 @@
     const page = document.querySelector('[data-page-panel="settings"]');
     if (!page) return;
     page.querySelectorAll(".settings-tab-btn[data-settings-tab]").forEach((button) => {
-      const active = button.dataset.settingsTab === "wizard";
+      const active = button.dataset.settingsTab === "presets";
       button.setAttribute("aria-selected", String(active));
     });
     page.querySelectorAll(".settings-tab-pane[data-settings-tab]").forEach((pane) => {
-      pane.classList.toggle("is-active", pane.dataset.settingsTab === "wizard");
+      pane.classList.toggle("is-active", pane.dataset.settingsTab === "presets");
     });
-    try { localStorage.setItem("mediapipeline-settings-tab", "wizard"); } catch (_error) {}
+    try { localStorage.setItem("mediapipeline-settings-tab", "presets"); } catch (_error) {}
     if (typeof updatePagePanelEmptyStates === "function") updatePagePanelEmptyStates();
   }
 

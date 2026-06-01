@@ -4,7 +4,7 @@ import os
 from collections.abc import Callable
 from pathlib import Path
 
-from app.shared.constants import PROFILE_NAME_PATTERN
+from app.config.constants import PROFILE_NAME_PATTERN
 
 
 def normalize_profile_name(raw_name: str) -> str:

@@ -520,6 +520,56 @@ function New-MediaRoutePlan {
     }
 }
 
+function Get-MediaRouteRuleOutcomeEvidence {
+    param($RoutePlan)
+
+    $trace = if ($RoutePlan -and $RoutePlan.PSObject.Properties['DecisionTrace']) { @($RoutePlan.DecisionTrace) } else { @() }
+    $hardCodes = @(
+        'folder_policy_force_encode',
+        'folder_policy_force_remux',
+        'codec_outside_policy',
+        'plex_strict_score_below_threshold',
+        'resolution_over_policy',
+        'bitrate_over_threshold',
+        'size_over_threshold',
+        'forced_remux_rejected_unsafe_codec',
+        'codec_not_remux_safe'
+    )
+    $softCodes = @(
+        'routing_profile_selected',
+        'size_evaluated',
+        'bitrate_estimated',
+        'resolution_detected',
+        'video_codec_detected',
+        'plex_compatibility_scored',
+        'codec_remux_safe',
+        'plex_compatible_h264_remux'
+    )
+    $advisoryCodes = @(
+        'bitrate_threshold_ignored',
+        'plex_compatible_size_advisory',
+        'size_threshold_ignored',
+        'folder_policy_prefer_encode',
+        'codec_allowed_by_routing_profile',
+        'unsafe_forced_remux_allowed'
+    )
+
+    $classify = {
+        param([string[]] $Codes)
+        return @($trace | Where-Object {
+            $code = ''
+            try { $code = [string]$_.code } catch {}
+            $Codes -contains $code
+        })
+    }
+
+    return [ordered]@{
+        hard     = & $classify $hardCodes
+        soft     = & $classify $softCodes
+        advisory = & $classify $advisoryCodes
+    }
+}
+
 function Resolve-MediaRouteBySize {
     param(
         [Parameter(Mandatory)] [long] $FileSizeBytes,
@@ -954,6 +1004,17 @@ function Get-ActiveMediaRoutePlanMetadata {
     if (Get-Variable -Name CurrentSizePolicyResult -Scope Script -ErrorAction SilentlyContinue) {
         if ($script:CurrentSizePolicyResult) {
             $metadata['size_policy'] = $script:CurrentSizePolicyResult
+        }
+    }
+    $metadata['route_rule_outcomes'] = Get-MediaRouteRuleOutcomeEvidence -RoutePlan $plan
+    if (Get-Variable -Name CurrentRuntimeEffectiveSettings -Scope Script -ErrorAction SilentlyContinue) {
+        if ($script:CurrentRuntimeEffectiveSettings) {
+            $metadata['runtime_effective_settings'] = $script:CurrentRuntimeEffectiveSettings
+            $metadata['runtime_effective_settings_ref'] = 'runtime_effective_settings.v1'
+            $metadata['library_effective_settings_ref'] = 'library-only'
+            if (Get-Command -Name Get-MediaPipelineRuntimeLayerNames -ErrorAction SilentlyContinue) {
+                $metadata['runtime_override_layers'] = Get-MediaPipelineRuntimeLayerNames -RuntimeEffectiveSettings $script:CurrentRuntimeEffectiveSettings
+            }
         }
     }
     return $metadata

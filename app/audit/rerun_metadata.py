@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import Any
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from app.shared.protocols import RerunMetadataServiceProtocol, RunCaptureFunc
-from app.shared.utils import _atomic_write_text, _read_json_file
+from app.audit.rerun_contracts import RerunMetadataServiceProtocol, RunCaptureFunc
+from app.audit.rerun_file_io import atomic_write_text, read_json_file
 from mediapipeline_desktop_app.subprocess_runner import run_capture
 
 
@@ -57,7 +57,7 @@ def load_rerun_source_metadata_for_service(
             "schema_version": "rerun_source_metadata_request.v1",
             "source_paths": [str(path) for path in unique_paths],
         }
-        _atomic_write_text(request_path, json.dumps(payload), encoding="utf-8")
+        atomic_write_text(request_path, json.dumps(payload), encoding="utf-8")
         args = [
             resolved.powershell_host,
             "-NoProfile",
@@ -92,7 +92,7 @@ def load_rerun_source_metadata_for_service(
                 detail = (result.stderr or result.stdout or "").strip().splitlines()[-1:] or [f"exit {result.returncode}"]
                 service.logger.warning("Rerun source metadata helper failed: %s", detail[0])
                 return {}
-            data = _read_json_file(output_path)
+            data = read_json_file(output_path)
         except (OSError, json.JSONDecodeError) as exc:
             service.logger.warning("Rerun source metadata helper failed: %s", exc)
             return {}

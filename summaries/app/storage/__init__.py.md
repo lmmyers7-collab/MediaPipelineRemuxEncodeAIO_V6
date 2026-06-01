@@ -3,9 +3,9 @@ file: app/storage/__init__.py
 pipeline_stage: n/a
 token_priority: low
 owner_domain: storage
-last_modified: 2026-05-28
+last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: f73654ca2aef87be7f986c74fcbe18ec9acc1a63485b92b5b34a81e7e3c9c49a
+sha256: fd1d64e1e7721d3424d25c36dd603e748685553666bc78919388edf73f099235
 ---
 # `app/storage/__init__.py`
 

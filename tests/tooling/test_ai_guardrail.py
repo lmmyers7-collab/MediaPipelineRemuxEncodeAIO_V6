@@ -25,6 +25,7 @@ class AiGuardrailTests(unittest.TestCase):
                 self.assertIn("project-index", names)
                 self.assertIn("pipeline-map", names)
                 self.assertIn("lifecycle-map", names)
+                self.assertIn("dependency-boundaries", names)
                 self.assertIn("architecture-guardrails", names)
                 self.assertIn("naming-lint", names)
                 self.assertIn("god-file-guard", names)

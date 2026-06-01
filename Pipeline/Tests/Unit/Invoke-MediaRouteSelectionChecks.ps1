@@ -5,6 +5,7 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
 . (Join-Path $repoRoot 'engine\shared\media_constants.ps1')
 . (Join-Path $repoRoot 'engine\decide\routing.ps1')
+. (Join-Path $repoRoot 'engine\decide\encode_policy.ps1')
 
 function Assert-Equal {
     param(
@@ -210,5 +211,8 @@ Assert-Near ([double]$missingDuration.EstimatedBitrateMbps) 0.0 -Message 'Missin
 Assert-Equal ([bool]$missingDuration.BitrateOverThreshold) $false 'Missing duration should not mark bitrate over threshold.'
 Assert-True (-not ((Get-TraceCodes -Plan $missingDuration) -contains 'bitrate_over_threshold')) 'Missing duration unexpectedly fired bitrate_over_threshold.'
 Assert-True (-not ((Get-TraceCodes -Plan $missingDuration) -contains 'bitrate_estimated')) 'Missing duration unexpectedly emitted bitrate_estimated trace.'
+
+Assert-Equal (Get-MediaEncodeOutputMuxerName -OutputPath 'output.mkv') 'matroska' 'MKV encode output should keep Matroska muxer.'
+Assert-Equal (Get-MediaEncodeOutputMuxerName -OutputPath 'output.mp4') 'mp4' 'MP4 encode output should use MP4 muxer when a route/video override selects MP4 output.'
 
 Write-Host 'Media route selection checks passed.'

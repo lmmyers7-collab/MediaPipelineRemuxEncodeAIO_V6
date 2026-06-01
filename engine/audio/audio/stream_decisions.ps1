@@ -97,6 +97,10 @@ function Build-AudioStreamDecisionPlan {
     $audioDecisionRecords = [System.Collections.Generic.List[object]]::new()
     $transcodeActive = $false
 
+    if (Get-Command -Name Assert-FileOverrideExactTrackSelectorsResolvable -ErrorAction SilentlyContinue) {
+        Assert-FileOverrideExactTrackSelectorsResolvable -TrackKind 'audio' -Tracks @($AudioStreams) -OverrideSection $AudioOverride
+    }
+
     # Language tag (ISO 639-2/B code) -> human display name for the track title.
     # Unknown / untagged tracks get "Undefined". Codes not in the map fall back
     # to an uppercased raw code (e.g. "THA" for Thai), which is still legible.
@@ -166,7 +170,13 @@ function Build-AudioStreamDecisionPlan {
         $isCommentary = ($rawTitle -match $CommentaryRegex)
         $sourceStreamIndex = if ($null -ne $s.PSObject.Properties['index']) { $s.index } else { $null }
 
-        if (-not (Test-AudioTrackKeptByOverride -Language $rawLang -Channels $ch -Title $rawTitle -AudioOverride $AudioOverride)) {
+        if (-not (Test-AudioTrackKeptByOverride `
+                -Language $rawLang `
+                -Channels $ch `
+                -Title $rawTitle `
+                -Codec $codec `
+                -StreamIndex $sourceStreamIndex `
+                -AudioOverride $AudioOverride)) {
             $audioDecisionRecords.Add([pscustomobject]@{
                 audio_ordinal       = $null
                 source_stream_index = $sourceStreamIndex

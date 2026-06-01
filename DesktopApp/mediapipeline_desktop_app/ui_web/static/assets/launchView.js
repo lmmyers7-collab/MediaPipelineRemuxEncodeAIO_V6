@@ -985,6 +985,7 @@
     const startBtn = byId("pipeline-start-button");
     if (startBtn) startBtn.textContent = "Launching…";
     setLaunchCommandBusy(true);
+    setStartupBanner("Spooling up tasks…");
     setText("pipeline-launch-status", "Starting...");
     renderJsonDetail("pipeline-launch-detail", {
       label: "Submitted request",

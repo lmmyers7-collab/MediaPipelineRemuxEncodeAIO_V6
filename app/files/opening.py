@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 import sys
 import tempfile
 import threading
 from pathlib import Path
 from typing import Any
+from urllib.parse import unquote, urlsplit
 
-from app.shared.constants import MEDIA_FILE_SUFFIXES, VLC_LONG_PATH_THRESHOLD
-from app.shared.utils import _coerce_open_path, _windows_native_path
+from app.files.constants import MEDIA_FILE_SUFFIXES, VLC_LONG_PATH_THRESHOLD
 
 from .open_plan import (
     MKLINK_JUNCTION_TIMEOUT_SECONDS,
@@ -21,8 +22,72 @@ from .open_plan import (
 )
 
 
+WINDOWS_EXTENDED_PATH_PREFIX = "\\\\?\\"
+WINDOWS_EXTENDED_UNC_PREFIX = "\\\\?\\UNC\\"
 VLC_TEMP_JUNCTION_PREFIX = "mediapipeline-vlc-"
 VLC_TEMP_JUNCTION_NAME = "m"
+
+
+def _strip_windows_extended_path_prefix(path_text: str) -> str:
+    if path_text.startswith(WINDOWS_EXTENDED_UNC_PREFIX):
+        return "\\\\" + path_text[len(WINDOWS_EXTENDED_UNC_PREFIX):]
+    if path_text.startswith(WINDOWS_EXTENDED_PATH_PREFIX):
+        return path_text[len(WINDOWS_EXTENDED_PATH_PREFIX):]
+    return path_text
+
+
+def _path_from_file_uri(path_text: str) -> str:
+    if os.name == "nt" and path_text.lower().startswith("file://?/"):
+        candidate = unquote(path_text[len("file://?/"):]).replace("/", "\\")
+        if candidate.upper().startswith("UNC\\"):
+            return "\\\\" + candidate[4:]
+        return candidate
+    if os.name == "nt" and path_text.lower().startswith("file:\\?\\"):
+        candidate = unquote(path_text[len("file:\\?\\"):]).replace("/", "\\")
+        if candidate.upper().startswith("UNC\\"):
+            return "\\\\" + candidate[4:]
+        return candidate
+
+    parsed = urlsplit(path_text)
+    if parsed.scheme.lower() != "file":
+        return path_text
+
+    netloc = unquote(parsed.netloc)
+    uri_path = unquote(parsed.path)
+    if os.name != "nt":
+        return uri_path
+
+    if netloc and netloc.lower() not in ("localhost", "?"):
+        return "\\\\" + netloc + uri_path.replace("/", "\\")
+
+    if netloc == "?":
+        candidate = uri_path.lstrip("/").replace("/", "\\")
+        if candidate.upper().startswith("UNC\\"):
+            return "\\\\" + candidate[4:]
+        return candidate
+
+    if uri_path.startswith("/?/"):
+        uri_path = uri_path[3:]
+    elif re.match(r"^/[A-Za-z]:", uri_path):
+        uri_path = uri_path[1:]
+    return uri_path.replace("/", "\\")
+
+
+def _normalize_open_path_text(path_text: str) -> str:
+    cleaned = path_text.strip().strip('"')
+    if cleaned.lower().startswith("file:"):
+        cleaned = _path_from_file_uri(cleaned)
+    return _strip_windows_extended_path_prefix(cleaned)
+
+
+def _coerce_open_path(path: Path | str | None) -> Path:
+    if not path:
+        raise RuntimeError("No path is available for this action.")
+    return Path(_normalize_open_path_text(str(path)))
+
+
+def _windows_native_path(path: Path) -> str:
+    return _normalize_open_path_text(str(path))
 
 
 class FileOpenServiceMixin:

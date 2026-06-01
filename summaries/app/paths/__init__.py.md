@@ -3,9 +3,9 @@ file: app/paths/__init__.py
 pipeline_stage: n/a
 token_priority: low
 owner_domain: unknown
-last_modified: 2026-05-28
+last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: f6367cbf55977fe2f0ed42254010857ff35359d6ac1e1b2ccac16c61a3e59f96
+sha256: edbc731afacd4acd348bc69e8b52b99c54c73657eefe12c7df3ff193697267a0
 ---
 # `app/paths/__init__.py`
 

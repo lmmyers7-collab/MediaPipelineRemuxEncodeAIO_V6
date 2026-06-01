@@ -12,7 +12,7 @@ sys.path.insert(0, str(REPO_ROOT / "DesktopApp"))
 
 from app.contracts.api_commands import COMMAND_ROUTE_PAYLOAD_MODELS, validate_api_command_payload  # noqa: E402
 from app.api.commands import COMMAND_ROUTE_METHODS  # noqa: E402
-from app.validation import ValidationFailure, validate_api_payload  # noqa: E402
+from app.validation.boundary import ValidationFailure, validate_api_payload  # noqa: E402
 from mediapipeline_desktop_app.api.routes_command import POST_ROUTE_HANDLERS  # noqa: E402
 
 

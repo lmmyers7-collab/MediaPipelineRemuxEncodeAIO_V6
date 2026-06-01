@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.shared.constants import MEDIA_FILE_SUFFIXES
+from app.files.constants import MEDIA_FILE_SUFFIXES
 from app.rename.utils import natural_sort_key
 
 

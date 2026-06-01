@@ -44,6 +44,7 @@ from app.queue.policy_parts.preview import (
 from app.queue.policy_parts.rows import (
     queue_apply_runtime_outcomes,
     queue_preview_rows,
+    queue_preview_track_metadata_summary,
     queue_preview_warnings,
     queue_record_to_row,
     queue_row_available_open_targets,
@@ -90,6 +91,7 @@ __all__ = [
     "queue_row_route_evidence_lines",
     "queue_apply_runtime_outcomes",
     "queue_preview_rows",
+    "queue_preview_track_metadata_summary",
     "queue_preview_warnings",
     "queue_snapshot_int",
     "queue_safe_int",

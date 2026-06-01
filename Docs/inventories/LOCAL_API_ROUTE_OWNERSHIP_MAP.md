@@ -2,7 +2,7 @@
 
 Documents all Local API routes, their mutation risk, auth requirements, backend owner confirmation, and primary frontend caller. Source of truth is `contract_read.py` and `contract_command.py`; handler dispatch is in `routes_read.py` and `routes_command.py`.
 
-Total routes: 70 (29 read, 41 command).
+Total routes: 75 (31 read, 44 command).
 
 All routes that mutate state are backend-owned. The WebView never resolves filesystem paths, selects output targets, chooses encode settings, or launches processes directly — it forwards requests with allowlisted parameters and the backend validates, plans, and executes.
 
@@ -36,6 +36,8 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 | `GET /api/queue/priority` | Yes | `queue_priority_manifest.v1` | Queue | Reads non-destructive priority manifest; no queue/media mutation |
 | `GET /api/queue/strategy` | Yes | `queue_strategy_state.v1` | Queue | Reads active queue strategy and valid backend strategy names |
 | `GET /api/queue/file-overrides` | Yes | `queue_file_overrides.v1` | Queue | Reads override manifest or one source-root-contained override entry |
+| `GET /api/queue/file-overrides/effective` | Yes | `queue_file_overrides_effective.v1` | Queue | Reads inherited/effective file override metadata for one source-root-contained path; no manifest write |
+| `GET /api/queue/file-overrides/tracks` | Yes | `queue_file_override_tracks.v1` | Queue | Reads normalized track metadata for one source-root-contained path; no queue preview mutation |
 | `GET /api/completed` | Yes | `desktop_completed_preview.v1` | Completed | From local completed-jobs manifest; no output-share scan |
 | `GET /api/final-library-promotion/status` | Yes | `desktop_final_library_promotion_status.v1` | Completed | Reads backend-owned final-library promotion readiness, run state, pause state, counts, and destinations; no copy/move/delete action |
 | `GET /api/failures` | Yes | `desktop_failure_preview.v1` | Reports, Diagnostics | Query params: `source` (`latest_json` or `markers`), `limit` |
@@ -68,9 +70,12 @@ All POST routes require auth. The frontend passes allowlisted parameter keys; th
 |---|---|---|---|---|
 | `POST /api/queue/priority` | `queue-state-write` | `path`, `level`, `reason`, `items` | `level`: `high`, `normal`, `low`, `hold`; path must be under `SourceMovies`/`SourceTV` | Queue |
 | `POST /api/queue/strategy` | `queue-state-write` | `strategy` | Backend `VALID_STRATEGIES` only | Queue |
-| `POST /api/queue/file-overrides` | `queue-state-write` | `path`, `audio`, `subtitles`, `clear`, `clear_all` | Path writes must be under `SourceMovies`/`SourceTV`; `clear_all` clears manifest only | Queue |
+| `POST /api/queue/file-overrides` | `queue-state-write` | `path`, `audio`, `subtitles`, `routing`, `video`, `clear`, `clear_all`, `clear_fields` | Path writes must be under configured source roots; `clear_all` clears manifest only | Queue |
+| `POST /api/queue/file-overrides/route-preview` | `read-only-preview` | `path`, `proposed_override` | Path must be under configured source roots; previews route impact only | Queue |
+| `POST /api/queue/file-overrides/folder-preview` | `read-only-preview` | `folder_path`, `proposed_override`, `options` | Folder must be under configured source roots; previews bounded known-file impact only | Queue |
+| `POST /api/queue/file-overrides/folder-rule` | `queue-state-write` | `folder_path`, `override`, `confirmation`, `clear` | Folder must be under configured source roots but not equal a source/library root; stream indexes and raw map fields rejected; save requires future-file and exact-file precedence acknowledgement | Queue |
 
-Queue state commands write JSON state under `LocalBase\State`; they do not rename, move, delete, launch, process, or mutate source media.
+Queue state write commands write JSON state under `LocalBase\State`; preview commands are read-only. These routes do not rename, move, delete, launch, process, scan whole source folders, or mutate source media.
 
 ### Failure Marker Commands (retry-blocker state only)
 
@@ -193,12 +198,13 @@ The dry-run routes run existing backend scripts with `-DryRun` and write no rele
 
 | Effect tag | Routes | Risk level |
 |---|---|---|
-| `none` | 41 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, Settings Wizard validation/preview routes, settings/reload, recovery-plan, sample-validation/preview, schedule/preview) | None |
+| `none` | 43 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, Settings Wizard validation/preview routes, settings/reload, recovery-plan, sample-validation/preview, schedule/preview) | None |
 | `bounded-health-check` | `GET /api/maintenance` | Read-only probes |
+| `read-only-preview` | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/folder-preview` | Advisory backend previews only |
 | `shell-open` | `POST /api/queue/open`, `POST /api/completed/open`, `POST /api/pending-publish/open`, `POST /api/diagnostics/open` | OS open only; no file mutation |
 | `shell-dialog` | `POST /api/rename/browse`, `POST /api/settings/browse-path` | Native Windows picker only; no file mutation |
 | `ui-state-write` | `POST /api/ui-preferences` | Allowlisted UI preference JSON only |
-| `queue-state-write` | `POST /api/queue/priority`, `POST /api/queue/strategy`, `POST /api/queue/file-overrides` | Non-destructive queue state JSON only |
+| `queue-state-write` | `POST /api/queue/priority`, `POST /api/queue/strategy`, `POST /api/queue/file-overrides`, `POST /api/queue/file-overrides/folder-rule` | Non-destructive queue state JSON only |
 | `failure-marker-write` | `POST /api/failures/clear` | Moves retry-blocker marker JSON out of the active marker folder only |
 | `process-dry-run` | `POST /api/maintenance/release-dry-run`, `POST /api/maintenance/completed-backfill-dry-run` | No output written |
 | `tooling-artifact-write` | `POST /api/maintenance/dependency-atlas` | Generated repository tooling artifacts only |

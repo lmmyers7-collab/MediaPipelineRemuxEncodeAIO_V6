@@ -1,0 +1,3 @@
+# Dependency boundary hard-rule allowlist.
+# Format:
+# importing module | imported module | rule id | reason | target removal phase or owner

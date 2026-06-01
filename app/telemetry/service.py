@@ -22,7 +22,7 @@ from app.telemetry.health import (
     powershell_health_row,
 )
 from app.telemetry.nvidia import apply_nvidia_smi_rows_to_snapshot, parse_nvidia_smi_encoder_rows
-from app.observability.system_metrics import apply_system_metrics_to_snapshot, prime_cpu_sampler
+from app.telemetry.system_metrics import apply_system_metrics_to_snapshot, prime_cpu_sampler
 from mediapipeline_desktop_app.subprocess_runner import run_capture
 
 

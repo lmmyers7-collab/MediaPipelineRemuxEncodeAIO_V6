@@ -11,7 +11,7 @@ except Exception:  # pragma: no cover - optional runtime dependency
     psutil = None
 
 from mediapipeline_desktop_app.models import ResolvedPaths
-from app.shared.constants import (
+from app.processes.constants import (
     AUDIT_PROGRESS_LAUNCH_CLEANUP_STALE_SECONDS,
     CONTROL_FLAG_STALE_AFTER_SECONDS,
     PIPELINE_PROGRESS_LAUNCH_CLEANUP_STALE_SECONDS,

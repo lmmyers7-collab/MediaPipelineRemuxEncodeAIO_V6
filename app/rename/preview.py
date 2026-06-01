@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Callable
 
-from app.shared.utils import _atomic_write_text
+from app.rename.file_io import atomic_write_text
 from mediapipeline_desktop_app.subprocess_runner import CapturedCommandResult
 
 
@@ -97,7 +97,7 @@ def load_pipeline_name_previews(
         input_path = temp_root / "input.json"
         output_path = temp_root / "output.json"
         payload = build_naming_preview_request(paths, media_kind=media_kind)
-        _atomic_write_text(input_path, json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        atomic_write_text(input_path, json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         try:
             result = run_capture_func(
                 [

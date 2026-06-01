@@ -4,9 +4,11 @@ import json
 import unittest
 from pathlib import Path
 
+from app.contracts.decision_policy import EffectiveDecisionPolicy
 from app.contracts.source_media import SourceMediaInfo, source_media_from_ffprobe
-from app.decide import EffectiveDecisionPolicy, build_processing_decision, decision_policy_from_mapping
 from app.decide.processing_decision import REQUIRED_REASON_CODES
+from app.decide.processing_decision import decision_policy_from_mapping
+from app.decide.routing import build_processing_decision
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]

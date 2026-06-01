@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.shared.constants import FOLDER_POLICY_SCHEMA_VERSION
+from app.folder_policy.constants import FOLDER_POLICY_SCHEMA_VERSION
 from app.folder_policy.service import FolderPolicyServiceMixin
 from app.folder_policy.contracts import (
     default_folder_policy,

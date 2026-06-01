@@ -5,10 +5,14 @@ import io
 from pathlib import Path
 
 from mediapipeline_desktop_app.models import AuditRecord, ResolvedPaths
-from app.audit.rerun_csv import apply_rerun_source_metadata, build_rerun_csv_row, source_stat_to_rerun_values
-from app.shared.constants import RERUN_CSV_COLUMNS
-from app.shared.protocols import RerunCsvExportServiceProtocol
-from app.shared.utils import _atomic_write_text
+from app.audit.rerun_contracts import RerunCsvExportServiceProtocol
+from app.audit.rerun_csv import (
+    RERUN_CSV_COLUMNS,
+    apply_rerun_source_metadata,
+    build_rerun_csv_row,
+    source_stat_to_rerun_values,
+)
+from app.audit.rerun_file_io import atomic_write_text
 
 
 def save_rerun_records_csv_for_service(
@@ -62,5 +66,5 @@ def save_rerun_records_csv_for_service(
     writer.writeheader()
     for row in rows:
         writer.writerow(row)
-    _atomic_write_text(output_path, buffer.getvalue(), encoding="utf-8")
+    atomic_write_text(output_path, buffer.getvalue(), encoding="utf-8")
     return len(rows)

@@ -3,9 +3,9 @@ file: app/processes/__init__.py
 pipeline_stage: n/a
 token_priority: low
 owner_domain: unknown
-last_modified: 2026-05-28
+last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: 092a627264e3bfbc6f83cb714f68a78a52dfbcc7e2373a6358eb163b7e71e9f7
+sha256: 3f3c31bb428125396c9afc909050e65d4c62a1f55fb47e5422f040b9825386e7
 ---
 # `app/processes/__init__.py`
 

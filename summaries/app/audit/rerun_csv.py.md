@@ -3,9 +3,9 @@ file: app/audit/rerun_csv.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: audit
-last_modified: 2026-05-28
+last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: b117e1ac76086f2ed6b85f98b33dffb1bd8e1d0a712170bafbac74fd9f313e40
+sha256: 5de2526fe0b8eee179cb495953099ce47788a116b6831eab5a626281054fbf35
 ---
 # `app/audit/rerun_csv.py`
 

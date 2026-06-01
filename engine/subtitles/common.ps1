@@ -763,6 +763,9 @@ function Filter-SubtitleStreams {
 
     # Per-file override: resolve subtitle track filter + rename rules once before the loop.
     $subtitleOverride = Get-FileOverrideSubtitleSettings
+    if (Get-Command -Name Assert-FileOverrideExactTrackSelectorsResolvable -ErrorAction SilentlyContinue) {
+        Assert-FileOverrideExactTrackSelectorsResolvable -TrackKind 'subtitle' -Tracks @($probe.streams) -OverrideSection $subtitleOverride
+    }
 
     $subtitleOrdinal = 0
     foreach ($s in $probe.streams) {
@@ -793,7 +796,14 @@ function Filter-SubtitleStreams {
         }
 
         # Per-file override: subtitle track filter (runs only on tracks that passed language/title policy).
-        if (-not (Test-SubtitleTrackKeptByOverride -Language $policy.Lang -IsForced:([bool]$policy.IsForced) -Title $policy.RawTitle -SubtitleOverride $subtitleOverride)) {
+        $sourceStreamIndex = if ($null -ne $s.PSObject.Properties['index']) { $s.index } else { $null }
+        if (-not (Test-SubtitleTrackKeptByOverride `
+                -Language $policy.Lang `
+                -IsForced:([bool]$policy.IsForced) `
+                -Title $policy.RawTitle `
+                -Codec $policy.Codec `
+                -StreamIndex $sourceStreamIndex `
+                -SubtitleOverride $subtitleOverride)) {
             $drop.Add(@{Stream=$s; Lang=$policy.Lang; Title=$policy.RawTitle})
             $decisions.Add([pscustomobject]@{
                 source_stream_index = if ($null -ne $s.PSObject.Properties['index']) { $s.index } else { $null }
@@ -869,7 +879,13 @@ function Filter-SubtitleStreams {
                 continue
             }
 
-            if (-not (Test-SubtitleTrackKeptByOverride -Language $entry.Lang -IsForced:([bool]$entry.IsForced) -Title $entry.RawTitle -SubtitleOverride $subtitleOverride)) {
+            if (-not (Test-SubtitleTrackKeptByOverride `
+                    -Language $entry.Lang `
+                    -IsForced:([bool]$entry.IsForced) `
+                    -Title $entry.RawTitle `
+                    -Codec $entry.Codec `
+                    -StreamIndex $null `
+                    -SubtitleOverride $subtitleOverride)) {
                 $drop.Add($entry)
                 $decisions.Add([pscustomobject]@{
                     source_stream_index = $null

@@ -34,6 +34,16 @@ from __future__ import annotations
 #           "renameTracks":         [{"language":"eng","forced":false,"newTitle":"English"}],
 #           "correctLanguageTags":  {"und":"eng"},
 #           "stripAll":             false
+#         },
+#         "routing": {
+#           "profile":              "transcode",
+#           "routeThresholdMode":   "bitrate"
+#         },
+#         "video": {
+#           "codec":                "h264_nvenc",
+#           "container":            "mp4",
+#           "encodePreset":         "balanced_nvenc",
+#           "encodeLadder":         "plex_compat"
 #         }
 #       }
 #     }
@@ -42,12 +52,90 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, get_args
+
+from app.config.constants import ROUTE_THRESHOLD_MODE_NAMES
+from app.contracts.config import Config
 
 FILE_OVERRIDES_VERSION = 1
 _EMPTY: dict = {"version": FILE_OVERRIDES_VERSION, "entries": {}}
+CLEARABLE_FILE_OVERRIDE_FIELDS: frozenset[str] = frozenset(
+    {
+        "audio.keepTracks",
+        "audio.dropTracks",
+        "audio.maxChannels",
+        "audio.preferDefaultLanguage",
+        "subtitles.keepTracks",
+        "subtitles.dropTracks",
+        "subtitles.stripAll",
+        "routing.profile",
+        "routing.routeThresholdMode",
+        "video.codec",
+        "video.container",
+        "video.encodePreset",
+        "video.encodeLadder",
+    }
+)
+_CLEARABLE_FIELD_KEYS: dict[str, tuple[str, str]] = {
+    "audio.keepTracks": ("audio", "keepTracks"),
+    "audio.dropTracks": ("audio", "dropTracks"),
+    "audio.maxChannels": ("audio", "maxChannels"),
+    "audio.preferDefaultLanguage": ("audio", "preferDefaultLanguage"),
+    "subtitles.keepTracks": ("subtitles", "keepTracks"),
+    "subtitles.dropTracks": ("subtitles", "dropTracks"),
+    "subtitles.stripAll": ("subtitles", "stripAll"),
+    "routing.profile": ("routing", "profile"),
+    "routing.routeThresholdMode": ("routing", "routeThresholdMode"),
+    "video.codec": ("video", "codec"),
+    "video.container": ("video", "container"),
+    "video.encodePreset": ("video", "encodePreset"),
+    "video.encodeLadder": ("video", "encodeLadder"),
+}
+SUPPORTED_FILE_OVERRIDE_TOP_LEVEL_KEYS: frozenset[str] = frozenset({"audio", "subtitles", "routing", "video"})
+SUPPORTED_FILE_OVERRIDE_AUDIO_KEYS: frozenset[str] = frozenset(
+    {"keepTracks", "dropTracks", "maxChannels", "preferDefaultLanguage"}
+)
+SUPPORTED_FILE_OVERRIDE_SUBTITLE_KEYS: frozenset[str] = frozenset({"keepTracks", "dropTracks", "stripAll"})
+SUPPORTED_FILE_OVERRIDE_ROUTING_KEYS: frozenset[str] = frozenset({"profile", "routeThresholdMode"})
+SUPPORTED_FILE_OVERRIDE_VIDEO_KEYS: frozenset[str] = frozenset(
+    {"codec", "container", "encodePreset", "encodeLadder"}
+)
+SUPPORTED_FILE_OVERRIDE_MAX_CHANNELS: frozenset[int] = frozenset({2, 6, 8})
+SUPPORTED_FILE_OVERRIDE_ROUTE_PROFILES: frozenset[str] = frozenset(
+    {
+        "auto",
+        "encode",
+        "remux",
+        "transcode",
+        "plex_direct_stream",
+        "plex_direct_play",
+        "archive_shrink",
+        "archive_quality",
+        "manual",
+    }
+)
+SAFE_OVERRIDE_SCALAR_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+
+
+def _literal_choices(field_name: str) -> frozenset[str]:
+    field = Config.model_fields.get(field_name)
+    return frozenset(str(item) for item in get_args(field.annotation)) if field is not None else frozenset()
+
+
+SUPPORTED_FILE_OVERRIDE_VIDEO_CODECS: frozenset[str] = _literal_choices("VideoCodec")
+SUPPORTED_FILE_OVERRIDE_OUTPUT_CONTAINERS: frozenset[str] = _literal_choices("OutputContainer")
+SUPPORTED_FILE_OVERRIDE_ENCODE_PRESETS: frozenset[str] = _literal_choices("EncodeTuningPreset")
+SUPPORTED_FILE_OVERRIDE_ENCODE_LADDERS: frozenset[str] = _literal_choices("EncodeLadder")
+SUPPORTED_AUDIO_TRACK_SELECTOR_KEYS: frozenset[str] = frozenset(
+    {"streamIndex", "language", "codec", "channels", "title"}
+)
+SUPPORTED_SUBTITLE_TRACK_SELECTOR_KEYS: frozenset[str] = frozenset(
+    {"streamIndex", "language", "codec", "forced", "title"}
+)
 
 
 # ---------------------------------------------------------------------------
@@ -61,6 +149,11 @@ def file_overrides_path(state_root: Path) -> Path:
 
 def _normalise(path: str | Path) -> str:
     return str(path).replace("\\", "/").lower().rstrip("/")
+
+
+def normalize_file_override_path(path: str | Path) -> str:
+    """Return the manifest path key used by file_overrides.json."""
+    return _normalise(path)
 
 
 # ---------------------------------------------------------------------------
@@ -102,32 +195,40 @@ def get_file_override_entry(manifest: dict, source_path: str | Path) -> dict | N
 
     Returns a copy of the entry dict (without "set_at") or None.
     """
-    entries: dict = manifest.get("entries", {})
-    if not entries:
-        return None
+    match = resolve_file_override_match(manifest, source_path)
+    entry = match.get("entry")
+    return dict(entry) if isinstance(entry, dict) else None
+
+
+def resolve_file_override_match(manifest: dict, source_path: str | Path) -> dict:
+    """Resolve override entry metadata for *source_path* without changing semantics."""
+    entries = manifest.get("entries", {}) if isinstance(manifest, dict) else {}
+    if not isinstance(entries, dict) or not entries:
+        return {"entry": None, "matched_path": None, "scope": None, "is_exact": False}
 
     norm = _normalise(source_path)
 
-    # 1. Exact match
-    if norm in entries:
+    if norm in entries and isinstance(entries[norm], dict):
         entry = dict(entries[norm])
         entry.pop("set_at", None)
-        return entry
+        return {"entry": entry, "matched_path": norm, "scope": "file", "is_exact": True}
 
-    # 2. Folder prefix match — deepest ancestor wins
     best_len = -1
+    best_key = None
     best_entry = None
     for key, entry in entries.items():
-        if norm.startswith(key + "/") and len(key) > best_len:
-            best_len = len(key)
+        key_text = str(key)
+        if norm.startswith(key_text + "/") and len(key_text) > best_len and isinstance(entry, dict):
+            best_len = len(key_text)
+            best_key = key_text
             best_entry = entry
 
     if best_entry is not None:
         result = dict(best_entry)
         result.pop("set_at", None)
-        return result
+        return {"entry": result, "matched_path": best_key, "scope": "folder", "is_exact": False}
 
-    return None
+    return {"entry": None, "matched_path": None, "scope": None, "is_exact": False}
 
 
 def list_override_entries(manifest: dict) -> list[dict]:
@@ -160,9 +261,23 @@ def set_file_override_entry(
     if not override_data:
         entries.pop(norm, None)
     else:
+        errors = validate_file_override_payload(override_data)
+        if errors:
+            raise ValueError("; ".join(errors))
         existing = entries.get(norm, {})
-        # Deep-merge: keep set_at from existing, add/replace everything else
-        merged = {**existing, **_sanitise_override(override_data)}
+        sanitized = _sanitise_override(override_data)
+        # Existing audio/subtitle save semantics replace their section. New
+        # route/video sections are sparse patches, so merge them by field.
+        merged = dict(existing)
+        for key, value in sanitized.items():
+            if (
+                key in {"routing", "video"}
+                and isinstance(value, dict)
+                and isinstance(merged.get(key), dict)
+            ):
+                merged[key] = {**merged[key], **value}
+            else:
+                merged[key] = value
         merged["set_at"] = datetime.now(timezone.utc).isoformat()
         entries[norm] = merged
 
@@ -175,10 +290,365 @@ def clear_file_override_entry(manifest_path: Path, source_path: str | Path) -> d
     return set_file_override_entry(manifest_path, source_path, {})
 
 
+def validate_file_override_payload(data: dict) -> list[str]:
+    """Return validation errors for current per-file override fields."""
+    errors: list[str] = []
+    if not isinstance(data, dict):
+        return ["File override payload must be an object."]
+
+    _append_unknown_key_errors(
+        errors,
+        path="override",
+        keys=data.keys(),
+        supported=SUPPORTED_FILE_OVERRIDE_TOP_LEVEL_KEYS,
+    )
+    for section_name, supported_keys in (
+        ("audio", SUPPORTED_FILE_OVERRIDE_AUDIO_KEYS),
+        ("subtitles", SUPPORTED_FILE_OVERRIDE_SUBTITLE_KEYS),
+        ("routing", SUPPORTED_FILE_OVERRIDE_ROUTING_KEYS),
+        ("video", SUPPORTED_FILE_OVERRIDE_VIDEO_KEYS),
+    ):
+        if section_name not in data:
+            continue
+        section = data.get(section_name)
+        if not isinstance(section, dict):
+            errors.append(f"'{section_name}' must be an object.")
+            continue
+        if not section:
+            errors.append(f"'{section_name}' must contain at least one supported override field; omit it to inherit.")
+            continue
+        _append_unknown_key_errors(
+            errors,
+            path=section_name,
+            keys=section.keys(),
+            supported=supported_keys,
+        )
+
+    audio = data.get("audio") if isinstance(data.get("audio"), dict) else {}
+    if isinstance(audio, dict):
+        for key in ("keepTracks", "dropTracks"):
+            if key in audio:
+                _validate_track_selector_list(errors, f"audio.{key}", audio.get(key), kind="audio")
+        if "maxChannels" in audio:
+            _validate_audio_max_channels(errors, audio.get("maxChannels"))
+        if "preferDefaultLanguage" in audio:
+            _validate_language_scalar(errors, "audio.preferDefaultLanguage", audio.get("preferDefaultLanguage"))
+
+    subtitles = data.get("subtitles") if isinstance(data.get("subtitles"), dict) else {}
+    if isinstance(subtitles, dict):
+        for key in ("keepTracks", "dropTracks"):
+            if key in subtitles:
+                _validate_track_selector_list(errors, f"subtitles.{key}", subtitles.get(key), kind="subtitle")
+        if "stripAll" in subtitles and not isinstance(subtitles.get("stripAll"), bool):
+            errors.append("'subtitles.stripAll' must be a boolean.")
+
+    routing = data.get("routing") if isinstance(data.get("routing"), dict) else {}
+    if isinstance(routing, dict):
+        if "profile" in routing:
+            _validate_enum_scalar(
+                errors,
+                "routing.profile",
+                routing.get("profile"),
+                SUPPORTED_FILE_OVERRIDE_ROUTE_PROFILES,
+            )
+        if "routeThresholdMode" in routing:
+            _validate_enum_scalar(
+                errors,
+                "routing.routeThresholdMode",
+                routing.get("routeThresholdMode"),
+                frozenset(ROUTE_THRESHOLD_MODE_NAMES),
+            )
+
+    video = data.get("video") if isinstance(data.get("video"), dict) else {}
+    if isinstance(video, dict):
+        if "codec" in video:
+            _validate_enum_scalar(errors, "video.codec", video.get("codec"), SUPPORTED_FILE_OVERRIDE_VIDEO_CODECS)
+        if "container" in video:
+            _validate_enum_scalar(
+                errors,
+                "video.container",
+                video.get("container"),
+                SUPPORTED_FILE_OVERRIDE_OUTPUT_CONTAINERS,
+            )
+        if "encodePreset" in video:
+            _validate_enum_scalar(
+                errors,
+                "video.encodePreset",
+                video.get("encodePreset"),
+                SUPPORTED_FILE_OVERRIDE_ENCODE_PRESETS,
+            )
+        if "encodeLadder" in video:
+            _validate_enum_scalar(
+                errors,
+                "video.encodeLadder",
+                video.get("encodeLadder"),
+                SUPPORTED_FILE_OVERRIDE_ENCODE_LADDERS,
+            )
+
+    route_profile = str(routing.get("profile") or "").strip().casefold() if isinstance(routing, dict) else ""
+    video_forces_encode = False
+    if isinstance(video, dict):
+        video_forces_encode = any(key in video for key in ("codec", "encodePreset", "encodeLadder"))
+        if str(video.get("container") or "").strip().casefold() in {"mp4", "m4v", "mov"}:
+            video_forces_encode = True
+    if route_profile == "remux" and video_forces_encode:
+        errors.append(
+            "'routing.profile' remux cannot be combined with video encode/container fields "
+            "that require transcode."
+        )
+
+    return errors
+
+
+def _append_unknown_key_errors(
+    errors: list[str],
+    *,
+    path: str,
+    keys,
+    supported: frozenset[str],
+) -> None:
+    unknown = sorted(str(key) for key in keys if str(key) not in supported)
+    if unknown:
+        errors.append(
+            f"Unsupported {path} field(s): {', '.join(unknown)}. "
+            f"Allowed fields: {', '.join(sorted(supported))}."
+        )
+
+
+def _validate_track_selector_list(errors: list[str], field_path: str, value: Any, *, kind: str) -> None:
+    if not isinstance(value, list):
+        errors.append(f"'{field_path}' must be a list of track selector objects.")
+        return
+    if not value:
+        errors.append(f"'{field_path}' must contain at least one track selector; omit the field to inherit.")
+        return
+    supported = SUPPORTED_AUDIO_TRACK_SELECTOR_KEYS if kind == "audio" else SUPPORTED_SUBTITLE_TRACK_SELECTOR_KEYS
+    for index, selector in enumerate(value):
+        selector_path = f"{field_path}[{index}]"
+        if not isinstance(selector, dict):
+            errors.append(f"'{selector_path}' must be an object with supported track selector fields.")
+            continue
+        _append_unknown_key_errors(
+            errors,
+            path=selector_path,
+            keys=selector.keys(),
+            supported=supported,
+        )
+        if not any(key in selector for key in supported):
+            errors.append(f"'{selector_path}' must contain at least one supported track selector field.")
+            continue
+        _validate_optional_track_selector_string(errors, selector_path, selector, "language")
+        _validate_optional_track_selector_string(errors, selector_path, selector, "codec", scalar_safe=True)
+        _validate_optional_track_selector_string(errors, selector_path, selector, "title")
+        if "streamIndex" in selector:
+            _validate_stream_index(errors, f"{selector_path}.streamIndex", selector.get("streamIndex"))
+        if kind == "audio" and "channels" in selector:
+            _validate_selector_channels(errors, f"{selector_path}.channels", selector.get("channels"))
+        if kind == "subtitle" and "forced" in selector and not isinstance(selector.get("forced"), bool):
+            errors.append(f"'{selector_path}.forced' must be a boolean.")
+
+
+def _validate_optional_track_selector_string(
+    errors: list[str],
+    selector_path: str,
+    selector: dict,
+    key: str,
+    *,
+    scalar_safe: bool = False,
+) -> None:
+    if key not in selector:
+        return
+    value = selector.get(key)
+    if not isinstance(value, str):
+        errors.append(f"'{selector_path}.{key}' must be a string.")
+        return
+    text = value.strip()
+    if not text:
+        errors.append(f"'{selector_path}.{key}' must not be empty; omit the selector field to inherit.")
+        return
+    if scalar_safe and not SAFE_OVERRIDE_SCALAR_RE.fullmatch(text):
+        errors.append(f"'{selector_path}.{key}' contains unsupported characters.")
+
+
+def _validate_stream_index(errors: list[str], field_path: str, value: Any) -> None:
+    if type(value) is not int:
+        errors.append(f"'{field_path}' must be an integer.")
+        return
+    if value < 0:
+        errors.append(f"'{field_path}' must be zero or greater.")
+
+
+def _validate_selector_channels(errors: list[str], field_path: str, value: Any) -> None:
+    if type(value) is not int:
+        errors.append(f"'{field_path}' must be an integer.")
+        return
+    if value <= 0:
+        errors.append(f"'{field_path}' must be greater than zero.")
+
+
+def _validate_audio_max_channels(errors: list[str], value) -> None:
+    if type(value) is not int:
+        errors.append("'audio.maxChannels' must be an integer.")
+        return
+    if value not in SUPPORTED_FILE_OVERRIDE_MAX_CHANNELS:
+        allowed = ", ".join(str(item) for item in sorted(SUPPORTED_FILE_OVERRIDE_MAX_CHANNELS))
+        errors.append(f"'audio.maxChannels' must be one of: {allowed}.")
+
+
+def _validate_language_scalar(errors: list[str], field_path: str, value) -> None:
+    if not isinstance(value, str):
+        errors.append(f"'{field_path}' must be a string.")
+        return
+    if not value.strip():
+        errors.append(f"'{field_path}' must not be empty; omit the field to inherit.")
+
+
+def _validate_enum_scalar(errors: list[str], field_path: str, value, allowed: frozenset[str]) -> None:
+    if not isinstance(value, str):
+        errors.append(f"'{field_path}' must be a string.")
+        return
+    text = value.strip()
+    if not text:
+        errors.append(f"'{field_path}' must not be empty; omit the field to inherit.")
+        return
+    if not SAFE_OVERRIDE_SCALAR_RE.fullmatch(text):
+        errors.append(f"'{field_path}' contains unsupported characters.")
+        return
+    normalized = text.casefold()
+    if normalized not in allowed:
+        errors.append(f"'{field_path}' must be one of: {', '.join(sorted(allowed))}.")
+
+
+def file_override_payload_warnings(data: dict) -> list[str]:
+    """Return advisory warnings for valid but risky route/video override values."""
+    warnings: list[str] = []
+    if not isinstance(data, dict):
+        return warnings
+    routing = data.get("routing") if isinstance(data.get("routing"), dict) else {}
+    route_profile = str(routing.get("profile") or "").strip().casefold() if isinstance(routing, dict) else ""
+    if route_profile in {"encode", "transcode"}:
+        warnings.append("routing.profile may force a full video transcode for this file.")
+    elif route_profile == "remux":
+        warnings.append("routing.profile remux forces remux unless processing rejects the source codec as unsafe.")
+    video = data.get("video") if isinstance(data.get("video"), dict) else {}
+    if isinstance(video, dict) and "container" in video:
+        container = str(video.get("container") or "").strip().casefold()
+        if container in {"mp4", "m4v", "mov"}:
+            warnings.append("video.container may force a full video transcode for MP4-family output.")
+    if isinstance(video, dict) and any(key in video for key in ("codec", "encodePreset", "encodeLadder")):
+        warnings.append("video encode settings may force a full video transcode for this file.")
+    _append_exact_selector_warnings(warnings, data)
+    return warnings
+
+
+def _append_exact_selector_warnings(warnings: list[str], data: dict) -> None:
+    for section_name in ("audio", "subtitles"):
+        section = data.get(section_name)
+        if not isinstance(section, dict):
+            continue
+        for key in ("keepTracks", "dropTracks"):
+            selectors = section.get(key)
+            if not isinstance(selectors, list):
+                continue
+            for index, selector in enumerate(selectors):
+                if not isinstance(selector, dict) or "streamIndex" not in selector:
+                    continue
+                signature_keys = ("language", "codec", "channels") if section_name == "audio" else ("language", "codec", "forced")
+                if not any(sig_key in selector for sig_key in signature_keys):
+                    warnings.append(
+                        f"{section_name}.{key}[{index}] uses streamIndex without signature fields; "
+                        "track metadata should be rechecked before processing."
+                    )
+
+
+def clear_file_override_fields(
+    manifest_path: Path,
+    source_path: str | Path,
+    field_paths: list[str] | tuple[str, ...],
+) -> dict:
+    """Clear whitelisted nested fields from an exact file-level override entry."""
+    requested_fields = [str(field).strip() for field in field_paths if str(field).strip()]
+    invalid_fields = [field for field in requested_fields if field not in CLEARABLE_FILE_OVERRIDE_FIELDS]
+    if invalid_fields:
+        raise ValueError(f"Unsupported file override field path(s): {', '.join(invalid_fields)}")
+
+    manifest = read_file_overrides(manifest_path)
+    entries: dict = manifest.setdefault("entries", {})
+    norm = _normalise(source_path)
+    if not _source_path_looks_like_file(source_path):
+        return manifest
+
+    entry = entries.get(norm)
+    if not isinstance(entry, dict):
+        return manifest
+
+    changed = False
+    for field_path in requested_fields:
+        parent_key, child_key = _CLEARABLE_FIELD_KEYS[field_path]
+        parent = entry.get(parent_key)
+        if not isinstance(parent, dict) or child_key not in parent:
+            continue
+        parent.pop(child_key, None)
+        changed = True
+        if not parent:
+            entry.pop(parent_key, None)
+
+    if not changed:
+        return manifest
+
+    if not any(key != "set_at" for key in entry):
+        entries.pop(norm, None)
+    else:
+        entry["set_at"] = datetime.now(timezone.utc).isoformat()
+
+    _write_atomic(manifest_path, manifest)
+    return manifest
+
+
+def _source_path_looks_like_file(source_path: str | Path) -> bool:
+    path = Path(str(source_path))
+    try:
+        if path.exists():
+            return path.is_file()
+    except OSError:
+        pass
+    return bool(path.suffix)
+
+
 def _sanitise_override(data: dict) -> dict:
     """Remove top-level keys that are reserved / managed by the service."""
     reserved = {"set_at", "version"}
-    return {k: v for k, v in data.items() if k not in reserved}
+    sanitized: dict = {}
+    for key, value in data.items():
+        if key in reserved:
+            continue
+        if key == "routing" and isinstance(value, dict):
+            routing = _sanitise_scalar_section(value, SUPPORTED_FILE_OVERRIDE_ROUTING_KEYS)
+            if routing:
+                sanitized[key] = routing
+            continue
+        if key == "video" and isinstance(value, dict):
+            video = _sanitise_scalar_section(value, SUPPORTED_FILE_OVERRIDE_VIDEO_KEYS)
+            if video:
+                sanitized[key] = video
+            continue
+        sanitized[key] = value
+    return sanitized
+
+
+def _sanitise_scalar_section(data: dict, supported: frozenset[str]) -> dict:
+    result: dict = {}
+    for key, value in data.items():
+        key_text = str(key)
+        if key_text not in supported:
+            continue
+        if isinstance(value, str):
+            text = value.strip()
+            if text:
+                result[key_text] = text.casefold()
+        else:
+            result[key_text] = value
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -220,6 +690,8 @@ def file_overrides_to_api_payload(manifest: dict, manifest_path: Path) -> dict:
                 "set_at":    v.get("set_at", ""),
                 "audio":     v.get("audio"),
                 "subtitles": v.get("subtitles"),
+                "routing":   v.get("routing"),
+                "video":     v.get("video"),
             }
             for k, v in entries.items()
         },

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.ui.preferences import read_ui_preferences, ui_preferences_path, write_ui_preferences
+from app.ui_preferences import read_ui_preferences, ui_preferences_path, write_ui_preferences
 
 
 def _ui_preferences_unavailable(reason: str) -> dict[str, Any]:

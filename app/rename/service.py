@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Any
 
 from mediapipeline_desktop_app.models import QueueRecord
-from app.shared.constants import RENAME_TOOL_SIDECAR_SCHEMA_VERSION
 from app.rename.apply import (
     build_rename_operations,
     pipeline_sidecar_paths_for_destination,
@@ -16,6 +15,7 @@ from app.rename.apply import (
     write_rename_undo_manifest,
 )
 from app.rename.apply_runner import apply_rename_path_plan_for_service
+from app.rename.constants import RENAME_TOOL_SIDECAR_SCHEMA_VERSION
 from app.rename.discovery import discover_rename_media_files as discover_rename_media_files_helper
 from app.rename.movie import (
     MOVIE_AUDIO_TAG_PATTERN,

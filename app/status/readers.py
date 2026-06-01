@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import Any
 
 from mediapipeline_desktop_app.contracts import ContractError, PipelineEvent, ProgressState
-from app.shared.protocols import WarningLogger
-from app.shared.utils import _read_json_file, _tail_jsonl_file, _tail_text_file
+from app.status.contracts import WarningLogger
+from app.status.file_io import read_json_file, tail_jsonl_file, tail_text_file
 
 
 def _warning(logger: WarningLogger | None, message: str, *args: object) -> None:
@@ -17,7 +17,7 @@ def read_progress_file(progress_file: Path | None, logger: WarningLogger | None 
     if not progress_file or not progress_file.exists():
         return None
     try:
-        payload = _read_json_file(progress_file)
+        payload = read_json_file(progress_file)
         return ProgressState.from_mapping(payload).to_mapping()
     except ContractError as exc:
         _warning(logger, "Progress contract invalid for %s: %s", progress_file, exc)
@@ -34,7 +34,7 @@ def read_audit_progress_file(audit_reports_path: Path | None, logger: WarningLog
     if not progress_path.exists():
         return None
     try:
-        return _read_json_file(progress_path)
+        return read_json_file(progress_path)
     except Exception as exc:
         _warning(logger, "Audit progress read failed for %s: %s", progress_path, exc)
         return None
@@ -44,7 +44,7 @@ def read_log_tail_file(log_file: Path | None, line_count: int = 150) -> str:
     if not log_file or not log_file.exists():
         return "No pipeline_debug.log found yet."
     try:
-        text = _tail_text_file(log_file, line_count=line_count, encoding="utf-8")
+        text = tail_text_file(log_file, line_count=line_count, encoding="utf-8")
     except Exception as exc:
         return f"Failed to read log tail.\n{exc}"
     return text if text else "(log is empty)"
@@ -58,7 +58,7 @@ def read_pipeline_events_tail_file(
     if not event_file or not event_file.exists():
         return []
     try:
-        raw_events = _tail_jsonl_file(event_file, line_count=line_count, encoding="utf-8")
+        raw_events = tail_jsonl_file(event_file, line_count=line_count, encoding="utf-8")
         events: list[dict[str, Any]] = []
         invalid_count = 0
         for raw_event in raw_events:

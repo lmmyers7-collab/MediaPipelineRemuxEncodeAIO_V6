@@ -177,17 +177,17 @@
 <path fill="none" stroke="#2563eb" stroke-width="1.05" d="M880.09,-283.92C899.02,-282.47 918.72,-280.96 937.78,-279.5"/>
 <polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="937.73,-281.78 944.03,-279.02 937.38,-277.25 937.73,-281.78"/>
 </g>
-<!-- external_app_shared -->
+<!-- external_app_files -->
 <g id="node12" class="node">
-<title>external_app_shared</title>
-<path fill="#f8fafc" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M1080.05,-222.52C1080.05,-222.52 1031.84,-222.52 1031.84,-222.52 1025.84,-222.52 1019.84,-216.52 1019.84,-210.52 1019.84,-210.52 1019.84,-198.52 1019.84,-198.52 1019.84,-192.52 1025.84,-186.52 1031.84,-186.52 1031.84,-186.52 1080.05,-186.52 1080.05,-186.52 1086.05,-186.52 1092.05,-192.52 1092.05,-198.52 1092.05,-198.52 1092.05,-210.52 1092.05,-210.52 1092.05,-216.52 1086.05,-222.52 1080.05,-222.52"/>
-<text xml:space="preserve" text-anchor="middle" x="1055.95" y="-201.75" font-family="Segoe UI" font-size="12.00" fill="#111827">app/shared</text>
+<title>external_app_files</title>
+<path fill="#f8fafc" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M1072.93,-222.52C1072.93,-222.52 1038.97,-222.52 1038.97,-222.52 1032.97,-222.52 1026.97,-216.52 1026.97,-210.52 1026.97,-210.52 1026.97,-198.52 1026.97,-198.52 1026.97,-192.52 1032.97,-186.52 1038.97,-186.52 1038.97,-186.52 1072.93,-186.52 1072.93,-186.52 1078.93,-186.52 1084.93,-192.52 1084.93,-198.52 1084.93,-198.52 1084.93,-210.52 1084.93,-210.52 1084.93,-216.52 1078.93,-222.52 1072.93,-222.52"/>
+<text xml:space="preserve" text-anchor="middle" x="1055.95" y="-201.75" font-family="Segoe UI" font-size="12.00" fill="#111827">app/files</text>
 </g>
-<!-- app_final_library_promotion_parts_transfer&#45;&gt;external_app_shared -->
+<!-- app_final_library_promotion_parts_transfer&#45;&gt;external_app_files -->
 <g id="edge15" class="edge">
-<title>app_final_library_promotion_parts_transfer&#45;&gt;external_app_shared</title>
-<path fill="none" stroke="#9333ea" stroke-width="1.05" d="M810.04,-273.99C844.53,-259.41 894.86,-239.48 940.34,-226.52 963.59,-219.9 990.07,-214.67 1011.72,-210.97"/>
-<polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="1011.85,-213.25 1017.89,-209.94 1011.1,-208.77 1011.85,-213.25"/>
+<title>app_final_library_promotion_parts_transfer&#45;&gt;external_app_files</title>
+<path fill="none" stroke="#9333ea" stroke-width="1.05" d="M810.04,-273.99C844.53,-259.41 894.86,-239.48 940.34,-226.52 966.31,-219.12 996.3,-213.46 1019.09,-209.74"/>
+<polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="1019.2,-212.02 1025.26,-208.75 1018.49,-207.53 1019.2,-212.02"/>
 <text xml:space="preserve" text-anchor="middle" x="910.09" y="-239.61" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">1</text>
 </g>
 <!-- app_final_library_service -->

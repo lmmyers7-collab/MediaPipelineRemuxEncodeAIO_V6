@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from app.shared.constants import MEDIA_FILE_SUFFIXES, VLC_LONG_PATH_THRESHOLD
+from app.files.constants import MEDIA_FILE_SUFFIXES, VLC_LONG_PATH_THRESHOLD
 from app.rename.plan_policy import (
     casefold_bool_override_map,
     casefold_override_map,
@@ -11,7 +11,7 @@ from app.rename.plan_policy import (
     rename_row_status,
     rename_template_includes_tv_episode_title,
 )
-from app.shared.protocols import RenamePlannerServiceProtocol
+from app.rename.contracts import RenamePlannerServiceProtocol
 
 
 def plan_rename_paths_for_service(

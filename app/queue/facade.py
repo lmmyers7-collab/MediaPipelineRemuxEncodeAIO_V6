@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from app.queue.file_overrides import read_file_overrides
 from app.queue.policy import (
     INVALID_QUEUE_SNAPSHOT_WARNING,
     NO_QUEUE_SNAPSHOT_WARNING,
@@ -63,7 +64,14 @@ class QueueFacadeMixin:
             return self._queue_preview_with_progress_warning(str(snapshot_path), f"Queue snapshot could not be read: {exc}")
         if not isinstance(snapshot, dict):
             return self._queue_preview_with_progress_warning(str(snapshot_path), INVALID_QUEUE_SNAPSHOT_WARNING)
-        rows = queue_preview_rows(snapshot.get("rows") or [], row_factory)
+        file_override_manifest = None
+        if resolved.file_overrides_path is not None:
+            file_override_manifest = read_file_overrides(resolved.file_overrides_path)
+        rows = queue_preview_rows(
+            snapshot.get("rows") or [],
+            row_factory,
+            file_override_manifest=file_override_manifest,
+        )
         runtime_events: list[dict[str, object]] = []
         runtime_outcome_warning = ""
         read_events = getattr(self.service, "read_pipeline_events_tail", None)

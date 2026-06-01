@@ -6,9 +6,9 @@ import uuid
 from pathlib import Path
 from typing import Any, Callable
 
-from app.shared.constants import RENAME_TOOL_SIDECAR_SCHEMA_VERSION
 from app.paths.layout import ensure_path_boundary_safe_for_mutation
-from app.shared.utils import _atomic_write_text
+from app.rename.constants import RENAME_TOOL_SIDECAR_SCHEMA_VERSION
+from app.rename.file_io import atomic_write_text
 
 SameFileFunc = Callable[[Path, Path], bool]
 PathKeyFunc = Callable[[Path], str]
@@ -53,7 +53,7 @@ def update_rename_sidecar_metadata(
     if schema_default:
         existing.setdefault("SchemaVersion", schema_default)
     existing["RenameTool"] = payload
-    _atomic_write_text(path, json.dumps(existing, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    atomic_write_text(path, json.dumps(existing, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def update_pipeline_sidecar_after_rename(path: Path, payload: dict[str, Any], destination: Path) -> None:
@@ -74,7 +74,7 @@ def update_pipeline_sidecar_after_rename(path: Path, payload: dict[str, Any], de
     )
     existing["rename_history"] = history[-25:]
     existing["RenameTool"] = payload
-    _atomic_write_text(path, json.dumps(existing, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    atomic_write_text(path, json.dumps(existing, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def pipeline_sidecar_paths_for_destination(
@@ -104,7 +104,7 @@ def write_rename_undo_manifest(manifest: dict[str, Any], *, root: Path | None = 
     path_text = str(manifest.get("path") or "")
     path = Path(path_text) if path_text else manifest_root / f"rename-undo-{uuid.uuid4().hex}.json"
     manifest["path"] = str(path)
-    _atomic_write_text(path, json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    atomic_write_text(path, json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return path
 
 

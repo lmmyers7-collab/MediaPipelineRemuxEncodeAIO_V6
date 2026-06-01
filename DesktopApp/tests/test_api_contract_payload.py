@@ -192,13 +192,21 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             if route["response_schema"] != "desktop_command_result.v1":
                 non_command_result_posts.append(str(route["path"]))
                 expected_effect = {
+                    "/api/queue/file-overrides/folder-preview": "read-only-preview",
+                    "/api/queue/file-overrides/route-preview": "read-only-preview",
                     "/api/ui-preferences": "ui-state-write",
                 }.get(str(route["path"]), "none")
                 self.assertEqual(route["effect"], expected_effect, route["path"])
 
         self.assertEqual(
             sorted(non_command_result_posts),
-            ["/api/rename/preview", "/api/sample-validation/preview", "/api/ui-preferences"],
+            [
+                "/api/queue/file-overrides/folder-preview",
+                "/api/queue/file-overrides/route-preview",
+                "/api/rename/preview",
+                "/api/sample-validation/preview",
+                "/api/ui-preferences",
+            ],
         )
         self.assertIn("allow_outside_configured_roots", routes["/api/rename/apply"]["request_keys"])
         self.assertIn("outside-root confirmation", routes["/api/rename/apply"]["purpose"])
@@ -218,6 +226,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             "deployment-write",
             "process-launch",
             "queue-state-write",
+            "read-only-preview",
             "shell-dialog",
             "shell-open",
             "tooling-artifact-write",

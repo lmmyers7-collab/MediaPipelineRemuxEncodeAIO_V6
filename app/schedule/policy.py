@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from mediapipeline_desktop_app.application.dto_commands import CommandResult
 
-from app.shared.constants import SCHEDULE_DAY_NAMES
+from app.schedule.constants import SCHEDULE_DAY_NAMES
 
 
 ScheduleLabelFormatter = Callable[[int], str]

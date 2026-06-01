@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from app.contracts.source_media import (
+from app.contracts.source_media_models import (
     MediaType,
     SourceCompatibilityPolicy,
     SourceContainerInfo,

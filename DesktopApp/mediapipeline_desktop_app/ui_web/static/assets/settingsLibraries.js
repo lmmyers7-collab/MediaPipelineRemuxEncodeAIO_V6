@@ -1,6 +1,7 @@
 (function () {
   const metadata = window.mediaPipelineSettingsMetadata || {};
   const choiceLabels = metadata.settingsChoiceLabels || {};
+  const advancedFallbackKeys = new Set(metadata.settingsAdvancedFallbackKeys || []);
   const pathFields = ["source_path", "output_path", "promotion_destination"];
   const designationValues = ["movie", "tv", "auto"];
 
@@ -145,9 +146,9 @@
     if (field.library_override_allowed !== true) {
       const scope = String(field.scope || "global_only");
       if (scope === "source_derived" || scope === "computed_only") {
-        return { field, render: true, editable: false, reason: "Read-only source/effective value" };
+        return { field, render: true, editable: false, reason: "Source/computed — read-only" };
       }
-      return { field, render: true, editable: false, reason: "Global only — cannot be overridden per library" };
+      return { field, render: true, editable: false, reason: "Global-only — unavailable" };
     }
     if (String(field.override_group || "") !== groupKey) {
       return { field, render: true, editable: false, reason: `belongs to ${field.override_group || "another"} overrides` };
@@ -475,6 +476,64 @@
     return textValue ? [textValue] : [];
   }
 
+  const metadataBadgeLabels = {
+    routing: "ROUTING",
+    route: "ROUTING",
+    compatibility: "COMPATIBILITY",
+    quality: "QUALITY",
+    size: "SIZE",
+    bitrate: "BITRATE",
+    output: "OUTPUT",
+    verification: "VERIFY",
+    verify: "VERIFY",
+    publish: "PUBLISH",
+    advisory: "ADVISORY",
+    hard: "HARD",
+    soft: "SOFT",
+    advanced: "ADVANCED",
+  };
+
+  function metadataBadgeKind(value) {
+    const normalized = String(value || "").trim().toLowerCase().replace(/_/g, "-");
+    if (normalized === "route") return "routing";
+    if (normalized === "verify") return "verification";
+    return normalized;
+  }
+
+  function metadataBadgeText(value) {
+    const kind = metadataBadgeKind(value);
+    return metadataBadgeLabels[kind] || String(value || "").replace(/_/g, " ").toUpperCase();
+  }
+
+  function fieldIsAdvanced(key, field) {
+    const advancedVisibility = String(field?.advanced_visibility || "").trim().toLowerCase();
+    const section = String(field?.section || "").trim().toLowerCase();
+    const tags = [
+      ...metadataTags(field?.rule_taxonomy),
+      ...metadataTags(field?.strictness),
+    ].map((value) => String(value || "").trim().toLowerCase());
+    return advancedVisibility === "advanced"
+      || section === "advanced"
+      || tags.includes("advanced")
+      || advancedFallbackKeys.has(String(key || field?.key || ""));
+  }
+
+  function renderMetadataBadges(fieldKey, field) {
+    const badges = [
+      ...metadataTags(field?.rule_taxonomy).map((value) => ["taxonomy", value]),
+      ...metadataTags(field?.strictness).map((value) => ["strictness", value]),
+    ];
+    if (fieldIsAdvanced(fieldKey, field) && !badges.some(([, value]) => metadataBadgeKind(value) === "advanced")) {
+      badges.push(["visibility", "advanced"]);
+    }
+    if (!badges.length) return "";
+    return `
+      <span class="settings-library-metadata-badges" data-metadata-source="backend">
+        ${badges.map(([kind, value]) => `<span class="rule-badge settings-library-metadata-badge" data-metadata-kind="${escapeHtml(kind)}" data-rule-kind="${escapeHtml(metadataBadgeKind(value))}" title="Display-only backend metadata; not a saved config key.">${escapeHtml(metadataBadgeText(value))}</span>`).join("")}
+      </span>
+    `;
+  }
+
   function choiceValueLabel(value) {
     const key = String(value ?? "");
     return choiceLabels[key] || key.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
@@ -562,8 +621,9 @@
       : defaultSettingValue(fieldKey);
     const label = escapeHtml(choiceLabel(fieldKey));
     const unavailableReason = editable ? "" : status.reason || "not available for library overrides";
-    const stateText = overrideStateText(isOverride, value, inheritedValue);
-    const state = `<span class="settings-library-state ${isOverride ? "is-custom" : "is-inherited"}" data-library-override-state-label>${escapeHtml(stateText)}</span>`;
+    const stateText = editable ? overrideStateText(isOverride, value, inheritedValue) : unavailableReason;
+    const stateClass = editable ? (isOverride ? "is-custom" : "is-inherited") : "is-readonly";
+    const state = `<span class="settings-library-state ${stateClass}" data-library-override-state-label>${escapeHtml(stateText)}</span>`;
     const titleText = [fieldHelpText(field), unavailableReason ? `Unavailable: ${unavailableReason}` : ""].filter(Boolean).join(" ");
     const title = titleText ? ` title="${escapeHtml(titleText)}"` : "";
     const advancedVisibility = field?.advanced_visibility || "standard";
@@ -577,20 +637,22 @@
       variant === "check-grid" ? "check-row launch-check-row" : "",
       variant === "full" ? "full-field" : "",
       "settings-library-override-row",
-      advancedVisibility === "advanced" ? "is-advanced-field" : "",
+      fieldIsAdvanced(fieldKey, field) ? "is-advanced-field" : "",
       editable ? "" : "is-unavailable",
       isOverride ? "is-custom" : "is-inherited",
     ].filter(Boolean).join(" ");
-    const advancedAttr = advancedVisibility === "advanced" ? " data-advanced" : "";
+    const advancedAttr = fieldIsAdvanced(fieldKey, field) ? " data-advanced" : "";
     const rowAttrs = `class="${baseClass}" data-library-override-row data-library-override-group="${escapeHtml(groupKey)}" data-library-override-key="${escapeHtml(fieldKey)}" data-library-persisted-key="${escapeHtml(persistedKey)}" data-library-override="${isOverride ? "true" : "false"}" data-library-override-eligible="${editable ? "true" : "false"}" data-library-section="${escapeHtml(section)}" data-library-scope="${escapeHtml(scope)}" data-library-rule-taxonomy="${escapeHtml(ruleTaxonomy)}" data-library-strictness="${escapeHtml(strictness)}" data-library-advanced-visibility="${escapeHtml(advancedVisibility)}" data-library-unavailable-reason="${escapeHtml(unavailableReason)}"${advancedAttr}${title}`;
     const control = buildOverrideControl(fieldKey, value, !editable);
     const button = editable ? renderUseDefaultButton(groupKey, fieldKey, isOverride) : "";
+    const badges = renderMetadataBadges(fieldKey, field);
     const unavailable = unavailableReason ? `<span class="note settings-library-override-unavailable">${escapeHtml(unavailableReason)}</span>` : "";
     if (field?.kind === "bool") {
       return `
         <label ${rowAttrs}>
           ${control}
           <span class="settings-library-override-label-text">${label}</span>
+          ${badges}
           ${state}
           ${button}
           ${unavailable}
@@ -601,6 +663,7 @@
       <label ${rowAttrs}>
         <span class="settings-library-override-field-heading">
           <span class="settings-library-override-label-text">${label}</span>
+          ${badges}
           ${state}
           ${button}
         </span>

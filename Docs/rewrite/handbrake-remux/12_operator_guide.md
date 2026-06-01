@@ -12,6 +12,16 @@ changes that.
 
 - Settings can show backend-owned dry-run `pipeline_plan.v1` preview evidence
   for explicit `SourceMediaInfo` facts and staged Settings changes.
+- Backend field metadata is the canonical source for Settings and Library
+  Profiles labels, help text, allowed values, defaults, advanced/display
+  taxonomy, and library override eligibility.
+- HandBrake-style sections and friendly labels are display-only. Persisted V6
+  keys such as `RoutingProfile`, `SizeGuardMode`, and `VideoPreset` remain the
+  saved keys, and Library Profiles override groups remain `editor`, `video`,
+  `subtitles`, and `audio`.
+- The WebView remains staging/display only. Backend Preview/Save validates and
+  persists settings; frontend hints and summaries are not persistence
+  authority.
 - The preview is labelled `Predicted pending cutover` because it is planning
   evidence, not the production executor.
 - The current production authority remains the legacy PowerShell route and
@@ -102,17 +112,24 @@ probe should be visible and conservative rather than guessed.
 
 ## UI Sections
 
+Section labels are display metadata only. They do not change persisted config
+keys or Library Profiles override groups.
+
 | Section | What to look for |
 | --- | --- |
-| Summary | Derived route summary, dry-run status, rollout evidence, and preview warnings. |
-| Source / Compatibility | Detected facts only. These are not editable output settings. |
+| Summary / Effective Decision | Derived route summary, dry-run status, rollout evidence, and conservative runtime caveats. |
 | Routing | Processing Strategy, route enforcement, copy/remux caps, and compatibility policy. |
+| Source / Compatibility | Detected facts only. These are not editable output settings. |
 | Dimensions | Resolution and direct-copy height policy. Downscale requests force encode. |
 | Filters | Video filters force encode. Subtitle text cleanup can affect subtitle conversion. |
-| Video / Audio / Subtitles | Encoder, target mode, speed preset, quality, audio passthrough/transcode, subtitle copy/convert/burn/drop policy. |
-| Container / Size Guards | Container intent, direct-copy bitrate caps, route size limits, and Output Size Check posture. |
+| Video | Encoder, target mode, speed preset, quality, fallback CPU controls, and advanced encoder flags. |
+| Audio | Passthrough/transcode/downmix/no-audio policy and language preferences. |
+| Subtitles | Subtitle copy/convert/burn/drop policy, OCR settings, cleanup rules, forced/signs/songs handling, and VobSub policy. |
+| Container | Output container intent and compatibility copy. |
+| Size / Bitrate Guards | GB target output-size settings, direct-copy Mbps bitrate gates, growth tolerances, and Output Size Check posture. |
 | Verification / Publish | Validation, Output Size Check results, publish blockers, and pending-publish guidance. |
 | Presets | Preset view and existing backend Preview/Save Patch flow. |
+| Advanced | High-risk or low-level controls that remain persisted V6 keys when staged. |
 
 ## Dimensions And Filters
 
@@ -157,9 +174,9 @@ Three concepts are intentionally separate:
 
 | Concept | Meaning |
 | --- | --- |
-| Route size limit | Current legacy `EncodeThresholdGB` and `TVEncodeThresholdGB` behavior. These are source-size route limits, not target output sizes. |
-| Target output size | A future/explicit output-size target. Do not infer this from legacy route thresholds. |
-| Direct-copy max bitrate | A bitrate ceiling for allowing video copy/remux. If the source exceeds it, encode can be selected. |
+| GB target output size | `EncodeThresholdGB` and `TVEncodeThresholdGB` are output-size budgets used by size checks. They are not Mbps bitrate gates. |
+| Direct-copy max bitrate | `MovieRouteMaxVideoBitrateMbps` and `TVRouteMaxVideoBitrateMbps` are Mbps gates for allowing video copy/remux. If the source exceeds the relevant gate, routing may choose encode. |
+| Growth tolerance | `MaxEncodeGrowthPercent` and `CompatibilityEncodeGrowthPercent` describe allowed growth after encode, not direct-copy eligibility. |
 
 `Route Enforcement Mode` controls how routing rules such as source-size and
 bitrate limits affect copy/remux versus encode planning.
@@ -198,6 +215,24 @@ Legacy keys such as `RoutingProfile`, `SizeGuardMode`, `VideoCodec`,
 Unknown legacy values are preserved in the v2 adapter view instead of being
 dropped. Source facts do not belong in a preset; they come from the selected
 media file.
+
+Library Profiles use the same backend metadata labels/help as main Settings,
+but their persisted override groups remain stable: `editor`, `video`,
+`subtitles`, and `audio`. Missing override keys inherit global settings.
+Present override keys are explicit, even when their value currently equals the
+global value. Reset-to-global removes the override key instead of writing a
+copy of the global value.
+
+`library_effective_settings` is library-only evidence: global defaults plus
+Library Profiles overrides. It excludes show, folder, per-file, source/probe,
+verification, and publish layers. `runtime_effective_settings`, where emitted,
+is separate diagnostic-only final-runtime evidence and is not persisted config.
+
+Promotion rules are generated from normalized enabled `LibraryProfiles` with an
+explicit promotion destination first. Legacy `FinalLibraryPromotionRules` remain
+accepted as compatibility fallback for uncovered roots only; stale fallback
+rules must not override current profile-derived source, output, destination,
+library id, or designation evidence.
 
 ## Rollout And Rollback
 

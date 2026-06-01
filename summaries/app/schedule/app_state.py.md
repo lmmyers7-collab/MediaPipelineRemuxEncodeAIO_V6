@@ -3,15 +3,15 @@ file: app/schedule/app_state.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-05-28
+last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: 5f68db4c8ffaf4ed6f1d9b017a0577eeb9bb9527a564e938b56e2a277718d629
+sha256: c7cab87f28e1a151525fc05ce0f9b371e8fb17f3ee32ec81b360ca5007e6627e
 ---
 # `app/schedule/app_state.py`
 
 **Purpose:** (no module docstring)
 
 **Classes:** `AppStateScheduleServiceMixin`
-**In-repo imports:** `app.schedule.grid`, `app.shared.utils`
+**In-repo imports:** `app.schedule.file_io`, `app.schedule.grid`
 
 _Edit the source, not this file. Regenerate with `python scripts/dev/refresh_summaries.py --paths app/schedule/app_state.py`._

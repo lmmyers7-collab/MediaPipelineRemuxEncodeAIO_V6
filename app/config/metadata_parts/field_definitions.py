@@ -577,7 +577,7 @@ _KIND_VALUE_TYPES = {
     "string": "string",
 }
 
-_METADATA_LIBRARY_OVERRIDE_KEYS_BY_GROUP = {
+METADATA_LIBRARY_OVERRIDE_KEYS_BY_GROUP = {
     "editor": (
         "RoutingProfile",
         "RouteThresholdMode",
@@ -657,7 +657,7 @@ _METADATA_LIBRARY_OVERRIDE_KEYS_BY_GROUP = {
 
 METADATA_LIBRARY_OVERRIDE_GROUP_BY_KEY = {
     key: group
-    for group, keys in _METADATA_LIBRARY_OVERRIDE_KEYS_BY_GROUP.items()
+    for group, keys in METADATA_LIBRARY_OVERRIDE_KEYS_BY_GROUP.items()
     for key in keys
 }
 

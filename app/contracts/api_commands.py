@@ -58,8 +58,29 @@ class QueueFileOverridesCommandPayload(ApiCommandPayload):
     path: Any = None
     audio: Any = None
     subtitles: Any = None
+    routing: Any = None
+    video: Any = None
     clear: Any = None
     clear_all: Any = None
+    clear_fields: Any = None
+
+
+class QueueFileOverridesRoutePreviewCommandPayload(StrictApiCommandPayload):
+    path: Any = None
+    proposed_override: Any = None
+
+
+class QueueFileOverridesFolderPreviewCommandPayload(StrictApiCommandPayload):
+    folder_path: Any = None
+    proposed_override: Any = None
+    options: Any = None
+
+
+class QueueFileOverridesFolderRuleCommandPayload(StrictApiCommandPayload):
+    folder_path: Any = None
+    override: Any = None
+    confirmation: Any = None
+    clear: Any = None
 
 
 class SettingsCommandPayload(ApiCommandPayload):
@@ -236,6 +257,9 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/queue/priority": QueuePriorityCommandPayload,
     "/api/queue/strategy": QueueStrategyCommandPayload,
     "/api/queue/file-overrides": QueueFileOverridesCommandPayload,
+    "/api/queue/file-overrides/route-preview": QueueFileOverridesRoutePreviewCommandPayload,
+    "/api/queue/file-overrides/folder-preview": QueueFileOverridesFolderPreviewCommandPayload,
+    "/api/queue/file-overrides/folder-rule": QueueFileOverridesFolderRuleCommandPayload,
     "/api/failures/clear": FailureCommandPayload,
     "/api/pending-publish/open": OpenLocationCommandPayload,
     "/api/pending-publish/recovery-plan": OpenLocationCommandPayload,

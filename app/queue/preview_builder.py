@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.queue.contracts import QueuePreviewServiceProtocol
 from app.queue.dry_run import format_queue_plan_source_status, queue_snapshot_file_is_fresh
 from mediapipeline_desktop_app.models import QueueRecord, ResolvedPaths
-from app.shared.protocols import QueuePreviewServiceProtocol
 
 
 def build_queue_preview_for_service(

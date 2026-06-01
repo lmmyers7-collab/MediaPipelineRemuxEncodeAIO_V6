@@ -18,8 +18,8 @@ from app.publish.pending_paths import (
     path_from_texts,
     pending_item_mtime,
 )
+from app.publish.file_io import read_json_file
 from app.publish.pending_manifest import pending_manifest_row
-from app.shared.utils import _read_json_file
 
 
 PENDING_DRAIN_SUMMARY_SCHEMA_VERSION = "pending_drain_summary.v1"
@@ -54,7 +54,7 @@ def read_pending_drain_summary(resolved: ResolvedPaths, pending_root: Path | Non
         return base
 
     try:
-        payload = _read_json_file(summary_path, retries=2)
+        payload = read_json_file(summary_path, retries=2)
     except Exception as exc:
         return {
             **base,

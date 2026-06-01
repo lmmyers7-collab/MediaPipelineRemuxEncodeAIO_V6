@@ -17,7 +17,7 @@ from app.processes.control_policy import (
     pipeline_control_command,
     pipeline_control_success_data,
 )
-from app.shared.utils import _atomic_write_text
+from app.processes.file_io import atomic_write_text
 
 _IDLE_STAGES = frozenset({"idle", "startup", ""})
 
@@ -86,7 +86,7 @@ def _write_idle_progress_file(progress_file: Path | None, logger: Any = None) ->
         "TVEpisodes": existing.get("TVEpisodes", 0),
     }
     try:
-        _atomic_write_text(progress_file, json.dumps(idle_payload, indent=2) + "\n")
+        atomic_write_text(progress_file, json.dumps(idle_payload, indent=2) + "\n")
         return f"progress stage reset from '{current_stage}' to idle"
     except Exception as exc:
         if logger is not None:

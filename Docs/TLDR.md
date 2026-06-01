@@ -17,7 +17,7 @@ From the bundle root:
 3. Use the WebView for Start Continuous, Run Once, Pause, Stop, Kill + Quit, Refresh Queue, Audit, CSV Rerun, Reports Clear Retry Blockers, and Publish Parked Outputs after the relevant validation gates pass.
 4. Use **Maintenance -> Pending Publish** to inspect parked outputs, sidecars, manifest state, missing payloads, and orphan payload files before draining.
 5. Use the standalone **Rename** tab for pre/post file renaming. TV mode supports selected-order season numbering; Movie mode shows scrubbed/pipeline predictions, per-row final names, forced pipeline-name sidecars, selectable built-in scrub filters, custom negative terms, an Apply Readiness ledger, explicit large-batch render-cap wording before backend-owned apply, and an Apply Outcome Review after backend results are available.
-6. Use **Settings -> Video / Audio / Subtitles** to adjust routing profile, size guard, encode presets, audio passthrough/transcode policy, and subtitle conversion behavior.
+6. Use **Settings** sections such as **Routing**, **Video**, **Audio**, **Subtitles**, **Container**, and **Size / Bitrate Guards** to adjust processing strategy, output size checks, encode presets, audio passthrough/transcode policy, and subtitle conversion behavior. These section names are display-only; Preview Patch and Save Patch still use persisted V6 keys.
 7. Use `scripts\dev\setup.bat` when changing config paths or major settings.
 8. Use `scripts\verify-env.bat` when moving machines or troubleshooting missing tools.
 
@@ -56,6 +56,10 @@ The WebView Launch page also includes a compact `Start Decision Summary` directl
 The WebView Launch page now includes an `Active Media Policy Boundary` under Saved Settings Trust. It shows the saved subtitle/container, audio, and pending-publish/source-safety policy that Launch would use now, then compares any staged Settings Changes JSON candidate and marks it as not launch-active until backend Preview Patch, Save Patch, and reload/refresh succeed.
 
 The WebView Settings page now includes an `Effective Policy Trust` panel inside Patch Preview. It states that the launch-active source of truth is the saved backend config, treats visible builder values and Changes JSON as inactive candidates, checks whether Preview/Save evidence matches the current JSON, and gives the next safe operator action before any settings change is trusted.
+
+Settings and Library Profiles now use backend-owned field metadata for visible labels, help text, allowed values, defaults, advanced display state, and library-override eligibility. The WebView remains a staging/display surface: it may show HandBrake-style sections and friendly labels, but it does not rename persisted keys, change override groups, validate authoritatively, or save config without the backend Preview/Save path. Library override rows distinguish inherited global values, explicit overrides, explicit values that currently match global, reset-to-inherited, global-only fields, source/computed read-only fields, and advanced fields while still previewing persisted groups such as `editor`, `video`, `audio`, and `subtitles`.
+
+Queue, job, route, and promotion diagnostics keep library and runtime evidence separate. `library_effective_settings` is library-only evidence: global defaults plus Library Profiles overrides. `runtime_effective_settings`, when present, is diagnostic-only final-runtime evidence and is not a saved config key. Profile-derived promotion rules use normalized `LibraryProfiles` first; legacy `FinalLibraryPromotionRules` are fallback compatibility for uncovered roots only.
 
 The WebView Launch backend preflight now includes a `Continuous schedule-stop watcher` row. Normal scheduled WebView `continuous` starts can arm a backend watcher that writes the regular stop flag at the schedule boundary when a current window end is reported. `Ignore Schedule` is still a high-review bypass and does not arm that watcher.
 

@@ -13,6 +13,11 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "DesktopApp"))
 
+from app.config.library_profiles import (
+    normalize_library_profile_config_values,
+    promotion_rules_from_library_profiles,
+)
+from app.config.validation import validate_config_values
 from app.final_library import service as promotion_service
 from app.final_library.promotion import (
     cleanup_verified_files,
@@ -24,7 +29,11 @@ from app.final_library.promotion import (
     promote_item,
     read_item_evidence,
 )
-from app.final_library.promotion_parts.planning import plan_promotion_file_targets
+from app.final_library.promotion_parts.planning import (
+    normalized_path_key,
+    path_within_root,
+    plan_promotion_file_targets,
+)
 from app.final_library.promotion_parts import transfer as promotion_transfer
 from app.final_library.promotion_parts.transfer import companion_sidecars, copy_file_with_verification
 from app.final_library.service import FinalLibraryPromotionServiceMixin
@@ -35,6 +44,8 @@ from mediapipeline_desktop_app.config_keys import (
     KEY_FINAL_LIBRARY_PROMOTION_RULES,
     KEY_FINAL_LIBRARY_PROMOTION_VERIFICATION_MODE,
     KEY_OUTSOURCE,
+    KEY_SOURCE_MOVIES,
+    KEY_SOURCE_TV,
 )
 from mediapipeline_desktop_app.models import CompletedJobRecord, ResolvedPaths
 
@@ -82,6 +93,299 @@ def _record(source: Path, output: Path, *, title: str = "Movie") -> CompletedJob
 
 
 class FinalLibraryPromotionTests(unittest.TestCase):
+    def test_profile_derived_rule_generated_from_normalized_builtin_profile(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            source_movies = root / "SourceMovies"
+            source_tv = root / "SourceTV"
+            outsource = root / "Processed"
+            destination = root / "FinalMovies"
+            stale_destination = root / "OldFinalMovies"
+            config = {
+                KEY_SOURCE_MOVIES: str(source_movies),
+                KEY_SOURCE_TV: str(source_tv),
+                KEY_OUTSOURCE: str(outsource),
+                KEY_FINAL_LIBRARY_PROMOTION_RULES: [
+                    {
+                        "id": "stale-movies",
+                        "label": "Old Movies",
+                        "enabled": True,
+                        "source_root": str(source_movies),
+                        "output_root": str(root / "OldProcessed"),
+                        "destination_root": str(stale_destination),
+                        "library_id": "old-movies",
+                        "designation": "tv",
+                    }
+                ],
+                "LibraryProfiles": [
+                    {
+                        "id": "movies",
+                        "name": "Movies",
+                        "enabled": True,
+                        "designation": "movie",
+                        "source_path": "",
+                        "output_path": "",
+                        "promotion_enabled": True,
+                        "promotion_destination": str(destination),
+                    }
+                ],
+            }
+
+            normalized = normalize_library_profile_config_values(config, require_profiles=True)
+            rules = normalized[KEY_FINAL_LIBRARY_PROMOTION_RULES]
+
+            self.assertEqual([rule["id"] for rule in rules], ["library-profile-movies"])
+            self.assertEqual(
+                rules[0],
+                {
+                    "id": "library-profile-movies",
+                    "label": "Movies promotion",
+                    "enabled": True,
+                    "source_root": str(source_movies),
+                    "output_root": str(outsource),
+                    "destination_root": str(destination),
+                    "library_id": "movies",
+                    "designation": "movie",
+                },
+            )
+
+    def test_profile_derived_rule_generated_from_custom_inherited_output_root(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            source_root = root / "ConcertsSource"
+            outsource = root / "Processed"
+            destination = root / "FinalConcerts"
+            config = {
+                KEY_SOURCE_MOVIES: str(root / "Movies"),
+                KEY_SOURCE_TV: str(root / "TV"),
+                KEY_OUTSOURCE: str(outsource),
+                "LibraryProfiles": [
+                    {
+                        "id": "concerts",
+                        "name": "Concerts",
+                        "enabled": True,
+                        "designation": "auto",
+                        "source_path": str(source_root),
+                        "output_path": "",
+                        "promotion_enabled": True,
+                        "promotion_destination": str(destination),
+                    }
+                ],
+            }
+
+            rules = promotion_rules_from_library_profiles(config, include_existing=False)
+
+            self.assertEqual(len(rules), 1)
+            self.assertEqual(rules[0]["id"], "library-profile-concerts")
+            self.assertEqual(rules[0]["source_root"], str(source_root))
+            self.assertEqual(rules[0]["output_root"], str(outsource))
+            self.assertEqual(rules[0]["destination_root"], str(destination))
+            self.assertEqual(rules[0]["library_id"], "concerts")
+            self.assertEqual(rules[0]["designation"], "auto")
+
+    def test_explicit_custom_output_equal_to_outsource_remains_pinned_after_outsource_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            original_outsource = root / "ProcessedA"
+            changed_outsource = root / "ProcessedB"
+            source_root = root / "ConcertsSource"
+            destination = root / "FinalConcerts"
+            source = source_root / "Concert.mkv"
+            output = original_outsource / "Concerts" / "Concert.mkv"
+            source_root.mkdir()
+            output.parent.mkdir(parents=True)
+            destination.mkdir()
+            output.write_bytes(b"media")
+            config = {
+                KEY_SOURCE_MOVIES: str(root / "Movies"),
+                KEY_SOURCE_TV: str(root / "TV"),
+                KEY_OUTSOURCE: str(changed_outsource),
+                "LibraryProfiles": [
+                    {
+                        "id": "concerts",
+                        "name": "Concerts",
+                        "enabled": True,
+                        "designation": "auto",
+                        "source_path": str(source_root),
+                        "output_path": str(original_outsource),
+                        "promotion_enabled": True,
+                        "promotion_destination": str(destination),
+                    }
+                ],
+            }
+
+            rules = promotion_rules_from_library_profiles(config, include_existing=False)
+            item = promotion_status_payload(_resolved(root, changed_outsource, config), [_record(source, output)])["items"][0]
+
+            self.assertEqual(rules[0]["output_root"], str(original_outsource))
+            self.assertTrue(item["ready_for_promotion"])
+            self.assertEqual(item["library_output_root"], str(original_outsource))
+            self.assertEqual(item["final_library_rule_id"], "library-profile-concerts")
+            self.assertEqual(item["final_library_destination_path"], str(destination / "Concerts" / "Concert.mkv"))
+
+    def test_promotion_enabled_profile_without_destination_is_rejected_and_generates_no_rule(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            config = {
+                KEY_SOURCE_MOVIES: str(root / "Movies"),
+                KEY_SOURCE_TV: str(root / "TV"),
+                KEY_OUTSOURCE: str(root / "Processed"),
+                "LibraryProfiles": [
+                    {
+                        "id": "concerts",
+                        "name": "Concerts",
+                        "enabled": True,
+                        "designation": "auto",
+                        "source_path": str(root / "ConcertsSource"),
+                        "output_path": "",
+                        "promotion_enabled": True,
+                    }
+                ],
+            }
+
+            errors, _warnings = validate_config_values(
+                config,
+                normalized_path_key=normalized_path_key,
+                path_within_root=path_within_root,
+            )
+            rules = promotion_rules_from_library_profiles(config, include_existing=False)
+
+            self.assertTrue(
+                any("promotion_destination is required when promotion is enabled" in error for error in errors),
+                errors,
+            )
+            self.assertEqual(rules, [])
+
+    def test_uncovered_legacy_fallback_rule_survives_profile_rule_generation(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            source_root = root / "AnimeSource"
+            fallback_source = root / "LegacySource"
+            outsource = root / "Processed"
+            destination = root / "FinalAnime"
+            fallback_destination = root / "FinalLegacy"
+            config = {
+                KEY_SOURCE_MOVIES: str(root / "Movies"),
+                KEY_SOURCE_TV: str(root / "TV"),
+                KEY_OUTSOURCE: str(outsource),
+                KEY_FINAL_LIBRARY_PROMOTION_RULES: [
+                    {
+                        "id": "legacy-uncovered",
+                        "label": "Legacy uncovered",
+                        "enabled": True,
+                        "source_root": str(fallback_source),
+                        "destination_root": str(fallback_destination),
+                    }
+                ],
+                "LibraryProfiles": [
+                    {
+                        "id": "anime",
+                        "name": "Anime",
+                        "enabled": True,
+                        "designation": "tv",
+                        "source_path": str(source_root),
+                        "output_path": "",
+                        "promotion_enabled": True,
+                        "promotion_destination": str(destination),
+                    }
+                ],
+            }
+
+            rules = promotion_rules_from_library_profiles(config, include_existing=True)
+
+            self.assertEqual([rule["id"] for rule in rules], ["library-profile-anime", "legacy-uncovered"])
+            self.assertEqual(rules[0]["source_root"], str(source_root))
+            self.assertEqual(rules[0]["output_root"], str(outsource))
+            self.assertEqual(rules[0]["destination_root"], str(destination))
+            self.assertEqual(rules[0]["library_id"], "anime")
+            self.assertEqual(rules[0]["designation"], "tv")
+            self.assertEqual(rules[1]["source_root"], str(fallback_source))
+            self.assertEqual(rules[1]["destination_root"], str(fallback_destination))
+
+    def test_completion_gate_profile_rules_are_authoritative_and_fallback_only(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            source_root = root / "ConcertsSource"
+            fallback_source = root / "LegacySource"
+            outsource = root / "Processed"
+            destination = root / "FinalConcerts"
+            stale_destination = root / "OldFinalConcerts"
+            fallback_destination = root / "FinalLegacy"
+            source = source_root / "Concert.mkv"
+            output = outsource / "Concerts" / "Concert.mkv"
+            legacy_source = fallback_source / "Legacy.mkv"
+            legacy_output = outsource / "Legacy" / "Legacy.mkv"
+            output.parent.mkdir(parents=True)
+            legacy_output.parent.mkdir(parents=True)
+            source.parent.mkdir(parents=True)
+            legacy_source.parent.mkdir(parents=True)
+            destination.mkdir()
+            stale_destination.mkdir()
+            fallback_destination.mkdir()
+            output.write_bytes(b"media")
+            legacy_output.write_bytes(b"legacy")
+            config = {
+                KEY_SOURCE_MOVIES: str(root / "Movies"),
+                KEY_SOURCE_TV: str(root / "TV"),
+                KEY_OUTSOURCE: str(outsource),
+                KEY_FINAL_LIBRARY_PROMOTION_RULES: [
+                    {
+                        "id": "stale-concerts",
+                        "label": "Old Concerts",
+                        "enabled": True,
+                        "source_root": str(source_root),
+                        "output_root": str(root / "OldProcessed"),
+                        "destination_root": str(stale_destination),
+                        "library_id": "stale",
+                        "designation": "movie",
+                    },
+                    {
+                        "id": "legacy-uncovered",
+                        "label": "Legacy uncovered",
+                        "enabled": True,
+                        "source_root": str(fallback_source),
+                        "destination_root": str(fallback_destination),
+                    },
+                ],
+                "LibraryProfiles": [
+                    {
+                        "id": "concerts",
+                        "name": "Concerts",
+                        "enabled": True,
+                        "designation": "auto",
+                        "source_path": str(source_root),
+                        "output_path": "",
+                        "promotion_enabled": True,
+                        "promotion_destination": str(destination),
+                    }
+                ],
+            }
+
+            normalized = normalize_library_profile_config_values(config, require_profiles=True)
+            rules = normalized[KEY_FINAL_LIBRARY_PROMOTION_RULES]
+            payload = promotion_status_payload(
+                _resolved(root, outsource, normalized),
+                [_record(source, output, title="Concert"), _record(legacy_source, legacy_output, title="Legacy")],
+            )
+            items_by_title = {item["lookup_title"]: item for item in payload["items"]}
+
+            self.assertEqual([rule["id"] for rule in rules], ["library-profile-concerts", "legacy-uncovered"])
+            self.assertEqual(rules[0]["source_root"], str(source_root))
+            self.assertEqual(rules[0]["output_root"], str(outsource))
+            self.assertEqual(rules[0]["destination_root"], str(destination))
+            self.assertEqual(rules[0]["library_id"], "concerts")
+            self.assertEqual(rules[0]["designation"], "auto")
+            self.assertNotIn("stale-concerts", {rule["id"] for rule in rules})
+            self.assertNotEqual(rules[0]["destination_root"], str(stale_destination))
+            self.assertEqual(rules[1]["source_root"], str(fallback_source))
+            self.assertEqual(rules[1]["destination_root"], str(fallback_destination))
+            self.assertEqual(items_by_title["Concert"]["library_profile_id"], "concerts")
+            self.assertEqual(items_by_title["Concert"]["library_output_root"], str(outsource))
+            self.assertEqual(items_by_title["Concert"]["final_library_rule_id"], "library-profile-concerts")
+            self.assertEqual(items_by_title["Concert"]["final_library_destination_root"], str(destination))
+            self.assertEqual(items_by_title["Legacy"]["final_library_rule_id"], "legacy-uncovered")
+            self.assertEqual(items_by_title["Legacy"]["final_library_destination_root"], str(fallback_destination))
+
     def test_rule_matching_uses_longest_source_root_and_destination_relative_to_outsource(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)

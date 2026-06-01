@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from typing import Any
 
-from app.shared.constants import APP_STATE_NAME
+from app.storage.constants import APP_STATE_NAME
 from app.paths.layout import first_existing, path_or_none, state_root_for_local_base
 from app.paths.resolution_runner import resolve_paths_for_service
 

@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 from typing import Any
 
+from app.schedule.file_io import atomic_write_text, read_json_file
 from app.schedule.grid import (
     block_label as schedule_block_label,
     default_schedule_grid as default_schedule_grid_helper,
@@ -12,7 +13,6 @@ from app.schedule.grid import (
     next_scheduled_stop as next_scheduled_stop_helper,
     normalize_schedule_grid as normalize_schedule_grid_helper,
 )
-from app.shared.utils import _atomic_write_text, _read_json_file
 
 
 class AppStateScheduleServiceMixin:
@@ -39,7 +39,7 @@ class AppStateScheduleServiceMixin:
         if not self.app_state_path.exists():
             return default_state
         try:
-            raw = _read_json_file(self.app_state_path) or {}
+            raw = read_json_file(self.app_state_path) or {}
         except Exception as exc:
             self.logger.warning("App state load failed: %s", exc)
             return default_state
@@ -65,7 +65,7 @@ class AppStateScheduleServiceMixin:
         existing: dict[str, Any] = {}
         if self.app_state_path.exists():
             try:
-                existing = _read_json_file(self.app_state_path) or {}
+                existing = read_json_file(self.app_state_path) or {}
             except Exception as exc:
                 self.logger.warning("App state load-merge failed: %s", exc)
                 existing = {}
@@ -90,7 +90,7 @@ class AppStateScheduleServiceMixin:
         for key, value in merged.items():
             if key not in payload:
                 payload[key] = value
-        _atomic_write_text(self.app_state_path, json.dumps(payload, indent=2))
+        atomic_write_text(self.app_state_path, json.dumps(payload, indent=2))
 
     def block_label(self, index: int) -> str:
         return schedule_block_label(index)

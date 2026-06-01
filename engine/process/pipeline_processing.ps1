@@ -23,7 +23,10 @@ function New-MediaPipelineProcessFileResult {
         [string] $PublishState = '',
         [string] $PublishMode = '',
         [string] $OutputPath = '',
-        [long] $OutputSizeBytes = 0
+        [long] $OutputSizeBytes = 0,
+        $SizeGuardEvidence = $null,
+        $VerificationEvidence = $null,
+        $PublishEvidence = $null
     )
 
     return [pscustomobject]@{
@@ -43,6 +46,9 @@ function New-MediaPipelineProcessFileResult {
         PublishMode      = [string]$PublishMode
         OutputPath       = [string]$OutputPath
         OutputSizeBytes  = [long]$OutputSizeBytes
+        SizeGuardEvidence = $SizeGuardEvidence
+        VerificationEvidence = $VerificationEvidence
+        PublishEvidence  = $PublishEvidence
     }
 }
 
@@ -96,6 +102,9 @@ function Write-MediaPipelineProcessCompletedEvent {
         publish_mode       = [string]$Result.PublishMode
         output_path        = [string]$Result.OutputPath
         output_size_bytes  = [long]$Result.OutputSizeBytes
+        size_guard_evidence = $Result.SizeGuardEvidence
+        verification_evidence = $Result.VerificationEvidence
+        publish_evidence  = $Result.PublishEvidence
     } | Out-Null
 }
 
@@ -266,6 +275,15 @@ function Invoke-MediaPipelineProcessFile {
         library_designation = [string]$libraryEvidenceForJob['designation']
         library_source_root = [string]$libraryEvidenceForJob['source_root']
         library_output_root = [string]$libraryEvidenceForJob['output_root']
+        promotion_enabled = [bool]$libraryEvidenceForJob['promotion_enabled']
+        promotion_destination_root = [string]$libraryEvidenceForJob['promotion_destination_root']
+        promotion_rule_id = [string]$libraryEvidenceForJob['promotion_rule_id']
+        promotion_rule_source = [string]$libraryEvidenceForJob['promotion_rule_source']
+        library_settings_override_keys = @($libraryEvidenceForJob['settings_override_keys'])
+        library_settings_overrides = $libraryEvidenceForJob['settings_overrides']
+        library_effective_settings = $libraryEvidenceForJob['effective_settings']
+        library_effective_settings_ref = 'library-only'
+        runtime_effective_settings_available = $false
     } | Out-Null
 
     Write-Log "=========================================="
@@ -276,6 +294,9 @@ function Invoke-MediaPipelineProcessFile {
     $libraryLogName = if ([string]::IsNullOrWhiteSpace([string]$libraryEvidenceForJob['library_name'])) { [string]$libraryEvidenceForJob['library_id'] } else { [string]$libraryEvidenceForJob['library_name'] }
     $libraryOverrideKeyText = (@($libraryEvidenceForJob['settings_override_keys']) | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join ', '
     Write-Log "${queuePrefix}LIBRARY: $libraryLogName ($($libraryEvidenceForJob['library_id'])) source=$($libraryEvidenceForJob['source_root']) output=$($libraryEvidenceForJob['output_root']) overrides=$libraryOverrideKeyText" "INFO"
+    if ([bool]$libraryEvidenceForJob['promotion_enabled'] -and -not [string]::IsNullOrWhiteSpace([string]$libraryEvidenceForJob['promotion_destination_root'])) {
+        Write-Log "${queuePrefix}PROMOTION: enabled destination=$($libraryEvidenceForJob['promotion_destination_root']) rule=$($libraryEvidenceForJob['promotion_rule_id']) source=$($libraryEvidenceForJob['promotion_rule_source'])" "INFO"
+    }
 
     # Resolve effective per-job overrides before route selection so folder
     # and library policy can influence routing, encode ladders, audio, and
@@ -290,8 +311,53 @@ function Invoke-MediaPipelineProcessFile {
     # Stores the structured audio/subtitle override under '_FileOverride' and
     # promotes flat audio config fields so existing Get-Effective* functions
     # pick them up without modification. No-op if no entry exists for this file.
-    Merge-FileOverrideIntoActiveOverrides -SourcePath $file.FullName
+    try {
+        Merge-FileOverrideIntoActiveOverrides -SourcePath $file.FullName
+    } catch {
+        $reason = "Invalid file override for '$($file.FullName)': $($_.Exception.Message)"
+        Write-Log $reason "ERROR"
+        try {
+            Register-SourceFailure `
+                -SourceFile $file `
+                -Classification 'operator_required' `
+                -Reason $reason `
+                -Stage 'file-override' `
+                -ErrorCode 'FILE_OVERRIDE_INVALID' `
+                -SuggestedAction 'Inspect LocalBase\State\file_overrides.json or clear the per-file override from the Queue drawer, then retry.' | Out-Null
+        } catch {}
+        $result = New-MediaPipelineProcessFileResult `
+            -File $file `
+            -Status 'failed' `
+            -Success:$false `
+            -QueueTerminal:$false `
+            -Retryable:$true `
+            -Reason $reason `
+            -ErrorCode 'FILE_OVERRIDE_INVALID'
+        Write-MediaPipelineProcessCompletedEvent -Result $result -Stage 'file_override' -MediaType $queueLabel.ToLowerInvariant()
+        $script:ActiveOverrides = $null
+        $script:LastFileOverrideConfigMap = $null
+        $script:LastFileOverrideMatch = $null
+        $script:CurrentRuntimeEffectiveSettings = $null
+        $script:CurrentJobId = $null
+        if ($null -ne $previousLibraryProfileId) {
+            $script:CurrentLibraryProfileId = $previousLibraryProfileId
+        } else {
+            Remove-Variable -Name CurrentLibraryProfileId -Scope Script -ErrorAction SilentlyContinue
+        }
+        if (Get-Command -Name Reset-ProgressItemContext -ErrorAction SilentlyContinue) {
+            Reset-ProgressItemContext
+        }
+        return $result
+    }
+    $fileOverrides = ConvertTo-MediaPipelineProfileMap (Get-Variable -Name LastFileOverrideConfigMap -Scope Script -ValueOnly -ErrorAction SilentlyContinue)
     $libraryEffectiveSettings = Resolve-MediaPipelineLibraryEffectiveSettings -Overrides $libraryOverrides
+    $runtimeSettingsLayers = @(
+        (Get-MediaPipelineRuntimeGlobalSettingsLayer),
+        (New-MediaPipelineRuntimeSettingsLayer -Name 'library' -Source 'LibraryProfiles[*].overrides' -Keys $libraryOverrides),
+        (New-MediaPipelineRuntimeSettingsLayer -Name 'show' -Source 'ShowOverrides' -Keys $showOverrides),
+        (New-MediaPipelineRuntimeSettingsLayer -Name 'folder' -Source 'mediapipeline.folder.json' -Keys $folderOverrides -ExcludeKeys @('FolderPolicyPath','FolderPolicyFolder','FolderPolicyKeys')),
+        (New-MediaPipelineRuntimeSettingsLayer -Name 'file' -Source 'file_overrides.json' -Keys $fileOverrides)
+    )
     $activeConfigOverrideSnapshot = Push-MediaPipelineActiveConfigOverrides -Overrides $script:ActiveOverrides
     try {
         $script:CurrentSizePolicyResult = $null
@@ -304,6 +370,95 @@ function Invoke-MediaPipelineProcessFile {
         $script:CurrentRouteReason = [string]$routePlan.Reason
         Write-Log "${queuePrefix}SIZE: $([math]::Round([double]$routePlan.SizeGB,2)) GB | Route: $($routePlan.DisplayRoute)"
         DebugLog "${queuePrefix}ROUTE REASON: $($routePlan.ReasonCode) - $($routePlan.Reason)"
+        $sourceRuntimeFacts = [ordered]@{
+            source_media_profile = $routePlan.SourceMediaProfile
+            source_codec = [string]$routePlan.SourceCodec
+            size_gb = [double]$routePlan.SizeGB
+            estimated_bitrate_mbps = [double]$routePlan.EstimatedBitrateMbps
+            plex_compatibility_score = [double]$routePlan.PlexCompatibilityScore
+        }
+        $runtimeEffectiveSettings = New-MediaPipelineRuntimeEffectiveSettingsEvidence -Layers @(
+            $runtimeSettingsLayers +
+            (New-MediaPipelineRuntimeSettingsLayer -Name 'source' -Source 'ffprobe/probe' -Keys $sourceRuntimeFacts -SavedConfig:$false)
+        )
+        $script:CurrentRuntimeEffectiveSettings = $runtimeEffectiveSettings
+        $routingKeySources = Get-MediaPipelineRuntimeEffectiveSettingSources -RuntimeEffectiveSettings $runtimeEffectiveSettings -Keys (Get-MediaPipelineRuntimeRoutingConsumerKeys)
+        $runtimeOverrideLayers = Get-MediaPipelineRuntimeLayerNames -RuntimeEffectiveSettings $runtimeEffectiveSettings
+        $runtimeUnsupportedKeys = @($runtimeEffectiveSettings['unsupported_keys'])
+        $runtimeIgnoredKeys = @($runtimeEffectiveSettings['ignored_keys'])
+        $routeRuleOutcomes = Get-MediaRouteRuleOutcomeEvidence -RoutePlan $routePlan
+        $routingDecisionImpact = [ordered]@{}
+        foreach ($routingKey in Get-MediaPipelineRuntimeRoutingConsumerKeys) {
+            $routingDecisionImpact[$routingKey] = 'copy_remux_encode_decision_input'
+        }
+        $routingDecisionImpact['SizeGuardMode'] = 'post_encode_size_guard'
+        $routingDecisionImpact['OutputContainer'] = 'container_policy_input'
+        $routingDecisionImpact['MaxEncodeGrowthPercent'] = 'size_guard_budget'
+        $routingDecisionImpact['CompatibilityEncodeGrowthPercent'] = 'size_guard_budget'
+        $routingConsumerSettings = New-MediaPipelineRuntimeConsumerSettingsEvidence `
+            -RuntimeEffectiveSettings $runtimeEffectiveSettings `
+            -Consumer 'routing' `
+            -Keys (Get-MediaPipelineRuntimeRoutingConsumerKeys) `
+            -DecisionScope 'copy_remux_encode' `
+            -ActionSelected ([string]$routePlan.Route) `
+            -ActionEvidence ([string]$routePlan.ReasonCode) `
+            -DecisionImpact $routingDecisionImpact
+        $audioConsumerSettings = New-MediaPipelineRuntimeConsumerSettingsEvidence `
+            -RuntimeEffectiveSettings $runtimeEffectiveSettings `
+            -Consumer 'audio' `
+            -Keys (Get-MediaPipelineRuntimeAudioConsumerKeys) `
+            -DecisionScope 'audio_policy' `
+            -ActionEvidence 'audio action is selected when the audio consumer builds ffmpeg args' `
+            -Consequences ([ordered]@{
+                AudioPassthroughProfile = 'passthrough eligibility'
+                CompatibleAudioCodecs = 'copy compatibility allowlist'
+                PreferredDefaultAudioLanguages = 'default audio language preference'
+                AudioTranscodeCodec = 'transcode codec selection'
+                AudioTranscodeBitrate = 'transcode bitrate selection'
+                AudioTranscodeAutoBitrateByChannels = 'channel-aware bitrate selection'
+                AudioDownmixMode = 'downmix policy'
+                AudioMaxChannels = 'channel cap policy'
+                AllowNoAudio = 'no-audio fallback policy'
+            })
+        $subtitleConsumerSettings = New-MediaPipelineRuntimeConsumerSettingsEvidence `
+            -RuntimeEffectiveSettings $runtimeEffectiveSettings `
+            -Consumer 'subtitles' `
+            -Keys (Get-MediaPipelineRuntimeSubtitleConsumerKeys) `
+            -DecisionScope 'subtitle_policy' `
+            -ActionEvidence 'subtitle actions are selected when subtitle streams are filtered and converted' `
+            -Consequences ([ordered]@{
+                SubKeepLanguages = 'subtitle language keep policy'
+                ConvertTx3gToSrt = 'TX3G conversion policy'
+                DropTx3gAfterConversion = 'TX3G cleanup policy'
+                ConvertBdpgsToSrt = 'BDPGS OCR conversion policy'
+                DropBdpgsAfterConversion = 'BDPGS cleanup policy'
+                ConvertVobSubToSrt = 'VobSub OCR conversion policy'
+                DropVobSubAfterConversion = 'VobSub cleanup policy'
+                VobSubOcrToolPath = 'VobSub OCR tool selection'
+                VobSubOcrTimeoutSeconds = 'VobSub OCR timeout policy'
+                TreatVobSubSignsSongsAsForced = 'VobSub forced/signs/songs classification'
+                DropAssAfterConversion = 'ASS cleanup policy'
+                StripFormatting = 'ASS/text subtitle cleanup policy'
+                RemoveKaraoke = 'ASS karaoke cleanup policy'
+            })
+        $containerPathPlanningEvidence = Get-MediaPipelineOutputContainerPlanningEvidence `
+            -LibraryOverrides $libraryOverrides `
+            -RuntimeEffectiveSettings $runtimeEffectiveSettings `
+            -LibraryOutputRoot ([string]$libraryEvidenceForJob['output_root']) `
+            -LibrarySourceRoot ([string]$libraryEvidenceForJob['source_root']) `
+            -DefaultOutputContainer ([string]$OutputContainer)
+        $runtimeConsumerEvidence = [ordered]@{
+            routing = $routingConsumerSettings
+            audio = $audioConsumerSettings
+            subtitles = $subtitleConsumerSettings
+            container_path = $containerPathPlanningEvidence
+        }
+        $routingSourceText = (@($routingKeySources.Keys) | ForEach-Object {
+            "{0}:{1}" -f $_, [string]$routingKeySources[$_]['source_layer']
+        }) -join ', '
+        if (-not [string]::IsNullOrWhiteSpace($routingSourceText)) {
+            DebugLog "${queuePrefix}RUNTIME EVIDENCE: layers=$($runtimeOverrideLayers -join '>') routing_sources=$routingSourceText"
+        }
         Write-PipelineEvent -EventType 'route_selected' -Stage 'route' -Route $routePlan.Route -Status 'selected' -SourcePath $file.FullName -Data @{
             route              = $routePlan.Route
             reason_code        = $routePlan.ReasonCode
@@ -327,9 +482,26 @@ function Invoke-MediaPipelineProcessFile {
             library_designation = [string]$libraryEvidenceForJob['designation']
             library_source_root = [string]$libraryEvidenceForJob['source_root']
             library_output_root = [string]$libraryEvidenceForJob['output_root']
+            promotion_enabled = [bool]$libraryEvidenceForJob['promotion_enabled']
+            promotion_destination_root = [string]$libraryEvidenceForJob['promotion_destination_root']
+            promotion_rule_id = [string]$libraryEvidenceForJob['promotion_rule_id']
+            promotion_rule_source = [string]$libraryEvidenceForJob['promotion_rule_source']
             library_settings_override_keys = @($libraryOverrides.Keys)
             library_settings_overrides = $libraryOverrides
             library_effective_settings = $libraryEffectiveSettings
+            runtime_effective_settings = $runtimeEffectiveSettings
+            runtime_effective_settings_ref = 'runtime_effective_settings.v1'
+            library_effective_settings_ref = 'library-only'
+            runtime_override_layers = $runtimeOverrideLayers
+            runtime_unsupported_keys = $runtimeUnsupportedKeys
+            runtime_ignored_keys = $runtimeIgnoredKeys
+            routing_key_sources = $routingKeySources
+            route_rule_outcomes = $routeRuleOutcomes
+            runtime_consumer_evidence = $runtimeConsumerEvidence
+            routing_consumer_settings = $routingConsumerSettings
+            audio_consumer_settings = $audioConsumerSettings
+            subtitle_consumer_settings = $subtitleConsumerSettings
+            container_path_planning_evidence = $containerPathPlanningEvidence
         } | Out-Null
 
         $ok = $false
@@ -349,26 +521,39 @@ function Invoke-MediaPipelineProcessFile {
                        if ($isTV) { $script:totalTVEpisodes++ } else { $script:totalMovies++ } }
             else     { $script:totalFailed++ }
         }
+        $sizeGuardEvidence = New-MediaPipelineSizeGuardEvidence `
+            -RuntimeEffectiveSettings $runtimeEffectiveSettings `
+            -SizePolicyResult $script:CurrentSizePolicyResult `
+            -RoutePlan $routePlan
+        $publishEvidence = New-MediaPipelinePublishEvidence `
+            -PublishResult $script:LastPublishResult `
+            -Route $routeName
+        $verificationEvidence = New-MediaPipelineVerificationEvidence `
+            -SizeGuardEvidence $sizeGuardEvidence `
+            -PublishEvidence $publishEvidence
         if ($ok) {
             Set-ProgressStage -Stage 'completed' -Status 'Completed' -Route $routeName -Percent 100 -SaveNow
             $publishResult = $script:LastPublishResult
-            $result = New-MediaPipelineProcessFileResult -File $file -Status 'processed' -Success:$true -QueueTerminal:$true -Retryable:$false -Route $routeName -RouteReasonCode ([string]$script:CurrentRouteReasonCode) -RouteReason ([string]$script:CurrentRouteReason) -PublishState ([string]$publishResult.PublishState) -PublishMode ([string]$publishResult.PublishMode) -OutputPath ([string]$publishResult.OutputPath) -OutputSizeBytes ([long]$publishResult.OutputSizeBytes)
+            $result = New-MediaPipelineProcessFileResult -File $file -Status 'processed' -Success:$true -QueueTerminal:$true -Retryable:$false -Route $routeName -RouteReasonCode ([string]$script:CurrentRouteReasonCode) -RouteReason ([string]$script:CurrentRouteReason) -PublishState ([string]$publishResult.PublishState) -PublishMode ([string]$publishResult.PublishMode) -OutputPath ([string]$publishResult.OutputPath) -OutputSizeBytes ([long]$publishResult.OutputSizeBytes) -SizeGuardEvidence $sizeGuardEvidence -VerificationEvidence $verificationEvidence -PublishEvidence $publishEvidence
             Write-MediaPipelineProcessCompletedEvent -Result $result -Stage 'completed' -MediaType $queueLabel.ToLowerInvariant()
             return $result
         } elseif (-not $script:StopRequested) {
             Set-ProgressStage -Stage 'failed' -Status 'Failed' -Route $routeName -Percent $null -SaveNow
             $publishResult = $script:LastPublishResult
             $failureReason = if ($publishResult -and $publishResult.Reason) { [string]$publishResult.Reason } else { 'Processing failed' }
-            $result = New-MediaPipelineProcessFileResult -File $file -Status 'failed' -Success:$false -QueueTerminal:$false -Retryable:$true -Reason $failureReason -Route $routeName -RouteReasonCode ([string]$script:CurrentRouteReasonCode) -RouteReason ([string]$script:CurrentRouteReason) -PublishState ([string]$publishResult.PublishState) -PublishMode ([string]$publishResult.PublishMode) -OutputPath ([string]$publishResult.OutputPath) -OutputSizeBytes ([long]$publishResult.OutputSizeBytes)
+            $result = New-MediaPipelineProcessFileResult -File $file -Status 'failed' -Success:$false -QueueTerminal:$false -Retryable:$true -Reason $failureReason -Route $routeName -RouteReasonCode ([string]$script:CurrentRouteReasonCode) -RouteReason ([string]$script:CurrentRouteReason) -PublishState ([string]$publishResult.PublishState) -PublishMode ([string]$publishResult.PublishMode) -OutputPath ([string]$publishResult.OutputPath) -OutputSizeBytes ([long]$publishResult.OutputSizeBytes) -SizeGuardEvidence $sizeGuardEvidence -VerificationEvidence $verificationEvidence -PublishEvidence $publishEvidence
             Write-MediaPipelineProcessCompletedEvent -Result $result -Stage 'failed' -MediaType $queueLabel.ToLowerInvariant()
             return $result
         }
-        $result = New-MediaPipelineProcessFileResult -File $file -Status 'stopped' -Success:$false -QueueTerminal:$false -Retryable:$true -Reason 'Processing stopped by operator' -ErrorCode 'STOP_REQUESTED' -Route $routeName -RouteReasonCode ([string]$script:CurrentRouteReasonCode) -RouteReason ([string]$script:CurrentRouteReason)
+        $result = New-MediaPipelineProcessFileResult -File $file -Status 'stopped' -Success:$false -QueueTerminal:$false -Retryable:$true -Reason 'Processing stopped by operator' -ErrorCode 'STOP_REQUESTED' -Route $routeName -RouteReasonCode ([string]$script:CurrentRouteReasonCode) -RouteReason ([string]$script:CurrentRouteReason) -SizeGuardEvidence $sizeGuardEvidence -VerificationEvidence $verificationEvidence -PublishEvidence $publishEvidence
         Write-MediaPipelineProcessCompletedEvent -Result $result -Stage 'stopped' -MediaType $queueLabel.ToLowerInvariant()
         return $result
     } finally {
         Pop-MediaPipelineActiveConfigOverrides -Snapshot $activeConfigOverrideSnapshot
         $script:ActiveOverrides = $null
+        $script:LastFileOverrideConfigMap = $null
+        $script:LastFileOverrideMatch = $null
+        $script:CurrentRuntimeEffectiveSettings = $null
         $script:CurrentJobId = $null
         if ($null -ne $previousLibraryProfileId) {
             $script:CurrentLibraryProfileId = $previousLibraryProfileId

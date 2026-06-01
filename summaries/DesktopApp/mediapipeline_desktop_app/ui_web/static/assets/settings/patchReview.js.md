@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-05-31
 last_reviewed: 2026-05-29
-sha256: 740e1265e1d9c599357dc2774d9ff98cd6c7c178c642d4a9c924bfcb7f463884
+sha256: 45d6748443c5d6b3223390452760d798866703afb8c087bca8611cda9ab0fc25
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settings/patchReview.js`
 

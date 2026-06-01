@@ -102,19 +102,20 @@ surface, and explain any skipped or unavailable command.
 | Date | Agent | Action | Evidence | Next |
 |---|---|---|---|---|
 | 2026-05-31 | Codex | Split Phase 1 into its own operating file | Original plan inspected; no config imports changed | Start Phase 1 after Phase 0 baseline |
+| 2026-05-31 | Codex | Completed Phase 1 config boundary cleanup | Checker reports 0 forbidden `app.config` higher-level imports and the `app.config`/`app.orchestration` package cycle is gone; focused tests passed | Start Phase 2 when requested |
 
 ## Completion Handoff
 
 ```text
 Phase: 1 - Break app.config higher-level imports
-Status:
-Files changed:
-Behavior changes:
-Checks run:
-Dependency checker result:
-Generated artifacts updated:
-Summaries refreshed:
-Known risks:
-Explicit deferrals:
+Status: Complete
+Files changed: app/contracts/decision_policy.py; app/contracts/__init__.py; app/config/preset_migration.py; app/config/settings_patch_facade.py removed; app/orchestration/settings_patch_facade.py; app/decide/processing_decision.py; DesktopApp/mediapipeline_desktop_app/application/facade.py; Docs/architecture/DEPENDENCY_BOUNDARY_RULES.md; Docs/generated/PROJECT_INDEX.md; Docs/generated/DEPENDENCY_GRAPH.md; refreshed summaries for touched source/tooling files; this phase file; 00_navigation_and_tracker.md.
+Behavior changes: None intended. This phase moved ownership of the settings patch preview facade and pure decision policy contract only.
+Checks run: .\DesktopApp\Runtime\Python\python.exe -m pytest tests\contract tests\orchestration tests\decide\test_processing_decision.py tests\integration\test_handbrake_remux_regression_matrix.py DesktopApp\tests\test_settings_pipeline_plan_preview.py DesktopApp\tests\test_application_facade_settings_patch.py (89 passed); .\DesktopApp\Runtime\Python\python.exe .\scripts\dev\refresh_summaries.py --check (passed); .\DesktopApp\Runtime\Python\python.exe .\scripts\dev\generate_project_index.py --check (passed); .\DesktopApp\Runtime\Python\python.exe .\scripts\dev\check_dependency_boundaries.py --max-internal-imports 1 (report-only baseline completed); .\DesktopApp\Runtime\Python\python.exe .\scripts\dev\check_active_doc_references.py (passed); git diff --check (passed with existing CRLF normalization warnings).
+Dependency checker result: 1409 internal app import entries; 1 module-level cycle remains in app.contracts.source_media*; 1 package-level cycle remains in app.observability/app.status/app.telemetry; 0 direct app.shared imports; 32 direct app.shared.utils imports; 38 direct app.shared.constants imports; 19 direct app.shared.protocols imports; 0 forbidden app.config higher-level imports; 3 app.api to app.ui imports remain; 3 app.observability to app.status imports remain; 2 app.telemetry to app.observability imports remain; 0 app.telemetry to app.status imports.
+Generated artifacts updated: Docs/generated/PROJECT_INDEX.md and Docs/generated/DEPENDENCY_GRAPH.md regenerated from 740 summaries.
+Summaries refreshed: Full refresh wrote 6 summaries, left 734 unchanged, and pruned 1 orphan summary. Final check reported 740 source files all current with no orphan summaries.
+Known risks: EffectiveDecisionPolicy remains re-exported from app.decide.processing_decision for existing callers, but the canonical low-level contract is app.contracts.decision_policy and app.config no longer imports app.decide. The checker is static AST analysis only. Unrelated dirty files in queue/engine/test areas were left untouched.
+Explicit deferrals: Did not address app.api to app.ui imports, the app.observability/app.status/app.telemetry cycle, the source_media contract module cycle, or app.shared submodule imports.
 Next phase: 2 - Status, observability, and telemetry direction
 ```

@@ -1,4 +1,4 @@
-"""Health, snapshot, and telemetry facade adapter."""
+"""Status-facing health, snapshot, and telemetry facade adapter."""
 
 from __future__ import annotations
 

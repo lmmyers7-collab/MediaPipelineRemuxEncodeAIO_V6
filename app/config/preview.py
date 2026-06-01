@@ -3,13 +3,13 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from app.config.library_profiles import mirror_legacy_keys_from_library_profiles
-from mediapipeline_desktop_app.models import ConfigPreview
-from app.shared.constants import (
+from app.contracts.config import CONFIG_SCHEMA_VERSION
+from app.config.constants import (
     AUDIO_PASSTHROUGH_PROFILE_CODECS,
     AUDIO_PASSTHROUGH_PROFILE_DEFAULT,
-    CONFIG_SCHEMA_VERSION,
 )
+from app.config.library_profiles import mirror_legacy_keys_from_library_profiles
+from mediapipeline_desktop_app.models import ConfigPreview
 
 
 ValidateConfigValuesFunc = Callable[[dict[str, Any]], tuple[list[str], list[str]]]

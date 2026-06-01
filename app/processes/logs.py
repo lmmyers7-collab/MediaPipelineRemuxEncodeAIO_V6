@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from app.shared.constants import PROCESS_LAUNCH_ERROR_TAIL_LINES
-from app.shared.utils import _tail_text_file
+from app.processes.constants import PROCESS_LAUNCH_ERROR_TAIL_LINES
+from app.processes.file_io import tail_text_file
 
 
 def spawn_log_tail(path: Path | None, *, line_count: int = PROCESS_LAUNCH_ERROR_TAIL_LINES) -> str:
     if path is None or not path.exists():
         return ""
     try:
-        return _tail_text_file(path, line_count=line_count)
+        return tail_text_file(path, line_count=line_count)
     except Exception:
         return ""
 

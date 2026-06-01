@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from app.config.library_profiles import LIBRARY_OVERRIDE_KEYS_BY_GROUP
 from app.config.metadata_parts.field_definitions import CONFIG_FIELD_DEFINITIONS
+from app.config.preset_migration import LABEL_ONLY_RENAMES
 
 
 STATIC_ROOT = Path(__file__).resolve().parents[1] / "mediapipeline_desktop_app" / "ui_web" / "static"
@@ -22,24 +23,6 @@ VOBSUB_LIBRARY_OVERRIDE_KEYS = {
     "VobSubOcrTimeoutSeconds",
     "TreatVobSubSignsSongsAsForced",
 }
-LABEL_ONLY_RENAMES = {
-    "RoutingProfile": "Processing Strategy",
-    "RouteThresholdMode": "Enforcement Mode",
-    "SizeGuardMode": "Output Size Check",
-    "EncodeTuningPreset": "Encoder Quality Preset",
-    "EncodeLadder": "Encode Target Mode",
-    "MaxEncodeGrowthPercent": "Quality-encode size tolerance",
-    "CompatibilityEncodeGrowthPercent": "Compatibility-encode size tolerance",
-    "EncodeThresholdGB": "Movie target output size",
-    "TVEncodeThresholdGB": "TV target output size",
-    "MovieRouteMaxVideoBitrateMbps": "Movie max bitrate for direct copy",
-    "TVRouteMaxVideoBitrateMbps": "TV max bitrate for direct copy",
-    "VideoPreset": "Encoder Speed Preset",
-    "ExtraVideoFlags": "Advanced Encoder Flags",
-    "RemuxSafeVideoCodecs": "Direct Copy Video Codec Allowlist",
-}
-
-
 def _backend_library_override_keys() -> set[str]:
     return {key for keys in LIBRARY_OVERRIDE_KEYS_BY_GROUP.values() for key in keys}
 
@@ -173,20 +156,22 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             'data-library-strictness="${escapeHtml(strictness)}"',
             'data-library-advanced-visibility="${escapeHtml(advancedVisibility)}"',
             'data-library-unavailable-reason="${escapeHtml(unavailableReason)}"',
-            "Global only — cannot be overridden per library",
-            "Read-only source/effective value",
-            'advancedVisibility === "advanced" ? " data-advanced" : ""',
+            "Global-only — unavailable",
+            "Source/computed — read-only",
+            "fieldIsAdvanced(fieldKey, field) ? \" data-advanced\" : \"\"",
             "return fields.filter((fieldKey) => overrideStatus(groupKey, fieldKey).render);",
-        ):
-            self.assertIn(token, js)
-        for token in (
             "renderMetadataBadges",
             "settings-library-metadata-badge",
             "settings-library-metadata-badges",
             "rule-badge settings-library",
             "data-metadata-kind",
+            "Display-only backend metadata; not a saved config key.",
+            "settingsAdvancedFallbackKeys",
+            "function fieldIsAdvanced(key, field)",
+            "metadataTags(field?.rule_taxonomy)",
+            "metadataTags(field?.strictness)",
         ):
-            self.assertNotIn(token, js)
+            self.assertIn(token, js)
 
     def test_phase3_library_override_labels_match_backend_metadata(self) -> None:
         metadata = _backend_field_metadata()
@@ -238,8 +223,8 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         for token in (
             'field.library_override_allowed !== true',
             'scope === "source_derived" || scope === "computed_only"',
-            "Read-only source/effective value",
-            "Global only — cannot be overridden per library",
+            "Source/computed — read-only",
+            "Global-only — unavailable",
             "buildOverrideControl(fieldKey, value, !editable)",
             'data-library-override-eligible="${editable ? "true" : "false"}"',
             'if (!status.render) return "";',
@@ -285,7 +270,9 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertIn('data-page-panel="libraries"', libraries_html)
         self.assertNotIn('data-settings-tab="libraries"', settings_html)
         self.assertIn("Routing", settings_html)
-        self.assertIn("Video / Audio / Subtitles", settings_html)
+        self.assertIn(">Video</button>", settings_html)
+        self.assertIn(">Audio</button>", settings_html)
+        self.assertIn(">Subtitles</button>", settings_html)
         self.assertIn("settings-library-actions-panel", libraries_html)
         self.assertIn("settings-library-command-box", libraries_html)
         self.assertIn("settings-library-active-title", libraries_html)
@@ -387,6 +374,8 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "Inherited from global",
             "Library override",
             "Library override — currently same as global",
+            "Global-only — unavailable",
+            "Source/computed — read-only",
             'row.dataset.libraryOverride = isOverride ? "true" : "false"',
             'row.classList.toggle("is-custom", isOverride)',
             'button.hidden = !isOverride',
@@ -407,6 +396,9 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertRegex(css, r"\.settings-library-state\s*\{[^}]*display: inline;")
         self.assertRegex(css, r"\.settings-library-state\.is-inherited\s*\{[^}]*color: var\(--grey-400\);")
         self.assertRegex(css, r"\.settings-library-state\.is-custom\s*\{[^}]*color: var\(--blue-200\);")
+        self.assertRegex(css, r"\.settings-library-state\.is-readonly\s*\{[^}]*color: var\(--amber-100\);")
+        self.assertRegex(css, r"\.settings-library-metadata-badges\s*\{[^}]*display: inline-flex;")
+        self.assertRegex(css, r"\.settings-library-override-unavailable\s*\{[^}]*color: var\(--grey-400\);")
         self.assertNotRegex(css, r"\.settings-library-state\s*\{[^}]*background:")
         self.assertNotRegex(css, r"\.settings-library-state\.is-inherited\s*\{[^}]*background:")
         self.assertNotRegex(css, r"\.settings-library-state\.is-custom\s*\{[^}]*background:")

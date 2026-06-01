@@ -5,22 +5,20 @@ import threading
 from pathlib import Path
 
 from .models import AuditRecord, CompletedJobRecord, FailureRecord, QueueRecord, ResolvedPaths, Snapshot, TelemetrySnapshot
-from app.shared.constants import (
+from app.contracts.config import CONFIG_SCHEMA_VERSION
+from app.config.constants import LOG_LEVEL_VALUES
+from app.failures.constants import FAILURE_CLEAR_MANIFEST_SCHEMA_VERSION
+from app.files.constants import MEDIA_FILE_SUFFIXES, VLC_LONG_PATH_THRESHOLD
+from app.files.opening import _normalize_open_path_text, _strip_windows_extended_path_prefix
+from app.processes.constants import (
     ACTIVE_JOB_SCHEMA_VERSION,
-    APP_STATE_NAME,
-    CONFIG_SCHEMA_VERSION,
     CONTROL_FLAG_SCHEMA_VERSION,
     CONTROL_FLAG_STALE_AFTER_SECONDS,
-    FAILURE_CLEAR_MANIFEST_SCHEMA_VERSION,
-    LOG_LEVEL_VALUES,
-    MEDIA_FILE_SUFFIXES,
-    PLEX_RENAME_DEFAULT_REMOVE_TERMS,
     PROCESS_LAUNCH_ERROR_TAIL_LINES,
     PROCESS_LAUNCH_READY_CHECK_SECONDS,
-    RERUN_CSV_COLUMNS,
-    SCHEDULE_DAY_NAMES,
-    VLC_LONG_PATH_THRESHOLD,
 )
+from app.rename.constants import PLEX_RENAME_DEFAULT_REMOVE_TERMS
+from app.storage.constants import APP_STATE_NAME
 from app.schedule.app_state import AppStateScheduleServiceMixin
 from app.audit.rerun_service import AuditRerunServiceMixin
 from app.config.service import ConfigProfileServiceMixin
@@ -38,10 +36,6 @@ from app.maintenance.release import ReleasePackageServiceMixin
 from app.rename.service import RenameServiceMixin
 from app.status.service import StatusServiceMixin
 from app.telemetry.service import TelemetryServiceMixin
-from app.shared.utils import (
-    _normalize_open_path_text,
-    _strip_windows_extended_path_prefix,
-)
 
 
 LOG_NAME = "MediaPipelineRemuxEncodeAIO_DesktopApp.log"

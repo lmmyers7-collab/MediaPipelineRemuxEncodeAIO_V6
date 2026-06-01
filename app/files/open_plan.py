@@ -6,7 +6,7 @@ import subprocess
 from collections.abc import Mapping
 from pathlib import Path
 
-from app.shared.constants import VLC_LONG_PATH_THRESHOLD
+from app.files.constants import VLC_LONG_PATH_THRESHOLD
 
 
 MKLINK_JUNCTION_TIMEOUT_SECONDS = 10

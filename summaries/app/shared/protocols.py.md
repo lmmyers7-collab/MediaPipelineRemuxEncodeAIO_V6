@@ -3,15 +3,13 @@ file: app/shared/protocols.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-05-28
+last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: 375bf3b1cdc0fa2c21347c872fc876c689c2cc5bf903af34ae17f3bf07a6e18a
+sha256: 74f05d823e752999e60ba14b3746fc43e759d345c00533abf182fbb40d51d1c4
 ---
 # `app/shared/protocols.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Retired shared protocols namespace.
 
-**Classes:** `ActiveJobLaunchRecordServiceProtocol`, `ActiveJobLoggedServiceProtocol`, `AppStateMigrationServiceProtocol`, `ConfigDocumentServiceProtocol`, `ConfigSaveServiceProtocol`, `ExceptionWarningLogger`, `InfoWarningLogger`, `PathResolutionServiceProtocol`, `PowerShellHostServiceProtocol`, `ProcessControlFlagAgeServiceProtocol`, `ProcessControlLaunchServiceProtocol`, `ProcessControlPayloadReadServiceProtocol`, `ProcessControlWriteServiceProtocol`, `ProcessLaunchServiceProtocol`, `ProcessSpawnServiceProtocol`
-**In-repo imports:** `mediapipeline_desktop_app.models_core`, `mediapipeline_desktop_app.subprocess_runner`
 
 _Edit the source, not this file. Regenerate with `python scripts/dev/refresh_summaries.py --paths app/shared/protocols.py`._

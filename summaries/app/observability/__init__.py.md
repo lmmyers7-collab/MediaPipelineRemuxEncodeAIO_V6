@@ -3,9 +3,9 @@ file: app/observability/__init__.py
 pipeline_stage: observability
 token_priority: low
 owner_domain: observability
-last_modified: 2026-05-28
+last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: 520fc92898073298b259a566ddafd6cf1131238167657b88642c877dc95675ed
+sha256: e5cd67891709ad817b3a45e4eeea9c17848f74994dd57fb735bc063db99c4ec5
 ---
 # `app/observability/__init__.py`
 

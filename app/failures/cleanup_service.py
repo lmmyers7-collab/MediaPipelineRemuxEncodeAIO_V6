@@ -7,10 +7,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from app.failures.constants import FAILURE_CLEAR_MANIFEST_SCHEMA_VERSION
+from app.failures.file_io import atomic_write_text
 from app.paths.layout import path_boundary_check
 from mediapipeline_desktop_app.models import ResolvedPaths
-from app.shared.constants import FAILURE_CLEAR_MANIFEST_SCHEMA_VERSION
-from app.shared.utils import _atomic_write_text
 
 
 class FailureCleanupServiceMixin:
@@ -75,7 +75,7 @@ class FailureCleanupServiceMixin:
 
     def _write_failure_clear_manifest(self, manifest_path: Path, manifest: dict[str, Any]) -> None:
         manifest["last_update"] = datetime.now().astimezone().isoformat(timespec="seconds")
-        _atomic_write_text(manifest_path, json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+        atomic_write_text(manifest_path, json.dumps(manifest, indent=2, sort_keys=True) + "\n")
 
     def _failure_marker_clear_candidates(
         self,

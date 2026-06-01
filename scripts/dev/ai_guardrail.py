@@ -59,6 +59,7 @@ def build_check_plan(mode: Mode) -> list[CommandCheck]:
         CommandCheck("config-schema", _python_command("scripts/dev/generate_config_schema.py", "--check")),
         CommandCheck("stage-schema", _python_command("scripts/dev/generate_stage_schema.py", "--check")),
         CommandCheck("active-doc-references", _python_command("scripts/dev/check_active_doc_references.py")),
+        CommandCheck("dependency-boundaries", _python_command("scripts/dev/check_dependency_boundaries.py")),
         CommandCheck("architecture-guardrails", _python_command("scripts/dev/check_architecture_guardrails.py")),
         CommandCheck("naming-lint", _python_command("scripts/lint-naming.py")),
         CommandCheck("god-file-guard", _python_command("scripts/dev/check_godfiles.py")),

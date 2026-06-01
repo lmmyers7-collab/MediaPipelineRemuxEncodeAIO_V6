@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-05-31
 last_reviewed: 2026-05-30
-sha256: a57e9ac3d3d4e3e8f6f5753390b2e76daab96d26cffc099569aebac79e2f0f91
+sha256: ed470618fa80427faae7cc737a39e562a71db89f3547ebf69cd685bb70dd27f7
 ---
 # `app/config/metadata_parts/field_definitions.py`
 

@@ -5,11 +5,11 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-05-31
 last_reviewed: 2026-05-30
-sha256: bb9eaad3cae89d07c62dd98bad04fa095a8185ce4c1bd25204fce72dbe6a18d6
+sha256: a8d84898504f71fa48c8d9c23a48518b76b4f5be4aac22874885b241d4f0a2c4
 ---
 # `app/config/preset_policy.py`
 
-**Purpose:** Versioned preset/policy schema for Phase 05.
+**Purpose:** Versioned preset/policy schema.
 
 **Classes:** `AdvancedPolicy`, `DirectCopyMaxBitratePolicy`, `GuardsPolicy`, `PresetPolicyModel`, `PresetV2`, `PresetValidationIssue`, `PublishPolicy`, `RoutingPolicy`, `SizeGuardsPolicy`, `VerificationPolicy`
 **Public functions:** `preset_v2_validation_issues()`

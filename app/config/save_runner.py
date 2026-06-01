@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Any
 
 from mediapipeline_desktop_app.models import ConfigSaveResult, ResolvedPaths
-from app.shared.protocols import ConfigSaveServiceProtocol
-from app.shared.utils import _atomic_write_text, _normalize_open_path_text
+from app.config.contracts import ConfigSaveServiceProtocol
+from app.config.file_io import atomic_write_text, normalize_open_path_text
 
 
 def config_backup_path(output_path: Path) -> Path:
@@ -49,7 +49,7 @@ def save_config_document_for_service(
         backup_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(output_path, backup_path)
 
-    _atomic_write_text(output_path, document_text)
+    atomic_write_text(output_path, document_text)
     return ConfigSaveResult(output_path=output_path, backup_path=backup_path)
 
 
@@ -70,7 +70,7 @@ def list_config_profiles_for_service(service: ConfigSaveServiceProtocol, config_
 
 
 def normalize_config_path_value(path_text: str) -> str:
-    cleaned = _normalize_open_path_text(path_text)
+    cleaned = normalize_open_path_text(path_text)
     if not cleaned:
         return ""
     path = Path(cleaned).expanduser()
@@ -99,7 +99,7 @@ def save_config_profile_for_service(
         detail = "\n".join(f"- {item}" for item in validation_errors)
         raise ValueError(f"Current config failed validation before profile save:\n{detail}")
     profile_path.parent.mkdir(parents=True, exist_ok=True)
-    _atomic_write_text(profile_path, source_text)
+    atomic_write_text(profile_path, source_text)
     return safe_name, profile_path
 
 

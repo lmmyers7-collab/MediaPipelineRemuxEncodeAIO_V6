@@ -1,4 +1,4 @@
-"""Settings patch preview/save facade adapter."""
+"""Settings patch preview/save facade adapter with pipeline-plan preview."""
 
 from __future__ import annotations
 
@@ -7,8 +7,6 @@ from typing import TYPE_CHECKING, Any
 from pydantic import ValidationError
 
 from app.config.rollout import planner_comparison_from_decision_snapshot, resolve_planner_rollout_config
-from app.contracts.source_media import SourceMediaInfo
-from app.orchestration.planner import build_pipeline_plan_from_preset
 from app.config.settings_patch_policy import (
     settings_patch_preview_result,
     settings_save_busy_result,
@@ -19,6 +17,8 @@ from app.config.settings_patch_policy import (
     settings_save_success_result,
     settings_save_validation_error_result,
 )
+from app.contracts.source_media import SourceMediaInfo
+from app.orchestration.planner import build_pipeline_plan_from_preset
 from mediapipeline_desktop_app.models import ResolvedPaths
 
 if TYPE_CHECKING:

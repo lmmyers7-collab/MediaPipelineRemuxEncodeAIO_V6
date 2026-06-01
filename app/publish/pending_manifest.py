@@ -12,13 +12,13 @@ from app.publish.pending_manifest_rows import (
     readable_pending_manifest_row,
     unreadable_pending_manifest_row,
 )
+from app.publish.file_io import read_json_file
 from app.publish.pending_paths import path_from_manifest, path_from_texts
-from app.shared.utils import _read_json_file
 
 
 def pending_manifest_row(manifest_path: Path) -> dict[str, Any]:
     try:
-        manifest = _read_json_file(manifest_path, retries=2)
+        manifest = read_json_file(manifest_path, retries=2)
         if not isinstance(manifest, dict):
             raise ValueError("Manifest JSON root is not an object.")
     except Exception as exc:

@@ -6,8 +6,9 @@ from pathlib import Path
 
 from app.config.preset_policy import PresetV2
 from app.contracts.pipeline_plan import PIPELINE_PLAN_SCHEMA_VERSION
+from app.contracts.decision_policy import EffectiveDecisionPolicy
 from app.contracts.source_media import SourceMediaInfo, source_media_from_ffprobe
-from app.decide import EffectiveDecisionPolicy, build_processing_decision
+from app.decide.routing import build_processing_decision
 from app.orchestration.planner import build_pipeline_plan, build_pipeline_plan_from_preset
 
 

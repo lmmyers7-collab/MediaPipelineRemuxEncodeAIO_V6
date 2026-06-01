@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-05-31
 last_reviewed: 2026-05-29
-sha256: 1504859974cf0b3615c72577c8a0c8351c8cff50d115f4f8fb518abc9d88a4c0
+sha256: d5977cae065d07b39c5273935a814f0e5b7992ab6f508c94ae12b2049a73bd8c
 ---
 # `DesktopApp/tests/test_library_profiles.py`
 

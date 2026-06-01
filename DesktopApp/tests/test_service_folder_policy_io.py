@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from app.shared.constants import FOLDER_POLICY_SIDECAR_NAME
+from app.folder_policy.constants import FOLDER_POLICY_SIDECAR_NAME
 from app.folder_policy.io import (
     folder_policy_path,
     load_folder_policy_file,

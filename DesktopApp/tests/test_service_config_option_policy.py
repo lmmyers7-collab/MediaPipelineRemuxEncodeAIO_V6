@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from app.config.metadata_parts.field_definitions import CONFIG_FIELD_DEFINITIONS
 from app.config.option_policy import validate_option_config
-from app.shared.constants import (
+from app.config.constants import (
     AUDIO_PASSTHROUGH_PROFILE_NAMES,
     LOG_LEVEL_VALUES,
     ROUTE_THRESHOLD_MODE_NAMES,

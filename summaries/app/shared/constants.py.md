@@ -3,14 +3,13 @@ file: app/shared/constants.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-05-29
+last_modified: 2026-05-31
 last_reviewed: 2026-05-28
-sha256: 0fa9dca1cfff7a708fa23477d4cdd0f48c974ec0c0ba238ee647817ac4ee7881
+sha256: 4594a4492da72818d5f6b836737160143513b6198c7c507ffc7030ca7405ebc6
 ---
 # `app/shared/constants.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Retired shared constants namespace.
 
-**In-repo imports:** `app.contracts.config`, `mediapipeline_desktop_app.contracts.active_job`, `mediapipeline_desktop_app.contracts.control_flag`
 
 _Edit the source, not this file. Regenerate with `python scripts/dev/refresh_summaries.py --paths app/shared/constants.py`._

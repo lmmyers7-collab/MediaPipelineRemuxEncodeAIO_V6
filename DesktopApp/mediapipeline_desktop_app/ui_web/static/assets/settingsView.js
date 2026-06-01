@@ -174,9 +174,10 @@ const settingsSafetyLockDefinitions = settingsMetadata.settingsSafetyLockDefinit
 const settingsImpactGroups = settingsMetadata.settingsImpactGroups || [];
 const settingsSpecificImpactHints = settingsMetadata.settingsSpecificImpactHints || {};
 const settingsChoiceLabels = settingsMetadata.settingsChoiceLabels || {};
-const settingsDisplayLabels = settingsMetadata.settingsDisplayLabels || {};
 const settingsFriendlyPersistedKeyAliases = settingsMetadata.settingsFriendlyPersistedKeyAliases || {};
+const settingsAdvancedFallbackKeys = new Set(settingsMetadata.settingsAdvancedFallbackKeys || []);
 const settingsPatchComplexBackendKeys = new Set(["LibraryProfiles", "FinalLibraryPromotionRules"]);
+let settingsAdvancedToggleEventsBound = false;
 
 function settingsFieldDefaultValue(key, fallback) {
   const field = settingsFieldDefinition(key);
@@ -383,7 +384,21 @@ function settingsPatchLocalValidationHintLines(changes) {
 
 function settingsFieldLabel(key, fallback = "") {
   const field = settingsFieldDefinition(key);
-  return field?.label || settingsDisplayLabels[key] || fallback || key;
+  return field?.label || fallback || key;
+}
+
+function settingsPersistedKeyDisplay(key) {
+  const persisted = String(key || "").trim();
+  if (!persisted) return "";
+  const label = settingsFieldLabel(persisted, persisted);
+  return label && label !== persisted ? `${persisted} (${label})` : persisted;
+}
+
+function settingsPersistedKeyDisplayList(keys) {
+  return (Array.isArray(keys) ? keys : [])
+    .map(settingsPersistedKeyDisplay)
+    .filter(Boolean)
+    .join(", ");
 }
 
 function settingsFieldHelpText(field) {
@@ -396,8 +411,46 @@ function settingsMetadataTags(value) {
   return text ? [text] : [];
 }
 
+const settingsMetadataBadgeLabels = {
+  routing: "ROUTING",
+  route: "ROUTING",
+  compatibility: "COMPATIBILITY",
+  quality: "QUALITY",
+  size: "SIZE",
+  bitrate: "BITRATE",
+  output: "OUTPUT",
+  verification: "VERIFY",
+  verify: "VERIFY",
+  publish: "PUBLISH",
+  advisory: "ADVISORY",
+  hard: "HARD",
+  soft: "SOFT",
+  advanced: "ADVANCED",
+};
+
+function settingsMetadataBadgeKind(value) {
+  const normalized = String(value || "").trim().toLowerCase().replace(/_/g, "-");
+  if (normalized === "route") return "routing";
+  if (normalized === "verify") return "verification";
+  return normalized;
+}
+
 function settingsMetadataBadgeText(value) {
-  return String(value || "").replace(/_/g, " ").toUpperCase();
+  const kind = settingsMetadataBadgeKind(value);
+  return settingsMetadataBadgeLabels[kind] || String(value || "").replace(/_/g, " ").toUpperCase();
+}
+
+function settingsFieldIsAdvanced(key, field) {
+  const advancedVisibility = String(field?.advanced_visibility || "").trim().toLowerCase();
+  const section = String(field?.section || "").trim().toLowerCase();
+  const tags = [
+    ...settingsMetadataTags(field?.rule_taxonomy),
+    ...settingsMetadataTags(field?.strictness),
+  ].map((value) => String(value || "").trim().toLowerCase());
+  return advancedVisibility === "advanced"
+    || section === "advanced"
+    || tags.includes("advanced")
+    || settingsAdvancedFallbackKeys.has(String(key || field?.key || ""));
 }
 
 function settingsDirectLabelChild(label, descendant) {
@@ -414,6 +467,10 @@ function renderSettingsFieldTaxonomyBadges(label, control, field) {
   const taxonomy = settingsMetadataTags(field.rule_taxonomy).map((value) => ["taxonomy", value]);
   const strictness = settingsMetadataTags(field.strictness).map((value) => ["strictness", value]);
   const badges = [...taxonomy, ...strictness];
+  const fieldKey = String(field.key || control.dataset.settingsKey || "");
+  if (settingsFieldIsAdvanced(fieldKey, field) && !badges.some(([, value]) => settingsMetadataBadgeKind(value) === "advanced")) {
+    badges.push(["visibility", "advanced"]);
+  }
   if (!badges.length) return;
   const row = document.createElement("span");
   row.className = "settings-field-metadata-badges";
@@ -422,7 +479,8 @@ function renderSettingsFieldTaxonomyBadges(label, control, field) {
     const badge = document.createElement("span");
     badge.className = "rule-badge settings-field-metadata-badge";
     badge.dataset.metadataKind = kind;
-    badge.dataset.ruleKind = value;
+    badge.dataset.ruleKind = settingsMetadataBadgeKind(value);
+    badge.title = "Display-only backend metadata; not a saved config key.";
     badge.textContent = settingsMetadataBadgeText(value);
     row.appendChild(badge);
   });
@@ -470,19 +528,30 @@ function applySettingsFieldMetadataToControl([key, id, fallbackKind]) {
   const labelText = settingsFieldLabel(key);
   const valueType = String(field.value_type || field.kind || fallbackKind || "");
   const advancedVisibility = String(field.advanced_visibility || "standard");
+  const isAdvanced = settingsFieldIsAdvanced(key, field);
+  const advancedTarget = label || element;
   const persistedKey = String(field.persisted_key || key);
   element.dataset.settingsKey = key;
   element.dataset.settingsPersistedKey = persistedKey;
   element.dataset.settingsValueType = valueType;
   element.dataset.settingsAdvancedVisibility = advancedVisibility;
+  element.dataset.settingsAdvancedControl = String(isAdvanced);
   if (field.short_label) element.dataset.settingsShortLabel = String(field.short_label);
   if (field.section) element.dataset.settingsSection = String(field.section);
   if (field.strictness) element.dataset.settingsStrictness = String(field.strictness);
   if (field.rule_taxonomy) element.dataset.settingsRuleTaxonomy = settingsMetadataTags(field.rule_taxonomy).join(",");
+  advancedTarget.classList.toggle("settings-advanced-field", isAdvanced);
+  if (isAdvanced) {
+    advancedTarget.dataset.settingsAdvancedControl = "true";
+  } else {
+    delete advancedTarget.dataset.settingsAdvancedControl;
+    advancedTarget.hidden = false;
+  }
   if (label) {
     label.dataset.settingsKey = key;
     label.dataset.settingsPersistedKey = persistedKey;
     label.dataset.settingsAdvancedVisibility = advancedVisibility;
+    label.dataset.settingsAdvancedControl = String(isAdvanced);
     if (field.short_label) label.dataset.settingsShortLabel = String(field.short_label);
     if (field.section) label.dataset.settingsSection = String(field.section);
     if (field.strictness) label.dataset.settingsStrictness = String(field.strictness);
@@ -510,6 +579,81 @@ function applySettingsFieldMetadataToControl([key, id, fallbackKind]) {
     if (field.max !== null && field.max !== undefined) element.max = String(field.max);
     if (field.step !== null && field.step !== undefined) element.step = String(field.step);
   }
+}
+
+function settingsAdvancedFieldContainers(pane) {
+  const seen = new Set();
+  return Array.from(pane.querySelectorAll('[data-settings-advanced-control="true"]'))
+    .map((node) => node.closest?.("label") || node)
+    .filter((node) => node && !node.closest?.(".settings-advanced-disclosure"))
+    .filter((node) => {
+      if (seen.has(node)) return false;
+      seen.add(node);
+      return true;
+    });
+}
+
+function ensureSettingsAdvancedToggle(pane) {
+  let row = Array.from(pane.children || []).find((node) => node.matches?.("[data-settings-advanced-toggle-row]"));
+  if (row) return row;
+  row = document.createElement("div");
+  row.className = "settings-advanced-toggle-row";
+  row.dataset.settingsAdvancedToggleRow = "true";
+
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "secondary-button settings-advanced-toggle";
+  button.dataset.settingsAdvancedToggle = "true";
+  button.setAttribute("aria-expanded", "false");
+  button.textContent = "Show advanced controls";
+
+  const note = document.createElement("span");
+  note.className = "settings-advanced-toggle-note";
+  note.textContent = "Advanced controls are hidden by default. Revealing them does not change saved keys, defaults, or backend preview/save authority.";
+
+  row.append(button, note);
+  pane.insertBefore(row, pane.firstElementChild || null);
+  return row;
+}
+
+function syncSettingsAdvancedPane(pane) {
+  const fields = settingsAdvancedFieldContainers(pane);
+  const row = pane.querySelector?.("[data-settings-advanced-toggle-row]");
+  if (!fields.length) {
+    if (row) row.remove();
+    return;
+  }
+  const toggleRow = ensureSettingsAdvancedToggle(pane);
+  const button = toggleRow.querySelector("[data-settings-advanced-toggle]");
+  const expanded = pane.dataset.settingsAdvancedExpanded === "true";
+  fields.forEach((node) => {
+    node.hidden = !expanded;
+    node.dataset.settingsAdvancedCollapsed = String(!expanded);
+  });
+  if (button) {
+    button.setAttribute("aria-expanded", String(expanded));
+    button.textContent = expanded ? "Hide advanced controls" : "Show advanced controls";
+  }
+}
+
+function renderSettingsAdvancedControls() {
+  document
+    .querySelectorAll('[data-page-panel="settings"] .settings-tab-pane[data-settings-tab]')
+    .forEach(syncSettingsAdvancedPane);
+}
+
+function toggleSettingsAdvancedPane(button) {
+  const pane = button.closest?.(".settings-tab-pane[data-settings-tab]");
+  if (!pane) return;
+  pane.dataset.settingsAdvancedExpanded = pane.dataset.settingsAdvancedExpanded === "true" ? "false" : "true";
+  syncSettingsAdvancedPane(pane);
+}
+
+function handleSettingsAdvancedToggleClick(event) {
+  const button = event.target?.closest?.("[data-settings-advanced-toggle]");
+  if (!button) return;
+  event.preventDefault();
+  toggleSettingsAdvancedPane(button);
 }
 
 function settingsBuilderFieldGroups() {
@@ -619,7 +763,6 @@ const videoDetailSettingsBuilder = typeof videoDetailSettingsBuilderModule.creat
     setText,
     settingsBuilderConfigValue,
     settingsBuilderInputValue,
-    settingsDisplayLabels,
     settingsFieldDefinition,
     settingsSpecificImpactHints,
     videoDetailSettingsBuilderFields,
@@ -1284,6 +1427,7 @@ settingsPatchReview = typeof settingsPatchReviewModule.createSettingsPatchReview
     formatConfigValue,
     formatSettingsChoiceLabel,
     getCommandHistory: typeof getCommandHistory === "function" ? getCommandHistory : function () { return []; },
+    getLastSettings: () => lastSettings,
     getLastSettingsValues: () => lastSettingsValues,
     getSelectedSettingsSaveReviewKey: () => selectedSettingsSaveReviewKey,
     getSettingsBuilderState: () => ({ initialized: settingsBuilderInitialized, dirty: settingsBuilderDirty }),
@@ -1332,7 +1476,6 @@ settingsPatchReview = typeof settingsPatchReviewModule.createSettingsPatchReview
     settingsBuilderInputValue,
     settingsCommandHistoryLine,
     settingsFieldDefinition,
-    settingsDisplayLabels,
     settingsPatchImpactEntries,
     settingsPatchCandidateValue,
     settingsPatchListValue,
@@ -1394,7 +1537,6 @@ settingsPolicyImpact = typeof settingsPolicyImpactModule.createSettingsPolicyImp
     setSelectedSettingsEffectivePolicyKey: (value) => { selectedSettingsEffectivePolicyKey = value || ""; },
     settingsBuilderConfigValue,
     settingsBuilderInputValue,
-    settingsDisplayLabels,
     settingsFieldDefinition,
     settingsImpactGroups,
     settingsRawConfigValue,
@@ -1512,9 +1654,11 @@ function renderSettings(settings) {
       .map((field) => [String(field.key), field])
   );
   applySettingsFieldMetadataToControls();
+  renderSettingsAdvancedControls();
   const fn = settingsPatchReviewFunction("renderSettings");
   if (fn) fn(lastSettings);
   applySettingsFieldMetadataToControls();
+  renderSettingsAdvancedControls();
 }
 
 async function validateCurrentSettings() {
@@ -1729,6 +1873,14 @@ function renderSettingsPipelinePlanPreview(result, sourceMedia) {
   setText("settings-handbrake-source-subtitles", summary.subtitles);
   setText("settings-handbrake-output-container", planValue(output, ["container"], "Not returned"));
   setText("settings-handbrake-publish-requirements", planValue(plan, ["publishStrategy"], "Not returned"));
+  const intentRenderer = settingsPatchReviewFunction("renderSettingsEffectiveIntentSummary");
+  if (intentRenderer) {
+    intentRenderer({
+      routeSummary,
+      outputContainer: planValue(output, ["container"], ""),
+      planAuthority: "backend pipeline_plan.v1 preview, diagnostic-only",
+    });
+  }
   setText(
     "settings-handbrake-output-guards",
     `Output Size Check: ${planValue(outputSizeCheck, ["action"], "not returned")} / ${planValue(outputSizeCheck, ["status"], "not returned")}`
@@ -1771,6 +1923,12 @@ function renderSettingsPipelinePlanPreviewError(message) {
   setText("settings-source-media-json-detail", message);
   setText("settings-handbrake-preview-status", "Predicted pending cutover");
   setText("settings-handbrake-decision", "UNKNOWN");
+  const intentRenderer = settingsPatchReviewFunction("renderSettingsEffectiveIntentSummary");
+  if (intentRenderer) {
+    intentRenderer({
+      planAuthority: "preview failed; saved settings orientation only",
+    });
+  }
   setText(
     "settings-handbrake-preview-detail",
     [
@@ -1921,12 +2079,16 @@ async function previewSettingsPipelinePlan() {
       result.message || "Settings patch preview completed.",
       "",
       `Writes config: ${data.writes_config === true ? "yes" : "no"}`,
-      `Changed keys: ${(data.changed_keys || []).join(", ") || "none"}`,
-      `Removed keys: ${(data.removed_keys || []).join(", ") || "none"}`,
+      `Active preset: ${byId("settings-handbrake-active-preset")?.textContent || "Saved settings"}`,
+      "Preset scope: display/preset adapters only; backend preview/save writes stable V6 persisted keys.",
+      `Changed keys: ${settingsPersistedKeyDisplayList(data.changed_keys || []) || "none"}`,
+      `Removed keys: ${settingsPersistedKeyDisplayList(data.removed_keys || []) || "none"}`,
+      "Preview/save uses persisted keys. Friendly labels are display only and are not saved keys.",
     ];
     if (localHintLines.length) lines.push("", ...localHintLines);
     if ((result.errors || []).length) {
       lines.push("", "Errors:", ...(result.errors || []).map((item) => `- ${item}`));
+      lines.push("Backend validation errors are authoritative; this WebView did not save or bypass them.");
     }
     if ((result.warnings || []).length) {
       lines.push("", "Warnings:", ...(result.warnings || []).map((item) => `- ${item}`));
@@ -2099,8 +2261,11 @@ async function saveSettingsPatch() {
       `Config: ${data.config_path || ""}`,
       `Backup: ${data.backup_path || ""}`,
       `Reloaded: ${data.reloaded === true ? "yes" : data.reloaded === false ? "no" : "n/a"}`,
-      `Changed keys: ${(data.changed_keys || []).join(", ") || "none"}`,
-      `Removed keys: ${(data.removed_keys || []).join(", ") || "none"}`,
+      `Active preset: ${byId("settings-handbrake-active-preset")?.textContent || "Saved settings"}`,
+      "Preset scope: display/preset adapters only; backend preview/save writes stable V6 persisted keys.",
+      `Changed keys: ${settingsPersistedKeyDisplayList(data.changed_keys || []) || "none"}`,
+      `Removed keys: ${settingsPersistedKeyDisplayList(data.removed_keys || []) || "none"}`,
+      "Preview/save uses persisted keys. Friendly labels are display only and are not saved keys.",
     ];
     if (localHintLines.length) lines.push("", ...localHintLines);
     if (result.ok) {
@@ -2108,6 +2273,7 @@ async function saveSettingsPatch() {
     }
     if ((result.errors || []).length) {
       lines.push("", "Errors:", ...(result.errors || []).map((item) => `- ${item}`));
+      lines.push("Backend validation errors are authoritative; this WebView did not save or bypass them.");
     }
     if ((result.warnings || []).length) {
       lines.push("", "Warnings:", ...(result.warnings || []).map((item) => `- ${item}`));
@@ -2268,6 +2434,10 @@ async function reloadSettingsFromDisk() {
   function initSettingsViewEvents() {
     const fn = settingsPatchReviewFunction("initSettingsViewEvents");
     if (fn) fn();
+    if (!settingsAdvancedToggleEventsBound) {
+      document.addEventListener("click", handleSettingsAdvancedToggleClick);
+      settingsAdvancedToggleEventsBound = true;
+    }
   }
 
   window.mediaPipelineSettingsView = {

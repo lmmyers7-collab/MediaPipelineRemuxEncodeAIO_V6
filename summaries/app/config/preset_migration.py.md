@@ -5,13 +5,13 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-05-31
 last_reviewed: 2026-05-30
-sha256: fb690832ec377c996d873fa31ca5aca224fe4b4bd1b9fa32b6cb2978cc4104c1
+sha256: ae518826f8f804e6750f3ebcfe4a8238055c490317782e1a43b3d137dd8c9b0a
 ---
 # `app/config/preset_migration.py`
 
-**Purpose:** Legacy config and PresetV2 adapters for Phase 05.
+**Purpose:** Stable V6 config and PresetV2 display adapters.
 
-**Public functions:** `blocked_friendly_label_aliases()`, `effective_decision_policy_from_legacy_or_preset()`, `effective_decision_policy_from_preset_v2()`, `legacy_config_patch_from_preset_v2()`, `migration_status_for_persisted_key()`, `preset_v2_from_legacy_config()`
-**In-repo imports:** `app.config.encoding_capabilities`, `app.config.preset_policy`, `app.contracts.config`, `app.contracts.verification`, `app.decide.processing_decision`
+**Public functions:** `effective_decision_policy_from_legacy_or_preset()`, `effective_decision_policy_from_preset_v2()`, `legacy_config_patch_from_preset_v2()`, `preset_v2_from_legacy_config()`
+**In-repo imports:** `app.config.encoding_capabilities`, `app.config.preset_policy`, `app.contracts.config`, `app.contracts.decision_policy`, `app.contracts.verification`
 
 _Edit the source, not this file. Regenerate with `python scripts/dev/refresh_summaries.py --paths app/config/preset_migration.py`._

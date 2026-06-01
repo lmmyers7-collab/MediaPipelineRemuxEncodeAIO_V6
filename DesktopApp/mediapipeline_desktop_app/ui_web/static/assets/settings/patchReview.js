@@ -42,6 +42,7 @@
     const fileSafetySettingsBuilderState = dep("fileSafetySettingsBuilderState", {});
     const fileSafetySettingsBuilderFields = dep("fileSafetySettingsBuilderFields", []);
     const finalLibraryPromotionSettingsBuilderFields = dep("finalLibraryPromotionSettingsBuilderFields", []);
+    const getLastSettings = dep("getLastSettings", function () { return null; });
     const getSettingsBuilderState = dep("getSettingsBuilderState", function () { return {}; });
     const getLastSettingsValues = dep("getLastSettingsValues", function () { return {}; });
     const getSettingsPatchTouched = dep("getSettingsPatchTouched", function () { return false; });
@@ -407,13 +408,17 @@
         `${action}: ${result?.message || "No backend message returned."}`,
         `OK: ${result?.ok === true ? "yes" : "no"}`,
         `Severity: ${result?.severity || "unknown"}`,
-        `Changed keys: ${changedKeys.join(", ") || "none"}`,
+        `Changed keys: ${settingsPersistedKeyDisplayList(changedKeys) || "none"}`,
         `Writes config: ${data.writes_config === true ? "yes" : data.writes_config === false ? "no" : "n/a"}`,
+        "Preview/save uses persisted keys. Friendly labels are display only and are not saved keys.",
       ];
       const warnings = Array.isArray(result?.warnings) ? result.warnings : [];
       const errors = Array.isArray(result?.errors) ? result.errors : [];
       if (warnings.length) lines.push("", "Warnings:", ...warnings.map((item) => `- ${item}`));
-      if (errors.length) lines.push("", "Errors:", ...errors.map((item) => `- ${item}`));
+      if (errors.length) {
+        lines.push("", "Errors:", ...errors.map((item) => `- ${item}`));
+        lines.push("Backend validation errors are authoritative; this WebView did not save or bypass them.");
+      }
       lines.push("", "Promotion remains manual from the Completed/Output page.");
       return lines;
     }
@@ -448,7 +453,15 @@
       const keys = Object.keys(patch);
       if (!keys.length) {
         clearRows(tbody, 5, "No patch keys staged.");
-        setText("settings-patch-summary-status", "No staged settings changes.");
+        const presetInfo = settingsActivePresetInfo();
+        setText(
+          "settings-patch-summary-status",
+          [
+            `Active preset: ${presetInfo.name}`,
+            `Preset scope: ${presetInfo.scope}`,
+            "No staged settings changes. Preview/save uses persisted keys; friendly labels are display only.",
+          ].join("\n")
+        );
         return;
       }
       tbody.replaceChildren();
@@ -491,9 +504,23 @@
       if (!visibleCount) {
         clearRows(tbody, 5, "No changed or unknown patch keys to show.");
       }
+      const changedPersistedKeys = impactEntries
+        .filter((entry) => entry.changed)
+        .map((entry) => settingsPersistedKeyDisplay(entry.key, entry.field));
+      const unknownPersistedKeys = impactEntries
+        .filter((entry) => !entry.field)
+        .map((entry) => settingsPersistedKeyDisplay(entry.key, entry.field));
+      const presetInfo = settingsActivePresetInfo();
       setText(
         "settings-patch-summary-status",
-        `${keys.length} staged key${keys.length === 1 ? "" : "s"}: ${changedCount} changed, ${unchangedCount} unchanged, ${unknownCount} unknown, ${visibleCount} shown. Backend preview remains the source of truth.`
+        [
+          `Active preset: ${presetInfo.name}`,
+          `Preset scope: ${presetInfo.scope}`,
+          `${keys.length} staged key${keys.length === 1 ? "" : "s"}: ${changedCount} changed, ${unchangedCount} unchanged, ${unknownCount} unknown, ${visibleCount} shown.`,
+          `Changed persisted keys: ${changedPersistedKeys.join(", ") || "none"}.`,
+          unknownPersistedKeys.length ? `Unknown persisted keys needing backend validation: ${unknownPersistedKeys.join(", ")}.` : "Unknown persisted keys needing backend validation: none.",
+          "Preview/save uses persisted keys. Friendly labels are display only and are not saved keys. Backend preview remains the source of truth.",
+        ].join("\n")
       );
     }
 
@@ -521,6 +548,44 @@
       return settingsDisplayLabels && settingsDisplayLabels[key] ? settingsDisplayLabels[key] : (fallback || key);
     }
 
+    function settingsPersistedKeyDisplay(key, field) {
+      const persisted = String(key || "").trim();
+      if (!persisted) return "";
+      const label = settingsDisplayLabel(persisted, field?.label || persisted);
+      return label && label !== persisted ? `${persisted} (${label})` : persisted;
+    }
+
+    function settingsPersistedKeyDisplayList(keys) {
+      return (Array.isArray(keys) ? keys : [])
+        .map((key) => settingsPersistedKeyDisplay(key, settingsFieldDefinition(key)))
+        .filter(Boolean)
+        .join(", ");
+    }
+
+    function settingsHumanStatus(value) {
+      return String(value || "unknown").replace(/_/g, " ");
+    }
+
+    function settingsActivePresetInfo() {
+      const settings = getLastSettings() || {};
+      const summary = settings.profile_summary && typeof settings.profile_summary === "object"
+        ? settings.profile_summary
+        : {};
+      const profileName = String(summary.default_profile_name || "Default").trim() || "Default";
+      const status = settingsHumanStatus(summary.default_profile_status || "not loaded");
+      const hasProfile = summary.default_profile_exists === true;
+      if (!hasProfile) {
+        return {
+          name: "Saved settings",
+          scope: "saved global config; profile save/load is not active in this WebView",
+        };
+      }
+      return {
+        name: `${profileName} (${status})`,
+        scope: "Preset/profile comparison only; backend Preview/Save writes stable V6 persisted keys.",
+      };
+    }
+
     function formatSettingsSummaryValue(key, fallback = "not loaded") {
       const value = settingsRawConfigValue(key);
       if (value === undefined || value === null || value === "") return fallback;
@@ -535,11 +600,48 @@
       return formatSettingsChoiceLabel(value);
     }
 
+    function renderSettingsEffectiveIntentSummary(options = {}) {
+      const routeSummary = options.routeSummary ? String(options.routeSummary).toUpperCase() : "";
+      const planAuthority = options.planAuthority || "saved settings orientation only";
+      const routingProfile = formatSettingsSummaryValue("RoutingProfile", "backend default");
+      const routeMode = formatSettingsSummaryValue("RouteThresholdMode", "backend default");
+      const outputContainer = options.outputContainer || formatSettingsSummaryValue("OutputContainer", "backend default");
+      const videoCodec = formatSettingsSummaryValue("VideoCodec", "backend default");
+      const videoPreset = formatSettingsSummaryValue("VideoPreset", "backend default");
+      const videoQuality = formatSettingsSummaryValue("VideoQuality", "backend default");
+      const sizeGuard = formatSettingsSummaryValue("SizeGuardMode", "backend default");
+      const movieTarget = formatSettingsSummaryValue("EncodeThresholdGB", "default");
+      const tvTarget = formatSettingsSummaryValue("TVEncodeThresholdGB", "default");
+      const movieBitrate = formatSettingsSummaryValue("MovieRouteMaxVideoBitrateMbps", "default");
+      const tvBitrate = formatSettingsSummaryValue("TVRouteMaxVideoBitrateMbps", "default");
+      const maxGrowth = formatSettingsSummaryValue("MaxEncodeGrowthPercent", "backend default");
+      const compatGrowth = formatSettingsSummaryValue("CompatibilityEncodeGrowthPercent", "backend default");
+      const routeLine = routeSummary
+        ? `Backend preview route: ${routeSummary}. Final runtime decision is resolved during queue/job processing.`
+        : "Copy/remux-first intent is displayed from persisted RoutingProfile; the WebView does not compute final routing.";
+
+      setText(
+        "settings-summary-processing-strategy",
+        `${formatSettingsChoiceLabel(routingProfile)} (persisted key RoutingProfile; enforcement ${formatSettingsChoiceLabel(routeMode)})`
+      );
+      setText("settings-summary-copy-remux-intent", routeLine);
+      setText("settings-summary-output-container", `${formatSettingsChoiceLabel(outputContainer)} (persisted key OutputContainer)`);
+      setText(
+        "settings-summary-encode-if-required",
+        `${formatSettingsChoiceLabel(videoCodec)}; preset ${formatSettingsChoiceLabel(videoPreset)}; quality ${videoQuality}. Applies only when encoding is required.`
+      );
+      setText(
+        "settings-summary-size-bitrate-guards",
+        `Size guard ${formatSettingsOutputSizeCheckMode(sizeGuard)}; movie ${movieTarget} GB / TV ${tvTarget} GB targets; direct-copy caps movie ${movieBitrate} Mbps / TV ${tvBitrate} Mbps; growth ${maxGrowth}% normal / ${compatGrowth}% compatibility.`
+      );
+      setText(
+        "settings-summary-evidence-scope",
+        `Evidence scope: ${planAuthority}. Saved global settings are shown here; library_effective_settings is library-only when shown in queue rows. Final runtime decision is resolved during queue/job processing.`
+      );
+    }
+
     function renderHandbrakePreviewSummary(settings) {
-      const summary = settings?.profile_summary && typeof settings.profile_summary === "object" ? settings.profile_summary : {};
-      const activePreset = summary.default_profile_status === "ready" || summary.default_profile_status === "matched"
-        ? "Default profile"
-        : "Saved settings";
+      const activePreset = settingsActivePresetInfo();
       const videoCodec = formatSettingsSummaryValue("VideoCodec", "backend default");
       const videoPreset = formatSettingsSummaryValue("VideoPreset", "backend default");
       const videoQuality = formatSettingsSummaryValue("VideoQuality", "backend default");
@@ -551,11 +653,12 @@
       const publishText = deferredPublish === true || String(deferredPublish).toLowerCase() === "true"
         ? "Deferred publish enabled"
         : "Saved publish policy loaded";
-      setText("settings-handbrake-active-preset", activePreset);
+      setText("settings-handbrake-active-preset", activePreset.name);
       setText("settings-handbrake-output-video", `${formatSettingsChoiceLabel(videoCodec)}; preset ${formatSettingsChoiceLabel(videoPreset)}; quality ${videoQuality}`);
       setText("settings-handbrake-output-container", formatSettingsChoiceLabel(outputContainer));
       setText("settings-handbrake-output-guards", `Output Size Check ${formatSettingsOutputSizeCheckMode(sizeGuard)}; normal growth ${maxGrowth}%; compatibility growth ${compatGrowth}%`);
       setText("settings-handbrake-publish-requirements", publishText);
+      renderSettingsEffectiveIntentSummary();
       setText("settings-container-size-container", `Output container: ${formatSettingsChoiceLabel(outputContainer)}.`);
       setText("settings-container-size-guard", `Output Size Check: ${formatSettingsOutputSizeCheckMode(sizeGuard)}; growth tolerances ${maxGrowth}% normal / ${compatGrowth}% compatibility.`);
       setText(
@@ -1304,6 +1407,7 @@
       renderFinalLibraryPromotionSettingsGuidance,
       finalLibraryPromotionSettingsResultLines,
       renderSettingsPatchSummary,
+      renderSettingsEffectiveIntentSummary,
       renderSettingsBuilderGuidance,
       settingsProfileSummaryLines,
       setSettingsBuilderControl,

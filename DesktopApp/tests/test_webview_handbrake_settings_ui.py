@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from app.config.metadata_parts.field_definitions import CONFIG_FIELD_DEFINITIONS
 from app.config.preset_migration import (
     FRIENDLY_LABEL_PERSISTED_KEY_ALIASES,
-    LABEL_ONLY_RENAMES as MIGRATION_LABEL_ONLY_RENAMES,
+    LABEL_ONLY_RENAMES,
     LABEL_ONLY_RENAME_POLICIES,
 )
 
@@ -37,22 +37,6 @@ REPRESENTATIVE_DEFAULT_KEYS = {
 SETTINGS_METADATA_ADVISORY_ONLY_KEYS = {
     "DeleteSourceAfterProcessing",
     "ScratchRoot",
-}
-LABEL_ONLY_RENAMES = {
-    "RoutingProfile": "Processing Strategy",
-    "RouteThresholdMode": "Enforcement Mode",
-    "SizeGuardMode": "Output Size Check",
-    "EncodeTuningPreset": "Encoder Quality Preset",
-    "EncodeLadder": "Encode Target Mode",
-    "MaxEncodeGrowthPercent": "Quality-encode size tolerance",
-    "CompatibilityEncodeGrowthPercent": "Compatibility-encode size tolerance",
-    "EncodeThresholdGB": "Movie target output size",
-    "TVEncodeThresholdGB": "TV target output size",
-    "MovieRouteMaxVideoBitrateMbps": "Movie max bitrate for direct copy",
-    "TVRouteMaxVideoBitrateMbps": "TV max bitrate for direct copy",
-    "VideoPreset": "Encoder Speed Preset",
-    "ExtraVideoFlags": "Advanced Encoder Flags",
-    "RemuxSafeVideoCodecs": "Direct Copy Video Codec Allowlist",
 }
 EDITOR_BUILDER_KEYS = {
     "RoutingProfile",
@@ -99,17 +83,6 @@ def _settings_metadata_config_key_mentions() -> set[str]:
     hints_block = js[hints_start:hints_end]
     keys.update(re.findall(r"(?m)^\s*([A-Za-z][A-Za-z0-9_]*):\s*\"", hints_block))
     return keys
-
-
-def _settings_display_label_entries() -> dict[str, str]:
-    js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
-    start = js.index("const settingsDisplayLabels = {")
-    end = js.index("};", start)
-    block = js[start:end]
-    return {
-        match.group(1): match.group(2)
-        for match in re.finditer(r'(?m)^\s*([A-Za-z][A-Za-z0-9_]*):\s*"([^"]+)"', block)
-    }
 
 
 def _settings_friendly_alias_entries() -> dict[str, str]:
@@ -164,15 +137,19 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
 
         expected_order = [
-            "Summary",
-            "Source / Compatibility",
+            "Summary / Effective Decision",
             "Routing",
+            "Source / Compatibility",
             "Dimensions",
             "Filters",
-            "Video / Audio / Subtitles",
-            "Container / Output Size Check",
+            "Video",
+            "Audio",
+            "Subtitles",
+            "Container",
+            "Size / Bitrate Guards",
             "Verification / Publish",
-            "Wizard",
+            "Presets",
+            "Advanced",
         ]
         cursor = -1
         for label in expected_order:
@@ -181,26 +158,99 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             cursor = position
 
         for tab in (
+            'data-settings-tab="status"',
+            'data-settings-tab="editor"',
             'data-settings-tab="source-compat"',
             'data-settings-tab="dimensions"',
             'data-settings-tab="filters"',
-            'data-settings-tab="container-size"',
+            'data-settings-tab="video"',
+            'data-settings-tab="audio"',
+            'data-settings-tab="subtitles"',
+            'data-settings-tab="container"',
+            'data-settings-tab="size-bitrate"',
+            'data-settings-tab="paths"',
+            'data-settings-tab="presets"',
+            'data-settings-tab="advanced"',
         ):
             self.assertIn(tab, html)
+
+        for retired_tab in (
+            ">Video / Audio / Subtitles</button>",
+            ">Container / Output Size Check</button>",
+            ">Wizard</button>",
+            ">Rename Filters</button>",
+            ">System</button>",
+            'data-settings-tab="media"',
+            'data-settings-tab="container-size"',
+            'data-settings-tab="wizard"',
+            'data-settings-tab="rename-filters"',
+            'data-settings-tab="system"',
+        ):
+            self.assertNotIn(retired_tab, html)
 
     def test_decision_preview_is_honest_and_read_only(self) -> None:
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
 
         for token in (
             "Decision Preview",
+            "Effective Intent Summary",
             "Predicted pending cutover",
             "Legacy path still executes",
+            "Processing strategy",
+            "Copy/remux-first intent",
+            "Encode if required",
+            "Size / bitrate guards",
+            "Evidence scope",
             "No backend SourceMediaInfo payload loaded",
+            "data-settings-summary-key=\"RoutingProfile\"",
+            "data-settings-summary-key=\"OutputContainer\"",
+            "data-settings-summary-key=\"VideoCodec\"",
+            "data-settings-summary-key=\"SizeGuardMode\"",
+            "library_effective_settings is library-only",
+            "final runtime decision is resolved during queue/job processing",
             "The WebView does not compute copy/remux/encode routing",
             "pipeline_plan.v1 results from /api/settings/pipeline-plan-preview",
             "cannot launch, save settings, encode, remux, publish, rename, drain pending publish, or touch media files",
         ):
             self.assertIn(token, html)
+
+    def test_summary_panel_uses_persisted_keys_without_runtime_authority(self) -> None:
+        review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+
+        for token in (
+            "function renderSettingsEffectiveIntentSummary(options = {})",
+            'formatSettingsSummaryValue("RoutingProfile"',
+            'formatSettingsSummaryValue("RouteThresholdMode"',
+            'formatSettingsSummaryValue("OutputContainer"',
+            'formatSettingsSummaryValue("VideoCodec"',
+            'formatSettingsSummaryValue("VideoPreset"',
+            'formatSettingsSummaryValue("SizeGuardMode"',
+            'formatSettingsSummaryValue("EncodeThresholdGB"',
+            'formatSettingsSummaryValue("MovieRouteMaxVideoBitrateMbps"',
+            'persisted key RoutingProfile',
+            'persisted key OutputContainer',
+            "Applies only when encoding is required.",
+            "library_effective_settings is library-only",
+            "Final runtime decision is resolved during queue/job processing.",
+            "The WebView does not compute copy/remux/encode routing.",
+            "renderSettingsEffectiveIntentSummary,",
+        ):
+            self.assertIn(token, review_js)
+
+        for token in (
+            'settingsPatchReviewFunction("renderSettingsEffectiveIntentSummary")',
+            "backend pipeline_plan.v1 preview, diagnostic-only",
+            "preview failed; saved settings orientation only",
+        ):
+            self.assertIn(token, settings_js)
+
+        for forbidden in (
+            "ProcessingStrategy:",
+            "OutputSizeCheck:",
+            "runtime_effective_settings:",
+        ):
+            self.assertNotIn(forbidden, review_js + settings_js)
 
     def test_source_compatibility_accepts_source_facts_for_backend_preview(self) -> None:
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
@@ -244,7 +294,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "TV target output size",
             "Movie max bitrate for direct copy",
             "TV max bitrate for direct copy",
-            'data-rule-kind="route">ROUTE',
+            'data-rule-kind="routing">ROUTING',
             'data-rule-kind="hard">HARD',
             'data-rule-kind="soft">SOFT',
             'data-rule-kind="advisory">ADVISORY',
@@ -273,27 +323,106 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertLess(summary_index, extra_flags_index)
         self.assertLess(extra_flags_index, details_end)
 
+    def test_advanced_fields_use_metadata_and_fallback_toggle(self) -> None:
+        metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        styles = (STATIC_ROOT / "assets" / "styles.components.css").read_text(encoding="utf-8")
+
+        for key in (
+            "ExtraVideoFlags",
+            "CpuEncodePreset",
+            "CpuEncodeProcessPriority",
+            "CpuEncodeMaxThreads",
+            "FallbackCpuQuality",
+            "BdpgsOcrToolPath",
+            "BdpgsOcrTimeoutSeconds",
+            "VobSubOcrToolPath",
+            "VobSubOcrTimeoutSeconds",
+            "ExcludeSubtitleStyles",
+            "IncludeSubtitleStyles",
+            "RemoveKaraoke",
+            "StripFormatting",
+            "MergeAdjacent",
+        ):
+            self.assertIn(f'"{key}"', metadata_js)
+
+        for token in (
+            "settingsAdvancedFallbackKeys",
+            "function settingsFieldIsAdvanced(key, field)",
+            "field?.advanced_visibility",
+            "field?.rule_taxonomy",
+            "field?.strictness",
+            "section === \"advanced\"",
+            "settingsAdvancedFallbackKeys.has",
+            "dataset.settingsAdvancedControl",
+            "function renderSettingsAdvancedControls()",
+            "data-settings-advanced-toggle",
+            "Show advanced controls",
+            "Hide advanced controls",
+            "node.hidden = !expanded",
+            "document.addEventListener(\"click\", handleSettingsAdvancedToggleClick)",
+        ):
+            self.assertIn(token, settings_js)
+
+        for token in (
+            ".settings-advanced-toggle-row",
+            ".settings-advanced-toggle-note",
+            ".settings-advanced-field[hidden]",
+            "display: none !important;",
+        ):
+            self.assertIn(token, styles)
+
+    def test_rule_and_strictness_badges_are_display_only(self) -> None:
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        styles = (STATIC_ROOT / "assets" / "styles.components.css").read_text(encoding="utf-8")
+        review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+        video_builder_js = (STATIC_ROOT / "assets" / "settingsView.builders.video.js").read_text(encoding="utf-8")
+
+        for badge in (
+            "ROUTING",
+            "COMPATIBILITY",
+            "QUALITY",
+            "SIZE",
+            "BITRATE",
+            "OUTPUT",
+            "VERIFY",
+            "PUBLISH",
+            "ADVISORY",
+            "HARD",
+            "SOFT",
+            "ADVANCED",
+        ):
+            self.assertIn(badge, settings_js)
+
+        for kind in (
+            'data-rule-kind="routing"',
+            'data-rule-kind="compatibility"',
+            'data-rule-kind="quality"',
+            'data-rule-kind="size"',
+            'data-rule-kind="bitrate"',
+            'data-rule-kind="output"',
+            'data-rule-kind="verification"',
+            'data-rule-kind="publish"',
+            'data-rule-kind="advanced"',
+        ):
+            self.assertIn(kind, styles)
+
+        self.assertIn("Display-only backend metadata; not a saved config key.", settings_js)
+        self.assertNotIn("settingsRuleTaxonomy", review_js)
+        self.assertNotIn("settingsStrictness", review_js)
+        self.assertNotIn("settingsAdvancedVisibility", review_js)
+        self.assertIn("patch[key] = readVideoDetailBuilderValue", video_builder_js)
+
     def test_display_label_metadata_overrides_legacy_terms(self) -> None:
         js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
         review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
 
-        for token in (
-            "settingsDisplayLabels",
-            'RoutingProfile: "Processing Strategy"',
-            'RouteThresholdMode: "Enforcement Mode"',
-            'SizeGuardMode: "Output Size Check"',
-            'EncodeTuningPreset: "Encoder Quality Preset"',
-            'EncodeLadder: "Encode Target Mode"',
-            'EncodeThresholdGB: "Movie target output size"',
-            'TVEncodeThresholdGB: "TV target output size"',
-            'MovieRouteMaxVideoBitrateMbps: "Movie max bitrate for direct copy"',
-            'TVRouteMaxVideoBitrateMbps: "TV max bitrate for direct copy"',
-            'VideoPreset: "Encoder Speed Preset"',
-            'ExtraVideoFlags: "Advanced Encoder Flags"',
-        ):
-            self.assertIn(token, js)
-        self.assertIn("return field?.label || settingsDisplayLabels[key] || fallback || key;", settings_js)
+        self.assertNotIn("settingsDisplayLabels", js)
+        for key, label in LABEL_ONLY_RENAMES.items():
+            with self.subTest(key=key):
+                self.assertEqual(_backend_metadata_by_key()[key]["label"], label)
+        self.assertIn("return field?.label || fallback || key;", settings_js)
         self.assertIn("settingsDisplayLabel(key", review_js)
         self.assertIn("if (field?.label) return field.label;", review_js)
         self.assertIn("renderHandbrakePreviewSummary(settings)", review_js)
@@ -362,6 +491,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
     def test_patch_preview_keeps_persisted_keys_for_backend_labels(self) -> None:
         review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
 
         for key in ("RoutingProfile", "RouteThresholdMode", "SizeGuardMode"):
             self.assertIn(f"{key}: settingsBuilderInputValue", review_js)
@@ -369,6 +499,17 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             self.assertIsNone(re.search(rf"\b{renamed_key}\s*:", review_js))
         self.assertIn("key,", review_js)
         self.assertIn("settingsDisplayLabel(key, field?.label || key)", review_js)
+        self.assertIn("function settingsPersistedKeyDisplay", review_js)
+        self.assertIn("function settingsPersistedKeyDisplay", settings_js)
+        self.assertIn("Changed persisted keys:", review_js)
+        self.assertIn("Unknown persisted keys needing backend validation:", review_js)
+        self.assertIn("Preview/save uses persisted keys. Friendly labels are display only and are not saved keys.", review_js)
+        self.assertIn("Preview/save uses persisted keys. Friendly labels are display only and are not saved keys.", settings_js)
+        self.assertIn("settingsPersistedKeyDisplayList(data.changed_keys || [])", settings_js)
+        self.assertIn("settingsPersistedKeyDisplayList(data.removed_keys || [])", settings_js)
+        self.assertIn("Active preset:", review_js)
+        self.assertIn("Preset scope:", review_js)
+        self.assertIn("Backend validation errors are authoritative; this WebView did not save or bypass them.", settings_js)
 
     def test_label_only_renames_remain_display_only_in_main_settings_and_patch_builders(self) -> None:
         backend = _backend_metadata_by_key()
@@ -376,10 +517,9 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
         review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
         video_builder_js = (STATIC_ROOT / "assets" / "settingsView.builders.video.js").read_text(encoding="utf-8")
-        display_labels = _settings_display_label_entries()
         patch_sources = review_js + video_builder_js
 
-        self.assertIn("return field?.label || settingsDisplayLabels[key] || fallback || key;", settings_js)
+        self.assertIn("return field?.label || fallback || key;", settings_js)
         self.assertIn("applySettingsFieldMetadataToControls();", settings_js)
         self.assertIn("patch[key] = readVideoDetailBuilderValue", video_builder_js)
         for key, label in LABEL_ONLY_RENAMES.items():
@@ -387,8 +527,6 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
                 field = backend[key]
                 self.assertEqual(field["label"], label)
                 self.assertEqual(field["persisted_key"], key)
-                if key in display_labels:
-                    self.assertEqual(display_labels[key], label)
                 if key in EDITOR_BUILDER_KEYS:
                     self.assertRegex(review_js, rf"\b{key}\s*:")
                 if key in VIDEO_DETAIL_BUILDER_KEYS:
@@ -398,11 +536,10 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
                 self.assertIsNone(re.search(rf"\b{renamed_identifier}\s*:", patch_sources))
 
     def test_backend_migration_policy_matches_display_label_renames(self) -> None:
-        self.assertEqual(MIGRATION_LABEL_ONLY_RENAMES, LABEL_ONLY_RENAMES)
         policies = {str(policy["persisted_key"]): policy for policy in LABEL_ONLY_RENAME_POLICIES}
 
-        self.assertEqual(set(policies), set(MIGRATION_LABEL_ONLY_RENAMES))
-        for key, label in MIGRATION_LABEL_ONLY_RENAMES.items():
+        self.assertEqual(set(policies), set(LABEL_ONLY_RENAMES))
+        for key, label in LABEL_ONLY_RENAMES.items():
             with self.subTest(key=key):
                 self.assertEqual(_backend_metadata_by_key()[key]["label"], label)
                 self.assertEqual(policies[key]["display_label"], label)
@@ -464,6 +601,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             'apiPost("/api/settings/save-patch", { changes, ...requestExtras, confirm_save: true })',
             'if ((result.errors || []).length) {',
             'lines.push("", "Errors:", ...(result.errors || []).map((item) => `- ${item}`));',
+            "Backend validation errors are authoritative; this WebView did not save or bypass them.",
             "Backend preview/save remains authoritative",
             "settingsPatchLocalValidationHintLines(changes)",
             "is not in backend field metadata loaded by this WebView",
@@ -489,17 +627,18 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         ):
             self.assertIn(token, wizard_js)
 
-    def test_static_label_fallbacks_are_backend_known_and_cannot_create_editable_keys(self) -> None:
+    def test_removed_static_label_fallback_cannot_create_editable_keys(self) -> None:
         backend = _backend_metadata_by_key()
-        display_labels = _settings_display_label_entries()
+        metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
         review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
 
-        self.assertEqual(sorted(set(display_labels) - set(backend)), [])
-        for key, fallback_label in display_labels.items():
+        self.assertNotIn("settingsDisplayLabels", metadata_js)
+        for key, label in LABEL_ONLY_RENAMES.items():
             with self.subTest(key=key):
-                self.assertEqual(fallback_label, backend[key]["label"])
+                self.assertEqual(backend[key]["label"], label)
         self.assertIn("if (!field || !element) return;", settings_js)
+        self.assertIn("return field?.label || fallback || key;", settings_js)
         self.assertIn("settingsDisplayLabel(key, field?.label || key)", review_js)
 
     def test_size_target_and_direct_copy_bitrate_labels_are_not_swapped(self) -> None:

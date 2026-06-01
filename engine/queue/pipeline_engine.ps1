@@ -503,6 +503,8 @@ function Build-QueuePlanSnapshotRows {
         } else {
             try {
             $previousOverrides = $script:ActiveOverrides
+            $previousFileOverrideConfigMap = Get-Variable -Name LastFileOverrideConfigMap -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+            $previousFileOverrideMatch = Get-Variable -Name LastFileOverrideMatch -Scope Script -ValueOnly -ErrorAction SilentlyContinue
             $activeConfigOverrideSnapshot = $null
             try {
                 $libraryOverrides = if (Get-Command -Name Resolve-MediaPipelineLibraryOverridesForPath -ErrorAction SilentlyContinue) {
@@ -525,6 +527,9 @@ function Build-QueuePlanSnapshotRows {
                     $script:ActiveOverrides = Merge-MediaPipelineActiveOverrides -Base $script:ActiveOverrides -Override $folderOverrides
                 } else {
                     $script:ActiveOverrides = $folderOverrides
+                }
+                if (Get-Command -Name Merge-FileOverrideIntoActiveOverrides -ErrorAction SilentlyContinue) {
+                    Merge-FileOverrideIntoActiveOverrides -SourcePath $file.FullName
                 }
                 if (Get-Command -Name Push-MediaPipelineActiveConfigOverrides -ErrorAction SilentlyContinue) {
                     $activeConfigOverrideSnapshot = Push-MediaPipelineActiveConfigOverrides -Overrides $script:ActiveOverrides
@@ -552,6 +557,16 @@ function Build-QueuePlanSnapshotRows {
                     Pop-MediaPipelineActiveConfigOverrides -Snapshot $activeConfigOverrideSnapshot
                 }
                 $script:ActiveOverrides = $previousOverrides
+                if ($null -ne $previousFileOverrideConfigMap) {
+                    $script:LastFileOverrideConfigMap = $previousFileOverrideConfigMap
+                } else {
+                    Remove-Variable -Name LastFileOverrideConfigMap -Scope Script -ErrorAction SilentlyContinue
+                }
+                if ($null -ne $previousFileOverrideMatch) {
+                    $script:LastFileOverrideMatch = $previousFileOverrideMatch
+                } else {
+                    Remove-Variable -Name LastFileOverrideMatch -Scope Script -ErrorAction SilentlyContinue
+                }
             }
             if ($rp) {
                 $route       = [string]$rp.DisplayRoute

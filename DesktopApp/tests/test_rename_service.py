@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.shared.constants import APP_STATE_NAME
+from app.storage.constants import APP_STATE_NAME
 from app.rename.service import RenameServiceMixin
 from mediapipeline_desktop_app.subprocess_runner import CapturedCommandResult
 

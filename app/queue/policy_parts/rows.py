@@ -5,8 +5,13 @@ from __future__ import annotations
 from typing import Any, Callable, Iterable, Mapping
 
 from app.observability.runtime_outcomes import runtime_outcome_index, source_identity_key
+from app.queue.file_overrides import resolve_file_override_match
 from app.queue.policy_parts.rules import EMPTY_QUEUE_SNAPSHOT_WARNING
 from mediapipeline_desktop_app.models import QueueRecord
+
+LIBRARY_EFFECTIVE_SETTINGS_SCOPE = "library_only"
+RUNTIME_EVIDENCE_NOTE = "resolved during job processing"
+OVERRIDE_LAYERS_PENDING = ["show", "folder", "file"]
 
 
 def queue_row_key(row: dict[str, Any]) -> str:
@@ -43,6 +48,8 @@ def queue_record_to_row(record: QueueRecord) -> dict[str, Any]:
         "phase": record.phase,
         "global_order": record.global_order,
     }
+    row.update(queue_preview_runtime_evidence_fields())
+    row.update(queue_preview_track_metadata_summary({}))
     row["row_key"] = queue_row_key(row)
     row["available_open_targets"] = queue_row_available_open_targets(row)
     row.update(queue_row_operator_guidance(row))
@@ -55,6 +62,10 @@ def _json_mapping(value: Any) -> dict[str, Any]:
 
 def _json_list(value: Any) -> list[str]:
     return [str(item) for item in value if str(item).strip()] if isinstance(value, list) else []
+
+
+def _text_value(value: Any) -> str:
+    return str(value or "").strip()
 
 
 def _float_value(value: Any) -> float:
@@ -70,6 +81,251 @@ def _bool_value(value: Any) -> bool:
     if value in (None, ""):
         return False
     return str(value).strip().casefold() in {"1", "true", "yes", "y", "on"}
+
+
+def _queue_normalized_path_key(value: Any) -> str:
+    return str(value or "").replace("\\", "/").strip().casefold()
+
+
+def _queue_file_override_artifact_row(row: Mapping[str, Any]) -> bool:
+    values = (
+        row.get("source_path"),
+        row.get("relative_path"),
+        row.get("display_name"),
+        row.get("name"),
+    )
+    for value in values:
+        key = _queue_normalized_path_key(value)
+        if key.endswith(".override.json") or key.endswith("/override.json") or key == "override.json":
+            return True
+    return False
+
+
+def _mapping_value(value: Any) -> Mapping[str, Any]:
+    if isinstance(value, Mapping):
+        return value
+    dump = getattr(value, "model_dump", None)
+    if callable(dump):
+        try:
+            dumped = dump(mode="json")
+        except TypeError:
+            dumped = dump()
+        return dumped if isinstance(dumped, Mapping) else {}
+    if hasattr(value, "__dict__"):
+        data = vars(value)
+        return data if isinstance(data, Mapping) else {}
+    return {}
+
+
+def _list_value(value: Any) -> list[Any]:
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    return []
+
+
+def _int_metadata_value(value: Any) -> int:
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _track_language_value(value: Any) -> str:
+    language = str(value or "").strip().casefold()
+    return language
+
+
+def _track_language_list(value: Any) -> list[str]:
+    languages: list[str] = []
+    seen: set[str] = set()
+    for item in _list_value(value):
+        language = _track_language_value(item)
+        if language and language not in seen:
+            languages.append(language)
+            seen.add(language)
+    return languages
+
+
+def _stream_language(row: Mapping[str, Any]) -> str:
+    tags = _mapping_value(row.get("tags"))
+    return _track_language_value(row.get("language") or row.get("lang") or tags.get("language"))
+
+
+def _stream_forced(row: Mapping[str, Any]) -> bool:
+    if "forced" in row:
+        return _bool_value(row.get("forced"))
+    disposition = _mapping_value(row.get("disposition"))
+    return _bool_value(disposition.get("forced"))
+
+
+def _stream_kind(row: Mapping[str, Any], fallback: str = "") -> str:
+    value = str(row.get("kind") or row.get("codec_type") or row.get("stream_type") or row.get("type") or fallback)
+    kind = value.strip().casefold()
+    if kind in {"subtitles", "subtitle_stream", "s"}:
+        return "subtitle"
+    if kind in {"audio_stream", "a"}:
+        return "audio"
+    return kind
+
+
+def _append_track_rows(target: list[Mapping[str, Any]], value: Any, *, fallback_kind: str = "") -> bool:
+    rows = _list_value(value)
+    for item in rows:
+        row = _mapping_value(item)
+        if row and (fallback_kind or _stream_kind(row) in {"audio", "subtitle"}):
+            target.append(row if not fallback_kind else {**dict(row), "_queue_track_kind": fallback_kind})
+    return isinstance(value, (list, tuple))
+
+
+def _embedded_track_rows(raw_row: Mapping[str, Any]) -> tuple[list[Mapping[str, Any]], list[Mapping[str, Any]], bool]:
+    rows: list[Mapping[str, Any]] = []
+    metadata_present = False
+    metadata_present = _append_track_rows(rows, raw_row.get("streams")) or metadata_present
+    metadata_present = _append_track_rows(rows, raw_row.get("probe_streams")) or metadata_present
+
+    for key in ("probe", "probe_result", "source_media", "source_media_info", "source_media_profile", "ffprobe"):
+        nested = _mapping_value(raw_row.get(key))
+        if not nested:
+            continue
+        metadata_present = _append_track_rows(rows, nested.get("streams")) or metadata_present
+        metadata_present = _append_track_rows(rows, nested.get("audio_streams"), fallback_kind="audio") or metadata_present
+        metadata_present = _append_track_rows(rows, nested.get("subtitle_streams"), fallback_kind="subtitle") or metadata_present
+        metadata_present = _append_track_rows(rows, nested.get("audio_tracks"), fallback_kind="audio") or metadata_present
+        metadata_present = _append_track_rows(rows, nested.get("subtitle_tracks"), fallback_kind="subtitle") or metadata_present
+
+    metadata_present = _append_track_rows(rows, raw_row.get("audio_streams"), fallback_kind="audio") or metadata_present
+    metadata_present = _append_track_rows(rows, raw_row.get("subtitle_streams"), fallback_kind="subtitle") or metadata_present
+    metadata_present = _append_track_rows(rows, raw_row.get("audio_tracks"), fallback_kind="audio") or metadata_present
+    metadata_present = _append_track_rows(rows, raw_row.get("subtitle_tracks"), fallback_kind="subtitle") or metadata_present
+
+    audio = [row for row in rows if _stream_kind(row, str(row.get("_queue_track_kind") or "")) == "audio"]
+    subtitles = [row for row in rows if _stream_kind(row, str(row.get("_queue_track_kind") or "")) == "subtitle"]
+    return audio, subtitles, metadata_present
+
+
+def _track_metadata_summary_from_fields(raw_row: Mapping[str, Any]) -> dict[str, Any] | None:
+    summary_keys = {
+        "audio_track_count",
+        "subtitle_track_count",
+        "audio_languages",
+        "subtitle_languages",
+        "has_forced_subtitles",
+    }
+    if "track_metadata_available" in raw_row and not _bool_value(raw_row.get("track_metadata_available")):
+        return {"track_metadata_available": False}
+    if "probe_available" in raw_row and not _bool_value(raw_row.get("probe_available")):
+        return {"track_metadata_available": False}
+    if "track_metadata_available" not in raw_row and not any(key in raw_row for key in summary_keys):
+        return None
+    return {
+        "track_metadata_available": True,
+        "audio_track_count": _int_metadata_value(raw_row.get("audio_track_count")),
+        "subtitle_track_count": _int_metadata_value(raw_row.get("subtitle_track_count")),
+        "audio_languages": _track_language_list(raw_row.get("audio_languages")),
+        "subtitle_languages": _track_language_list(raw_row.get("subtitle_languages")),
+        "has_forced_subtitles": _bool_value(raw_row.get("has_forced_subtitles")),
+    }
+
+
+def queue_preview_track_metadata_summary(raw_row: Mapping[str, Any]) -> dict[str, Any]:
+    field_summary = _track_metadata_summary_from_fields(raw_row)
+    if field_summary is not None:
+        return field_summary
+
+    audio, subtitles, metadata_present = _embedded_track_rows(raw_row)
+    if not metadata_present:
+        return {"track_metadata_available": False}
+
+    return {
+        "track_metadata_available": True,
+        "audio_track_count": len(audio),
+        "subtitle_track_count": len(subtitles),
+        "audio_languages": _track_language_list([_stream_language(row) for row in audio]),
+        "subtitle_languages": _track_language_list([_stream_language(row) for row in subtitles]),
+        "has_forced_subtitles": any(_stream_forced(row) for row in subtitles),
+    }
+
+
+def _annotate_queue_file_override(
+    row: dict[str, Any],
+    file_override_manifest: Mapping[str, Any] | None,
+) -> None:
+    if file_override_manifest is None or _queue_file_override_artifact_row(row):
+        return
+    source_path = str(row.get("source_path") or "").strip()
+    if not source_path:
+        row["has_file_override"] = False
+        return
+    match = resolve_file_override_match(dict(file_override_manifest), source_path)
+    entry = match.get("entry")
+    row["has_file_override"] = isinstance(entry, dict)
+    if not row["has_file_override"]:
+        return
+    row["file_override_path"] = str(match.get("matched_path") or "")
+    row["file_override_scope"] = str(match.get("scope") or "")
+
+
+def _optional_bool_value(value: Any) -> bool | None:
+    if value in (None, ""):
+        return None
+    return _bool_value(value)
+
+
+def _nested_path_field_text(raw_row: Mapping[str, Any], field: str, key: str) -> str:
+    for state_key in ("library_path_field_state", "path_field_state"):
+        state_map = raw_row.get(state_key)
+        if not isinstance(state_map, Mapping):
+            continue
+        field_state = state_map.get(field)
+        if isinstance(field_state, Mapping):
+            text = _text_value(field_state.get(key))
+            if text:
+                return text
+    return ""
+
+
+def queue_preview_runtime_evidence_fields() -> dict[str, Any]:
+    return {
+        "library_effective_settings_scope": LIBRARY_EFFECTIVE_SETTINGS_SCOPE,
+        "runtime_effective_settings_available": False,
+        "runtime_evidence_note": RUNTIME_EVIDENCE_NOTE,
+        "override_layers_pending": list(OVERRIDE_LAYERS_PENDING),
+    }
+
+
+def queue_preview_library_promotion_fields(raw_row: Mapping[str, Any]) -> dict[str, Any]:
+    promotion_enabled = _optional_bool_value(
+        raw_row.get("library_promotion_enabled", raw_row.get("promotion_enabled"))
+    )
+    destination = _text_value(
+        raw_row.get("library_promotion_destination")
+        or raw_row.get("promotion_destination")
+        or raw_row.get("final_library_destination_root")
+    )
+    rule_id = _text_value(raw_row.get("library_promotion_rule_id") or raw_row.get("final_library_rule_id"))
+    rule_label = _text_value(raw_row.get("library_promotion_rule_label") or raw_row.get("final_library_rule_label"))
+    status = _text_value(raw_row.get("library_promotion_status") or raw_row.get("final_library_promotion_status"))
+    output_state = _text_value(
+        raw_row.get("library_output_root_state")
+        or raw_row.get("library_output_path_state")
+        or _nested_path_field_text(raw_row, "output_path", "state")
+    )
+    output_source_key = _text_value(
+        raw_row.get("library_output_root_source_key")
+        or raw_row.get("library_output_path_source_key")
+        or _nested_path_field_text(raw_row, "output_path", "source_key")
+    )
+    return {
+        "library_promotion_enabled": promotion_enabled,
+        "library_promotion_destination": destination,
+        "library_promotion_rule_id": rule_id,
+        "library_promotion_rule_label": rule_label,
+        "library_promotion_status": status,
+        "library_output_root_state": output_state,
+        "library_output_root_source_key": output_source_key,
+    }
 
 
 def queue_row_available_open_targets(row: dict[str, Any]) -> list[str]:
@@ -397,17 +653,46 @@ def queue_row_route_evidence_lines(row: dict[str, Any]) -> list[str]:
             lines.append(f"Runtime note: {note}")
     library_id = str(row.get("library_id") or "").strip()
     library_name = str(row.get("library_name") or "").strip()
+    library_designation = str(row.get("library_designation") or "").strip()
     library_output_root = str(row.get("library_output_root") or "").strip()
+    library_output_root_state = str(row.get("library_output_root_state") or "").strip()
+    library_output_root_source_key = str(row.get("library_output_root_source_key") or "").strip()
     library_source_root = str(row.get("library_source_root") or row.get("source_root") or "").strip()
     library_override_keys = _json_list(row.get("library_settings_override_keys"))
     if library_id or library_name or library_output_root:
         label = library_name or library_id or "not reported"
         lines.append(f"Library profile: {label}{f' ({library_id})' if library_id and library_id != label else ''}")
+        if library_designation:
+            lines.append(f"Library designation: {library_designation}")
         if library_source_root:
             lines.append(f"Library source root: {library_source_root}")
         if library_output_root:
             lines.append(f"Library output root: {library_output_root}")
+        if library_output_root_state:
+            if library_output_root_state == "inherited" and library_output_root_source_key:
+                lines.append(f"Library output root state: inherited from {library_output_root_source_key}")
+            else:
+                lines.append(f"Library output root state: {library_output_root_state}")
         lines.append(f"Library override keys: {', '.join(library_override_keys) if library_override_keys else 'none'}")
+        if str(row.get("library_effective_settings_scope") or "").strip() == LIBRARY_EFFECTIVE_SETTINGS_SCOPE:
+            lines.append("Library effective settings: library-only (global settings plus library overrides)")
+    promotion_enabled = row.get("library_promotion_enabled")
+    promotion_destination = str(row.get("library_promotion_destination") or "").strip()
+    promotion_rule_id = str(row.get("library_promotion_rule_id") or "").strip()
+    promotion_rule_label = str(row.get("library_promotion_rule_label") or "").strip()
+    if promotion_enabled is not None:
+        lines.append(f"Library promotion: {'enabled' if bool(promotion_enabled) else 'disabled'}")
+    if promotion_destination:
+        lines.append(f"Library promotion destination: {promotion_destination}")
+    if promotion_rule_id or promotion_rule_label:
+        rule_label = promotion_rule_label or promotion_rule_id
+        lines.append(f"Library promotion rule: {rule_label}{f' ({promotion_rule_id})' if promotion_rule_id and promotion_rule_id != rule_label else ''}")
+    runtime_available = bool(row.get("runtime_effective_settings_available"))
+    runtime_note = str(row.get("runtime_evidence_note") or "").strip()
+    pending_layers = _json_list(row.get("override_layers_pending"))
+    if not runtime_available and (runtime_note or pending_layers):
+        pending_text = ", ".join(pending_layers) if pending_layers else "later"
+        lines.append(f"Runtime effective settings: {runtime_note or 'deferred'}; pending layers: {pending_text}")
     runtime_status = str(row.get("runtime_outcome_status") or "").strip()
     if runtime_status:
         runtime_at = str(row.get("runtime_outcome_at") or "").strip()
@@ -460,6 +745,8 @@ def queue_apply_runtime_outcomes(rows: list[dict[str, Any]], events: Iterable[An
 def queue_preview_rows(
     raw_rows: Iterable[Any],
     row_factory: Callable[[dict[str, Any]], object],
+    *,
+    file_override_manifest: Mapping[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for raw_row in raw_rows:
@@ -469,6 +756,8 @@ def queue_preview_rows(
             record = row_factory(raw_row)
         except Exception as exc:
             invalid_row = {"status": "invalid", "error": str(exc), "raw": raw_row}
+            invalid_row.update(queue_preview_runtime_evidence_fields())
+            invalid_row.update(queue_preview_track_metadata_summary(raw_row))
             invalid_row["available_open_targets"] = queue_row_available_open_targets(invalid_row)
             invalid_row.update(queue_row_operator_guidance(invalid_row))
             rows.append(invalid_row)
@@ -497,6 +786,10 @@ def queue_preview_rows(
             safe_row["library_settings_override_keys"] = _json_list(raw_row.get("library_settings_override_keys"))
             safe_row["library_settings_overrides"] = _json_mapping(raw_row.get("library_settings_overrides"))
             safe_row["library_effective_settings"] = _json_mapping(raw_row.get("library_effective_settings"))
+            safe_row.update(queue_preview_runtime_evidence_fields())
+            safe_row.update(queue_preview_library_promotion_fields(raw_row))
+            safe_row.update(queue_preview_track_metadata_summary(raw_row))
+            _annotate_queue_file_override(safe_row, file_override_manifest)
             safe_row["row_key"] = queue_row_key(safe_row)
             safe_row["available_open_targets"] = queue_row_available_open_targets(safe_row)
             safe_row.update(queue_row_operator_guidance(safe_row))
@@ -519,5 +812,8 @@ __all__ = [
     "queue_row_route_evidence_lines",
     "queue_apply_runtime_outcomes",
     "queue_preview_rows",
+    "queue_preview_track_metadata_summary",
+    "queue_preview_runtime_evidence_fields",
+    "queue_preview_library_promotion_fields",
     "queue_preview_warnings",
 ]

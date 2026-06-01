@@ -42,161 +42,147 @@ graph LR
   subtitles["subtitles"]
   telemetry["telemetry"]
   tests["tests"]
-  ui["ui"]
+  ui_preferences["ui_preferences"]
   unknown["unknown"]
   validation["validation"]
   webview["webview"]
-  tests -->|91| api
-  unknown -->|81| api
-  tests -->|36| config
-  unknown -->|30| shared
-  tests -->|23| contracts
-  config -->|21| api
-  unknown -->|19| queue
-  rename -->|12| shared
-  audit -->|11| api
+  tests -->|93| api
+  unknown -->|84| api
+  tests -->|40| config
+  tests -->|26| contracts
+  unknown -->|23| queue
+  config -->|22| api
+  unknown -->|19| processes
+  unknown -->|19| status
+  audit -->|13| api
   completed -->|11| api
-  unknown -->|11| processes
-  unknown -->|11| status
-  decide -->|7| contracts
-  unknown -->|7| maintenance
-  audit -->|6| shared
-  config -->|6| contracts
-  config -->|6| shared
+  decide -->|8| contracts
+  unknown -->|8| maintenance
+  config -->|7| contracts
+  unknown -->|7| folder_policy
+  unknown -->|7| paths
   failures -->|6| api
   publish -->|6| api
+  rename -->|6| api
+  tests -->|6| decide
   tests -->|6| final_library
+  unknown -->|6| files
   unknown -->|6| observability
   diagnostics -->|5| api
-  observability -->|5| api
-  rename -->|5| api
-  tests -->|5| decide
-  unknown -->|5| paths
+  tests -->|5| folder_policy
+  tests -->|5| processes
+  unknown -->|5| schedule
   diagnostics -->|4| status
+  orchestration -->|4| config
+  orchestration -->|4| contracts
   tests -->|4| completed
-  tests -->|4| processes
-  unknown -->|4| folder_policy
+  tests -->|4| storage
   api -->|3| queue
   network -->|3| api
-  observability -->|3| status
-  orchestration -->|3| contracts
   orchestration -->|3| decide
+  rename -->|3| files
   tests -->|3| publish
+  tests -->|3| queue
+  unknown -->|3| config
   unknown -->|3| contracts
-  unknown -->|3| schedule
   unknown -->|3| storage
+  unknown -->|3| telemetry
+  api -->|2| config
   completed -->|2| observability
-  failures -->|2| shared
-  orchestration -->|2| config
-  publish -->|2| shared
+  observability -->|2| api
   rename -->|2| paths
-  storage -->|2| shared
   tests -->|2| orchestration
-  tests -->|2| queue
-  tests -->|2| shared
+  tests -->|2| paths
+  tests -->|2| rename
   unknown -->|2| completed
-  unknown -->|2| config
-  unknown -->|2| telemetry
-  api -->|1| config
+  unknown -->|2| failures
   api -->|1| publish
   api -->|1| rename
-  api -->|1| ui
+  api -->|1| ui_preferences
   application -->|1| config
   application -->|1| observability
   audit -->|1| failures
-  config -->|1| decide
-  config -->|1| orchestration
   diagnostics -->|1| config
   failures -->|1| paths
   observability -->|1| telemetry
+  orchestration -->|1| api
   publish -->|1| completed
-  tests -->|1| rename
   tests -->|1| schedule
   tests -->|1| validation
   unknown -->|1| audit
-  unknown -->|1| failures
-  unknown -->|1| files
   unknown -->|1| final_library
-  unknown -->|1| publish
-  unknown -->|1| rename
   unknown -->|1| sample_validation
+  unknown -->|1| ui_preferences
 ```
 
 ## Edge counts
 
 | From | To | Edges |
 |---|---|---|
-| tests | api | 91 |
-| unknown | api | 81 |
-| tests | config | 36 |
-| unknown | shared | 30 |
-| tests | contracts | 23 |
-| config | api | 21 |
-| unknown | queue | 19 |
-| rename | shared | 12 |
-| audit | api | 11 |
+| tests | api | 93 |
+| unknown | api | 84 |
+| tests | config | 40 |
+| tests | contracts | 26 |
+| unknown | queue | 23 |
+| config | api | 22 |
+| unknown | processes | 19 |
+| unknown | status | 19 |
+| audit | api | 13 |
 | completed | api | 11 |
-| unknown | processes | 11 |
-| unknown | status | 11 |
-| decide | contracts | 7 |
-| unknown | maintenance | 7 |
-| audit | shared | 6 |
-| config | contracts | 6 |
-| config | shared | 6 |
+| decide | contracts | 8 |
+| unknown | maintenance | 8 |
+| config | contracts | 7 |
+| unknown | folder_policy | 7 |
+| unknown | paths | 7 |
 | failures | api | 6 |
 | publish | api | 6 |
+| rename | api | 6 |
+| tests | decide | 6 |
 | tests | final_library | 6 |
+| unknown | files | 6 |
 | unknown | observability | 6 |
 | diagnostics | api | 5 |
-| observability | api | 5 |
-| rename | api | 5 |
-| tests | decide | 5 |
-| unknown | paths | 5 |
+| tests | folder_policy | 5 |
+| tests | processes | 5 |
+| unknown | schedule | 5 |
 | diagnostics | status | 4 |
+| orchestration | config | 4 |
+| orchestration | contracts | 4 |
 | tests | completed | 4 |
-| tests | processes | 4 |
-| unknown | folder_policy | 4 |
+| tests | storage | 4 |
 | api | queue | 3 |
 | network | api | 3 |
-| observability | status | 3 |
-| orchestration | contracts | 3 |
 | orchestration | decide | 3 |
+| rename | files | 3 |
 | tests | publish | 3 |
+| tests | queue | 3 |
+| unknown | config | 3 |
 | unknown | contracts | 3 |
-| unknown | schedule | 3 |
 | unknown | storage | 3 |
+| unknown | telemetry | 3 |
+| api | config | 2 |
 | completed | observability | 2 |
-| failures | shared | 2 |
-| orchestration | config | 2 |
-| publish | shared | 2 |
+| observability | api | 2 |
 | rename | paths | 2 |
-| storage | shared | 2 |
 | tests | orchestration | 2 |
-| tests | queue | 2 |
-| tests | shared | 2 |
+| tests | paths | 2 |
+| tests | rename | 2 |
 | unknown | completed | 2 |
-| unknown | config | 2 |
-| unknown | telemetry | 2 |
-| api | config | 1 |
+| unknown | failures | 2 |
 | api | publish | 1 |
 | api | rename | 1 |
-| api | ui | 1 |
+| api | ui_preferences | 1 |
 | application | config | 1 |
 | application | observability | 1 |
 | audit | failures | 1 |
-| config | decide | 1 |
-| config | orchestration | 1 |
 | diagnostics | config | 1 |
 | failures | paths | 1 |
 | observability | telemetry | 1 |
+| orchestration | api | 1 |
 | publish | completed | 1 |
-| tests | rename | 1 |
 | tests | schedule | 1 |
 | tests | validation | 1 |
 | unknown | audit | 1 |
-| unknown | failures | 1 |
-| unknown | files | 1 |
 | unknown | final_library | 1 |
-| unknown | publish | 1 |
-| unknown | rename | 1 |
 | unknown | sample_validation | 1 |
+| unknown | ui_preferences | 1 |

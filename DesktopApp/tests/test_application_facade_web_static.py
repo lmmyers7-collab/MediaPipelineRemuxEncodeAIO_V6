@@ -808,6 +808,460 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             else:
                 self.assertIn(f'updateTableStatusLegend("{legend_id}"', view_js)
 
+    def test_queue_file_settings_drawer_is_late_bound(self) -> None:
+        desktop_root = Path(__file__).resolve().parents[1]
+        assets_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static" / "assets"
+        queue_table_js = (assets_root / "queue" / "table.js").read_text(encoding="utf-8")
+        queue_view_js = (assets_root / "queueView.js").read_text(encoding="utf-8")
+
+        table_factory_match = re.search(
+            r"function createQueueTableModule\(\{(?P<params>.*?)\} = \{\}\)",
+            queue_table_js,
+            re.S,
+        )
+        self.assertIsNotNone(table_factory_match)
+        self.assertNotIn("openFileSettingsDrawer", table_factory_match.group("params"))
+        self.assertNotIn("createQueueFileSettingsButton(item, openFileSettingsDrawer)", queue_table_js)
+        self.assertNotIn("appendQueueFileSettingsButton(cell, item, openFileSettingsDrawer)", queue_table_js)
+        self.assertIn("let openFileSettingsDrawer = function () {};", queue_table_js)
+        self.assertIn("openFileSettingsDrawer(item, { trigger: button });", queue_table_js)
+        self.assertIn("setOpenFileSettingsDrawer: (handler) => {", queue_table_js)
+        self.assertNotIn("openFileSettingsDrawer: typeof openFileSettingsDrawer", queue_view_js)
+        self.assertIn('window.__queueSetFileDrawer = typeof _queueTable.setOpenFileSettingsDrawer === "function"', queue_view_js)
+        self.assertIn("? _queueTable.setOpenFileSettingsDrawer.bind(_queueTable)", queue_view_js)
+        self.assertIn("try {\n    if (typeof window.__queueSetFileDrawer === \"function\")", queue_view_js)
+        self.assertIn("window.__queueSetFileDrawer(openFileSettingsDrawer);", queue_view_js)
+        self.assertIn("finally {\n    delete window.__queueSetFileDrawer;", queue_view_js)
+        self.assertIn('if (typeof refreshAll === "function") await refreshAll();', queue_view_js)
+
+    def test_queue_file_settings_drawer_stage2_annotations_and_focus(self) -> None:
+        desktop_root = Path(__file__).resolve().parents[1]
+        static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static"
+        html = _render_static_index_html(static_root)
+        assets_root = static_root / "assets"
+        queue_table_js = (assets_root / "queue" / "table.js").read_text(encoding="utf-8")
+        queue_view_js = (assets_root / "queueView.js").read_text(encoding="utf-8")
+        queue_css = (assets_root / "styles.queue.css").read_text(encoding="utf-8")
+
+        self.assertIn('openFileSettingsDrawer(item, { trigger: button });', queue_table_js)
+        self.assertIn('aria-describedby="fo-inherited-settings-status fo-drawer-status"', html)
+        self.assertIn('tabindex="-1"', html)
+        self.assertIn('id="fo-inherited-settings-status"', html)
+        self.assertIn('id="fo-drawer-status" class="note" aria-live="polite"', html)
+        for field_key, hint_id in [
+            ("audioKeepLanguages", "fo-audio-keep-langs-inherited"),
+            ("audioDropLanguages", "fo-audio-drop-langs-inherited"),
+            ("audioMaxChannels", "fo-audio-max-channels-inherited"),
+            ("subtitleKeepLanguages", "fo-sub-keep-langs-inherited"),
+            ("subtitleDropLanguages", "fo-sub-drop-langs-inherited"),
+            ("subtitleStripAll", "fo-sub-strip-all-inherited"),
+        ]:
+            self.assertIn(f'data-fo-field="{field_key}"', html)
+            self.assertIn(f'id="{hint_id}" class="fo-inherited-hint"', html)
+        self.assertGreaterEqual(html.count('data-fo-overridden-badge hidden>Overridden</span>'), 6)
+
+        self.assertIn("function getDrawerLibraryDefaults(item)", queue_view_js)
+        self.assertIn('settingKey: "PreferredDefaultAudioLanguages"', queue_view_js)
+        self.assertIn('settingKey: "AudioMaxChannels"', queue_view_js)
+        self.assertIn('settingKey: "SubKeepLanguages"', queue_view_js)
+        self.assertIn("item?.library_effective_settings", queue_view_js)
+        self.assertIn("item?.library_settings_overrides", queue_view_js)
+        self.assertIn("item?.has_file_override", queue_table_js)
+        self.assertIn("/api/queue/file-overrides/effective", queue_view_js)
+        self.assertIn("const FILE_OVERRIDES_EFFECTIVE_ROUTE", queue_view_js)
+        self.assertIn("function loadFileOverrideEffectiveForPath(path, item)", queue_view_js)
+        self.assertIn("function applyFileOverrideEffectivePayload(payload, item)", queue_view_js)
+        self.assertIn("function drawerDefaultsFromEffectivePayload(payload, item)", queue_view_js)
+        self.assertIn("await loadFileOverrideEffectiveForPath(foCurrentPath, foCurrentItem);", queue_view_js)
+        self.assertIn("function renderDrawerInheritedDefaults(defaults)", queue_view_js)
+        self.assertIn('Library defaults unavailable for this queue row.', queue_view_js)
+        self.assertIn("Library default: unavailable", queue_view_js)
+        self.assertIn("function renderDrawerOverrideMarkers(entry)", queue_view_js)
+        self.assertIn('setDrawerFieldOverridden(fieldKey, state[fieldKey])', queue_view_js)
+        self.assertIn('subtitleStripAll: hasOwnValue(subs, "stripAll")', queue_view_js)
+        self.assertIn("clearDrawerOverrideMarkers();", queue_view_js)
+        self.assertIn("function restoreFileSettingsDrawerFocus()", queue_view_js)
+        self.assertIn("trigger.isConnected", queue_view_js)
+        self.assertIn("trigger.focus();", queue_view_js)
+        self.assertIn("function handleFileSettingsDrawerKeydown(event)", queue_view_js)
+        self.assertIn('if (event.key === "Escape")', queue_view_js)
+        self.assertIn('if (event.key !== "Tab") return;', queue_view_js)
+        self.assertIn("event.shiftKey && active === first", queue_view_js)
+        self.assertIn("!event.shiftKey && active === last", queue_view_js)
+        self.assertIn("document.addEventListener(\"keydown\", handleFileSettingsDrawerKeydown);", queue_view_js)
+
+        self.assertIn(".fo-inherited-hint", queue_css)
+        self.assertIn(".fo-inherited-status", queue_css)
+        self.assertIn('.fo-field[data-overridden="true"]', queue_css)
+        self.assertIn(".fo-overridden-badge", queue_css)
+
+    def test_queue_file_settings_drawer_use_inherited_controls(self) -> None:
+        desktop_root = Path(__file__).resolve().parents[1]
+        static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static"
+        html = _render_static_index_html(static_root)
+        assets_root = static_root / "assets"
+        queue_view_js = (assets_root / "queueView.js").read_text(encoding="utf-8")
+        queue_css = (assets_root / "styles.queue.css").read_text(encoding="utf-8")
+
+        field_paths = {
+            "audioKeepLanguages": "audio.keepTracks",
+            "audioDropLanguages": "audio.dropTracks",
+            "audioMaxChannels": "audio.maxChannels",
+            "audioPreferDefaultLanguage": "audio.preferDefaultLanguage",
+            "subtitleKeepLanguages": "subtitles.keepTracks",
+            "subtitleDropLanguages": "subtitles.dropTracks",
+            "subtitleStripAll": "subtitles.stripAll",
+        }
+        aria_labels = {
+            "audioKeepLanguages": "Use inherited value for audio keep languages",
+            "audioDropLanguages": "Use inherited value for audio drop languages",
+            "audioMaxChannels": "Use inherited value for audio max channels",
+            "audioPreferDefaultLanguage": "Use inherited value for preferred default audio language",
+            "subtitleKeepLanguages": "Use inherited value for subtitle keep languages",
+            "subtitleDropLanguages": "Use inherited value for subtitle drop languages",
+            "subtitleStripAll": "Use inherited value for subtitle strip all",
+        }
+        for field_key, field_path in field_paths.items():
+            self.assertRegex(
+                html,
+                rf'<button type="button" class="fo-use-inherited-button" data-fo-use-inherited="{field_key}" '
+                rf'aria-label="{aria_labels[field_key]}" hidden>Use inherited</button>',
+            )
+            self.assertIn(f'{field_key}: "{field_path}"', queue_view_js)
+
+        self.assertIn("function clearFileOverrideField(fieldKey)", queue_view_js)
+        self.assertIn("clear_fields: [fieldPath]", queue_view_js)
+        self.assertIn('payload.file_override_scope !== "file"', queue_view_js)
+        self.assertIn('sources[fieldPath] === "file_override"', queue_view_js)
+        self.assertIn("function renderDrawerUseInheritedButtons(payload)", queue_view_js)
+        self.assertIn("setDrawerUseInheritedAvailable(fieldKey, Boolean(state[fieldKey] && isExactFileOverride));", queue_view_js)
+        self.assertIn('document.querySelectorAll("[data-fo-use-inherited]")', queue_view_js)
+        self.assertIn("await loadFileOverrideEffectiveForPath(foCurrentPath, foCurrentItem);", queue_view_js)
+        self.assertIn("Override field cleared. Inherited value will be used.", queue_view_js)
+        self.assertIn('if (typeof refreshAll === "function") await refreshAll();', queue_view_js)
+        self.assertIn("function saveFileOverrideForPath()", queue_view_js)
+        self.assertIn("function clearFileOverrideForPath()", queue_view_js)
+        self.assertIn("function handleFileSettingsDrawerKeydown(event)", queue_view_js)
+        self.assertIn('if (event.key === "Escape")', queue_view_js)
+        self.assertIn("function restoreFileSettingsDrawerFocus()", queue_view_js)
+        self.assertIn(".fo-use-inherited-button", queue_css)
+
+    def test_queue_file_settings_drawer_stage4f_audio_preferred_default_language(self) -> None:
+        desktop_root = Path(__file__).resolve().parents[1]
+        static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static"
+        html = _render_static_index_html(static_root)
+        assets_root = static_root / "assets"
+        queue_view_js = (assets_root / "queueView.js").read_text(encoding="utf-8")
+
+        self.assertIn('data-fo-field="audioPreferDefaultLanguage"', html)
+        self.assertIn('for="fo-audio-prefer-default-language">Preferred default language</label>', html)
+        self.assertIn(
+            'data-fo-use-inherited="audioPreferDefaultLanguage" aria-label="Use inherited value for preferred default audio language" hidden>Use inherited</button>',
+            html,
+        )
+        self.assertIn(
+            'id="fo-audio-prefer-default-language" class="fo-input" placeholder="e.g. eng — blank = inherit" aria-describedby="fo-audio-prefer-default-language-inherited"',
+            html,
+        )
+        self.assertIn('id="fo-audio-prefer-default-language-inherited" class="fo-inherited-hint"', html)
+
+        self.assertIn('audioPreferDefaultLanguage: "fo-audio-prefer-default-language-inherited"', queue_view_js)
+        self.assertIn('audioPreferDefaultLanguage: "audio.preferDefaultLanguage"', queue_view_js)
+        self.assertIn('scalarLanguage: true', queue_view_js)
+        self.assertIn('payload?.expanded_effective_fields', queue_view_js)
+        self.assertIn('preferDefaultLanguage.value = String(audio.preferDefaultLanguage || "").trim();', queue_view_js)
+        self.assertIn('audioPreferDefaultLanguage: hasOwnValue(audio, "preferDefaultLanguage")', queue_view_js)
+        self.assertIn('if (preferDefaultLanguage) audio.preferDefaultLanguage = preferDefaultLanguage;', queue_view_js)
+        self.assertIn('function backendErrorMessage(result, fallback = "Unknown error.")', queue_view_js)
+
+    def test_queue_file_settings_drawer_stage5e_route_controls(self) -> None:
+        desktop_root = Path(__file__).resolve().parents[1]
+        static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static"
+        html = _render_static_index_html(static_root)
+        assets_root = static_root / "assets"
+        queue_view_js = (assets_root / "queueView.js").read_text(encoding="utf-8")
+        queue_css = (assets_root / "styles.queue.css").read_text(encoding="utf-8")
+
+        self.assertIn('id="fo-processing-route-section" class="fo-section fo-route-section" hidden', html)
+        self.assertIn("These settings can change whether this file is remuxed or fully transcoded.", html)
+        self.assertIn('id="fo-route-preview-status" class="fo-route-preview-status" aria-live="polite" hidden', html)
+        self.assertIn('id="fo-route-risk-confirmation" class="fo-route-confirmation" hidden', html)
+        self.assertIn("I understand this may force a full transcode for this file.", html)
+
+        route_fields = {
+            "routeProfile": ("fo-route-profile", "routing.profile", "Use inherited value for routing profile"),
+            "routingRouteThresholdMode": ("fo-route-threshold-mode", "routing.routeThresholdMode", "Use inherited value for route threshold mode"),
+            "videoCodec": ("fo-video-codec", "video.codec", "Use inherited value for video codec"),
+            "videoContainer": ("fo-video-container", "video.container", "Use inherited value for output container"),
+            "videoEncodePreset": ("fo-video-encode-preset", "video.encodePreset", "Use inherited value for encode preset"),
+            "videoEncodeLadder": ("fo-video-encode-ladder", "video.encodeLadder", "Use inherited value for encode ladder"),
+        }
+        for field_key, (control_id, field_path, aria_label) in route_fields.items():
+            self.assertIn(f'data-fo-field="{field_key}" hidden', html)
+            self.assertIn(f'id="{control_id}" class="fo-select" data-fo-route-control="{field_key}"', html)
+            self.assertIn('<option value="">Inherit</option>', html)
+            self.assertIn(
+                f'data-fo-use-inherited="{field_key}" aria-label="{aria_label}" hidden>Use inherited</button>',
+                html,
+            )
+            self.assertIn(f'{field_key}: "{field_path}"', queue_view_js)
+
+        self.assertIn('const FILE_OVERRIDES_ROUTE_PREVIEW_ROUTE = "/api/queue/file-overrides/route-preview";', queue_view_js)
+        self.assertIn("function renderProcessingRouteControls(payload)", queue_view_js)
+        self.assertIn("payload?.route_video_effective_fields", queue_view_js)
+        self.assertIn("normalizeRouteChoiceOptions(metadata)", queue_view_js)
+        self.assertIn("populateRouteSelectOptions(control, choices)", queue_view_js)
+        self.assertIn("function routePreviewProposalFromPayload(payload)", queue_view_js)
+        self.assertIn("forceRoute = profile", queue_view_js)
+        self.assertIn("routingProfile = profile", queue_view_js)
+        self.assertIn("function ensureRoutePreviewAllowsSave(payload)", queue_view_js)
+        self.assertIn("await loadRoutePreviewForPayload(payload)", queue_view_js)
+        self.assertIn("Confirm the route impact before saving this processing override.", queue_view_js)
+        self.assertIn("clear_fields: [fieldPath]", queue_view_js)
+        self.assertIn("ROUTE_FIELD_KEYS.includes(fieldKey)", queue_view_js)
+        self.assertIn('control.addEventListener("change", scheduleRoutePreviewFromCurrentForm);', queue_view_js)
+        self.assertIn(".fo-route-preview-status", queue_css)
+        self.assertIn(".fo-route-confirmation", queue_css)
+
+    def test_queue_file_settings_drawer_stage6e_track_metadata_sections(self) -> None:
+        desktop_root = Path(__file__).resolve().parents[1]
+        static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static"
+        html = _render_static_index_html(static_root)
+        assets_root = static_root / "assets"
+        queue_view_js = (assets_root / "queueView.js").read_text(encoding="utf-8")
+        queue_css = (assets_root / "styles.queue.css").read_text(encoding="utf-8")
+
+        self.assertIn('id="fo-track-metadata-section" class="fo-section fo-track-section"', html)
+        self.assertIn("Detected audio tracks", html)
+        self.assertIn("Detected subtitle tracks", html)
+        self.assertIn("Detected track details remain visible; use track actions for file-level exact overrides or language fields as fallback.", html)
+        self.assertIn('id="fo-audio-track-list" class="fo-track-list"', html)
+        self.assertIn('id="fo-subtitle-track-list" class="fo-track-list"', html)
+        self.assertIn('id="fo-track-warning-list" class="fo-track-warning-list" aria-live="polite"', html)
+        self.assertNotIn("data-fo-track-action", html)
+
+        self.assertIn("function renderDrawerTrackMetadata(payload)", queue_view_js)
+        self.assertIn('const FILE_OVERRIDES_TRACKS_ROUTE = "/api/queue/file-overrides/tracks";', queue_view_js)
+        self.assertIn("function loadFileOverrideTracksForPath(path)", queue_view_js)
+        self.assertIn("function trackMetadataFromTracksPayload(payload)", queue_view_js)
+        self.assertIn("payload?.track_metadata", queue_view_js)
+        self.assertIn("payload?.track_selection_preview", queue_view_js)
+        self.assertIn("function createTrackRow(track, kind, preview)", queue_view_js)
+        self.assertIn("kept_stream_indexes", queue_view_js)
+        self.assertIn("dropped_stream_indexes", queue_view_js)
+        self.assertIn("kept_stream_sources", queue_view_js)
+        self.assertIn("dropped_stream_sources", queue_view_js)
+        self.assertIn("renderDrawerTrackMetadata(payload);", queue_view_js)
+        self.assertIn("clearDrawerTrackMetadata();", queue_view_js)
+        self.assertIn("resetTrackMetadata: !foLastEffectivePayload", queue_view_js)
+        self.assertIn("appears to be commentary", queue_view_js)
+        self.assertIn("is marked forced", queue_view_js)
+        self.assertIn("image-based and may require OCR or burn-in review", queue_view_js)
+
+        self.assertIn(".fo-track-section", queue_css)
+        self.assertIn(".fo-track-list", queue_css)
+        self.assertIn(".fo-track-row", queue_css)
+        self.assertIn(".fo-track-badge", queue_css)
+        self.assertIn(".fo-track-warning-list", queue_css)
+
+    def test_queue_file_settings_drawer_stage6h_exact_track_controls(self) -> None:
+        desktop_root = Path(__file__).resolve().parents[1]
+        static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static"
+        assets_root = static_root / "assets"
+        queue_view_js = (assets_root / "queueView.js").read_text(encoding="utf-8")
+        queue_css = (assets_root / "styles.queue.css").read_text(encoding="utf-8")
+
+        self.assertIn("function createTrackActionControl(track, kind)", queue_view_js)
+        self.assertIn('select.dataset.foTrackAction = "true";', queue_view_js)
+        self.assertIn('select.dataset.foTrackKind = kind;', queue_view_js)
+        self.assertIn('select.dataset.foTrackIndexAvailable = streamIndex === null ? "false" : "true";', queue_view_js)
+        self.assertIn('select.dataset.foTrackJson = JSON.stringify(track);', queue_view_js)
+        self.assertIn('["", "Inherit"]', queue_view_js)
+        self.assertIn('["keep", kind === "audio" ? "Keep this audio track" : "Keep this subtitle track"]', queue_view_js)
+        self.assertIn('["drop", kind === "audio" ? "Drop this audio track" : "Drop this subtitle track"]', queue_view_js)
+        self.assertIn('select.setAttribute("aria-label", `Override action for ${kind === "audio" ? "audio" : "subtitle"} stream ${streamIndex ?? "unknown"}`);', queue_view_js)
+        self.assertIn("function exactSelectorForTrack(track, kind)", queue_view_js)
+        self.assertIn("const selector = { streamIndex };", queue_view_js)
+        self.assertIn("selector.language = language;", queue_view_js)
+        self.assertIn("selector.codec = codec;", queue_view_js)
+        self.assertIn("selector.channels = channels;", queue_view_js)
+        self.assertIn("selector.forced = Boolean(track.forced);", queue_view_js)
+        self.assertIn("function collectExactTrackSelectorsFromControls()", queue_view_js)
+        self.assertIn("function currentFileOverridePathLooksFileLike()", queue_view_js)
+        self.assertIn("Exact stream selectors can only be saved for a file path, not a folder or library scope.", queue_view_js)
+        self.assertIn('appendSelectorRules(audio, "keepTracks", exactTrackSelectors.audioKeep);', queue_view_js)
+        self.assertIn('appendSelectorRules(audio, "dropTracks", exactTrackSelectors.audioDrop);', queue_view_js)
+        self.assertIn('appendSelectorRules(subtitles, "keepTracks", exactTrackSelectors.subtitleKeep);', queue_view_js)
+        self.assertIn('appendSelectorRules(subtitles, "dropTracks", exactTrackSelectors.subtitleDrop);', queue_view_js)
+        self.assertIn("foExactTrackOverrideEntry = payload.file_override_scope === \"file\"", queue_view_js)
+        self.assertIn("Saved exact-track override no longer matches detected track metadata", queue_view_js)
+        self.assertIn("Saved exact-track override cannot be safely resaved.", queue_view_js)
+        self.assertIn("function resetExactTrackActionsForField(fieldKey)", queue_view_js)
+        self.assertIn("resetExactTrackActionsForField(fieldKey);", queue_view_js)
+        self.assertIn('document.querySelectorAll(\'[data-fo-track-action][data-fo-track-kind="subtitle"]\')', queue_view_js)
+        self.assertIn("function validateExactTrackSelectionsBeforeSave()", queue_view_js)
+        self.assertIn("if (!validateExactTrackSelectionsBeforeSave()) return;", queue_view_js)
+
+        self.assertIn(".fo-track-action", queue_css)
+        self.assertIn(".fo-track-action-select", queue_css)
+
+    def test_queue_file_settings_drawer_stage7b_folder_preview_panel(self) -> None:
+        desktop_root = Path(__file__).resolve().parents[1]
+        static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static"
+        html = _render_static_index_html(static_root)
+        assets_root = static_root / "assets"
+        queue_view_js = (assets_root / "queueView.js").read_text(encoding="utf-8")
+        queue_css = (assets_root / "styles.queue.css").read_text(encoding="utf-8")
+
+        self.assertIn('id="fo-folder-preview-open" class="secondary-button">Preview folder rule from this file...</button>', html)
+        self.assertIn('id="fo-folder-preview-panel" class="fo-section fo-folder-preview-section"', html)
+        self.assertIn("Preview only", html)
+        self.assertIn("No changes saved", html)
+        self.assertIn("Proposed language/signature selectors", html)
+        self.assertIn("Exact file override conflicts", html)
+        self.assertIn("Sampled warnings", html)
+        self.assertIn("Sampled files", html)
+        self.assertIn('id="fo-folder-preview-scope-select"', html)
+        self.assertIn('id="fo-folder-preview-save" class="primary-button" disabled>Save folder rule</button>', html)
+
+        self.assertIn('const FILE_OVERRIDES_FOLDER_PREVIEW_ROUTE = "/api/queue/file-overrides/folder-preview";', queue_view_js)
+        self.assertIn("function buildFolderPreviewProposal()", queue_view_js)
+        self.assertIn("function openFolderRulePreviewPanel()", queue_view_js)
+        self.assertIn('apiPost("/api/queue/file-overrides/folder-preview"', queue_view_js)
+        preview_fn = queue_view_js[
+            queue_view_js.index("async function openFolderRulePreviewPanel()"):
+            queue_view_js.index("async function saveFolderRuleForPreview()")
+        ]
+        self.assertNotIn('apiPost("/api/queue/file-overrides"', preview_fn.replace('apiPost("/api/queue/file-overrides/folder-preview"', ""))
+        self.assertIn("folder_path: folderPath", queue_view_js)
+        self.assertIn("proposed_override: proposedOverride", queue_view_js)
+        self.assertIn("use_cached_track_metadata_only: true", queue_view_js)
+        self.assertIn("folderPreviewSelectorFromTrack(track, kind)", queue_view_js)
+        selector_fn = queue_view_js[
+            queue_view_js.index("function folderPreviewSelectorFromTrack(track, kind)"):
+            queue_view_js.index("function folderPreviewAppendRules(section, key, rules)")
+        ]
+        self.assertNotIn("streamIndex", selector_fn)
+        self.assertIn("folderPreviewAppendRules(audio", queue_view_js)
+        self.assertIn("folderPreviewAppendRules(subtitles", queue_view_js)
+        self.assertIn("Future files under this folder may be affected", queue_view_js)
+        self.assertIn("This looks like a broad library-level policy. Use Library settings for stable defaults.", queue_view_js)
+        self.assertIn("folderPreviewBtn.addEventListener(\"click\", openFolderRulePreviewPanel);", queue_view_js)
+        self.assertIn("clearFolderRulePreviewPanel();", queue_view_js)
+        self.assertIn(".fo-folder-preview-section", queue_css)
+        self.assertIn(".fo-folder-preview-badge", queue_css)
+        self.assertIn(".fo-folder-preview-list", queue_css)
+
+    def test_queue_file_settings_drawer_stage7d_folder_rule_save_flow(self) -> None:
+        desktop_root = Path(__file__).resolve().parents[1]
+        static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static"
+        html = _render_static_index_html(static_root)
+        assets_root = static_root / "assets"
+        queue_view_js = (assets_root / "queueView.js").read_text(encoding="utf-8")
+        queue_css = (assets_root / "styles.queue.css").read_text(encoding="utf-8")
+
+        self.assertIn("Folder scope", html)
+        self.assertIn("Library-root rules are not created here.", html)
+        self.assertIn("I understand this rule may affect future files added under this folder.", html)
+        self.assertIn("I understand exact file overrides will still win over this folder rule.", html)
+        self.assertIn("I understand stream-index exact selectors are not allowed for folder rules.", html)
+        self.assertIn('id="fo-folder-preview-save" class="primary-button" disabled>Save folder rule</button>', html)
+        self.assertNotIn("streamIndex</label>", html)
+
+        self.assertIn('const FILE_OVERRIDES_FOLDER_RULE_ROUTE = "/api/queue/file-overrides/folder-rule";', queue_view_js)
+        self.assertIn("function renderFolderPreviewScopeOptions()", queue_view_js)
+        self.assertIn("function folderPreviewSaveCanSubmit()", queue_view_js)
+        self.assertIn("async function saveFolderRuleForPreview()", queue_view_js)
+        self.assertIn('apiPost("/api/queue/file-overrides/folder-rule"', queue_view_js)
+        self.assertIn("acknowledged_future_files: true", queue_view_js)
+        self.assertIn("acknowledged_file_overrides_win: true", queue_view_js)
+        self.assertIn("fo-folder-confirm-no-stream-index", queue_view_js)
+        self.assertIn("payload.can_save_folder_rule !== false", queue_view_js)
+        self.assertIn("folderPreviewProposalHasRules(request.proposedOverride)", queue_view_js)
+        self.assertIn("folderPreviewConfirmationsSatisfied()", queue_view_js)
+        self.assertIn("saveFolderRuleForPreview);", queue_view_js)
+        self.assertIn("handleFolderPreviewScopeChange", queue_view_js)
+        self.assertIn("invalidateFolderPreviewAfterRuleChange", queue_view_js)
+        self.assertIn("await loadFileOverrideEffectiveForPath(foCurrentPath, foCurrentItem);", queue_view_js)
+        self.assertIn('if (typeof refreshAll === "function") await refreshAll();', queue_view_js)
+
+        save_fn = queue_view_js[
+            queue_view_js.index("async function saveFolderRuleForPreview()"):
+            queue_view_js.index("async function loadRoutePreviewForPayload(payload)")
+        ]
+        self.assertIn("override: foLastFolderPreviewRequest.proposedOverride", save_fn)
+        self.assertNotIn("streamIndex", save_fn)
+
+        self.assertIn(".fo-folder-preview-confirmations", queue_css)
+        self.assertIn(".fo-folder-preview-actions", queue_css)
+
+    def test_queue_file_settings_drawer_stage7e_folder_rule_management_ui(self) -> None:
+        desktop_root = Path(__file__).resolve().parents[1]
+        static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static"
+        html = _render_static_index_html(static_root)
+        assets_root = static_root / "assets"
+        queue_view_js = (assets_root / "queueView.js").read_text(encoding="utf-8")
+        queue_css = (assets_root / "styles.queue.css").read_text(encoding="utf-8")
+
+        self.assertIn('id="fo-folder-rules-open" class="secondary-button">Manage folder rules</button>', html)
+        self.assertIn('id="fo-folder-rules-panel" class="fo-section fo-folder-rules-section"', html)
+        self.assertIn("Existing folder rules", html)
+        self.assertIn('id="fo-folder-rules-list"', html)
+        self.assertIn('id="fo-folder-rules-refresh"', html)
+        self.assertIn('id="fo-folder-rules-library-settings"', html)
+        self.assertIn("Change broad stable defaults in", html)
+        self.assertIn("Library settings", html)
+
+        self.assertIn("const FOLDER_RULE_FILE_SUFFIXES = new Set", queue_view_js)
+        self.assertIn("function folderRuleEntriesFromManifestPayload(payload)", queue_view_js)
+        self.assertIn("apiGet(FILE_OVERRIDES_ROUTE)", queue_view_js)
+        self.assertIn("function renderFolderRules(rules)", queue_view_js)
+        self.assertIn("function previewFolderRuleForManagement(rule, index, options = {})", queue_view_js)
+        self.assertIn('apiPost("/api/queue/file-overrides/folder-preview"', queue_view_js)
+        self.assertIn("proposed_override: folderRuleOverrideForPreview(rule.entry)", queue_view_js)
+        self.assertIn("use_cached_track_metadata_only: true", queue_view_js)
+        self.assertIn("function clearFolderRuleFromManagement(rule, index)", queue_view_js)
+        self.assertIn('apiPost("/api/queue/file-overrides/folder-rule"', queue_view_js)
+        self.assertIn("folder_path: rule.path", queue_view_js)
+        self.assertIn("clear: true", queue_view_js)
+        self.assertIn("File-level overrides remain", queue_view_js)
+        self.assertIn("await loadFolderRulesForDrawer();", queue_view_js)
+        self.assertIn("This looks like a broad library-level policy. Use Library settings for stable defaults.", queue_view_js)
+        self.assertIn("folderRulesBtn.addEventListener(\"click\", loadFolderRulesForDrawer);", queue_view_js)
+        self.assertIn("folderRulesRefreshBtn.addEventListener(\"click\", loadFolderRulesForDrawer);", queue_view_js)
+        self.assertIn("folderRulesList.addEventListener(\"click\", handleFolderRuleManagementClick);", queue_view_js)
+        self.assertIn("window.showPage(\"libraries\")", queue_view_js)
+
+        self.assertIn(".fo-folder-rules-section", queue_css)
+        self.assertIn(".fo-folder-rule-item", queue_css)
+        self.assertIn(".fo-folder-rule-actions", queue_css)
+        self.assertIn(".fo-folder-rule-library-note", queue_css)
+
+    def test_queue_file_settings_drawer_stage7f_library_settings_handoff(self) -> None:
+        desktop_root = Path(__file__).resolve().parents[1]
+        static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static"
+        html = _render_static_index_html(static_root)
+        assets_root = static_root / "assets"
+        queue_view_js = (assets_root / "queueView.js").read_text(encoding="utf-8")
+
+        self.assertIn('id="fo-folder-preview-library-settings" class="fo-inline-link" hidden>Open Library settings</button>', html)
+        self.assertIn("function folderPreviewLibraryRootPath(payload)", queue_view_js)
+        self.assertIn("function folderPreviewIsNearLibraryRoot(folderPath, payload)", queue_view_js)
+        self.assertIn("function folderPreviewLooksBroadLibraryPolicy(folderPath, payload)", queue_view_js)
+        self.assertIn("function folderPreviewSaveBlockedByLibraryRoot(folderPath, payload)", queue_view_js)
+        self.assertIn("function folderPreviewLibraryHandoffMessage(folderPath, payload)", queue_view_js)
+        self.assertIn("This looks like a broad library-level policy. Use Library settings for stable defaults.", queue_view_js)
+        self.assertIn("Folder-rule save is blocked for library-root scope.", queue_view_js)
+        self.assertIn("function folderPreviewIsNarrowShowOrSeasonScope(folderPath, payload)", queue_view_js)
+        self.assertIn('return label === "Season folder" || label === "Show folder";', queue_view_js)
+        self.assertIn("!folderPreviewIsNarrowShowOrSeasonScope(folderPath, payload)", queue_view_js)
+        self.assertIn("&& !folderPreviewSaveBlockedByLibraryRoot(request.folderPath, payload)", queue_view_js)
+        self.assertIn("folderPreviewLibraryRootSaveApproved(payload)", queue_view_js)
+        self.assertIn("setFolderPreviewLibraryHandoff(folderPath, payload);", queue_view_js)
+        self.assertIn("folderPreviewLibraryBtn.addEventListener(\"click\", openLibrarySettingsFromFolderHandoff);", queue_view_js)
+        self.assertIn("folderRulesLibraryBtn.addEventListener(\"click\", openLibrarySettingsFromFolderHandoff);", queue_view_js)
+        self.assertIn("window.showPage(\"libraries\")", queue_view_js)
+
     def test_web_selected_rows_share_diagnostics_handoff(self) -> None:
         desktop_root = Path(__file__).resolve().parents[1]
         static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static"

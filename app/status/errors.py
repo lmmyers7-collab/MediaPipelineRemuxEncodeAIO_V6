@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from app.status.presentation import pipeline_event_data
-from app.shared.utils import _read_json_file
+from app.status.file_io import read_json_file
 
 
 def format_recent_error_summary(
@@ -39,7 +39,7 @@ def format_recent_error_summary(
 
     if latest_failure_json and latest_failure_json.exists():
         try:
-            raw = _read_json_file(latest_failure_json)
+            raw = read_json_file(latest_failure_json)
             if isinstance(raw, list):
                 for item in reversed(raw[-max_items:]):
                     if not isinstance(item, dict):

@@ -105,19 +105,22 @@ The cleanup is complete when:
 | Date | Agent | Action | Evidence | Next |
 |---|---|---|---|---|
 | 2026-05-31 | Codex | Split final review and definition of done into its own file | Original plan inspected; no cleanup implementation run | Use after Phases 0-5 |
+| 2026-05-31 | Codex | Completed final review audit; full definition of done remains open | Phase handoffs read, phase links checked, Phase 5 validation commands pass, and dependency checker reports 0 package cycles plus 0 unallowlisted hard findings; full DoD remains open because the `source_media` module cycle is allowlisted and Phase 4 shared warning surfaces remain | Resume Phase 4 shared cleanup, remove the source-media allowlist, then rerun final review |
+| 2026-05-31 | Codex | Reran final review after Phase 4 completion; full definition of done remains open | Phase handoffs read, phase/sub-phase links checked, Phase 5 validation commands pass, and dependency checker reports 0 direct `app.shared*` imports, 0 package cycles, and 0 unallowlisted hard findings; full DoD remains open because the `source_media` module cycle is still allowlisted and barrel re-export warnings remain | Refactor the `source_media` module cycle, resolve or explicitly accept barrel re-export warnings, then rerun final review |
+| 2026-05-31 | Codex | Closed dependency-checker blockers from the final review | Source-media model definitions moved to `app.contracts.source_media_models`, package barrel re-exports retired, allowlist emptied, and checker reports 0 module cycles, 0 package cycles, 0 direct `app.shared*` imports, 0 allowlisted hard findings, 0 unallowlisted hard findings, and 0 warning findings | Resolve the unrelated Web static smoke assertion before claiming every validation target green |
 
 ## Final Handoff
 
 ```text
-Cleanup status:
-Completed phases:
-Deferred phases:
-Dependency checker command:
-Dependency checker result:
-Tests run:
-Generated artifacts:
-Summaries:
-Remaining allowlist entries:
-Residual risks:
-Recommended next owner/action:
+Cleanup status: Remaining dependency-checker blockers are closed; dependency enforcement is clean. Full validation still has one unrelated Web static smoke assertion to resolve before claiming every requested test target is green.
+Completed phases: Phase 0, Phase 1, Phase 2, Phase 3, Phase 4 sub-phases 4A-4L, and Phase 5.
+Deferred phases: None for dependency-checker cleanup. Validation caveat: `DesktopApp/tests/test_application_facade_local_api.py::LocalApiServerTests::test_local_api_serves_read_only_web_prototype` fails because the currently dirty Web static rename page no longer contains the literal text `Rename Workbench`; this file/static UI surface was dirty before this final dependency-blocker pass and was not changed here.
+Dependency checker command: .\DesktopApp\Runtime\Python\python.exe .\scripts\dev\check_dependency_boundaries.py --max-internal-imports 1
+Dependency checker result: Passes current enforcement with 1233 internal app imports, 0 module-level cycles, 0 package-level cycles, 0 parse errors, 0 direct app.shared imports, 0 app.shared.utils imports, 0 app.shared.constants imports, 0 app.shared.protocols imports, 0 forbidden config/API/status/telemetry direction violations, 0 allowlisted hard findings, 0 unallowlisted hard findings, 0 warning findings, 0 allowlist errors, and 0 unused allowlist entries.
+Tests run: .\DesktopApp\Runtime\Python\python.exe -m pytest tests\contract\test_source_media_contract.py tests\decide tests\orchestration\test_pipeline_planner.py tests\integration\test_handbrake_remux_regression_matrix.py (31 passed); .\DesktopApp\Runtime\Python\python.exe -m pytest DesktopApp\tests\test_api_command_contracts.py DesktopApp\tests\test_settings_pipeline_plan_preview.py DesktopApp\tests\test_phase4_storage_observability.py DesktopApp\tests\test_application_facade_local_api.py (49 passed, 1 failed in unrelated Web static smoke assertion described above); .\DesktopApp\Runtime\Python\python.exe -m pytest tests\tooling (39 passed); .\DesktopApp\Runtime\Python\python.exe .\scripts\dev\check_dependency_boundaries.py --max-internal-imports 1 (passed clean); .\DesktopApp\Runtime\Python\python.exe .\scripts\dev\check_active_doc_references.py (passed); .\DesktopApp\Runtime\Python\python.exe .\scripts\lint-naming.py (passed).
+Generated artifacts: Docs/generated/PROJECT_INDEX.md and Docs/generated/DEPENDENCY_GRAPH.md regenerated from 779 summaries after the source-media model split, barrel cleanup, and final review summary refresh; no generated files were hand-edited.
+Summaries: Refreshed for touched source and doc files after this dependency-blocker pass; refresh_summaries.py --check passed after the final handoff edit.
+Remaining allowlist entries: None.
+Residual risks: The checker is static AST-based, and the workspace contains unrelated pre-existing dirty files outside this final dependency-blocker pass.
+Recommended next owner/action: Resolve the unrelated Web static smoke assertion or align the test with the current rename page wording, then rerun the remaining validation commands.
 ```

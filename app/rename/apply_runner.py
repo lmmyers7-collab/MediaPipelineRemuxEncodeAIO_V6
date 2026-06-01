@@ -4,8 +4,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from app.shared.protocols import RenameApplyServiceProtocol
-from app.shared.utils import _atomic_write_text
+from app.rename.contracts import RenameApplyServiceProtocol
+from app.rename.file_io import atomic_write_text
 
 
 def apply_rename_path_plan_for_service(
@@ -112,7 +112,7 @@ def apply_rename_path_plan_for_service(
                     if path.exists():
                         path.unlink()
                 else:
-                    _atomic_write_text(path, original_text, encoding="utf-8")
+                    atomic_write_text(path, original_text, encoding="utf-8")
             except Exception as exc:
                 service.logger.warning("Rename metadata restore failed for %s: %s", path, exc)
         rollback_errors = service._rollback_rename_operations(completed_ops)

@@ -25,6 +25,8 @@ This document does not change settings behavior. Changes to builder coverage req
 
 **Update (2026-05-19):** `SubSDHTitleKeywords` and `SubSupplementalKeywords` are now covered by structured Subtitle builder list fields. The WebView only stages list text; backend Preview/Save and backend subtitle classification remain authoritative.
 
+**Update (2026-05-31):** The settings/library rewrite makes backend field metadata canonical for visible labels, help text, allowed values, defaults, advanced/display taxonomy, and library override eligibility. This raw-key triage remains an operator visibility note, not a metadata source of truth. The WebView remains staging/display only, Preview/Save remains backend-owned, and persisted V6 keys/groups were not renamed.
+
 ---
 
 ## Raw-Only Keys (Not In Any Structured Builder)
@@ -122,6 +124,8 @@ The Settings page now includes a read-only **Raw-Key Action Plan**. It does not 
 This closes the operator-visibility gap for the remaining raw-key categories without changing configuration persistence or WebView mutation authority.
 
 The same action-plan posture is also surfaced in Home's External Dependency Digest and Diagnostics First Response after the Settings workspace is loaded. This gives operators a path back to Settings when schema drift, high-review raw keys, OCR path evidence, or secret-boundary concerns matter during run-failure triage. Home and Diagnostics remain read-only and cannot save settings, edit secrets, add path pickers, run OCR/FFmpeg, launch, publish/drain, rename, rewrite manifests/sidecars, or touch media.
+
+The Settings and Library Profiles pages now consume backend metadata for labels, help, value choices, defaults, advanced status, and library override eligibility where available. HandBrake-style section names are display metadata only. Patch preview and save still show persisted V6 keys and persisted Library Profiles groups, and backend validation remains the save gate.
 
 ---
 

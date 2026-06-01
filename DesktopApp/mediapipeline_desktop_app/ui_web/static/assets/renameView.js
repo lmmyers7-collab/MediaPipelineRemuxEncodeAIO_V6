@@ -178,28 +178,123 @@
     renderRenameCleaningFilterEditor("Cleaning filters loaded from browser storage.");
   }
 
+  function collectAllActivePreviewTerms() {
+    const terms = [];
+    terms.push(...parseRenameFilterTerms(renameCleaningNode("removeTerms")?.value || ""));
+    const editableActive = Boolean(renameCleaningNode("editableToggle")?.checked);
+    renameCleaningFilterTextareas().forEach((ta) => {
+      const key = ta.dataset.renameMovieFilterTerms || ta.dataset.movieFilterTerms || "";
+      if (!key) return;
+      const checkbox = document.querySelector(`[data-rename-movie-filter="${key}"], [data-movie-filter="${key}"]`);
+      if (checkbox && !checkbox.checked) return;
+      const source = editableActive ? ta.value : (ta.dataset.defaultTerms || "");
+      terms.push(...parseRenameFilterTerms(source));
+    });
+    return terms;
+  }
+
+  function applyRenameCleaningPreview(rawInput) {
+    let name = rawInput.replace(/\.(?:mkv|mp4|avi|m4v|mov|wmv|ts|m2ts|mts|webm|flv)$/i, "");
+
+    const sepDots        = document.getElementById("settings-rename-sep-dots")?.checked;
+    const sepUnderscores = document.getElementById("settings-rename-sep-underscores")?.checked;
+    const sepDashes      = document.getElementById("settings-rename-sep-dashes")?.checked;
+    const sepParts = [sepDots && "\\.", sepUnderscores && "_", sepDashes && "\\-"].filter(Boolean);
+    if (sepParts.length) {
+      name = name.replace(new RegExp(`[${sepParts.join("")}]+`, "g"), " ");
+    }
+
+    const aggressive = Boolean(document.getElementById("settings-rename-aggressive-match")?.checked);
+    const terms = collectAllActivePreviewTerms();
+    terms.sort((a, b) => b.length - a.length);
+
+    if (aggressive) {
+      terms.forEach((term) => {
+        const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        name = name.replace(new RegExp(escaped, "gi"), " ");
+      });
+    } else {
+      name = " " + name + " ";
+      terms.forEach((term) => {
+        const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const re = new RegExp(` ${escaped} `, "gi");
+        let prev;
+        do { prev = name; name = name.replace(re, " "); } while (name !== prev);
+      });
+      name = name.trim();
+    }
+
+    if (document.getElementById("settings-rename-strip-trailing-year")?.checked) {
+      name = name.replace(/\s*\(\s*(?:19|20)\d{2}\s*\)\s*$/, "");
+      name = name.replace(/\s+(?:19|20)\d{2}\s*$/, "");
+    }
+    return name.replace(/\(\s*\)/g, "").replace(/\[\s*\]/g, "").replace(/\s+/g, " ").trim();
+  }
+
+  function updateRenameFilterPreview() {
+    const input = document.getElementById("settings-rename-preview-input");
+    const output = document.getElementById("settings-rename-preview-output");
+    if (!input || !output) return;
+    const raw = input.value.trim();
+    if (!raw) { output.textContent = ""; output.dataset.state = ""; return; }
+    const cleaned = applyRenameCleaningPreview(raw);
+    output.textContent = cleaned || raw;
+    output.dataset.state = cleaned && cleaned !== raw ? "changed" : "unchanged";
+  }
+
   function initRenameCleaningFilterEditorEvents() {
     loadRenameCleaningFilterState();
     const editableToggle = renameCleaningNode("editableToggle");
     if (editableToggle) editableToggle.addEventListener("change", () => {
       renderRenameCleaningFilterEditor();
       syncRenameCommandButtons();
+      updateRenameFilterPreview();
     });
     const removeTerms = renameCleaningNode("removeTerms");
     if (removeTerms) removeTerms.addEventListener("input", () => {
       renderRenameCleaningFilterEditor();
       syncRenameCommandButtons();
+      updateRenameFilterPreview();
     });
     renameCleaningFilterTextareas().forEach((input) => {
       input.addEventListener("input", () => {
         renderRenameCleaningFilterEditor();
         syncRenameCommandButtons();
+        updateRenameFilterPreview();
       });
     });
     const saveButton = renameCleaningNode("saveButton");
     if (saveButton) saveButton.addEventListener("click", saveRenameCleaningFilterState);
     const resetButton = renameCleaningNode("resetButton");
     if (resetButton) resetButton.addEventListener("click", resetRenameCleaningFilters);
+    const previewInput = document.getElementById("settings-rename-preview-input");
+    if (previewInput) {
+      previewInput.addEventListener("input", updateRenameFilterPreview);
+      document.getElementById("settings-rename-strip-trailing-year")
+        ?.addEventListener("change", updateRenameFilterPreview);
+      document.getElementById("settings-rename-aggressive-match")
+        ?.addEventListener("change", updateRenameFilterPreview);
+      document.querySelectorAll("[data-rename-movie-filter]")
+        .forEach((cb) => cb.addEventListener("change", updateRenameFilterPreview));
+
+      const sepNone        = document.getElementById("settings-rename-sep-none");
+      const sepDots        = document.getElementById("settings-rename-sep-dots");
+      const sepUnderscores = document.getElementById("settings-rename-sep-underscores");
+      const sepDashes      = document.getElementById("settings-rename-sep-dashes");
+      const sepIndividual  = [sepDots, sepUnderscores, sepDashes].filter(Boolean);
+      if (sepNone) {
+        sepNone.addEventListener("change", () => {
+          if (sepNone.checked) sepIndividual.forEach((cb) => { cb.checked = false; });
+          updateRenameFilterPreview();
+        });
+      }
+      sepIndividual.forEach((cb) => {
+        cb.addEventListener("change", () => {
+          if (cb.checked && sepNone) sepNone.checked = false;
+          updateRenameFilterPreview();
+        });
+      });
+    }
   }
 
   function renameSourceKey(item) {

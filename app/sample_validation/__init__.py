@@ -1,7 +1,5 @@
 """Sample-validation facade adapters."""
 
-from .facade import SampleValidationFacadeMixin
+from __future__ import annotations
 
-__all__ = [
-    "SampleValidationFacadeMixin",
-]
+__all__: list[str] = []

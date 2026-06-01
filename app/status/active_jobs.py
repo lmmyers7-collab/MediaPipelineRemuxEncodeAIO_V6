@@ -6,7 +6,7 @@ import re
 from typing import Any, Callable, Mapping
 
 from mediapipeline_desktop_app.contracts import ActiveJobRecord, ContractError
-from app.shared.utils import _read_json_file
+from app.status.file_io import read_json_file
 from app.status.progress import parse_progress_datetime
 
 ReadJsonFileFunc = Callable[[Path], Any]
@@ -32,7 +32,7 @@ def format_active_job_summary(
     folder: Path | None,
     *,
     max_items: int = 6,
-    read_json_file: ReadJsonFileFunc = _read_json_file,
+    read_json_file: ReadJsonFileFunc = read_json_file,
 ) -> list[str]:
     if not folder or not folder.exists():
         return ["No ActiveJobs records found."]
@@ -81,7 +81,7 @@ def active_job_detail_rows(
     folder: Path | None,
     *,
     max_items: int = 20,
-    read_json_file: ReadJsonFileFunc = _read_json_file,
+    read_json_file: ReadJsonFileFunc = read_json_file,
 ) -> list[dict[str, Any]]:
     if not folder or not folder.exists():
         return []
@@ -440,7 +440,7 @@ def worker_progress_payload(
     *,
     stale_after_seconds: float = 5.0,
     max_items: int = 8,
-    read_json_file: ReadJsonFileFunc = _read_json_file,
+    read_json_file: ReadJsonFileFunc = read_json_file,
     now: datetime | None = None,
 ) -> dict[str, Any]:
     """Build a read-only operator telemetry payload from existing runtime evidence."""

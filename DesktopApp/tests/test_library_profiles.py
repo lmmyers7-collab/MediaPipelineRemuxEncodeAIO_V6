@@ -27,7 +27,10 @@ from app.config.library_profiles import (
 )
 from app.config.load import default_powershell_host, load_psd1_mapping, serialize_psd1_document
 from app.config.metadata import CONFIG_MANAGED_KEYS
-from app.config.metadata_parts.field_definitions import CONFIG_FIELD_DEFINITIONS
+from app.config.metadata_parts.field_definitions import (
+    CONFIG_FIELD_DEFINITIONS,
+    METADATA_LIBRARY_OVERRIDE_KEYS_BY_GROUP,
+)
 from app.config.settings_wizard import wizard_changes
 from app.config.validation import validate_config_values
 from app.contracts.config import CONFIG_KEY_ORDER, NETWORK_CONFIG_KEYS, Config
@@ -112,6 +115,10 @@ def _backend_library_override_keys() -> set[str]:
     return {key for keys in LIBRARY_OVERRIDE_KEYS_BY_GROUP.values() for key in keys}
 
 
+def _backend_library_override_keys_by_group_from_metadata() -> dict[str, tuple[str, ...]]:
+    return {group: tuple(keys) for group, keys in METADATA_LIBRARY_OVERRIDE_KEYS_BY_GROUP.items()}
+
+
 def _powershell_library_override_keys() -> set[str]:
     module_path = Path(__file__).resolve().parents[2] / "engine" / "paths" / "output_path_planning.ps1"
     module_text = module_path.read_text(encoding="utf-8")
@@ -146,6 +153,12 @@ def _profile_by_id(values: dict) -> dict[str, dict]:
 class LibraryProfileTests(unittest.TestCase):
     def test_vobsub_keys_are_backend_subtitle_library_overrides(self) -> None:
         self.assertLessEqual(VOBSUB_LIBRARY_OVERRIDE_KEYS, set(LIBRARY_OVERRIDE_KEYS_BY_GROUP["subtitles"]))
+
+    def test_library_override_registry_is_derived_from_backend_metadata(self) -> None:
+        self.assertEqual(
+            LIBRARY_OVERRIDE_KEYS_BY_GROUP,
+            _backend_library_override_keys_by_group_from_metadata(),
+        )
 
     def test_backend_library_override_keys_have_field_metadata(self) -> None:
         self.assertEqual(sorted(_backend_library_override_keys() - set(CONFIG_MANAGED_KEYS)), [])

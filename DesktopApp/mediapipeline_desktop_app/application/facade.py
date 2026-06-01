@@ -31,10 +31,10 @@ from app.schedule.facade import ScheduleFacadeMixin
 from app.config.settings_facade import SettingsFacadeMixin
 from app.config.settings_helpers_facade import SettingsHelperFacadeMixin
 from app.config.settings_patch_candidate_facade import SettingsPatchCandidateFacadeMixin
-from app.config.settings_patch_facade import SettingsPatchFacadeMixin
 from app.config.settings_risk_facade import SettingsRiskFacadeMixin
 from app.config.settings_wizard_facade import SettingsWizardFacadeMixin
-from app.observability.status_facade import StatusFacadeMixin
+from app.orchestration.settings_patch_facade import SettingsPatchFacadeMixin
+from app.status.facade import StatusFacadeMixin
 from app.application.utilities import FacadeUtilityMixin
 from .schedule_stop_watcher import ScheduleStopWatcherManager
 

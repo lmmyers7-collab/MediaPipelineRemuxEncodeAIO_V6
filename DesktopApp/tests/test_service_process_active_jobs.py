@@ -21,8 +21,8 @@ from app.processes.active_jobs import (
     write_active_job_launch_record,
     write_active_job_payload,
 )
+from app.processes.file_io import atomic_write_text
 from app.processes.lifecycle import ProcessLifecycleServiceMixin
-from app.shared.utils import _atomic_write_text
 
 
 class FakeProc:
@@ -103,8 +103,8 @@ class ProcessActiveJobHelperTests(unittest.TestCase):
                     raise PermissionError("locked")
                 real_replace(src, dst)
 
-            with patch("app.shared.utils.os.replace", flaky_replace), patch("app.shared.utils.time.sleep", lambda _delay: None):
-                _atomic_write_text(target, '{"ok": true}\n')
+            with patch("app.processes.file_io.os.replace", flaky_replace), patch("app.processes.file_io.time.sleep", lambda _delay: None):
+                atomic_write_text(target, '{"ok": true}\n')
 
             self.assertEqual(target.read_text(encoding="utf-8"), '{"ok": true}\n')
             self.assertEqual(len(calls), 2)

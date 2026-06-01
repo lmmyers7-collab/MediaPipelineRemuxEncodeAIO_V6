@@ -6,6 +6,26 @@ from typing import Any
 from mediapipeline_desktop_app.models import AuditRecord
 from app.audit.rerun_records import audit_row_value, rerun_media_kind_from_audit
 
+RERUN_CSV_COLUMNS = (
+    "enabled",
+    "source_path",
+    "media_kind",
+    "audit_issue_codes",
+    "stage_mode",
+    "post_success_original",
+    "return_mode",
+    "plex_planned_path",
+    "source_size",
+    "source_mtime_utc",
+    "source_identity_v2",
+    "priority_fix_level",
+    "effective_bucket",
+    "primary_issue_code",
+    "lookup_title",
+    "relative_path",
+    "notes",
+)
+
 
 def build_rerun_csv_row(
     record: AuditRecord,

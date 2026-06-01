@@ -14,10 +14,10 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from app.observability import JsonLineFormatter, bind_run_context
+from app.observability.logging import JsonLineFormatter, bind_run_context
 from app.orchestration.runner import RunnerOptions, StageProcessResult, run_decide_stage
 from app.storage.db import CURRENT_SCHEMA_VERSION, STATE_DB_FILENAME, StateDbIncompatibleVersion, open_state_db
-from app.validation import ValidationFailure, validate_api_payload, validate_stage_payload, validate_stage_result
+from app.validation.boundary import ValidationFailure, validate_api_payload, validate_stage_payload, validate_stage_result
 from mediapipeline_desktop_app.api.command_journal import CommandJournal
 from mediapipeline_desktop_app.api.command_journal_policy import COMMAND_RESULT_SCHEMA_VERSION
 from mediapipeline_desktop_app.models import ResolvedPaths
