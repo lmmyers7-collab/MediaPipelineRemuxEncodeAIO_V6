@@ -15,6 +15,11 @@ from app.audit.rerun_csv import (
 from app.audit.rerun_file_io import atomic_write_text
 
 
+def _append_rerun_note(row: dict[str, str], note: str) -> None:
+    existing = str(row.get("notes") or "").strip()
+    row["notes"] = f"{existing}; {note}" if existing else note
+
+
 def save_rerun_records_csv_for_service(
     service: RerunCsvExportServiceProtocol,
     output_path: Path,
@@ -55,7 +60,7 @@ def save_rerun_records_csv_for_service(
                 row["source_size"], row["source_mtime_utc"] = source_stat_to_rerun_values(stat.st_size, stat.st_mtime)
             except OSError as exc:
                 row["enabled"] = "false"
-                row["notes"] = f"source stat failed: {exc}"
+                _append_rerun_note(row, f"source stat failed: {exc}")
         rows.append(row)
 
     if not rows:

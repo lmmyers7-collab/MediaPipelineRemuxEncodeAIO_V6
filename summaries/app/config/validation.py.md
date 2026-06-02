@@ -3,9 +3,9 @@ file: app/config/validation.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-05-31
+last_modified: 2026-06-01
 last_reviewed: 2026-05-28
-sha256: 9254b2f05816bf251bb097f55c699b5f33a5548ab63fc61d4b269477d307062c
+sha256: 593bbfb1e94422071fe62cfeec2c8a8a133a21a68414fb367ec085e4ca490c1c
 ---
 # `app/config/validation.py`
 

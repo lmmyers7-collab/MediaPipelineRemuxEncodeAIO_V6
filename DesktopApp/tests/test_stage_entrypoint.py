@@ -408,7 +408,7 @@ class StageEntrypointTests(unittest.TestCase):
         self.assertNotEqual(completed.returncode, 0)
         result = StageResult.model_validate(json.loads(completed.stdout))
         self.assertFalse(result.ok)
-        self.assertEqual(result.error.code if result.error else "", "stage.invalid_payload")
+        self.assertEqual(result.error.code if result.error else "", "stage.tool_missing")
         self.assertIn(
             "Set MEDIAPIPELINE_ALLOW_SYSTEM_STAGE_TOOLS=1",
             result.error.message if result.error else "",

@@ -43,10 +43,14 @@ class WebViewSettingsLiveConfigSmokeTests(unittest.TestCase):
                         "  SubKeepLanguages = @('eng', 'und')",
                         "  Tx3gExtractLanguages = @('eng', 'und')",
                         "  BdpgsExtractLanguages = @('eng', 'und')",
+                        "  VobSubExtractLanguages = @('eng', 'und')",
                         "  ConvertTx3gToSrt = $true",
                         "  DropTx3gAfterConversion = $false",
                         "  ConvertBdpgsToSrt = $true",
                         "  DropBdpgsAfterConversion = $false",
+                        "  ConvertVobSubToSrt = $true",
+                        "  DropVobSubAfterConversion = $false",
+                        "  VobSubOcrToolPath = 'Tools\\SubtitleEditLegacy\\SubtitleEdit.exe'",
                         "  DropAssAfterConversion = $false",
                         "  StripFormatting = $true",
                         "  RemoveKaraoke = $true",
@@ -79,7 +83,7 @@ class WebViewSettingsLiveConfigSmokeTests(unittest.TestCase):
         self.assertEqual(summary["schema_version"], "webview_settings_live_config_smoke.v1")
         self.assertEqual(summary["config_path"], str(config_path.resolve()))
         self.assertEqual(summary["operator_status"], "Ready")
-        self.assertEqual(summary["counts"], {"blocked": 0, "coherent": 10, "review": 0})
+        self.assertEqual(summary["counts"], {"blocked": 0, "coherent": 11, "review": 0})
         self.assertEqual(summary["review_rows"], [])
 
 

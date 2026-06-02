@@ -3,9 +3,9 @@ file: app/completed/policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: completed
-last_modified: 2026-05-30
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: b0bc197350b59b1a522ee2a3d5e72f552c3d8214408f13a49e459607e46afabd
+sha256: 4f4544e01da713d0533b66a10946b99386116ad8cff8802f5ec2d0719212fe97
 ---
 # `app/completed/policy.py`
 

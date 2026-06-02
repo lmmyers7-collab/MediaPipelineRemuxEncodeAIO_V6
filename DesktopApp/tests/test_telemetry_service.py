@@ -98,6 +98,43 @@ class TelemetryServiceTests(unittest.TestCase):
         self.assertEqual(snapshot.memory_used_gb, 2.0)
         self.assertEqual(snapshot.memory_total_gb, 4.0)
 
+    def test_system_metric_helper_reports_memory_failure(self) -> None:
+        class BadMemoryPsutil:
+            @staticmethod
+            def cpu_percent(interval=None):
+                return 14.0
+
+            @staticmethod
+            def virtual_memory():
+                raise RuntimeError("memory unavailable")
+
+        snapshot = TelemetrySnapshot()
+
+        apply_system_metrics_to_snapshot(snapshot, BadMemoryPsutil)
+
+        self.assertEqual(snapshot.cpu_percent, 14.0)
+        self.assertIsNone(snapshot.memory_percent)
+        self.assertEqual(snapshot.error, "psutil memory error: memory unavailable")
+
+    def test_system_metric_helper_combines_cpu_and_memory_failures(self) -> None:
+        class BadPsutil:
+            @staticmethod
+            def cpu_percent(interval=None):
+                raise RuntimeError("cpu unavailable")
+
+            @staticmethod
+            def virtual_memory():
+                raise RuntimeError("memory unavailable")
+
+        snapshot = TelemetrySnapshot()
+
+        apply_system_metrics_to_snapshot(snapshot, BadPsutil)
+
+        self.assertEqual(
+            snapshot.error,
+            "psutil error: cpu unavailable; psutil memory error: memory unavailable",
+        )
+
     def test_environment_health_helpers_shape_tool_rows(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -300,6 +337,83 @@ class TelemetryServiceTests(unittest.TestCase):
             self.assertEqual(snapshot.gpu_count, 1)
             self.assertEqual(snapshot.gpu_rows[0]["encoder_percent"], 0.0)
             self.assertIn("NVIDIA RTX Test", snapshot.gpu_name)
+            for handler in list(service.logger.handlers):
+                base_filename = getattr(handler, "baseFilename", "")
+                if base_filename and str(base_filename).startswith(str(Path(td))):
+                    service.logger.removeHandler(handler)
+                    handler.close()
+
+    def test_nvidia_smi_malformed_output_reports_malformed_warning(self) -> None:
+        class Vm:
+            percent = 33.0
+            used = 2 * 1024 ** 3
+            total = 8 * 1024 ** 3
+
+        class FakePsutil:
+            @staticmethod
+            def cpu_percent(interval=None):
+                return 10.0
+
+            @staticmethod
+            def virtual_memory():
+                return Vm()
+
+        with tempfile.TemporaryDirectory() as td:
+            service = DesktopAppService(Path(td))
+            service._nvidia_smi_checked = True
+            service._nvidia_smi_path = r"C:\NVIDIA\nvidia-smi.exe"
+
+            def fake_run(*_args, **_kwargs):
+                return CapturedCommandResult(
+                    args=[],
+                    returncode=0,
+                    stdout="bad,row\n0, NVIDIA RTX Test, not-a-number, 44, 1024, 8192\n",
+                    stderr="",
+                )
+
+            with patch("app.telemetry.service.psutil", FakePsutil), patch("app.telemetry.service.run_capture", fake_run):
+                snapshot = service.sample_system_telemetry()
+
+            self.assertEqual(snapshot.error, "nvidia-smi returned malformed encoder telemetry")
+            self.assertEqual(snapshot.gpu_rows, [])
+            for handler in list(service.logger.handlers):
+                base_filename = getattr(handler, "baseFilename", "")
+                if base_filename and str(base_filename).startswith(str(Path(td))):
+                    service.logger.removeHandler(handler)
+                    handler.close()
+
+    def test_nvidia_smi_nonzero_without_stderr_reports_exit_code(self) -> None:
+        class Vm:
+            percent = 33.0
+            used = 2 * 1024 ** 3
+            total = 8 * 1024 ** 3
+
+        class FakePsutil:
+            @staticmethod
+            def cpu_percent(interval=None):
+                return 10.0
+
+            @staticmethod
+            def virtual_memory():
+                return Vm()
+
+        with tempfile.TemporaryDirectory() as td:
+            service = DesktopAppService(Path(td))
+            service._nvidia_smi_checked = True
+            service._nvidia_smi_path = r"C:\NVIDIA\nvidia-smi.exe"
+
+            def fake_run(*_args, **_kwargs):
+                return CapturedCommandResult(
+                    args=[],
+                    returncode=9,
+                    stdout="",
+                    stderr="",
+                )
+
+            with patch("app.telemetry.service.psutil", FakePsutil), patch("app.telemetry.service.run_capture", fake_run):
+                snapshot = service.sample_system_telemetry()
+
+            self.assertEqual(snapshot.error, "nvidia-smi exited with code 9")
             for handler in list(service.logger.handlers):
                 base_filename = getattr(handler, "baseFilename", "")
                 if base_filename and str(base_filename).startswith(str(Path(td))):

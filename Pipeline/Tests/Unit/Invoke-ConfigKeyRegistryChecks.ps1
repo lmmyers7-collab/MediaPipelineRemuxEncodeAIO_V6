@@ -246,6 +246,26 @@ if (-not [bool]$defaultSchemaCheck.Ok) {
     throw "PowerShell default config failed schema validation: $(@($defaultSchemaCheck.Errors) -join '; ')"
 }
 
+$strictDefaultSchemaCheck = & {
+    Set-StrictMode -Version 2.0
+    Test-MediaPipelineConfigSchema -Config (Get-MediaPipelineConfigDefaultValues)
+}
+if (-not [bool]$strictDefaultSchemaCheck.Ok) {
+    throw "PowerShell default config failed schema validation under StrictMode: $(@($strictDefaultSchemaCheck.Errors) -join '; ')"
+}
+
+$vobSubOcrToolDefault = 'Tools\SubtitleEditLegacy\SubtitleEdit.exe'
+$powershellDefaults = Get-MediaPipelineConfigDefaultValues
+if ([string]$powershellDefaults['VobSubOcrToolPath'] -ne $vobSubOcrToolDefault) {
+    throw "PowerShell VobSubOcrToolPath default drifted. Actual='$($powershellDefaults['VobSubOcrToolPath'])' Expected='$vobSubOcrToolDefault'"
+}
+if ([string]$templateConfig['VobSubOcrToolPath'] -ne $vobSubOcrToolDefault) {
+    throw "Template VobSubOcrToolPath default drifted. Actual='$($templateConfig['VobSubOcrToolPath'])' Expected='$vobSubOcrToolDefault'"
+}
+if ([string]$powershellDefaults['VobSubOcrToolPath'] -match 'seconv\.exe') {
+    throw 'VobSubOcrToolPath defaults must not point at seconv.exe; the VobSub OCR path requires SubtitleEdit.exe.'
+}
+
 $blankCustomOutputConfig = Get-MediaPipelineConfigDefaultValues
 $blankCustomOutputConfig['LibraryProfiles'] = @(
     [ordered]@{ id = 'movies'; name = 'Movies'; enabled = $true; designation = 'movie'; source_path = 'C:\Incoming\Movies'; output_path = 'D:\Processed'; overrides = [ordered]@{} },

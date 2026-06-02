@@ -615,7 +615,7 @@ function Get-MediaPipelineConfigDefaultValues {
         ConvertVobSubToSrt         = $false
         DropVobSubAfterConversion  = $false
         VobSubExtractLanguages     = @('eng','en','und')
-        VobSubOcrToolPath          = 'Tools\SubtitleEdit\seconv.exe'
+        VobSubOcrToolPath          = 'Tools\SubtitleEditLegacy\SubtitleEdit.exe'
         SubSDHTitleKeywords        = @('sdh','hearing impaired','hearing-impaired','cc','closed caption','closedcaption')
         SubSupplementalKeywords    = @('sign','song','karaoke','chapter','opening','ending')
         DropAssAfterConversion     = $false
@@ -1151,7 +1151,11 @@ function Test-MediaPipelineConfigEncodeAudioPolicy {
         @{ Key = 'CpuEncodeProcessPriority'; Label = 'CpuEncodeProcessPriority'; Allowed = @(Get-MediaPipelineCpuEncodeProcessPriorityNames); AllowBlank = $true },
         @{ Key = 'ParallelEncodeMode'; Label = 'ParallelEncodeMode'; Allowed = @(Get-MediaPipelineParallelEncodeModeNames); AllowBlank = $true }
     )) {
-        Test-MediaPipelineConfigChoiceValue -Config $Config -Key ([string]$optionPolicy.Key) -Label ([string]$optionPolicy.Label) -AllowedValues @($optionPolicy.Allowed) -AllowBlank:([bool]$optionPolicy.AllowBlank) -Errors $Errors
+        $allowBlank = $false
+        if ($optionPolicy.ContainsKey('AllowBlank')) {
+            $allowBlank = [bool]$optionPolicy['AllowBlank']
+        }
+        Test-MediaPipelineConfigChoiceValue -Config $Config -Key ([string]$optionPolicy['Key']) -Label ([string]$optionPolicy['Label']) -AllowedValues @($optionPolicy['Allowed']) -AllowBlank:$allowBlank -Errors $Errors
     }
 
     if (Test-MediaPipelineConfigHasKey -Config $Config -Key 'EncodeTuningPreset') {
@@ -1226,10 +1230,17 @@ function Test-MediaPipelineConfigEncodeAudioPolicy {
         @{ Kind = 'int'; Key = 'FallbackCpuQuality'; Label = 'FallbackCpuQuality'; Min = 1; Max = 51; Optional = $true },
         @{ Kind = 'number'; Key = 'OutputSizeMultiplier'; Label = 'OutputSizeMultiplier'; Min = 0.1; Max = 2.0; Optional = $true }
     )) {
-        if ([string]$numericPolicy.Kind -eq 'number') {
-            Test-MediaPipelineConfigNumberRange -Config $Config -Key ([string]$numericPolicy.Key) -Label ([string]$numericPolicy.Label) -Minimum $numericPolicy.Min -Maximum $numericPolicy.Max -Optional:([bool]$numericPolicy.Optional) -Errors $Errors
+        $minimum = $null
+        $maximum = $null
+        $optional = $false
+        if ($numericPolicy.ContainsKey('Min')) { $minimum = $numericPolicy['Min'] }
+        if ($numericPolicy.ContainsKey('Max')) { $maximum = $numericPolicy['Max'] }
+        if ($numericPolicy.ContainsKey('Optional')) { $optional = [bool]$numericPolicy['Optional'] }
+
+        if ([string]$numericPolicy['Kind'] -eq 'number') {
+            Test-MediaPipelineConfigNumberRange -Config $Config -Key ([string]$numericPolicy['Key']) -Label ([string]$numericPolicy['Label']) -Minimum $minimum -Maximum $maximum -Optional:$optional -Errors $Errors
         } else {
-            Test-MediaPipelineConfigIntegerRange -Config $Config -Key ([string]$numericPolicy.Key) -Label ([string]$numericPolicy.Label) -Minimum $numericPolicy.Min -Maximum $numericPolicy.Max -Optional:([bool]$numericPolicy.Optional) -Errors $Errors
+            Test-MediaPipelineConfigIntegerRange -Config $Config -Key ([string]$numericPolicy['Key']) -Label ([string]$numericPolicy['Label']) -Minimum $minimum -Maximum $maximum -Optional:$optional -Errors $Errors
         }
     }
 

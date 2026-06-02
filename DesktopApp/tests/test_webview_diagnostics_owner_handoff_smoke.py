@@ -15,6 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 OWNER_HANDOFF_ASSETS = [
     "domHelpers.js",
     "formatters.js",
+    "commandHistory/formatters.js",
+    "commandHistory/diagnostics.js",
     "commandHistory.js",
     "diagnosticsBridge.js",
     "queueView.summary.js",
@@ -31,6 +33,9 @@ OWNER_HANDOFF_ASSETS = [
     "pendingPublishView.diagnostics.js",
     "pendingPublishView.drain.js",
     "pendingPublishView.confidence.js",
+    "pendingPublish/summary.js",
+    "pendingPublish/filters.js",
+    "pendingPublish/details.js",
     "pendingPublishView.js",
     "diagnosticsView.activejobs.js",
     "diagnosticsView.log.js",

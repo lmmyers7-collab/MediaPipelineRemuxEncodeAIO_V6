@@ -2,7 +2,7 @@
 file: app/processes/control_policy.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: process
 last_modified: 2026-05-28
 last_reviewed: 2026-05-28
 sha256: f5754bd696bd573ea990aa56b692652b96601632ac27122c2ca16e7b91af9578

@@ -55,6 +55,7 @@ def _record() -> QueueRecord:
         queue_total=12,
         phase="tv",
         global_order=7,
+        manifest_priority_level="high",
     )
 
 
@@ -81,6 +82,7 @@ class QueueFacadePolicyTests(unittest.TestCase):
         self.assertEqual(row["queue_total"], 12)
         self.assertEqual(row["phase"], "tv")
         self.assertEqual(row["global_order"], 7)
+        self.assertEqual(row["manifest_priority_level"], "high")
         self.assertEqual(row["available_open_targets"], ["source_file", "source_folder", "source_root"])
         self.assertFalse(row["track_metadata_available"])
 

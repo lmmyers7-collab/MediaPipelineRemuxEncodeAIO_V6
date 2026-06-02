@@ -146,7 +146,7 @@ To verify all bundled dependencies:
 To see tool versions in the release manifest after building a package:
 
 ```powershell
-Get-Content release_manifest.json | ConvertFrom-Json | Select-Object tool_versions
+Get-Content release_manifest.json | ConvertFrom-Json | Select-Object bundled_tools, python_packages
 ```
 
 ---
@@ -171,6 +171,5 @@ Get-Content release_manifest.json | ConvertFrom-Json | Select-Object tool_versio
 
 - PowerShell host expectations: `Docs/operator/POWERSHELL_HOST_EXPECTATIONS.md`
 - Browser smoke prerequisites: `Docs/testing/BROWSER_SMOKE_PREREQUISITES_CHECKLIST.md`
-- Release package inventory: `Docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`
 - Release package inventory: `Docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`
 - Environment verification script: `scripts\verify-env.bat`

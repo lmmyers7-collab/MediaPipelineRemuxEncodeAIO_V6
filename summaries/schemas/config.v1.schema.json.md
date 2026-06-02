@@ -2,10 +2,10 @@
 file: schemas/config.v1.schema.json
 pipeline_stage: config
 token_priority: medium
-owner_domain: unknown
-last_modified: 2026-05-31
+owner_domain: config
+last_modified: 2026-06-02
 last_reviewed: 2026-05-31
-sha256: fa3a8ee2800ea582d60bf124e93d76304790fb29bd94b86dbcd7f9c360fa0e54
+sha256: 7bdeb93ff64a1d11330cafaab2dc7d83f9b302450ac148ff44400bcf9217e94b
 ---
 # `schemas/config.v1.schema.json`
 

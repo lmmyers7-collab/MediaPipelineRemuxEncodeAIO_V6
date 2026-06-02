@@ -204,7 +204,7 @@ Publish Reconciliation check (`GET /api/publish-reconciliation` via Completed pa
 
 | Field | Value |
 |---|---|
-| Failure markers in `State\Failures\markers\` for these sources | None / List them |
+| Failure markers in `State\Failures\Markers\` for these sources | None / List them |
 | Diagnostics log shows no errors for these samples | Yes / No / Partial |
 | Command history shows successful pipeline/audit start | Yes / No |
 

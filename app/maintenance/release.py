@@ -11,7 +11,7 @@ from .release_plan import (
     release_command_line,
     resolve_release_destination,
 )
-from .release_result import release_result_payload
+from .release_result import release_artifact_fingerprint, release_result_payload
 from app.maintenance.file_io import read_json_file
 from mediapipeline_desktop_app.subprocess_runner import run_capture
 
@@ -66,6 +66,11 @@ class ReleasePackageServiceMixin:
 
         command_line = release_command_line(args)
         self.logger.info("Release build requested: %s", command_line)
+        manifest_path, zip_path = release_artifact_paths(destination)
+        manifest_fingerprint_before = release_artifact_fingerprint(manifest_path)
+        zip_fingerprint_before = release_artifact_fingerprint(zip_path)
+        manifest_preexisting = bool(manifest_fingerprint_before.get("exists"))
+        zip_preexisting = bool(zip_fingerprint_before.get("exists"))
         started = time.monotonic()
         result = run_capture(
             args,
@@ -79,7 +84,6 @@ class ReleasePackageServiceMixin:
             kill_tree=getattr(self, "kill_process_tree", None),
         )
 
-        manifest_path, zip_path = release_artifact_paths(destination)
         manifest: Any | None = None
         if manifest_path.exists():
             try:
@@ -97,6 +101,10 @@ class ReleasePackageServiceMixin:
             dry_run=dry_run,
             elapsed_seconds=time.monotonic() - started,
             manifest=manifest,
+            manifest_preexisting=manifest_preexisting,
+            zip_preexisting=zip_preexisting,
+            manifest_fingerprint_before=manifest_fingerprint_before,
+            zip_fingerprint_before=zip_fingerprint_before,
         )
 
     def _stringify_process_output(self, value: Any) -> str:

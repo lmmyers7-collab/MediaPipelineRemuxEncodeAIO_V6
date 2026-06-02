@@ -20,6 +20,23 @@ from app.files.constants import MEDIA_FILE_SUFFIXES
 from mediapipeline_desktop_app.subprocess_runner import run_capture
 
 
+def _path_is_relative_to(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return False
+    return True
+
+
+def _resolve_folder_sample_path(folder: Path, sample_path: Path) -> Path:
+    candidate = sample_path if sample_path.is_absolute() else folder / sample_path
+    folder_root = folder.resolve(strict=True)
+    candidate_root = candidate.resolve(strict=False)
+    if not _path_is_relative_to(candidate_root, folder_root):
+        raise ValueError(f"Sample file must be inside folder: {sample_path}")
+    return candidate_root
+
+
 class FolderPolicyServiceMixin:
     def resolve_ffprobe_executable(self) -> Path | None:
         for rel in (
@@ -76,9 +93,10 @@ class FolderPolicyServiceMixin:
     def validate_folder_policy(self, folder: Path, *, sample_path: Path | None = None, max_files: int = 8) -> dict[str, Any]:
         if not folder.exists() or not folder.is_dir():
             raise NotADirectoryError(f"Folder does not exist: {folder}")
+        folder = folder.absolute()
         policy = self.load_folder_policy(folder)
         media_files = sorted(
-            [path for path in folder.rglob("*") if path.is_file() and path.suffix.lower() in MEDIA_FILE_SUFFIXES],
+            [path.resolve() for path in folder.rglob("*") if path.is_file() and path.suffix.lower() in MEDIA_FILE_SUFFIXES],
             key=lambda path: str(path).casefold(),
         )
         if not media_files:
@@ -86,8 +104,11 @@ class FolderPolicyServiceMixin:
 
         if sample_path is None:
             raw_sample = str((policy.get("validation") or {}).get("sample_file") or "").strip() if isinstance(policy.get("validation"), dict) else ""
-            sample_path = folder / raw_sample if raw_sample else media_files[0]
-        sample_path = sample_path if sample_path.is_absolute() else folder / sample_path
+            sample_path = Path(raw_sample) if raw_sample else media_files[0]
+        try:
+            sample_path = _resolve_folder_sample_path(folder, sample_path)
+        except ValueError as exc:
+            return {"ok": False, "policy": policy, "errors": [str(exc)], "warnings": [], "files": []}
         if not sample_path.exists():
             return {"ok": False, "policy": policy, "errors": [f"Sample file does not exist: {sample_path}"], "warnings": [], "files": []}
 
@@ -120,8 +141,9 @@ class FolderPolicyServiceMixin:
 
         saved_policy_path = ""
         if sample_signature is not None and not errors:
+            folder_root = folder.resolve(strict=True)
             validation_payload = dict(validation or {})
-            validation_payload["sample_file"] = str(sample_path.relative_to(folder)) if sample_path.is_relative_to(folder) else str(sample_path)
+            validation_payload["sample_file"] = str(sample_path.relative_to(folder_root))
             validation_payload["require_uniform_stream_topology"] = require_uniform
             validation_payload["expected_topology"] = sample_signature
             validation_payload["checked_count"] = len(probed)

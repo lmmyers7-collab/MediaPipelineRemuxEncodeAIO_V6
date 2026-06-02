@@ -201,6 +201,27 @@ class NetworkCoordinatorStartupTests(unittest.TestCase):
                 "\n".join(logs.output),
             )
 
+    def test_coordinator_constructor_refuses_start_when_inflight_restore_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            state_dir = Path(td)
+            (state_dir / "coordinator_inflight.json").write_text("{not-json", encoding="utf-8")
+            app = SimpleNamespace(
+                service=SimpleNamespace(app_state_path=state_dir / "app_state.json"),
+                resolved=SimpleNamespace(config_data={"CoordinatorBindAddress": "127.0.0.1"}),
+                queue_records=[],
+            )
+
+            with (
+                patch.object(CoordinatorDispatcher, "_load_or_generate_token", return_value="token"),
+                patch.object(CoordinatorDispatcher, "_start_http_server") as start_http,
+                self.assertLogs("mediapipeline_desktop_app.network.coordinator", level="ERROR") as logs,
+            ):
+                with self.assertRaisesRegex(RuntimeError, "in-flight state restore failed"):
+                    CoordinatorDispatcher(app)
+
+            start_http.assert_not_called()
+            self.assertIn("refusing to start coordinator", "\n".join(logs.output))
+
     def test_coordinator_startup_cluster_log_failure_does_not_abort_startup(self) -> None:
         calls: list[str] = []
 

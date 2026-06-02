@@ -378,9 +378,39 @@ def _browser_home_live_state_runner_source() -> str:
             requireText("progress-evidence-detail", [
               "Checkpoint: ActiveJobs",
               "Posture: active work",
-              "pipeline once: active",
+              "pipeline; mode=continuous; status=active",
+              "launch=launch-progress",
               "Mutation guardrail: progress evidence is read-only",
             ]);
+            const structuredActiveJobRows = window.mediaPipelineProgressView.progressEvidenceRows({
+              snapshot: {
+                pipeline_state: "processing",
+                activity: "Structured ActiveJobs fixture is active.",
+                progress: { Status: "Processing", CurrentStage: "Encoding" },
+              },
+              closeReadiness: { safe_to_close: false, state: "active", reason: "structured ActiveJobs row" },
+              diagnostics: {
+                active_jobs: [],
+                active_job_rows: [{
+                  record_file: "structured-active.json",
+                  launch_id: "structured-launch",
+                  job_kind: "pipeline",
+                  mode: "once",
+                  status: "active",
+                  status_state: "running",
+                  pid: 1234,
+                }],
+              },
+            });
+            const structuredActiveJobs = structuredActiveJobRows.find((row) => row.key === "active-jobs");
+            if (!structuredActiveJobs) throw new Error("structured ActiveJobs evidence row was not returned");
+            if (!structuredActiveJobs.evidence.includes("1 ActiveJobs row")) {
+              throw new Error("structured ActiveJobs evidence did not count active_job_rows: " + structuredActiveJobs.evidence);
+            }
+            const structuredDetail = structuredActiveJobs.detail.join("\\n");
+            for (const fragment of ["pipeline", "mode=once", "status=active", "launch=structured-launch", "pid=1234"]) {
+              if (!structuredDetail.includes(fragment)) throw new Error("structured ActiveJobs detail missing " + fragment + "\\nActual:\\n" + structuredDetail);
+            }
             window.showPage("diagnostics");
             await waitFor(
               () => text("diagnostics-progress-status").includes("Pipeline active")

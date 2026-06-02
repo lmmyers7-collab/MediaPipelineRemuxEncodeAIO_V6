@@ -2,7 +2,7 @@
 file: app/processes/guard_facade.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: process
 last_modified: 2026-05-29
 last_reviewed: 2026-05-28
 sha256: 100fe65b6bdd4bc212b40d73ca1c2b259277bbb35769c3931d1a68196ae901dd

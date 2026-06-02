@@ -47,6 +47,7 @@ def queue_record_to_row(record: QueueRecord) -> dict[str, Any]:
         "queue_position": record.queue_position,
         "phase": record.phase,
         "global_order": record.global_order,
+        "manifest_priority_level": record.manifest_priority_level,
     }
     row.update(queue_preview_runtime_evidence_fields())
     row.update(queue_preview_track_metadata_summary({}))

@@ -40,6 +40,7 @@ function Get-MediaPipelineReleaseExclusionReason {
     )) { return 'generated audit/report artifact' }
     if ($relative -like 'docs_housekeeping_catalog.*') { return 'generated documentation housekeeping catalog' }
     if ($relative -like 'DesktopApp\tauri_shell\node_modules\*') { return 'tauri node modules omitted' }
+    if ($segments -contains 'node_modules') { return 'node modules omitted' }
     if ($relative -like 'DesktopApp\tauri_shell\src-tauri\gen\*') { return 'tauri generated schema output omitted' }
     if ($relative -like 'DesktopApp\tauri_shell\src-tauri\target\*') { return 'tauri rust build output omitted' }
     if ($name -like '~$*') { return 'Office lock/temp file' }
@@ -142,6 +143,7 @@ function Get-MediaPipelineReleaseHygieneRules {
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'DesktopApp\*.log' -Label 'desktop runtime logs'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'DesktopApp\*.state.json' -Label 'desktop local state files'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'DesktopApp\encode_speed_history.json' -Label 'desktop local telemetry'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'node_modules' -Label 'root Node.js packages'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'DesktopApp\tauri_shell\node_modules' -Label 'Tauri node modules'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'DesktopApp\tauri_shell\src-tauri\gen' -Label 'Tauri generated schemas'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'DesktopApp\tauri_shell\src-tauri\target' -Label 'Tauri Rust build output'),

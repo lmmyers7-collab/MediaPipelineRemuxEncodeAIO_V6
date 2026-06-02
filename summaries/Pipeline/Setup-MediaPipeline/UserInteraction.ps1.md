@@ -1,11 +1,11 @@
 ---
 file: Pipeline/Setup-MediaPipeline/UserInteraction.ps1
-pipeline_stage: n/a
+pipeline_stage: setup
 token_priority: medium
-owner_domain: unknown
-last_modified: 2026-05-30
+owner_domain: scripts
+last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: ea73b36283c4bd3fd5f41c3cecb6d8d1761c1c6ebee4b9b712d2ef4606968cae
+sha256: 26909805758419d2b86e3e32ff1c367ed35054cc778887e7f7042bd380480a63
 ---
 # `Pipeline/Setup-MediaPipeline/UserInteraction.ps1`
 

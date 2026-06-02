@@ -73,6 +73,25 @@ def _browser_layout_manager_runner_source() -> str:
             function drawerRowByHeading(heading) {
               return drawerRows().find((row) => drawerRowText(row) === heading);
             }
+            function drawerGroupLabels() {
+              return Array.from(document.querySelectorAll("#layout-editor-tree .layout-editor-group-summary"))
+                .map((summary) => text(summary.querySelector("span")).replace(/\\s+/g, " "))
+                .filter(Boolean);
+            }
+            function requireDrawerGroups(page, labels) {
+              window.showPage(page);
+              openDrawer();
+              const found = drawerGroupLabels();
+              labels.forEach((label) => {
+                if (!found.includes(label)) {
+                  throw new Error("missing layout drawer group " + page + " / " + label + "\\nFound: " + found.join(" | "));
+                }
+              });
+              const genericSummaryCount = found.filter((label) => label === "Summary").length;
+              if (genericSummaryCount > 1) {
+                throw new Error("layout drawer has duplicate generic Summary groups for " + page + ": " + found.join(" | "));
+              }
+            }
             function requireManagedPanel(page, heading) {
               const root = document.querySelector('[data-page-panel="' + page + '"]');
               if (!root) throw new Error("missing page " + page);
@@ -152,6 +171,8 @@ def _browser_layout_manager_runner_source() -> str:
             const completedPaneKeys = completedPanes.map((pane) => pane.dataset.completedTab).sort().join("|");
             if (completedPaneKeys !== "advanced|history|overview") throw new Error("Completed tab panes were not merged to one container per tab: " + completedPaneKeys);
             if (document.querySelector('[data-page-panel="completed"] section.panel.settings-tab-pane')) throw new Error("Completed tab panes should be containers, not draggable panels");
+            requireDrawerGroups("launch", ["Readiness", "Pipeline", "Audit", "CSV Rerun", "History"]);
+            requireDrawerGroups("reports", ["Overview", "Failures", "Audit", "Files"]);
             const nestedCompletedPanels = Array.from(document.querySelectorAll('[data-page-panel="completed"] section.panel[data-panel-key] section.panel[data-panel-key]'));
             if (nestedCompletedPanels.length) throw new Error("Completed layout still has nested managed panels: " + nestedCompletedPanels.map(headingText).join(" | "));
             const overviewPane = document.querySelector('[data-page-panel="completed"] .settings-tab-pane[data-completed-tab="overview"]');

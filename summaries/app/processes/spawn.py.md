@@ -2,7 +2,7 @@
 file: app/processes/spawn.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: process
 last_modified: 2026-05-28
 last_reviewed: 2026-05-28
 sha256: f8a023c48bda041c6029f1eb955016aff2a04624b4036f2f462c112c2869eb62

@@ -94,7 +94,7 @@ If the local API starts but the smoke fails with `ConnectionRefusedError`:
 
 ## Checklist 5: Bootstrap Token Auth
 
-All command routes and most read routes require a `X-Desktop-Token` header. The smoke generates the token automatically and injects it into the browser CDP runner. If you see `401 Unauthorized` errors:
+All command routes and most read routes require an `Authorization: Bearer` or `X-MediaPipeline-Token` header. The smoke generates the token automatically and injects it into the browser CDP runner. If you see `401 Unauthorized` errors:
 - Do not run the smoke from a manual `curl` or browser tab — the smoke manages token generation internally.
 - If modifying the auth layer or token format, recheck `test_backend_bootstrap.py` unit tests first.
 

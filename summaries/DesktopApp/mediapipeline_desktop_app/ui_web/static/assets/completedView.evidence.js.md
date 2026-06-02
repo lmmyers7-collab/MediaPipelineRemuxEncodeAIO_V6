@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.ev
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-30
+last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: a915afd8eb33bf70b05fa80edc84189dd274c32f69ecfca4b297a177ef9589fa
+sha256: 61feac0bbaecffdfa4fd89f8be7d4380b65e03ba98e9ce69a1c03e94df03fdfd
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.evidence.js`
 

@@ -70,7 +70,15 @@ def snapshot_encode_config(config: Mapping[str, object], worker_name: str = "") 
 
     for name_key, patch in overrides_map.items():
         if isinstance(patch, dict) and str(name_key).casefold() == worker:
-            snapshot.update(patch)
-            _log.debug("Applied config overrides for worker '%s': %s", worker_name, list(patch))
+            allowed_patch = {key: value for key, value in patch.items() if key in ENCODE_CONFIG_KEYS}
+            ignored_keys = sorted(str(key) for key in patch if key not in ENCODE_CONFIG_KEYS)
+            if ignored_keys:
+                _log.warning(
+                    "Ignoring unsupported WorkerConfigOverrides keys for worker '%s': %s",
+                    worker_name,
+                    ignored_keys,
+                )
+            snapshot.update(allowed_patch)
+            _log.debug("Applied config overrides for worker '%s': %s", worker_name, list(allowed_patch))
             break
     return snapshot

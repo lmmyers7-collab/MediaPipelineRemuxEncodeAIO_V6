@@ -124,12 +124,12 @@ def unknown_metadata(container: SourceContainerInfo, primary: SourceVideoStream 
 
 
 def estimated_bitrate_mbps_for(container: SourceContainerInfo, primary: SourceVideoStream | None) -> float:
+    if container.file_size_bytes > 0 and container.duration_seconds > 0:
+        return (container.file_size_bytes * 8.0) / container.duration_seconds / 1_000_000.0
     if primary and primary.bitrate_bps > 0:
         return primary.bitrate_bps / 1_000_000.0
     if container.overall_bitrate_bps > 0:
         return container.overall_bitrate_bps / 1_000_000.0
-    if container.file_size_bytes > 0 and container.duration_seconds > 0:
-        return (container.file_size_bytes * 8.0) / container.duration_seconds / 1_000_000.0
     return 0.0
 
 

@@ -253,14 +253,15 @@ class StateDb:
 
     def record_completed_job(self, completed_job: Mapping[str, Any]) -> None:
         payload_json = _json_text(completed_job)
+        payload_hash = _payload_hash(payload_json)
         output_path = _scalar_text(completed_job.get("output_path"), limit=1000)
         sidecar_path = _scalar_text(completed_job.get("sidecar_path"), limit=1000)
         completed_at = _scalar_text(completed_job.get("completed_at") or completed_job.get("finished_at"), limit=120)
+        # Manifest rows without a job_id still need append-only identity.
+        # Output paths can repeat across retries or replacements.
         job_key = (
             _scalar_text(completed_job.get("job_id"), limit=300)
-            or output_path.casefold()
-            or sidecar_path.casefold()
-            or _payload_hash(payload_json)
+            or payload_hash
         )
         with self._lock:
             with self.connection() as conn:
@@ -285,7 +286,7 @@ class StateDb:
                         output_path,
                         sidecar_path,
                         completed_at,
-                        _payload_hash(payload_json),
+                        payload_hash,
                         payload_json,
                     ),
                 )

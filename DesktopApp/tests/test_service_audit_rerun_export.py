@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import csv
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import AuditRecord, ResolvedPaths
 from app.audit.rerun_export import save_rerun_records_csv_for_service
@@ -106,6 +109,44 @@ class ServiceAuditRerunExportTests(unittest.TestCase):
                     original_mode="keep",
                     return_mode="park",
                 )
+
+    def test_save_rerun_records_csv_preserves_metadata_note_when_stat_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            missing_source = root / "Missing.mkv"
+            output_csv = root / "rerun.csv"
+            record = _audit_record(
+                Path=str(missing_source),
+                MediaType="Movie",
+                LookupTitle="Missing",
+                IssueCodes="needs-rerun",
+            )
+            service = DummyRerunExportService(
+                {
+                    str(missing_source).casefold(): {
+                        "exists": False,
+                        "error": "metadata helper could not read source",
+                    }
+                }
+            )
+
+            count = save_rerun_records_csv_for_service(
+                service,
+                output_csv,
+                [record],
+                _resolved(root),
+                stage_mode="copy",
+                original_mode="keep",
+                return_mode="park",
+            )
+
+            with output_csv.open("r", encoding="utf-8", newline="") as handle:
+                rows = list(csv.DictReader(handle))
+
+        self.assertEqual(count, 1)
+        self.assertEqual(rows[0]["enabled"], "false")
+        self.assertIn("source metadata failed: metadata helper could not read source", rows[0]["notes"])
+        self.assertIn("source stat failed:", rows[0]["notes"])
 
 
 if __name__ == "__main__":

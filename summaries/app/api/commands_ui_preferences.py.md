@@ -3,9 +3,9 @@ file: app/api/commands_ui_preferences.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-05-31
+last_modified: 2026-06-01
 last_reviewed: 2026-05-29
-sha256: b35c6468cc1431020fbca199fdae05b13a06c39261127c8524cb74abf76ea718
+sha256: 39c1ed70db968d6ee7f383774ddd7f93a675dd1a23f60418140b95690ca035d9
 ---
 # `app/api/commands_ui_preferences.py`
 

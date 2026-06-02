@@ -122,6 +122,10 @@ class ApplicationFacadeReportsTests(unittest.TestCase):
                 resolved,
                 {"scope": "selected", "marker_paths": [str(root / "State" / "Failures" / "Markers" / "one.json")], "dry_run": True},
             ).to_mapping()
+            preview_all = facade.clear_failure_markers(
+                resolved,
+                {"scope": "all_markers", "dry_run": True},
+            ).to_mapping()
             cleared = facade.clear_failure_markers(
                 resolved,
                 {"scope": "selected", "marker_paths": [str(root / "State" / "Failures" / "Markers" / "one.json")], "confirm_clear": True},
@@ -129,10 +133,13 @@ class ApplicationFacadeReportsTests(unittest.TestCase):
 
         self.assertFalse(blocked["ok"])
         self.assertIn("confirm_clear", blocked["message"])
-        self.assertEqual(len(calls), 2)
+        self.assertEqual(len(calls), 3)
         self.assertTrue(preview["ok"])
         self.assertTrue(preview["data"]["dry_run"])
         self.assertFalse(preview["data"]["writes_failure_markers"])
+        self.assertTrue(preview_all["ok"])
+        self.assertEqual(preview_all["data"]["scope"], "all_markers")
+        self.assertIsNone(calls[1]["marker_paths"])
         self.assertTrue(cleared["ok"])
         self.assertEqual(cleared["data"]["markers"], 1)
         self.assertTrue(cleared["data"]["writes_failure_markers"])

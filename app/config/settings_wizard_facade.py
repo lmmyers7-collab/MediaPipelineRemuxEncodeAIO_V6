@@ -8,6 +8,7 @@ from app.config.settings_wizard import (
     preview_settings_wizard,
     probe_ffmpeg_hardware,
     save_settings_wizard,
+    settings_wizard_payload_from_request,
     settings_wizard_defaults,
     settings_wizard_status,
     validate_ffmpeg_tools,
@@ -28,7 +29,7 @@ class SettingsWizardFacadeMixin:
         return settings_wizard_defaults(resolved, self.service)
 
     def validate_settings_wizard_paths(self, request: dict[str, Any]) -> CommandResult:
-        data = validate_wizard_paths(dict(request.get("wizard") or request))
+        data = validate_wizard_paths(settings_wizard_payload_from_request(request))
         return CommandResult(
             command="settings.wizard.validate_paths",
             ok=bool(data.get("ok")),
@@ -67,8 +68,9 @@ class SettingsWizardFacadeMixin:
         )
 
     def validate_settings_wizard_workers(self, request: dict[str, Any]) -> CommandResult:
-        wizard = dict(request.get("wizard") or request)
-        data = validate_worker_settings(dict(wizard.get("workers") or {}))
+        wizard = settings_wizard_payload_from_request(request)
+        worker_payload = wizard.get("workers", {}) if isinstance(wizard, dict) else wizard
+        data = validate_worker_settings(worker_payload)
         return CommandResult(
             command="settings.wizard.validate_workers",
             ok=bool(data.get("ok")),

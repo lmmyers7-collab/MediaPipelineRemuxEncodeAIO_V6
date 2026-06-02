@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-30
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: 3d40be6cc83cdabf260c409a8928f28e69da1fdfe5aaad11f932816ff6aff085
+sha256: cb6d04b4d81b7c714c67d9fedd83a3045934e24e1341881ec7336ad10bddd7f8
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.js`
 

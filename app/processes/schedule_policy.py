@@ -60,8 +60,8 @@ def continuous_schedule_stop_watcher_preflight_check(
     next_stop = _schedule_time_evidence(data)
     status_text = str(data.get("status_text") or "(not reported)")
     detail = [
-        "WebView/local API can evaluate schedule gates, but it does not yet own the continuous-run stop-at-window-end watcher.",
-        "V5 remains the fallback for scheduled continuous runs that must automatically request Stop After Current when the window closes.",
+        "WebView/local API evaluates schedule gates; backend start owns the continuous-run stop-at-window-end watcher when it is available.",
+        "Close-readiness exposes armed watcher state so the local backend stays visible while the stop-at-window-end guard is active.",
         {
             "requested_mode": requested_mode,
             "actual_mode": actual_mode,
@@ -101,12 +101,15 @@ def continuous_schedule_stop_watcher_preflight_check(
             "detail": detail,
         }
     if override == "ignore":
+        watcher_evidence = "backend watcher bypassed by explicit operator override"
+        if not backend_watcher_available:
+            watcher_evidence = "backend watcher unavailable and bypassed by explicit operator override"
         return {
             "key": SCHEDULE_CONTINUOUS_WATCHER_CHECK_KEY,
             "label": SCHEDULE_CONTINUOUS_WATCHER_LABEL,
             "status": "high review",
-            "evidence": f"override=ignore; backend watcher not owned; next schedule stop={next_stop}.",
-            "action": "Use Ignore Schedule only when deliberately bypassing the stop-at-window-end safety net; use V5 for scheduled continuous runs that must stop automatically.",
+            "evidence": f"override=ignore; {watcher_evidence}; next schedule stop={next_stop}.",
+            "action": "Use Ignore Schedule only when deliberately bypassing the stop-at-window-end safety net; inspect close-readiness and command history after launch.",
             "detail": detail,
         }
     if backend_watcher_available:
@@ -132,8 +135,8 @@ def continuous_schedule_stop_watcher_preflight_check(
             "key": SCHEDULE_CONTINUOUS_WATCHER_CHECK_KEY,
             "label": SCHEDULE_CONTINUOUS_WATCHER_LABEL,
             "status": "blocked",
-            "evidence": f"inside schedule window; backend watcher not owned; next schedule stop={next_stop}.",
-            "action": "Use Run Once from WebView, or use V5 for scheduled Continuous until backend watcher ownership is implemented.",
+            "evidence": f"inside schedule window; backend watcher unavailable; next schedule stop={next_stop}.",
+            "action": "Use Run Once from WebView, or make the backend schedule-stop watcher available before scheduled Continuous.",
             "detail": detail,
         }
     return {

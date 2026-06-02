@@ -1,9 +1,9 @@
 # Architecture
 
 Short human-maintained map of how MediaPipelineRemuxEncodeAIO V6 is put
-together. For the *why*, see the ADRs under `Docs/adr/`. For the *plan
-to get to V7*, see `ARCHITECTURAL_OVERHAUL_PLAN.md`. For the *change
-log*, see `../../CHANGELOG.md`. For the *per-file map*, see
+together. For the *why*, see the ADRs under `Docs/adr/`. For current
+operating state, see `../CURRENT_PROJECT_STATE.md`. For the *change log*,
+see `../../CHANGELOG.md`. For the *per-file map*, see
 `../generated/PROJECT_INDEX.md` and `../../summaries/`.
 
 If those four pointers conflict, treat the ADRs as authoritative and
@@ -30,48 +30,52 @@ Tauri/WebView2 shell.
 └────────────────────────────────────┬─────────────────────────────┘
                                      │ JSON @ 127.0.0.1
 ┌────────────────────────────────────▼─────────────────────────────┐
-│  ORCHESTRATOR — Python (today: DesktopApp/.../service_*,         │
-│  facade_*; target: app/<domain>/)                                │
+│  ORCHESTRATOR — Python (app/<domain>/ plus DesktopApp Local API   │
+│  host and WebView compatibility package)                         │
 │                                                                  │
-│  api/ orchestration/ ingest/ metadata/ decide/ transcode/        │
-│  subtitles/ audio/ publish/ rename/ storage/ network/            │
-│  observability/ config/ contracts/ common/                       │
+│  api/ orchestration/ processes/ queue/ decide/ publish/          │
+│  rename/ storage/ network/ observability/ config/ contracts/     │
+│  common/                                                         │
 └──────────────────────────────────┬───────────────────────────────┘
                                    │ subprocess(stage, payload-json)
 ┌──────────────────────────────────▼───────────────────────────────┐
-│  EXECUTOR — PowerShell (today: Pipeline/Modules/*.ps1;           │
-│  target: engine/<domain>/<role>.ps1 behind engine/entrypoint.ps1)│
+│  EXECUTOR — PowerShell (engine/<domain>/<role>.ps1 loaded by      │
+│  Pipeline entry scripts and wrapped by engine/entrypoint.ps1)     │
 │                                                                  │
 │  FFmpeg, MKVToolNix, PgsToSrt invocations                        │
 └──────────────────────────────────────────────────────────────────┘
 
-State:  LocalBase/State/*.json today → state/state.sqlite (ADR-0003)
+State:  LocalBase/State/*.json authoritative; SQLite mirror is shadow-only
 Files:  scratch → output → pending-publish → published
 ```
 
 ## Where the canonical pieces live
 
-| Concern                  | Today                                                       | Target                              | ADR    |
+| Concern                  | Active V6 locations                                         | Continuing direction                | ADR    |
 | ------------------------ | ----------------------------------------------------------- | ----------------------------------- | ------ |
-| Operator API             | `DesktopApp/mediapipeline_desktop_app/api/`                 | `app/api/`                          | 0006   |
-| Job lifecycle, queue     | `DesktopApp/.../service_queue*.py`, `app/processes/`        | `app/orchestration/`                | 0001   |
-| Source discovery, scratch| `Pipeline/Modules/Ingest*.ps1`                              | `app/ingest/` + `engine/ingest/`    | 0001/2 |
-| Probe, naming parse      | `Pipeline/Modules/MediaProbe.*.ps1`, `Naming.*.ps1`         | `app/metadata/` + `engine/...`      | 0001/2 |
-| Remux-vs-encode policy   | `Pipeline/Modules/Routing.*.ps1`                            | `app/decide/`                       | 0001/2 |
-| FFmpeg invocation        | `Pipeline/Modules/Ffmpeg.*.ps1`                             | `engine/ffmpeg/`, `engine/transcode/`| 0002  |
-| Subtitle conversion      | `Pipeline/Modules/Subtitles.*.ps1`                          | `engine/subtitles/`                 | 0002   |
-| Audio policy             | `Pipeline/Modules/Audio.*.ps1`                              | `engine/audio/`                     | 0002   |
-| Pending publish + drain  | `Pipeline/Modules/Pending*.ps1`, `service_pending_publish*` | `app/publish/`, `engine/publish/`   | 0001/2 |
-| Rename plan/apply/undo   | `Pipeline/Modules/Naming.*.ps1`, `service_rename*.py`       | `app/rename/`                       | 0001   |
-| State store              | `LocalBase/State/*.json`                                    | `state/state.sqlite`                | 0003   |
-| Logs / events            | `RunLogs/*.txt`, ad-hoc `logging`                           | JSON Lines → `state.sqlite.events`  | 0005   |
+| Operator API             | `DesktopApp/mediapipeline_desktop_app/api/`, `app/api/`     | Keep backend authority centralized  | 0006   |
+| Job lifecycle, queue     | `app/processes/`, `app/orchestration/`, `app/queue/`        | Continue domain-owned orchestration | 0001   |
+| Source discovery, scratch| `Pipeline/MediaPipeline.ps1`, `engine/storage/`, `engine/queue/` | Keep source-copy and scratch policy backend-owned | 0001/2 |
+| Probe, naming parse      | `engine/probe/`, `engine/naming/`, `app/contracts/source_media*.py` | Keep source facts read-only before routing | 0001/2 |
+| Remux-vs-encode policy   | `app/decide/`, `engine/decide/`                             | Keep decisions separate from FFmpeg args | 0001/2 |
+| FFmpeg invocation        | `Pipeline/MediaPipeline/`, `engine/process/`                | Keep tool execution in PowerShell   | 0002   |
+| Subtitle conversion      | `engine/subtitles/`, `Pipeline/ass_to_srt*`                 | Keep conversion failures review-bound | 0002 |
+| Audio policy             | `engine/audio/`                                             | Keep profile/config-driven routing  | 0002   |
+| Pending publish + drain  | `app/publish/`, `engine/publish/`                           | Keep park/drain manifest-backed     | 0001/2 |
+| Rename plan/apply/undo   | `app/rename/`, `engine/naming/`                             | Keep apply/undo backend-owned       | 0001   |
+| State store              | `LocalBase/State/*.json`, `app/storage/db.py` mirror        | JSON remains authoritative for now  | 0003   |
+| Logs / events            | `RunLogs/*.txt`, JSON-line helpers, SQLite mirror events    | Continue structured evidence rollout | 0005 |
 | Config shape             | PSD1 + `app/config/metadata*.py` + WebView JSON             | `app/contracts/config.py` (pydantic)| 0004   |
-| Stage I/O contracts      | `Pipeline/Schemas/*.json` (hand-written)                    | `app/contracts/stages.py` → generated `schemas/`| 0004 |
-| Coordinator/worker       | `DesktopApp/.../network/`                                   | `app/network/`                      | —      |
+| Stage I/O contracts      | `Pipeline/Schemas/*.json` (hand-written)                    | `app/contracts/stages.py` to generated `schemas/`| 0004 |
+| Coordinator/worker       | `DesktopApp/.../network/`, `app/network/`                   | WebView lifecycle remains read-only | —      |
 | Desktop shell            | `DesktopApp/tauri_shell/` (Tauri + WebView2)                | unchanged                           | 0008   |
 | WebView SPA              | `DesktopApp/.../ui_web/static/` (vanilla JS)                | unchanged for now                   | 0007   |
 
 ## Boundaries (which module owns what)
+
+The rows below are ownership domains. Active V6 package/script paths are in
+the table above and in `../generated/PROJECT_INDEX.md`; not every domain has
+a same-named folder in the current compatibility window.
 
 | Module           | Owns                                              | Does not own                          |
 | ---------------- | ------------------------------------------------- | ------------------------------------- |
@@ -103,10 +107,10 @@ explicit `schema_version: "v1"`:
 `../generated/PIPELINE_MAP.md` enumerates each stage with its payload and result
 types. The Phase 3 runner boundary calls
 `engine/entrypoint.ps1 -Stage <stage> -PayloadJson <payload-json-or-path>`
-per ADR-0002. In the current V6.x maintenance state, only the read-only
-`decide` stage is enabled through that dispatcher; mutation-capable
-stages remain modeled but disabled until safety coverage and real-media
-validation prove the replacement path.
+per ADR-0002. In the current V6.x maintenance state, the read-only
+`probe` and `decide` stages are enabled through that dispatcher;
+mutation-capable stages remain modeled but disabled until safety coverage
+and real-media validation prove the replacement path.
 
 ## State and files
 
@@ -155,7 +159,7 @@ Any change touching these requires the validation rung named in
 ## Where to look next
 
 - ADRs: `Docs/adr/`
-- Plan of record: `ARCHITECTURAL_OVERHAUL_PLAN.md`
+- Current operating state: `Docs/CURRENT_PROJECT_STATE.md`
 - Stage contracts: `app/contracts/stages.py`, `../generated/PIPELINE_MAP.md`
 - Config contract: `app/contracts/config.py`
 - Per-file map: `../generated/PROJECT_INDEX.md`, `../../summaries/`

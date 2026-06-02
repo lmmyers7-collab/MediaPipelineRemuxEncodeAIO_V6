@@ -28,6 +28,26 @@
 # Cached manifest — re-loaded per pipeline round; reset to $null at start of round.
 $script:CachedFileOverridesManifest = $null
 
+function Normalize-MediaPipelineFileOverrideLanguage {
+    param([string] $Value)
+
+    $normalized = if ($Value) { $Value.Trim().ToLowerInvariant() } else { '' }
+    switch -Regex ($normalized) {
+        '^(|und|unknown|undefined)$' { return 'und' }
+        '^(eng|en|english)$'         { return 'eng' }
+        '^(jpn|ja|japanese)$'        { return 'jpn' }
+        '^(spa|es|spanish)$'         { return 'spa' }
+        '^(fre|fra|fr|french)$'      { return 'fra' }
+        '^(ger|deu|de|german)$'      { return 'deu' }
+        '^(ita|it|italian)$'         { return 'ita' }
+        '^(por|pt|portuguese)$'      { return 'por' }
+        '^(rus|ru|russian)$'         { return 'rus' }
+        '^(kor|ko|korean)$'          { return 'kor' }
+        '^(chi|zho|zh|chinese)$'     { return 'zho' }
+        default                      { return $normalized }
+    }
+}
+
 function ConvertTo-MediaPipelineFileOverrideSafeScalar {
     param(
         [Parameter(Mandatory)] [string] $FieldPath,
@@ -481,13 +501,13 @@ function Test-MediaPipelineFileOverrideRuleMatchesTrack {
         }
     }
 
-    $lang = if ([string]::IsNullOrWhiteSpace($Language)) { 'und' } else { $Language.Trim().ToLowerInvariant() }
+    $lang = Normalize-MediaPipelineFileOverrideLanguage $Language
     $titleText = if ($null -eq $Title) { '' } else { [string]$Title }
     $codecText = if ([string]::IsNullOrWhiteSpace($Codec)) { '' } else { $Codec.Trim().ToLowerInvariant() }
 
     $ruleLang = Get-MediaPipelineFileOverrideProperty -Object $Rule -Name 'language'
     if ($null -ne $ruleLang -and -not [string]::IsNullOrWhiteSpace([string]$ruleLang)) {
-        if ($lang -ne ([string]$ruleLang).Trim().ToLowerInvariant()) { return $false }
+        if ($lang -ne (Normalize-MediaPipelineFileOverrideLanguage ([string]$ruleLang))) { return $false }
     }
 
     $ruleCodec = Get-MediaPipelineFileOverrideProperty -Object $Rule -Name 'codec'
@@ -778,7 +798,7 @@ function Get-AudioTrackTitleOverride {
 
     if ($null -eq $renameRules -or $renameRules.Count -eq 0) { return $null }
 
-    $lang = if ([string]::IsNullOrWhiteSpace($Language)) { 'und' } else { $Language.Trim().ToLowerInvariant() }
+    $lang = Normalize-MediaPipelineFileOverrideLanguage $Language
 
     foreach ($rule in $renameRules) {
         if ($null -eq $rule) { continue }
@@ -786,7 +806,7 @@ function Get-AudioTrackTitleOverride {
         $ruleLang = $null
         try { $ruleLang = [string]$rule.language } catch {}
         if (-not [string]::IsNullOrWhiteSpace($ruleLang)) {
-            if ($lang -ne $ruleLang.Trim().ToLowerInvariant()) { continue }
+            if ($lang -ne (Normalize-MediaPipelineFileOverrideLanguage $ruleLang)) { continue }
         }
         # channels match
         $ruleChannels = $null
@@ -829,14 +849,14 @@ function Get-SubtitleTrackTitleOverride {
 
     if ($null -eq $renameRules -or $renameRules.Count -eq 0) { return $null }
 
-    $lang = if ([string]::IsNullOrWhiteSpace($Language)) { 'und' } else { $Language.Trim().ToLowerInvariant() }
+    $lang = Normalize-MediaPipelineFileOverrideLanguage $Language
 
     foreach ($rule in $renameRules) {
         if ($null -eq $rule) { continue }
         $ruleLang = $null
         try { $ruleLang = [string]$rule.language } catch {}
         if (-not [string]::IsNullOrWhiteSpace($ruleLang)) {
-            if ($lang -ne $ruleLang.Trim().ToLowerInvariant()) { continue }
+            if ($lang -ne (Normalize-MediaPipelineFileOverrideLanguage $ruleLang)) { continue }
         }
         $ruleForced = $null
         try {

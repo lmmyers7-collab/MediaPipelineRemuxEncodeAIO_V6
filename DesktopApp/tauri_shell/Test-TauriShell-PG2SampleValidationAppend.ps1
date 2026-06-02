@@ -143,10 +143,49 @@ function Get-BackendUrlForProcessId {
 function Get-BackendBootstrapFromIndex {
     param([Parameter(Mandatory)][string]$BackendUrl)
     $html = (Invoke-WebRequest -UseBasicParsing -Uri "$BackendUrl/" -TimeoutSec 10).Content
-    if ($html -notmatch '(?s)window\.MEDIA_PIPELINE_BOOTSTRAP\s*=\s*(\{.*?\});') {
+    if ($html -match '(?s)window\.MEDIA_PIPELINE_BOOTSTRAP\s*=\s*Object\.assign\(\s*\{\}\s*,\s*(\{.*?\})\s*,\s*window\.MEDIA_PIPELINE_TAURI_BOOTSTRAP\s*\|\|\s*\{\}\s*\);') {
+        return $Matches[1] | ConvertFrom-Json
+    }
+    if ($html -match '(?s)window\.MEDIA_PIPELINE_BOOTSTRAP\s*=\s*(\{.*?\});') {
+        return $Matches[1] | ConvertFrom-Json
+    }
+    else {
         throw "Could not find MEDIA_PIPELINE_BOOTSTRAP in backend index."
     }
-    return $Matches[1] | ConvertFrom-Json
+}
+
+function Wait-BackendTokenCapture {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$BackendUrl,
+        [int]$TimeoutSeconds = 20
+    )
+
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
+    $lastError = ''
+    do {
+        if (Test-Path -LiteralPath $Path -PathType Leaf) {
+            try {
+                $payload = Get-Content -LiteralPath $Path -Raw -ErrorAction Stop | ConvertFrom-Json
+                if ([string]$payload.schema_version -ne 'mediapipeline_tauri_test_auth_capture.v1') {
+                    throw "unexpected schema_version=$($payload.schema_version)"
+                }
+                if ([string]$payload.url -ne $BackendUrl) {
+                    throw "capture URL $($payload.url) did not match $BackendUrl"
+                }
+                $captured = [string]$payload.token
+                if ([string]::IsNullOrWhiteSpace($captured)) {
+                    throw "capture did not include a token"
+                }
+                return $captured
+            } catch {
+                $lastError = [string]$_.Exception.Message
+            }
+        }
+        Start-Sleep -Milliseconds 250
+    } while ((Get-Date) -lt $deadline)
+
+    throw "Timed out waiting for Tauri test auth capture at $Path. Last error: $lastError"
 }
 
 function Invoke-BackendJson {
@@ -219,6 +258,7 @@ $noteMarker = "pg2-tauri-webview-append-$stamp"
 $notes = "$noteMarker; WebView Home Sample Validation append after Tauri WebView launch completed. Manual playback remains operator-owned."
 $stdoutLog = Join-Path $logRoot "tauri_pg2_sample_validation_$stamp.stdout.log"
 $stderrLog = Join-Path $logRoot "tauri_pg2_sample_validation_$stamp.stderr.log"
+$tokenCapturePath = Join-Path $logRoot "tauri_pg2_sample_validation_$stamp.backend_auth.json"
 
 $nodeDir = Split-Path -Parent $node
 $cargoDir = Split-Path -Parent $cargo
@@ -230,12 +270,14 @@ $previousDecision = $env:MEDIA_PIPELINE_TAURI_TEST_SAMPLE_VALIDATION_DECISION
 $previousCategory = $env:MEDIA_PIPELINE_TAURI_TEST_SAMPLE_VALIDATION_CATEGORY
 $previousNotes = $env:MEDIA_PIPELINE_TAURI_TEST_SAMPLE_VALIDATION_NOTES
 $previousOutput = $env:MEDIA_PIPELINE_TAURI_TEST_SAMPLE_VALIDATION_OUTPUT
+$previousTokenCapture = $env:MEDIA_PIPELINE_TAURI_TEST_TOKEN_CAPTURE_FILE
 $env:MEDIA_PIPELINE_TAURI_TEST_AUTOMATION = 'pg2-sample-validation-append'
 $env:MEDIA_PIPELINE_TAURI_TEST_AUTOLAUNCH_SINGLE_FILE = $resolvedSource
 $env:MEDIA_PIPELINE_TAURI_TEST_SAMPLE_VALIDATION_OUTPUT = [System.IO.Path]::GetFullPath($OutputFile)
 $env:MEDIA_PIPELINE_TAURI_TEST_SAMPLE_VALIDATION_DECISION = $Decision
 $env:MEDIA_PIPELINE_TAURI_TEST_SAMPLE_VALIDATION_CATEGORY = $Category
 $env:MEDIA_PIPELINE_TAURI_TEST_SAMPLE_VALIDATION_NOTES = $notes
+$env:MEDIA_PIPELINE_TAURI_TEST_TOKEN_CAPTURE_FILE = $tokenCapturePath
 
 Write-Host "Launching Tauri dev shell from $shellRoot"
 Write-Host "Logs: $stdoutLog"
@@ -246,6 +288,7 @@ $env:MEDIA_PIPELINE_TAURI_TEST_SAMPLE_VALIDATION_DECISION = $previousDecision
 $env:MEDIA_PIPELINE_TAURI_TEST_SAMPLE_VALIDATION_CATEGORY = $previousCategory
 $env:MEDIA_PIPELINE_TAURI_TEST_SAMPLE_VALIDATION_NOTES = $previousNotes
 $env:MEDIA_PIPELINE_TAURI_TEST_SAMPLE_VALIDATION_OUTPUT = $previousOutput
+$env:MEDIA_PIPELINE_TAURI_TEST_TOKEN_CAPTURE_FILE = $previousTokenCapture
 
 $newBackendIds = @()
 $newShellIds = @()
@@ -281,11 +324,16 @@ try {
     $backendPid = [int]$newBackendIds[0]
     $backendUrl = Get-BackendUrlForProcessId -ProcessId $backendPid
     $bootstrap = Get-BackendBootstrapFromIndex -BackendUrl $backendUrl
-    $token = [string]$bootstrap.token
-    if (-not $token) { throw "Backend bootstrap did not expose a bearer token." }
+    if ([string]$bootstrap.token) {
+        throw "Backend WebView bootstrap leaked the bearer token in Tauri mode."
+    }
+    if ([string]$bootstrap.tokenSource -ne 'tauri-initialization-script') {
+        throw "Backend WebView bootstrap did not identify the Tauri token source. tokenSource=$($bootstrap.tokenSource)"
+    }
     if ([string]$bootstrap.shellSurface -ne 'tauri') {
         throw "Backend WebView bootstrap did not identify the Tauri shell surface. shellSurface=$($bootstrap.shellSurface)"
     }
+    $token = Wait-BackendTokenCapture -Path $tokenCapturePath -BackendUrl $backendUrl
 
     Write-Host "Detected Tauri shell PID $($windowProcess.Id), backend PID $backendPid, URL $backendUrl"
     Write-Host "Waiting for WebView-appended Sample Validation record."
@@ -320,6 +368,7 @@ try {
         sample_validation_note_marker = $noteMarker
         close_readiness_state = [string]$closeReadiness.state
         close_readiness_reason = [string]$closeReadiness.reason
+        auth_capture = $tokenCapturePath
         commands = $commands
         stdout_log = $stdoutLog
         stderr_log = $stderrLog

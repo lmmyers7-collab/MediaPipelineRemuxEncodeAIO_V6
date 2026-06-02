@@ -124,6 +124,17 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
         self.assertIn("MovieRouteMaxVideoBitrateMbps must be >= 1.", errors)
         self.assertIn("TVRouteMaxVideoBitrateMbps must be <= 500.", errors)
 
+    def test_numeric_policy_rejects_boolean_values_as_numbers(self) -> None:
+        values = _numeric_baseline()
+        values["EncodeThresholdGB"] = True
+        values["OutputSizeMultiplier"] = True
+        errors: list[str] = []
+
+        validate_required_and_numeric_config(values, errors)
+
+        self.assertIn("EncodeThresholdGB must be an integer.", errors)
+        self.assertIn("OutputSizeMultiplier must be numeric.", errors)
+
     def test_numeric_policy_bounds_optional_cpu_fields_when_present(self) -> None:
         values = _numeric_baseline()
         values["CpuEncodeMaxThreads"] = 300

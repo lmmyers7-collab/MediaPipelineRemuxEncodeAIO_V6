@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_settings_pipeline_plan_preview.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-30
+last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: fd4e0a903fcda2b1d76b030288c9577de26ef298ca7deac9ebec301af1786f46
+sha256: 0d34ff9c5086e78deec768f831b21063f0b412215396b82d5a9c66ddcb1c7679
 ---
 # `DesktopApp/tests/test_settings_pipeline_plan_preview.py`
 

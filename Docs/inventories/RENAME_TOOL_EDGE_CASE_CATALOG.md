@@ -2,7 +2,7 @@
 
 Date: 2026-05-14
 
-Documents the expected rename output for Movie and TV rename modes, covering normal cases, edge cases, confidence levels, sidecar behavior, and blocking conditions. Source: `service_rename_movie.py`, `service_rename_tv.py`, `service_rename_planner.py`, `service_rename_preview.py`.
+Documents the expected rename output for Movie and TV rename modes, covering normal cases, edge cases, confidence levels, sidecar behavior, and blocking conditions. Source: `app/rename/movie.py`, `app/rename/tv.py`, `app/rename/tv_folder.py`, `app/rename/planner.py`, `app/rename/preview.py`, `app/rename/apply.py`, and `engine/naming/naming.ps1`.
 
 ---
 

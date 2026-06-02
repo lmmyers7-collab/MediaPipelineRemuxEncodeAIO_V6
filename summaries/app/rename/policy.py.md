@@ -3,9 +3,9 @@ file: app/rename/policy.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: rename
-last_modified: 2026-05-28
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 5bcc9eddf2b3f58399dda550efb49df7d3d44134eeb861176104d347df9547b7
+sha256: b2d2093b2522f087f68804d9bd2a7200a456bd7d671afda3c88ffc660282317b
 ---
 # `app/rename/policy.py`
 

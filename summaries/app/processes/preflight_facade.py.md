@@ -2,10 +2,10 @@
 file: app/processes/preflight_facade.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
-last_modified: 2026-05-29
+owner_domain: process
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 0cf6b8fe8d3b7eaae23693ff47b3540c96cf65cb825fe6fb2931f0cb025d0c80
+sha256: 48ea388c39be5dafed856514c3374386abce82de7cc5ff894921ac3ff4fb9fc4
 ---
 # `app/processes/preflight_facade.py`
 

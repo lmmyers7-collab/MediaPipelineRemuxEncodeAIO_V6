@@ -3,9 +3,9 @@ file: app/publish/reconciliation_policy.py
 pipeline_stage: publish
 token_priority: medium
 owner_domain: publish
-last_modified: 2026-05-30
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: b5c402415c3a1e0627acdb98519272f2c9656fc6c24544762557fcfdad184c83
+sha256: 0a46f8a7d1f5ece7683e7a3af1a54c0a0e223287939b20b76051dccff8788218
 ---
 # `app/publish/reconciliation_policy.py`
 

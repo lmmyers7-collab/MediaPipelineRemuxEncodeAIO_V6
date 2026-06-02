@@ -691,7 +691,7 @@
           area: "Settings raw-key action plan",
           status: blockedRows.length ? "blocked" : highRows.length ? "review" : "ready",
           evidence: `status=${rawStatus}; rows=${rawActionRows.length}; blocked=${blockedRows.length}; high=${highRows.length}; review/exclusion=${reviewRows.length}; schema=${schemaRow?.posture || "unknown"}; OCR=${ocrPosture}`,
-          nextStep: blockedRows.length ? "Open Settings > Raw-Key Action Plan before save, launch, rerun, or OCR decisions; schema drift and blocked raw keys need backend Preview Patch evidence." : highRows.length ? "Open Settings > Raw-Key Action Plan and verify OCR path evidence or advanced settings before unattended processing." : "Raw-key action plan has no blocking/high-review row in the loaded Settings workspace; subtitle keyword builder coverage and auth-token exclusions remain read-only guidance."
+          nextStep: blockedRows.length ? "Open Settings > Raw-key action plan before save, launch, rerun, or OCR decisions; schema drift and blocked raw keys need backend Preview Patch evidence." : highRows.length ? "Open Settings > Raw-key action plan and verify OCR path evidence or advanced settings before unattended processing." : "Raw-key action plan has no blocking/high-review row in the loaded Settings workspace; subtitle keyword builder coverage and auth-token exclusions remain read-only guidance."
         });
       } else {
         rows.push({

@@ -2,7 +2,7 @@
 file: app/processes/spawn_runner.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: process
 last_modified: 2026-05-28
 last_reviewed: 2026-05-28
 sha256: d0b25bb758c3ab1d6b54ff85986ecfa8b9c48c952700233dfefac923d8f1f5e8

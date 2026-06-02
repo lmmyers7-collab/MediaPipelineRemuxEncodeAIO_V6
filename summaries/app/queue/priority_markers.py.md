@@ -2,7 +2,7 @@
 file: app/queue/priority_markers.py
 pipeline_stage: orchestration
 token_priority: medium
-owner_domain: unknown
+owner_domain: queue
 last_modified: 2026-05-28
 last_reviewed: 2026-05-28
 sha256: 5f773a3eb958e8125d5536123f5e6daa2e38b2c02b23297d4226f7ba37a531f9

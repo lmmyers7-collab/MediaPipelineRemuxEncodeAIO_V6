@@ -161,7 +161,7 @@ class SubtitlePolicy(PresetSectionModel):
     convert_vobsub_to_srt: bool = Field(default=False, alias="convertVobSubToSrt")
     drop_vobsub_after_conversion: bool = Field(default=False, alias="dropVobSubAfterConversion")
     vobsub_extract_languages: list[str] = Field(default_factory=lambda: ["eng", "en", "und"], alias="vobSubExtractLanguages")
-    vobsub_ocr_tool_path: str = Field(default=r"Tools\SubtitleEdit\seconv.exe", alias="vobSubOcrToolPath")
+    vobsub_ocr_tool_path: str = Field(default=r"Tools\SubtitleEditLegacy\SubtitleEdit.exe", alias="vobSubOcrToolPath")
     drop_ass_after_conversion: bool = Field(default=False, alias="dropAssAfterConversion")
     keep_signs_and_songs: bool = Field(default=True, alias="keepSignsAndSongs")
     treat_ass_signs_songs_as_forced: bool = Field(default=False, alias="treatAssSignsSongsAsForced")

@@ -134,6 +134,7 @@ function Complete-PipelineOutputPublish {
 
     $tx3gSidecars = Publish-Tx3gSrtSidecarsFromPlan -Plan $tx3gPublishPlan -Context $Context
     if ($tx3gSidecars.Failures -and @($tx3gSidecars.Failures).Count -gt 0) {
+        Undo-PublishedSidecarFiles -PublishedSidecars @($tx3gSidecars.Published) -Context $Context
         Register-Tx3gSubtitleFailure -SourceFile $SourceFile -ScratchPath $ScratchPath -Failures @($tx3gSidecars.Failures) -Stage 'subtitle-tx3g-publish'
         Add-RoundFailureRecord -SourcePath $SourceFile.FullName -Stage "$stageName-tx3g-sidecar" -Reason 'Server partial copy succeeded but tx3g SRT sidecar publish failed before final media reveal' -Classification 'transient' -SuggestedAction 'Inspect share permissions or antivirus locks on SRT sidecar writes; final server media was not revealed and the local output is being parked for retry.'
         $parkArgs = New-PendingParkArguments -EvidenceContext $publishEvidence -SourceFile $SourceFile -Paths $Paths -Route $Route -PublishMode 'retry'
@@ -224,6 +225,7 @@ function Complete-PipelineOutputPublish {
         if (-not (Invoke-ParkPendingPushWithTx3gSidecars -SourceFile $SourceFile -ScratchPath $ScratchPath -Tx3gTracks @($Tx3gTracks) -BdpgsTracks @($BdpgsTracks) -VobSubTracks @($VobSubTracks) -MediaOutputPath $Paths.ServerOut -ParkArgs $parkArgs -Context $Context)) {
             Write-Log "${logPrefix}: could not park the verified local output after sidecar failure; leaving it in place at $($Paths.LocalOut)" "ERROR"
         }
+        Undo-PublishedSidecarFiles -PublishedSidecars @($tx3gSidecars.Published) -Context $Context
         Restore-PublishSidecarAfterRevealFailure -OutputPath $Paths.ServerOut -BackupPath $publishSidecarBackup -Context $Context
         Remove-PublishPartialMedia -Path $serverPartialOut
         return New-PipelinePublishResult -Ok:$false -DeleteLocalOutput:$false -KeepScratchInput:$false -PublishState 'failed' -PublishMode 'retry' -OutputPath $Paths.LocalOut -Reason 'Sidecar write failed before final media reveal'
@@ -241,11 +243,13 @@ function Complete-PipelineOutputPublish {
         if (-not (Invoke-ParkPendingPushWithTx3gSidecars -SourceFile $SourceFile -ScratchPath $ScratchPath -Tx3gTracks @($Tx3gTracks) -BdpgsTracks @($BdpgsTracks) -VobSubTracks @($VobSubTracks) -MediaOutputPath $Paths.ServerOut -ParkArgs $parkArgs -Context $Context)) {
             Write-Log "${logPrefix}: could not park the verified local output after publish reveal failure; leaving it in place at $($Paths.LocalOut)" "ERROR"
         }
+        Undo-PublishedSidecarFiles -PublishedSidecars @($tx3gSidecars.Published) -Context $Context
         Restore-PublishSidecarAfterRevealFailure -OutputPath $Paths.ServerOut -BackupPath $publishSidecarBackup -Context $Context
         Remove-PublishPartialMedia -Path $serverPartialOut
         return New-PipelinePublishResult -Ok:$false -DeleteLocalOutput:$false -KeepScratchInput:$false -PublishState 'failed' -PublishMode 'retry' -OutputPath $Paths.LocalOut -Reason 'Final media reveal failed'
     }
     Remove-PublishSidecarBackup -BackupPath $publishSidecarBackup
+    Complete-PublishedSidecarFiles -PublishedSidecars @($tx3gSidecars.Published)
     if (Get-Command -Name Add-CompletedJobsManifestEntryFromSidecar -ErrorAction SilentlyContinue) {
         Add-CompletedJobsManifestEntryFromSidecar -OutputPath $Paths.ServerOut | Out-Null
     }

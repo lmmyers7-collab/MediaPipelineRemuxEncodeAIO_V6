@@ -3,9 +3,9 @@ file: app/config/settings_wizard_facade.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-05-29
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: d7b34433e8acd1229d7d5fce2ce674e2fb8363d77170ae97179a9abbf33532f1
+sha256: 7db8cf14c3ede3137d9322524843e50aec3ad935077566075e39fa48e9e20ce3
 ---
 # `app/config/settings_wizard_facade.py`
 

@@ -7,7 +7,7 @@ from typing import Any, Mapping
 FFMPEG_PROGRESS_SCHEMA_VERSION = "desktop_ffmpeg_progress.v1"
 
 _FFMPEG_KV_RE = re.compile(
-    r"\b(?P<key>frame|fps|time|out_time|bitrate|speed)\s*=\s*(?P<value>.*?)(?=\s+[A-Za-z_][A-Za-z0-9_]*\s*=|$)",
+    r"\b(?P<key>frame|fps|time|out_time_us|out_time_ms|out_time|bitrate|speed)\s*=\s*(?P<value>.*?)(?=\s+[A-Za-z_][A-Za-z0-9_]*\s*=|$)",
     re.IGNORECASE,
 )
 _LOG_TIMESTAMP_RE = re.compile(
@@ -65,7 +65,23 @@ def _timestamp_from_line(line: str) -> str:
 
 
 def _normalize_time_field(fields: Mapping[str, str]) -> str:
-    return str(fields.get("time") or fields.get("out_time") or "").strip()
+    text_time = str(fields.get("time") or fields.get("out_time") or "").strip()
+    if text_time:
+        return text_time
+    for key in ("out_time_us", "out_time_ms"):
+        raw = str(fields.get(key) or "").strip()
+        if not raw:
+            continue
+        try:
+            seconds = int(raw) / 1_000_000.0
+        except ValueError:
+            continue
+        whole_seconds = int(seconds)
+        microseconds = int(round((seconds - whole_seconds) * 1_000_000))
+        hours, remainder = divmod(whole_seconds, 3600)
+        minutes, secs = divmod(remainder, 60)
+        return f"{hours:02d}:{minutes:02d}:{secs:02d}.{microseconds:06d}"
+    return ""
 
 
 def _ffmpeg_fields_from_log_tail(log_tail: str, *, max_lines: int = 160) -> tuple[dict[str, str], str, str]:

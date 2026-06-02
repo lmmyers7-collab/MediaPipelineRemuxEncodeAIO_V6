@@ -230,6 +230,45 @@ LANGUAGE_DISPLAY_NAMES: dict[str, str] = {
     "kor": "Korean",
     "ko": "Korean",
 }
+LANGUAGE_NORMALIZATION_ALIASES: dict[str, str] = {
+    "": "und",
+    "und": "und",
+    "unknown": "und",
+    "undefined": "und",
+    "eng": "eng",
+    "en": "eng",
+    "english": "eng",
+    "jpn": "jpn",
+    "ja": "jpn",
+    "japanese": "jpn",
+    "spa": "spa",
+    "es": "spa",
+    "spanish": "spa",
+    "fre": "fra",
+    "fra": "fra",
+    "fr": "fra",
+    "french": "fra",
+    "ger": "deu",
+    "deu": "deu",
+    "de": "deu",
+    "german": "deu",
+    "ita": "ita",
+    "it": "ita",
+    "italian": "ita",
+    "por": "por",
+    "pt": "por",
+    "portuguese": "por",
+    "rus": "rus",
+    "ru": "rus",
+    "russian": "rus",
+    "kor": "kor",
+    "ko": "kor",
+    "korean": "kor",
+    "chi": "zho",
+    "zho": "zho",
+    "zh": "zho",
+    "chinese": "zho",
+}
 CODEC_DISPLAY_NAMES: dict[str, str] = {
     "aac": "AAC",
     "ac3": "AC-3",
@@ -650,6 +689,12 @@ def _route_preview_proposed_payload(
     else:
         route = str(current.get("route") or "unknown")
     source = "proposed_file_override" if (force_route and force_route != "auto") or video_requires_transcode else str(current.get("source") or "queue_snapshot")
+    if force_route and force_route != "auto":
+        decision_source = "forced_route_preview"
+    elif video_requires_transcode:
+        decision_source = "proposed_file_override"
+    else:
+        decision_source = "current_queue_snapshot"
     codec = "copy" if route == "remux" else str(video.get("codec") or current.get("configuredVideoCodec") or current.get("videoCodec") or "")
     return {
         "route":             route,
@@ -659,7 +704,7 @@ def _route_preview_proposed_payload(
         "routeThresholdMode": str(routing.get("routeThresholdMode") or current.get("routeThresholdMode") or ""),
         "sizeGuardMode":     str(routing.get("sizeGuardMode") or current.get("sizeGuardMode") or ""),
         "source":            source,
-        "decisionSource":    "forced_route_preview" if force_route and force_route != "auto" else "current_queue_snapshot",
+        "decisionSource":    decision_source,
     }
 
 
@@ -963,7 +1008,7 @@ def _validate_folder_rule_confirmation(value: Any) -> list[str]:
 
 
 def _validate_folder_source_path(resolved: Any, raw_path: Any) -> tuple[str | None, str | None]:
-    folder_path, error = validate_queue_source_path(resolved, raw_path)
+    folder_path, error = validate_queue_source_path(resolved, raw_path, field_name="folder_path")
     if error:
         return None, error if str(raw_path or "").strip() else "'folder_path' is required."
     path = Path(str(folder_path or ""))
@@ -1468,8 +1513,13 @@ def _track_language(value: Any) -> str:
     return text or "und"
 
 
-def _language_display(value: Any) -> str:
+def _normalize_media_language(value: Any) -> str:
     language = _track_language(value)
+    return LANGUAGE_NORMALIZATION_ALIASES.get(language, language)
+
+
+def _language_display(value: Any) -> str:
+    language = _normalize_media_language(value)
     return LANGUAGE_DISPLAY_NAMES.get(language, language.upper())
 
 
@@ -1612,7 +1662,7 @@ def _file_override_tracks_payload_from_probe_result(
     }
 
 
-def _probe_tracks_for_source_path(source_path: str) -> dict[str, Any]:
+def _probe_tracks_for_source_path(source_path: str, *, state_db_root: Path | None = None) -> dict[str, Any]:
     source = Path(source_path)
     try:
         if not source.exists() or not source.is_file():
@@ -1628,7 +1678,7 @@ def _probe_tracks_for_source_path(source_path: str) -> dict[str, Any]:
 
     result = run_probe_stage(
         {"scratch_path": source_path},
-        RunnerOptions(timeout_seconds=TRACKS_PROBE_TIMEOUT_SECONDS),
+        RunnerOptions(timeout_seconds=TRACKS_PROBE_TIMEOUT_SECONDS, state_db_root=state_db_root),
     )
     if not result.ok:
         message = result.error.message if result.error else "Track metadata probe failed."
@@ -1697,7 +1747,7 @@ def _selector_exact_stream_index(selector: Mapping[str, Any]) -> int | None:
 
 
 def _selector_language(selector: Mapping[str, Any]) -> str:
-    return _track_language(selector.get("language"))
+    return _normalize_media_language(selector.get("language"))
 
 
 def _selector_title(selector: Mapping[str, Any]) -> str:
@@ -1726,7 +1776,7 @@ def _selector_forced(selector: Mapping[str, Any]) -> bool | None:
 
 
 def _track_language_for_match(track: Mapping[str, Any]) -> str:
-    return _track_language(track.get("language"))
+    return _normalize_media_language(track.get("language"))
 
 
 def _track_title_for_match(track: Mapping[str, Any]) -> str:
@@ -1963,12 +2013,14 @@ def _track_selection_preview(
 def _override_exact_selector_validation(
     override_data: Mapping[str, Any],
     source_path: str,
+    *,
+    state_db_root: Path | None = None,
 ) -> tuple[list[str], list[str]]:
     selectors = _override_exact_selectors(override_data)
     if not selectors:
         return [], []
 
-    track_payload = _probe_tracks_for_source_path(source_path)
+    track_payload = _probe_tracks_for_source_path(source_path, state_db_root=state_db_root)
     track_metadata = _effective_track_metadata(track_payload)
     if not track_metadata.get("available"):
         message = "Track metadata is unavailable; exact stream selectors will be checked again during processing."
@@ -2552,6 +2604,7 @@ def _file_override_effective_payload(
     source_path: str,
     config: Mapping[str, Any],
     track_payload: Mapping[str, Any] | None = None,
+    state_db_root: Path | None = None,
 ) -> dict[str, Any]:
     match = resolve_file_override_match(manifest, source_path)
     entry = _mapping(match.get("entry"))
@@ -2579,7 +2632,9 @@ def _file_override_effective_payload(
         is_exact_file_override=scope == "file",
     )
     route_video_processing = _route_video_processing_projection(route_video_fields)
-    track_metadata = _effective_track_metadata(track_payload or _probe_tracks_for_source_path(source_path))
+    track_metadata = _effective_track_metadata(
+        track_payload or _probe_tracks_for_source_path(source_path, state_db_root=state_db_root)
+    )
     track_selection = _track_selection_preview(
         track_metadata=track_metadata,
         entry=entry,
@@ -2829,7 +2884,11 @@ class LocalApiFileOverridesCommandPayloadMixin:
         validation_errors = validate_file_override_payload(override_data)
         if validation_errors:
             return _fo_validation_error(validation_errors)
-        exact_errors, exact_warnings = _override_exact_selector_validation(override_data, source_path or "")
+        exact_errors, exact_warnings = _override_exact_selector_validation(
+            override_data,
+            source_path or "",
+            state_db_root=getattr(resolved, "state_root", None),
+        )
         if exact_errors:
             return _fo_validation_error(exact_errors)
         validation_warnings = file_override_payload_warnings(override_data) + exact_warnings
@@ -2908,6 +2967,7 @@ class LocalApiFileOverridesCommandPayloadMixin:
             manifest_path=fo_path,
             source_path=source_path or "",
             config=config if isinstance(config, Mapping) else {},
+            state_db_root=getattr(resolved, "state_root", None),
         )
 
     def _file_overrides_tracks_read_payload(self, query: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -2921,4 +2981,4 @@ class LocalApiFileOverridesCommandPayloadMixin:
         if error:
             return _fo_read_error(TRACKS_COMMAND, error if path_raw else "'path' is required.")
 
-        return _probe_tracks_for_source_path(source_path or "")
+        return _probe_tracks_for_source_path(source_path or "", state_db_root=getattr(resolved, "state_root", None))

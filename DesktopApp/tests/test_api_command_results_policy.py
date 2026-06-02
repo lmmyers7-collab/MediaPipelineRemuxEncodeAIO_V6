@@ -47,6 +47,9 @@ class LocalApiCommandResultsPolicyTests(unittest.TestCase):
         self.assertTrue(success["ok"])
         self.assertEqual(success["refresh_hint"], "shutdown")
         self.assertEqual(success["severity"], "info")
+        self.assertEqual(success["warnings"], [])
+        self.assertEqual(success["errors"], [])
+        self.assertEqual(success["data"], {})
 
     def test_backend_shutdown_payload_blocks_when_close_readiness_is_not_safe(self) -> None:
         payload = backend_shutdown_success_payload(

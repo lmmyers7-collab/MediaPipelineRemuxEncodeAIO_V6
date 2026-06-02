@@ -6,6 +6,7 @@ import logging
 import os
 import tempfile
 import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -41,15 +42,15 @@ class CommandJournal:
         self._lock = threading.Lock()
         self._entries: list[dict[str, Any]] = self._load()
 
-    def record(self, payload: Mapping[str, Any]) -> None:
+    def record(self, payload: Mapping[str, Any], *, request: Mapping[str, Any] | None = None) -> None:
         if not is_command_result_payload(payload):
             return
-        entry = summarize_command_payload(payload)
+        entry = summarize_command_payload(payload, request=request)
         with self._lock:
             self._entries.insert(0, entry)
             del self._entries[self.max_entries :]
             self._save_locked()
-            self._mirror_sqlite_locked(payload, entry)
+            self._mirror_sqlite_locked(entry)
 
     def to_mapping(self, *, limit: int = 20) -> dict[str, Any]:
         with self._lock:
@@ -88,7 +89,16 @@ class CommandJournal:
                 handle.write("\n")
                 handle.flush()
                 os.fsync(handle.fileno())
-            os.replace(tmp_path, self.path)
+            delay_seconds = 0.05
+            for attempt in range(7):
+                try:
+                    os.replace(tmp_path, self.path)
+                    break
+                except PermissionError:
+                    if attempt >= 6:
+                        raise
+                    time.sleep(delay_seconds)
+                    delay_seconds = min(delay_seconds * 2, 1.0)
             tmp_path = None
         except (OSError, TypeError, ValueError) as exc:
             if tmp_path is not None:
@@ -98,15 +108,12 @@ class CommandJournal:
                     self.logger.warning("Could not remove temporary local API command journal %s: %s", tmp_path, cleanup_exc)
             self.logger.warning("Could not save local API command journal %s: %s", self.path, exc)
 
-    def _mirror_sqlite_locked(self, payload: Mapping[str, Any], entry: Mapping[str, Any]) -> None:
+    def _mirror_sqlite_locked(self, entry: Mapping[str, Any]) -> None:
         if self.state_db_root is None:
             return
         try:
             from app.storage.db import open_state_db
 
-            command_event = dict(payload)
-            for key, value in entry.items():
-                command_event.setdefault(key, value)
-            open_state_db(self.state_db_root).record_command(command_event)
+            open_state_db(self.state_db_root).record_command(dict(entry))
         except Exception as exc:
             self.logger.warning("Could not mirror local API command journal to SQLite: %s", exc)

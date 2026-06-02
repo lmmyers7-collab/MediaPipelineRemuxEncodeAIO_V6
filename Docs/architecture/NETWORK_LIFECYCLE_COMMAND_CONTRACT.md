@@ -2,7 +2,7 @@
 
 Date: 2026-05-20
 
-This is the source-of-truth design contract for future WebView/Tauri Network lifecycle commands. It does not authorize implementation by itself. V5 currently has no Network start, stop, retry, reclaim, release, abort, or worker-polling POST routes and no WebView lifecycle buttons.
+This is the source-of-truth design contract for future WebView/Tauri Network lifecycle commands. It does not authorize implementation by itself. V6 currently has no Network start, stop, retry, reclaim, release, abort, or worker-polling POST routes and no WebView lifecycle buttons.
 
 The WebView may display these boundaries from `/api/contract`, but it must not infer lifecycle safety, start or stop coordinator/worker runtime, author queue state, release claims, send done reports, write Network state files, launch media work, or touch source/scratch/output/pending-publish files.
 
@@ -13,7 +13,7 @@ The WebView may display these boundaries from `/api/contract`, but it must not i
 - `/api/contract` publishes `network_lifecycle_summary.status=design_only_no_lifecycle_routes`.
 - Every network lifecycle contract has `mutation_enabled=false` and `frontend_allowed=false`.
 - `GET /api/network/workers` remains read-only persisted runtime-state evidence.
-- `POST /api/diagnostics/open` remains the only Network-page command surface, and it accepts backend-allowlisted target keys only.
+- No Network lifecycle POST route exists on the Network page. Non-lifecycle Network-page actions are limited to backend-owned Diagnostics opens (`POST /api/diagnostics/open`) and the Worker Mode Settings panel, which delegates preview/save to the existing Settings routes (`POST /api/settings/preview-patch`, `POST /api/settings/save-patch`) instead of creating Network lifecycle routes.
 - No POST route in `LOCAL_API_ROUTE_CONTRACT` may include Network lifecycle semantics while this status remains design-only.
 
 ---

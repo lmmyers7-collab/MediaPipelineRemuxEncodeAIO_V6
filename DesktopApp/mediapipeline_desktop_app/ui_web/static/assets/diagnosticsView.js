@@ -422,13 +422,16 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
     if (!actions) return;
     actions.replaceChildren();
     matches.slice(0, 6).forEach((artifact) => {
-      const button = document.createElement("button");
-      button.className = "secondary-button";
-      button.type = "button";
-      button.dataset.openDiagnostics = artifact.target;
-      button.textContent = `Open ${artifact.name}`;
-      button.addEventListener("click", () => requestDiagnosticsOpen(artifact.target));
-      actions.appendChild(button);
+      const openTarget = String(artifact.target || "").trim();
+      if (openTarget) {
+        const button = document.createElement("button");
+        button.className = "secondary-button";
+        button.type = "button";
+        button.dataset.openDiagnostics = openTarget;
+        button.textContent = `Open ${artifact.name}`;
+        button.addEventListener("click", () => requestDiagnosticsOpen(openTarget));
+        actions.appendChild(button);
+      }
       if (artifact.tailTarget) {
         const tailButton = document.createElement("button");
         tailButton.className = "secondary-button";
@@ -456,7 +459,8 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
       return;
     }
     matches.forEach((artifact) => {
-      lines.push("", `${artifact.name} (${artifact.count} clue${artifact.count === 1 ? "" : "s"}; open target: ${artifact.target})`);
+      const openTarget = artifact.target || "none; use row guidance";
+      lines.push("", `${artifact.name} (${artifact.count} clue${artifact.count === 1 ? "" : "s"}; open target: ${openTarget})`);
       lines.push(`Next step: ${artifact.hint}`);
       artifact.samples.forEach((sample) => lines.push(`- ${sample}`));
     });

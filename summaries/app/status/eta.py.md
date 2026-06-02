@@ -2,7 +2,7 @@
 file: app/status/eta.py
 pipeline_stage: observability
 token_priority: medium
-owner_domain: unknown
+owner_domain: observability
 last_modified: 2026-05-29
 last_reviewed: 2026-05-29
 sha256: bf71ec6ad4ee39bae39bdbdc36888a3d05677156234061c63c951550fee88d0b

@@ -1,8 +1,8 @@
 ---
 file: Pipeline/Setup-MediaPipeline/Dependencies.ps1
-pipeline_stage: n/a
+pipeline_stage: setup
 token_priority: medium
-owner_domain: unknown
+owner_domain: scripts
 last_modified: 2026-05-30
 last_reviewed: 2026-05-30
 sha256: 127364df462c3454735e23e1cb7fe30f1733e4723a23e0ef9ad54aa903eabe44

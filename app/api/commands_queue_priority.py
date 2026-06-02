@@ -38,6 +38,7 @@ from typing import Any
 from mediapipeline_desktop_app.api.queue_source_path_policy import validate_queue_source_path
 from app.queue.priority_manifest import (
     VALID_LEVELS,
+    clear_priority_manifest,
     manifest_to_api_payload,
     read_priority_manifest,
     set_manifest_entries_bulk,
@@ -88,6 +89,19 @@ class LocalApiQueuePriorityCommandPayloadMixin:
                 "state_root is not configured (LocalBase may be missing from config)",
                 command_result=True,
             )
+
+        if request.get("clear_all"):
+            try:
+                manifest = clear_priority_manifest(manifest_path)
+            except Exception as exc:
+                self.logger.exception("queue.priority clear_all failed: %s", exc)
+                return _priority_error_payload(f"Failed to clear priority manifest: {exc}")
+
+            payload = manifest_to_api_payload(manifest, manifest_path)
+            payload["command"] = "queue.priority"
+            payload["severity"] = "ok"
+            payload["message"] = "All priority manifest entries cleared."
+            return _priority_command_result_payload(payload)
 
         # ----------------------------------------------------------------
         # Bulk mode — "items" key present

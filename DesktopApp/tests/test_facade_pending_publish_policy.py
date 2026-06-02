@@ -15,6 +15,7 @@ from app.publish.pending_policy import (
     normalize_pending_publish_row_key,
     pending_publish_open_path,
     pending_publish_open_scan_exception_result,
+    pending_publish_open_scan_service_unavailable_result,
     pending_publish_open_success_result,
     pending_publish_invalid_result,
     pending_publish_error_warning,
@@ -238,6 +239,13 @@ class PendingPublishFacadePolicyTests(unittest.TestCase):
         self.assertEqual(scan_failed.severity, "error")
         self.assertIn("scan locked", scan_failed.message)
         self.assertEqual(scan_failed.data["row_key"], row_key)
+
+        scan_unavailable = pending_publish_open_scan_service_unavailable_result(row_key)
+        self.assertFalse(scan_unavailable.ok)
+        self.assertEqual(scan_unavailable.severity, "error")
+        self.assertEqual(scan_unavailable.message, PENDING_PUBLISH_SERVICE_UNAVAILABLE_MESSAGE)
+        self.assertEqual(scan_unavailable.errors, [PENDING_PUBLISH_SERVICE_UNAVAILABLE_MESSAGE])
+        self.assertEqual(scan_unavailable.data["row_key"], row_key)
 
     def test_recovery_plan_result_is_dry_run_and_classifies_rows(self) -> None:
         rows = pending_publish_rows(

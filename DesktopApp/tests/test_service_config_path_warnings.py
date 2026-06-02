@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 import unittest
 from pathlib import Path
@@ -65,6 +66,21 @@ class ServiceConfigPathWarningTests(unittest.TestCase):
 
         self.assertEqual(warnings.count("SourceMovies and SourceTV point to the same location."), 1)
         self.assertEqual(warnings.count("LocalBase and Outsource are identical. That defeats scratch-vs-library separation."), 1)
+
+    @unittest.skipUnless(os.name == "nt", "Windows drive-root paths are platform-specific")
+    def test_config_root_path_warnings_preserves_drive_root_absolute_paths(self) -> None:
+        warnings = config_root_path_warnings(
+            {
+                "SourceMovies": "C:\\",
+                "SourceTV": "D:\\TV",
+                "Outsource": "E:\\Out",
+                "LocalBase": "F:\\Local",
+            },
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        self.assertNotIn("SourceMovies should be an absolute path.", warnings)
 
 
 if __name__ == "__main__":

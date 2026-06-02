@@ -2,7 +2,7 @@
 file: app/status/readers.py
 pipeline_stage: observability
 token_priority: medium
-owner_domain: unknown
+owner_domain: observability
 last_modified: 2026-05-31
 last_reviewed: 2026-05-28
 sha256: 6617b12e4d13c891195718228c08b34344624f7f546c836d089018847e17af71

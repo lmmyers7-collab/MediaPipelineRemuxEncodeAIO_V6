@@ -32,7 +32,9 @@ use close_readiness::{
     close_readiness_warning_detail, close_readiness_watcher_lines, request_close_readiness,
     CloseReadiness, ContinuousWatcher,
 };
-use debug_webview::maybe_schedule_debug_webview_autolaunch;
+use debug_webview::{
+    maybe_schedule_debug_webview_autolaunch, maybe_write_debug_backend_auth_capture,
+};
 use dialogs::resolve_desktop_root;
 #[cfg(test)]
 use dialogs::{desktop_root_candidates_from_exe_dir, format_path_candidates};
@@ -55,6 +57,7 @@ pub fn run() {
             app.manage(single_instance_guard);
             let desktop_root = resolve_desktop_root()?;
             let backend = start_backend(&desktop_root)?;
+            maybe_write_debug_backend_auth_capture(backend.url(), backend.token());
             let initialization_script =
                 tauri_bootstrap_initialization_script(backend.token(), backend.startup_warnings());
             let url = url::Url::parse(backend.url())?;

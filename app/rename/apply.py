@@ -26,7 +26,12 @@ def rename_path_case_safe(source: Path, destination: Path, *, same_file: SameFil
     if source.name.casefold() == destination.name.casefold() and source.name != destination.name:
         temp = source.with_name(f".mediapipeline-rename-{uuid.uuid4().hex}{source.suffix}")
         source.rename(temp)
-        temp.rename(destination)
+        try:
+            temp.rename(destination)
+        except Exception:
+            if temp.exists() and not source.exists():
+                temp.rename(source)
+            raise
     else:
         source.rename(destination)
 

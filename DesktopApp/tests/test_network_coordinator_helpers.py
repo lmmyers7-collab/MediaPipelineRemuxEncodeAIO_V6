@@ -275,18 +275,24 @@ class NetworkCoordinatorHelperTests(unittest.TestCase):
                     "BEAST-PC": {
                         "VideoPreset": "p7",
                         "ExtraVideoFlags": "-b:v 8M",
+                        "SourceMovies": r"\\server\source",
+                        "WorkerAuthToken": "do-not-send",
                     }
                 }
             ),
         }
 
-        snapshot = snapshot_encode_config(config, "beast-pc")
+        with self.assertLogs("mediapipeline_desktop_app.network.encode_config_snapshot", level="WARNING") as logs:
+            snapshot = snapshot_encode_config(config, "beast-pc")
 
         self.assertEqual(snapshot["VideoCodec"], "hevc_nvenc")
         self.assertEqual(snapshot["VideoPreset"], "p7")
         self.assertEqual(snapshot["SizeGuardMode"], "strict")
         self.assertEqual(snapshot["ExtraVideoFlags"], "-b:v 8M")
         self.assertNotIn("UnrelatedKey", snapshot)
+        self.assertNotIn("SourceMovies", snapshot)
+        self.assertNotIn("WorkerAuthToken", snapshot)
+        self.assertIn("Ignoring unsupported WorkerConfigOverrides keys", "\n".join(logs.output))
 
     def test_coordinator_snapshot_encode_config_uses_helper(self) -> None:
         dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)

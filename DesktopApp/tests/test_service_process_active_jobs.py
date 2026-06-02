@@ -205,6 +205,57 @@ class ProcessActiveJobHelperTests(unittest.TestCase):
             self.assertEqual(updated["status"], "orphaned")
             self.assertEqual(updated["reconcile_reason"], "pid 99999 is no longer running")
 
+    def test_reconcile_uses_state_root_active_jobs_fallback(self) -> None:
+        class FakeNoSuchProcess(Exception):
+            pass
+
+        class FakePsutil:
+            NoSuchProcess = FakeNoSuchProcess
+            STATUS_ZOMBIE = "zombie"
+
+            @staticmethod
+            def Process(_pid: int):
+                raise FakeNoSuchProcess()
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            active_jobs = root / "State" / "ActiveJobs"
+            active_jobs.mkdir(parents=True)
+            record_path = active_jobs / "launch.json"
+            write_active_job_payload(
+                record_path,
+                {
+                    "schema_version": "desktop_active_job.v1",
+                    "launch_id": "launch",
+                    "job_kind": "pipeline",
+                    "mode": "continuous",
+                    "status": "active",
+                    "pid": 99999,
+                    "app_pid": 1,
+                    "command_line": "pwsh",
+                    "args": ["pwsh"],
+                    "cwd": str(root),
+                    "stdout_log": "",
+                    "stderr_log": "",
+                    "show_console": False,
+                    "metadata": {},
+                    "launched_at": "2026-05-06T12:00:00-04:00",
+                    "last_update": "2026-05-06T12:00:01-04:00",
+                    "return_code": None,
+                },
+            )
+            resolved = self._resolved(root)
+            resolved.state_root = root / "State"
+            resolved.active_jobs_path = None
+
+            messages = reconcile_active_job_records(resolved, psutil_module=FakePsutil)
+
+            updated = json.loads(record_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(updated["status"], "orphaned")
+        self.assertIn("pid 99999 is no longer running", updated["reconcile_reason"])
+
     def test_reconcile_reports_malformed_active_job_record(self) -> None:
         class FakePsutil:
             NoSuchProcess = RuntimeError

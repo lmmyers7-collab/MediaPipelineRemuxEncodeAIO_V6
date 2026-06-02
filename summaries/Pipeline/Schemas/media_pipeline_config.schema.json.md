@@ -3,9 +3,9 @@ file: Pipeline/Schemas/media_pipeline_config.schema.json
 pipeline_stage: config
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-31
-sha256: 5a7d2e74cf297d1262c96af8bdeb78f7b69e6c1808cbf8c3b3da4b5276255d19
+sha256: 1e5830348ef5900c94517b0a7e35931826695b963c6333f4424dd527b859e5cf
 ---
 # `Pipeline/Schemas/media_pipeline_config.schema.json`
 

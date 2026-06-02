@@ -74,7 +74,7 @@ def vobsub_ocr_path_warning(values: dict[str, Any]) -> str | None:
     tool_path = str(values.get(KEY_VOBSUB_OCR_TOOL_PATH, "") or "").strip()
     if tool_path:
         return None
-    return "VobSubOcrToolPath is blank while ConvertVobSubToSrt is enabled; VobSub OCR will be blocked until Subtitle Edit seconv.exe is configured."
+    return "VobSubOcrToolPath is blank while ConvertVobSubToSrt is enabled; VobSub OCR will be blocked until Subtitle Edit 4.x SubtitleEdit.exe is configured."
 
 
 def _coerce_promotion_rules(raw: Any) -> list[dict[str, Any]]:

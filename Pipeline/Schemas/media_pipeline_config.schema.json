@@ -410,8 +410,13 @@
     },
     {
       "if": {
-        "required": [ "ConvertBdpgsToSrt" ],
-        "properties": { "ConvertBdpgsToSrt": { "const": false } }
+        "anyOf": [
+          { "not": { "required": [ "ConvertBdpgsToSrt" ] } },
+          {
+            "required": [ "ConvertBdpgsToSrt" ],
+            "properties": { "ConvertBdpgsToSrt": { "const": false } }
+          }
+        ]
       },
       "then": {
         "not": {
@@ -422,13 +427,42 @@
     },
     {
       "if": {
-        "required": [ "ConvertVobSubToSrt" ],
-        "properties": { "ConvertVobSubToSrt": { "const": false } }
+        "required": [ "ConvertBdpgsToSrt" ],
+        "properties": { "ConvertBdpgsToSrt": { "const": true } }
+      },
+      "then": {
+        "not": {
+          "required": [ "BdpgsOcrToolPath" ],
+          "properties": { "BdpgsOcrToolPath": { "type": "string", "pattern": "^\\s*$" } }
+        }
+      }
+    },
+    {
+      "if": {
+        "anyOf": [
+          { "not": { "required": [ "ConvertVobSubToSrt" ] } },
+          {
+            "required": [ "ConvertVobSubToSrt" ],
+            "properties": { "ConvertVobSubToSrt": { "const": false } }
+          }
+        ]
       },
       "then": {
         "not": {
           "required": [ "DropVobSubAfterConversion" ],
           "properties": { "DropVobSubAfterConversion": { "const": true } }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [ "ConvertVobSubToSrt" ],
+        "properties": { "ConvertVobSubToSrt": { "const": true } }
+      },
+      "then": {
+        "not": {
+          "required": [ "VobSubOcrToolPath" ],
+          "properties": { "VobSubOcrToolPath": { "type": "string", "pattern": "^\\s*$" } }
         }
       }
     }

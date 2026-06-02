@@ -53,8 +53,9 @@ Operator guidance for diagnosing and resolving failure states in the Completed a
 **Investigation sequence**:
 1. Select the Completed row → check sidecar status in the row detail panel.
 2. Tail `completed_manifest` to see if `sidecar` field is populated with a path that no longer exists.
-3. Open `completed_manifest` folder (`POST /api/diagnostics/open` with `completed_manifest` target) to browse sidecar files.
-4. Check `last_stderr_log` for the original run — a crash at sidecar write stage leaves a gap.
+3. Open the backend-selected sidecar or output folder from the Completed row action if you need to browse sidecar files.
+4. Open or tail `completed_manifest` (`POST /api/diagnostics/open` or `GET /api/diagnostics/tail` with `completed_manifest` target) to inspect the manifest file itself.
+5. Check `last_stderr_log` for the original run — a crash at sidecar write stage leaves a gap.
 
 **Safe next actions**:
 - Sidecar missing after a confirmed encode: the output is still valid; the sidecar gap is a metadata issue. Document the gap in the sample validation log via `POST /api/sample-validation/append`.

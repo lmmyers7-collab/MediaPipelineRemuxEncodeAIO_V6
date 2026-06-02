@@ -24,6 +24,7 @@ $pathResolutionRunnerPath = Join-Path $repoRoot 'app\paths\resolution_runner.py'
 $appStateMigrationTestPath = Join-Path $desktopRoot 'tests\test_service_path_state_migration.py'
 $pathResolutionRunnerTestPath = Join-Path $desktopRoot 'tests\test_service_path_resolution_runner.py'
 $runtimeInventoryPath = Join-Path $repoRoot 'Docs\inventories\RUNTIME_ARTIFACT_INVENTORY.md'
+$stateSchemaReferencePath = Join-Path $repoRoot 'Docs\inventories\STATE_FILE_SCHEMA_REFERENCE.md'
 $gitignorePath = Join-Path $repoRoot '.gitignore'
 $releaseManifestPath = Join-Path $repoRoot 'release_manifest.json'
 $releasePolicyPath = Join-Path $repoRoot 'scripts\release\release_policy.ps1'
@@ -52,6 +53,7 @@ Assert-True (Test-Path -LiteralPath $pathResolutionRunnerPath -PathType Leaf) 'a
 Assert-True (Test-Path -LiteralPath $appStateMigrationTestPath -PathType Leaf) 'test_service_path_state_migration.py is missing.'
 Assert-True (Test-Path -LiteralPath $pathResolutionRunnerTestPath -PathType Leaf) 'test_service_path_resolution_runner.py is missing.'
 Assert-True (Test-Path -LiteralPath $runtimeInventoryPath -PathType Leaf) 'RUNTIME_ARTIFACT_INVENTORY.md is missing.'
+Assert-True (Test-Path -LiteralPath $stateSchemaReferencePath -PathType Leaf) 'STATE_FILE_SCHEMA_REFERENCE.md is missing.'
 $isReleaseBundle = Test-Path -LiteralPath $releaseManifestPath -PathType Leaf
 if (-not $isReleaseBundle) {
     Assert-True (Test-Path -LiteralPath $gitignorePath -PathType Leaf) '.gitignore is missing.'
@@ -64,6 +66,7 @@ $pathResolutionRunnerText = Get-Content -LiteralPath $pathResolutionRunnerPath -
 $appStateMigrationTestText = Get-Content -LiteralPath $appStateMigrationTestPath -Raw
 $pathResolutionRunnerTestText = Get-Content -LiteralPath $pathResolutionRunnerTestPath -Raw
 $runtimeInventoryText = Get-Content -LiteralPath $runtimeInventoryPath -Raw
+$stateSchemaReferenceText = Get-Content -LiteralPath $stateSchemaReferencePath -Raw
 $gitignoreText = if (Test-Path -LiteralPath $gitignorePath -PathType Leaf) {
     Get-Content -LiteralPath $gitignorePath -Raw
 } else {
@@ -94,6 +97,20 @@ Assert-Contains $pathResolutionRunnerTestText 'local_base / "State" / "Completed
 Assert-Contains $runtimeInventoryText 'Desktop app state' 'Runtime artifact inventory must document desktop app state.'
 Assert-Contains $runtimeInventoryText 'State\App\MediaPipelineRemuxEncodeAIO_DesktopApp.state.json' 'Runtime artifact inventory must document app state under LocalBase\State\App.'
 Assert-Contains $runtimeInventoryText 'State\Completed\completed_jobs.jsonl' 'Runtime artifact inventory must document completed jobs JSONL under LocalBase\State\Completed.'
+Assert-Contains $runtimeInventoryText 'State\Progress\queue_snapshot.json' 'Runtime artifact inventory must document the active queue snapshot filename.'
+Assert-True (-not $runtimeInventoryText.Contains('State\Progress\queue_plan_snapshot.json')) 'Runtime artifact inventory must not document the stale queue_plan_snapshot.json filename.'
+Assert-Contains $runtimeInventoryText 'State\PendingServerPush\*.manifest.json' 'Runtime artifact inventory must document flat pending publish manifest files.'
+Assert-Contains $runtimeInventoryText 'State\Progress\pending_drain_summary.json' 'Runtime artifact inventory must document the active pending drain summary path.'
+Assert-Contains $stateSchemaReferenceText 'MediaPipelineRemuxEncodeAIO V6' 'State schema reference must describe the active V6 surface.'
+Assert-Contains $stateSchemaReferenceText 'State\Completed\completed_jobs.jsonl' 'State schema reference must document the completed manifest state path.'
+Assert-Contains $stateSchemaReferenceText '.pipeline.json' 'State schema reference must document the active pipeline sidecar extension.'
+Assert-Contains $stateSchemaReferenceText 'State\PendingServerPush\*.manifest.json' 'State schema reference must document flat pending publish manifest files.'
+Assert-True (-not $stateSchemaReferenceText.Contains('pending_push_manifest.jsonl')) 'State schema reference must not document stale pending_push_manifest.jsonl storage.'
+Assert-Contains $stateSchemaReferenceText 'vobsub_srt_conversion_enabled' 'State schema reference must document VobSub pending-publish fields.'
+Assert-Contains $stateSchemaReferenceText 'State\Progress\queue_snapshot.json' 'State schema reference must document the active queue snapshot path.'
+Assert-Contains $stateSchemaReferenceText 'route_decision_trace' 'State schema reference must document queue route-decision evidence fields.'
+Assert-Contains $stateSchemaReferenceText 'State\Progress\pipeline_progress.json' 'State schema reference must document the progress JSON path.'
+Assert-Contains $stateSchemaReferenceText 'State\Progress\pipeline_events.jsonl' 'State schema reference must document the pipeline events JSONL path.'
 if ($gitignoreText) {
     Assert-Contains $gitignoreText '/DesktopApp/encode_speed_history.json' '.gitignore must reject legacy app-root encode-speed history.'
     Assert-Contains $gitignoreText 'DesktopApp/*.state.json' '.gitignore must reject legacy app-root desktop state files.'

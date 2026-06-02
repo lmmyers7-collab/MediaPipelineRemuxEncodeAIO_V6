@@ -53,6 +53,8 @@
       ["settingsTab", "settings"],
       ["diagTab", "diagnostics"],
       ["completedTab", "completed"],
+      ["launchTabPanel", "launch"],
+      ["reportsTabPanel", "reports"],
     ];
     for (const [datasetKey, label] of tabPairs) {
       if (container.dataset?.[datasetKey]) {
@@ -980,6 +982,8 @@
       ["settingsTab", "settingsTab"],
       ["diagTab", "diagTab"],
       ["completedTab", "completedTab"],
+      ["launchTabPanel", "launchTab"],
+      ["reportsTabPanel", "reportsTab"],
     ];
     for (const [paneKey, buttonKey] of pairs) {
       const tab = container.dataset?.[paneKey];

@@ -201,7 +201,8 @@
       const bits = [];
       if (data.target || request.target) bits.push(`target=${data.target || request.target}`);
       if (data.row_key || request.row_key) bits.push(`row=${data.row_key || request.row_key}`);
-      if (data.opened_path) bits.push(`opened=${data.opened_path}`);
+      const openedPath = data.path || data.opened_path;
+      if (openedPath) bits.push(`opened=${openedPath}`);
       if (typeof commandHistoryCompactEvidenceLine === "function") {
         return commandHistoryCompactEvidenceLine(entry, {
           label: "pending_publish.open",

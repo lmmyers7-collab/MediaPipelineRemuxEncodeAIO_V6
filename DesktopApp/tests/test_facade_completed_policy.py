@@ -116,6 +116,34 @@ class CompletedFacadePolicyTests(unittest.TestCase):
         self.assertIn("ffprobe output proof not reported", row["validation_unavailable_reasons"])
         self.assertEqual(row["available_open_targets"], ["output_file", "output_folder", "sidecar", "source_folder"])
 
+    def test_completed_row_marks_sidecar_only_inconsistency_for_operator_review(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            output = root / "Outsource" / "Movies" / "Sidecar Missing.mkv"
+            output.parent.mkdir(parents=True)
+            output.write_bytes(b"x" * 4096)
+            record = _record(
+                source=str(root / "Source" / "Sidecar Missing.mkv"),
+                output=str(output),
+                sidecar=str(output.with_suffix(".pipeline.json")),
+                route="remux",
+                output_size=4096,
+                output_exists=True,
+            )
+
+            row = completed_record_to_row(record)
+
+        self.assertEqual(row["consistency_status"], "Review")
+        self.assertEqual(row["consistency_severity"], "warning")
+        self.assertFalse(row["sidecar_exists"])
+        self.assertIn("missing_sidecar", row["consistency_issues"])
+        self.assertEqual(row["operator_status"], "Sidecar proof review")
+        self.assertEqual(row["operator_status_state"], "warning")
+        self.assertEqual(row["operator_severity"], "warning")
+        self.assertIn("missing_sidecar", row["review_flags"])
+        self.assertEqual(row["operator_trust_state"], "review-before-rerun-or-cleanup")
+        self.assertIn("sidecar is missing", row["primary_concern"])
+
     def test_completed_trust_fields_fixture_parity_for_consistent_row(self) -> None:
         row = {
             "review_flags": ["encoded", "size_policy_within_limit"],

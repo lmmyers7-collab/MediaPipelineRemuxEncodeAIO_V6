@@ -174,7 +174,7 @@ Write-Header 'MediaPipelineRemuxEncodeAIO Deployment'
     if ($ValidateOnly) {
         if (-not (Test-Path -LiteralPath $script:ConfigPath)) {
             Write-Fail "Config file not found: $script:ConfigPath"
-Write-Info "Run Setup-MediaPipelineRemuxEncodeAIO.bat to create it."
+            Write-Info "Run scripts\dev\setup.bat from the repository root to create it."
             return 1
         }
         $result = Invoke-Validation -Config $existing

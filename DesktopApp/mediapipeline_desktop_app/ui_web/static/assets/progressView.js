@@ -355,7 +355,22 @@
   }
 
   function progressActiveJobRows(diagnostics) {
+    const structuredRows = Array.isArray(diagnostics?.active_job_rows) ? diagnostics.active_job_rows.filter(Boolean) : [];
+    if (structuredRows.length) return structuredRows;
     return Array.isArray(diagnostics?.active_jobs) ? diagnostics.active_jobs.filter(Boolean) : [];
+  }
+
+  function formatActiveJobEvidenceRow(row) {
+    if (!row || typeof row !== "object") return formatProgressValue(row);
+    return [
+      row.job_kind || row.record_file || "ActiveJobs record",
+      row.mode ? `mode=${formatProgressValue(row.mode)}` : "",
+      row.status ? `status=${formatProgressValue(row.status)}` : "",
+      row.status_state ? `state=${formatProgressValue(row.status_state)}` : "",
+      row.launch_id ? `launch=${formatProgressValue(row.launch_id)}` : "",
+      row.pid !== undefined && row.pid !== null ? `pid=${formatProgressValue(row.pid)}` : "",
+      row.issue ? `issue=${formatProgressValue(row.issue)}` : "",
+    ].filter(Boolean).join("; ");
   }
 
   function progressWorkerPayload(snapshot = null, diagnostics = null) {
@@ -528,7 +543,7 @@
         ? "Open Diagnostics > ActiveJobs or Runtime Artifacts before closing, relaunching, or clearing state."
         : "If progress says active but ActiveJobs is empty, inspect Run Logs and Last Stderr for stale progress state.",
       detail: activeJobs.length
-        ? activeJobs.slice(0, 8).map((row) => formatProgressValue(row))
+        ? activeJobs.slice(0, 8).map(formatActiveJobEvidenceRow)
         : ["No ActiveJobs rows were loaded from Diagnostics."],
     });
 

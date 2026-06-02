@@ -12,11 +12,21 @@ Runtime state lives under `LocalBase\State\`. `LocalBase` is a config key; its d
 
 ---
 
+## SQLite Mirror
+
+| Artifact | Relative path | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |
+|---|---|---|---|---|---|---|
+| SQLite state mirror | `State\mediapipeline_state.sqlite3` | Desktop app / Python stage tooling | Shadow writes from command journal entries, Python stage events, Queue dry-run snapshots, and Completed manifest rows | Troubleshooting only; JSON/state files remain authoritative | No while the backend is running; with the backend stopped it can be rebuilt opportunistically from future JSON/state activity | N/A |
+
+The SQLite mirror is additive diagnostic evidence only. Do not use it as the source of truth for queue scope, completed output acceptance, pending publish drain decisions, command history rendering, or recovery actions.
+
+---
+
 ## Progress and Queue
 
 | Artifact | Relative path | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |
 |---|---|---|---|---|---|---|
-| Queue snapshot | `State\Progress\queue_plan_snapshot.json` | Pipeline (PS) | `-EmitQueuePlan` flag | Desktop app, local API, WebView Queue | No — pipeline reads at startup and refresh | `queue_snapshot` |
+| Queue snapshot | `State\Progress\queue_snapshot.json` | Pipeline (PS) | `-EmitQueuePlan` flag | Desktop app, local API, WebView Queue | No — pipeline reads at startup and refresh | `queue_snapshot` |
 | Progress JSON | `State\Progress\pipeline_progress.json` | Pipeline (PS) | Running pipeline | Desktop app, local API | No during active run | (via `state`) |
 | Pipeline events log | `State\Progress\pipeline_events.jsonl` | Pipeline (PS) | Runtime events | Desktop app, WebView Diagnostics | No during active run; bounded-tail read is safe | (via `state`) |
 | Run log (stdout) | `State\Progress\last_stdout.log` | Pipeline (PS) | Pipeline stdout | Desktop app, Diagnostics | No during active run | `last_stdout_log` |
@@ -50,9 +60,9 @@ Legacy `DesktopApp\encode_speed_history.json` and `DesktopApp\MediaPipelineRemux
 | Artifact | Relative path | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |
 |---|---|---|---|---|---|---|
 | Failure markers | `State\Failures\Markers\` | Pipeline (PS) | Failed jobs | Queue exclusions, local API | Via Reports Clear Retry Blockers / `POST /api/failures/clear` only — not manual delete | `failed_markers` |
-| Failure reports | `State\Failures\reports\` | Pipeline (PS) | Failed jobs | Desktop app, Diagnostics | After reviewing and capturing evidence | `failed_reports` |
-| Latest failure JSON | `State\Failures\latest_failure.json` | Pipeline (PS) | Most recent failure | Local API, WebView Diagnostics | No during active investigation | `latest_failure_json` |
-| Latest failure report | `State\Failures\latest_failure_report.txt` | Pipeline (PS) | Most recent failure | Desktop app, Diagnostics | After reviewing | `latest_failure_report` |
+| Failure reports | `State\Failures\Reports\` | Pipeline (PS) | Failed jobs | Desktop app, Diagnostics | After reviewing and capturing evidence | `failed_reports` |
+| Latest failure JSON target | `State\Failures\Reports\round_failures_*.json` (newest by modification time) | Pipeline (PS) | Most recent failure report JSON | Local API, WebView Diagnostics | No during active investigation | `latest_failure_json` |
+| Latest failure report target | `State\Failures\Reports\round_failures_*.txt` (newest by modification time) | Pipeline (PS) | Most recent failure report text | Desktop app, Diagnostics | After reviewing | `latest_failure_report` |
 | Clear manifest | `State\Failures\ClearManifests\failure_clear_*.json` | Desktop app (Python) | Reports Clear Retry Blockers / failure-marker clear command | Operator audit trail | No — retain as evidence of cleared retry blockers | N/A |
 | Cleared marker archive | `State\Failures\ClearManifests\ClearedMarkers\*` | Desktop app (Python) | Reports Clear Retry Blockers / failure-marker clear command | Operator audit trail | After confirming rerun behavior and keeping the clear manifest | N/A |
 
@@ -63,9 +73,9 @@ Legacy `DesktopApp\encode_speed_history.json` and `DesktopApp\MediaPipelineRemux
 | Artifact | Relative path | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |
 |---|---|---|---|---|---|---|
 | Pending publish root | `State\PendingServerPush\` | Pipeline (PS) | Deferred publish events | Desktop app, local API, WebView Pending Publish | No — backend drain reads these | `pending_publish` |
-| Per-batch manifests | `State\PendingServerPush\<batch>\manifest.json` | Pipeline (PS) | Deferred publish | Drain service, recovery dry-run | No — drain service owns lifecycle | `pending_publish` |
-| Parked output payloads | `State\PendingServerPush\<batch>\<files>` | Pipeline (PS) | Deferred publish | Drain service | No — use recovery-plan to assess before draining | `pending_publish` |
-| Drain summary | `State\PendingServerPush\pending_drain_summary.json` | Pipeline (PS) | Drain execution | WebView Pending Publish evidence | No during ongoing drain | `pending_publish` |
+| Pending publish manifests | `State\PendingServerPush\*.manifest.json` | Pipeline (PS) | Deferred publish | Drain service, recovery dry-run | No — drain service owns lifecycle | `pending_publish` |
+| Parked output payloads | `State\PendingServerPush\*` beside matching `.manifest.json` files | Pipeline (PS) | Deferred publish | Drain service | No — use recovery-plan to assess before draining | `pending_publish` |
+| Drain summary | `State\Progress\pending_drain_summary.json` | Pipeline (PS) | Drain execution | WebView Pending Publish evidence | No during ongoing drain | `pending_publish` |
 
 ---
 
@@ -97,11 +107,19 @@ Legacy `DesktopApp\encode_speed_history.json` and `DesktopApp\MediaPipelineRemux
 
 ---
 
-## Command Journal (In-Memory)
+## UI Preferences
+
+| Artifact | Relative path | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |
+|---|---|---|---|---|---|---|
+| Shared UI preferences | `State\ui_preferences.json` | Local API (Python) | `POST /api/ui-preferences` | Browser WebView and Tauri shell | After backend stop; resets local layout/theme/tab choices only | N/A |
+
+---
+
+## Command Journal
 
 | Artifact | Location | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |
 |---|---|---|---|---|---|---|
-| Command journal | In-memory bounded FIFO | Local API (Python) | Every POST command route | WebView Command History, Diagnostics | N/A — in-memory; resets on backend restart | (via `/api/commands`) |
+| Command journal | In-memory bounded FIFO plus `RunLogs\local_api_command_history.json` when a journal path is configured | Local API (Python) | Successful command-result payloads from POST command routes | WebView Command History, Diagnostics; shadow-mirrored to SQLite when a state root is available | No while the backend is running; capture evidence before clearing historical RunLogs | (via `/api/commands`) |
 
 ---
 

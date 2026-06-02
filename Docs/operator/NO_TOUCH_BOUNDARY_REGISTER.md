@@ -18,6 +18,23 @@ This register applies to all admin, documentation, and WebView frontend tasks. E
 
 ---
 
+## External Rollback Workspace (V5)
+
+**What**: The external `MediaPipelineRemuxEncodeAIO_V5` rollback/fallback workspace
+or any file path under it.
+
+**Why**: V5 is the active rollback safety net for this promoted V6 workspace.
+Changing it during V6 work can destroy the operator's known fallback evidence and
+make rollback behavior ambiguous.
+
+**Safe alternative**: Do active work in V6. If a V5 behavior or note is needed,
+copy the relevant context into current V6 documentation instead of editing V5.
+
+**Gate before touching**: Explicit operator approval, a real-media validation
+plan, and an operator rollback decision.
+
+---
+
 ## Removed Legacy Desktop-Shell Surface
 
 **What**: removed legacy desktop-shell launchers, controllers, views, runtime package files, and any attempt to reintroduce them into this V6 folder.
@@ -32,7 +49,7 @@ This register applies to all admin, documentation, and WebView frontend tasks. E
 
 ## Media Policy (FFmpeg Command Generation)
 
-**What**: `engine\*.ps1` code that generates FFmpeg arguments — video codec selection, quality/preset settings, container selection, stream copy/encode decisions. Legacy `Pipeline\Modules\*.ps1` shim paths remain in scope until they are deleted.
+**What**: `engine\*.ps1` code that generates FFmpeg arguments — video codec selection, quality/preset settings, container selection, stream copy/encode decisions. Do not recreate legacy `Pipeline\Modules\*.ps1` shim paths; active PowerShell implementation belongs under `engine\<domain>\`.
 
 **Why**: FFmpeg arguments directly determine output quality, compatibility, and encode safety. A one-character typo can produce silent bitrate misconfiguration or stream corruption.
 
@@ -104,11 +121,11 @@ This register applies to all admin, documentation, and WebView frontend tasks. E
 
 ## Command Journal
 
-**What**: The in-memory bounded FIFO command journal in the local API (`api/routes_command.py`, `service_command_journal*.py`).
+**What**: The backend-owned bounded FIFO command journal in the local API (`DesktopApp\mediapipeline_desktop_app\api\command_journal.py` and `command_journal_policy.py`). Normal Local API launch also persists bounded summaries to `DesktopApp\RunLogs\local_api_command_history.json` and mirrors entries to SQLite when a state root is available.
 
 **Why**: The command journal is the source of truth for WebView Command History and Diagnostics. Deduplication behavior, success-status-only recording, and bounded FIFO are deliberate design choices. Changing them silently changes what the operator sees.
 
-**Safe alternative**: Read the audit in `Docs\archive\completed-audits\COMMAND_HISTORY_CONSISTENCY_AUDIT.md`. Document any new command types in the journal.
+**Safe alternative**: Review the active API route inventory, command ownership matrix, command journal policy tests, and archived command-history audit before changing command evidence behavior. Document any new command types in the journal.
 
 **Gate before touching**: Unit tests for command journal policy + WebView smoke for command evidence rendering.
 

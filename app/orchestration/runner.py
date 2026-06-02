@@ -22,6 +22,7 @@ from app.contracts.stages import (
     StageResult,
     build_stage_request,
     make_stage_result,
+    validate_stage_data,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -255,6 +256,18 @@ def _parse_result(stage: StageName, started_at: datetime, captured: StageProcess
                 "stderr_tail": _tail(captured.stderr),
             },
         )
+    if parsed.stage != stage.value:
+        return _error_result(
+            stage=stage,
+            started_at=started_at,
+            code="stage.result_stage_mismatch",
+            message=f"Stage JSON result reported stage {parsed.stage!r} for requested stage {stage.value!r}.",
+            details={
+                "returncode": captured.returncode,
+                "stdout_tail": _tail(captured.stdout),
+                "stderr_tail": _tail(captured.stderr),
+            },
+        )
     if captured.returncode not in (0, None) and parsed.ok:
         return _error_result(
             stage=stage,
@@ -266,6 +279,22 @@ def _parse_result(stage: StageName, started_at: datetime, captured: StageProcess
                 "stderr_tail": _tail(captured.stderr),
             },
         )
+    if parsed.ok:
+        try:
+            data = validate_stage_data(stage, parsed.data or {})
+        except Exception as exc:
+            return _error_result(
+                stage=stage,
+                started_at=started_at,
+                code="stage.result_contract_invalid",
+                message=f"Stage JSON result data failed {stage.value!r} contract validation: {exc}",
+                details={
+                    "returncode": captured.returncode,
+                    "stdout_tail": _tail(captured.stdout),
+                    "stderr_tail": _tail(captured.stderr),
+                },
+            )
+        parsed.data = data.model_dump(mode="json")
     return parsed
 
 
@@ -290,8 +319,24 @@ def run_stage(
 
     opts = options or RunnerOptions()
     started_at = _utc_now()
-    stage_name = StageName(stage)
-    request = payload if isinstance(payload, StageRequest) else build_stage_request(stage_name, payload)
+    try:
+        stage_name = StageName(stage)
+    except ValueError:
+        return _error_result(
+            stage=str(stage),
+            started_at=started_at,
+            code="stage.unknown",
+            message=f"Unknown stage {str(stage)!r}.",
+        )
+    try:
+        request = payload if isinstance(payload, StageRequest) else build_stage_request(stage_name, payload)
+    except Exception as exc:
+        return _error_result(
+            stage=stage_name,
+            started_at=started_at,
+            code="stage.invalid_payload",
+            message=f"Stage request failed {stage_name.value!r} payload validation: {exc}",
+        )
     if request.stage != stage_name:
         result = _error_result(
             stage=stage_name,

@@ -3,9 +3,9 @@ file: Pipeline/Tests/Unit/Invoke-ContractSchemaChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-29
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 5e06a36c1a74861d0467e12a9670401353446b09b811a0f8e8f309e938e5773f
+sha256: 1072ef44cca43571e89488a44e689b8bcefb6967c966a520b31f85939cc072e1
 ---
 # `Pipeline/Tests/Unit/Invoke-ContractSchemaChecks.ps1`
 

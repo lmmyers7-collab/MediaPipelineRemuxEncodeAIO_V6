@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from mediapipeline_desktop_app.api import LocalApiServer
 from mediapipeline_desktop_app.application import MediaPipelineApplicationFacade
 from mediapipeline_desktop_app.models import ResolvedPaths
+from app.publish.reconciliation_policy import publish_reconciliation_from_payloads
 from DesktopApp.tests.test_application_facade import DummyWorkflowFacadeService, _resolved
 
 
@@ -379,6 +380,40 @@ class ApplicationFacadePendingPublishTests(unittest.TestCase):
         self.assertEqual(payload["status"], "no_completed_rows")
         self.assertEqual(service.opened_paths, [])
 
+    def test_publish_reconciliation_treats_relative_path_matches_as_weak_evidence(self) -> None:
+        completed = {
+            "rows": [
+                {
+                    "source_path": "Relative\\Source\\Movie.mkv",
+                    "output_path": "Relative\\Outsource\\Movie.mkv",
+                    "output_file": "Movie.mkv",
+                }
+            ],
+            "count": 1,
+        }
+        pending = {
+            "rows": [
+                {
+                    "source_path": "Relative\\Source\\Movie.mkv",
+                    "server_out": "Relative\\Outsource\\Movie.mkv",
+                    "local_file": "Relative\\Pending\\Movie.mkv",
+                    "state": "parked",
+                    "ready_to_drain": True,
+                }
+            ],
+            "count": 1,
+        }
+
+        preview = publish_reconciliation_from_payloads(completed, pending).to_mapping()
+
+        self.assertEqual(preview["exact_pending_destination_count"], 0)
+        self.assertEqual(preview["exact_pending_source_count"], 0)
+        self.assertEqual(preview["same_leaf_hint_count"], 1)
+        self.assertEqual(preview["status"], "review_leaf_hints")
+        row = preview["rows"][0]
+        self.assertEqual(row["signal"], "same_leaf_hint")
+        self.assertIn("duplicate-title", row["safe_next_action"])
+
     def test_pending_publish_open_uses_backend_row_key_not_frontend_paths(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -423,6 +458,23 @@ class ApplicationFacadePendingPublishTests(unittest.TestCase):
         self.assertEqual(service.opened_paths, [payload, manifest, destination.parent])
         self.assertFalse(rejected.ok)
         self.assertIn("not allowed", rejected.message)
+
+    def test_pending_publish_open_reports_scan_service_unavailable(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            service = DummyWorkflowFacadeService(root)
+            service.scan_pending_publish = None  # type: ignore[method-assign]
+            facade = MediaPipelineApplicationFacade(service)
+
+            result = facade.open_pending_publish_location(resolved, {"row_key": "row-1", "target": "local_file"})
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.command, "pending_publish.open")
+        self.assertEqual(result.severity, "error")
+        self.assertEqual(result.message, "Pending publish service is not available.")
+        self.assertEqual(result.errors, ["Pending publish service is not available."])
+        self.assertEqual(result.data["row_key"], "row-1")
 
     def test_pending_publish_open_reports_scan_failure_instead_of_missing_row(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

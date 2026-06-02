@@ -187,6 +187,13 @@ def _schedule_runner_source() -> str:
             }
           }
         }
+        function requireNotContains(label, value, fragments) {
+          for (const fragment of fragments) {
+            if (String(value).includes(fragment)) {
+              throw new Error(`${label} unexpectedly contained ${fragment}\nActual:\n${value}`);
+            }
+          }
+        }
 
         async function main() {
         const schedule = {
@@ -229,6 +236,11 @@ def _schedule_runner_source() -> str:
         const weeklyCoverage = context.scheduleCoverageRows(schedule).find((row) => row.key === "weekly-coverage");
         context.selectScheduleCoverageRow(weeklyCoverage);
         requireContains("weekly coverage detail", text("schedule-coverage-detail"), ["Allowed days: 2", "Allowed half-hour blocks: 52", "Allowed hours: 26.0"]);
+
+        const enforcementCoverage = context.scheduleCoverageRows(schedule).find((row) => row.key === "enforcement");
+        context.selectScheduleCoverageRow(enforcementCoverage);
+        requireContains("enforcement detail", text("schedule-coverage-detail"), ["backend schedule-stop watcher"]);
+        requireNotContains("enforcement detail", text("schedule-coverage-detail"), ["V5 remains", "fallback workspace"]);
 
         const watcherCoverage = context.scheduleCoverageRows(schedule).find((row) => row.key === "continuous-watcher");
         context.selectScheduleCoverageRow(watcherCoverage);

@@ -3,9 +3,9 @@ file: app/config/preset_encoding_sections.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-05-31
+last_modified: 2026-06-01
 last_reviewed: 2026-05-30
-sha256: 31208c8626546eec400e3b2ca8d51b0efbaf202cdd241273b15732fbb784165b
+sha256: a2172e2adc50c06d4126133c9301b7227e1028a121d4aa88f78c11f78ebf7e68
 ---
 # `app/config/preset_encoding_sections.py`
 

@@ -997,7 +997,7 @@ function Analyze-Sidecar {
     }
     $Result.VobSubSidecarFailureCount = $vobSubFailures.Count
     if ($vobSubFailures.Count -gt 0) {
-        Add-AuditIssue -Result $Result -Bucket 'RERUN_PIPELINE' -Code 'vobsub-ocr-failed' -Message "The pipeline sidecar records $($vobSubFailures.Count) failed VobSub OCR attempt(s)." -SuggestedAction 'Configure Subtitle Edit seconv.exe and Tesseract, inspect the saved repro command, or disable ConvertVobSubToSrt to preserve supported embedded VobSub tracks without OCR.'
+        Add-AuditIssue -Result $Result -Bucket 'RERUN_PIPELINE' -Code 'vobsub-ocr-failed' -Message "The pipeline sidecar records $($vobSubFailures.Count) failed VobSub OCR attempt(s)." -SuggestedAction 'Configure Subtitle Edit 4.x SubtitleEdit.exe and Tesseract, inspect the saved repro command, or disable ConvertVobSubToSrt to preserve supported embedded VobSub tracks without OCR.'
     }
 
     $tx3gTrackProp = $sidecar.PSObject.Properties['tx3g_srt_tracks']
@@ -1094,11 +1094,11 @@ function Add-AuditSubtitleCompatibilityIssues {
     }
 
     if ($hasVobSubSubs -and -not $hasExternalFriendlyTextSubs -and -not $hasAssSubs -and -not $hasTx3gSubs -and -not $hasBdpgsSubs) {
-        Add-AuditIssue -Result $Result -Bucket 'REVIEW' -Code 'vobsub-only-subtitles' -Message 'This file only has embedded VobSub/DVD bitmap subtitles and no embedded SRT/WebVTT-style subtitle track.' -SuggestedAction 'Keep VobSub for MKV playback, or enable ConvertVobSubToSrt with Subtitle Edit seconv.exe and Tesseract when text subtitles are required.'
+        Add-AuditIssue -Result $Result -Bucket 'REVIEW' -Code 'vobsub-only-subtitles' -Message 'This file only has embedded VobSub/DVD bitmap subtitles and no embedded SRT/WebVTT-style subtitle track.' -SuggestedAction 'Keep VobSub for MKV playback, or enable ConvertVobSubToSrt with Subtitle Edit 4.x SubtitleEdit.exe and Tesseract when text subtitles are required.'
     }
 
     if ($hasVobSubSubs -and $Result.VobSubEmbeddedSrtCount -lt @($VobSubSubtitleStreams).Count) {
-        Add-AuditIssue -Result $Result -Bucket 'REVIEW' -Code 'vobsub-subtitles-ocr-candidate' -Message ("ffprobe found {0} embedded VobSub subtitle track(s); {1} pipeline OCR SRT track record(s) were found." -f @($VobSubSubtitleStreams).Count, $Result.VobSubEmbeddedSrtCount) -SuggestedAction 'Enable ConvertVobSubToSrt only after configuring Subtitle Edit seconv.exe and bundled Tesseract.'
+        Add-AuditIssue -Result $Result -Bucket 'REVIEW' -Code 'vobsub-subtitles-ocr-candidate' -Message ("ffprobe found {0} embedded VobSub subtitle track(s); {1} pipeline OCR SRT track record(s) were found." -f @($VobSubSubtitleStreams).Count, $Result.VobSubEmbeddedSrtCount) -SuggestedAction 'Enable ConvertVobSubToSrt only after configuring Subtitle Edit 4.x SubtitleEdit.exe and bundled Tesseract.'
     }
 
     if ($hasAssSubs -and -not $hasTextSubs -and -not $hasImageSubs) {

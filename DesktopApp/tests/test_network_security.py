@@ -485,6 +485,14 @@ class NetworkSecurityTests(unittest.TestCase):
         # Disallowed scheme.
         with self.assertRaises(ValueError):
             _validate_coordinator_url("ftp://host:21")
+        # Missing explicit coordinator port.
+        with self.assertRaises(ValueError):
+            _validate_coordinator_url("http://host")
+        # Invalid/out-of-range ports.
+        with self.assertRaises(ValueError):
+            _validate_coordinator_url("http://host:notaport")
+        with self.assertRaises(ValueError):
+            _validate_coordinator_url("http://host:70000")
         # Has a path segment.
         with self.assertRaises(ValueError):
             _validate_coordinator_url("http://host:7830/api/claim")

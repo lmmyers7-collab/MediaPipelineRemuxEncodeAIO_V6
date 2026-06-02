@@ -117,7 +117,7 @@ For a verified engineering handoff package:
 
 Default release behavior:
 
-- strips `Pipeline\MediaPipeline_config_chatgpt.psd1`
+- strips `Pipeline\MediaPipeline_config.psd1` and the legacy `Pipeline\MediaPipeline_config_chatgpt.psd1`
 - includes `Pipeline\MediaPipeline_config_template.psd1`
 - includes the release builder and release self-test scripts
 - excludes logs, app state, run logs, config backups, Python bytecode, assistant metadata, and dev-only checklist docs
@@ -136,7 +136,7 @@ Use `-IncludeOptionalTools` or `-IncludeToolDocs` only for a fuller maintenance 
 - Live config: `Pipeline\MediaPipeline_config_chatgpt.psd1`
 - New-user template: `Pipeline\MediaPipeline_config_template.psd1`
 - PowerShell engine implementations: `engine\<domain>`
-- Temporary PowerShell compatibility shims: `Pipeline\Modules`
+- Removed legacy shim surface: `Pipeline\Modules`
 - Tests: `Pipeline\Tests`
 - Bundled PowerShell: `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe`
 - Bundled Python: `DesktopApp\Runtime\Python\python.exe`

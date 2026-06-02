@@ -19,6 +19,17 @@ def validate_coordinator_url(raw: str) -> str:
         )
     if not parsed.hostname:
         raise ValueError(f"WorkerCoordinatorUrl is missing a host (got {url!r}).")
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise ValueError(f"WorkerCoordinatorUrl has an invalid port (got {url!r}).") from exc
+    if port is None:
+        raise ValueError(
+            "WorkerCoordinatorUrl must include the coordinator TCP port "
+            "(e.g. http://192.168.1.10:7830)."
+        )
+    if port < 1 or port > 65535:
+        raise ValueError(f"WorkerCoordinatorUrl port must be in 1..65535 (got {port}).")
     if parsed.path and parsed.path not in ("", "/"):
         raise ValueError(
             f"WorkerCoordinatorUrl must be the coordinator base URL only "

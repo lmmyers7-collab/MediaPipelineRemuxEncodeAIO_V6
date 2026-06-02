@@ -28,6 +28,10 @@ SUMMARY_ROOT = REPO_ROOT / "summaries"
 GENERATED_DOCS_ROOT = REPO_ROOT / "Docs" / "generated"
 INDEX_PATH = GENERATED_DOCS_ROOT / "PROJECT_INDEX.md"
 GRAPH_PATH = GENERATED_DOCS_ROOT / "DEPENDENCY_GRAPH.md"
+VOLATILE_GENERATED_SUMMARY_FILES = {
+    "Docs/generated/DEPENDENCY_GRAPH.md",
+    "Docs/generated/PROJECT_INDEX.md",
+}
 
 FRONTMATTER_RE = re.compile(r"^---\n(.*?)\n---\n", re.DOTALL)
 PURPOSE_RE = re.compile(r"\*\*Purpose:\*\*\s*(.+)")
@@ -66,7 +70,14 @@ def parse_first(text: str, regex: re.Pattern[str]) -> str:
 
 
 def iter_summaries() -> list[Path]:
-    return sorted(SUMMARY_ROOT.rglob("*.md"))
+    summaries: list[Path] = []
+    for summary in sorted(SUMMARY_ROOT.rglob("*.md")):
+        text = summary.read_text(encoding="utf-8", errors="replace")
+        fm = parse_frontmatter(text)
+        if fm.get("file", "").replace("\\", "/") in VOLATILE_GENERATED_SUMMARY_FILES:
+            continue
+        summaries.append(summary)
+    return summaries
 
 
 def expected_summary_path_for_file(file_path: str) -> Path:

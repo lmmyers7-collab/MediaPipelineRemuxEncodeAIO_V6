@@ -2,7 +2,7 @@
 file: app/status/facade.py
 pipeline_stage: observability
 token_priority: medium
-owner_domain: unknown
+owner_domain: observability
 last_modified: 2026-05-31
 last_reviewed: 2026-05-31
 sha256: e0afef4770ec80ef23111ed55cd9de2514afb58f52579dfd695612dfc69a5fc1

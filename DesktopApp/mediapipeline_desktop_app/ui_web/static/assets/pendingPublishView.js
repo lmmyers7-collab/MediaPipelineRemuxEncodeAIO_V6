@@ -294,7 +294,7 @@
       makeRowSelectable: typeof makeRowSelectable === "function" ? makeRowSelectable : window.makeRowSelectable,
       pendingDrainSummaryStatus: (...args) => pendingDrainSummaryStatus(...args),
       pendingRowKey: (...args) => pendingRowKey(...args),
-      renderProgressBarsInto: window.renderProgressBarsInto,
+      renderProgressBarsInto: (...args) => window.renderProgressBarsInto?.(...args),
       selectPendingRow: (...args) => selectPendingRow(...args),
       setText: typeof setText === "function" ? setText : window.setText,
       shortenPath: window.shortenPath,

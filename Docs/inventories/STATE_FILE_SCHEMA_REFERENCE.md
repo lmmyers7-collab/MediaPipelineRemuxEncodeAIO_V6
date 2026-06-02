@@ -1,19 +1,19 @@
 # State File Schema Reference
 
-Date: 2026-05-14
+Date: 2026-06-02
 
-Schema-level documentation for all runtime state contracts in MediaPipelineRemuxEncodeAIO V5. Each section gives the schema version, all field names with types and defaults, valid enum values, and the artifact that holds the data. Source: `contracts/` package in `DesktopApp/mediapipeline_desktop_app/contracts/`.
+Schema-level documentation for runtime state contracts in MediaPipelineRemuxEncodeAIO V6. Each section gives the schema version, field names with types/defaults, valid enum values, and the artifact that holds the data. Primary dataclass contracts live under `DesktopApp/mediapipeline_desktop_app/contracts/`; focused helper contracts are called out by file.
 
-All contracts are Python dataclasses. All timestamps use ISO 8601 strings. Schema versions are validated at deserialization; a mismatch causes a contract rejection, not silent data loss.
+Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Schema versions are validated at deserialization where the contract exposes a typed loader; helper-owned state files document their validation notes in their section.
 
 ---
 
 ## CompletedJob
 
-**Contract file**: `contracts/completed_job.py`
-**Artifact**: `completed_jobs.jsonl` — one JSON object per line, appended per completed job
+**Contract file**: `DesktopApp/mediapipeline_desktop_app/contracts/completed_job.py`
+**Artifact**: `State\Completed\completed_jobs.jsonl` — one JSON object per line, appended per completed job
 **Supported schema versions**: `completed_job.v1`, `pipeline_sidecar.v1`
-**Also written to**: `.mediapipeline.json` sidecar (same schema, `pipeline_sidecar.v1`)
+**Also written to**: `.pipeline.json` sidecar (same schema, `pipeline_sidecar.v1`)
 
 ### Fields
 
@@ -43,8 +43,8 @@ All contracts are Python dataclasses. All timestamps use ISO 8601 strings. Schem
 
 ## PendingPushManifest
 
-**Contract file**: `contracts/pending_publish.py`
-**Artifact**: `pending_push_manifest.jsonl` — one JSON object per line per parked output
+**Contract file**: `DesktopApp/mediapipeline_desktop_app/contracts/pending_publish.py`
+**Artifact**: `State\PendingServerPush\*.manifest.json` — one JSON object per parked output
 **Schema version**: `pending_push_manifest.v1`
 
 ### Fields
@@ -77,6 +77,8 @@ All contracts are Python dataclasses. All timestamps use ISO 8601 strings. Schem
 | `drop_tx3g_after_conversion` | `bool` | `False` | Drop original TX3G after conversion |
 | `bdpgs_srt_conversion_enabled` | `bool` | `False` | BDPGS subtitle conversion flag |
 | `drop_bdpgs_after_conversion` | `bool` | `False` | Drop original BDPGS after conversion |
+| `vobsub_srt_conversion_enabled` | `bool` | `False` | VobSub subtitle conversion flag |
+| `drop_vobsub_after_conversion` | `bool` | `False` | Drop original VobSub after conversion |
 
 ### Valid `manifest_state` Values
 
@@ -103,7 +105,7 @@ All contracts are Python dataclasses. All timestamps use ISO 8601 strings. Schem
 
 ## ActiveJobRecord
 
-**Contract file**: `contracts/active_job.py`
+**Contract file**: `DesktopApp/mediapipeline_desktop_app/contracts/active_job.py`
 **Artifact**: Active jobs state folder — one JSON file per in-progress job
 **Schema version**: `desktop_active_job.v1`
 
@@ -146,15 +148,41 @@ All contracts are Python dataclasses. All timestamps use ISO 8601 strings. Schem
 ### Notes
 
 - Active job records are written and updated by the backend process service.
-- The `GET /api/diagnostics/tail` and `GET /api/diagnostics/open` routes expose the active jobs folder (`active_jobs` target) read-only.
+- The `GET /api/diagnostics/tail` and `POST /api/diagnostics/open` routes expose the active jobs folder (`active_jobs` target) read-only.
 - `stdout_log` and `stderr_log` paths correspond to `last_stdout_log` and `last_stderr_log` diagnostics targets.
+
+---
+
+## UiPreferences
+
+**Contract file**: `app/ui_preferences.py`
+**Artifact**: `State\ui_preferences.json` — shared browser/WebView/Tauri UI customization state
+**Schema version**: `desktop_ui_preferences.v1`
+
+### Fields
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `schema_version` | `str` | `"desktop_ui_preferences.v1"` | Identifies the UI preference payload |
+| `version` | `int` | `1` | File format version |
+| `updated_at` | `str` | `""` | ISO 8601 — when preferences were last written |
+| `source_surface` | `str` | `""` | Short source label such as browser or Tauri |
+| `source` | `str` | `"state_file"` | `state_file` for persisted data; `default` when read fallback is used |
+| `storage` | `dict[str, str]` | `{}` | Allowlisted preference keys and string values |
+| `warnings` | `list[str]` | `[]` | Optional validation warnings for ignored keys or values |
+
+### Notes
+
+- Preference keys must match `mediapipeline-*` or `mediapipeline.*` style allowlisted names enforced by `app/ui_preferences.py`.
+- Corrupt, unreadable, or non-object JSON is treated as default empty UI preferences. It does not mutate settings, queue state, media policy, pending publish state, rename state, or media files.
+- Writes use a temporary file, fsync, and atomic replace with bounded retries for transient Windows `PermissionError` replace failures.
 
 ---
 
 ## QueuePlanSnapshot
 
-**Contract file**: `contracts/queue_snapshot.py`
-**Artifact**: Queue snapshot JSON file — rewritten each time the queue is evaluated
+**Contract file**: `DesktopApp/mediapipeline_desktop_app/contracts/queue_snapshot.py`
+**Artifact**: `State\Progress\queue_snapshot.json` — rewritten each time the queue is evaluated
 **Schema version**: `queue_plan_snapshot.v1`
 
 The snapshot contains a container record and two row lists: runnable rows and excluded rows.
@@ -198,6 +226,13 @@ The snapshot contains a container record and two row lists: runnable rows and ex
 | `route` | `str` | Route decision: `"remux"` or `"encode"` |
 | `route_reason_code` | `str` | Code explaining route decision |
 | `route_reason` | `str` | Human-readable route reason |
+| `route_decision_trace` | `list` | Ordered route-decision evidence |
+| `estimated_bitrate_mbps` | `float` | Estimated bitrate used by route policy |
+| `route_size_threshold_gb` | `float` | Size threshold used by route policy |
+| `route_bitrate_threshold_mbps` | `float` | Bitrate threshold used by route policy |
+| `route_threshold_mode` | `str` | Threshold mode used by route policy |
+| `size_over_threshold` | `bool` | Whether size crossed the configured threshold |
+| `bitrate_over_threshold` | `bool` | Whether bitrate crossed the configured threshold |
 | `blocked_reason_code` | `str` | Block status code (`""` if not blocked) |
 | `blocked_reason` | `str` | Block reason text |
 | `runtime_checks_deferred` | `bool` | Whether runtime checks were deferred |
@@ -229,8 +264,8 @@ The snapshot contains a container record and two row lists: runnable rows and ex
 
 ## ProgressState
 
-**Contract file**: `contracts/progress.py`
-**Artifact**: In-memory runtime state, polled via `GET /api/snapshot` and surfaced in the Live/Progress page
+**Contract file**: `DesktopApp/mediapipeline_desktop_app/contracts/progress.py`
+**Artifact**: `State\Progress\pipeline_progress.json`, polled via `GET /api/snapshot` and surfaced in the Live/Progress page
 **Schema**: Not versioned as a standalone file; embedded in snapshot payload
 
 ### Fields
@@ -276,8 +311,8 @@ The snapshot contains a container record and two row lists: runnable rows and ex
 
 ## PipelineEvent
 
-**Contract file**: `contracts/pipeline_events.py`
-**Artifact**: Runtime event log — events written by pipeline services, surfaced via `GET /api/diagnostics` recent-events endpoint
+**Contract file**: `DesktopApp/mediapipeline_desktop_app/contracts/pipeline_events.py`
+**Artifact**: `State\Progress\pipeline_events.jsonl` — events written by pipeline services, surfaced via `GET /api/diagnostics` recent-events endpoint
 **Schema version**: `pipeline_event.v1`
 
 ### Fields
@@ -305,6 +340,42 @@ The snapshot contains a container record and two row lists: runnable rows and ex
 - `correlation_id` links events to their corresponding `CompletedJob` and `ActiveJobRecord` via the same field.
 - `data` is event-type specific and not schema-validated beyond being a dict.
 - Pipeline events are read-only from the WebView perspective. They are not editable or deletable through any API route.
+
+---
+
+## SQLiteStateMirror
+
+**Contract file**: `app/storage/db.py`
+**Artifact**: `State\mediapipeline_state.sqlite3`
+**Schema version**: `1`
+**Authority**: Shadow mirror only. The JSON/state artifacts above remain authoritative.
+
+The SQLite mirror is populated opportunistically when a state root is available.
+Mirror write failures are logged or swallowed by the caller so they do not change
+command, stage, queue, completed-manifest, or media behavior.
+
+### Tables
+
+| Table | Rows mirrored | Identity / dedupe rule | Notes |
+|---|---|---|---|
+| `commands` | Local API command journal summaries | Append-only SQLite row id | Stores bounded, redacted command-result summaries. |
+| `events` | Python stage runner events | Append-only SQLite row id | Stores request/result payload evidence for Python-owned stage boundaries. |
+| `queue_snapshots` | Queue dry-run snapshot payloads | Append-only SQLite row id | Stores each promoted dry-run snapshot payload plus request id and snapshot path. |
+| `completed_jobs` | Completed manifest rows read by the Completed service | `job_id` when present, otherwise payload hash | Re-reading the same manifest row is idempotent, but distinct append-only rows for the same output path are preserved. |
+
+### Common Mirror Columns
+
+| Field | Type | Notes |
+|---|---|---|
+| `recorded_at` | `str` | UTC ISO 8601 timestamp when the mirror write occurred |
+| `payload_hash` | `str` | SHA-256 of the strict JSON payload |
+| `payload_json` | `str` | Strict JSON copy of the mirrored payload |
+
+### Notes
+
+- `State\mediapipeline_state.sqlite3` is not a Diagnostics open target and is not used to drive WebView command history, Queue scope, Completed acceptance, Pending Publish drain, or recovery decisions.
+- The mirror may be missing rows after permission errors, DB lock contention, or disabled/missing state roots. In those cases inspect the authoritative JSON/state artifact.
+- Deleting the mirror while the backend is running is unsafe. With the backend stopped, deletion only removes diagnostic mirror history; future activity can recreate the DB.
 
 ---
 

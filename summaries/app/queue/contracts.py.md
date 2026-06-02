@@ -2,7 +2,7 @@
 file: app/queue/contracts.py
 pipeline_stage: orchestration
 token_priority: medium
-owner_domain: unknown
+owner_domain: queue
 last_modified: 2026-05-31
 last_reviewed: 2026-05-31
 sha256: 5255c84826a1f525e09c696555c83517c0e9844f53d02db821eb52d11bcaa89c

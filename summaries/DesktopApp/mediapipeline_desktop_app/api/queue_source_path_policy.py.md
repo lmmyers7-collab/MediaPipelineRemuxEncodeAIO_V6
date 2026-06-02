@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/api/queue_source_path_policy.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-05-30
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 7ae07a90245c0dd7653f8b5e071a180da5a1fac88bccc2e62fb4bbb0755bf4cd
+sha256: c62026eb09f88fcd16c8b006bcab7f10bd473407647f73a0843d305bb1683af7
 ---
 # `DesktopApp/mediapipeline_desktop_app/api/queue_source_path_policy.py`
 

@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_application_facade_core_contracts.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-29
+last_modified: 2026-06-01
 last_reviewed: 2026-05-29
-sha256: e34649292a3dc25ac4ad726490c3756580fb668e1e6c1db6942a8914811cb6cf
+sha256: 3119ed0e653d971990e1a521c395966cd24b91ff652e3e1acea3001a49074e7f
 ---
 # `DesktopApp/tests/test_application_facade_core_contracts.py`
 

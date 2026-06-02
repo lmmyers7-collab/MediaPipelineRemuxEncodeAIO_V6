@@ -14,16 +14,26 @@ function New-MediaPipelineEnginePlan {
         [Parameter(Mandatory)] [string] $SourceTV,
         [Parameter(Mandatory)] [string] $QueueSnapshotPath,
         [bool] $Once = $false,
-        [int] $SleepSeconds = 30
+        [int] $SleepSeconds = 30,
+        [string] $ScriptPath = '',
+        [string] $ConfigPath = '',
+        [string] $PowerShellPath = '',
+        [string] $ParallelEncodeMode = 'single',
+        [int] $MaxParallelEncodes = 1
     )
 
     return [pscustomobject]@{
-        EnginePlanType   = 'media_pipeline_engine_plan.v1'
-        SourceMovies     = $SourceMovies
-        SourceTV         = $SourceTV
-        QueueSnapshotPath = $QueueSnapshotPath
-        Once             = [bool]$Once
-        SleepSeconds     = [int]$SleepSeconds
+        EnginePlanType     = 'media_pipeline_engine_plan.v1'
+        SourceMovies       = $SourceMovies
+        SourceTV           = $SourceTV
+        QueueSnapshotPath   = $QueueSnapshotPath
+        Once               = [bool]$Once
+        SleepSeconds       = [int]$SleepSeconds
+        ScriptPath         = $ScriptPath
+        ConfigPath         = $ConfigPath
+        PowerShellPath     = $PowerShellPath
+        ParallelEncodeMode = $ParallelEncodeMode
+        MaxParallelEncodes = [int]$MaxParallelEncodes
     }
 }
 
@@ -187,7 +197,31 @@ function Invoke-MediaPipelineRound {
     $snapshot = Invoke-MediaPipelineQueueSnapshot -QueuePlan $queuePlan -ProcessedIndex $index -Path $EnginePlan.QueueSnapshotPath -NonFatal
 
     Set-ProgressStage -Stage 'processing' -Status 'Processing queue' -Percent $null -Route $null -CopyState $null -PushState $null -SidecarState $null -SaveNow
-    Invoke-MediaQueuePhasePlan -QueuePlan $queuePlan -ProcessedIndex $index | Out-Null
+    $useLocalWorkerSlots = ([string]$EnginePlan.ParallelEncodeMode -eq 'local_worker_slots' -and [int]$EnginePlan.MaxParallelEncodes -gt 1)
+    if ($useLocalWorkerSlots) {
+        if (-not (Get-Command -Name Invoke-MediaQueuePhasePlanLocalWorkerSlots -ErrorAction SilentlyContinue)) {
+            throw "Local worker slots are enabled, but Invoke-MediaQueuePhasePlanLocalWorkerSlots is not loaded."
+        }
+        if ([string]::IsNullOrWhiteSpace([string]$EnginePlan.ScriptPath)) {
+            throw "Local worker slots are enabled, but the pipeline script path was not supplied."
+        }
+        if ([string]::IsNullOrWhiteSpace([string]$EnginePlan.ConfigPath)) {
+            throw "Local worker slots are enabled, but the config path was not supplied."
+        }
+        if ([string]::IsNullOrWhiteSpace([string]$EnginePlan.PowerShellPath)) {
+            throw "Local worker slots are enabled, but the PowerShell executable path was not supplied."
+        }
+        Write-Log "LOCAL WORKER SLOTS: dispatching queue with $([int]$EnginePlan.MaxParallelEncodes) slot(s)"
+        Invoke-MediaQueuePhasePlanLocalWorkerSlots `
+            -QueuePlan $queuePlan `
+            -ProcessedIndex $index `
+            -ScriptPath ([string]$EnginePlan.ScriptPath) `
+            -ConfigPath ([string]$EnginePlan.ConfigPath) `
+            -PowerShellPath ([string]$EnginePlan.PowerShellPath) `
+            -MaxParallelEncodes ([int]$EnginePlan.MaxParallelEncodes) | Out-Null
+    } else {
+        Invoke-MediaQueuePhasePlan -QueuePlan $queuePlan -ProcessedIndex $index | Out-Null
+    }
 
     if ($script:StopRequested) {
         return [pscustomobject]@{

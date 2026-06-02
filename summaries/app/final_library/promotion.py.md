@@ -2,10 +2,10 @@
 file: app/final_library/promotion.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
-last_modified: 2026-05-30
+owner_domain: final_library
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: 31298c110fdd3bd572c283609a4c0dc2efff23b6b87e366e8c437d8f299e5dfe
+sha256: 86fd0054942e5c5165d285abecc9ae09048b09e5a354fa8075ed295e93286664
 ---
 # `app/final_library/promotion.py`
 

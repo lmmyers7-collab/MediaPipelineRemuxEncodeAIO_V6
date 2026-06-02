@@ -1461,6 +1461,10 @@
     byId("settings-library-save-button")?.addEventListener("click", saveLibraryProfiles);
   }
 
+  /**
+   * Public namespace for the settings libraries module.
+   * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.
+   */
   window.mediaPipelineSettingsLibraries = {
     renderSettingsLibraries,
     initSettingsLibrariesEvents,

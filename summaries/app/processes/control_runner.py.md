@@ -2,7 +2,7 @@
 file: app/processes/control_runner.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: process
 last_modified: 2026-05-28
 last_reviewed: 2026-05-28
 sha256: ba7c0417180f56e28d8e6fde5a3611086e1b548acad92ddc1d93b69d234ccac3

@@ -3,9 +3,9 @@ file: app/api/commands_queue_priority.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-05-28
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 1874641bf58c7876cf5b6c28215ab1aca4517f368846ab4155eb2e8e8c8c141b
+sha256: 8668308aef3b69c02cf44ad03b4755da8d2a66d9bfc3bb7c17bcd3d4ad772f7b
 ---
 # `app/api/commands_queue_priority.py`
 

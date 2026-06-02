@@ -174,4 +174,15 @@ Assert-Equal $publishResult.OutputSizeBytes 42 'Publish result output size misma
 $partialPath = New-PublishPartialMediaPath -ServerOut 'C:\Out\Movie.mkv' -PublishTransactionId 'tx-test'
 Assert-True ($partialPath -like '*Movie.mkv.mp-publish-partial.tx-test') 'Publish partial path format changed.'
 
+. (Join-Path $repoRoot 'engine\policy\folder_policy.ps1')
+$pythonWrittenTopology = Convert-RoundTripJson ([ordered]@{
+    audio = @(@('eac3', 'eng', 6))
+    subtitles = @(@('ass', 'eng'))
+})
+$objectWrittenTopology = [ordered]@{
+    audio = @([ordered]@{ codec = 'eac3'; language = 'eng'; channels = 6 })
+    subtitles = @([ordered]@{ codec = 'ass'; language = 'eng' })
+}
+Assert-True (Test-FolderPolicyTopologyMatches -Expected $pythonWrittenTopology -Actual $objectWrittenTopology) 'Folder policy topology should accept JSON-array and object/dictionary item shapes.'
+
 Write-Host "OK: contract schema checks passed."

@@ -83,6 +83,30 @@ function New-PendingSidecarBackupPath {
     return (Join-Path $dir (".{0}.mp-pending-sidecar-backup.{1}" -f $leaf, $PublishTransactionId))
 }
 
+function Restore-PendingSidecarBackupIntoPlace {
+    param(
+        [Parameter(Mandatory)] [string] $BackupPath,
+        [Parameter(Mandatory)] [string] $DestinationPath,
+        [string] $Context = ''
+    )
+
+    if (Test-Path -LiteralPath $DestinationPath -PathType Leaf -ErrorAction SilentlyContinue) {
+        $rollbackBackup = "$BackupPath.rollback-target"
+        try {
+            [System.IO.File]::Replace($BackupPath, $DestinationPath, $rollbackBackup, $true)
+            Remove-Item -LiteralPath $rollbackBackup -Force -ErrorAction SilentlyContinue
+            return
+        } catch {
+            Remove-Item -LiteralPath $rollbackBackup -Force -ErrorAction SilentlyContinue
+            Write-Log "${Context}pending sidecar restore replace failed for $DestinationPath (will use overwrite move): $($_.Exception.Message)" "WARN"
+            [System.IO.File]::Move($BackupPath, $DestinationPath, $true)
+            return
+        }
+    }
+
+    [System.IO.File]::Move($BackupPath, $DestinationPath, $true)
+}
+
 function Undo-PendingPublishedSidecarFiles {
     param(
         [array] $PublishedSidecars = @(),
@@ -99,13 +123,7 @@ function Undo-PendingPublishedSidecarFiles {
         if ([string]::IsNullOrWhiteSpace($path)) { continue }
         try {
             if (-not [string]::IsNullOrWhiteSpace($backupPath) -and (Test-Path -LiteralPath $backupPath -PathType Leaf -ErrorAction SilentlyContinue)) {
-                if (Test-Path -LiteralPath $path -PathType Leaf -ErrorAction SilentlyContinue) {
-                    $rollbackBackup = "$backupPath.rollback-target"
-                    [System.IO.File]::Replace($backupPath, $path, $rollbackBackup, $true)
-                    Remove-Item -LiteralPath $rollbackBackup -Force -ErrorAction SilentlyContinue
-                } else {
-                    [System.IO.File]::Move($backupPath, $path)
-                }
+                Restore-PendingSidecarBackupIntoPlace -BackupPath $backupPath -DestinationPath $path -Context $Context
                 Write-Log "${Context}pending sidecar restored after failed drain reveal: $path" "WARN"
                 continue
             }
@@ -115,10 +133,6 @@ function Undo-PendingPublishedSidecarFiles {
             }
         } catch {
             Write-Log "${Context}pending sidecar rollback failed for $path : $_" "ERROR"
-        } finally {
-            if (-not [string]::IsNullOrWhiteSpace($backupPath)) {
-                Remove-Item -LiteralPath $backupPath -Force -ErrorAction SilentlyContinue
-            }
         }
     }
 }

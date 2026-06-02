@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import asdict
 from datetime import datetime
+import math
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,8 @@ def json_safe(value: Any) -> Any:
         return value.astimezone().isoformat() if value.tzinfo else value.isoformat()
     if isinstance(value, Path):
         return str(value)
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
     if isinstance(value, Mapping):
         return {str(key): json_safe(item) for key, item in value.items()}
     if isinstance(value, tuple | list):

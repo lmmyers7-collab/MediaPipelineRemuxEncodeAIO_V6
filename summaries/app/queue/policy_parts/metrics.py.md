@@ -2,7 +2,7 @@
 file: app/queue/policy_parts/metrics.py
 pipeline_stage: orchestration
 token_priority: medium
-owner_domain: unknown
+owner_domain: queue
 last_modified: 2026-05-30
 last_reviewed: 2026-05-30
 sha256: 0c4627b871f7731e1b4ba0ef8c4830f63d1025183f3bc3a680186e09b88f83b7

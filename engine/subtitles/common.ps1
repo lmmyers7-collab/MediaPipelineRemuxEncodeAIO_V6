@@ -360,7 +360,7 @@ function Register-SubtitleExtractionFailure {
         $reason = "VobSub subtitle OCR failed for ${streamText}${more}: $firstReason"
         $errorCode = Get-SubtitleFailureText -Failure $first -Name 'ErrorCode' -Fallback 'SUBTITLE_VOBSUB_OCR_FAILED'
         $reproPath = Get-SubtitleFailureText -Failure $first -Name 'ReproPath' -Fallback ''
-        $suggestedAction = 'Configure Subtitle Edit seconv.exe and bundled Tesseract, inspect the repro command/log, or disable ConvertVobSubToSrt to preserve supported embedded VobSub tracks without OCR.'
+        $suggestedAction = 'Configure Subtitle Edit 4.x SubtitleEdit.exe and bundled Tesseract, inspect the repro command/log, or disable ConvertVobSubToSrt to preserve supported embedded VobSub tracks without OCR.'
         $null = Register-SourceFailure -SourceFile $SourceFile -ScratchPath $ScratchPath -Classification 'transient' -Reason $reason -Stage $Stage -ErrorCode $errorCode -ReproPath $reproPath -SuggestedAction $suggestedAction
         return
     }
@@ -679,7 +679,7 @@ function Get-SubtitleRoutingPolicyChain {
                 return New-SubtitleRoutingDecision -Action 'ConvertVobSub' -Message "CONVERT VobSub $sourceText ($($Entry.Lang)) '$($Entry.Title)' via OCR"
             }
             if ($Entry.ContainsKey('SourceKind') -and [string]$Entry.SourceKind -eq 'sidecar') {
-                return New-SubtitleRoutingDecision -Action 'Drop' -Message "IGNORE VobSub $sourceText ($($Entry.Lang)) '$($Entry.Title)': ConvertVobSubToSrt disabled" -Level 'DEBUG'
+                return New-SubtitleRoutingDecision -Action 'Keep' -Message "REVIEW VobSub $sourceText ($($Entry.Lang)) '$($Entry.Title)': ConvertVobSubToSrt disabled and external IDX/SUB sidecars are not copied into output" -Level 'WARN'
             }
             return New-SubtitleRoutingDecision -Action 'Keep' -Message "KEEP VobSub $sourceText ($($Entry.Lang)) '$($Entry.Title)'"
         },
@@ -848,7 +848,7 @@ function Filter-SubtitleStreams {
     }
 
     $sidecarSourcePath = if (-not [string]::IsNullOrWhiteSpace($OriginalSourcePath)) { $OriginalSourcePath } else { $FilePath }
-    $scanVobSubSidecars = (Get-EffectiveSubtitleSwitch -Name 'ConvertVobSubToSrt' -Default ([bool]$script:ConvertVobSubToSrt))
+    $scanVobSubSidecars = $true
     if ($scanVobSubSidecars -and (Get-Command -Name Find-VobSubSidecarPairs -ErrorAction SilentlyContinue) -and (Get-Command -Name New-VobSubSidecarSubtitleEntry -ErrorAction SilentlyContinue)) {
         foreach ($pair in @(Find-VobSubSidecarPairs -MediaPath $sidecarSourcePath -Context $Context)) {
             $entry = New-VobSubSidecarSubtitleEntry -Pair $pair -SubtitleOrdinal $subtitleOrdinal

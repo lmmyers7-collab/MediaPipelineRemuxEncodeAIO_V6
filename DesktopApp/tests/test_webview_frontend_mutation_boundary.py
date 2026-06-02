@@ -143,7 +143,8 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             app_js.index("initCompletedTabNav();"),
             app_js.index("installSharedUiPreferenceStorageSync();"),
         )
-        self.assertIn('apiPost("/api/ui-preferences", payload', app_js)
+        self.assertIn('const result = await apiPost("/api/ui-preferences", payload', app_js)
+        self.assertIn("if (result && result.ok === false)", app_js)
 
     def test_shell_open_routes_submit_backend_selector_keys_not_raw_paths(self) -> None:
         specs = {
@@ -184,8 +185,12 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
     def test_write_routes_keep_explicit_confirmation_payloads(self) -> None:
         self.assertIn("confirm_apply = true", _asset_sources()["renameView.js"])
         self.assertIn('apiPost("/api/rename/apply", request)', _asset_sources()["renameView.js"])
-        self.assertIn('apiPost("/api/failures/clear", {', _asset_sources()["reportsView.js"])
-        self.assertIn("confirm_clear: !dryRun", _asset_sources()["reportsView.js"])
+        reports_view_js = _asset_sources()["reportsView.js"]
+        self.assertIn('apiPost("/api/failures/clear", payload)', reports_view_js)
+        self.assertIn('const apiScope = scope === "all" ? "all_markers" : scope;', reports_view_js)
+        self.assertIn("scope: request.scope", reports_view_js)
+        self.assertIn("if (!request.all_markers) payload.marker_paths = request.marker_paths;", reports_view_js)
+        self.assertIn("confirm_clear: !dryRun", reports_view_js)
         self.assertIn('apiPost("/api/settings/save-patch", { changes, ...requestExtras, confirm_save: true })', _asset_sources()["settingsView.js"])
         self.assertIn('apiPost("/api/schedule/save", { ...request, confirm_save: true })', _asset_sources()["scheduleView.js"])
         completed_js = _asset_sources()["completedView.js"]
@@ -304,6 +309,23 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         ]:
             with self.subTest(snippet=snippet):
                 self.assertIn(snippet, contract_view)
+
+    def test_contract_view_warns_for_high_risk_contract_effect_rows(self) -> None:
+        route_effects = {str(route["effect"]) for route in LOCAL_API_ROUTE_CONTRACT}
+        self.assertIn("filesystem-mutation", route_effects)
+        self.assertIn("backend-lifecycle", route_effects)
+
+        contract_view = _asset_sources()["contractView.js"]
+        match = re.search(
+            r"function contractRouteStatus\(route\) \{(?P<body>.*?)\n  \}",
+            contract_view,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        status_body = match.group("body")
+        for effect_fragment in ("process", "control", "write", "mutation", "lifecycle"):
+            with self.subTest(effect_fragment=effect_fragment):
+                self.assertIn(f'effect.includes("{effect_fragment}")', status_body)
 
     def test_frontend_media_policy_risk_helpers_stay_advisory_not_authoritative(self) -> None:
         sources = _asset_sources()

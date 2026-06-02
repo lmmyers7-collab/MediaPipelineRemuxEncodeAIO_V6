@@ -174,6 +174,34 @@ class ProcessingDecisionTests(unittest.TestCase):
         self.assertIn("MEDIA_TYPE_UNKNOWN_CONSERVATIVE_CAP", {reason.code for reason in decision.advisory_warnings})
         self.assertIn("MISSING_BITRATE_METADATA", {reason.code for reason in decision.advisory_warnings})
 
+    def test_h264_bitrate_cap_zero_is_uncapped_without_crashing(self) -> None:
+        policy = EffectiveDecisionPolicy(
+            movie_direct_copy_max_bitrate_mbps=0,
+            tv_direct_copy_max_bitrate_mbps=0,
+            h264_direct_copy_max_bitrate_mbps=0,
+        )
+
+        decision = build_processing_decision(load_source("tv_h264_1080p_12mbps_mkv.json"), policy)
+
+        self.assertEqual(decision.route_summary, "REMUX")
+        self.assertEqual(decision.stream_actions.video.action, "copy")
+        self.assertEqual(decision.legacy_reason_code, "plex_compatible_h264_remux")
+        self.assertEqual(decision.source_facts_used["estimated_video_bitrate_mbps"], 12.0)
+
+    def test_h264_specific_bitrate_cap_applies_when_general_cap_is_disabled(self) -> None:
+        policy = EffectiveDecisionPolicy(
+            movie_direct_copy_max_bitrate_mbps=0,
+            tv_direct_copy_max_bitrate_mbps=0,
+            h264_direct_copy_max_bitrate_mbps=10,
+        )
+
+        decision = build_processing_decision(load_source("tv_h264_1080p_12mbps_mkv.json"), policy)
+
+        self.assertEqual(decision.route_summary, "ENCODE")
+        self.assertEqual(decision.stream_actions.video.action, "encode")
+        self.assertEqual(decision.legacy_reason_code, "bitrate_over_threshold")
+        self.assertIn("VIDEO_BITRATE_EXCEEDS_DIRECT_COPY_CAP", reason_codes(decision))
+
     def test_unprobeable_source_rejects_without_crashing(self) -> None:
         decision = build_processing_decision(SourceMediaInfo())
 

@@ -2,7 +2,7 @@
 file: app/telemetry/nvidia.py
 pipeline_stage: observability
 token_priority: medium
-owner_domain: unknown
+owner_domain: observability
 last_modified: 2026-05-28
 last_reviewed: 2026-05-28
 sha256: d8e255d629100362acabd8e2a994b0be3b7a96a44dd0845ac0593bd3d2912f38

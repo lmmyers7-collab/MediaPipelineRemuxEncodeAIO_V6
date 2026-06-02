@@ -451,7 +451,7 @@ $script:BdpgsOcrTessdataPath = if ($config.ContainsKey('BdpgsOcrTessdataPath')) 
 $script:ConvertVobSubToSrt = Get-ConfigBool 'ConvertVobSubToSrt' $false
 $script:DropVobSubAfterConversion = Get-ConfigBool 'DropVobSubAfterConversion' $false
 $script:TreatVobSubSignsSongsAsForced = Get-ConfigBool 'TreatVobSubSignsSongsAsForced' $false
-$script:VobSubOcrToolPath = if ($config.ContainsKey('VobSubOcrToolPath')) { [string]$config['VobSubOcrToolPath'] } else { 'Tools\SubtitleEdit\seconv.exe' }
+$script:VobSubOcrToolPath = if ($config.ContainsKey('VobSubOcrToolPath')) { [string]$config['VobSubOcrToolPath'] } else { 'Tools\SubtitleEditLegacy\SubtitleEdit.exe' }
 $script:TreatAssSignsSongsAsForced = Get-ConfigBool 'TreatAssSignsSongsAsForced' $false
 $script:TreatTx3gSignsSongsAsForced = Get-ConfigBool 'TreatTx3gSignsSongsAsForced' $false
 $script:AggressiveEpisodeParsing = Get-ConfigBool 'AggressiveEpisodeParsing' $false
@@ -891,6 +891,10 @@ if ($WorkerChild) {
     }
     if ([string]::IsNullOrWhiteSpace($SingleFile)) {
         Write-Host "FATAL: -WorkerChild requires -SingleFile." -ForegroundColor Red
+        exit 74
+    }
+    if ([string]::IsNullOrWhiteSpace($WorkerResultPath)) {
+        Write-Host "FATAL: -WorkerChild requires -WorkerResultPath." -ForegroundColor Red
         exit 74
     }
     $script:WorkerSlotLayout = Initialize-MediaPipelineWorkerSlotLayout -SlotLayout (New-MediaPipelineWorkerSlotLayout -StateLayout $script:LocalStateLayout -SlotId $WorkerSlotId)
@@ -1361,6 +1365,90 @@ if ($DrainPendingPushes) {
     exit 0
 }
 
+function Get-MediaPipelineWorkerResultField {
+    param(
+        $Result,
+        [Parameter(Mandatory)] [string] $Name,
+        $Default = $null
+    )
+
+    if ($Result -and $Result.PSObject.Properties[$Name] -and $null -ne $Result.$Name) {
+        return $Result.$Name
+    }
+    return $Default
+}
+
+function Write-MediaPipelineWorkerChildResult {
+    param(
+        [string] $SourcePath = '',
+        $ProcessResult = $null,
+        [bool] $IsTV = $false,
+        [string] $MediaKind = '',
+        [string] $MediaKindReason = '',
+        [string] $Status = '',
+        [bool] $Success = $false,
+        [string] $Reason = '',
+        [string] $ErrorCode = '',
+        [string] $Route = '',
+        [string] $PublishState = ''
+    )
+
+    if (-not $WorkerChild -or [string]::IsNullOrWhiteSpace($WorkerResultPath)) {
+        return
+    }
+
+    $statusText = [string](Get-MediaPipelineWorkerResultField -Result $ProcessResult -Name 'Status' -Default $Status)
+    if ([string]::IsNullOrWhiteSpace($statusText)) { $statusText = 'unknown' }
+    $successValue = [bool](Get-MediaPipelineWorkerResultField -Result $ProcessResult -Name 'Success' -Default $Success)
+    $reasonText = [string](Get-MediaPipelineWorkerResultField -Result $ProcessResult -Name 'Reason' -Default $Reason)
+    $errorCodeText = [string](Get-MediaPipelineWorkerResultField -Result $ProcessResult -Name 'ErrorCode' -Default $ErrorCode)
+    $sourcePathText = [string](Get-MediaPipelineWorkerResultField -Result $ProcessResult -Name 'SourcePath' -Default $SourcePath)
+    $sourceNameText = [string](Get-MediaPipelineWorkerResultField -Result $ProcessResult -Name 'SourceName' -Default ([System.IO.Path]::GetFileName($sourcePathText)))
+    $routeText = [string](Get-MediaPipelineWorkerResultField -Result $ProcessResult -Name 'Route' -Default $Route)
+    $routeReasonCodeText = [string](Get-MediaPipelineWorkerResultField -Result $ProcessResult -Name 'RouteReasonCode' -Default '')
+    $routeReasonText = [string](Get-MediaPipelineWorkerResultField -Result $ProcessResult -Name 'RouteReason' -Default '')
+    $publishStateText = [string](Get-MediaPipelineWorkerResultField -Result $ProcessResult -Name 'PublishState' -Default $PublishState)
+    $publishModeText = [string](Get-MediaPipelineWorkerResultField -Result $ProcessResult -Name 'PublishMode' -Default '')
+    $outputPathText = [string](Get-MediaPipelineWorkerResultField -Result $ProcessResult -Name 'OutputPath' -Default '')
+    $outputSizeBytes = 0L
+    try {
+        $outputSizeBytes = [long](Get-MediaPipelineWorkerResultField -Result $ProcessResult -Name 'OutputSizeBytes' -Default 0)
+    } catch {
+        $outputSizeBytes = 0L
+    }
+
+    $payload = [ordered]@{
+        SchemaVersion       = 'local_worker_result.v1'
+        Success             = $successValue
+        Status              = $statusText
+        Reason              = $reasonText
+        ErrorCode           = $errorCodeText
+        SourcePath          = $sourcePathText
+        SourceName          = $sourceNameText
+        IsTV                = [bool]$IsTV
+        MediaKind           = [string]$MediaKind
+        MediaKindReason     = [string]$MediaKindReason
+        Route               = $routeText
+        RouteReasonCode     = $routeReasonCodeText
+        RouteReason         = $routeReasonText
+        PublishState        = $publishStateText
+        PublishMode         = $publishModeText
+        OutputPath          = $outputPathText
+        OutputSizeBytes     = $outputSizeBytes
+        WorkerSlotId        = [int]$WorkerSlotId
+        WorkerRunId         = [string]$WorkerRunId
+        WorkerClaimId       = [string]$WorkerClaimId
+        CompletedAt         = (Get-Date).ToString('o')
+    }
+
+    try {
+        Write-MediaPipelineJsonAtomic -Path $WorkerResultPath -InputObject $payload -Depth 10 | Out-Null
+        Write-Log "WORKER CHILD: wrote result status=$statusText success=$successValue path=$WorkerResultPath" 'DEBUG'
+    } catch {
+        Write-Log "WORKER CHILD: failed to write result to $WorkerResultPath`: $_" 'ERROR'
+    }
+}
+
 # ==============================================================================
 # SINGLE-FILE MODE (Worker dispatch)
 # ------------------------------------------------------------------------------
@@ -1379,6 +1467,11 @@ if ($SingleFile -ne "") {
     if (-not (Test-Path -LiteralPath $sfPath)) {
         Write-Log "ERROR: SingleFile path not found: $sfPath"
         Set-ProgressStage -Stage 'idle' -Status 'Error' -Percent $null -SaveNow
+        Write-MediaPipelineWorkerChildResult `
+            -SourcePath $sfPath `
+            -Status 'failed' `
+            -Success:$false `
+            -Reason 'SingleFile path not found'
         & $Script:ExitCleanup
         exit 1
     }
@@ -1399,6 +1492,12 @@ if ($SingleFile -ne "") {
     $sfPublishState = if ($sfResult -and $sfResult.PSObject.Properties['PublishState']) { [string]$sfResult.PublishState } else { '' }
     $sfSuffix = if ([string]::IsNullOrWhiteSpace($sfPublishState)) { '' } else { " publish=$sfPublishState" }
     Write-Log "SINGLE-FILE MODE: complete ($sfStatus$sfSuffix). Exiting."
+    Write-MediaPipelineWorkerChildResult `
+        -SourcePath $sfPath `
+        -ProcessResult $sfResult `
+        -IsTV:$sfIsTV `
+        -MediaKind ([string]$sfMediaKind.MediaKind) `
+        -MediaKindReason ([string]$sfMediaKind.Reason)
     & $Script:ExitCleanup
     if ($sfResult -and [bool]$sfResult.Success) { exit 0 }
     exit 1
@@ -1412,6 +1511,28 @@ $script:ReprocessAllInitial = $script:ReprocessAll
 # Default snapshot location used by the desktop Queue tab. Always written
 # during a normal run; also where -EmitQueuePlan writes when the caller
 # didn't supply -QueuePlanOutPath.
+$pipelineScriptPath = if (-not [string]::IsNullOrWhiteSpace($PSCommandPath)) {
+    [string]$PSCommandPath
+} elseif ($MyInvocation.MyCommand.Path) {
+    [string]$MyInvocation.MyCommand.Path
+} else {
+    Join-Path $pipelineRoot 'MediaPipeline.ps1'
+}
+$currentPowerShellPath = ''
+try {
+    $currentPowerShellPath = [string][System.Diagnostics.Process]::GetCurrentProcess().MainModule.FileName
+} catch {
+    $currentPowerShellPath = ''
+}
+if ([string]::IsNullOrWhiteSpace($currentPowerShellPath)) {
+    $pwshCommand = Get-Command pwsh.exe -ErrorAction SilentlyContinue
+    if (-not $pwshCommand) {
+        $pwshCommand = Get-Command pwsh -ErrorAction SilentlyContinue
+    }
+    if ($pwshCommand -and $pwshCommand.Source) {
+        $currentPowerShellPath = [string]$pwshCommand.Source
+    }
+}
 $queueSnapshotPath = if ($QueuePlanOutPath) {
     $QueuePlanOutPath
 } else {
@@ -1422,7 +1543,12 @@ $enginePlan = New-MediaPipelineEnginePlan `
     -SourceTV $SourceTV `
     -QueueSnapshotPath $queueSnapshotPath `
     -Once:$Once `
-    -SleepSeconds $SleepSeconds
+    -SleepSeconds $SleepSeconds `
+    -ScriptPath $pipelineScriptPath `
+    -ConfigPath $configPath `
+    -PowerShellPath $currentPowerShellPath `
+    -ParallelEncodeMode ([string]$script:ParallelEncodeMode) `
+    -MaxParallelEncodes ([int]$script:MaxParallelEncodes)
 
 # -EmitQueuePlan: do exactly one scan + filter pass, write the snapshot,
 # and exit. Pending-push retry is intentionally skipped to keep the dry

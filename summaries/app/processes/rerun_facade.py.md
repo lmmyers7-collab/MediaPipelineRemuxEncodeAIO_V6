@@ -2,7 +2,7 @@
 file: app/processes/rerun_facade.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: process
 last_modified: 2026-05-28
 last_reviewed: 2026-05-28
 sha256: 0936e36f50d1123864256a1e5e3e597a17015f002a4697141686b292234163ea

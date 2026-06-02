@@ -111,6 +111,24 @@ class PipelinePlannerTests(unittest.TestCase):
         self.assertIn("commandPlans", dumped)
         self.assertEqual(dumped["intent"], "dry_run")
 
+    def test_auto_plan_id_distinguishes_publish_policy_with_same_route(self) -> None:
+        source = load_source("tv_h264_1080p_12mbps_mkv.json")
+
+        base = build_pipeline_plan_from_preset(source, {"OutputContainer": "mkv"})
+        deferred = build_pipeline_plan_from_preset(
+            source,
+            {"OutputContainer": "mkv", "DeferredPublish": True},
+        )
+
+        self.assertEqual(base.route_summary, deferred.route_summary)
+        self.assertEqual(
+            [reason.code for reason in base.reason_summary],
+            [reason.code for reason in deferred.reason_summary],
+        )
+        self.assertEqual(base.publish_strategy, "publish_with_pending_safety")
+        self.assertEqual(deferred.publish_strategy, "park_pending_publish")
+        self.assertNotEqual(base.plan_id, deferred.plan_id)
+
 
 if __name__ == "__main__":
     unittest.main()

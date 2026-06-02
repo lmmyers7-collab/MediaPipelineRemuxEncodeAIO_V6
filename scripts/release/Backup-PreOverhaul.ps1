@@ -145,7 +145,6 @@ if ($SkipReleaseBuild) {
     if ($DryRun) {
         Write-Step "[dry-run] Would run: & '$buildScript' -DestinationRoot '$ReleaseDir' -Verify -Zip"
     } else {
-        New-Item -ItemType Directory -Path $ReleaseDir | Out-Null
         & $buildScript -DestinationRoot $ReleaseDir -Verify -Zip
         if ($LASTEXITCODE -ne 0) { throw "Release build failed with exit code $LASTEXITCODE" }
     }

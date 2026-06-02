@@ -3,9 +3,9 @@ file: engine/queue/pipeline_engine.ps1
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: 9e2251de4d89f8ecc851782c43baf4c2bc6cd436cb73bd5796785d72954e23d9
+sha256: f891213b6cb3de62dceea7fcaff71f7c000eb29610f4ba35fda3b9f3526f816a
 ---
 # `engine/queue/pipeline_engine.ps1`
 

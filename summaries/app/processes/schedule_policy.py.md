@@ -2,10 +2,10 @@
 file: app/processes/schedule_policy.py
 pipeline_stage: orchestration
 token_priority: medium
-owner_domain: unknown
-last_modified: 2026-05-28
+owner_domain: process
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 4237e3b3dcffeddb05c3a2e6d7a365e0526f5c6fafc1ca2a1d80a96a235b6e9a
+sha256: 473121c5a4e6989a3dc1b9303a5a7d7a2908749bc1946dccaeadde5ebd9f6881
 ---
 # `app/processes/schedule_policy.py`
 

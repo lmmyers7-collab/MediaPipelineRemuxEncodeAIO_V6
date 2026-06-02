@@ -2,10 +2,10 @@
 file: app/telemetry/system_metrics.py
 pipeline_stage: observability
 token_priority: medium
-owner_domain: unknown
-last_modified: 2026-05-31
+owner_domain: observability
+last_modified: 2026-06-02
 last_reviewed: 2026-05-31
-sha256: a73bd03d41f7e2a5f9ce1aa2acac436d050dbed2dd9e995efcf49f135989153b
+sha256: 0079562fc64ab071e39319d579438a8c0029b2bc50945ed2666d43a3f8ef3892
 ---
 # `app/telemetry/system_metrics.py`
 

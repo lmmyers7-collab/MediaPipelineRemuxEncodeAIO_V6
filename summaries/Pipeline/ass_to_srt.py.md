@@ -1,8 +1,8 @@
 ---
 file: Pipeline/ass_to_srt.py
-pipeline_stage: n/a
-token_priority: medium
-owner_domain: unknown
+pipeline_stage: subtitles
+token_priority: high
+owner_domain: subtitles
 last_modified: 2026-05-30
 last_reviewed: 2026-05-30
 sha256: 59bf519bab80d7e306fb6f61674a9d2d96bd2f7a355d9548b80ecdbd6c3a5ddc

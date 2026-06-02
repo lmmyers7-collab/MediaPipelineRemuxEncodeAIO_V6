@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_webview_browser_maintenance_reports_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-31
-sha256: 0176e4e62ba8891b459c8fc9cfe012efc6b9fbde634be05891ba59030fb04216
+sha256: 719867fc5c0baf3122a148bf67869c3a0726f0670ac8d227176b33b16a482015
 ---
 # `DesktopApp/tests/test_webview_browser_maintenance_reports_smoke.py`
 

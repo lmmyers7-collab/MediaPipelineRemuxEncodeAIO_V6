@@ -2,7 +2,7 @@
 file: app/queue/service.py
 pipeline_stage: orchestration
 token_priority: medium
-owner_domain: unknown
+owner_domain: queue
 last_modified: 2026-05-28
 last_reviewed: 2026-05-28
 sha256: 50f70dc93a9ce3d377f3eb9ac491098028b38ecbdfa785bb61c047132160be14

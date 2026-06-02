@@ -355,7 +355,8 @@ function Invoke-MkvmergeWithProgress {
     $exitCode = [int]$result.ExitCode
 
     $reproPath = $null
-    if ($SaveReproOnFailure -and $exitCode -ge 2) {
+    $mkvmergeFailed = ([bool]$result.TimedOut -or [bool]$result.Stopped -or $exitCode -lt 0 -or $exitCode -ge 2)
+    if ($SaveReproOnFailure -and $mkvmergeFailed) {
         if (Get-Command -Name Save-ReproCommand -ErrorAction SilentlyContinue) {
             $reproPath = Save-ReproCommand -ToolName 'mkvmerge' -Executable $mkvmergePath -ArgumentList $ArgumentList -Stage $Stage
         }

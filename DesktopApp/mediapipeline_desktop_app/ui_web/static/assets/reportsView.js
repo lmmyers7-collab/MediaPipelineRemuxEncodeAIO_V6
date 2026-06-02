@@ -11,6 +11,8 @@
   let selectedAuditRowKey = "";
   let lastFailureEmptyMessage = "No failure rows available.";
   let lastAuditEmptyMessage = "No audit rows available.";
+  let reportsTabNavInitialized = false;
+  let reportsViewEventsInitialized = false;
   const REPORTS_TAB_STORAGE_KEY = "mediapipeline-reports-tab";
 
   function reportsTabIds() {
@@ -40,9 +42,12 @@
     const buttons = Array.from(page.querySelectorAll(".settings-tab-btn[data-reports-tab]"));
     const panels = Array.from(page.querySelectorAll(":scope > .reports-tab-panel[data-reports-tab-panel]"));
     if (!buttons.length || !panels.length) return;
-    buttons.forEach((button) => {
-      button.addEventListener("click", () => activateReportsTab(button.dataset.reportsTab || "overview"));
-    });
+    if (!reportsTabNavInitialized) {
+      buttons.forEach((button) => {
+        button.addEventListener("click", () => activateReportsTab(button.dataset.reportsTab || "overview"));
+      });
+      reportsTabNavInitialized = true;
+    }
     let stored = "overview";
     try { stored = localStorage.getItem(REPORTS_TAB_STORAGE_KEY) || "overview"; } catch (_) {}
     activateReportsTab(stored);
@@ -543,11 +548,20 @@
     if (!failureMarkerModeActive()) {
       return { error: "Switch on Use failure markers first. Latest failure reports are evidence, not retry-blocker state." };
     }
-    const markerPaths = scope === "all" ? allFailureMarkerPaths() : scope === "visible" ? visibleFailureMarkerPaths() : selectedFailureMarkerPaths();
-    if (!markerPaths.length) {
-      return { error: scope === "all" ? "No marker rows are loaded." : scope === "visible" ? "No visible marker rows are loaded." : "Select one or more failure marker rows first." };
+    const clearAll = scope === "all" || scope === "all_markers";
+    const apiScope = scope === "all" ? "all_markers" : scope;
+    const markerPaths = clearAll ? [] : scope === "visible" ? visibleFailureMarkerPaths() : selectedFailureMarkerPaths();
+    if (clearAll) {
+      const markerCount = reportNumber(lastFailurePreviewPayload.count || lastFailureRows.length);
+      if (!markerCount && !lastFailureRows.length) {
+        return { error: "No marker rows are loaded." };
+      }
+      return { scope: "all_markers", marker_paths: [], dry_run: dryRun, confirm_clear: !dryRun, all_markers: true, marker_count: markerCount };
     }
-    return { scope, marker_paths: markerPaths, dry_run: dryRun, confirm_clear: !dryRun };
+    if (!markerPaths.length) {
+      return { error: clearAll ? "No marker rows are loaded." : scope === "visible" ? "No visible marker rows are loaded." : "Select one or more failure marker rows first." };
+    }
+    return { scope: apiScope, marker_paths: markerPaths, dry_run: dryRun, confirm_clear: !dryRun, all_markers: false, marker_count: markerPaths.length };
   }
 
   function renderFailureClearResult(result) {
@@ -592,19 +606,25 @@
       return;
     }
     if (!dryRun) {
-      const count = Array.isArray(request.marker_paths) ? request.marker_paths.length : 0;
-      const message = `Clear ${count} failure marker${count === 1 ? "" : "s"}?\n\nThis moves marker JSON out of the active marker folder so the pipeline can retry those source files. It does not touch media files or failure reports.`;
+      const count = request.all_markers
+        ? reportNumber(request.marker_count)
+        : Array.isArray(request.marker_paths) ? request.marker_paths.length : 0;
+      const targetText = request.all_markers
+        ? "all backend failure markers"
+        : `${count} failure marker${count === 1 ? "" : "s"}`;
+      const message = `Clear ${targetText}?\n\nThis moves marker JSON out of the active marker folder so the pipeline can retry those source files. It does not touch media files or failure reports.`;
       if (!window.confirm(message)) return;
     }
     setText("failure-clear-status", dryRun ? "Previewing..." : "Clearing...");
     setText("failure-clear-summary", dryRun ? "Previewing backend marker clear. No marker files will move." : "Clearing backend marker files after confirmation.");
     try {
-      const result = await apiPost("/api/failures/clear", {
-        scope,
-        marker_paths: request.marker_paths,
+      const payload = {
+        scope: request.scope,
         dry_run: dryRun,
         confirm_clear: !dryRun,
-      });
+      };
+      if (!request.all_markers) payload.marker_paths = request.marker_paths;
+      const result = await apiPost("/api/failures/clear", payload);
       if (typeof appendCommandResult === "function") appendCommandResult(result);
       renderFailureClearResult(result);
       if (!dryRun && result?.ok) {
@@ -862,14 +882,14 @@
         "Failure review board: unavailable.",
         `Error: ${failures.error}`,
         "First action: open Latest Failure, Failure Reports, and Run Logs from Diagnostics before deciding whether a rerun is safe.",
-        "Mutation guardrail: Reports remains read-only; rerun and cleanup decisions must use backend-owned workflows.",
+        "Mutation guardrail: Reports uses backend-owned commands only; rerun and cleanup decisions must use backend-owned workflows.",
       ];
     }
     if (!reportPreviewLoaded(failures, rows)) {
       return [
         "Failure review board: no failure preview has loaded yet.",
         "First action: refresh Reports or open Failure Reports if you expected recent failures.",
-        "Mutation guardrail: Reports remains read-only; it does not create, clear, or rerun failure records.",
+        "Mutation guardrail: Reports triage is read-only until marker mode is enabled; Clear Retry Blockers only moves marker JSON through the backend command.",
       ];
     }
     const operatorRows = rows.filter((row) => ["operator_required", "permanent"].includes(String(row.classification || "").toLowerCase()));
@@ -912,7 +932,7 @@
     } else {
       lines.push("Next step: no failure rows are present; use Audit rows or Diagnostics if you expected a recent failure.");
     }
-    lines.push("Mutation guardrail: Reports remains read-only; rerun/export/repair actions must stay backend-owned.");
+    lines.push("Mutation guardrail: Reports triage is read-only; marker cleanup, rerun/export/repair actions must stay backend-owned.");
     return lines;
   }
 
@@ -941,14 +961,14 @@
         "Audit review board: unavailable.",
         `Error: ${audit.error}`,
         "First action: open Latest Audit CSV and Audit Reports, then run a fresh Audit if the CSV cannot be parsed.",
-        "Mutation guardrail: Reports remains read-only; CSV rerun must be launched through backend-owned Launch controls.",
+        "Mutation guardrail: Reports triage is read-only; CSV rerun must be launched through backend-owned Launch controls.",
       ];
     }
     if (!reportPreviewLoaded(audit, rows)) {
       return [
         "Audit review board: no audit preview has loaded yet.",
         "First action: refresh Reports, run Audit from Launch, or turn off priority-only mode if needed.",
-        "Mutation guardrail: Reports remains read-only; it does not write CSVs, rerun rows, or change library files.",
+        "Mutation guardrail: Reports triage is read-only; it does not write CSVs, rerun rows, or change library files.",
       ];
     }
     const redownloadRows = rows.filter((row) => String(row.effective_bucket || "").toUpperCase() === "REDOWNLOAD_CANDIDATE");
@@ -993,7 +1013,7 @@
     } else {
       lines.push("Next step: no audit rows are present; run Audit from Launch if you expected recommendations.");
     }
-    lines.push("Mutation guardrail: Reports remains read-only; CSV rerun/export decisions must stay backend-owned.");
+    lines.push("Mutation guardrail: Reports triage is read-only; CSV rerun/export decisions must stay backend-owned.");
     return lines;
   }
 
@@ -1079,10 +1099,11 @@
 
   function reportInvestigationStatus() {
     const triage = reportTriageStatus();
+    const auditStatus = auditReviewStatus();
     if (triage === "Action needed") return "Action needed";
     if (triage === "Review needed") return "Review";
-    if (failureReviewStatus() === "Unavailable" || auditReviewStatus() === "Unavailable") return "Review";
-    if (failureReviewStatus() === "Action needed" || auditReviewStatus().includes("review")) return "Review rows";
+    if (failureReviewStatus() === "Unavailable" || auditStatus === "Unavailable") return "Review";
+    if (failureReviewStatus() === "Action needed" || auditStatus.toLowerCase().includes("review")) return "Review rows";
     if (triage === "Loaded" || triage === "No action rows") return "Ready";
     return "Waiting";
   }
@@ -1133,7 +1154,7 @@
       lines.push("3. No report-driven action is indicated if both review boards are clean.");
     }
     lines.push("");
-    lines.push("Mutation guardrail: Reports remains read-only; rerun, export, repair, delete, and filesystem mutation must stay behind backend-owned commands.");
+    lines.push("Mutation guardrail: Reports triage is read-only; marker cleanup, rerun, export, repair, delete, and filesystem mutation must stay behind backend-owned commands.");
     return lines;
   }
 
@@ -1279,6 +1300,8 @@
 
   function initReportsViewEvents() {
     initReportsTabNav();
+    if (reportsViewEventsInitialized) return;
+    reportsViewEventsInitialized = true;
     const rerunButton = byId("report-go-rerun-button");
     if (rerunButton) rerunButton.addEventListener("click", reportGoToCsvRerun);
     const auditButton = byId("report-go-audit-button");

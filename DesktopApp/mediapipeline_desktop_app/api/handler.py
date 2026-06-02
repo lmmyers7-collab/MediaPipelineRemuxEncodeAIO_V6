@@ -6,8 +6,8 @@ from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
 from .handler_policy import (
-    OPTIONS_RESPONSE_HEADERS,
     not_found_payload,
+    options_response_headers,
     route_exception_payload,
     route_validation_error_payload,
     should_record_command_payload,
@@ -30,7 +30,7 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
                 self._send_json({"error": "invalid origin"}, status=403)
                 return
             self.send_response(204)
-            for name, value in OPTIONS_RESPONSE_HEADERS:
+            for name, value in options_response_headers(self._cors_response_origin()):
                 self.send_header(name, value)
             self.end_headers()
 
@@ -101,7 +101,7 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
                     except Exception as exc:
                         self._send_json(route_validation_error_payload(route, exc), status=400)
                         return
-                self._send_json(getattr(owner, spec.method_name)(body))
+                self._send_json(getattr(owner, spec.method_name)(body), journal_request=body)
             except Exception as exc:
                 payload = route_exception_payload(route, exc)
                 owner.logger.exception("local API route failed: %s error_id=%s", route, payload.get("error_id"))
@@ -121,7 +121,13 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
             checker = getattr(owner, "_origin_header_authorized", None)
             return bool(checker(self.headers)) if callable(checker) else True
 
-        def _send_json(self, payload: dict[str, Any], status: int = 200) -> None:
+        def _cors_response_origin(self) -> str:
+            resolver = getattr(owner, "_cors_response_origin", None)
+            if callable(resolver):
+                return str(resolver(self.headers))
+            return str(self.headers.get("Origin") or "http://127.0.0.1")
+
+        def _send_json(self, payload: dict[str, Any], status: int = 200, journal_request: dict[str, Any] | None = None) -> None:
             try:
                 body = json.dumps(payload, ensure_ascii=False, sort_keys=True, allow_nan=False).encode("utf-8")
             except (TypeError, ValueError) as exc:
@@ -130,7 +136,7 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
                 payload = route_exception_payload("local-api response", exc)
                 body = json.dumps(payload, ensure_ascii=False, sort_keys=True, allow_nan=False).encode("utf-8")
             if should_record_command_payload(status):
-                owner.command_journal.record(payload)
+                owner._record_command_journal(payload, request=journal_request)
             self._send_bytes(body, status=status, content_type="application/json; charset=utf-8")
 
         def _send_bytes(self, body: bytes, *, status: int = 200, content_type: str = "application/octet-stream") -> None:

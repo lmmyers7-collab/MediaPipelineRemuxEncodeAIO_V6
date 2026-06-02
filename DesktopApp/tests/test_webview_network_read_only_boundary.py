@@ -90,6 +90,15 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
         self.assertIn("design_only_no_lifecycle_routes", source)
         self.assertIn("Mutation guardrail", source)
 
+    def test_network_view_js_does_not_render_auth_token_settings(self) -> None:
+        source = NETWORK_JS.read_text(encoding="utf-8")
+
+        self.assertNotIn("CoordinatorAuthToken", source)
+        self.assertNotIn("WorkerAuthToken", source)
+        self.assertNotIn("Coordinator auth token:", source)
+        self.assertNotIn("Worker auth token:", source)
+        self.assertIn("backend-owned secret, not displayed by WebView", source)
+
     def test_local_api_network_routes_are_read_only(self) -> None:
         network_routes = [
             (str(route["method"]).upper(), str(route["path"]), str(route.get("effect", "")))

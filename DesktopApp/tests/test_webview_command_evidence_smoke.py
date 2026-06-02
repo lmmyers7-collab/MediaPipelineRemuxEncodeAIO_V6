@@ -81,8 +81,8 @@ def _command_entries(root: Path) -> list[dict[str, object]]:
             "severity": "warning",
             "warnings": ["Completed row opened, but sidecar proof should still be checked."],
             "message": "Opened completed output.",
-            "request": {"target": "output", "row_key": str(output)},
-            "data": {"target": "output", "row_key": str(output), "opened_path": str(output)},
+            "request": {"target": "output_file", "row_key": str(output)},
+            "data": {"target": "output_file", "row_key": str(output), "path": str(output)},
         },
         {
             "at": "2026-05-14T12:02:00-04:00",
@@ -107,8 +107,8 @@ def _command_entries(root: Path) -> list[dict[str, object]]:
             "command": "pending_publish.open",
             "ok": True,
             "message": "Opened backend-selected pending payload.",
-            "request": {"target": "payload", "row_key": str(pending)},
-            "data": {"target": "payload", "row_key": str(pending), "opened_path": str(pending)},
+            "request": {"target": "local_file", "row_key": str(pending)},
+            "data": {"target": "local_file", "row_key": str(pending), "path": str(pending)},
         },
         {
             "at": "2026-05-14T12:04:00-04:00",
@@ -422,6 +422,15 @@ def _node_runner_source() -> str:
           if (typeof context[name] === "function") context[name](renderedHistory);
         });
         context.renderBackendLifecycleHistory(renderedHistory);
+        const sampleValidationActions = context.commandHistoryDiagnosticsActions({
+          command: "diagnostics.open",
+          ok: true,
+          severity: "info",
+          raw: { data: { target: "sample_validation_log" } },
+        });
+        if (!sampleValidationActions.some((action) => action.target === "sample_validation_log")) {
+          throw new Error("command diagnostics actions did not preserve sample_validation_log backend allowlist target");
+        }
 
         function requireText(id, fragments) {
           const text = texts[id] || "";
@@ -433,9 +442,9 @@ def _node_runner_source() -> str:
         }
 
         requireText("queue-open-history", ["queue.open [ok; journal; owner=Queue; issue=ok]", "target=source"]);
-        requireText("completed-open-history", ["completed.open [ok with warning; journal; owner=Completed; issue=warning]", "target=output"]);
+        requireText("completed-open-history", ["completed.open [ok with warning; journal; owner=Completed; issue=warning]", "target=output_file", "opened="]);
         requireText("pending-drain-history", ["pending_publish.drain [error; journal; owner=Pending Publish; issue=error]", "remaining=1"]);
-        requireText("pending-open-history", ["pending_publish.open [ok; journal; owner=Pending Publish; issue=ok]", "target=payload"]);
+        requireText("pending-open-history", ["pending_publish.open [ok; journal; owner=Pending Publish; issue=ok]", "target=local_file", "opened="]);
         requireText("pending-recovery-plan-history", ["pending_publish.recovery_plan_dry_run [ok with warning; journal; owner=Pending Publish; issue=warning]", "review=1"]);
         requireText("diagnostics-open-history", ["diagnostics.open [ok; journal; owner=Diagnostics; issue=ok]", "target=run_logs"]);
         requireText("report-open-history", ["diagnostics.open [ok; journal; owner=Diagnostics; issue=ok]", "target=failed_reports"]);

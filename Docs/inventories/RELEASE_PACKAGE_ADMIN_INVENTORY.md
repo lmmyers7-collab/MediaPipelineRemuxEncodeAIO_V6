@@ -24,7 +24,7 @@ Documents what a clean release package is expected to include and exclude. Sourc
 .\scripts\release\build.ps1 -Zip -KeepPersonalConfig
 ```
 
-**Warning**: `-KeepPersonalConfig` includes `Pipeline\MediaPipeline_config_chatgpt.psd1` with the operator's private UNC paths, source/output locations, and scheduling settings. Use only for private machine-to-machine mirrors — never for distribution.
+**Warning**: `-KeepPersonalConfig` includes `Pipeline\MediaPipeline_config.psd1` and the legacy `Pipeline\MediaPipeline_config_chatgpt.psd1` when present. These files may contain the operator's private UNC paths, source/output locations, and scheduling settings. Use only for private machine-to-machine mirrors — never for distribution.
 
 ---
 
@@ -66,7 +66,7 @@ Documents what a clean release package is expected to include and exclude. Sourc
 |---|---|---|
 | `Pipeline\MediaPipeline.ps1` | Yes | Backend pipeline entry point |
 | `engine\**\*.ps1` | Yes | Active PowerShell engine implementations |
-| `Pipeline\Modules\*.ps1` | Yes | Temporary compatibility shims for legacy dot-source paths |
+| `Pipeline\Modules\*.ps1` | No | Removed legacy shim surface; active PowerShell implementations live under `engine\` |
 | `Pipeline\Setup-MediaPipeline.ps1` | Yes | Setup wizard |
 | `Pipeline\Audit-MediaLibrary.ps1` | Yes | Audit script |
 | `Pipeline\Invoke-RerunCsv.ps1` | Yes | CSV rerun script |
@@ -86,6 +86,7 @@ Documents what a clean release package is expected to include and exclude. Sourc
 
 | Excluded | Reason |
 |---|---|
+| `Pipeline\MediaPipeline_config.psd1` | Live personal config — stripped unless `-KeepPersonalConfig` |
 | `Pipeline\MediaPipeline_config_chatgpt.psd1` | Live personal config — stripped unless `-KeepPersonalConfig` |
 | `Pipeline\MediaPipeline_config_chatgpt.backup_*.psd1` | Generated config backups |
 | `Pipeline\*.log`, `Pipeline\*.tmp`, `Pipeline\*.bak` | Pipeline runtime artifacts |
@@ -104,6 +105,7 @@ Documents what a clean release package is expected to include and exclude. Sourc
 | `.claude\` | Local assistant metadata |
 | `__pycache__\`, `*.pyc`, `*.pyo` | Python bytecode cache |
 | `.pytest_cache\`, `.mypy_cache\`, `.ruff_cache\` | Test/tool caches |
+| `node_modules\` | Root Node.js packages |
 | `DesktopApp\tauri_shell\node_modules\` | Tauri Node.js packages |
 | `DesktopApp\tauri_shell\src-tauri\gen\` | Tauri generated schema output |
 | `DesktopApp\tauri_shell\src-tauri\target\` | Rust build output |
@@ -139,7 +141,7 @@ Documents what a clean release package is expected to include and exclude. Sourc
 - Included file count
 - Excluded file count and reasons
 - Tool versions (FFmpeg, MKVToolNix, Python, bundled packages)
-- Package version and build options used
+- Build options used
 - Config policy (template vs live)
 
 The release self-test (`scripts\release\test.ps1`) validates the manifest after build.

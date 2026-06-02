@@ -53,6 +53,167 @@ def _summary_text(file_path: str, sha256: str = "0" * 64) -> str:
 
 
 class SummaryIntegrityTests(unittest.TestCase):
+    def test_owner_domain_includes_app_queue_package(self) -> None:
+        self.assertEqual(refresh_summaries.owner_domain_for("app/queue/strategy.py"), "queue")
+        self.assertEqual(
+            refresh_summaries.owner_domain_for("app/queue/policy_parts/rows.py"),
+            "queue",
+        )
+        self.assertEqual(refresh_summaries.owner_domain_for("engine/queue/queue_plan.ps1"), "queue")
+        self.assertEqual(
+            refresh_summaries.owner_domain_for("app/final_library/promotion.py"),
+            "final_library",
+        )
+        self.assertEqual(
+            refresh_summaries.owner_domain_for(
+                "app/final_library/promotion_parts/transfer.py"
+            ),
+            "final_library",
+        )
+        self.assertEqual(refresh_summaries.owner_domain_for("app/status/service.py"), "observability")
+        self.assertEqual(refresh_summaries.owner_domain_for("app/telemetry/service.py"), "observability")
+        self.assertEqual(refresh_summaries.owner_domain_for("Pipeline/Audit-MediaLibrary.ps1"), "audit")
+        self.assertEqual(refresh_summaries.owner_domain_for("Pipeline/Audit-MediaLibrary/scanner.ps1"), "audit")
+        self.assertEqual(
+            refresh_summaries.owner_domain_for("Pipeline/Setup-MediaPipeline.ps1"),
+            "scripts",
+        )
+        self.assertEqual(
+            refresh_summaries.owner_domain_for(
+                "Pipeline/Setup-MediaPipeline/Validation.ps1"
+            ),
+            "scripts",
+        )
+        self.assertEqual(
+            refresh_summaries.pipeline_stage_for("Pipeline/Audit-MediaLibrary.ps1"),
+            "observability",
+        )
+        self.assertEqual(
+            refresh_summaries.pipeline_stage_for("Pipeline/Setup-MediaPipeline.ps1"),
+            "setup",
+        )
+
+    def test_ass_to_srt_helper_is_indexed_as_subtitle_source(self) -> None:
+        self.assertIn("Pipeline/ass_to_srt", refresh_summaries.SOURCE_ROOTS)
+        self.assertIn("Pipeline/ass_to_srt.py", refresh_summaries.ROOT_SOURCE_FILES)
+        self.assertTrue(refresh_summaries.in_scope_roots(Path("Pipeline/ass_to_srt.py")))
+        self.assertTrue(refresh_summaries.in_scope_roots(Path("Pipeline/ass_to_srt/srt.py")))
+        self.assertEqual(refresh_summaries.owner_domain_for("Pipeline/ass_to_srt.py"), "subtitles")
+        self.assertEqual(
+            refresh_summaries.owner_domain_for("Pipeline/ass_to_srt/styles.py"),
+            "subtitles",
+        )
+        self.assertEqual(refresh_summaries.pipeline_stage_for("Pipeline/ass_to_srt.py"), "subtitles")
+        self.assertEqual(
+            refresh_summaries.pipeline_stage_for("Pipeline/ass_to_srt/ass_events.py"),
+            "subtitles",
+        )
+        self.assertEqual(refresh_summaries.token_priority_for("Pipeline/ass_to_srt.py"), "high")
+        self.assertEqual(
+            refresh_summaries.token_priority_for("Pipeline/ass_to_srt/text.py"),
+            "high",
+        )
+
+    def test_file_summaries_doc_lists_active_source_roots(self) -> None:
+        doc = (REPO_ROOT / "Docs" / "generated" / "FILE_SUMMARIES.md").read_text(
+            encoding="utf-8"
+        )
+
+        for root in refresh_summaries.SOURCE_ROOTS:
+            with self.subTest(root=root):
+                self.assertIn(f"`{root}/`", doc)
+        self.assertNotIn("Pipeline/Modules/", doc)
+        self.assertNotIn("410 summaries", doc)
+
+    def test_generated_navigation_outputs_are_not_summary_inputs(self) -> None:
+        self.assertTrue(
+            refresh_summaries.is_volatile_generated_summary_source(
+                "Docs/generated/PROJECT_INDEX.md"
+            )
+        )
+        self.assertTrue(
+            refresh_summaries.is_volatile_generated_summary_source(
+                "Docs/generated/DEPENDENCY_GRAPH.md"
+            )
+        )
+        self.assertFalse(
+            refresh_summaries.is_volatile_generated_summary_source(
+                "Docs/generated/FILE_SUMMARIES.md"
+            )
+        )
+
+    def test_project_index_skips_self_referential_generated_nav_summaries(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / "app" / "kept.py"
+            summary = root / "summaries" / "app" / "kept.py.md"
+            generated = root / "Docs" / "generated" / "PROJECT_INDEX.md"
+            generated_summary = root / "summaries" / "Docs" / "generated" / "PROJECT_INDEX.md.md"
+            source.parent.mkdir(parents=True)
+            source.write_text("print('kept')\n", encoding="utf-8")
+            summary.parent.mkdir(parents=True)
+            summary.write_text(_summary_text("app/kept.py", _sha(source)), encoding="utf-8")
+            generated.parent.mkdir(parents=True)
+            generated.write_text("# generated\n", encoding="utf-8")
+            generated_summary.parent.mkdir(parents=True)
+            generated_summary.write_text(
+                _summary_text("Docs/generated/PROJECT_INDEX.md", _sha(generated)),
+                encoding="utf-8",
+            )
+
+            old_root = generate_project_index.REPO_ROOT
+            old_summary = generate_project_index.SUMMARY_ROOT
+            try:
+                generate_project_index.REPO_ROOT = root
+                generate_project_index.SUMMARY_ROOT = root / "summaries"
+
+                summaries = generate_project_index.iter_summaries()
+                self.assertEqual(
+                    [path.relative_to(root).as_posix() for path in summaries],
+                    ["summaries/app/kept.py.md"],
+                )
+                rendered = generate_project_index.render_index(summaries)
+                self.assertIn("app/kept.py", rendered)
+                self.assertNotIn("Docs/generated/PROJECT_INDEX.md", rendered)
+            finally:
+                generate_project_index.REPO_ROOT = old_root
+                generate_project_index.SUMMARY_ROOT = old_summary
+
+    def test_root_schema_json_files_are_explicit_summary_sources(self) -> None:
+        self.assertIn("Pipeline/Audit-MediaLibrary", refresh_summaries.SOURCE_ROOTS)
+        self.assertIn("Pipeline/Audit-MediaLibrary.ps1", refresh_summaries.ROOT_SOURCE_FILES)
+        self.assertIn("Pipeline/Setup-MediaPipeline", refresh_summaries.SOURCE_ROOTS)
+        self.assertIn("Pipeline/Setup-MediaPipeline.ps1", refresh_summaries.ROOT_SOURCE_FILES)
+        self.assertTrue(
+            refresh_summaries.is_source_file(REPO_ROOT / "schemas" / "stages.v1.schema.json")
+        )
+        self.assertTrue(
+            refresh_summaries.is_source_file(
+                REPO_ROOT / "scripts" / "dev" / "webview-public-contract.mjs"
+            )
+        )
+        self.assertTrue(
+            refresh_summaries.is_source_file(
+                REPO_ROOT / "scripts" / "dev" / "start-local-api.bat"
+            )
+        )
+        self.assertTrue(
+            refresh_summaries.is_source_file(
+                REPO_ROOT / "schemas" / "risky_file_registry.v1.schema.json"
+            )
+        )
+        self.assertFalse(
+            refresh_summaries.is_source_file(
+                REPO_ROOT / "tests" / "fixtures" / "source_media" / "avi_mpeg2_480p.json"
+            )
+        )
+        self.assertEqual(refresh_summaries.owner_domain_for("schemas/config.v1.schema.json"), "config")
+        self.assertEqual(refresh_summaries.owner_domain_for("schemas/stages.v1.schema.json"), "contracts")
+        self.assertEqual(
+            refresh_summaries.owner_domain_for("schemas/risky_file_registry.v1.schema.json"),
+            "scripts",
+        )
+
     def test_refresh_check_flags_orphan_summary_only_on_full_inventory(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

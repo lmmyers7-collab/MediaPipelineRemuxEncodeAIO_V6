@@ -3,9 +3,9 @@ file: app/config/metadata_parts/subtitle_fields.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-05-31
+last_modified: 2026-06-01
 last_reviewed: 2026-05-30
-sha256: d3340b4d694506185d1717633380bb8261d1476e26bf077250d5e6b9e44582e2
+sha256: b51140c20447a302dba7f8897ddc30461a36eb12e67374e16dccde6d50e3ab3f
 ---
 # `app/config/metadata_parts/subtitle_fields.py`
 

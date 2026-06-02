@@ -3,9 +3,9 @@ file: app/orchestration/planner.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: orchestration
-last_modified: 2026-05-30
+last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: 1282afef50e1a64ad460baf1a73188d132ed9bd07701ded402dfc1e176324e6c
+sha256: 37fb7f69792393b6298d6184d48cc4c5c5c24cadd2b6b68b05593f01ad3edc13
 ---
 # `app/orchestration/planner.py`
 

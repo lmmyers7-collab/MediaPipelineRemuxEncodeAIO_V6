@@ -3,9 +3,9 @@ file: scripts/dev/generate_pipeline_map.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-05-28
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: edc19ab93bbec35738b8e90e3aaac32619cae271dc5047cf8c43cd6416eb5da8
+sha256: 11e678a2f699a6af092c0f7efa88fe5fa8caaf3d8b2f78dd142bba761307cc66
 ---
 # `scripts/dev/generate_pipeline_map.py`
 

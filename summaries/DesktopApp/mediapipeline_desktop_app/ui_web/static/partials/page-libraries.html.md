@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/page-libraries
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-29
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: 8f316f900a1ee4dfca535944c2a15507d621d93b567969768cd25784b11ee905
+sha256: b576018947def497746b8f389617cce8b9ed981e45e4ca6645056f419e1a4887
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/page-libraries.html`
 

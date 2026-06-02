@@ -3,9 +3,9 @@ file: app/maintenance/release.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: ee9df74c089a2284e62d96d434b19c25717ecde445baf57c9430b6dfe2ed4489
+sha256: 1ce01e8f619721654a8e404d06dfc7579afc40bbbf4093e5feba0a0f6b88a92b
 ---
 # `app/maintenance/release.py`
 

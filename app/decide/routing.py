@@ -306,8 +306,7 @@ def _source_facts(
         bitrate_cap = movie_bitrate
 
     if policy.allow_h264_compatible_direct_copy and normalize_codec(video.codec) in {"h264", "avc"}:
-        if policy.h264_direct_copy_max_bitrate_mbps > 0 and bitrate_cap > 0:
-            bitrate_cap = min(bitrate_cap, policy.h264_direct_copy_max_bitrate_mbps)
+        bitrate_cap = _positive_min(bitrate_cap, policy.h264_direct_copy_max_bitrate_mbps)
 
     estimated = estimated_bitrate_mbps(source, video)
     size_gb = source.container.file_size_bytes / (1024.0**3) if source.container.file_size_bytes > 0 else 0.0
@@ -340,15 +339,16 @@ def _h264_plex_compatible(video: SourceVideoStream, policy: EffectiveDecisionPol
     if policy.h264_direct_copy_max_height > 0 and video.height > 0 and video.height > policy.h264_direct_copy_max_height:
         return False
     estimated = float(facts["estimated_video_bitrate_mbps"])
-    cap = min(
-        value
-        for value in (
-            float(facts["direct_copy_bitrate_cap_mbps"]),
-            policy.h264_direct_copy_max_bitrate_mbps,
-        )
-        if value > 0
+    cap = _positive_min(
+        float(facts["direct_copy_bitrate_cap_mbps"]),
+        policy.h264_direct_copy_max_bitrate_mbps,
     )
     return estimated <= 0 or cap <= 0 or estimated <= cap
+
+
+def _positive_min(*values: float) -> float:
+    positive = [float(value) for value in values if float(value) > 0]
+    return min(positive) if positive else 0.0
 
 
 def _plex_copy_candidate(video: SourceVideoStream, policy: EffectiveDecisionPolicy, facts: Mapping[str, Any]) -> bool:

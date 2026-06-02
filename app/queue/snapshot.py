@@ -10,6 +10,16 @@ from mediapipeline_desktop_app.models import QueueRecord, ResolvedPaths
 
 ProgressDateParser = Callable[[str], datetime | None]
 
+_PHASE_LABELS = {
+    "movie": "MOVIE",
+    "tv": "TV",
+    "priority": "PRIORITY",
+    "priority_movie": "PRIORITY",
+    "priority_tv": "PRIORITY",
+    "low": "LOW",
+    "hold": "HOLD",
+}
+
 
 def queue_snapshot_path(resolved: ResolvedPaths) -> Path | None:
     return resolved.queue_snapshot_path
@@ -74,12 +84,9 @@ def queue_record_from_snapshot_row(row: dict) -> QueueRecord:
     media_kind = str(row.get("media_kind") or "").lower()
     media_type = "TV" if media_kind == "tv" else "Movie"
     phase_raw = str(row.get("phase") or "").lower()
-    if phase_raw == "priority":
-        phase_label = "PRIORITY"
-    elif phase_raw == "tv":
-        phase_label = "TV"
-    else:
-        phase_label = "MOVIE"
+    phase_label = _PHASE_LABELS.get(phase_raw)
+    if phase_label is None:
+        phase_label = phase_raw.replace("_", " ").upper() if phase_raw else ("TV" if media_kind == "tv" else "MOVIE")
     last_write = 0.0
     iso = row.get("last_write_utc")
     if isinstance(iso, str) and iso:

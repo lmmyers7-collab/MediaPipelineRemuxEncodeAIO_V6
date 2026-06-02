@@ -418,17 +418,55 @@ Assert-True (-not (Test-AudioTrackKeptByOverride -Language 'eng' -Channels 6 -Ti
 Assert-True (Test-AudioTrackKeptByOverride -Language 'eng' -Channels 8 -Title 'English Atmos' -Codec 'truehd' -StreamIndex 2 -AudioOverride $audioExactOverride) 'Expected exact audio keep selector to keep the matching stream.'
 Assert-True (-not (Test-AudioTrackKeptByOverride -Language 'eng' -Channels 8 -Title 'English Atmos' -Codec 'truehd' -StreamIndex 3 -AudioOverride $audioExactOverride)) 'Expected exact audio keep selector to require the selected stream index.'
 
+$audioAliasOverride = [pscustomobject]@{
+    keepTracks = @([pscustomobject]@{ language = 'eng' })
+}
+Assert-True (Test-AudioTrackKeptByOverride -Language 'en' -Channels 6 -Title 'English 5.1' -Codec 'ac3' -StreamIndex 1 -AudioOverride $audioAliasOverride) 'Expected audio keep selector to normalize source language aliases.'
+Assert-True (Test-AudioTrackKeptByOverride -Language 'english' -Channels 2 -Title 'English Commentary' -Codec 'ac3' -StreamIndex 2 -AudioOverride $audioAliasOverride) 'Expected audio keep selector to normalize source language names.'
+
 $audioExactDropOverride = [pscustomobject]@{
     dropTracks = @([pscustomobject]@{ streamIndex = 2; language = 'eng'; codec = 'ac3'; channels = 2 })
 }
 Assert-True (-not (Test-AudioTrackKeptByOverride -Language 'eng' -Channels 2 -Title 'English Commentary' -Codec 'ac3' -StreamIndex 2 -AudioOverride $audioExactDropOverride)) 'Expected exact audio drop selector to drop only the matching stream.'
 Assert-True (Test-AudioTrackKeptByOverride -Language 'eng' -Channels 6 -Title 'English 5.1' -Codec 'ac3' -StreamIndex 1 -AudioOverride $audioExactDropOverride) 'Expected exact audio drop selector to keep non-selected streams.'
 
+$audioAliasDropOverride = [pscustomobject]@{
+    dropTracks = @([pscustomobject]@{ language = 'jpn' })
+}
+Assert-True (-not (Test-AudioTrackKeptByOverride -Language 'japanese' -Channels 2 -Title 'Japanese' -Codec 'aac' -StreamIndex 5 -AudioOverride $audioAliasDropOverride)) 'Expected audio drop selector to normalize source language names.'
+
 $subtitleExactOverride = [pscustomobject]@{
     keepTracks = @([pscustomobject]@{ streamIndex = 3; language = 'eng'; codec = 'subrip'; forced = $true })
 }
 Assert-True (Test-SubtitleTrackKeptByOverride -Language 'eng' -IsForced:$true -Title 'English Forced' -Codec 'subrip' -StreamIndex 3 -SubtitleOverride $subtitleExactOverride) 'Expected exact subtitle keep selector to keep the matching stream.'
 Assert-True (-not (Test-SubtitleTrackKeptByOverride -Language 'eng' -IsForced:$false -Title 'English SDH' -Codec 'subrip' -StreamIndex 4 -SubtitleOverride $subtitleExactOverride)) 'Expected exact subtitle keep selector to drop a non-selected duplicate-language stream.'
+
+$subtitleAliasOverride = [pscustomobject]@{
+    keepTracks = @([pscustomobject]@{ language = 'eng'; forced = $false })
+}
+Assert-True (Test-SubtitleTrackKeptByOverride -Language 'english' -IsForced:$false -Title 'English SDH' -Codec 'subrip' -StreamIndex 4 -SubtitleOverride $subtitleAliasOverride) 'Expected subtitle keep selector to normalize source language names.'
+
+$audioAliasRenameOverride = [pscustomobject]@{
+    renameTracks = @([pscustomobject]@{ language = 'eng'; channels = 2; newTitle = 'English Commentary' })
+}
+Assert-Equal (Get-AudioTrackTitleOverride -Language 'english' -Channels 2 -AudioOverride $audioAliasRenameOverride) 'English Commentary' 'Expected audio title override to normalize source language names.'
+
+$subtitleAliasRenameOverride = [pscustomobject]@{
+    renameTracks = @([pscustomobject]@{ language = 'eng'; forced = $true; newTitle = 'English Forced' })
+}
+Assert-Equal (Get-SubtitleTrackTitleOverride -Language 'en' -IsForced:$true -SubtitleOverride $subtitleAliasRenameOverride) 'English Forced' 'Expected subtitle title override to normalize source language aliases.'
+
+Assert-FileOverrideExactTrackSelectorsResolvable `
+    -TrackKind 'audio' `
+    -Tracks @([pscustomobject]@{
+        index = 7
+        codec_type = 'audio'
+        codec_name = 'ac3'
+        channels = 6
+        tags = [pscustomobject]@{ language = 'en'; title = 'English 5.1' }
+        disposition = [pscustomobject]@{ forced = 0 }
+    }) `
+    -OverrideSection ([pscustomobject]@{ keepTracks = @([pscustomobject]@{ streamIndex = 7; language = 'eng'; codec = 'ac3'; channels = 6 }) })
 
 Assert-Throws -ScriptBlock {
     Assert-FileOverrideExactTrackSelectorsResolvable `

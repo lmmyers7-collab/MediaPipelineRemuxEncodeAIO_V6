@@ -29,7 +29,7 @@
   const controlConfirmMessages = {
     rescan: "Request a queue rescan flag for the running pipeline? This does not start a new run or touch media, but it can change what the active loop sees next.",
     stop: "Request Stop After Current? The current file may finish; no new file should start. Use Force Stop only if the run is stalled.",
-    kill: "Force stop immediately? This terminates any active pipeline processes and resets stuck progress state to idle. The current file may be left partial in scratch; source media is not touched.",
+    kill: "Force stop immediately? This terminates any active pipeline processes and resets stuck progress state to idle. The current file may be left partial in scratch; source media should not be touched.",
   };
 
   const launchCommandButtonIds = [
@@ -85,6 +85,12 @@
     try { stored = localStorage.getItem(LAUNCH_TAB_STORAGE_KEY) || "pipeline"; } catch (_) {}
     activateLaunchTab(stored);
   }
+
+  document.addEventListener("click", (event) => {
+    const button = event.target?.closest?.('[data-page-panel="launch"] .settings-tab-btn[data-launch-tab]');
+    if (!button) return;
+    activateLaunchTab(button.dataset.launchTab || "pipeline");
+  });
 
   function launchPipelineIsActive(snapshot = lastLaunchCommandState.snapshot, closeReadiness = lastLaunchCommandState.closeReadiness) {
     if (closeReadiness?.safe_to_close === false || closeReadiness?.active_work === true) return true;

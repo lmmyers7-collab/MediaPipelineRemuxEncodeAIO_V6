@@ -293,6 +293,7 @@ class NetworkFacadeMixin:
         cluster_log_path = state_dir / "cluster.log"
         warnings: list[str] = []
         rows: list[dict[str, Any]] = []
+        coordinator_state_error = ""
         session_completed = 0
         session_failed = 0
         active_count = 0
@@ -300,17 +301,20 @@ class NetworkFacadeMixin:
 
         if inflight_path.exists():
             registry = InFlightRegistry()
-            registry.load(inflight_path)
-            active_entries = registry.snapshot()
-            idle_entries = registry.idle_workers_snapshot()
-            rows.extend(_worker_row(entry, source="coordinator_inflight") for entry in active_entries)
-            rows.extend(_worker_row(entry, source="coordinator_inflight_stats") for entry in idle_entries)
-            active_count = len(active_entries)
-            idle_count = len(idle_entries)
-            session_completed = int(registry.session_completed)
-            session_failed = int(registry.session_failed)
-            if active_entries:
-                warnings.append("Coordinator worker rows come from persisted in-flight state; heartbeat progress may lag the live dispatcher.")
+            if registry.load(inflight_path):
+                active_entries = registry.snapshot()
+                idle_entries = registry.idle_workers_snapshot()
+                rows.extend(_worker_row(entry, source="coordinator_inflight") for entry in active_entries)
+                rows.extend(_worker_row(entry, source="coordinator_inflight_stats") for entry in idle_entries)
+                active_count = len(active_entries)
+                idle_count = len(idle_entries)
+                session_completed = int(registry.session_completed)
+                session_failed = int(registry.session_failed)
+                if active_entries:
+                    warnings.append("Coordinator worker rows come from persisted in-flight state; heartbeat progress may lag the live dispatcher.")
+            else:
+                coordinator_state_error = "Coordinator in-flight state could not be read; inspect or regenerate coordinator_inflight.json before trusting worker rows."
+                warnings.append(coordinator_state_error)
         else:
             warnings.append("No coordinator in-flight state file exists yet.")
 
@@ -342,6 +346,12 @@ class NetworkFacadeMixin:
                 "Records coordinator/worker network lifecycle and claim events.",
             ),
         ]
+        if coordinator_state_error:
+            for item in state_files:
+                if item.get("key") == "coordinator_inflight":
+                    item["status"] = "unreadable"
+                    item["error"] = coordinator_state_error
+                    break
         unreadable = [item for item in state_files if item.get("status") == "unreadable"]
         for item in unreadable:
             warnings.append(f"{item.get('label') or item.get('key')} could not be inspected: {item.get('error')}")

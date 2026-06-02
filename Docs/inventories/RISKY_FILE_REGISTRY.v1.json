@@ -4,11 +4,14 @@
     {
       "id": "source_scratch_output_movement",
       "path_globs": [
-        "Pipeline/Modules/Disk.ps1",
-        "Pipeline/Modules/ScratchCopy.ps1",
-        "Pipeline/Modules/PathHelpers.ps1",
-        "Pipeline/Modules/OutputPathPlanning.ps1",
-        "engine/**"
+        "engine/storage/**",
+        "engine/paths/**",
+        "engine/shared/path_helpers.ps1",
+        "engine/shared/temp_cleanup.ps1",
+        "engine/process/pipeline_plan_executor.ps1",
+        "engine/process/pipeline_plan_executor/**",
+        "engine/process/pipeline_processing.ps1",
+        "engine/process/pipeline_processing/**"
       ],
       "risk_level": "critical",
       "risk_domains": [
@@ -38,10 +41,8 @@
     {
       "id": "publish_and_pending_publish",
       "path_globs": [
-        "Pipeline/Modules/Publish*.ps1",
-        "Pipeline/Modules/Pending*.ps1",
-        "DesktopApp/mediapipeline_desktop_app/service_pending_publish*.py",
-        "DesktopApp/mediapipeline_desktop_app/application/facade_pending_publish*.py"
+        "app/publish/**",
+        "engine/publish/**"
       ],
       "risk_level": "critical",
       "risk_domains": [
@@ -71,8 +72,7 @@
     {
       "id": "rename_apply",
       "path_globs": [
-        "DesktopApp/mediapipeline_desktop_app/service_rename*.py",
-        "DesktopApp/mediapipeline_desktop_app/application/facade_rename*.py"
+        "app/rename/**"
       ],
       "risk_level": "high",
       "risk_domains": [
@@ -100,9 +100,11 @@
       "id": "settings_and_config",
       "path_globs": [
         "DesktopApp/mediapipeline_desktop_app/config*.py",
-        "DesktopApp/mediapipeline_desktop_app/service_config*.py",
-        "Pipeline/Modules/Config*.ps1",
+        "app/contracts/config.py",
+        "engine/config/**",
+        "Pipeline/MediaPipeline_config_template.psd1",
         "Pipeline/Profiles/*.psd1",
+        "Pipeline/Schemas/media_pipeline_config.schema.json",
         "app/config/**",
         "schemas/config.v1.schema.json"
       ],
@@ -131,13 +133,11 @@
     {
       "id": "queue_and_process_control",
       "path_globs": [
-        "DesktopApp/mediapipeline_desktop_app/service_queue*.py",
-        "DesktopApp/mediapipeline_desktop_app/service_process*.py",
-        "DesktopApp/mediapipeline_desktop_app/application/facade_queue*.py",
-        "DesktopApp/mediapipeline_desktop_app/application/facade_process*.py",
-        "Pipeline/Modules/QueuePlan.ps1",
-        "Pipeline/Modules/PipelineEngine.ps1",
-        "app/orchestration/**"
+        "app/orchestration/**",
+        "app/processes/**",
+        "app/queue/**",
+        "engine/process/**",
+        "engine/queue/**"
       ],
       "risk_level": "high",
       "risk_domains": [
@@ -166,7 +166,7 @@
       "id": "ai_guardrails_and_generated_context",
       "path_globs": [
         "AGENTS.md",
-        "Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md",
+        "Docs/architecture/DEPENDENCY_BOUNDARY_RULES.md",
         "Docs/CURRENT_PROJECT_STATE.md",
         "OPEN_WORK_CHECKLIST.md",
         "scripts/dev/refresh_summaries.py",
@@ -174,12 +174,19 @@
         "scripts/dev/generate_pipeline_map.py",
         "scripts/dev/generate_lifecycle_map.py",
         "scripts/dev/check_architecture_guardrails.py",
+        "scripts/dev/check_active_doc_references.py",
+        "scripts/dev/check_dependency_boundaries.py",
+        "scripts/dev/check_godfiles.py",
+        "scripts/dev/check_marketecture.py",
         "scripts/dev/check_risky_file_registry.py",
         "scripts/dev/ai_guardrail.py",
         "scripts/lint-naming.py",
+        "Docs/inventories/GOD_FILE_GUARDRAIL.v1.json",
+        "Docs/inventories/RISKY_FILE_REGISTRY.v1.json",
         "Docs/generated/PROJECT_INDEX.md",
         "Docs/generated/DEPENDENCY_GRAPH.md",
         "Docs/generated/PIPELINE_MAP.md",
+        "Docs/generated/FEATURE_FILE_MAP.md",
         "summaries/**"
       ],
       "risk_level": "high",
@@ -205,7 +212,7 @@
       ],
       "owner_docs": [
         "AGENTS.md",
-        "Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md",
+        "Docs/architecture/DEPENDENCY_BOUNDARY_RULES.md",
         "Docs/CURRENT_PROJECT_STATE.md"
       ],
       "rationale": "These files shape what AI agents read, how they navigate the repo, and which architecture violations are caught."

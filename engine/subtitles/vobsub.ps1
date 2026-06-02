@@ -43,6 +43,54 @@ function Test-CanPreserveVobSubInFfmpegOutput {
     return ($container -in (Get-MediaContainerMatroskaFamilyNames))
 }
 
+function Get-VobSubObjectPropertyValue {
+    param(
+        $Object,
+        [Parameter(Mandatory)] [string]$Name,
+        $Default = $null
+    )
+
+    if ($null -eq $Object) { return $Default }
+    if ($Object -is [System.Collections.IDictionary] -and $Object.Contains($Name)) {
+        return $Object[$Name]
+    }
+    try {
+        $prop = $Object.PSObject.Properties[$Name]
+        if ($prop) { return $prop.Value }
+    } catch {}
+    return $Default
+}
+
+function Test-MkvmergeTrackLooksLikeVobSub {
+    param($Track)
+
+    $props = Get-VobSubObjectPropertyValue -Object $Track -Name 'properties'
+    $codecText = @(
+        (Get-VobSubObjectPropertyValue -Object $Track -Name 'codec' -Default ''),
+        (Get-VobSubObjectPropertyValue -Object $props -Name 'codec_id' -Default ''),
+        (Get-VobSubObjectPropertyValue -Object $props -Name 'codec_private_data' -Default '')
+    ) -join ' '
+    return (([string]$codecText).ToLowerInvariant() -match 'vobsub|s_vobsub|dvd')
+}
+
+function Get-MkvmergeTrackLanguage {
+    param($Track)
+
+    $props = Get-VobSubObjectPropertyValue -Object $Track -Name 'properties'
+    $language = Get-VobSubObjectPropertyValue -Object $props -Name 'language' -Default ''
+    if ([string]::IsNullOrWhiteSpace([string]$language)) {
+        $language = Get-VobSubObjectPropertyValue -Object $props -Name 'language_ietf' -Default ''
+    }
+    return (Get-NormalizedSubtitleLanguage ([string]$language))
+}
+
+function Get-MkvmergeTrackTitle {
+    param($Track)
+
+    $props = Get-VobSubObjectPropertyValue -Object $Track -Name 'properties'
+    return [string](Get-VobSubObjectPropertyValue -Object $props -Name 'track_name' -Default '')
+}
+
 function Resolve-VobSubOcrLanguage {
     param([string]$Language)
 
@@ -96,9 +144,62 @@ function Resolve-VobSubOcrToolInvocation {
     return [pscustomobject]@{ Ok = $true; FilePath = $resolved; PrefixArgs = @(); Reason = 'ok' }
 }
 
-function Resolve-VobSubTesseractInvocation {
-    param([string]$OcrToolPath = '')
+function Get-VobSubOcrToolKind {
+    param($Tool)
 
+    if (-not $Tool -or [string]::IsNullOrWhiteSpace([string]$Tool.FilePath)) { return 'unknown' }
+    $toolPath = [string]$Tool.FilePath
+    $prefixArgs = if ($Tool.PSObject.Properties['PrefixArgs']) { @($Tool.PrefixArgs) } else { @() }
+    if ($prefixArgs.Count -gt 0 -and -not [string]::IsNullOrWhiteSpace([string]$prefixArgs[0])) {
+        $toolPath = [string]$prefixArgs[0]
+    }
+    $leaf = [System.IO.Path]::GetFileName($toolPath).ToLowerInvariant()
+    if ($leaf -eq 'subtitleedit.exe') { return 'subtitleedit-legacy' }
+    if ($leaf -eq 'seconv.exe') { return 'seconv' }
+    if ($leaf -eq 'seconv.dll') { return 'seconv' }
+    return 'unknown'
+}
+
+function Resolve-VobSubTessdataDirectory {
+    param(
+        [string]$TesseractDirectory = '',
+        [string]$Language = ''
+    )
+
+    $candidateRoots = [System.Collections.Generic.List[string]]::new()
+    if (-not [string]::IsNullOrWhiteSpace($env:TESSDATA_PREFIX)) {
+        $candidateRoots.Add([string]$env:TESSDATA_PREFIX)
+        $candidateRoots.Add((Join-Path ([string]$env:TESSDATA_PREFIX) 'tessdata'))
+    }
+    if (-not [string]::IsNullOrWhiteSpace($TesseractDirectory)) {
+        $candidateRoots.Add((Join-Path $TesseractDirectory 'tessdata'))
+        $parent = Split-Path -Parent $TesseractDirectory
+        if ($parent) { $candidateRoots.Add((Join-Path $parent 'tessdata')) }
+    }
+    foreach ($candidate in @('C:\Program Files\Tesseract-OCR\tessdata', 'C:\Program Files (x86)\Tesseract-OCR\tessdata')) {
+        $candidateRoots.Add($candidate)
+    }
+
+    $languageText = if ($Language) { ([string]$Language).Trim().ToLowerInvariant() } else { '' }
+    $requiresLanguage = (-not [string]::IsNullOrWhiteSpace($languageText) -and $languageText -ne 'und')
+    foreach ($root in @($candidateRoots | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -Unique)) {
+        $rootText = [string]$root
+        if (-not (Test-Path -LiteralPath $rootText -PathType Container -ErrorAction SilentlyContinue)) { continue }
+        if (-not $requiresLanguage) { return $rootText }
+        $trainedData = Join-Path $rootText ("$languageText.traineddata")
+        if (Test-Path -LiteralPath $trainedData -PathType Leaf -ErrorAction SilentlyContinue) { return $rootText }
+    }
+    return ''
+}
+
+function Resolve-VobSubTesseractInvocation {
+    param(
+        [string]$OcrToolPath = '',
+        [string]$Language = ''
+    )
+
+    $languageRequired = (-not [string]::IsNullOrWhiteSpace($Language) -and [string]$Language -ne 'und')
+    $firstMissingTessdata = $null
     $candidateRoots = @()
     if (-not [string]::IsNullOrWhiteSpace($OcrToolPath)) {
         $toolDir = Split-Path -Parent $OcrToolPath
@@ -106,12 +207,17 @@ function Resolve-VobSubTesseractInvocation {
             $candidateRoots += $toolDir
             $candidateRoots += (Join-Path $toolDir 'Tesseract550')
             $candidateRoots += (Join-Path $toolDir 'Tesseract-OCR')
+            $candidateRoots += (Join-Path $toolDir 'Tesseract302')
             $candidateRoots += (Join-Path $toolDir 'Tesseract')
         }
     }
 
     $baseDir = if ($scriptDir) { $scriptDir } elseif ($PSScriptRoot) { Split-Path -Parent $PSScriptRoot } else { (Get-Location).Path }
     $candidateRoots += @(
+        (Join-Path $baseDir 'Tools\SubtitleEditLegacy\Tesseract550'),
+        (Join-Path $baseDir 'Tools\SubtitleEditLegacy\Tesseract-OCR'),
+        (Join-Path $baseDir 'Tools\SubtitleEditLegacy\Tesseract302'),
+        (Join-Path $baseDir 'Tools\SubtitleEditLegacy\Tesseract'),
         (Join-Path $baseDir 'Tools\SubtitleEdit\Tesseract550'),
         (Join-Path $baseDir 'Tools\SubtitleEdit\Tesseract-OCR'),
         (Join-Path $baseDir 'Tools\SubtitleEdit\Tesseract'),
@@ -123,19 +229,41 @@ function Resolve-VobSubTesseractInvocation {
         $candidate = Join-Path ([string]$root) 'tesseract.exe'
         if (Test-Path -LiteralPath $candidate -PathType Leaf -ErrorAction SilentlyContinue) {
             $resolved = (Resolve-Path -LiteralPath $candidate).Path
-            return [pscustomobject]@{ Ok = $true; FilePath = $resolved; Directory = (Split-Path -Parent $resolved); Reason = 'ok' }
+            $directory = Split-Path -Parent $resolved
+            $tessdata = Resolve-VobSubTessdataDirectory -TesseractDirectory $directory -Language $Language
+            if ([string]::IsNullOrWhiteSpace($tessdata) -and $languageRequired) {
+                if (-not $firstMissingTessdata) {
+                    $firstMissingTessdata = [pscustomobject]@{ FilePath = $resolved; Directory = $directory }
+                }
+                continue
+            }
+            return [pscustomobject]@{ Ok = $true; FilePath = $resolved; Directory = $directory; TessdataPath = $tessdata; Reason = 'ok'; ErrorCode = 'OK' }
         }
     }
 
     if (-not [bool]$script:AllowSystemTools) {
-        return [pscustomobject]@{ Ok = $false; FilePath = ''; Directory = ''; Reason = 'tesseract was not found in bundled VobSub OCR tool paths, and AllowSystemTools is disabled' }
+        if ($firstMissingTessdata) {
+            return [pscustomobject]@{ Ok = $false; FilePath = $firstMissingTessdata.FilePath; Directory = $firstMissingTessdata.Directory; TessdataPath = ''; Reason = "tesseract language data not found for VobSub OCR language '$Language'"; ErrorCode = 'SUBTITLE_VOBSUB_TESSDATA_MISSING' }
+        }
+        return [pscustomobject]@{ Ok = $false; FilePath = ''; Directory = ''; TessdataPath = ''; Reason = 'tesseract was not found in bundled VobSub OCR tool paths, and AllowSystemTools is disabled'; ErrorCode = 'SUBTITLE_VOBSUB_TESSERACT_MISSING' }
     }
 
     $cmd = Get-Command tesseract -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($cmd -and $cmd.Source) {
-        return [pscustomobject]@{ Ok = $true; FilePath = $cmd.Source; Directory = (Split-Path -Parent $cmd.Source); Reason = 'ok' }
+        $directory = Split-Path -Parent $cmd.Source
+        $tessdata = Resolve-VobSubTessdataDirectory -TesseractDirectory $directory -Language $Language
+        if ([string]::IsNullOrWhiteSpace($tessdata) -and $languageRequired) {
+            if (-not $firstMissingTessdata) {
+                $firstMissingTessdata = [pscustomobject]@{ FilePath = $cmd.Source; Directory = $directory }
+            }
+        } else {
+            return [pscustomobject]@{ Ok = $true; FilePath = $cmd.Source; Directory = $directory; TessdataPath = $tessdata; Reason = 'ok'; ErrorCode = 'OK' }
+        }
     }
-    return [pscustomobject]@{ Ok = $false; FilePath = ''; Directory = ''; Reason = 'tesseract was not found in bundled VobSub OCR tool paths or PATH' }
+    if ($firstMissingTessdata) {
+        return [pscustomobject]@{ Ok = $false; FilePath = $firstMissingTessdata.FilePath; Directory = $firstMissingTessdata.Directory; TessdataPath = ''; Reason = "tesseract language data not found for VobSub OCR language '$Language'"; ErrorCode = 'SUBTITLE_VOBSUB_TESSDATA_MISSING' }
+    }
+    return [pscustomobject]@{ Ok = $false; FilePath = ''; Directory = ''; TessdataPath = ''; Reason = 'tesseract was not found in bundled VobSub OCR tool paths or PATH'; ErrorCode = 'SUBTITLE_VOBSUB_TESSERACT_MISSING' }
 }
 
 function Resolve-VobSubMkvextractPath {
@@ -170,7 +298,7 @@ function New-VobSubFailureRecord {
     )
 
     $streamIndex = if ($Entry -and $Entry.Stream) { [int]$Entry.Stream.index } else { -1 }
-    $category = if ($ErrorCode -match 'TOOL_MISSING|TESSERACT_MISSING') { 'tool_missing' } else { 'subtitle_conversion' }
+    $category = if ($ErrorCode -match 'TOOL_MISSING|TESSERACT_MISSING|TESSDATA_MISSING|TOOL_UNSUPPORTED') { 'tool_missing' } else { 'subtitle_conversion' }
     $operation = if ($ErrorCode -match 'EXTRACT') { 'subtitle-vobsub-extract' } else { 'subtitle-vobsub-ocr' }
     return New-StandardFailureRecord -Stage $operation -Operation $operation -Category $category -Reason $Reason -ErrorCode $ErrorCode -Tool 'vobsub-ocr' -ReproPath $ReproPath -Retryable $true -AdditionalProperties @{
         StreamIndex     = $streamIndex
@@ -233,18 +361,42 @@ function Get-VobSubIdxLanguage {
         return 'und'
     }
 
+    $languageEntries = [System.Collections.Generic.List[object]]::new()
+    $selectedIndex = $null
     try {
-        foreach ($line in @(Get-Content -LiteralPath $IdxPath -TotalCount 200 -ErrorAction Stop)) {
+        foreach ($line in @(Get-Content -LiteralPath $IdxPath -TotalCount 500 -ErrorAction Stop)) {
             $text = [string]$line
-            if ($text -match '^\s*id:\s*([A-Za-z]{2,3})\s*,') {
-                return (Get-NormalizedSubtitleLanguage $Matches[1])
+            if ($text -match '^\s*langidx:\s*(\d+)\s*$') {
+                $selectedIndex = [int]$Matches[1]
+                continue
             }
             if ($text -match '^\s*langidx:\s*([A-Za-z]{2,3})\s*$') {
                 return (Get-NormalizedSubtitleLanguage $Matches[1])
             }
+            if ($text -match '^\s*id:\s*([A-Za-z]{2,3})\s*,\s*index:\s*(\d+)') {
+                $languageEntries.Add([pscustomobject]@{
+                    Language = (Get-NormalizedSubtitleLanguage $Matches[1])
+                    Index    = [int]$Matches[2]
+                }) | Out-Null
+                continue
+            }
+            if ($text -match '^\s*id:\s*([A-Za-z]{2,3})\s*,') {
+                $languageEntries.Add([pscustomobject]@{
+                    Language = (Get-NormalizedSubtitleLanguage $Matches[1])
+                    Index    = $languageEntries.Count
+                }) | Out-Null
+            }
         }
     } catch {}
 
+    if ($null -ne $selectedIndex) {
+        $matched = @($languageEntries | Where-Object { $_.Index -eq [int]$selectedIndex })
+        if ($matched.Count -gt 0) { return [string]$matched[0].Language }
+        if ($selectedIndex -ge 0 -and $selectedIndex -lt $languageEntries.Count) {
+            return [string]$languageEntries[$selectedIndex].Language
+        }
+    }
+    if ($languageEntries.Count -gt 0) { return [string]$languageEntries[0].Language }
     return 'und'
 }
 
@@ -352,18 +504,75 @@ function Resolve-VobSubMkvTrackId {
             return [pscustomobject]@{ Ok = $false; TrackId = -1; Reason = $reason; ReproPath = $result.ReproPath; ErrorText = $result.Error }
         }
         $json = $result.Output | ConvertFrom-Json
-        foreach ($track in @($json.tracks)) {
-            if ($track.type -ne 'subtitles') { continue }
-            $number = $track.properties.number
-            if ($null -ne $number -and ([int]$number - 1) -eq $streamIndex) {
-                return [pscustomobject]@{ Ok = $true; TrackId = [int]$track.id; Reason = 'ok'; ReproPath = ''; ErrorText = '' }
+        $subtitleTracks = @(
+            foreach ($track in @($json.tracks)) {
+                if ((Get-VobSubObjectPropertyValue -Object $track -Name 'type' -Default '') -eq 'subtitles') { $track }
             }
+        )
+        $vobSubTracks = @($subtitleTracks | Where-Object { Test-MkvmergeTrackLooksLikeVobSub $_ })
+        if ($vobSubTracks.Count -le 0) {
+            return [pscustomobject]@{ Ok = $false; TrackId = -1; Reason = "mkvmerge did not report a VobSub subtitle track for ffprobe stream $streamIndex"; ReproPath = ''; ErrorText = '' }
+        }
+
+        $targetLang = if ($StreamInfo.ContainsKey('Lang')) { Get-NormalizedSubtitleLanguage ([string]$StreamInfo.Lang) } else { 'und' }
+        $targetTitle = ''
+        if ($StreamInfo.ContainsKey('RawTitle') -and -not [string]::IsNullOrWhiteSpace([string]$StreamInfo.RawTitle)) {
+            $targetTitle = [string]$StreamInfo.RawTitle
+        } elseif ($StreamInfo.ContainsKey('Title') -and -not [string]::IsNullOrWhiteSpace([string]$StreamInfo.Title)) {
+            $targetTitle = [string]$StreamInfo.Title
+        }
+
+        $numberMatches = @(
+            foreach ($track in $vobSubTracks) {
+                $props = Get-VobSubObjectPropertyValue -Object $track -Name 'properties'
+                $number = Get-VobSubObjectPropertyValue -Object $props -Name 'number'
+                if ($null -eq $number) { continue }
+                try {
+                    if (([int]$number - 1) -eq $streamIndex) { $track }
+                } catch {}
+            }
+        )
+        if ($numberMatches.Count -eq 1) {
+            $candidate = $numberMatches[0]
+            $candidateTitle = Get-MkvmergeTrackTitle -Track $candidate
+            $candidateLang = Get-MkvmergeTrackLanguage -Track $candidate
+            $titleContradicts = (-not [string]::IsNullOrWhiteSpace($targetTitle) -and -not [string]::IsNullOrWhiteSpace($candidateTitle) -and -not [string]::Equals($candidateTitle, $targetTitle, [System.StringComparison]::OrdinalIgnoreCase))
+            $langContradicts = (-not [string]::IsNullOrWhiteSpace($targetLang) -and $targetLang -ne 'und' -and -not [string]::IsNullOrWhiteSpace($candidateLang) -and $candidateLang -ne 'und' -and $candidateLang -ne $targetLang)
+            if (-not $titleContradicts -and -not $langContradicts) {
+                return [pscustomobject]@{ Ok = $true; TrackId = [int](Get-VobSubObjectPropertyValue -Object $candidate -Name 'id'); Reason = 'ok'; ReproPath = ''; ErrorText = '' }
+            }
+        } elseif ($numberMatches.Count -gt 1) {
+            return [pscustomobject]@{ Ok = $false; TrackId = -1; Reason = "mkvmerge returned multiple VobSub tracks matching ffprobe stream $streamIndex"; ReproPath = ''; ErrorText = '' }
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($targetTitle)) {
+            $titleMatches = @($vobSubTracks | Where-Object { [string]::Equals((Get-MkvmergeTrackTitle -Track $_), $targetTitle, [System.StringComparison]::OrdinalIgnoreCase) })
+            if ($titleMatches.Count -eq 1) {
+                return [pscustomobject]@{ Ok = $true; TrackId = [int](Get-VobSubObjectPropertyValue -Object $titleMatches[0] -Name 'id'); Reason = 'ok'; ReproPath = ''; ErrorText = '' }
+            }
+            if ($titleMatches.Count -gt 1) {
+                return [pscustomobject]@{ Ok = $false; TrackId = -1; Reason = "mkvmerge returned multiple VobSub tracks titled '$targetTitle'"; ReproPath = ''; ErrorText = '' }
+            }
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($targetLang) -and $targetLang -ne 'und') {
+            $languageMatches = @($vobSubTracks | Where-Object { (Get-MkvmergeTrackLanguage -Track $_) -eq $targetLang })
+            if ($languageMatches.Count -eq 1) {
+                return [pscustomobject]@{ Ok = $true; TrackId = [int](Get-VobSubObjectPropertyValue -Object $languageMatches[0] -Name 'id'); Reason = 'ok'; ReproPath = ''; ErrorText = '' }
+            }
+            if ($languageMatches.Count -gt 1) {
+                return [pscustomobject]@{ Ok = $false; TrackId = -1; Reason = "mkvmerge returned multiple VobSub tracks for language '$targetLang'"; ReproPath = ''; ErrorText = '' }
+            }
+        }
+
+        if ($vobSubTracks.Count -eq 1) {
+            return [pscustomobject]@{ Ok = $true; TrackId = [int](Get-VobSubObjectPropertyValue -Object $vobSubTracks[0] -Name 'id'); Reason = 'ok'; ReproPath = ''; ErrorText = '' }
         }
     } catch {
         return [pscustomobject]@{ Ok = $false; TrackId = -1; Reason = "mkvmerge JSON parse failed: $($_.Exception.Message)"; ReproPath = ''; ErrorText = '' }
     }
 
-    return [pscustomobject]@{ Ok = $false; TrackId = -1; Reason = "Could not map ffprobe subtitle stream $streamIndex to an MKVToolNix track id"; ReproPath = ''; ErrorText = '' }
+    return [pscustomobject]@{ Ok = $false; TrackId = -1; Reason = "Could not uniquely map ffprobe subtitle stream $streamIndex to an MKVToolNix VobSub track id"; ReproPath = ''; ErrorText = '' }
 }
 
 function Extract-VobSubToIdxSub {
@@ -455,28 +664,58 @@ function Convert-VobSubToSrt {
             return [pscustomobject]@{ Ok = $false; Path = $null; CueCount = 0; Reason = $tool.Reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $tool.Reason -ErrorCode 'SUBTITLE_VOBSUB_OCR_TOOL_MISSING') }
         }
 
-        $tesseract = Resolve-VobSubTesseractInvocation -OcrToolPath $tool.FilePath
-        if (-not $tesseract.Ok) {
-            Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $StreamIndex -Stage 'convert_ocr' -Status 'VobSub OCR setup failed' -StepIndex 2 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $tesseract.Reason -Failed
-            return [pscustomobject]@{ Ok = $false; Path = $null; CueCount = 0; Reason = $tesseract.Reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $tesseract.Reason -ErrorCode 'SUBTITLE_VOBSUB_TESSERACT_MISSING') }
+        $ocrLanguage = Resolve-VobSubOcrLanguage -Language $StreamInfo.Lang
+        $toolKind = Get-VobSubOcrToolKind -Tool $tool
+        if ($toolKind -eq 'seconv') {
+            $reason = 'Subtitle Edit seconv does not support VobSub OCR yet; configure VobSubOcrToolPath to SubtitleEdit.exe 4.x for headless VobSub OCR.'
+            Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $StreamIndex -Stage 'convert_ocr' -Status 'VobSub OCR setup failed' -StepIndex 2 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $reason -Failed
+            return [pscustomobject]@{ Ok = $false; Path = $null; CueCount = 0; Reason = $reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $reason -ErrorCode 'SUBTITLE_VOBSUB_OCR_TOOL_UNSUPPORTED') }
+        }
+        if ($toolKind -eq 'unknown') {
+            $reason = 'Unsupported VobSub OCR tool; configure VobSubOcrToolPath to SubtitleEdit.exe 4.x for headless VobSub OCR.'
+            Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $StreamIndex -Stage 'convert_ocr' -Status 'VobSub OCR setup failed' -StepIndex 2 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $reason -Failed
+            return [pscustomobject]@{ Ok = $false; Path = $null; CueCount = 0; Reason = $reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $reason -ErrorCode 'SUBTITLE_VOBSUB_OCR_TOOL_UNSUPPORTED') }
         }
 
-        $ocrLanguage = Resolve-VobSubOcrLanguage -Language $StreamInfo.Lang
+        $tesseract = Resolve-VobSubTesseractInvocation -OcrToolPath $tool.FilePath -Language $ocrLanguage
+        if (-not $tesseract.Ok) {
+            $errorCode = if ($tesseract.ErrorCode) { [string]$tesseract.ErrorCode } else { 'SUBTITLE_VOBSUB_TESSERACT_MISSING' }
+            Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $StreamIndex -Stage 'convert_ocr' -Status 'VobSub OCR setup failed' -StepIndex 2 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $tesseract.Reason -Failed
+            return [pscustomobject]@{ Ok = $false; Path = $null; CueCount = 0; Reason = $tesseract.Reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $tesseract.Reason -ErrorCode $errorCode) }
+        }
+
         $ocrTempSrt = New-SrtAtomicTempPath -DestinationPath $DestinationPath
         $outputFolder = Split-Path $ocrTempSrt -Parent
         $outputFile = Split-Path $ocrTempSrt -Leaf
+
         $ocrArgs = [System.Collections.Generic.List[string]]::new()
         $ocrArgs.AddRange([string[]]@($tool.PrefixArgs))
-        $ocrArgs.AddRange([string[]]@(
-            [string]$extract.IdxPath,
-            'subrip',
-            '--ocr-engine:tesseract',
-            "--ocr-language:$ocrLanguage",
-            "--output-folder:$outputFolder",
-            "--output-filename:$outputFile",
-            '--overwrite',
-            '--json'
-        ))
+        $ocrDetailPath = $extract.SubPath
+        if ($toolKind -eq 'subtitleedit-legacy') {
+            $ocrArgs.AddRange([string[]]@(
+                '/convert',
+                [string]$extract.SubPath,
+                'srt',
+                "/outputfolder:$outputFolder",
+                "/outputfilename:$outputFile",
+                '/ocrengine:tesseract',
+                "/ocrdb:$ocrLanguage",
+                '/encoding:utf-8',
+                '/overwrite'
+            ))
+        } else {
+            $ocrDetailPath = $extract.IdxPath
+            $ocrArgs.AddRange([string[]]@(
+                [string]$extract.IdxPath,
+                'subrip',
+                '--ocr-engine:tesseract',
+                "--ocr-language:$ocrLanguage",
+                "--output-folder:$outputFolder",
+                "--output-filename:$outputFile",
+                '--overwrite',
+                '--json'
+            ))
+        }
 
         try {
             $timeoutSeconds = Get-SubtitleOperationTimeoutSeconds -ScriptVariableName 'VobSubOcrTimeoutSeconds' -DefaultSeconds 1800
@@ -492,14 +731,31 @@ function Convert-VobSubToSrt {
                 }
             }
             $oldPath = $env:PATH
+            $oldTessdataPrefix = $env:TESSDATA_PREFIX
             try {
                 if ($tesseract.Directory -and (Test-Path -LiteralPath ([string]$tesseract.Directory) -PathType Container -ErrorAction SilentlyContinue)) {
                     $env:PATH = "$($tesseract.Directory);$oldPath"
+                    if ($tesseract.TessdataPath -and (Test-Path -LiteralPath ([string]$tesseract.TessdataPath) -PathType Container -ErrorAction SilentlyContinue)) {
+                        # Tesseract expects TESSDATA_PREFIX = parent of the tessdata dir,
+                        # not the tessdata dir itself. Both Tesseract 3.x and 5.x work with
+                        # the parent; only 5.x tolerates the tessdata dir as-is.
+                        $tessdataParent = Split-Path -Parent ([string]$tesseract.TessdataPath)
+                        if (-not [string]::IsNullOrWhiteSpace($tessdataParent) -and (Test-Path -LiteralPath $tessdataParent -PathType Container -ErrorAction SilentlyContinue)) {
+                            $env:TESSDATA_PREFIX = $tessdataParent
+                        } else {
+                            $env:TESSDATA_PREFIX = [string]$tesseract.TessdataPath
+                        }
+                    }
                 }
-                Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $StreamIndex -Stage 'convert_ocr' -Status 'Running VobSub OCR' -StepIndex 2 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail ([System.IO.Path]::GetFileName($extract.IdxPath))
+                Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $StreamIndex -Stage 'convert_ocr' -Status 'Running VobSub OCR' -StepIndex 2 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail ([System.IO.Path]::GetFileName($ocrDetailPath))
                 $result = Invoke-VobSubOcrCommand -FilePath $tool.FilePath -ArgumentList @($ocrArgs.ToArray()) -TimeoutSeconds $timeoutSeconds -Stage 'subtitle-vobsub-ocr' -SaveReproOnFailure -ProcessPriority $ocrPriority
             } finally {
                 $env:PATH = $oldPath
+                if ($null -eq $oldTessdataPrefix) {
+                    Remove-Item Env:\TESSDATA_PREFIX -ErrorAction SilentlyContinue
+                } else {
+                    $env:TESSDATA_PREFIX = $oldTessdataPrefix
+                }
                 if ($ocrCpuLock -and $ocrCpuLock.Acquired) { & $ocrCpuLock.Release }
             }
 
@@ -516,8 +772,76 @@ function Convert-VobSubToSrt {
                 Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $StreamIndex -Stage 'validate' -Status 'VobSub OCR validation failed' -StepIndex 3 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $reason -Failed
                 return [pscustomobject]@{ Ok = $false; Path = $null; CueCount = 0; Reason = $reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $reason -ErrorCode 'SUBTITLE_VOBSUB_OCR_EMPTY') }
             }
+            $rawCueCount = $preMoveValidation.CueCount
+
+            # --- Post-OCR cleanup: operates on the TEMP SRT before the single atomic
+            # write to the destination. Each pass is best-effort and guarded so a
+            # cleanup failure can never lose the good raw OCR or publish a corrupt SRT.
+            # The destination is still written exactly once, atomically and validated,
+            # by Complete-AtomicSrtWrite below. ---
+
+            # Pass 1: merge adjacent identical cues. Tesseract often emits the same
+            # text on back-to-back bitmap frames. Merge-AdjacentIdenticalCues writes
+            # via its own atomic+validated helper, so a bad merge leaves the temp intact.
+            try {
+                Merge-AdjacentIdenticalCues -SrtPath $ocrTempSrt
+            } catch {
+                Write-Log "${Context}VobSub->SRT: cue-merge skipped: $($_.Exception.Message)" "WARN"
+            }
+
+            # Pass 2: seconv fix-common-errors. seconv cannot do VobSub bitmap OCR but
+            # is a capable text-SRT post-processor (spacing, punctuation, malformed
+            # tags, line length). Runs on a snapshot copy; the result is only accepted
+            # if it still validates and retains at least half the cues. Otherwise the
+            # pre-seconv temp is kept unchanged.
+            $baseDir = if ($scriptDir) { $scriptDir } elseif ($PSScriptRoot) { Split-Path -Parent $PSScriptRoot } else { (Get-Location).Path }
+            $seconvCleanupExe = ''
+            foreach ($candidate in @(
+                (Join-Path $baseDir 'Tools\SubtitleEdit\seconv.exe'),
+                (Join-Path (Split-Path (Split-Path ([string]$tool.FilePath) -Parent) -Parent) 'SubtitleEdit\seconv.exe')
+            )) {
+                if (Test-Path -LiteralPath $candidate -PathType Leaf -ErrorAction SilentlyContinue) {
+                    $seconvCleanupExe = $candidate; break
+                }
+            }
+            if (-not [string]::IsNullOrWhiteSpace($seconvCleanupExe)) {
+                $preSeconv = Test-SrtFileUsable -Path $ocrTempSrt
+                $preSeconvCount = if ($preSeconv.Ok) { $preSeconv.CueCount } else { 0 }
+                $seconvBackup = "$ocrTempSrt.preseconv"
+                $seconvOut    = "$ocrTempSrt.seconv.out"
+                $seconvErr    = "$ocrTempSrt.seconv.err"
+                try {
+                    [System.IO.File]::Copy($ocrTempSrt, $seconvBackup, $true)
+                    $cleanProc = Start-Process -FilePath $seconvCleanupExe `
+                        -ArgumentList @($ocrTempSrt, 'subrip', '--fix-common-errors', '--overwrite') `
+                        -Wait -PassThru -NoNewWindow `
+                        -RedirectStandardOutput $seconvOut -RedirectStandardError $seconvErr
+                    $postSeconv = Test-SrtFileUsable -Path $ocrTempSrt
+                    $cueFloor = [int][math]::Floor($preSeconvCount * 0.5)
+                    if ($cleanProc.ExitCode -eq 0 -and $postSeconv.Ok -and $postSeconv.CueCount -ge $cueFloor) {
+                        Write-Log "${Context}VobSub->SRT: seconv fix-common-errors applied ($preSeconvCount -> $($postSeconv.CueCount) cue(s))"
+                    } else {
+                        $why = if ($cleanProc.ExitCode -ne 0) { "exit $($cleanProc.ExitCode)" } elseif (-not $postSeconv.Ok) { "output not usable: $($postSeconv.Reason)" } else { "cue count $($postSeconv.CueCount) below floor $cueFloor" }
+                        Write-Log "${Context}VobSub->SRT: seconv cleanup rejected ($why); keeping pre-seconv SRT" "WARN"
+                        [System.IO.File]::Copy($seconvBackup, $ocrTempSrt, $true)
+                    }
+                } catch {
+                    Write-Log "${Context}VobSub->SRT: seconv cleanup error: $($_.Exception.Message); keeping pre-seconv SRT" "WARN"
+                    if (Test-Path -LiteralPath $seconvBackup -ErrorAction SilentlyContinue) {
+                        try { [System.IO.File]::Copy($seconvBackup, $ocrTempSrt, $true) } catch {}
+                    }
+                } finally {
+                    foreach ($tmp in @($seconvBackup, $seconvOut, $seconvErr)) {
+                        if ($tmp -and (Test-Path -LiteralPath $tmp -ErrorAction SilentlyContinue)) {
+                            Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+                        }
+                    }
+                }
+            }
+
+            # Single atomic, validated write of the cleaned temp to the destination.
             $validation = Complete-AtomicSrtWrite -TempPath $ocrTempSrt -DestinationPath $DestinationPath
-            Write-Log "${Context}VobSub->SRT: stream $StreamIndex -> $($validation.CueCount) cue(s)"
+            Write-Log "${Context}VobSub->SRT: stream $StreamIndex -> $($validation.CueCount) cue(s) (raw OCR: $rawCueCount)"
             Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $StreamIndex -Stage 'validate' -Status 'VobSub OCR SRT validated' -StepIndex 3 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail "$($validation.CueCount) cue(s)" -CueCount $validation.CueCount
             return [pscustomobject]@{ Ok = $true; Path = $DestinationPath; CueCount = $validation.CueCount; Reason = 'ok'; Failure = $null }
         } catch {

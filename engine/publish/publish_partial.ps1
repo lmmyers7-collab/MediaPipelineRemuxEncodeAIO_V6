@@ -47,6 +47,27 @@ function Remove-PublishSidecarBackup {
     Remove-Item -LiteralPath $BackupPath -Force -ErrorAction SilentlyContinue
 }
 
+function Move-PublishSidecarBackupIntoPlace {
+    param(
+        [Parameter(Mandatory)] [string] $BackupPath,
+        [Parameter(Mandatory)] [string] $SidecarPath,
+        [string] $Context = ''
+    )
+
+    if (Test-Path -LiteralPath $SidecarPath -PathType Leaf -ErrorAction SilentlyContinue) {
+        try {
+            [System.IO.File]::Replace($BackupPath, $SidecarPath, $null, $true)
+            return
+        } catch {
+            Write-Log "${Context}publish sidecar restore replace failed for $SidecarPath (will use overwrite move): $($_.Exception.Message)" "WARN"
+            [System.IO.File]::Move($BackupPath, $SidecarPath, $true)
+            return
+        }
+    }
+
+    [System.IO.File]::Move($BackupPath, $SidecarPath, $true)
+}
+
 function Restore-PublishSidecarAfterRevealFailure {
     param(
         [Parameter(Mandatory)] [string] $OutputPath,
@@ -57,11 +78,7 @@ function Restore-PublishSidecarAfterRevealFailure {
     $sidecar = Get-SidecarPath $OutputPath
     try {
         if (-not [string]::IsNullOrWhiteSpace($BackupPath) -and (Test-Path -LiteralPath $BackupPath -PathType Leaf -ErrorAction SilentlyContinue)) {
-            if (Test-Path -LiteralPath $sidecar -PathType Leaf -ErrorAction SilentlyContinue) {
-                [System.IO.File]::Replace($BackupPath, $sidecar, $null, $true)
-            } else {
-                [System.IO.File]::Move($BackupPath, $sidecar)
-            }
+            Move-PublishSidecarBackupIntoPlace -BackupPath $BackupPath -SidecarPath $sidecar -Context $Context
             Write-Log "${Context}publish sidecar restored after reveal failure: $sidecar" "WARN"
             return
         }
@@ -71,8 +88,6 @@ function Restore-PublishSidecarAfterRevealFailure {
         }
     } catch {
         Write-Log "${Context}publish sidecar cleanup failed after reveal failure for $sidecar : $_" "ERROR"
-    } finally {
-        Remove-PublishSidecarBackup -BackupPath $BackupPath
     }
 }
 

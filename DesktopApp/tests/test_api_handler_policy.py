@@ -10,11 +10,13 @@ from mediapipeline_desktop_app.api.handler_policy import (
     OPTIONS_RESPONSE_HEADERS,
     bounded_error_text,
     not_found_payload,
+    options_response_headers,
     route_exception_payload,
     route_validation_error_payload,
     should_record_command_payload,
     unauthorized_payload,
 )
+from mediapipeline_desktop_app.api.http_helpers import is_client_disconnect_error, send_bytes
 
 
 class LocalApiHandlerPolicyTests(unittest.TestCase):
@@ -26,6 +28,16 @@ class LocalApiHandlerPolicyTests(unittest.TestCase):
         self.assertIn("X-MediaPipeline-Token", headers["Access-Control-Allow-Headers"])
         self.assertEqual(headers["Access-Control-Allow-Methods"], "GET, POST, OPTIONS")
         self.assertEqual(headers["Content-Length"], "0")
+        self.assertEqual(headers["Cache-Control"], "no-store")
+        self.assertIn("default-src 'self'", headers["Content-Security-Policy"])
+        self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(headers["Referrer-Policy"], "no-referrer")
+
+    def test_options_headers_reflect_authorized_origin(self) -> None:
+        headers = dict(options_response_headers("http://localhost:8765"))
+
+        self.assertEqual(headers["Access-Control-Allow-Origin"], "http://localhost:8765")
+        self.assertEqual(headers["Vary"], "Origin")
 
     def test_error_payload_helpers_preserve_handler_contract(self) -> None:
         self.assertEqual(unauthorized_payload(), {"error": "unauthorized"})
@@ -49,6 +61,38 @@ class LocalApiHandlerPolicyTests(unittest.TestCase):
         self.assertTrue(should_record_command_payload(399))
         self.assertFalse(should_record_command_payload(400))
         self.assertFalse(should_record_command_payload(500))
+
+    def test_send_bytes_treats_client_disconnect_as_non_route_failure(self) -> None:
+        class AbortWriter:
+            def write(self, body: bytes) -> None:
+                _ = body
+                raise ConnectionAbortedError(10053, "client aborted")
+
+        class Handler:
+            wfile = AbortWriter()
+
+            def __init__(self) -> None:
+                self.responses: list[int] = []
+                self.headers: list[tuple[str, str]] = []
+                self.ended = False
+
+            def send_response(self, status: int) -> None:
+                self.responses.append(status)
+
+            def send_header(self, name: str, value: str) -> None:
+                self.headers.append((name, value))
+
+            def end_headers(self) -> None:
+                self.ended = True
+
+        handler = Handler()
+
+        self.assertTrue(is_client_disconnect_error(ConnectionAbortedError()))
+        send_bytes(handler, b'{"ok": true}', content_type="application/json; charset=utf-8")
+
+        self.assertEqual(handler.responses, [200])
+        self.assertTrue(handler.ended)
+        self.assertIn(("Content-Type", "application/json; charset=utf-8"), handler.headers)
 
 
 if __name__ == "__main__":

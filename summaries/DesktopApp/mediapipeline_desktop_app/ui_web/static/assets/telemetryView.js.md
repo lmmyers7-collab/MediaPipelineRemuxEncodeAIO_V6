@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/telemetryView.js
 pipeline_stage: observability
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-29
+last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: 7f2458c4f644c279cf46ea9707bf9212687b799bf8ef22bc5124e2db2c53eb74
+sha256: 3b73865c1802c97d1944d5fe3660b6bd5d8d0e78edece2bad3889a8538a93d05
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/telemetryView.js`
 

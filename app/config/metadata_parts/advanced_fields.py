@@ -18,6 +18,15 @@ ADVANCED_CONFIG_FIELD_DEFINITIONS = (
     {
         "page": "Advanced",
         "section": "Runtime",
+        "key": "ShowOverrides",
+        "label": "Per-Show Overrides",
+        "kind": "json",
+        "default": {},
+        "help": "Advanced direct-config mapping of show-name patterns to per-show routing, video, audio, and subtitle overrides. Treat edits as media-policy work and verify with backend Preview Patch.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Runtime",
         "key": "MaxParallelEncodes",
         "label": "Max Parallel Encodes",
         "kind": "combo_int",

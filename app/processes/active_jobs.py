@@ -248,7 +248,7 @@ def reconcile_active_job_records(
     This is diagnostics-only reconciliation. Ambiguous cases, such as
     access-denied process inspection, are left untouched.
     """
-    folder = resolved.active_jobs_path
+    folder = active_jobs_dir_for_resolved(resolved)
     if psutil_module is None or not folder or not folder.exists():
         return []
     try:

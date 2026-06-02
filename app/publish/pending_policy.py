@@ -978,6 +978,18 @@ def pending_publish_open_scan_exception_result(row_key: str, exc: Exception) -> 
     )
 
 
+def pending_publish_open_scan_service_unavailable_result(row_key: str) -> CommandResult:
+    return _command_result(
+        command=PENDING_PUBLISH_OPEN_COMMAND,
+        ok=False,
+        message=PENDING_PUBLISH_SERVICE_UNAVAILABLE_MESSAGE,
+        severity="error",
+        errors=[PENDING_PUBLISH_SERVICE_UNAVAILABLE_MESSAGE],
+        data={"row_key": row_key},
+        refresh_hint="pending_publish",
+    )
+
+
 def pending_publish_open_missing_path_result(target: str, row_key: str) -> CommandResult:
     label = PENDING_PUBLISH_OPEN_TARGETS.get(target, target)
     return _command_result(
@@ -1087,6 +1099,7 @@ __all__ = [
     "pending_publish_open_disallowed_target_result",
     "pending_publish_open_missing_row_result",
     "pending_publish_open_scan_exception_result",
+    "pending_publish_open_scan_service_unavailable_result",
     "pending_publish_open_missing_path_result",
     "pending_publish_open_service_unavailable_result",
     "pending_publish_open_exception_result",

@@ -25,7 +25,7 @@ PIPELINE_MAP_PATH = GENERATED_DOCS_ROOT / "PIPELINE_MAP.md"
 STAGE_METADATA: dict[str, dict[str, object]] = {
     "ingest": {
         "notes": "Source to scratch copy. Returns scratch path, size, and sha256.",
-        "domains": "app/ingest/ (orchestration), engine/ingest/ (copy)",
+        "domains": "app/orchestration/ (stage boundary), engine/storage/ (scratch copy)",
         "detail": [
             "Source files are never mutated.",
             "Scratch copies are hashed before downstream stages consume them.",
@@ -33,7 +33,7 @@ STAGE_METADATA: dict[str, dict[str, object]] = {
     },
     "probe": {
         "notes": "ffprobe on scratch. Returns container, duration, and stream summaries.",
-        "domains": "app/metadata/ (cache and parse), engine/media_probe/ (ffprobe)",
+        "domains": "app/contracts/source_media*.py (source facts), engine/probe/ (ffprobe)",
         "detail": [
             "Probe cache keys are expected to include path, mtime, and size.",
             "Subtitle, audio, attachment, chapter, and data parity checks remain high risk.",
@@ -49,7 +49,7 @@ STAGE_METADATA: dict[str, dict[str, object]] = {
     },
     "transcode": {
         "notes": "FFmpeg invocation. Returns output path, size, and attempts.",
-        "domains": "app/transcode/ (attempt loop), engine/ffmpeg/ and engine/transcode/ (invocation)",
+        "domains": "app/processes/ and app/orchestration/ (runner/plans), engine/process/ and Pipeline/MediaPipeline/ (invocation)",
         "detail": [
             "FFmpeg command generation and stream mapping are high-risk surfaces.",
             "Attempt records preserve encoder, timestamps, exit code, and log path.",
@@ -57,7 +57,7 @@ STAGE_METADATA: dict[str, dict[str, object]] = {
     },
     "subtitle-convert": {
         "notes": "ASS/TX3G/BDPGS to SRT, language filtering, and review routing.",
-        "domains": "app/subtitles/, engine/subtitles/",
+        "domains": "app/contracts/source_media*.py (subtitle facts), engine/subtitles/",
         "detail": [
             "Original subtitles are preserved by default.",
             "OCR/conversion failure routes to review, never silent bad publish.",
@@ -65,7 +65,7 @@ STAGE_METADATA: dict[str, dict[str, object]] = {
     },
     "audio-mix": {
         "notes": "Passthrough, downmix, or transcode by profile.",
-        "domains": "app/audio/, engine/audio/",
+        "domains": "app/contracts/source_media*.py (audio facts), engine/audio/",
         "detail": [
             "Audio routing is profile/config driven.",
             "Passthrough, downmix, and transcode policy changes require high validation.",

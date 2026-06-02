@@ -2,7 +2,7 @@
 file: app/processes/guard_policy.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: process
 last_modified: 2026-05-28
 last_reviewed: 2026-05-28
 sha256: 86832786b622bc9c64867cce2e4b46ae7fce22a0daf99aa72101911fbdad00aa

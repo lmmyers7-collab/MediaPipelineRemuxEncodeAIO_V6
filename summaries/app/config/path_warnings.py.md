@@ -3,9 +3,9 @@ file: app/config/path_warnings.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-05-28
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 9a5713a324ff8f4c5c91df3590b371e26035531a0d8323fdb899bbb0a30f84a0
+sha256: 27d9b837839a1d927966b514255a334287578d269c04a642fe08cb1e79303934
 ---
 # `app/config/path_warnings.py`
 

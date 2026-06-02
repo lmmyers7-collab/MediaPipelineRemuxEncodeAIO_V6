@@ -2,17 +2,29 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.ui_preferences import read_ui_preferences, ui_preferences_path, write_ui_preferences
+from app.ui_preferences import (
+    UI_PREFERENCES_SCHEMA_VERSION,
+    read_ui_preferences,
+    ui_preferences_path,
+    write_ui_preferences,
+)
 
 
-def _ui_preferences_unavailable(reason: str) -> dict[str, Any]:
+def _ui_preferences_unavailable(reason: str, *, source: str = "unavailable") -> dict[str, Any]:
     return {
-        "schema_version": "desktop_ui_preferences.v1",
+        "schema_version": UI_PREFERENCES_SCHEMA_VERSION,
         "ok": False,
-        "source": "unavailable",
+        "source": source,
         "message": f"UI preferences unavailable: {reason}",
         "storage": {},
     }
+
+
+def _ui_preferences_os_error_summary(exc: OSError) -> str:
+    detail = str(getattr(exc, "strerror", "") or "").strip() or exc.__class__.__name__
+    code = getattr(exc, "winerror", None) or getattr(exc, "errno", None)
+    code_suffix = f" ({code})" if code else ""
+    return f"{exc.__class__.__name__}{code_suffix}: {detail}"
 
 
 class LocalApiUiPreferencesPayloadMixin:
@@ -30,10 +42,16 @@ class LocalApiUiPreferencesPayloadMixin:
         resolved = self._resolved()
         if resolved is None or resolved.state_root is None:
             return _ui_preferences_unavailable("state_root is not configured")
-        payload = write_ui_preferences(
-            ui_preferences_path(resolved.state_root),
-            request.get("storage"),
-            source_surface=str(request.get("source_surface") or ""),
-        )
+        try:
+            payload = write_ui_preferences(
+                ui_preferences_path(resolved.state_root),
+                request.get("storage"),
+                source_surface=str(request.get("source_surface") or ""),
+            )
+        except OSError as exc:
+            return _ui_preferences_unavailable(
+                f"could not write state file: {_ui_preferences_os_error_summary(exc)}",
+                source="write_failed",
+            )
         payload["ok"] = True
         return payload

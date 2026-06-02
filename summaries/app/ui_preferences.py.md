@@ -3,9 +3,9 @@ file: app/ui_preferences.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-31
-sha256: 709b1cddc2ff4bc853f3098c962707d7c9282022674bb0d1209e955b0f7dd067
+sha256: 7fb718a4c2748c7db7dca315c0e5638082ec72d7766dc58eab4b7075fbaecfb8
 ---
 # `app/ui_preferences.py`
 

@@ -295,13 +295,23 @@ function Do-Remux {
         # progress wrapper so the GUI gets per-percent updates instead of
         # a frozen "remux mux" tile during multi-minute muxes.
         $mkv = Invoke-MkvmergeWithProgress -ArgumentList @($mkvArgs) -Label 'REMUX-MUX' -TimeoutSeconds $script:MkvmergeRemuxTimeoutSeconds -Stage 'remux-mkvmerge' -ProgressStage 'remux_mux' -ProgressRoute 'remux' -SaveReproOnFailure
-        if ($mkv.ExitCode -ge 2) {
+        $mkvExitCode = [int]$mkv.ExitCode
+        $mkvFailed = ([bool]$mkv.TimedOut -or [bool]$mkv.Stopped -or $mkvExitCode -lt 0 -or $mkvExitCode -ge 2)
+        if ($mkvFailed) {
             $reproPath = $mkv.ReproPath
             $mkvLog = $null
             $mkvErrorSummary = Get-ErrorTextSummary -ErrorText $mkv.Error
-            $errorCode = Get-MkvmergeFailureCode -ErrorText $mkv.Error -ExitCode ([int]$mkv.ExitCode) -TimedOut ([bool]$mkv.TimedOut) -Stopped ([bool]$mkv.Stopped)
-            $reason = if ($mkvErrorSummary) { "mkvmerge failed with exit $($mkv.ExitCode): $mkvErrorSummary" } else { "mkvmerge failed with exit $($mkv.ExitCode)" }
-            Write-Log "mkvmerge failed (exit $($mkv.ExitCode))" "ERROR"
+            $errorCode = Get-MkvmergeFailureCode -ErrorText $mkv.Error -ExitCode $mkvExitCode -TimedOut ([bool]$mkv.TimedOut) -Stopped ([bool]$mkv.Stopped)
+            $reason = if ([bool]$mkv.TimedOut) {
+                if ($mkvErrorSummary) { "mkvmerge timed out after $($script:MkvmergeRemuxTimeoutSeconds)s: $mkvErrorSummary" } else { "mkvmerge timed out after $($script:MkvmergeRemuxTimeoutSeconds)s" }
+            } elseif ([bool]$mkv.Stopped) {
+                if ($mkvErrorSummary) { "mkvmerge stopped by operator request: $mkvErrorSummary" } else { "mkvmerge stopped by operator request" }
+            } elseif ($mkvErrorSummary) {
+                "mkvmerge failed with exit ${mkvExitCode}: $mkvErrorSummary"
+            } else {
+                "mkvmerge failed with exit ${mkvExitCode}"
+            }
+            Write-Log "mkvmerge failed (exit $mkvExitCode, code $errorCode)" "ERROR"
             if ($mkv.Error) {
                 $mkvLog = Join-Path $LocalFailed "mkvmerge_error_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
                 try { $mkv.Error | Out-File -LiteralPath $mkvLog -Force } catch {}
@@ -309,16 +319,22 @@ function Do-Remux {
                 $mkv.Error -split '\r?\n' | Where-Object { $_ -match '\S' } |
                     Select-Object -Last 8 | ForEach-Object { Write-Log "  mkvmerge: $_" "ERROR" }
             }
-            $suggestedAction = if ($mkvLog) {
-                "Inspect mkvmerge stderr log $mkvLog and repro command $reproPath, then retry after fixing the subtitle/container issue."
-            } else {
-                "Inspect the saved mkvmerge repro command $reproPath, then retry after fixing the subtitle/container issue."
+            $suggestedAction = switch ($errorCode) {
+                'MKVMERGE_TIMEOUT' { "mkvmerge exceeded MkvmergeRemuxTimeoutSeconds=$($script:MkvmergeRemuxTimeoutSeconds). Inspect scratch/output disk speed and the saved repro command $reproPath, then retry or raise the timeout if the mux is legitimately slow."; break }
+                'MKVMERGE_STOPPED' { "mkvmerge was stopped by operator request. Confirm the pipeline is idle and retry the source if the stop was intentional."; break }
+                default {
+                    if ($mkvLog) {
+                        "Inspect mkvmerge stderr log $mkvLog and repro command $reproPath, then retry after fixing the subtitle/container issue."
+                    } else {
+                        "Inspect the saved mkvmerge repro command $reproPath, then retry after fixing the subtitle/container issue."
+                    }
+                }
             }
             $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'transient' -Reason $reason -Stage 'remux-mkvmerge' -ErrorCode $errorCode -ReproPath $reproPath -SuggestedAction $suggestedAction
             $localIn = $null
             return $false
         }
-        if ($mkv.ExitCode -eq 1) { Write-Log "mkvmerge completed with warnings" "WARN" }
+        if ($mkvExitCode -eq 1) { Write-Log "mkvmerge completed with warnings" "WARN" }
 
         if (-not (Test-Path -LiteralPath $paths.LocalOut) -or
             (Get-Item -LiteralPath $paths.LocalOut).Length -eq 0) {

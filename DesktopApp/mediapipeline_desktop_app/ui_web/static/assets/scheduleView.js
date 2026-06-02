@@ -191,7 +191,7 @@
         detail: [
           `Enabled: ${enabled ? "yes" : "no"}`,
           enabled
-            ? "Schedule edits are backend-owned; scheduled continuous starts are guarded by Launch backend preflight/start. V5 remains the fallback workspace."
+            ? "Schedule edits are backend-owned; scheduled continuous starts are guarded by Launch backend preflight/start and the backend schedule-stop watcher."
             : "Schedule off is allowed, but it removes the time-window safety net for app-started runs.",
         ],
       },
@@ -213,7 +213,7 @@
         status: watcherStatus,
         evidence: `Backend watcher: ${scheduleWatcherSummary(schedule)}`,
         next_step: watcherStatus === "blocked"
-          ? "Use Launch Backend Preflight/V5 fallback before trusting scheduled Continuous starts."
+          ? "Use Launch Backend Preflight before trusting scheduled Continuous starts."
           : "For Continuous, refresh after Start to confirm the watcher changes from idle to armed when a stop boundary exists.",
         detail: scheduleWatcherDetailLines(schedule),
       },

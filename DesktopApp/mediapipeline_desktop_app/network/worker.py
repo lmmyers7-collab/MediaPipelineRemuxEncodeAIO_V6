@@ -104,7 +104,7 @@ class WorkerDispatcher(QueueDispatcher):
         _cfg_name = str(config.get(KEY_WORKER_NAME, "")).strip()
         self._worker_name = _cfg_name or _safe_hostname()
         self._auth_token    = str(config.get(KEY_WORKER_AUTH_TOKEN, "")).strip()
-        self._poll_interval = resolve_worker_poll_interval(config.get(KEY_WORKER_POLL_INTERVAL_SECS, 30))
+        self._poll_interval = resolve_worker_poll_interval(config.get(KEY_WORKER_POLL_INTERVAL_SECS))
 
         # Source path mapping: rewrite coordinator paths to local-reachable ones.
         # Parsed once at construction; callers can hot-swap via update_source_path_map().

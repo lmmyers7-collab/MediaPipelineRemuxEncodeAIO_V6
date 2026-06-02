@@ -217,6 +217,13 @@ def set_manifest_entries_bulk(
     return manifest
 
 
+def clear_priority_manifest(manifest_path: Path) -> dict:
+    """Atomically remove every priority/hold entry from the manifest."""
+    manifest = _empty_manifest()
+    _write_manifest_atomic(manifest_path, manifest)
+    return manifest
+
+
 def _write_manifest_atomic(path: Path, manifest: dict) -> None:
     """Write *manifest* to *path* using a temp-file + replace pattern."""
     path.parent.mkdir(parents=True, exist_ok=True)

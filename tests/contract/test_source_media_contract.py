@@ -96,6 +96,35 @@ class SourceMediaContractTests(unittest.TestCase):
         self.assertIn("container.overall_bitrate_bps", source.derived.unknown_metadata)
         self.assertEqual(source.derived.already_remux_compatible, False)
 
+    def test_derived_bitrate_prefers_file_size_duration_over_stream_hint(self) -> None:
+        source = source_media_from_ffprobe(
+            {
+                "source": {
+                    "path": "fixtures/conflicting-bitrate.mkv",
+                    "file_size_bytes": 18_000_000_000,
+                    "media_type": "movie",
+                },
+                "format": {
+                    "format_name": "matroska,webm",
+                    "duration": "3600.0",
+                    "bit_rate": "40000000",
+                },
+                "streams": [
+                    {
+                        "index": 0,
+                        "codec_type": "video",
+                        "codec_name": "h264",
+                        "width": 1920,
+                        "height": 1080,
+                        "bit_rate": "5000000",
+                    }
+                ],
+            }
+        )
+
+        self.assertEqual(source.derived.bitrate_bucket, "very_high")
+        self.assertFalse(source.derived.already_remux_compatible)
+
     def test_existing_probe_result_shape_adapts_to_source_media_info(self) -> None:
         probe = ProbeResult(
             probe_ok=True,

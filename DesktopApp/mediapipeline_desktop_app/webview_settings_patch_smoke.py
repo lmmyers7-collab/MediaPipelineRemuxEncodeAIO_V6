@@ -134,6 +134,7 @@ def _write_temp_config(root: Path) -> Path:
                 "  SubtitleExtractTimeoutSeconds = 900",
                 "  SubtitleProbeTimeoutSeconds = 120",
                 "  BdpgsOcrTimeoutSeconds = 3600",
+                "  VobSubOcrTimeoutSeconds = 1800",
                 "  SourceScanIntervalSeconds = 60",
                 "  ProcessedIndexRefreshSeconds = 300",
                 "  SourceScanTimeoutSeconds = 120",

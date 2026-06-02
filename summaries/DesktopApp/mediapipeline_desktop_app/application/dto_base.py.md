@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/application/dto_base.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: application
-last_modified: 2026-05-19
+last_modified: 2026-06-01
 last_reviewed: 2026-05-28
-sha256: c1376d9dbecf9ea702c6cdc0ecfa892184ca2ca4f10872b2bc3bedb941add192
+sha256: 6e869b3f9a720bd512594bf46b2e98d7e82d1907e280a62a3da562f7c0f18969
 ---
 # `DesktopApp/mediapipeline_desktop_app/application/dto_base.py`
 

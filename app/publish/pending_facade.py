@@ -18,6 +18,7 @@ from .pending_policy import (
     pending_publish_open_missing_row_result,
     pending_publish_open_path,
     pending_publish_open_scan_exception_result,
+    pending_publish_open_scan_service_unavailable_result,
     pending_publish_open_service_unavailable_result,
     pending_publish_open_success_result,
     pending_publish_preview_result,
@@ -59,7 +60,7 @@ class PendingPublishFacadeMixin:
 
         scanner = getattr(self.service, "scan_pending_publish", None)
         if not callable(scanner):
-            return pending_publish_open_missing_row_result(row_key)
+            return pending_publish_open_scan_service_unavailable_result(row_key)
         try:
             raw = scanner(resolved)
         except Exception as exc:

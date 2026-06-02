@@ -2,7 +2,7 @@
 file: app/final_library/facade.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: final_library
 last_modified: 2026-05-30
 last_reviewed: 2026-05-29
 sha256: 2f10897dadc1e9b31dd88d0002cbee2f5ed1f6847ea2e66867577ac872117607

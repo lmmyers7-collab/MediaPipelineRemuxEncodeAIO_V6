@@ -361,6 +361,7 @@ def _browser_pending_drain_guard_runner_source() -> str:
               postDrainTrustStatus: text("pending-post-drain-trust-status"),
               postDrainTrustSummary: text("pending-post-drain-trust-summary"),
               historyText: text("pending-drain-history"),
+              postPaths: posts.map((entry) => entry.path),
               postCount: posts.length,
               confirmCalls,
             };
@@ -513,7 +514,9 @@ class WebViewBrowserPendingDrainGuardSmokeTests(unittest.TestCase):
         self.assertIn("Decision: Do not drain", browser_result["guardSummary"])
         self.assertEqual(browser_result["drainStatus"], "Blocked")
         self.assertIn("frontend_guard", browser_result["historyText"])
-        self.assertEqual(browser_result["postCount"], 0)
+        post_paths = browser_result["postPaths"]
+        self.assertNotIn("/api/pipeline/start", post_paths)
+        self.assertEqual([path for path in post_paths if path != "/api/ui-preferences"], [])
         self.assertEqual(browser_result["confirmCalls"], 0)
 
 

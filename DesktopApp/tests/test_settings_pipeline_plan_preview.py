@@ -108,6 +108,31 @@ class SettingsPipelinePlanPreviewTests(unittest.TestCase):
         self.assertIn("H264RemuxMaxHeight", patched.data["effectivePresetSnapshot"]["settingsPreview"]["changedKeys"])
         self.assertEqual(service.saved_config_calls, [])
 
+    def test_invalid_staged_patch_returns_structured_preview_error_without_saving(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {"OutputContainer": "mkv"}
+
+            result = facade.preview_settings_pipeline_plan(
+                resolved,
+                {"source_media": source_media_payload(), "changes": {"OutputContainer": "avi"}},
+            )
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.command, "settings.pipeline_plan_preview")
+        self.assertEqual(result.severity, "error")
+        self.assertEqual(result.data["schema_version"], "pipeline_plan_preview_error.v1")
+        self.assertTrue(result.data["dry_run_only"])
+        self.assertFalse(result.data["can_execute"])
+        self.assertFalse(result.data["writes_config"])
+        self.assertFalse(result.data["mutates_media"])
+        self.assertIn("OutputContainer", result.data["changed_keys"])
+        self.assertTrue(any("Input should be 'mkv' or 'mp4'" in error for error in result.errors))
+        self.assertEqual(service.saved_config_calls, [])
+
     def test_local_api_route_returns_command_result_with_pipeline_plan(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

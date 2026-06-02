@@ -1,0 +1,55 @@
+{
+  "id": "MP-CHANGE-2026-0601-002",
+  "title": "Add Phase 2 generated changelog and release manifest",
+  "version_target": "0.1.0-dev",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "low",
+  "date_started": "2026-06-01",
+  "date_completed": "2026-06-01",
+  "summary": "Add generated release documentation, a machine-readable release manifest, release preparation tooling, and stricter change-packet validation.",
+  "reason": "Phase 2 makes the Phase 1 change-control packets useful for reviewable changelogs and release manifests while keeping release movement and runtime tracking out of scope.",
+  "affected_areas": [
+    "change_control",
+    "release_manifest",
+    "changelog",
+    "release_versioning"
+  ],
+  "behavior_before": "Change packets could be validated and indexed, but the repository did not generate a changelog, release manifest, or release preparation summary from those packets.",
+  "behavior_after": "Change packets can generate a reviewable changelog and machine-readable release manifest, and prepare_release.py can run the Phase 2 validation and generation sequence without moving changes to released.",
+  "files_touched": [
+    "Docs/change_control/README.md",
+    "Docs/change_control/CURRENT_VERSION.md",
+    "Docs/change_control/CHANGE_INDEX.md",
+    "Docs/change_control/CHANGE_PACKET_SCHEMA.md",
+    "Docs/change_control/CHANGELOG.md",
+    "Docs/change_control/RELEASE_PROCESS.md",
+    "changes/unreleased/MP-CHANGE-2026-0601-002.json",
+    "scripts/change_control/validate_changes.py",
+    "scripts/change_control/build_changelog.py",
+    "scripts/change_control/build_release_manifest.py",
+    "scripts/change_control/prepare_release.py",
+    "release/RELEASE_MANIFEST.json",
+    "summaries/scripts/change_control/new_change.py.md",
+    "summaries/scripts/change_control/validate_changes.py.md",
+    "summaries/scripts/change_control/build_change_index.py.md",
+    "summaries/scripts/change_control/build_changelog.py.md",
+    "summaries/scripts/change_control/build_release_manifest.py.md",
+    "summaries/scripts/change_control/prepare_release.py.md"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Ran validate_changes.py successfully.",
+    "Ran build_change_index.py successfully.",
+    "Ran build_changelog.py successfully.",
+    "Ran build_release_manifest.py successfully.",
+    "Ran refresh_summaries.py for scripts/change_control paths successfully.",
+    "Confirmed RELEASE_MANIFEST.json was generated.",
+    "Confirmed CHANGELOG.md was generated."
+  ],
+  "rollback_plan": "Remove Phase 2 scripts and generated files, then keep Phase 1 change packets and validation only.",
+  "related_changes": [
+    "MP-CHANGE-2026-0601-001"
+  ],
+  "notes": "Phase 2 intentionally does not add runtime audit tables, job-run tracking, UI diagnostics, debug bundle export, database migrations, or media-processing behavior changes."
+}

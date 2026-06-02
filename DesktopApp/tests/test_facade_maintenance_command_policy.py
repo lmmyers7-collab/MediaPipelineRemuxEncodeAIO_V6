@@ -82,10 +82,85 @@ class MaintenanceCommandPolicyTests(unittest.TestCase):
         self.assertEqual(success.data["release_progress"]["schema_version"], "desktop_release_package_progress.v1")
         self.assertEqual(success.data["progress_bars"][0]["id"], "release_package")
         self.assertEqual(success.data["progress_bars"][0]["percent"], 100.0)
+        self.assertFalse(success.data["manifest_created"])
+        self.assertFalse(success.data["zip_created"])
         self.assertFalse(failure.ok)
         self.assertEqual(failure.severity, "warning")
         self.assertEqual(failure.data["release_progress"]["status"], "blocked")
         self.assertEqual(failure.errors, ["timed out"])
+
+    def test_release_dry_run_result_distinguishes_preexisting_artifacts_from_new_writes(self) -> None:
+        preexisting = release_dry_run_result(
+            {
+                "success": True,
+                "returncode": "0",
+                "stdout": "Copy files: 12\nExclude: 3",
+                "manifest_exists": True,
+                "manifest_preexisting": True,
+                "manifest_created": False,
+                "zip_exists": True,
+                "zip_preexisting": True,
+                "zip_created": False,
+                "manifest_path": "C:/Deploy/release_manifest.json",
+                "zip_path": "C:/Deploy.zip",
+            },
+            {},
+        )
+        unexpected_write = release_dry_run_result(
+            {
+                "success": True,
+                "returncode": "0",
+                "stdout": "Copy files: 12\nExclude: 3",
+                "manifest_exists": True,
+                "manifest_preexisting": False,
+                "manifest_created": True,
+                "zip_exists": False,
+                "zip_created": False,
+                "manifest_path": "C:/Deploy/release_manifest.json",
+            },
+            {},
+        )
+        unexpected_change = release_dry_run_result(
+            {
+                "success": True,
+                "returncode": "0",
+                "stdout": "Copy files: 12\nExclude: 3",
+                "manifest_exists": True,
+                "manifest_preexisting": True,
+                "manifest_created": False,
+                "manifest_changed": True,
+                "zip_exists": True,
+                "zip_preexisting": True,
+                "zip_created": False,
+                "zip_changed": True,
+                "manifest_path": "C:/Deploy/release_manifest.json",
+                "zip_path": "C:/Deploy.zip",
+            },
+            {},
+        )
+
+        self.assertTrue(preexisting.ok)
+        self.assertTrue(preexisting.data["manifest_exists"])
+        self.assertTrue(preexisting.data["manifest_preexisting"])
+        self.assertFalse(preexisting.data["manifest_created"])
+        self.assertFalse(preexisting.data["manifest_changed"])
+        self.assertTrue(preexisting.data["zip_preexisting"])
+        self.assertFalse(preexisting.data["zip_created"])
+        self.assertFalse(preexisting.data["zip_changed"])
+        self.assertFalse(unexpected_write.ok)
+        self.assertIn("unexpectedly created a manifest", unexpected_write.message)
+        self.assertEqual(unexpected_write.data["release_progress"]["status"], "blocked")
+        steps = {step["key"]: step for step in unexpected_write.data["release_progress"]["steps"]}
+        self.assertEqual(steps["manifest"]["status"], "blocked")
+        self.assertFalse(unexpected_change.ok)
+        self.assertIn("changed a preexisting manifest", unexpected_change.message)
+        self.assertIn("changed a preexisting zip", unexpected_change.errors[1])
+        self.assertTrue(unexpected_change.data["manifest_changed"])
+        self.assertTrue(unexpected_change.data["zip_changed"])
+        changed_steps = {step["key"]: step for step in unexpected_change.data["release_progress"]["steps"]}
+        self.assertEqual(changed_steps["manifest"]["status"], "blocked")
+        self.assertEqual(changed_steps["validate"]["status"], "blocked")
+        self.assertEqual(changed_steps["optional_smoke"]["status"], "blocked")
 
     def test_release_build_result_shapes_real_deployment_payloads(self) -> None:
         kwargs = release_build_builder_kwargs(
@@ -123,6 +198,51 @@ class MaintenanceCommandPolicyTests(unittest.TestCase):
         self.assertEqual(result.data["release_progress"]["schema_version"], "desktop_release_package_progress.v1")
         self.assertEqual(result.data["release_progress"]["status"], "complete")
         self.assertEqual(result.data["progress_bars"][0]["source"], "maintenance.release_build")
+
+    def test_release_build_result_blocks_missing_required_artifact_evidence(self) -> None:
+        missing_artifacts = release_build_result(
+            {
+                "success": True,
+                "returncode": "0",
+                "stdout": "Copy files: 12\nExclude: 0",
+                "manifest_exists": False,
+                "zip_exists": False,
+                "manifest_path": "C:/Deploy/release_manifest.json",
+                "zip_path": "C:/Deploy.zip",
+                "elapsed_seconds": 1.25,
+            },
+            {"zip_package": True, "verify": True},
+        )
+        zip_not_requested = release_build_result(
+            {
+                "success": True,
+                "returncode": "0",
+                "stdout": "Copy files: 12\nExclude: 0",
+                "manifest_exists": True,
+                "zip_exists": False,
+                "manifest_path": "C:/Deploy/release_manifest.json",
+                "zip_path": "C:/Deploy.zip",
+                "elapsed_seconds": 1.25,
+            },
+            {"zip_package": False, "verify": True},
+        )
+
+        self.assertFalse(missing_artifacts.ok)
+        self.assertEqual(missing_artifacts.severity, "error")
+        self.assertIn("artifact verification failed", missing_artifacts.message)
+        self.assertIn("Release manifest was not found", missing_artifacts.errors[0])
+        self.assertIn("Release zip was requested but not found", missing_artifacts.errors[1])
+        self.assertFalse(missing_artifacts.data["writes_release_package"])
+        self.assertTrue(missing_artifacts.data["process_success"])
+        self.assertEqual(missing_artifacts.data["release_progress"]["status"], "blocked")
+        self.assertEqual(missing_artifacts.data["progress_bars"][0]["status"], "blocked")
+        steps = {step["key"]: step for step in missing_artifacts.data["release_progress"]["steps"]}
+        self.assertEqual(steps["manifest"]["status"], "blocked")
+        self.assertEqual(steps["zip"]["status"], "blocked")
+        self.assertEqual(steps["verify"]["status"], "blocked")
+        self.assertTrue(zip_not_requested.ok)
+        self.assertTrue(zip_not_requested.data["writes_release_package"])
+        self.assertEqual(zip_not_requested.data["release_progress"]["steps"][4]["status"], "skipped")
 
     def test_release_error_results_are_stable(self) -> None:
         self.assertEqual(release_builder_unavailable_result().message, "Release package builder is not available.")

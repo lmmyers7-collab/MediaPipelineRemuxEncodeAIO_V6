@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/maintenanceView.
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: b0b0bf5a22b74bdf4e067220e6facb8e6e4a70b81dbe41df0131c8aff2120f7f
+sha256: a0dd1f22a674f12afd0890f9899c8faa30b2202074a479c9e4dddd2820858b14
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/maintenanceView.js`
 

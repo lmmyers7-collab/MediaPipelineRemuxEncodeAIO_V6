@@ -415,10 +415,10 @@ class NetworkProtocolRuntimeTests(unittest.TestCase):
         self.assertEqual(resolve_worker_wait_seconds(1, 30), 1.0)
 
     def test_worker_poll_interval_coercion_handles_malformed_config(self) -> None:
-        self.assertEqual(resolve_worker_poll_interval(None), 30)
+        self.assertEqual(resolve_worker_poll_interval(None), 10)
         self.assertEqual(resolve_worker_poll_interval("6"), 6)
         with self.assertLogs("mediapipeline_desktop_app.network.poll_policy", level="WARNING") as logs:
-            self.assertEqual(resolve_worker_poll_interval("not-a-number"), 30)
+            self.assertEqual(resolve_worker_poll_interval("not-a-number"), 10)
             self.assertEqual(resolve_worker_poll_interval("0"), 5)
             self.assertEqual(resolve_worker_poll_interval("-5"), 5)
             self.assertEqual(resolve_worker_poll_interval("4"), 5)

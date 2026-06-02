@@ -2,11 +2,13 @@
 
 Purpose: document the intended lifecycle boundary between the Tauri/WebView2 shell and the Python backend so that future changes do not accidentally cross it.
 
-This is the lifecycle boundary document for the implemented preview shell and the remaining clean-machine promotion gates.
+This is the lifecycle boundary document for the promoted V6 Tauri/WebView2
+shell and the validation gates required for future lifecycle or packaging
+changes.
 
 ---
 
-## Current Boundary (V6 Preview)
+## Current Boundary (Promoted V6 Shell)
 
 The Tauri shell (`DesktopApp/tauri_shell/src-tauri/src/lib.rs`) owns:
 
@@ -61,9 +63,16 @@ The pipeline may spawn or coordinate worker processes. If the shell kills the ba
 
 ---
 
-## Required For A Production-Grade Lifecycle
+## Production Lifecycle Guardrails
 
-The current V6 preview lifecycle has production-hardening guardrails for shell startup, backend health/crash visibility, and token/devtools static posture. Clean-machine package-mode proof and broader real-media validation still remain separate promotion gates.
+The current promoted V6 lifecycle has production-hardening guardrails for shell
+startup, backend health/crash visibility, and token/devtools static posture.
+Default-launcher/package-mode promotion is closed by operator confirmation on
+2026-05-30, and representative real-media validation is closed by operator
+attestation on 2026-05-28. Future launcher, package, Tauri, or Local API
+lifecycle changes still require package/open/close validation. Future
+media-policy, FFmpeg, subtitle, audio, publish/drain, source movement, or cleanup
+behavior changes still require representative real-media revalidation.
 
 ### 1. Spawn resilience
 
@@ -101,6 +110,7 @@ The current V6 preview lifecycle has production-hardening guardrails for shell s
 ```
 [Tauri shell]
   │
+  ├─ acquire single-instance mutex → reject second Tauri shell before backend start
   ├─ spawn python -m local_api_main
   │     │
   │     └─ backend writes: desktop_local_api_bootstrap.v1 to stdout
@@ -109,7 +119,6 @@ The current V6 preview lifecycle has production-hardening guardrails for shell s
   ├─ GET /api/health → validate
   ├─ GET /api/contract → validate route set
   ├─ GET / + asset paths → validate WebView assets
-  ├─ acquire single-instance mutex → reject second Tauri shell before backend start
   ├─ open WebView2 at backend url with Tauri initialization-script token bootstrap
   ├─ start lifecycle monitor → emit backend health/crash event for WebView banner
   │

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -102,11 +103,21 @@ def _write_atomic(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.parent / f".{path.name}.{uuid.uuid4().hex}.tmp"
     try:
-        tmp.write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True, allow_nan=False),
-            encoding="utf-8",
-        )
-        os.replace(tmp, path)
+        with tmp.open("w", encoding="utf-8", newline="") as handle:
+            handle.write(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True, allow_nan=False))
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        delay_seconds = 0.05
+        for attempt in range(7):
+            try:
+                os.replace(tmp, path)
+                break
+            except PermissionError:
+                if attempt >= 6:
+                    raise
+                time.sleep(delay_seconds)
+                delay_seconds = min(delay_seconds * 2, 1.0)
     except Exception:
         try:
             tmp.unlink(missing_ok=True)

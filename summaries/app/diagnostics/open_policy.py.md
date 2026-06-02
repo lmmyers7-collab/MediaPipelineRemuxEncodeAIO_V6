@@ -3,9 +3,9 @@ file: app/diagnostics/open_policy.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: diagnostics
-last_modified: 2026-05-28
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 05b00020def5f3a862a3bf2ee30f4f1956cbec50f588a1c9a38ef25209f6f6dd
+sha256: 1733f82d088ae80985d753c6039ada466ed8eed9ce90cbc91292e661c8ffae3f
 ---
 # `app/diagnostics/open_policy.py`
 

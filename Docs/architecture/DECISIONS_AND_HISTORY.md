@@ -1,14 +1,14 @@
 # Decisions And History
 
-Last updated: 2026-05-20
+Last updated: 2026-06-02
 
 This document preserves durable decisions and historical context without requiring future agents to read every old checklist, audit, or handoff file.
 
 ## Current Direction
 
-- V6 is the active WebView-first split from the V5 transition workspace.
+- V6 is the active promoted WebView/Tauri workspace.
 - V5 remains the external rollback/fallback workspace and should not be modified from V6 work.
-- The legacy desktop shell has been removed from this V6 folder; do not treat old desktop-shell fallback instructions as active V6 guidance.
+- The legacy desktop shell and removed root launcher shims are not active V6 surfaces; do not treat old desktop-shell fallback or root-launcher instructions as active V6 guidance.
 - Tauri/WebView2 is the preferred long-term shell direction over PySide6/Qt for this project because it gives a modern operator interface, stronger table/layout ergonomics, and a clearer backend/frontend boundary while keeping the existing Python/PowerShell backend alive.
 - Migration must stay adapter-based and incremental. Do not move backend-owned mutation authority into the frontend.
 
@@ -52,7 +52,7 @@ This document preserves durable decisions and historical context without requiri
 - WebView command controls should expose command success/failure/pending feedback without forcing the operator to locate logs manually.
 - Diagnostics should expose recent errors, allowlisted log tails, state artifact summaries, and owner-row navigation, but should not provide arbitrary filesystem access.
 - Tauri shell checks prove shell/package readiness only. They do not prove media pipeline correctness.
-- Real-media validation is required before calling WebView a daily-driver UI.
+- Representative real-media validation was operator-attested complete on 2026-05-28, and default-launcher/package-mode promotion was operator-confirmed complete on 2026-05-30. Future media-policy, FFmpeg, subtitle, audio, publish/drain, source/scratch/output movement, cleanup, launcher, package, Local API, or Tauri changes still require the matching validation ladder rung.
 
 ## Architecture And Refactor Decisions
 
@@ -69,7 +69,7 @@ This document preserves durable decisions and historical context without requiri
 - `OPEN_WORK_CHECKLIST.md` is the active unresolved backlog.
 - `DECISIONS_AND_HISTORY.md` preserves decision rationale from older long-form docs.
 - `ARCHIVED_MD_INDEX.md` indexes old AI directives, completed checklists, and superseded reviews.
-- `DOCS_HOUSEKEEPING_AUDIT.md` and `DOCS_HOUSEKEEPING_CHECKLIST.md` are the current housekeeping records. The 2026-05-20 quarantine root is `Docs/archive/docs-housekeeping/2026-05-20-review/`.
+- `Docs/DOCS_INDEX.md` is the active documentation map. The 2026-05-20 quarantine root is `Docs/archive/docs-housekeeping/2026-05-20-review/`.
 - Old Claude handoff files are not active direction unless explicitly reopened.
 - Completed UI/control cleanup checklists are archive material.
 - Large historical docs should be retained but not used as primary onboarding.
@@ -97,7 +97,7 @@ This document preserves durable decisions and historical context without requiri
 
 ## Decisions That Are Not Final
 
-- Exact timing for WebView daily-driver cutover.
+- Which future changes justify a fresh package/open/close validation run after the promoted default-launcher state.
 - Whether network coordinator/worker lifecycle controls belong in WebView.
 - How much of the giant remediation changelog should be archived or indexed.
 - Whether `node_modules` should remain in this working tree.

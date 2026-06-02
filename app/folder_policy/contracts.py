@@ -6,6 +6,13 @@ from typing import Any
 from app.folder_policy.constants import FOLDER_POLICY_SCHEMA_VERSION
 
 
+def _int_or_default(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def default_folder_policy(folder: Path) -> dict[str, Any]:
     return {
         "schema_version": FOLDER_POLICY_SCHEMA_VERSION,
@@ -53,7 +60,7 @@ def stream_signature(stream: dict[str, Any]) -> dict[str, Any]:
         "index": stream.get("index"),
         "type": str(stream.get("codec_type") or ""),
         "codec": str(stream.get("codec_name") or "").lower(),
-        "channels": int(stream.get("channels") or 0),
+        "channels": _int_or_default(stream.get("channels") or 0),
         "language": str(tags.get("language") or "und").lower(),
         "title": str(tags.get("title") or ""),
         "default": bool(disposition.get("default")),

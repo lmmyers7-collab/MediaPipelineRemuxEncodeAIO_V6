@@ -977,6 +977,7 @@
       const msg = result && result.message ? result.message : `Priority set to '${level}'.`;
       setText("queue-priority-status", msg);
       if (typeof appendCommandResult === "function") appendCommandResult({ command: "queue.priority", ok: Boolean(result && result.ok), severity: result && result.ok ? "ok" : "error", message: msg });
+      if (result && result.ok && typeof refreshAll === "function") await refreshAll();
     } catch (err) {
       setText("queue-priority-status", `Priority request failed: ${err}`);
     }
@@ -993,8 +994,22 @@
       const msg = result && result.message ? result.message : description || "Bulk priority updated.";
       setText("queue-priority-status", msg);
       if (typeof appendCommandResult === "function") appendCommandResult({ command: "queue.priority", ok: Boolean(result && result.ok), severity: result && result.ok ? "ok" : "error", message: msg });
+      if (result && result.ok && typeof refreshAll === "function") await refreshAll();
     } catch (err) {
       setText("queue-priority-status", `Bulk priority request failed: ${err}`);
+    }
+  }
+
+  async function clearQueuePriorityManifest() {
+    setText("queue-priority-status", "Clearing entire priority manifest...");
+    try {
+      const result = await apiPost("/api/queue/priority", { clear_all: true });
+      const msg = result && result.message ? result.message : "All priority manifest entries cleared.";
+      setText("queue-priority-status", msg);
+      if (typeof appendCommandResult === "function") appendCommandResult({ command: "queue.priority", ok: Boolean(result && result.ok), severity: result && result.ok ? "ok" : "error", message: msg });
+      if (result && result.ok && typeof refreshAll === "function") await refreshAll();
+    } catch (err) {
+      setText("queue-priority-status", `Priority manifest clear failed: ${err}`);
     }
   }
 
@@ -1032,12 +1047,7 @@
       sendQueuePriorityBulk(items, `Promoted ${items.length} TV row(s) to High.`);
     });
 
-    wire("queue-priority-clear-all-btn", () => {
-      const items = lastQueueRows
-        .map((r) => ({ path: r.source_path || r.relative_path || "", level: "normal", reason: "" }))
-        .filter((i) => i.path);
-      sendQueuePriorityBulk(items, `Cleared priority manifest for ${items.length} row(s).`);
-    });
+    wire("queue-priority-clear-all-btn", clearQueuePriorityManifest);
   }
 
   // Wire toolbar on DOMContentLoaded (or immediately if already loaded)

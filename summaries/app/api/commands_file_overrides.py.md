@@ -3,9 +3,9 @@ file: app/api/commands_file_overrides.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: e8c1b2d03a52eb6afdd65e05a0d3ad39e8d8e3a967558b5f7416c8da8d2e14c7
+sha256: c75d925e52527711a3457266b2ed6bf8cd8a910be11f157bdce09d2559add05b
 ---
 # `app/api/commands_file_overrides.py`
 

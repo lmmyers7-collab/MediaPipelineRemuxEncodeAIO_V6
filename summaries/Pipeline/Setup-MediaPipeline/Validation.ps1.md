@@ -1,8 +1,8 @@
 ---
 file: Pipeline/Setup-MediaPipeline/Validation.ps1
-pipeline_stage: n/a
+pipeline_stage: setup
 token_priority: medium
-owner_domain: unknown
+owner_domain: scripts
 last_modified: 2026-05-31
 last_reviewed: 2026-05-30
 sha256: d35d3b94c8022ac100d482ce676a39d5ac96ed4ffdf1bd5ad707a38d493608c4

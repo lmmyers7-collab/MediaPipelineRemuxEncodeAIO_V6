@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/application/sample_validation/pilot_p
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: application
-last_modified: 2026-05-30
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 3f2abf79dc9e67a2405c88b8206ebc919f46593438e57718e4889de0910f6ba3
+sha256: e73478c6300679b54c984dcb2d15e410fe72790d1eee153f57dbcf377e88fa0d
 ---
 # `DesktopApp/mediapipeline_desktop_app/application/sample_validation/pilot_plan.py`
 

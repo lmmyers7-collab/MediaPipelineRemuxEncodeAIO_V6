@@ -139,8 +139,8 @@ Recent commands visible in `GET /api/commands` or WebView Command History:
 
 | Field | Value | Source |
 |---|---|---|
-| Failure marker present for this source? | Yes / No | `State\Failures\markers\` or WebView Queue exclusion |
-| Failure report present? | Yes / No | `State\Failures\reports\` or WebView Diagnostics |
+| Failure marker present for this source? | Yes / No | `State\Failures\Markers\` or WebView Queue exclusion |
+| Failure report present? | Yes / No | `State\Failures\Reports\` or WebView Diagnostics |
 | Latest failure JSON summary | | `latest_failure_json` or Diagnostics tail |
 
 ---

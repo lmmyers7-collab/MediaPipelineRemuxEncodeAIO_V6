@@ -3,9 +3,9 @@ file: app/folder_policy/contracts.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 029eb7f445d52961827a2dd04614673ef8e9f2aa37bd90e292ae7ea157968696
+sha256: fdee49711f0b3a973f08d6154c7ea370d9d6ddf990d854286820d9ae62aefa01
 ---
 # `app/folder_policy/contracts.py`
 

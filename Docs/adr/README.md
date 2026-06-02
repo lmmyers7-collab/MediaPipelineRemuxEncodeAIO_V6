@@ -7,10 +7,10 @@ Format: [MADR](https://adr.github.io/madr/) (see `0000-template.md`).
 
 ## Why ADRs
 
-`Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md` is the *plan*. It
-changes as work progresses. ADRs are the *decisions*. They are written
-once, accepted (or rejected), and only superseded by a later ADR — never
-silently edited.
+`Docs/CURRENT_PROJECT_STATE.md` and
+`Docs/architecture/ARCHITECTURE.md` describe the current operating
+state. ADRs are the *decisions*. They are written once, accepted (or
+rejected), and only superseded by a later ADR — never silently edited.
 
 If you find yourself wanting to "update" an ADR, write a new one with
 `Status: supersedes NNNN` and set the old one's status to
@@ -63,8 +63,8 @@ record.
 - `AGENTS.md §10` points new agents here.
 - `Docs/architecture/ARCHITECTURE.md` cites the ADRs that establish each
   module boundary.
-- `Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md` references ADRs by
-  number rather than re-stating decisions.
+- `Docs/CURRENT_PROJECT_STATE.md` and `CHANGELOG.md` record how accepted
+  decisions have been applied in the promoted V6 workspace.
 - `CHANGELOG.md` notes the ADR number alongside the commit that landed an
   ADR-backed change.
 

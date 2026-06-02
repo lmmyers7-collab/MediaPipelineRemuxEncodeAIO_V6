@@ -1,10 +1,10 @@
 # WebView DOM ID Inventory
 
-Date: 2026-05-31
+Date: 2026-06-02
 
 Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `DesktopApp/mediapipeline_desktop_app/ui_web/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 1176. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 1300. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -70,7 +70,7 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `sample-validation-worksheet-rows` | `<tbody>` | Generated pilot worksheet table body |
 | `sample-validation-worksheet-legend` | `<p>` | Generated worksheet selectable-row legend |
 | `sample-validation-worksheet-detail` | `<pre>` | Selected generated worksheet detail |
-| `sample-validation-records` | `<div>` | Sample validation records display |
+| `sample-validation-records` | `<tbody>` | Sample validation records table body |
 | `sample-validation-preview-button` | `<button>` | Trigger `/api/sample-validation/preview` |
 
 ---
@@ -390,6 +390,11 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `api-contract-filter` | `<input>` | Text filter |
 | `api-contract-detail` | `<div>` | Selected route detail |
 | `api-contract-status` | `<strong>` | Contract load status |
+| `api-contract-safety-status` | `<strong>` | Contract safety review status |
+| `api-contract-safety-summary` | `<pre>` | Contract safety review summary |
+| `api-contract-safety-rows` | `<tbody>` | Contract safety review rows |
+| `api-contract-safety-legend` | `<p>` | Contract safety table legend |
+| `api-contract-safety-detail` | `<pre>` | Selected contract safety detail |
 | `api-contract-table-legend` | `<p>` | Contract table legend |
 
 ---
@@ -400,7 +405,7 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 |---|---|---|
 | `active-job-*` | `progressView.js` | Live |
 | `activity` | `app.js` | All (topbar) |
-| `api-contract-*` | `contractView.js` | Maintenance |
+| `api-contract-*` | `contractView.js` | Diagnostics |
 | `app-version` | `app.js` | All (sidebar) |
 | `audit-launch-*`, `audit-start-*` | `launchView.js` | Launch |
 | `audit-preview-*`, `audit-review-*` | `reportsView.js` | Reports |
@@ -544,11 +549,11 @@ Risk: Low — additive only; new IDs for queue drawer UI
 
 ---
 
-## Machine-Generated Full DOM ID Manifest — 2026-05-31
+## Machine-Generated Full DOM ID Manifest — 2026-06-02
 
 This section is generated from `DesktopApp/mediapipeline_desktop_app/ui_web/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 1176
+Count: 1300
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
 active-job-detail
@@ -756,6 +761,8 @@ diagnostics-first-response-legend
 diagnostics-first-response-rows
 diagnostics-first-response-status
 diagnostics-first-response-summary
+diagnostics-force-reset-button
+diagnostics-force-reset-status
 diagnostics-investigation-actions
 diagnostics-investigation-status
 diagnostics-investigation-trail
@@ -830,8 +837,17 @@ final-library-promotion-status
 final-library-promotion-summary
 final-library-resume-button
 fo-audio-drop-langs
+fo-audio-drop-langs-inherited
 fo-audio-keep-langs
+fo-audio-keep-langs-inherited
 fo-audio-max-channels
+fo-audio-max-channels-inherited
+fo-audio-prefer-default-language
+fo-audio-prefer-default-language-inherited
+fo-audio-track-count
+fo-audio-track-group
+fo-audio-track-list
+fo-audio-track-status
 fo-drawer
 fo-drawer-clear
 fo-drawer-close
@@ -839,11 +855,67 @@ fo-drawer-path
 fo-drawer-save
 fo-drawer-status
 fo-drawer-title
+fo-folder-confirm-file-overrides
+fo-folder-confirm-future-files
+fo-folder-confirm-no-stream-index
+fo-folder-preview-confirmations
+fo-folder-preview-conflicts
+fo-folder-preview-counts
+fo-folder-preview-library-note
+fo-folder-preview-library-settings
+fo-folder-preview-open
+fo-folder-preview-panel
+fo-folder-preview-path
+fo-folder-preview-samples
+fo-folder-preview-save
+fo-folder-preview-scope
+fo-folder-preview-scope-help
+fo-folder-preview-scope-select
+fo-folder-preview-selectors
+fo-folder-preview-status
+fo-folder-preview-title
+fo-folder-preview-warnings
+fo-folder-rules-library-settings
+fo-folder-rules-list
+fo-folder-rules-open
+fo-folder-rules-panel
+fo-folder-rules-refresh
+fo-folder-rules-status
+fo-folder-rules-title
+fo-inherited-settings-status
 fo-overlay
+fo-processing-route-help
+fo-processing-route-section
+fo-route-preview-status
+fo-route-profile
+fo-route-profile-inherited
+fo-route-risk-confirm
+fo-route-risk-confirmation
+fo-route-threshold-mode
+fo-route-threshold-mode-inherited
 fo-sub-drop-langs
+fo-sub-drop-langs-inherited
 fo-sub-filter-fields
 fo-sub-keep-langs
+fo-sub-keep-langs-inherited
 fo-sub-strip-all
+fo-sub-strip-all-inherited
+fo-subtitle-track-count
+fo-subtitle-track-group
+fo-subtitle-track-list
+fo-subtitle-track-status
+fo-track-metadata-help
+fo-track-metadata-section
+fo-track-metadata-title
+fo-track-warning-list
+fo-video-codec
+fo-video-codec-inherited
+fo-video-container
+fo-video-container-inherited
+fo-video-encode-ladder
+fo-video-encode-ladder-inherited
+fo-video-encode-preset
+fo-video-encode-preset-inherited
 gpu-chart
 gpu-detail-status
 gpu-note
@@ -937,6 +1009,14 @@ launch-start-decision-status
 launch-start-decision-summary
 launch-timing
 launch-timing-status
+layout-editor-done
+layout-editor-drawer
+layout-editor-page-label
+layout-editor-reset-all
+layout-editor-reset-page
+layout-editor-reset-subtab
+layout-editor-status
+layout-editor-tree
 log-tail
 maintenance-detail
 maintenance-detail-status
@@ -1199,6 +1279,7 @@ release-dry-run-verify
 release-dry-run-zip
 rename-add-path-button
 rename-add-path-input
+rename-apply-button
 rename-apply-history
 rename-apply-outcome-legend
 rename-apply-outcome-rows
@@ -1208,69 +1289,61 @@ rename-apply-progress-bars
 rename-apply-readiness-legend
 rename-apply-readiness-rows
 rename-apply-readiness-status
-rename-apply-selected-button
+rename-apply-status-hint
 rename-batch-safety
 rename-browse-files-button
 rename-browse-folder-button
-rename-bulk-clear-button
-rename-bulk-clear-force-button
-rename-bulk-edit-status
-rename-bulk-edit-summary
-rename-bulk-find
-rename-bulk-force-button
-rename-bulk-prefix
-rename-bulk-replace
-rename-bulk-scope
-rename-bulk-stage-button
-rename-bulk-suffix
-rename-bulk-use-pipeline-button
 rename-check-applicable-button
 rename-clear-checks-button
-rename-clear-override-button
 rename-clear-paths-button
+rename-confirm-apply-button
+rename-confirm-cancel-button
+rename-confirm-count
+rename-confirm-dialog
+rename-confirm-list
+rename-confirm-title
+rename-confirm-warning
 rename-detail
+rename-drop-zone
 rename-file-source-status
 rename-file-source-summary
 rename-force-pipeline
 rename-last-apply-detail
 rename-last-apply-status
 rename-mode
-rename-move-checked-down-button
-rename-move-checked-up-button
-rename-movie-title
 rename-movie-year
-rename-natural-sort-button
 rename-paths
 rename-pipeline-handoff
 rename-pipeline-handoff-status
 rename-pipeline-preview
 rename-preview-button
-rename-preview-top-button
+rename-preview-status
+rename-result-counts
+rename-result-dialog
+rename-result-errors
+rename-result-failed
+rename-result-open-log-button
+rename-result-skipped
+rename-result-success
+rename-result-summary
+rename-result-title
 rename-review-board
 rename-review-board-status
 rename-rows
-rename-save-override-button
 rename-season
 rename-selected-count
-rename-selected-final
-rename-selected-force
 rename-selection-audit
 rename-selection-audit-status
 rename-show
 rename-sidecars
-rename-stage-apply-heading
 rename-stage-files-heading
 rename-stage-mode-heading
 rename-stage-preview-heading
-rename-stage-result-heading
-rename-stage-review-heading
 rename-start
 rename-status
 rename-summary
 rename-table-legend
 rename-template-preset
-rename-use-loaded-queue-button
-rename-use-selected-queue-button
 report-audit-csv-state
 report-failure-json-state
 report-go-audit-button
@@ -1447,6 +1520,9 @@ settings-builder-tv-threshold
 settings-builder-video-codec
 settings-command-history
 settings-command-history-status
+settings-container-size-bitrate
+settings-container-size-container
+settings-container-size-guard
 settings-count
 settings-effective-policy-detail
 settings-effective-policy-legend
@@ -1491,15 +1567,35 @@ settings-final-library-rules-rows
 settings-final-library-save-button
 settings-final-library-status
 settings-final-library-verification-mode
+settings-handbrake-active-preset
+settings-handbrake-decision
+settings-handbrake-output-container
+settings-handbrake-output-guards
+settings-handbrake-output-video
+settings-handbrake-preview-detail
+settings-handbrake-preview-status
+settings-handbrake-publish-requirements
+settings-handbrake-source-audio
+settings-handbrake-source-container
+settings-handbrake-source-subtitles
+settings-handbrake-source-video
 settings-launch-impact-legend
 settings-launch-impact-rows
 settings-launch-impact-status
 settings-launch-impact-summary
 settings-libraries-status
+settings-library-active-detail
+settings-library-active-title
 settings-library-add-button
 settings-library-build-patch-button
+settings-library-defaults-button
+settings-library-delete-button
+settings-library-editor-status
+settings-library-preview-button
 settings-library-profile-list
 settings-library-reset-button
+settings-library-save-button
+settings-library-tab-bar
 settings-library-warning-summary
 settings-media-policy-legend
 settings-media-policy-rows
@@ -1548,6 +1644,7 @@ settings-policy-delta-rows
 settings-policy-delta-status
 settings-policy-delta-summary
 settings-preview-patch-button
+settings-preview-plan-button
 settings-profiles
 settings-queue-apply-button
 settings-queue-builder-status
@@ -1568,6 +1665,7 @@ settings-raw-triage-legend
 settings-raw-triage-rows
 settings-raw-triage-status
 settings-reload-button
+settings-rename-aggressive-match
 settings-rename-cleaning-filter-status
 settings-rename-cleaning-filter-summary
 settings-rename-cleaning-filters-reset-button
@@ -1578,7 +1676,14 @@ settings-rename-filter-file-size
 settings-rename-filter-release-groups
 settings-rename-filter-services-containers
 settings-rename-filter-video-source
+settings-rename-preview-input
+settings-rename-preview-output
 settings-rename-remove-terms
+settings-rename-sep-dashes
+settings-rename-sep-dots
+settings-rename-sep-none
+settings-rename-sep-underscores
+settings-rename-strip-trailing-year
 settings-rename-use-editable-cleaning-filters
 settings-rows
 settings-runtime-allow-system-tools
@@ -1603,6 +1708,12 @@ settings-runtime-transient-retry-limit
 settings-safety-lock-rows
 settings-safety-lock-status
 settings-safety-lock-summary
+settings-save-header
+settings-save-header-patch-status
+settings-save-header-preview-button
+settings-save-header-reload-button
+settings-save-header-reload-status
+settings-save-header-save-button
 settings-save-patch-button
 settings-save-progress-bars
 settings-save-readiness
@@ -1610,6 +1721,10 @@ settings-save-readiness-status
 settings-save-review-detail
 settings-save-review-legend
 settings-save-review-rows
+settings-source-facts-rows
+settings-source-media-json
+settings-source-media-json-detail
+settings-source-media-json-status
 settings-status
 settings-subtitle-apply-button
 settings-subtitle-ass-signs-forced
@@ -1623,9 +1738,11 @@ settings-subtitle-bdpgs-timeout
 settings-subtitle-builder-status
 settings-subtitle-convert-bdpgs
 settings-subtitle-convert-tx3g
+settings-subtitle-convert-vobsub
 settings-subtitle-drop-ass
 settings-subtitle-drop-bdpgs
 settings-subtitle-drop-tx3g
+settings-subtitle-drop-vobsub
 settings-subtitle-exclude-styles
 settings-subtitle-extract-timeout
 settings-subtitle-forced-tx3g
@@ -1645,7 +1762,19 @@ settings-subtitle-strip-formatting
 settings-subtitle-supplemental-keywords
 settings-subtitle-tx3g-languages
 settings-subtitle-tx3g-signs-forced
+settings-subtitle-vobsub-languages
+settings-subtitle-vobsub-ocr-tool-path
+settings-subtitle-vobsub-path-evidence
+settings-subtitle-vobsub-path-status
+settings-subtitle-vobsub-signs-forced
+settings-subtitle-vobsub-timeout
 settings-summarize-patch-button
+settings-summary-copy-remux-intent
+settings-summary-encode-if-required
+settings-summary-evidence-scope
+settings-summary-output-container
+settings-summary-processing-strategy
+settings-summary-size-bitrate-guards
 settings-trust-status
 settings-trust-summary
 settings-validate-button

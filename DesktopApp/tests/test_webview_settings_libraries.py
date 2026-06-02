@@ -276,6 +276,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertIn("settings-library-actions-panel", libraries_html)
         self.assertIn("settings-library-command-box", libraries_html)
         self.assertIn("settings-library-active-title", libraries_html)
+        self.assertIn("settings-library-active-detail", libraries_html)
         self.assertNotIn("Movie and TV are always present.", libraries_html)
         self.assertNotIn("Movie and TV cannot be deleted.", libraries_html)
         self.assertIn("settings-library-editor-status", libraries_html)
@@ -296,7 +297,17 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertIn("settings-library-delete-button", libraries_html)
         self.assertIn("settings-library-defaults-button", libraries_html)
         self.assertIn("settings-library-reset-button", libraries_html)
+        self.assertIn("settings-library-build-patch-button", libraries_html)
+        self.assertIn("settings-library-preview-button", libraries_html)
         self.assertIn("settings-library-save-button", libraries_html)
+        self.assertLess(
+            libraries_html.index("settings-library-build-patch-button"),
+            libraries_html.index("settings-library-preview-button"),
+        )
+        self.assertLess(
+            libraries_html.index("settings-library-preview-button"),
+            libraries_html.index("settings-library-save-button"),
+        )
 
     def test_settings_libraries_asset_stages_profile_patch(self) -> None:
         js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")

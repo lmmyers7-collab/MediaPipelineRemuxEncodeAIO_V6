@@ -3,9 +3,9 @@ file: engine/policy/folder_policy.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: policy
-last_modified: 2026-05-29
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: ed7c3c384acce47a81c45738a9a0b138000399571eba74f89b2fe4bb1506bb1e
+sha256: c9493a838de5e292a15166fc3a4d708a1f3e185b87661967d5a88962fe35c8e3
 ---
 # `engine/policy/folder_policy.ps1`
 

@@ -47,6 +47,31 @@ def _browser_maintenance_reports_runner_source() -> str:
             const originalApiPost = window.apiPost;
             window.apiPost = async (path, body, options) => {
               posts.push({ path: String(path || ""), body: body || {}, options: options || {} });
+              if (String(path || "").includes("/api/failures/clear") && body?.dry_run === true) {
+                return {
+                  command: "failures.clear",
+                  ok: true,
+                  severity: "info",
+                  message: "Failure marker clear preview found 2 marker(s).",
+                  errors: [],
+                  data: {
+                    scope: body.scope,
+                    dry_run: true,
+                    markers: 0,
+                    planned: [
+                      { path: "C:/State/Failures/Markers/marker-1.json" },
+                      { path: "C:/State/Failures/Markers/marker-2.json" },
+                    ],
+                    skipped: [],
+                    errors: [],
+                    manifest_path: "",
+                    archive_dir: "",
+                    writes_failure_markers: false,
+                    touches_media: false,
+                    safe_next_action: "Dry-run preview only; confirm clear only after reviewing marker evidence.",
+                  },
+                };
+              }
               return { ok: false, message: "maintenance/reports smoke blocks mutation posts" };
             };
             function byId(id) { return document.getElementById(id); }
@@ -101,6 +126,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               "renderReports",
               "renderFailurePreview",
               "renderAuditPreview",
+              "initReportsViewEvents",
               "getCommandHistory",
               "appendCommandResult",
             ].forEach(requireFunction);
@@ -222,12 +248,65 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Skipped bad JSON: 1",
               "Guardrail:",
             ]);
+            window.mediaPipelineMaintenanceView.renderDependencyAtlasResult({
+              ok: true,
+              command: "maintenance.dependency_atlas",
+              message: "Dependency atlas updated: 377 module(s), 34 domain(s), 42 HTML link(s) checked.",
+              data: {
+                dry_run: false,
+                writes_dependency_atlas: true,
+                writes_media: false,
+                atlas_html: "C:/Repo/V6_dependency_atlas.html",
+                atlas_png: "C:/Repo/V6_dependency_atlas.png",
+                atlas_svg: "C:/Repo/V6_dependency_atlas.svg",
+                assets_dir: "C:/Repo/V6_dependency_atlas_assets",
+                summary_csv: "C:/Repo/V6_dependency_atlas_assets/dependency_summary.csv",
+                module_edges_csv: "C:/Repo/V6_dependency_atlas_assets/dependency_module_edges.csv",
+                modules: "377",
+                domain_edges: "34",
+                detail_diagrams: "18",
+                html_links_checked: "42",
+                returncode: 0,
+                elapsed_seconds: 2.5,
+                command: "python scripts/dev/generate_dependency_atlas.py",
+                dependency_atlas_progress: {
+                  schema_version: "desktop_dependency_atlas_progress.v1",
+                  status: "complete",
+                  detail: "Dependency atlas generated.",
+                  updated_at: "2026-05-17T12:00:00",
+                  progress_bars: [{
+                    id: "dependency_atlas",
+                    label: "Dependency atlas",
+                    mode: "stepped",
+                    percent: 100,
+                    status: "complete",
+                    detail: "Dependency atlas generated.",
+                    source: "maintenance.dependency_atlas",
+                    updated_at: "2026-05-17T12:00:00",
+                    stale: false,
+                  }],
+                },
+                stdout: "Dependency atlas generated.",
+              },
+            });
+            requireText("dependency-atlas-progress-bars", [
+              "Dependency atlas",
+              "100%",
+              "source: maintenance.dependency_atlas",
+            ]);
+            requireText("dependency-atlas-detail", [
+              "Dependency atlas update summary:",
+              "Writes dependency atlas artifacts: yes",
+              "Writes media or pipeline state: no",
+              "Guardrail:",
+              "Modules: 377",
+            ]);
             window.appendCommandResult({
               command: "maintenance.release_dry_run",
               ok: true,
               severity: "info",
               message: "Release dry run completed.",
-              data: { dry_run: true, manifest_exists: false, zip_exists: false, returncode: 0, elapsed_seconds: 1.25 },
+              data: { dry_run: true, manifest_exists: false, zip_exists: false, manifest_created: false, zip_created: false, returncode: 0, elapsed_seconds: 1.25 },
             });
             window.appendCommandResult({
               command: "maintenance.completed_backfill_dry_run",
@@ -236,10 +315,19 @@ def _browser_maintenance_reports_runner_source() -> str:
               message: "Completed manifest backfill dry run completed.",
               data: { dry_run: true, writes_manifest: false, sidecars_ingested: 12, skipped_bad_json: 1 },
             });
+            window.appendCommandResult({
+              command: "maintenance.dependency_atlas",
+              ok: true,
+              severity: "info",
+              message: "Dependency atlas updated.",
+              data: { writes_dependency_atlas: true, modules: "377", detail_diagrams: "18", html_links_checked: "42", returncode: 0, elapsed_seconds: 2.5 },
+            });
             window.mediaPipelineMaintenanceView.renderMaintenanceDryRunHistory(window.getCommandHistory());
             requireText("maintenance-dry-run-history", [
               "Release dry run",
               "Completed manifest backfill dry run",
+              "Dependency atlas",
+              "377 module(s)",
             ]);
 
             window.showPage("reports");
@@ -306,7 +394,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Completed report steps: classify, write json",
               "Mutation guardrail:",
             ]);
-            window.mediaPipelineReportsView.renderFailurePreview({
+            const reportFailurePreview = {
               source: "C:/Reports/failures.json",
               source_kind: "latest_json",
               count: 1,
@@ -331,7 +419,8 @@ def _browser_maintenance_reports_runner_source() -> str:
                 artifact_path: "C:/Reports/source_locked.txt",
                 repro_path: "C:/Source/Broken Movie.mkv",
               }],
-            });
+            };
+            window.mediaPipelineReportsView.renderFailurePreview(reportFailurePreview);
             window.mediaPipelineReportsView.renderAuditPreview({
               source: "C:/Reports/audit_priority.csv",
               priority_only: true,
@@ -416,6 +505,59 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Retry status: blocked",
               "Retry route/command: none_exposed",
             ]);
+            window.mediaPipelineReportsView.renderFailurePreview({
+              source: "C:/State/Failures/Markers",
+              source_kind: "markers",
+              count: 2,
+              operator_required_count: 0,
+              permanent_count: 0,
+              transient_count: 2,
+              rows: [{
+                source_json: "C:/State/Failures/Markers/marker-1.json",
+                source_path: "C:/Source/Retry One.mkv",
+                lookup_title: "Retry One",
+                media_type: "movie",
+                classification: "transient",
+                error_code: "SOURCE_LOCKED",
+                stage: "scratch-copy",
+                reason: "Source was locked.",
+                suggested_action: "Retry after the lock clears.",
+                retry_count: 1,
+                retry_limit: 5,
+                recorded_at: "2026-05-14T23:00:00-04:00",
+              }, {
+                source_json: "C:/State/Failures/Markers/marker-2.json",
+                source_path: "C:/Source/Retry Two.mkv",
+                lookup_title: "Retry Two",
+                media_type: "movie",
+                classification: "transient",
+                error_code: "NETWORK_TEMPORARY",
+                stage: "publish",
+                reason: "Destination was unavailable.",
+                suggested_action: "Retry after the share is online.",
+                retry_count: 0,
+                retry_limit: 5,
+                recorded_at: "2026-05-14T23:05:00-04:00",
+              }],
+            });
+            window.initReportsViewEvents();
+            window.mediaPipelineReportsView.initReportsViewEvents();
+            byId("failure-preview-all-clear-button").click();
+            await waitFor(() => text("failure-clear-status").includes("Preview ready"), "failure marker clear dry-run preview");
+            const markerDryRunPost = posts.find((entry) => entry.path.includes("/api/failures/clear") && entry.body?.dry_run === true);
+            if (!markerDryRunPost) throw new Error("Failure marker clear dry-run post was not captured.");
+            if (markerDryRunPost.body.scope !== "all_markers") throw new Error("Failure marker clear dry-run did not use all_markers scope.");
+            if (markerDryRunPost.body.confirm_clear !== false) throw new Error("Failure marker clear dry-run must not confirm marker movement.");
+            if (Object.prototype.hasOwnProperty.call(markerDryRunPost.body, "marker_paths")) {
+              throw new Error("Failure marker clear all_markers dry-run must let the backend enumerate marker paths.");
+            }
+            requireText("failure-clear-summary", [
+              "Dry run: yes",
+              "Scope: all_markers",
+              "Planned marker clears: 2",
+              "Touches media: no",
+            ]);
+            window.mediaPipelineReportsView.renderFailurePreview(reportFailurePreview);
             clickFirst('[data-reports-tab="audit"]', "Reports Audit tab");
             if (document.querySelector('[data-reports-tab="audit"]')?.getAttribute("aria-selected") !== "true") {
               throw new Error("Reports Audit tab did not become selected.");
@@ -468,7 +610,12 @@ def _browser_maintenance_reports_runner_source() -> str:
               "/api/pending-publish/drain",
               "/api/failures/clear",
             ];
-            const forbiddenPosts = posts.filter((entry) => forbidden.some((path) => entry.path.includes(path)));
+            const forbiddenPosts = posts.filter((entry) => {
+              if (entry.path.includes("/api/failures/clear") && entry.body?.dry_run === true && entry.body?.confirm_clear === false) {
+                return false;
+              }
+              return forbidden.some((path) => entry.path.includes(path));
+            });
             if (forbiddenPosts.length) throw new Error("maintenance/reports smoke posted mutation routes: " + JSON.stringify(forbiddenPosts));
             window.apiPost = originalApiPost;
             return {
@@ -606,7 +753,13 @@ class WebViewBrowserMaintenanceReportsSmokeTests(unittest.TestCase):
             assert_media_no_mutation(self, media_snapshot)
 
         browser_result = result["result"]
-        self.assertEqual(browser_result["posts"], [])
+        posts = browser_result["posts"]
+        self.assertEqual(len(posts), 1)
+        self.assertEqual(posts[0]["path"], "/api/failures/clear")
+        self.assertEqual(posts[0]["body"]["scope"], "all_markers")
+        self.assertTrue(posts[0]["body"]["dry_run"])
+        self.assertFalse(posts[0]["body"]["confirm_clear"])
+        self.assertNotIn("marker_paths", posts[0]["body"])
         self.assertIn(browser_result["maintenanceStatus"], {"Ready", "Warnings", "Blocked"})
         self.assertEqual(browser_result["reportStatus"], "Action needed")
         self.assertEqual(browser_result["failureStatus"], "Action needed")

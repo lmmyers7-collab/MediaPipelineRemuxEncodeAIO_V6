@@ -2,7 +2,7 @@
 file: app/processes/lifecycle.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: process
 last_modified: 2026-05-31
 last_reviewed: 2026-05-28
 sha256: 2fe73ad91dcbed5967e2d0bb15ef20953c2c2b20088810c2ddb4decb3472cb05

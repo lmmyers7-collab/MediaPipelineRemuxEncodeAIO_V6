@@ -85,17 +85,16 @@ def copy_file_with_verification(
         evidence["error"] = "Destination file targets the final library destination root."
         return evidence
 
+    destination_exists = destination.exists()
+    if destination_exists:
+        if not overwrite_existing:
+            evidence["error"] = "Destination file already exists and overwrite is disabled."
+            return evidence
+
     destination.parent.mkdir(parents=True, exist_ok=True)
     temp_path = destination.with_name(f".{destination.name}.promotion-{uuid.uuid4().hex}.tmp")
+    backup_path: Path | None = None
     try:
-        if destination.exists():
-            if not overwrite_existing:
-                evidence["error"] = "Destination file already exists and overwrite is disabled."
-                return evidence
-            destination.unlink()
-            evidence["overwritten"] = True
-            evidence["overwritten_path"] = str(destination)
-
         shutil.copy2(source, temp_path)
         temp_verification = verify_copy(source, temp_path, verification_mode)
         evidence["temp_verification"] = temp_verification
@@ -103,17 +102,39 @@ def copy_file_with_verification(
             evidence["error"] = str(temp_verification.get("error") or "Temporary copy verification failed.")
             return evidence
 
+        if destination_exists:
+            backup_path = destination.with_name(f".{destination.name}.promotion-backup-{uuid.uuid4().hex}.tmp")
+            destination.replace(backup_path)
+
         temp_path.replace(destination)
         final_verification = verify_copy(source, destination, verification_mode)
         evidence["final_verification"] = final_verification
         if not final_verification.get("ok"):
             evidence["error"] = str(final_verification.get("error") or "Final copy verification failed.")
+            if backup_path is not None and backup_path.exists():
+                with contextlib.suppress(OSError):
+                    if destination.exists():
+                        destination.unlink()
+                    backup_path.replace(destination)
+                    evidence["restored_existing"] = True
             return evidence
+        if destination_exists:
+            evidence["overwritten"] = True
+            evidence["overwritten_path"] = str(destination)
         evidence["ok"] = True
         evidence["verified_at"] = utc_now_text()
+        if backup_path is not None and backup_path.exists():
+            with contextlib.suppress(OSError):
+                backup_path.unlink()
         return evidence
     except Exception as exc:
         evidence["error"] = str(exc)
+        if backup_path is not None and backup_path.exists():
+            with contextlib.suppress(OSError):
+                if destination.exists():
+                    destination.unlink()
+                backup_path.replace(destination)
+                evidence["restored_existing"] = True
         return evidence
     finally:
         with contextlib.suppress(OSError):

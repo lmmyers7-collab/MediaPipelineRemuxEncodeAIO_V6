@@ -1,5 +1,93 @@
 # Publish-sidecar helpers shared by publish orchestration.
 
+function Get-PublishedSidecarProperty {
+    param(
+        $Object,
+        [Parameter(Mandatory)] [string] $Name
+    )
+    if ($null -eq $Object) { return $null }
+    if ($Object -is [System.Collections.IDictionary] -and $Object.Contains($Name)) { return $Object[$Name] }
+    $prop = $Object.PSObject.Properties[$Name]
+    if ($prop) { return $prop.Value }
+    return $null
+}
+
+function New-PublishedSidecarBackupPath {
+    param([Parameter(Mandatory)] [string] $SidecarPath)
+
+    $dir = Split-Path -Parent $SidecarPath
+    if ([string]::IsNullOrWhiteSpace($dir)) { $dir = (Get-Location).Path }
+    $leaf = Split-Path -Leaf $SidecarPath
+    return (Join-Path $dir (".{0}.mp-published-sidecar-backup.{1}" -f $leaf, [guid]::NewGuid().ToString('N')))
+}
+
+function Restore-PublishedSidecarBackupIntoPlace {
+    param(
+        [Parameter(Mandatory)] [string] $BackupPath,
+        [Parameter(Mandatory)] [string] $DestinationPath,
+        [string] $Context = ''
+    )
+
+    if (Test-Path -LiteralPath $DestinationPath -PathType Leaf -ErrorAction SilentlyContinue) {
+        $rollbackBackup = "$BackupPath.rollback-target"
+        try {
+            [System.IO.File]::Replace($BackupPath, $DestinationPath, $rollbackBackup, $true)
+            Remove-Item -LiteralPath $rollbackBackup -Force -ErrorAction SilentlyContinue
+            return
+        } catch {
+            Remove-Item -LiteralPath $rollbackBackup -Force -ErrorAction SilentlyContinue
+            Write-Log "${Context}published sidecar restore replace failed for $DestinationPath (will use overwrite move): $($_.Exception.Message)" "WARN"
+            [System.IO.File]::Move($BackupPath, $DestinationPath, $true)
+            return
+        }
+    }
+
+    [System.IO.File]::Move($BackupPath, $DestinationPath, $true)
+}
+
+function Undo-PublishedSidecarFiles {
+    param(
+        [array] $PublishedSidecars = @(),
+        [string] $Context = ''
+    )
+
+    foreach ($entry in @($PublishedSidecars)) {
+        if ($null -eq $entry) { continue }
+        $status = [string](Get-PublishedSidecarProperty -Object $entry -Name 'status')
+        if ($status -ne 'written') { continue }
+        $path = [string](Get-PublishedSidecarProperty -Object $entry -Name 'path')
+        $backupPath = [string](Get-PublishedSidecarProperty -Object $entry -Name 'backup_path')
+        $existedBefore = [bool](Get-PublishedSidecarProperty -Object $entry -Name 'existed_before')
+        if ([string]::IsNullOrWhiteSpace($path)) { continue }
+
+        try {
+            if (-not [string]::IsNullOrWhiteSpace($backupPath) -and (Test-Path -LiteralPath $backupPath -PathType Leaf -ErrorAction SilentlyContinue)) {
+                Restore-PublishedSidecarBackupIntoPlace -BackupPath $backupPath -DestinationPath $path -Context $Context
+                Write-Log "${Context}published sidecar restored after failed media reveal: $path" "WARN"
+                continue
+            }
+            if (-not $existedBefore -and (Test-Path -LiteralPath $path -PathType Leaf -ErrorAction SilentlyContinue)) {
+                Remove-Item -LiteralPath $path -Force -ErrorAction Stop
+                Write-Log "${Context}published sidecar removed after failed media reveal: $path" "WARN"
+            }
+        } catch {
+            Write-Log "${Context}published sidecar rollback failed for $path : $_" "ERROR"
+        }
+    }
+}
+
+function Complete-PublishedSidecarFiles {
+    param([array] $PublishedSidecars = @())
+
+    foreach ($entry in @($PublishedSidecars)) {
+        if ($null -eq $entry) { continue }
+        $backupPath = [string](Get-PublishedSidecarProperty -Object $entry -Name 'backup_path')
+        if (-not [string]::IsNullOrWhiteSpace($backupPath)) {
+            Remove-Item -LiteralPath $backupPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
 function Publish-Tx3gSrtSidecarsFromPlan {
     param(
         [Parameter(Mandatory)] $Plan,
@@ -7,6 +95,7 @@ function Publish-Tx3gSrtSidecarsFromPlan {
     )
     $records = [System.Collections.Generic.List[object]]::new()
     $failures = [System.Collections.Generic.List[object]]::new()
+    $published = [System.Collections.Generic.List[object]]::new()
     foreach ($failure in @($Plan.Failures)) {
         if ($failure) { $failures.Add($failure) }
     }
@@ -21,8 +110,35 @@ function Publish-Tx3gSrtSidecarsFromPlan {
         if (Get-Command -Name Write-SubtitleTrackProgress -ErrorAction SilentlyContinue) {
             Write-SubtitleTrackProgress -Kind 'tx3g' -StreamIndex $streamIndex -Stage 'sidecar_write' -Status 'Writing TX3G SRT sidecar' -StepIndex 4 -StepTotal 4 -Detail (Split-Path -Leaf $destination)
         }
+        $backupPath = ''
+        $existedBefore = Test-Path -LiteralPath $destination -PathType Leaf -ErrorAction SilentlyContinue
+        if ($existedBefore) {
+            $backupPath = New-PublishedSidecarBackupPath -SidecarPath $destination
+            try {
+                Copy-Item -LiteralPath $destination -Destination $backupPath -Force -ErrorAction Stop
+            } catch {
+                $entry = if ($sidecar.Record -and $sidecar.Record.PSObject.Properties['stream_index']) {
+                    @{ Stream = @{ index = $sidecar.Record.stream_index }; Lang = $sidecar.Record.language; Title = $sidecar.Record.title }
+                } else {
+                    @{ Stream = @{ index = -1 }; Lang = ''; Title = '' }
+                }
+                $failure = New-Tx3gFailureRecord -Entry $entry -Reason "sidecar backup failed before publish: $($_.Exception.Message)" -ErrorCode 'SUBTITLE_TX3G_SRT_PUBLISH_FAILED'
+                $failures.Add($failure)
+                Write-Log "${Context}TX3G->SRT: sidecar backup failed for $destination : $($_.Exception.Message)" "WARN"
+                continue
+            }
+        }
         $copy = Copy-SrtAtomic -SourcePath $sourceSrt -DestinationPath $destination
         if (-not $copy.Ok) {
+            if (-not [string]::IsNullOrWhiteSpace($backupPath) -and (Test-Path -LiteralPath $backupPath -PathType Leaf -ErrorAction SilentlyContinue)) {
+                try {
+                    Restore-PublishedSidecarBackupIntoPlace -BackupPath $backupPath -DestinationPath $destination -Context $Context
+                } catch {
+                    Write-Log "${Context}TX3G->SRT: sidecar backup restore failed after publish failure for $destination : $_" "ERROR"
+                }
+            } elseif (-not $existedBefore -and (Test-Path -LiteralPath $destination -PathType Leaf -ErrorAction SilentlyContinue)) {
+                Remove-Item -LiteralPath $destination -Force -ErrorAction SilentlyContinue
+            }
             $entry = if ($sidecar.Record -and $sidecar.Record.PSObject.Properties['stream_index']) {
                 @{ Stream = @{ index = $sidecar.Record.stream_index }; Lang = $sidecar.Record.language; Title = $sidecar.Record.title }
             } else {
@@ -36,6 +152,7 @@ function Publish-Tx3gSrtSidecarsFromPlan {
             Write-Log "${Context}TX3G->SRT: sidecar publish failed for $destination : $($copy.Reason)" "WARN"
             continue
         }
+        $published.Add([ordered]@{ path = $destination; status = 'written'; existed_before = [bool]$existedBefore; backup_path = $backupPath; kind = 'tx3g_srt' }) | Out-Null
         if ($sidecar.Record) {
             if ($sidecar.Record.PSObject.Properties['status']) {
                 $sidecar.Record.status = 'written'
@@ -57,5 +174,6 @@ function Publish-Tx3gSrtSidecarsFromPlan {
     return @{
         Tracks   = @($records)
         Failures = @($failures)
+        Published = @($published)
     }
 }

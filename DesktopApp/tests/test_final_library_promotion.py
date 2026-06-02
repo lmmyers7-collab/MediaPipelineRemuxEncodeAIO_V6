@@ -451,6 +451,26 @@ class FinalLibraryPromotionTests(unittest.TestCase):
             self.assertFalse(outside["ready_for_promotion"])
             self.assertEqual(outside["final_library_promotion_status"], "outside_outsource")
 
+    def test_promote_item_fails_closed_without_resolved_destination(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            outsource = root / "Outsource"
+            source = root / "Source" / "Movie.mkv"
+            output = outsource / "Movie.mkv"
+            source.parent.mkdir(parents=True)
+            output.parent.mkdir(parents=True)
+            source.write_bytes(b"source")
+            output.write_bytes(b"media")
+            resolved = _resolved(root, outsource)
+            item = promotion_status_payload(resolved, [_record(source, output)])["items"][0]
+
+            evidence = promote_item(item, promotion_settings_from_config(resolved.config_data))
+
+            self.assertFalse(evidence["success"])
+            self.assertIn("Final destination path is not resolved.", evidence["failures"])
+            self.assertEqual(evidence["destination_path"], "")
+            self.assertTrue(output.exists())
+
     def test_status_uses_library_profile_output_and_promotion_destination(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
@@ -662,6 +682,36 @@ class FinalLibraryPromotionTests(unittest.TestCase):
             self.assertFalse(result["ok"])
             self.assertIn("SHA-256 hash does not match", result["error"])
             self.assertFalse(destination.exists())
+            self.assertEqual(list(destination.parent.glob(".*.promotion-*.tmp")), [])
+
+    def test_overwrite_copy_hash_mismatch_preserves_existing_destination(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            source = root / "Outsource" / "Movie.mkv"
+            destination_root = root / "Final"
+            destination = destination_root / "Movie.mkv"
+            source.parent.mkdir(parents=True)
+            destination_root.mkdir(parents=True)
+            source.write_bytes(b"new-media")
+            destination.write_bytes(b"old-media")
+
+            def corrupt_copy(_source, target):
+                Path(target).write_bytes(b"bad-media")
+
+            with patch.object(promotion_transfer.shutil, "copy2", side_effect=corrupt_copy):
+                result = promotion_transfer.copy_file_with_verification(
+                    source,
+                    destination,
+                    destination_root=destination_root,
+                    verification_mode="cautious",
+                    overwrite_existing=True,
+                )
+
+            self.assertFalse(result["ok"])
+            self.assertFalse(result["overwritten"])
+            self.assertIn("SHA-256 hash does not match", result["error"])
+            self.assertEqual(source.read_bytes(), b"new-media")
+            self.assertEqual(destination.read_bytes(), b"old-media")
             self.assertEqual(list(destination.parent.glob(".*.promotion-*.tmp")), [])
 
     def test_sidecar_discovery_uses_primary_stem_and_excludes_temp_files(self) -> None:

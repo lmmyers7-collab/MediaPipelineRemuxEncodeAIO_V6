@@ -191,6 +191,7 @@ $tauriBackendContractText = Read-Text (Join-Path $tauriSrcRoot 'backend_contract
 $scheduleWatcherText = Read-Text (Join-Path $packageRoot 'application\schedule_stop_watcher.py')
 $ffmpegProgressText = Read-Text (Join-Path $projectRoot 'engine\process\ffmpeg_progress.ps1')
 $nativeText = Read-Text (Join-Path $projectRoot 'engine\shared\native.ps1')
+$remuxText = Read-Text (Join-Path $pipelineRoot 'MediaPipeline\remux.ps1')
 $sidecarText = Read-Text (Join-Path $projectRoot 'engine\publish\sidecar.ps1')
 $releasePolicyText = Read-Text (Join-Path $projectRoot 'scripts\release\release_policy.ps1')
 $reliabilityWrapperText = Read-Text (Join-Path $pipelineRoot 'Tests\Invoke-ReliabilityRegressionChecks.ps1')
@@ -234,6 +235,7 @@ Assert-True ($tauriLibText -match 'start_backend' -and $tauriLibText -match 'Web
 Assert-True ($tauriBackendProcessText -match 'redact_bootstrap_stdout' -and $tauriBackendProcessText -match 'redact_json_string_field' -and $tauriBackendProcessText -match 'bounded_text\(&redacted_bootstrap_stdout, MAX_BOOTSTRAP_STDOUT_CHARS\)' -and $tauriBackendProcessText -match 'push_bootstrap_stdout_context') "Tauri backend startup diagnostics must redact token-like stdout before logging or surfacing bootstrap context."
 Assert-True ($scheduleWatcherText -match '_generation' -and $scheduleWatcherText -match '"generation": self\.generation' -and $scheduleWatcherText -match 'generation != self\._generation') "Schedule-stop watcher must expose a generation id and guard against stale watcher threads overwriting current state."
 Assert-True ($ffmpegProgressText -notmatch '\$lineTask' -and $ffmpegProgressText -match 'Map the user-facing priority string before emitting tool_started') "FFmpeg progress runner must not reference stale lineTask polling and must log effective priority in tool_started."
+Assert-True ($ffmpegProgressText -match '\$mkvmergeFailed\s*=\s*\(\[bool\]\$result\.TimedOut\s+-or\s+\[bool\]\$result\.Stopped\s+-or\s+\$exitCode -lt 0\s+-or\s+\$exitCode -ge 2\)' -and $remuxText -match '\$mkvFailed\s*=\s*\(\[bool\]\$mkv\.TimedOut\s+-or\s+\[bool\]\$mkv\.Stopped\s+-or\s+\$mkvExitCode -lt 0\s+-or\s+\$mkvExitCode -ge 2\)' -and $remuxText -notmatch 'if \(\$mkv\.ExitCode -ge 2\)') "mkvmerge timeout/stop/negative exits must be classified as remux-mkvmerge failures before missing-output fallback."
 Assert-True ($nativeText -match 'Stop-NativeProcessTree -Process \$proc -Label \$Label' -and $nativeText -match 'Native process cleanup failed after start/run error') "Native process runner must clean up already-started children after start/run exceptions."
 Assert-True ($sidecarText -match 'Move-SidecarTempIntoPlace' -and $sidecarText -match '\[System\.IO\.File\]::Move\(\$TempPath,\s*\$DestinationPath,\s*\$true\)' -and $sidecarText -notmatch 'Remove-Item\s+-LiteralPath\s+\$sidecar\s+-Force') "Sidecar Replace fallback must use overwrite move without explicitly deleting the current sidecar."
 Assert-True ($worksheetHelperText -match 'Launch surface' -and $worksheetHelperText -match 'V6 workspace path' -and $worksheetHelperText -notmatch 'Tk supported') "Real-media worksheet helper must use V6 launch-surface wording."

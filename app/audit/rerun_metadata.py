@@ -93,7 +93,7 @@ def load_rerun_source_metadata_for_service(
                 service.logger.warning("Rerun source metadata helper failed: %s", detail[0])
                 return {}
             data = read_json_file(output_path)
-        except (OSError, json.JSONDecodeError) as exc:
+        except Exception as exc:
             service.logger.warning("Rerun source metadata helper failed: %s", exc)
             return {}
 

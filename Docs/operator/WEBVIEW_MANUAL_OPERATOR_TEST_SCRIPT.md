@@ -1,6 +1,6 @@
 # WebView Manual Operator Test Script
 
-Date: 2026-05-14
+Date: 2026-06-02
 
 Step-by-step manual validation script for the Tauri/WebView2 preview shell. Covers all 13 WebView pages. This script does not launch the pipeline, process media, save settings, rename files, drain pending publish, or touch source/output/scratch paths.
 
@@ -441,7 +441,7 @@ After completing all 13 pages:
    - `/api/rename/apply` (unless you intentionally tested Apply)
    - `/api/pipeline/start` with mode `continuous` (unless intentionally testing)
    - `/api/pending-publish/open` with a raw path (target must be an allowlisted key)
-   - Any route not in the 41-route contract
+   - Any route not listed by the active `/api/contract` response or `Docs/inventories/API_ROUTE_INVENTORY.md`
 
 5. Verify that no JavaScript errors appear in the browser console related to unhandled rejections or missing backend responses.
 
@@ -475,7 +475,8 @@ See `Docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md` for the full catalog.
 
 ## See Also
 
-- Mutation boundary: `Docs/archive/completed-audits/WEBVIEW_APIPOST_MUTATION_REVIEW.md`
+- Mutation boundary: `Docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md`
+- Historical mutation review: `Docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/Docs/archive/completed-audits/WEBVIEW_APIPOST_MUTATION_REVIEW.md`
 - No-touch boundaries: `Docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`
 - Smoke test catalog: `Docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`
 - Failure triage: `Docs/operator/FAILURE_TRIAGE_WORKSHEET.md`

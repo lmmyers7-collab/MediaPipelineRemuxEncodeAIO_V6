@@ -3,9 +3,9 @@ file: engine/subtitles/common.ps1
 pipeline_stage: subtitles
 token_priority: high
 owner_domain: subtitles
-last_modified: 2026-05-31
+last_modified: 2026-06-01
 last_reviewed: 2026-05-29
-sha256: a925f6309da3eab66b34b7083673f857cbd2ec06dd56b931a3477afd5b1f6ff8
+sha256: 809834e16355bcd110a3cb522a6b979f599173a361c834de76a8e28708689750
 ---
 # `engine/subtitles/common.ps1`
 

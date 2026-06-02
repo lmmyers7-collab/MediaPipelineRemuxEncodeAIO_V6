@@ -1,0 +1,61 @@
+{
+  "id": "MP-CHANGE-2026-0601-003",
+  "title": "Add Phase 3 release finalization and archive workflow",
+  "version_target": "0.1.0-dev",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "low",
+  "date_started": "2026-06-01",
+  "date_completed": "2026-06-01",
+  "summary": "Add dry-run-first release finalization, released-packet history generation, archive workflow documentation, and safer manifest generation for unreleased or finalized release sources.",
+  "reason": "Phase 3 gives the project a controlled path to finalize completed change packets into versioned release folders and archive generated release artifacts without adding runtime audit or media-processing behavior.",
+  "affected_areas": [
+    "change_control",
+    "release_finalization",
+    "release_archive",
+    "release_history",
+    "release_manifest"
+  ],
+  "behavior_before": "Change packets could generate indexes, changelogs, and manifests, but there was no safe finalization script, released-version archive workflow, or generated release history.",
+  "behavior_after": "Release finalization can be previewed with a dry run, completed packets can be moved into versioned release folders when explicitly finalized, release artifacts can be archived, and release history can be regenerated from released packets.",
+  "files_touched": [
+    "Docs/change_control/README.md",
+    "Docs/change_control/CURRENT_VERSION.md",
+    "Docs/change_control/CHANGE_INDEX.md",
+    "Docs/change_control/CHANGELOG.md",
+    "Docs/change_control/RELEASE_PROCESS.md",
+    "Docs/change_control/RELEASE_HISTORY.md",
+    "changes/unreleased/MP-CHANGE-2026-0601-003.json",
+    "scripts/change_control/build_change_index.py",
+    "scripts/change_control/build_changelog.py",
+    "scripts/change_control/build_release_manifest.py",
+    "scripts/change_control/finalize_release.py",
+    "scripts/change_control/list_releases.py",
+    "scripts/change_control/prepare_release.py",
+    "scripts/change_control/validate_changes.py",
+    "release/RELEASE_MANIFEST.json",
+    "summaries/scripts/change_control/validate_changes.py.md",
+    "summaries/scripts/change_control/build_change_index.py.md",
+    "summaries/scripts/change_control/build_changelog.py.md",
+    "summaries/scripts/change_control/build_release_manifest.py.md",
+    "summaries/scripts/change_control/prepare_release.py.md",
+    "summaries/scripts/change_control/finalize_release.py.md",
+    "summaries/scripts/change_control/list_releases.py.md"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Ran validate_changes.py successfully.",
+    "Ran build_change_index.py successfully.",
+    "Ran build_changelog.py successfully.",
+    "Ran build_release_manifest.py successfully.",
+    "Ran finalize_release.py with --dry-run successfully.",
+    "Ran list_releases.py successfully.",
+    "Ran refresh_summaries.py for scripts/change_control paths successfully."
+  ],
+  "rollback_plan": "Remove Phase 3 finalization scripts and archive/history docs. Keep Phase 1 and Phase 2 change packet, validation, changelog, and manifest generation.",
+  "related_changes": [
+    "MP-CHANGE-2026-0601-001",
+    "MP-CHANGE-2026-0601-002"
+  ],
+  "notes": "Phase 3 intentionally does not finalize or move current unreleased packets during implementation validation."
+}

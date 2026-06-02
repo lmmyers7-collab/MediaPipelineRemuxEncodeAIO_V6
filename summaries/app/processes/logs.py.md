@@ -2,7 +2,7 @@
 file: app/processes/logs.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: process
 last_modified: 2026-05-31
 last_reviewed: 2026-05-28
 sha256: 76751b724aecd3c3bc220ec4faea7e2ab991c9ac920471a2946c9603bbde062e

@@ -373,14 +373,14 @@ def _browser_settings_launch_runner_source() -> str:
             const deadline = Date.now() + 20000;
             while (Date.now() < deadline) {
               const ready = await client.send("Runtime.evaluate", {
-                expression: `Boolean(document.getElementById("settings-patch-json") && document.getElementById("launch-settings-intent-summary") && typeof window.renderSettings === "function" && typeof window.mediaPipelineLaunchView.renderAllLaunchPreflights === "function")`,
+                expression: `Boolean(document.readyState === "complete" && document.getElementById("settings-patch-json") && document.getElementById("launch-settings-intent-summary") && typeof window.renderSettings === "function" && typeof window.externalDependencyRows === "function" && typeof window.markSettingsPatchTouched === "function" && typeof window.getCommandHistory === "function" && typeof window.mediaPipelineLaunchView.renderAllLaunchPreflights === "function")`,
                 returnByValue: true,
               });
               if (ready.result?.value === true) break;
               await sleep(150);
             }
             const ready = await client.send("Runtime.evaluate", {
-              expression: `Boolean(document.getElementById("settings-patch-json") && document.getElementById("launch-settings-intent-summary") && typeof window.renderSettings === "function" && typeof window.mediaPipelineLaunchView.renderAllLaunchPreflights === "function")`,
+              expression: `Boolean(document.readyState === "complete" && document.getElementById("settings-patch-json") && document.getElementById("launch-settings-intent-summary") && typeof window.renderSettings === "function" && typeof window.externalDependencyRows === "function" && typeof window.markSettingsPatchTouched === "function" && typeof window.getCommandHistory === "function" && typeof window.mediaPipelineLaunchView.renderAllLaunchPreflights === "function")`,
               returnByValue: true,
             });
             if (ready.result?.value !== true) throw new Error("Settings/Launch WebView globals or DOM nodes did not become ready.");

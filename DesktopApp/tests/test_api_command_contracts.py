@@ -50,6 +50,19 @@ class ApiCommandContractsTests(unittest.TestCase):
     def test_missing_optional_fields_are_not_added_to_payload(self) -> None:
         self.assertEqual(validate_api_command_payload("/api/settings/reload", {}), {})
         self.assertEqual(validate_api_payload("/api/queue/strategy", {"strategy": "Standard"}), {"strategy": "Standard"})
+        self.assertEqual(validate_api_payload("/api/queue/priority", {"clear_all": True}), {"clear_all": True})
+
+    def test_failure_clear_contract_names_backend_marker_fields(self) -> None:
+        payload = {
+            "scope": "selected",
+            "marker_path": r"C:\LocalBase\State\Failures\Markers\one.json",
+            "marker_paths": [r"C:\LocalBase\State\Failures\Markers\one.json"],
+            "source_json": r"C:\LocalBase\State\Failures\Markers\one.json",
+            "dry_run": True,
+            "confirm_clear": False,
+        }
+
+        self.assertEqual(validate_api_payload("/api/failures/clear", payload), payload)
 
     def test_unknown_routes_keep_generic_object_boundary_for_compatibility(self) -> None:
         payload = {"anything": {"nested": True}}
@@ -77,6 +90,14 @@ class ApiCommandContractsTests(unittest.TestCase):
 
     def test_high_risk_mutation_routes_accept_known_fields_only(self) -> None:
         self.assertEqual(validate_api_payload("/api/pipeline/start", {"mode": "once"}), {"mode": "once"})
+        self.assertEqual(
+            validate_api_payload("/api/backend/shutdown", {"reason": "operator-close", "force_active_work_shutdown": False}),
+            {"reason": "operator-close", "force_active_work_shutdown": False},
+        )
+        self.assertEqual(
+            validate_api_payload("/api/backend/shutdown", {"force_active_work_shutdown": True}),
+            {"force_active_work_shutdown": True},
+        )
         self.assertEqual(
             validate_api_payload("/api/settings/save-patch", {"changes": {}, "confirm_save": True}),
             {"changes": {}, "confirm_save": True},
@@ -122,6 +143,20 @@ class ApiCommandContractsTests(unittest.TestCase):
             validate_api_payload("/api/final-library-promotion/resume", {"run_id": "run-1"}),
             {"run_id": "run-1"},
         )
+
+    def test_backend_shutdown_force_cleanup_requires_strict_boolean(self) -> None:
+        for value in ("true", "false", 1, 0):
+            with self.subTest(value=value):
+                with self.assertRaises(ValidationFailure):
+                    validate_api_payload("/api/backend/shutdown", {"force_active_work_shutdown": value})
+
+    def test_command_ownership_matrix_lists_every_post_command_route(self) -> None:
+        matrix = (REPO_ROOT / "Docs" / "inventories" / "COMMAND_OWNERSHIP_MATRIX.md").read_text(encoding="utf-8")
+
+        self.assertIn("Total command routes: 44 POST routes across 9 contract groups.", matrix)
+        for route in COMMAND_ROUTE_METHODS:
+            with self.subTest(route=route):
+                self.assertIn(f"`POST {route}`", matrix)
 
     def test_non_object_payload_still_fails_at_api_boundary(self) -> None:
         with self.assertRaises(ValidationFailure):

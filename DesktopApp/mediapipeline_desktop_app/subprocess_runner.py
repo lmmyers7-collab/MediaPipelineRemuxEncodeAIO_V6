@@ -27,6 +27,37 @@ class CapturedCommandResult:
         return text if text else "<no output>"
 
 
+def _cleanup_timed_out_process(
+    proc: subprocess.Popen[Any],
+    label: str,
+    kill_tree: KillTreeCallback | None,
+) -> str:
+    messages: list[str] = []
+    if kill_tree is not None:
+        try:
+            message = str(kill_tree(proc, label) or "").strip()
+            if message:
+                messages.append(message)
+        except Exception as exc:
+            messages.append(f"process tree kill failed: {exc}")
+
+    if proc.poll() is None:
+        try:
+            proc.kill()
+            messages.append("process killed")
+        except Exception as exc:
+            messages.append(f"process kill failed: {exc}")
+
+    if proc.poll() is None:
+        try:
+            proc.terminate()
+            messages.append("process terminated")
+        except Exception as exc:
+            messages.append(f"process terminate failed: {exc}")
+
+    return "; ".join(messages) if messages else "process kill status unknown"
+
+
 def run_capture(
     args: Sequence[str],
     *,
@@ -74,13 +105,7 @@ def run_capture(
     except subprocess.TimeoutExpired:
         kill_message = "process kill status unknown"
         if proc is not None:
-            if kill_tree is not None:
-                with contextlib.suppress(Exception):
-                    kill_message = kill_tree(proc, label)
-            else:
-                with contextlib.suppress(Exception):
-                    proc.kill()
-                kill_message = "process killed"
+            kill_message = _cleanup_timed_out_process(proc, label, kill_tree)
             with contextlib.suppress(Exception):
                 stdout, stderr = proc.communicate(timeout=2)
                 return CapturedCommandResult(

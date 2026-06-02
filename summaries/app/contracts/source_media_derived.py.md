@@ -3,9 +3,9 @@ file: app/contracts/source_media_derived.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: 7064b58882a38b5e6640612da8d1bbe6baeffe9493ad81bc33550d5127d84f18
+sha256: 1dce4f230b14921a71d99cda8aedded8ea1e15a8bec75932cfcdbcf87ae79309
 ---
 # `app/contracts/source_media_derived.py`
 

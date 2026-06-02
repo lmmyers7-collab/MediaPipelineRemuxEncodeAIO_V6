@@ -2,10 +2,10 @@
 file: app/queue/snapshot.py
 pipeline_stage: orchestration
 token_priority: medium
-owner_domain: unknown
-last_modified: 2026-05-28
+owner_domain: queue
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: c9f9eeb99499d974b8263550c35e29c8d9f98a750a419e7ffb03f81f650d70e1
+sha256: 59cefce86e018a933efa842866811d1bc05abfba76856596c2ee0baaa02b9d20
 ---
 # `app/queue/snapshot.py`
 

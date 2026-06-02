@@ -409,13 +409,14 @@
 
   function isMaintenanceDryRunCommand(item) {
     const command = String(item?.command || "").toLowerCase();
-    return command === "maintenance.release_dry_run" || command === "maintenance.release_build" || command === "maintenance.completed_backfill_dry_run";
+    return command === "maintenance.release_dry_run" || command === "maintenance.release_build" || command === "maintenance.completed_backfill_dry_run" || command === "maintenance.dependency_atlas";
   }
 
   function maintenanceDryRunLabel(command) {
     if (command === "maintenance.release_dry_run") return "Release dry run";
     if (command === "maintenance.release_build") return "Deployment build";
     if (command === "maintenance.completed_backfill_dry_run") return "Completed manifest backfill dry run";
+    if (command === "maintenance.dependency_atlas") return "Dependency atlas";
     return command || "Maintenance dry run";
   }
 
@@ -427,8 +428,15 @@
     if (data.elapsed_seconds !== undefined) bits.push(`${Number(data.elapsed_seconds || 0).toFixed(1)}s`);
     if (data.manifest_exists !== undefined) bits.push(`manifest ${data.manifest_exists === true ? "yes" : "no"}`);
     if (data.zip_exists !== undefined) bits.push(`zip ${data.zip_exists === true ? "yes" : "no"}`);
+    if (data.manifest_created !== undefined) bits.push(`manifest created ${data.manifest_created === true ? "yes" : "no"}`);
+    if (data.manifest_changed !== undefined) bits.push(`manifest changed ${data.manifest_changed === true ? "yes" : "no"}`);
+    if (data.zip_created !== undefined) bits.push(`zip created ${data.zip_created === true ? "yes" : "no"}`);
+    if (data.zip_changed !== undefined) bits.push(`zip changed ${data.zip_changed === true ? "yes" : "no"}`);
     if (data.sidecars_ingested !== undefined) bits.push(`${data.sidecars_ingested} sidecar(s)`);
     if (data.skipped_bad_json !== undefined) bits.push(`${data.skipped_bad_json} bad JSON skipped`);
+    if (data.modules !== undefined) bits.push(`${data.modules} module(s)`);
+    if (data.detail_diagrams !== undefined) bits.push(`${data.detail_diagrams} diagram(s)`);
+    if (data.html_links_checked !== undefined) bits.push(`${data.html_links_checked} link(s) checked`);
     return bits.length ? ` (${bits.join("; ")})` : "";
   }
 
@@ -456,8 +464,8 @@
         statusId: "maintenance-dry-run-history-status",
         statusText: (entries) => `${entries.length} run${entries.length === 1 ? "" : "s"}`,
         itemLabel: "maintenance command",
-        emptyHistoryText: "No maintenance commands recorded yet. Run Plan Deployment, Create Deployment, or Backfill Dry Run to see backend command results here.",
-        emptyMatchText: "No maintenance commands recorded yet. Run Plan Deployment, Create Deployment, or Backfill Dry Run to see backend command results here.",
+        emptyHistoryText: "No maintenance commands recorded yet. Run Plan Deployment, Create Deployment, Backfill Dry Run, or Update Atlas to see backend command results here.",
+        emptyMatchText: "No maintenance commands recorded yet. Run Plan Deployment, Create Deployment, Backfill Dry Run, or Update Atlas to see backend command results here.",
         lineFor: formatMaintenanceDryRunHistoryLine,
         header: false,
       });
@@ -472,7 +480,7 @@
     if (!entries.length) {
       setText(
         "maintenance-dry-run-history",
-        "No maintenance commands recorded yet. Run Plan Deployment, Create Deployment, or Backfill Dry Run to see backend command results here."
+        "No maintenance commands recorded yet. Run Plan Deployment, Create Deployment, Backfill Dry Run, or Update Atlas to see backend command results here."
       );
       renderMaintenanceDryRunConfidence(history);
       return;
@@ -648,8 +656,10 @@
       "Dry-run trust summary:",
       `Command accepted: ${result?.ok ? "yes" : "no"}`,
       `Dry run: ${data.dry_run === true ? "yes" : "unknown"}`,
-      `Writes manifest: ${data.manifest_exists === true ? "unexpected yes" : "no"}`,
-      `Writes zip: ${data.zip_exists === true ? "unexpected yes" : "no"}`,
+      `Writes manifest: ${data.manifest_created === true ? "unexpected yes" : "no"}`,
+      `Changes manifest: ${data.manifest_changed === true ? "unexpected yes" : "no"}`,
+      `Writes zip: ${data.zip_created === true ? "unexpected yes" : "no"}`,
+      `Changes zip: ${data.zip_changed === true ? "unexpected yes" : "no"}`,
       `Safe next action: ${result?.ok ? "Review planned copy counts/options, destination, and package options before Create Deployment." : "Read errors and Diagnostics before trusting release packaging."}`,
       "Guardrail: this WebView action must remain a backend dry-run command; it must not create release folders, zips, manifests, or copy payloads.",
       "Real-media boundary: release dry-run output does not validate FFmpeg, subtitle OCR/SRT, audio routing, output size, completed sidecars, or pending-publish behavior on media files.",
@@ -659,8 +669,14 @@
       `Destination: ${data.destination_root || ""}`,
       `Return code: ${data.returncode ?? ""}`,
       `Elapsed: ${Number(data.elapsed_seconds || 0).toFixed(1)}s`,
-      `Manifest written: ${data.manifest_exists === true ? "yes" : "no"}`,
-      `Zip written: ${data.zip_exists === true ? "yes" : "no"}`,
+      `Manifest exists after: ${data.manifest_exists === true ? "yes" : "no"}`,
+      `Manifest preexisting: ${data.manifest_preexisting === true ? "yes" : "no"}`,
+      `Manifest created by command: ${data.manifest_created === true ? "yes" : "no"}`,
+      `Manifest changed by command: ${data.manifest_changed === true ? "yes" : "no"}`,
+      `Zip exists after: ${data.zip_exists === true ? "yes" : "no"}`,
+      `Zip preexisting: ${data.zip_preexisting === true ? "yes" : "no"}`,
+      `Zip created by command: ${data.zip_created === true ? "yes" : "no"}`,
+      `Zip changed by command: ${data.zip_changed === true ? "yes" : "no"}`,
       `Command: ${data.command || ""}`,
     ];
     if ((result?.errors || []).length) {

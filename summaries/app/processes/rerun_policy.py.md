@@ -2,7 +2,7 @@
 file: app/processes/rerun_policy.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: process
 last_modified: 2026-05-28
 last_reviewed: 2026-05-28
 sha256: 14639d3168e16c8bd14f26c3f445ac7b3e5d725904df95217836f0672999009f

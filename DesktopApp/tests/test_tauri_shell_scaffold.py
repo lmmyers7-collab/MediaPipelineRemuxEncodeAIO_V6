@@ -100,6 +100,16 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("frame-ancestors 'none'", csp)
         self.assertIn("form-action 'none'", csp)
 
+    def test_tauri_package_lock_matches_package_identity(self) -> None:
+        package = json.loads((TAURI_ROOT / "package.json").read_text(encoding="utf-8"))
+        package_lock = json.loads((TAURI_ROOT / "package-lock.json").read_text(encoding="utf-8"))
+        root_package = package_lock["packages"][""]
+
+        self.assertEqual(package_lock["name"], package["name"])
+        self.assertEqual(package_lock["version"], package["version"])
+        self.assertEqual(root_package["name"], package["name"])
+        self.assertEqual(root_package["version"], package["version"])
+
     def test_tauri_rust_manifest_declares_backend_launcher_dependencies(self) -> None:
         cargo = tomllib.loads((TAURI_ROOT / "src-tauri" / "Cargo.toml").read_text(encoding="utf-8"))
         lock_text = (TAURI_ROOT / "src-tauri" / "Cargo.lock").read_text(encoding="utf-8")
@@ -196,6 +206,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("CSP configured", audit)
         self.assertIn("no static production devtools flags", audit)
         self.assertIn("no token-adjacent runtime logging", audit)
+        self.assertIn("Get-ChildItem -LiteralPath $srcRoot -Filter '*.rs' -Recurse -File", audit)
         self.assertIn("read-only Tauri lifecycle event bridge", audit)
 
     def test_tauri_shell_startup_errors_include_bounded_operator_context(self) -> None:
@@ -778,6 +789,22 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("$validationPathTimeoutSeconds = 12", source)
         self.assertIn("timed out after $validationPathTimeoutSeconds second(s) while checking path availability", source)
         self.assertIn("timed out after $validationPathTimeoutSeconds second(s) while checking writability", source)
+
+    def test_setup_wizard_guidance_uses_canonical_launchers(self) -> None:
+        setup_root = PROJECT_ROOT / "Pipeline" / "Setup-MediaPipeline.ps1"
+        user_interaction = PROJECT_ROOT / "Pipeline" / "Setup-MediaPipeline" / "UserInteraction.ps1"
+        source = "\n".join(
+            path.read_text(encoding="utf-8")
+            for path in (
+                setup_root,
+                user_interaction,
+            )
+        )
+
+        self.assertIn("scripts\\dev\\setup.bat", source)
+        self.assertIn("scripts\\dev\\run.bat", source)
+        self.assertNotIn("Setup-MediaPipelineRemuxEncodeAIO.bat", source)
+        self.assertNotIn("Run-MediaPipelineRemuxEncodeAIO.bat", source)
 
     def test_tauri_build_checker_uses_vs_dev_environment(self) -> None:
         source = (TAURI_ROOT / "Test-TauriShell-Build.ps1").read_text(encoding="utf-8")
@@ -1368,7 +1395,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("largeRows", source)
         self.assertIn("Render cap visibility", source)
         self.assertIn("rename-check-applicable-button", source)
-        self.assertIn("rename-apply-selected-button", source)
+        self.assertIn("rename-apply-button", source)
         self.assertIn("blocked by apply readiness", source)
         self.assertIn("duplicate destination target", source)
         self.assertIn("posted", source)
@@ -1385,12 +1412,12 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("DesktopApp.tests.test_webview_browser_network_smoke", source)
         self.assertIn("temporary local API against generated temporary state", source)
         self.assertIn("Chrome/Edge headless", source)
-        self.assertIn("read-only network readiness", source)
+        self.assertIn("read-only network runtime/lifecycle readiness", source)
         self.assertIn("lifecycle handoff", source)
         self.assertIn("persisted worker rows", source)
         self.assertIn("filters warn when active/problem worker rows are hidden", source)
         self.assertIn("no network lifecycle mutation commands are posted", source)
-        self.assertIn("WebView Network remains read-only", source)
+        self.assertIn("Worker Mode Settings save is not exercised by this smoke", source)
         self.assertIn("does not process media", source)
         self.assertIn("launch pipeline commands", source)
         self.assertIn("publish, rename, save settings", source)
@@ -1578,7 +1605,8 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("Chrome/Edge headless", source)
         self.assertIn("Maintenance and Reports pages", source)
         self.assertIn("Maintenance health, dry-run result rendering, dry-run history, Reports failure/audit triage", source)
-        self.assertIn("no backend mutation routes are posted", source)
+        self.assertIn("failure-marker clear is dry-run preview only", source)
+        self.assertIn("no non-dry-run backend mutation routes are posted", source)
         self.assertIn("does not process media", source)
         self.assertIn("launch pipeline commands", source)
         self.assertIn("run audit, run CSV rerun", source)
@@ -1860,6 +1888,28 @@ class TauriShellScaffoldTests(unittest.TestCase):
             self.assertNotIn('stdio: ["ignore", "pipe", "pipe"]', source, path.name)
             self.assertNotIn("browser.once(\"exit\", resolve)", source, path.name)
             self.assertNotIn("const browser = spawn(payload.browserPath", source, path.name)
+
+    def test_tauri_pg_harnesses_use_debug_auth_capture_not_public_index_token(self) -> None:
+        source = _tauri_rust_source()
+        self.assertIn("MEDIA_PIPELINE_TAURI_TEST_TOKEN_CAPTURE_FILE", source)
+        self.assertIn("mediapipeline_tauri_test_auth_capture.v1", source)
+        self.assertIn("maybe_write_debug_backend_auth_capture", source)
+        self.assertIn(".backend_auth.json", source)
+        self.assertIn("system temp directory", source)
+
+        for script_name in (
+            "Test-TauriShell-PG1ActiveClose.ps1",
+            "Test-TauriShell-PG2WebViewLaunch.ps1",
+            "Test-TauriShell-PG2SampleValidationAppend.ps1",
+        ):
+            script = TAURI_ROOT / script_name
+            self.assertTrue(script.exists(), script_name)
+            text = script.read_text(encoding="utf-8")
+            self.assertIn("MEDIA_PIPELINE_TAURI_TEST_TOKEN_CAPTURE_FILE", text)
+            self.assertIn("Wait-BackendTokenCapture", text)
+            self.assertIn("Object\\.assign", text)
+            self.assertIn("Backend WebView bootstrap leaked the bearer token in Tauri mode.", text)
+            self.assertNotIn("Backend bootstrap did not expose a bearer token", text)
 
     def test_tauri_pg2_webview_launch_harness_uses_webview_start_not_backend_direct_post(self) -> None:
         script = TAURI_ROOT / "Test-TauriShell-PG2WebViewLaunch.ps1"

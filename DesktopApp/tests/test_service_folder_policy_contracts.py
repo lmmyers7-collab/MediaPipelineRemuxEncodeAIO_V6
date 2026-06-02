@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.folder_policy.constants import FOLDER_POLICY_SCHEMA_VERSION
+from app.folder_policy.constants import FOLDER_POLICY_SCHEMA_VERSION, FOLDER_POLICY_SIDECAR_NAME
 from app.folder_policy.service import FolderPolicyServiceMixin
 from app.folder_policy.contracts import (
     default_folder_policy,
@@ -16,7 +18,16 @@ from app.folder_policy.contracts import (
 
 
 class DummyFolderPolicyService(FolderPolicyServiceMixin):
-    pass
+    def __init__(self) -> None:
+        self.probed_paths: list[Path] = []
+
+    def probe_media_stream_signature(self, media_path: Path, *, timeout: int = 30) -> dict[str, object]:
+        self.probed_paths.append(media_path)
+        return {
+            "path": str(media_path),
+            "audio": [{"codec": "eac3", "language": "eng", "channels": 6}],
+            "subtitles": [],
+        }
 
 
 class FolderPolicyContractTests(unittest.TestCase):
@@ -80,6 +91,70 @@ class FolderPolicyContractTests(unittest.TestCase):
 
         self.assertEqual(service.default_folder_policy(folder), default_folder_policy(folder))
         self.assertEqual(service._stream_signature(stream), stream_signature(stream))
+
+    def test_validate_folder_policy_rejects_sample_outside_folder(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            folder = root / "Season 01"
+            folder.mkdir()
+            (folder / "Episode 01.mkv").write_bytes(b"placeholder")
+            outside_sample = root / "Outside Sample.mkv"
+            outside_sample.write_bytes(b"placeholder")
+            (folder / FOLDER_POLICY_SIDECAR_NAME).write_text(
+                json.dumps(
+                    {
+                        "schema_version": FOLDER_POLICY_SCHEMA_VERSION,
+                        "folder": str(folder),
+                        "audio": {},
+                        "subtitles": {},
+                        "validation": {
+                            "sample_file": "..\\Outside Sample.mkv",
+                            "require_uniform_stream_topology": True,
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            service = DummyFolderPolicyService()
+            result = service.validate_folder_policy(folder)
+
+        self.assertFalse(result["ok"])
+        self.assertIn("Sample file must be inside folder", result["errors"][0])
+        self.assertEqual(result["files"], [])
+        self.assertEqual(service.probed_paths, [])
+
+    def test_validate_folder_policy_persists_folder_relative_sample(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            folder = root / "Season 01"
+            folder.mkdir()
+            (folder / "Episode 01.mkv").write_bytes(b"placeholder")
+            (folder / "Episode 02.mkv").write_bytes(b"placeholder")
+            (folder / FOLDER_POLICY_SIDECAR_NAME).write_text(
+                json.dumps(
+                    {
+                        "schema_version": FOLDER_POLICY_SCHEMA_VERSION,
+                        "folder": str(folder),
+                        "audio": {},
+                        "subtitles": {},
+                        "validation": {
+                            "sample_file": "Episode 01.mkv",
+                            "require_uniform_stream_topology": True,
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            service = DummyFolderPolicyService()
+            result = service.validate_folder_policy(folder)
+            saved_payload = json.loads((folder / FOLDER_POLICY_SIDECAR_NAME).read_text(encoding="utf-8"))
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(saved_payload["validation"]["sample_file"], "Episode 01.mkv")
+        self.assertEqual(saved_payload["validation"]["checked_count"], 2)
+        self.assertEqual([path.name for path in service.probed_paths], ["Episode 01.mkv", "Episode 02.mkv"])
 
 
 if __name__ == "__main__":

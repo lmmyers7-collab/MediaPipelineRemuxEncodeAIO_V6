@@ -3,14 +3,30 @@ from __future__ import annotations
 from typing import Any
 import uuid
 
+from .http_helpers import LOCAL_API_CONTENT_SECURITY_POLICY
 
-OPTIONS_RESPONSE_HEADERS = [
-    ("Allow", "GET, POST, OPTIONS"),
-    ("Access-Control-Allow-Origin", "http://127.0.0.1"),
-    ("Access-Control-Allow-Headers", "Authorization, X-MediaPipeline-Token, Content-Type"),
-    ("Access-Control-Allow-Methods", "GET, POST, OPTIONS"),
-    ("Content-Length", "0"),
+LOCAL_API_SECURITY_RESPONSE_HEADERS = [
+    ("Cache-Control", "no-store"),
+    ("Content-Security-Policy", LOCAL_API_CONTENT_SECURITY_POLICY),
+    ("X-Content-Type-Options", "nosniff"),
+    ("Referrer-Policy", "no-referrer"),
 ]
+
+
+def options_response_headers(allowed_origin: str = "http://127.0.0.1") -> list[tuple[str, str]]:
+    origin = str(allowed_origin or "").strip() or "http://127.0.0.1"
+    return [
+        ("Allow", "GET, POST, OPTIONS"),
+        ("Access-Control-Allow-Origin", origin),
+        ("Vary", "Origin"),
+        ("Access-Control-Allow-Headers", "Authorization, X-MediaPipeline-Token, Content-Type"),
+        ("Access-Control-Allow-Methods", "GET, POST, OPTIONS"),
+        ("Content-Length", "0"),
+        *LOCAL_API_SECURITY_RESPONSE_HEADERS,
+    ]
+
+
+OPTIONS_RESPONSE_HEADERS = options_response_headers()
 
 
 def bounded_error_text(value: object, *, limit: int = 2000) -> str:

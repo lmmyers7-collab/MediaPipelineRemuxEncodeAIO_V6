@@ -116,6 +116,25 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Changed
 
+- Architecture/operator documentation now resolves moved doc paths under
+  `Docs/architecture/` and `Docs/operator/`, removes active references to
+  deleted `Pipeline\Modules` compatibility surfaces, records the enabled
+  read-only `probe` and `decide` stage dispatcher state, and labels the
+  stale 2026-05-28 audit snapshot as historical.
+- Change-control release preview tooling now validates release version labels
+  before they are used as release/archive folder names, includes completed
+  `*-dev` placeholder packets in concrete-version dry-run manifests, and keeps
+  the change-control runbook on the bundled Python command path.
+- Network validation inventory references now point to the active
+  `test_application_facade_network.py` and
+  `test_webview_network_read_only_boundary.py` coverage instead of the
+  removed `test_network_view_source_policy.py` filename.
+- API evidence/mutation and no-touch documentation now reflects the promoted
+  V6 state: the Tauri/WebView2 lifecycle boundary no longer describes open
+  promotion gates as pending, V5 is explicitly protected as the rollback
+  workspace, design-only Network and repair/reconcile contracts identify the
+  current V6 surface, and `Pipeline\Modules` is documented as a removed legacy
+  surface that must not be recreated.
 - Settings and Library Profiles documentation now reflects the completed
   settings/library rewrite: backend field metadata is canonical for labels,
   help text, options, defaults, advanced/display taxonomy, and override
@@ -200,6 +219,13 @@ intent is worth keeping, it goes here and/or in an ADR.
 
   Default-launcher/package-mode promotion is closed by 2026-05-30 operator
   confirmation; the local shim removal gate is also closed.
+
+### Fixed
+
+- Rename apply now requires literal JSON boolean `true` for both
+  `confirm_apply` and the outside-configured-roots confirmation. Truthy
+  strings such as `"false"` no longer satisfy filesystem-mutation guards,
+  and facade/Local API regression tests verify no rename occurs.
 
 ### Notes
 

@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsMetadata
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: dc72c9ac1b342154a38a9c67450c018d5145281fef67a057cf3da2fe9ee3bf47
+sha256: 4a565208f610daa613df6562a573aeadec1e314a7bde05dde68a4c5568db5572
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsMetadata.js`
 

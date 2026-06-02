@@ -2,7 +2,7 @@
 file: app/processes/pipeline_facade.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: process
 last_modified: 2026-05-29
 last_reviewed: 2026-05-28
 sha256: c6450514d728a5bf6398e55901b84b3280029c22f85c9fb1e5bb87f9225d90d9

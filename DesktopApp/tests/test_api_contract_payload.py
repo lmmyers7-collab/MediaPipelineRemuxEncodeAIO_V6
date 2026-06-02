@@ -6,6 +6,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from app.completed.open_policy import COMPLETED_OPEN_TARGETS
+from app.diagnostics.open_policy import DIAGNOSTICS_OPEN_TARGETS
+from app.publish.pending_policy import PENDING_PUBLISH_OPEN_TARGETS
+from app.queue.policy_parts.rules import QUEUE_OPEN_SCOPES, QUEUE_OPEN_TARGETS
 from mediapipeline_desktop_app.api.contract_payload import (
     LOCAL_API_AUTH_SCHEME,
     LOCAL_API_CONTRACT_NOTES,
@@ -72,6 +76,70 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertGreater(len(payload["routes"]), 10)
         self.assertGreaterEqual(len(payload["network_lifecycle_contracts"]), 3)
         self.assertGreaterEqual(len(payload["repair_reconcile_contracts"]), 4)
+
+    def test_launch_preflight_contract_advertises_extra_arg_query_fields(self) -> None:
+        routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
+
+        query_keys = set(routes["/api/launch/preflight"]["query_keys"])
+
+        self.assertIn("extra_args", query_keys)
+        self.assertIn("allow_extra_args", query_keys)
+        self.assertIn("single_file", query_keys)
+        self.assertEqual(routes["/api/launch/preflight"]["effect"], "none")
+
+    def test_shell_open_route_contracts_match_backend_allowlists(self) -> None:
+        routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
+
+        self.assertEqual(set(routes["/api/queue/open"]["allowed_targets"]), set(QUEUE_OPEN_TARGETS))
+        self.assertEqual(set(routes["/api/queue/open"]["allowed_row_scopes"]), set(QUEUE_OPEN_SCOPES))
+        self.assertEqual(set(routes["/api/completed/open"]["allowed_targets"]), set(COMPLETED_OPEN_TARGETS))
+        self.assertEqual(set(routes["/api/pending-publish/open"]["allowed_targets"]), set(PENDING_PUBLISH_OPEN_TARGETS))
+        self.assertEqual(set(routes["/api/diagnostics/open"]["allowed_targets"]), set(DIAGNOSTICS_OPEN_TARGETS))
+
+    def test_settings_patch_contract_advertises_library_profile_resets(self) -> None:
+        routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
+
+        self.assertIn("library_profile_resets", routes["/api/settings/preview-patch"]["request_keys"])
+        self.assertIn("library_profile_resets", routes["/api/settings/save-patch"]["request_keys"])
+
+    def test_sample_validation_contract_advertises_category_payload(self) -> None:
+        routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
+        expected_keys = {
+            "schema",
+            "shell",
+            "source_path",
+            "output_path",
+            "sample_label",
+            "sample_category",
+            "proof_strength",
+            "operator_decision",
+            "checks",
+            "evidence",
+            "operator_notes",
+        }
+
+        for route in ("/api/sample-validation/preview", "/api/sample-validation/append"):
+            with self.subTest(route=route):
+                request_keys = routes[route]["request_keys"]
+                self.assertTrue(expected_keys.issubset(set(request_keys)))
+
+        self.assertEqual(routes["/api/sample-validation/preview"]["effect"], "none")
+        self.assertEqual(routes["/api/sample-validation/append"]["effect"], "validation-log-write")
+
+    def test_queue_source_path_contracts_include_library_profile_roots(self) -> None:
+        routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
+
+        for route in (
+            "/api/queue/priority",
+            "/api/queue/file-overrides",
+            "/api/queue/file-overrides/route-preview",
+            "/api/queue/file-overrides/folder-preview",
+            "/api/queue/file-overrides/folder-rule",
+        ):
+            with self.subTest(route=route):
+                purpose = routes[route]["purpose"]
+                self.assertIn("configured source roots", purpose)
+                self.assertIn("LibraryProfiles source roots", purpose)
 
     def test_network_lifecycle_contracts_are_design_only_and_backend_owned(self) -> None:
         payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")
@@ -210,6 +278,15 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         )
         self.assertIn("allow_outside_configured_roots", routes["/api/rename/apply"]["request_keys"])
         self.assertIn("outside-root confirmation", routes["/api/rename/apply"]["purpose"])
+
+    def test_rename_browse_contract_includes_folder_files_mode(self) -> None:
+        payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")
+        routes = {route["path"]: route for route in payload["routes"]}
+
+        self.assertEqual(
+            routes["/api/rename/browse"]["allowed_selection_modes"],
+            ["files", "folder", "folder_files"],
+        )
 
     def test_full_contract_keeps_effectful_routes_token_protected(self) -> None:
         known_effects = {

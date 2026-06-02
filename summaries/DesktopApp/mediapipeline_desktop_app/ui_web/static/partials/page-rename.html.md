@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/page-rename.ht
 pipeline_stage: rename
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-30
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: b16823e55742e1f533e964b0bdf72bf1ec6b406588fcd49d212fe52750254f29
+sha256: 49a871178ca59b297227f013cc3c82f48d3fb468da609aeb6e1d24a360a90569
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/page-rename.html`
 

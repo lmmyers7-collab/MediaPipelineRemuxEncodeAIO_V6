@@ -2,7 +2,7 @@
 file: app/processes/launch_cleanup.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: process
 last_modified: 2026-05-28
 last_reviewed: 2026-05-28
 sha256: b09b54a0e1570119d5d3e7a366e90a454541edc9b52b8c6f58c1275789f74bb6

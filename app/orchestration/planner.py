@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Mapping
 from pathlib import PureWindowsPath
 from typing import Any
@@ -58,7 +59,6 @@ def build_pipeline_plan(
     switch production execution. It shapes the Python-owned WHAT for Phase 07B.
     """
 
-    stable_plan_id = plan_id or _stable_plan_id(source, decision)
     output = _output_proposal(source, decision)
     stream_actions = _stream_actions(source, decision)
     reason_summary = [
@@ -66,6 +66,14 @@ def build_pipeline_plan(
         for reason in decision.route_reasons
     ]
     warnings = _plan_warnings(decision)
+    publish_strategy = _publish_strategy(decision, preset)
+    effective_preset_snapshot = _effective_preset_snapshot(decision, preset)
+    stable_plan_id = plan_id or _stable_plan_id(
+        source,
+        decision,
+        publish_strategy=publish_strategy,
+        effective_preset_snapshot=effective_preset_snapshot,
+    )
     command_plan = _command_plan(stable_plan_id, source, decision, warnings)
     return PipelinePlan(
         planId=stable_plan_id,
@@ -76,7 +84,7 @@ def build_pipeline_plan(
         streamActions=stream_actions,
         reasonSummary=reason_summary,
         warnings=warnings,
-        publishStrategy=_publish_strategy(decision, preset),
+        publishStrategy=publish_strategy,
         verificationRequirements=[
             requirement.model_dump(mode="json", by_alias=True) for requirement in decision.verification_requirements
         ],
@@ -87,7 +95,7 @@ def build_pipeline_plan(
         ],
         runtimeFallbacks=_runtime_fallbacks(decision),
         commandPlans=[command_plan],
-        effectivePresetSnapshot=_effective_preset_snapshot(decision, preset),
+        effectivePresetSnapshot=effective_preset_snapshot,
         decisionSnapshot=decision.model_dump(mode="json", by_alias=True),
     )
 
@@ -100,14 +108,23 @@ def _preset_v2_from_input(preset: PresetV2 | Mapping[str, Any] | None) -> Preset
     return preset_v2_from_legacy_config(preset)
 
 
-def _stable_plan_id(source: SourceMediaInfo, decision: ProcessingDecision) -> str:
-    seed = "|".join(
-        [
-            source.container.source_id or source.container.path,
-            decision.route_summary,
-            decision.legacy_reason_code,
-            ",".join(reason.code for reason in decision.route_reasons),
-        ]
+def _stable_plan_id(
+    source: SourceMediaInfo,
+    decision: ProcessingDecision,
+    *,
+    publish_strategy: str,
+    effective_preset_snapshot: Mapping[str, Any],
+) -> str:
+    seed = json.dumps(
+        {
+            "sourceId": source.container.source_id or source.container.path,
+            "sourcePath": source.container.path,
+            "decision": decision.model_dump(mode="json", by_alias=True),
+            "publishStrategy": publish_strategy,
+            "effectivePresetSnapshot": dict(effective_preset_snapshot),
+        },
+        sort_keys=True,
+        separators=(",", ":"),
     )
     digest = hashlib.sha256(seed.encode("utf-8")).hexdigest()[:12]
     return f"pipeline-plan-{digest}"
@@ -173,16 +190,16 @@ def _stream_actions(source: SourceMediaInfo, decision: ProcessingDecision) -> li
         )
 
     subtitle_by_index = {stream.stream_index: stream for stream in source.subtitle_streams}
-    for item in decision.stream_actions.subtitles:
-        subtitle_source = subtitle_by_index.get(item.stream_index)
+    for subtitle_item in decision.stream_actions.subtitles:
+        subtitle_source = subtitle_by_index.get(subtitle_item.stream_index)
         actions.append(
             PlanStreamAction(
                 streamType="subtitle",
-                streamIndex=item.stream_index,
-                action=item.action,
+                streamIndex=subtitle_item.stream_index,
+                action=subtitle_item.action,
                 inputCodec=normalize_codec(subtitle_source.codec) if subtitle_source else "",
-                outputCodec=item.output_codec,
-                reasonCodes=item.reason_codes,
+                outputCodec=subtitle_item.output_codec,
+                reasonCodes=subtitle_item.reason_codes,
             )
         )
     return actions

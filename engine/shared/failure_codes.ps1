@@ -69,6 +69,7 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'ENCODE_SIZE_GUARD_EXCEEDED',
         'ENCODE_UNEXPECTED_EXCEPTION',
         'FILE_PATH_EMPTY',
+        'FILE_OVERRIDE_INVALID',
         'FILE_ZERO_BYTES',
         'HDR_DETECTION_UNKNOWN',
         'INTEGRITY_DISABLED',
@@ -146,7 +147,10 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'SUBTITLE_VOBSUB_OCR_EMPTY',
         'SUBTITLE_VOBSUB_OCR_FAILED',
         'SUBTITLE_VOBSUB_OCR_TOOL_MISSING',
+        'SUBTITLE_VOBSUB_OCR_TOOL_UNSUPPORTED',
         'SUBTITLE_VOBSUB_PAIR_MISSING',
+        'SUBTITLE_VOBSUB_SIDECAR_PRESERVE_UNSUPPORTED',
+        'SUBTITLE_VOBSUB_TESSDATA_MISSING',
         'SUBTITLE_VOBSUB_TESSERACT_MISSING',
         'TRANSIENT_FAILURE',
         'TV_PARSE_UNRELIABLE',
@@ -322,7 +326,10 @@ function Get-MediaPipelineCodeOperatorAction {
         'SUBTITLE_BDPGS_OCR_TOOL_MISSING|SUBTITLE_BDPGS_TESSDATA_MISSING' {
             return 'Fix the BDPGS OCR tool/tessdata setting or disable BDPGS OCR before retrying the source.'
         }
-        'SUBTITLE_VOBSUB_OCR_TOOL_MISSING|SUBTITLE_VOBSUB_TESSERACT_MISSING|SUBTITLE_VOBSUB_EXTRACT_TOOL_MISSING' {
+        'SUBTITLE_VOBSUB_SIDECAR_PRESERVE_UNSUPPORTED' {
+            return 'Enable VobSub OCR, keep the output format/path able to preserve the original VobSub, or handle the external IDX/SUB sidecar manually before retrying.'
+        }
+        'SUBTITLE_VOBSUB_OCR_TOOL_MISSING|SUBTITLE_VOBSUB_OCR_TOOL_UNSUPPORTED|SUBTITLE_VOBSUB_TESSERACT_MISSING|SUBTITLE_VOBSUB_TESSDATA_MISSING|SUBTITLE_VOBSUB_EXTRACT_TOOL_MISSING' {
             return 'Fix the VobSub OCR/extraction tool settings, ensure bundled Tesseract is available, or disable VobSub OCR before retrying the source.'
         }
         'AUDIO_MISSING|AUDIO_OVERRIDE_STRIPPED|AUDIO_INVALID' {

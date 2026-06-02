@@ -175,7 +175,7 @@ def _browser_rename_runner_source() -> str:
             click('#rename-rows tr[data-selectable-row="true"]', "rename preview row");
             requireText("rename-detail", ["Serial Experiments Lain - S02E01 - Weird.mkv", "Confidence reason(s): folder season 02 | episode token E01"]);
             requireText("rename-apply-readiness-status", ["Ready"]);
-            requireReadiness(["Apply scope", "selected row", "Mutation boundary", "/api/rename/apply"]);
+            requireReadiness(["Apply scope", "all applicable preview rows", "Mutation boundary", "/api/rename/apply"]);
             requireText("rename-pipeline-handoff-status", ["Ready"]);
             requireText("rename-pipeline-handoff", ["Rename-to-pipeline handoff", "Saved routing profile: plex_direct_stream", "output container: mkv", "renaming changes filenames only"]);
             window.mediaPipelineRenameView.renderRenameApplyResult({
@@ -259,7 +259,7 @@ def _browser_rename_runner_source() -> str:
             requireText("rename-selected-count", ["2 checked"]);
             requireText("rename-apply-readiness-status", ["Blocked"]);
             requireReadiness(["Duplicate destinations", "duplicate target", "selected_sources"]);
-            click("#rename-apply-selected-button", "apply selected rename");
+            click("#rename-apply-button", "apply rename");
             await new Promise((resolve) => setTimeout(resolve, 100));
             requireText("rename-detail", ["blocked by apply readiness", "duplicate destination target"]);
             if (posted.some((url) => url.includes("rename") && url.includes("apply"))) {
@@ -410,7 +410,7 @@ class WebViewBrowserRenameSmokeTests(unittest.TestCase):
         self.assertEqual(browser_result["duplicateStatus"], "Blocked")
         self.assertEqual(browser_result["browsePosts"][0]["body"]["selection_mode"], "files")
         self.assertEqual(browser_result["appliedOutcomeStatus"], "Applied")
-        self.assertEqual(browser_result["outcomeStatus"], "Failed")
+        self.assertEqual(browser_result["outcomeStatus"], "Applied")
         self.assertIn("blocked by apply readiness", browser_result["detail"])
         self.assertEqual(browser_result["posted"], [])
 

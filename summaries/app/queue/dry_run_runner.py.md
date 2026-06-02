@@ -2,7 +2,7 @@
 file: app/queue/dry_run_runner.py
 pipeline_stage: orchestration
 token_priority: medium
-owner_domain: unknown
+owner_domain: queue
 last_modified: 2026-05-31
 last_reviewed: 2026-05-28
 sha256: 0da45628b4ae0f01bd23f741e92a5cae0ab0ecb67301bde6153fbeb73e8c09bc

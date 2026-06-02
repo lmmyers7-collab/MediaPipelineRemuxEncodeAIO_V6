@@ -437,7 +437,7 @@
 
   function contractRouteStatus(route) {
     const effect = String(route?.effect || "none").toLowerCase();
-    if (effect.includes("process") || effect.includes("control") || effect.includes("write")) return "warning";
+    if (effect.includes("process") || effect.includes("control") || effect.includes("write") || effect.includes("mutation") || effect.includes("lifecycle")) return "warning";
     if (effect.includes("shell-open")) return "match";
     return "";
   }

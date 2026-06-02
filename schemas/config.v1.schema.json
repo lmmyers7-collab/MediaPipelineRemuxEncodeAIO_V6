@@ -2,6 +2,166 @@
   "$id": "https://local.mediapipeline/schemas/config.v1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": true,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "ConvertTx3gToSrt": {
+            "const": false
+          }
+        },
+        "required": [
+          "ConvertTx3gToSrt"
+        ]
+      },
+      "then": {
+        "not": {
+          "anyOf": [
+            {
+              "properties": {
+                "DropTx3gAfterConversion": {
+                  "const": true
+                }
+              },
+              "required": [
+                "DropTx3gAfterConversion"
+              ]
+            },
+            {
+              "properties": {
+                "CreateExternalTx3gSrtSidecars": {
+                  "const": true
+                }
+              },
+              "required": [
+                "CreateExternalTx3gSrtSidecars"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "anyOf": [
+          {
+            "not": {
+              "required": [
+                "ConvertBdpgsToSrt"
+              ]
+            }
+          },
+          {
+            "properties": {
+              "ConvertBdpgsToSrt": {
+                "const": false
+              }
+            },
+            "required": [
+              "ConvertBdpgsToSrt"
+            ]
+          }
+        ]
+      },
+      "then": {
+        "not": {
+          "properties": {
+            "DropBdpgsAfterConversion": {
+              "const": true
+            }
+          },
+          "required": [
+            "DropBdpgsAfterConversion"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "ConvertBdpgsToSrt": {
+            "const": true
+          }
+        },
+        "required": [
+          "ConvertBdpgsToSrt"
+        ]
+      },
+      "then": {
+        "not": {
+          "properties": {
+            "BdpgsOcrToolPath": {
+              "pattern": "^\\s*$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "BdpgsOcrToolPath"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "anyOf": [
+          {
+            "not": {
+              "required": [
+                "ConvertVobSubToSrt"
+              ]
+            }
+          },
+          {
+            "properties": {
+              "ConvertVobSubToSrt": {
+                "const": false
+              }
+            },
+            "required": [
+              "ConvertVobSubToSrt"
+            ]
+          }
+        ]
+      },
+      "then": {
+        "not": {
+          "properties": {
+            "DropVobSubAfterConversion": {
+              "const": true
+            }
+          },
+          "required": [
+            "DropVobSubAfterConversion"
+          ]
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "ConvertVobSubToSrt": {
+            "const": true
+          }
+        },
+        "required": [
+          "ConvertVobSubToSrt"
+        ]
+      },
+      "then": {
+        "not": {
+          "properties": {
+            "VobSubOcrToolPath": {
+              "pattern": "^\\s*$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "VobSubOcrToolPath"
+          ]
+        }
+      }
+    }
+  ],
   "description": "Flat config model matching PSD1 keys and WebView JSON payloads.",
   "properties": {
     "ConfigSchemaVersion": {
@@ -648,7 +808,7 @@
       "type": "array"
     },
     "VobSubOcrToolPath": {
-      "default": "Tools\\SubtitleEdit\\seconv.exe",
+      "default": "Tools\\SubtitleEditLegacy\\SubtitleEdit.exe",
       "title": "Vobsubocrtoolpath",
       "type": "string"
     },

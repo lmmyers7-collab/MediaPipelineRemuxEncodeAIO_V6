@@ -203,6 +203,10 @@ function Show-Closing {
         [string]$BackupPath = $null,
         [string]$ReportPathValue = $null
     )
+    $projectRoot = Split-Path -Parent $script:ScriptDir
+    $setupLauncher = Join-Path $projectRoot 'scripts\dev\setup.bat'
+    $runLauncher = Join-Path $projectRoot 'scripts\dev\run.bat'
+
     Write-Header 'Rapid Deployment Complete'
     Write-Host "Config file: $ConfigPathValue" -ForegroundColor Green
     if ($BackupPath) {
@@ -211,11 +215,11 @@ function Show-Closing {
     if ($ReportPathValue) {
         Write-Host "Report file: $ReportPathValue" -ForegroundColor Green
     }
-Write-Host "Setup launcher: $($script:ScriptDir)\Setup-MediaPipelineRemuxEncodeAIO.bat" -ForegroundColor Green
-Write-Host "Run launcher  : $($script:ScriptDir)\Run-MediaPipelineRemuxEncodeAIO.bat" -ForegroundColor Green
+    Write-Host "Setup launcher: $setupLauncher" -ForegroundColor Green
+    Write-Host "Run launcher  : $runLauncher" -ForegroundColor Green
     Write-Host ''
     Write-Host 'Next steps:' -ForegroundColor Cyan
     Write-Host '  1. Review the validation output above.'
-Write-Host '  2. If dependencies are installed, run Run-MediaPipelineRemuxEncodeAIO.bat.'
-Write-Host '  3. Re-run Setup-MediaPipelineRemuxEncodeAIO.bat any time to edit or validate the config.'
+    Write-Host '  2. If dependencies are installed, run scripts\dev\run.bat from the repository root.'
+    Write-Host '  3. Re-run scripts\dev\setup.bat any time to edit or validate the config.'
 }

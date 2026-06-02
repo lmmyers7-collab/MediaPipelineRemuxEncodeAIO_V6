@@ -229,6 +229,24 @@ class StatusActiveJobsHelperTests(unittest.TestCase):
         self.assertEqual(payload["rows"], [])
         self.assertEqual(payload["progress_bars"], [])
 
+    def test_worker_progress_payload_does_not_treat_completed_progress_as_active_worker(self) -> None:
+        payload = worker_progress_payload(
+            None,
+            {
+                "ProgressVersion": 2,
+                "Status": "Completed",
+                "LastUpdate": "2026-05-08T12:02:00-04:00",
+                "CurrentStage": "completed",
+                "CurrentStagePercent": 100,
+                "CurrentFileDisplay": "Movie.mkv",
+            },
+            "pipeline complete\n",
+        )
+
+        self.assertEqual(payload["status"], "idle")
+        self.assertEqual(payload["rows"], [])
+        self.assertEqual(payload["progress_bars"], [])
+
     def test_worker_progress_payload_excludes_completed_failed_active_jobs_when_idle(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

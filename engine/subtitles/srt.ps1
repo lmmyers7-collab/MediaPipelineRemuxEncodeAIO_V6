@@ -5,6 +5,19 @@
 # Dot-sourced by engine\subtitles\subtitles.ps1; preserves script-scope configuration.
 # ==============================================================================
 
+function Convert-SrtTimestampToMilliseconds {
+    param([string]$Timestamp)
+
+    $text = if ($Timestamp) { ([string]$Timestamp).Trim() } else { '' }
+    if ($text -notmatch '^(\d{1,2}):(\d{2}):(\d{2}),(\d{3})$') { return $null }
+    return (
+        ([int64]$Matches[1] * 3600000) +
+        ([int64]$Matches[2] * 60000) +
+        ([int64]$Matches[3] * 1000) +
+        [int64]$Matches[4]
+    )
+}
+
 function Test-SrtFileUsable {
     param([string]$Path)
 
@@ -33,17 +46,59 @@ function Test-SrtFileUsable {
             return [pscustomobject]$result
         }
 
-        $timePattern = '(?m)^\s*\d{1,2}:\d{2}:\d{2},\d{3}\s+-->\s+\d{1,2}:\d{2}:\d{2},\d{3}'
-        $cueCount = [regex]::Matches($raw, $timePattern).Count
-        $textLineCount = @(
-            $raw -split '\r?\n' |
-                ForEach-Object { ([string]$_).Trim() } |
-                Where-Object {
-                    $_ -match '\S' -and
-                    $_ -notmatch '^\d+$' -and
-                    $_ -notmatch '^\d{1,2}:\d{2}:\d{2},\d{3}\s+-->\s+\d{1,2}:\d{2}:\d{2},\d{3}'
+        $lines = @($raw -split "\r\n|\n|\r")
+        $timingPattern = '^\s*(\d{1,2}:\d{2}:\d{2},\d{3})\s+-->\s+(\d{1,2}:\d{2}:\d{2},\d{3})(?:\s+.*)?$'
+        $cueCount = 0
+        $textLineCount = 0
+        $i = 0
+        while ($i -lt $lines.Count) {
+            while ($i -lt $lines.Count -and [string]::IsNullOrWhiteSpace([string]$lines[$i])) { $i++ }
+            if ($i -ge $lines.Count) { break }
+
+            $line = [string]$lines[$i]
+            if ($line.Trim() -match '^\d+$') {
+                $i++
+                if ($i -ge $lines.Count) {
+                    $result.Reason = 'SRT cue index is missing a timing line'
+                    return [pscustomobject]$result
                 }
-        ).Count
+                $line = [string]$lines[$i]
+            }
+
+            if ($line -match $timingPattern) {
+                $startText = $Matches[1]
+                $endText = $Matches[2]
+            } else {
+                $result.Reason = 'SRT has text outside cue timing block'
+                return [pscustomobject]$result
+            }
+
+            $startMs = Convert-SrtTimestampToMilliseconds $startText
+            $endMs = Convert-SrtTimestampToMilliseconds $endText
+            if ($null -eq $startMs -or $null -eq $endMs -or $endMs -le $startMs) {
+                $result.Reason = 'SRT cue timing is invalid'
+                return [pscustomobject]$result
+            }
+
+            $i++
+            $cueTextLineCount = 0
+            while ($i -lt $lines.Count -and -not [string]::IsNullOrWhiteSpace([string]$lines[$i])) {
+                $textLine = [string]$lines[$i]
+                if ($textLine -match $timingPattern) {
+                    $result.Reason = 'SRT cue separator is missing before a timing line'
+                    return [pscustomobject]$result
+                }
+                if (-not [string]::IsNullOrWhiteSpace($textLine)) { $cueTextLineCount++ }
+                $i++
+            }
+
+            if ($cueTextLineCount -le 0) {
+                $result.Reason = 'SRT cue has no text'
+                return [pscustomobject]$result
+            }
+            $cueCount++
+            $textLineCount += $cueTextLineCount
+        }
 
         $result.CueCount = $cueCount
         $result.TextLineCount = $textLineCount
@@ -80,6 +135,15 @@ function New-SrtAtomicTempPath {
     return (Join-Path $dir (".{0}.{1}.tmp.srt" -f $leaf, [guid]::NewGuid().ToString("N")))
 }
 
+function Move-SrtTempIntoPlace {
+    param(
+        [Parameter(Mandatory)] [string] $TempPath,
+        [Parameter(Mandatory)] [string] $DestinationPath
+    )
+
+    [System.IO.File]::Move($TempPath, $DestinationPath, $true)
+}
+
 function Complete-AtomicSrtWrite {
     param(
         [Parameter(Mandatory)] [string]$TempPath,
@@ -98,8 +162,16 @@ function Complete-AtomicSrtWrite {
 
     if (Test-Path -LiteralPath $DestinationPath -ErrorAction SilentlyContinue) {
         $backup = Join-Path $destDir (".{0}.{1}.bak" -f (Split-Path -Leaf $DestinationPath), [guid]::NewGuid().ToString("N"))
-        [System.IO.File]::Replace($TempPath, $DestinationPath, $backup, $true)
-        Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue
+        try {
+            [System.IO.File]::Replace($TempPath, $DestinationPath, $backup, $true)
+            Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue
+        } catch {
+            if (Get-Command -Name Write-Log -ErrorAction SilentlyContinue) {
+                Write-Log "SRT atomic write: File.Replace failed for '$DestinationPath' (will use overwrite move): $($_.Exception.Message)" "WARN"
+            }
+            Move-SrtTempIntoPlace -TempPath $TempPath -DestinationPath $DestinationPath
+            Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue
+        }
     } else {
         [System.IO.File]::Move($TempPath, $DestinationPath)
     }
@@ -201,7 +273,7 @@ function Merge-AdjacentIdenticalCues {
     $prev   = $cues[0]
     for ($i = 1; $i -lt $cues.Count; $i++) {
         $curr     = $cues[$i]
-        $gap      = (ConvertTo-Milliseconds $curr.Start) - (ConvertTo-Milliseconds $prev.End)
+        $gap      = (Convert-SrtTimestampToMilliseconds $curr.Start) - (Convert-SrtTimestampToMilliseconds $prev.End)
         $sameText = ($prev.Text.Trim() -eq $curr.Text.Trim())
         if ($gap -ge 0 -and $gap -le $ThresholdMs -and $sameText) {
             $prev.End = $curr.End

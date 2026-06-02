@@ -387,7 +387,7 @@
     function selectCompletedAcceptanceRow(item) {
       state.selectedCompletedAcceptanceKey = item?.key || "";
       if (item?.completedRow?.row_key) {
-        selectedCompletedRowKey = item.completedRow.row_key;
+        state.selectedCompletedRowKey = item.completedRow.row_key;
         renderCompletedDetail(item.completedRow);
         renderCompletedRows();
         renderCompletedReviewDigest(state.lastCompletedPayload, state.lastCompletedRows);
@@ -736,7 +736,7 @@
     function selectCompletedRouteAgreementRow(item) {
       state.selectedCompletedRouteAgreementKey = item?.key || "";
       if (item?.completedRow?.row_key) {
-        selectedCompletedRowKey = item.completedRow.row_key;
+        state.selectedCompletedRowKey = item.completedRow.row_key;
         renderCompletedDetail(item.completedRow);
         renderCompletedRows();
         renderCompletedReviewDigest(state.lastCompletedPayload, state.lastCompletedRows);
@@ -1103,7 +1103,7 @@
     function selectCompletedPendingProofRow(item, index = 0) {
       state.selectedCompletedPendingProofKey = completedPendingProofRowKey(item, index);
       if (item?.completed?.row_key) {
-        selectedCompletedRowKey = item.completed.row_key;
+        state.selectedCompletedRowKey = item.completed.row_key;
       }
       renderCompletedDetail(item?.completed || getSelectedCompletedRow());
       renderCompletedRows();

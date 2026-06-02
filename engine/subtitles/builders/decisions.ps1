@@ -270,6 +270,14 @@ function Get-SubtitleBuilderTrackDecisionRecords {
         $reviewErrorCode = ''
         $reviewReason = ''
         $reviewKind = ''
+        $sourceKind = if ($entry -is [hashtable] -and $entry.ContainsKey('SourceKind')) {
+            [string]$entry.SourceKind
+        } elseif ($entry.PSObject.Properties['SourceKind']) {
+            [string]$entry.SourceKind
+        } else {
+            'embedded'
+        }
+
         if ([bool]$entry.IsTx3g) {
             $tx3gSupported = ($Builder -eq 'FFmpeg' -and $CanPreserveTx3g)
             if (-not $tx3gSupported) {
@@ -287,11 +295,26 @@ function Get-SubtitleBuilderTrackDecisionRecords {
             $reviewErrorCode = 'SUBTITLE_BDPGS_CONTAINER_UNSUPPORTED'
             $reviewKind = 'bdpgs'
             $reviewReason = "$containerName output cannot preserve BDPGS stream $($entry.Stream.index); enable ConvertBdpgsToSrt for OCR conversion."
-        } elseif ([bool]$entry.IsVobSub -and $Builder -eq 'FFmpeg' -and -not $CanPreserveVobSub) {
-            $routesToReview = $true
-            $reviewErrorCode = 'SUBTITLE_VOBSUB_CONTAINER_UNSUPPORTED'
-            $reviewKind = 'vobsub'
-            $reviewReason = "$containerName output cannot preserve VobSub stream $($entry.Stream.index); enable ConvertVobSubToSrt for OCR conversion."
+        } elseif ([bool]$entry.IsVobSub) {
+            if ($sourceKind -eq 'sidecar') {
+                $routesToReview = $true
+                $reviewErrorCode = 'SUBTITLE_VOBSUB_SIDECAR_PRESERVE_UNSUPPORTED'
+                $reviewKind = 'vobsub'
+                $idxPath = if ($entry -is [hashtable] -and $entry.ContainsKey('IdxPath')) {
+                    [string]$entry.IdxPath
+                } elseif ($entry.PSObject.Properties['IdxPath']) {
+                    [string]$entry.IdxPath
+                } else {
+                    ''
+                }
+                $idxLeaf = if ([string]::IsNullOrWhiteSpace($idxPath)) { 'external IDX/SUB sidecar' } else { [System.IO.Path]::GetFileName($idxPath) }
+                $reviewReason = "External VobSub sidecar $idxLeaf cannot be preserved in the current output path; enable ConvertVobSubToSrt for OCR conversion or handle the sidecar manually before publish."
+            } elseif ($Builder -eq 'FFmpeg' -and -not $CanPreserveVobSub) {
+                $routesToReview = $true
+                $reviewErrorCode = 'SUBTITLE_VOBSUB_CONTAINER_UNSUPPORTED'
+                $reviewKind = 'vobsub'
+                $reviewReason = "$containerName output cannot preserve VobSub stream $($entry.Stream.index); enable ConvertVobSubToSrt for OCR conversion."
+            }
         }
 
         $preserveKeepOriginal = -not $routesToReview

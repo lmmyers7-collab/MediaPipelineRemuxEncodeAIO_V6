@@ -53,7 +53,7 @@
     ConvertVobSubToSrt = $false
     DropVobSubAfterConversion = $false
     VobSubExtractLanguages = @('eng', 'en', 'und')
-    VobSubOcrToolPath = 'Tools\SubtitleEdit\seconv.exe'
+    VobSubOcrToolPath = 'Tools\SubtitleEditLegacy\SubtitleEdit.exe'
     SubSDHTitleKeywords = @('sdh', 'hearing impaired', 'hearing-impaired', 'cc', 'closed caption', 'closedcaption')
     SubSupplementalKeywords = @('sign', 'song', 'karaoke', 'chapter', 'opening', 'ending')
     DropAssAfterConversion = $false

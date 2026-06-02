@@ -100,6 +100,12 @@
     }
 
 
+    function queueRowHasVisiblePriority(row) {
+      const level = String(row?.manifest_priority_level || "normal").toLowerCase();
+      return Boolean(row?.is_priority) || level === "high" || level === "low" || level === "hold";
+    }
+
+
     function queueDisplayPayloadForVisibleRows(queue, visibleRows, hiddenSidecars, allRows) {
       const display = { ...(queue || {}) };
       if (queue?.__mediaPipelineRefreshMeta) {
@@ -131,7 +137,7 @@
       display.runnable_count = queueVisibleRunnableCount(display, rows, hidden, rawRows);
       display.blocked_row_count = blockedRows.length;
       display.invalid_row_count = invalidRows.length;
-      display.priority_visible_count = rows.filter((row) => row?.is_priority).length;
+      display.priority_visible_count = rows.filter(queueRowHasVisiblePriority).length;
       display.operator_status_counts = queueCountRowsBy(rows, "operator_status");
       display.operator_severity_counts = queueCountRowsBy(rows, "operator_severity");
       display.operator_trust_state_counts = queueCountRowsBy(rows, "operator_trust_state");
@@ -249,8 +255,9 @@
       const bars = queueProgressBars(queue);
       setText("queue-progress-status", queueProgressStatus(queue, bars));
       setText("queue-progress-summary", queueProgressSummaryLines(queue, bars).join("\n"));
-      if (typeof renderProgressBarsInto === "function") {
-        renderProgressBarsInto("queue-progress-bars", bars, queueProgressPayload(queue), "No queue source scan progress loaded.");
+      const progressRenderer = window.renderProgressBarsInto;
+      if (typeof progressRenderer === "function") {
+        progressRenderer("queue-progress-bars", bars, queueProgressPayload(queue), "No queue source scan progress loaded.");
       }
     }
 

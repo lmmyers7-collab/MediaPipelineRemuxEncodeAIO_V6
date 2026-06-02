@@ -263,6 +263,17 @@ try {
     $config['SourceTV'] = $sourceTv
     $config['Outsource'] = $outsource
     $config['LocalBase'] = $localBase
+    foreach ($profile in @($config['LibraryProfiles'])) {
+        $designation = ([string]$profile['designation']).Trim().ToLowerInvariant()
+        if ($designation -eq 'movie') {
+            $profile['source_path'] = $sourceMovies
+        } elseif ($designation -eq 'tv') {
+            $profile['source_path'] = $sourceTv
+        }
+        $profile['output_path'] = $outsource
+        $profile['promotion_enabled'] = $false
+        $profile['promotion_destination'] = ''
+    }
     $config['EncodeThresholdGB'] = 999
     $config['TVEncodeThresholdGB'] = 999
     $config['MinFreeSpaceGB'] = 1
@@ -270,7 +281,9 @@ try {
     $config['DeferredPublish'] = $false
     $config['RemuxSafeVideoCodecs'] = @('hevc','h265','h.265')
     $config['CompatibleAudioCodecs'] = @('aac','ac3','eac3')
-    $config['VideoCodec'] = 'fake_nvenc'
+    # Keep the fixture schema-valid while still preferring the hardware-first
+    # encoder path that falls back to CPU on hosts without usable NVENC support.
+    $config['VideoCodec'] = 'hevc_nvenc'
     $config['VideoPreset'] = 'p7'
     $config['VideoQuality'] = 22
     $config['FallbackCpuQuality'] = 20

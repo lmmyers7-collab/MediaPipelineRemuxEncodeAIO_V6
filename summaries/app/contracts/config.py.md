@@ -3,9 +3,9 @@ file: app/contracts/config.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 1e97d841f865ac6ef53126fdb95d1c46e1c2a745b6193ca9e600aec5ba381fb7
+sha256: 0963b52f6c2b497a6a1f4d98f084747c5c76a9dd72cae08133ddd71185193b78
 ---
 # `app/contracts/config.py`
 

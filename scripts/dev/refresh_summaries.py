@@ -41,12 +41,28 @@ SOURCE_ROOTS = [
     "engine",
     "scripts",
     "tests",
+    "DesktopApp/tests",
     "DesktopApp/mediapipeline_desktop_app",
     "DesktopApp/tauri_shell/src-tauri/src",
+    "Pipeline/Audit-MediaLibrary",
+    "Pipeline/Setup-MediaPipeline",
+    "Pipeline/ass_to_srt",
     "Pipeline/Tests",
+    "SmokeTests",
 ]
 
 ROOT_SOURCE_FILES = {
+    "Pipeline/Audit-MediaLibrary.ps1",
+    "Pipeline/Setup-MediaPipeline.ps1",
+    "Pipeline/ass_to_srt.py",
+    "schemas/config.v1.schema.json",
+    "schemas/risky_file_registry.v1.schema.json",
+    "schemas/stages.v1.schema.json",
+}
+
+VOLATILE_GENERATED_SUMMARY_FILES = {
+    "Docs/generated/DEPENDENCY_GRAPH.md",
+    "Docs/generated/PROJECT_INDEX.md",
 }
 
 EXCLUDE_DIR_PARTS = {
@@ -61,28 +77,39 @@ EXCLUDE_DIR_PARTS = {
     "PowerShell-7.6.0-win-x64",
 }
 
-SOURCE_EXTS = {".py", ".ps1", ".psm1", ".psd1", ".rs", ".js", ".css", ".html"}
+SOURCE_EXTS = {".py", ".ps1", ".psm1", ".psd1", ".rs", ".js", ".mjs", ".css", ".html", ".bat"}
 
 OWNER_DOMAIN_HINTS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"app/api"), "api"),
     (re.compile(r"app/audit"), "audit"),
+    (re.compile(r"Pipeline/Audit-MediaLibrary"), "audit"),
+    (re.compile(r"Pipeline/Setup-MediaPipeline"), "scripts"),
+    (re.compile(r"Pipeline/ass_to_srt(?:\.py|/)"), "subtitles"),
     (re.compile(r"app/orchestration"), "orchestration"),
+    (re.compile(r"app/processes"), "process"),
     (re.compile(r"app/ingest"), "ingest"),
     (re.compile(r"app/metadata"), "metadata"),
     (re.compile(r"app/decide"), "decide"),
     (re.compile(r"app/diagnostics"), "diagnostics"),
     (re.compile(r"app/failures"), "failures"),
+    (re.compile(r"app/queue"), "queue"),
     (re.compile(r"app/transcode"), "transcode"),
     (re.compile(r"app/subtitles"), "subtitles"),
     (re.compile(r"app/audio"), "audio"),
     (re.compile(r"app/completed"), "completed"),
+    (re.compile(r"app/final_library"), "final_library"),
     (re.compile(r"app/publish"), "publish"),
     (re.compile(r"app/rename"), "rename"),
     (re.compile(r"app/storage"), "storage"),
     (re.compile(r"app/network"), "network"),
+    (re.compile(r"app/status"), "observability"),
+    (re.compile(r"app/telemetry"), "observability"),
     (re.compile(r"app/observability"), "observability"),
     (re.compile(r"app/config"), "config"),
     (re.compile(r"app/contracts"), "contracts"),
+    (re.compile(r"schemas/config"), "config"),
+    (re.compile(r"schemas/stages"), "contracts"),
+    (re.compile(r"schemas/risky_file_registry"), "scripts"),
     (re.compile(r"engine/(\w+)/"), r"\1"),
     (re.compile(r"DesktopApp/.*/api/"), "api"),
     (re.compile(r"DesktopApp/.*/application/"), "application"),
@@ -99,6 +126,7 @@ OWNER_DOMAIN_HINTS: list[tuple[re.Pattern[str], str]] = [
 HIGH_PRIORITY_HINTS = (
     "transcode",
     "subtitles",
+    "ass_to_srt",
     "publish/drain",
     "publish/pending",
     "decide",
@@ -150,6 +178,12 @@ class OrphanSummary:
 # ---------- helpers ----------
 
 def is_source_file(path: Path) -> bool:
+    try:
+        rel = path.relative_to(REPO_ROOT).as_posix()
+    except ValueError:
+        rel = ""
+    if rel in ROOT_SOURCE_FILES:
+        return True
     if path.suffix.lower() not in SOURCE_EXTS:
         return False
     for part in path.parts:
@@ -163,6 +197,10 @@ def in_scope_roots(rel_path: Path) -> bool:
     if rel in ROOT_SOURCE_FILES:
         return True
     return any(rel.startswith(root + "/") or rel == root for root in SOURCE_ROOTS)
+
+
+def is_volatile_generated_summary_source(recorded: str | Path) -> bool:
+    return Path(recorded).as_posix() in VOLATILE_GENERATED_SUMMARY_FILES
 
 
 def iter_source_files() -> Iterable[Path]:
@@ -190,6 +228,8 @@ def iter_existing_summary_sources() -> Iterable[Path]:
             continue
         recorded_path = Path(recorded)
         if recorded_path.is_absolute():
+            continue
+        if is_volatile_generated_summary_source(recorded_path):
             continue
         source = (REPO_ROOT / recorded_path).resolve()
         try:
@@ -272,6 +312,16 @@ def orphan_summaries(sources: Iterable[Path] | None = None) -> list[OrphanSummar
             )
             continue
         normalized_recorded = recorded_path.as_posix()
+        if normalized_recorded in VOLATILE_GENERATED_SUMMARY_FILES:
+            findings.append(
+                OrphanSummary(
+                    summary_path=summary_path,
+                    reason_code="VOLATILE_GENERATED_SUMMARY",
+                    reason="generated navigation output summaries are not stable inputs",
+                    recorded_file=normalized_recorded,
+                )
+            )
+            continue
         expected_summary = expected.get(normalized_recorded)
         if expected_summary is None:
             findings.append(
@@ -327,6 +377,7 @@ def pipeline_stage_for(rel_path: str) -> str:
         ("EncodePolicy", "decide"),
         ("transcode", "transcode"),
         ("ffmpeg", "transcode"),
+        ("ass_to_srt", "subtitles"),
         ("subtitles", "subtitles"),
         ("Subtitles.", "subtitles"),
         ("audio", "audio"),
@@ -347,7 +398,9 @@ def pipeline_stage_for(rel_path: str) -> str:
         ("telemetry", "observability"),
         ("status", "observability"),
         ("diagnost", "observability"),
+        ("Audit-MediaLibrary", "observability"),
         ("audit", "observability"),
+        ("Setup-MediaPipeline", "setup"),
     ]
     for needle, stage in mapping:
         if needle in posix:
@@ -541,7 +594,11 @@ def git_changed(staged: bool) -> list[Path]:
 
 def collect_sources(args: argparse.Namespace) -> list[Path]:
     if args.paths:
-        return [REPO_ROOT / p for p in args.paths if (REPO_ROOT / p).is_file()]
+        return [
+            REPO_ROOT / p
+            for p in args.paths
+            if (REPO_ROOT / p).is_file() and not is_volatile_generated_summary_source(p)
+        ]
     if args.changed:
         return git_changed(staged=False)
     if args.staged:

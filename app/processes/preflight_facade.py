@@ -308,6 +308,7 @@ class ProcessFacadeMixin:
             "sleep_seconds": sleep_seconds if sleep_seconds is not None else request.get("sleep_seconds"),
             "show_config": bool(request.get("show_config", False)),
             "show_console": bool(request.get("show_console", False)),
+            "single_file": str(request.get("single_file") or "").strip(),
             "schedule_override": str(request.get("schedule_override") or "").strip(),
             "extra_args_present": bool(extra_args),
             "allow_extra_args": False,

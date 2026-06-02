@@ -2203,7 +2203,8 @@ async function saveSettingsPatch() {
   });
   if (changedKeys.length > 12) overwriteLines.push(`  ...and ${changedKeys.length - 12} more changed key(s)`);
   const confirmLines = [
-    `Save ${changedKeys.length} changed setting(s) to the active PSD1 config?`,
+    `Save ${keys.length} setting patch key(s) to the active PSD1 config?`,
+    `Changed keys: ${changedKeys.length}; staged patch keys: ${keys.length}.`,
     "",
     previewWarning,
     ...(localHintLines.length ? ["", ...localHintLines] : []),
@@ -2440,6 +2441,10 @@ async function reloadSettingsFromDisk() {
     }
   }
 
+  /**
+   * Public namespace for the settings view module.
+   * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.
+   */
   window.mediaPipelineSettingsView = {
     configValue, buildSettingsOverviewRows, renderSettingsOverview, setSettingsRows, renderSettingsRows, settingsBuilderCoveredKeys,
     settingsRawTriageRows, settingsRawTriageStatus, settingsRawTriageSummaryLines, settingsRawTriageDetailLines, renderSettingsRawTriage,

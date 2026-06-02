@@ -516,14 +516,16 @@ def promote_item(item: Mapping[str, Any], settings: PromotionSettingsSnapshot) -
     output_path = Path(str(item.get("publish_output_path") or item.get("output_path") or ""))
     item_publish_root = str(item.get("library_output_root") or "").strip()
     publish_root = Path(item_publish_root) if item_publish_root else settings.publish_root
-    destination_path = Path(str(item.get("final_library_destination_path") or ""))
+    destination_path_text = str(item.get("final_library_destination_path") or "").strip()
+    destination_root_text = str(item.get("final_library_destination_root") or "").strip()
+    destination_path = Path(destination_path_text) if destination_path_text else None
     evidence: dict[str, Any] = {
         "schema_version": FINAL_LIBRARY_PROMOTION_ITEM_SCHEMA_VERSION,
         "row_key": str(item.get("row_key") or ""),
         "started_at": started_at,
         "source_path": str(item.get("source_path") or ""),
         "publish_output_path": str(output_path),
-        "destination_path": str(destination_path),
+        "destination_path": str(destination_path or ""),
         "verification_mode": settings.verification_mode,
         "copied_files": [],
         "missing_sidecars": [],
@@ -540,12 +542,16 @@ def promote_item(item: Mapping[str, Any], settings: PromotionSettingsSnapshot) -
         evidence["failures"].append("Publish output no longer exists.")
         evidence["completed_at"] = utc_now_text()
         return evidence
-    if not destination_path:
+    if destination_path is None:
         evidence["failures"].append("Final destination path is not resolved.")
         evidence["completed_at"] = utc_now_text()
         return evidence
+    if not destination_root_text:
+        evidence["failures"].append("Final destination root is not resolved.")
+        evidence["completed_at"] = utc_now_text()
+        return evidence
 
-    destination_root = Path(str(item.get("final_library_destination_root") or ""))
+    destination_root = Path(destination_root_text)
     copy_plan = plan_promotion_file_targets(
         output_path,
         publish_root,

@@ -2,7 +2,7 @@
 file: app/processes/pipeline_policy.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: process
 last_modified: 2026-05-29
 last_reviewed: 2026-05-28
 sha256: a84d4d9775d30540cf75f54891f51b4a818a471ec03565fe53a6f896284e3020

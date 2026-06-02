@@ -1,6 +1,6 @@
 # Network Mode Read-Only Documentation
 
-Date: 2026-05-20
+Date: 2026-06-02
 
 Documents what the WebView Network page can and cannot do, how network mode is configured, what the read-only coordinator/worker state represents, and what operations remain backend-only/manual until lifecycle routes are deliberately promoted.
 
@@ -16,15 +16,17 @@ MediaPipelineRemuxEncodeAIO supports three network roles configured via the `Net
 | `coordinator` | This machine manages job distribution, maintains the queue, and optionally processes jobs locally. |
 | `worker` | This machine polls the coordinator for jobs and processes them. No local queue management. |
 
-Network role is configured in Settings (`NetworkRole` key). Changing the role requires a settings save and a pipeline restart. The WebView Network page does not set the role — it displays the current state only.
+Network role is configured through backend Settings (`NetworkRole` key). The WebView Network page can stage and submit non-secret Worker Mode Settings through the backend Settings Preview/Save routes, but applying a changed role to running distributed work still requires the normal backend config-save flow and a pipeline restart.
 
 ---
 
 ## What the WebView Network Page Does
 
-The Network page is read-only. It renders the coordinator/worker runtime state from `GET /api/network/workers` and displays design-only lifecycle gates from `/api/contract`. Those gates describe what a future backend-owned lifecycle implementation must prove; they are not command routes and do not authorize WebView buttons.
+The Network worker/lifecycle view is read-only. It renders coordinator/worker runtime state from `GET /api/network/workers` and displays design-only lifecycle gates from `/api/contract`. Those gates describe what a future backend-owned lifecycle implementation must prove; they are not command routes and do not authorize WebView lifecycle buttons.
 
-### Read Operations (available)
+The same tab also contains Worker Mode Settings controls for non-secret network configuration. Those controls only stage local settings JSON and call the existing backend Settings Preview/Save routes. They do not start or stop coordinator/worker runtime, release or reclaim jobs, send done reports, mutate queue state, publish, rename, or touch media files.
+
+### Evidence and Config Operations (available)
 
 | Action | Route | Notes |
 |---|---|---|
@@ -34,6 +36,8 @@ The Network page is read-only. It renders the coordinator/worker runtime state f
 | Select a worker row for detail | Local UI | Renders worker name, address, status, last heartbeat, active job if any |
 | Apply local worker display filter | Local UI | Filters visible worker rows; does not affect coordinator state or backend |
 | See filter warning when active/problem workers are hidden | Local UI | Mutation guardrail: filter-scope warning appears when a problem row is hidden by an active filter |
+| Stage non-secret worker mode settings | Local UI | Writes only the shared Settings patch JSON in the browser |
+| Preview or save non-secret worker mode settings | Backend Settings routes | Uses the same backend Preview/Save validation and config backup flow as Settings; not a Network lifecycle route |
 
 ### Browser Smoke Coverage
 
@@ -51,12 +55,12 @@ The Network page is read-only. It renders the coordinator/worker runtime state f
 |---|---|
 | Start or stop the coordinator | The coordinator is a backend process — WebView cannot launch or stop it |
 | Register or unregister a worker | Worker registration is handled by the worker process itself on startup |
-| Change `NetworkRole` | Must be done via Settings save-patch; requires pipeline restart |
-| Set `WorkerCoordinatorUrl` or `CoordinatorPort` | Config keys — only changeable via Settings |
-| View or rotate `CoordinatorAuthToken` / `WorkerAuthToken` | Auth secrets are intentionally excluded from the WebView (see Settings coverage notes) |
+| Apply a changed `NetworkRole` to active runtime | Config save alone does not restart or migrate active coordinator/worker work |
+| Bypass backend Settings Preview/Save for `WorkerCoordinatorUrl` or `CoordinatorPort` | Config persistence remains backend-owned |
+| View, stage, or rotate `CoordinatorAuthToken` / `WorkerAuthToken` | Auth secret values are intentionally excluded from the WebView builder and Network evidence surface |
 | Reassign jobs between workers | Job assignment is coordinator-owned |
 | Force a worker to disconnect or reconnect | Backend-only operation |
-| Execute lifecycle dry-runs or commands | Not implemented | Future routes must satisfy `NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` first |
+| Execute lifecycle dry-runs or commands | Not implemented; future routes must satisfy `NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` first |
 | See live CPU/GPU metrics per worker | Telemetry is per-machine only; remote worker metrics are not aggregated |
 
 ---
@@ -67,11 +71,10 @@ The Network page is read-only. It renders the coordinator/worker runtime state f
 |---|---|
 | Launch the coordinator | `scripts\dev\start-api-and-browser.bat` or `scripts\dev\start-local-api.bat` on the coordinator machine, with `NetworkRole=coordinator` in config |
 | Launch a worker | Same start command on the worker machine, with `NetworkRole=worker` and `WorkerCoordinatorUrl` set |
-| Set coordinator auth token | Raw JSON patch in Settings (`CoordinatorAuthToken`), then save-patch; or direct PSD1 edit |
+| Set coordinator/worker auth token | Direct PSD1 edit or a future backend-owned secret workflow |
 | Diagnose cluster log | Diagnostics page → `cluster_log` target (tail) or open |
 | Inspect active job assignment | Diagnostics → `active_jobs` target |
-| Change worker path mapping (`WorkerSourcePathMap`) | Settings raw JSON patch |
-| Apply per-worker config overrides (`WorkerConfigOverrides`) | Settings raw JSON patch |
+| Rotate network auth secrets | Direct config edit or a future backend-owned secret workflow that does not expose token values to WebView |
 
 Future WebView lifecycle buttons require `Docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md`: backend dry-run routes, duplicate-command guards, close-readiness integration, process cleanup/rollback, command journaling, state preservation, browser no-mutation coverage, and inventory/doc-touch updates.
 
@@ -86,15 +89,15 @@ Future WebView lifecycle buttons require `Docs/architecture/NETWORK_LIFECYCLE_CO
 | `CoordinatorBindAddress` | Network | Medium | `0.0.0.0` or `127.0.0.1`; `0.0.0.0` exposes coordinator to LAN |
 | `CoordinatorAlsoEncodeLocally` | Network | Medium | Whether coordinator also processes jobs |
 | `CoordinatorHeartbeatTimeoutMins` | Network | Medium | Stale worker job timeout (default 5 min) |
-| `CoordinatorAuthToken` | Raw JSON only | **High** | Auth secret; intentionally excluded from WebView builder |
+| `CoordinatorAuthToken` | Not surfaced | **High** | Auth secret; intentionally excluded from WebView builder and Network evidence |
 | `WorkerCoordinatorUrl` | Network | Medium | `http://host:port`; must match coordinator address |
 | `WorkerName` | Network | Low | Worker display name |
-| `WorkerAuthToken` | Raw JSON only | **High** | Must match coordinator token; excluded from WebView builder |
+| `WorkerAuthToken` | Not surfaced | **High** | Must match coordinator token; excluded from WebView builder and Network evidence |
 | `WorkerPollIntervalSecs` | Network | Low | How often the worker checks for new jobs (default 10s) |
-| `WorkerSourcePathMap` | Network (raw) | Medium | JSON object remapping source paths for workers on different drive letters/mounts |
-| `WorkerConfigOverrides` | Network (raw) | Medium | Per-worker JSON config overrides applied by coordinator |
+| `WorkerSourcePathMap` | Network | Medium | JSON object remapping source paths for workers on different drive letters/mounts |
+| `WorkerConfigOverrides` | Network | Medium | Per-worker JSON config overrides applied by coordinator |
 
-Auth tokens (`CoordinatorAuthToken`, `WorkerAuthToken`) must be set via raw JSON patch in Settings or by direct PSD1 edit. They will not appear in the WebView builder, browser dev tools, or JS heap snapshots.
+Auth token values must be set by direct PSD1 edit or a future backend-owned secret workflow. The Network page must not render token values, token setting rows, or token staging controls.
 
 ---
 
@@ -126,13 +129,16 @@ Worker status meanings:
 
 ## Read-Only Guarantee
 
-`GET /api/network/workers` has effect `none`. The Network page does not call any POST command route. Selecting a worker row, applying a local filter, or clicking any detail control makes no backend call.
+`GET /api/network/workers` has effect `none`. Selecting a worker row, applying a local filter, or clicking a worker/lifecycle detail control makes no backend call.
 
-The only mutation that affects network state is:
-1. Changing network-related config keys via `POST /api/settings/save-patch`
-2. Launching the pipeline process on a coordinator or worker machine
+The Network page's Worker Mode Settings buttons are the exception to the page's otherwise read-only behavior: they call backend Settings Preview/Save routes for non-secret config changes only. They are not `/api/network/*` mutation routes and do not own coordinator/worker lifecycle.
 
-Neither of these is available from the Network page itself.
+The only mutations that can affect network state are:
+1. Changing non-secret network-related config keys via backend Settings save-patch.
+2. Editing network auth secrets outside the WebView.
+3. Launching the pipeline process on a coordinator or worker machine.
+
+The Network worker/lifecycle evidence panels do not perform any of those mutations.
 
 ---
 

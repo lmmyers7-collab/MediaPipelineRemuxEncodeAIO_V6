@@ -138,11 +138,12 @@ def settings_wizard_defaults(resolved: ResolvedPaths, service: object) -> dict[s
     }
 
 
-def preview_settings_wizard(facade: object, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
+def preview_settings_wizard(facade: object, resolved: ResolvedPaths, request: object) -> CommandResult:
     from mediapipeline_desktop_app.application.dto_commands import CommandResult
 
-    wizard = _wizard_from_request(request)
-    validation = validate_wizard_payload(wizard)
+    raw_wizard = settings_wizard_payload_from_request(request)
+    validation = validate_wizard_payload(raw_wizard)
+    wizard = _wizard_mapping(raw_wizard)
     base_config = dict(resolved.config_data or {})
     patch_request = {"changes": wizard_changes(wizard, base_config)}
     preview = facade.preview_settings_patch(resolved, patch_request)
@@ -161,10 +162,11 @@ def preview_settings_wizard(facade: object, resolved: ResolvedPaths, request: di
     )
 
 
-def save_settings_wizard(facade: object, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
+def save_settings_wizard(facade: object, resolved: ResolvedPaths, request: object) -> CommandResult:
     from mediapipeline_desktop_app.application.dto_commands import CommandResult
 
-    if not bool(request.get("confirm_save", False)):
+    confirm_save = bool(request.get("confirm_save", False)) if isinstance(request, dict) else False
+    if not confirm_save:
         return CommandResult(
             command="settings.wizard.save",
             ok=False,
@@ -173,8 +175,9 @@ def save_settings_wizard(facade: object, resolved: ResolvedPaths, request: dict[
             warnings=["confirm_save must be true."],
             refresh_hint=WIZARD_REFRESH_HINT,
         )
-    wizard = _wizard_from_request(request)
-    validation = validate_wizard_payload(wizard)
+    raw_wizard = settings_wizard_payload_from_request(request)
+    validation = validate_wizard_payload(raw_wizard)
+    wizard = _wizard_mapping(raw_wizard)
     if not validation["ok"]:
         return CommandResult(
             command="settings.wizard.save",
@@ -204,7 +207,20 @@ def save_settings_wizard(facade: object, resolved: ResolvedPaths, request: dict[
     )
 
 
-def validate_wizard_payload(wizard: dict[str, Any]) -> dict[str, Any]:
+def validate_wizard_payload(wizard: object) -> dict[str, Any]:
+    if not isinstance(wizard, dict):
+        path_validation = validate_wizard_paths(wizard)
+        worker_validation = validate_worker_settings({})
+        errors = [*path_validation["errors"], *worker_validation["errors"]]
+        warnings = [*path_validation["warnings"], *worker_validation["warnings"]]
+        return {
+            "schema_version": "desktop_settings_wizard_validation.v1",
+            "ok": False,
+            "errors": errors,
+            "warnings": warnings,
+            "path_validation": path_validation,
+            "worker_validation": worker_validation,
+        }
     path_validation = validate_wizard_paths(wizard)
     worker_validation = validate_worker_settings(wizard.get("workers", {}))
     errors = [*path_validation["errors"], *worker_validation["errors"]]
@@ -227,10 +243,19 @@ def validate_wizard_payload(wizard: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def validate_wizard_paths(wizard: dict[str, Any]) -> dict[str, Any]:
+def validate_wizard_paths(wizard: object) -> dict[str, Any]:
     errors: list[str] = []
     warnings: list[str] = []
     rows: list[dict[str, Any]] = []
+
+    if not isinstance(wizard, dict):
+        return {
+            "schema_version": "desktop_settings_wizard_path_validation.v1",
+            "ok": False,
+            "errors": ["Settings Wizard payload must be a JSON object."],
+            "warnings": [],
+            "rows": [],
+        }
 
     def check(label: str, raw_path: Any, *, must_exist: bool) -> None:
         text = str(raw_path or "").strip()
@@ -254,16 +279,29 @@ def validate_wizard_paths(wizard: dict[str, Any]) -> dict[str, Any]:
         rows.append(row)
 
     output = wizard.get("output", {}) if isinstance(wizard.get("output"), dict) else {}
-    for library in wizard.get("libraries", []) if isinstance(wizard.get("libraries"), list) else []:
+    raw_libraries = wizard.get("libraries", [])
+    if raw_libraries in (None, ""):
+        raw_libraries = []
+    if not isinstance(raw_libraries, list):
+        errors.append("Wizard libraries must be a JSON array.")
+        raw_libraries = []
+    enabled_libraries: list[dict[str, Any]] = []
+    for index, library in enumerate(raw_libraries, start=1):
+        if not isinstance(library, dict):
+            errors.append(f"Wizard library row {index} must be a JSON object.")
+            continue
         if library.get("enabled", True):
-            check(f"Library {library.get('name') or 'source'}", library.get("source_path"), must_exist=True)
-            check(f"Library {library.get('name') or 'output'} output", library.get("output_path") or output.get("root"), must_exist=False)
-            if library.get("promotion_enabled", False):
-                check(f"Library {library.get('name') or 'promotion'} promotion", library.get("promotion_destination"), must_exist=False)
+            enabled_libraries.append(library)
+
+    for library in enabled_libraries:
+        check(f"Library {library.get('name') or 'source'}", library.get("source_path"), must_exist=True)
+        check(f"Library {library.get('name') or 'output'} output", library.get("output_path") or output.get("root"), must_exist=False)
+        if library.get("promotion_enabled", False):
+            check(f"Library {library.get('name') or 'promotion'} promotion", library.get("promotion_destination"), must_exist=False)
     scratch = wizard.get("scratch", {}) if isinstance(wizard.get("scratch"), dict) else {}
     check("Final output", output.get("root"), must_exist=False)
     check("Scratch / LocalBase", scratch.get("path"), must_exist=False)
-    source_paths = {str(row.get("source_path") or "").strip().casefold() for row in wizard.get("libraries", []) if row.get("enabled", True)}
+    source_paths = {str(row.get("source_path") or "").strip().casefold() for row in enabled_libraries}
     scratch_path = str(scratch.get("path") or "").strip().casefold()
     if scratch_path and scratch_path in source_paths:
         errors.append("Scratch / LocalBase cannot be the same folder as an enabled source library.")
@@ -276,9 +314,18 @@ def validate_wizard_paths(wizard: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def validate_worker_settings(workers: dict[str, Any]) -> dict[str, Any]:
+def validate_worker_settings(workers: object) -> dict[str, Any]:
     errors: list[str] = []
     warnings: list[str] = []
+    if not isinstance(workers, dict):
+        return {
+            "schema_version": "desktop_settings_wizard_worker_validation.v1",
+            "ok": False,
+            "errors": ["Wizard workers must be a JSON object."],
+            "warnings": [],
+            "max_parallel_encodes": 1,
+            "parallel_encode_mode": "single",
+        }
     max_parallel = _int_value(workers.get("max_parallel_encodes"), 1)
     mode = str(workers.get("parallel_encode_mode") or "single")
     if max_parallel < 1:
@@ -302,13 +349,17 @@ def validate_worker_settings(workers: dict[str, Any]) -> dict[str, Any]:
 def validate_ffmpeg_tools(resolved: ResolvedPaths, request: dict[str, Any]) -> dict[str, Any]:
     wizard = _wizard_from_request(request)
     tools = wizard.get("tools", {}) if isinstance(wizard.get("tools"), dict) else {}
+    ffmpeg = _tool_status(tools.get("ffmpeg_path") or _tool_defaults(resolved, {})["ffmpeg_path"])
+    ffprobe = _tool_status(tools.get("ffprobe_path") or _tool_defaults(resolved, {})["ffprobe_path"])
+    errors = [f"FFmpeg: {error}" for error in ffmpeg["errors"]]
+    errors.extend(f"ffprobe: {error}" for error in ffprobe["errors"])
     return {
         "schema_version": "desktop_settings_wizard_tools.v1",
-        "ok": True,
-        "ffmpeg": _tool_status(tools.get("ffmpeg_path") or _tool_defaults(resolved, {})["ffmpeg_path"]),
-        "ffprobe": _tool_status(tools.get("ffprobe_path") or _tool_defaults(resolved, {})["ffprobe_path"]),
+        "ok": bool(ffmpeg["ok"] and ffprobe["ok"]),
+        "ffmpeg": ffmpeg,
+        "ffprobe": ffprobe,
         "warnings": [],
-        "errors": [],
+        "errors": errors,
         "blocks_unrelated_settings_save": False,
     }
 
@@ -359,7 +410,7 @@ def wizard_changes(wizard: dict[str, Any], base_config: dict[str, Any] | None = 
     subtitles = wizard.get("subtitles", {}) if isinstance(wizard.get("subtitles"), dict) else {}
     workers = wizard.get("workers", {}) if isinstance(wizard.get("workers"), dict) else {}
     safety = wizard.get("safety", {}) if isinstance(wizard.get("safety"), dict) else {}
-    libraries = [row for row in wizard.get("libraries", []) if isinstance(row, dict) and row.get("enabled", True)]
+    libraries = _enabled_wizard_libraries(wizard)
     changes: dict[str, Any] = {
         KEY_SOURCE_MOVIES: _first_library_path(libraries, "source_movies", "movie"),
         KEY_SOURCE_TV: _first_library_path(libraries, "source_tv", "tv"),
@@ -395,9 +446,24 @@ def wizard_changes(wizard: dict[str, Any], base_config: dict[str, Any] | None = 
     return {key: value for key, value in changes.items() if value not in ("", None)}
 
 
-def _wizard_from_request(request: dict[str, Any]) -> dict[str, Any]:
-    wizard = request.get("wizard", request)
+def settings_wizard_payload_from_request(request: object) -> object:
+    wizard = request.get("wizard", request) if isinstance(request, dict) else request
+    return wizard
+
+
+def _wizard_from_request(request: object) -> dict[str, Any]:
+    return _wizard_mapping(settings_wizard_payload_from_request(request))
+
+
+def _wizard_mapping(wizard: object) -> dict[str, Any]:
     return dict(wizard) if isinstance(wizard, dict) else {}
+
+
+def _enabled_wizard_libraries(wizard: dict[str, Any]) -> list[dict[str, Any]]:
+    raw_libraries = wizard.get("libraries", [])
+    if raw_libraries in (None, "") or not isinstance(raw_libraries, list):
+        return []
+    return [row for row in raw_libraries if isinstance(row, dict) and row.get("enabled", True)]
 
 
 def _wizard_preview_payload(wizard: dict[str, Any], validation: dict[str, Any], preview_data: dict[str, Any], *, writes_config: bool, base_config: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -475,8 +541,19 @@ def _candidate(path: Path, source: str) -> dict[str, Any]:
 
 
 def _tool_status(raw_path: Any) -> dict[str, Any]:
-    path = Path(str(raw_path or ""))
-    return {"path": str(path), "ok": path.exists() and path.is_file(), "exists": path.exists(), "version": "", "errors": [] if path.exists() else ["tool path not found"]}
+    path_text = str(raw_path or "").strip()
+    if not path_text:
+        return {"path": "", "ok": False, "exists": False, "version": "", "errors": ["tool path is not configured"]}
+    path = Path(path_text)
+    exists = path.exists()
+    is_file = path.is_file()
+    if is_file:
+        errors: list[str] = []
+    elif exists:
+        errors = ["tool path is not a file"]
+    else:
+        errors = ["tool path not found"]
+    return {"path": str(path), "ok": exists and is_file, "exists": exists, "version": "", "errors": errors}
 
 
 def _language_list(value: Any) -> list[str]:
@@ -527,5 +604,6 @@ __all__ = [
     "probe_ffmpeg_hardware",
     "tool_candidates",
     "mark_settings_wizard_completed",
+    "settings_wizard_payload_from_request",
     "wizard_changes",
 ]

@@ -46,16 +46,26 @@ graph LR
   unknown["unknown"]
   validation["validation"]
   webview["webview"]
-  tests -->|93| api
-  unknown -->|84| api
-  tests -->|40| config
-  tests -->|26| contracts
-  unknown -->|23| queue
+  tests -->|298| api
+  tests -->|53| config
+  tests -->|32| processes
+  tests -->|29| contracts
+  unknown -->|29| api
+  process -->|24| api
   config -->|22| api
-  unknown -->|19| processes
-  unknown -->|19| status
+  tests -->|21| rename
+  observability -->|19| status
+  process -->|18| processes
+  tests -->|18| status
+  observability -->|16| api
+  tests -->|15| queue
   audit -->|13| api
+  tests -->|13| publish
+  queue -->|12| api
   completed -->|11| api
+  tests -->|10| paths
+  tests -->|9| audit
+  tests -->|9| completed
   decide -->|8| contracts
   unknown -->|8| maintenance
   config -->|7| contracts
@@ -66,36 +76,39 @@ graph LR
   rename -->|6| api
   tests -->|6| decide
   tests -->|6| final_library
-  unknown -->|6| files
-  unknown -->|6| observability
+  tests -->|6| folder_policy
   diagnostics -->|5| api
-  tests -->|5| folder_policy
-  tests -->|5| processes
+  final_library -->|5| api
+  tests -->|5| maintenance
+  tests -->|5| storage
+  unknown -->|5| files
   unknown -->|5| schedule
+  api -->|4| config
   diagnostics -->|4| status
+  observability -->|4| telemetry
   orchestration -->|4| config
   orchestration -->|4| contracts
-  tests -->|4| completed
-  tests -->|4| storage
+  queue -->|4| observability
+  tests -->|4| failures
+  tests -->|4| orchestration
+  tests -->|4| telemetry
+  api -->|3| contracts
   api -->|3| queue
   network -->|3| api
   orchestration -->|3| decide
   rename -->|3| files
-  tests -->|3| publish
-  tests -->|3| queue
-  unknown -->|3| config
+  tests -->|3| diagnostics
+  tests -->|3| files
+  tests -->|3| observability
+  tests -->|3| schedule
   unknown -->|3| contracts
   unknown -->|3| storage
-  unknown -->|3| telemetry
-  api -->|2| config
   completed -->|2| observability
-  observability -->|2| api
   rename -->|2| paths
-  tests -->|2| orchestration
-  tests -->|2| paths
-  tests -->|2| rename
-  unknown -->|2| completed
+  tests -->|2| validation
+  unknown -->|2| config
   unknown -->|2| failures
+  api -->|1| orchestration
   api -->|1| publish
   api -->|1| rename
   api -->|1| ui_preferences
@@ -104,13 +117,18 @@ graph LR
   audit -->|1| failures
   diagnostics -->|1| config
   failures -->|1| paths
-  observability -->|1| telemetry
+  final_library -->|1| completed
+  final_library -->|1| config
+  final_library -->|1| files
   orchestration -->|1| api
   publish -->|1| completed
-  tests -->|1| schedule
-  tests -->|1| validation
+  queue -->|1| config
+  queue -->|1| contracts
+  tests -->|1| ui_preferences
   unknown -->|1| audit
+  unknown -->|1| completed
   unknown -->|1| final_library
+  unknown -->|1| processes
   unknown -->|1| sample_validation
   unknown -->|1| ui_preferences
 ```
@@ -119,16 +137,26 @@ graph LR
 
 | From | To | Edges |
 |---|---|---|
-| tests | api | 93 |
-| unknown | api | 84 |
-| tests | config | 40 |
-| tests | contracts | 26 |
-| unknown | queue | 23 |
+| tests | api | 298 |
+| tests | config | 53 |
+| tests | processes | 32 |
+| tests | contracts | 29 |
+| unknown | api | 29 |
+| process | api | 24 |
 | config | api | 22 |
-| unknown | processes | 19 |
-| unknown | status | 19 |
+| tests | rename | 21 |
+| observability | status | 19 |
+| process | processes | 18 |
+| tests | status | 18 |
+| observability | api | 16 |
+| tests | queue | 15 |
 | audit | api | 13 |
+| tests | publish | 13 |
+| queue | api | 12 |
 | completed | api | 11 |
+| tests | paths | 10 |
+| tests | audit | 9 |
+| tests | completed | 9 |
 | decide | contracts | 8 |
 | unknown | maintenance | 8 |
 | config | contracts | 7 |
@@ -139,36 +167,39 @@ graph LR
 | rename | api | 6 |
 | tests | decide | 6 |
 | tests | final_library | 6 |
-| unknown | files | 6 |
-| unknown | observability | 6 |
+| tests | folder_policy | 6 |
 | diagnostics | api | 5 |
-| tests | folder_policy | 5 |
-| tests | processes | 5 |
+| final_library | api | 5 |
+| tests | maintenance | 5 |
+| tests | storage | 5 |
+| unknown | files | 5 |
 | unknown | schedule | 5 |
+| api | config | 4 |
 | diagnostics | status | 4 |
+| observability | telemetry | 4 |
 | orchestration | config | 4 |
 | orchestration | contracts | 4 |
-| tests | completed | 4 |
-| tests | storage | 4 |
+| queue | observability | 4 |
+| tests | failures | 4 |
+| tests | orchestration | 4 |
+| tests | telemetry | 4 |
+| api | contracts | 3 |
 | api | queue | 3 |
 | network | api | 3 |
 | orchestration | decide | 3 |
 | rename | files | 3 |
-| tests | publish | 3 |
-| tests | queue | 3 |
-| unknown | config | 3 |
+| tests | diagnostics | 3 |
+| tests | files | 3 |
+| tests | observability | 3 |
+| tests | schedule | 3 |
 | unknown | contracts | 3 |
 | unknown | storage | 3 |
-| unknown | telemetry | 3 |
-| api | config | 2 |
 | completed | observability | 2 |
-| observability | api | 2 |
 | rename | paths | 2 |
-| tests | orchestration | 2 |
-| tests | paths | 2 |
-| tests | rename | 2 |
-| unknown | completed | 2 |
+| tests | validation | 2 |
+| unknown | config | 2 |
 | unknown | failures | 2 |
+| api | orchestration | 1 |
 | api | publish | 1 |
 | api | rename | 1 |
 | api | ui_preferences | 1 |
@@ -177,12 +208,17 @@ graph LR
 | audit | failures | 1 |
 | diagnostics | config | 1 |
 | failures | paths | 1 |
-| observability | telemetry | 1 |
+| final_library | completed | 1 |
+| final_library | config | 1 |
+| final_library | files | 1 |
 | orchestration | api | 1 |
 | publish | completed | 1 |
-| tests | schedule | 1 |
-| tests | validation | 1 |
+| queue | config | 1 |
+| queue | contracts | 1 |
+| tests | ui_preferences | 1 |
 | unknown | audit | 1 |
+| unknown | completed | 1 |
 | unknown | final_library | 1 |
+| unknown | processes | 1 |
 | unknown | sample_validation | 1 |
 | unknown | ui_preferences | 1 |

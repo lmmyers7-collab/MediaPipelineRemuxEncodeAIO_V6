@@ -17,6 +17,8 @@ $testsRoot = Split-Path -Parent $PSCommandPath
 $pipelineRoot = Split-Path -Parent (Split-Path -Parent $testsRoot)
 $auditScript = Join-Path $pipelineRoot 'Audit-MediaLibrary.ps1'
 $legacyGuiScript = Join-Path $pipelineRoot 'MediaPipelineRemuxEncodeAIO_LegacyGUI.ps1'
+$configTemplate = Join-Path $pipelineRoot 'MediaPipeline_config_template.psd1'
+$defaultProfile = Join-Path $pipelineRoot 'Profiles\Default.psd1'
 
 function Assert-True {
     param(
@@ -39,8 +41,12 @@ function Assert-PowerShellParses {
 }
 
 Assert-PowerShellParses -Path $auditScript
+Assert-PowerShellParses -Path $configTemplate
+Assert-PowerShellParses -Path $defaultProfile
 
 $auditText = Get-Content -LiteralPath $auditScript -Raw
+$configTemplateText = Get-Content -LiteralPath $configTemplate -Raw
+$defaultProfileText = Get-Content -LiteralPath $defaultProfile -Raw
 if (Test-Path -LiteralPath $legacyGuiScript -PathType Leaf) {
     Assert-PowerShellParses -Path $legacyGuiScript
     $legacyText = Get-Content -LiteralPath $legacyGuiScript -Raw
@@ -51,6 +57,8 @@ if (Test-Path -LiteralPath $legacyGuiScript -PathType Leaf) {
 Assert-True ($auditText -notmatch "\[string\]\`$LibraryRoot\s*=\s*'\\\\LAYNE-SERVER\\Video'") 'Audit script must not default LibraryRoot to a local operator UNC path.'
 Assert-True ($auditText -match "Get-AuditDefaultLibraryRootFromConfig") 'Audit script must derive the default library root from config when -LibraryRoot is omitted.'
 Assert-True ($auditText -match "LibraryRoot was not provided") 'Audit script must fail clearly when no config-derived library root is available.'
+Assert-True ($configTemplateText -notmatch 'LAYNE|Layne|LAYNE-SERVER|E:/Videos|//LAYNE|Users/Layne') 'Config template must not include local operator path defaults.'
+Assert-True ($defaultProfileText -notmatch 'LAYNE|Layne|LAYNE-SERVER|E:/Videos|//LAYNE|Users/Layne') 'Default config profile must not include local operator path defaults.'
 
 if ($legacyText) {
     Assert-True ($legacyText -notmatch "\`$txtAuditRoot\.Text\s*=\s*'\\\\LAYNE-SERVER\\Video'") 'Legacy GUI must not seed Audit root with a local operator UNC path.'

@@ -57,6 +57,18 @@ class ApiRouteInventoryTests(unittest.TestCase):
         self.assertIn(f"{counts['GET']} read", text)
         self.assertIn(f"{counts['POST']} command", text)
 
+    def test_local_api_evidence_mutation_matrix_matches_local_api_contract(self) -> None:
+        matrix = REPO_ROOT / "Docs" / "architecture" / "LOCAL_API_EVIDENCE_MUTATION_MATRIX.md"
+        contract_keys = _contract_route_keys()
+        matrix_keys = _route_keys_from_markdown(matrix)
+        counts = _method_counts(contract_keys)
+        text = matrix.read_text(encoding="utf-8")
+
+        self.assertEqual(matrix_keys, contract_keys)
+        self.assertIn(f"Total routes: {len(contract_keys)}", text)
+        self.assertIn(f"{counts['GET']} read", text)
+        self.assertIn(f"{counts['POST']} command", text)
+
 
 if __name__ == "__main__":
     unittest.main()

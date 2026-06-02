@@ -58,11 +58,17 @@ def diagnostics_allowed_targets_error() -> str:
 def optional_diagnostics_path(value: Any) -> Path | None:
     if value is None:
         return None
+    if isinstance(value, str):
+        text = value.strip()
+        if "\x00" in text:
+            return None
+        return Path(text) if text else None
     try:
         path = Path(value)
-    except TypeError:
+    except (TypeError, ValueError):
         return None
-    return path if str(path).strip() else None
+    text = str(path).strip()
+    return path if text and "\x00" not in text else None
 
 
 def diagnostics_open_path(

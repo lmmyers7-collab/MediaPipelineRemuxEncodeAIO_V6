@@ -322,6 +322,19 @@ try {
     Assert-True (-not $vobSubSidecarDecision.PreserveOriginal) 'External VobSub sidecars should not be muxed as original tracks.'
     Assert-Equal $vobSubSidecarDecision.OriginalPreserveReason 'external_sidecar_preserved_outside_output' 'External VobSub sidecar preserve reason should not imply source deletion.'
 
+    $vobSubSidecarKeepFilter = @{
+        Convert = @()
+        Tx3gConvert = @()
+        BdpgsConvert = @()
+        VobSubConvert = @()
+        Keep = @(
+            (New-TestSubtitleEntry -Index -1 -Lang 'eng' -Title 'Kept VobSub sidecar' -Codec 'vobsub' -VobSub -SourceKind 'sidecar')
+        )
+    }
+    $vobSubSidecarKeepDecision = @(Get-SubtitleBuilderTrackDecisionRecords -FilterResult $vobSubSidecarKeepFilter -Builder 'Mkvmerge' | Where-Object { $_.Action -eq 'Keep' })[0]
+    Assert-True $vobSubSidecarKeepDecision.RoutesToReview 'External VobSub sidecars kept without OCR should route to review instead of silent publish.'
+    Assert-Equal $vobSubSidecarKeepDecision.ReviewErrorCode 'SUBTITLE_VOBSUB_SIDECAR_PRESERVE_UNSUPPORTED' 'External VobSub sidecar preserve review should use the sidecar-specific error code.'
+
     $script:ConversionCalls.Clear()
     $build = Build-SubtitleArgsForFFmpeg -FilterResult $filter -DefaultAudioLang 'jpn' -SourceFile (Join-Path $script:processingDir 'source.mkv') -Context 'TEST: '
     Assert-Equal $build.TrackCount 5 'FFmpeg builder should emit preserved ASS, converted ASS/TX3G/BDPGS, and kept SRT tracks while excluding review-routed kept BDPGS.'
@@ -395,6 +408,7 @@ try {
     $script:AssConversionMode = 'success'
     $script:Tx3gConversionMode = 'fail'
     $script:BdpgsConversionMode = 'fail'
+    $script:VobSubConversionMode = 'fail'
     $script:ConversionCalls.Clear()
     $failedOcrFilter = @{
         Convert = @()
@@ -404,16 +418,46 @@ try {
         BdpgsConvert = @(
             (New-TestSubtitleEntry -Index 31 -Lang 'eng' -Title 'Bad PGS' -Codec 'hdmv_pgs_subtitle' -Bdpgs)
         )
+        VobSubConvert = @(
+            (New-TestSubtitleEntry -Index 32 -Lang 'eng' -Title 'Bad VobSub' -Codec 'dvd_subtitle' -VobSub)
+        )
         Keep = @()
     }
     $failedOcrBuild = Build-SubtitleArgsForFFmpeg -FilterResult $failedOcrFilter -DefaultAudioLang 'jpn' -SourceFile (Join-Path $script:processingDir 'source.mkv') -Context 'TEST: '
-    Assert-Equal ($script:ConversionCalls -join ',') 'tx3g:30,bdpgs:31' 'Failed TX3G/BDPGS conversions should still run in original group order.'
-    Assert-Equal $failedOcrBuild.TrackCount 0 'Failed TX3G/BDPGS conversion without preservable originals should not emit subtitle tracks as silent success.'
-    Assert-Equal $failedOcrBuild.TempFiles.Count 0 'Failed TX3G/BDPGS conversion should not register temp SRT artifacts.'
+    Assert-Equal ($script:ConversionCalls -join ',') 'tx3g:30,bdpgs:31,vobsub:32' 'Failed bitmap/text conversions should still run in original group order.'
+    Assert-Equal $failedOcrBuild.TrackCount 0 'Failed TX3G/BDPGS/VobSub conversion without preservable originals should not emit subtitle tracks as silent success.'
+    Assert-Equal $failedOcrBuild.TempFiles.Count 0 'Failed TX3G/BDPGS/VobSub conversion should not register temp SRT artifacts.'
     Assert-Equal @($failedOcrBuild.Failures | Where-Object { $_.error_code -eq 'SUBTITLE_TX3G_EXTRACT_FAILED' }).Count 1 'TX3G conversion failure should remain review-routed.'
     Assert-Equal @($failedOcrBuild.Failures | Where-Object { $_.error_code -eq 'SUBTITLE_BDPGS_OCR_FAILED' }).Count 1 'BDPGS OCR failure should remain review-routed.'
+    Assert-Equal @($failedOcrBuild.Failures | Where-Object { $_.error_code -eq 'SUBTITLE_VOBSUB_OCR_FAILED' }).Count 1 'VobSub OCR failure should remain review-routed.'
+    $script:Tx3gConversionMode = 'success'
+    $script:BdpgsConversionMode = 'success'
+    $script:VobSubConversionMode = 'success'
 
     . (Join-Path $repoRoot 'engine\subtitles\srt.ps1')
+    $validSrtPath = Join-Path $script:processingDir 'valid.srt'
+    Write-TestSrt -Path $validSrtPath -Text 'valid'
+    Assert-True ([bool](Test-SrtFileUsable -Path $validSrtPath).Ok) 'SRT validation should accept a cue with timing and text.'
+
+    $emptyCueSrtPath = Join-Path $script:processingDir 'empty-cue.srt'
+    [System.IO.File]::WriteAllText($emptyCueSrtPath, "1`r`n00:00:00,000 --> 00:00:01,000`r`n", [System.Text.UTF8Encoding]::new($false))
+    Assert-True (-not [bool](Test-SrtFileUsable -Path $emptyCueSrtPath).Ok) 'SRT validation should reject timing-only cues with no text.'
+
+    $strayTextSrtPath = Join-Path $script:processingDir 'stray-text.srt'
+    [System.IO.File]::WriteAllText($strayTextSrtPath, "stray text`r`n1`r`n00:00:00,000 --> 00:00:01,000`r`nvalid`r`n", [System.Text.UTF8Encoding]::new($false))
+    Assert-True (-not [bool](Test-SrtFileUsable -Path $strayTextSrtPath).Ok) 'SRT validation should reject text outside cue timing blocks.'
+
+    $reversedTimingSrtPath = Join-Path $script:processingDir 'reversed-timing.srt'
+    [System.IO.File]::WriteAllText($reversedTimingSrtPath, "1`r`n00:00:02,000 --> 00:00:01,000`r`ninvalid`r`n", [System.Text.UTF8Encoding]::new($false))
+    Assert-True (-not [bool](Test-SrtFileUsable -Path $reversedTimingSrtPath).Ok) 'SRT validation should reject cues whose end time is not after the start time.'
+
+    $mergeSrtPath = Join-Path $script:processingDir 'merge-adjacent.srt'
+    [System.IO.File]::WriteAllText($mergeSrtPath, "1`r`n00:00:00,000 --> 00:00:01,000`r`nHello`r`n`r`n2`r`n00:00:01,050 --> 00:00:02,000`r`nHello`r`n", [System.Text.UTF8Encoding]::new($false))
+    Merge-AdjacentIdenticalCues -SrtPath $mergeSrtPath -ThresholdMs 150
+    $mergedSrtText = [System.IO.File]::ReadAllText($mergeSrtPath, [System.Text.Encoding]::UTF8)
+    Assert-ContainsText $mergedSrtText '00:00:00,000 --> 00:00:02,000' 'SRT adjacent identical cue merge should use the local timestamp parser and extend the first cue.'
+    Assert-True ([bool](Test-SrtFileUsable -Path $mergeSrtPath).Ok) 'Merged SRT should remain usable after atomic rewrite.'
+
     . (Join-Path $repoRoot 'engine\subtitles\bdpgs.ps1')
     $bdpgsPipeGlyphText = "1`r`n00:00:00,200 --> 00:00:01,400`r`n| never said |t was over.`r`n`r`n2`r`n00:00:01,500 --> 00:00:02,000`r`nNo pipe here.`r`n"
     $bdpgsPipeGlyphRepair = Repair-BdpgsOcrSrtPipeGlyphText -Text $bdpgsPipeGlyphText

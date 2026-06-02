@@ -140,6 +140,18 @@ def validate_registry(registry: dict[str, Any], *, known_paths: set[str] | None 
             value = raw_entry.get(key)
             if not isinstance(value, list) or not all(isinstance(item, str) and item.strip() for item in value):
                 findings.append(RegistryFinding("RISK011", str(entry_id), f"{key} must be a non-empty string list"))
+                continue
+            if key == "owner_docs":
+                for doc_path in value:
+                    normalized_doc = normalize_path(doc_path)
+                    if not (REPO_ROOT / normalized_doc).is_file():
+                        findings.append(
+                            RegistryFinding(
+                                "RISK015",
+                                str(entry_id),
+                                f"owner_docs entry is missing: {normalized_doc}",
+                            )
+                        )
         for key in ("required_checks", "manual_gates"):
             value = raw_entry.get(key)
             if not isinstance(value, list) or not all(isinstance(item, str) and item.strip() for item in value):

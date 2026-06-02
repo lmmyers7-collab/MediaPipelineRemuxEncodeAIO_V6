@@ -183,7 +183,9 @@
   }
 
   function telemetryHasNumber(value) {
-    return value !== null && value !== undefined && Number.isFinite(Number(value));
+    if (value === null || value === undefined) return false;
+    if (typeof value === "string" && value.trim() === "") return false;
+    return Number.isFinite(Number(value));
   }
 
   function telemetryGpuPresent(telemetry) {
@@ -298,15 +300,19 @@
     const rows = Array.isArray(telemetry?.gpu_rows) ? telemetry.gpu_rows : [];
     if (rows.length) return rows;
     if (!telemetryGpuPresent(telemetry)) return [];
-    const usedGb = Number(telemetry?.gpu_memory_used_gb);
-    const totalGb = Number(telemetry?.gpu_memory_total_gb);
+    const usedGb = telemetryHasNumber(telemetry?.gpu_memory_used_gb) ? Number(telemetry.gpu_memory_used_gb) : null;
+    const totalGb = telemetryHasNumber(telemetry?.gpu_memory_total_gb) ? Number(telemetry.gpu_memory_total_gb) : null;
     return [{
       index: telemetry?.gpu_index || "0",
       name: telemetry?.gpu_name || "GPU",
       encoder_percent: telemetry?.gpu_encoder_percent,
       gpu_percent: telemetry?.gpu_percent ?? telemetry?.gpu_encoder_percent,
-      memory_used_mb: telemetry?.gpu_memory_used_mb ?? (Number.isFinite(usedGb) ? usedGb * 1024 : undefined),
-      memory_total_mb: telemetry?.gpu_memory_total_mb ?? (Number.isFinite(totalGb) ? totalGb * 1024 : undefined),
+      memory_used_mb: telemetryHasNumber(telemetry?.gpu_memory_used_mb)
+        ? Number(telemetry.gpu_memory_used_mb)
+        : (usedGb === null ? undefined : usedGb * 1024),
+      memory_total_mb: telemetryHasNumber(telemetry?.gpu_memory_total_mb)
+        ? Number(telemetry.gpu_memory_total_mb)
+        : (totalGb === null ? undefined : totalGb * 1024),
       synthesized: true,
     }];
   }

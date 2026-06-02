@@ -407,7 +407,7 @@ def rename_plan_outside_configured_roots(rows: Iterable[Mapping[str, Any]]) -> l
 
 
 def rename_request_allows_outside_configured_roots(request: Mapping[str, Any]) -> bool:
-    return bool(request.get("allow_outside_configured_roots", False))
+    return request.get("allow_outside_configured_roots") is True
 
 
 def rename_configured_media_roots_from_resolved(resolved: object) -> list[str]:

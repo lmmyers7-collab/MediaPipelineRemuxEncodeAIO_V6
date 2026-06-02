@@ -24,6 +24,11 @@ from app.queue.policy_parts.rows import queue_row_available_open_targets
 from app.queue.policy_parts.rules import QUEUE_SNAPSHOT_STALE_AFTER_SECONDS, QUEUE_SOURCE_SCAN_PROGRESS_SCHEMA_VERSION
 
 
+def queue_row_has_visible_priority(row: dict[str, Any]) -> bool:
+    manifest_level = str(row.get("manifest_priority_level") or "normal").strip().casefold()
+    return bool(row.get("is_priority")) or manifest_level in {"high", "low", "hold"}
+
+
 def queue_excluded_row_key(row: dict[str, Any]) -> str:
     return "\x1f".join(
         [
@@ -315,7 +320,7 @@ def queue_preview_metadata(
         "source_root_counts": queue_count_by_key(rows, "source_root"),
         "season_counts": queue_season_counts(rows),
         "priority_reason_counts": queue_priority_reason_counts(rows),
-        "priority_visible_count": sum(1 for row in rows if bool(row.get("is_priority"))),
+        "priority_visible_count": sum(1 for row in rows if queue_row_has_visible_priority(row)),
         "invalid_row_count": invalid_row_count,
         "total_visible_size_gb": total_size_gb,
         "total_visible_size_text": format_queue_size_gb(total_size_gb),
@@ -346,4 +351,3 @@ __all__ = [
     "queue_source_scan_progress_payload",
     "queue_preview_metadata",
 ]
-

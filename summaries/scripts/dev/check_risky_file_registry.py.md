@@ -3,9 +3,9 @@ file: scripts/dev/check_risky_file_registry.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-05-28
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: a7912e2178822881e1124570ad2e12279df08eea3f6f6151f7f662b4346f2d7a
+sha256: d1c23bb568d865c610f59da5c4d3c903678923793292bf11ccafc0d12130946a
 ---
 # `scripts/dev/check_risky_file_registry.py`
 

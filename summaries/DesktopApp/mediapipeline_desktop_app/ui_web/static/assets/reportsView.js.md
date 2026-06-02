@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/reportsView.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-29
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: ff544b188605d1db2992cf7bf5b2fb4f92cd4a78558b3137e804bd162c093f95
+sha256: 89c97e71250492f211035f9e4cc077afca3bc985147c915570b9f787e42f7f6f
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/reportsView.js`
 

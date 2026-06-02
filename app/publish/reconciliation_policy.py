@@ -50,7 +50,7 @@ def _leaf(value: Any) -> str:
 
 def _path_looks_absolute(value: Any) -> bool:
     text = str(value or "").strip()
-    return bool(text and (len(text) > 2 and text[1:3] in {":\\", ":/"} or text.startswith("\\\\") or "\\" in text or "/" in text))
+    return bool(text and ((len(text) > 2 and text[1:3] in {":\\", ":/"}) or text.startswith("\\\\") or text.startswith("//")))
 
 
 def _completed_output(row: Mapping[str, Any]) -> str:

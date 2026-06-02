@@ -538,6 +538,7 @@ function updatePagePanelEmptyStates() {
 function showPage(page) {
   return window.mediaPipelineAppLifecycle?.showPage?.(page);
 }
+window.showPage = showPage;
 
 function applyDefaultActionTooltips(root = document) {
   return window.mediaPipelineAppLifecycle?.applyDefaultActionTooltips?.(root);
@@ -775,6 +776,8 @@ async function refreshAllNow() {
   renderDailyDriverReadiness(dashboardContext);
 }
 
+window.refreshAll = refreshAll;
+window.refreshAllNow = refreshAllNow;
 window.externalDependencyRows = externalDependencyRows;
 window.externalDependencyOverallStatus = externalDependencyOverallStatus;
 window.externalDependencySummaryLines = externalDependencySummaryLines;
@@ -893,7 +896,10 @@ async function persistSharedUiPreferencesNow() {
   if (serialized === uiPreferenceLastSerialized) return;
   uiPreferenceSyncInFlight = true;
   try {
-    await apiPost("/api/ui-preferences", payload, { timeoutMs: 5000 });
+    const result = await apiPost("/api/ui-preferences", payload, { timeoutMs: 5000 });
+    if (result && result.ok === false) {
+      throw new Error(result.message || "UI preference sync failed.");
+    }
     uiPreferenceLastSerialized = serialized;
   } catch (_) {
     // UI preference sync must never block the operator surface.
@@ -1302,6 +1308,7 @@ function initLayoutManager() {
 
 document.addEventListener("DOMContentLoaded", async () => {
   renderBrandVersion();
+  initKeyboardShortcuts();
   await restoreSharedUiPreferences();
   initNavigation();
   initLayoutManager();
@@ -1309,7 +1316,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   initEvidenceToggle();
   initThemeToggle();
   initLaunchEvidenceToggle();
-  initKeyboardShortcuts();
   initCollapsibleSummaries();
   initPageRefreshButtons();
   initSettingsTabNav();
@@ -1333,8 +1339,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (homeRefreshButton) homeRefreshButton.addEventListener("click", refreshAll);
   const backendShutdownButton = byId("backend-shutdown-button");
   if (backendShutdownButton) backendShutdownButton.addEventListener("click", requestBackendShutdown);
+  const renameUsesV7Workbench = Boolean(byId("rename-apply-button"));
   const renamePreviewButton = byId("rename-preview-button");
-  if (renamePreviewButton) renamePreviewButton.addEventListener("click", refreshRenamePreview);
+  if (renamePreviewButton && !renameUsesV7Workbench) renamePreviewButton.addEventListener("click", refreshRenamePreview);
   const renamePreviewTopButton = byId("rename-preview-top-button");
   if (renamePreviewTopButton) renamePreviewTopButton.addEventListener("click", refreshRenamePreview);
   const renameUseSelectedQueueButton = byId("rename-use-selected-queue-button");
@@ -1342,13 +1349,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   const renameUseLoadedQueueButton = byId("rename-use-loaded-queue-button");
   if (renameUseLoadedQueueButton) renameUseLoadedQueueButton.addEventListener("click", () => window.mediaPipelineRenameView?.useLoadedQueueRowsForRename?.());
   const renameBrowseFilesButton = byId("rename-browse-files-button");
-  if (renameBrowseFilesButton) renameBrowseFilesButton.addEventListener("click", () => window.mediaPipelineRenameView?.browseRenamePaths?.("files"));
+  if (renameBrowseFilesButton && !renameUsesV7Workbench) renameBrowseFilesButton.addEventListener("click", () => window.mediaPipelineRenameView?.browseRenamePaths?.("files"));
   const renameBrowseFolderButton = byId("rename-browse-folder-button");
-  if (renameBrowseFolderButton) renameBrowseFolderButton.addEventListener("click", () => window.mediaPipelineRenameView?.browseRenamePaths?.("folder"));
+  if (renameBrowseFolderButton && !renameUsesV7Workbench) renameBrowseFolderButton.addEventListener("click", () => window.mediaPipelineRenameView?.browseRenamePaths?.("folder"));
   const renameAddPathButton = byId("rename-add-path-button");
   if (renameAddPathButton) renameAddPathButton.addEventListener("click", () => window.mediaPipelineRenameView?.addRenamePathFromInput?.());
   const renameClearPathsButton = byId("rename-clear-paths-button");
-  if (renameClearPathsButton) renameClearPathsButton.addEventListener("click", () => window.mediaPipelineRenameView?.clearRenamePaths?.());
+  if (renameClearPathsButton && !renameUsesV7Workbench) renameClearPathsButton.addEventListener("click", () => window.mediaPipelineRenameView?.clearRenamePaths?.());
   const renameAddPathInput = byId("rename-add-path-input");
   if (renameAddPathInput) {
     renameAddPathInput.addEventListener("input", () => window.mediaPipelineRenameView?.syncRenameCommandButtons?.());
@@ -1369,7 +1376,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const renameClearOverrideButton = byId("rename-clear-override-button");
   if (renameClearOverrideButton) renameClearOverrideButton.addEventListener("click", clearRenameSelectedOverride);
   const renameApplySelectedButton = byId("rename-apply-selected-button");
-  if (renameApplySelectedButton) renameApplySelectedButton.addEventListener("click", () => window.mediaPipelineRenameView?.applySelectedRename?.());
+  if (renameApplySelectedButton && !renameUsesV7Workbench) renameApplySelectedButton.addEventListener("click", () => window.mediaPipelineRenameView?.applySelectedRename?.());
   const renameCheckApplicableButton = byId("rename-check-applicable-button");
   if (renameCheckApplicableButton) renameCheckApplicableButton.addEventListener("click", checkApplicableRenameRows);
   const renameClearChecksButton = byId("rename-clear-checks-button");

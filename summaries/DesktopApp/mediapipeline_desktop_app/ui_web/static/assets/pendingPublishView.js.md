@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/pendingPublishVi
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-30
+last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: 73c8cc5c55ca5ae398bd3bc7b655b1c4f43546072eb623498ab128f4d4d68722
+sha256: 040a5d939a351b355a42425a3a3149e02ba8c8f16bd815ed080d7b39a301f188
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/pendingPublishView.js`
 

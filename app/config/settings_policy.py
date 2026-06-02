@@ -23,6 +23,9 @@ if TYPE_CHECKING:
 
 SETTINGS_VALIDATE_COMMAND = "settings.validate"
 VOBSUB_TESSERACT_BUNDLED_CANDIDATES = (
+    Path("Tools") / "SubtitleEditLegacy" / "Tesseract550" / "tesseract.exe",
+    Path("Tools") / "SubtitleEditLegacy" / "Tesseract-OCR" / "tesseract.exe",
+    Path("Tools") / "SubtitleEditLegacy" / "Tesseract" / "tesseract.exe",
     Path("Tools") / "SubtitleEdit" / "Tesseract550" / "tesseract.exe",
     Path("Tools") / "SubtitleEdit" / "Tesseract-OCR" / "tesseract.exe",
     Path("Tools") / "SubtitleEdit" / "Tesseract" / "tesseract.exe",
@@ -271,6 +274,9 @@ def settings_vobsub_ocr_path_evidence(resolved: ResolvedPaths, config: dict[str,
             tool_row["status"] = "blocked" if enabled else "review"
             tool_row["message"] = "VobSub OCR tool is a .dll but dotnet was not found on PATH."
             tool_row["prefix_executable"] = ""
+    if Path(tool_resolved).name.casefold() == "seconv.exe" and tool_row["status"] == "ready":
+        tool_row["status"] = "blocked" if enabled else "review"
+        tool_row["message"] = "VobSub OCR tool points to seconv.exe, but seconv currently skips VobSub OCR; use Subtitle Edit 4.x SubtitleEdit.exe."
 
     tesseract_configured, tesseract_path, tesseract_from_path = settings_resolve_vobsub_tesseract_path(
         resolved,

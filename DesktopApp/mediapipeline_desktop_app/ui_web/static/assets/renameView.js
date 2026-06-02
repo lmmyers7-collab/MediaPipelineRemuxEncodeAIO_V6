@@ -340,6 +340,15 @@
     return !(Array.isArray(item.errors) && item.errors.length);
   }
 
+  function getRenameApplyScopeRows() {
+    const checked = getCheckedRenameRows();
+    if (checked.length) return { rows: checked, source: "checked rows" };
+    const applicable = lastRenameRows.filter((row) => renameRowCanApply(row));
+    return applicable.length
+      ? { rows: applicable, source: "all applicable preview rows" }
+      : { rows: [], source: "none" };
+  }
+
   function syncRenameCheckedCount() {
     const rows = getCheckedRenameRows();
     const blocked = rows.filter((row) => !renameRowCanApply(row)).length;
@@ -728,7 +737,7 @@
       `Staged overrides: ${stagedFinal} final-name override(s), ${stagedForce} force-through-pipeline row(s), ${stagedForceOff} force-off row(s)`,
       "Stage Bulk Edit uses the current backend preview final names, edits only the filename stem, preserves extensions, then rebuilds backend preview.",
       "Use Pipeline Names clears final-name overrides for the scope; Clear Scope Overrides clears both final-name and force overrides for the scope.",
-      "Mutation guardrail: this panel stages preview overrides only. Apply Checked / Selected still calls backend rename.apply with selected_sources.",
+      "Mutation guardrail: this panel stages preview overrides only. Apply Renames still calls backend rename.apply with selected_sources.",
     ];
     if (message) lines.unshift(message);
     setText("rename-bulk-edit-status", status);
@@ -815,6 +824,7 @@
     getCheckedRenameRows,
     getLastRenameRows: () => lastRenameRows,
     getRenameFinalOverrides: () => renameFinalOverrides,
+    getRenameApplyScopeRows,
     getSelectedRenameRow,
     renameConfidenceExplanation,
     renameConfidenceLabel,
@@ -887,7 +897,11 @@
   const renameApplyResultSlice = window.mediaPipelineRenameApplyResultSlice.create({
     appendCells,
     byId,
-    renderProgressBarsInto: window.renderProgressBarsInto,
+    renderProgressBarsInto: function () {
+      if (typeof window.renderProgressBarsInto === "function") {
+        window.renderProgressBarsInto.apply(window, arguments);
+      }
+    },
     setText,
   });
   const {
@@ -1012,6 +1026,7 @@
     const counts = preview.counts || {};
     const capText = renameRenderCapText(rows);
     setText("rename-status", `${counts.ready || 0} ready, ${counts.match || 0} match, ${counts.blocked || 0} blocked${capText ? `; ${capText}` : ""}`);
+    setText("rename-preview-status", `${rows.length} preview row${rows.length === 1 ? "" : "s"}`);
     const selectedRow = getSelectedRenameRow();
     if (selectedRow) syncRenameSelectedInputs(selectedRow);
     renderRenameSummary(preview);
@@ -1084,7 +1099,7 @@
       const button = byId(id);
       if (button) button.disabled = commandBusy;
     });
-    const applyButton = byId("rename-apply-selected-button");
+    const applyButton = byId("rename-apply-button");
     if (applyButton) applyButton.disabled = renameBrowseInFlight || renameApplyInFlight;
     const selectedQueueButton = byId("rename-use-selected-queue-button");
     if (selectedQueueButton) selectedQueueButton.disabled = commandBusy;
@@ -1419,7 +1434,7 @@
   }
 
   function renameApplicablePreviewRows() {
-    return Array.isArray(lastRenameRows) ? lastRenameRows.filter((row) => renameRowCanApply(row)) : [];
+    return getRenameApplyScopeRows().rows;
   }
 
   async function applyRenameWorkbenchV7() {
@@ -1428,14 +1443,18 @@
     }
     const rowsToApply = renameApplicablePreviewRows();
     if (!rowsToApply.length) {
+      const message = "Preview has no applicable rows. Run Preview, then resolve any blocked rows.";
       const hint = byId("rename-apply-status-hint");
-      if (hint) hint.textContent = "Preview has no applicable rows. Run Preview, then resolve any blocked rows.";
+      if (hint) hint.textContent = message;
+      setText("rename-detail", message);
       return;
     }
     const readinessBlockers = typeof renameApplyScopeBlockers === "function" ? renameApplyScopeBlockers(rowsToApply) : [];
     if (readinessBlockers.length) {
+      const message = `Rename selection is blocked by apply readiness: ${readinessBlockers.join("; ")}. Fix the preview before applying.`;
       const hint = byId("rename-apply-status-hint");
       if (hint) hint.textContent = `Blocked by readiness: ${readinessBlockers.join("; ")}`;
+      setText("rename-detail", message);
       return;
     }
     const outsideRootRows = rowsToApply.filter((row) => row.path_authority === "outside_configured_roots");
@@ -1525,7 +1544,7 @@
     const browseFolderButton = byId("rename-browse-folder-button");
     if (browseFolderButton) browseFolderButton.addEventListener("click", () => browseRenamePaths("folder_files"));
     const clearButton = byId("rename-clear-paths-button");
-    if (clearButton) clearButton.addEventListener("click", () => { clearRenamePaths(); refreshRenamePreview(); });
+    if (clearButton) clearButton.addEventListener("click", () => clearRenamePaths());
     const modeSelect = byId("rename-mode");
     if (modeSelect) {
       modeSelect.addEventListener("change", () => {

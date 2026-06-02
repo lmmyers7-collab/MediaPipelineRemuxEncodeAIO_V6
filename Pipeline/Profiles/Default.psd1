@@ -2,10 +2,10 @@
 # Unknown keys are preserved, but original comments/formatting are not.
 @{
     ConfigSchemaVersion = 1
-    SourceMovies = '//LAYNE-SERVER/Users/Layne/Videos/Encode/Movies'
-    SourceTV = '//LAYNE-SERVER/Users/Layne/Videos/Encode/TV'
-    Outsource = '//LAYNE-SERVER/Users/Layne/Videos/outsource'
-    LocalBase = 'E:/Videos/Scratch'
+    SourceMovies = 'C:\MediaPipeline\Incoming\Movies'
+    SourceTV = 'C:\MediaPipeline\Incoming\TV'
+    Outsource = 'C:\MediaPipeline\Processed'
+    LocalBase = 'C:\MediaPipeline\Scratch'
     EncodeThresholdGB = 8
     TVEncodeThresholdGB = 3
     RoutingProfile = 'plex_direct_stream'
@@ -88,7 +88,7 @@
         'en',
         'und'
     )
-    VobSubOcrToolPath = 'Tools\SubtitleEdit\seconv.exe'
+    VobSubOcrToolPath = 'Tools\SubtitleEditLegacy\SubtitleEdit.exe'
     SubSDHTitleKeywords = @(
         'sdh',
         'hearing impaired',

@@ -3,9 +3,9 @@ file: Pipeline/Tests/Unit/Invoke-RuntimeStateHygieneChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-29
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 7fc14843cc33ccf7fdd6aaee4a200d39a53daa5bdc1e4f756653171cf013a6e7
+sha256: ee5d854115785041492eeaa422b38a07c748ade5260a23a2fce218491e11f7d5
 ---
 # `Pipeline/Tests/Unit/Invoke-RuntimeStateHygieneChecks.ps1`
 

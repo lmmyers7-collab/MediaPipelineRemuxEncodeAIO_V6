@@ -149,6 +149,7 @@ function Build-AudioStreamDecisionPlan {
         try {
             if ($s.tags -and $s.tags.language) { $rawLang = ([string]$s.tags.language).ToLowerInvariant() }
         } catch {}
+        $normalizedLang = Normalize-AudioLanguagePreferenceValue $rawLang
         $rawTitle = ""
         try {
             if ($s.tags -and $s.tags.title) { $rawTitle = [string]$s.tags.title }
@@ -171,7 +172,7 @@ function Build-AudioStreamDecisionPlan {
         $sourceStreamIndex = if ($null -ne $s.PSObject.Properties['index']) { $s.index } else { $null }
 
         if (-not (Test-AudioTrackKeptByOverride `
-                -Language $rawLang `
+                -Language $normalizedLang `
                 -Channels $ch `
                 -Title $rawTitle `
                 -Codec $codec `
@@ -183,8 +184,8 @@ function Build-AudioStreamDecisionPlan {
                 action              = 'drop'
                 reason              = 'file_override'
                 passthrough_profile = $PassthroughProfile
-                language            = $rawLang
-                normalized_language = Normalize-AudioLanguagePreferenceValue $rawLang
+                language            = $normalizedLang
+                normalized_language = $normalizedLang
                 source_codec        = $codec
                 source_channels     = $ch
                 output_codec        = ''
@@ -201,7 +202,7 @@ function Build-AudioStreamDecisionPlan {
                 SourceStreamIndex = $sourceStreamIndex
                 Action            = 'drop'
                 Reason            = 'file_override'
-                Language          = $rawLang
+                Language          = $normalizedLang
                 SourceCodec       = $codec
                 SourceChannels    = $ch
                 OutputCodec       = ''
@@ -253,16 +254,16 @@ function Build-AudioStreamDecisionPlan {
         # outer `$LangDisplay` hashtable to the lookup result (a string) on
         # the first loop iteration, and the second iteration would fail with
         # "[String] does not contain a method ContainsKey".
-        $langDisp   = if ($LangDisplay.ContainsKey($rawLang)) { $LangDisplay[$rawLang] } else { $rawLang.ToUpper() }
+        $langDisp   = if ($LangDisplay.ContainsKey($normalizedLang)) { $LangDisplay[$normalizedLang] } else { $normalizedLang.ToUpper() }
         $layoutDisp = if ($ChannelLabel.ContainsKey($outChannels)) { $ChannelLabel[$outChannels] } else { "${outChannels}ch" }
         $title      = "$langDisp - $layoutDisp $outCodecLabel"
         if ($isCommentary) { $title += " [Commentary]" }
-        $titleOverride = Get-AudioTrackTitleOverride -Language $rawLang -Channels $outChannels -AudioOverride $AudioOverride
+        $titleOverride = Get-AudioTrackTitleOverride -Language $normalizedLang -Channels $outChannels -AudioOverride $AudioOverride
         if (-not [string]::IsNullOrWhiteSpace($titleOverride)) { $title = $titleOverride }
 
         $audioTrackMeta.Add([pscustomobject]@{
             Index          = $outOrdinal
-            NormalizedLang = Normalize-AudioLanguagePreferenceValue $rawLang
+            NormalizedLang = $normalizedLang
             IsCommentary   = $isCommentary
             IsForced        = $isForcedAudio
             FidelityScore  = Get-AudioFidelityScore -Codec $codec -Channels $ch
@@ -274,8 +275,8 @@ function Build-AudioStreamDecisionPlan {
             action              = $action
             reason              = $reason
             passthrough_profile = $PassthroughProfile
-            language            = $rawLang
-            normalized_language = Normalize-AudioLanguagePreferenceValue $rawLang
+            language            = $normalizedLang
+            normalized_language = $normalizedLang
             source_codec        = $codec
             source_channels     = $ch
             output_codec        = $outputCodec
@@ -292,7 +293,7 @@ function Build-AudioStreamDecisionPlan {
             SourceStreamIndex = $sourceStreamIndex
             Action            = $action
             Reason            = $reason
-            Language          = $rawLang
+            Language          = $normalizedLang
             SourceCodec       = $codec
             SourceChannels    = $ch
             OutputCodec       = $outputCodec
@@ -325,7 +326,7 @@ function Build-AudioStreamDecisionPlan {
             Value        = $defaultDisposition
         }) | Out-Null
         foreach ($record in @($audioDecisionRecords)) {
-            if ($null -ne $record -and [int]$record.audio_ordinal -eq $defaultIdx) {
+            if ($null -ne $record -and $null -ne $record.audio_ordinal -and [int]$record.audio_ordinal -eq $defaultIdx) {
                 $record.is_default = $true
             }
         }

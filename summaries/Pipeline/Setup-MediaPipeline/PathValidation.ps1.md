@@ -1,8 +1,8 @@
 ---
 file: Pipeline/Setup-MediaPipeline/PathValidation.ps1
-pipeline_stage: n/a
+pipeline_stage: setup
 token_priority: medium
-owner_domain: unknown
+owner_domain: scripts
 last_modified: 2026-05-30
 last_reviewed: 2026-05-30
 sha256: 2abd1940440e2deb101e79176386b1a94eeda9d4652b7c8c30666790a8aff6ca

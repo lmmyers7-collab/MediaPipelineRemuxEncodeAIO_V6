@@ -106,7 +106,7 @@ SUBTITLE_CONFIG_FIELD_DEFINITIONS = (
         "key": "ConvertVobSubToSrt",
         "label": "OCR VobSub to SRT",
         "kind": "bool",
-        "help": "OCR DVD/VobSub bitmap subtitles to SRT tracks using Subtitle Edit seconv with Tesseract.",
+        "help": "OCR DVD/VobSub bitmap subtitles to SRT tracks using Subtitle Edit 4.x with Tesseract.",
     },
     {
         "page": "Subtitles",
@@ -130,7 +130,7 @@ SUBTITLE_CONFIG_FIELD_DEFINITIONS = (
         "key": "VobSubOcrToolPath",
         "label": "VobSub OCR Tool",
         "kind": "string",
-        "help": "Path to Subtitle Edit seconv.exe. Relative paths are resolved from the Pipeline folder.",
+        "help": "Path to Subtitle Edit 4.x SubtitleEdit.exe. Relative paths are resolved from the Pipeline folder.",
     },
     {
         "page": "Subtitles",

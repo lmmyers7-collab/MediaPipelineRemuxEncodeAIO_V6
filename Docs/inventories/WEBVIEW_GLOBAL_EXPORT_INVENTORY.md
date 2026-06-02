@@ -1,6 +1,6 @@
 # WebView Global Export Inventory
 
-Date: 2026-05-29
+Date: 2026-06-02
 
 Inventories all `window.*` assignments in `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/*.js`. Source: generated scan of `window.{name} =` assignments across all 69 JS files.
 
@@ -12,7 +12,7 @@ Inventories all `window.*` assignments in `DesktopApp/mediapipeline_desktop_app/
 - **31 files** export a primary namespace object (`window.mediaPipeline* = { ... }`)
 - **64 files** also export flat functions directly onto `window`
 - **38 files** have no primary namespace object: `app.js`, `completedView.diagnostics.js`, `completedView.evidence.js`, `completedView.proof.js`, `completedView.review.js`, `crossPageContextView.conflict.js`, `crossPageContextView.sample.js`, `crossPageContextView.sampleValidation.js`, `crossPageContextView.sampleValidation.records.js`, `crossPageContextView.sampleValidation.runbook.js`, `crossPageContextView.sampleValidation.worksheet.js`, `crossPageContextView.settings.js`, `diagnosticsView.activejobs.js`, `diagnosticsView.investigation.js`, `diagnosticsView.log.js`, `launchView.preflight.js`, `launchView.realmedia.js`, `launchView.risk.js`, `launchView.scope.js`, `pendingPublishView.confidence.js`, `pendingPublishView.diagnostics.js`, `pendingPublishView.drain.js`, `pendingPublishView.recovery.js`, `queueView.detail.js`, `queueView.launch.js`, `queueView.review.js`, `queueView.summary.js`, `settingsView.builders.audio.js`, `settingsView.builders.file_safety.js`, `settingsView.builders.network.js`, `settingsView.builders.pending.js`, `settingsView.builders.queue.js`, `settingsView.builders.runtime.js`, `settingsView.builders.subtitle.js`, `settingsView.builders.video.js`, `settingsView.rawTriage.js`, `settingsView.safetyLocks.js`, `tauriLifecycleBridge.js`
-- **Flat export total:** 775
+- **Flat export total:** 788
 - **1 backend-injected bootstrap global** (`window.MEDIA_PIPELINE_BOOTSTRAP`) is read by `apiClient.js`
 - **All 32 primary namespace objects** have adjacent `Public namespace` JSDoc boundary comments. `test_webview_inventory_docs.py` fails if a future `window.mediaPipeline* = { ... }` namespace object is added without that boundary note.
 
@@ -22,7 +22,7 @@ Inventories all `window.*` assignments in `DesktopApp/mediapipeline_desktop_app/
 | File | Namespace Object | Flat Exports | Notes |
 |---|---|---:|---|
 | `apiClient.js` | mediaPipelineApi | 2 | Generated from current `window.* =` assignments |
-| `app.js` | - | 6 | Generated from current `window.* =` assignments |
+| `app.js` | - | 9 | Generated from current `window.* =` assignments |
 | `commandHistory.js` | mediaPipelineCommandHistory | 14 | Generated from current `window.* =` assignments |
 | `completedView.diagnostics.js` | - | 1 | Generated from current `window.* =` assignments |
 | `completedView.evidence.js` | - | 1 | Generated from current `window.* =` assignments |
@@ -63,7 +63,7 @@ Inventories all `window.*` assignments in `DesktopApp/mediapipeline_desktop_app/
 | `pendingPublishView.recovery.js` | - | 1 | Generated from current `window.* =` assignments |
 | `progressView.js` | mediaPipelineProgressView | 7 | Generated from current `window.* =` assignments |
 | `queueView.detail.js` | - | 1 | Generated from current `window.* =` assignments |
-| `queueView.js` | mediaPipelineQueueView | 76 | Generated from current `window.* =` assignments |
+| `queueView.js` | mediaPipelineQueueView | 77 | Generated from current `window.* =` assignments |
 | `queueView.launch.js` | - | 1 | Generated from current `window.* =` assignments |
 | `queueView.review.js` | - | 1 | Generated from current `window.* =` assignments |
 | `queueView.summary.js` | - | 1 | Generated from current `window.* =` assignments |
@@ -84,7 +84,7 @@ Inventories all `window.*` assignments in `DesktopApp/mediapipeline_desktop_app/
 | `settingsView.builders.runtime.js` | - | 1 | Generated from current `window.* =` assignments |
 | `settingsView.builders.subtitle.js` | - | 1 | Generated from current `window.* =` assignments |
 | `settingsView.builders.video.js` | - | 1 | Generated from current `window.* =` assignments |
-| `settingsView.js` | mediaPipelineSettingsView | 84 | Generated from current `window.* =` assignments |
+| `settingsView.js` | mediaPipelineSettingsView | 93 | Generated from current `window.* =` assignments |
 | `settingsView.rawTriage.js` | - | 1 | Generated from current `window.* =` assignments |
 | `settingsView.safetyLocks.js` | - | 1 | Generated from current `window.* =` assignments |
 | `settingsWizard.js` | mediaPipelineSettingsWizard | 0 | Generated from current `window.* =` assignments |
@@ -121,7 +121,7 @@ Several modules call other modules' flat exports via `typeof window.X === "funct
 
 ## Namespace Object Naming Convention
 
-All 29 namespace objects follow the `window.mediaPipeline{ModuleRole}` pattern:
+All 32 namespace objects follow the `window.mediaPipeline{ModuleRole}` pattern:
 - `window.mediaPipelineApi` — infrastructure
 - `window.mediaPipelineDom` — infrastructure
 - `window.mediaPipelineFormatters` — infrastructure
@@ -145,9 +145,9 @@ This is an object-boundary rule, not a mandate to add JSDoc to every internal he
 
 | Criterion | Status |
 |---|---|
-| All 67 JS files inventoried | Pass |
-| Namespace objects identified per file | Pass - 29 namespace-owning files; 38 no-namespace files listed in Summary |
-| Namespace object JSDoc boundary present | Pass - 29/29 namespace objects have adjacent `Public namespace` comments guarded by `test_webview_inventory_docs.py` |
+| All 69 JS files inventoried | Pass |
+| Namespace objects identified per file | Pass - 31 namespace-owning files; 38 no-namespace files listed in Summary |
+| Namespace object JSDoc boundary present | Pass - 32/32 namespace objects have adjacent `Public namespace` comments guarded by `test_webview_inventory_docs.py` |
 | Cross-module consumption documented | Pass |
 | Backend-injected globals identified | Pass — 1 (MEDIA_PIPELINE_BOOTSTRAP) |
 | No anonymous or generic window.* globals found | Pass |
@@ -226,11 +226,11 @@ Risk: Low — documentation only.
 
 ---
 
-## Machine-Generated Flat Export Manifest — 2026-05-29
+## Machine-Generated Flat Export Manifest — 2026-06-02
 
 Generated from `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/*.js` by scanning `window.* =` assignments. Namespace objects are listed separately from flat exports.
 
-Flat export total: 769
+Flat export total: 788
 
 <!-- BEGIN GENERATED WEBVIEW GLOBAL EXPORT MANIFEST -->
 ### apiClient.js
@@ -247,8 +247,11 @@ apiPost
 
 Namespace objects: none
 
-Flat exports (6):
+Flat exports (9):
 ```text
+showPage
+refreshAll
+refreshAllNow
 externalDependencyRows
 externalDependencyOverallStatus
 externalDependencySummaryLines
@@ -1121,8 +1124,9 @@ __queueDetailModule
 
 Namespace objects: mediaPipelineQueueView
 
-Flat exports (76):
+Flat exports (77):
 ```text
+__queueSetFileDrawer
 renderQueue
 resetQueueFilters
 renderQueueDetail
@@ -1430,7 +1434,7 @@ __settingsViewVideoBuilderModule
 
 Namespace objects: mediaPipelineSettingsView
 
-Flat exports (84):
+Flat exports (93):
 ```text
 configValue
 buildSettingsOverviewRows
@@ -1457,6 +1461,8 @@ getLastSettings
 isSettingsCommand
 settingsCommandHistoryLine
 renderSettingsCommandHistory
+settingsPatchLocalValidationHints
+settingsPatchLocalValidationHintLines
 settingsPolicyDeltaRows
 settingsPolicyDeltaStatus
 settingsLaunchImpactRows
@@ -1507,6 +1513,10 @@ settingsBdpgsOcrPathEvidence
 settingsBdpgsOcrPathEvidenceStatus
 settingsBdpgsOcrPathEvidenceLines
 renderSettingsBdpgsOcrPathEvidence
+settingsVobSubOcrPathEvidence
+settingsVobSubOcrPathEvidenceStatus
+settingsVobSubOcrPathEvidenceLines
+renderSettingsVobSubOcrPathEvidence
 markSubtitleSettingsBuilderDirty
 syncAudioSettingsBuilderFromConfig
 collectAudioSettingsBuilderPatch
@@ -1515,7 +1525,10 @@ renderAudioSettingsBuilderGuidance
 markAudioSettingsBuilderDirty
 renderSettingsMediaPolicyCrossCheck
 writeSettingsPatchJson
+previewSettingsPipelinePlan
 initSettingsViewEvents
+settingsRuntimeRestartConfirmationLine
+settingsRuntimeRestartNoticeLines
 ```
 
 ### settingsView.rawTriage.js

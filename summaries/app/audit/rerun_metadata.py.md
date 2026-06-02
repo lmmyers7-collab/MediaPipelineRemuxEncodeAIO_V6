@@ -3,9 +3,9 @@ file: app/audit/rerun_metadata.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: audit
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 77fda4132cf3abc94499cef56c68f2e43b47e306f338898130c12606eb0c252f
+sha256: 3de1308c972baf0845bf80a802a71e90ed048fc3e5328f3afb97c0592ecdb988
 ---
 # `app/audit/rerun_metadata.py`
 

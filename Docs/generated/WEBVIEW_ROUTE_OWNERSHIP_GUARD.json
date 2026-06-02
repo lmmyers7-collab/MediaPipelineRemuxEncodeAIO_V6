@@ -122,6 +122,12 @@
       ]
     },
     {
+      "route": "/api/maintenance/dependency-atlas",
+      "files": [
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/maintenanceView.js"
+      ]
+    },
+    {
       "route": "/api/maintenance/progress",
       "files": [
         "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/maintenanceView.js"
@@ -189,6 +195,24 @@
     },
     {
       "route": "/api/queue/file-overrides",
+      "files": [
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.js"
+      ]
+    },
+    {
+      "route": "/api/queue/file-overrides/folder-preview",
+      "files": [
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.js"
+      ]
+    },
+    {
+      "route": "/api/queue/file-overrides/folder-rule",
+      "files": [
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.js"
+      ]
+    },
+    {
+      "route": "/api/queue/file-overrides/route-preview",
       "files": [
         "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.js"
       ]

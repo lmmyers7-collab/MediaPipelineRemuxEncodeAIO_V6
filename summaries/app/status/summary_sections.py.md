@@ -2,7 +2,7 @@
 file: app/status/summary_sections.py
 pipeline_stage: observability
 token_priority: medium
-owner_domain: unknown
+owner_domain: observability
 last_modified: 2026-05-28
 last_reviewed: 2026-05-28
 sha256: 15e27959a48bb14d7bead03390a3b825e3dd0c43d0c0ed9b20c019715f027dc2

@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/config_keys.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: f632042c821cfbe2295cbf47b1a02ddcab2fc7373d38c4a95171d1aa687a43b1
+sha256: e40ac0a6b51e9e63be2d24ed908e4c5e799a6ffb5cfdab1d57e62a8b41323053
 ---
 # `DesktopApp/mediapipeline_desktop_app/config_keys.py`
 

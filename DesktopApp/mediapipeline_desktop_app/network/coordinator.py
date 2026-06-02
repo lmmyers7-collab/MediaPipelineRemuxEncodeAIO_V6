@@ -148,7 +148,7 @@ class CoordinatorDispatcher(QueueDispatcher):
 
         # Crash-recovery: restore any jobs that were in-flight when the
         # coordinator last exited unexpectedly.
-        self._registry.load(self._inflight_state_path())
+        self._restore_inflight_state()
 
         # Start the coordinator HTTP server first. If a later startup step
         # fails, tear it back down so we do not leave a half-initialized
@@ -249,6 +249,21 @@ class CoordinatorDispatcher(QueueDispatcher):
                 body=body,
                 nonce_cache=self._auth_nonce_cache,
             )
+
+    def _restore_inflight_state(self) -> None:
+        """Load crash-recovery state before accepting worker claims."""
+        path = self._inflight_state_path()
+        if self._registry.load(path):
+            return
+        _log.error(
+            "Coordinator in-flight state restore failed for %s; refusing to start coordinator "
+            "to avoid duplicate worker claims. Repair or remove the state file after confirming workers are idle.",
+            path,
+        )
+        raise RuntimeError(
+            f"Coordinator in-flight state restore failed for {path}; "
+            "refusing to start until state is repaired or workers are confirmed idle."
+        )
 
     # ------------------------------------------------------------------
     # Paths

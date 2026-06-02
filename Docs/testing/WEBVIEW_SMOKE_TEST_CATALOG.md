@@ -133,9 +133,9 @@ The Python browser-smoke modules share `DesktopApp\tests\webview_browser_smoke_s
 ### `Test-WebViewBrowserMaintenanceReportsSmoke.ps1`
 
 - **Unittest:** `DesktopApp.tests.test_webview_browser_maintenance_reports_smoke`
-- **What it does:** Starts a temporary local API, opens the real backend-served WebView in Chrome/Edge headless, renders Maintenance health evidence and synthetic dry-run results, then renders Reports failure/audit triage and row details.
-- **Verifies:** Maintenance readiness/real-media boundary text, release dry-run result rendering, completed-manifest backfill dry-run result rendering, dry-run command history, Reports failure/audit triage, failure and audit selected-row detail, Reports-to-Launch handoff text, read-only Launch/Diagnostics navigation, and no mutation POSTs.
-- **Does not:** Process media, launch pipeline commands, run audit, run CSV rerun, execute release packaging, rewrite completed manifests, publish, rename, save settings, mutate queue state, or post mutation routes. No Playwright or Puppeteer dependency.
+- **What it does:** Starts a temporary local API, opens the real backend-served WebView in Chrome/Edge headless, renders Maintenance health evidence and synthetic dry-run results, then renders Reports failure/audit triage, failure-marker clear dry-run preview, and row details.
+- **Verifies:** Maintenance readiness/real-media boundary text, release dry-run result rendering, completed-manifest backfill dry-run result rendering, dry-run command history, Reports failure/audit triage, failure-marker clear dry-run preview with backend-enumerated `all_markers` scope, failure and audit selected-row detail, Reports-to-Launch handoff text, read-only Launch/Diagnostics navigation, and no non-dry-run mutation POSTs.
+- **Does not:** Process media, launch pipeline commands, run audit, run CSV rerun, execute release packaging, rewrite completed manifests, publish, rename, save settings, mutate queue state, or post non-dry-run mutation routes. No Playwright or Puppeteer dependency.
 
 ### `Test-WebViewBrowserSampleValidationSmoke.ps1`
 

@@ -110,6 +110,32 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
         self.assertTrue(any(item["code"] == "raw_video_flags_present" for item in summary["items"]))
         self.assertIn("Settings risk", "\n".join(preview.warnings))
 
+    def test_settings_patch_preview_treats_queue_and_show_policy_keys_as_known_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {}
+
+            preview = facade.preview_settings_patch(
+                resolved,
+                {
+                    "changes": {
+                        "MixPriorityPhase": True,
+                        "QueueOrderingStrategy": "ManualOrder",
+                        "ShowOverrides": {"Example Show": {"VideoCodec": "hevc_nvenc"}},
+                    }
+                },
+            )
+
+        self.assertTrue(preview.ok)
+        self.assertEqual(
+            sorted(preview.data["changed_keys"]),
+            ["MixPriorityPhase", "QueueOrderingStrategy", "ShowOverrides"],
+        )
+        self.assertFalse(any(item["code"] == "unknown_key" for item in preview.data["risk_summary"]["items"]))
+
     def test_settings_patch_preview_reports_pending_publish_recovery_risks(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

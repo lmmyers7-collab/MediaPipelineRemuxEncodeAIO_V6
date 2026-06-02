@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_facade_pending_publish_policy.py
 pipeline_stage: publish
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-30
+last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: 4c0b568c36d21c7953c5e463d6d2e2e62ed88ddcd1f51b5c5c2424fb6ff806f2
+sha256: bd01a6bfb8a6bfd217b10b9ecba9339436654d585a610a45831c587468cef1e9
 ---
 # `DesktopApp/tests/test_facade_pending_publish_policy.py`
 

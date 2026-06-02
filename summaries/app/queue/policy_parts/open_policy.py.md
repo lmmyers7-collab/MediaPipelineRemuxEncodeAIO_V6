@@ -2,7 +2,7 @@
 file: app/queue/policy_parts/open_policy.py
 pipeline_stage: orchestration
 token_priority: medium
-owner_domain: unknown
+owner_domain: queue
 last_modified: 2026-05-30
 last_reviewed: 2026-05-30
 sha256: b5d384d58611ef2758d43207f4829110fbcc35ef30692307b588b6569fc86c9a

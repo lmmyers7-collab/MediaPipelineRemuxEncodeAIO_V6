@@ -2,7 +2,7 @@
 file: app/queue/file_overrides.py
 pipeline_stage: orchestration
 token_priority: medium
-owner_domain: unknown
+owner_domain: queue
 last_modified: 2026-05-31
 last_reviewed: 2026-05-28
 sha256: c53d20b33f49f408a9f35f0c27807e5fb6bc4d19c0dc8201c09ee0c4f3b83b60

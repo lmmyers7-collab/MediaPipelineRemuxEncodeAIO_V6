@@ -33,9 +33,9 @@ $python = Resolve-WebViewBrowserNetworkSmokePython -ProjectRoot $projectRoot
 Write-Host 'WebView browser network smoke'
 Write-Host 'Boundary: starts a temporary local API against generated temporary state.'
 Write-Host 'Boundary: launches installed Chrome/Edge headless and drives real backend-served WebView Network controls.'
-Write-Host 'Boundary: validates read-only network readiness, lifecycle handoff, runtime state-file evidence, persisted worker rows, worker detail, and local worker filters.'
+Write-Host 'Boundary: validates read-only network runtime/lifecycle readiness, lifecycle handoff, runtime state-file evidence, persisted worker rows, worker detail, and local worker filters.'
 Write-Host 'Boundary: verifies filters warn when active/problem worker rows are hidden.'
-Write-Host 'Boundary: verifies no network lifecycle mutation commands are posted; WebView Network remains read-only.'
+Write-Host 'Boundary: verifies no network lifecycle mutation commands are posted; Worker Mode Settings save is not exercised by this smoke.'
 Write-Host 'Boundary: does not process media, launch pipeline commands, publish, rename, save settings, mutate queue state, start or stop coordinator/workers, or modify source/output/scratch media.'
 Write-Host 'Boundary: skips cleanly when Chrome/Edge is not installed.'
 Write-Host "Python: $python"

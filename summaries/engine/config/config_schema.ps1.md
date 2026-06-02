@@ -3,9 +3,9 @@ file: engine/config/config_schema.ps1
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: 1d6676380094fed34e6f90e99336f5bbe5c4fe241a7a3e4a8ac29712e2f7297d
+sha256: 0b776101ca80d90521fc8fcfea2c4e4caa3ef679de5a011af65bcbcdf31d7483
 ---
 # `engine/config/config_schema.ps1`
 

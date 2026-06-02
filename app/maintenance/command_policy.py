@@ -102,6 +102,35 @@ def release_build_message(result: dict[str, Any]) -> str:
     return f"Deployment build complete: {'; '.join(parts)}."
 
 
+def release_build_evidence_errors(result: dict[str, Any], request: dict[str, Any]) -> list[str]:
+    if not bool(result.get("success")):
+        return []
+    errors: list[str] = []
+    manifest_path = str(result.get("manifest_path") or "release_manifest.json")
+    if not bool(result.get("manifest_exists", False)):
+        errors.append(f"Release manifest was not found after deployment build: {manifest_path}")
+    zip_requested = bool(request.get("zip_package", True))
+    if zip_requested and not bool(result.get("zip_exists", False)):
+        zip_path = str(result.get("zip_path") or "release zip")
+        errors.append(f"Release zip was requested but not found after deployment build: {zip_path}")
+    return errors
+
+
+def release_dry_run_evidence_errors(result: dict[str, Any]) -> list[str]:
+    if not bool(result.get("success")):
+        return []
+    errors: list[str] = []
+    if bool(result.get("manifest_created", False)):
+        errors.append(f"Release dry run unexpectedly created a manifest: {result.get('manifest_path') or 'release_manifest.json'}")
+    elif bool(result.get("manifest_changed", False)):
+        errors.append(f"Release dry run unexpectedly changed a preexisting manifest: {result.get('manifest_path') or 'release_manifest.json'}")
+    if bool(result.get("zip_created", False)):
+        errors.append(f"Release dry run unexpectedly created a zip: {result.get('zip_path') or 'release zip'}")
+    elif bool(result.get("zip_changed", False)):
+        errors.append(f"Release dry run unexpectedly changed a preexisting zip: {result.get('zip_path') or 'release zip'}")
+    return errors
+
+
 def maintenance_progress_bar_from_steps(
     *,
     bar_id: str,
@@ -136,7 +165,9 @@ def maintenance_progress_bar_from_steps(
 
 
 def release_dry_run_progress_payload(result: dict[str, Any], request: dict[str, Any]) -> dict[str, Any]:
-    success = bool(result.get("success"))
+    process_success = bool(result.get("success"))
+    evidence_errors = release_dry_run_evidence_errors(result)
+    success = process_success and not evidence_errors
     timed_out = bool(result.get("timed_out"))
     returncode = maintenance_int_value(result.get("returncode"))
     stdout = str(result.get("stdout") or "")
@@ -144,13 +175,19 @@ def release_dry_run_progress_payload(result: dict[str, Any], request: dict[str, 
     excluded = release_stdout_value(stdout, "Exclude")
     verify_requested = bool(request.get("verify", True))
     dry_run = bool(result.get("dry_run", True))
-    status = "complete" if success else "blocked" if timed_out else "error"
+    status = "complete" if success else "blocked" if timed_out or evidence_errors else "error"
     detail = (
         f"Release dry run completed; copy plan {copy_files or '?'} file(s), excluded {excluded or '?'}."
         if success
+        else "Release dry run artifact verification failed: " + "; ".join(evidence_errors)
+        if evidence_errors
         else f"Release dry run failed with exit {returncode}."
     )
-    step_status = "complete" if success else "blocked"
+    step_status = "complete" if process_success else "blocked" if timed_out else "error"
+    manifest_issue = bool(result.get("manifest_created", False)) or bool(result.get("manifest_changed", False))
+    zip_issue = bool(result.get("zip_created", False)) or bool(result.get("zip_changed", False))
+    manifest_status = "blocked" if evidence_errors and manifest_issue else "skipped" if process_success and dry_run else step_status
+    zip_status = "blocked" if evidence_errors and zip_issue else "skipped" if process_success and dry_run else step_status
     updated_at = datetime.now().isoformat(timespec="seconds")
     steps = [
         {
@@ -168,21 +205,37 @@ def release_dry_run_progress_payload(result: dict[str, Any], request: dict[str, 
         {
             "key": "manifest",
             "label": "Manifest",
-            "status": "skipped" if success and dry_run else step_status,
-            "detail": "Manifest write skipped by dry-run boundary." if dry_run else f"Manifest path: {result.get('manifest_path', '')}",
+            "status": manifest_status,
+            "detail": (
+                f"Unexpected manifest created by dry-run: {result.get('manifest_path', '')}"
+                if bool(result.get("manifest_created", False))
+                else f"Unexpected preexisting manifest changed by dry-run: {result.get('manifest_path', '')}"
+                if bool(result.get("manifest_changed", False))
+                else "Manifest write skipped by dry-run boundary."
+                if dry_run
+                else f"Manifest path: {result.get('manifest_path', '')}"
+            ),
         },
         {
             "key": "validate",
             "label": "Validate",
-            "status": step_status,
-            "detail": "Release builder exited successfully." if success else f"Return code {returncode}.",
+            "status": "complete" if success else "blocked" if evidence_errors else step_status,
+            "detail": (
+                "Release builder exited successfully and the dry-run artifact boundary held."
+                if success
+                else "Release builder exited successfully, but dry-run artifact evidence changed."
+                if evidence_errors
+                else f"Return code {returncode}."
+            ),
         },
         {
             "key": "optional_smoke",
             "label": "Optional smoke",
-            "status": "skipped" if success else "blocked",
+            "status": zip_status if zip_issue else "skipped" if process_success else "blocked",
             "detail": (
-                "Verify/smoke is only planned in this WebView dry-run; no release artifacts were created."
+                f"Unexpected zip artifact changed by dry-run: {result.get('zip_path', '')}"
+                if zip_issue
+                else "Verify/smoke is only planned in this WebView dry-run; no release artifacts were created."
                 if verify_requested
                 else "Verify/smoke was not requested."
             ),
@@ -202,6 +255,7 @@ def release_dry_run_progress_payload(result: dict[str, Any], request: dict[str, 
         "status": status,
         "dry_run": True,
         "detail": detail,
+        "artifact_verification_errors": evidence_errors,
         "updated_at": updated_at,
         "steps": steps,
         "progress_bars": [bar],
@@ -209,7 +263,9 @@ def release_dry_run_progress_payload(result: dict[str, Any], request: dict[str, 
 
 
 def release_build_progress_payload(result: dict[str, Any], request: dict[str, Any]) -> dict[str, Any]:
-    success = bool(result.get("success"))
+    process_success = bool(result.get("success"))
+    evidence_errors = release_build_evidence_errors(result, request)
+    success = process_success and not evidence_errors
     timed_out = bool(result.get("timed_out"))
     returncode = maintenance_int_value(result.get("returncode"))
     stdout = str(result.get("stdout") or "")
@@ -219,13 +275,41 @@ def release_build_progress_payload(result: dict[str, Any], request: dict[str, An
     zip_requested = bool(request.get("zip_package", True))
     manifest_exists = bool(result.get("manifest_exists", False))
     zip_exists = bool(result.get("zip_exists", False))
-    status = "complete" if success else "blocked" if timed_out else "error"
-    detail = (
-        f"Deployment build completed; copied {copy_files or '?'} file(s), excluded {excluded or '?'}, manifest {'written' if manifest_exists else 'not found'}, zip {'written' if zip_exists else 'not written'}."
-        if success
-        else f"Deployment build failed with exit {returncode}."
+    status = "complete" if success else "blocked" if timed_out or evidence_errors else "error"
+    if success:
+        detail = f"Deployment build completed; copied {copy_files or '?'} file(s), excluded {excluded or '?'}, manifest written, zip {'written' if zip_exists else 'not written'}."
+    elif evidence_errors:
+        detail = "Deployment build artifact verification failed: " + "; ".join(evidence_errors)
+    else:
+        detail = f"Deployment build failed with exit {returncode}."
+    step_status = "complete" if process_success else "blocked" if timed_out else "error"
+    manifest_status = "complete" if process_success and manifest_exists else "blocked" if process_success else step_status
+    zip_status = (
+        "complete"
+        if process_success and zip_exists
+        else "skipped"
+        if process_success and not zip_requested
+        else "blocked"
+        if process_success
+        else step_status
     )
-    step_status = "complete" if success else "blocked"
+    verify_status = (
+        "complete"
+        if success and verify_requested
+        else "skipped"
+        if process_success and not verify_requested
+        else "blocked"
+        if evidence_errors
+        else step_status
+    )
+    if success and verify_requested:
+        verify_detail = "Release verification was requested and required artifacts were found."
+    elif process_success and not verify_requested:
+        verify_detail = "Verify was not requested."
+    elif evidence_errors:
+        verify_detail = "Required artifact evidence is missing after release verification."
+    else:
+        verify_detail = f"Return code {returncode}."
     updated_at = datetime.now().isoformat(timespec="seconds")
     steps = [
         {
@@ -243,26 +327,32 @@ def release_build_progress_payload(result: dict[str, Any], request: dict[str, An
         {
             "key": "manifest",
             "label": "Manifest",
-            "status": "complete" if success and manifest_exists else "blocked" if success else step_status,
+            "status": manifest_status,
             "detail": f"Manifest path: {result.get('manifest_path', '')}" if manifest_exists else "Manifest was not found after deployment build.",
         },
         {
             "key": "validate",
             "label": "Validate",
-            "status": step_status,
-            "detail": "Release builder exited successfully." if success else f"Return code {returncode}.",
+            "status": "complete" if success else "blocked" if evidence_errors else step_status,
+            "detail": (
+                "Release builder exited successfully and required artifacts were found."
+                if success
+                else "Release builder exited successfully, but required artifact evidence is missing."
+                if evidence_errors
+                else f"Return code {returncode}."
+            ),
         },
         {
             "key": "zip",
             "label": "Zip",
-            "status": "complete" if success and zip_exists else "skipped" if success and not zip_requested else step_status,
+            "status": zip_status,
             "detail": f"Zip path: {result.get('zip_path', '')}" if zip_exists else "Zip was not requested." if not zip_requested else "Zip was requested but not found.",
         },
         {
             "key": "verify",
             "label": "Verify",
-            "status": "complete" if success and verify_requested else "skipped" if success else step_status,
-            "detail": "Release verification was requested and the builder exited successfully." if verify_requested else "Verify was not requested.",
+            "status": verify_status,
+            "detail": verify_detail,
         },
     ]
     bar = maintenance_progress_bar_from_steps(
@@ -279,6 +369,7 @@ def release_build_progress_payload(result: dict[str, Any], request: dict[str, An
         "status": status,
         "dry_run": False,
         "detail": detail,
+        "artifact_verification_errors": evidence_errors,
         "updated_at": updated_at,
         "steps": steps,
         "progress_bars": [bar],
@@ -501,17 +592,28 @@ def release_dry_run_invalid_result() -> CommandResult:
 
 
 def release_dry_run_result(result: dict[str, Any], request: dict[str, Any]) -> CommandResult:
-    success = bool(result.get("success"))
+    process_success = bool(result.get("success"))
+    evidence_errors = release_dry_run_evidence_errors(result)
+    success = process_success and not evidence_errors
     timed_out = bool(result.get("timed_out"))
     returncode = maintenance_int_value(result.get("returncode"))
     severity = "info" if success else "warning" if timed_out else "error"
     progress = release_dry_run_progress_payload(result, request)
+    if success:
+        message = release_dry_run_message(result)
+        errors: list[str] = []
+    elif evidence_errors:
+        message = "Release dry run artifact verification failed: " + "; ".join(evidence_errors)
+        errors = evidence_errors
+    else:
+        message = f"Release dry run failed with exit {returncode}."
+        errors = [str(result.get("stderr") or result.get("stdout") or f"returncode={returncode}")]
     return _command_result(
         command=RELEASE_DRY_RUN_COMMAND,
         ok=success,
-        message=release_dry_run_message(result) if success else f"Release dry run failed with exit {returncode}.",
+        message=message,
         severity=severity,
-        errors=[] if success else [str(result.get("stderr") or result.get("stdout") or f"returncode={returncode}")],
+        errors=errors,
         refresh_hint=MAINTENANCE_REFRESH_HINT,
         data=_json_safe(
             {
@@ -520,13 +622,21 @@ def release_dry_run_result(result: dict[str, Any], request: dict[str, Any]) -> C
                 "manifest_path": result.get("manifest_path", ""),
                 "zip_path": result.get("zip_path", ""),
                 "manifest_exists": bool(result.get("manifest_exists", False)),
+                "manifest_preexisting": bool(result.get("manifest_preexisting", False)),
+                "manifest_created": bool(result.get("manifest_created", False)),
+                "manifest_changed": bool(result.get("manifest_changed", False)),
                 "zip_exists": bool(result.get("zip_exists", False)),
+                "zip_preexisting": bool(result.get("zip_preexisting", False)),
+                "zip_created": bool(result.get("zip_created", False)),
+                "zip_changed": bool(result.get("zip_changed", False)),
                 "returncode": returncode,
                 "timed_out": timed_out,
                 "elapsed_seconds": result.get("elapsed_seconds", 0.0),
                 "command": result.get("command", ""),
                 "stdout": result.get("stdout", ""),
                 "stderr": result.get("stderr", ""),
+                "process_success": process_success,
+                "artifact_verification_errors": evidence_errors,
                 "options": {
                     "zip_package": bool(request.get("zip_package", True)),
                     "verify": bool(request.get("verify", True)),
@@ -544,17 +654,28 @@ def release_dry_run_result(result: dict[str, Any], request: dict[str, Any]) -> C
 
 
 def release_build_result(result: dict[str, Any], request: dict[str, Any]) -> CommandResult:
-    success = bool(result.get("success"))
+    process_success = bool(result.get("success"))
+    evidence_errors = release_build_evidence_errors(result, request)
+    success = process_success and not evidence_errors
     timed_out = bool(result.get("timed_out"))
     returncode = maintenance_int_value(result.get("returncode"))
     severity = "info" if success else "warning" if timed_out else "error"
     progress = release_build_progress_payload(result, request)
+    if success:
+        message = release_build_message(result)
+        errors: list[str] = []
+    elif evidence_errors:
+        message = "Deployment build artifact verification failed: " + "; ".join(evidence_errors)
+        errors = evidence_errors
+    else:
+        message = f"Deployment build failed with exit {returncode}."
+        errors = [str(result.get("stderr") or result.get("stdout") or f"returncode={returncode}")]
     return _command_result(
         command=RELEASE_BUILD_COMMAND,
         ok=success,
-        message=release_build_message(result) if success else f"Deployment build failed with exit {returncode}.",
+        message=message,
         severity=severity,
-        errors=[] if success else [str(result.get("stderr") or result.get("stdout") or f"returncode={returncode}")],
+        errors=errors,
         refresh_hint=MAINTENANCE_REFRESH_HINT,
         data=_json_safe(
             {
@@ -563,7 +684,9 @@ def release_build_result(result: dict[str, Any], request: dict[str, Any]) -> Com
                 "manifest_path": result.get("manifest_path", ""),
                 "zip_path": result.get("zip_path", ""),
                 "manifest_exists": bool(result.get("manifest_exists", False)),
+                "manifest_changed": bool(result.get("manifest_changed", False)),
                 "zip_exists": bool(result.get("zip_exists", False)),
+                "zip_changed": bool(result.get("zip_changed", False)),
                 "returncode": returncode,
                 "timed_out": timed_out,
                 "elapsed_seconds": result.get("elapsed_seconds", 0.0),
@@ -571,6 +694,8 @@ def release_build_result(result: dict[str, Any], request: dict[str, Any]) -> Com
                 "stdout": result.get("stdout", ""),
                 "stderr": result.get("stderr", ""),
                 "writes_release_package": success,
+                "process_success": process_success,
+                "artifact_verification_errors": evidence_errors,
                 "options": {
                     "zip_package": bool(request.get("zip_package", True)),
                     "verify": bool(request.get("verify", True)),
@@ -751,6 +876,8 @@ __all__ = [
     "release_build_builder_kwargs",
     "release_dry_run_message",
     "release_build_message",
+    "release_dry_run_evidence_errors",
+    "release_build_evidence_errors",
     "maintenance_progress_bar_from_steps",
     "release_dry_run_progress_payload",
     "release_build_progress_payload",

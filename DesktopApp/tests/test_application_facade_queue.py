@@ -79,7 +79,8 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
                         "rows": [
                             {
                                 "global_order": 1,
-                                "phase": "tv",
+                                "phase": "priority_tv",
+                                "manifest_priority_level": "high",
                                 "media_kind": "tv",
                                 "queue_index": 1,
                                 "queue_total": 1,
@@ -174,16 +175,18 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
         self.assertEqual(preview["operator_status_state_counts"], {"warning": 1})
         self.assertEqual(preview["operator_severity_counts"], {"ok": 1})
         self.assertEqual(preview["operator_trust_state_counts"], {"launch-check-needed": 1})
-        self.assertEqual(preview["phase_counts"], {"TV": 1})
+        self.assertEqual(preview["phase_counts"], {"PRIORITY": 1})
         self.assertEqual(preview["media_type_counts"], {"TV": 1})
         self.assertEqual(preview["source_root_counts"], {str(root / "TV"): 1})
         self.assertEqual(preview["season_counts"], {"S01": 1})
-        self.assertEqual(preview["priority_visible_count"], 0)
+        self.assertEqual(preview["priority_visible_count"], 1)
         self.assertEqual(preview["invalid_row_count"], 0)
         self.assertEqual(preview["total_visible_size_gb"], 1.25)
         self.assertEqual(preview["total_visible_size_text"], "1.25 GB")
         self.assertEqual(len(preview["rows"]), 1)
         self.assertEqual(preview["rows"][0]["route_name"], "remux")
+        self.assertEqual(preview["rows"][0]["phase"], "PRIORITY")
+        self.assertEqual(preview["rows"][0]["manifest_priority_level"], "high")
         self.assertEqual(preview["rows"][0]["route_reason_code"], "copy_compatible")
         self.assertEqual(preview["rows"][0]["operator_status"], "Ready")
         self.assertEqual(preview["rows"][0]["operator_status_state"], "warning")

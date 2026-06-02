@@ -71,6 +71,44 @@ class StageRunnerTests(unittest.TestCase):
         self.assertFalse(result.ok)
         self.assertEqual(result.error.code if result.error else "", "stage.result_json_invalid")
 
+    def test_run_stage_rejects_result_for_wrong_stage(self) -> None:
+        def fake_run(args, **kwargs):
+            return StageProcessResult(
+                args=args,
+                returncode=0,
+                stdout=_stage_stdout(
+                    stage="probe",
+                    data={"probe_ok": True, "tool_path": "C:/Tools/ffprobe.exe"},
+                ),
+                stderr="",
+            )
+
+        result = run_decide_stage(
+            self._payload(),
+            RunnerOptions(entrypoint_path=self._existing_entrypoint(), powershell_path="pwsh", run_capture_func=fake_run),
+        )
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.stage, "decide")
+        self.assertEqual(result.error.code if result.error else "", "stage.result_stage_mismatch")
+
+    def test_run_stage_validates_stage_specific_success_data(self) -> None:
+        def fake_run(args, **kwargs):
+            return StageProcessResult(
+                args=args,
+                returncode=0,
+                stdout=_stage_stdout(data={"probe_ok": True, "tool_path": "C:/Tools/ffprobe.exe"}),
+                stderr="",
+            )
+
+        result = run_decide_stage(
+            self._payload(),
+            RunnerOptions(entrypoint_path=self._existing_entrypoint(), powershell_path="pwsh", run_capture_func=fake_run),
+        )
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error.code if result.error else "", "stage.result_contract_invalid")
+
     def test_run_stage_classifies_nonzero_without_json(self) -> None:
         def fake_run(args, **kwargs):
             return StageProcessResult(args=args, returncode=9, stdout="", stderr="boom")
@@ -134,6 +172,42 @@ class StageRunnerTests(unittest.TestCase):
 
         self.assertFalse(result.ok)
         self.assertEqual(result.error.code if result.error else "", "stage.entrypoint_missing")
+        self.assertFalse(called)
+
+    def test_run_stage_classifies_invalid_payload_before_spawn(self) -> None:
+        called = False
+
+        def fake_run(args, **kwargs):
+            nonlocal called
+            called = True
+            return StageProcessResult(args=args, returncode=0, stdout=_stage_stdout(), stderr="")
+
+        result = run_decide_stage(
+            {},
+            RunnerOptions(entrypoint_path=self._existing_entrypoint(), powershell_path="pwsh", run_capture_func=fake_run),
+        )
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error.code if result.error else "", "stage.invalid_payload")
+        self.assertFalse(called)
+
+    def test_run_stage_classifies_unknown_stage_before_spawn(self) -> None:
+        called = False
+
+        def fake_run(args, **kwargs):
+            nonlocal called
+            called = True
+            return StageProcessResult(args=args, returncode=0, stdout=_stage_stdout(), stderr="")
+
+        result = run_stage(
+            "unknown-stage",
+            {},
+            RunnerOptions(entrypoint_path=self._existing_entrypoint(), powershell_path="pwsh", run_capture_func=fake_run),
+        )
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.stage, "unknown-stage")
+        self.assertEqual(result.error.code if result.error else "", "stage.unknown")
         self.assertFalse(called)
 
     def test_run_stage_records_command_journal_payload(self) -> None:

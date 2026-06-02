@@ -80,6 +80,21 @@ function Test-IsPcmAudioCodec {
     return $false
 }
 
+function ConvertTo-EffectiveAudioBoolean {
+    param(
+        $Value,
+        [bool] $Default = $false
+    )
+
+    if ($null -eq $Value) { return $Default }
+    if ($Value -is [bool]) { return [bool]$Value }
+
+    $text = ([string]$Value).Trim()
+    if ($text -match '^(?i:true|1|yes|y|on)$') { return $true }
+    if ($text -match '^(?i:false|0|no|n|off)$') { return $false }
+    return $Default
+}
+
 function Get-EffectiveAudioTranscodeCodec {
     $value = if ($script:ActiveOverrides -and $script:ActiveOverrides.ContainsKey('AudioTranscodeCodec')) {
         [string]$script:ActiveOverrides['AudioTranscodeCodec']
@@ -114,8 +129,7 @@ function Get-EffectiveAudioTranscodeAutoBitrateByChannels {
         $script:AudioTranscodeAutoBitrateByChannels
     } else { $null }
     if ($null -eq $value) { return $false }
-    if ($value -is [bool]) { return [bool]$value }
-    return ([string]$value).Trim() -match '^(?i:true|1|yes|y|on)$'
+    return (ConvertTo-EffectiveAudioBoolean -Value $value -Default $false)
 }
 
 function Get-AudioTranscodeBitrateForChannels {
@@ -188,7 +202,7 @@ function Get-EffectiveAllowNoAudio {
     } elseif (Get-Variable -Name AllowNoAudio -Scope Script -ErrorAction SilentlyContinue) {
         $script:AllowNoAudio
     } else { $false }
-    return [bool]$value
+    return (ConvertTo-EffectiveAudioBoolean -Value $value -Default $false)
 }
 
 function Get-EffectiveAudioPassthroughProfile {
@@ -235,7 +249,7 @@ function Get-EffectiveCompatibleAudioCodecs {
             Select-Object -Unique
     )
 
-    if ($script:ActiveOverrides -and $script:ActiveOverrides.FlacAsCompatible) {
+    if ($script:ActiveOverrides -and (ConvertTo-EffectiveAudioBoolean -Value $script:ActiveOverrides.FlacAsCompatible -Default $false)) {
         $flacCodec = Get-MediaAudioCodecFlacName
         if ($effective -notcontains $flacCodec) {
             $effective = @($effective) + $flacCodec

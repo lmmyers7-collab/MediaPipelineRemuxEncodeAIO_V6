@@ -93,7 +93,7 @@ def promotion_status_warnings(
     if not enabled:
         warnings.append("Final Library Promotion is disabled in Settings.")
     if overwrite_existing:
-        warnings.append("Destructive overwrite is enabled: existing final files are deleted before replacement copy starts.")
+        warnings.append("Destructive overwrite is enabled: existing final files are replaced only after the staged replacement copy verifies.")
     if cleanup_after_verified:
         warnings.append("Cleanup after verified promotion is enabled for files below Outsource.")
     return warnings

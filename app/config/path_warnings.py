@@ -10,6 +10,20 @@ PathKeyFunc = Callable[[Path], str]
 PathWithinRootFunc = Callable[[Path, Path], bool]
 
 
+def _path_text_for_warning(value: Any) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    stripped = text.rstrip("\\/")
+    if not stripped:
+        return text
+    anchor = Path(text).expanduser().anchor
+    anchor_text = anchor.rstrip("\\/")
+    if anchor and anchor_text and stripped.casefold() == anchor_text.casefold():
+        return anchor
+    return stripped
+
+
 def config_path_overlap_warning(
     left_key: str,
     right_key: str,
@@ -47,7 +61,7 @@ def config_root_path_warnings(
 ) -> list[str]:
     warnings: list[str] = []
     path_values = {
-        key: str(values.get(key, "") or "").strip().rstrip("\\/")
+        key: _path_text_for_warning(values.get(key, ""))
         for key in (KEY_SOURCE_MOVIES, KEY_SOURCE_TV, KEY_OUTSOURCE, KEY_LOCAL_BASE)
     }
     for key, path_text in path_values.items():

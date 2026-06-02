@@ -79,7 +79,7 @@ No fixture JSON/JSONL files. All test data is inline:
 | `rename.apply` is not called when readiness is Blocked | `test_webview_rename_readiness_smoke`, `test_webview_browser_rename_smoke` | Covered at UI layer (Node VM and real browser) |
 | Duplicate-destination detection blocks apply | `test_service_rename_planner.py`, `test_webview_rename_readiness_smoke`, `test_webview_browser_rename_smoke` | Covered at service and UI layers; backend planner blocks every colliding row |
 | Backend rebuilds plan independently before apply | Implicit in `test_rename_service` (apply path uses planner) | Service-level coverage; no explicit "backend ignores frontend plan" test |
-| `confirm_apply` required in API payload | Route contract (`contract_command.py` field list), `test_application_facade_rename.py`, `test_application_facade_local_api.py` | Covered at facade and Local API route layers for absent/false confirmation with no rename mutation |
+| `confirm_apply` required as literal JSON boolean `true` in API payload | Route contract (`contract_command.py` field list), `test_application_facade_rename.py`, `test_application_facade_local_api.py` | Covered at facade and Local API route layers for absent, false, and non-boolean truthy confirmation values with no rename mutation |
 | Path casefolding for Windows case-insensitive match | `test_facade_rename_policy.py` | Covered |
 | Case-only rename (Windows-safe two-step) | `test_service_rename_apply.py` | Covered |
 | Sidecar metadata preserved after rename | `test_service_rename_apply.py` | Covered (error marker preservation, history cap) |
@@ -99,7 +99,7 @@ Closed 2026-05-19. `test_service_rename_planner.py` now creates two source rows 
 
 ### 2. `confirm_apply` Rejection Not Integration-Tested
 
-Closed 2026-05-19. `test_application_facade_local_api.py` now posts `POST /api/rename/apply` with `confirm_apply` absent and explicitly `false`, asserts a `desktop_command_result.v1` warning result, and verifies the source file was not renamed.
+Closed 2026-05-19 and tightened 2026-06-02. `test_application_facade_local_api.py` now posts `POST /api/rename/apply` with `confirm_apply` absent, explicitly `false`, and non-boolean `"false"`, asserts a `desktop_command_result.v1` warning result, and verifies the source file was not renamed.
 
 ## Known Gaps
 

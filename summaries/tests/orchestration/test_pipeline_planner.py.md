@@ -3,9 +3,9 @@ file: tests/orchestration/test_pipeline_planner.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: b148b81865525c89f3856b760d58c4598711be09da44a51a2602935bba860b98
+sha256: 3a052ed753c35dcf861c5f8b79deab59c50786ec53a6cb5959eb08037dbe5b02
 ---
 # `tests/orchestration/test_pipeline_planner.py`
 

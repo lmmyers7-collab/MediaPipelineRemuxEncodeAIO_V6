@@ -193,6 +193,26 @@ function Resolve-StageExecutable {
     throw "$ToolName executable not found in bundled path or system PATH."
 }
 
+function New-StageErrorFromException {
+    param(
+        [Parameter(Mandatory = $true)] [System.Management.Automation.ErrorRecord] $CaughtError
+    )
+
+    $message = [string]$CaughtError.Exception.Message
+    $code = 'stage.runtime_error'
+    if ($message -match '^missing required payload field ' -or
+        $message -match '^unsupported schema_version ' -or
+        $message -match '^payload stage ') {
+        $code = 'stage.invalid_payload'
+    } elseif ($message -match 'bundled executable not found|executable not found') {
+        $code = 'stage.tool_missing'
+    }
+
+    return New-StageError -Code $code -Message $message -Details ([ordered]@{
+        exception_type = $CaughtError.Exception.GetType().FullName
+    })
+}
+
 . (Join-Path $PSScriptRoot 'probe\stage.ps1')
 . (Join-Path $PSScriptRoot 'decide\stage.ps1')
 
@@ -232,8 +252,6 @@ try {
         }
     }
 } catch {
-    Write-StageResult -StageName $stageName -Ok:$false -StartedAt $startedAt -ErrorRecord (
-        New-StageError -Code 'stage.invalid_payload' -Message ([string]$_.Exception.Message)
-    )
+    Write-StageResult -StageName $stageName -Ok:$false -StartedAt $startedAt -ErrorRecord (New-StageErrorFromException -CaughtError $_)
     exit 1
 }

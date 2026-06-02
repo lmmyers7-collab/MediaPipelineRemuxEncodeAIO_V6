@@ -18,6 +18,7 @@ from app.observability.logging import JsonLineFormatter, bind_run_context
 from app.orchestration.runner import RunnerOptions, StageProcessResult, run_decide_stage
 from app.storage.db import CURRENT_SCHEMA_VERSION, STATE_DB_FILENAME, StateDbIncompatibleVersion, open_state_db
 from app.validation.boundary import ValidationFailure, validate_api_payload, validate_stage_payload, validate_stage_result
+from mediapipeline_desktop_app.api import LocalApiServer
 from mediapipeline_desktop_app.api.command_journal import CommandJournal
 from mediapipeline_desktop_app.api.command_journal_policy import COMMAND_RESULT_SCHEMA_VERSION
 from mediapipeline_desktop_app.models import ResolvedPaths
@@ -105,6 +106,36 @@ class Phase4StorageObservabilityTests(unittest.TestCase):
         self.assertEqual(queue_count, 1)
         self.assertEqual(completed_count, 1)
 
+    def test_completed_job_mirror_preserves_same_output_append_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            db = open_state_db(Path(td))
+            first = {
+                "output_path": "out.mkv",
+                "sidecar_path": "out.pipeline.json",
+                "completed_at": "2026-05-28T00:00:00Z",
+                "route": "remux",
+            }
+            second = {
+                "output_path": "out.mkv",
+                "sidecar_path": "out.pipeline.json",
+                "completed_at": "2026-05-28T00:01:00Z",
+                "route": "encode",
+            }
+
+            db.record_completed_job(first)
+            db.record_completed_job(second)
+            db.record_completed_job(first)
+
+            conn = sqlite3.connect(Path(td) / STATE_DB_FILENAME)
+            try:
+                rows = conn.execute("SELECT output_path, payload_json FROM completed_jobs ORDER BY id").fetchall()
+            finally:
+                conn.close()
+
+        self.assertEqual(len(rows), 2)
+        self.assertEqual([row[0] for row in rows], ["out.mkv", "out.mkv"])
+        self.assertEqual([json.loads(row[1])["route"] for row in rows], ["remux", "encode"])
+
     def test_command_journal_dual_writes_json_and_sqlite_mirror(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -124,6 +155,78 @@ class Phase4StorageObservabilityTests(unittest.TestCase):
             commands = open_state_db(root / "State").list_recent_commands()
 
         self.assertEqual(payload["entries"][0]["command"], "settings.reload")
+        self.assertEqual(commands[0]["command"], "settings.reload")
+
+    def test_command_journal_sqlite_mirror_uses_redacted_bounded_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            journal = CommandJournal(
+                path=root / "RunLogs" / "local_api_command_history.json",
+                state_db_root=root / "State",
+            )
+            journal.record(
+                {
+                    "schema_version": COMMAND_RESULT_SCHEMA_VERSION,
+                    "command": "pipeline.start",
+                    "ok": True,
+                    "severity": "info",
+                    "message": "started",
+                    "data": {"mode": "once", "secret_token": "hidden"},
+                },
+                request={"authorization": "Bearer hidden", "mode": "once"},
+            )
+
+            command = open_state_db(root / "State").list_recent_commands()[0]
+
+        payload = command["payload"]
+        self.assertEqual(payload["data"]["secret_token"], "<redacted>")
+        self.assertEqual(payload["request"]["authorization"], "<redacted>")
+        self.assertEqual(payload["request"]["mode"], "once")
+        self.assertNotIn("hidden", json.dumps(payload, sort_keys=True))
+
+    def test_local_api_command_journal_mirror_uses_latest_resolved_state_root(self) -> None:
+        class DummyFacade:
+            app_version = "v6-test"
+
+        def resolved_for(root: Path, state_root: Path) -> ResolvedPaths:
+            return ResolvedPaths(
+                app_root=root / "DesktopApp",
+                workspace_root=root,
+                pipeline_path=root / "Pipeline" / "MediaPipeline.ps1",
+                config_path=root / "Pipeline" / "config.psd1",
+                audit_script_path=root / "Pipeline" / "audit.ps1",
+                rerun_script_path=root / "Pipeline" / "rerun.ps1",
+                powershell_host="pwsh",
+                local_base=state_root.parent,
+                state_root=state_root,
+            )
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            old_state_root = root / "OldLocalBase" / "State"
+            new_state_root = root / "NewLocalBase" / "State"
+            current = {"resolved": resolved_for(root, old_state_root)}
+            server = LocalApiServer(
+                DummyFacade(),  # type: ignore[arg-type]
+                resolved_provider=lambda: current["resolved"],
+                command_journal_path=root / "RunLogs" / "local_api_command_history.json",
+                logger=logging.getLogger("test.phase4.command_journal"),
+            )
+            current["resolved"] = resolved_for(root, new_state_root)
+
+            server._record_command_journal(
+                {
+                    "schema_version": COMMAND_RESULT_SCHEMA_VERSION,
+                    "command": "settings.reload",
+                    "ok": True,
+                    "severity": "info",
+                    "message": "Settings reloaded",
+                }
+            )
+
+            commands = open_state_db(new_state_root).list_recent_commands()
+
+        self.assertFalse((old_state_root / STATE_DB_FILENAME).exists())
         self.assertEqual(commands[0]["command"], "settings.reload")
 
     def test_stage_runner_dual_writes_stage_event_mirror(self) -> None:

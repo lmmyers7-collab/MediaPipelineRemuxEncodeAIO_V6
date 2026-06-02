@@ -72,7 +72,7 @@ class RenameFacadeMixin:
 
     def apply_rename_selection(self, request: dict[str, Any]) -> CommandResult:
         """Apply a selected rename plan rebuilt by the backend from the current request."""
-        if not bool(request.get("confirm_apply", False)):
+        if request.get("confirm_apply") is not True:
             return rename_apply_confirmation_required_result()
         selected_sources = selected_rename_sources(request)
         if not selected_sources:

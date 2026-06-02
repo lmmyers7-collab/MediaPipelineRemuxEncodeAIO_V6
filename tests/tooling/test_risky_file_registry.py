@@ -16,13 +16,18 @@ spec.loader.exec_module(registry_check)
 
 
 class RiskyFileRegistryTests(unittest.TestCase):
+    def test_current_repository_registry_is_valid(self) -> None:
+        registry = registry_check.load_registry()
+
+        self.assertEqual(registry_check.validate_registry(registry), [])
+
     def test_registry_validator_requires_validation_for_high_risk_entries(self) -> None:
         registry = {
             "schema_version": "risky_file_registry.v1",
             "entries": [
                 {
                     "id": "unsafe",
-                    "path_globs": ["Pipeline/Modules/Disk.ps1"],
+                    "path_globs": ["engine/storage/disk.ps1"],
                     "risk_level": "high",
                     "risk_domains": ["cleanup"],
                     "validation_rung": "release",
@@ -34,7 +39,7 @@ class RiskyFileRegistryTests(unittest.TestCase):
             ],
         }
 
-        findings = registry_check.validate_registry(registry, known_paths={"Pipeline/Modules/Disk.ps1"})
+        findings = registry_check.validate_registry(registry, known_paths={"engine/storage/disk.ps1"})
 
         self.assertIn("RISK013", {finding.rule_id for finding in findings})
 
@@ -60,13 +65,38 @@ class RiskyFileRegistryTests(unittest.TestCase):
 
         self.assertIn("RISK010", {finding.rule_id for finding in findings})
 
+    def test_registry_validator_flags_missing_owner_docs(self) -> None:
+        registry = {
+            "schema_version": "risky_file_registry.v1",
+            "entries": [
+                {
+                    "id": "missing_owner_doc",
+                    "path_globs": ["scripts/dev/check_risky_file_registry.py"],
+                    "risk_level": "medium",
+                    "risk_domains": ["tooling"],
+                    "validation_rung": "unit",
+                    "required_checks": ["tests"],
+                    "manual_gates": [],
+                    "owner_docs": ["Docs/architecture/DOES_NOT_EXIST.md"],
+                    "rationale": "test",
+                }
+            ],
+        }
+
+        findings = registry_check.validate_registry(
+            registry,
+            known_paths={"scripts/dev/check_risky_file_registry.py"},
+        )
+
+        self.assertIn("RISK015", {finding.rule_id for finding in findings})
+
     def test_classify_paths_returns_validation_requirements(self) -> None:
         registry = {
             "schema_version": "risky_file_registry.v1",
             "entries": [
                 {
                     "id": "publish",
-                    "path_globs": ["Pipeline/Modules/Pending*.ps1"],
+                    "path_globs": ["app/publish/pending_*.py"],
                     "risk_level": "critical",
                     "risk_domains": ["pending_publish"],
                     "validation_rung": "pending",
@@ -78,11 +108,30 @@ class RiskyFileRegistryTests(unittest.TestCase):
             ],
         }
 
-        matches = registry_check.classify_paths(["Pipeline/Modules/PendingPush.ps1"], registry)
+        matches = registry_check.classify_paths(["app/publish/pending_manifest.py"], registry)
 
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].entry_id, "publish")
         self.assertEqual(matches[0].required_checks, ("pending-tests",))
+
+    def test_current_registry_classifies_promoted_domain_paths(self) -> None:
+        registry = registry_check.load_registry()
+
+        matches = registry_check.classify_paths(
+            [
+                "app/publish/pending_manifest.py",
+                "app/rename/apply.py",
+                "engine/config/config_schema.ps1",
+                "scripts/dev/check_dependency_boundaries.py",
+            ],
+            registry,
+        )
+
+        matched_ids = {match.entry_id for match in matches}
+        self.assertIn("publish_and_pending_publish", matched_ids)
+        self.assertIn("rename_apply", matched_ids)
+        self.assertIn("settings_and_config", matched_ids)
+        self.assertIn("ai_guardrails_and_generated_context", matched_ids)
 
 
 if __name__ == "__main__":

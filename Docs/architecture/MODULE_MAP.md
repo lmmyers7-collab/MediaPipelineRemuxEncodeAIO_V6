@@ -2,7 +2,7 @@
 
 > **Purpose:** Answer the question **"where does X live?"** in under two minutes for any feature, helper, route, or state field in the codebase.
 > **Audience:** Anyone (human or LLM agent) opening this repo for the first time, or anyone planning a new feature and needing to know which layer it belongs in.
-> **Companion to:** `CODE_MANAGEMENT_CLEANUP_PLAN.md` §3.10, which proposed this doc. Inventory files (`Docs/inventories/*`) are the line-by-line registries; this doc is the architectural overview.
+> **Companion to:** `AGENTS.md`, `Docs/CURRENT_PROJECT_STATE.md`, and the inventory files under `Docs/inventories/`. Inventories are the line-by-line registries; this doc is the architectural overview.
 
 ---
 
@@ -13,7 +13,7 @@
 │ TAURI SHELL  (DesktopApp/tauri_shell/src-tauri/src/)              │
 │   Rust process that owns app lifecycle, launches the backend,     │
 │   hosts the WebView2 window, enforces close-readiness.            │
-│   File: lib.rs  (and forthcoming sub-modules per GOD_FILE_SPLIT)  │
+│   Files: lib.rs and focused Rust lifecycle/contract modules.      │
 └────────────────────────────────────────────────────────────────────┘
                               │  spawns
                               ▼
@@ -88,14 +88,8 @@
 │ PIPELINE RUNTIME  (Pipeline/)                                      │
 │                                                                    │
 │  MediaPipeline.ps1  ── orchestrator (entry + main loop)    │
-│      ── Loads config, dot-sources compatibility Modules/*.ps1,     │
+│      ── Loads config, dot-sources active engine/<domain> modules,  │
 │         and runs pipeline rounds (queue build → process → publish).│
-│                                                                    │
-│  Pipeline/Modules/*.ps1  ── current dot-source compatibility path  │
-│      These files are temporary shims to engine/<domain>/ modules.  │
-│      Keep them only until full release, package-mode, and          │
-│      representative real-media evidence prove the old paths can be │
-│      deleted without changing operator behavior.                   │
 │                                                                    │
 │  engine/<domain>/*.ps1 ── active PowerShell implementations        │
 │      Examples (grouped):                                           │
@@ -111,9 +105,9 @@
 │        publish/*.ps1, library/library_index.ps1                    │
 │        process/pipeline_processing.ps1, queue/pipeline_engine.ps1  │
 │                                                                    │
-│  Audit-PendingPublishOutsourcedFiles.ps1, Backfill-*.ps1, Release- │
-│  CompletedOutsourceShare.ps1  ── scripts invoked by DesktopApp     │
-│                                  (audit, backfill, release).       │
+│  Audit-MediaLibrary.ps1, Backfill-CompletedManifest.ps1, scripts/ │
+│  release/*.ps1  ── helpers invoked by DesktopApp or operators for │
+│                   audit, manifest backfill, setup, and release.   │
 └────────────────────────────────────────────────────────────────────┘
 
 ┌────────────────────────────────────────────────────────────────────┐
@@ -179,19 +173,19 @@ Use this decision tree:
 3. Wire write handlers into `app/api/command_handlers.py` and route names into `app/api/commands.py`.
 4. Add a domain facade method under `app/<domain>/` that orchestrates the action.
 5. Add or reuse a focused module under the relevant `app/<domain>/` package for the actual state read/write.
-6. If the action affects pipeline behaviour: add a state file that PS1 reads (see §4), and add an `engine/<domain>/*.ps1` reader/applier while keeping any existing `Pipeline/Modules/*.ps1` compatibility path working until Phase 6 deletion gates close.
+6. If the action affects pipeline behaviour: add a state file that PS1 reads (see §4), and add an `engine/<domain>/*.ps1` reader/applier. Do not add a new `Pipeline/Modules/*.ps1` path.
 7. Wire the UI in the relevant `assets/xxxView.js` plus `index.html`.
 8. **Update inventories** (see §6).
 
 ### "I want a new piece of local state."
 
 1. Add the path to `app/paths/layout.py` or the path-resolution runner, plus the `ResolvedPaths` dataclass.
-2. Add the path to `engine/storage/state_store.ps1` and keep the current `Pipeline/Modules/StateStore.ps1` compatibility path working until Phase 6 removes it.
+2. Add the path to `engine/storage/state_store.ps1`.
 3. Both sides now have a deterministic path derived from `LocalBase`. Add a service file (DesktopApp side) and an `engine/<domain>/` file (PS1 side) for the read/write logic.
 
 ### "I want a new pipeline processing override."
 
-1. Extend the current file-overrides implementation behind `engine/queue/file_overrides.ps1`; keep `Pipeline/Modules/FileOverrides.ps1` as a compatibility shim only. New PowerShell files should use `engine/<domain>/`, not a new dotted `Pipeline/Modules` file.
+1. Extend the current file-overrides implementation behind `engine/queue/file_overrides.ps1`. New PowerShell files should use `engine/<domain>/`, not `Pipeline/Modules`.
 2. Wire its merge into `PipelineProcessing.ps1` at the right point in the per-file loop.
 3. Surface it via `app/queue/file_overrides.py` and the `/api/queue/file-overrides` route.
 4. Add a UI control to the per-file settings drawer in `queueView.js`.
@@ -214,8 +208,8 @@ Each persistent state file is read by both DesktopApp and PS1 in different ways.
 | `priority_manifest.json` | `app/queue/priority_manifest.py` (POST `/api/queue/priority`) | `engine/queue/queue_plan.ps1` at queue-build time |
 | `queue_strategy.json` | `app/queue/strategy.py` (POST `/api/queue/strategy`) | `engine/queue/queue_plan.ps1` at queue-build time |
 | `file_overrides.json` | `app/queue/file_overrides.py` (POST `/api/queue/file-overrides`) | `engine/queue/file_overrides.ps1` per file |
-| `Progress/pipeline_progress.json` | PS1 (`engine/status/progress_state.ps1`) | `app/status/*.py` (GET `/api/status`, `/api/progress`) |
-| `Progress/pipeline_events.jsonl` | PS1 (`engine/queue/pipeline_engine.ps1`) | `app/status/events.py` (GET `/api/progress`) |
+| `Progress/pipeline_progress.json` | PS1 (`engine/status/progress_state.ps1`) | `app/status/*.py` (GET `/api/snapshot`, GET `/api/diagnostics`) |
+| `Progress/pipeline_events.jsonl` | PS1 (`engine/queue/pipeline_engine.ps1`) | `app/status/events.py` (GET `/api/snapshot`, GET `/api/diagnostics`) |
 | `Progress/queue_snapshot.json` | PS1 (`engine/queue/pipeline_engine.ps1`) | `app/queue/snapshot.py` (GET `/api/queue`) |
 | `Pipeline/pipeline_{pause,stop,rescan}.flag` | `app/processes/control_flags.py` (POST `/api/pipeline/control`) | PS1 main loop (`MediaPipeline.ps1`) |
 | `ActiveJobs/*.json` | PS1 (`ProgressState.ps1`) | `app/processes/active_jobs.py` |
@@ -249,7 +243,7 @@ Parked output is media plus sidecars. The backend owns every decision about what
 1. **PS1 entry** (`MediaPipeline.ps1`) at startup — via PowerShell `Import-PowerShellDataFile`.
 2. **DesktopApp** at API-resolution time — via the config PSD1 reader in `app/config/` invoking a PS1 helper to read and emit JSON.
 
-Both sides ingest the same keys. **Config-key names are documented in `Docs/architecture/CONFIG_KEY_GLOSSARY.md`**. Python-side key names are guarded in `DesktopApp/mediapipeline_desktop_app/config_keys.py`; PowerShell-side key names are guarded in `engine/config/config_keys.ps1` with `Pipeline/Modules/ConfigKeys.ps1` kept as a compatibility shim. Drift tests are `DesktopApp/tests/test_config_keys.py` and `Pipeline/Tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1`.
+Both sides ingest the same keys. **Config-key names are documented in `Docs/architecture/CONFIG_KEY_GLOSSARY.md`**. Python-side key names are guarded in `DesktopApp/mediapipeline_desktop_app/config_keys.py`; PowerShell-side key names are guarded in `engine/config/config_keys.ps1`. Drift tests are `DesktopApp/tests/test_config_keys.py` and `Pipeline/Tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1`.
 
 ---
 
@@ -289,9 +283,9 @@ If you add a state file, route, DOM ID, or window-export and you do not update t
 | `app/api/commands_*.py` | Mixin with per-route POST handlers | `commands_queue_priority.py` |
 | `api/read_payloads_*.py` | Mixin with per-route GET handlers | `read_payloads_inventory.py` |
 | `api/*_policy.py` | Per-route policy/validation | `queue_source_path_policy.py` |
-| `Pipeline/Modules/*.ps1` | Current PS1 dot-source compatibility path; do not add new files here | `FileOverrides.ps1` |
+| `engine/<domain>/*.ps1` | Active PowerShell implementation modules | `engine/queue/file_overrides.ps1` |
 | `assets/xxxView.js` | One page-view module per WebView page | `queueView.js` |
-| `assets/xxxView.<slice>.js` | Split child of a page-view (per `GOD_FILE_SPLIT_PLAN.md`) | `completedView.evidence.js`, `completedView.proof.js`, `completedView.review.js`, `completedView.diagnostics.js`, `launchView.risk.js`, `launchView.scope.js`, `launchView.realmedia.js`, `launchView.preflight.js`, `pendingPublishView.recovery.js`, `pendingPublishView.diagnostics.js`, `pendingPublishView.drain.js`, `pendingPublishView.confidence.js` |
+| `assets/xxxView.<slice>.js` | Split child of a page-view, guarded by WebView split tooling | `completedView.evidence.js`, `completedView.proof.js`, `completedView.review.js`, `completedView.diagnostics.js`, `launchView.risk.js`, `launchView.scope.js`, `launchView.realmedia.js`, `launchView.preflight.js`, `pendingPublishView.recovery.js`, `pendingPublishView.diagnostics.js`, `pendingPublishView.drain.js`, `pendingPublishView.confidence.js` |
 | `assets/xxxHistory.js`, `xxxBridge.js`, `xxxLabels.js` | Sub-modules under a page view | `launchHistoryView.js` |
 
 If a new file does not match one of these patterns, it likely belongs in an existing layer using one of these names. Inventing new patterns adds discovery cost.

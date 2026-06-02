@@ -24,6 +24,7 @@ from app.diagnostics.open_policy import (
     normalize_diagnostics_open_target,
     optional_diagnostics_path,
 )
+from mediapipeline_desktop_app.api.contract_command import LOCAL_API_DIAGNOSTICS_COMMAND_ROUTE_CONTRACT
 from mediapipeline_desktop_app.models import ResolvedPaths
 
 
@@ -61,6 +62,15 @@ class DiagnosticsOpenPolicyTests(unittest.TestCase):
         self.assertIn("failed_markers", DIAGNOSTICS_OPEN_TARGETS)
         self.assertIn("active_jobs", DIAGNOSTICS_OPEN_TARGETS)
 
+    def test_local_api_contract_allowed_targets_match_policy(self) -> None:
+        route = next(
+            item
+            for item in LOCAL_API_DIAGNOSTICS_COMMAND_ROUTE_CONTRACT
+            if item["path"] == "/api/diagnostics/open"
+        )
+
+        self.assertEqual(route["allowed_targets"], list(DIAGNOSTICS_OPEN_TARGETS))
+
     def test_path_selection_uses_resolved_paths_and_launch_logs(self) -> None:
         root = Path("C:/MediaPipeline")
         resolved = _resolved(root)
@@ -89,6 +99,8 @@ class DiagnosticsOpenPolicyTests(unittest.TestCase):
         self.assertEqual(diagnostics_open_path(resolved, "latest_priority_csv", latest_priority_csv=latest_priority_csv), latest_priority_csv)
         self.assertEqual(diagnostics_open_path(resolved, "last_stdout_log", last_stdout_log=stdout), stdout)
         self.assertEqual(diagnostics_open_path(resolved, "last_stderr_log", last_stderr_log=stderr), stderr)
+        self.assertIsNone(diagnostics_open_path(resolved, "last_stdout_log", last_stdout_log=""))
+        self.assertIsNone(diagnostics_open_path(resolved, "last_stderr_log", last_stderr_log="   "))
         self.assertIsNone(diagnostics_open_path(resolved, "not_allowed"))
 
     def test_optional_path_and_operator_messages_are_stable(self) -> None:
@@ -96,7 +108,11 @@ class DiagnosticsOpenPolicyTests(unittest.TestCase):
         error = RuntimeError("blocked")
 
         self.assertEqual(optional_diagnostics_path(path), path)
+        self.assertEqual(optional_diagnostics_path(f" {path} "), path)
         self.assertIsNone(optional_diagnostics_path(None))
+        self.assertIsNone(optional_diagnostics_path(""))
+        self.assertIsNone(optional_diagnostics_path("   "))
+        self.assertIsNone(optional_diagnostics_path("bad\x00path"))
         self.assertIsNone(optional_diagnostics_path(object()))
         self.assertEqual(diagnostics_open_data("run_logs", path), {"target": "run_logs", "path": str(path)})
         self.assertEqual(diagnostics_open_success_message("run_logs"), "Opened Run logs folder.")

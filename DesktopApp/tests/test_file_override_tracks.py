@@ -308,6 +308,9 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
             outside_payload = harness._file_overrides_folder_preview_payload(
                 {"folder_path": str(outside), "proposed_override": {"audio": {"keepTracks": [{"language": "eng"}]}}}
             )
+            relative_payload = harness._file_overrides_folder_preview_payload(
+                {"folder_path": "Franchise", "proposed_override": {"audio": {"keepTracks": [{"language": "eng"}]}}}
+            )
             stream_index_payload = harness._file_overrides_folder_preview_payload(
                 {
                     "folder_path": str(folder),
@@ -329,6 +332,8 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
 
             self.assertFalse(outside_payload["ok"])
             self.assertIn("outside configured", outside_payload["message"].lower())
+            self.assertFalse(relative_payload["ok"])
+            self.assertIn("'folder_path' must be an absolute path", relative_payload["message"])
             self.assertFalse(stream_index_payload["ok"])
             self.assertIn("streamIndex", "\n".join(stream_index_payload["errors"]))
             self.assertFalse(raw_map_payload["ok"])
@@ -620,6 +625,8 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
             self.assertTrue(payload["ok"])
             self.assertTrue(payload["probe_available"])
             run_probe.assert_called_once()
+            runner_options = run_probe.call_args.args[1]
+            self.assertEqual(runner_options.state_db_root, resolved.state_root)
             self.assertFalse(resolved.file_overrides_path.exists())  # type: ignore[union-attr]
 
             outside = root / "Outside" / "Movie.mkv"
@@ -813,6 +820,63 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
         self.assertEqual(subtitle_preview["kept_stream_indexes"], [3, 4])
         self.assertEqual(subtitle_preview["dropped_stream_indexes"], [6])
         self.assertEqual(subtitle_preview["dropped_stream_sources"]["6"]["field"], "subtitles.dropTracks")
+
+    def test_effective_payload_normalizes_language_aliases_for_selection_preview(self) -> None:
+        payload = _effective_payload(
+            r"C:\Media\Movie.mkv",
+            {
+                "audio": {"keepTracks": [{"language": "eng"}]},
+                "subtitles": {"keepTracks": [{"language": "eng"}]},
+            },
+            track_payload={
+                "ok": True,
+                "probe_available": True,
+                "probe_source": "cache",
+                "audio_tracks": [
+                    {
+                        "stream_index": 1,
+                        "language": "en",
+                        "title": "English 5.1",
+                        "codec": "ac3",
+                        "channels": 6,
+                        "default": True,
+                        "forced": False,
+                    },
+                    {
+                        "stream_index": 2,
+                        "language": "japanese",
+                        "title": "Japanese",
+                        "codec": "aac",
+                        "channels": 2,
+                        "default": False,
+                        "forced": False,
+                    },
+                ],
+                "subtitle_tracks": [
+                    {
+                        "stream_index": 3,
+                        "language": "english",
+                        "title": "English SDH",
+                        "codec": "subrip",
+                        "default": False,
+                        "forced": False,
+                        "image_based": False,
+                    }
+                ],
+                "warnings": [],
+            },
+        )
+
+        audio_preview = payload["track_selection_preview"]["audio"]
+        self.assertEqual(audio_preview["kept_stream_indexes"], [1])
+        self.assertEqual(audio_preview["dropped_stream_indexes"], [2])
+        audio_warnings = "\n".join(item["message"] for item in audio_preview["warnings"])
+        self.assertNotIn("matches no audio tracks", audio_warnings)
+
+        subtitle_preview = payload["track_selection_preview"]["subtitles"]
+        self.assertEqual(subtitle_preview["kept_stream_indexes"], [3])
+        subtitle_warnings = "\n".join(item["message"] for item in subtitle_preview["warnings"])
+        self.assertNotIn("matches no subtitle tracks", subtitle_warnings)
 
     def test_effective_payload_marks_track_metadata_unavailable_when_probe_unavailable(self) -> None:
         payload = _effective_payload(

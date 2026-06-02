@@ -2,7 +2,7 @@
 file: app/final_library/service.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: final_library
 last_modified: 2026-05-30
 last_reviewed: 2026-05-29
 sha256: 2bdf3a8cdd53a49bcd3a671bad1f9d28163efe7cfd3a8f18d2fd73cda87a36b4

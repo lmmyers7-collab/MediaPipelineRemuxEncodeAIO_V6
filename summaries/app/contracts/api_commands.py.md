@@ -3,9 +3,9 @@ file: app/contracts/api_commands.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 781185fdde2714c291a4ac1987cdc1c6ccfc105de262c9343b122aaa1686ed82
+sha256: a12d73389bf527613333b4ebfde05871ff1794be84dbbd4e02f4265715f849a9
 ---
 # `app/contracts/api_commands.py`
 

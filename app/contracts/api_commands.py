@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, ValidationError
 
 from app.contracts.source_media import SourceMediaInfo
 
@@ -48,6 +48,7 @@ class QueuePriorityCommandPayload(ApiCommandPayload):
     level: Any = None
     reason: Any = None
     items: Any = None
+    clear_all: Any = None
 
 
 class QueueStrategyCommandPayload(ApiCommandPayload):
@@ -192,7 +193,7 @@ class PipelineStartCommandPayload(StrictApiCommandPayload):
 
 class BackendShutdownCommandPayload(StrictApiCommandPayload):
     reason: Any = None
-    force_active_work_shutdown: Any = None
+    force_active_work_shutdown: StrictBool | None = None
 
 
 class UiPreferencesCommandPayload(StrictApiCommandPayload):
@@ -227,6 +228,16 @@ class MaintenanceDependencyAtlasCommandPayload(StrictApiCommandPayload):
 
 
 class SampleValidationCommandPayload(ApiCommandPayload):
+    shell: Any = None
+    source_path: Any = None
+    output_path: Any = None
+    sample_label: Any = None
+    sample_category: Any = None
+    proof_strength: Any = None
+    operator_decision: Any = None
+    checks: Any = None
+    evidence: Any = None
+    operator_notes: Any = None
     sample_path: Any = None
     worksheet_path: Any = None
     result: Any = None
@@ -236,7 +247,11 @@ class SampleValidationCommandPayload(ApiCommandPayload):
 class FailureCommandPayload(ApiCommandPayload):
     dry_run: Any = None
     confirm: Any = None
+    confirm_clear: Any = None
     scope: Any = None
+    marker_path: Any = None
+    marker_paths: Any = None
+    source_json: Any = None
 
 
 class FinalLibraryPromoteQueueCommandPayload(StrictApiCommandPayload):

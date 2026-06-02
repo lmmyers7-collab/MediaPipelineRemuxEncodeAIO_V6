@@ -1,6 +1,6 @@
 # Operator Glossary
 
-Plain-language definitions of recurring terms in the MediaPipelineRemuxEncodeAIO V5 operator interface, documentation, and Diagnostics output.
+Plain-language definitions of recurring terms in the MediaPipelineRemuxEncodeAIO V6 operator interface, documentation, and Diagnostics output.
 
 ---
 
@@ -48,7 +48,7 @@ The backend's authoritative answer to "is it safe to close the app right now?" S
 An in-memory bounded FIFO log of recent POST command route results, kept by the local API. Displayed in WebView Command History and Diagnostics. Resets when the backend restarts. Not a durable audit log — it is session context for the current operator.
 
 ### Completed Manifest
-`State\Completed\completed_manifest.json`. The durable record of all successfully finished jobs: source path, output path, route reason, sidecar paths, audio/subtitle decisions, size. The WebView Completed page reads this. Do not delete it manually — rebuild only via `Backfill-CompletedManifest`.
+`State\Completed\completed_jobs.jsonl`. The durable record of all successfully finished jobs: source path, output path, route reason, sidecar paths, audio/subtitle decisions, size. The WebView Completed page reads this. Do not delete it manually — rebuild only via `Backfill-CompletedManifest`.
 
 ### Continuous Schedule-Stop Watcher
 A backend-owned monitor that tracks whether a continuous pipeline run should stop when its scheduled window closes. The watcher is armed when a continuous run starts; it issues a stop signal when the current time falls outside the configured schedule window. Visible in the Launch preflight as a readiness evidence row. An `Ignore Schedule` continuous start is flagged as a high-review intentional bypass. Does not fire during `run_once` starts or when schedule gates are not active.
@@ -230,7 +230,7 @@ A specific state that blocks a planned action: e.g., the Publish Button Guard's 
 
 ## See Also
 
-- Operator copy vocabulary: `Docs/archive/admin-audits/WEBVIEW_OPERATOR_COPY_AUDIT.md`
+- Operator copy vocabulary: `Docs/operator/TERMINOLOGY_CONSISTENCY_GUIDE.md`
 - Diagnostics targets: `Docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`
 - Runtime artifact paths: `Docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md`
 - API route mutation risk: `Docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md`

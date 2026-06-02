@@ -34,6 +34,17 @@ _PIPELINE_PLAN_PREVIEW_WARNING = (
 class SettingsPatchFacadeMixin:
     """Settings patch preview and save command adapters."""
 
+    if TYPE_CHECKING:
+        service: Any
+
+        def _settings_patch_candidate(
+            self,
+            resolved: ResolvedPaths,
+            request: dict[str, Any],
+            *,
+            command: str,
+        ) -> dict[str, Any]: ...
+
     def preview_settings_patch(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
         """Preview explicit settings changes without writing PSD1 config."""
         patch = self._settings_patch_candidate(resolved, request, command="settings.preview_patch")
@@ -92,7 +103,28 @@ class SettingsPatchFacadeMixin:
                 },
             )
 
-        plan = build_pipeline_plan_from_preset(source, patch["merged"])
+        try:
+            plan = build_pipeline_plan_from_preset(source, patch["merged"])
+        except ValidationError as exc:
+            return CommandResult(
+                command="settings.pipeline_plan_preview",
+                ok=False,
+                severity="error",
+                message="Settings PipelinePlan preview was blocked by planner validation.",
+                warnings=warnings,
+                errors=[str(error.get("msg") or error) for error in exc.errors()],
+                data={
+                    "schema_version": "pipeline_plan_preview_error.v1",
+                    "dry_run_only": True,
+                    "can_execute": False,
+                    "authority": _PIPELINE_PLAN_PREVIEW_AUTHORITY,
+                    "writes_config": False,
+                    "mutates_media": False,
+                    "changed_keys": list(patch["changed_keys"]),
+                    "removed_keys": list(patch["removed_keys"]),
+                    "risk_summary": patch["risk_summary"],
+                },
+            )
         data = plan.model_dump(mode="json", by_alias=True)
         rollout_state = resolve_planner_rollout_config(patch["merged"])
         planner_comparison = planner_comparison_from_decision_snapshot(

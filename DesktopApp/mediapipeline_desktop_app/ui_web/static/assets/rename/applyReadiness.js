@@ -9,6 +9,7 @@
       getCheckedRenameRows,
       getLastRenameRows,
       getRenameFinalOverrides,
+      getRenameApplyScopeRows,
       getSelectedRenameRow,
       renameConfidenceExplanation,
       renameConfidenceLabel,
@@ -21,6 +22,9 @@
     } = deps;
 
     function renameApplyScopeRows() {
+      if (typeof getRenameApplyScopeRows === "function") {
+        return getRenameApplyScopeRows();
+      }
       const checked = getCheckedRenameRows();
       if (checked.length) return { rows: checked, source: "checked rows" };
       const selected = getSelectedRenameRow();
@@ -65,7 +69,7 @@
       if (!rows.length) {
         setText("rename-selection-audit", [
           "Apply scope: none",
-          "Next step: check one or more applicable rows, or select a single row, before applying.",
+          "Next step: run Preview, then check rows to narrow scope or apply all applicable rows.",
           "Mutation guardrail: Apply still rebuilds the selected plan through the backend.",
         ].join("\n"));
         return;
@@ -99,7 +103,7 @@
       if (lastRenameRows.length > RENAME_PREVIEW_RENDER_LIMIT) {
         lines.push("Render cap note: checked scope may include rows not currently rendered; Apply uses backend selected_sources for checked rows, not visible table rows only.");
       }
-      lines.push("Next step: if the audit looks correct, Apply sends only this scope as backend selected_sources.");
+      lines.push("Next step: if the audit looks correct, Apply sends this scope as backend selected_sources.");
       lines.push("Mutation guardrail: no frontend filesystem mutation is performed.");
       setText("rename-selection-audit", lines.join("\n"));
     }
@@ -149,7 +153,7 @@
         "Apply scope",
         rows.length ? "ready" : "blocked",
         `${scope.source}; ${rows.length} row(s) would be submitted as backend selected_sources.`,
-        rows.length ? "Confirm this is the intended batch. Checked rows win; otherwise the selected row is used." : "Check applicable rows or select one row before applying.",
+        rows.length ? "Confirm this is the intended batch. Checked rows narrow scope; otherwise all applicable rows are used." : "Run Preview before applying.",
       ));
       readinessRows.push(renameApplyReadinessRow(
         "Blocked rows",

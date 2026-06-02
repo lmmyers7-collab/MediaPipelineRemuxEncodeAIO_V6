@@ -160,9 +160,9 @@ function Invoke-FFprobeCommand {
 
     $payload = @{
         streams = @(
-            @{ index = 0; codec_name = 'ac3'; channels = 6; channel_layout = '5.1(side)'; tags = @{ language = 'eng'; title = 'Director Commentary' }; disposition = @{ forced = 0; default = 1 } },
+            @{ index = 0; codec_name = 'ac3'; channels = 6; channel_layout = '5.1(side)'; tags = @{ language = 'en'; title = 'Director Commentary' }; disposition = @{ forced = 0; default = 1 } },
             @{ index = 1; codec_name = 'pcm_s16le'; channels = 2; channel_layout = 'stereo'; tags = @{ language = 'jpn'; title = '' }; disposition = @{ forced = 1; default = 0 } },
-            @{ index = 2; codec_name = 'truehd'; channels = 8; channel_layout = '7.1'; tags = @{ language = 'eng'; title = 'Main Audio' }; disposition = @{ forced = 0; default = 0 } }
+            @{ index = 2; codec_name = 'truehd'; channels = 8; channel_layout = '7.1'; tags = @{ language = 'english'; title = 'Main Audio' }; disposition = @{ forced = 0; default = 0 } }
         )
     }
     return [pscustomobject]@{ ExitCode = 0; Output = ($payload | ConvertTo-Json -Depth 8); Error = ''; TimedOut = $false; Stopped = $false }
@@ -184,6 +184,21 @@ $script:ProbeMode = 'normal'
 Assert-True (Test-IsPcmAudioCodec 'pcm_s16le') 'pcm_s16le was not detected as PCM audio.'
 Assert-True (Test-IsPcmAudioCodec 'A_PCM/INT/LIT') 'A_PCM/INT/LIT was not detected as PCM audio.'
 Assert-True (-not (Test-IsPcmAudioCodec 'eac3')) 'EAC3 was incorrectly detected as PCM audio.'
+
+$script:AllowNoAudio = 'false'
+Assert-True (-not (Get-EffectiveAllowNoAudio)) 'String AllowNoAudio=false should not enable no-audio output.'
+$script:AllowNoAudio = 'yes'
+Assert-True (Get-EffectiveAllowNoAudio) 'String AllowNoAudio=yes should enable no-audio output.'
+$script:ActiveOverrides = @{ AllowNoAudio = 'off' }
+Assert-True (-not (Get-EffectiveAllowNoAudio)) 'String ActiveOverrides AllowNoAudio=off should not enable no-audio output.'
+$script:ActiveOverrides = @{ FlacAsCompatible = 'false' }
+$script:CompatibleAudioCodecs = @('aac')
+Assert-SequenceEqual (Get-EffectiveCompatibleAudioCodecs) @('aac') 'String FlacAsCompatible=false should not add FLAC passthrough.'
+$script:ActiveOverrides = @{ FlacAsCompatible = 'true' }
+Assert-SequenceEqual (Get-EffectiveCompatibleAudioCodecs) @('aac','flac') 'String FlacAsCompatible=true should add FLAC passthrough.'
+$script:ActiveOverrides = @{}
+$script:AllowNoAudio = $false
+$script:CompatibleAudioCodecs = @('ac3', 'eac3', 'aac', 'truehd', 'flac')
 
 $expectedArgs = @(
     '-map','0:a:0',
@@ -221,6 +236,15 @@ Assert-True $audioDecisions[1].is_default 'Preferred forced Japanese track was n
 Assert-Equal $audioDecisions[2].output_codec 'truehd' 'TrueHD copy output codec decision changed.'
 Assert-Equal $audioDecisions[2].passthrough_profile 'custom_codec_list' 'Passthrough profile was not recorded.'
 
+$script:AudioTranscodeAutoBitrateByChannels = $true
+$scaledAudioArgs = @(Build-AudioArgs 'source.mkv')
+$scaledBitrateIndex = [array]::IndexOf($scaledAudioArgs, '-b:a:1')
+Assert-True ($scaledBitrateIndex -ge 0) 'Auto bitrate args did not include the transcoded PCM track bitrate option.'
+Assert-Equal $scaledAudioArgs[$scaledBitrateIndex + 1] '192k' 'Auto bitrate by channels should scale stereo EAC3 transcode bitrate.'
+$scaledDecisions = @(Get-LastAudioDecisionRecords)
+Assert-Equal $scaledDecisions[1].bitrate '192k' 'Auto bitrate decision record should capture the scaled stereo bitrate.'
+$script:AudioTranscodeAutoBitrateByChannels = $false
+
 $script:AudioOverride = [pscustomobject]@{ keep_languages = @('jpn'); title_override = 'Japanese PCM Override' }
 $filteredArgs = @(Build-AudioArgs 'source.mkv')
 Assert-SequenceEqual $filteredArgs @(
@@ -237,9 +261,11 @@ Assert-SequenceEqual $filteredArgs @(
 $filteredDecisions = @(Get-LastAudioDecisionRecords)
 Assert-Equal $filteredDecisions.Count 3 'Filtered decision record count changed.'
 Assert-Equal $filteredDecisions[0].action 'drop' 'First dropped audio decision changed.'
+Assert-True (-not $filteredDecisions[0].is_default) 'Dropped audio track was incorrectly recorded as default.'
 Assert-Equal $filteredDecisions[1].audio_ordinal 0 'Kept audio output ordinal changed.'
 Assert-Equal $filteredDecisions[1].title 'Japanese PCM Override' 'Audio title override changed.'
 Assert-Equal $filteredDecisions[2].action 'drop' 'Last dropped audio decision changed.'
+Assert-True (-not $filteredDecisions[2].is_default) 'Dropped audio track was incorrectly recorded as default.'
 
 $script:AudioOverride = $null
 $script:ProbeMode = 'missing'

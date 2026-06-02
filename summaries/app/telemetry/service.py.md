@@ -2,10 +2,10 @@
 file: app/telemetry/service.py
 pipeline_stage: observability
 token_priority: medium
-owner_domain: unknown
-last_modified: 2026-05-31
+owner_domain: observability
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 16192e22203ae83bee18586fd8ca183eefbb983bc487bb0beac8764e6c037e4e
+sha256: 22f7a5ede7d7bbc0f30d1e8dbf927701f7eaa2a555b4f3ab686d721fa942dde1
 ---
 # `app/telemetry/service.py`
 

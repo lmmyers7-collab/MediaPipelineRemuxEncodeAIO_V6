@@ -415,6 +415,7 @@ class SampleValidationApiTests(unittest.TestCase):
                 self.assertIn("Choose one representative sample and category", pilot_runbook["required_gaps"])
                 runbook_rows = {row["step"]: row for row in pilot_runbook["rows"]}
                 self.assertEqual(runbook_rows["Verify Completed output, route, sidecar, and size"]["status"], "ready")
+                self.assertIn("diagnostics/log stage=ready", runbook_rows["Monitor running process and diagnostics"]["evidence"])
                 self.assertEqual(runbook_rows["Preview and append evidence-only validation note"]["status"], "ready")
                 self.assertIn("# Real-Media WebView Pilot Runbook", pilot_runbook["markdown_text"])
                 self.assertIn("Read-only real-media pilot runbook", pilot_runbook["guardrail"])
@@ -662,6 +663,7 @@ class SampleValidationApiTests(unittest.TestCase):
         self.assertIn("Choose one representative sample and category", pilot_runbook["required_gaps"])
         runbook_rows = {row["step"]: row for row in pilot_runbook["rows"]}
         self.assertEqual(runbook_rows["Confirm saved media policy before launch"]["status"], "missing")
+        self.assertIn("diagnostics/log stage=missing", runbook_rows["Monitor running process and diagnostics"]["evidence"])
         self.assertIn("## Checklist", "\n".join(pilot_runbook["markdown_lines"]))
         self.assertIn("Read-only real-media pilot runbook", pilot_runbook["guardrail"])
         policy_alignment = payload["policy_alignment"]

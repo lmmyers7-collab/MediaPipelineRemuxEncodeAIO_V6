@@ -2,10 +2,10 @@
 file: app/status/active_jobs.py
 pipeline_stage: observability
 token_priority: medium
-owner_domain: unknown
-last_modified: 2026-05-31
+owner_domain: observability
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: c76c851bab4d39052b36756b82b8b123b2cd75e5d65db505fcf4691312e31715
+sha256: f8909064548d40bb00bc8d39ce73073abc846cb62bc66975b78df3e802d0ed8a
 ---
 # `app/status/active_jobs.py`
 

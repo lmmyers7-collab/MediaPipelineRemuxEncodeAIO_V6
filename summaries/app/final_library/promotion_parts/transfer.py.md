@@ -2,10 +2,10 @@
 file: app/final_library/promotion_parts/transfer.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
-last_modified: 2026-05-31
+owner_domain: final_library
+last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: f3087d490531b2e4759bd825a83f5bbe7385f5be6c4558fac8dbc96c9ec972d5
+sha256: d26618f68404d4f0b79f67dbab6376c4b7fe78c5ce3fd39c07eab9863164fd38
 ---
 # `app/final_library/promotion_parts/transfer.py`
 

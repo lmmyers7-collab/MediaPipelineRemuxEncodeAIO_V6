@@ -635,7 +635,7 @@ body.light-mode [data-page-panel="queue"] .queue-table tr.is-selected td {
 }
 .fo-route-preview-status[data-risk="high"],
 .fo-route-preview-status[data-risk="medium"] {
-  border-color: var(--orange-700, var(--blue-700));
+  border-color: var(--amber-700);
   color: var(--grey-100);
 }
 .fo-route-preview-list {
@@ -752,7 +752,7 @@ body.light-mode [data-page-panel="queue"] .queue-table tr.is-selected td {
   padding: 1px var(--space-2);
 }
 .fo-track-badge[data-tone="warning"] {
-  border-color: var(--orange-700, var(--blue-700));
+  border-color: var(--amber-700);
   color: var(--grey-100);
 }
 .fo-track-warning-list {
@@ -839,7 +839,7 @@ body.light-mode [data-page-panel="queue"] .queue-table tr.is-selected td {
   overflow-wrap: anywhere;
 }
 .fo-folder-preview-library-note:not(:empty) {
-  border: 1px solid var(--orange-700, var(--blue-700));
+  border: 1px solid var(--amber-700);
   border-radius: var(--radius-sm);
   color: var(--grey-100);
   padding: var(--space-3);
@@ -947,7 +947,7 @@ body.light-mode [data-page-panel="queue"] .queue-table tr.is-selected td {
   gap: var(--space-2);
 }
 .fo-folder-rule-library-note:not(:empty) {
-  border: 1px solid var(--orange-700, var(--blue-700));
+  border: 1px solid var(--amber-700);
   border-radius: var(--radius-sm);
   color: var(--grey-100);
   padding: var(--space-3);

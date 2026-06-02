@@ -77,6 +77,29 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
 
         self.assertEqual(violations, [])
 
+    def test_css_custom_property_references_are_declared_or_have_fallbacks(self) -> None:
+        declaration = re.compile(r"--([A-Za-z0-9_-]+)\s*:")
+        reference = re.compile(r"var\(\s*--([A-Za-z0-9_-]+)\s*(?P<suffix>[,)])")
+        declared: set[str] = set()
+        violations: list[str] = []
+
+        for file_name, _line_number, line in self._css_lines():
+            stripped = line.strip()
+            if not stripped.startswith("--"):
+                continue
+            match = declaration.match(stripped)
+            if match:
+                declared.add(match.group(1))
+
+        for file_name, line_number, line in self._css_lines():
+            for match in reference.finditer(line):
+                token = match.group(1)
+                has_fallback = match.group("suffix") == ","
+                if token not in declared and not has_fallback:
+                    violations.append(f"{file_name}:{line_number}: --{token}")
+
+        self.assertEqual(violations, [])
+
     def test_styles_parent_imports_split_assets_first(self) -> None:
         css = CSS_PATH.read_text(encoding="utf-8")
         tokens = (ASSETS_ROOT / "styles.tokens.css").read_text(encoding="utf-8")
@@ -87,10 +110,11 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         controls = (ASSETS_ROOT / "styles.controls.css").read_text(encoding="utf-8")
         layout_manager = (ASSETS_ROOT / "styles.layout-manager.css").read_text(encoding="utf-8")
         queue = (ASSETS_ROOT / "styles.queue.css").read_text(encoding="utf-8")
+        rename = (ASSETS_ROOT / "styles.rename.css").read_text(encoding="utf-8")
         lines = css.splitlines()
 
         self.assertEqual(
-            lines[:8],
+            lines[:9],
             [
                 '@import url("./styles.tokens.css");',
                 '@import url("./styles.theme.css");',
@@ -100,6 +124,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
                 '@import url("./styles.controls.css");',
                 '@import url("./styles.layout-manager.css");',
                 '@import url("./styles.queue.css");',
+                '@import url("./styles.rename.css");',
             ],
         )
         self.assertNotIn(":root {", css)
@@ -116,6 +141,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertNotIn(".priority-badge {", css)
         self.assertNotIn(".queue-strategy-select {", css)
         self.assertNotIn(".fo-drawer {", css)
+        self.assertNotIn(".rename-workbench", css)
         self.assertNotIn("body.light-mode .nav-button.is-active", css)
         self.assertIn(":root {", tokens)
         self.assertIn("body.light-mode {", tokens)
@@ -138,6 +164,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertIn(".priority-badge {", queue)
         self.assertIn(".queue-strategy-select {", queue)
         self.assertIn(".fo-drawer {", queue)
+        self.assertIn(".rename-workbench", rename)
 
     def test_workflow_tables_use_content_weighted_layout_classes(self) -> None:
         html = _rendered_index_html()

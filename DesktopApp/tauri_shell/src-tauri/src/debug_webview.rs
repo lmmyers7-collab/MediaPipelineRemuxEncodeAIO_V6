@@ -1,5 +1,78 @@
 use crate::ShellResult;
 
+const TEST_AUTH_CAPTURE_ENV_VAR: &str = "MEDIA_PIPELINE_TAURI_TEST_TOKEN_CAPTURE_FILE";
+
+#[cfg(debug_assertions)]
+pub(crate) fn maybe_write_debug_backend_auth_capture(backend_url: &str, token: &str) {
+    use std::{env, fs};
+
+    let Ok(path_text) = env::var(TEST_AUTH_CAPTURE_ENV_VAR) else {
+        return;
+    };
+    if path_text.trim().is_empty() {
+        return;
+    }
+
+    let path = match resolve_debug_backend_auth_capture_path(&path_text) {
+        Ok(path) => path,
+        Err(error) => {
+            eprintln!("[mediapipeline-shell] test auth capture path rejected: {error}");
+            return;
+        }
+    };
+
+    let payload = serde_json::json!({
+        "schema_version": "mediapipeline_tauri_test_auth_capture.v1",
+        "url": backend_url,
+        "token": token,
+    });
+    let body = match serde_json::to_string_pretty(&payload) {
+        Ok(value) => value,
+        Err(error) => {
+            eprintln!("[mediapipeline-shell] test auth capture serialization failed: {error}");
+            return;
+        }
+    };
+    if let Err(error) = fs::write(path, format!("{body}\n")) {
+        eprintln!("[mediapipeline-shell] test auth capture write failed: {error}");
+    }
+}
+
+#[cfg(debug_assertions)]
+fn resolve_debug_backend_auth_capture_path(path_text: &str) -> ShellResult<std::path::PathBuf> {
+    use std::{env, fs, path::PathBuf};
+
+    let requested = PathBuf::from(path_text.trim());
+    let file_name = requested
+        .file_name()
+        .and_then(|value| value.to_str())
+        .unwrap_or("");
+    if !file_name.ends_with(".backend_auth.json") {
+        return Err("debug auth capture files must end with .backend_auth.json".into());
+    }
+
+    let temp_root = env::temp_dir()
+        .canonicalize()
+        .unwrap_or_else(|_| env::temp_dir());
+    let absolute_path = if requested.is_absolute() {
+        requested
+    } else {
+        temp_root.join(requested)
+    };
+    let parent = absolute_path
+        .parent()
+        .ok_or("debug auth capture path did not have a parent directory")?;
+    fs::create_dir_all(parent)?;
+    let canonical_parent = parent.canonicalize()?;
+    if !canonical_parent.starts_with(&temp_root) {
+        return Err("debug auth capture path must stay under the system temp directory".into());
+    }
+    Ok(absolute_path)
+}
+
+#[cfg(not(debug_assertions))]
+pub(crate) fn maybe_write_debug_backend_auth_capture(_backend_url: &str, _token: &str) {}
+
 #[cfg(debug_assertions)]
 pub(crate) fn maybe_schedule_debug_webview_autolaunch(window: &tauri::WebviewWindow) {
     use std::{env, thread, time::Duration};

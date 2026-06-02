@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_webview_css_design_tokens.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-30
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: 065090ee06e0ec460144ead925703d9e17402ea20abcd75db9d1ed142e411fd2
+sha256: 45c8e6682074d95526b6692eca12ab7d7361a5fc32a44952a6701816fbfa16c9
 ---
 # `DesktopApp/tests/test_webview_css_design_tokens.py`
 

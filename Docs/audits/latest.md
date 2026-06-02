@@ -1,21 +1,21 @@
 ---
-updated: 2026-05-28
-source: Docs/architecture/ARCHITECTURAL_OVERHAUL_PLAN.md §Current-State Audit
-scope: V6 main branch, post Phase 0 / Phase 1 scaffolding
-status: advisory — known issues, not blocking
+updated: 2026-06-02
+source: Docs/CURRENT_PROJECT_STATE.md; OPEN_WORK_CHECKLIST.md
+scope: historical V6 audit snapshot, superseded by current-state docs
+status: superseded — historical advisory only
 ---
 
-# Latest audit — known issues
+# Latest audit — historical known-issues snapshot
 
-This file is the "known issues" register referenced by `CLAUDE.md`
-startup. Items here are real but not stop-the-world. If you're about
-to touch one of these areas, read the listed item before making
-changes.
+This file preserves a 2026-05-28 audit snapshot. Do not use the
+`open`/`resolved` labels below as current V6 status. For current active
+gaps, use `Docs/CURRENT_PROJECT_STATE.md` and `OPEN_WORK_CHECKLIST.md`.
+Items here are useful historical context only.
 
 When this file's `updated:` date is older than 7 days, treat the
 findings as advisory only and flag the staleness in your handoff.
-Refresh it whenever a finding lands or a new structural issue is
-discovered.
+Create or update a scoped current doc if a finding reopens; do not treat
+this historical snapshot as the active backlog.
 
 For active per-area audits, see `Docs/audits/` siblings
 (e.g. `CODE_REVIEW_V5_WEBVIEW_TAURI_AUDIT.md`,

@@ -228,7 +228,12 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
 
             pipeline = facade.get_launch_preflight(
                 resolved,
-                {"target": "pipeline", "mode": "validate", "sleep_seconds": 3},
+                {
+                    "target": "pipeline",
+                    "mode": "validate",
+                    "sleep_seconds": 3,
+                    "single_file": str(root / "sample.mkv"),
+                },
             )
             invalid_mode = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "bad"})
             audit = facade.get_launch_preflight(resolved, {"target": "audit", "include_sidecars": True})
@@ -244,6 +249,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
 
         self.assertEqual(pipeline["schema_version"], "desktop_launch_preflight.v1")
         self.assertEqual(pipeline["target"], "pipeline")
+        self.assertEqual(pipeline["request"]["single_file"], str(root / "sample.mkv"))
         self.assertTrue(pipeline["can_request_start"])
         self.assertEqual(pipeline["start_route"], "/api/pipeline/start")
         self.assertEqual(pipeline["operator_readiness"]["schema_version"], "desktop_launch_readiness.v1")

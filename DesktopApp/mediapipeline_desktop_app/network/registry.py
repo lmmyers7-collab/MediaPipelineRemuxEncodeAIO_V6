@@ -509,10 +509,10 @@ class InFlightRegistry:
             _log.exception("Failed to save InFlightRegistry to %s", path)
             raise
 
-    def load(self, path: Path) -> None:
+    def load(self, path: Path) -> bool:
         """Restore in-flight state from *path* (crash recovery on startup)."""
         if not path.exists():
-            return
+            return True
         try:
             data = loads_strict_json(path.read_text(encoding="utf-8"))
             if not isinstance(data, dict):
@@ -575,5 +575,7 @@ class InFlightRegistry:
                 self.session_failed = session_failed
                 self._worker_stats = worker_stats
             _log.info("Restored %d in-flight job(s) from %s", len(self._jobs), path)
+            return True
         except Exception:
             _log.exception("Failed to load InFlightRegistry from %s", path)
+            return False

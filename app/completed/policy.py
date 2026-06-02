@@ -221,9 +221,9 @@ def completed_record_to_row(record: CompletedJobRecord) -> dict[str, Any]:
         "promotion_error": "",
         "promotion_warnings": [],
     }
+    row.update(completed_row_consistency(record, row))
     row["available_open_targets"] = completed_row_available_open_targets(row)
     row.update(completed_row_operator_guidance(row))
-    row.update(completed_row_consistency(record, row))
     validation_state = validation_state_for_completed_row(row)
     row.update(
         {
@@ -381,6 +381,13 @@ def completed_row_operator_guidance(row: dict[str, Any]) -> dict[str, Any]:
     runtime_success = row.get("runtime_outcome_success")
     runtime_success_text = str(runtime_success).casefold() if runtime_success is not None else ""
     runtime_recent = bool(runtime_outcome_status) and runtime_outcome_freshness != "stale"
+    consistency_issues = [
+        str(issue or "").strip()
+        for issue in (row.get("consistency_issues") or [])
+        if str(issue or "").strip()
+    ]
+    consistency_issue_set = {issue.casefold() for issue in consistency_issues}
+    consistency_severity = str(row.get("consistency_severity") or "").strip().casefold()
     runtime_failed = (
         runtime_success is False
         or runtime_success_text == "false"
@@ -433,6 +440,14 @@ def completed_row_operator_guidance(row: dict[str, Any]) -> dict[str, Any]:
         flags.append(f"publish_{publish_state}")
         if severity == "ok":
             severity = "warning"
+    for issue in consistency_issues:
+        if issue not in flags:
+            flags.append(issue)
+    if consistency_issue_set:
+        if consistency_severity == "error" and severity != "error":
+            severity = "error"
+        elif severity == "ok":
+            severity = "warning"
     if route.startswith("encode"):
         flags.append("encoded")
     elif route == "remux":
@@ -477,6 +492,9 @@ def completed_row_operator_guidance(row: dict[str, Any]) -> dict[str, Any]:
     elif publish_state and publish_state not in {"published", "complete", "completed", "ok"}:
         label = "Publish state review"
         guidance = "Review pending publish state before assuming the final output is available in the Plex destination."
+    elif consistency_issue_set:
+        label = "Sidecar proof review"
+        guidance = "Completed manifest row has sidecar/output consistency issues. Inspect the backend-selected output and sidecar before acceptance, rerun, or cleanup."
     else:
         label = "Healthy"
         guidance = "Output is present and the loaded manifest row has no review flags."

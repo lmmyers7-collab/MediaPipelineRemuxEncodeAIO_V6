@@ -38,13 +38,13 @@ The backend script filenames inside `Pipeline\` are still the established intern
 
 ## Backend Module Boundaries
 
-The PowerShell backend keeps stable launcher/script names. Reusable implementation logic lives under `engine\<domain>\`; `Pipeline\Modules\*.ps1` remains packaged as a temporary compatibility shim layer:
+The PowerShell backend keeps stable launcher/script names. Reusable implementation logic lives under `engine\<domain>\`; the legacy `Pipeline\Modules\*.ps1` shim layer has been removed from the active V6 package surface:
 
 - subtitle policy and conversion: `engine\subtitles\*.ps1`
 - audit progress, probe cache, issue policy, scanning, and reports: `engine\audit\*.ps1`
 - routing, encode policy, native tool execution, media probing, audio, naming, folder policies, sidecars, and pending publish: dedicated `engine\` domain files
 
-`Pipeline\Modules\Subtitles.ps1` remains a supported facade because compatibility callers and regression tests still use its public entrypoints. Migration-only comments and obsolete scaffolding have been removed; retained wrappers are treated as compatibility APIs until call sites, docs, release evidence, and real-media validation allow deletion.
+Do not add new `Pipeline\Modules` files for compatibility. New PowerShell implementation belongs under `engine\<domain>\`, with `Pipeline\MediaPipeline.ps1` and its established child scripts remaining the stable backend entrypoints.
 
 ## Recommended First-Run Order
 

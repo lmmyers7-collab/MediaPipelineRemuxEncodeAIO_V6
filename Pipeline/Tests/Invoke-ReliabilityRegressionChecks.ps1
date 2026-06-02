@@ -76,6 +76,7 @@ Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-ContractSchemaChecks
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-ConfigKeyRegistryChecks.ps1' -Label 'config-key registry checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-FailureCodeRegistryChecks.ps1' -Label 'failure-code registry checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-MediaRouteSelectionChecks.ps1' -Label 'media route selection checks'
+Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-PipelineQueueEngineChecks.ps1' -Label 'pipeline queue engine checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-PipelineProcessingPreflightChecks.ps1' -Label 'pipeline processing preflight checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-SubtitleBuilderDecisionChecks.ps1' -Label 'subtitle builder decision checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-VobSubSubtitleChecks.ps1' -Label 'VobSub subtitle checks'

@@ -193,6 +193,34 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         schedule_options = set(re.findall(r'<option value="([^"]*)"', schedule_match.group(1)))
         self.assertEqual(set(command_routes["/api/pipeline/start"]["allowed_schedule_overrides"]) - schedule_options, set())
 
+    def test_completed_open_inventory_documents_contract_targets(self) -> None:
+        repo_root = Path(__file__).resolve().parents[2]
+        route = next(
+            route
+            for route in LOCAL_API_COMMAND_ROUTE_CONTRACT
+            if route["path"] == "/api/completed/open"
+        )
+        target_tokens = [f"`{target}`" for target in route["allowed_targets"]]
+        inventory_paths = [
+            repo_root / "Docs" / "inventories" / "API_ROUTE_INVENTORY.md",
+            repo_root / "Docs" / "inventories" / "LOCAL_API_ROUTE_OWNERSHIP_MAP.md",
+            repo_root / "Docs" / "inventories" / "COMMAND_OWNERSHIP_MATRIX.md",
+        ]
+
+        for inventory_path in inventory_paths:
+            text = inventory_path.read_text(encoding="utf-8")
+            row = next(
+                (line for line in text.splitlines() if "`POST /api/completed/open`" in line),
+                "",
+            )
+            self.assertTrue(row, f"{inventory_path} missing completed open route row")
+            for target_token in target_tokens:
+                self.assertIn(
+                    target_token,
+                    row,
+                    f"{inventory_path} missing {target_token} in completed open route row",
+                )
+
     def test_dashboard_quick_controls_stay_simple_and_backend_owned(self) -> None:
         desktop_root = Path(__file__).resolve().parents[1]
         static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static"
@@ -215,16 +243,18 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         ]:
             self.assertNotIn(forbidden, home_html)
         home_actions = set(re.findall(r'data-control-action="([^"]+)"', home_html))
-        self.assertEqual(home_actions, {"pause", "stop", "kill"})
+        self.assertEqual(home_actions, set())
         self.assertNotIn('data-control-action="rescan"', home_html)
-        self.assertIn("Pause / Resume", home_html)
-        self.assertIn("Stop After Current", home_html)
-        self.assertIn("Force Stop", home_html)
-        self.assertIn("submit backend-owned pipeline control requests", home_html)
+        self.assertNotIn("Pause / Resume", home_html)
+        self.assertNotIn("Stop After Current", home_html)
+        self.assertNotIn("Force Stop", home_html)
+        self.assertIn("Dashboard controls navigate or open backend-allowlisted evidence", home_html)
         self.assertIn('data-cross-page-target="completed" data-home-promotion-entry', home_html)
         self.assertIn("Promote Files", home_html)
         self.assertIn('id="pipeline-start-button"', html)
         self.assertIn('id="pending-drain-button"', html)
+        self.assertIn('data-control-action="pause"', html)
+        self.assertIn('data-control-action="stop"', html)
         self.assertIn('data-control-action="kill"', html)
 
     def test_launch_controls_are_state_aware_and_topbar_kill_is_emergency_only(self) -> None:
@@ -244,7 +274,9 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("Resolve blocked Backend Preflight checks", launch_js)
         self.assertIn("Resolve blocked Launch Start Summary rows", launch_js)
         self.assertIn("Refresh Backend Preflight before using this start control", launch_js)
-        self.assertIn('button.hidden = !active', launch_js)
+        self.assertIn("const stuck = pipelineProgressIsStuck(snapshot);", launch_js)
+        self.assertIn("const killable = active || stuck;", launch_js)
+        self.assertIn("button.hidden = !killable", launch_js)
         self.assertIn('setButtonClass(button, active ? "primary-button" : "secondary-button")', launch_js)
         self.assertIn("window.mediaPipelineLaunchView?.updateLaunchCommandButtonStates", app_js)
 
@@ -316,6 +348,49 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("progressWorkerPayload?.(snapshot, diagnostics)", app_js)
         self.assertIn("CSV rerun stages files by copying to scratch first", html)
         self.assertIn("Custom negative terms are added to the backend rename planner", html)
+
+    def test_webview_bootstrap_readiness_guards_are_static(self) -> None:
+        desktop_root = Path(__file__).resolve().parents[1]
+        static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static"
+        assets_root = static_root / "assets"
+        html = _render_static_index_html(static_root)
+        app_js = (assets_root / "app.js").read_text(encoding="utf-8")
+        launch_js = (assets_root / "launchView.js").read_text(encoding="utf-8")
+        pending_view_js = (assets_root / "pendingPublishView.js").read_text(encoding="utf-8")
+        queue_summary_js = (assets_root / "queueView.summary.js").read_text(encoding="utf-8")
+        large_table_smoke_py = (desktop_root / "tests" / "test_webview_browser_large_table_smoke.py").read_text(
+            encoding="utf-8"
+        )
+        settings_launch_smoke_py = (
+            desktop_root / "tests" / "test_webview_browser_settings_launch_smoke.py"
+        ).read_text(encoding="utf-8")
+
+        self.assertLess(html.index('/assets/progressView.js'), html.index('/assets/queueView.summary.js'))
+        self.assertLess(html.index('/assets/progressView.js'), html.index('/assets/pendingPublish/details.js'))
+        self.assertIn("window.refreshAll = refreshAll;", app_js)
+        self.assertIn("window.refreshAllNow = refreshAllNow;", app_js)
+        self.assertLess(app_js.index("initKeyboardShortcuts();"), app_js.index("await restoreSharedUiPreferences();"))
+        self.assertIn('[data-page-panel="launch"] .settings-tab-btn[data-launch-tab]', launch_js)
+        self.assertIn("activateLaunchTab(button.dataset.launchTab || \"pipeline\");", launch_js)
+        self.assertIn("window.renderProgressBarsInto?.(...args)", pending_view_js)
+        self.assertIn("const progressRenderer = window.renderProgressBarsInto;", queue_summary_js)
+        self.assertIn('document.readyState === "complete"', large_table_smoke_py)
+        self.assertIn('typeof window.renderProgressBarsInto === "function"', large_table_smoke_py)
+        self.assertIn('typeof window.refreshAllNow === "function"', large_table_smoke_py)
+        self.assertIn('document.readyState === "complete"', settings_launch_smoke_py)
+        self.assertIn('typeof window.externalDependencyRows === "function"', settings_launch_smoke_py)
+        self.assertIn('typeof window.markSettingsPatchTouched === "function"', settings_launch_smoke_py)
+        self.assertIn('typeof window.getCommandHistory === "function"', settings_launch_smoke_py)
+
+    def test_completed_proof_selection_updates_shared_selected_row_state(self) -> None:
+        desktop_root = Path(__file__).resolve().parents[1]
+        assets_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static" / "assets"
+
+        for asset_name in ["completedView.evidence.js", "completedView.proof.js"]:
+            source = (assets_root / asset_name).read_text(encoding="utf-8")
+            with self.subTest(asset=asset_name):
+                self.assertNotRegex(source, r"(?<!state\.)\bselectedCompletedRowKey\s=")
+                self.assertIn("state.selectedCompletedRowKey = item.", source)
 
     def test_tk_legacy_showerror_callers_route_through_structured_helper(self) -> None:
         desktop_root = Path(__file__).resolve().parents[1]
@@ -606,7 +681,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("renaming changes filenames only", rename_view_js)
         self.assertIn('renameConfigValue(config, "DeleteSourceAfterProcessing", "false")', rename_view_js)
         self.assertNotIn("DeleteOriginalAfterProcessing", rename_view_js)
-        self.assertIn("Apply Checked / Selected still rebuilds the plan", rename_view_js)
+        self.assertIn("Apply Renames still calls backend rename.apply with selected_sources", rename_view_js)
         self.assertGreaterEqual(
             maintenance_view_js.count('lines.push("", "Warnings:", ...(result.warnings || []).map((item) => `- ${item}`));'),
             2,
@@ -833,6 +908,32 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("window.__queueSetFileDrawer(openFileSettingsDrawer);", queue_view_js)
         self.assertIn("finally {\n    delete window.__queueSetFileDrawer;", queue_view_js)
         self.assertIn('if (typeof refreshAll === "function") await refreshAll();', queue_view_js)
+
+    def test_queue_priority_clear_all_uses_manifest_clear_route(self) -> None:
+        desktop_root = Path(__file__).resolve().parents[1]
+        assets_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static" / "assets"
+        queue_view_js = (assets_root / "queueView.js").read_text(encoding="utf-8")
+
+        self.assertIn('async function clearQueuePriorityManifest()', queue_view_js)
+        self.assertIn('apiPost("/api/queue/priority", { clear_all: true })', queue_view_js)
+        self.assertIn('wire("queue-priority-clear-all-btn", clearQueuePriorityManifest);', queue_view_js)
+        self.assertNotIn('Cleared priority manifest for ${items.length} row(s).', queue_view_js)
+        refresh_snippet = 'if (result && result.ok && typeof refreshAll === "function") await refreshAll();'
+        send_block = queue_view_js[
+            queue_view_js.index("async function sendQueuePriority(") :
+            queue_view_js.index("async function sendQueuePriorityBulk(")
+        ]
+        bulk_block = queue_view_js[
+            queue_view_js.index("async function sendQueuePriorityBulk(") :
+            queue_view_js.index("async function clearQueuePriorityManifest(")
+        ]
+        clear_block = queue_view_js[
+            queue_view_js.index("async function clearQueuePriorityManifest(") :
+            queue_view_js.index("function initQueuePriorityToolbar()")
+        ]
+        self.assertIn(refresh_snippet, send_block)
+        self.assertIn(refresh_snippet, bulk_block)
+        self.assertIn(refresh_snippet, clear_block)
 
     def test_queue_file_settings_drawer_stage2_annotations_and_focus(self) -> None:
         desktop_root = Path(__file__).resolve().parents[1]

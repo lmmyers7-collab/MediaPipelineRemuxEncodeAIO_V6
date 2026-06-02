@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import ResolvedPaths
 from app.audit.rerun_metadata import (
@@ -205,6 +208,38 @@ class ServiceAuditRerunMetadataTests(unittest.TestCase):
             self.assertEqual(failed_metadata, {})
             self.assertIn("Rerun source metadata helper timed out: killed", service.logger.warnings)
             self.assertIn("Rerun source metadata helper failed: last line", service.logger.warnings)
+
+    def test_load_rerun_source_metadata_warns_when_subprocess_raises(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            app_root = root / "DesktopApp"
+            workspace_root = root
+            script = workspace_root / "Pipeline" / "Get-RerunSourceMetadata.ps1"
+            script.parent.mkdir(parents=True)
+            script.write_text("", encoding="utf-8")
+            service = DummyMetadataService(app_root, workspace_root)
+            resolved = ResolvedPaths(
+                app_root=app_root,
+                workspace_root=workspace_root,
+                pipeline_path=workspace_root / "Pipeline.ps1",
+                config_path=workspace_root / "Config.psd1",
+                audit_script_path=workspace_root / "Audit.ps1",
+                rerun_script_path=workspace_root / "Pipeline" / "Invoke-RerunCsv.ps1",
+                powershell_host="pwsh",
+            )
+
+            def failing_run_capture(*_args: Any, **_kwargs: Any) -> Any:
+                raise RuntimeError("spawn failed")
+
+            metadata = load_rerun_source_metadata_for_service(
+                service,
+                resolved,
+                [root / "Movie.mkv"],
+                run_capture_func=failing_run_capture,
+            )
+
+            self.assertEqual(metadata, {})
+            self.assertIn("Rerun source metadata helper failed: spawn failed", service.logger.warnings)
 
 
 if __name__ == "__main__":

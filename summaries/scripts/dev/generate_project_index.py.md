@@ -3,9 +3,9 @@ file: scripts/dev/generate_project_index.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-05-28
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 5ddbba0e8f4a933be723f0c5122e59d27ae3c82693d415bccb16c5c911d3ec4f
+sha256: 288fd3a769231cd3791912e8dbbacff2e7bfd92f7d45882f848d809bd10906c9
 ---
 # `scripts/dev/generate_project_index.py`
 

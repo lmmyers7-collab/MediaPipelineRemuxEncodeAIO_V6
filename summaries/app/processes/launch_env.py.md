@@ -2,7 +2,7 @@
 file: app/processes/launch_env.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: process
 last_modified: 2026-05-28
 last_reviewed: 2026-05-28
 sha256: 93bcb62a1e424390faa9e467157570ff25b565a9c03ab746a091aae568bf4d38

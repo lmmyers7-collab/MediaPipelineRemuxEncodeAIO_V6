@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -32,6 +33,28 @@ class RenameApplyHelperTests(unittest.TestCase):
 
             self.assertTrue(destination.exists())
             self.assertEqual(destination.read_text(encoding="utf-8"), "media")
+
+    def test_rename_path_case_safe_restores_temp_after_case_only_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            source = Path(td) / "Example.mkv"
+            destination = Path(td) / "example.mkv"
+            source.write_text("media", encoding="utf-8")
+            original_rename = Path.rename
+            calls: list[tuple[Path, Path]] = []
+
+            def flaky_rename(path: Path, target: Path) -> Path:
+                calls.append((path, target))
+                if len(calls) == 2:
+                    raise PermissionError("simulated final rename failure")
+                return original_rename(path, target)
+
+            with patch.object(Path, "rename", flaky_rename):
+                with self.assertRaisesRegex(PermissionError, "simulated final rename failure"):
+                    rename_path_case_safe(source, destination, same_file=resolve_same_file)
+
+            self.assertTrue(source.exists())
+            self.assertEqual(source.read_text(encoding="utf-8"), "media")
+            self.assertEqual(list(Path(td).glob(".mediapipeline-rename-*.mkv")), [])
 
     def test_read_json_dict_for_rename_marks_invalid_sidecar_json(self) -> None:
         with tempfile.TemporaryDirectory() as td:

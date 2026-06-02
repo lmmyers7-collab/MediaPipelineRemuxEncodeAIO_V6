@@ -1,11 +1,11 @@
 ---
 file: Pipeline/Setup-MediaPipeline.ps1
-pipeline_stage: n/a
+pipeline_stage: setup
 token_priority: medium
-owner_domain: unknown
-last_modified: 2026-05-30
+owner_domain: scripts
+last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: 79fe9608a10b0b6bcef65e0be896113b8902feb74443ed1fab10119fa2c78d62
+sha256: 53da350cd728509c943fbe4721f759198992ae93b3ca9a9a12750b992eded192
 ---
 # `Pipeline/Setup-MediaPipeline.ps1`
 

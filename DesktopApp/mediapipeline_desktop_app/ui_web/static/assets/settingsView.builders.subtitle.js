@@ -198,7 +198,7 @@
         if (row.message) lines.push(`Message: ${row.message}`);
       });
       lines.push("");
-      lines.push("Operator rule: configure Subtitle Edit seconv.exe and Tesseract before trusting VobSub-to-SRT runs.");
+      lines.push("Operator rule: configure Subtitle Edit 4.x SubtitleEdit.exe and Tesseract before trusting VobSub-to-SRT runs.");
       lines.push("Mutation guardrail: saved path evidence is read-only; path edits are staged by the Subtitle builder or raw JSON and still go through backend Preview/Save.");
       return lines;
     }

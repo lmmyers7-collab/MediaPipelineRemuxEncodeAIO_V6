@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_webview_browser_pending_drain_guard_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-29
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: 7404befc2ef193bc2a02e2cfba0afd106520d565b4312b8a98ec686738ca1b89
+sha256: b0b357c39119dea48d3c89914cee23770bcc5fb71e779ca1fdfc62bd2219de31
 ---
 # `DesktopApp/tests/test_webview_browser_pending_drain_guard_smoke.py`
 

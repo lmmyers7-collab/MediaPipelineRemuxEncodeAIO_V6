@@ -179,12 +179,22 @@ class ProcessSchedulePolicyTests(unittest.TestCase):
         self.assertEqual(blocked["key"], SCHEDULE_CONTINUOUS_WATCHER_CHECK_KEY)
         self.assertEqual(blocked["status"], "blocked")
         self.assertIn("2026-05-14T23:30:00", blocked["evidence"])
+        self.assertIn("backend watcher unavailable", blocked["evidence"])
         self.assertEqual(ignored["status"], "high review")
         self.assertIn("bypassing", ignored["action"])
+        self.assertIn("backend watcher bypassed", ignored["evidence"])
         self.assertEqual(ready["status"], "ready")
         self.assertIn("backend watcher available", ready["evidence"])
         self.assertEqual(once["status"], "ready")
         self.assertIn("actual_mode=once", once["evidence"])
+        trust_text = "\n".join(
+            str(item)
+            for result in (blocked, ignored, ready, once)
+            for item in (result["evidence"], result["action"], *result["detail"])
+        )
+        self.assertNotIn("V5", trust_text)
+        self.assertNotIn("not owned", trust_text)
+        self.assertNotIn("does not yet own", trust_text)
 
 
 if __name__ == "__main__":

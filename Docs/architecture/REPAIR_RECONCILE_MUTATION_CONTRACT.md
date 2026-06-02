@@ -2,7 +2,7 @@
 
 Date: 2026-05-19
 
-This is the source-of-truth design contract for future Completed and Pending Publish repair/reconcile commands. It does not authorize implementation by itself. V5 currently has no repair/reconcile mutation routes and no WebView repair/reconcile buttons.
+This is the source-of-truth design contract for future Completed and Pending Publish repair/reconcile commands. It does not authorize implementation by itself. V6 currently has no repair/reconcile mutation routes and no WebView repair/reconcile buttons.
 
 The WebView may display these boundaries from `/api/contract`, but it must not infer or perform repair, reconcile, manifest rewrite, payload move/delete, output acceptance, drain, publish, rerun, or source-file actions.
 

@@ -2,7 +2,7 @@
 file: app/processes/control_flags.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: process
 last_modified: 2026-05-31
 last_reviewed: 2026-05-28
 sha256: cbc74cc11a8e74ea4acb20d8dbee24339cfe32556fc74fc8c6da70b6924fe824

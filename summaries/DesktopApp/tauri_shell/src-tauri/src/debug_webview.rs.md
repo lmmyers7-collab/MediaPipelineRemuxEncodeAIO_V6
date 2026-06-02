@@ -3,9 +3,9 @@ file: DesktopApp/tauri_shell/src-tauri/src/debug_webview.rs
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shell
-last_modified: 2026-05-18
+last_modified: 2026-06-01
 last_reviewed: 2026-05-28
-sha256: 06fe62307b9803723cdbb4dd4eddd0a979d8071fcb7afa1fd375a2dcceeaeee2
+sha256: 7342a64c48b1051bc9ffd93b1f6e66883f66e1964be5dde6a0630280e9b2bfe6
 ---
 # `DesktopApp/tauri_shell/src-tauri/src/debug_webview.rs`
 

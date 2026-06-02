@@ -58,16 +58,6 @@ class RenameV7HtmlTests(unittest.TestCase):
         # The word "queue" should not appear in the Rename tab partial at all.
         self.assertNotIn("queue", self.html.lower())
 
-    def test_manual_path_input_removed(self) -> None:
-        for legacy_id in (
-            "rename-add-path-input",
-            "rename-add-path-button",
-            "rename-paths",  # the paste-paths textarea
-        ):
-            self.assertNotIn(legacy_id, self.html)
-        self.assertNotIn("Paste paths", self.html)
-        self.assertNotIn("Add Path", self.html)
-
     def test_template_dropdown_labels(self) -> None:
         for label in (
             "Auto (backend decides)",
@@ -131,6 +121,33 @@ class RenameV7HtmlTests(unittest.TestCase):
     def test_drop_zone_present(self) -> None:
         self.assertIn('id="rename-drop-zone"', self.html)
 
+    def test_staged_path_controls_present(self) -> None:
+        self.assertIn('id="rename-add-path-input"', self.html)
+        self.assertIn('id="rename-add-path-button"', self.html)
+        self.assertIn('id="rename-paths"', self.html)
+
+    def test_preview_and_readiness_tables_match_rendered_columns(self) -> None:
+        self.assertIn("<th scope=\"col\">Use</th>", self.html)
+        self.assertIn("<th scope=\"col\">Scrubbed / Pipeline</th>", self.html)
+        self.assertIn("<th scope=\"col\">Confidence</th>", self.html)
+        self.assertIn('<tr><td colspan="6">No rename preview loaded.</td></tr>', self.html)
+        self.assertIn("<th scope=\"col\">Checkpoint</th>", self.html)
+        self.assertIn("<th scope=\"col\">Posture</th>", self.html)
+        self.assertIn("<th scope=\"col\">Evidence</th>", self.html)
+        self.assertIn('<tr><td colspan="4">No rename preview loaded.</td></tr>', self.html)
+
+    def test_read_only_evidence_nodes_present(self) -> None:
+        for node_id in (
+            "rename-review-board-status",
+            "rename-review-board",
+            "rename-batch-safety",
+            "rename-pipeline-handoff-status",
+            "rename-pipeline-handoff",
+            "rename-apply-outcome-status",
+            "rename-apply-outcome-summary",
+        ):
+            self.assertIn(node_id, self.html)
+
 
 class RenameV7JsTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -154,10 +171,13 @@ class RenameV7JsTests(unittest.TestCase):
         self.assertIn("renameSyncModeFieldVisibility", self.js)
         # app.js calls the init.
         self.assertIn("renameInitWorkbenchV7Events", self.app_js)
+        self.assertIn("renameUsesV7Workbench", self.app_js)
+        self.assertIn("renameBrowseFolderButton && !renameUsesV7Workbench", self.app_js)
 
     def test_apply_v7_targets_non_blocked_preview_rows(self) -> None:
         self.assertIn("applyRenameWorkbenchV7", self.js)
         self.assertIn("renameApplicablePreviewRows", self.js)
+        self.assertIn('source: "all applicable preview rows"', self.js)
 
 
 class RenameBackendBrowseModeTests(unittest.TestCase):

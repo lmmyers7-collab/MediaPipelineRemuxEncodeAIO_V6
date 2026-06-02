@@ -39,7 +39,7 @@ foreach ($requiredCspFragment in @(
     }
 }
 
-$runtimeRust = foreach ($path in Get-ChildItem -LiteralPath $srcRoot -Filter '*.rs') {
+$runtimeRust = foreach ($path in Get-ChildItem -LiteralPath $srcRoot -Filter '*.rs' -Recurse -File) {
     $text = Get-Content -LiteralPath $path.FullName -Raw
     if ($path.Name -eq 'lib.rs') {
         $text = ($text -split '#\[cfg\(test\)\]\s*mod tests', 2)[0]

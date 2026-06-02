@@ -50,6 +50,7 @@
   --purple-100: hsl(265, 52%, 94%);
 
   /* ===== TYPE SCALE ===== */
+  --text-2xs:  10px;
   --text-xs:   11px;
   --text-sm:   13px;
   --text-base: 15px;

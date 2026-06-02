@@ -8,10 +8,21 @@ from mediapipeline_desktop_app.models import ResolvedPaths
 def latest_matching_file(folder: Path | None, pattern: str) -> Path | None:
     if not folder or not folder.exists():
         return None
+    selected: Path | None = None
+    selected_mtime = float("-inf")
     try:
-        return max(folder.glob(pattern), key=lambda item: item.stat().st_mtime, default=None)
-    except Exception:
+        items = list(folder.glob(pattern))
+    except OSError:
         return None
+    for item in items:
+        try:
+            mtime = item.stat().st_mtime
+        except OSError:
+            continue
+        if mtime > selected_mtime:
+            selected = item
+            selected_mtime = mtime
+    return selected
 
 
 def latest_audit_csv(resolved: ResolvedPaths, priority_only: bool) -> Path | None:

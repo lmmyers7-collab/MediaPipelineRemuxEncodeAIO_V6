@@ -4,16 +4,24 @@ from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
 
-from mediapipeline_desktop_app.api.handler_policy import bounded_error_text
 from mediapipeline_desktop_app.application import CommandResult
 
 
 RESOLVED_PIPELINE_PATHS_UNAVAILABLE_MESSAGE = "Resolved pipeline paths are unavailable."
 BACKEND_SHUTDOWN_UNAVAILABLE_MESSAGE = "Backend shutdown is not available for this server instance."
 BACKEND_SHUTDOWN_BLOCKED_MESSAGE = "Backend shutdown blocked because active work may still be running."
+CLOSE_READINESS_UNAVAILABLE_REASON = "Close readiness is unknown because resolved paths are unavailable."
+CLOSE_READINESS_UNAVAILABLE_WARNING = "Resolved paths were unavailable while evaluating close readiness."
 SETTINGS_RELOAD_UNAVAILABLE_MESSAGE = "Settings reload is not available for this server instance."
 SETTINGS_RELOAD_MISSING_RESOLVED_MESSAGE = "Settings reload did not return resolved paths."
 SETTINGS_RELOAD_PROGRESS_SCHEMA_VERSION = "desktop_settings_reload_progress.v1"
+
+
+def bounded_error_text(value: object, *, limit: int = 2000) -> str:
+    text = str(value or "")
+    if len(text) <= limit:
+        return text
+    return text[: max(0, limit - 3)] + "..."
 
 
 def command_result_payload(
@@ -32,10 +40,10 @@ def command_result_payload(
         ok=ok,
         message=message,
         severity=severity,
-        errors=errors,
-        warnings=warnings,
-        refresh_hint=refresh_hint,
-        data=data,
+        errors=list(errors or []),
+        warnings=list(warnings or []),
+        refresh_hint=refresh_hint or "",
+        data=dict(data or {}),
     ).to_mapping()
 
 
@@ -48,6 +56,17 @@ def resolved_paths_unavailable_payload(command: str, refresh_hint: str) -> dict[
         errors=[RESOLVED_PIPELINE_PATHS_UNAVAILABLE_MESSAGE],
         refresh_hint=refresh_hint,
     )
+
+
+def close_readiness_unavailable_payload() -> dict[str, Any]:
+    return {
+        "schema_version": "desktop_close_readiness.v1",
+        "safe_to_close": False,
+        "state": "unknown",
+        "active_work": True,
+        "reason": CLOSE_READINESS_UNAVAILABLE_REASON,
+        "warnings": [CLOSE_READINESS_UNAVAILABLE_WARNING],
+    }
 
 
 def settings_progress_bar_from_steps(

@@ -25,9 +25,20 @@
                 <button type="button" id="rename-browse-folder-button" class="secondary-button">Browse Folder</button>
                 <button type="button" id="rename-clear-paths-button" class="secondary-button">Clear</button>
               </div>
+              <div class="action-row action-row-left wrap-actions">
+                <label class="rename-inline-path">
+                  Manual path
+                  <input id="rename-add-path-input" type="text" autocomplete="off" placeholder="C:\Media\Source.mkv">
+                </label>
+                <button type="button" id="rename-add-path-button" class="secondary-button">Add Path</button>
+              </div>
               <div id="rename-drop-zone" class="rename-drop-zone" tabindex="0" aria-label="Drag and drop files or one folder here">
                 Drag files or a folder here, or use the buttons above. Folder selection adds only the files directly inside (no subfolders), all extensions.
               </div>
+              <label class="rename-paths-field">
+                Staged source paths
+                <textarea id="rename-paths" rows="5" spellcheck="false" autocomplete="off"></textarea>
+              </label>
               <pre id="rename-file-source-summary" class="prose-block compact-text-block">No source paths staged.</pre>
             </section>
 
@@ -92,18 +103,33 @@
                   <table class="rename-table">
                     <thead>
                       <tr>
+                        <th scope="col">Use</th>
                         <th scope="col">Original</th>
+                        <th scope="col">Scrubbed / Pipeline</th>
                         <th scope="col">New Name</th>
+                        <th scope="col">Confidence</th>
                         <th scope="col">Status</th>
-                        <th scope="col">Why</th>
                       </tr>
                     </thead>
                     <tbody id="rename-rows">
-                      <tr><td colspan="4">No rename preview loaded.</td></tr>
+                      <tr><td colspan="6">No rename preview loaded.</td></tr>
                     </tbody>
                   </table>
                 </div>
-                <p id="rename-table-legend" class="note table-legend">Preview rows show the rename plan. Apply renames every row that is not blocked.</p>
+                <p id="rename-table-legend" class="note table-legend">Preview rows show the rename plan. Apply uses checked rows when present; otherwise it renames every applicable row that is not blocked.</p>
+                <div class="action-row action-row-left wrap-actions">
+                  <button type="button" id="rename-check-applicable-button" class="secondary-button">Check Applicable</button>
+                  <button type="button" id="rename-clear-checks-button" class="secondary-button">Clear Checks</button>
+                  <span id="rename-selected-count" class="note">0 checked</span>
+                </div>
+                <p id="rename-selection-audit-status" class="status-line">No selection</p>
+                <pre id="rename-selection-audit" class="prose-block compact-text-block">Apply scope: none</pre>
+                <pre id="rename-detail" class="prose-block compact-text-block">No rename row selected. Select a preview row to inspect confidence, source logic, warnings, sidecar moves, and exact destination.</pre>
+                <p id="rename-review-board-status" class="status-line">No preview</p>
+                <pre id="rename-review-board" class="prose-block compact-text-block">No rename review board loaded.</pre>
+                <pre id="rename-batch-safety" class="prose-block compact-text-block">No rename batch safety evidence loaded.</pre>
+                <p id="rename-pipeline-handoff-status" class="status-line">No preview</p>
+                <pre id="rename-pipeline-handoff" class="prose-block compact-text-block">No rename-to-pipeline handoff loaded.</pre>
                 <div class="action-row action-row-left wrap-actions">
                   <button type="button" id="rename-apply-button" class="primary-button">Apply Renames</button>
                   <span id="rename-apply-status-hint" class="note"></span>
@@ -112,13 +138,14 @@
                   <table class="rename-table">
                     <thead>
                       <tr>
-                        <th scope="col">Apply Readiness</th>
-                        <th scope="col">Rows</th>
+                        <th scope="col">Checkpoint</th>
+                        <th scope="col">Posture</th>
+                        <th scope="col">Evidence</th>
                         <th scope="col">Operator Action</th>
                       </tr>
                     </thead>
                     <tbody id="rename-apply-readiness-rows">
-                      <tr><td colspan="3">No rename preview loaded.</td></tr>
+                      <tr><td colspan="4">No rename preview loaded.</td></tr>
                     </tbody>
                   </table>
                 </div>

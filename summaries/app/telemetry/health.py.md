@@ -2,7 +2,7 @@
 file: app/telemetry/health.py
 pipeline_stage: observability
 token_priority: medium
-owner_domain: unknown
+owner_domain: observability
 last_modified: 2026-05-29
 last_reviewed: 2026-05-28
 sha256: d5af2f50bbbc08a8edaadaabe0cdd565b9556f1c55aa1ca0f11feadaf4f28413

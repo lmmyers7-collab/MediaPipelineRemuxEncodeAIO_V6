@@ -212,7 +212,7 @@ def _rename_readiness_runner_source() -> str:
         context.selectRenameRow(first);
         context.renderRenameApplyReadiness();
         requireContains("ready status", text("rename-apply-readiness-status"), ["Ready"]);
-        requireContains("ready cells", readinessCellText(), ["Apply scope", "selected row", "Mutation boundary", "/api/rename/apply"]);
+        requireContains("ready cells", readinessCellText(), ["Apply scope", "all applicable preview rows", "Mutation boundary", "/api/rename/apply"]);
         requireContains("pipeline handoff status", text("rename-pipeline-handoff-status"), ["Ready"]);
         requireContains("pipeline handoff", text("rename-pipeline-handoff"), ["Rename-to-pipeline handoff", "Saved routing profile: plex_direct_stream", "output container: mkv", "renaming changes filenames only", "Mutation guardrail"]);
         context.renderRenameApplyResult({

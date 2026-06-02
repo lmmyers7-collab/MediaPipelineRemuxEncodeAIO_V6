@@ -1,10 +1,12 @@
 # Settings Builder Coverage Matrix
 
-Maps every known `CONFIG_FIELD_DEFINITIONS` key to its WebView settings builder coverage, as of the current V5 state. This is a read-only audit document. It does not implement builder changes.
+Maps every known `CONFIG_FIELD_DEFINITIONS` key to its WebView settings builder coverage, as of the current V6 state. This is a read-only audit document. It does not implement builder changes.
 
-Total known config keys: ~89 (from `CONFIG_FIELD_DEFINITIONS` and the config template).
-Covered by structured WebView builders: ~76.
-Raw JSON only or intentionally hidden: 2.
+Total backend metadata keys: 130 (from `CONFIG_FIELD_DEFINITIONS` and the config contract).
+Covered by structured WebView builder arrays: 118.
+Handled by the dedicated Library Profiles editor: 1 (`LibraryProfiles`).
+Known advanced/direct-config metadata without a routine structured builder: 9.
+Intentionally hidden auth secrets: 2.
 
 ---
 
@@ -24,9 +26,27 @@ Raw JSON only or intentionally hidden: 2.
 
 ---
 
-## Raw JSON Only or Intentionally Hidden
+## Known Advanced / Direct-Config Metadata
 
-No non-secret config keys remain raw-only in the current WebView builder coverage. The remaining excluded keys are auth secrets and must not be exposed through browser controls.
+These keys are valid backend metadata and config-contract keys, but they do not have routine structured WebView builder controls. They are not schema drift. Use raw JSON/direct config plus backend Preview Patch before Save, and review the owning page before relying on changed behavior.
+
+| Key | Category | Why no routine builder |
+|---|---|---|
+| `ConfigSchemaVersion` | Runtime / migration | Backend schema marker; editing is migration work |
+| `MaxParallelEncodes` | Runtime / parallelism | Local parallel encode capacity needs deliberate validation |
+| `ParallelEncodeMode` | Runtime / parallelism | Coupled to `MaxParallelEncodes` and local worker-slot validation |
+| `MixPriorityPhase` | Queue planning | Advanced queue phase behavior; inspect Queue preview after changes |
+| `QueueOrderingStrategy` | Queue planning | Backend queue sort preset; inspect Queue preview after changes |
+| `OutputValidationProbeTimeoutSeconds` | Output validation | Advanced completed-output validation threshold |
+| `OutputValidationMinSizeBytes` | Output validation | Advanced completed-output acceptance threshold |
+| `OutputValidationDurationToleranceSeconds` | Output validation | Advanced completed-output duration tolerance |
+| `ShowOverrides` | Per-show media policy | Direct-config mapping for show-specific routing/video/audio/subtitle overrides |
+
+`LibraryProfiles` is handled by the dedicated Library Profiles editor rather than the static builder arrays.
+
+---
+
+## Intentionally Hidden From WebView
 
 | Key | Category | Impact | Reason raw-only |
 |---|---|---|---|
@@ -49,17 +69,6 @@ The fields most likely to cause operator confusion or silent failures if misconf
 **Implemented builder and read-only evidence**: WebView Settings now stages `BdpgsOcrToolPath` and `BdpgsOcrTessdataPath` through the Subtitle builder as text values. Backend Preview/Save remains the only persistence boundary. The backend resolves the saved paths against the pipeline script folder, reports tool/tessdata existence and `.dll`/`dotnet` posture, and marks missing enabled OCR paths as blocked. There is still no WebView path picker and no frontend-owned path resolution.
 
 **Implemented action-plan display**: WebView Settings now also includes a read-only Raw-Key Action Plan. It groups unknown schema-drift keys, BDPGS OCR path evidence, subtitle keyword builder coverage, intentionally excluded auth secrets, remaining advanced raw keys, and the backend-owned mutation boundary so the operator sees which raw-key categories need action without adding new settings mutation.
-
----
-
-## Intentionally Hidden From WebView
-
-| Key | Why hidden |
-|---|---|
-| `CoordinatorAuthToken` | Network auth secret |
-| `WorkerAuthToken` | Network auth secret |
-
-These keys appear in `CONFIG_FIELD_DEFINITIONS` and are visible in backend risk policy (so operators know they affect behavior), but the structured builder excludes them. Raw JSON patch can still stage them for backend Preview/Save.
 
 ---
 

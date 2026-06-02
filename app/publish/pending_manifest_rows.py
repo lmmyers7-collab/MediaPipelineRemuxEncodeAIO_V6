@@ -88,12 +88,32 @@ def pending_output_size(manifest: dict[str, Any], local_path: Path | None) -> in
     return int(output_size or 0)
 
 
-def pending_payload_error_text(local_path: Path | None, local_exists: bool, missing_sidecars: int) -> str:
-    if local_path and not local_exists:
-        return "Manifest local_file payload is missing; retry/drain will require manual recovery."
+def pending_payload_error_text(
+    local_path: Path | None,
+    local_exists: bool,
+    missing_sidecars: int,
+    *,
+    server_path: Path | None = None,
+    state: str = "",
+    known_states: set[str] | None = None,
+    require_destination: bool = False,
+    require_state: bool = False,
+) -> str:
+    issues: list[str] = []
+    if local_path is None:
+        issues.append("Manifest local_file payload path is missing; retry/drain will require manual recovery.")
+    elif not local_exists:
+        issues.append("Manifest local_file payload is missing; retry/drain will require manual recovery.")
+    if require_destination and server_path is None:
+        issues.append("Manifest server_out destination is missing; retry/drain will require manifest repair.")
+    normalized_state = str(state or "").strip()
+    if require_state and not normalized_state:
+        issues.append("Manifest state is missing; retry/drain will require manifest repair.")
+    elif known_states is not None and normalized_state not in known_states:
+        issues.append(f"Manifest state '{normalized_state}' is not recognized; retry/drain will require manifest repair.")
     if missing_sidecars:
-        return f"{missing_sidecars} pending sidecar payload(s) are missing."
-    return ""
+        issues.append(f"{missing_sidecars} pending sidecar payload(s) are missing.")
+    return "; ".join(issues)
 
 
 def readable_pending_manifest_row(

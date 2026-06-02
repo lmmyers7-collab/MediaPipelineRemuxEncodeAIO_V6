@@ -3,9 +3,9 @@ file: app/rename/apply.py
 pipeline_stage: rename
 token_priority: high
 owner_domain: rename
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 64562b2ae0140b2b2e7a85fe13479f16d381b3d8a7cdc5f5069ddc9c3d6ec866
+sha256: 8f8b920d688efbba054ea995b38861c2891da4ec631a0e5d98ae30ba573d0438
 ---
 # `app/rename/apply.py`
 

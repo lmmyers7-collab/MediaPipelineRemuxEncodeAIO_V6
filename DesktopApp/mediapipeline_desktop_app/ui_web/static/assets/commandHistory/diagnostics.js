@@ -180,19 +180,24 @@
     return [
       "active_jobs",
       "audit_reports",
+      "cluster_log",
       "completed_manifest",
       "config",
+      "config_folder",
       "failed_markers",
       "failed_reports",
       "latest_audit_csv",
       "latest_failure_json",
       "latest_failure_report",
+      "latest_priority_csv",
       "last_stderr_log",
       "last_stdout_log",
       "pending_publish",
       "queue_snapshot",
       "run_logs",
+      "sample_validation_log",
       "state",
+      "workspace",
     ].includes(String(target || "").trim());
   }
 

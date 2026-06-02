@@ -38,8 +38,11 @@ These focused PowerShell checks sit outside `DesktopApp\tests` and guard cross-c
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-PortablePathChecks.ps1
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-PendingPublishOwnershipChecks.ps1
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-PendingPublishSafetyChecks.ps1
+.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-ContractSchemaChecks.ps1
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-ConfigKeyRegistryChecks.ps1
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-FailureCodeRegistryChecks.ps1
+.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-PipelineQueueEngineChecks.ps1
+.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-ReleasePackagePolicyChecks.ps1
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Invoke-AdversarialForceKillEncodeChecks.ps1
 ```
 
@@ -47,11 +50,41 @@ These focused PowerShell checks sit outside `DesktopApp\tests` and guard cross-c
 
 `Invoke-RepoHygieneChecks.ps1` guards root generated log/jsonl captures, DesktopApp root API validation captures, rebuildable pytest/Tauri artifacts, and the ignore entries that keep those artifacts out of source review.
 
+`Invoke-RuntimeStateHygieneChecks.ps1` guards legacy runtime state placement: app-root encode-speed history and desktop state files must stay absent, `LocalBase\State\App` and `LocalBase\State\Completed` paths must remain documented/tested, and stale queue/pending-publish filenames must not return to active inventories.
+
+`Invoke-PortablePathChecks.ps1` parses audit/config/profile scripts and blocks local operator path defaults such as `\\LAYNE-SERVER\Video` from returning to active audit or profile templates.
+
+`Invoke-ContractSchemaChecks.ps1` guards pipeline contract schema presence and representative round-trip payloads for events, process results, queue snapshots, pending-publish manifests, completed-job sidecars, publish results, publish partial paths, and folder-policy topology shapes.
+
 `Invoke-AdversarialForceKillEncodeChecks.ps1` is a runtime adversarial smoke rather than a static guard. It creates generated media in `%TEMP%`, starts the real backend in `-Once`, force-kills a live CPU fallback encode after an `encode_temp_cpu_*.mkv` artifact exists, then proves the partial was not accepted as completed output/pending publish and the source remains queued.
 
 `Invoke-FailureCodeRegistryChecks.ps1` guards the `FailureCodes.ps1` registry: every classifier return code must be known, every registry row must include family/stage/when-fires/retryability/operator severity/handler/operator-action metadata, representative high-risk metadata rows must stay accurate, broader pipeline outcome/error codes emitted by PowerShell surfaces must be known, and unknown-code metadata lookup must fail closed.
 
 `Invoke-ConfigKeyRegistryChecks.ps1` guards `ConfigKeys.ps1`: the PowerShell config-key registry must stay in the same order as `ConfigSchema.ps1`, template/live PSD1 files may not contain unknown keys, helper lookups must fail closed, and literal PowerShell `$config[...]`, `$config.ContainsKey(...)`, and `Get-Config*` call sites may not reference unknown config keys. `test_config_keys.py` also guards Python-side Network runtime and settings/media-policy raw registered-key lookups, plus a package-wide registered-key raw-lookup scan across `mediapipeline_desktop_app`.
+
+`Invoke-PipelineQueueEngineChecks.ps1` guards queue-engine dispatch mode selection: one local worker slot stays serial, multi-slot `local_worker_slots` dispatches through the worker scheduler with the expected script/config/PowerShell context, missing worker context fails closed without falling back to serial dispatch, and worker-child result writing remains versioned.
+
+`Invoke-ReleasePackagePolicyChecks.ps1` guards release packaging policy: rebuildable/vendor/runtime/local-state/personal-config paths remain excluded by default, release hygiene rules stay aligned with the policy manifest, and `Backup-PreOverhaul.ps1` continues to delegate release copy creation to the canonical release builder.
+
+## Python Tooling Guard Checks
+
+These repository-level Python tests sit outside `DesktopApp\tests` and guard generated maps, AI pre/postflight tooling, naming/layout rules, change-control metadata, and documentation-reference scanners:
+
+```powershell
+& $py -m unittest discover -s tests\tooling -p "test_*.py" -q
+```
+
+| Test file | What it covers |
+|---|---|
+| `tests/tooling/test_active_doc_references.py` | Active-doc moved-path, removed-shell-wording, absolute handoff-path, archive-exclusion, and required-doc checks |
+| `tests/tooling/test_ai_guardrail.py` | AI guardrail preflight/postflight plan contents and git-status rename/untracked path parsing |
+| `tests/tooling/test_change_control.py` | Change-control release manifest placeholder behavior, version-label validation, and missing `release/VERSION` error reporting |
+| `tests/tooling/test_dependency_boundaries.py` | App import-edge collection, module/package cycle detection, hard-boundary violations, allowlist staleness, and current-repo dependency check |
+| `tests/tooling/test_godfile_guard.py` | God-file policy validation, allowlisted thresholds, new/existing oversized file warnings, growth warnings, and git-status rename parsing |
+| `tests/tooling/test_lifecycle_map.py` | Lifecycle state/transition integrity and generated lifecycle-map rendering |
+| `tests/tooling/test_lint_naming.py` | Deprecated flat facade/service/payload names, dotted `Pipeline\Modules` files, root status docs, root launcher callers, and rename-destination parsing |
+| `tests/tooling/test_risky_file_registry.py` | Risky-file registry validation and path classification into validation requirements |
+| `tests/tooling/test_summary_integrity.py` | Summary freshness orphan detection, summary pruning, and project-index orphan-summary refusal |
 
 ---
 
@@ -375,7 +408,6 @@ Tests for coordinator/worker state, persistence, auth, source policy, mDNS, loca
 | `test_network_worker_source_policy.py` | Worker source policy, path handling, and worker poll interval handoff through the named config key plus shared policy helper |
 | `test_network_local_ip.py` | Local IP selection helpers |
 | `test_network_mdns.py` | mDNS registration/discovery helpers |
-| `test_network_view_source_policy.py` | Network view source policy presentation |
 | `test_application_facade_network.py` | Application-facade read-only Network worker-state metadata, progress bars, backend-authored heartbeat age, state-file evidence, and lifecycle-control absence |
 | `test_webview_network_read_only_boundary.py` | Rendered Workers page read-only boundary, diagnostics-open-only buttons, design-only lifecycle contract display reference, and route-effect checks |
 
@@ -441,7 +473,6 @@ Tests for historical legacy desktop-shell controller boundaries, controller-owne
 | `test_controllers_maintenance.py` | Progress-file skeleton reset, resolved progress-path updates, reset action/status recording, confirmation dialogs, environment-health background dispatch, and environment-health result formatting |
 | `test_controllers_folder_policy.py` | Folder-policy validation result status text, action-status text, command history action recording, success info dialog, and error/warning detail dialog formatting |
 | `test_controllers_release.py` | Release package success status/action handling, manifest and zip path storage, manifest summary output formatting, and timeout output without success action recording |
-| `test_controllers_pending_publish.py` | Pending-publish dashboard summary application, missing parked payload detail text, tree row tags, default selection/focus/scroll behavior, and manifest/sidecar detail rendering |
 | `test_controllers_rerun.py` | Rerun CSV preview handling for disabled rows, unsafe policy overrides, duplicate planned output hints, status text, preview text, and failed nested-pipeline root-cause action history |
 | `test_controllers_work_guard.py` | Work-guard active progress detection, stop-request handling, and related-process block messaging |
 | `test_controllers_app_state.py` | App-state controller persistence, widget failure logging, refresh-state snapshot/autoload, polling completed-manifest refresh, and apply-snapshot-to-UI behavior |
@@ -491,17 +522,21 @@ General facade policy and desktop shell bootstrap tests not covered by subsystem
 
 ### Release / Packaging
 
-Tests for release plan construction and result validation.
+Tests for release plan construction, result validation, change-control metadata, and the release self-test gate.
 
 | Test file | What it covers |
 |---|---|
 | `test_service_release_plan.py` | Release plan logic |
 | `test_service_release_result.py` | Release result validation |
+| `tests/tooling/test_change_control.py` | Change-control release-manifest preview behavior, safe version labels, and missing-version diagnostics |
+| `scripts/release/test.ps1` | Bundle layout, release-manifest hygiene, WebView include/asset checks, API browser token posture, parser/syntax checks, desktop unit discovery, environment verifier, Tauri prereqs, and V6 regression wrapper execution |
 
 Targeted command:
 
 ```powershell
 & $py -m unittest discover -s DesktopApp\tests -p "test*release*.py" -q
+& $py -m unittest tests.tooling.test_change_control -q
+.\scripts\release\test.ps1 -SkipToolIntegration -SkipEndToEndSmoke
 ```
 
 ---
@@ -585,9 +620,9 @@ Run via `SmokeTests/` wrappers: `.\SmokeTests\Test-WebViewCommandEvidenceSmoke.p
 
 | Area | Gap | Priority |
 |---|---|---|
-| Rename | Duplicate-destination at service layer; `confirm_apply: false` rejection; undo manifest verification | Medium |
-| Pending Publish | Parked state coverage; drain summary cross-check; drain execution end-to-end | Medium |
-| Process lifecycle | Adversarial duplicate-launch guard test | Medium |
+| Rename | Undo manifest reverse-path verification, real native dialog display, and network path-rewrite behavior | Medium |
+| Pending Publish | Recovery-plan action coverage, completed-manifest/drain-summary cross-check depth, and coordinator-mode pending-publish handoff | Medium |
+| Process lifecycle | Broader abnormal-exit/orphan recovery UX beyond the generated-media force-kill safety smoke | Medium |
 | Real-media routing | No automated test covers FFmpeg encode/remux correctness on real files | High (needs real-media playbook) |
 | Subtitle conversion | No automated test converts a real TX3G/BDPGS file | High (needs real-media playbook) |
 

@@ -282,7 +282,7 @@ class ServiceConfigValidationTests(unittest.TestCase):
 
         self.assertEqual(errors, [])
         self.assertIn(
-            "VobSubOcrToolPath is blank while ConvertVobSubToSrt is enabled; VobSub OCR will be blocked until Subtitle Edit seconv.exe is configured.",
+            "VobSubOcrToolPath is blank while ConvertVobSubToSrt is enabled; VobSub OCR will be blocked until Subtitle Edit 4.x SubtitleEdit.exe is configured.",
             warnings,
         )
 

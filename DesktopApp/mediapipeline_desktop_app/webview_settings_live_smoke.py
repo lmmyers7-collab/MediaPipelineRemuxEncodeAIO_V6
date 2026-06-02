@@ -21,6 +21,7 @@ EXPECTED_READINESS_AREAS = {
     "Subtitle language routing",
     "TX3G / mov_text SRT",
     "BDPGS OCR to SRT",
+    "VobSub OCR to SRT",
     "ASS / SSA preservation",
     "Audio language / default track",
     "Audio passthrough / channels",

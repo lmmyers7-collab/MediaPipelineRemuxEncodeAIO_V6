@@ -3,9 +3,9 @@ file: app/publish/pending_manifest.py
 pipeline_stage: publish
 token_priority: high
 owner_domain: publish
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 008ac1f28bcbba28c21dda56d05298b0c016405cd8451a599c59b39d1c4cf2bf
+sha256: 901285496c4b89a594db699d6e2b7cf1dfbe033d7b649d6deb678aa4b322fdd1
 ---
 # `app/publish/pending_manifest.py`
 

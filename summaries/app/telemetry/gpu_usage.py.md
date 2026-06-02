@@ -2,7 +2,7 @@
 file: app/telemetry/gpu_usage.py
 pipeline_stage: observability
 token_priority: medium
-owner_domain: unknown
+owner_domain: observability
 last_modified: 2026-05-29
 last_reviewed: 2026-05-29
 sha256: bf6aba71d56ab795020e07ed4235cdde7322aeee7cc5467abe7f032bca85c675

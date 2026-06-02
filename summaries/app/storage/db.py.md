@@ -3,9 +3,9 @@ file: app/storage/db.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: storage
-last_modified: 2026-05-28
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: c2f52c3ff9d284f529d2fe50e9899a33d5aac8138d12e11ddd767850087d7c8f
+sha256: 95e61a1e50920261702ade2b76e505bdd4de9c260b778b98cba1a1e98b694dc5
 ---
 # `app/storage/db.py`
 

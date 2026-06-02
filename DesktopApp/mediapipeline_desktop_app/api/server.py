@@ -13,7 +13,7 @@ from ..models import ResolvedPaths, Snapshot
 from .command_journal import CommandJournal
 from app.api.command_handlers import LocalApiCommandHandlerMixin
 from .handler import build_local_api_handler_class
-from .http_helpers import host_header_authorized, origin_header_authorized, request_authorized
+from .http_helpers import host_header_authorized, local_api_allowed_origins, origin_header_authorized, request_authorized
 from .read_payloads import LocalApiReadPayloadMixin
 from .static_files import default_static_root, local_api_bootstrap, read_static_asset, render_index
 
@@ -130,10 +130,28 @@ class LocalApiServer(LocalApiReadPayloadMixin, LocalApiCommandHandlerMixin):
             shell_surface=self.shell_surface,
         )
 
+    def _cors_response_origin(self, headers: Any) -> str:
+        origin = str(headers.get("Origin") or "").strip()
+        if origin and self._origin_header_authorized(headers):
+            return origin
+        allowed_origins = local_api_allowed_origins(bind_host=self.host, port=self.port, shell_surface=self.shell_surface)
+        preferred_origin = f"http://127.0.0.1:{self.port}"
+        if preferred_origin in allowed_origins:
+            return preferred_origin
+        return sorted(allowed_origins)[0] if allowed_origins else "http://127.0.0.1"
+
     def _resolved(self) -> ResolvedPaths | None:
         if self.resolved_provider is None:
             return None
         return self.resolved_provider()
+
+    def _record_command_journal(self, payload: dict[str, Any], *, request: dict[str, Any] | None = None) -> None:
+        try:
+            resolved = self._resolved()
+            self.command_journal.state_db_root = resolved.state_root if resolved is not None else None
+        except Exception as exc:
+            self.logger.warning("Could not refresh SQLite command journal state root: %s", exc)
+        self.command_journal.record(payload, request=request)
 
     def _validate_api_payload(self, route: str, body: dict[str, Any]) -> dict[str, Any]:
         from app.validation.boundary import validate_api_payload

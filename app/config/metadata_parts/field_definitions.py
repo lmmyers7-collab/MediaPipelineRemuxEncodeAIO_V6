@@ -573,6 +573,7 @@ _KIND_VALUE_TYPES = {
     "list": "list",
     "optional_float": "number",
     "optional_int": "integer",
+    "optional_string": "string",
     "path": "path",
     "string": "string",
 }

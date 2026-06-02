@@ -3,9 +3,9 @@ file: app/observability/status_files.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-05-28
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 9a2b9d47c67230b1c62e335958cf18d848969d61ff50aabb4cceb0f6b9618fac
+sha256: 3cfc2bb17b65ddef2368083e1740e03cf28458222a0dc0c41619ef1accac5722
 ---
 # `app/observability/status_files.py`
 

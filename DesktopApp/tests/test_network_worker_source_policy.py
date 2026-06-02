@@ -60,7 +60,8 @@ class NetworkWorkerSourcePolicyTests(unittest.TestCase):
 
         self.assertIn("resolve_worker_poll_interval", source)
         self.assertIn("KEY_WORKER_POLL_INTERVAL_SECS", source)
-        self.assertIn("resolve_worker_poll_interval(config.get(KEY_WORKER_POLL_INTERVAL_SECS, 30))", source)
+        self.assertIn("resolve_worker_poll_interval(config.get(KEY_WORKER_POLL_INTERVAL_SECS))", source)
+        self.assertNotIn("KEY_WORKER_POLL_INTERVAL_SECS, 30", source)
         self.assertNotIn('config.get("WorkerPollIntervalSecs", 30)', source)
         self.assertNotIn('max(5, int(config.get("WorkerPollIntervalSecs", 30)))', source)
 

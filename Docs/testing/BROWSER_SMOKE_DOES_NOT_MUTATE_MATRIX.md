@@ -133,8 +133,8 @@ As of 2026-05-20, every fixture-backed browser smoke captures a SHA-256/size sna
 
 | | |
 |---|---|
-| **Exercises** | Renders Maintenance health/readiness, release dry-run result output, completed-manifest backfill dry-run result output, dry-run history, Reports failure/audit triage, selected failure/audit row details, and read-only Launch/Diagnostics handoff navigation. |
-| **Does not** | Launch, process media, run audit, run CSV rerun, execute release packaging, rewrite completed manifests, publish, rename, save settings, mutate queue state, post backend mutation routes, or touch source/output/scratch paths. |
+| **Exercises** | Renders Maintenance health/readiness, release dry-run result output, completed-manifest backfill dry-run result output, dry-run history, Reports failure/audit triage, failure-marker clear dry-run preview, selected failure/audit row details, and read-only Launch/Diagnostics handoff navigation. |
+| **Does not** | Launch, process media, run audit, run CSV rerun, execute release packaging, rewrite completed manifests, publish, rename, save settings, mutate queue state, post non-dry-run backend mutation routes, or touch source/output/scratch paths. |
 | **Skip** | Exits 0 when Chrome/Edge not installed. |
 
 ### Test-WebViewBrowserSampleValidationSmoke.ps1
@@ -182,7 +182,7 @@ As of 2026-05-20, every fixture-backed browser smoke captures a SHA-256/size sna
 | | |
 |---|---|
 | **Exercises** | Read-only Network readiness and lifecycle handoff; renders backend-authored runtime state-file evidence and persisted worker rows; selects lifecycle, state-file, and worker detail; verifies local worker filters warn when active/problem rows are hidden. |
-| **Does not** | Start or stop coordinator or workers, process media, launch pipeline commands, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths. Network mode is read-only. |
+| **Does not** | Start or stop coordinator or workers, process media, launch pipeline commands, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths. The smoke exercises read-only Network runtime/lifecycle evidence and does not click Worker Mode Settings save. |
 | **Skip** | Exits 0 when Chrome/Edge not installed. |
 
 ### Test-WebViewBrowserTelemetrySmoke.ps1

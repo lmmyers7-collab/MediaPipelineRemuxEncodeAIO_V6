@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from mediapipeline_desktop_app.contracts import ContractError, PendingPushManifest
+from mediapipeline_desktop_app.contracts import ContractError, PENDING_PUSH_MANIFEST_STATES, PendingPushManifest
 from app.publish.pending_manifest_rows import (
     invalid_contract_pending_manifest_row,
     pending_output_size,
@@ -41,12 +41,13 @@ def pending_manifest_row(manifest_path: Path) -> dict[str, Any]:
     local_exists = bool(local_path and local_path.exists())
     output_size = pending_output_size(manifest, local_path)
     parked_at = contract.parked_at if contract else str(manifest.get("parked_at") or "").strip()
+    state = contract.manifest_state if contract else str(manifest.get("manifest_state") or "").strip()
     return readable_pending_manifest_row(
         manifest_path=manifest_path,
         parked_at=parked_at,
         publish_mode=contract.publish_mode if contract else str(manifest.get("publish_mode") or "").strip(),
         route=contract.route if contract else str(manifest.get("route") or "").strip(),
-        state=(contract.manifest_state if contract else str(manifest.get("manifest_state") or "").strip()),
+        state=state,
         local_path=local_path,
         local_exists=local_exists,
         server_path=server_path,
@@ -55,5 +56,14 @@ def pending_manifest_row(manifest_path: Path) -> dict[str, Any]:
         sidecar_paths=sidecar_paths,
         missing_sidecars=missing_sidecars,
         schema_version=schema_version,
-        error_text=pending_payload_error_text(local_path, local_exists, missing_sidecars),
+        error_text=pending_payload_error_text(
+            local_path,
+            local_exists,
+            missing_sidecars,
+            server_path=server_path,
+            state=state,
+            known_states=PENDING_PUSH_MANIFEST_STATES,
+            require_destination=True,
+            require_state=True,
+        ),
     )

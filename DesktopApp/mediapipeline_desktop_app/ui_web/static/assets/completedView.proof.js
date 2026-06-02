@@ -430,7 +430,7 @@
     function selectCompletedRealMediaProofRow(item) {
       state.selectedCompletedRealMediaProofKey = item?.key || "";
       if (item?.completedRow?.row_key) {
-        selectedCompletedRowKey = item.completedRow.row_key;
+        state.selectedCompletedRowKey = item.completedRow.row_key;
         renderCompletedDetail(item.completedRow);
         renderCompletedRows();
         renderCompletedReviewDigest(state.lastCompletedPayload, state.lastCompletedRows);
@@ -703,7 +703,7 @@
     function selectCompletedFinalTrustRow(item) {
       state.selectedCompletedFinalTrustKey = item?.key || "";
       if (item?.completedRow?.row_key) {
-        selectedCompletedRowKey = item.completedRow.row_key;
+        state.selectedCompletedRowKey = item.completedRow.row_key;
         renderCompletedDetail(item.completedRow);
         renderCompletedRows();
         renderCompletedReviewDigest(state.lastCompletedPayload, state.lastCompletedRows);

@@ -762,7 +762,7 @@ canvas {
   padding: var(--space-3);
   border: 1px solid var(--grey-800);
   border-radius: var(--radius-xs);
-  background: var(--grey-950);
+  background: var(--grey-900);
 }
 
 .settings-advanced-toggle-note {

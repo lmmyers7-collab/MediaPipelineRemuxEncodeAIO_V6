@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_webview_browser_layout_manager_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-29
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: eb55a18218a93cba6501b42572f1721a3eaa63ede406ad184e4abf0fdd5cdd0e
+sha256: 101403509155de8747f05bf9e6b20a2d3252d9f860aa55211a4172b64abaf154
 ---
 # `DesktopApp/tests/test_webview_browser_layout_manager_smoke.py`
 

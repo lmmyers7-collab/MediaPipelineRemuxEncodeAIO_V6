@@ -47,7 +47,7 @@ engine/entrypoint.ps1 -Stage <stage> -PayloadJson <json-or-path>
 - **Journal event type:** `pipeline.stage.ingest`
 - **Payload fields:** `source_path`, `scratch_root`, `intent`
 - **Data fields:** `scratch_path`, `size_bytes`, `sha256`
-- **Domain:** app/ingest/ (orchestration), engine/ingest/ (copy)
+- **Domain:** app/orchestration/ (stage boundary), engine/storage/ (scratch copy)
 - **Note:** Source files are never mutated.
 - **Note:** Scratch copies are hashed before downstream stages consume them.
 
@@ -60,7 +60,7 @@ engine/entrypoint.ps1 -Stage <stage> -PayloadJson <json-or-path>
 - **Journal event type:** `pipeline.stage.probe`
 - **Payload fields:** `scratch_path`
 - **Data fields:** `probe_ok`, `probe_error`, `tool_path`, `container`, `duration_seconds`, `bitrate_bps`, `video_codec`, `width`, `height`, `is_hdr`, `color_transfer`, `container_bitrate_mbps`, `estimated_bitrate_mbps`, `size_bytes`, `streams`
-- **Domain:** app/metadata/ (cache and parse), engine/media_probe/ (ffprobe)
+- **Domain:** app/contracts/source_media*.py (source facts), engine/probe/ (ffprobe)
 - **Note:** Probe cache keys are expected to include path, mtime, and size.
 - **Note:** Subtitle, audio, attachment, chapter, and data parity checks remain high risk.
 
@@ -86,7 +86,7 @@ engine/entrypoint.ps1 -Stage <stage> -PayloadJson <json-or-path>
 - **Journal event type:** `pipeline.stage.transcode`
 - **Payload fields:** `scratch_path`, `output_path`, `decision`, `video_codec`, `video_preset`, `video_quality`, `output_container`, `extra_video_flags`, `timeout_seconds`, `intent`, `confirm_transcode`
 - **Data fields:** `output_path`, `output_size_bytes`, `attempts`
-- **Domain:** app/transcode/ (attempt loop), engine/ffmpeg/ and engine/transcode/ (invocation)
+- **Domain:** app/processes/ and app/orchestration/ (runner/plans), engine/process/ and Pipeline/MediaPipeline/ (invocation)
 - **Note:** FFmpeg command generation and stream mapping are high-risk surfaces.
 - **Note:** Attempt records preserve encoder, timestamps, exit code, and log path.
 
@@ -99,7 +99,7 @@ engine/entrypoint.ps1 -Stage <stage> -PayloadJson <json-or-path>
 - **Journal event type:** `pipeline.stage.subtitle_convert`
 - **Payload fields:** `scratch_path`, `output_path`, `keep_languages`, `convert_tx3g_to_srt`, `convert_bdpgs_to_srt`, `bdpgs_ocr_tool_path`, `bdpgs_ocr_tessdata_path`, `intent`, `confirm_subtitle_convert`
 - **Data fields:** `tracks_kept`, `tracks_converted`, `sidecars_written`, `review_required`, `review_reason`
-- **Domain:** app/subtitles/, engine/subtitles/
+- **Domain:** app/contracts/source_media*.py (subtitle facts), engine/subtitles/
 - **Note:** Original subtitles are preserved by default.
 - **Note:** OCR/conversion failure routes to review, never silent bad publish.
 
@@ -112,7 +112,7 @@ engine/entrypoint.ps1 -Stage <stage> -PayloadJson <json-or-path>
 - **Journal event type:** `pipeline.stage.audio_mix`
 - **Payload fields:** `scratch_path`, `output_path`, `passthrough_profile`, `compatible_audio_codecs`, `preferred_default_languages`, `intent`, `confirm_audio_mix`
 - **Data fields:** `tracks_passed_through`, `tracks_transcoded`, `tracks_downmixed`, `default_track_language`
-- **Domain:** app/audio/, engine/audio/
+- **Domain:** app/contracts/source_media*.py (audio facts), engine/audio/
 - **Note:** Audio routing is profile/config driven.
 - **Note:** Passthrough, downmix, and transcode policy changes require high validation.
 

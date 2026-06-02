@@ -2,10 +2,10 @@
 file: app/queue/policy_parts/rows.py
 pipeline_stage: orchestration
 token_priority: medium
-owner_domain: unknown
-last_modified: 2026-05-31
+owner_domain: queue
+last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: f71f12e1615bd4b8191dd15302e7e9a30187e3aacb25d8d07a357995d476d7de
+sha256: f0fb088c89644c32397792fe7681ec31d5995a146947e367c652c2214a1c9269
 ---
 # `app/queue/policy_parts/rows.py`
 

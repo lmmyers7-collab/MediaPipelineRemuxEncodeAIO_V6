@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+import errno
 import http.server
 import ipaddress
 import json
@@ -14,6 +15,16 @@ from urllib.parse import urlsplit
 JsonSender = Callable[[dict[str, Any], int], None]
 
 NO_TOKEN_DEV_ENV_VAR = "MEDIAPIPELINE_ALLOW_NO_TOKEN_DEV"
+CLIENT_DISCONNECT_WINERRORS = frozenset({10053, 10054})
+CLIENT_DISCONNECT_ERRNOS = frozenset(
+    code
+    for code in (
+        getattr(errno, "EPIPE", None),
+        getattr(errno, "ECONNABORTED", None),
+        getattr(errno, "ECONNRESET", None),
+    )
+    if code is not None
+)
 
 
 LOCAL_API_CONTENT_SECURITY_POLICY = (
@@ -32,6 +43,18 @@ LOCAL_API_CONTENT_SECURITY_POLICY = (
 
 def _reject_json_constant(value: str) -> None:
     raise ValueError(f"non-finite JSON value is not allowed: {value}")
+
+
+def is_client_disconnect_error(exc: BaseException) -> bool:
+    if isinstance(exc, (BrokenPipeError, ConnectionAbortedError, ConnectionResetError)):
+        return True
+    if not isinstance(exc, OSError):
+        return False
+    winerror = getattr(exc, "winerror", None)
+    if winerror in CLIENT_DISCONNECT_WINERRORS:
+        return True
+    errno_value = getattr(exc, "errno", None)
+    return errno_value in CLIENT_DISCONNECT_ERRNOS
 
 
 def query_value(query: dict[str, list[str]], name: str, default: str = "") -> str:
@@ -243,15 +266,20 @@ def send_bytes(
     status: int = 200,
     content_type: str = "application/octet-stream",
 ) -> None:
-    handler.send_response(status)
-    handler.send_header("Content-Type", content_type)
-    handler.send_header("Content-Length", str(len(body)))
-    handler.send_header("Cache-Control", "no-store")
-    handler.send_header("Content-Security-Policy", LOCAL_API_CONTENT_SECURITY_POLICY)
-    handler.send_header("X-Content-Type-Options", "nosniff")
-    handler.send_header("Referrer-Policy", "no-referrer")
-    handler.end_headers()
-    handler.wfile.write(body)
+    try:
+        handler.send_response(status)
+        handler.send_header("Content-Type", content_type)
+        handler.send_header("Content-Length", str(len(body)))
+        handler.send_header("Cache-Control", "no-store")
+        handler.send_header("Content-Security-Policy", LOCAL_API_CONTENT_SECURITY_POLICY)
+        handler.send_header("X-Content-Type-Options", "nosniff")
+        handler.send_header("Referrer-Policy", "no-referrer")
+        handler.end_headers()
+        handler.wfile.write(body)
+    except OSError as exc:
+        if is_client_disconnect_error(exc):
+            return
+        raise
 
 
 def content_type_for(path: Path) -> str:

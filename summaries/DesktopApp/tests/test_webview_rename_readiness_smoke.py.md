@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_webview_rename_readiness_smoke.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-30
+last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: f01f18f5b1ea895bbcc2b25d3fd6419501ac02d1f1ed5a8d5cb8e2d64755bb41
+sha256: ec0224c1b27442b4bea137197444c859160e35bf92a54b8e6f63d72e75b8fb35
 ---
 # `DesktopApp/tests/test_webview_rename_readiness_smoke.py`
 

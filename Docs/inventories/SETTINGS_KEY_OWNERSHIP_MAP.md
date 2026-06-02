@@ -4,7 +4,7 @@ Date: 2026-05-14
 
 Maps the highest-impact configuration keys to: builder page/group, mutation risk, Settings-to-Launch handoff visibility, and test coverage. Source: `config_schema.py`, `settings_risk_policy_rules.py`, `Docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`.
 
-~89 total config keys. ~76 covered by structured WebView builders. No non-secret raw-JSON-only config keys remain; 2 intentionally hidden auth keys remain excluded. This document covers the highest-impact subset plus all hidden keys.
+130 backend metadata keys are present in `CONFIG_FIELD_DEFINITIONS`. 118 are covered by structured WebView builder arrays, `LibraryProfiles` is handled by the dedicated Library Profiles editor, 9 non-secret keys are known advanced/direct-config metadata without routine builders, and 2 intentionally hidden auth keys remain excluded. This document covers the highest-impact subset plus all hidden keys.
 
 ---
 
@@ -62,6 +62,8 @@ These keys have no structured WebView builder panel because they are auth secret
 | `MaxEncodeGrowthPercent` | Medium | Allowed output size growth % for normal encodes before size guard triggers. | Yes — growth limit row | `test_service_config_numeric_policy.py` |
 | `AllowH264RemuxIfPlexCompatible` | Medium | Allows H.264 sources to be remuxed (copy) rather than re-encoded when Plex-compatible. | Yes — H264 copy policy row | `test_service_config_option_policy.py` |
 | `ReprocessAll` | **High** | Forces all sources to be reprocessed regardless of completed history. Blocked by save-readiness checklist pending confirmation. | Yes — reprocess flag warning row | `test_service_config_validation.py` |
+| `MixPriorityPhase` | Medium | Mixes high-priority movie and TV items in one priority phase instead of separate media-type phases. | Yes — queue ordering handoff | `test_metadata_contract.py` |
+| `QueueOrderingStrategy` | Medium | Default queue sort preset used when no explicit queue strategy command override is active. | Yes — queue ordering handoff | `test_metadata_contract.py` |
 
 ### Video Detail Group
 
@@ -110,12 +112,13 @@ These keys have no structured WebView builder panel because they are auth secret
 | `RobocopyTimeoutSeconds` | Medium | File transfer timeout (default 14400s = 4h). Low value kills in-progress transfers. | Not surfaced | `test_service_config_numeric_policy.py` |
 | `ConsoleLogLevel` | Low | Console log verbosity. | Not surfaced | `test_service_config_validation.py` |
 | `FileLogLevel` | Low | File log verbosity. | Not surfaced | `test_service_config_validation.py` |
+| `ShowOverrides` | **High** | Advanced per-show media-policy override map. Wrong values can route, encode, audio, or subtitle-process matching shows unexpectedly. | Yes — settings policy impact rows | `test_metadata_contract.py` |
 
 ### Network Group
 
 | Key | Risk | Description | Launch handoff | Tests |
 |---|---|---|---|---|
-| `NetworkRole` | **High** | `standalone`, `coordinator`, or `worker`. Changing while processing active jobs causes undefined state. | Yes — network role row | `test_network_view_source_policy.py` |
+| `NetworkRole` | **High** | `standalone`, `coordinator`, or `worker`. Changing while processing active jobs causes undefined state. | Yes — network role row | `test_application_facade_network.py`, `test_webview_network_read_only_boundary.py` |
 | `CoordinatorPort` | Medium | HTTP listen port for coordinator (default 7830). Firewall must allow this port. | Not surfaced | `test_network_coordinator_source_policy.py` |
 | `CoordinatorBindAddress` | Medium | `0.0.0.0` exposes coordinator on all interfaces; `127.0.0.1` restricts to localhost only. | Not surfaced | `test_network_coordinator_source_policy.py` |
 | `CoordinatorAuthToken` | **Critical** | (Raw-only/hidden) Shared auth secret between coordinator and workers. | Not surfaced | Excluded from WebView by design |

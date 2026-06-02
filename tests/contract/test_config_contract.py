@@ -24,11 +24,7 @@ from app.contracts.config import (
 from mediapipeline_desktop_app import config_keys
 
 
-PS_SCHEMA_ONLY_KEYS = {
-    "MixPriorityPhase",
-    "QueueOrderingStrategy",
-    "ShowOverrides",
-}
+PS_SCHEMA_ONLY_KEYS: set[str] = set()
 VOBSUB_CONFIG_KEYS = {
     "ConvertVobSubToSrt",
     "DropVobSubAfterConversion",
@@ -37,6 +33,7 @@ VOBSUB_CONFIG_KEYS = {
     "VobSubOcrTimeoutSeconds",
     "TreatVobSubSignsSongsAsForced",
 }
+VOBSUB_OCR_TOOL_DEFAULT = r"Tools\SubtitleEditLegacy\SubtitleEdit.exe"
 FRIENDLY_LABEL_KEYS = {
     "ProcessingStrategy",
     "EnforcementMode",
@@ -248,6 +245,27 @@ class ConfigContractTests(unittest.TestCase):
 
         self.assertEqual(schema["properties"], generated["properties"])
         self.assertEqual(schema["x-config-schema-version"], CONFIG_SCHEMA_VERSION)
+        self.assertEqual(schema.get("allOf"), generated.get("allOf"))
+
+    def test_generated_schema_declares_runtime_subtitle_cross_field_policy(self) -> None:
+        schema_path = REPO_ROOT / "schemas" / "config.v1.schema.json"
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        all_of_text = json.dumps(schema.get("allOf", []))
+
+        for key in (
+            "ConvertTx3gToSrt",
+            "DropTx3gAfterConversion",
+            "CreateExternalTx3gSrtSidecars",
+            "ConvertBdpgsToSrt",
+            "DropBdpgsAfterConversion",
+            "BdpgsOcrToolPath",
+            "ConvertVobSubToSrt",
+            "DropVobSubAfterConversion",
+            "VobSubOcrToolPath",
+        ):
+            with self.subTest(key=key):
+                self.assertIn(key, all_of_text)
+        self.assertIn(r"^\\s*$", all_of_text)
 
     def test_pipeline_json_schema_covers_non_network_config_surfaces(self) -> None:
         schema_path = REPO_ROOT / "Pipeline" / "Schemas" / "media_pipeline_config.schema.json"
@@ -277,8 +295,23 @@ class ConfigContractTests(unittest.TestCase):
         self.assertEqual(properties["VobSubOcrTimeoutSeconds"]["minimum"], 60)
         self.assertEqual(properties["VobSubOcrTimeoutSeconds"]["maximum"], 14400)
         self.assertEqual(properties["TreatVobSubSignsSongsAsForced"]["type"], "boolean")
-        self.assertIn("DropVobSubAfterConversion", json.dumps(schema.get("allOf", [])))
-        self.assertIn("ConvertVobSubToSrt", json.dumps(schema.get("allOf", [])))
+        all_of_text = json.dumps(schema.get("allOf", []))
+        self.assertIn("DropVobSubAfterConversion", all_of_text)
+        self.assertIn("ConvertVobSubToSrt", all_of_text)
+        self.assertIn("VobSubOcrToolPath", all_of_text)
+        self.assertIn("DropBdpgsAfterConversion", all_of_text)
+        self.assertIn("ConvertBdpgsToSrt", all_of_text)
+        self.assertIn("BdpgsOcrToolPath", all_of_text)
+        self.assertIn(r"^\\s*$", all_of_text)
+
+    def test_vobsub_ocr_default_uses_supported_subtitle_edit_exe(self) -> None:
+        schema_path = REPO_ROOT / "schemas" / "config.v1.schema.json"
+        schema = json.loads(schema_path.read_text(encoding="utf-8"))
+        default_path = Config().VobSubOcrToolPath
+
+        self.assertEqual(default_path, VOBSUB_OCR_TOOL_DEFAULT)
+        self.assertEqual(schema["properties"]["VobSubOcrToolPath"]["default"], VOBSUB_OCR_TOOL_DEFAULT)
+        self.assertNotIn("seconv.exe", default_path.casefold())
 
     def test_invalid_config_payload_is_rejected(self) -> None:
         with self.assertRaises(Exception):
@@ -306,6 +339,15 @@ class ConfigContractTests(unittest.TestCase):
         ):
             with self.subTest(key=key, value=value), self.assertRaises(Exception):
                 Config.model_validate({key: value})
+
+    def test_boolean_numeric_config_values_are_rejected_before_coercion(self) -> None:
+        for key in (
+            "EncodeThresholdGB",
+            "OutputSizeMultiplier",
+            "ConfigSchemaVersion",
+        ):
+            with self.subTest(key=key), self.assertRaises(Exception):
+                Config.model_validate({key: True})
 
 
 if __name__ == "__main__":

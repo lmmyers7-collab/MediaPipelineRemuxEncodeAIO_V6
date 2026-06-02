@@ -517,6 +517,7 @@ $testsRoot = Join-Path $pipelineRoot 'Tests'
 $verifier = Join-Path $script:BundleRoot 'scripts\verify-env.ps1'
 $tauriPrereqs = Join-Path $script:BundleRoot 'DesktopApp\tauri_shell\Test-TauriShell-Prereqs.ps1'
 $v6Reliability = Join-Path $testsRoot 'Invoke-V6WebViewReliabilityChecks.ps1'
+$releasePolicyUnit = Join-Path $testsRoot 'Unit\Invoke-ReleasePackagePolicyChecks.ps1'
 $toolIntegration = Join-Path $testsRoot 'Invoke-ToolIntegrationChecks.ps1'
 $endToEndSmoke = Join-Path $testsRoot 'Invoke-EndToEndSmokeChecks.ps1'
 $releaseManifest = Join-Path $script:BundleRoot 'release_manifest.json'
@@ -580,6 +581,7 @@ foreach ($entry in @(
     @{ Label = 'SmokeTests WebView settings patch evidence smoke'; Path = (Join-Path $script:BundleRoot 'SmokeTests\Test-WebViewSettingsPatchEvidenceSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'V6 reliability compatibility wrapper'; Path = (Join-Path $pipelineRoot 'Tests\Invoke-ReliabilityRegressionChecks.ps1'); Type = 'Leaf'; Required = [bool]$RequireTests },
     @{ Label = 'V6 WebView reliability gate'; Path = $v6Reliability; Type = 'Leaf'; Required = [bool]$RequireTests },
+    @{ Label = 'Release package policy unit gate'; Path = $releasePolicyUnit; Type = 'Leaf'; Required = [bool]$RequireTests },
     @{ Label = 'Native process cleanup unit gate'; Path = (Join-Path $pipelineRoot 'Tests\Unit\Invoke-NativeProcessCleanupChecks.ps1'); Type = 'Leaf'; Required = [bool]$RequireTests },
     @{ Label = 'Runtime state hygiene unit gate'; Path = (Join-Path $pipelineRoot 'Tests\Unit\Invoke-RuntimeStateHygieneChecks.ps1'); Type = 'Leaf'; Required = [bool]$RequireTests },
     @{ Label = 'Release policy module'; Path = (Join-Path $script:BundleRoot 'scripts\release\release_policy.ps1'); Type = 'Leaf' },
@@ -618,11 +620,11 @@ foreach ($entry in @(
     @{ Label = 'Application facade schedule mixin'; Path = (Join-Path $script:BundleRoot 'app\schedule\facade.py'); Type = 'Leaf' },
     @{ Label = 'Application facade settings mixin'; Path = (Join-Path $script:BundleRoot 'app\config\settings_facade.py'); Type = 'Leaf' },
     @{ Label = 'Application facade settings helpers mixin'; Path = (Join-Path $script:BundleRoot 'app\config\settings_helpers_facade.py'); Type = 'Leaf' },
-    @{ Label = 'Application facade settings patch mixin'; Path = (Join-Path $script:BundleRoot 'app\config\settings_patch_facade.py'); Type = 'Leaf' },
+    @{ Label = 'Application facade settings patch mixin'; Path = (Join-Path $script:BundleRoot 'app\orchestration\settings_patch_facade.py'); Type = 'Leaf' },
     @{ Label = 'Application facade settings patch candidate mixin'; Path = (Join-Path $script:BundleRoot 'app\config\settings_patch_candidate_facade.py'); Type = 'Leaf' },
     @{ Label = 'Application facade settings risk mixin'; Path = (Join-Path $script:BundleRoot 'app\config\settings_risk_facade.py'); Type = 'Leaf' },
     @{ Label = 'Application settings risk policy'; Path = (Join-Path $script:BundleRoot 'DesktopApp\mediapipeline_desktop_app\application\settings_risk_policy.py'); Type = 'Leaf' },
-    @{ Label = 'Application facade status mixin'; Path = (Join-Path $script:BundleRoot 'app\observability\status_facade.py'); Type = 'Leaf' },
+    @{ Label = 'Application status policy'; Path = (Join-Path $script:BundleRoot 'app\observability\status_policy.py'); Type = 'Leaf' },
     @{ Label = 'Application facade utilities mixin'; Path = (Join-Path $script:BundleRoot 'app\application\utilities.py'); Type = 'Leaf' },
     @{ Label = 'Local API command handlers'; Path = (Join-Path $script:BundleRoot 'app\api\command_handlers.py'); Type = 'Leaf' },
     @{ Label = 'Local API command result helpers'; Path = (Join-Path $script:BundleRoot 'app\api\command_results.py'); Type = 'Leaf' },
@@ -758,11 +760,11 @@ $pythonSyntaxFiles = @(
     (Join-Path $script:BundleRoot 'app\schedule\facade.py'),
     (Join-Path $script:BundleRoot 'app\config\settings_facade.py'),
     (Join-Path $script:BundleRoot 'app\config\settings_helpers_facade.py'),
-    (Join-Path $script:BundleRoot 'app\config\settings_patch_facade.py'),
+    (Join-Path $script:BundleRoot 'app\orchestration\settings_patch_facade.py'),
     (Join-Path $script:BundleRoot 'app\config\settings_patch_candidate_facade.py'),
     (Join-Path $script:BundleRoot 'app\config\settings_risk_facade.py'),
     (Join-Path $script:BundleRoot 'DesktopApp\mediapipeline_desktop_app\application\settings_risk_policy.py'),
-    (Join-Path $script:BundleRoot 'app\observability\status_facade.py'),
+    (Join-Path $script:BundleRoot 'app\observability\status_policy.py'),
     (Join-Path $script:BundleRoot 'app\application\utilities.py'),
     (Join-Path $script:BundleRoot 'app\api\command_handlers.py'),
     (Join-Path $script:BundleRoot 'app\api\command_results.py'),
@@ -889,6 +891,7 @@ if (-not $testsPresent) {
         Write-Warn "Pipeline tests are not present in this package. Build with -IncludeTests for the full release gate."
     }
 } else {
+    Invoke-ReleaseScriptCheck -Label 'release package policy checks' -ScriptPath $releasePolicyUnit -Required:([bool]$RequireTests) -TimeoutSeconds 120
     Invoke-ReleaseScriptCheck -Label 'V6 WebView reliability checks' -ScriptPath $v6Reliability -Required:([bool]$RequireTests) -TimeoutSeconds 600
 
     if ($SkipToolIntegration) {

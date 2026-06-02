@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/network/poll_policy.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-05-09
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 553372393f7c2bf47a9f2375fc60602ddc93cbbe07f9f5d7984bd19413bef3a4
+sha256: 7250250359e6f0b69b07eb30bf54c03b64540cd22e59645ffb3fbb96fd29b7f6
 ---
 # `DesktopApp/mediapipeline_desktop_app/network/poll_policy.py`
 

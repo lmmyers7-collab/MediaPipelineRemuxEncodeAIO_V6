@@ -262,7 +262,7 @@ def _progress_active(progress: Mapping[str, Any]) -> bool:
     text = f"{status} {stage}".strip()
     if not text:
         return False
-    if any(token in text for token in ("idle", "sleeping", "stopped")):
+    if any(token in text for token in ("idle", "sleeping", "stopped", "completed")):
         return False
     return True
 

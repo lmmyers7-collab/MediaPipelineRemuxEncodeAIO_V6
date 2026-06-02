@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 import shutil
 import sys
 import threading
@@ -105,12 +106,14 @@ class TelemetryServiceMixin:
                     gpu_rows, parse_failures = parse_nvidia_smi_encoder_rows(output)
                     if gpu_rows:
                         apply_nvidia_smi_rows_to_snapshot(snapshot, gpu_rows)
-                    elif not snapshot.error:
-                        snapshot.error = "nvidia-smi returned no parseable encoder telemetry"
                     elif parse_failures and not snapshot.error:
                         snapshot.error = "nvidia-smi returned malformed encoder telemetry"
+                    elif not snapshot.error:
+                        snapshot.error = "nvidia-smi returned no parseable encoder telemetry"
                 elif not snapshot.error and result.stderr.strip():
                     snapshot.error = result.stderr.strip()
+                elif not snapshot.error and result.returncode not in (0, None):
+                    snapshot.error = f"nvidia-smi exited with code {result.returncode}"
             except Exception as exc:
                 if not snapshot.error:
                     snapshot.error = f"nvidia-smi error: {exc}"

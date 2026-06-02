@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/progressView.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-30
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: ffdd8f8351d253bcf272cd4f4b98e80bcca79c9a966ac390e0da39edf7c07a63
+sha256: 9d0b4d7da171eb431171c8cf981def4650fa9df86ba9ab4a4c77da9b187ec6ee
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/progressView.js`
 

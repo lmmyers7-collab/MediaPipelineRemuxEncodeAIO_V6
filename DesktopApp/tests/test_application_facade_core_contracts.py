@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 import logging
 import sys
 import tempfile
@@ -50,6 +51,23 @@ class ApplicationFacadeCoreContractTests(unittest.TestCase):
         self.assertTrue(mapping["ok"])
         self.assertEqual(mapping["command"], "refresh")
         self.assertEqual(mapping["log_paths"]["stdout"], "stdout.log")
+
+    def test_command_result_mapping_replaces_nonfinite_numbers_for_strict_json(self) -> None:
+        result = CommandResult(
+            command="telemetry.probe",
+            ok=True,
+            message="Collected telemetry.",
+            data={
+                "cpu_percent": float("nan"),
+                "samples": [1.0, float("inf"), float("-inf")],
+            },
+        )
+
+        mapping = result.to_mapping()
+
+        self.assertIsNone(mapping["data"]["cpu_percent"])
+        self.assertEqual(mapping["data"]["samples"], [1.0, None, None])
+        json.dumps(mapping, ensure_ascii=False, sort_keys=True, allow_nan=False)
 
     def test_runtime_outcome_helper_normalizes_completion_and_failure_events(self) -> None:
         from app.observability.runtime_outcomes import runtime_outcome_from_event, runtime_outcome_index, source_identity_key
@@ -138,7 +156,9 @@ class ApplicationFacadeCoreContractTests(unittest.TestCase):
                     "message": "blocked by schedule",
                     "warnings": ["outside schedule"],
                     "errors": ["schedule"],
-                }
+                    "data": {"mode": "once", "secret_token": "hidden"},
+                },
+                request={"mode": "once", "authorization": "Bearer hidden"},
             )
             journal.record(
                 {
@@ -158,7 +178,10 @@ class ApplicationFacadeCoreContractTests(unittest.TestCase):
         self.assertEqual(payload["schema_version"], "desktop_command_history.v1")
         self.assertEqual(payload["count"], 2)
         self.assertEqual([entry["command"] for entry in payload["entries"]], ["rerun.start", "pipeline.start"])
-        self.assertNotIn("data", payload["entries"][0])
+        self.assertEqual(payload["entries"][1]["data"]["mode"], "once")
+        self.assertEqual(payload["entries"][1]["data"]["secret_token"], "<redacted>")
+        self.assertEqual(payload["entries"][1]["request"]["mode"], "once")
+        self.assertEqual(payload["entries"][1]["request"]["authorization"], "<redacted>")
         self.assertEqual(reloaded["entries"], payload["entries"])
         self.assertEqual(leftovers, [])
 
@@ -403,6 +426,41 @@ class ApplicationFacadeCoreContractTests(unittest.TestCase):
         self.assertEqual(loaded["storage"]["mediapipeline-layout-v1"], "{\"home\":{}}")
         self.assertEqual(loaded["storage"]["mediapipeline-theme"], "dark")
         self.assertNotIn("not-owned", loaded["storage"])
+
+    def test_ui_preferences_write_permission_error_returns_safe_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            state_root = root / "State"
+            resolved = ResolvedPaths(
+                app_root=root,
+                workspace_root=root,
+                pipeline_path=root / "pipeline.ps1",
+                config_path=root / "config.psd1",
+                audit_script_path=root / "audit.ps1",
+                rerun_script_path=root / "rerun.ps1",
+                powershell_host=str(root / "pwsh.exe"),
+                state_root=state_root,
+            )
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v5-test")
+            server = LocalApiServer(facade, resolved_provider=lambda: resolved)
+
+            with patch(
+                "app.api.commands_ui_preferences.write_ui_preferences",
+                side_effect=PermissionError(5, "Access is denied"),
+            ):
+                payload = server._ui_preferences_save_payload(
+                    {
+                        "source_surface": "tauri",
+                        "storage": {"mediapipeline-theme": "light"},
+                    }
+                )
+
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["schema_version"], "desktop_ui_preferences.v1")
+        self.assertEqual(payload["source"], "write_failed")
+        self.assertEqual(payload["storage"], {})
+        self.assertIn("could not write state file", payload["message"])
+        self.assertIn("PermissionError", payload["message"])
 
 
 if __name__ == "__main__":

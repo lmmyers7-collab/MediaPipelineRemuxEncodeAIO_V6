@@ -81,6 +81,40 @@ class FfmpegProgressPayloadTests(unittest.TestCase):
         self.assertEqual(row["speed"], "0.532x")
         self.assertEqual(row["updated_at"], "2026-05-08T12:02:00-04:00")
 
+    def test_ffmpeg_progress_payload_parses_native_out_time_microseconds(self) -> None:
+        payload = ffmpeg_progress_payload(
+            {
+                "Status": "Processing",
+                "CurrentStage": "encode",
+                "CurrentFileDisplay": "Movie.mkv",
+                "LastUpdate": "2026-05-08T12:02:00-04:00",
+            },
+            "\n".join(
+                [
+                    "frame=240",
+                    "fps=29.97",
+                    "out_time_us=5000000",
+                    "speed=1.23x",
+                    "progress=continue",
+                ]
+            ),
+        )
+
+        row = payload["rows"][0]
+        self.assertEqual(payload["status"], "loaded")
+        self.assertEqual(payload["parsed_count"], 1)
+        self.assertEqual(payload["parse_error_count"], 0)
+        self.assertEqual(row["time"], "00:00:05.000000")
+        self.assertEqual(row["last_log_line"], "speed=1.23x")
+
+    def test_ffmpeg_progress_payload_parses_native_out_time_ms_as_microseconds(self) -> None:
+        payload = ffmpeg_progress_payload(
+            {"Status": "Processing", "CurrentStage": "encode", "LastUpdate": "2026-05-08T12:02:00-04:00"},
+            "out_time_ms=10000000\nprogress=continue\n",
+        )
+
+        self.assertEqual(payload["rows"][0]["time"], "00:00:10.000000")
+
     def test_ffmpeg_progress_payload_reports_parse_error_for_relevant_active_work(self) -> None:
         payload = ffmpeg_progress_payload(
             {

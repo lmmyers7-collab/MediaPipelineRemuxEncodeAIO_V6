@@ -3,9 +3,9 @@ file: Docs/inventories/SMOKE_TEST_INVENTORY.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-05-29
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: fac09d29722b03b533c3df20067a877b2a8c3e0020359de06f0b95138af7edf7
+sha256: 934f05e03b040222952e34f33ccf595f609c30a6b7ad99309e49bafdc2cf01e7
 ---
 # `Docs/inventories/SMOKE_TEST_INVENTORY.md`
 

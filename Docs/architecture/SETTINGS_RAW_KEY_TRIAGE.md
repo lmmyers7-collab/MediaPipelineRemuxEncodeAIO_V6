@@ -12,10 +12,11 @@ This document does not change settings behavior. Changes to builder coverage req
 
 | Category | Count |
 |---|---|
-| Keys in structured WebView builders | ~76 |
-| Raw JSON only (no structured builder) | 0 |
+| Keys in structured WebView builder arrays | 118 |
+| Dedicated Library Profiles editor | 1 |
+| Known advanced/direct-config metadata without routine builder | 9 |
 | Intentionally hidden (excluded from WebView) | 2 |
-| **Total raw or hidden** | **2** |
+| **Backend metadata keys** | **130** |
 
 **Update (CLN2-11, 2026-05-15):** `ConsoleLogLevel` and `FileLogLevel` are now covered by the Runtime builder (`settingsMetadata.js`). Removed from raw-only list.
 
@@ -27,11 +28,25 @@ This document does not change settings behavior. Changes to builder coverage req
 
 **Update (2026-05-31):** The settings/library rewrite makes backend field metadata canonical for visible labels, help text, allowed values, defaults, advanced/display taxonomy, and library override eligibility. This raw-key triage remains an operator visibility note, not a metadata source of truth. The WebView remains staging/display only, Preview/Save remains backend-owned, and persisted V6 keys/groups were not renamed.
 
+**Update (2026-06-02, MDS-049):** `MixPriorityPhase`, `QueueOrderingStrategy`, and `ShowOverrides` now have backend field metadata so Settings Preview/Save and the Raw-Key Action Plan treat them as known advanced/direct-config keys instead of schema drift.
+
 ---
 
-## Raw-Only Keys (Not In Any Structured Builder)
+## Known Advanced / Direct-Config Keys
 
-No non-secret raw-only config keys remain in the current WebView builder coverage.
+These non-secret keys are known backend metadata/config-contract keys but do not have routine structured WebView builder controls. They are not schema drift. Use raw JSON/direct config plus backend Preview Patch before Save.
+
+| Key | Category | Operator action |
+|---|---|---|
+| `ConfigSchemaVersion` | Runtime / migration | Do not edit unless deliberately migrating schema |
+| `MaxParallelEncodes` | Runtime / parallelism | Validate local encode capacity before changing |
+| `ParallelEncodeMode` | Runtime / parallelism | Keep aligned with `MaxParallelEncodes` and local worker-slot validation |
+| `MixPriorityPhase` | Queue planning | Preview Queue and inspect selected phase ordering |
+| `QueueOrderingStrategy` | Queue planning | Preview Queue and inspect sort strategy effects |
+| `OutputValidationProbeTimeoutSeconds` | Output validation | Validate completed-output probe behavior before changing |
+| `OutputValidationMinSizeBytes` | Output validation | Validate small-output acceptance behavior before changing |
+| `OutputValidationDurationToleranceSeconds` | Output validation | Validate duration tolerance against representative media before changing |
+| `ShowOverrides` | Per-show media policy | Treat as media-policy work; verify Queue/Launch/Completed evidence for affected shows |
 
 **Note (CLN2-11, 2026-05-15):** `ConsoleLogLevel` and `FileLogLevel` were added to the Runtime builder in `settingsMetadata.js` after the original CLN-015 audit. They are no longer raw-only.
 

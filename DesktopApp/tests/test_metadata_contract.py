@@ -16,6 +16,7 @@ from app.config.metadata_parts.field_definitions import (
     METADATA_SCOPE_VALUES,
     METADATA_STRICTNESS_VALUES,
 )
+from app.contracts.config import Config
 
 
 CONTRACT_FIELDS = {
@@ -211,6 +212,16 @@ class MetadataContractTests(unittest.TestCase):
                 self.assertEqual(field["validation_owner"], "backend")
                 self.assertIn(field["runtime_consumer"], {"unknown", "deferred"})
 
+    def test_every_metadata_record_declares_known_value_type(self) -> None:
+        for field in CONFIG_FIELD_DEFINITIONS:
+            with self.subTest(key=field["key"], kind=field.get("kind")):
+                self.assertNotEqual(field["value_type"], "unknown")
+
+    def test_every_config_contract_field_has_backend_metadata(self) -> None:
+        fields = _fields_by_key()
+
+        self.assertEqual(sorted(set(Config.model_fields) - set(fields)), [])
+
     def test_phase3_label_only_renames_preserve_persisted_keys_and_override_groups(self) -> None:
         fields = _fields_by_key()
 
@@ -339,6 +350,19 @@ class MetadataContractTests(unittest.TestCase):
         self.assertIn("mkv", fields["OutputContainer"]["allowed_values"])
         self.assertEqual(fields["EncodeThresholdGB"]["min"], 1)
         self.assertEqual(fields["EncodeThresholdGB"]["unit"], "GB")
+        self.assertEqual(fields["MixPriorityPhase"]["default_value"], False)
+        self.assertEqual(fields["QueueOrderingStrategy"]["allowed_values"], (
+            "Standard",
+            "FreshestFirst",
+            "ShowComplete",
+            "RoundRobin",
+            "DeadlineAware",
+            "SmallFirst",
+            "LargeFirst",
+            "ManualOrder",
+        ))
+        self.assertEqual(fields["ShowOverrides"]["value_type"], "json")
+        self.assertEqual(fields["ShowOverrides"]["default_value"], {})
         self.assertEqual(fields["VobSubOcrTimeoutSeconds"]["min"], 60)
         self.assertEqual(fields["VobSubOcrTimeoutSeconds"]["max"], 14400)
         self.assertEqual(fields["VobSubOcrTimeoutSeconds"]["unit"], "seconds")

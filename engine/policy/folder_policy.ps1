@@ -335,10 +335,10 @@ function ConvertTo-FolderPolicyTopologyItemKey {
     )
 
     $values = @()
-    if ($Item -is [System.Collections.IEnumerable] -and -not ($Item -is [string])) {
-        $values = @($Item)
-    } elseif ($Item -is [System.Collections.IDictionary]) {
+    if ($Item -is [System.Collections.IDictionary]) {
         $values = @($Item['codec'], $Item['language'], $Item['channels'])
+    } elseif ($Item -is [System.Collections.IEnumerable] -and -not ($Item -is [string])) {
+        $values = @($Item)
     } elseif ($Item) {
         $codec = if ($Item.PSObject.Properties['codec']) { [string]$Item.codec } else { '' }
         $language = if ($Item.PSObject.Properties['language']) { [string]$Item.language } else { '' }

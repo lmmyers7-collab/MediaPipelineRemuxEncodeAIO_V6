@@ -5,8 +5,10 @@ import logging
 
 _log = logging.getLogger(__name__)
 
+DEFAULT_WORKER_POLL_INTERVAL_SECS = 10
 
-def resolve_worker_poll_interval(raw_value: object, default_seconds: int = 30) -> int:
+
+def resolve_worker_poll_interval(raw_value: object, default_seconds: int = DEFAULT_WORKER_POLL_INTERVAL_SECS) -> int:
     """Coerce configured WorkerPollIntervalSecs to a bounded worker interval."""
     if raw_value is None or raw_value == "":
         return int(default_seconds)

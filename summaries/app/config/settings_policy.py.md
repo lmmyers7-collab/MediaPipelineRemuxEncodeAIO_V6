@@ -3,9 +3,9 @@ file: app/config/settings_policy.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-05-31
+last_modified: 2026-06-01
 last_reviewed: 2026-05-28
-sha256: a2b447b84bef2cb840261ddae44cf35884156339703d40a70fef5b7af27ba0ab
+sha256: d7fa358d4196c62ae96839d40d6ee51980bb9a9f03c3deb085a62447d52f0d0f
 ---
 # `app/config/settings_policy.py`
 

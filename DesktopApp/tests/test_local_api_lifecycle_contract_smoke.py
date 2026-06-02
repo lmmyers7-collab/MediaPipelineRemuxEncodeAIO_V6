@@ -111,7 +111,7 @@ class LocalApiLifecycleContractSmokeTests(unittest.TestCase):
         self.assertTrue(shutdown["ok"])
         self.assertEqual(shutdown["severity"], "info")
         self.assertEqual(shutdown["message"], "Backend shutdown requested.")
-        self.assertIsNone(shutdown["warnings"])
+        self.assertEqual(shutdown["warnings"], [])
         self.assertTrue(shutdown_event.wait(1.0))
 
     def test_close_readiness_and_shutdown_contract_blocks_when_watcher_is_armed(self) -> None:

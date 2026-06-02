@@ -52,6 +52,36 @@ class StatusFileHelperTests(unittest.TestCase):
             self.assertEqual(latest_matching_file(folder, "round_failures_*.txt"), newer)
             self.assertNotEqual(latest_matching_file(folder, "round_failures_*.txt"), older)
 
+    def test_latest_matching_file_skips_unreadable_match_without_dropping_valid_reports(self) -> None:
+        class FakeReport:
+            def __init__(self, name: str, mtime: float, *, stat_fails: bool = False) -> None:
+                self.name = name
+                self._mtime = mtime
+                self._stat_fails = stat_fails
+
+            def stat(self):
+                if self._stat_fails:
+                    raise OSError("report is temporarily unavailable")
+                return type("StatResult", (), {"st_mtime": self._mtime})()
+
+        class FakeFolder:
+            def __init__(self, items: list[FakeReport]) -> None:
+                self._items = items
+
+            def exists(self) -> bool:
+                return True
+
+            def glob(self, pattern: str) -> list[FakeReport]:
+                self.pattern = pattern
+                return list(self._items)
+
+        valid = FakeReport("round_failures_valid.txt", 2000)
+        unreadable = FakeReport("round_failures_locked.txt", 3000, stat_fails=True)
+        folder = FakeFolder([valid, unreadable])
+
+        self.assertIs(latest_matching_file(folder, "round_failures_*.txt"), valid)  # type: ignore[arg-type]
+        self.assertEqual(folder.pattern, "round_failures_*.txt")
+
     def test_latest_audit_csv_keeps_priority_and_standard_reports_separate(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

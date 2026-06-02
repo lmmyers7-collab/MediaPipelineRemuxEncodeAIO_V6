@@ -3,9 +3,9 @@ file: app/folder_policy/service.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: b948996cef1e0bb483e7126aedd859d7ed53d6cd4c68ac64af2e337d173bbeaf
+sha256: fc787ec341b84de523c6dbfa1b0969ca670610be901fec1321fcf08754e5208c
 ---
 # `app/folder_policy/service.py`
 

@@ -2,7 +2,7 @@
 file: app/processes/active_job_runner.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: process
 last_modified: 2026-05-28
 last_reviewed: 2026-05-28
 sha256: d5db06662f15df5e1e983de942d05602f237bfb29dedee689a4e583ee1fd7c2a

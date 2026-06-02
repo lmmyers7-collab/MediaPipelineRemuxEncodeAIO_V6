@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/styles.pages.css
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: bede4ac5beded4438b1532a4a41b1d073db62a5623fb51594703c8c3d72edd51
+sha256: 8bdf2fe84be59177a8e336d0997fcfd6dc5a73f734d15bc9926c96d7778080ef
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/styles.pages.css`
 

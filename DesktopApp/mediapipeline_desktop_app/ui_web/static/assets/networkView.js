@@ -5,11 +5,9 @@
     ["Coordinator", "CoordinatorBindAddress", "Bind Address", "Local interface used by the coordinator API."],
     ["Coordinator", "CoordinatorAlsoEncodeLocally", "Encode Locally", "Whether the coordinator also claims local work."],
     ["Coordinator", "CoordinatorHeartbeatTimeoutMins", "Heartbeat Timeout", "Minutes before stale worker jobs are reclaimed."],
-    ["Coordinator", "CoordinatorAuthToken", "Coordinator Auth Token", "Shared bearer token, redacted by the backend when needed."],
     ["Coordinator", "WorkerConfigOverrides", "Worker Overrides", "Per-worker encode setting overrides."],
     ["Worker", "WorkerCoordinatorUrl", "Coordinator URL", "Remote coordinator endpoint used by this worker."],
     ["Worker", "WorkerName", "Worker Name", "Display name shown on the coordinator worker board."],
-    ["Worker", "WorkerAuthToken", "Worker Auth Token", "Worker bearer token, redacted by the backend when needed."],
     ["Worker", "WorkerPollIntervalSecs", "Poll Interval", "Maximum seconds between coordinator claim attempts."],
     ["Worker", "WorkerSourcePathMap", "Source Path Map", "Path rewrites from coordinator UNC roots to local worker roots."],
   ];
@@ -20,6 +18,7 @@
   let selectedNetworkStateFileKey = "";
   let networkWorkerStatusFilter = "";
   let networkWorkerSearchText = "";
+  let networkViewEventsInitialized = false;
 
   function settingsConfig(settings) {
     return settings && typeof settings === "object" && settings.config && typeof settings.config === "object"
@@ -34,7 +33,13 @@
     return match ? config[match] : fallback;
   }
 
+  function isNetworkSecretSettingKey(key) {
+    const normalized = String(key || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+    return normalized.includes("authtoken");
+  }
+
   function displayConfigValue(config, key, fallback = "(not set)") {
+    if (isNetworkSecretSettingKey(key)) return "(secret not displayed)";
     if (typeof configValue === "function") return configValue(config, key, fallback);
     const value = rawConfigValue(config, key, "");
     return value === "" || value === undefined || value === null ? fallback : String(value);
@@ -44,6 +49,7 @@
     const definitions = Array.isArray(settings?.field_definitions) ? settings.field_definitions : [];
     const networkDefinitions = definitions
       .filter((field) => String(field?.page || "").toLowerCase() === "network")
+      .filter((field) => !isNetworkSecretSettingKey(field?.key))
       .map((field) => [
         field.section || "Network",
         field.key || "",
@@ -56,13 +62,15 @@
 
   function networkRows(settings) {
     const config = settingsConfig(settings);
-    return networkSettingDefinitions(settings).map(([section, key, label, purpose]) => ({
-      section,
-      key,
-      label,
-      value: displayConfigValue(config, key),
-      purpose,
-    }));
+    return networkSettingDefinitions(settings)
+      .filter(([_section, key]) => !isNetworkSecretSettingKey(key))
+      .map(([section, key, label, purpose]) => ({
+        section,
+        key,
+        label,
+        value: displayConfigValue(config, key),
+        purpose,
+      }));
   }
 
   function coordinatorTarget(config) {
@@ -324,7 +332,7 @@
       lines.push(
         `Coordinator URL: ${displayConfigValue(config, "WorkerCoordinatorUrl", "not configured")}`,
         `Worker name: ${displayConfigValue(config, "WorkerName", "OS hostname fallback")}`,
-        `Worker auth token: ${configuredStatus(config, "WorkerAuthToken")}`,
+        "Network auth: backend-owned secret, not displayed by WebView.",
         `Poll interval: ${displayConfigValue(config, "WorkerPollIntervalSecs", "not configured")} second(s)`,
         `Source path map: ${networkPathMapStatus(config)}`,
         "Next step: use backend Network diagnostics for worker start/stop; use Diagnostics for RunLogs and ActiveJobs when claims fail or are reclaimed."
@@ -408,7 +416,7 @@
       "role-config",
       "Role and configuration",
       roleText === "standalone" ? "ready" : "review",
-      `role=${roleText}; coordinator=${coordinatorTarget(config)}; worker token=${configuredStatus(config, "WorkerAuthToken")}; coordinator token=${configuredStatus(config, "CoordinatorAuthToken")}; path map=${networkPathMapStatus(config)}`,
+      `role=${roleText}; coordinator=${coordinatorTarget(config)}; auth=backend-owned secret not displayed; path map=${networkPathMapStatus(config)}`,
       roleText === "worker"
         ? "Before trusting worker mode, verify coordinator URL, auth token, and source path map from Worker Mode Settings and backend Network."
         : roleText === "coordinator"
@@ -419,8 +427,7 @@
         `Coordinator target: ${coordinatorTarget(config)}`,
         `Worker URL: ${displayConfigValue(config, "WorkerCoordinatorUrl", "not configured")}`,
         `Worker source path map: ${networkPathMapStatus(config)}`,
-        `Coordinator auth token: ${configuredStatus(config, "CoordinatorAuthToken")}`,
-        `Worker auth token: ${configuredStatus(config, "WorkerAuthToken")}`,
+        "Network auth: backend-owned secret, not displayed by WebView.",
       ],
     ));
 
@@ -1302,6 +1309,8 @@
   }
 
   function initNetworkViewEvents() {
+    if (networkViewEventsInitialized) return;
+    networkViewEventsInitialized = true;
     const workerFilter = byId("network-worker-filter");
     if (workerFilter) {
       workerFilter.addEventListener("input", () => {
@@ -1365,6 +1374,7 @@
   }
 
   function renderNetworkView(payload = {}) {
+    initNetworkViewEvents();
     const settings = payload.settings || {};
     const contract = payload.contract || {};
     const config = settingsConfig(settings);

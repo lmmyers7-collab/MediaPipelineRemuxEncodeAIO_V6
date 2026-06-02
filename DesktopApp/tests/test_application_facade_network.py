@@ -87,3 +87,27 @@ class ApplicationFacadeNetworkTests(unittest.TestCase):
         self.assertIn("Coordinator in-flight registry", state_files["coordinator_inflight"]["label"])
         self.assertTrue(state_files["coordinator_inflight"]["read_only"])
         self.assertIn("persisted in-flight state", "\n".join(payload["warnings"]))
+
+    def test_network_workers_marks_malformed_coordinator_state_as_unreadable(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            resolved = _resolved(root)
+            resolved.config_data["NetworkRole"] = "coordinator"
+            resolved.app_state_path = root / "State" / "App" / "desktop_app_state.json"
+            state_dir = resolved.app_state_path.parent
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "coordinator_inflight.json").write_text("{not valid json", encoding="utf-8")
+
+            with self.assertLogs("mediapipeline_desktop_app.network.registry", level="ERROR") as logs:
+                payload = facade.get_network_workers(resolved).to_mapping()
+
+        state_files = {item["key"]: item for item in payload["state_files"]}
+        self.assertIn("Failed to load InFlightRegistry", "\n".join(logs.output))
+        self.assertEqual(payload["schema_version"], "desktop_network_workers.v1")
+        self.assertEqual(payload["rows"], [])
+        self.assertEqual(state_files["coordinator_inflight"]["status"], "unreadable")
+        self.assertIn("coordinator_inflight.json", state_files["coordinator_inflight"]["error"])
+        self.assertIn("Coordinator in-flight state could not be read", "\n".join(payload["warnings"]))
+        self.assertEqual(payload["worker_progress"]["status"], "warning")

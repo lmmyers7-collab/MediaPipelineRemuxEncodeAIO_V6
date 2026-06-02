@@ -2,7 +2,7 @@
 file: app/processes/__init__.py
 pipeline_stage: n/a
 token_priority: low
-owner_domain: unknown
+owner_domain: process
 last_modified: 2026-05-31
 last_reviewed: 2026-05-28
 sha256: 3f3c31bb428125396c9afc909050e65d4c62a1f55fb47e5422f040b9825386e7

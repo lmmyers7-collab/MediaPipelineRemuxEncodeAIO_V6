@@ -67,12 +67,15 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
             }
 
             rejected = facade.apply_rename_selection(dict(request))
+            string_rejected = facade.apply_rename_selection({**request, "confirm_apply": "false"})
             applied = facade.apply_rename_selection({**request, "confirm_apply": True})
             renamed_first = root / "Serial Experiments Lain - S01E01 - Weird.mkv"
             renamed_second = root / "Serial Experiments Lain - S01E02 - Girls.mkv"
 
             self.assertFalse(rejected.ok)
             self.assertIn("confirmation", rejected.message)
+            self.assertFalse(string_rejected.ok)
+            self.assertIn("confirmation", string_rejected.message)
             self.assertTrue(applied.ok)
             self.assertEqual(applied.command, "rename.apply")
             self.assertEqual(applied.data["selected"], 1)
@@ -140,11 +143,14 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
             }
 
             rejected = facade.apply_rename_selection(dict(request))
+            string_rejected = facade.apply_rename_selection({**request, "allow_outside_configured_roots": "false"})
             allowed = facade.apply_rename_selection({**request, "allow_outside_configured_roots": True})
 
             renamed = outside / "Example Movie (2024).mkv"
             self.assertFalse(rejected.ok)
             self.assertIn("outside configured media roots", rejected.message)
+            self.assertFalse(string_rejected.ok)
+            self.assertIn("outside configured media roots", string_rejected.message)
             self.assertTrue(allowed.ok)
             self.assertTrue(renamed.exists())
             self.assertFalse(media.exists())

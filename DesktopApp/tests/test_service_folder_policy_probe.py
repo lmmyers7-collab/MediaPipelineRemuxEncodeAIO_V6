@@ -40,6 +40,14 @@ class FolderPolicyProbeParserTests(unittest.TestCase):
         self.assertEqual(parsed["audio"], [])
         self.assertEqual(parsed["subtitles"], [])
 
+    def test_parse_ffprobe_stream_signature_normalizes_invalid_audio_channels(self) -> None:
+        parsed = parse_ffprobe_stream_signature(
+            Path("Movie.mkv"),
+            '{"streams": [{"codec_type": "audio", "codec_name": "aac", "channels": "N/A"}]}',
+        )
+
+        self.assertEqual(parsed["audio"][0]["channels"], 0)
+
     def test_parse_ffprobe_stream_signature_preserves_json_decode_errors(self) -> None:
         with self.assertRaises(ValueError):
             parse_ffprobe_stream_signature(Path("Movie.mkv"), "{not-json")

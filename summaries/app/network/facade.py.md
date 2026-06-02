@@ -3,9 +3,9 @@ file: app/network/facade.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-05-28
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 8e66571daf1c0c46d75eac384744fce3b9da301695a5f9831efea02696cd23af
+sha256: 35bcf9c8fde8a9f9154b01e9d6be76a01b4ad8758eb938f99657aa4e1b95ca1c
 ---
 # `app/network/facade.py`
 

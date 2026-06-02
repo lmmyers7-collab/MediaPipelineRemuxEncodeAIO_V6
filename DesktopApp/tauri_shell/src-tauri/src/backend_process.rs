@@ -36,6 +36,13 @@ pub(crate) struct BackendProcess {
     startup_warnings: Vec<String>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum BackendProcessExit {
+    Running,
+    Exited(Option<i32>),
+    NoChild,
+}
+
 impl BackendProcess {
     pub(crate) fn url(&self) -> &str {
         &self.url
@@ -53,21 +60,21 @@ impl BackendProcess {
         validate_backend_health(&self.url, &self.token)
     }
 
-    pub(crate) fn try_take_exited(&self) -> ShellResult<Option<Option<i32>>> {
+    pub(crate) fn try_take_exited(&self) -> ShellResult<BackendProcessExit> {
         let mut guard = self
             .child
             .lock()
             .map_err(|_| shell_error("Backend process lock was poisoned."))?;
         let Some(child) = guard.as_mut() else {
-            return Ok(Some(None));
+            return Ok(BackendProcessExit::NoChild);
         };
         match child.try_wait()? {
             Some(status) => {
                 let code = status.code();
                 let _ = guard.take();
-                Ok(Some(code))
+                Ok(BackendProcessExit::Exited(code))
             }
-            None => Ok(None),
+            None => Ok(BackendProcessExit::Running),
         }
     }
 
@@ -494,4 +501,150 @@ pub(crate) fn bootstrap_error(
         }
     }
     shell_error(detail)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{BackendProcess, BackendProcessExit};
+    use std::{
+        process::{Child, Command, Stdio},
+        sync::Mutex,
+        thread,
+        time::{Duration, Instant},
+    };
+
+    fn backend_for_child(child: Option<Child>) -> BackendProcess {
+        BackendProcess {
+            child: Mutex::new(child),
+            url: "http://127.0.0.1:1".to_string(),
+            token: "test-token".to_string(),
+            startup_warnings: Vec::new(),
+        }
+    }
+
+    fn wait_for_non_running(process: &BackendProcess) -> BackendProcessExit {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let state = process.try_take_exited().expect("inspect backend child");
+            if state != BackendProcessExit::Running {
+                return state;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "backend child did not leave running state"
+            );
+            thread::sleep(Duration::from_millis(25));
+        }
+    }
+
+    #[cfg(windows)]
+    fn spawn_child_that_exits(code: i32) -> Child {
+        let command = format!("exit {code}");
+        Command::new("powershell")
+            .args(["-NoProfile", "-Command", &command])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("spawn exiting PowerShell child")
+    }
+
+    #[cfg(windows)]
+    fn spawn_sleeping_child() -> Child {
+        Command::new("powershell")
+            .args(["-NoProfile", "-Command", "Start-Sleep -Seconds 30"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("spawn sleeping PowerShell child")
+    }
+
+    #[cfg(unix)]
+    fn spawn_child_that_exits(code: i32) -> Child {
+        Command::new("/bin/sh")
+            .args(["-c", &format!("exit {code}")])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("spawn exiting shell child")
+    }
+
+    #[cfg(unix)]
+    fn spawn_sleeping_child() -> Child {
+        Command::new("/bin/sh")
+            .args(["-c", "sleep 30"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("spawn sleeping shell child")
+    }
+
+    #[test]
+    fn try_take_exited_reports_no_child_separately() {
+        let process = backend_for_child(None);
+
+        assert_eq!(
+            process.try_take_exited().expect("inspect missing child"),
+            BackendProcessExit::NoChild
+        );
+    }
+
+    #[test]
+    fn try_take_exited_reports_child_exit_code() {
+        let process = backend_for_child(Some(spawn_child_that_exits(7)));
+
+        assert_eq!(
+            wait_for_non_running(&process),
+            BackendProcessExit::Exited(Some(7))
+        );
+        assert_eq!(
+            process.try_take_exited().expect("inspect taken child"),
+            BackendProcessExit::NoChild
+        );
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn killed_backend_process_reports_exit_code_on_windows() {
+        let process = backend_for_child(Some(spawn_sleeping_child()));
+
+        assert_eq!(
+            process.try_take_exited().expect("inspect running child"),
+            BackendProcessExit::Running
+        );
+        {
+            let mut guard = process.child.lock().expect("lock backend child");
+            let child = guard.as_mut().expect("child should still be stored");
+            child.kill().expect("kill sleeping child");
+        }
+
+        match wait_for_non_running(&process) {
+            BackendProcessExit::Exited(Some(_code)) => {}
+            other => panic!("expected killed Windows child to report an exit code, got {other:?}"),
+        }
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn killed_backend_process_reports_missing_exit_code_on_unix() {
+        let process = backend_for_child(Some(spawn_sleeping_child()));
+
+        assert_eq!(
+            process.try_take_exited().expect("inspect running child"),
+            BackendProcessExit::Running
+        );
+        {
+            let mut guard = process.child.lock().expect("lock backend child");
+            let child = guard.as_mut().expect("child should still be stored");
+            child.kill().expect("kill sleeping child");
+        }
+
+        assert_eq!(
+            wait_for_non_running(&process),
+            BackendProcessExit::Exited(None)
+        );
+    }
 }

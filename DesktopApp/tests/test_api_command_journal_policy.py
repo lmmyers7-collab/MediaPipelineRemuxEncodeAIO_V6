@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from mediapipeline_desktop_app.api.command_journal_policy import (
     COMMAND_HISTORY_SCHEMA_VERSION,
     COMMAND_RESULT_SCHEMA_VERSION,
+    bounded_command_evidence,
     command_history_mapping,
     is_command_result_payload,
     scalar_text,
@@ -63,7 +64,9 @@ class LocalApiCommandJournalPolicyTests(unittest.TestCase):
                 "warnings": ["warn"],
                 "errors": ["err"],
                 "log_paths": {"stdout": "C:/Run/stdout.log"},
-            }
+                "data": {"pid": 1234, "secret_token": "do-not-store"},
+            },
+            request={"mode": "once", "authorization": "Bearer secret"},
         )
 
         self.assertIn("at", summary)
@@ -76,6 +79,10 @@ class LocalApiCommandJournalPolicyTests(unittest.TestCase):
         self.assertEqual(summary["warnings"], ["warn"])
         self.assertEqual(summary["errors"], ["err"])
         self.assertEqual(summary["log_paths"], {"stdout": "C:/Run/stdout.log"})
+        self.assertEqual(summary["data"]["pid"], 1234)
+        self.assertEqual(summary["data"]["secret_token"], "<redacted>")
+        self.assertEqual(summary["request"]["mode"], "once")
+        self.assertEqual(summary["request"]["authorization"], "<redacted>")
 
     def test_summarize_command_payload_applies_defaults(self) -> None:
         summary = summarize_command_payload({"schema_version": COMMAND_RESULT_SCHEMA_VERSION})
@@ -86,6 +93,18 @@ class LocalApiCommandJournalPolicyTests(unittest.TestCase):
         self.assertEqual(summary["warnings"], [])
         self.assertEqual(summary["errors"], [])
         self.assertEqual(summary["log_paths"], {})
+
+    def test_bounded_command_evidence_limits_nested_data_and_nonfinite_numbers(self) -> None:
+        summary = bounded_command_evidence(
+            {
+                "rows": [{"path": f"C:/Media/{index}.mkv"} for index in range(25)],
+                "nested": {"password": "secret", "score": float("nan")},
+            }
+        )
+
+        self.assertEqual(len(summary["rows"]), 20)
+        self.assertEqual(summary["nested"]["password"], "<redacted>")
+        self.assertEqual(summary["nested"]["score"], "nan")
 
     def test_history_mapping_bounds_entries_and_copies_rows(self) -> None:
         entries = [{"command": "one"}, {"command": "two"}, {"command": "three"}]
@@ -127,7 +146,8 @@ class LocalApiCommandJournalPolicyTests(unittest.TestCase):
                 "warnings": ["w"] * 25,
                 "errors": ["e"],
                 "log_paths": {f"k{i}": f"v{i}" for i in range(20)},
-                "data": {"large": "ignored"},
+                "data": {"large": "kept", "token": "hidden"},
+                "request": {"changes": {"RoutingProfile": "plex_direct_play"}},
             }
         )
 
@@ -137,7 +157,8 @@ class LocalApiCommandJournalPolicyTests(unittest.TestCase):
         self.assertEqual(row["severity"], "info")
         self.assertEqual(len(row["warnings"]), 20)
         self.assertEqual(len(row["log_paths"]), 12)
-        self.assertNotIn("data", row)
+        self.assertEqual(row["data"], {"large": "kept", "token": "<redacted>"})
+        self.assertEqual(row["request"]["changes"]["RoutingProfile"], "plex_direct_play")
 
 
 if __name__ == "__main__":

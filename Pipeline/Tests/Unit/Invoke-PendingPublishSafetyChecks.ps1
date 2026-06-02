@@ -128,13 +128,17 @@ function New-TestPendingManifest {
         tx3g_srt_tracks                = @()
         tx3g_srt_failures              = @()
         bdpgs_srt_failures             = @()
+        vobsub_srt_failures            = @()
         tx3g_embedded_srt_tracks       = @()
         bdpgs_embedded_srt_tracks      = @()
+        vobsub_embedded_srt_tracks     = @()
         tx3g_srt_conversion_enabled    = $true
         tx3g_external_srt_sidecars_enabled = $true
         drop_tx3g_after_conversion     = $false
         bdpgs_srt_conversion_enabled   = $false
         drop_bdpgs_after_conversion    = $false
+        vobsub_srt_conversion_enabled  = $false
+        drop_vobsub_after_conversion   = $false
     }
 }
 
@@ -276,6 +280,10 @@ Invoke-WithTempRoot {
     Assert-True (-not (Test-Path -LiteralPath $backupSidecar)) 'Sidecar backup was not removed after rollback.'
     Assert-True (-not (Test-Path -LiteralPath $newSidecar)) 'Newly written sidecar was not removed after rollback.'
 }
+
+$pendingTransactionsText = Get-Content -LiteralPath (Join-Path $repoRoot 'engine\publish\pending_transactions.ps1') -Raw
+Assert-MatchText $pendingTransactionsText 'function Restore-PendingSidecarBackupIntoPlace' 'Pending sidecar restore overwrite fallback helper is missing.'
+Assert-MatchText $pendingTransactionsText '\[System\.IO\.File\]::Move\(\$BackupPath,\s*\$DestinationPath,\s*\$true\)' 'Pending sidecar restore fallback must use overwrite move.'
 
 $publishCompletionText = Get-Content -LiteralPath (Join-Path $repoRoot 'engine\publish\publish_completion.ps1') -Raw
 $publishCompletionHelperText = Get-Content -LiteralPath (Join-Path $repoRoot 'engine\publish\publish_completion\context_builders.ps1') -Raw

@@ -18,7 +18,7 @@ def validate_int(
     maximum: int | None = None,
 ) -> None:
     value = values.get(key)
-    if not isinstance(value, int):
+    if isinstance(value, bool) or not isinstance(value, int):
         errors.append(f"{label} must be an integer.")
         return
     if minimum is not None and value < minimum:
@@ -36,7 +36,7 @@ def validate_float(
     maximum: float | None = None,
 ) -> None:
     value = values.get(key)
-    if not isinstance(value, (int, float)):
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
         errors.append(f"{label} must be numeric.")
         return
     number = float(value)

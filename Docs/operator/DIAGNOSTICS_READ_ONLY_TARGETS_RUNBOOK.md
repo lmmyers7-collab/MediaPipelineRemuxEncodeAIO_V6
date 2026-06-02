@@ -52,7 +52,7 @@ These targets resolve to directories. Only `/api/diagnostics/open` (Explorer ope
 
 ### State Summary Tail Targets
 
-These file targets are also used for bounded tail reads inside the Diagnostics State Artifact Summary panel, providing inline metadata previews without a separate `/api/diagnostics/tail` call:
+These file targets are also recommended by the Diagnostics State Artifact Summary panel as bounded tail targets. The panel summarizes metadata inline; when an operator chooses to read text, the WebView calls `/api/diagnostics/tail` with the backend allowlisted target key:
 
 - `queue_snapshot`
 - `completed_manifest`
@@ -69,7 +69,7 @@ All diagnostics targets are read-only from the WebView perspective:
 - Opening a folder does not modify, move, or delete its contents.
 - Tailing a file reads a bounded excerpt and does not write, append, or truncate the file.
 - Neither open nor tail can launch pipeline commands, change settings, publish parked outputs, rename files, or alter queue state.
-- The backend does not follow symlinks outside the workspace root and rejects any resolved path outside the allowlist.
+- The backend rejects raw frontend paths. It resolves each target from current backend state/config; if a configured backend target itself points through a symlink, junction, or reparse point, diagnostics reports/opens/reads that configured target using normal OS/Python path behavior. Treat unexpected resolved paths as a configuration or state issue before trusting the evidence.
 
 ---
 

@@ -5,7 +5,7 @@ use std::{
 };
 use tauri::{AppHandle, Emitter, Manager, Wry};
 
-use crate::backend_process::BackendProcess;
+use crate::backend_process::{BackendProcess, BackendProcessExit};
 
 pub(crate) const BACKEND_LIFECYCLE_EVENT: &str = "mediapipeline://backend-lifecycle";
 pub(crate) const BACKEND_HEALTH_MONITOR_INTERVAL: Duration = Duration::from_secs(5);
@@ -30,14 +30,14 @@ pub(crate) fn start_backend_lifecycle_monitor(app_handle: AppHandle<Wry>) {
                 break;
             };
             match backend.try_take_exited() {
-                Ok(Some(Some(code))) => {
-                    let detail = format!("Backend process exited unexpectedly with code {code}.");
+                Ok(BackendProcessExit::Exited(code)) => {
+                    let detail = backend_exit_detail(code);
                     eprintln!("[mediapipeline-shell] {detail}");
                     emit_lifecycle_event(&app_handle, "backend_exited", detail, 0);
                     break;
                 }
-                Ok(Some(None)) => break,
-                Ok(None) => {}
+                Ok(BackendProcessExit::NoChild) => break,
+                Ok(BackendProcessExit::Running) => {}
                 Err(error) => {
                     let detail = format!(
                         "Backend lifecycle monitor could not inspect process state: {error}"
@@ -78,6 +78,13 @@ pub(crate) fn start_backend_lifecycle_monitor(app_handle: AppHandle<Wry>) {
     });
 }
 
+fn backend_exit_detail(code: Option<i32>) -> String {
+    match code {
+        Some(code) => format!("Backend process exited unexpectedly with code {code}."),
+        None => "Backend process exited unexpectedly without an exit code.".to_string(),
+    }
+}
+
 fn emit_lifecycle_event(
     app_handle: &AppHandle<Wry>,
     status: &str,
@@ -101,4 +108,25 @@ fn unix_seconds_now() -> u64 {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_secs())
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::backend_exit_detail;
+
+    #[test]
+    fn backend_exit_detail_reports_known_exit_code() {
+        assert_eq!(
+            backend_exit_detail(Some(7)),
+            "Backend process exited unexpectedly with code 7."
+        );
+    }
+
+    #[test]
+    fn backend_exit_detail_reports_missing_exit_code() {
+        assert_eq!(
+            backend_exit_detail(None),
+            "Backend process exited unexpectedly without an exit code."
+        );
+    }
 }

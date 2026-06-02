@@ -440,11 +440,19 @@
 }
 
 .settings-library-override-row.is-unavailable {
-  opacity: 0.82;
+  border-left: 2px solid var(--grey-700);
+  padding-left: var(--space-2);
+}
+
+.settings-library-override-row.is-unavailable .settings-library-override-label-text {
+  color: var(--grey-500);
 }
 
 .settings-library-metadata-badges {
-  display: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
 }
 
 .rename-sep-row {

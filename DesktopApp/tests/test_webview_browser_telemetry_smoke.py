@@ -13,6 +13,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from mediapipeline_desktop_app.api import LocalApiServer
 from mediapipeline_desktop_app.application import MediaPipelineApplicationFacade
 
+ROOT = Path(__file__).resolve().parents[1]
+STATIC_ASSETS = ROOT / "mediapipeline_desktop_app" / "ui_web" / "static" / "assets"
+
 try:  # unittest discovery can import tests as top-level modules or package modules.
     from .test_application_facade import DummyWorkflowFacadeService
     from .test_webview_real_media_smoke import _write_fixture_state
@@ -126,14 +129,14 @@ def _browser_telemetry_runner_source() -> str:
             const deadline = Date.now() + 20000;
             while (Date.now() < deadline) {
               const ready = await client.send("Runtime.evaluate", {
-                expression: `Boolean(document.getElementById("gpu-chart") && document.getElementById("gpu-rows") && typeof window.mediaPipelineTelemetryView.renderTelemetry === "function" && typeof window.mediaPipelineTelemetryView.telemetryVisibleGpuRows === "function")`,
+                expression: `Boolean(document.getElementById("gpu-chart") && document.getElementById("gpu-rows") && typeof window.showPage === "function" && typeof window.mediaPipelineTelemetryView.renderTelemetry === "function" && typeof window.mediaPipelineTelemetryView.telemetryVisibleGpuRows === "function")`,
                 returnByValue: true,
               });
               if (ready.result?.value === true) break;
               await sleep(150);
             }
             const ready = await client.send("Runtime.evaluate", {
-              expression: `Boolean(document.getElementById("gpu-chart") && document.getElementById("gpu-rows") && typeof window.mediaPipelineTelemetryView.renderTelemetry === "function" && typeof window.mediaPipelineTelemetryView.telemetryVisibleGpuRows === "function")`,
+              expression: `Boolean(document.getElementById("gpu-chart") && document.getElementById("gpu-rows") && typeof window.showPage === "function" && typeof window.mediaPipelineTelemetryView.renderTelemetry === "function" && typeof window.mediaPipelineTelemetryView.telemetryVisibleGpuRows === "function")`,
               returnByValue: true,
             });
             if (ready.result?.value !== true) throw new Error("Telemetry WebView globals or DOM nodes did not become ready.");
@@ -223,7 +226,107 @@ def _run_browser_telemetry_smoke(*, browser_path: str, url: str) -> dict[str, ob
         )
 
 
+def _run_node_telemetry_view_smoke() -> dict[str, object]:
+    node = shutil.which("node")
+    if not node:
+        raise unittest.SkipTest("Node.js is required for the WebView telemetry view smoke.")
+
+    formatters_path = STATIC_ASSETS / "formatters.js"
+    telemetry_path = STATIC_ASSETS / "telemetryView.js"
+    formatters_source = json.dumps(formatters_path.read_text(encoding="utf-8"))
+    telemetry_source = json.dumps(telemetry_path.read_text(encoding="utf-8"))
+    script = textwrap.dedent(
+        f"""
+        const vm = require("vm");
+        const formattersSource = {formatters_source};
+        const telemetrySource = {telemetry_source};
+
+        const context = {{}};
+        context.window = context;
+        context.document = {{
+          body: {{ classList: {{ contains() {{ return false; }} }} }},
+          documentElement: {{}},
+        }};
+        vm.createContext(context);
+        vm.runInContext(formattersSource, context, {{ filename: "formatters.js" }});
+        vm.runInContext(telemetrySource, context, {{ filename: "telemetryView.js" }});
+
+        const view = context.mediaPipelineTelemetryView;
+        if (!view) throw new Error("telemetry namespace was not created");
+
+        const blankNumericPayload = {{
+          cpu_percent: "",
+          memory_percent: " ",
+          gpu_encoder_percent: "",
+          gpu_percent: "",
+          gpu_name: "",
+          gpu_rows: [],
+          sampled_at: "2099-01-01T00:00:00Z",
+        }};
+        const blankStatus = view.telemetryReadinessStatus(blankNumericPayload);
+        const blankLines = view.telemetryReadinessLines(blankNumericPayload);
+        const blankRows = view.telemetryVisibleGpuRows(blankNumericPayload);
+        const blankUsage = view.telemetryGpuUsagePayload(blankNumericPayload);
+        if (blankStatus !== "Limited") throw new Error("blank numeric telemetry should be Limited, got " + blankStatus);
+        if (!blankLines.includes("CPU: unavailable")) throw new Error("blank CPU rendered as available: " + blankLines.join("\\n"));
+        if (!blankLines.includes("RAM: unavailable")) throw new Error("blank RAM rendered as available: " + blankLines.join("\\n"));
+        if (!blankLines.includes("GPU present: no")) throw new Error("blank GPU rendered as present: " + blankLines.join("\\n"));
+        if (blankRows.length !== 0) throw new Error("blank numeric GPU payload synthesized rows");
+        if (blankUsage.status !== "unavailable") throw new Error("blank usage status should be unavailable");
+
+        const partialGpuPayload = {{
+          gpu_encoder_percent: 0,
+          gpu_percent: 0,
+          gpu_name: "NVIDIA Partial",
+          gpu_index: "0",
+          gpu_memory_used_gb: null,
+          gpu_memory_total_gb: null,
+          gpu_rows: [],
+          sampled_at: "2099-01-01T00:00:00Z",
+        }};
+        const partialRows = view.telemetryVisibleGpuRows(partialGpuPayload);
+        if (partialRows.length !== 1) throw new Error("partial GPU payload should synthesize one visible row");
+        if (partialRows[0].memory_used_mb === 0 || partialRows[0].memory_total_mb === 0) {{
+          throw new Error("missing GPU memory was coerced to zero");
+        }}
+
+        console.log(JSON.stringify({{
+          ok: true,
+          blankStatus,
+          blankRows: blankRows.length,
+          blankUsageStatus: blankUsage.status,
+          partialRows: partialRows.length,
+          partialMemoryUsed: partialRows[0].memory_used_mb ?? null,
+          partialMemoryTotal: partialRows[0].memory_total_mb ?? null,
+        }}));
+        """
+    )
+    with tempfile.TemporaryDirectory() as raw_tmp:
+        runner = Path(raw_tmp) / "telemetry-view-smoke.cjs"
+        payload_path = Path(raw_tmp) / "telemetry-view-payload.json"
+        payload_path.write_text("{}", encoding="utf-8")
+        runner.write_text(script, encoding="utf-8")
+        return run_node_browser_smoke(
+            "WebView telemetry view smoke",
+            node=node,
+            runner_path=runner,
+            payload_path=payload_path,
+            timeout_seconds=20,
+        )
+
+
 class WebViewBrowserTelemetrySmokeTests(unittest.TestCase):
+    def test_telemetry_view_treats_blank_numeric_fields_as_unavailable(self) -> None:
+        result = _run_node_telemetry_view_smoke()
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["blankStatus"], "Limited")
+        self.assertEqual(result["blankRows"], 0)
+        self.assertEqual(result["blankUsageStatus"], "unavailable")
+        self.assertEqual(result["partialRows"], 1)
+        self.assertIsNone(result["partialMemoryUsed"])
+        self.assertIsNone(result["partialMemoryTotal"])
+
     def test_real_browser_keeps_zero_percent_nvenc_visible(self) -> None:
         browser_path = _find_browser()
         if not browser_path:

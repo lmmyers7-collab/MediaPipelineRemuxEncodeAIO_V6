@@ -259,6 +259,7 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "ExcludeSubtitleStyles",
     "IncludeSubtitleStyles",
     "ConfigSchemaVersion",
+    "ShowOverrides",
     "MaxParallelEncodes",
     "ParallelEncodeMode",
     "DebugMode",
@@ -286,6 +287,8 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "EnableIntegrityCheck",
     "RobocopyFlags",
     "PriorityMarkers",
+    "MixPriorityPhase",
+    "QueueOrderingStrategy",
     "SourceScanIntervalSeconds",
     "SourceScanTimeoutSeconds",
     "ProcessedIndexRefreshSeconds",
@@ -314,6 +317,51 @@ LIST_CONFIG_KEYS: tuple[str, ...] = (
     "ValidExtensions",
     "RobocopyFlags",
     "PriorityMarkers",
+)
+
+NUMERIC_CONFIG_KEYS: tuple[str, ...] = (
+    "ConfigSchemaVersion",
+    "EncodeThresholdGB",
+    "TVEncodeThresholdGB",
+    "MovieRouteMaxVideoBitrateMbps",
+    "TVRouteMaxVideoBitrateMbps",
+    "H264RemuxMaxBitrateMbps",
+    "H264RemuxMaxHeight",
+    "MaxEncodeGrowthPercent",
+    "CompatibilityEncodeGrowthPercent",
+    "MinFreeSpaceGB",
+    "OutsourceMinFreeSpaceGB",
+    "VideoQuality",
+    "AudioMaxChannels",
+    "MergeThresholdMs",
+    "FileStabilityWait",
+    "LogRetentionDays",
+    "MaxParallelEncodes",
+    "FallbackCpuQuality",
+    "CpuEncodeMaxThreads",
+    "OutputSizeMultiplier",
+    "FFmpegEncodeTimeoutSeconds",
+    "FFmpegCpuEncodeTimeoutSeconds",
+    "FFmpegRemuxTimeoutSeconds",
+    "MkvmergeRemuxTimeoutSeconds",
+    "SubtitleExtractTimeoutSeconds",
+    "SubtitleProbeTimeoutSeconds",
+    "BdpgsOcrTimeoutSeconds",
+    "VobSubOcrTimeoutSeconds",
+    "OutputValidationProbeTimeoutSeconds",
+    "OutputValidationMinSizeBytes",
+    "OutputValidationDurationToleranceSeconds",
+    "RobocopyTimeoutSeconds",
+    "TransientFailureRetryLimit",
+    "IndexScanTimeoutSeconds",
+    "SourceScanTimeoutSeconds",
+    "CleanupScanTimeoutSeconds",
+    "CleanupStaleAgeHours",
+    "SourceScanIntervalSeconds",
+    "ProcessedIndexRefreshSeconds",
+    "CoordinatorPort",
+    "CoordinatorHeartbeatTimeoutMins",
+    "WorkerPollIntervalSecs",
 )
 
 LIBRARY_PROFILE_OVERRIDE_KEYS_BY_GROUP: dict[str, tuple[str, ...]] = {
@@ -553,6 +601,72 @@ def _final_library_promotion_rules_schema_extra() -> dict[str, Any]:
     }
 
 
+def _converter_disabled_blocks_drop_schema(convert_key: str, drop_key: str) -> dict[str, Any]:
+    return {
+        "if": {
+            "anyOf": [
+                {"not": {"required": [convert_key]}},
+                {
+                    "required": [convert_key],
+                    "properties": {convert_key: {"const": False}},
+                },
+            ]
+        },
+        "then": {
+            "not": {
+                "required": [drop_key],
+                "properties": {drop_key: {"const": True}},
+            }
+        },
+    }
+
+
+def _converter_enabled_blocks_blank_path_schema(convert_key: str, path_key: str) -> dict[str, Any]:
+    return {
+        "if": {
+            "required": [convert_key],
+            "properties": {convert_key: {"const": True}},
+        },
+        "then": {
+            "not": {
+                "required": [path_key],
+                "properties": {path_key: {"type": "string", "pattern": r"^\s*$"}},
+            }
+        },
+    }
+
+
+def _subtitle_cross_field_schema_extra() -> dict[str, Any]:
+    return {
+        "allOf": [
+            {
+                "if": {
+                    "required": ["ConvertTx3gToSrt"],
+                    "properties": {"ConvertTx3gToSrt": {"const": False}},
+                },
+                "then": {
+                    "not": {
+                        "anyOf": [
+                            {
+                                "required": ["DropTx3gAfterConversion"],
+                                "properties": {"DropTx3gAfterConversion": {"const": True}},
+                            },
+                            {
+                                "required": ["CreateExternalTx3gSrtSidecars"],
+                                "properties": {"CreateExternalTx3gSrtSidecars": {"const": True}},
+                            },
+                        ]
+                    }
+                },
+            },
+            _converter_disabled_blocks_drop_schema("ConvertBdpgsToSrt", "DropBdpgsAfterConversion"),
+            _converter_enabled_blocks_blank_path_schema("ConvertBdpgsToSrt", "BdpgsOcrToolPath"),
+            _converter_disabled_blocks_drop_schema("ConvertVobSubToSrt", "DropVobSubAfterConversion"),
+            _converter_enabled_blocks_blank_path_schema("ConvertVobSubToSrt", "VobSubOcrToolPath"),
+        ]
+    }
+
+
 class Config(BaseModel):
     """Flat config model matching PSD1 keys and WebView JSON payloads."""
 
@@ -563,10 +677,20 @@ class Config(BaseModel):
             "$id": "https://local.mediapipeline/schemas/config.v1.schema.json",
             "x-config-schema-version": CONFIG_SCHEMA_VERSION,
             "required": list(REQUIRED_CONFIG_KEYS),
+            **_subtitle_cross_field_schema_extra(),
         },
     )
 
     ConfigSchemaVersion: Literal[1] = CONFIG_SCHEMA_VERSION
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_boolean_numeric_fields(cls, value: Any) -> Any:
+        if isinstance(value, dict):
+            for key in NUMERIC_CONFIG_KEYS:
+                if isinstance(value.get(key), bool):
+                    raise ValueError(f"{key} must be numeric, not boolean.")
+        return value
 
     SourceMovies: str = Field(default=r"C:\MediaPipeline\Incoming\Movies", min_length=1)
     SourceTV: str = Field(default=r"C:\MediaPipeline\Incoming\TV", min_length=1)
@@ -674,7 +798,7 @@ class Config(BaseModel):
     VobSubExtractLanguages: list[str] = Field(
         default_factory=lambda: _list_default(SUBTITLE_EXTRACT_LANGUAGE_DEFAULT)
     )
-    VobSubOcrToolPath: str = r"Tools\SubtitleEdit\seconv.exe"
+    VobSubOcrToolPath: str = r"Tools\SubtitleEditLegacy\SubtitleEdit.exe"
     SubSDHTitleKeywords: list[str] = Field(
         default_factory=lambda: _list_default(SUB_SDH_KEYWORD_DEFAULT)
     )
@@ -957,6 +1081,7 @@ __all__ = [
     "CONFIG_KEY_ORDER",
     "DESKTOP_SCHEMA_CONFIG_KEYS",
     "LIST_CONFIG_KEYS",
+    "NUMERIC_CONFIG_KEYS",
     "LIBRARY_PROFILE_OVERRIDE_KEYS_BY_GROUP",
     "LIBRARY_PROFILE_TOP_LEVEL_KEYS",
     "FINAL_LIBRARY_PROMOTION_RULE_KEYS",

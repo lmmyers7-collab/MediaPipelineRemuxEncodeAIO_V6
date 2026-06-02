@@ -117,10 +117,10 @@ Bitrate route decisions use bitrate estimated from `file_size_bytes` and `durati
 | `AudioPassthroughProfile` | Named profile controlling which audio codecs pass through without transcoding | Passthrough tracks are preserved as-is; wrong profile may force transcoding of compatible tracks | Builder |
 | `CompatibleAudioCodecs` | Explicit list of codecs treated as passthrough-compatible | Codecs not in this list are transcoded | Builder |
 | `AudioTranscodeCodec` | Target codec for audio that must be transcoded | Must be a codec Plex and the player support | Builder |
-| `AudioTranscodeBitrate` | Fixed bitrate for transcoded audio | 0 = use AutoBitrateByChannels | Builder |
+| `AudioTranscodeBitrate` | Fixed bitrate for transcoded audio when automatic channel-based bitrate is off | Invalid or unsuitable values can starve or bloat normalized tracks | Builder |
 | `AudioTranscodeAutoBitrateByChannels` | Bitrate lookup by channel count for auto-bitrate transcodes | Allows stereo at lower bitrate than 5.1 | Builder |
 | `AudioDownmixMode` | How to handle tracks with more channels than `AudioMaxChannels` | Forced stereo may lose surround | Builder |
-| `AudioMaxChannels` | Maximum channel count for passthrough | Tracks with more channels are transcoded or downmixed | Builder |
+| `AudioMaxChannels` | Maximum channel count for transcodes when `AudioDownmixMode` caps channels | Low caps downmix surround during normalization; passthrough copies are not channel-capped | Builder |
 | `PreferredDefaultAudioLanguages` | Language preference list for selecting default audio track | Affects which track plays by default in Plex | Builder |
 | `AllowNoAudio` | Allow output files with no audio tracks | **High risk** — files with no audio tracks play silently; confirm this is intentional | Builder |
 
@@ -153,6 +153,7 @@ Bitrate route decisions use bitrate estimated from `file_size_bytes` and `durati
 | `AllowSystemTools` | Allow falling back to system-PATH FFmpeg/MKVToolNix instead of bundled tools | Risky — system tools may be different versions than tested | Builder |
 | `ConsoleLogLevel` | Log level for console output (e.g., WARNING, INFO, DEBUG) | **Builder** — added to Runtime builder in settingsMetadata.js | Builder |
 | `FileLogLevel` | Log level for file-based log output | **Builder** — added to Runtime builder in settingsMetadata.js | Builder |
+| `ShowOverrides` | Advanced mapping of show-name patterns to per-show routing, video, audio, and subtitle overrides | High-risk media-policy override; verify through backend Preview Patch before saving | Raw/Advanced |
 
 ---
 
@@ -161,6 +162,8 @@ Bitrate route decisions use bitrate estimated from `file_size_bytes` and `durati
 | Key | Purpose | Risk note | Builder |
 |---|---|---|---|
 | `PriorityMarkers` | Strings in filenames that mark a file for priority processing | Default: `!` and `[NOW]`; `!` is preferred | Builder |
+| `MixPriorityPhase` | Process high-priority movie and TV items in one mixed priority phase | Can change queue ordering across libraries; review before launch | Raw/Advanced |
+| `QueueOrderingStrategy` | Default queue sort preset when no explicit queue strategy command override is active | Changes processing order, not media policy; verify Launch scope before starting | Raw/Advanced |
 | `MinPipelineVersion` | Minimum acceptable pipeline version for processing sidecars | Used to prevent old sidecars from being trusted; not a display label | Builder |
 | `ReprocessAll` | Force all sources to be re-processed, ignoring completed-manifest exclusions | **High risk** — re-queues already-completed files; confirm explicitly | Builder |
 | `ProcessedIndexRefreshSeconds` | How often the processed-file index is refreshed | Lower values detect newly completed files faster | Builder |

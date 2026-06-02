@@ -6,6 +6,7 @@ from typing import Any
 from .command_results import (
     backend_shutdown_success_payload,
     backend_shutdown_unavailable_payload,
+    close_readiness_unavailable_payload,
     resolved_paths_unavailable_payload,
 )
 
@@ -79,7 +80,9 @@ class LocalApiProcessCommandPayloadMixin:
             return backend_shutdown_unavailable_payload()
         readiness = None
         resolved = self._resolved()
-        if resolved is not None:
+        if resolved is None:
+            readiness = close_readiness_unavailable_payload()
+        else:
             try:
                 readiness = self.facade.get_close_readiness(resolved, self._snapshot()).to_mapping()
             except Exception as exc:
@@ -90,7 +93,7 @@ class LocalApiProcessCommandPayloadMixin:
                     "active_work": True,
                     "reason": "Close readiness could not be verified before backend shutdown.",
                 }
-        force_active_work_shutdown = bool(request.get("force_active_work_shutdown", False))
+        force_active_work_shutdown = request.get("force_active_work_shutdown", False) is True
         cleanup_messages: list[str] = []
         if (
             isinstance(readiness, dict)

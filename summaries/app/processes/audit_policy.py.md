@@ -2,7 +2,7 @@
 file: app/processes/audit_policy.py
 pipeline_stage: observability
 token_priority: medium
-owner_domain: unknown
+owner_domain: process
 last_modified: 2026-05-28
 last_reviewed: 2026-05-28
 sha256: 0af17c23edc6af4576ce1f9434c889bcfc3447b1dc09fce484f041b856841b56

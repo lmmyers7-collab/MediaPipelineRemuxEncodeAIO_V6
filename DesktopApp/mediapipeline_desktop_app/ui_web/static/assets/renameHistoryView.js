@@ -28,8 +28,8 @@
 
   function renderRenameApplyHistory(history = []) {
     const entries = Array.isArray(history) ? history.filter(isRenameApplyCommand).slice(0, 5) : [];
-    if (typeof renderRenameApplyResult === "function") {
-      renderRenameApplyResult(entries[0] || null);
+    if (entries[0] && typeof renderRenameApplyResult === "function") {
+      renderRenameApplyResult(entries[0]);
     }
     if (!Array.isArray(history) || !history.length) {
       setText("rename-apply-history", "No rename apply command history loaded. Apply a selected rename to see backend results here after refresh.");

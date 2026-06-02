@@ -168,6 +168,33 @@ class ServiceQueueSnapshotTests(unittest.TestCase):
         self.assertEqual(record.season_number, 1)
         self.assertEqual(record.episode_number, 1)
 
+    def test_queue_record_from_snapshot_row_maps_backend_phase_labels(self) -> None:
+        root = Path(r"C:\Media")
+        cases = [
+            ("movie", "MOVIE", "normal"),
+            ("tv", "TV", "normal"),
+            ("priority", "PRIORITY", "high"),
+            ("priority_movie", "PRIORITY", "high"),
+            ("priority_tv", "PRIORITY", "high"),
+            ("low", "LOW", "low"),
+            ("hold", "HOLD", "hold"),
+        ]
+
+        for phase, expected_label, manifest_level in cases:
+            with self.subTest(phase=phase):
+                media_kind = "tv" if phase in {"tv", "priority_tv"} else "movie"
+                record = queue_record_from_snapshot_row(
+                    _queue_row(
+                        root,
+                        phase=phase,
+                        media_kind=media_kind,
+                        manifest_priority_level=manifest_level,
+                    )
+                )
+
+                self.assertEqual(record.phase, expected_label)
+                self.assertEqual(record.manifest_priority_level, manifest_level)
+
     def test_service_mixin_preserves_queue_snapshot_wrappers(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

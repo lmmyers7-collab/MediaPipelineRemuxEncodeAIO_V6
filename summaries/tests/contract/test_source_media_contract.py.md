@@ -3,9 +3,9 @@ file: tests/contract/test_source_media_contract.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-30
+last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: d5ffb17c58680eb2d7ea64bbd02b9e29e7bc5fa0399d9a414c21a22d24318ad5
+sha256: 81e0ff1db37e90b5cbe7552238cf97f0efe8494796e34859c78458145bf82234
 ---
 # `tests/contract/test_source_media_contract.py`
 
