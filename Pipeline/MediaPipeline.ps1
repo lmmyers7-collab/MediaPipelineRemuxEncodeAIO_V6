@@ -277,7 +277,10 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
     }
 
     & $pwshPath @relaunchArgs
-    exit $LASTEXITCODE
+    # If the child never launched, $LASTEXITCODE can be $null; exit $null would
+    # become exit 0 and mask the failure to a caller/scheduler. Default to 1.
+    $childExit = if ($null -ne $LASTEXITCODE) { [int]$LASTEXITCODE } else { 1 }
+    exit $childExit
 }
 
 $ErrorActionPreference = 'Stop'
