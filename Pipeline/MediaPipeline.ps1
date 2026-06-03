@@ -421,14 +421,40 @@ $requiredKeys = @($configSchemaCheck.RequiredKeys)
 $arrayKeys = @($configSchemaCheck.ArrayKeys)
 $script:ConfigSchemaVersion = [int]$configSchemaCheck.EffectiveSchemaVersion
 
+# Reserved names a config key must never overwrite: PowerShell preference
+# variables (they control error handling / progress / confirmation) and
+# automatic variables. Without this guard a config typo such as
+# 'ErrorActionPreference = "Continue"' silently disables the pipeline's
+# fail-fast behaviour, and a key colliding with a read-only automatic
+# variable (e.g. 'PID', 'true') throws and aborts startup under Stop.
+$reservedConfigVariableNames = @(
+    'ErrorActionPreference','ProgressPreference','VerbosePreference','DebugPreference',
+    'WarningPreference','InformationPreference','ConfirmPreference','WhatIfPreference',
+    'PSDefaultParameterValues','PSModuleAutoLoadingPreference','OutputEncoding','ErrorView',
+    'PSScriptRoot','PSCommandPath','MyInvocation','PSBoundParameters','PSCmdlet','PSItem',
+    'args','input','this','Host','ExecutionContext','PWD','HOME','PID','LASTEXITCODE',
+    'true','false','null','Error','StackTrace'
+)
 foreach ($key in $config.Keys) {
+    if ($key -in $reservedConfigVariableNames) {
+        Add-StartupWarning "Config key '$key' collides with a reserved PowerShell variable and was ignored."
+        continue
+    }
     $value = $config[$key]
     if ($key -in $arrayKeys) {
         if ($null -eq $value)          { $value = @() }
         elseif ($value -isnot [array]) { $value = @($value) }
     }
-    Set-Variable -Name $key -Value $value -Scope Script
+    try {
+        Set-Variable -Name $key -Value $value -Scope Script
+    } catch {
+        Add-StartupWarning "Config key '$key' could not be applied as a variable: $($_.Exception.Message)"
+    }
 }
+# Re-assert critical preferences in case the config loop introduced a colliding
+# key before the guard above (defence in depth; the denylist should prevent it).
+$ErrorActionPreference = 'Stop'
+$ProgressPreference    = 'SilentlyContinue'
 $script:ConfigSchemaVersion = [int]$configSchemaCheck.EffectiveSchemaVersion
 if (-not (Get-Variable -Name ExtraVideoFlags -Scope Script -ErrorAction SilentlyContinue)) {
     $script:ExtraVideoFlags = @()
