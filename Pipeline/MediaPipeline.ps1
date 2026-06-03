@@ -949,6 +949,10 @@ $instanceMutex  = $null
 $instanceLocked = $false
 $workerSlotMutex = $null
 $workerSlotLocked = $false
+# Declared before the ExitCleanup closure (below) so the closure always
+# references a defined variable; the real log mutex is assigned later in the
+# LOGGING section.
+$logLock = $null
 if (-not $ValidateOnly -and -not $WorkerChild) {
     $instanceMutex = [System.Threading.Mutex]::new($false, $instanceMutexName)
     try {
