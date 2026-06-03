@@ -1032,12 +1032,13 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # Validate the Python helper script exists next to this script
-$assToSrtScript = @(
-    (Join-Path $scriptDir "ass_to_srt.py"),
+$assToSrtCandidates = @(
     (Join-Path $scriptDir "ass_to_srt.py")
-) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-if (-not (Test-Path -LiteralPath $assToSrtScript)) {
-    Write-Host "FATAL: ass_to_srt.py not found at $assToSrtScript" -ForegroundColor Red; exit 1
+)
+$assToSrtScript = $assToSrtCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+if (-not $assToSrtScript) {
+    Write-Host "FATAL: ass_to_srt.py not found. Checked: $($assToSrtCandidates -join ', ')" -ForegroundColor Red
+    exit 1
 }
 
 # ==============================================================================
