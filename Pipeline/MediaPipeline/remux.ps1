@@ -334,7 +334,17 @@ function Do-Remux {
             $localIn = $null
             return $false
         }
-        if ($mkvExitCode -eq 1) { Write-Log "mkvmerge completed with warnings" "WARN" }
+        if ($mkvExitCode -eq 1) {
+            Write-Log "mkvmerge completed with warnings" "WARN"
+            # mkvmerge writes warning text to stdout (Output). Surface the tail
+            # so a dropped/unsupported track is visible instead of a bare
+            # "completed with warnings" line that is easy to miss in the log.
+            $mkvWarnText = if (-not [string]::IsNullOrWhiteSpace([string]$mkv.Output)) { [string]$mkv.Output } else { [string]$mkv.Error }
+            if ($mkvWarnText) {
+                $mkvWarnText -split '\r?\n' | Where-Object { $_ -match '\S' } |
+                    Select-Object -Last 8 | ForEach-Object { Write-Log "  mkvmerge: $_" "WARN" }
+            }
+        }
 
         if (-not (Test-Path -LiteralPath $paths.LocalOut) -or
             (Get-Item -LiteralPath $paths.LocalOut).Length -eq 0) {
