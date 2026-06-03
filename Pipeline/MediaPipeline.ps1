@@ -212,7 +212,13 @@ param(
     [int]$WorkerSlotId = 0,
     [string]$WorkerRunId = "",
     [string]$WorkerClaimId = "",
-    [string]$WorkerResultPath = ""
+    [string]$WorkerResultPath = "",
+
+    # Diagnostic: resolve config + derived runtime settings, write a complete
+    # JSON dump of them to this path, and exit before the scan loop. Read-only
+    # (no singleton lock, no media work). Used as a parity oracle for config
+    # refactors and as operator "what did this run resolve" diagnostics.
+    [string]$DumpEffectiveConfigPath = ""
 )
 
 if ($PSVersionTable.PSVersion.Major -lt 7) {
@@ -336,6 +342,7 @@ $engineModulePaths = @{
     'Audio.ps1'                 = Join-Path $repoRootForModules 'engine\audio\audio.ps1'
     'Logging.ps1'               = Join-Path $repoRootForModules 'engine\observability\logging.ps1'
     'ConfigGetters.ps1'          = Join-Path $repoRootForModules 'engine\config\getters.ps1'
+    'RuntimeConfig.ps1'          = Join-Path $repoRootForModules 'engine\config\runtime_config.ps1'
     'ConfigKeys.ps1'             = Join-Path $repoRootForModules 'engine\config\config_keys.ps1'
     'ConfigSchema.ps1'           = Join-Path $repoRootForModules 'engine\config\config_schema.ps1'
     'Disk.ps1'                   = Join-Path $repoRootForModules 'engine\storage\disk.ps1'
@@ -377,7 +384,7 @@ $engineModulePaths = @{
     'TempCleanup.ps1'            = Join-Path $repoRootForModules 'engine\shared\temp_cleanup.ps1'
     'Versioning.ps1'             = Join-Path $repoRootForModules 'engine\shared\versioning.ps1'
 }
-foreach ($module in @('Logging.ps1', 'ConfigGetters.ps1', 'ConfigKeys.ps1', 'ExecutableResolution.ps1', 'TempCleanup.ps1', 'PathHelpers.ps1', 'MediaConstants.ps1', 'ShowOverrides.ps1', 'Versioning.ps1', 'FailureCodes.ps1', 'ConfigSchema.ps1', 'StateStore.ps1', 'Routing.ps1', 'EncodePolicy.ps1', 'NativeProcessContracts.ps1', 'Native.ps1', 'Disk.ps1', 'MediaProbe.ps1', 'FolderPolicy.ps1', 'FileOverrides.ps1', 'Audio.ps1', 'Subtitles.ps1', 'ProgressState.ps1', 'FfmpegProgress.ps1', 'QueuePlan.ps1', 'Naming.ps1', 'OutputPathPlanning.ps1', 'SourceIdentity.ps1', 'ScratchCopy.ps1', 'LocalWorkerSlots.ps1', 'FailureState.ps1', 'Sidecar.ps1', 'Publish.Result.ps1', 'Publish.Partial.ps1', 'Publish.Sidecars.ps1', 'PendingManifestStore.ps1', 'PendingTransactions.ps1', 'PendingPush.ps1', 'PendingPublishIndex.ps1', 'PublishCompletion.ps1', 'LibraryIndex.ps1', 'PipelineProcessing.ps1', 'PipelineEngine.ps1')) {
+foreach ($module in @('Logging.ps1', 'ConfigGetters.ps1', 'RuntimeConfig.ps1', 'ConfigKeys.ps1', 'ExecutableResolution.ps1', 'TempCleanup.ps1', 'PathHelpers.ps1', 'MediaConstants.ps1', 'ShowOverrides.ps1', 'Versioning.ps1', 'FailureCodes.ps1', 'ConfigSchema.ps1', 'StateStore.ps1', 'Routing.ps1', 'EncodePolicy.ps1', 'NativeProcessContracts.ps1', 'Native.ps1', 'Disk.ps1', 'MediaProbe.ps1', 'FolderPolicy.ps1', 'FileOverrides.ps1', 'Audio.ps1', 'Subtitles.ps1', 'ProgressState.ps1', 'FfmpegProgress.ps1', 'QueuePlan.ps1', 'Naming.ps1', 'OutputPathPlanning.ps1', 'SourceIdentity.ps1', 'ScratchCopy.ps1', 'LocalWorkerSlots.ps1', 'FailureState.ps1', 'Sidecar.ps1', 'Publish.Result.ps1', 'Publish.Partial.ps1', 'Publish.Sidecars.ps1', 'PendingManifestStore.ps1', 'PendingTransactions.ps1', 'PendingPush.ps1', 'PendingPublishIndex.ps1', 'PublishCompletion.ps1', 'LibraryIndex.ps1', 'PipelineProcessing.ps1', 'PipelineEngine.ps1')) {
     $modulePath = if ($engineModulePaths.ContainsKey($module)) { $engineModulePaths[$module] } else { Join-Path $moduleRoot $module }
     if (-not (Test-Path -LiteralPath $modulePath)) {
         Write-Host "FATAL: required module not found: $modulePath" -ForegroundColor Red
@@ -949,7 +956,7 @@ $workerSlotLocked = $false
 # references a defined variable; the real log mutex is assigned later in the
 # LOGGING section.
 $logLock = $null
-if (-not $ValidateOnly -and -not $WorkerChild) {
+if (-not $ValidateOnly -and -not $WorkerChild -and -not $DumpEffectiveConfigPath) {
     $instanceMutex = [System.Threading.Mutex]::new($false, $instanceMutexName)
     try {
         $instanceLocked = $instanceMutex.WaitOne(0)
@@ -1377,6 +1384,20 @@ if ($script:ShowOverrides.Count -gt 0) {
 }
 if ($ShowConfig) {
     Write-EffectiveConfigSummary
+}
+if ($DumpEffectiveConfigPath) {
+    try {
+        $effectiveDump = Get-MediaPipelineResolvedConfigDump
+        ($effectiveDump | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath $DumpEffectiveConfigPath -Encoding UTF8 -Force
+        Write-Log "Effective config dumped to $DumpEffectiveConfigPath"
+        Set-ProgressStage -Stage 'idle' -Status 'Idle' -Percent $null -SaveNow
+        & $Script:ExitCleanup
+        exit 0
+    } catch {
+        Write-Log "Failed to dump effective config to $DumpEffectiveConfigPath : $_" "ERROR"
+        & $Script:ExitCleanup
+        exit 1
+    }
 }
 Set-ProgressStage -Stage 'startup' -Status 'Initializing' -Percent $null -SaveNow
 
