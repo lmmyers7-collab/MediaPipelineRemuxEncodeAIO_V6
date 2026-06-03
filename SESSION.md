@@ -479,3 +479,55 @@ operator validation still required before declaring §7-safe:
 
 Not mine / left untouched: stray untracked `CON` file at repo root (pre-existing;
 never staged).
+
+## Handoff 2026-06-03 (cont.) -- config-loader extraction (oracle-first) + Cut 7 regression fix
+
+Operator approved continuing: oracle-first, then extract. Branch unchanged
+(`fix/mediapipeline-keystone-hardening`).
+
+REGRESSION FOUND + FIXED (important): Cut 7 (`e8d03e0`, the `$ConfigPath` ->
+`$resolvedConfigPath` rename) was reverted (`e96a2b0`). The reassignment was
+load-bearing: dot-sourced engine functions read the resolved path from the
+ambient `$configPath` global by canonical name (`Build-QueuePlanSnapshotRows`
+-> queue snapshot `config_path`; `Get-EffectiveConfigSummary` -> ShowConfig).
+The rename left them reading the empty `$ConfigPath` parameter whenever the
+pipeline runs without explicit `-ConfigPath`. The end-to-end smoke missed it
+(it always passes `-ConfigPath`). LOW-9 is withdrawn.
+
+Changed files / commits (this continuation):
+- `engine/config/runtime_config.ps1` (NEW) -- `Get-MediaPipelineResolvedConfigDump`
+  (Phase 0 parity oracle, 99 fields) + `Initialize-MediaPipelineRuntimeConfig`
+  (the extracted config value-resolution block, moved verbatim; dot-source
+  scope keeps `$script:`/`Set-Variable -Scope Script` landing in main scope).
+- `Pipeline/MediaPipeline.ps1` -- new read-only `-DumpEffectiveConfigPath`
+  switch (no singleton lock); config block (~430 lines) replaced by a call to
+  the initializer + main-scope preference re-assert. Main: ~1573 -> 1195 lines.
+- `Pipeline/Tests/Unit/Invoke-RuntimeConfigResolutionChecks.ps1` (NEW) --
+  regression checks: reserved-key guard, cross-key defaults, partial progress.
+- `summaries/...` for the 4 changed/added in-scope files.
+
+Validation (agent-side):
+- PARITY: `-DumpEffectiveConfigPath` byte-for-byte identical (99/99) before vs
+  after the extraction -- proves behaviour-neutral.
+- End-to-end smoke green after every commit; `-ValidateOnly` clean; config-key
+  registry green; new resolution test green (2/2).
+- Guardrail `god-file-guard`, `naming-lint`, `architecture-guardrails`,
+  `marketecture-guard`: all OK.
+
+NOT mine / pre-existing (operator follow-up; do not attribute to this branch):
+- guardrail `dependency-boundaries` FAIL = 1 Python package-level cycle. This
+  change set is PowerShell-only and cannot create a Python import cycle.
+- guardrail `summary-freshness`/`--check` also lists `network/coordinator.py`,
+  `engine/subtitles/srt.ps1`, `Pipeline/Tests/Unit/Invoke-SrtValidationChecks.ps1`
+  as stale/missing -- none touched here.
+- guardrail `project-index` FAIL: `scripts/dev/refresh_index.py` does not exist
+  (missing infra); PROJECT_INDEX regen left to operator.
+- The guardrail postflight baseline is stale (indexed 1077 vs 1117); run a
+  clean preflight/postflight pair for an accurate read.
+
+Operator validation REQUIRED before §7 sign-off (config/settings + FFmpeg/publish):
+- A real `-Once`/continuous run (this session ran only smoke / -ValidateOnly /
+  -DumpEffectiveConfigPath).
+- A real remux that emits a mkvmerge exit-1 warning (confirms remux.ps1 warning
+  tail logging; publish behaviour unchanged).
+- `python scripts/dev/ai_guardrail.py preflight` then `postflight` as a pair.
