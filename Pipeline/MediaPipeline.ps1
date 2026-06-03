@@ -539,8 +539,7 @@ if ($script:OutsourceMinFreeSpaceGB -le 0) {
 if ($config.ContainsKey('ExcludeSubtitleStyles')) {
     $v = $config['ExcludeSubtitleStyles']
     if     ($null -eq $v)            { $script:ExcludeSubtitleStyles = @() }
-    elseif ($v -isnot [array])       { $script:ExcludeSubtitleStyles = @($v) }
-    else                              { $script:ExcludeSubtitleStyles = @($v) }
+    else                             { $script:ExcludeSubtitleStyles = @($v) }
 } else {
     $script:ExcludeSubtitleStyles = @()
 }
@@ -553,8 +552,7 @@ if ($config.ContainsKey('ExcludeSubtitleStyles')) {
 if ($config.ContainsKey('IncludeSubtitleStyles')) {
     $v = $config['IncludeSubtitleStyles']
     if     ($null -eq $v)       { $script:IncludeSubtitleStyles = @() }
-    elseif ($v -isnot [array])  { $script:IncludeSubtitleStyles = @($v) }
-    else                         { $script:IncludeSubtitleStyles = @($v) }
+    else                        { $script:IncludeSubtitleStyles = @($v) }
 } else {
     $script:IncludeSubtitleStyles = @()
 }
@@ -562,8 +560,7 @@ if ($config.ContainsKey('IncludeSubtitleStyles')) {
 if ($config.ContainsKey('Tx3gExtractLanguages')) {
     $v = $config['Tx3gExtractLanguages']
     if     ($null -eq $v)       { $script:Tx3gExtractLanguages = @() }
-    elseif ($v -isnot [array])  { $script:Tx3gExtractLanguages = @($v) }
-    else                         { $script:Tx3gExtractLanguages = @($v) }
+    else                        { $script:Tx3gExtractLanguages = @($v) }
 } else {
     $script:Tx3gExtractLanguages = @($SubKeepLanguages)
 }
@@ -583,8 +580,7 @@ if ($script:Tx3gExtractLanguages.Count -eq 0) {
 if ($config.ContainsKey('BdpgsExtractLanguages')) {
     $v = $config['BdpgsExtractLanguages']
     if     ($null -eq $v)       { $script:BdpgsExtractLanguages = @() }
-    elseif ($v -isnot [array])  { $script:BdpgsExtractLanguages = @($v) }
-    else                         { $script:BdpgsExtractLanguages = @($v) }
+    else                        { $script:BdpgsExtractLanguages = @($v) }
 } else {
     $script:BdpgsExtractLanguages = @($SubKeepLanguages)
 }
@@ -604,8 +600,7 @@ if ($script:BdpgsExtractLanguages.Count -eq 0) {
 if ($config.ContainsKey('VobSubExtractLanguages')) {
     $v = $config['VobSubExtractLanguages']
     if     ($null -eq $v)       { $script:VobSubExtractLanguages = @() }
-    elseif ($v -isnot [array])  { $script:VobSubExtractLanguages = @($v) }
-    else                         { $script:VobSubExtractLanguages = @($v) }
+    else                        { $script:VobSubExtractLanguages = @($v) }
 } else {
     $script:VobSubExtractLanguages = @($SubKeepLanguages)
 }
@@ -625,8 +620,7 @@ if ($script:VobSubExtractLanguages.Count -eq 0) {
 if ($config.ContainsKey('PriorityMarkers')) {
     $v = $config['PriorityMarkers']
     if     ($null -eq $v)       { $script:PriorityMarkers = @() }
-    elseif ($v -isnot [array])  { $script:PriorityMarkers = @($v) }
-    else                         { $script:PriorityMarkers = @($v) }
+    else                        { $script:PriorityMarkers = @($v) }
 } else {
     $script:PriorityMarkers = @('!', '[NOW]')
 }
@@ -672,8 +666,7 @@ if ($script:ParallelEncodeMode -eq 'local_worker_slots' -and $script:MaxParallel
 if ($config.ContainsKey('PreferredDefaultAudioLanguages')) {
     $v = $config['PreferredDefaultAudioLanguages']
     if     ($null -eq $v)       { $script:PreferredDefaultAudioLanguages = @() }
-    elseif ($v -isnot [array])  { $script:PreferredDefaultAudioLanguages = @($v) }
-    else                         { $script:PreferredDefaultAudioLanguages = @($v) }
+    else                        { $script:PreferredDefaultAudioLanguages = @($v) }
 } else {
     $script:PreferredDefaultAudioLanguages = @('english')
 }
