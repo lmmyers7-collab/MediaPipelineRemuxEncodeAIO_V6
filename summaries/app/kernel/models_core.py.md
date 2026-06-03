@@ -3,9 +3,9 @@ file: app/kernel/models_core.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-06-02
-sha256: 073f16c7b84c92f96e1b4b8c9d6eb82b065a8d4f321375289fb4f3bd490cf249
+sha256: 676c1350f6fc001b7248a8dd8d836beb2b85e0724853bd26295346f359e90f85
 ---
 # `app/kernel/models_core.py`
 

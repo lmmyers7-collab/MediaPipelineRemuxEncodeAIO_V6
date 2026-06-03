@@ -46,24 +46,52 @@ def _queue_preview_dto(**fields: object) -> "QueuePreviewDto":
     return QueuePreviewDto(**fields)
 
 
+def _command_result(**fields: object) -> "CommandResult":
+    from mediapipeline_desktop_app.application.dto_commands import CommandResult
+
+    return CommandResult(**fields)
+
+
 class QueueFacadeMixin:
     """Read-only queue snapshot adapter for the application facade."""
 
     def get_queue_preview(self, resolved: ResolvedPaths) -> QueuePreviewDto:
         """Return the last queue snapshot without spawning a dry-run process."""
+        queue_scan_status, source_inventory = self._queue_scan_artifacts(resolved)
         snapshot_path = resolved.queue_snapshot_path
         if not snapshot_path or not snapshot_path.exists():
-            return self._queue_preview_with_progress_warning(str(snapshot_path or ""), NO_QUEUE_SNAPSHOT_WARNING)
+            return self._queue_preview_with_progress_warning(
+                str(snapshot_path or ""),
+                NO_QUEUE_SNAPSHOT_WARNING,
+                queue_scan_status=queue_scan_status,
+                source_inventory=source_inventory,
+            )
         read_snapshot = getattr(self.service, "_read_queue_snapshot", None)
         row_factory = getattr(self.service, "_queue_record_from_snapshot_row", None)
         if not callable(read_snapshot) or not callable(row_factory):
-            return self._queue_preview_with_progress_warning(str(snapshot_path), QUEUE_PREVIEW_SERVICE_WARNING, status="blocked")
+            return self._queue_preview_with_progress_warning(
+                str(snapshot_path),
+                QUEUE_PREVIEW_SERVICE_WARNING,
+                status="blocked",
+                queue_scan_status=queue_scan_status,
+                source_inventory=source_inventory,
+            )
         try:
             snapshot = read_snapshot(snapshot_path)
         except Exception as exc:
-            return self._queue_preview_with_progress_warning(str(snapshot_path), f"Queue snapshot could not be read: {exc}")
+            return self._queue_preview_with_progress_warning(
+                str(snapshot_path),
+                f"Queue snapshot could not be read: {exc}",
+                queue_scan_status=queue_scan_status,
+                source_inventory=source_inventory,
+            )
         if not isinstance(snapshot, dict):
-            return self._queue_preview_with_progress_warning(str(snapshot_path), INVALID_QUEUE_SNAPSHOT_WARNING)
+            return self._queue_preview_with_progress_warning(
+                str(snapshot_path),
+                INVALID_QUEUE_SNAPSHOT_WARNING,
+                queue_scan_status=queue_scan_status,
+                source_inventory=source_inventory,
+            )
         file_override_manifest = None
         if resolved.file_overrides_path is not None:
             file_override_manifest = read_file_overrides(resolved.file_overrides_path)
@@ -103,6 +131,8 @@ class QueueFacadeMixin:
         return _queue_preview_dto(
             rows=rows,
             source=str(snapshot_path),
+            queue_scan_status=queue_scan_status,
+            source_inventory=source_inventory,
             queue_progress=queue_progress,
             progress_bars=list(queue_progress["progress_bars"]),
             **metadata,
@@ -110,7 +140,14 @@ class QueueFacadeMixin:
         )
 
     @staticmethod
-    def _queue_preview_with_progress_warning(source: str, warning: str, *, status: str = "warning") -> QueuePreviewDto:
+    def _queue_preview_with_progress_warning(
+        source: str,
+        warning: str,
+        *,
+        status: str = "warning",
+        queue_scan_status: dict[str, object] | None = None,
+        source_inventory: dict[str, object] | None = None,
+    ) -> QueuePreviewDto:
         progress = queue_source_scan_progress_payload(
             source=source,
             warnings=[warning],
@@ -119,9 +156,81 @@ class QueueFacadeMixin:
         )
         return _queue_preview_dto(
             source=source,
+            queue_scan_status=dict(queue_scan_status or {}),
+            source_inventory=dict(source_inventory or {}),
             warnings=[warning],
             queue_progress=progress,
             progress_bars=list(progress["progress_bars"]),
+        )
+
+    def _queue_scan_artifacts(self, resolved: ResolvedPaths) -> tuple[dict[str, object], dict[str, object]]:
+        status_reader = getattr(self.service, "read_queue_scan_status", None)
+        inventory_reader = getattr(self.service, "read_queue_source_inventory", None)
+        queue_scan_status: dict[str, object] = {}
+        source_inventory: dict[str, object] = {}
+        if callable(status_reader):
+            try:
+                status = status_reader(resolved)
+                if isinstance(status, dict):
+                    queue_scan_status = status
+            except Exception as exc:
+                queue_scan_status = {
+                    "schema_version": "desktop_queue_scan_status.v1",
+                    "status": "unavailable",
+                    "phase": "unavailable",
+                    "message": f"Queue scan status could not be read: {exc}",
+                    "errors": [str(exc)],
+                }
+        if callable(inventory_reader):
+            try:
+                inventory = inventory_reader(resolved)
+                if isinstance(inventory, dict):
+                    source_inventory = inventory
+            except Exception as exc:
+                source_inventory = {
+                    "schema_version": "desktop_queue_source_inventory.v1",
+                    "status": "unavailable",
+                    "curation_state": "unavailable",
+                    "launchable": False,
+                    "rows": [],
+                    "summary_lines": [f"Source inventory could not be read: {exc}"],
+                    "errors": [str(exc)],
+                }
+        return queue_scan_status, source_inventory
+
+    def start_queue_scan(self, resolved: ResolvedPaths, request: dict[str, object]) -> CommandResult:
+        scanner = getattr(self.service, "start_queue_source_scan", None)
+        if not callable(scanner):
+            return _command_result(
+                command="queue.scan",
+                ok=False,
+                severity="error",
+                message="Queue source scan service is not available.",
+                errors=["queue_source_scan_service_unavailable"],
+                refresh_hint="queue",
+            )
+        result = scanner(resolved, request)
+        ok = bool(result.get("ok"))
+        duplicate = bool(result.get("duplicate"))
+        status = dict(result.get("status") or {}) if isinstance(result.get("status"), dict) else {}
+        message = str(result.get("message") or ("Queue source scan started." if ok else "Queue source scan failed."))
+        errors = [str(item) for item in result.get("errors") or [] if str(item).strip()]
+        severity = "info" if ok else "error"
+        if duplicate:
+            severity = "warning"
+        return _command_result(
+            command="queue.scan",
+            ok=ok,
+            severity=severity,
+            message=message,
+            errors=errors,
+            refresh_hint="queue",
+            data={
+                "schema_version": "desktop_queue_scan_command.v1",
+                "duplicate": duplicate,
+                "scan_id": str(status.get("scan_id") or ""),
+                "status": status,
+            },
         )
 
     @staticmethod

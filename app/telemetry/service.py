@@ -21,6 +21,7 @@ from app.telemetry.health import (
     find_ass_to_srt_script,
     nvidia_smi_health_row,
     powershell_health_row,
+    subtitle_tool_health_rows,
 )
 from app.telemetry.nvidia import apply_nvidia_smi_rows_to_snapshot, parse_nvidia_smi_encoder_rows
 from app.telemetry.system_metrics import apply_system_metrics_to_snapshot, prime_cpu_sampler
@@ -149,6 +150,8 @@ class TelemetryServiceMixin:
             elif "ffprobe" in name:
                 emit("mkvtoolnix", "Checking bundled or system MKVToolNix.")
             elif "mkvmerge" in name or "mkvtool" in name:
+                emit("mkvextract", "Checking bundled or system mkvextract.")
+            elif "mkvextract" in name:
                 emit("gpu_telemetry", "Checking optional GPU telemetry.")
         results.append(nvidia_smi_health_row(self._resolve_nvidia_smi()))
 
@@ -167,6 +170,17 @@ class TelemetryServiceMixin:
                 results.append(ass_to_srt_result_row(script_path, r.returncode, r.stderr))
             except Exception as exc:
                 results.append(ass_to_srt_exception_row(exc))
+
+        emit("subtitle_bdpgs_ocr", "Checking BDPGS OCR helper paths.")
+        for row in subtitle_tool_health_rows(
+            resolved.workspace_root,
+            resolved.app_root,
+            getattr(resolved, "config_data", {}),
+        ):
+            results.append(row)
+            name = str(row[0]).casefold()
+            if "tessdata" in name or "bdpgs" in name:
+                emit("subtitle_vobsub_ocr", "Checking VobSub OCR helper paths.")
         emit("pending_publish_path", "Checking pending-publish path posture.")
 
         return results

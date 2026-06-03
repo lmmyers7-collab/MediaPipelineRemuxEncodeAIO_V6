@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_network_worker_state.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-19
+last_modified: 2026-06-03
 last_reviewed: 2026-06-02
-sha256: 1e2fa57489b2993acddb5b03abeb0ae123735224266c87beb7ca0cf2c5ad3f68
+sha256: e7fb2caa9cb27378cda8a17ec45684e3dda08dcfd1b83f7c5bc4ee3aa05d4217
 ---
 # `DesktopApp/tests/test_network_worker_state.py`
 

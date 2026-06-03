@@ -86,6 +86,10 @@ def resolve_paths_for_service(service: PathResolutionServiceProtocol, pipeline_p
         # Per-file à-la-carte processing overrides — read by PS1 at per-file
         # processing time.
         resolved.file_overrides_path = resolved.state_root / "file_overrides.json"
+        # Audit-only control state. These files are backend-owned and must not
+        # be treated as queue priority, file override, or media-policy inputs.
+        resolved.audit_score_policy_path = resolved.state_root / "audit_score_policy.json"
+        resolved.audit_ignore_manifest_path = resolved.state_root / "audit_ignore_manifest.json"
         try:
             snapshot_path = write_last_good_config_snapshot(
                 resolved.config_path,

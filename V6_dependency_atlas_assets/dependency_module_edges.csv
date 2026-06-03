@@ -1,4 +1,5 @@
 source_module,target_module,source_path,target_path
+app.api.command_handlers,app.api.commands_audit,app/api/command_handlers.py,app/api/commands_audit.py
 app.api.command_handlers,app.api.commands_failures,app/api/command_handlers.py,app/api/commands_failures.py
 app.api.command_handlers,app.api.commands_file_overrides,app/api/command_handlers.py,app/api/commands_file_overrides.py
 app.api.command_handlers,app.api.commands_files,app/api/command_handlers.py,app/api/commands_files.py
@@ -6,6 +7,7 @@ app.api.command_handlers,app.api.commands_final_library,app/api/command_handlers
 app.api.command_handlers,app.api.commands_maintenance,app/api/command_handlers.py,app/api/commands_maintenance.py
 app.api.command_handlers,app.api.commands_process,app/api/command_handlers.py,app/api/commands_process.py
 app.api.command_handlers,app.api.commands_queue_priority,app/api/command_handlers.py,app/api/commands_queue_priority.py
+app.api.command_handlers,app.api.commands_queue_scan,app/api/command_handlers.py,app/api/commands_queue_scan.py
 app.api.command_handlers,app.api.commands_queue_strategy,app/api/command_handlers.py,app/api/commands_queue_strategy.py
 app.api.command_handlers,app.api.commands_rename,app/api/command_handlers.py,app/api/commands_rename.py
 app.api.command_handlers,app.api.commands_sample_validation,app/api/command_handlers.py,app/api/commands_sample_validation.py
@@ -13,6 +15,7 @@ app.api.command_handlers,app.api.commands_schedule,app/api/command_handlers.py,a
 app.api.command_handlers,app.api.commands_settings,app/api/command_handlers.py,app/api/commands_settings.py
 app.api.command_handlers,app.api.commands_ui_preferences,app/api/command_handlers.py,app/api/commands_ui_preferences.py
 app.api.command_results,mediapipeline_desktop_app.application,app/api/command_results.py,DesktopApp/mediapipeline_desktop_app/application/__init__.py
+app.api.commands_audit,app.api.command_results,app/api/commands_audit.py,app/api/command_results.py
 app.api.commands_failures,app.api.command_results,app/api/commands_failures.py,app/api/command_results.py
 app.api.commands_file_overrides,app.api.command_results,app/api/commands_file_overrides.py,app/api/command_results.py
 app.api.commands_file_overrides,app.config.constants,app/api/commands_file_overrides.py,app/config/constants.py
@@ -29,9 +32,12 @@ app.api.commands_files,app.api.command_results,app/api/commands_files.py,app/api
 app.api.commands_final_library,app.api.command_results,app/api/commands_final_library.py,app/api/command_results.py
 app.api.commands_maintenance,app.api.command_results,app/api/commands_maintenance.py,app/api/command_results.py
 app.api.commands_process,app.api.command_results,app/api/commands_process.py,app/api/command_results.py
+app.api.commands_process,mediapipeline_desktop_app.api.path_dialogs,app/api/commands_process.py,DesktopApp/mediapipeline_desktop_app/api/path_dialogs.py
+app.api.commands_process,mediapipeline_desktop_app.application.dto,app/api/commands_process.py,DesktopApp/mediapipeline_desktop_app/application/dto.py
 app.api.commands_queue_priority,app.api.command_results,app/api/commands_queue_priority.py,app/api/command_results.py
 app.api.commands_queue_priority,app.queue.priority_manifest,app/api/commands_queue_priority.py,app/queue/priority_manifest.py
 app.api.commands_queue_priority,mediapipeline_desktop_app.api.queue_source_path_policy,app/api/commands_queue_priority.py,DesktopApp/mediapipeline_desktop_app/api/queue_source_path_policy.py
+app.api.commands_queue_scan,app.api.command_results,app/api/commands_queue_scan.py,app/api/command_results.py
 app.api.commands_queue_strategy,app.api.command_results,app/api/commands_queue_strategy.py,app/api/command_results.py
 app.api.commands_queue_strategy,app.queue.strategy,app/api/commands_queue_strategy.py,app/queue/strategy.py
 app.api.commands_rename,app.rename.policy,app/api/commands_rename.py,app/rename/policy.py
@@ -43,9 +49,14 @@ app.api.commands_settings,mediapipeline_desktop_app.api.path_dialogs,app/api/com
 app.api.commands_settings,mediapipeline_desktop_app.application.dto,app/api/commands_settings.py,DesktopApp/mediapipeline_desktop_app/application/dto.py
 app.api.commands_ui_preferences,app.ui_preferences,app/api/commands_ui_preferences.py,app/ui_preferences.py
 app.application.utilities,mediapipeline_desktop_app.models,app/application/utilities.py,DesktopApp/mediapipeline_desktop_app/models.py
+app.audit.facade,app.audit.ignore_manifest,app/audit/facade.py,app/audit/ignore_manifest.py
 app.audit.facade,app.audit.preview_policy,app/audit/facade.py,app/audit/preview_policy.py
+app.audit.facade,app.audit.score_policy,app/audit/facade.py,app/audit/score_policy.py
+app.audit.facade,mediapipeline_desktop_app.application.dto_commands,app/audit/facade.py,DesktopApp/mediapipeline_desktop_app/application/dto_commands.py
 app.audit.facade,mediapipeline_desktop_app.application.dto_inventory,app/audit/facade.py,DesktopApp/mediapipeline_desktop_app/application/dto_inventory.py
 app.audit.facade,mediapipeline_desktop_app.models,app/audit/facade.py,DesktopApp/mediapipeline_desktop_app/models.py
+app.audit.ignore_manifest,app.audit.rerun_file_io,app/audit/ignore_manifest.py,app/audit/rerun_file_io.py
+app.audit.preview_policy,app.audit.ignore_manifest,app/audit/preview_policy.py,app/audit/ignore_manifest.py
 app.audit.preview_policy,mediapipeline_desktop_app.application.dto,app/audit/preview_policy.py,DesktopApp/mediapipeline_desktop_app/application/dto.py
 app.audit.preview_policy,mediapipeline_desktop_app.application.dto_inventory,app/audit/preview_policy.py,DesktopApp/mediapipeline_desktop_app/application/dto_inventory.py
 app.audit.preview_policy,mediapipeline_desktop_app.models,app/audit/preview_policy.py,DesktopApp/mediapipeline_desktop_app/models.py
@@ -71,6 +82,7 @@ app.audit.rerun_service,app.audit.rerun_metadata,app/audit/rerun_service.py,app/
 app.audit.rerun_service,app.audit.rerun_records,app/audit/rerun_service.py,app/audit/rerun_records.py
 app.audit.rerun_service,mediapipeline_desktop_app.models,app/audit/rerun_service.py,DesktopApp/mediapipeline_desktop_app/models.py
 app.audit.rerun_service,mediapipeline_desktop_app.subprocess_runner,app/audit/rerun_service.py,DesktopApp/mediapipeline_desktop_app/subprocess_runner.py
+app.audit.score_policy,app.audit.rerun_file_io,app/audit/score_policy.py,app/audit/rerun_file_io.py
 app.completed.backfill,mediapipeline_desktop_app.models,app/completed/backfill.py,DesktopApp/mediapipeline_desktop_app/models.py
 app.completed.backfill,mediapipeline_desktop_app.subprocess_runner,app/completed/backfill.py,DesktopApp/mediapipeline_desktop_app/subprocess_runner.py
 app.completed.facade,app.completed.policy,app/completed/facade.py,app/completed/policy.py
@@ -162,6 +174,7 @@ app.config.settings_facade,app.config.identity,app/config/settings_facade.py,app
 app.config.settings_facade,app.config.library_profiles,app/config/settings_facade.py,app/config/library_profiles.py
 app.config.settings_facade,app.config.profiles,app/config/settings_facade.py,app/config/profiles.py
 app.config.settings_facade,app.config.settings_policy,app/config/settings_facade.py,app/config/settings_policy.py
+app.config.settings_facade,app.processes.path_evidence,app/config/settings_facade.py,app/processes/path_evidence.py
 app.config.settings_facade,mediapipeline_desktop_app.application.dto_commands,app/config/settings_facade.py,DesktopApp/mediapipeline_desktop_app/application/dto_commands.py
 app.config.settings_facade,mediapipeline_desktop_app.application.dto_workspaces,app/config/settings_facade.py,DesktopApp/mediapipeline_desktop_app/application/dto_workspaces.py
 app.config.settings_facade,mediapipeline_desktop_app.application.settings_risk_policy,app/config/settings_facade.py,DesktopApp/mediapipeline_desktop_app/application/settings_risk_policy.py
@@ -229,6 +242,7 @@ app.diagnostics.facade,app.config.settings_policy,app/diagnostics/facade.py,app/
 app.diagnostics.facade,app.diagnostics.open_policy,app/diagnostics/facade.py,app/diagnostics/open_policy.py
 app.diagnostics.facade,app.diagnostics.policy,app/diagnostics/facade.py,app/diagnostics/policy.py
 app.diagnostics.facade,app.diagnostics.state_summary,app/diagnostics/facade.py,app/diagnostics/state_summary.py
+app.diagnostics.facade,app.processes.path_evidence,app/diagnostics/facade.py,app/processes/path_evidence.py
 app.diagnostics.facade,app.status.active_jobs,app/diagnostics/facade.py,app/status/active_jobs.py
 app.diagnostics.facade,app.status.eta,app/diagnostics/facade.py,app/status/eta.py
 app.diagnostics.facade,app.status.ffmpeg_progress,app/diagnostics/facade.py,app/status/ffmpeg_progress.py
@@ -410,6 +424,8 @@ app.processes.lifecycle,app.processes.spawn_runner,app/processes/lifecycle.py,ap
 app.processes.lifecycle,mediapipeline_desktop_app.models,app/processes/lifecycle.py,DesktopApp/mediapipeline_desktop_app/models.py
 app.processes.logs,app.processes.constants,app/processes/logs.py,app/processes/constants.py
 app.processes.logs,app.processes.file_io,app/processes/logs.py,app/processes/file_io.py
+app.processes.path_evidence,app.config.library_profiles,app/processes/path_evidence.py,app/config/library_profiles.py
+app.processes.path_evidence,app.kernel.config_keys,app/processes/path_evidence.py,app/kernel/config_keys.py
 app.processes.pipeline_facade,app.config.identity,app/processes/pipeline_facade.py,app/config/identity.py
 app.processes.pipeline_facade,app.processes.pipeline_policy,app/processes/pipeline_facade.py,app/processes/pipeline_policy.py
 app.processes.pipeline_facade,app.processes.schedule_policy,app/processes/pipeline_facade.py,app/processes/schedule_policy.py
@@ -504,10 +520,15 @@ app.queue.service,app.queue.dry_run_runner,app/queue/service.py,app/queue/dry_ru
 app.queue.service,app.queue.preview_builder,app/queue/service.py,app/queue/preview_builder.py
 app.queue.service,app.queue.priority_markers,app/queue/service.py,app/queue/priority_markers.py
 app.queue.service,app.queue.snapshot,app/queue/service.py,app/queue/snapshot.py
+app.queue.service,app.queue.source_inventory,app/queue/service.py,app/queue/source_inventory.py
 app.queue.service,mediapipeline_desktop_app.models,app/queue/service.py,DesktopApp/mediapipeline_desktop_app/models.py
 app.queue.service,mediapipeline_desktop_app.priority_markers,app/queue/service.py,DesktopApp/mediapipeline_desktop_app/priority_markers.py
 app.queue.snapshot,mediapipeline_desktop_app.contracts,app/queue/snapshot.py,DesktopApp/mediapipeline_desktop_app/contracts/__init__.py
 app.queue.snapshot,mediapipeline_desktop_app.models,app/queue/snapshot.py,DesktopApp/mediapipeline_desktop_app/models.py
+app.queue.source_inventory,app.config.library_profiles,app/queue/source_inventory.py,app/config/library_profiles.py
+app.queue.source_inventory,app.files.constants,app/queue/source_inventory.py,app/files/constants.py
+app.queue.source_inventory,app.queue.file_io,app/queue/source_inventory.py,app/queue/file_io.py
+app.queue.source_inventory,mediapipeline_desktop_app.models,app/queue/source_inventory.py,DesktopApp/mediapipeline_desktop_app/models.py
 app.rename.apply,app.paths.layout,app/rename/apply.py,app/paths/layout.py
 app.rename.apply,app.rename.constants,app/rename/apply.py,app/rename/constants.py
 app.rename.apply,app.rename.file_io,app/rename/apply.py,app/rename/file_io.py
@@ -525,7 +546,9 @@ app.rename.movie,app.rename.utils,app/rename/movie.py,app/rename/utils.py
 app.rename.planner,app.files.constants,app/rename/planner.py,app/files/constants.py
 app.rename.planner,app.rename.contracts,app/rename/planner.py,app/rename/contracts.py
 app.rename.planner,app.rename.plan_policy,app/rename/planner.py,app/rename/plan_policy.py
+app.rename.policy,app.files.constants,app/rename/policy.py,app/files/constants.py
 app.rename.policy,app.paths.layout,app/rename/policy.py,app/paths/layout.py
+app.rename.policy,app.rename.movie,app/rename/policy.py,app/rename/movie.py
 app.rename.policy,app.rename.plan_policy,app/rename/policy.py,app/rename/plan_policy.py
 app.rename.policy,mediapipeline_desktop_app.application.dto_base,app/rename/policy.py,DesktopApp/mediapipeline_desktop_app/application/dto_base.py
 app.rename.policy,mediapipeline_desktop_app.application.dto_commands,app/rename/policy.py,DesktopApp/mediapipeline_desktop_app/application/dto_commands.py
@@ -583,11 +606,15 @@ app.status.contracts,mediapipeline_desktop_app.models_core,app/status/contracts.
 app.status.errors,app.status.file_io,app/status/errors.py,app/status/file_io.py
 app.status.errors,app.status.presentation,app/status/errors.py,app/status/presentation.py
 app.status.facade,app.observability.status_policy,app/status/facade.py,app/observability/status_policy.py
+app.status.facade,app.processes.path_evidence,app/status/facade.py,app/processes/path_evidence.py
 app.status.facade,app.status.active_jobs,app/status/facade.py,app/status/active_jobs.py
 app.status.facade,app.status.eta,app/status/facade.py,app/status/eta.py
 app.status.facade,app.status.ffmpeg_progress,app/status/facade.py,app/status/ffmpeg_progress.py
+app.status.facade,app.status.presentation,app/status/facade.py,app/status/presentation.py
 app.status.facade,mediapipeline_desktop_app.application.dto_status,app/status/facade.py,DesktopApp/mediapipeline_desktop_app/application/dto_status.py
 app.status.facade,mediapipeline_desktop_app.models,app/status/facade.py,DesktopApp/mediapipeline_desktop_app/models.py
+app.status.presentation,app.rename.movie,app/status/presentation.py,app/rename/movie.py
+app.status.presentation,app.rename.tv,app/status/presentation.py,app/rename/tv.py
 app.status.presentation,app.status.events,app/status/presentation.py,app/status/events.py
 app.status.readers,app.status.contracts,app/status/readers.py,app/status/contracts.py
 app.status.readers,app.status.file_io,app/status/readers.py,app/status/file_io.py
@@ -644,6 +671,7 @@ mediapipeline_desktop_app.api.read_payloads_inventory,mediapipeline_desktop_app.
 mediapipeline_desktop_app.api.read_payloads_status,mediapipeline_desktop_app.api.contract_payload,DesktopApp/mediapipeline_desktop_app/api/read_payloads_status.py,DesktopApp/mediapipeline_desktop_app/api/contract_payload.py
 mediapipeline_desktop_app.api.read_payloads_status,mediapipeline_desktop_app.api.http_helpers,DesktopApp/mediapipeline_desktop_app/api/read_payloads_status.py,DesktopApp/mediapipeline_desktop_app/api/http_helpers.py
 mediapipeline_desktop_app.api.read_payloads_status,mediapipeline_desktop_app.api.read_payloads_policy,DesktopApp/mediapipeline_desktop_app/api/read_payloads_status.py,DesktopApp/mediapipeline_desktop_app/api/read_payloads_policy.py
+mediapipeline_desktop_app.api.read_payloads_workspace,mediapipeline_desktop_app.api.http_helpers,DesktopApp/mediapipeline_desktop_app/api/read_payloads_workspace.py,DesktopApp/mediapipeline_desktop_app/api/http_helpers.py
 mediapipeline_desktop_app.api.read_payloads_workspace,mediapipeline_desktop_app.api.read_payloads_policy,DesktopApp/mediapipeline_desktop_app/api/read_payloads_workspace.py,DesktopApp/mediapipeline_desktop_app/api/read_payloads_policy.py
 mediapipeline_desktop_app.api.routes,mediapipeline_desktop_app.api.routes_command,DesktopApp/mediapipeline_desktop_app/api/routes.py,DesktopApp/mediapipeline_desktop_app/api/routes_command.py
 mediapipeline_desktop_app.api.routes,mediapipeline_desktop_app.api.routes_read,DesktopApp/mediapipeline_desktop_app/api/routes.py,DesktopApp/mediapipeline_desktop_app/api/routes_read.py

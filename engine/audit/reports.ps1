@@ -32,9 +32,11 @@ function Convert-ResultForSerialization {
 
     $nonSidecarIssues = @(Get-NonSidecarIssues -Issues $Result.Issues)
     $primaryIssue = Get-PrimaryIssue -Issues $Result.Issues
-    $priorityFixLevel = Get-PriorityFixLevel -Issues $Result.Issues
-    $priorityScore = Get-PriorityScore -Issues $Result.Issues
-    $effectiveBucket = Get-IssueEffectiveBucket -Issues $Result.Issues
+    $ignoreEntry = Get-AuditIgnoreEntry -Path $Result.Path
+    $auditIgnored = $null -ne $ignoreEntry
+    $priorityFixLevel = if ($auditIgnored) { 'NONE' } else { Get-PriorityFixLevel -Issues $Result.Issues }
+    $priorityScore = if ($auditIgnored) { 0 } else { Get-PriorityScore -Issues $Result.Issues }
+    $effectiveBucket = if ($auditIgnored) { 'IGNORED' } else { Get-IssueEffectiveBucket -Issues $Result.Issues }
 
     return [pscustomobject]@{
         Path                    = $Result.Path
@@ -86,6 +88,9 @@ function Convert-ResultForSerialization {
         EffectiveBucket         = $effectiveBucket
         PriorityFixLevel        = $priorityFixLevel
         PriorityScore           = $priorityScore
+        AuditIgnored            = [bool]$auditIgnored
+        AuditIgnoreReason       = if ($auditIgnored -and $ignoreEntry.PSObject.Properties.Name -contains 'reason') { $ignoreEntry.reason } else { '' }
+        AuditIgnoreSetAt        = if ($auditIgnored -and $ignoreEntry.PSObject.Properties.Name -contains 'set_at') { $ignoreEntry.set_at } else { '' }
         PrimaryIssueCode        = if ($primaryIssue) { $primaryIssue.Code } else { '' }
         PrimaryIssueBucket      = if ($primaryIssue) { $primaryIssue.Bucket } else { '' }
         PrimarySuggestedAction  = if ($primaryIssue) { $primaryIssue.SuggestedAction } else { '' }
@@ -183,6 +188,9 @@ function New-AuditCsvRows {
             EffectiveBucket         = $_.EffectiveBucket
             PriorityFixLevel        = $_.PriorityFixLevel
             PriorityScore           = $_.PriorityScore
+            AuditIgnored            = $_.AuditIgnored
+            AuditIgnoreReason       = $_.AuditIgnoreReason
+            AuditIgnoreSetAt        = $_.AuditIgnoreSetAt
             PrimaryIssueCode        = $_.PrimaryIssueCode
             PrimaryIssueBucket      = $_.PrimaryIssueBucket
             PrimarySuggestedAction  = $_.PrimarySuggestedAction
@@ -274,6 +282,9 @@ function Get-AuditCsvColumnNames {
         'EffectiveBucket',
         'PriorityFixLevel',
         'PriorityScore',
+        'AuditIgnored',
+        'AuditIgnoreReason',
+        'AuditIgnoreSetAt',
         'PrimaryIssueCode',
         'PrimaryIssueBucket',
         'PrimarySuggestedAction',

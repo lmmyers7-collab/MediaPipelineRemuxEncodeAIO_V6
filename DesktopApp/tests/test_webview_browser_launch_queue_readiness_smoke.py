@@ -656,18 +656,18 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "Guardrail: only backend Launch routes can start processing",
             ]);
             const queueRefreshButton = document.querySelector("[data-queue-refresh-button]");
-            if (!queueRefreshButton) throw new Error("missing Refresh Queue button");
+            if (!queueRefreshButton) throw new Error("missing Scan Sources button");
             queueRefreshButton.click();
             const topbarPrimaryNode = document.querySelector("#activity .activity-primary");
             const topbarPrimary = topbarPrimaryNode && topbarPrimaryNode.textContent ? topbarPrimaryNode.textContent.trim() : "";
             if (topbarPrimary !== "Scanning") {
-              throw new Error("Refresh Queue did not update topbar activity immediately; got " + topbarPrimary);
+              throw new Error("Scan Sources did not update topbar activity immediately; got " + topbarPrimary);
             }
-            if (!text("queue-filter-summary").includes("Scanning backend queue snapshot.")) {
-              throw new Error("Refresh Queue did not update queue status immediately:\\n" + text("queue-filter-summary"));
+            if (!text("queue-source-inventory").includes("Queue source scan requested.")) {
+              throw new Error("Scan Sources did not update source inventory status immediately:\\n" + text("queue-source-inventory"));
             }
             if (queueRefreshButton.textContent.trim() !== "Scanning...") {
-              throw new Error("Refresh Queue button did not switch to scanning text; got " + queueRefreshButton.textContent.trim());
+              throw new Error("Scan Sources button did not switch to scanning text; got " + queueRefreshButton.textContent.trim());
             }
             await waitFor(
               () => {
@@ -702,7 +702,13 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             if (!launchEntry) throw new Error("pipeline.start command history entry was not loaded");
             const owner = window.commandHistoryOwnerPage(launchEntry);
             if (owner !== "Launch") throw new Error("pipeline.start owner should be Launch, got " + owner);
-            if (posts.length) throw new Error("Launch/Queue readiness render posted unexpected routes: " + JSON.stringify(posts));
+            const scanPosts = posts.filter((post) => post.path === "/api/queue/scan");
+            const unexpectedPosts = posts.filter((post) => post.path !== "/api/queue/scan");
+            if (scanPosts.length !== 1) throw new Error("Scan Sources should post exactly one backend queue scan command: " + JSON.stringify(posts));
+            if (scanPosts[0].body.mode !== "inventory_then_curate" || scanPosts[0].body.scope !== "all" || scanPosts[0].body.force !== true) {
+              throw new Error("Scan Sources posted unexpected scan payload: " + JSON.stringify(scanPosts[0]));
+            }
+            if (unexpectedPosts.length) throw new Error("Launch/Queue readiness render posted unexpected routes: " + JSON.stringify(unexpectedPosts));
             window.apiPost = originalApiPost;
             return {
               ok: true,
@@ -872,7 +878,11 @@ class WebViewBrowserLaunchQueueReadinessSmokeTests(unittest.TestCase):
 
             self.assertTrue(result["ok"])
             browser_result = result["result"]
-            self.assertEqual(browser_result["posts"], [])
+            self.assertEqual(len(browser_result["posts"]), 1)
+            self.assertEqual(browser_result["posts"][0]["path"], "/api/queue/scan")
+            self.assertEqual(browser_result["posts"][0]["body"]["mode"], "inventory_then_curate")
+            self.assertEqual(browser_result["posts"][0]["body"]["scope"], "all")
+            self.assertIs(browser_result["posts"][0]["body"]["force"], True)
             self.assertEqual(
                 browser_result["singleFileRequest"]["single_file"],
                 r"E:\Videos\Scratch\Encoded\TV\Sample Pilot.mkv",

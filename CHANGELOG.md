@@ -13,6 +13,9 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Added
 
+- God-file split planning docs under `Docs/architecture/god-file-splits/`
+  for the highest-priority Settings, Completed, Queue, file-overrides API,
+  and network dispatcher split candidates.
 - Active naming support unit gate:
   `Pipeline\Tests\Unit\Invoke-NamingSupportChecks.ps1` now verifies shared
   Plex movie/TV destination planning, forced rename sidecar sanitization and

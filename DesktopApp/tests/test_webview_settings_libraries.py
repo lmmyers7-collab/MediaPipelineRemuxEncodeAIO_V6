@@ -235,6 +235,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
 
     def test_library_override_validation_hints_reuse_backend_metadata_and_persisted_groups(self) -> None:
         libraries_js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        patch_review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
 
         for token in (
@@ -245,6 +246,10 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "global-only and cannot be saved as a library override",
             "read-only source/effective metadata and cannot be saved as a library override",
             "belongs in overrides.",
+        ):
+            self.assertIn(token, patch_review_js)
+
+        for token in (
             "settingsPatchLocalValidationHintLines(changes)",
         ):
             self.assertIn(token, settings_js)

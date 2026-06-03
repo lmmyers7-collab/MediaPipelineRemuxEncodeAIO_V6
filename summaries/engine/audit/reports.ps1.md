@@ -3,9 +3,9 @@ file: engine/audit/reports.ps1
 pipeline_stage: observability
 token_priority: medium
 owner_domain: audit
-last_modified: 2026-05-31
+last_modified: 2026-06-03
 last_reviewed: 2026-05-29
-sha256: f62bcba9d3a94b49c447abdc827b89233bd31487b42b1b25778c82fb773327a1
+sha256: e1f1a4a2df7d11011a01fa4430d4c200f726b32270076d080b7562ba941dbb21
 ---
 # `engine/audit/reports.ps1`
 

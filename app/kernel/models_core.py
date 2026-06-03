@@ -45,6 +45,10 @@ class ResolvedPaths:
     # track filter, etc.) — written by the DesktopApp API, read by the PS1
     # pipeline at per-file processing time.
     file_overrides_path: Path | None = None
+    # Audit-only score weights and ignore state. These affect audit reporting
+    # and rerun CSV export only; they are not queue or media-policy inputs.
+    audit_score_policy_path: Path | None = None
+    audit_ignore_manifest_path: Path | None = None
     priority_markers: list[str] = field(default_factory=lambda: ["!"])
     config_data: dict[str, Any] = field(default_factory=dict)
     config_identity: dict[str, Any] = field(default_factory=dict)

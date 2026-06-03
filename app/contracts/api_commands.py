@@ -55,6 +55,13 @@ class QueueStrategyCommandPayload(ApiCommandPayload):
     strategy: Any = None
 
 
+class QueueScanCommandPayload(StrictApiCommandPayload):
+    mode: Any = None
+    force: StrictBool | None = None
+    scope: Any = None
+    reason: Any = None
+
+
 class QueueFileOverridesCommandPayload(ApiCommandPayload):
     path: Any = None
     audio: Any = None
@@ -181,6 +188,26 @@ class ProcessControlCommandPayload(ApiCommandPayload):
     force_active_work_shutdown: Any = None
 
 
+class AuditScorePolicyCommandPayload(StrictApiCommandPayload):
+    policy: Any = None
+    reset: StrictBool | None = None
+
+
+class AuditIgnoreCommandPayload(StrictApiCommandPayload):
+    action: Any = None
+    row_keys: Any = None
+    paths: Any = None
+    reason: Any = None
+    priority_only: StrictBool | None = None
+    limit: Any = None
+
+
+class AuditExportRerunCsvCommandPayload(StrictApiCommandPayload):
+    row_keys: Any = None
+    priority_only: StrictBool | None = None
+    limit: Any = None
+
+
 class PipelineControlCommandPayload(StrictApiCommandPayload):
     action: Any = None
 
@@ -286,6 +313,7 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/rename/browse": RenameCommandPayload,
     "/api/rename/apply": RenameApplyCommandPayload,
     "/api/diagnostics/open": OpenLocationCommandPayload,
+    "/api/queue/scan": QueueScanCommandPayload,
     "/api/queue/open": OpenLocationCommandPayload,
     "/api/queue/priority": QueuePriorityCommandPayload,
     "/api/queue/strategy": QueueStrategyCommandPayload,
@@ -321,6 +349,9 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/pipeline/browse-file": PipelineBrowseFileCommandPayload,
     "/api/pipeline/start": PipelineStartCommandPayload,
     "/api/audit/start": ProcessControlCommandPayload,
+    "/api/audit/score-policy": AuditScorePolicyCommandPayload,
+    "/api/audit/ignore": AuditIgnoreCommandPayload,
+    "/api/audit/export-rerun-csv": AuditExportRerunCsvCommandPayload,
     "/api/rerun/start": ProcessControlCommandPayload,
     "/api/backend/shutdown": BackendShutdownCommandPayload,
     "/api/ui-preferences": UiPreferencesCommandPayload,

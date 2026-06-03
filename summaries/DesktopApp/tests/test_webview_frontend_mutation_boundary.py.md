@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_webview_frontend_mutation_boundary.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-05-29
-sha256: b1ea1ad39ba45217c35f5f7280552611491268f297044f1476284b8defcefb0c
+sha256: 9d688350eecb1fb51bc95d1ecbaad01cf819ddc582519a1decc5f833506ed133
 ---
 # `DesktopApp/tests/test_webview_frontend_mutation_boundary.py`
 

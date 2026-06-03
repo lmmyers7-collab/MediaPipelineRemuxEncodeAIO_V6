@@ -80,7 +80,7 @@
           <pre id="failure-clear-summary" class="prose-block">Select rows with active failure markers, then preview or clear errors. This moves marker JSON out of the active marker folder only; it does not delete media, logs, reports, manifests, source files, or output files.</pre>
         </section>
 
-<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="evidence">
+        <section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Audit Progress</h2>
             <strong id="report-progress-status">Not loaded</strong>
@@ -89,6 +89,53 @@
             <p class="note">No audit progress loaded.</p>
           </div>
           <pre id="report-progress-summary" class="prose-block">No audit report progress loaded.</pre>
+        </section>
+
+<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Audit Controls</h2>
+            <strong id="report-audit-score-policy-status">Not loaded</strong>
+          </div>
+          <pre id="report-audit-score-policy-summary" class="prose-block">No audit score policy loaded.</pre>
+          <div class="option-grid option-grid-compact">
+            <label>
+              Redownload bucket
+              <input id="report-audit-score-redownload-bucket" type="number" min="0" max="1000" step="1">
+            </label>
+            <label>
+              High issue
+              <input id="report-audit-score-high-issue" type="number" min="0" max="1000" step="1">
+            </label>
+            <label>
+              Rerun bucket
+              <input id="report-audit-score-rerun-bucket" type="number" min="0" max="1000" step="1">
+            </label>
+            <label>
+              Medium issue
+              <input id="report-audit-score-medium-issue" type="number" min="0" max="1000" step="1">
+            </label>
+            <label>
+              Review bucket
+              <input id="report-audit-score-review-bucket" type="number" min="0" max="1000" step="1">
+            </label>
+            <label>
+              Fallback issue
+              <input id="report-audit-score-fallback-issue" type="number" min="0" max="1000" step="1">
+            </label>
+            <label>
+              Redownload bonus
+              <input id="report-audit-score-redownload-bonus" type="number" min="0" max="1000" step="1">
+            </label>
+            <label>
+              Rerun bonus
+              <input id="report-audit-score-rerun-bonus" type="number" min="0" max="1000" step="1">
+            </label>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" id="report-audit-score-policy-save-button" class="secondary-button">Save Score Policy</button>
+            <button type="button" id="report-audit-score-policy-reset-button" class="secondary-button">Reset Score Defaults</button>
+          </div>
+          <pre id="report-audit-score-policy-detail" class="prose-block">Score policy changes apply to future backend audit report generation.</pre>
         </section>
 
 <section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="interactive">
@@ -108,6 +155,7 @@
             <table>
               <thead>
                 <tr>
+                  <th scope="col">Select</th>
                   <th scope="col" class="num">Score</th>
                   <th scope="col">Priority</th>
                   <th scope="col">Bucket</th>
@@ -117,7 +165,7 @@
                 </tr>
               </thead>
               <tbody id="audit-preview-rows">
-                <tr><td colspan="6">No audit rows loaded.</td></tr>
+                <tr><td colspan="7">No audit rows loaded.</td></tr>
               </tbody>
             </table>
           <div class="empty-state" data-empty-state="hidden" style="display:none">
@@ -128,6 +176,15 @@
           <p id="audit-preview-table-legend" class="note table-legend">Audit rows: no selectable rows.</p>
           <pre id="audit-preview-detail" class="prose-block">No audit row selected.</pre>
           <div id="audit-preview-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
+          <div class="panel-heading panel-subheading">
+            <h3>Audit Row Actions</h3>
+            <strong id="report-audit-export-status">No export</strong>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" id="report-audit-ignore-selected-button" class="secondary-button">Ignore Selected</button>
+            <button type="button" id="report-audit-export-rerun-csv-button" class="secondary-button">Export Rerun CSV</button>
+          </div>
+          <pre id="report-audit-export-detail" class="prose-block">No audit rerun CSV export submitted.</pre>
         </section>
 
 <section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="evidence">

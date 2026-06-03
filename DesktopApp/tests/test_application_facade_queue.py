@@ -12,10 +12,77 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.application import MediaPipelineApplicationFacade
+from app.queue.source_inventory import (
+    queue_scan_status_payload,
+    queue_scan_status_path,
+    queue_source_inventory_path,
+    write_json_artifact,
+)
 from DesktopApp.tests.test_application_facade import DummyWorkflowFacadeService, _resolved
 
 
 class ApplicationFacadeQueueTests(unittest.TestCase):
+    def test_queue_preview_includes_scan_status_and_source_inventory_without_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            resolved.state_root = root / "State"
+            resolved.queue_snapshot_path = resolved.state_root / "Progress" / "queue_snapshot.json"
+            status_path = queue_scan_status_path(resolved)
+            inventory_path = queue_source_inventory_path(resolved)
+            assert status_path is not None
+            assert inventory_path is not None
+            write_json_artifact(
+                status_path,
+                queue_scan_status_payload(
+                    scan_id="scan-1",
+                    status="running",
+                    phase="inventory",
+                    mode="inventory_then_curate",
+                    message="Building fast source inventory.",
+                    status_path=status_path,
+                    inventory_path=inventory_path,
+                    queue_snapshot_path=resolved.queue_snapshot_path,
+                    inventory_count=2,
+                ),
+            )
+            write_json_artifact(
+                inventory_path,
+                {
+                    "schema_version": "desktop_queue_source_inventory.v1",
+                    "scan_id": "scan-1",
+                    "status": "inventory_complete",
+                    "curation_state": "uncurated",
+                    "launchable": False,
+                    "row_count": 1,
+                    "rows": [
+                        {
+                            "candidate_key": "candidate-1",
+                            "source_path": str(root / "TV" / "Show" / "Show - S01E01.mkv"),
+                            "relative_path": "Show\\Show - S01E01.mkv",
+                            "media_kind": "tv",
+                            "curation_state": "uncurated",
+                            "launchable": False,
+                        }
+                    ],
+                    "summary_lines": ["Source inventory candidates: 1."],
+                    "warnings": [],
+                },
+            )
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+
+            preview = facade.get_queue_preview(resolved).to_mapping()
+
+        self.assertEqual(preview["schema_version"], "desktop_queue_preview.v1")
+        self.assertEqual(preview["queue_scan_status"]["schema_version"], "desktop_queue_scan_status.v1")
+        self.assertEqual(preview["queue_scan_status"]["status"], "running")
+        self.assertEqual(preview["queue_scan_status"]["phase"], "inventory")
+        self.assertEqual(preview["source_inventory"]["schema_version"], "desktop_queue_source_inventory.v1")
+        self.assertEqual(preview["source_inventory"]["row_count"], 1)
+        self.assertFalse(preview["source_inventory"]["launchable"])
+        self.assertEqual(preview["source_inventory"]["rows"][0]["curation_state"], "uncurated")
+        self.assertIn("No queue snapshot is available yet.", "\n".join(preview["warnings"]))
+
     def test_queue_preview_reads_existing_snapshot_without_dry_run(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

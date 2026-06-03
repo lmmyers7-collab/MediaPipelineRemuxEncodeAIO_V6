@@ -2,7 +2,7 @@
 
 Documents all Local API routes, their mutation risk, auth requirements, backend owner confirmation, and primary frontend caller. Source of truth is `contract_read.py` and `contract_command.py`; handler dispatch is in `routes_read.py` and `routes_command.py`.
 
-Total routes: 76 (31 read, 45 command).
+Total routes: 83 (34 read, 49 command).
 
 All routes that mutate state are backend-owned. The WebView never resolves filesystem paths, selects output targets, chooses encode settings, or launches processes directly — it forwards requests with allowlisted parameters and the backend validates, plans, and executes.
 
@@ -32,7 +32,7 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 
 | Route | Auth | Response Schema | Frontend Caller | Notes |
 |---|---|---|---|---|
-| `GET /api/queue` | Yes | `desktop_queue_preview.v1` | Queue | Latest backend queue snapshot; no dry run spawned |
+| `GET /api/queue` | Yes | `desktop_queue_preview.v1` | Queue | Latest backend queue snapshot plus latest scan status/source inventory evidence; no dry run spawned |
 | `GET /api/queue/priority` | Yes | `queue_priority_manifest.v1` | Queue | Reads non-destructive priority manifest; no queue/media mutation |
 | `GET /api/queue/strategy` | Yes | `queue_strategy_state.v1` | Queue | Reads active queue strategy and valid backend strategy names |
 | `GET /api/queue/file-overrides` | Yes | `queue_file_overrides.v1` | Queue | Reads override manifest or one source-root-contained override entry |
@@ -42,6 +42,9 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 | `GET /api/final-library-promotion/status` | Yes | `desktop_final_library_promotion_status.v1` | Completed | Reads backend-owned final-library promotion readiness, run state, pause state, counts, and destinations; no copy/move/delete action |
 | `GET /api/failures` | Yes | `desktop_failure_preview.v1` | Reports, Diagnostics | Query params: `source` (`latest_json` or `markers`), `limit` |
 | `GET /api/audit-results` | Yes | `desktop_audit_preview.v1` | Reports | Query params: `priority_only`, `limit`; no rerun CSV written |
+| `GET /api/audit-controls` | Yes | `desktop_audit_controls.v1` | Reports | Reads audit score policy and audit-only ignore state; no save/export/media mutation |
+| `GET /api/rename/movie-cleaning-filters` | Yes | `desktop_rename_movie_filter_catalog.v1` | Rename | Reads backend-owned movie filename cleaning filter catalog only |
+| `GET /api/rename/clean-filename-preview` | Yes | `desktop_rename_clean_filename_preview.v1` | Rename | Read-only clean-filename preview; accepts query fields and writes nothing |
 | `GET /api/pending-publish` | Yes | `desktop_pending_publish_preview.v1` | Pending Publish | Reads manifests and parked payloads; does not drain |
 | `GET /api/publish-reconciliation` | Yes | `desktop_publish_reconciliation.v1` | Completed | Manual read-only correlation of Completed rows, current Pending Publish rows, and the latest durable pending drain summary; no repair/drain/publish action |
 
@@ -62,20 +65,21 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 
 ## Command Routes (POST)
 
-All POST routes require auth. The frontend passes allowlisted parameter keys; the backend validates, plans, and executes. File-open routes do not accept arbitrary filesystem paths. Queue state routes accept only absolute paths under backend-configured `SourceMovies`/`SourceTV` roots.
+All POST routes require auth. The frontend passes allowlisted parameter keys; the backend validates, plans, and executes. File-open routes do not accept arbitrary filesystem paths. Queue state routes accept only absolute paths under backend-configured `SourceMovies`/`SourceTV` roots. Queue source scan is a backend-owned command that writes scan evidence and refreshes the queue snapshot through the existing dry-run path.
 
-### Queue State Commands (non-destructive state writes)
+### Queue Scan And State Commands
 
 | Route | Effect | Request Keys | Allowed Values / Scope | Frontend Caller |
 |---|---|---|---|---|
 | `POST /api/queue/priority` | `queue-state-write` | `path`, `level`, `reason`, `items`, `clear_all` | `level`: `high`, `normal`, `low`, `hold`; path writes must be under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots); `clear_all` clears manifest state only | Queue |
 | `POST /api/queue/strategy` | `queue-state-write` | `strategy` | Backend `VALID_STRATEGIES` only | Queue |
+| `POST /api/queue/scan` | `process-dry-run` | `mode`, `force`, `scope`, `reason` | `mode`: `inventory_then_curate`, `inventory_only`, `curate_only`; `scope`: `all`; duplicate scans observe the active backend scan | Queue |
 | `POST /api/queue/file-overrides` | `queue-state-write` | `path`, `audio`, `subtitles`, `routing`, `video`, `clear`, `clear_all`, `clear_fields` | Path writes must be under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots); `clear_all` clears manifest only | Queue |
 | `POST /api/queue/file-overrides/route-preview` | `read-only-preview` | `path`, `proposed_override` | Path must be under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots); previews route impact only | Queue |
 | `POST /api/queue/file-overrides/folder-preview` | `read-only-preview` | `folder_path`, `proposed_override`, `options` | Folder must be under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots); previews bounded known-file impact only | Queue |
 | `POST /api/queue/file-overrides/folder-rule` | `queue-state-write` | `folder_path`, `override`, `confirmation`, `clear` | Folder must be under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots) but not equal a source/library root; stream indexes and raw map fields rejected; save requires future-file and exact-file precedence acknowledgement | Queue |
 
-Queue state write commands write JSON state under `LocalBase\State`; preview commands are read-only. These routes do not rename, move, delete, launch, process, scan whole source folders, or mutate source media.
+Queue state write commands write JSON state under `LocalBase\State`; preview commands are read-only. Queue source scan writes scan-status/source-inventory evidence and refreshes `queue_snapshot.json` through backend curation. These routes do not rename, move, delete, launch processing work, or mutate source media.
 
 ### Failure Marker Commands (retry-blocker state only)
 
@@ -180,6 +184,18 @@ The dry-run routes run existing backend scripts with `-DryRun` and write no rele
 
 `append` must not mark jobs complete, clear failures, drain pending publish, rewrite manifests, launch work, or mutate media files. It is scoped to the operator's evidence log only.
 
+### Audit Control Commands
+
+| Route | Effect | Key Request Keys | Mutation Risk | Frontend Caller |
+|---|---|---|---|---|
+| `POST /api/audit/score-policy` | `audit-state-write` | `policy`, `reset` | Medium — writes backend-owned audit score policy only | Reports |
+| `POST /api/audit/ignore` | `audit-state-write` | `action`, `row_keys`, `paths`, `reason`, `priority_only`, `limit` | Medium — writes audit-only ignore state without queue holds or media mutation | Reports |
+| `POST /api/audit/export-rerun-csv` | `report-file-write` | `row_keys`, `priority_only`, `limit` | Medium — writes a backend-owned rerun CSV artifact only; does not launch rerun work | Reports |
+
+Audit control commands are backend-owned report/state helpers. They do not write
+queue priority, apply holds, launch rerun work, change settings, or touch media
+files.
+
 ### Process Commands
 
 | Route | Effect | Key Request Keys | Mutation Risk | Frontend Caller |
@@ -199,7 +215,7 @@ The dry-run routes run existing backend scripts with `-DryRun` and write no rele
 
 | Effect tag | Routes | Risk level |
 |---|---|---|
-| `none` | 43 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, Settings Wizard validation/preview routes, settings/reload, recovery-plan, sample-validation/preview, schedule/preview) | None |
+| `none` | 46 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, Settings Wizard validation/preview routes, settings/reload, recovery-plan, sample-validation/preview, schedule/preview) | None |
 | `bounded-health-check` | `GET /api/maintenance` | Read-only probes |
 | `read-only-preview` | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/folder-preview` | Advisory backend previews only |
 | `shell-open` | `POST /api/queue/open`, `POST /api/completed/open`, `POST /api/pending-publish/open`, `POST /api/diagnostics/open` | OS open only; no file mutation |
@@ -207,7 +223,9 @@ The dry-run routes run existing backend scripts with `-DryRun` and write no rele
 | `ui-state-write` | `POST /api/ui-preferences` | Allowlisted UI preference JSON only |
 | `queue-state-write` | `POST /api/queue/priority`, `POST /api/queue/strategy`, `POST /api/queue/file-overrides`, `POST /api/queue/file-overrides/folder-rule` | Non-destructive queue state JSON only |
 | `failure-marker-write` | `POST /api/failures/clear` | Moves retry-blocker marker JSON out of the active marker folder only |
-| `process-dry-run` | `POST /api/maintenance/release-dry-run`, `POST /api/maintenance/completed-backfill-dry-run` | No output written |
+| `audit-state-write` | `POST /api/audit/score-policy`, `POST /api/audit/ignore` | Audit-only score/ignore state; no queue/media mutation |
+| `report-file-write` | `POST /api/audit/export-rerun-csv` | Writes a backend-owned report CSV artifact only |
+| `process-dry-run` | `POST /api/queue/scan`, `POST /api/maintenance/release-dry-run`, `POST /api/maintenance/completed-backfill-dry-run` | Backend dry-run/process evidence only; no media output written |
 | `tooling-artifact-write` | `POST /api/maintenance/dependency-atlas` | Generated repository tooling artifacts only |
 | `deployment-write` | `POST /api/maintenance/release-build` | Writes deployable release folder, manifest, and optional zip only |
 | `control-state-write` | `POST /api/final-library-promotion/pause`, `POST /api/final-library-promotion/resume` | Writes cooperative final-library promotion control state only |
@@ -236,7 +254,7 @@ Every mutation route enforces backend ownership:
 - **Settings path browse** (`settings/browse-path`): backend opens the native Windows folder browser for allowlisted source/output/scratch and final-library promotion root settings and returns validation evidence for staging only; Preview/Save remains the only settings persistence path.
 - **Diagnostics open/tail**: frontend passes an allowlisted target key string; backend resolves the real path and rejects any key not in the allowlist.
 - **UI preferences**: frontend sends only allowlisted `mediapipeline-*`/`mediapipeline.*` local customization keys; backend stores them as UI state under `LocalBase\State` and never treats them as config or media policy.
-- **Queue state writes**: backend rejects priority/file-override path writes unless the path is absolute and under configured `SourceMovies`/`SourceTV`; strategy writes are constrained to backend valid strategy names.
+- **Queue source scan and state writes**: backend serializes source scans, writes scan evidence under `LocalBase\State\Progress`, curates queue rows through the existing queue-plan dry-run, rejects priority/file-override path writes unless the path is absolute and under configured `SourceMovies`/`SourceTV`, and constrains strategy writes to backend valid strategy names.
 - **Recovery plan**: backend authors the dry-run plan; the frontend receives it read-only.
 - **Deployment build**: backend owns release packaging, active-work checks, confirmation, command locking, destination replacement, manifest creation, and optional zip creation; the frontend cannot copy files, write manifests, or zip folders itself.
 - **Rename apply**: backend rebuilds the rename plan from its own state; it does not execute the frontend-submitted plan as-is. `confirm_apply` is required.

@@ -11,13 +11,13 @@
     const button = queueRefreshButton();
     if (!button) return;
     button.disabled = Boolean(isBusy);
-    button.textContent = isBusy ? "Scanning..." : "Refresh Queue";
+    button.textContent = isBusy ? "Scanning..." : "Scan Sources";
     if (isBusy) {
       button.setAttribute("aria-busy", "true");
-      button.title = "Scanning backend queue snapshot. This reloads read-only state only.";
+      button.title = "Backend source scan is running. Fast inventory is shown before full queue curation completes.";
     } else {
       button.removeAttribute("aria-busy");
-      button.title = "Refresh Queue reloads backend snapshots only; it does not change launch scope or media files.";
+      button.title = "Scan configured source roots and then curate the authoritative backend queue snapshot.";
     }
   }
 
@@ -26,7 +26,7 @@
     renderTopbarActivity({
       activity: "Scanning",
       current_work: {
-        phase_label: "Queue refresh",
+        phase_label: "Queue source scan",
         percent_label: "0%",
       },
       progress: {
@@ -36,16 +36,17 @@
     });
     const ticker = byId("topbar-event-ticker");
     if (ticker) {
-      const text = "Latest event: queue refresh requested - scanning backend snapshot";
+      const text = "Latest event: queue source scan requested";
       ticker.textContent = text;
       ticker.title = text;
       ticker.dataset.state = "pending";
     }
     setText("queue-filter-summary", [
-      "Scanning backend queue snapshot.",
-      "Refresh Queue reloads read-only state only; filters, launch scope, queue state, source files, and processing commands are unchanged.",
+      "Queue source scan requested.",
+      "The backend builds a fast source inventory first, then curates authoritative queue rows through the queue-plan dry run.",
+      "Mutation guardrail: filters, launch scope, queue state commands, source files, and processing commands remain backend-owned.",
     ].join("\n"));
-    setText("queue-open-status", "Scanning queue snapshot...");
+    setText("queue-open-status", "Scanning sources and curating queue snapshot...");
   }
 
   async function refreshCurrentOutputStatus() {
@@ -115,10 +116,11 @@
       button.textContent = "Refresh";
       button.removeAttribute("aria-busy");
     }
+    const queueScanRunning = Boolean(window.mediaPipelineQueueView?.queueScanIsRunning?.());
     if (options && options.queueRefresh === true) {
-      setQueueRefreshButtonBusy(false);
-    } else if (!queueRefreshBusy) {
-      setQueueRefreshButtonBusy(false);
+      setQueueRefreshButtonBusy(queueScanRunning);
+    } else if (!queueRefreshBusy || !queueScanRunning) {
+      setQueueRefreshButtonBusy(queueScanRunning);
     }
     if (!node) return;
     node.removeAttribute("aria-busy");
@@ -185,6 +187,7 @@
     renderRefreshInProgress,
     renderRefreshHealth,
     renderQueueRefreshInProgress,
+    setQueueRefreshButtonBusy,
     attachRefreshMetadata,
     initPageRefreshButtons,
     refreshFailure

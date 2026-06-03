@@ -8,6 +8,8 @@ param(
     [switch]$EmitJson,
     [switch]$EmitCsv,
     [switch]$RebuildProbeCache,
+    [string]$ScorePolicyPath = '',
+    [string]$IgnoreManifestPath = '',
     [ValidateRange(5, 3600)]
     [int]$FfprobeTimeoutSeconds = 60,
     [ValidateRange(30, 86400)]
@@ -41,6 +43,10 @@ $script:ProbeCacheMissCount = 0
 $script:ProbeCacheWriteCount = 0
 $script:AuditRebuildProbeCache = [bool]$RebuildProbeCache
 $script:AuditAllowSystemTools = [bool]$AllowSystemTools
+$script:AuditScorePolicyPath = $ScorePolicyPath
+$script:AuditIgnoreManifestPath = $IgnoreManifestPath
+$script:AuditScorePolicy = $null
+$script:AuditIgnoreEntries = @{}
 
 if (-not $PSBoundParameters.ContainsKey('IncludeSidecars')) { $IncludeSidecars = $false }
 if (-not $PSBoundParameters.ContainsKey('EmitText')) { $EmitText = $false }
@@ -139,6 +145,9 @@ $script:MediumPriorityIssueCodes = @(
     'subtitle-language-tags-unknown',
     'ambiguous-tv-naming'
 )
+
+$script:AuditScorePolicy = Import-AuditScorePolicy -Path $script:AuditScorePolicyPath
+$script:AuditIgnoreEntries = Import-AuditIgnoreManifest -Path $script:AuditIgnoreManifestPath
 
 function Write-AuditLog {
     param(

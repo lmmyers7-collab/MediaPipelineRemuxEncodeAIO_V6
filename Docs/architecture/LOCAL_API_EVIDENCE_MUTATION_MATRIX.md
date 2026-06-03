@@ -2,7 +2,7 @@
 
 Companion to `Docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`. This document separates every route into its mutation class, states whether the frontend can own the behavior, and notes the key restriction on each command route.
 
-Total routes: 76 (31 read, 45 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
+Total routes: 83 (34 read, 49 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
 
 ---
 
@@ -30,7 +30,7 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 
 | Route | Class | Frontend can own? | Key restriction |
 |---|---|---|---|
-| `GET /api/queue` | `read` | No | Latest backend queue snapshot; no dry run spawned |
+| `GET /api/queue` | `read` | No | Latest backend queue snapshot plus queue-scan status and source-inventory evidence; no dry run spawned |
 | `GET /api/queue/priority` | `read` | No | Reads backend-owned priority manifest; no queue/media mutation |
 | `GET /api/queue/strategy` | `read` | No | Reads backend-owned strategy state and valid strategy names |
 | `GET /api/queue/file-overrides` | `read` | No | Reads override manifest or one source-root-contained override entry |
@@ -40,6 +40,9 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 | `GET /api/final-library-promotion/status` | `read` | No | Reads final-library promotion readiness/run state; no copy, move, delete, or cleanup action |
 | `GET /api/failures` | `read` | No | Failure markers and reports; query-bounded |
 | `GET /api/audit-results` | `read` | No | Audit CSV preview; no rerun CSV written |
+| `GET /api/audit-controls` | `read` | No | Reads audit score policy and audit-only ignore state; no save/export/media mutation |
+| `GET /api/rename/movie-cleaning-filters` | `read` | No | Reads backend-owned movie filename cleaning filter catalog only |
+| `GET /api/rename/clean-filename-preview` | `read` | No | Read-only clean-filename preview; accepts query fields and writes nothing |
 | `GET /api/pending-publish` | `read` | No | Reads manifests and parked payloads; does not drain |
 | `GET /api/publish-reconciliation` | `read` | No | Correlates Completed, Pending Publish, and durable drain-summary evidence; no repair, drain, publish, or write action |
 
@@ -60,7 +63,15 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 
 ## Command Routes (POST) - Classified by Mutation Class
 
-All POST routes require authentication. The frontend can submit allowlisted request fields, but it cannot own the operation, resolve paths directly, write state directly, launch processes, or choose media policy.
+All POST routes require authentication. The frontend can submit allowlisted request fields, but it cannot own the operation, resolve paths directly, write state directly, launch processes, scan sources independently, or choose media policy.
+
+### process-dry-run (backend source scan)
+
+Runs backend-owned source inventory and queue-plan dry-run behavior. It writes scan evidence and an authoritative queue snapshot, but it does not process, rename, move, delete, publish, drain, or mutate source media.
+
+| Route | Mutation class | Frontend cannot own? | Key restriction |
+|---|---|---|---|
+| `POST /api/queue/scan` | `process-dry-run` | Frontend cannot enumerate launchable queue rows or run queue policy independently | `mode`: `inventory_then_curate`, `inventory_only`, or `curate_only`; `scope`: `all`; duplicate requests observe the active backend scan |
 
 ### queue-state-write (medium risk, non-destructive source state)
 
@@ -157,6 +168,16 @@ Appends to the operator evidence log. It does not mark jobs complete, clear fail
 | Route | Mutation class | Frontend cannot own? | Key restriction |
 |---|---|---|---|
 | `POST /api/sample-validation/append` | `validation-log-write` | Frontend cannot write to State directly | Scoped to `sample_validation_log.jsonl` only; returns evidence and append-readiness guidance |
+
+### audit-state-write / report-file-write (medium risk, audit-only state)
+
+Writes backend-owned audit control state or report artifacts. These routes cannot write queue holds, settings, media-policy overrides, launch rerun work, or touch media files.
+
+| Route | Mutation class | Frontend cannot own? | Key restriction |
+|---|---|---|---|
+| `POST /api/audit/score-policy` | `audit-state-write` | Frontend cannot persist audit scoring policy directly | `policy` is backend-normalized; `reset` must be a JSON boolean when present |
+| `POST /api/audit/ignore` | `audit-state-write` | Frontend cannot write audit ignore state directly | `action`: `add` or `remove`; row keys/paths are reconciled by backend audit state only |
+| `POST /api/audit/export-rerun-csv` | `report-file-write` | Frontend cannot write rerun CSV artifacts directly | Backend exports a rerun CSV artifact only; it does not launch rerun work |
 
 ### config-write (high risk)
 

@@ -73,6 +73,12 @@ class LocalApiInventoryReadPayloadMixin:
             limit=query_int(query, "limit", 100),
         ).to_mapping()
 
+    def _audit_controls_payload(self) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return read_unavailable_payload("audit controls")
+        return self.facade.get_audit_controls(resolved)
+
     def _pending_publish_payload(self) -> dict[str, Any]:
         resolved = self._resolved()
         if resolved is None:

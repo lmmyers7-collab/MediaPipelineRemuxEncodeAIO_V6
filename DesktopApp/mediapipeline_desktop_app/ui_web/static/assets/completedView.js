@@ -17,9 +17,7 @@
   let lastCompletedRouteAgreementRows = [];
   let selectedPublishReconciliationKey = "";
   let publishReconciliationInFlight = false;
-  let finalLibraryPromotionCommandInFlight = false;
   let lastCompletedEmptyMessage = "No completed jobs available.";
-  let completedOpenInFlight = false;
   const COMPLETED_FILTER_FIELDS = [
     "completed_at",
     "route",
@@ -62,6 +60,8 @@
     set lastCompletedRows(value) { lastCompletedRows = value; },
     get lastCompletedPayload() { return lastCompletedPayload; },
     set lastCompletedPayload(value) { lastCompletedPayload = value; },
+    get lastFinalLibraryPromotionStatus() { return lastFinalLibraryPromotionStatus; },
+    set lastFinalLibraryPromotionStatus(value) { lastFinalLibraryPromotionStatus = value; },
     get lastCompletedPendingPayload() { return lastCompletedPendingPayload; },
     set lastCompletedPendingPayload(value) { lastCompletedPendingPayload = value; },
     get lastCompletedPendingProofRows() { return lastCompletedPendingProofRows; },
@@ -148,6 +148,53 @@
   let completedRealMediaTraceLines = completedReviewNoop;
   let completedRowTrustSummaryLines = completedReviewNoop;
   let completedSampleValidationComparisonLines = completedReviewNoop;
+  let appendCompletedPromotionCellAction = completedReviewNoop;
+  let currentFinalLibraryPromotionRunId = completedReviewNoop;
+  let finalLibraryPromotionActionState = completedReviewNoop;
+  let finalLibraryPromotionChipState = completedReviewNoop;
+  let finalLibraryPromotionStatusText = completedReviewNoop;
+  let mergeFinalLibraryPromotionRows = completedReviewNoop;
+  let renderCompletedPromotionActions = completedReviewNoop;
+  let renderFinalLibraryPromotion = completedReviewNoop;
+  let requestFinalLibraryPromotion = completedReviewNoop;
+  let requestFinalLibraryPromotionPause = completedReviewNoop;
+  let requestFinalLibraryPromotionResume = completedReviewNoop;
+  let requestSelectedFinalLibraryPromotion = completedReviewNoop;
+  let completedOpenHistoryLine = completedReviewNoop;
+  let completedSelectedOpenTargetLines = completedReviewNoop;
+  let isCompletedOpenCommand = completedReviewNoop;
+  let rejectCompletedOpenWhileBusy = completedReviewNoop;
+  let renderCompletedOpenHistory = completedReviewNoop;
+  let requestCompletedOpen = completedReviewNoop;
+  let setCompletedOpenBusy = completedReviewNoop;
+  let getLastCompletedPayload = completedReviewNoop;
+  let getLastCompletedPendingProofRows = completedReviewNoop;
+  let getLastCompletedRows = completedReviewNoop;
+  let getSelectedCompletedRow = completedReviewNoop;
+  let renderCompletedDetail = completedReviewNoop;
+  let selectCompletedRow = completedReviewNoop;
+  let renderCompletedRows = completedReviewNoop;
+  let renderCompletedHistoryRows = completedReviewNoop;
+  const completedStatusBoardsModule = window.__completedViewStatusBoardsModule || {};
+  delete window.__completedViewStatusBoardsModule;
+  const completedStatusBoards = typeof completedStatusBoardsModule.createCompletedStatusBoardsModule === "function"
+    ? completedStatusBoardsModule.createCompletedStatusBoardsModule({
+      renderProgressBarsInto: window.renderProgressBarsInto,
+      state: completedEvidenceState,
+    })
+    : {};
+  const {
+    completedCurrentRows = completedReviewNoop,
+    completedMissingRows = completedReviewNoop,
+    completedMetricCounts = completedReviewNoop,
+    completedInventoryProgressBars = completedReviewNoop,
+    renderCompletedInventoryProgress = completedReviewNoop,
+    completedEmptyStateMessage = completedReviewNoop,
+    completedFreshnessLine = completedReviewNoop,
+    completedManifestIsAged = completedReviewNoop,
+    completedFormatCounts = completedReviewNoop,
+    completedListText = completedReviewNoop,
+  } = completedStatusBoards;
   const completedProofNoop = function () {};
   let completedRealMediaProofRows = completedProofNoop;
   let completedRealMediaProofStatus = completedProofNoop;
@@ -458,249 +505,95 @@
     completedSampleValidationComparisonLines = completedReviewNoop,
   } = completedReview);
 
-  function setCompletedOpenBusy(isBusy) {
-    completedOpenInFlight = Boolean(isBusy);
-    document.querySelectorAll("[data-open-completed]").forEach((button) => {
-      button.disabled = completedOpenInFlight;
-    });
-  }
+  const completedPromotionCommandsModule = window.__completedViewPromotionCommandsModule || {};
+  delete window.__completedViewPromotionCommandsModule;
+  const completedPromotionCommands = typeof completedPromotionCommandsModule.createCompletedPromotionCommandsModule === "function"
+    ? completedPromotionCommandsModule.createCompletedPromotionCommandsModule({
+      apiPost: typeof apiPost === "function" ? apiPost : window.apiPost,
+      appendCells: typeof appendCells === "function" ? appendCells : window.appendCells,
+      appendCommandResult: typeof appendCommandResult === "function" ? appendCommandResult : window.appendCommandResult,
+      byId: typeof byId === "function" ? byId : window.byId,
+      clearRows: typeof clearRows === "function" ? clearRows : window.clearRows,
+      getSelectedCompletedRow: (...args) => getSelectedCompletedRow(...args),
+      refreshAll: typeof refreshAll === "function" ? refreshAll : window.refreshAll,
+      refreshCurrentOutputStatus: typeof refreshCurrentOutputStatus === "function" ? refreshCurrentOutputStatus : window.refreshCurrentOutputStatus,
+      renderCompletedRows: (...args) => renderCompletedRows(...args),
+      selectCompletedRow: (...args) => selectCompletedRow(...args),
+      setCellStatusChip: typeof setCellStatusChip === "function" ? setCellStatusChip : window.setCellStatusChip,
+      setText: typeof setText === "function" ? setText : window.setText,
+      state: completedEvidenceState,
+    })
+    : {};
+  ({
+    appendCompletedPromotionCellAction = completedReviewNoop,
+    currentFinalLibraryPromotionRunId = completedReviewNoop,
+    finalLibraryPromotionActionState = completedReviewNoop,
+    finalLibraryPromotionChipState = completedReviewNoop,
+    finalLibraryPromotionStatusText = completedReviewNoop,
+    mergeFinalLibraryPromotionRows = completedReviewNoop,
+    renderCompletedPromotionActions = completedReviewNoop,
+    renderFinalLibraryPromotion = completedReviewNoop,
+    requestFinalLibraryPromotion = completedReviewNoop,
+    requestFinalLibraryPromotionPause = completedReviewNoop,
+    requestFinalLibraryPromotionResume = completedReviewNoop,
+    requestSelectedFinalLibraryPromotion = completedReviewNoop,
+  } = completedPromotionCommands);
 
-  function rejectCompletedOpenWhileBusy() {
-    if (!completedOpenInFlight) return false;
-    const result = {
-      command: "completed.open",
-      ok: false,
-      severity: "warning",
-      message: "Another completed open command is already in progress.",
-    };
-    if (typeof appendCommandResult === "function") appendCommandResult(result);
-    setText("completed-open-status", result.message);
-    return true;
-  }
+  const completedOpenActionsModule = window.__completedViewOpenActionsModule || {};
+  delete window.__completedViewOpenActionsModule;
+  const completedOpenActions = typeof completedOpenActionsModule.createCompletedOpenActionsModule === "function"
+    ? completedOpenActionsModule.createCompletedOpenActionsModule({
+      apiPost: typeof apiPost === "function" ? apiPost : window.apiPost,
+      appendCommandResult: typeof appendCommandResult === "function" ? appendCommandResult : window.appendCommandResult,
+      byId: typeof byId === "function" ? byId : window.byId,
+      commandHistoryCompactEvidenceLine: window.commandHistoryCompactEvidenceLine,
+      getSelectedCompletedRow: (...args) => getSelectedCompletedRow(...args),
+      setText: typeof setText === "function" ? setText : window.setText,
+    })
+    : {};
+  ({
+    completedOpenHistoryLine = completedReviewNoop,
+    completedSelectedOpenTargetLines = completedReviewNoop,
+    isCompletedOpenCommand = completedReviewNoop,
+    rejectCompletedOpenWhileBusy = completedReviewNoop,
+    renderCompletedOpenHistory = completedReviewNoop,
+    requestCompletedOpen = completedReviewNoop,
+    setCompletedOpenBusy = completedReviewNoop,
+  } = completedOpenActions);
 
-  function completedCurrentOutputIdentity(item) {
-    const candidates = [
-      item?.output_path,
-      item?.manifest_output_path,
-      item?.final_library_source_path,
-    ];
-    for (const candidate of candidates) {
-      const text = String(candidate || "").trim();
-      if (text) return text.replace(/\\/g, "/").replace(/\/+/g, "/").toLowerCase();
-    }
-    return "";
-  }
-
-  function completedCurrentRows(rows = lastCompletedRows) {
-    const seen = new Set();
-    const currentRows = [];
-    (Array.isArray(rows) ? rows : []).forEach((row) => {
-      if (row?.output_exists === false) return;
-      const identity = completedCurrentOutputIdentity(row);
-      if (identity) {
-        if (seen.has(identity)) return;
-        seen.add(identity);
-      }
-      currentRows.push(row);
-    });
-    return currentRows;
-  }
-
-  function completedMissingRows(rows = lastCompletedRows) {
-    return (Array.isArray(rows) ? rows : []).filter((row) => row?.output_exists === false && !row?.promoted_cleaned);
-  }
-
-  function completedMetricCounts(rows = lastCompletedRows) {
-    const currentRows = completedCurrentRows(rows);
-    return {
-      current: currentRows.length,
-      encoded: currentRows.filter((row) => String(row?.route || "").startsWith("encode")).length,
-      remuxed: currentRows.filter((row) => String(row?.route || "") === "remux").length,
-      missing: completedMissingRows(rows).length,
-    };
-  }
-
-  function finalLibraryPromotionItemsByKey(status = lastFinalLibraryPromotionStatus) {
-    const payload = status && typeof status === "object" ? status : {};
-    const items = Array.isArray(payload.items) ? payload.items : Array.isArray(payload.item_rows) ? payload.item_rows : [];
-    const byKey = {};
-    items.forEach((item) => {
-      if (item?.row_key) byKey[item.row_key] = item;
-    });
-    return byKey;
-  }
-
-  function mergeFinalLibraryPromotionRows(rows, status = lastFinalLibraryPromotionStatus) {
-    const byKey = finalLibraryPromotionItemsByKey(status);
-    return (Array.isArray(rows) ? rows : []).map((row) => {
-      const item = byKey[row?.row_key || ""];
-      return item ? { ...row, ...item } : row;
-    });
-  }
-
-  function finalLibraryPromotionStatusText(item = {}) {
-    if (item.promoted_cleaned) return "✓ Promoted + cleaned";
-    if (item.promoted) return "✓ Promoted";
-    if (item.promoting) return "Promoting";
-    if (item.paused) return "Paused";
-    if (item.promotion_failed) return "Failed";
-    if (item.ready_for_promotion) return "✓ Ready";
-    if (item.no_destination_rule) return "No Destination Rule";
-    if (item.destination_offline) return "Destination Offline";
-    return item.final_library_promotion_status_label || "";
-  }
-
-  function finalLibraryPromotionChipState(item = {}) {
-    if (item.promoted || item.promoted_cleaned) return "success";
-    if (item.ready_for_promotion || item.promoting) return "ready";
-    if (item.paused || item.destination_offline || item.no_destination_rule) return "warning";
-    if (item.promotion_failed) return "error";
-    return "unknown";
-  }
-
-  function finalLibraryPromotionActionState(item = {}) {
-    const enabled = Boolean(lastFinalLibraryPromotionStatus?.enabled);
-    if (!item) return { available: false, reason: "Select a completed output first." };
-    if (finalLibraryPromotionCommandInFlight) return { available: false, reason: "A promotion command is already in progress." };
-    if (!enabled) return { available: false, reason: "Final Library Promotion is disabled in Settings." };
-    if (finalLibraryPromotionRunActive(lastFinalLibraryPromotionStatus)) return { available: false, reason: "A final-library promotion run is already active." };
-    if (item.promoted || item.promoted_cleaned) return { available: false, reason: "This output has already been promoted." };
-    if (item.output_exists === false) return { available: false, reason: "The reviewed output is not present at the promotion source location." };
-    if (item.no_destination_rule) return { available: false, reason: "No final-library destination rule is configured for this output." };
-    if (item.destination_offline) return { available: false, reason: "The configured final-library destination is offline." };
-    if (!item.final_library_destination_path) return { available: false, reason: "No final-library destination path is configured for this output." };
-    if (!item.ready_for_promotion) return { available: false, reason: "This output is not currently marked ready for final-library promotion." };
-    if (!item.row_key) return { available: false, reason: "This completed output has no backend row key." };
-    return { available: true, reason: "Promote this reviewed file to its final destination." };
-  }
-
-  function finalLibraryPromotionConfirmMessage(rowCount) {
-    const count = Number(rowCount || 0);
-    if (count === 1) {
-      return "Promote this file to its final destination?\n\nThis means you have reviewed it and are ready for it to be delivered.";
-    }
-    return "Promote these files to their final destination?\n\nThis means you have reviewed them and are ready for them to be delivered.";
-  }
-
-  function shouldConfirmFinalLibraryPromotion(rowCount) {
-    if (typeof window.confirm !== "function") return true;
-    return window.confirm(finalLibraryPromotionConfirmMessage(rowCount));
-  }
-
-  function createCompletedPromotionButton(item = {}) {
-    const action = finalLibraryPromotionActionState(item);
-    if (!action.available) return null;
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "secondary-button completed-row-promotion-button";
-    button.textContent = "Promote";
-    button.title = "Promote this reviewed file to its final destination after confirmation.";
-    button.dataset.completedPromoteRowKey = item.row_key || "";
-    button.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      selectCompletedRow(item);
-      requestSelectedFinalLibraryPromotion(item);
-    });
-    return button;
-  }
-
-  function appendCompletedPromotionCellAction(cell, item = {}) {
-    if (!cell) return;
-    const button = createCompletedPromotionButton(item);
-    if (!button) return;
-    cell.classList.add("completed-promotion-cell");
-    cell.appendChild(button);
-  }
-
-  function renderCompletedPromotionActions(item = getSelectedCompletedRow()) {
-    const action = finalLibraryPromotionActionState(item);
-    document.querySelectorAll("[data-completed-promote-selected]").forEach((button) => {
-      button.disabled = !action.available;
-      button.setAttribute("aria-disabled", String(!action.available));
-      button.textContent = "Promote Selected File";
-      button.title = action.reason;
-    });
-  }
-
-  function finalLibraryPromotionActiveRun(status = lastFinalLibraryPromotionStatus) {
-    const active = status?.active_run && typeof status.active_run === "object" ? status.active_run : {};
-    return active?.run_id ? active : {};
-  }
-
-  function finalLibraryPromotionRunActive(status = lastFinalLibraryPromotionStatus) {
-    const active = finalLibraryPromotionActiveRun(status);
-    const state = String(active.status || "").toLowerCase();
-    return Boolean(active.run_id && ["running", "pausing", "paused"].includes(state));
-  }
-
-  function renderFinalLibraryPromotion(status = {}) {
-    const payload = status && typeof status === "object" ? status : {};
-    lastFinalLibraryPromotionStatus = payload;
-    if (lastCompletedRows.length) {
-      lastCompletedRows = mergeFinalLibraryPromotionRows(lastCompletedRows, payload);
-    }
-    const counts = payload.counts && typeof payload.counts === "object" ? payload.counts : {};
-    const active = finalLibraryPromotionActiveRun(payload);
-    const activeStatus = String(active.status || "").toLowerCase();
-    const enabled = Boolean(payload.enabled);
-    const eligible = Number(counts.eligible || 0);
-    const warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
-    const statusText = active.run_id
-      ? `${active.status || "active"} / ${Number(active.completed_count || 0)} of ${Number(active.eligible_count || eligible || 0)}`
-      : enabled
-        ? `${eligible} ready`
-        : "Disabled";
-    setText("final-library-promotion-status", statusText);
-    setText("final-library-promotion-summary", [
-      `Enabled: ${enabled ? "yes" : "no"}`,
-      `Verification: ${payload.verification_mode || "cautious"}`,
-      `Cleanup after verified: ${payload.cleanup_after_verified ? "yes" : "no"}`,
-      `Overwrite existing: ${payload.overwrite_existing ? "yes - destructive" : "no"}`,
-      `Rows: ${Number(counts.total || 0)} total; ${eligible} ready; ${Number(counts.no_destination_rule || 0)} no rule; ${Number(counts.destination_offline || 0)} offline; ${Number(counts.promoted || 0)} promoted; ${Number(counts.promoted_cleaned || 0)} promoted + cleaned`,
-      active.run_id ? `Active run: ${active.run_id}; status=${active.status || ""}; pause=${active.pause_state || ""}; consecutive failures=${Number(active.consecutive_failures || 0)}` : "Active run: none",
-      active.stop_reason ? `Stop reason: ${active.stop_reason}` : "",
-      payload.publish_root ? `Publish root: ${payload.publish_root}` : "",
-      payload.evidence_root ? `Evidence: ${payload.evidence_root}` : "",
-      ...warnings,
-    ].filter(Boolean).join("\n"));
-
-    const promoteButton = byId("final-library-promote-button");
-    const pauseButton = byId("final-library-pause-button");
-    const resumeButton = byId("final-library-resume-button");
-    if (promoteButton) {
-      promoteButton.disabled = finalLibraryPromotionCommandInFlight || !enabled || finalLibraryPromotionRunActive(payload) || eligible <= 0;
-      promoteButton.title = promoteButton.disabled
-        ? (enabled ? "No eligible reviewed files are ready for final-library promotion, or a promotion run is active." : "Final Library Promotion is disabled in Settings.")
-        : `Promote ${eligible} reviewed file${eligible === 1 ? "" : "s"} to final-library destinations after confirmation.`;
-    }
-    if (pauseButton) pauseButton.disabled = finalLibraryPromotionCommandInFlight || !(active.run_id && ["running", "pausing"].includes(activeStatus));
-    if (resumeButton) resumeButton.disabled = finalLibraryPromotionCommandInFlight || !(active.run_id && activeStatus === "paused");
-
-    const tbody = byId("final-library-promotion-rows");
-    const items = Array.isArray(payload.items) ? payload.items : Array.isArray(payload.item_rows) ? payload.item_rows : [];
-    if (!items.length) {
-      clearRows(tbody, 3, "No final library promotion rows loaded.");
-    } else {
-      tbody.replaceChildren();
-      items.slice(0, 40).forEach((item) => {
-        const tr = document.createElement("tr");
-        appendCells(tr, [
-          finalLibraryPromotionStatusText(item),
-          item.lookup_title || item.output_file || "",
-          item.final_library_destination_path || "",
-        ]);
-        const statusCell = tr.querySelector("td");
-        if (typeof setCellStatusChip === "function") {
-          setCellStatusChip(statusCell, finalLibraryPromotionStatusText(item), finalLibraryPromotionChipState(item));
-        }
-        tbody.appendChild(tr);
-      });
-    }
-    renderCompletedPromotionActions(getSelectedCompletedRow());
-    window.mediaPipelineAppHome?.renderHomePromotionEntry?.(payload);
-    renderCompletedRows();
-  }
+  const completedSelectionModule = window.__completedViewSelectionModule || {};
+  delete window.__completedViewSelectionModule;
+  const completedSelection = typeof completedSelectionModule.createCompletedSelectionModule === "function"
+    ? completedSelectionModule.createCompletedSelectionModule({
+      completedDiagnosticsActionsForRow: (...args) => completedDiagnosticsActionsForRow(...args),
+      completedInvestigationSignalLines: (...args) => completedInvestigationSignalLines(...args),
+      completedRealMediaTraceLines: (...args) => completedRealMediaTraceLines(...args),
+      completedRowCombinedReviewPlanLines: (...args) => completedRowCombinedReviewPlanLines(...args),
+      completedRowIssueDigestLines: (...args) => completedRowIssueDigestLines(...args),
+      completedRowReviewChecklistLines: (...args) => completedRowReviewChecklistLines(...args),
+      completedRowTrustSummaryLines: (...args) => completedRowTrustSummaryLines(...args),
+      completedSampleValidationComparisonLines: (...args) => completedSampleValidationComparisonLines(...args),
+      completedSelectedAtAGlanceLines: (...args) => completedSelectedAtAGlanceLines(...args),
+      completedSelectedOpenTargetLines: (...args) => completedSelectedOpenTargetLines(...args),
+      completedSelectedQuickSignalLines: (...args) => completedSelectedQuickSignalLines(...args),
+      diagnosticsBridgeHandoffLines: window.diagnosticsBridgeHandoffLines,
+      renderCompletedDiagnosticsLinks: (...args) => renderCompletedDiagnosticsLinks(...args),
+      renderCompletedPromotionActions: (...args) => renderCompletedPromotionActions(...args),
+      renderCompletedRows: (...args) => renderCompletedRows(...args),
+      renderCompletedSelectedAtAGlance: (...args) => renderCompletedSelectedAtAGlance(...args),
+      selectedRowDetailDrawerLines: window.mediaPipelineDom?.selectedRowDetailDrawerLines,
+      setText: typeof setText === "function" ? setText : window.setText,
+      state: completedEvidenceState,
+    })
+    : {};
+  ({
+    getLastCompletedPayload = completedReviewNoop,
+    getLastCompletedPendingProofRows = completedReviewNoop,
+    getLastCompletedRows = completedReviewNoop,
+    getSelectedCompletedRow = completedReviewNoop,
+    renderCompletedDetail = completedReviewNoop,
+    selectCompletedRow = completedReviewNoop,
+  } = completedSelection);
 
   const completedFiltersModule = window.__completedViewFiltersModule || {};
   delete window.__completedViewFiltersModule;
@@ -763,10 +656,10 @@
       updateTableStatusLegend: typeof updateTableStatusLegend === "function" ? updateTableStatusLegend : window.updateTableStatusLegend,
     })
     : {};
-  const {
+  ({
     renderCompletedRows = completedReviewNoop,
     renderCompletedHistoryRows = completedReviewNoop,
-  } = completedTable;
+  } = completedTable);
 
   function renderCompleted(completed = {}) {
     const payload = completed && typeof completed === "object" ? completed : {};
@@ -860,376 +753,6 @@
     renderCompletedOpenHistory(commandEntries);
   }
 
-  function completedInventoryProgressBars(completed) {
-    const payload = completed && typeof completed === "object" ? completed : {};
-    const progress = payload.inventory_progress && typeof payload.inventory_progress === "object" ? payload.inventory_progress : {};
-    if (Array.isArray(progress.progress_bars)) return progress.progress_bars.filter(Boolean);
-    if (Array.isArray(payload.progress_bars)) return payload.progress_bars.filter(Boolean);
-    return [];
-  }
-
-  function renderCompletedInventoryProgress(completed) {
-    if (typeof renderProgressBarsInto !== "function") return;
-    const payload = completed && typeof completed === "object" ? completed : {};
-    const progress = payload.inventory_progress && typeof payload.inventory_progress === "object" ? payload.inventory_progress : {};
-    renderProgressBarsInto("completed-inventory-progress-bars", completedInventoryProgressBars(payload), progress, "No completed inventory progress loaded.");
-  }
-
-  function completedEmptyStateMessage(completed, rows) {
-    const rowList = Array.isArray(rows) ? rows : [];
-    if (completed?.error) {
-      return `Completed history unavailable: ${completed.error}. Open Diagnostics > Completed Manifest and Run Logs.`;
-    }
-    const warnings = Array.isArray(completed?.warnings) ? completed.warnings.filter(Boolean) : [];
-    if (warnings.length && !rowList.length) {
-      return `No completed history rows. Warning: ${warnings[0]}`;
-    }
-    if (!completed?.manifest_exists && !completed?.source && !completed?.manifest_path) {
-      return "No completed history rows. This is normal before the first successful job; otherwise open Diagnostics > Completed Manifest.";
-    }
-    if (!rowList.length) {
-      return "No completed history rows. Check Run Logs and Completed Manifest before reprocessing anything that appears missing.";
-    }
-    return "No completed jobs available.";
-  }
-
-  function completedFreshnessLine(label, ageText, status, timestamp) {
-    const parts = [];
-    if (ageText) parts.push(ageText);
-    if (status) parts.push(status);
-    if (timestamp) parts.push(timestamp);
-    return `${label}: ${parts.join(" / ") || "not reported"}`;
-  }
-
-  function completedManifestIsAged(completed) {
-    const status = String(completed?.manifest_freshness_status || "").trim().toLowerCase();
-    return Boolean(status && ["aged", "old", "stale"].some((token) => status.includes(token)));
-  }
-
-  function completedFormatCounts(value) {
-    const entries = value && typeof value === "object" ? Object.entries(value) : [];
-    if (!entries.length) return "none";
-    return entries.map(([key, count]) => `${key || "unknown"}=${count}`).join(", ");
-  }
-
-  function completedListText(value) {
-    if (Array.isArray(value)) return value.filter(Boolean).join(", ") || "none";
-    return value ? String(value) : "none";
-  }
-
-  function completedSelectedOpenTargetLines(item) {
-    if (!item) return ["Backend selected open targets: none.", "Open boundary: Completed buttons send only row_key and target."];
-    const targets = Array.isArray(item.available_open_targets)
-      ? item.available_open_targets.filter(Boolean)
-      : item.available_open_targets && typeof item.available_open_targets === "object"
-      ? Object.entries(item.available_open_targets)
-        .filter(([, enabled]) => enabled !== false)
-        .map(([key]) => key)
-      : [];
-    return [
-      `Backend selected open targets: ${targets.length ? targets.join(", ") : "none reported"}.`,
-      "Open boundary: Completed buttons send only row_key and target.",
-      "The WebView never sends arbitrary filesystem paths for Completed opens.",
-    ];
-  }
-
-  function getSelectedCompletedRow() {
-    return lastCompletedRows.find((row) => row?.row_key && row.row_key === selectedCompletedRowKey) || lastCompletedRows[0] || null;
-  }
-
-  function getLastCompletedPayload() {
-    return lastCompletedPayload;
-  }
-
-  function getLastCompletedRows() {
-    return lastCompletedRows.slice();
-  }
-
-  function getLastCompletedPendingProofRows() {
-    return lastCompletedPendingProofRows.slice();
-  }
-
-  function selectCompletedRow(item) {
-    if (item?.row_key) selectedCompletedRowKey = item.row_key;
-    renderCompletedRows();
-    renderCompletedDetail(item || getSelectedCompletedRow());
-  }
-
-  function renderCompletedDetail(item) {
-    renderCompletedSelectedAtAGlance(item || null);
-    const detailDrawer = window.mediaPipelineDom?.selectedRowDetailDrawerLines;
-    const guardrail = "Mutation guardrail: selected-row detail is read-only and cannot accept outputs, repair manifests, rerun jobs, reconcile sidecars, publish, or delete files.";
-    if (!item) {
-      const bodyLines = completedRowReviewChecklistLines(null);
-      const detailLines = typeof detailDrawer === "function"
-        ? detailDrawer({
-          title: "Completed selected-row detail",
-          summaryLines: completedSelectedAtAGlanceLines(null),
-          bodyLines,
-          guardrail,
-        })
-        : bodyLines;
-      setText("completed-detail", detailLines.join("\n"));
-      setText("completed-open-status", "Select a completed row to open a backend-selected location.");
-      renderCompletedDiagnosticsLinks(null);
-      renderCompletedPromotionActions(null);
-      return;
-    }
-    const audioPreview = Array.isArray(item.audio_decision_preview) ? item.audio_decision_preview : [];
-    const subtitlePreview = Array.isArray(item.subtitle_decision_preview) ? item.subtitle_decision_preview : [];
-    const reviewFlags = Array.isArray(item.review_flags) ? item.review_flags.join(", ") : "";
-    const routeEvidence = Array.isArray(item.route_evidence_lines) ? item.route_evidence_lines : [];
-    const proofSummary = Array.isArray(item.proof_summary) ? item.proof_summary : [];
-    const diagnosticTargets = Array.isArray(item.recommended_diagnostics_targets) ? item.recommended_diagnostics_targets.join(", ") : "";
-    const handoffLines = typeof diagnosticsBridgeHandoffLines === "function"
-      ? diagnosticsBridgeHandoffLines("Completed selected row", completedDiagnosticsActionsForRow(item), {
-        evidence: [
-          item.output_health || item.output_exists === false ? `output=${item.output_health || "missing"}` : "",
-          item.consistency_status ? `consistency=${item.consistency_status}` : "",
-          item.size_delta_label ? `size=${item.size_delta_label}` : "",
-          item.runtime_outcome_status || item.runtime_outcome_reason ? `runtime=${[item.runtime_outcome_status, item.runtime_outcome_error_code, item.runtime_outcome_reason].filter(Boolean).join(" - ")}` : "",
-        ],
-        safeAction: "compare Completed Manifest, output/sidecar state, Pending Publish, Run Logs, and Last Stderr before rerun or cleanup.",
-      })
-      : [];
-    const detail = [
-      ...completedSelectedQuickSignalLines(item),
-      "",
-      ...completedRowReviewChecklistLines(item),
-      "",
-      ...completedRowIssueDigestLines(item),
-      "",
-      ...completedRowCombinedReviewPlanLines(item),
-      "",
-      ...completedInvestigationSignalLines(item),
-      "",
-      ...completedRealMediaTraceLines(item),
-      "",
-      ...completedRowTrustSummaryLines(item),
-      "",
-      ...completedSampleValidationComparisonLines(item),
-      "",
-      ...handoffLines,
-      "",
-      ...completedSelectedOpenTargetLines(item),
-      "",
-      item.row_key ? `Row key: ${item.row_key}` : "",
-      `Completed: ${item.completed_at || ""}`,
-      item.operator_trust_state ? `Backend trust state: ${item.operator_trust_state}` : "",
-      item.primary_concern ? `Primary concern: ${item.primary_concern}` : "",
-      item.safe_next_action ? `Safe next action: ${item.safe_next_action}` : "",
-      item.unsafe_if_ignored ? `Unsafe if ignored: ${item.unsafe_if_ignored}` : "",
-      proofSummary.length ? "Backend proof summary:" : "",
-      ...proofSummary.map((line) => `  ${line}`),
-      diagnosticTargets ? `Recommended diagnostics targets: ${diagnosticTargets}` : "",
-      item.operator_status ? `Operator status: ${item.operator_status}` : "",
-      item.operator_guidance ? `Next step: ${item.operator_guidance}` : "",
-      reviewFlags ? `Review flags: ${reviewFlags}` : "",
-      item.consistency_status ? `Consistency: ${item.consistency_status}` : "",
-      item.consistency_guidance ? `Consistency next step: ${item.consistency_guidance}` : "",
-      Array.isArray(item.consistency_issues) && item.consistency_issues.length ? `Consistency issues: ${item.consistency_issues.join(", ")}` : "",
-      item.validation_status_state ? `Validation state: ${item.validation_status_state}` : "",
-      item.validation_failure_reason ? `Validation proof gap: ${item.validation_failure_reason}` : "",
-      item.validation_probe_ok === true ? "Probe proof: passed" : item.validation_probe_ok === false ? "Probe proof: failed" : "Probe proof: not reported",
-      item.validation_hash_ok === true ? "Hash proof: passed" : item.validation_hash_ok === false ? "Hash proof: failed" : "Hash proof: not reported",
-      item.validation_playback_required === true ? "Playback required: yes" : item.validation_playback_required === false ? "Playback required: no" : "Playback required: not reported",
-      Array.isArray(item.validation_unavailable_reasons) && item.validation_unavailable_reasons.length ? `Validation unavailable proof: ${item.validation_unavailable_reasons.join(", ")}` : "",
-      item.validation_safe_next_action ? `Validation next step: ${item.validation_safe_next_action}` : "",
-      item.expected_sidecar_path ? `Expected sidecar: ${item.expected_sidecar_path}` : "",
-      item.sidecar_exists === false ? "Sidecar: missing" : item.sidecar_exists === true ? "Sidecar: present" : "",
-      item.route_decision_summary ? `Route decision: ${item.route_decision_summary}` : "",
-      routeEvidence.length ? "Route evidence:" : "",
-      ...routeEvidence.map((line) => `  ${line}`),
-      item.runtime_outcome_status ? `Last runtime outcome: ${item.runtime_outcome_status}` : "",
-      item.runtime_outcome_event_type ? `Runtime event type: ${item.runtime_outcome_event_type}` : "",
-      item.runtime_outcome_at ? `Runtime event at: ${item.runtime_outcome_at}` : "",
-      item.runtime_outcome_age_text || item.runtime_outcome_freshness_status ? `Runtime history age: ${item.runtime_outcome_age_text || "unknown"} (${item.runtime_outcome_freshness_status || "unknown"})` : "",
-      item.runtime_outcome_stage || item.runtime_outcome_route ? `Runtime stage/route: ${item.runtime_outcome_stage || "unknown"} / ${item.runtime_outcome_route || "unknown"}` : "",
-      item.runtime_outcome_error_code ? `Runtime error code: ${item.runtime_outcome_error_code}` : "",
-      item.runtime_outcome_reason ? `Runtime reason: ${item.runtime_outcome_reason}` : "",
-      item.runtime_outcome_publish_state || item.runtime_outcome_publish_mode ? `Runtime publish: ${item.runtime_outcome_publish_state || "unknown"} / ${item.runtime_outcome_publish_mode || "unknown"}` : "",
-      item.runtime_outcome_output_path ? `Runtime output: ${item.runtime_outcome_output_path}` : "",
-      item.runtime_outcome_match ? `Runtime match: ${item.runtime_outcome_match}` : "",
-      `Route: ${item.route_label || item.route || ""}`,
-      item.route_reason || item.route_reason_code ? `Route reason: ${[item.route_reason_code, item.route_reason].filter(Boolean).join(" - ")}` : "",
-      `Publish: ${item.publish || ""}`,
-      item.final_library_promotion_status_label ? `Final library promotion: ${item.final_library_promotion_status_label}` : "",
-      item.final_library_rule_label ? `Final library rule: ${item.final_library_rule_label}` : "",
-      item.final_library_destination_path ? `Final library destination: ${item.final_library_destination_path}` : "",
-      item.last_promotion_run_id ? `Last promotion run: ${item.last_promotion_run_id}` : "",
-      item.last_promotion_completed_at ? `Last promotion completed: ${item.last_promotion_completed_at}` : "",
-      item.promotion_error ? `Promotion error: ${item.promotion_error}` : "",
-      `Media: ${item.media_type || ""}`,
-      `Title: ${item.lookup_title || item.output_file || ""}`,
-      `Output: ${item.output_path || ""}`,
-      `Source: ${item.source_path || ""}`,
-      `Sidecar: ${item.sidecar_path || ""}`,
-      `Size: ${item.size_reduction_text || item.output_size_text || ""}`,
-      `Output growth: ${item.size_delta_label || "unknown"}`,
-      item.size_growth_over_5 ? "Size review: output is more than 5% larger than source." : "",
-      `Encoder: ${item.encoder || item.encoder_kind || ""}`,
-      `Audio decisions: ${item.audio_decision_count || 0}`,
-      ...audioPreview.map((line) => `  ${line}`),
-      `Subtitle decisions: ${item.subtitle_decision_count || 0}`,
-      ...subtitlePreview.map((line) => `  ${line}`),
-      `Health: ${item.output_health || (item.output_exists === false ? "missing output" : "ok")}`,
-    ].filter((line) => line !== "");
-    const detailLines = typeof detailDrawer === "function"
-      ? detailDrawer({
-        title: "Completed selected-row detail",
-        summaryLines: completedSelectedAtAGlanceLines(item),
-        bodyLines: detail,
-        guardrail,
-      })
-      : detail;
-    setText("completed-detail", detailLines.join("\n"));
-    setText("completed-open-status", "Selected completed row. Open commands use backend-selected paths from the manifest.");
-    renderCompletedPromotionActions(item);
-    renderCompletedDiagnosticsLinks(item);
-  }
-
-  function currentFinalLibraryPromotionRunId() {
-    return String(finalLibraryPromotionActiveRun(lastFinalLibraryPromotionStatus).run_id || "");
-  }
-
-  function setFinalLibraryPromotionCommandBusy(isBusy) {
-    finalLibraryPromotionCommandInFlight = Boolean(isBusy);
-    renderFinalLibraryPromotion(lastFinalLibraryPromotionStatus);
-  }
-
-  async function requestFinalLibraryPromotion(rowKeys = []) {
-    if (finalLibraryPromotionCommandInFlight) return;
-    const selectedRowKeys = (Array.isArray(rowKeys) ? rowKeys : [rowKeys])
-      .map((value) => String(value || "").trim())
-      .filter(Boolean);
-    if (!shouldConfirmFinalLibraryPromotion(selectedRowKeys.length || Number(lastFinalLibraryPromotionStatus?.counts?.eligible || 0))) return;
-    setFinalLibraryPromotionCommandBusy(true);
-    setText("final-library-promotion-status", "Starting");
-    try {
-      const request = { confirm_promote: true };
-      if (selectedRowKeys.length) request.row_keys = selectedRowKeys;
-      const result = await apiPost("/api/final-library-promotion/promote-queue", request);
-      appendCommandResult(result);
-      setText("final-library-promotion-status", result.ok ? "Started" : "Start failed");
-      if (result?.data && typeof result.data === "object") {
-        renderFinalLibraryPromotion({ ...lastFinalLibraryPromotionStatus, active_run: result.data });
-      }
-      if (result?.ok) {
-        if (typeof refreshCurrentOutputStatus === "function") {
-          await refreshCurrentOutputStatus();
-        } else if (typeof refreshAll === "function") {
-          await refreshAll();
-        }
-      }
-    } catch (error) {
-      const message = error?.message || String(error);
-      appendCommandResult({
-        command: "final_library.promote_queue",
-        ok: false,
-        message,
-        severity: "error",
-      });
-      setText("final-library-promotion-status", `Start failed: ${message}`);
-    } finally {
-      setFinalLibraryPromotionCommandBusy(false);
-    }
-  }
-
-  async function requestSelectedFinalLibraryPromotion(item = getSelectedCompletedRow()) {
-    const row = item || getSelectedCompletedRow();
-    const action = finalLibraryPromotionActionState(row);
-    if (!action.available) {
-      setText("completed-open-status", action.reason);
-      renderCompletedPromotionActions(row || null);
-      return;
-    }
-    setText("completed-open-status", "Promotion request will be sent after confirmation. The backend owns destination selection and file movement.");
-    await requestFinalLibraryPromotion([row.row_key]);
-  }
-
-  async function requestFinalLibraryPromotionPause() {
-    if (finalLibraryPromotionCommandInFlight) return;
-    const runId = currentFinalLibraryPromotionRunId();
-    if (!runId) {
-      setText("final-library-promotion-status", "No active promotion run to pause.");
-      return;
-    }
-    setFinalLibraryPromotionCommandBusy(true);
-    try {
-      const result = await apiPost("/api/final-library-promotion/pause", { run_id: runId });
-      appendCommandResult(result);
-      if (result?.data && typeof result.data === "object") {
-        renderFinalLibraryPromotion({ ...lastFinalLibraryPromotionStatus, active_run: result.data });
-      }
-    } catch (error) {
-      const message = error?.message || String(error);
-      appendCommandResult({
-        command: "final_library.pause",
-        ok: false,
-        message,
-        severity: "error",
-      });
-      setText("final-library-promotion-status", `Pause failed: ${message}`);
-    } finally {
-      setFinalLibraryPromotionCommandBusy(false);
-    }
-  }
-
-  async function requestFinalLibraryPromotionResume() {
-    if (finalLibraryPromotionCommandInFlight) return;
-    const runId = currentFinalLibraryPromotionRunId();
-    if (!runId) {
-      setText("final-library-promotion-status", "No paused promotion run to resume.");
-      return;
-    }
-    setFinalLibraryPromotionCommandBusy(true);
-    try {
-      const result = await apiPost("/api/final-library-promotion/resume", { run_id: runId });
-      appendCommandResult(result);
-      if (result?.data && typeof result.data === "object") {
-        renderFinalLibraryPromotion({ ...lastFinalLibraryPromotionStatus, active_run: result.data });
-      }
-    } catch (error) {
-      const message = error?.message || String(error);
-      appendCommandResult({
-        command: "final_library.resume",
-        ok: false,
-        message,
-        severity: "error",
-      });
-      setText("final-library-promotion-status", `Resume failed: ${message}`);
-    } finally {
-      setFinalLibraryPromotionCommandBusy(false);
-    }
-  }
-
-  async function requestCompletedOpen(target) {
-    if (rejectCompletedOpenWhileBusy()) return;
-    const row = getSelectedCompletedRow();
-    if (!row?.row_key) {
-      setText("completed-open-status", "Select a completed row first.");
-      return;
-    }
-    setCompletedOpenBusy(true);
-    setText("completed-open-status", "Opening...");
-    try {
-      const result = await apiPost("/api/completed/open", { row_key: row.row_key, target });
-      setText("completed-open-status", result.message || "Open request sent.");
-      appendCommandResult(result);
-    } catch (error) {
-      const message = error?.message || String(error);
-      setText("completed-open-status", `Open failed: ${message}`);
-      appendCommandResult({
-        command: "completed.open",
-        ok: false,
-        message,
-        severity: "error",
-      });
-    } finally {
-      setCompletedOpenBusy(false);
-    }
-  }
-
   function completedEvidencePacketText() {
     const node = byId("completed-pilot-evidence-markdown");
     return node ? String(node.textContent || "").trim() : "";
@@ -1263,47 +786,6 @@
       setText("completed-copy-evidence-status", `Copy failed: ${message}. Select the packet text manually if needed.`);
       return false;
     }
-  }
-
-  function isCompletedOpenCommand(entry) {
-    return String(entry?.command || "").toLowerCase() === "completed.open";
-  }
-
-  function completedOpenHistoryLine(entry) {
-    const raw = entry?.raw && typeof entry.raw === "object" ? entry.raw : {};
-    const data = raw.data && typeof raw.data === "object" ? raw.data : {};
-    const request = raw.request && typeof raw.request === "object" ? raw.request : {};
-    const bits = [];
-    if (data.target || request.target) bits.push(`target=${data.target || request.target}`);
-    if (data.row_key || request.row_key) bits.push(`row=${data.row_key || request.row_key}`);
-    const openedPath = data.path || data.opened_path || "";
-    if (openedPath) bits.push(`opened=${openedPath}`);
-    if (typeof commandHistoryCompactEvidenceLine === "function") {
-      return commandHistoryCompactEvidenceLine(entry, {
-        label: "completed.open",
-        detail: bits.length ? ` (${bits.join("; ")})` : "",
-      });
-    }
-    const status = entry?.result || (entry?.ok ? "ok" : entry?.severity || "unknown");
-    const local = entry?.local ? "local" : "journal";
-    return `${entry?.at || ""} completed.open [${status}; ${local}] ${entry?.message || ""}${bits.length ? ` (${bits.join("; ")})` : ""}`.trim();
-  }
-
-  function renderCompletedOpenHistory(history = []) {
-    const entries = Array.isArray(history) ? history.filter(isCompletedOpenCommand).slice(0, 5) : [];
-    if (!Array.isArray(history) || !history.length) {
-      setText("completed-open-history", "No completed open command history loaded. Open a selected row location to see backend results here after refresh.");
-      return;
-    }
-    if (!entries.length) {
-      setText("completed-open-history", "No completed open commands found in recent command history.");
-      return;
-    }
-    setText("completed-open-history", [
-      `Last ${entries.length} completed open command${entries.length === 1 ? "" : "s"}:`,
-      ...entries.map(completedOpenHistoryLine),
-      "Backend manifest row keys and target allowlists remain the source of truth.",
-    ].join("\n"));
   }
 
   /**

@@ -3,9 +3,9 @@ file: Docs/generated/WEBVIEW_ROUTE_OWNERSHIP_GUARD.json
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-06-02
-sha256: 24a38f8118b957ea57708ad4e7c18717906c266f1a0b406a05a1536d59361fda
+sha256: 2137c9e2f6c2de7a2b622675f27acd7b2fbfe8d85ae147d965eb44be7ea4b2eb
 ---
 # `Docs/generated/WEBVIEW_ROUTE_OWNERSHIP_GUARD.json`
 

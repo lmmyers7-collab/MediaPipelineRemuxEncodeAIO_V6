@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/network/coordinator.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-05-28
-sha256: 19db1e097b601a8667708e48701fd9a3c1bc47f11878f80efb3a47d504154697
+sha256: 54becd653e550575f2032bd004c8691d2e225627d404db24870f0605a3ae2db7
 ---
 # `DesktopApp/mediapipeline_desktop_app/network/coordinator.py`
 

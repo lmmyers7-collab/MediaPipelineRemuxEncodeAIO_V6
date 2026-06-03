@@ -9,6 +9,8 @@ from .dto_base import JsonMap, dto_mapping
 class QueuePreviewDto:
     rows: list[JsonMap] = field(default_factory=list)
     source: str = ""
+    queue_scan_status: JsonMap = field(default_factory=dict)
+    source_inventory: JsonMap = field(default_factory=dict)
     queue_progress: JsonMap = field(default_factory=dict)
     progress_bars: list[JsonMap] = field(default_factory=list)
     produced_at: str = ""
@@ -237,6 +239,8 @@ class AuditPreviewDto:
     source: str = ""
     priority_only: bool = False
     count: int = 0
+    total_count: int = 0
+    ignored_count: int = 0
     high_priority_count: int = 0
     rerun_count: int = 0
     redownload_count: int = 0

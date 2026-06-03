@@ -632,9 +632,10 @@ function Resolve-MediaRouteBySize {
     if ($AllowH264RemuxIfPlexCompatible -and $H264RemuxMaxBitrateMbps -gt 0 -and $codec -in @('h264','avc')) {
         $maxBitrate = [math]::Min([double]$maxBitrate, [double]$H264RemuxMaxBitrateMbps)
     }
+    $mediaType = if ($IsTV) { 'tv' } else { 'movie' }
     $trace = [System.Collections.Generic.List[object]]::new()
     $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'routing_profile_selected' -Message ("routing profile {0}; route threshold mode {1}; size guard {2}" -f $routingProfileName, $routeThresholdModeName, $sizeGuardModeName) -Data @{ routing_profile = $routingProfileName; route_threshold_mode = $routeThresholdModeName; size_guard_mode = $sizeGuardModeName; route_max_bitrate_mbps = [double]$routeMaxBitrate; effective_max_bitrate_mbps = [double]$maxBitrate; h264_plex_remux_enabled = [bool]$AllowH264RemuxIfPlexCompatible; h264_max_bitrate_mbps = [double]$H264RemuxMaxBitrateMbps; h264_max_height = [int]$H264RemuxMaxHeight }))
-    $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'size_evaluated' -Message ("source size {0:N2} GB; threshold {1:N2} GB" -f $sizeGB, $threshold) -Data @{ size_gb = $sizeGB; threshold_gb = $threshold; media_type = if ($IsTV) { 'tv' } else { 'movie' } }))
+    $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'size_evaluated' -Message ("source size {0:N2} GB; threshold {1:N2} GB" -f $sizeGB, $threshold) -Data @{ size_gb = $sizeGB; threshold_gb = $threshold; media_type = $mediaType }))
     if ($duration -gt 0) {
         $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'bitrate_estimated' -Message ("estimated source bitrate {0:N2} Mbps from duration {1:N1}s" -f $estimatedBitrate, $duration) -Data @{ bitrate_mbps = $estimatedBitrate; duration_seconds = $duration; max_bitrate_mbps = $maxBitrate }))
     }

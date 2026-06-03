@@ -3,9 +3,9 @@ file: app/api/commands.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-05-28
-sha256: b34709c0f5c0ab28ff3c8520bc6eb60c2413573644097447483231b37a51362c
+sha256: 916241854b28f73348b827e193fb64cef594a8ba5ae8ee1803a105da92ff10cd
 ---
 # `app/api/commands.py`
 

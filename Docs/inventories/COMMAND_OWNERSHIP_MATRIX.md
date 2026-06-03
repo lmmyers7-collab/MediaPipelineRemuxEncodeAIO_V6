@@ -7,7 +7,7 @@ contract group, primary frontend owner, mutation class, and key restrictions.
 Source: `DesktopApp/mediapipeline_desktop_app/api/contract_command.py`,
 `app/api/commands.py`, and the WebView `apiPost` call inventory.
 
-Total command routes: 45 POST routes across 9 contract groups.
+Total command routes: 49 POST routes across 9 contract groups.
 
 Network lifecycle and repair/reconcile mutation controls remain design-only.
 `/api/contract` publishes future contract gates for those areas, but no Network
@@ -20,7 +20,7 @@ POST route is authorized until the matching architecture contract is satisfied.
 
 | Contract constant | Routes |
 |---|---|
-| `LOCAL_API_FILE_COMMAND_ROUTE_CONTRACT` | queue/priority, queue/strategy, queue/file-overrides, queue/file-overrides/route-preview, queue/file-overrides/folder-preview, queue/file-overrides/folder-rule, failures/clear, queue/open, completed/open, pending-publish/open, pending-publish/recovery-plan, final-library-promotion/promote-queue, final-library-promotion/pause, final-library-promotion/resume |
+| `LOCAL_API_FILE_COMMAND_ROUTE_CONTRACT` | queue/scan, queue/priority, queue/strategy, queue/file-overrides, queue/file-overrides/route-preview, queue/file-overrides/folder-preview, queue/file-overrides/folder-rule, failures/clear, queue/open, completed/open, pending-publish/open, pending-publish/recovery-plan, final-library-promotion/promote-queue, final-library-promotion/pause, final-library-promotion/resume |
 | `LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT` | maintenance/release-dry-run, maintenance/release-build, maintenance/completed-backfill-dry-run, maintenance/dependency-atlas |
 | `LOCAL_API_DIAGNOSTICS_COMMAND_ROUTE_CONTRACT` | diagnostics/open |
 | `LOCAL_API_RENAME_COMMAND_ROUTE_CONTRACT` | rename/preview, rename/browse, rename/apply |
@@ -28,16 +28,17 @@ POST route is authorized until the matching architecture contract is satisfied.
 | `LOCAL_API_SCHEDULE_COMMAND_ROUTE_CONTRACT` | schedule/preview, schedule/save |
 | `LOCAL_API_SAMPLE_VALIDATION_COMMAND_ROUTE_CONTRACT` | sample-validation/preview, sample-validation/append |
 | `LOCAL_API_UI_COMMAND_ROUTE_CONTRACT` | ui-preferences |
-| `LOCAL_API_PROCESS_COMMAND_ROUTE_CONTRACT` | pipeline/control, pipeline/browse-file, pipeline/start, audit/start, rerun/start, backend/shutdown |
+| `LOCAL_API_PROCESS_COMMAND_ROUTE_CONTRACT` | pipeline/control, pipeline/browse-file, pipeline/start, audit/start, audit/score-policy, audit/ignore, audit/export-rerun-csv, rerun/start, backend/shutdown |
 
 ---
 
 ## Full Command Route Matrix
 
-### Queue State And Override Preview
+### Queue Scan, State, And Override Preview
 
 | Route | Owner page | Owner JS | Mutation class | Key restriction |
 |---|---|---|---|---|
+| `POST /api/queue/scan` | Queue | `queueView.js` | `process-dry-run` | Starts or observes a serialized backend source scan; fast inventory writes non-launchable candidates before queue-plan curation refreshes authoritative rows |
 | `POST /api/queue/priority` | Queue | `queueView.js` | `queue-state-write` | `level`: `high`, `normal`, `low`, `hold`; path writes must be under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots); `clear_all` clears manifest state only |
 | `POST /api/queue/strategy` | Queue | `queueView.js` | `queue-state-write` | Strategy must be one of backend `VALID_STRATEGIES` |
 | `POST /api/queue/file-overrides` | Queue | `queueView.js` | `queue-state-write` | Path writes must be under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots); `clear_all` clears the override manifest only |
@@ -45,9 +46,10 @@ POST route is authorized until the matching architecture contract is satisfied.
 | `POST /api/queue/file-overrides/folder-preview` | Queue | `queueView.js` | `read-only-preview` | Folder under configured source roots; uses bounded known-file/cached-track evidence only |
 | `POST /api/queue/file-overrides/folder-rule` | Queue | `queueView.js` | `queue-state-write` | Folder under configured source roots but not a source/library root; save requires explicit confirmation object |
 
-Queue state routes write JSON state under `LocalBase\State`. They do not
-rename, move, delete, launch, process, scan whole source folders, or mutate
-source media.
+Queue scan runs backend-owned inventory and dry-run curation, writing progress
+evidence plus the authoritative queue snapshot. Queue state routes write JSON
+state under `LocalBase\State`. None of these routes rename, move, delete,
+launch processing work, publish, drain, or mutate source media.
 
 ### Failure Marker Cleanup
 
@@ -149,6 +151,17 @@ Allowed targets: `run_logs`, `cluster_log`, `config`, `config_folder`,
 |---|---|---|---|---|
 | `POST /api/ui-preferences` | Chrome WebView, Tauri shell | `layoutManager.js`, `app.js` | `ui-state-write` | Writes allowlisted UI preference JSON only |
 
+### Audit Controls
+
+| Route | Owner page | Owner JS | Mutation class | Key restriction |
+|---|---|---|---|---|
+| `POST /api/audit/score-policy` | Reports | `launchView.js` | `audit-state-write` | Backend normalizes score policy or resets to defaults; no queue/media mutation |
+| `POST /api/audit/ignore` | Reports | `launchView.js` | `audit-state-write` | `action`: `add` or `remove`; writes audit-only ignore state, not queue holds |
+| `POST /api/audit/export-rerun-csv` | Reports | `launchView.js` | `report-file-write` | Writes a backend-owned rerun CSV artifact; does not launch rerun work |
+
+Audit controls are backend-owned report helpers. They cannot apply priority,
+write file overrides, launch rerun work, save settings, or touch media files.
+
 ### Process And Backend Lifecycle
 
 | Route | Owner page | Owner JS | Mutation class | Key restriction |
@@ -172,6 +185,8 @@ Allowed targets: `run_logs`, `cluster_log`, `config`, `config_folder`,
 | `shell-dialog` | 3 | rename/browse, settings/browse-path, pipeline/browse-file |
 | `queue-state-write` | 4 | queue/priority, queue/strategy, queue/file-overrides, queue/file-overrides/folder-rule |
 | `failure-marker-write` | 1 | failures/clear |
+| `audit-state-write` | 2 | audit/score-policy, audit/ignore |
+| `report-file-write` | 1 | audit/export-rerun-csv |
 | `validation-log-write` | 1 | sample-validation/append |
 | `ui-state-write` | 1 | ui-preferences |
 | `app-state-write` | 1 | schedule/save |
@@ -179,7 +194,7 @@ Allowed targets: `run_logs`, `cluster_log`, `config`, `config_folder`,
 | `filesystem-mutation` | 2 | rename/apply, final-library-promotion/promote-queue |
 | `control-state-write` | 2 | final-library-promotion/pause, final-library-promotion/resume |
 | `control-flag-write` | 1 | pipeline/control |
-| `process-dry-run` | 2 | maintenance/release-dry-run, maintenance/completed-backfill-dry-run |
+| `process-dry-run` | 3 | queue/scan, maintenance/release-dry-run, maintenance/completed-backfill-dry-run |
 | `tooling-artifact-write` | 1 | maintenance/dependency-atlas |
 | `deployment-write` | 1 | maintenance/release-build |
 | `process-launch` | 3 | pipeline/start, audit/start, rerun/start |
@@ -214,6 +229,7 @@ deployment artifacts:
 - `pipeline/control`
 - `schedule/save`
 - `final-library-promotion/pause`, `final-library-promotion/resume`
+- `audit/score-policy`, `audit/ignore`, `audit/export-rerun-csv`
 - `maintenance/dependency-atlas`
 
 **Low** - opens shell dialogs/locations, writes UI preferences, or appends
@@ -256,11 +272,12 @@ These are backend/API contract requirements, not frontend conventions.
 ## Freshness Review - 2026-06-01 (MDS-005)
 
 Re-checked `COMMAND_ROUTE_METHODS`, `LOCAL_API_COMMAND_ROUTE_CONTRACT`, and
-`COMMAND_ROUTE_PAYLOAD_MODELS`; all three contain the same 45 POST routes.
-This review refreshed the matrix for the route-preview, folder-preview,
-folder-rule, Settings Wizard, pipeline-plan preview, UI preferences, and
-final-library pause/resume routes, and records `folder_files` rename browse
-mode plus the `kill` pipeline control action.
+`COMMAND_ROUTE_PAYLOAD_MODELS`; all three contain the same 49 POST routes,
+including the backend-owned queue source scan route and audit control routes.
+This review refreshed the matrix for the queue source scan, route-preview,
+folder-preview, folder-rule, audit controls, Settings Wizard, pipeline-plan
+preview, UI preferences, and final-library pause/resume routes, and records
+`folder_files` rename browse mode plus the `kill` pipeline control action.
 
 Validation anchor: `DesktopApp/tests/test_api_command_contracts.py` now checks
 that this matrix lists every route in `COMMAND_ROUTE_METHODS`.

@@ -148,6 +148,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               "renderReports",
               "renderFailurePreview",
               "renderAuditPreview",
+              "renderAuditControls",
               "initReportsViewEvents",
               "getCommandHistory",
               "appendCommandResult",
@@ -492,6 +493,37 @@ def _browser_maintenance_reports_runner_source() -> str:
               }],
             };
             window.mediaPipelineReportsView.renderAuditPreview(reportAuditPreview);
+            window.mediaPipelineReportsView.renderAuditControls({
+              schema_version: "desktop_audit_controls.v1",
+              score_policy: {
+                persisted: false,
+                path: "C:/State/audit_score_policy.json",
+                policy: {
+                  redownload_bucket: 100,
+                  high_issue: 90,
+                  rerun_bucket: 60,
+                  medium_issue: 40,
+                  review_bucket: 20,
+                  fallback_issue: 10,
+                  redownload_bonus: 100,
+                  rerun_bonus: 40,
+                },
+                defaults: {
+                  redownload_bucket: 100,
+                  high_issue: 90,
+                  rerun_bucket: 60,
+                  medium_issue: 40,
+                  review_bucket: 20,
+                  fallback_issue: 10,
+                  redownload_bonus: 100,
+                  rerun_bonus: 40,
+                },
+              },
+              ignore_manifest: {
+                entry_count: 0,
+                path: "C:/State/audit_ignore_manifest.json",
+              },
+            });
             clickFirst('[data-reports-tab="files"]', "Reports Files tab");
             if (document.querySelector('[data-reports-tab="files"]')?.getAttribute("aria-selected") !== "true") {
               throw new Error("Reports Files tab did not become selected.");
@@ -767,6 +799,27 @@ def _browser_maintenance_reports_runner_source() -> str:
             if (document.querySelector('[data-reports-tab="audit"]')?.getAttribute("aria-selected") !== "true") {
               throw new Error("Reports Audit tab did not become selected.");
             }
+            requireText("report-audit-score-policy-summary", [
+              "Score policy source: defaults",
+              "Audit ignore entries: 0",
+              "Boundary: score and ignore controls affect audit reporting/export only",
+            ]);
+            [
+              "report-audit-score-policy-save-button",
+              "report-audit-score-policy-reset-button",
+              "report-audit-ignore-selected-button",
+              "report-audit-export-rerun-csv-button",
+            ].forEach((id) => {
+              if (!byId(id)) throw new Error("missing Reports audit control " + id);
+            });
+            const auditCheckbox = document.querySelector('#audit-preview-rows input[type="checkbox"]');
+            if (!auditCheckbox) throw new Error("Reports audit row multi-select checkbox missing");
+            auditCheckbox.click();
+            if (!document.querySelector('#audit-preview-rows input[type="checkbox"]')?.checked) {
+              throw new Error("Reports audit row multi-select checkbox did not stay checked");
+            }
+            requireText("audit-preview-status", ["1 selected"]);
+            requireText("report-audit-export-status", ["1 selected"]);
             clickFirst('#audit-preview-rows tr[data-row-key]', "audit row");
             requireText("audit-preview-detail", [
               "Reports audit selected row",

@@ -3,7 +3,7 @@
   "generated_by": "scripts/dev/check-webview-lint-budget.mjs",
   "target": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/**/*.js",
   "budget_policy": "Future checks fail on any ESLint error or on warning counts above this baseline by total or rule.",
-  "total_warnings": 663,
+  "total_warnings": 655,
   "total_errors": 0,
   "by_rule": {
     "complexity": {
@@ -19,11 +19,11 @@
       "errors": 0
     },
     "no-undef": {
-      "warnings": 394,
+      "warnings": 389,
       "errors": 0
     },
     "no-unused-vars": {
-      "warnings": 144,
+      "warnings": 141,
       "errors": 0
     },
     "parse-error": {
@@ -78,6 +78,22 @@
       }
     },
     {
+      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/promotionCommands.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "complexity": 1
+      }
+    },
+    {
+      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/selection.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "complexity": 1
+      }
+    },
+    {
       "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.evidence.js",
       "warnings": 15,
       "errors": 0,
@@ -89,11 +105,11 @@
     },
     {
       "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.js",
-      "warnings": 41,
+      "warnings": 36,
       "errors": 0,
       "rules": {
-        "complexity": 4,
-        "no-undef": 12,
+        "complexity": 2,
+        "no-undef": 9,
         "no-unused-vars": 25
       }
     },
@@ -392,6 +408,15 @@
       }
     },
     {
+      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.drawer.js",
+      "warnings": 5,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "no-undef": 4
+      }
+    },
+    {
       "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.detail.js",
       "warnings": 6,
       "errors": 0,
@@ -403,12 +428,12 @@
     },
     {
       "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.js",
-      "warnings": 55,
+      "warnings": 46,
       "errors": 0,
       "rules": {
-        "complexity": 2,
-        "no-undef": 25,
-        "no-unused-vars": 28
+        "complexity": 1,
+        "no-undef": 20,
+        "no-unused-vars": 25
       }
     },
     {
@@ -576,14 +601,6 @@
       "errors": 0,
       "rules": {
         "max-lines-per-function": 1
-      }
-    },
-    {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsWizard.js",
-      "warnings": 1,
-      "errors": 0,
-      "rules": {
-        "no-undef": 1
       }
     },
     {

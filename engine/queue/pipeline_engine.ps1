@@ -409,8 +409,9 @@ function Get-QueuePlanPreflightBlock {
                 $stateCode = 'SOURCE_FAILURE_MARKER'
             }
             $reasonText = [string]$failureState.reason
+            $sourceFailureCode = if ($classification -eq 'operator_required') { 'source_failure_operator_required' } else { 'source_failure_permanent' }
             return [pscustomobject]@{
-                Code   = if ($classification -eq 'operator_required') { 'source_failure_operator_required' } else { 'source_failure_permanent' }
+                Code   = $sourceFailureCode
                 Reason = "source-failure: [$stateCode] $reasonText"
                 TvInfo = $TvInfo
             }

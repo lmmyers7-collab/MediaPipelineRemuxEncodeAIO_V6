@@ -34,12 +34,13 @@
               </select>
             </label>
             <div class="form-actions-inline">
-              <button class="primary-button" type="button" data-queue-refresh-button>Refresh Queue</button>
+              <button class="primary-button" type="button" data-queue-refresh-button>Scan Sources</button>
               <button id="queue-clear-filters-button" class="secondary-button" type="button">Clear Queue Filters</button>
             </div>
           </div>
-          <p class="note">Refresh Queue reloads backend snapshots only. Filters, selected rows, and visible table limits do not change backend launch scope.</p>
+          <p class="note">Scan Sources asks the backend to inventory configured source roots, then curate the authoritative queue snapshot. Filters, selected rows, and visible table limits do not change backend launch scope.</p>
           <pre id="queue-filter-summary" class="prose-block">Queue filter inactive. No rows loaded.</pre>
+          <pre id="queue-source-inventory" class="prose-block">Source inventory not loaded. Click Scan Sources to request backend inventory and queue curation.</pre>
         </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
@@ -92,7 +93,7 @@
                 </tr>
               </thead>
               <tbody id="queue-rows">
-                <tr><td colspan="9">No queue loaded. Click Refresh Queue, or run a fresh queue preview from Launch if the snapshot is stale.</td></tr>
+                <tr><td colspan="9">No queue loaded. Click Scan Sources to request backend inventory and queue curation.</td></tr>
               </tbody>
             </table>
           <div class="empty-state" data-empty-state="hidden" style="display:none">

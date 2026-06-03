@@ -3,9 +3,9 @@ file: app/queue/facade.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-05-31
+last_modified: 2026-06-03
 last_reviewed: 2026-05-28
-sha256: 247409289a3f017ef6d656ec9f783edc8f1ce9001faef61d9eb6cd08bf34fdd9
+sha256: 139854c8f2d603ce63f55c3278cfecaa1ced55bfaaf6750134df0978b31d8d3b
 ---
 # `app/queue/facade.py`
 

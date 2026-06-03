@@ -3,9 +3,9 @@ file: app/processes/launch_plans.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-05-28
+last_modified: 2026-06-03
 last_reviewed: 2026-05-28
-sha256: d98dec4b83bdd7ce3cdbc4bc14cc84771ffd16d6a4b9f6a926a61c75b31c97f0
+sha256: 9a73664944456d2eeaebf600c8705cbd07cefd329ac1e91062437d4c739e8d70
 ---
 # `app/processes/launch_plans.py`
 

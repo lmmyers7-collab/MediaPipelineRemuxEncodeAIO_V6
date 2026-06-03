@@ -14,6 +14,8 @@ class ResolvedLaunchPaths(Protocol):
     rerun_script_path: Path
     powershell_host: str | None
     audit_reports_path: Path | None
+    audit_score_policy_path: Path | None
+    audit_ignore_manifest_path: Path | None
 
 
 @dataclass(frozen=True)
@@ -109,6 +111,10 @@ def build_audit_launch_plan(
         args.extend(["-ConfigPath", str(resolved.config_path)])
     if include_sidecars:
         args.append("-IncludeSidecars")
+    if getattr(resolved, "audit_score_policy_path", None):
+        args.extend(["-ScorePolicyPath", str(resolved.audit_score_policy_path)])
+    if getattr(resolved, "audit_ignore_manifest_path", None):
+        args.extend(["-IgnoreManifestPath", str(resolved.audit_ignore_manifest_path)])
 
     return ProcessLaunchPlan(
         args=args,

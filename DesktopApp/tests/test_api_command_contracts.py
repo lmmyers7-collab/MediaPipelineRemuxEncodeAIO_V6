@@ -50,6 +50,7 @@ class ApiCommandContractsTests(unittest.TestCase):
     def test_missing_optional_fields_are_not_added_to_payload(self) -> None:
         self.assertEqual(validate_api_command_payload("/api/settings/reload", {}), {})
         self.assertEqual(validate_api_payload("/api/queue/strategy", {"strategy": "Standard"}), {"strategy": "Standard"})
+        self.assertEqual(validate_api_payload("/api/queue/scan", {}), {})
         self.assertEqual(validate_api_payload("/api/queue/priority", {"clear_all": True}), {"clear_all": True})
 
     def test_schedule_day_window_payload_contract_preserves_active_wire_shape(self) -> None:
@@ -95,6 +96,7 @@ class ApiCommandContractsTests(unittest.TestCase):
         high_risk_payloads = {
             "/api/pipeline/start": {"mode": "once", "extra_args": "-NoDeleteSource"},
             "/api/pipeline/control": {"action": "pause", "extra": True},
+            "/api/queue/scan": {"mode": "inventory_then_curate", "path": r"C:\Media\Movie.mkv"},
             "/api/backend/shutdown": {"force_active_work_shutdown": True, "token": "client-owned"},
             "/api/rename/apply": {"paths": [], "selected_sources": [], "confirm_apply": True, "selected_ids": ["1"]},
             "/api/settings/preview-patch": {"changes": {}, "values": {}},
@@ -122,6 +124,23 @@ class ApiCommandContractsTests(unittest.TestCase):
         self.assertEqual(
             validate_api_payload("/api/backend/shutdown", {"force_active_work_shutdown": True}),
             {"force_active_work_shutdown": True},
+        )
+        self.assertEqual(
+            validate_api_payload(
+                "/api/queue/scan",
+                {
+                    "mode": "inventory_then_curate",
+                    "force": True,
+                    "scope": "all",
+                    "reason": "operator_requested_queue_scan",
+                },
+            ),
+            {
+                "mode": "inventory_then_curate",
+                "force": True,
+                "scope": "all",
+                "reason": "operator_requested_queue_scan",
+            },
         )
         self.assertEqual(
             validate_api_payload("/api/settings/save-patch", {"changes": {}, "confirm_save": True}),
@@ -213,10 +232,16 @@ class ApiCommandContractsTests(unittest.TestCase):
                 with self.assertRaises(ValidationFailure):
                     validate_api_payload("/api/backend/shutdown", {"force_active_work_shutdown": value})
 
+    def test_queue_scan_force_requires_strict_boolean(self) -> None:
+        for value in ("true", "false", 1, 0):
+            with self.subTest(value=value):
+                with self.assertRaises(ValidationFailure):
+                    validate_api_payload("/api/queue/scan", {"force": value})
+
     def test_command_ownership_matrix_lists_every_post_command_route(self) -> None:
         matrix = (REPO_ROOT / "Docs" / "inventories" / "COMMAND_OWNERSHIP_MATRIX.md").read_text(encoding="utf-8")
 
-        self.assertIn("Total command routes: 45 POST routes across 9 contract groups.", matrix)
+        self.assertIn("Total command routes: 49 POST routes across 9 contract groups.", matrix)
         for route in COMMAND_ROUTE_METHODS:
             with self.subTest(route=route):
                 self.assertIn(f"`POST {route}`", matrix)

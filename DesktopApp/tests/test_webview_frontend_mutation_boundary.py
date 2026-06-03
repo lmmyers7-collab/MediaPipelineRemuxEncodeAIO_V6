@@ -14,8 +14,10 @@ from mediapipeline_desktop_app.api.contract_payload import local_api_contract_pa
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ASSET_ROOT = REPO_ROOT / "DesktopApp" / "mediapipeline_desktop_app" / "ui_web" / "static" / "assets"
-API_POST_LITERAL_RE = re.compile(r"\bapiPost\s*\(\s*(?P<quote>[\"'])(?P<route>/api/[^\"']+)(?P=quote)")
-API_POST_CALL_RE = re.compile(r"\bapiPost\s*\(")
+API_POST_LITERAL_RE = re.compile(
+    r"(?<![\w$])(?:\w+\.)?apiPost\s*\(\s*(?P<quote>[\"'])(?P<route>/api/[^\"']+)(?P=quote)"
+)
+API_POST_CALL_RE = re.compile(r"(?<![\w$])(?:\w+\.)?apiPost\s*\(")
 
 EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/backend/shutdown": {"app.js"},
@@ -25,10 +27,13 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/pipeline/start": {"launchView.js"},
     "/api/audit/start": {"launchView.js"},
     "/api/rerun/start": {"launchView.js"},
-    "/api/completed/open": {"completedView.js"},
-    "/api/final-library-promotion/promote-queue": {"completedView.js"},
-    "/api/final-library-promotion/pause": {"completedView.js"},
-    "/api/final-library-promotion/resume": {"completedView.js"},
+    "/api/audit/score-policy": {"launchView.js", "reportsView.js"},
+    "/api/audit/ignore": {"launchView.js", "reportsView.js"},
+    "/api/audit/export-rerun-csv": {"launchView.js", "reportsView.js"},
+    "/api/completed/open": {"completed/openActions.js"},
+    "/api/final-library-promotion/promote-queue": {"completed/promotionCommands.js"},
+    "/api/final-library-promotion/pause": {"completed/promotionCommands.js"},
+    "/api/final-library-promotion/resume": {"completed/promotionCommands.js"},
     "/api/maintenance/release-dry-run": {"maintenanceView.js"},
     "/api/maintenance/release-build": {"maintenanceView.js"},
     "/api/maintenance/completed-backfill-dry-run": {"maintenanceView.js"},
@@ -38,13 +43,14 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/diagnostics/open": {"diagnosticsView.js"},
     "/api/pending-publish/open": {"pendingPublishView.diagnostics.js"},
     "/api/pending-publish/recovery-plan": {"pendingPublishView.recovery.js"},
-    "/api/queue/open": {"queueView.js"},
+    "/api/queue/open": {"queue/openActions.js"},
+    "/api/queue/scan": {"queueView.js"},
     "/api/queue/priority": {"queueView.js"},
     "/api/queue/strategy": {"queueView.js"},
-    "/api/queue/file-overrides": {"queueView.js"},
-    "/api/queue/file-overrides/route-preview": {"queueView.js"},
-    "/api/queue/file-overrides/folder-preview": {"queueView.js"},
-    "/api/queue/file-overrides/folder-rule": {"queueView.js"},
+    "/api/queue/file-overrides": {"queue/fileOverrides.drawer.js"},
+    "/api/queue/file-overrides/route-preview": {"queue/fileOverrides.routePreview.js"},
+    "/api/queue/file-overrides/folder-preview": {"queue/fileOverrides.folderPreview.js"},
+    "/api/queue/file-overrides/folder-rule": {"queue/fileOverrides.folderPreview.js"},
     "/api/failures/clear": {"reportsView.js"},
     "/api/rename/apply": {"renameView.js"},
     "/api/rename/browse": {"renameView.js"},
@@ -62,7 +68,10 @@ ALLOWED_TAURI_EVENT_BRIDGE = "tauriLifecycleBridge.js"
 
 
 def _asset_sources() -> dict[str, str]:
-    return {path.name: path.read_text(encoding="utf-8") for path in sorted(ASSET_ROOT.glob("*.js"))}
+    return {
+        path.relative_to(ASSET_ROOT).as_posix(): path.read_text(encoding="utf-8")
+        for path in sorted(ASSET_ROOT.rglob("*.js"))
+    }
 
 
 def _contract_post_routes() -> set[str]:
@@ -86,7 +95,7 @@ def _literal_api_post_owners() -> dict[str, set[str]]:
 def _payload_for_route(asset_name: str, route: str) -> str:
     source = _asset_sources()[asset_name]
     pattern = re.compile(
-        r"apiPost\s*\(\s*[\"']"
+        r"(?:\w+\.)?apiPost\s*\(\s*[\"']"
         + re.escape(route)
         + r"[\"']\s*,\s*(?P<payload>\{.*?\})\s*(?:,\s*\{.*?\})?\s*\)",
         flags=re.DOTALL,
@@ -149,8 +158,8 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
     def test_shell_open_routes_submit_backend_selector_keys_not_raw_paths(self) -> None:
         specs = {
             "/api/diagnostics/open": ("diagnosticsView.js", {"target"}),
-            "/api/queue/open": ("queueView.js", {"row_key", "row_scope", "target"}),
-            "/api/completed/open": ("completedView.js", {"row_key", "target"}),
+            "/api/queue/open": ("queue/openActions.js", {"row_key", "row_scope", "target"}),
+            "/api/completed/open": ("completed/openActions.js", {"row_key", "target"}),
             "/api/pending-publish/open": ("pendingPublishView.diagnostics.js", {"row_key", "target"}),
         }
         forbidden_path_keys = {
@@ -194,7 +203,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn('apiPost("/api/settings/save-patch", { changes, ...requestExtras, confirm_save: true })', _asset_sources()["settingsView.js"])
         self.assertIn('apiPostLocal("/api/settings/wizard/save", { wizard: collectWizardPayload(), confirm_save: true })', _asset_sources()["settingsWizard.js"])
         self.assertIn('apiPost("/api/schedule/save", { ...request, confirm_save: true })', _asset_sources()["scheduleView.js"])
-        completed_js = _asset_sources()["completedView.js"]
+        completed_js = _asset_sources()["completed/promotionCommands.js"]
         self.assertIn("const request = { confirm_promote: true };", completed_js)
         self.assertIn("if (selectedRowKeys.length) request.row_keys = selectedRowKeys;", completed_js)
         self.assertIn('apiPost("/api/final-library-promotion/promote-queue", request)', completed_js)

@@ -7,6 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.maintenance.policy import (
+    maintenance_health_progress,
     maintenance_health_row,
     maintenance_health_rows,
     maintenance_toolchain_evidence,
@@ -87,6 +88,32 @@ class MaintenanceFacadePolicyTests(unittest.TestCase):
         ffprobe = maintenance_toolchain_row(by_name["ffprobe"])
         self.assertEqual(ffprobe["tool_kind"], "ffprobe")
         self.assertIn("Media probing", ffprobe["capability"])
+
+    def test_subtitle_tool_rows_get_specific_tool_kinds_and_progress(self) -> None:
+        rows = maintenance_health_rows(
+            [
+                ("mkvextract", True, r"C:\Pipeline\Tools\MKVToolNix\mkvextract.exe"),
+                ("PgsToSrt (BDPGS OCR)", False, "BDPGS OCR tool not found."),
+                ("PgsToSrt tessdata (BDPGS OCR)", True, r"C:\Pipeline\Tools\PgsToSrt\tessdata"),
+                ("SubtitleEdit.exe (VobSub OCR)", True, r"C:\Pipeline\Tools\SubtitleEditLegacy\SubtitleEdit.exe"),
+                ("Tesseract OCR (VobSub OCR)", True, r"C:\Pipeline\Tools\SubtitleEditLegacy\Tesseract302\tesseract.exe"),
+            ]
+        )
+        by_name = {row["name"]: row for row in rows}
+
+        self.assertEqual(by_name["mkvextract"]["tool_kind"], "mkvextract")
+        self.assertEqual(by_name["PgsToSrt (BDPGS OCR)"]["tool_kind"], "bdpgs_ocr")
+        self.assertEqual(by_name["PgsToSrt tessdata (BDPGS OCR)"]["tool_kind"], "bdpgs_tessdata")
+        self.assertEqual(by_name["SubtitleEdit.exe (VobSub OCR)"]["tool_kind"], "vobsub_ocr")
+        self.assertEqual(by_name["Tesseract OCR (VobSub OCR)"]["tool_kind"], "vobsub_tesseract")
+
+        progress = maintenance_health_progress(None, rows)
+        steps = {step["id"]: step for step in progress["steps"]}
+
+        self.assertEqual(steps["mkvextract"]["status"], "complete")
+        self.assertEqual(steps["subtitle_bdpgs_ocr"]["status"], "blocked")
+        self.assertIn("BDPGS OCR tool not found", steps["subtitle_bdpgs_ocr"]["detail"])
+        self.assertEqual(steps["subtitle_vobsub_ocr"]["status"], "complete")
 
 
 if __name__ == "__main__":

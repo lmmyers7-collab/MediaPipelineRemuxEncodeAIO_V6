@@ -635,6 +635,7 @@ async function refreshAllNow(options = {}) {
     ["final library promotion", apiGet("/api/final-library-promotion/status"), false],
     ["failures", apiGet(failureQuery), false],
     ["audit results", apiGet(auditQuery), false],
+    ["audit controls", apiGet("/api/audit-controls"), false],
     ["pending publish", apiGet("/api/pending-publish"), false],
     ["schedule", apiGet("/api/schedule"), false],
     ["settings", apiGet("/api/settings/workspace"), false],
@@ -688,6 +689,10 @@ async function refreshAllNow(options = {}) {
   if (values["audit results"]) {
     window.mediaPipelineReportsView?.renderAuditPreview?.(values["audit results"]);
     window.mediaPipelineLaunchView?.renderLaunchAuditLog?.(values["audit results"]);
+  }
+  if (values["audit controls"]) {
+    window.mediaPipelineReportsView?.renderAuditControls?.(values["audit controls"]);
+    window.mediaPipelineLaunchView?.renderLaunchAuditControls?.(values["audit controls"]);
   }
   if (values["pending publish"]) renderPendingPublish(values["pending publish"], values.snapshot || lastSnapshot);
   renderHomePendingCount(values["pending publish"] || {});

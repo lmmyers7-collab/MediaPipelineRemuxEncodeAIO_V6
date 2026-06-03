@@ -24,6 +24,7 @@ GET_ROUTE_HANDLERS: dict[str, RouteHandlerSpec] = {
     "/api/final-library-promotion/status": RouteHandlerSpec("_final_library_promotion_status_payload"),
     "/api/failures": RouteHandlerSpec("_failures_payload", needs_query=True),
     "/api/audit-results": RouteHandlerSpec("_audit_results_payload", needs_query=True),
+    "/api/audit-controls": RouteHandlerSpec("_audit_controls_payload"),
     "/api/pending-publish": RouteHandlerSpec("_pending_publish_payload"),
     "/api/publish-reconciliation": RouteHandlerSpec("_publish_reconciliation_payload", needs_query=True),
     "/api/maintenance": RouteHandlerSpec("_maintenance_payload"),

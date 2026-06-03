@@ -227,7 +227,7 @@
 <title>external_app_queue&#45;&gt;mediapipeline_desktop_app_models</title>
 <path fill="none" stroke="#64748b" stroke-width="1.05" stroke-dasharray="5,2" d="M146.99,-697.58C169,-703.27 198.18,-711.12 223.71,-719 270.79,-733.53 324.16,-752.42 359.59,-765.3"/>
 <polygon fill="#64748b" stroke="#64748b" stroke-width="1.05" points="358.49,-767.32 365.38,-767.41 360.05,-763.05 358.49,-767.32"/>
-<text xml:space="preserve" text-anchor="middle" x="256.21" y="-734.02" font-family="Segoe UI" font-size="9.00" fill="#475569">7</text>
+<text xml:space="preserve" text-anchor="middle" x="256.21" y="-734.02" font-family="Segoe UI" font-size="9.00" fill="#475569">8</text>
 </g>
 <!-- external_app_rename -->
 <g id="node18" class="node">

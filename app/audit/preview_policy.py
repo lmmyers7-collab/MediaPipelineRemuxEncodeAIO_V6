@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from app.audit.ignore_manifest import audit_ignore_entry_for_path
 from mediapipeline_desktop_app.models import AuditRecord
 
 if TYPE_CHECKING:
@@ -31,9 +33,29 @@ def bounded_audit_limit(value: Any, *, default: int = 100, minimum: int = 1, max
     return min(maximum, max(minimum, limit))
 
 
-def audit_record_to_row(record: AuditRecord) -> dict[str, Any]:
+def audit_record_key(record: AuditRecord, row_index: int) -> str:
+    parts = [
+        str(record.source_csv or ""),
+        str(row_index),
+        str(record.path or ""),
+        record.relative_path,
+        record.primary_issue_code,
+        str(record.priority_score),
+    ]
+    digest = hashlib.sha256("\x1f".join(parts).encode("utf-8", errors="replace")).hexdigest()
+    return digest[:24]
+
+
+def audit_record_to_row(
+    record: AuditRecord,
+    *,
+    row_index: int = 0,
+    ignore_entry: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     path = record.path
     return {
+        "row_key": audit_record_key(record, row_index),
+        "row_index": row_index,
         "path": str(path or ""),
         "relative_path": record.relative_path,
         "lookup_title": record.lookup_title,
@@ -45,6 +67,9 @@ def audit_record_to_row(record: AuditRecord) -> dict[str, Any]:
         "primary_suggested_action": record.primary_suggested_action,
         "issue_messages": record.issue_messages,
         "source_csv": str(record.source_csv),
+        "ignored": ignore_entry is not None,
+        "ignore_reason": str((ignore_entry or {}).get("reason") or ""),
+        "ignore_set_at": str((ignore_entry or {}).get("set_at") or ""),
     }
 
 
@@ -64,19 +89,34 @@ def audit_preview_fields(
     priority_only: bool,
     limit: int,
     empty_warning: str,
+    ignore_manifest: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     valid_records = [record for record in records or [] if isinstance(record, AuditRecord)]
-    rows = [audit_record_to_row(record) for record in valid_records[:limit]]
+    visible_records: list[tuple[int, AuditRecord]] = []
+    ignored_count = 0
+    for index, record in enumerate(valid_records):
+        if audit_ignore_entry_for_path(ignore_manifest, record.path):
+            ignored_count += 1
+            continue
+        visible_records.append((index, record))
+    rows = [
+        audit_record_to_row(record, row_index=index)
+        for index, record in visible_records[:limit]
+    ]
     buckets = [str(row.get("effective_bucket") or "").upper() for row in rows]
     priority_levels = [str(row.get("priority_fix_level") or "").upper() for row in rows]
     warnings = [] if rows else [empty_warning]
-    if len(valid_records) > len(rows):
-        warnings.append(f"Showing {len(rows)} of {len(valid_records)} audit row(s).")
+    if len(visible_records) > len(rows):
+        warnings.append(f"Showing {len(rows)} of {len(visible_records)} audit row(s).")
+    if ignored_count:
+        warnings.append(f"{ignored_count} audit row(s) hidden by the audit ignore manifest.")
     return {
         "rows": rows,
         "source": source,
         "priority_only": bool(priority_only),
-        "count": len(valid_records),
+        "count": len(visible_records),
+        "total_count": len(valid_records),
+        "ignored_count": ignored_count,
         "high_priority_count": sum(1 for item in priority_levels if item == "HIGH"),
         "rerun_count": sum(1 for item in buckets if item == "RERUN_PIPELINE"),
         "redownload_count": sum(1 for item in buckets if item == "REDOWNLOAD_CANDIDATE"),
@@ -84,6 +124,41 @@ def audit_preview_fields(
         "duplicate_group_count": audit_duplicate_group_count(valid_records),
         "warnings": warnings,
     }
+
+
+def audit_visible_records(
+    records: object,
+    *,
+    ignore_manifest: dict[str, Any] | None = None,
+    limit: int | None = None,
+) -> list[tuple[int, AuditRecord]]:
+    visible: list[tuple[int, AuditRecord]] = []
+    for index, record in enumerate(record for record in records or [] if isinstance(record, AuditRecord)):
+        if audit_ignore_entry_for_path(ignore_manifest, record.path):
+            continue
+        visible.append((index, record))
+        if limit is not None and len(visible) >= limit:
+            break
+    return visible
+
+
+def audit_records_for_row_keys(
+    records: object,
+    row_keys: object,
+    *,
+    ignore_manifest: dict[str, Any] | None = None,
+    limit: int | None = None,
+) -> list[AuditRecord]:
+    visible = audit_visible_records(records, ignore_manifest=ignore_manifest, limit=limit)
+    keys = [str(key).strip() for key in row_keys or [] if str(key).strip()]
+    if not keys:
+        return [record for _, record in visible]
+    wanted = set(keys)
+    return [
+        record
+        for index, record in visible
+        if audit_record_key(record, index) in wanted
+    ]
 
 
 def audit_report_service_unavailable_result(priority_only: bool) -> AuditPreviewDto:
@@ -130,6 +205,7 @@ def audit_preview_from_records(
     priority_only: bool,
     limit: int,
     empty_warning: str = AUDIT_EMPTY_CSV_MESSAGE,
+    ignore_manifest: dict[str, Any] | None = None,
 ) -> AuditPreviewDto:
     return _audit_preview_dto(
         **audit_preview_fields(
@@ -138,6 +214,7 @@ def audit_preview_from_records(
             priority_only=priority_only,
             limit=limit,
             empty_warning=empty_warning,
+            ignore_manifest=ignore_manifest,
         )
     )
 
@@ -147,6 +224,9 @@ __all__ = [
     "AUDIT_NO_CSV_REPORT_MESSAGE",
     "AUDIT_LOADER_UNAVAILABLE_MESSAGE",
     "AUDIT_EMPTY_CSV_MESSAGE",
+    "audit_record_key",
+    "audit_records_for_row_keys",
+    "audit_visible_records",
     "bounded_audit_limit",
     "audit_record_to_row",
     "audit_duplicate_group_count",

@@ -298,6 +298,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         known_effects = {
             "none",
             "app-state-write",
+            "audit-state-write",
             "backend-lifecycle",
             "bounded-health-check",
             "config-write",
@@ -310,6 +311,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             "process-launch",
             "queue-state-write",
             "read-only-preview",
+            "report-file-write",
             "shell-dialog",
             "shell-open",
             "tooling-artifact-write",

@@ -33,7 +33,15 @@
     const renderSettingsPolicyDeltaFromEntries = dep("renderSettingsPolicyDeltaFromEntries", function () {});
     const settingsBuilderFields = dep("settingsBuilderFields", []);
     const settingsDisplayLabels = dep("settingsDisplayLabels", {});
+    const settingsFieldAllowedValues = dep("settingsFieldAllowedValues", function (field) {
+      if (Array.isArray(field?.allowed_values) && field.allowed_values.length) return field.allowed_values;
+      if (Array.isArray(field?.choices) && field.choices.length) return field.choices;
+      return [];
+    });
     const settingsFieldDefinition = dep("settingsFieldDefinition", function () { return null; });
+    const settingsFriendlyPersistedKeyAliases = dep("settingsFriendlyPersistedKeyAliases", {});
+    const settingsHasBackendFieldDefinitions = dep("settingsHasBackendFieldDefinitions", function () { return false; });
+    const settingsPatchComplexBackendKeys = dep("settingsPatchComplexBackendKeys", new Set());
     const settingsPatchImpactEntries = dep("settingsPatchImpactEntries", function () { return []; });
     const settingsValuesEqual = dep("settingsValuesEqual", function (left, right) { return JSON.stringify(left) === JSON.stringify(right); });
     const addSettingsEventHandlers = dep("addSettingsEventHandlers", {});
@@ -1011,6 +1019,172 @@
       if (settingsFilter) settingsFilter.addEventListener("input", renderSettingsRows);
     }
 
+    function settingsLocalValidationHint(severity, context, key, message) {
+      return {
+        severity,
+        context,
+        key,
+        message,
+      };
+    }
+
+    function settingsAllowedValueHint(field, key, value, context) {
+      const allowedValues = settingsFieldAllowedValues(field);
+      if (!allowedValues.length) return [];
+      const allowedText = allowedValues.map((item) => String(item));
+      const values = Array.isArray(value) ? value : [value];
+      const badValues = values
+        .filter((item) => item !== null && item !== undefined && item !== "")
+        .map((item) => String(item))
+        .filter((item) => !allowedText.includes(item));
+      if (!badValues.length) return [];
+      return [
+        settingsLocalValidationHint(
+          "warning",
+          context,
+          key,
+          `${key} has value ${badValues.join(", ")} outside backend allowed_values (${allowedText.join(", ")}).`
+        ),
+      ];
+    }
+
+    function settingsNumericConstraintHints(field, key, value, context) {
+      if (value === null || value === undefined || value === "" || Array.isArray(value) || typeof value === "object") return [];
+      const valueType = String(field?.value_type || "");
+      const kind = String(field?.kind || "");
+      const numeric = ["integer", "number"].includes(valueType) || ["int", "optional_int", "combo_int", "optional_float"].includes(kind);
+      if (!numeric) return [];
+      const numberValue = Number(value);
+      if (!Number.isFinite(numberValue)) {
+        return [settingsLocalValidationHint("warning", context, key, `${key} should be numeric according to backend metadata.`)];
+      }
+      const hints = [];
+      if (field.min !== null && field.min !== undefined && numberValue < Number(field.min)) {
+        hints.push(settingsLocalValidationHint("warning", context, key, `${key} is below backend min ${field.min}.`));
+      }
+      if (field.max !== null && field.max !== undefined && numberValue > Number(field.max)) {
+        hints.push(settingsLocalValidationHint("warning", context, key, `${key} is above backend max ${field.max}.`));
+      }
+      if (field.step !== null && field.step !== undefined && field.step !== "") {
+        const step = Number(field.step);
+        const base = Number.isFinite(Number(field.min)) ? Number(field.min) : 0;
+        if (Number.isFinite(step) && step > 0) {
+          const ratio = (numberValue - base) / step;
+          if (Math.abs(ratio - Math.round(ratio)) > 1e-9) {
+            hints.push(settingsLocalValidationHint("warning", context, key, `${key} does not align to backend step ${field.step}.`));
+          }
+        }
+      }
+      return hints;
+    }
+
+    function settingsPatchLocalValidationHintsForKey(key, value, context = "settings", options = {}) {
+      const hints = [];
+      const friendlyTarget = settingsFriendlyPersistedKeyAliases[key];
+      if (friendlyTarget) {
+        hints.push(settingsLocalValidationHint(
+          "error",
+          context,
+          key,
+          `${key} is a display label only; use persisted key ${friendlyTarget}.`
+        ));
+      }
+      const field = settingsFieldDefinition(key);
+      if (!field) {
+        if (settingsHasBackendFieldDefinitions() && !settingsPatchComplexBackendKeys.has(key)) {
+          hints.push(settingsLocalValidationHint(
+            "warning",
+            context,
+            key,
+            `${key} is not in backend field metadata loaded by this WebView. Backend preview/save remains authoritative.`
+          ));
+        }
+        return hints;
+      }
+      if (options.libraryOverride === true) {
+        const scope = String(field.scope || "");
+        const overrideGroup = String(field.override_group || "");
+        if (field.library_override_allowed !== true) {
+          hints.push(settingsLocalValidationHint(
+            "error",
+            context,
+            key,
+            scope === "source_derived" || scope === "computed_only"
+              ? `${key} is read-only source/effective metadata and cannot be saved as a library override.`
+              : `${key} is global-only and cannot be saved as a library override.`
+          ));
+        } else if (options.overrideGroup && overrideGroup && overrideGroup !== options.overrideGroup) {
+          hints.push(settingsLocalValidationHint(
+            "error",
+            context,
+            key,
+            `${key} belongs in overrides.${overrideGroup}, not overrides.${options.overrideGroup}.`
+          ));
+        }
+      }
+      hints.push(...settingsAllowedValueHint(field, key, value, context));
+      hints.push(...settingsNumericConstraintHints(field, key, value, context));
+      return hints;
+    }
+
+    function settingsPatchLibraryOverrideValidationHints(libraryProfiles) {
+      if (!Array.isArray(libraryProfiles)) return [];
+      const hints = [];
+      libraryProfiles.forEach((profile, index) => {
+        if (!profile || typeof profile !== "object") return;
+        const profileLabel = String(profile.id || profile.name || `profile ${index + 1}`);
+        const overrides = profile.overrides && typeof profile.overrides === "object" && !Array.isArray(profile.overrides)
+          ? profile.overrides
+          : {};
+        ["editor", "video", "subtitles", "audio"].forEach((group) => {
+          const groupValues = overrides[group];
+          if (!groupValues || typeof groupValues !== "object" || Array.isArray(groupValues)) return;
+          Object.entries(groupValues).forEach(([key, value]) => {
+            hints.push(...settingsPatchLocalValidationHintsForKey(
+              String(key),
+              value,
+              `LibraryProfiles.${profileLabel}.overrides.${group}`,
+              { libraryOverride: true, overrideGroup: group }
+            ));
+          });
+        });
+        ["editor_overrides", "media_overrides"].forEach((legacyGroup) => {
+          const groupValues = profile[legacyGroup];
+          if (!groupValues || typeof groupValues !== "object" || Array.isArray(groupValues)) return;
+          Object.entries(groupValues).forEach(([key, value]) => {
+            hints.push(...settingsPatchLocalValidationHintsForKey(
+              String(key),
+              value,
+              `LibraryProfiles.${profileLabel}.${legacyGroup}`,
+              { libraryOverride: true }
+            ));
+          });
+        });
+      });
+      return hints;
+    }
+
+    function settingsPatchLocalValidationHints(changes) {
+      if (!changes || Array.isArray(changes) || typeof changes !== "object") return [];
+      const hints = [];
+      Object.entries(changes).forEach(([key, value]) => {
+        hints.push(...settingsPatchLocalValidationHintsForKey(String(key), value, "settings"));
+        if (key === "LibraryProfiles") {
+          hints.push(...settingsPatchLibraryOverrideValidationHints(value));
+        }
+      });
+      return hints;
+    }
+
+    function settingsPatchLocalValidationHintLines(changes) {
+      const hints = settingsPatchLocalValidationHints(changes);
+      if (!hints.length) return [];
+      return [
+        "Local validation hints (advisory only; backend preview/save remains authoritative):",
+        ...hints.map((hint) => `- [${hint.severity}] ${hint.context}.${hint.key}: ${hint.message}`),
+      ];
+    }
+
     function settingsReadinessIssue(severity, message) {
       return { severity, message };
     }
@@ -1426,6 +1600,10 @@
       applySettingsBuilderToPatch,
       renderSettings,
       initSettingsViewEvents,
+      settingsPatchLocalValidationHintsForKey,
+      settingsPatchLibraryOverrideValidationHints,
+      settingsPatchLocalValidationHints,
+      settingsPatchLocalValidationHintLines,
       settingsReadinessIssue,
       settingsPatchSaveReadinessIssues,
       settingsPatchSaveReadinessStatus,

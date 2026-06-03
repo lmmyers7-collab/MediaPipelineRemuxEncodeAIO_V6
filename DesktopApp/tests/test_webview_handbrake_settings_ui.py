@@ -365,7 +365,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
         metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
         builder_js = (STATIC_ROOT / "assets" / "settingsView.builders.video.js").read_text(encoding="utf-8")
-        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        builder_controls_js = (STATIC_ROOT / "assets" / "settings" / "builderControls.js").read_text(encoding="utf-8")
         styles = (STATIC_ROOT / "assets" / "styles.components.css").read_text(encoding="utf-8")
 
         for token in (
@@ -395,7 +395,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertIn('return `p${clampedInteger(value, 5, 1, 7)}`;', builder_js)
         self.assertIn('if (kind === "preset_slider") return videoPresetKeyFromSliderValue', builder_js)
         self.assertIn('if (kind === "quality_slider") return Number(videoQualitySliderValue', builder_js)
-        self.assertIn('element.dataset.settingsPreserveRangeLimits === "true"', settings_js)
+        self.assertIn('element.dataset.settingsPreserveRangeLimits === "true"', builder_controls_js)
         self.assertIn('.settings-slider-field input[type="range"]', styles)
 
     def test_successful_settings_save_resyncs_saved_builder_values(self) -> None:
@@ -413,6 +413,9 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
     def test_advanced_fields_use_metadata_and_fallback_toggle(self) -> None:
         metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        metadata_fields_js = (STATIC_ROOT / "assets" / "settings" / "metadataFields.js").read_text(encoding="utf-8")
+        builder_controls_js = (STATIC_ROOT / "assets" / "settings" / "builderControls.js").read_text(encoding="utf-8")
+        settings_support_js = settings_js + metadata_fields_js + builder_controls_js
         styles = (STATIC_ROOT / "assets" / "styles.components.css").read_text(encoding="utf-8")
 
         for key in (
@@ -459,7 +462,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "node.hidden = !expanded",
             "document.addEventListener(\"click\", handleSettingsAdvancedToggleClick)",
         ):
-            self.assertIn(token, settings_js)
+            self.assertIn(token, settings_support_js)
 
         for token in (
             ".settings-advanced-toggle-row",
@@ -498,14 +501,14 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
     def test_display_label_metadata_overrides_legacy_terms(self) -> None:
         js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
-        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        metadata_fields_js = (STATIC_ROOT / "assets" / "settings" / "metadataFields.js").read_text(encoding="utf-8")
         review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
 
         self.assertNotIn("settingsDisplayLabels", js)
         for key, label in LABEL_ONLY_RENAMES.items():
             with self.subTest(key=key):
                 self.assertEqual(_backend_metadata_by_key()[key]["label"], label)
-        self.assertIn("return field?.label || fallback || key;", settings_js)
+        self.assertIn("return field?.label || fallback || key;", metadata_fields_js)
         self.assertIn("settingsDisplayLabel(key", review_js)
         self.assertIn("if (field?.label) return field.label;", review_js)
         self.assertIn("renderHandbrakePreviewSummary(settings)", review_js)
@@ -527,6 +530,8 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
     def test_main_settings_ui_prefers_backend_field_metadata(self) -> None:
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
         metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
+        metadata_fields_js = (STATIC_ROOT / "assets" / "settings" / "metadataFields.js").read_text(encoding="utf-8")
+        builder_controls_js = (STATIC_ROOT / "assets" / "settings" / "builderControls.js").read_text(encoding="utf-8")
 
         self.assertIn("Backend field_definitions owns labels, options, defaults, constraints", metadata_js)
         for token in (
@@ -537,6 +542,9 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "function settingsFieldLabel(key, fallback = \"\")",
             "function settingsFieldHelpText(field)",
             "field?.help_text || field?.help",
+        ):
+            self.assertIn(token, metadata_fields_js)
+        for token in (
             "function applySettingsFieldMetadataToControl([key, id, fallbackKind])",
             "if (!field || !element) return;",
             "dataset.settingsKey",
@@ -548,6 +556,9 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "field.min",
             "field.max",
             "field.step",
+        ):
+            self.assertIn(token, builder_controls_js)
+        for token in (
             "applySettingsFieldMetadataToControls();",
         ):
             self.assertIn(token, settings_js)
@@ -575,6 +586,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
     def test_patch_preview_keeps_persisted_keys_for_backend_labels(self) -> None:
         review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+        metadata_fields_js = (STATIC_ROOT / "assets" / "settings" / "metadataFields.js").read_text(encoding="utf-8")
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
 
         for key in ("RoutingProfile", "RouteThresholdMode", "SizeGuardMode"):
@@ -584,7 +596,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertIn("key,", review_js)
         self.assertIn("settingsDisplayLabel(key, field?.label || key)", review_js)
         self.assertIn("function settingsPersistedKeyDisplay", review_js)
-        self.assertIn("function settingsPersistedKeyDisplay", settings_js)
+        self.assertIn("function settingsPersistedKeyDisplay", metadata_fields_js)
         self.assertIn("Changed persisted keys:", review_js)
         self.assertIn("Unknown persisted keys needing backend validation:", review_js)
         self.assertIn("Preview/save uses persisted keys. Friendly labels are display only and are not saved keys.", review_js)
@@ -598,12 +610,13 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
     def test_label_only_renames_remain_display_only_in_main_settings_and_patch_builders(self) -> None:
         backend = _backend_metadata_by_key()
         metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
+        metadata_fields_js = (STATIC_ROOT / "assets" / "settings" / "metadataFields.js").read_text(encoding="utf-8")
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
         review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
         video_builder_js = (STATIC_ROOT / "assets" / "settingsView.builders.video.js").read_text(encoding="utf-8")
         patch_sources = review_js + video_builder_js
 
-        self.assertIn("return field?.label || fallback || key;", settings_js)
+        self.assertIn("return field?.label || fallback || key;", metadata_fields_js)
         self.assertIn("applySettingsFieldMetadataToControls();", settings_js)
         self.assertIn("patch[key] = readVideoDetailBuilderValue", video_builder_js)
         for key, label in LABEL_ONLY_RENAMES.items():
@@ -636,6 +649,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
     def test_webview_validation_hints_are_advisory_and_share_backend_alias_policy(self) -> None:
         metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
+        review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
 
         self.assertEqual(_settings_friendly_alias_entries(), FRIENDLY_LABEL_PERSISTED_KEY_ALIASES)
@@ -659,6 +673,10 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "field.step",
             "display label only; use persisted key",
             "Local validation hints (advisory only; backend preview/save remains authoritative):",
+        ):
+            self.assertIn(token, review_js)
+
+        for token in (
             'apiPost("/api/settings/preview-patch", { changes, ...requestExtras })',
             'apiPost("/api/settings/save-patch", { changes, ...requestExtras, confirm_save: true })',
         ):
@@ -666,17 +684,20 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
     def test_webview_validation_hints_do_not_replace_backend_preview_or_save_authority(self) -> None:
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        patch_review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
 
         self.assertIn("const localHintLines = settingsPatchLocalValidationHintLines(changes);", settings_js)
         self.assertIn('"Requesting backend patch preview. This will not save the PSD1."', settings_js)
         self.assertIn("await apiPost", settings_js)
-        self.assertIn("Backend preview/save remains authoritative", settings_js)
+        self.assertIn("Backend preview/save remains authoritative", patch_review_js)
         self.assertNotIn("return settingsPatchLocalValidationHintLines(changes);", settings_js)
         self.assertIn("setText(\"settings-patch-status\", result.ok ? \"Preview ready\" : result.severity || \"Preview failed\");", settings_js)
         self.assertIn("setText(\"settings-patch-status\", result.ok ? \"Saved\" : result.severity || \"Save failed\");", settings_js)
 
     def test_phase5_completion_gate_webview_surfaces_backend_errors_without_save_authority(self) -> None:
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        patch_review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+        settings_validation_js = settings_js + patch_review_js
         libraries_js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
         wizard_js = (STATIC_ROOT / "assets" / "settingsWizard.js").read_text(encoding="utf-8")
 
@@ -691,7 +712,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "is not in backend field metadata loaded by this WebView",
             "display label only; use persisted key",
         ):
-            self.assertIn(token, settings_js)
+            self.assertIn(token, settings_validation_js)
 
         for token in (
             "previewLibraryProfiles",
@@ -714,15 +735,16 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
     def test_removed_static_label_fallback_cannot_create_editable_keys(self) -> None:
         backend = _backend_metadata_by_key()
         metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
-        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        metadata_fields_js = (STATIC_ROOT / "assets" / "settings" / "metadataFields.js").read_text(encoding="utf-8")
+        builder_controls_js = (STATIC_ROOT / "assets" / "settings" / "builderControls.js").read_text(encoding="utf-8")
         review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
 
         self.assertNotIn("settingsDisplayLabels", metadata_js)
         for key, label in LABEL_ONLY_RENAMES.items():
             with self.subTest(key=key):
                 self.assertEqual(backend[key]["label"], label)
-        self.assertIn("if (!field || !element) return;", settings_js)
-        self.assertIn("return field?.label || fallback || key;", settings_js)
+        self.assertIn("if (!field || !element) return;", builder_controls_js)
+        self.assertIn("return field?.label || fallback || key;", metadata_fields_js)
         self.assertIn("settingsDisplayLabel(key, field?.label || key)", review_js)
 
     def test_size_target_and_direct_copy_bitrate_labels_are_not_swapped(self) -> None:

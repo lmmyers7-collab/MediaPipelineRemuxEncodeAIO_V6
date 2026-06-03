@@ -11,20 +11,20 @@
 <img src="V6_dependency_atlas.svg" alt="V6 dependency overview">
 <h2>Domain Summary</h2>
 <table><thead><tr><th>Domain</th><th>Files</th><th>Internal module edges</th><th>Outgoing domain edges</th><th>Incoming domain edges</th></tr></thead><tbody>
-<tr><td>app/config</td><td>45</td><td>59</td><td>37</td><td>27</td></tr>
+<tr><td>app/config</td><td>45</td><td>59</td><td>38</td><td>29</td></tr>
 <tr><td>desktop/network</td><td>38</td><td>50</td><td>11</td><td>2</td></tr>
-<tr><td>app/processes</td><td>33</td><td>38</td><td>31</td><td>9</td></tr>
-<tr><td>desktop/api</td><td>25</td><td>35</td><td>8</td><td>8</td></tr>
-<tr><td>app/kernel</td><td>24</td><td>28</td><td>0</td><td>24</td></tr>
-<tr><td>desktop/application</td><td>22</td><td>28</td><td>53</td><td>83</td></tr>
-<tr><td>app/queue</td><td>20</td><td>23</td><td>22</td><td>5</td></tr>
-<tr><td>app/rename</td><td>18</td><td>28</td><td>16</td><td>4</td></tr>
-<tr><td>app/api</td><td>17</td><td>23</td><td>20</td><td>2</td></tr>
-<tr><td>app/status</td><td>16</td><td>19</td><td>11</td><td>6</td></tr>
+<tr><td>app/processes</td><td>33</td><td>38</td><td>33</td><td>12</td></tr>
+<tr><td>desktop/api</td><td>25</td><td>36</td><td>8</td><td>9</td></tr>
+<tr><td>app/kernel</td><td>24</td><td>28</td><td>0</td><td>25</td></tr>
+<tr><td>desktop/application</td><td>22</td><td>28</td><td>53</td><td>85</td></tr>
+<tr><td>app/queue</td><td>21</td><td>25</td><td>25</td><td>5</td></tr>
+<tr><td>app/api</td><td>19</td><td>27</td><td>22</td><td>2</td></tr>
+<tr><td>app/rename</td><td>18</td><td>29</td><td>17</td><td>6</td></tr>
+<tr><td>app/status</td><td>16</td><td>20</td><td>14</td><td>6</td></tr>
 <tr><td>app/contracts</td><td>15</td><td>14</td><td>0</td><td>26</td></tr>
 <tr><td>app/publish</td><td>14</td><td>14</td><td>13</td><td>4</td></tr>
+<tr><td>app/audit</td><td>13</td><td>17</td><td>17</td><td>2</td></tr>
 <tr><td>app/maintenance</td><td>13</td><td>8</td><td>13</td><td>7</td></tr>
-<tr><td>app/audit</td><td>11</td><td>12</td><td>16</td><td>2</td></tr>
 <tr><td>app/completed</td><td>10</td><td>6</td><td>17</td><td>5</td></tr>
 <tr><td>desktop/contracts</td><td>10</td><td>0</td><td>10</td><td>8</td></tr>
 <tr><td>app/final_library</td><td>9</td><td>8</td><td>8</td><td>2</td></tr>
@@ -35,9 +35,9 @@
 <tr><td>app/schedule</td><td>7</td><td>5</td><td>5</td><td>2</td></tr>
 <tr><td>app/observability</td><td>6</td><td>1</td><td>3</td><td>9</td></tr>
 <tr><td>app/telemetry</td><td>6</td><td>3</td><td>5</td><td>2</td></tr>
-<tr><td>app/diagnostics</td><td>5</td><td>3</td><td>11</td><td>1</td></tr>
+<tr><td>app/diagnostics</td><td>5</td><td>3</td><td>12</td><td>1</td></tr>
 <tr><td>app/storage</td><td>5</td><td>2</td><td>0</td><td>8</td></tr>
-<tr><td>app/files</td><td>4</td><td>3</td><td>0</td><td>7</td></tr>
+<tr><td>app/files</td><td>4</td><td>3</td><td>0</td><td>9</td></tr>
 <tr><td>app/orchestration</td><td>4</td><td>1</td><td>15</td><td>2</td></tr>
 <tr><td>app/shared</td><td>4</td><td>0</td><td>0</td><td>0</td></tr>
 <tr><td>app/sample_validation</td><td>3</td><td>1</td><td>13</td><td>1</td></tr>
@@ -51,7 +51,7 @@
 <tr><td>desktop/backend_bootstrap</td><td>1</td><td>0</td><td>0</td><td>1</td></tr>
 <tr><td>desktop/config_keys</td><td>1</td><td>0</td><td>1</td><td>25</td></tr>
 <tr><td>desktop/local_api_main</td><td>1</td><td>0</td><td>8</td><td>1</td></tr>
-<tr><td>desktop/models</td><td>1</td><td>0</td><td>1</td><td>92</td></tr>
+<tr><td>desktop/models</td><td>1</td><td>0</td><td>1</td><td>93</td></tr>
 <tr><td>desktop/models_core</td><td>1</td><td>0</td><td>1</td><td>4</td></tr>
 <tr><td>desktop/models_media_paths</td><td>1</td><td>0</td><td>1</td><td>0</td></tr>
 <tr><td>desktop/priority_markers</td><td>1</td><td>0</td><td>0</td><td>2</td></tr>
@@ -72,31 +72,34 @@
 <tr><td>app/audit</td><td>desktop/models</td><td>8</td></tr>
 <tr><td>app/decide</td><td>app/contracts</td><td>8</td></tr>
 <tr><td>app/publish</td><td>desktop/application</td><td>8</td></tr>
+<tr><td>app/queue</td><td>desktop/models</td><td>8</td></tr>
 <tr><td>app/completed</td><td>desktop/models</td><td>7</td></tr>
 <tr><td>app/config</td><td>app/contracts</td><td>7</td></tr>
 <tr><td>app/config</td><td>desktop/config_keys</td><td>7</td></tr>
-<tr><td>app/queue</td><td>desktop/models</td><td>7</td></tr>
 <tr><td>desktop/application</td><td>app/processes</td><td>7</td></tr>
 <tr><td>desktop/application</td><td>desktop/models</td><td>7</td></tr>
 <tr><td>app/maintenance</td><td>desktop/application</td><td>6</td></tr>
 <tr><td>desktop/application</td><td>app/config</td><td>6</td></tr>
 <tr><td>desktop/application</td><td>app/kernel</td><td>6</td></tr>
+<tr><td>app/api</td><td>desktop/api</td><td>5</td></tr>
 <tr><td>app/orchestration</td><td>app/config</td><td>5</td></tr>
+<tr><td>app/processes</td><td>app/config</td><td>5</td></tr>
 <tr><td>app/rename</td><td>desktop/application</td><td>5</td></tr>
 <tr><td>app/schedule</td><td>desktop/application</td><td>5</td></tr>
 <tr><td>app/status</td><td>desktop/models</td><td>5</td></tr>
 <tr><td>desktop/application</td><td>app/maintenance</td><td>5</td></tr>
 <tr><td>desktop/network</td><td>desktop/config_keys</td><td>5</td></tr>
-<tr><td>app/api</td><td>desktop/api</td><td>4</td></tr>
+<tr><td>app/api</td><td>desktop/application</td><td>4</td></tr>
+<tr><td>app/audit</td><td>desktop/application</td><td>4</td></tr>
 <tr><td>app/completed</td><td>desktop/application</td><td>4</td></tr>
 <tr><td>app/diagnostics</td><td>app/status</td><td>4</td></tr>
 <tr><td>app/failures</td><td>desktop/application</td><td>4</td></tr>
 <tr><td>app/failures</td><td>desktop/models</td><td>4</td></tr>
 <tr><td>app/maintenance</td><td>desktop/models</td><td>4</td></tr>
 <tr><td>app/orchestration</td><td>app/contracts</td><td>4</td></tr>
-<tr><td>app/processes</td><td>app/config</td><td>4</td></tr>
 <tr><td>app/processes</td><td>desktop/contracts</td><td>4</td></tr>
 <tr><td>app/queue</td><td>app/observability</td><td>4</td></tr>
+<tr><td>app/rename</td><td>app/files</td><td>4</td></tr>
 <tr><td>app/rename</td><td>desktop/subprocess_runner</td><td>4</td></tr>
 <tr><td>app/telemetry</td><td>desktop/models</td><td>4</td></tr>
 <tr><td>desktop/application</td><td>desktop/config_keys</td><td>4</td></tr>
@@ -104,8 +107,6 @@
 <tr><td>app/api</td><td>app/config</td><td>3</td></tr>
 <tr><td>app/api</td><td>app/contracts</td><td>3</td></tr>
 <tr><td>app/api</td><td>app/queue</td><td>3</td></tr>
-<tr><td>app/api</td><td>desktop/application</td><td>3</td></tr>
-<tr><td>app/audit</td><td>desktop/application</td><td>3</td></tr>
 <tr><td>app/audit</td><td>desktop/subprocess_runner</td><td>3</td></tr>
 <tr><td>app/diagnostics</td><td>desktop/application</td><td>3</td></tr>
 <tr><td>app/diagnostics</td><td>desktop/models</td><td>3</td></tr>
@@ -114,7 +115,6 @@
 <tr><td>app/orchestration</td><td>app/decide</td><td>3</td></tr>
 <tr><td>app/publish</td><td>desktop/models</td><td>3</td></tr>
 <tr><td>app/queue</td><td>desktop/application</td><td>3</td></tr>
-<tr><td>app/rename</td><td>app/files</td><td>3</td></tr>
 <tr><td>app/completed</td><td>app/observability</td><td>2</td></tr>
 <tr><td>app/completed</td><td>desktop/subprocess_runner</td><td>2</td></tr>
 <tr><td>app/config</td><td>app/kernel</td><td>2</td></tr>
@@ -124,10 +124,12 @@
 <tr><td>app/paths</td><td>app/storage</td><td>2</td></tr>
 <tr><td>app/paths</td><td>desktop/config_keys</td><td>2</td></tr>
 <tr><td>app/paths</td><td>desktop/models</td><td>2</td></tr>
+<tr><td>app/queue</td><td>app/config</td><td>2</td></tr>
 <tr><td>app/queue</td><td>desktop/priority_markers</td><td>2</td></tr>
 <tr><td>app/rename</td><td>app/paths</td><td>2</td></tr>
 <tr><td>app/sample_validation</td><td>desktop/models</td><td>2</td></tr>
 <tr><td>app/status</td><td>app/observability</td><td>2</td></tr>
+<tr><td>app/status</td><td>app/rename</td><td>2</td></tr>
 <tr><td>app/status</td><td>desktop/contracts</td><td>2</td></tr>
 <tr><td>app/validation</td><td>app/contracts</td><td>2</td></tr>
 <tr><td>desktop/api</td><td>app/api</td><td>2</td></tr>
@@ -141,35 +143,33 @@
 <tr><td>desktop/services</td><td>app/files</td><td>2</td></tr>
 <tr><td>desktop/services</td><td>app/maintenance</td><td>2</td></tr>
 <tr><td>desktop/services</td><td>app/processes</td><td>2</td></tr>
-<tr><td>desktop/services</td><td>app/rename</td><td>2</td></tr>
-<tr><td>app/api</td><td>app/orchestration</td><td>1</td></tr>
 </tbody></table>
 <h2>Focused Module Diagrams</h2>
-<details open><summary>app/config - 45 files, 116 shown edges</summary>
+<details open><summary>app/config - 45 files, 119 shown edges</summary>
 <p><a href="V6_dependency_atlas_assets/V6_dependency_detail_app_config.png">PNG</a> <a href="V6_dependency_atlas_assets/V6_dependency_detail_app_config.svg">SVG</a></p>
 <img src="V6_dependency_atlas_assets/V6_dependency_detail_app_config.svg" alt="app/config dependency detail">
 </details>
-<details><summary>app/processes - 33 files, 75 shown edges</summary>
+<details><summary>app/processes - 33 files, 80 shown edges</summary>
 <p><a href="V6_dependency_atlas_assets/V6_dependency_detail_app_processes.png">PNG</a> <a href="V6_dependency_atlas_assets/V6_dependency_detail_app_processes.svg">SVG</a></p>
 <img src="V6_dependency_atlas_assets/V6_dependency_detail_app_processes.svg" alt="app/processes dependency detail">
 </details>
-<details><summary>app/kernel - 24 files, 51 shown edges</summary>
+<details><summary>app/kernel - 24 files, 52 shown edges</summary>
 <p><a href="V6_dependency_atlas_assets/V6_dependency_detail_app_kernel.png">PNG</a> <a href="V6_dependency_atlas_assets/V6_dependency_detail_app_kernel.svg">SVG</a></p>
 <img src="V6_dependency_atlas_assets/V6_dependency_detail_app_kernel.svg" alt="app/kernel dependency detail">
 </details>
-<details><summary>app/queue - 20 files, 48 shown edges</summary>
+<details><summary>app/queue - 21 files, 53 shown edges</summary>
 <p><a href="V6_dependency_atlas_assets/V6_dependency_detail_app_queue.png">PNG</a> <a href="V6_dependency_atlas_assets/V6_dependency_detail_app_queue.svg">SVG</a></p>
 <img src="V6_dependency_atlas_assets/V6_dependency_detail_app_queue.svg" alt="app/queue dependency detail">
 </details>
-<details><summary>app/rename - 18 files, 45 shown edges</summary>
-<p><a href="V6_dependency_atlas_assets/V6_dependency_detail_app_rename.png">PNG</a> <a href="V6_dependency_atlas_assets/V6_dependency_detail_app_rename.svg">SVG</a></p>
-<img src="V6_dependency_atlas_assets/V6_dependency_detail_app_rename.svg" alt="app/rename dependency detail">
-</details>
-<details open><summary>app/api - 17 files, 41 shown edges</summary>
+<details open><summary>app/api - 19 files, 47 shown edges</summary>
 <p><a href="V6_dependency_atlas_assets/V6_dependency_detail_app_api.png">PNG</a> <a href="V6_dependency_atlas_assets/V6_dependency_detail_app_api.svg">SVG</a></p>
 <img src="V6_dependency_atlas_assets/V6_dependency_detail_app_api.svg" alt="app/api dependency detail">
 </details>
-<details><summary>app/status - 16 files, 35 shown edges</summary>
+<details><summary>app/rename - 18 files, 49 shown edges</summary>
+<p><a href="V6_dependency_atlas_assets/V6_dependency_detail_app_rename.png">PNG</a> <a href="V6_dependency_atlas_assets/V6_dependency_detail_app_rename.svg">SVG</a></p>
+<img src="V6_dependency_atlas_assets/V6_dependency_detail_app_rename.svg" alt="app/rename dependency detail">
+</details>
+<details><summary>app/status - 16 files, 38 shown edges</summary>
 <p><a href="V6_dependency_atlas_assets/V6_dependency_detail_app_status.png">PNG</a> <a href="V6_dependency_atlas_assets/V6_dependency_detail_app_status.svg">SVG</a></p>
 <img src="V6_dependency_atlas_assets/V6_dependency_detail_app_status.svg" alt="app/status dependency detail">
 </details>
@@ -181,13 +181,13 @@
 <p><a href="V6_dependency_atlas_assets/V6_dependency_detail_app_publish.png">PNG</a> <a href="V6_dependency_atlas_assets/V6_dependency_detail_app_publish.svg">SVG</a></p>
 <img src="V6_dependency_atlas_assets/V6_dependency_detail_app_publish.svg" alt="app/publish dependency detail">
 </details>
+<details><summary>app/audit - 13 files, 34 shown edges</summary>
+<p><a href="V6_dependency_atlas_assets/V6_dependency_detail_app_audit.png">PNG</a> <a href="V6_dependency_atlas_assets/V6_dependency_detail_app_audit.svg">SVG</a></p>
+<img src="V6_dependency_atlas_assets/V6_dependency_detail_app_audit.svg" alt="app/audit dependency detail">
+</details>
 <details><summary>app/maintenance - 13 files, 27 shown edges</summary>
 <p><a href="V6_dependency_atlas_assets/V6_dependency_detail_app_maintenance.png">PNG</a> <a href="V6_dependency_atlas_assets/V6_dependency_detail_app_maintenance.svg">SVG</a></p>
 <img src="V6_dependency_atlas_assets/V6_dependency_detail_app_maintenance.svg" alt="app/maintenance dependency detail">
-</details>
-<details><summary>app/audit - 11 files, 29 shown edges</summary>
-<p><a href="V6_dependency_atlas_assets/V6_dependency_detail_app_audit.png">PNG</a> <a href="V6_dependency_atlas_assets/V6_dependency_detail_app_audit.svg">SVG</a></p>
-<img src="V6_dependency_atlas_assets/V6_dependency_detail_app_audit.svg" alt="app/audit dependency detail">
 </details>
 <details><summary>app/completed - 10 files, 27 shown edges</summary>
 <p><a href="V6_dependency_atlas_assets/V6_dependency_detail_app_completed.png">PNG</a> <a href="V6_dependency_atlas_assets/V6_dependency_detail_app_completed.svg">SVG</a></p>
@@ -225,7 +225,7 @@
 <p><a href="V6_dependency_atlas_assets/V6_dependency_detail_app_telemetry.png">PNG</a> <a href="V6_dependency_atlas_assets/V6_dependency_detail_app_telemetry.svg">SVG</a></p>
 <img src="V6_dependency_atlas_assets/V6_dependency_detail_app_telemetry.svg" alt="app/telemetry dependency detail">
 </details>
-<details><summary>app/diagnostics - 5 files, 12 shown edges</summary>
+<details><summary>app/diagnostics - 5 files, 13 shown edges</summary>
 <p><a href="V6_dependency_atlas_assets/V6_dependency_detail_app_diagnostics.png">PNG</a> <a href="V6_dependency_atlas_assets/V6_dependency_detail_app_diagnostics.svg">SVG</a></p>
 <img src="V6_dependency_atlas_assets/V6_dependency_detail_app_diagnostics.svg" alt="app/diagnostics dependency detail">
 </details>
@@ -233,7 +233,7 @@
 <p><a href="V6_dependency_atlas_assets/V6_dependency_detail_app_storage.png">PNG</a> <a href="V6_dependency_atlas_assets/V6_dependency_detail_app_storage.svg">SVG</a></p>
 <img src="V6_dependency_atlas_assets/V6_dependency_detail_app_storage.svg" alt="app/storage dependency detail">
 </details>
-<details><summary>app/files - 4 files, 8 shown edges</summary>
+<details><summary>app/files - 4 files, 9 shown edges</summary>
 <p><a href="V6_dependency_atlas_assets/V6_dependency_detail_app_files.png">PNG</a> <a href="V6_dependency_atlas_assets/V6_dependency_detail_app_files.svg">SVG</a></p>
 <img src="V6_dependency_atlas_assets/V6_dependency_detail_app_files.svg" alt="app/files dependency detail">
 </details>
@@ -273,11 +273,11 @@
 <p><a href="V6_dependency_atlas_assets/V6_dependency_detail_desktop_network.png">PNG</a> <a href="V6_dependency_atlas_assets/V6_dependency_detail_desktop_network.svg">SVG</a></p>
 <img src="V6_dependency_atlas_assets/V6_dependency_detail_desktop_network.svg" alt="desktop/network dependency detail">
 </details>
-<details open><summary>desktop/api - 25 files, 49 shown edges</summary>
+<details open><summary>desktop/api - 25 files, 50 shown edges</summary>
 <p><a href="V6_dependency_atlas_assets/V6_dependency_detail_desktop_api.png">PNG</a> <a href="V6_dependency_atlas_assets/V6_dependency_detail_desktop_api.svg">SVG</a></p>
 <img src="V6_dependency_atlas_assets/V6_dependency_detail_desktop_api.svg" alt="desktop/api dependency detail">
 </details>
-<details open><summary>desktop/application - 22 files, 118 shown edges</summary>
+<details open><summary>desktop/application - 22 files, 119 shown edges</summary>
 <p><a href="V6_dependency_atlas_assets/V6_dependency_detail_desktop_application.png">PNG</a> <a href="V6_dependency_atlas_assets/V6_dependency_detail_desktop_application.svg">SVG</a></p>
 <img src="V6_dependency_atlas_assets/V6_dependency_detail_desktop_application.svg" alt="desktop/application dependency detail">
 </details>

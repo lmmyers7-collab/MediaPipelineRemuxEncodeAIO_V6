@@ -7,6 +7,33 @@
   "violations": [],
   "route_owners": [
     {
+      "route": "/api/audit-controls",
+      "files": [
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+      ]
+    },
+    {
+      "route": "/api/audit/export-rerun-csv",
+      "files": [
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.js",
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/reportsView.js"
+      ]
+    },
+    {
+      "route": "/api/audit/ignore",
+      "files": [
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.js",
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/reportsView.js"
+      ]
+    },
+    {
+      "route": "/api/audit/score-policy",
+      "files": [
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.js",
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/reportsView.js"
+      ]
+    },
+    {
       "route": "/api/audit/start",
       "files": [
         "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.js"
@@ -45,7 +72,7 @@
     {
       "route": "/api/completed/open",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.js"
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/openActions.js"
       ]
     },
     {
@@ -81,19 +108,19 @@
     {
       "route": "/api/final-library-promotion/pause",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.js"
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/promotionCommands.js"
       ]
     },
     {
       "route": "/api/final-library-promotion/promote-queue",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.js"
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/promotionCommands.js"
       ]
     },
     {
       "route": "/api/final-library-promotion/resume",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.js"
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/promotionCommands.js"
       ]
     },
     {
@@ -202,35 +229,41 @@
     {
       "route": "/api/queue/file-overrides",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.js"
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.drawer.js"
       ]
     },
     {
       "route": "/api/queue/file-overrides/folder-preview",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.js"
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.folderPreview.js"
       ]
     },
     {
       "route": "/api/queue/file-overrides/folder-rule",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.js"
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.folderPreview.js"
       ]
     },
     {
       "route": "/api/queue/file-overrides/route-preview",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.js"
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.routePreview.js"
       ]
     },
     {
       "route": "/api/queue/open",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.js"
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/openActions.js"
       ]
     },
     {
       "route": "/api/queue/priority",
+      "files": [
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.js"
+      ]
+    },
+    {
+      "route": "/api/queue/scan",
       "files": [
         "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.js"
       ]
@@ -403,7 +436,7 @@
       "note": "Final-library promotion must remain explicitly backend-confirmed.",
       "files": [
         {
-          "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.js",
+          "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/promotionCommands.js",
           "has_confirmation": true
         }
       ],

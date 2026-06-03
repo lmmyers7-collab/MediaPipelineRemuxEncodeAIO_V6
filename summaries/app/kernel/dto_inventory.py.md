@@ -3,9 +3,9 @@ file: app/kernel/dto_inventory.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-06-02
-sha256: 762462dc5a1739372e4bb8ee06970592d7a24d5433d8ddf5787a893553e427a6
+sha256: 0747514d05e46f64c2cae6bdbcabddef3e12f69d995b2d0cf56d98ba8b2a9d3b
 ---
 # `app/kernel/dto_inventory.py`
 

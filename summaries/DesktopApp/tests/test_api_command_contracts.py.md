@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_api_command_contracts.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-05-31
-sha256: 1dd48998b76b400dd088a60ae359b321461efbe30d0a619d352f5a429a428829
+sha256: 1e3050461a5cb44e9ceee63eec0e6c7cd8da8aecd3e0fd657caec70d4340d693
 ---
 # `DesktopApp/tests/test_api_command_contracts.py`
 

@@ -19,6 +19,7 @@ from app.telemetry.health import (
     find_bundled_or_system_tool,
     nvidia_smi_health_row,
     powershell_health_row,
+    subtitle_tool_health_rows,
 )
 from app.telemetry.nvidia import (
     apply_nvidia_smi_rows_to_snapshot,
@@ -166,6 +167,59 @@ class TelemetryServiceTests(unittest.TestCase):
         self.assertEqual(rows[0], ("ffmpeg", True, str(ffmpeg)))
         self.assertEqual(rows[1], ("ffprobe", False, "Not found in bundled Tools or system PATH"))
         self.assertEqual(rows[2], ("mkvmerge", False, "Not found in bundled Tools or system PATH"))
+        self.assertEqual(rows[3], ("mkvextract", False, "Not found in bundled Tools or system PATH"))
+
+    def test_subtitle_tool_health_rows_cover_bdpgs_and_vobsub_helpers(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            app_root = root / "DesktopApp"
+            pgs = root / "Pipeline" / "Tools" / "PgsToSrt" / "PgsToSrt.exe"
+            pgs_tessdata = pgs.parent / "tessdata"
+            subtitle_edit = root / "Pipeline" / "Tools" / "SubtitleEditLegacy" / "SubtitleEdit.exe"
+            vobsub_tesseract = subtitle_edit.parent / "Tesseract302" / "tesseract.exe"
+            vobsub_tessdata = vobsub_tesseract.parent / "tessdata"
+            for path in (pgs, subtitle_edit, vobsub_tesseract):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("", encoding="utf-8")
+            for directory in (pgs_tessdata, vobsub_tessdata):
+                directory.mkdir(parents=True, exist_ok=True)
+                (directory / "eng.traineddata").write_text("", encoding="utf-8")
+
+            rows = subtitle_tool_health_rows(
+                root,
+                app_root,
+                {
+                    "ConvertBdpgsToSrt": True,
+                    "ConvertVobSubToSrt": True,
+                    "BdpgsExtractLanguages": ["eng"],
+                    "VobSubExtractLanguages": ["eng"],
+                },
+                which=lambda _name: None,
+            )
+            missing_language_rows = subtitle_tool_health_rows(
+                root,
+                app_root,
+                {
+                    "ConvertBdpgsToSrt": True,
+                    "ConvertVobSubToSrt": True,
+                    "BdpgsExtractLanguages": ["jpn"],
+                    "VobSubExtractLanguages": ["jpn"],
+                },
+                which=lambda _name: None,
+            )
+
+        by_name = {row[0]: row for row in rows}
+        self.assertEqual(by_name["PgsToSrt (BDPGS OCR)"][1], True)
+        self.assertEqual(by_name["PgsToSrt tessdata (BDPGS OCR)"][1], True)
+        self.assertEqual(by_name["SubtitleEdit.exe (VobSub OCR)"][1], True)
+        self.assertEqual(by_name["Tesseract OCR (VobSub OCR)"][1], True)
+        self.assertIn("tessdata=", by_name["Tesseract OCR (VobSub OCR)"][2])
+
+        by_missing_name = {row[0]: row for row in missing_language_rows}
+        self.assertEqual(by_missing_name["PgsToSrt tessdata (BDPGS OCR)"][1], False)
+        self.assertIn("jpn", by_missing_name["PgsToSrt tessdata (BDPGS OCR)"][2])
+        self.assertEqual(by_missing_name["Tesseract OCR (VobSub OCR)"][1], False)
+        self.assertIn("jpn", by_missing_name["Tesseract OCR (VobSub OCR)"][2])
 
     def test_ass_to_srt_health_helpers_find_script_and_shape_results(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -200,6 +254,12 @@ class TelemetryServiceTests(unittest.TestCase):
                 "Pipeline/Tools/ffmpeg/bin/ffmpeg.exe",
                 "Pipeline/Tools/ffmpeg/bin/ffprobe.exe",
                 "Pipeline/Tools/MKVToolNix/mkvmerge.exe",
+                "Pipeline/Tools/MKVToolNix/mkvextract.exe",
+                "Pipeline/Tools/PgsToSrt/PgsToSrt.exe",
+                "Pipeline/Tools/PgsToSrt/tessdata/eng.traineddata",
+                "Pipeline/Tools/SubtitleEditLegacy/SubtitleEdit.exe",
+                "Pipeline/Tools/SubtitleEditLegacy/Tesseract302/tesseract.exe",
+                "Pipeline/Tools/SubtitleEditLegacy/Tesseract302/tessdata/eng.traineddata",
             ):
                 path = root / rel
                 path.parent.mkdir(parents=True, exist_ok=True)
@@ -218,6 +278,12 @@ class TelemetryServiceTests(unittest.TestCase):
                 audit_script_path=root / "audit.ps1",
                 rerun_script_path=root / "rerun.ps1",
                 powershell_host="pwsh.exe",
+                config_data={
+                    "ConvertBdpgsToSrt": True,
+                    "ConvertVobSubToSrt": True,
+                    "BdpgsExtractLanguages": ["eng"],
+                    "VobSubExtractLanguages": ["eng"],
+                },
             )
 
             def fake_run(*_args, **_kwargs):
@@ -238,9 +304,16 @@ class TelemetryServiceTests(unittest.TestCase):
         self.assertEqual(by_name["ffmpeg"][1], True)
         self.assertEqual(by_name["ffprobe"][1], True)
         self.assertEqual(by_name["mkvmerge"][1], True)
+        self.assertEqual(by_name["mkvextract"][1], True)
         self.assertEqual(by_name["nvidia-smi (optional)"][1], False)
         self.assertEqual(by_name["ass_to_srt (subtitle converter)"], ("ass_to_srt (subtitle converter)", True, str(script)))
+        self.assertEqual(by_name["PgsToSrt (BDPGS OCR)"][1], True)
+        self.assertEqual(by_name["PgsToSrt tessdata (BDPGS OCR)"][1], True)
+        self.assertEqual(by_name["SubtitleEdit.exe (VobSub OCR)"][1], True)
+        self.assertEqual(by_name["Tesseract OCR (VobSub OCR)"][1], True)
         self.assertTrue(any(event["active_step_id"] == "subtitle_helper" for event in progress_events))
+        self.assertTrue(any(event["active_step_id"] == "subtitle_bdpgs_ocr" for event in progress_events))
+        self.assertTrue(any(event["active_step_id"] == "subtitle_vobsub_ocr" for event in progress_events))
         self.assertTrue(any(event["active_step_id"] == "pending_publish_path" for event in progress_events))
         self.assertTrue(all(isinstance(event["rows"], list) for event in progress_events))
 

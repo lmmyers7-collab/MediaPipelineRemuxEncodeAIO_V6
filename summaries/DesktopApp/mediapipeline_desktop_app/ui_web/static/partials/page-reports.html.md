@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/page-reports.h
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-05-29
-sha256: 722f66bb8442391fe161f93bc6ead90b945e89d54a6ecd83985d11dbb32579b1
+sha256: 6adcdef111d6edc6ca13f3f685b0956204d54aa1b9d933ed8a18e5e33e635034
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/page-reports.html`
 

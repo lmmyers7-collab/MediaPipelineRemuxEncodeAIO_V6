@@ -179,7 +179,8 @@ function Get-ManifestPriorityLevel {
     # 1. Exact match
     if ($entries.ContainsKey($norm)) {
         $level = ([string]$entries[$norm].level).ToLowerInvariant()
-        return if ($level -in $validLevels) { $level } else { $default }
+        if ($level -in $validLevels) { return $level }
+        return $default
     }
 
     # 2. Folder prefix match — deepest ancestor wins
@@ -325,6 +326,7 @@ function New-MediaQueueItem {
 
     $priorityTicks = 0L
     try { $priorityTicks = [long]$PriorityInfo.PriorityOrderTicks } catch {}
+    $metadataValue = if ($Metadata) { $Metadata } else { @{} }
 
     # Effective priority: manifest wins over filesystem marker when set.
     # FS marker alone → "high" (backward compat). No marker, no manifest → "normal".
@@ -366,7 +368,7 @@ function New-MediaQueueItem {
         LibraryOutputRoot      = $LibraryOutputRoot
         LastWriteUtc           = $LastWriteUtc
         FullName               = $SourcePath
-        Metadata               = if ($Metadata) { $Metadata } else { @{} }
+        Metadata               = $metadataValue
     }
 }
 
@@ -374,6 +376,7 @@ function ConvertTo-MediaQueueItemRecord {
     param($QueueItem)
 
     if ($null -eq $QueueItem) { return $null }
+    $metadataValue = if ($QueueItem.Metadata) { $QueueItem.Metadata } else { @{} }
 
     return [pscustomobject][ordered]@{
         schema_version          = [string]$QueueItem.QueueItemType
@@ -393,7 +396,7 @@ function ConvertTo-MediaQueueItemRecord {
         library_name            = [string]$QueueItem.LibraryName
         library_designation     = [string]$QueueItem.LibraryDesignation
         library_output_root     = [string]$QueueItem.LibraryOutputRoot
-        metadata                = if ($QueueItem.Metadata) { $QueueItem.Metadata } else { @{} }
+        metadata                = $metadataValue
     }
 }
 

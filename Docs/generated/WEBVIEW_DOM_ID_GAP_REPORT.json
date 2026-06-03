@@ -22,9 +22,9 @@
   ],
   "report_note": "Pre-split report only. IDs are collected from index.html with mp-include partials expanded. Missing IDs can be legitimate when markup is generated at runtime, but every future split should keep this report stable or deliberately update it.",
   "counts": {
-    "html_ids": 1329,
-    "js_touched_ids": 401,
-    "ids_present_in_index": 376,
+    "html_ids": 1363,
+    "js_touched_ids": 405,
+    "ids_present_in_index": 380,
     "ids_missing_from_index": 25,
     "likely_dynamic_missing_ids": 0,
     "review_missing_ids": 25
@@ -39,10 +39,14 @@
     "api-contract-rows",
     "api-contract-safety-rows",
     "api-contract-scope",
+    "audit-export-rerun-csv-button",
+    "audit-ignore-selected-button",
     "audit-launch-log-rows",
     "audit-preview-filter",
     "audit-preview-priority-only",
     "audit-preview-rows",
+    "audit-score-policy-reset-button",
+    "audit-score-policy-save-button",
     "audit-start-button",
     "audit-start-include-sidecars",
     "audit-start-library-root",
@@ -148,11 +152,7 @@
     "fo-folder-rules-refresh",
     "fo-inherited-settings-status",
     "fo-overlay",
-    "fo-processing-route-section",
-    "fo-route-preview-status",
     "fo-route-profile",
-    "fo-route-risk-confirm",
-    "fo-route-risk-confirmation",
     "fo-route-threshold-mode",
     "fo-sub-drop-langs",
     "fo-sub-filter-fields",
@@ -311,6 +311,10 @@
     "rename-start",
     "rename-table-legend",
     "rename-template-preset",
+    "report-audit-export-rerun-csv-button",
+    "report-audit-ignore-selected-button",
+    "report-audit-score-policy-reset-button",
+    "report-audit-score-policy-save-button",
     "rerun-start-button",
     "rerun-start-csv-path",
     "rerun-start-show-console",
@@ -577,6 +581,35 @@
       "missing_from_index": []
     },
     {
+      "src": "/assets/completed/statusBoards.js",
+      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/statusBoards.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/promotionCommands.js",
+      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/promotionCommands.js",
+      "dom_ids_touched": [
+        "final-library-pause-button",
+        "final-library-promote-button",
+        "final-library-promotion-rows",
+        "final-library-resume-button"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/openActions.js",
+      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/openActions.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/selection.js",
+      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/selection.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
       "src": "/assets/completed/filters.js",
       "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/filters.js",
       "dom_ids_touched": [
@@ -606,11 +639,7 @@
       "src": "/assets/completedView.js",
       "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.js",
       "dom_ids_touched": [
-        "completed-pilot-evidence-markdown",
-        "final-library-pause-button",
-        "final-library-promote-button",
-        "final-library-promotion-rows",
-        "final-library-resume-button"
+        "completed-pilot-evidence-markdown"
       ],
       "missing_from_index": []
     },
@@ -655,6 +684,18 @@
       "missing_from_index": []
     },
     {
+      "src": "/assets/queue/selection.js",
+      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/selection.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/openActions.js",
+      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/openActions.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
       "src": "/assets/queue/table.js",
       "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/table.js",
       "dom_ids_touched": [],
@@ -663,6 +704,49 @@
     {
       "src": "/assets/queueView.js",
       "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.js",
+      "dom_ids_touched": [
+        "queue-excluded-rows",
+        "queue-filter",
+        "queue-investigation-filter",
+        "queue-rows",
+        "queue-status-filter",
+        "queue-strategy-apply-btn",
+        "queue-strategy-select",
+        "queue-strategy-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/fileOverrides.routePreview.js",
+      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.routePreview.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/fileOverrides.folderPreview.js",
+      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.folderPreview.js",
+      "dom_ids_touched": [
+        "fo-audio-drop-langs",
+        "fo-audio-keep-langs",
+        "fo-folder-preview-conflicts",
+        "fo-folder-preview-library-settings",
+        "fo-folder-preview-panel",
+        "fo-folder-preview-samples",
+        "fo-folder-preview-save",
+        "fo-folder-preview-scope-select",
+        "fo-folder-preview-selectors",
+        "fo-folder-preview-warnings",
+        "fo-folder-rules-list",
+        "fo-folder-rules-panel",
+        "fo-sub-drop-langs",
+        "fo-sub-keep-langs",
+        "fo-sub-strip-all"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/fileOverrides.drawer.js",
+      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.drawer.js",
       "dom_ids_touched": [
         "fo-audio-drop-langs",
         "fo-audio-keep-langs",
@@ -675,27 +759,17 @@
         "fo-drawer-save",
         "fo-drawer-status",
         "fo-drawer-title",
-        "fo-folder-preview-conflicts",
         "fo-folder-preview-library-settings",
         "fo-folder-preview-open",
-        "fo-folder-preview-panel",
-        "fo-folder-preview-samples",
         "fo-folder-preview-save",
         "fo-folder-preview-scope-select",
-        "fo-folder-preview-selectors",
-        "fo-folder-preview-warnings",
         "fo-folder-rules-library-settings",
         "fo-folder-rules-list",
         "fo-folder-rules-open",
-        "fo-folder-rules-panel",
         "fo-folder-rules-refresh",
         "fo-inherited-settings-status",
         "fo-overlay",
-        "fo-processing-route-section",
-        "fo-route-preview-status",
         "fo-route-profile",
-        "fo-route-risk-confirm",
-        "fo-route-risk-confirmation",
         "fo-route-threshold-mode",
         "fo-sub-drop-langs",
         "fo-sub-filter-fields",
@@ -705,15 +779,7 @@
         "fo-video-codec",
         "fo-video-container",
         "fo-video-encode-ladder",
-        "fo-video-encode-preset",
-        "queue-excluded-rows",
-        "queue-filter",
-        "queue-investigation-filter",
-        "queue-rows",
-        "queue-status-filter",
-        "queue-strategy-apply-btn",
-        "queue-strategy-select",
-        "queue-strategy-status"
+        "fo-video-encode-preset"
       ],
       "missing_from_index": []
     },
@@ -998,6 +1064,18 @@
       "missing_from_index": []
     },
     {
+      "src": "/assets/settings/metadataFields.js",
+      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settings/metadataFields.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settings/builderControls.js",
+      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settings/builderControls.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
       "src": "/assets/settingsView.builders.audio.js",
       "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.builders.audio.js",
       "dom_ids_touched": [
@@ -1261,7 +1339,11 @@
         "failure-preview-all-clear-button",
         "failure-preview-selected-clear-button",
         "failure-preview-visible-clear-button",
-        "failure-rows"
+        "failure-rows",
+        "report-audit-export-rerun-csv-button",
+        "report-audit-ignore-selected-button",
+        "report-audit-score-policy-reset-button",
+        "report-audit-score-policy-save-button"
       ],
       "missing_from_index": []
     },
@@ -1382,7 +1464,11 @@
       "src": "/assets/launchView.js",
       "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.js",
       "dom_ids_touched": [
+        "audit-export-rerun-csv-button",
+        "audit-ignore-selected-button",
         "audit-launch-log-rows",
+        "audit-score-policy-reset-button",
+        "audit-score-policy-save-button",
         "audit-start-include-sidecars",
         "audit-start-library-root",
         "audit-start-show-console",

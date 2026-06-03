@@ -177,16 +177,37 @@ const settingsAdvancedFallbackKeys = new Set(settingsMetadata.settingsAdvancedFa
 const settingsPatchComplexBackendKeys = new Set(["LibraryProfiles", "FinalLibraryPromotionRules"]);
 let settingsAdvancedToggleEventsBound = false;
 
-function settingsFieldDefaultValue(key, fallback) {
-  const field = settingsFieldDefinition(key);
-  if (field && Object.prototype.hasOwnProperty.call(field, "default_value") && field.default_value !== null && field.default_value !== undefined) {
-    return field.default_value;
-  }
-  if (field && Object.prototype.hasOwnProperty.call(field, "default") && field.default !== null && field.default !== undefined) {
-    return field.default;
-  }
-  return fallback;
-}
+const settingsMetadataFieldsModule = window.__settingsMetadataFieldsModule || {};
+delete window.__settingsMetadataFieldsModule;
+const settingsMetadataFields = typeof settingsMetadataFieldsModule.createSettingsMetadataFieldsModule === "function"
+  ? settingsMetadataFieldsModule.createSettingsMetadataFieldsModule({
+    getLastSettingsFieldMap: () => lastSettingsFieldMap,
+    settingsAdvancedFallbackKeys,
+    settingsChoiceLabels,
+  })
+  : {};
+const settingsFieldDefinition = settingsMetadataFields.settingsFieldDefinition || function (key) {
+  return lastSettingsFieldMap ? lastSettingsFieldMap[key] || null : null;
+};
+const settingsFieldDefaultValue = settingsMetadataFields.settingsFieldDefaultValue || function (_key, fallback) { return fallback; };
+const formatSettingsChoiceLabel = settingsMetadataFields.formatSettingsChoiceLabel || function (value) { return String(value || ""); };
+const settingsFieldAllowedValues = settingsMetadataFields.settingsFieldAllowedValues || function (field) {
+  if (Array.isArray(field?.allowed_values) && field.allowed_values.length) return field.allowed_values;
+  if (Array.isArray(field?.choices) && field.choices.length) return field.choices;
+  return [];
+};
+const settingsHasBackendFieldDefinitions = settingsMetadataFields.settingsHasBackendFieldDefinitions || function () {
+  return Boolean(lastSettingsFieldMap && Object.keys(lastSettingsFieldMap).length);
+};
+const settingsFieldLabel = settingsMetadataFields.settingsFieldLabel || function (key, fallback = "") { return fallback || key; };
+const settingsPersistedKeyDisplayList = settingsMetadataFields.settingsPersistedKeyDisplayList || function (keys) {
+  return (Array.isArray(keys) ? keys : []).map((key) => String(key || "")).filter(Boolean).join(", ");
+};
+const settingsFieldHelpText = settingsMetadataFields.settingsFieldHelpText || function (field) {
+  return String(field?.help_text || field?.help || "").trim();
+};
+const settingsFieldIsAdvanced = settingsMetadataFields.settingsFieldIsAdvanced || function () { return false; };
+const settingsMetadataValue = settingsMetadataFields.settingsMetadataValue || function (value) { return String(value ?? ""); };
 
 function settingsBuilderConfigValue(key, fallback) {
   const value = lastSettingsValues ? lastSettingsValues[key] : undefined;
@@ -194,454 +215,44 @@ function settingsBuilderConfigValue(key, fallback) {
   return value;
 }
 
-function settingsFieldDefinition(key) {
-  return lastSettingsFieldMap ? lastSettingsFieldMap[key] : null;
-}
-
-function formatSettingsChoiceLabel(value) {
-  const text = String(value || "");
-  if (settingsChoiceLabels[text]) return settingsChoiceLabels[text];
-  return text.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
-function settingsFieldAllowedValues(field) {
-  if (Array.isArray(field?.allowed_values) && field.allowed_values.length) return field.allowed_values;
-  if (Array.isArray(field?.choices) && field.choices.length) return field.choices;
-  return [];
-}
-
-function settingsHasBackendFieldDefinitions() {
-  return Boolean(lastSettingsFieldMap && Object.keys(lastSettingsFieldMap).length);
-}
-
-function settingsLocalValidationHint(severity, context, key, message) {
-  return {
-    severity,
-    context,
-    key,
-    message,
-  };
-}
-
-function settingsAllowedValueHint(field, key, value, context) {
-  const allowedValues = settingsFieldAllowedValues(field);
-  if (!allowedValues.length) return [];
-  const allowedText = allowedValues.map((item) => String(item));
-  const values = Array.isArray(value) ? value : [value];
-  const badValues = values
-    .filter((item) => item !== null && item !== undefined && item !== "")
-    .map((item) => String(item))
-    .filter((item) => !allowedText.includes(item));
-  if (!badValues.length) return [];
-  return [
-    settingsLocalValidationHint(
-      "warning",
-      context,
-      key,
-      `${key} has value ${badValues.join(", ")} outside backend allowed_values (${allowedText.join(", ")}).`
-    ),
-  ];
-}
-
-function settingsNumericConstraintHints(field, key, value, context) {
-  if (value === null || value === undefined || value === "" || Array.isArray(value) || typeof value === "object") return [];
-  const valueType = String(field?.value_type || "");
-  const kind = String(field?.kind || "");
-  const numeric = ["integer", "number"].includes(valueType) || ["int", "optional_int", "combo_int", "optional_float"].includes(kind);
-  if (!numeric) return [];
-  const numberValue = Number(value);
-  if (!Number.isFinite(numberValue)) {
-    return [settingsLocalValidationHint("warning", context, key, `${key} should be numeric according to backend metadata.`)];
-  }
-  const hints = [];
-  if (field.min !== null && field.min !== undefined && numberValue < Number(field.min)) {
-    hints.push(settingsLocalValidationHint("warning", context, key, `${key} is below backend min ${field.min}.`));
-  }
-  if (field.max !== null && field.max !== undefined && numberValue > Number(field.max)) {
-    hints.push(settingsLocalValidationHint("warning", context, key, `${key} is above backend max ${field.max}.`));
-  }
-  if (field.step !== null && field.step !== undefined && field.step !== "") {
-    const step = Number(field.step);
-    const base = Number.isFinite(Number(field.min)) ? Number(field.min) : 0;
-    if (Number.isFinite(step) && step > 0) {
-      const ratio = (numberValue - base) / step;
-      if (Math.abs(ratio - Math.round(ratio)) > 1e-9) {
-        hints.push(settingsLocalValidationHint("warning", context, key, `${key} does not align to backend step ${field.step}.`));
-      }
-    }
-  }
-  return hints;
-}
-
-function settingsPatchLocalValidationHintsForKey(key, value, context = "settings", options = {}) {
-  const hints = [];
-  const friendlyTarget = settingsFriendlyPersistedKeyAliases[key];
-  if (friendlyTarget) {
-    hints.push(settingsLocalValidationHint(
-      "error",
-      context,
-      key,
-      `${key} is a display label only; use persisted key ${friendlyTarget}.`
-    ));
-  }
-  const field = settingsFieldDefinition(key);
-  if (!field) {
-    if (settingsHasBackendFieldDefinitions() && !settingsPatchComplexBackendKeys.has(key)) {
-      hints.push(settingsLocalValidationHint(
-        "warning",
-        context,
-        key,
-        `${key} is not in backend field metadata loaded by this WebView. Backend preview/save remains authoritative.`
-      ));
-    }
-    return hints;
-  }
-  if (options.libraryOverride === true) {
-    const scope = String(field.scope || "");
-    const overrideGroup = String(field.override_group || "");
-    if (field.library_override_allowed !== true) {
-      hints.push(settingsLocalValidationHint(
-        "error",
-        context,
-        key,
-        scope === "source_derived" || scope === "computed_only"
-          ? `${key} is read-only source/effective metadata and cannot be saved as a library override.`
-          : `${key} is global-only and cannot be saved as a library override.`
-      ));
-    } else if (options.overrideGroup && overrideGroup && overrideGroup !== options.overrideGroup) {
-      hints.push(settingsLocalValidationHint(
-        "error",
-        context,
-        key,
-        `${key} belongs in overrides.${overrideGroup}, not overrides.${options.overrideGroup}.`
-      ));
-    }
-  }
-  hints.push(...settingsAllowedValueHint(field, key, value, context));
-  hints.push(...settingsNumericConstraintHints(field, key, value, context));
-  return hints;
-}
-
-function settingsPatchLibraryOverrideValidationHints(libraryProfiles) {
-  if (!Array.isArray(libraryProfiles)) return [];
-  const hints = [];
-  libraryProfiles.forEach((profile, index) => {
-    if (!profile || typeof profile !== "object") return;
-    const profileLabel = String(profile.id || profile.name || `profile ${index + 1}`);
-    const overrides = profile.overrides && typeof profile.overrides === "object" && !Array.isArray(profile.overrides)
-      ? profile.overrides
-      : {};
-    ["editor", "video", "subtitles", "audio"].forEach((group) => {
-      const groupValues = overrides[group];
-      if (!groupValues || typeof groupValues !== "object" || Array.isArray(groupValues)) return;
-      Object.entries(groupValues).forEach(([key, value]) => {
-        hints.push(...settingsPatchLocalValidationHintsForKey(
-          String(key),
-          value,
-          `LibraryProfiles.${profileLabel}.overrides.${group}`,
-          { libraryOverride: true, overrideGroup: group }
-        ));
-      });
-    });
-    ["editor_overrides", "media_overrides"].forEach((legacyGroup) => {
-      const groupValues = profile[legacyGroup];
-      if (!groupValues || typeof groupValues !== "object" || Array.isArray(groupValues)) return;
-      Object.entries(groupValues).forEach(([key, value]) => {
-        hints.push(...settingsPatchLocalValidationHintsForKey(
-          String(key),
-          value,
-          `LibraryProfiles.${profileLabel}.${legacyGroup}`,
-          { libraryOverride: true }
-        ));
-      });
-    });
-  });
-  return hints;
-}
-
 function settingsPatchLocalValidationHints(changes) {
-  if (!changes || Array.isArray(changes) || typeof changes !== "object") return [];
-  const hints = [];
-  Object.entries(changes).forEach(([key, value]) => {
-    hints.push(...settingsPatchLocalValidationHintsForKey(String(key), value, "settings"));
-    if (key === "LibraryProfiles") {
-      hints.push(...settingsPatchLibraryOverrideValidationHints(value));
-    }
-  });
-  return hints;
+  return settingsPatchReviewCall("settingsPatchLocalValidationHints", [changes], []);
 }
 
 function settingsPatchLocalValidationHintLines(changes) {
-  const hints = settingsPatchLocalValidationHints(changes);
-  if (!hints.length) return [];
-  return [
-    "Local validation hints (advisory only; backend preview/save remains authoritative):",
-    ...hints.map((hint) => `- [${hint.severity}] ${hint.context}.${hint.key}: ${hint.message}`),
-  ];
+  return settingsPatchReviewCall("settingsPatchLocalValidationHintLines", [changes], []);
 }
 
-function settingsFieldLabel(key, fallback = "") {
-  const field = settingsFieldDefinition(key);
-  return field?.label || fallback || key;
-}
-
-function settingsPersistedKeyDisplay(key) {
-  const persisted = String(key || "").trim();
-  if (!persisted) return "";
-  const label = settingsFieldLabel(persisted, persisted);
-  return label && label !== persisted ? `${persisted} (${label})` : persisted;
-}
-
-function settingsPersistedKeyDisplayList(keys) {
-  return (Array.isArray(keys) ? keys : [])
-    .map(settingsPersistedKeyDisplay)
-    .filter(Boolean)
-    .join(", ");
-}
-
-function settingsFieldHelpText(field) {
-  return String(field?.help_text || field?.help || "").trim();
-}
-
-function settingsMetadataTags(value) {
-  if (Array.isArray(value)) return value.map((item) => String(item || "").trim()).filter(Boolean);
-  const text = String(value || "").trim();
-  return text ? [text] : [];
-}
-
-function settingsFieldIsAdvanced(key, field) {
-  const advancedVisibility = String(field?.advanced_visibility || "").trim().toLowerCase();
-  const section = String(field?.section || "").trim().toLowerCase();
-  const tags = [
-    ...settingsMetadataTags(field?.rule_taxonomy),
-    ...settingsMetadataTags(field?.strictness),
-  ].map((value) => String(value || "").trim().toLowerCase());
-  return advancedVisibility === "advanced"
-    || section === "advanced"
-    || tags.includes("advanced")
-    || settingsAdvancedFallbackKeys.has(String(key || field?.key || ""));
-}
-
-function settingsMetadataValue(value) {
-  if (value === undefined || value === null) return "";
-  if (Array.isArray(value)) return value.join(", ");
-  if (typeof value === "object") {
-    try {
-      return JSON.stringify(value);
-    } catch (_error) {
-      return String(value);
-    }
-  }
-  return String(value);
-}
-
-function updateSettingsLabelText(label, control, labelText) {
-  if (!label || !control || !labelText) return;
-  const childNodes = Array.from(label.childNodes || []);
-  const controlIndex = childNodes.indexOf(control);
-  const textNodes = childNodes.filter((node) => node.nodeType === Node.TEXT_NODE && String(node.nodeValue || "").trim());
-  if (!textNodes.length) return;
-  const target = label.classList.contains("check-row")
-    ? textNodes.find((node) => childNodes.indexOf(node) > controlIndex) || textNodes[0]
-    : textNodes.find((node) => childNodes.indexOf(node) < controlIndex) || textNodes[0];
-  const original = String(target.nodeValue || "");
-  const leading = original.match(/^\s*/)?.[0] || "";
-  const trailing = original.match(/\s*$/)?.[0] || "";
-  target.nodeValue = `${leading}${labelText}${trailing || " "}`;
-}
-
-// eslint-disable-next-line complexity -- legacy metadata sync owns several independent control attributes.
-function applySettingsFieldMetadataToControl([key, id, fallbackKind]) {
-  const field = settingsFieldDefinition(key);
-  const element = byId(id);
-  if (!field || !element) return;
-  const label = element.closest?.("label") || null;
-  const labelText = settingsFieldLabel(key);
-  const valueType = String(field.value_type || field.kind || fallbackKind || "");
-  const advancedVisibility = String(field.advanced_visibility || "standard");
-  const isAdvanced = settingsFieldIsAdvanced(key, field);
-  const advancedTarget = label || element;
-  const persistedKey = String(field.persisted_key || key);
-  element.dataset.settingsKey = key;
-  element.dataset.settingsPersistedKey = persistedKey;
-  element.dataset.settingsValueType = valueType;
-  element.dataset.settingsAdvancedVisibility = advancedVisibility;
-  element.dataset.settingsAdvancedControl = String(isAdvanced);
-  if (field.short_label) element.dataset.settingsShortLabel = String(field.short_label);
-  if (field.section) element.dataset.settingsSection = String(field.section);
-  advancedTarget.classList.toggle("settings-advanced-field", isAdvanced);
-  if (isAdvanced) {
-    advancedTarget.dataset.settingsAdvancedControl = "true";
-  } else {
-    delete advancedTarget.dataset.settingsAdvancedControl;
-    advancedTarget.hidden = false;
-  }
-  if (label) {
-    label.dataset.settingsKey = key;
-    label.dataset.settingsPersistedKey = persistedKey;
-    label.dataset.settingsAdvancedVisibility = advancedVisibility;
-    label.dataset.settingsAdvancedControl = String(isAdvanced);
-    if (field.short_label) label.dataset.settingsShortLabel = String(field.short_label);
-    if (field.section) label.dataset.settingsSection = String(field.section);
-    updateSettingsLabelText(label, element, labelText);
-  }
-  const help = settingsFieldHelpText(field);
-  if (help) {
-    element.title = help;
-    if (label) label.title = help;
-  }
-  const defaultValue = settingsFieldDefaultValue(key, undefined);
-  if (defaultValue !== undefined) {
-    element.dataset.settingsDefaultValue = settingsMetadataValue(defaultValue);
-  }
-  if (field.default_source) element.dataset.settingsDefaultSource = String(field.default_source);
-  if (field.validation_owner) element.dataset.settingsValidationOwner = String(field.validation_owner);
-  if (field.runtime_consumer) element.dataset.settingsRuntimeConsumer = String(field.runtime_consumer);
-  if (element instanceof HTMLInputElement && element.type !== "checkbox") {
-    if (["integer", "number"].includes(String(field.value_type || ""))) {
-      if (element.type !== "range") element.type = "number";
-    }
-    const preserveRangeLimits = element.type === "range" && element.dataset.settingsPreserveRangeLimits === "true";
-    if (!preserveRangeLimits && field.min !== null && field.min !== undefined) element.min = String(field.min);
-    if (!preserveRangeLimits && field.max !== null && field.max !== undefined) element.max = String(field.max);
-    if (!preserveRangeLimits && field.step !== null && field.step !== undefined) element.step = String(field.step);
-  }
-}
-
-function settingsAdvancedFieldContainers(pane) {
-  const seen = new Set();
-  return Array.from(pane.querySelectorAll('[data-settings-advanced-control="true"]'))
-    .map((node) => node.closest?.("label") || node)
-    .filter((node) => node && !node.closest?.(".settings-advanced-disclosure"))
-    .filter((node) => {
-      if (seen.has(node)) return false;
-      seen.add(node);
-      return true;
-    });
-}
-
-function ensureSettingsAdvancedToggle(pane) {
-  let row = Array.from(pane.children || []).find((node) => node.matches?.("[data-settings-advanced-toggle-row]"));
-  if (row) return row;
-  row = document.createElement("div");
-  row.className = "settings-advanced-toggle-row";
-  row.dataset.settingsAdvancedToggleRow = "true";
-
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "secondary-button settings-advanced-toggle";
-  button.dataset.settingsAdvancedToggle = "true";
-  button.setAttribute("aria-expanded", "false");
-  button.textContent = "Show advanced controls";
-
-  const note = document.createElement("span");
-  note.className = "settings-advanced-toggle-note";
-  note.textContent = "Advanced controls are hidden by default. Revealing them does not change saved keys, defaults, or backend preview/save authority.";
-
-  row.append(button, note);
-  pane.insertBefore(row, pane.firstElementChild || null);
-  return row;
-}
-
-function syncSettingsAdvancedPane(pane) {
-  const fields = settingsAdvancedFieldContainers(pane);
-  const row = pane.querySelector?.("[data-settings-advanced-toggle-row]");
-  if (!fields.length) {
-    if (row) row.remove();
-    return;
-  }
-  const toggleRow = ensureSettingsAdvancedToggle(pane);
-  const button = toggleRow.querySelector("[data-settings-advanced-toggle]");
-  const expanded = pane.dataset.settingsAdvancedExpanded === "true";
-  fields.forEach((node) => {
-    node.hidden = !expanded;
-    node.dataset.settingsAdvancedCollapsed = String(!expanded);
-  });
-  if (button) {
-    button.setAttribute("aria-expanded", String(expanded));
-    button.textContent = expanded ? "Hide advanced controls" : "Show advanced controls";
-  }
-}
-
-function renderSettingsAdvancedControls() {
-  document
-    .querySelectorAll('[data-page-panel="settings"] .settings-tab-pane[data-settings-tab]')
-    .forEach(syncSettingsAdvancedPane);
-}
-
-function toggleSettingsAdvancedPane(button) {
-  const pane = button.closest?.(".settings-tab-pane[data-settings-tab]");
-  if (!pane) return;
-  pane.dataset.settingsAdvancedExpanded = pane.dataset.settingsAdvancedExpanded === "true" ? "false" : "true";
-  syncSettingsAdvancedPane(pane);
-}
-
-function handleSettingsAdvancedToggleClick(event) {
-  const button = event.target?.closest?.("[data-settings-advanced-toggle]");
-  if (!button) return;
-  event.preventDefault();
-  toggleSettingsAdvancedPane(button);
-}
-
-function settingsBuilderFieldGroups() {
-  return [
-    settingsBuilderFields,
-    videoDetailSettingsBuilderFields,
-    subtitleSettingsBuilderFields,
+const settingsBuilderControlsModule = window.__settingsBuilderControlsModule || {};
+delete window.__settingsBuilderControlsModule;
+const settingsBuilderControls = typeof settingsBuilderControlsModule.createSettingsBuilderControlsModule === "function"
+  ? settingsBuilderControlsModule.createSettingsBuilderControlsModule({
     audioSettingsBuilderFields,
+    byId,
     fileSafetySettingsBuilderFields,
-    runtimeSettingsBuilderFields,
+    finalLibraryPromotionSettingsBuilderFields,
+    formatSettingsChoiceLabel,
+    networkSettingsBuilderFields,
     pendingPublishSettingsBuilderFields,
     queueSettingsBuilderFields,
-    networkSettingsBuilderFields,
-    finalLibraryPromotionSettingsBuilderFields,
-  ];
-}
-
-function settingsAllBuilderFields() {
-  const seen = new Set();
-  return settingsBuilderFieldGroups()
-    .flat()
-    .filter((field) => {
-      const key = String(field?.[0] || "");
-      const id = String(field?.[1] || "");
-      const identity = `${key}|${id}`;
-      if (!key || !id || seen.has(identity)) return false;
-      seen.add(identity);
-      return true;
-    });
-}
-
-function applySettingsFieldMetadataToControls() {
-  settingsAllBuilderFields().forEach(applySettingsFieldMetadataToControl);
-}
-
-function refreshSettingsSelectChoices(fields) {
-  fields.forEach(([key, id]) => {
-    const element = byId(id);
-    const field = settingsFieldDefinition(key);
-    const choices = settingsFieldAllowedValues(field);
-    if (!element || element.tagName !== "SELECT" || !choices.length) return;
-    const current = element.value;
-    element.replaceChildren();
-    choices.forEach((choice) => {
-      const option = document.createElement("option");
-      option.value = String(choice);
-      option.textContent = formatSettingsChoiceLabel(choice);
-      if (field.choice_help && field.choice_help[String(choice)]) {
-        option.title = field.choice_help[String(choice)];
-      }
-      element.appendChild(option);
-    });
-    const choiceValues = choices.map((choice) => String(choice));
-    const fallback = settingsFieldDefaultValue(key, choices[0] || "");
-    element.value = choiceValues.includes(current) ? current : String(fallback || choices[0] || "");
-  });
-}
-
-function refreshSettingsBuilderChoices() {
-  refreshSettingsSelectChoices(settingsBuilderFields);
-}
+    runtimeSettingsBuilderFields,
+    settingsBuilderFields,
+    settingsFieldAllowedValues,
+    settingsFieldDefaultValue,
+    settingsFieldDefinition,
+    settingsFieldHelpText,
+    settingsFieldIsAdvanced,
+    settingsFieldLabel,
+    settingsMetadataValue,
+    subtitleSettingsBuilderFields,
+    videoDetailSettingsBuilderFields,
+  })
+  : {};
+const renderSettingsAdvancedControls = settingsBuilderControls.renderSettingsAdvancedControls || function () {};
+const handleSettingsAdvancedToggleClick = settingsBuilderControls.handleSettingsAdvancedToggleClick || function () {};
+const applySettingsFieldMetadataToControls = settingsBuilderControls.applySettingsFieldMetadataToControls || function () {};
+const refreshSettingsSelectChoices = settingsBuilderControls.refreshSettingsSelectChoices || function () {};
+const refreshSettingsBuilderChoices = settingsBuilderControls.refreshSettingsBuilderChoices || function () {};
 
 const audioSettingsBuilderModule = window.__settingsViewAudioBuilderModule || {};
 delete window.__settingsViewAudioBuilderModule;
@@ -1399,9 +1010,13 @@ settingsPatchReview = typeof settingsPatchReviewModule.createSettingsPatchReview
     settingsBoolValue,
     settingsBuilderConfigValue,
     settingsBuilderFields,
+    settingsFieldAllowedValues,
     settingsBuilderInputValue,
     settingsCommandHistoryLine,
     settingsFieldDefinition,
+    settingsFriendlyPersistedKeyAliases,
+    settingsHasBackendFieldDefinitions,
+    settingsPatchComplexBackendKeys,
     settingsPatchImpactEntries,
     settingsPatchCandidateValue,
     settingsPatchListValue,

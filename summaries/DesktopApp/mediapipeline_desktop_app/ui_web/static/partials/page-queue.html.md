@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/page-queue.htm
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-31
+last_modified: 2026-06-03
 last_reviewed: 2026-05-29
-sha256: 2548d2800169873b86915ae5ac6b38ebc55afe042a5fc802f28a73d30049c75c
+sha256: ea53b064e09bc282a5c09c7a2b2c2114ae49b8a6988e1c7b3d3074f2319a0635
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/page-queue.html`
 

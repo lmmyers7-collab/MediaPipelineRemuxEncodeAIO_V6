@@ -51,7 +51,10 @@
   let selectedLaunchRealMediaProofKey = "";
   let selectedLaunchSampleExecutionKey = "";
   let selectedLaunchAuditLogRowKey = "";
+  let selectedLaunchAuditLogRowKeys = new Set();
   let lastLaunchAuditLogRows = [];
+  let lastLaunchAuditPayload = {};
+  let lastLaunchAuditControls = {};
   let lastLaunchAuditLogEmptyMessage = "No audit rows loaded.";
   let lastLaunchRealMediaProofContext = {};
   let lastLaunchCommandState = { snapshot: null, closeReadiness: null };
@@ -668,6 +671,7 @@
   }
 
   function launchAuditLogRowKey(item) {
+    if (item?.row_key) return String(item.row_key);
     return [
       item?.source_csv || "",
       item?.path || "",
@@ -690,6 +694,134 @@
   function getSelectedLaunchAuditLogRow() {
     if (!selectedLaunchAuditLogRowKey) return null;
     return lastLaunchAuditLogRows.find((row) => launchAuditLogRowKey(row) === selectedLaunchAuditLogRowKey) || null;
+  }
+
+  const auditScoreFieldIds = {
+    redownload_bucket: "audit-score-redownload-bucket",
+    high_issue: "audit-score-high-issue",
+    rerun_bucket: "audit-score-rerun-bucket",
+    medium_issue: "audit-score-medium-issue",
+    review_bucket: "audit-score-review-bucket",
+    fallback_issue: "audit-score-fallback-issue",
+    redownload_bonus: "audit-score-redownload-bonus",
+    rerun_bonus: "audit-score-rerun-bonus",
+  };
+
+  function auditRowKey(item) {
+    return String(item?.row_key || launchAuditLogRowKey(item));
+  }
+
+  function selectedAuditRowKeys() {
+    return Array.from(selectedLaunchAuditLogRowKeys).filter(Boolean);
+  }
+
+  function collectAuditScorePolicyForm() {
+    const policy = {};
+    Object.entries(auditScoreFieldIds).forEach(([key, id]) => {
+      const raw = Number(byId(id)?.value);
+      policy[key] = Number.isFinite(raw) ? Math.max(0, Math.min(1000, Math.round(raw))) : 0;
+    });
+    return policy;
+  }
+
+  function renderLaunchAuditControls(payload) {
+    lastLaunchAuditControls = payload && typeof payload === "object" ? payload : {};
+    const score = lastLaunchAuditControls.score_policy && typeof lastLaunchAuditControls.score_policy === "object"
+      ? lastLaunchAuditControls.score_policy
+      : {};
+    const policy = score.policy && typeof score.policy === "object" ? score.policy : {};
+    const defaults = score.defaults && typeof score.defaults === "object" ? score.defaults : {};
+    Object.entries(auditScoreFieldIds).forEach(([key, id]) => {
+      const input = byId(id);
+      if (!input) return;
+      const value = policy[key] ?? defaults[key] ?? 0;
+      input.value = String(value);
+    });
+    const ignoredCount = Number(lastLaunchAuditControls.ignore_manifest?.entry_count || 0);
+    setText("audit-score-policy-status", score.persisted ? "Saved" : "Defaults");
+    setText("audit-score-policy-summary", [
+      `Score policy source: ${score.persisted ? "saved state" : "defaults"}`,
+      `Audit ignore entries: ${ignoredCount}`,
+      `Policy path: ${score.path || "not configured"}`,
+      "Boundary: score and ignore controls affect audit reporting/export only; they do not write queue priority, file overrides, settings, or media files.",
+    ].join("\n"));
+  }
+
+  async function saveAuditScorePolicy(reset = false) {
+    const request = reset ? { reset: true } : { policy: collectAuditScorePolicyForm() };
+    if (!window.confirm(reset ? "Reset audit score policy to defaults?" : "Save audit score policy for future audit runs?")) return;
+    setText("audit-score-policy-detail", reset ? "Resetting audit score policy..." : "Saving audit score policy...");
+    try {
+      const result = await apiPost("/api/audit/score-policy", request);
+      appendCommandResult(result);
+      setText("audit-score-policy-detail", formatLaunchCommandDetail(result, request));
+      await refreshLaunchAuditData();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const result = { command: "audit.score_policy", ok: false, severity: "error", message };
+      appendCommandResult(result);
+      setText("audit-score-policy-detail", formatLaunchCommandDetail(result, request));
+    }
+  }
+
+  function auditSelectionRequest() {
+    return {
+      row_keys: selectedAuditRowKeys(),
+      priority_only: Boolean(lastLaunchAuditPayload.priority_only),
+      limit: 100,
+    };
+  }
+
+  async function refreshLaunchAuditData() {
+    const refresh = window.refreshAll;
+    if (typeof refresh === "function") {
+      await refresh();
+    }
+  }
+
+  async function ignoreSelectedAuditRows() {
+    const rowKeys = selectedAuditRowKeys();
+    if (!rowKeys.length) {
+      setText("audit-export-detail", "Select one or more audit rows before setting audit ignore.");
+      return;
+    }
+    if (!window.confirm(`Ignore ${rowKeys.length} selected audit row(s) from audit triage/export?`)) return;
+    const request = {
+      ...auditSelectionRequest(),
+      action: "add",
+      reason: "Ignored from audit triage by operator.",
+    };
+    setText("audit-export-detail", "Saving audit ignore entries...");
+    try {
+      const result = await apiPost("/api/audit/ignore", request);
+      appendCommandResult(result);
+      selectedLaunchAuditLogRowKeys = new Set();
+      setText("audit-export-detail", formatLaunchCommandDetail(result, request));
+      await refreshLaunchAuditData();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const result = { command: "audit.ignore", ok: false, severity: "error", message };
+      appendCommandResult(result);
+      setText("audit-export-detail", formatLaunchCommandDetail(result, request));
+    }
+  }
+
+  async function exportAuditRerunCsv() {
+    const request = auditSelectionRequest();
+    const scope = request.row_keys.length ? `${request.row_keys.length} selected row(s)` : "all loaded non-ignored rows";
+    if (!window.confirm(`Export rerun CSV for ${scope}?`)) return;
+    setText("audit-export-detail", "Exporting backend-owned rerun CSV...");
+    try {
+      const result = await apiPost("/api/audit/export-rerun-csv", request);
+      appendCommandResult(result);
+      setText("audit-export-detail", formatLaunchCommandDetail(result, request));
+      await refreshLaunchAuditData();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const result = { command: "audit.export_rerun_csv", ok: false, severity: "error", message };
+      appendCommandResult(result);
+      setText("audit-export-detail", formatLaunchCommandDetail(result, request));
+    }
   }
 
   function renderLaunchAuditLogDetail(item) {
@@ -731,20 +863,34 @@
   }
 
   function renderLaunchAuditLogRows() {
-    setText("audit-launch-log-status", `${lastLaunchAuditLogRows.length} row${lastLaunchAuditLogRows.length === 1 ? "" : "s"}`);
+    const selectedCount = selectedLaunchAuditLogRowKeys.size;
+    setText("audit-launch-log-status", `${lastLaunchAuditLogRows.length} row${lastLaunchAuditLogRows.length === 1 ? "" : "s"}${selectedCount ? `, ${selectedCount} selected` : ""}`);
     const tbody = byId("audit-launch-log-rows");
     if (!tbody) return;
     if (!lastLaunchAuditLogRows.length) {
-      clearRows(tbody, 6, lastLaunchAuditLogEmptyMessage);
+      clearRows(tbody, 7, lastLaunchAuditLogEmptyMessage);
       updateTableStatusLegend("audit-launch-log-table-legend", tbody, "Audit log rows");
       return;
     }
     tbody.replaceChildren();
     lastLaunchAuditLogRows.slice(0, 250).forEach((item) => {
       const row = document.createElement("tr");
-      const key = launchAuditLogRowKey(item);
+      const key = auditRowKey(item);
       row.dataset.status = launchAuditLogRowStatus(item);
       row.dataset.rowKey = key;
+      const selectCell = document.createElement("td");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = selectedLaunchAuditLogRowKeys.has(key);
+      checkbox.setAttribute("aria-label", `Select audit row ${item.lookup_title || item.relative_path || item.path || ""}`);
+      checkbox.addEventListener("click", (event) => event.stopPropagation());
+      checkbox.addEventListener("change", () => {
+        if (checkbox.checked) selectedLaunchAuditLogRowKeys.add(key);
+        else selectedLaunchAuditLogRowKeys.delete(key);
+        renderLaunchAuditLogRows();
+      });
+      selectCell.appendChild(checkbox);
+      row.appendChild(selectCell);
       appendCells(row, [
         item.priority_score || "",
         item.priority_fix_level || "",
@@ -768,17 +914,22 @@
 
   function renderLaunchAuditLog(audit) {
     const payload = audit && typeof audit === "object" ? audit : {};
+    lastLaunchAuditPayload = payload;
     const rows = Array.isArray(payload.rows) ? payload.rows : [];
     lastLaunchAuditLogRows = rows;
     if (selectedLaunchAuditLogRowKey && !rows.some((row) => launchAuditLogRowKey(row) === selectedLaunchAuditLogRowKey)) {
       selectedLaunchAuditLogRowKey = "";
     }
+    selectedLaunchAuditLogRowKeys = new Set(
+      Array.from(selectedLaunchAuditLogRowKeys).filter((key) => rows.some((row) => auditRowKey(row) === key))
+    );
     lastLaunchAuditLogEmptyMessage = launchAuditLogEmptyStateMessage(payload, rows);
     const warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
     const summary = [
       payload.source ? `Source: ${payload.source}` : "",
       `Priority CSV mode: ${payload.priority_only ? "yes" : "no"}`,
       `Rows: ${payload.count || rows.length || 0}`,
+      `Ignored rows hidden: ${payload.ignored_count || 0}`,
       `High priority: ${payload.high_priority_count || 0}`,
       `Rerun: ${payload.rerun_count || 0}`,
       `Redownload: ${payload.redownload_count || 0}`,
@@ -1252,6 +1403,14 @@
         updateLaunchCommandButtonStates();
       });
     }
+    const auditScoreSaveButton = byId("audit-score-policy-save-button");
+    if (auditScoreSaveButton) auditScoreSaveButton.addEventListener("click", () => saveAuditScorePolicy(false));
+    const auditScoreResetButton = byId("audit-score-policy-reset-button");
+    if (auditScoreResetButton) auditScoreResetButton.addEventListener("click", () => saveAuditScorePolicy(true));
+    const auditIgnoreSelectedButton = byId("audit-ignore-selected-button");
+    if (auditIgnoreSelectedButton) auditIgnoreSelectedButton.addEventListener("click", () => ignoreSelectedAuditRows());
+    const auditExportRerunButton = byId("audit-export-rerun-csv-button");
+    if (auditExportRerunButton) auditExportRerunButton.addEventListener("click", () => exportAuditRerunCsv());
     const pipelineFileBrowseButton = byId("pipeline-single-file-browse-button");
     if (pipelineFileBrowseButton) {
       pipelineFileBrowseButton.addEventListener("click", () => browsePipelineSingleFile());
@@ -1699,6 +1858,10 @@
     startPendingPublishDrain,
     collectAuditStartRequest,
     startAuditFromForm,
+    renderLaunchAuditControls,
+    saveAuditScorePolicy,
+    ignoreSelectedAuditRows,
+    exportAuditRerunCsv,
     renderLaunchAuditLog,
     collectRerunStartRequest,
     startRerunFromForm,
@@ -1800,6 +1963,7 @@
   window.startPipelineFromForm = startPipelineFromForm;
   window.collectAuditStartRequest = collectAuditStartRequest;
   window.startAuditFromForm = startAuditFromForm;
+  window.renderLaunchAuditControls = renderLaunchAuditControls;
   window.renderLaunchAuditLog = renderLaunchAuditLog;
   window.collectRerunStartRequest = collectRerunStartRequest;
   window.startRerunFromForm = startRerunFromForm;

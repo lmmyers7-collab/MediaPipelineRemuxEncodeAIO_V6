@@ -124,7 +124,7 @@ LOCAL_API_INVENTORY_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "auth_required": True,
         "effect": "none",
         "response_schema": "desktop_queue_preview.v1",
-        "purpose": "Read the latest backend-owned queue snapshot without spawning a dry run.",
+        "purpose": "Read the latest backend-owned queue snapshot plus latest queue scan status/source-inventory evidence without spawning a dry run.",
     },
     {
         "method": "GET",
@@ -203,6 +203,14 @@ LOCAL_API_INVENTORY_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "query_keys": ["priority_only", "limit"],
         "response_schema": "desktop_audit_preview.v1",
         "purpose": "Read recent audit rows from the latest audit CSV without exporting rerun CSVs, applying priority, opening files, or mutating reports.",
+    },
+    {
+        "method": "GET",
+        "path": "/api/audit-controls",
+        "auth_required": True,
+        "effect": "none",
+        "response_schema": "desktop_audit_controls.v1",
+        "purpose": "Read backend-owned audit score policy and audit-only ignore state without saving policy, exporting CSVs, changing queue state, or touching media files.",
     },
     {
         "method": "GET",

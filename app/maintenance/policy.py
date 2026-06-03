@@ -68,12 +68,22 @@ def maintenance_tool_kind(name: str) -> str:
         return "ffmpeg"
     if "ffprobe" in text:
         return "ffprobe"
+    if "mkvextract" in text:
+        return "mkvextract"
     if "mkvmerge" in text or "mkvtool" in text:
         return "mkvtoolnix"
     if "nvidia" in text or "nvenc" in text:
         return "gpu_telemetry"
     if "ass_to_srt" in text or "subtitle converter" in text:
         return "ass_to_srt"
+    if "tessdata" in text and "bdpgs" in text:
+        return "bdpgs_tessdata"
+    if "pgstosrt" in text or "bdpgs" in text:
+        return "bdpgs_ocr"
+    if "tesseract" in text and "vobsub" in text:
+        return "vobsub_tesseract"
+    if "subtitleedit" in text or "vobsub" in text:
+        return "vobsub_ocr"
     return "tool"
 
 
@@ -83,8 +93,13 @@ def maintenance_tool_capability(tool_kind: str) -> str:
         "ffmpeg": "FFmpeg execution for remux, encode, subtitle/audio muxing, thumbnails, and media output generation.",
         "ffprobe": "Media probing for route decisions, stream inventory, audit, validation, and sidecar evidence.",
         "mkvtoolnix": "MKVToolNix support for MKV-oriented mux/metadata workflows and packaging expectations.",
+        "mkvextract": "MKVToolNix extraction support for embedded VobSub IDX/SUB extraction before OCR.",
         "gpu_telemetry": "Optional GPU/NVENC telemetry visibility. Missing telemetry does not by itself block encoding.",
         "ass_to_srt": "ASS/SSA subtitle text conversion helper used before SRT sidecar/output proof.",
+        "bdpgs_ocr": "PgsToSrt command-line OCR helper for Blu-ray PGS/BDPGS subtitle conversion to SRT.",
+        "bdpgs_tessdata": "Tesseract traineddata folder used by PgsToSrt for BDPGS subtitle OCR.",
+        "vobsub_ocr": "Subtitle Edit 4.x command-line OCR helper for VobSub/DVD bitmap subtitle conversion to SRT.",
+        "vobsub_tesseract": "Tesseract OCR executable and traineddata used by VobSub subtitle OCR.",
     }.get(tool_kind, "External tool or runtime dependency.")
 
 
@@ -96,7 +111,12 @@ def maintenance_tool_failure_scope(tool_kind: str, optional: bool) -> str:
         "ffmpeg": "Remux/encode/output generation cannot be trusted; media jobs may fail after queue decisions look valid.",
         "ffprobe": "Route decisions, stream mapping, subtitle/audio inspection, audit, and validation can become stale or impossible.",
         "mkvtoolnix": "MKV mux/metadata workflows and tool-bundle packaging may fail or silently fall back to less precise behavior.",
+        "mkvextract": "Embedded VobSub tracks cannot be extracted to IDX/SUB for OCR, so VobSub conversion routes to review.",
         "ass_to_srt": "ASS/SSA SRT generation may fail, leaving subtitle compatibility proof incomplete.",
+        "bdpgs_ocr": "BDPGS image-subtitle OCR to SRT can fail or route to manual review.",
+        "bdpgs_tessdata": "BDPGS OCR can produce failed or unusable text output when required language data is missing.",
+        "vobsub_ocr": "VobSub OCR to SRT can fail or route to manual review.",
+        "vobsub_tesseract": "VobSub OCR can fail when Tesseract or the required traineddata is missing.",
     }.get(tool_kind, "Required maintenance or pipeline capability may be missing.")
 
 
@@ -214,8 +234,11 @@ MAINTENANCE_HEALTH_STEP_ORDER: tuple[tuple[str, str, bool], ...] = (
     ("ffmpeg", "FFmpeg", True),
     ("ffprobe", "ffprobe", True),
     ("mkvtoolnix", "MKVToolNix", True),
+    ("mkvextract", "mkvextract", True),
     ("gpu_telemetry", "GPU telemetry", False),
-    ("subtitle_helper", "Subtitle helper", True),
+    ("subtitle_helper", "ASS subtitle helper", True),
+    ("subtitle_bdpgs_ocr", "BDPGS OCR tools", True),
+    ("subtitle_vobsub_ocr", "VobSub OCR tools", True),
     ("pending_publish_path", "Pending-publish path", False),
 )
 
@@ -310,10 +333,16 @@ def maintenance_progress_tool_step_id(row: dict[str, Any]) -> str:
         return "powershell"
     if tool_kind == "mkvtoolnix":
         return "mkvtoolnix"
+    if tool_kind == "mkvextract":
+        return "mkvextract"
     if tool_kind == "gpu_telemetry":
         return "gpu_telemetry"
     if tool_kind == "ass_to_srt":
         return "subtitle_helper"
+    if tool_kind in {"bdpgs_ocr", "bdpgs_tessdata"}:
+        return "subtitle_bdpgs_ocr"
+    if tool_kind in {"vobsub_ocr", "vobsub_tesseract"}:
+        return "subtitle_vobsub_ocr"
     return tool_kind
 
 
@@ -323,6 +352,11 @@ def maintenance_progress_status_for_row(row: dict[str, Any]) -> str:
     if row.get("optional") is True:
         return "warning"
     return "blocked"
+
+
+def maintenance_progress_worst_status(left: str, right: str) -> str:
+    rank = {"pending": 0, "complete": 1, "warning": 2, "blocked": 3}
+    return right if rank.get(right, 0) > rank.get(left, 0) else left
 
 
 def maintenance_health_progress(
@@ -338,12 +372,21 @@ def maintenance_health_progress(
     row_steps: dict[str, dict[str, Any]] = {}
     for row in row_list:
         step_id = maintenance_progress_tool_step_id(row)
-        row_steps[step_id] = {
-            "status": maintenance_progress_status_for_row(row),
-            "detail": str(row.get("detail") or ""),
-            "source": row.get("tool_source") or row.get("source") or "check_environment_health",
-            "row_key": row.get("row_key") or maintenance_row_key(str(row.get("name") or "")),
-        }
+        row_status = maintenance_progress_status_for_row(row)
+        row_detail = f"{row.get('name') or step_id}: {row.get('detail') or ''}"
+        existing = row_steps.get(step_id)
+        if existing is None:
+            row_steps[step_id] = {
+                "status": row_status,
+                "detail": row_detail,
+                "source": row.get("tool_source") or row.get("source") or "check_environment_health",
+                "row_key": row.get("row_key") or maintenance_row_key(str(row.get("name") or "")),
+            }
+        else:
+            existing["status"] = maintenance_progress_worst_status(str(existing.get("status") or "pending"), row_status)
+            existing["detail"] = "; ".join(part for part in (str(existing.get("detail") or ""), row_detail) if part)
+            if not existing.get("row_key") and row.get("row_key"):
+                existing["row_key"] = row.get("row_key")
     path_steps = maintenance_progress_path_steps(resolved)
     steps: list[dict[str, Any]] = []
     for step_id, label, required in MAINTENANCE_HEALTH_STEP_ORDER:
@@ -497,6 +540,7 @@ __all__ = [
     "maintenance_progress_path_steps",
     "maintenance_progress_tool_step_id",
     "maintenance_progress_status_for_row",
+    "maintenance_progress_worst_status",
     "maintenance_health_progress",
     "maintenance_health_progress_with_error",
 ]

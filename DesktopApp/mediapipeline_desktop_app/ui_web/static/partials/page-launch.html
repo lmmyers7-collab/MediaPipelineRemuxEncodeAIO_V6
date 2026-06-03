@@ -449,6 +449,50 @@
             <label class="check-row launch-check-row"><input id="audit-start-show-console" type="checkbox"> Show Console</label>
           </div>
           <div class="panel-heading panel-subheading">
+            <h3>Score Policy</h3>
+            <strong id="audit-score-policy-status">Not loaded</strong>
+          </div>
+          <pre id="audit-score-policy-summary" class="prose-block">No audit score policy loaded.</pre>
+          <div class="form-grid launch-form-grid">
+            <label>
+              Redownload Bucket
+              <input id="audit-score-redownload-bucket" type="number" min="0" max="1000" step="1">
+            </label>
+            <label>
+              High Issue
+              <input id="audit-score-high-issue" type="number" min="0" max="1000" step="1">
+            </label>
+            <label>
+              Rerun Bucket
+              <input id="audit-score-rerun-bucket" type="number" min="0" max="1000" step="1">
+            </label>
+            <label>
+              Medium Issue
+              <input id="audit-score-medium-issue" type="number" min="0" max="1000" step="1">
+            </label>
+            <label>
+              Review Bucket
+              <input id="audit-score-review-bucket" type="number" min="0" max="1000" step="1">
+            </label>
+            <label>
+              Fallback Issue
+              <input id="audit-score-fallback-issue" type="number" min="0" max="1000" step="1">
+            </label>
+            <label>
+              Redownload Bonus
+              <input id="audit-score-redownload-bonus" type="number" min="0" max="1000" step="1">
+            </label>
+            <label>
+              Rerun Bonus
+              <input id="audit-score-rerun-bonus" type="number" min="0" max="1000" step="1">
+            </label>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" id="audit-score-policy-save-button" class="secondary-button">Save Score Policy</button>
+            <button type="button" id="audit-score-policy-reset-button" class="secondary-button">Reset Score Defaults</button>
+          </div>
+          <pre id="audit-score-policy-detail" class="prose-block">Score policy changes apply to future backend audit report generation.</pre>
+          <div class="panel-heading panel-subheading">
             <h3>Audit Progress</h3>
             <strong id="audit-launch-progress-status">Not loaded</strong>
           </div>
@@ -465,6 +509,7 @@
             <table>
               <thead>
                 <tr>
+                  <th scope="col">Select</th>
                   <th scope="col" class="num">Score</th>
                   <th scope="col">Priority</th>
                   <th scope="col">Bucket</th>
@@ -474,7 +519,7 @@
                 </tr>
               </thead>
               <tbody id="audit-launch-log-rows">
-                <tr><td colspan="6">No audit rows loaded.</td></tr>
+                <tr><td colspan="7">No audit rows loaded.</td></tr>
               </tbody>
             </table>
             <div class="empty-state" data-empty-state="hidden" style="display:none">
@@ -484,6 +529,11 @@
           </div>
           <p id="audit-launch-log-table-legend" class="note table-legend">Audit log rows: no selectable rows.</p>
           <pre id="audit-launch-log-detail" class="prose-block">No audit row selected.</pre>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" id="audit-ignore-selected-button" class="secondary-button">Ignore Selected</button>
+            <button type="button" id="audit-export-rerun-csv-button" class="secondary-button">Export Rerun CSV</button>
+          </div>
+          <pre id="audit-export-detail" class="prose-block">No audit rerun CSV export submitted.</pre>
           <pre id="audit-launch-preflight" class="prose-block">No audit launch preflight loaded.</pre>
           <div class="action-row action-row-left">
             <button type="button" id="audit-start-button" class="primary-button">Start Audit</button>

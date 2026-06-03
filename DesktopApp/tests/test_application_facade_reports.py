@@ -395,9 +395,105 @@ class ApplicationFacadeReportsTests(unittest.TestCase):
         self.assertEqual(preview["schema_version"], "desktop_audit_preview.v1")
         self.assertEqual(preview["source"], str(audit_csv))
         self.assertEqual(preview["count"], 2)
+        self.assertEqual(preview["ignored_count"], 0)
         self.assertEqual(preview["high_priority_count"], 1)
         self.assertEqual(preview["rerun_count"], 1)
         self.assertEqual(preview["review_count"], 1)
+        self.assertRegex(preview["rows"][0]["row_key"], r"^[0-9a-f]{24}$")
+        self.assertEqual(preview["rows"][0]["row_index"], 0)
         self.assertEqual(preview["rows"][0]["effective_bucket"], "RERUN_PIPELINE")
         self.assertEqual(preview["rows"][0]["priority_score"], 90)
         self.assertEqual(preview["rows"][0]["primary_issue_code"], "subtitle_srt_required")
+
+    def test_audit_controls_save_score_and_ignore_preview_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            audit_csv = root / "audit_summary_latest.csv"
+            ignored_path = root / "Movies" / "Ignored.mkv"
+            audit_csv.write_text(
+                "\n".join(
+                    [
+                        "Path,RelativePath,LookupTitle,MediaType,EffectiveBucket,PriorityFixLevel,PriorityScore,PrimaryIssueCode,PrimarySuggestedAction,IssueMessages",
+                        f"{ignored_path},Ignored.mkv,Ignored,Movie,REVIEW,LOW,20,metadata_review,Review manually,Metadata review.",
+                        f"{root / 'Movies' / 'Keep.mkv'},Keep.mkv,Keep,Movie,RERUN_PIPELINE,HIGH,90,subtitle_srt_required,Rerun,Subtitle missing.",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.audit_score_policy_path = root / "State" / "audit_score_policy.json"
+            resolved.audit_ignore_manifest_path = root / "State" / "audit_ignore_manifest.json"
+
+            score_result = facade.save_audit_score_policy(
+                resolved,
+                {"policy": {"high_issue": 123, "rerun_bonus": 7, "unknown": 999}},
+            ).to_mapping()
+            controls = facade.get_audit_controls(resolved)
+            before_ignore = facade.get_audit_preview(resolved).to_mapping()
+            ignore_result = facade.update_audit_ignore(
+                resolved,
+                {
+                    "action": "add",
+                    "row_keys": [before_ignore["rows"][0]["row_key"]],
+                    "reason": "operator review complete",
+                    "limit": 100,
+                },
+            ).to_mapping()
+            preview = facade.get_audit_preview(resolved).to_mapping()
+
+        self.assertTrue(score_result["ok"])
+        self.assertEqual(score_result["data"]["policy"]["high_issue"], 123)
+        self.assertEqual(score_result["data"]["policy"]["rerun_bonus"], 7)
+        self.assertEqual(controls["schema_version"], "desktop_audit_controls.v1")
+        self.assertTrue(ignore_result["ok"])
+        self.assertEqual(preview["ignored_count"], 1)
+        self.assertEqual(preview["count"], 1)
+        self.assertEqual(preview["rows"][0]["lookup_title"], "Keep")
+
+    def test_audit_rerun_export_uses_selected_non_ignored_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            audit_csv = root / "audit_summary_latest.csv"
+            keep_path = root / "Movies" / "Keep.mkv"
+            skip_path = root / "Movies" / "Skip.mkv"
+            audit_csv.write_text(
+                "\n".join(
+                    [
+                        "Path,RelativePath,LookupTitle,MediaType,EffectiveBucket,PriorityFixLevel,PriorityScore,PrimaryIssueCode,PrimarySuggestedAction,IssueMessages",
+                        f"{keep_path},Keep.mkv,Keep,Movie,RERUN_PIPELINE,HIGH,90,subtitle_srt_required,Rerun,Subtitle missing.",
+                        f"{skip_path},Skip.mkv,Skip,Movie,RERUN_PIPELINE,HIGH,90,audio_default,Rerun,Audio issue.",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            service = DummyFacadeService(root)
+            saved: dict[str, object] = {}
+
+            def _save(output_path: Path, records: list, resolved, **kwargs):
+                saved["output_path"] = output_path
+                saved["records"] = records
+                saved["kwargs"] = kwargs
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text("source_path\n", encoding="utf-8")
+                return len(records)
+
+            service.save_rerun_records_csv = _save  # type: ignore[attr-defined]
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.audit_reports_path = root / "AuditReports"
+            resolved.audit_ignore_manifest_path = root / "State" / "audit_ignore_manifest.json"
+            preview = facade.get_audit_preview(resolved).to_mapping()
+
+            result = facade.export_audit_rerun_csv(
+                resolved,
+                {"row_keys": [preview["rows"][1]["row_key"]], "limit": 100},
+            ).to_mapping()
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["data"]["schema_version"], "desktop_audit_rerun_export.v1")
+        self.assertEqual(result["data"]["row_count"], 1)
+        self.assertEqual(saved["kwargs"], {"stage_mode": "copy", "original_mode": "keep", "return_mode": "park"})
+        self.assertEqual(saved["records"][0].lookup_title, "Skip")

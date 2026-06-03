@@ -478,7 +478,7 @@ class NetworkCoordinatorHttpTests(unittest.TestCase):
 
         with (
             patch(
-                "mediapipeline_desktop_app.network.coordinator.LogEntryRequest.from_dict",
+                "mediapipeline_desktop_app.network.coordinator_http_handlers.LogEntryRequest.from_dict",
                 return_value=entry,
             ),
             self.assertLogs("mediapipeline_desktop_app.network.coordinator", level="WARNING") as logs,

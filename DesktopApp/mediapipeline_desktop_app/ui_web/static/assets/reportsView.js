@@ -9,11 +9,23 @@
   let lastAuditPreviewPayload = {};
   let lastAuditRows = [];
   let selectedAuditRowKey = "";
+  let selectedAuditRowKeys = new Set();
+  let lastAuditControls = {};
   let lastFailureEmptyMessage = "No failure rows available.";
   let lastAuditEmptyMessage = "No audit rows available.";
   let reportsTabNavInitialized = false;
   let reportsViewEventsInitialized = false;
   const REPORTS_TAB_STORAGE_KEY = "mediapipeline-reports-tab";
+  const reportAuditScoreFieldIds = {
+    redownload_bucket: "report-audit-score-redownload-bucket",
+    high_issue: "report-audit-score-high-issue",
+    rerun_bucket: "report-audit-score-rerun-bucket",
+    medium_issue: "report-audit-score-medium-issue",
+    review_bucket: "report-audit-score-review-bucket",
+    fallback_issue: "report-audit-score-fallback-issue",
+    redownload_bonus: "report-audit-score-redownload-bonus",
+    rerun_bonus: "report-audit-score-rerun-bonus",
+  };
 
   function reportsTabIds() {
     return ["failures", "audit", "files"];
@@ -931,11 +943,14 @@
     if (selectedAuditRowKey && !rows.some((row) => auditRowKey(row) === selectedAuditRowKey)) {
       selectedAuditRowKey = "";
     }
+    const availableKeys = new Set(rows.map((row) => auditRowKey(row)).filter(Boolean));
+    selectedAuditRowKeys = new Set(Array.from(selectedAuditRowKeys).filter((key) => availableKeys.has(key)));
     lastAuditEmptyMessage = auditEmptyStateMessage(audit, rows);
     const summary = [
       audit.source ? `Source: ${audit.source}` : "",
       `Priority CSV mode: ${audit.priority_only ? "yes" : "no"}`,
       `Rows: ${audit.count || rows.length || 0}`,
+      `Ignored rows hidden: ${audit.ignored_count || 0}`,
       `High priority: ${audit.high_priority_count || 0}`,
       `Rerun: ${audit.rerun_count || 0}`,
       `Redownload: ${audit.redownload_count || 0}`,
@@ -1289,6 +1304,181 @@
     setText("report-investigation-checklist", reportInvestigationChecklistLines().join("\n"));
   }
 
+  function selectedAuditRowKeysList() {
+    return Array.from(selectedAuditRowKeys).filter(Boolean);
+  }
+
+  function collectReportAuditScorePolicyForm() {
+    const policy = {};
+    Object.entries(reportAuditScoreFieldIds).forEach(([key, id]) => {
+      const raw = Number(byId(id)?.value);
+      policy[key] = Number.isFinite(raw) ? Math.max(0, Math.min(1000, Math.round(raw))) : 0;
+    });
+    return policy;
+  }
+
+  function renderAuditControls(payload) {
+    lastAuditControls = payload && typeof payload === "object" ? payload : {};
+    const score = lastAuditControls.score_policy && typeof lastAuditControls.score_policy === "object"
+      ? lastAuditControls.score_policy
+      : {};
+    const policy = score.policy && typeof score.policy === "object" ? score.policy : {};
+    const defaults = score.defaults && typeof score.defaults === "object" ? score.defaults : {};
+    Object.entries(reportAuditScoreFieldIds).forEach(([key, id]) => {
+      const input = byId(id);
+      if (!input) return;
+      input.value = String(policy[key] ?? defaults[key] ?? 0);
+    });
+    const ignoredCount = Number(lastAuditControls.ignore_manifest?.entry_count || 0);
+    setText("report-audit-score-policy-status", score.persisted ? "Saved" : "Defaults");
+    setText("report-audit-score-policy-summary", [
+      `Score policy source: ${score.persisted ? "saved state" : "defaults"}`,
+      `Audit ignore entries: ${ignoredCount}`,
+      `Policy path: ${score.path || "not configured"}`,
+      "Boundary: score and ignore controls affect audit reporting/export only; they do not write queue priority, file overrides, settings, or media files.",
+    ].join("\n"));
+  }
+
+  async function refreshReportsAuditData() {
+    const refresh = window.refreshAll;
+    if (typeof refresh === "function") {
+      await refresh();
+    }
+  }
+
+  function reportAuditSelectionRequest() {
+    return {
+      row_keys: selectedAuditRowKeysList(),
+      priority_only: Boolean(lastAuditPreviewPayload.priority_only),
+      limit: 100,
+    };
+  }
+
+  function appendReportAuditCommandResult(result) {
+    if (typeof appendCommandResult === "function") appendCommandResult(result);
+  }
+
+  function reportAuditJsonDetail(label, value, intro) {
+    if (typeof jsonDetailText === "function") {
+      return jsonDetailText({ label, value, intro });
+    }
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch (_) {
+      return String(value || "");
+    }
+  }
+
+  function formatReportAuditCommandDetail(result, request = null) {
+    const payload = result && typeof result === "object" ? result : {
+      ok: false,
+      severity: "error",
+      message: String(result || "Unknown command result."),
+    };
+    const lines = [
+      `Command: ${payload.command || "unknown"}`,
+      `Result: ${payload.ok ? "ok" : "blocked"}${payload.severity ? ` (${payload.severity})` : ""}`,
+    ];
+    const displayFormatter = window.commandResultDisplayMessage;
+    const displayMessage = typeof displayFormatter === "function"
+      ? displayFormatter(payload)
+      : String(payload.message || "");
+    if (displayMessage) {
+      lines.push("", displayMessage);
+    }
+    if (payload.refresh_hint) {
+      lines.push("", `Refresh hint: ${payload.refresh_hint}`);
+    }
+    if (payload.data && Object.keys(payload.data).length) {
+      lines.push("", "Backend data:", reportAuditJsonDetail(
+        "Backend data JSON",
+        payload.data,
+        "Read-only backend command result data."
+      ));
+    }
+    if (request) {
+      lines.push("", "Submitted request:", reportAuditJsonDetail(
+        "Submitted request JSON",
+        request,
+        "Read-only request payload submitted to the backend command route."
+      ));
+    }
+    return lines.join("\n");
+  }
+
+  async function saveReportAuditScorePolicy(reset = false) {
+    const request = reset ? { reset: true } : { policy: collectReportAuditScorePolicyForm() };
+    const message = reset ? "Reset audit score policy to defaults?" : "Save audit score policy for future audit runs?";
+    if (!window.confirm(message)) return;
+    setText("report-audit-score-policy-status", reset ? "Resetting..." : "Saving...");
+    setText("report-audit-score-policy-detail", reset ? "Resetting audit score policy..." : "Saving audit score policy...");
+    try {
+      const result = await apiPost("/api/audit/score-policy", request);
+      appendReportAuditCommandResult(result);
+      setText("report-audit-score-policy-detail", formatReportAuditCommandDetail(result, request));
+      await refreshReportsAuditData();
+    } catch (error) {
+      const text = error instanceof Error ? error.message : String(error);
+      const result = { command: "audit.score_policy", ok: false, severity: "error", message: text };
+      appendReportAuditCommandResult(result);
+      setText("report-audit-score-policy-status", "Error");
+      setText("report-audit-score-policy-detail", formatReportAuditCommandDetail(result, request));
+    }
+  }
+
+  async function ignoreSelectedAuditRows() {
+    const rowKeys = selectedAuditRowKeysList();
+    if (!rowKeys.length) {
+      setText("report-audit-export-status", "Select rows");
+      setText("report-audit-export-detail", "Select one or more audit rows before setting audit ignore.");
+      return;
+    }
+    if (!window.confirm(`Ignore ${rowKeys.length} selected audit row(s) from audit triage/export?`)) return;
+    const request = {
+      ...reportAuditSelectionRequest(),
+      action: "add",
+      reason: "Ignored from audit triage by operator.",
+    };
+    setText("report-audit-export-status", "Ignoring...");
+    setText("report-audit-export-detail", "Saving audit ignore entries...");
+    try {
+      const result = await apiPost("/api/audit/ignore", request);
+      appendReportAuditCommandResult(result);
+      selectedAuditRowKeys = new Set();
+      selectedAuditRowKey = "";
+      setText("report-audit-export-status", result.ok ? "Ignored" : "Blocked");
+      setText("report-audit-export-detail", formatReportAuditCommandDetail(result, request));
+      await refreshReportsAuditData();
+    } catch (error) {
+      const text = error instanceof Error ? error.message : String(error);
+      const result = { command: "audit.ignore", ok: false, severity: "error", message: text };
+      appendReportAuditCommandResult(result);
+      setText("report-audit-export-status", "Error");
+      setText("report-audit-export-detail", formatReportAuditCommandDetail(result, request));
+    }
+  }
+
+  async function exportAuditRerunCsv() {
+    const request = reportAuditSelectionRequest();
+    const scope = request.row_keys.length ? `${request.row_keys.length} selected row(s)` : "all loaded non-ignored rows";
+    if (!window.confirm(`Export rerun CSV for ${scope}?`)) return;
+    setText("report-audit-export-status", "Exporting...");
+    setText("report-audit-export-detail", "Exporting backend-owned rerun CSV...");
+    try {
+      const result = await apiPost("/api/audit/export-rerun-csv", request);
+      appendReportAuditCommandResult(result);
+      setText("report-audit-export-status", result.ok ? "Exported" : "Blocked");
+      setText("report-audit-export-detail", formatReportAuditCommandDetail(result, request));
+      await refreshReportsAuditData();
+    } catch (error) {
+      const text = error instanceof Error ? error.message : String(error);
+      const result = { command: "audit.export_rerun_csv", ok: false, severity: "error", message: text };
+      appendReportAuditCommandResult(result);
+      setText("report-audit-export-status", "Error");
+      setText("report-audit-export-detail", formatReportAuditCommandDetail(result, request));
+    }
+  }
+
   function initReportsViewEvents() {
     initReportsTabNav();
     if (reportsViewEventsInitialized) return;
@@ -1305,6 +1495,14 @@
     if (previewAllClearButton) previewAllClearButton.addEventListener("click", () => requestFailureMarkerClear("all", true));
     const clearAllButton = byId("failure-clear-all-button");
     if (clearAllButton) clearAllButton.addEventListener("click", () => requestFailureMarkerClear("all", false));
+    const saveAuditScorePolicyButton = byId("report-audit-score-policy-save-button");
+    if (saveAuditScorePolicyButton) saveAuditScorePolicyButton.addEventListener("click", () => saveReportAuditScorePolicy(false));
+    const resetAuditScorePolicyButton = byId("report-audit-score-policy-reset-button");
+    if (resetAuditScorePolicyButton) resetAuditScorePolicyButton.addEventListener("click", () => saveReportAuditScorePolicy(true));
+    const ignoreAuditRowsButton = byId("report-audit-ignore-selected-button");
+    if (ignoreAuditRowsButton) ignoreAuditRowsButton.addEventListener("click", () => ignoreSelectedAuditRows());
+    const exportAuditRowsButton = byId("report-audit-export-rerun-csv-button");
+    if (exportAuditRowsButton) exportAuditRowsButton.addEventListener("click", () => exportAuditRerunCsv());
   }
 
   function auditEmptyStateMessage(audit, rows) {
@@ -1322,6 +1520,7 @@
   }
 
   function auditRowKey(item) {
+    if (item?.row_key) return String(item.row_key);
     return [
       item?.source_csv || "",
       item?.path || "",
@@ -1339,6 +1538,22 @@
   function selectAuditRow(item) {
     selectedAuditRowKey = auditRowKey(item);
     renderAuditDetail(item || null);
+    renderAuditRows();
+  }
+
+  function toggleAuditRowSelection(item, checked) {
+    const key = auditRowKey(item);
+    if (!key) return;
+    if (checked) {
+      selectedAuditRowKeys.add(key);
+      selectedAuditRowKey = key;
+    } else {
+      selectedAuditRowKeys.delete(key);
+      if (selectedAuditRowKey === key) {
+        selectedAuditRowKey = Array.from(selectedAuditRowKeys)[0] || "";
+      }
+    }
+    renderAuditDetail(getSelectedAuditRow());
     renderAuditRows();
   }
 
@@ -1372,6 +1587,8 @@
       `Path: ${item.path || ""}`,
       `Relative: ${item.relative_path || ""}`,
       `Source CSV: ${item.source_csv || ""}`,
+      `Row key: ${auditRowKey(item)}`,
+      `Ignored: ${item.ignored ? "yes" : "no"}`,
     ];
     setText("audit-preview-detail", detail.join("\n"));
     renderReportDiagnosticsActions("audit-preview-diagnostics-actions", auditDiagnosticsActionsForRow(item), "Reports audit selected row");
@@ -1390,10 +1607,12 @@
       "primary_suggested_action",
       "issue_messages",
     ]);
-    setText("audit-preview-status", `${rows.length} / ${lastAuditRows.length} row${lastAuditRows.length === 1 ? "" : "s"}`);
+    const selectedCount = selectedAuditRowKeys.size;
+    setText("audit-preview-status", `${rows.length} / ${lastAuditRows.length} row${lastAuditRows.length === 1 ? "" : "s"}${selectedCount ? `, ${selectedCount} selected` : ""}`);
+    setText("report-audit-export-status", selectedCount ? `${selectedCount} selected` : "All loaded");
     const tbody = byId("audit-preview-rows");
     if (!rows.length) {
-      clearRows(tbody, 6, lastAuditRows.length ? "No audit rows match the filter." : lastAuditEmptyMessage);
+      clearRows(tbody, 7, lastAuditRows.length ? "No audit rows match the filter." : lastAuditEmptyMessage);
       updateTableStatusLegend("audit-preview-table-legend", tbody, "Audit rows");
       return;
     }
@@ -1405,6 +1624,15 @@
       row.dataset.status = bucket === "REDOWNLOAD_CANDIDATE" ? "blocked" : bucket === "RERUN_PIPELINE" || priority === "HIGH" ? "warning" : bucket === "OK" ? "match" : "";
       const key = auditRowKey(item);
       row.dataset.rowKey = key;
+      const selectCell = document.createElement("td");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = Boolean(key && selectedAuditRowKeys.has(key));
+      checkbox.setAttribute("aria-label", `Select audit row ${item.lookup_title || item.relative_path || item.path || ""}`);
+      checkbox.addEventListener("click", (event) => event.stopPropagation());
+      checkbox.addEventListener("change", () => toggleAuditRowSelection(item, checkbox.checked));
+      selectCell.appendChild(checkbox);
+      row.appendChild(selectCell);
       appendCells(row, [
         item.priority_score || "",
         item.priority_fix_level || "",
@@ -1453,14 +1681,20 @@
     getSelectedFailureRow,
     failureRowKey,
     renderAuditPreview,
+    renderAuditControls,
     renderAuditRows,
     renderAuditDetail,
     renderAuditReviewBoard,
+    saveReportAuditScorePolicy,
+    ignoreSelectedAuditRows,
+    exportAuditRerunCsv,
+    selectedAuditRowKeysList,
     auditReviewStatus,
     auditReviewBoardLines,
     auditDiagnosticsActionsForRow,
     auditEmptyStateMessage,
     selectAuditRow,
+    toggleAuditRowSelection,
     getSelectedAuditRow,
     auditRowKey,
     renderKeyPathRows,
@@ -1477,5 +1711,6 @@
   window.initReportsViewEvents = initReportsViewEvents;
   window.renderFailureRows = renderFailureRows;
   window.renderAuditRows = renderAuditRows;
+  window.renderAuditControls = renderAuditControls;
   window.renderReportOpenHistory = renderReportOpenHistory;
 })();

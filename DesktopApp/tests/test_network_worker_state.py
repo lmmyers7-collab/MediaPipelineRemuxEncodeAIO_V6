@@ -46,7 +46,7 @@ class NetworkWorkerStateTests(unittest.TestCase):
         job = SimpleNamespace(job_id="job-1", record=SimpleNamespace(source_path=r"C:\Media\movie.mkv"))
 
         with (
-            patch("mediapipeline_desktop_app.network.worker.save_worker_state", side_effect=OSError("disk full")),
+            patch("mediapipeline_desktop_app.network.worker_state.save_worker_state", side_effect=OSError("disk full")),
             self.assertLogs("mediapipeline_desktop_app.network.worker", level="WARNING") as logs,
         ):
             WorkerDispatcher._save_worker_state(worker, job)  # type: ignore[arg-type]
@@ -84,7 +84,7 @@ class NetworkWorkerStateTests(unittest.TestCase):
         payload = {"job_id": "job-1", "worker_id": "worker-1", "success": True}
 
         with (
-            patch("mediapipeline_desktop_app.network.worker.save_worker_state", side_effect=OSError("disk full")),
+            patch("mediapipeline_desktop_app.network.worker_state.save_worker_state", side_effect=OSError("disk full")),
             self.assertLogs("mediapipeline_desktop_app.network.worker", level="WARNING") as logs,
         ):
             saved = WorkerDispatcher._save_pending_done_report(worker, job, payload)  # type: ignore[arg-type]
@@ -140,7 +140,7 @@ class NetworkWorkerStateTests(unittest.TestCase):
         worker._state_path = Path("worker_state.json")
 
         with (
-            patch("mediapipeline_desktop_app.network.worker.clear_worker_state", side_effect=OSError("unlink denied")),
+            patch("mediapipeline_desktop_app.network.worker_state.clear_worker_state", side_effect=OSError("unlink denied")),
             self.assertLogs("mediapipeline_desktop_app.network.worker", level="WARNING") as logs,
         ):
             cleared = WorkerDispatcher._clear_worker_state(worker)
@@ -155,7 +155,7 @@ class NetworkWorkerStateTests(unittest.TestCase):
         worker._state_path = Path("worker_state.json")
 
         with (
-            patch("mediapipeline_desktop_app.network.worker.clear_worker_state", side_effect=OSError("unlink denied")),
+            patch("mediapipeline_desktop_app.network.worker_state.clear_worker_state", side_effect=OSError("unlink denied")),
             self.assertLogs("mediapipeline_desktop_app.network.worker", level="WARNING") as logs,
         ):
             WorkerDispatcher._clear_worker_state_after_accepted_report(worker, "job-1", "done")

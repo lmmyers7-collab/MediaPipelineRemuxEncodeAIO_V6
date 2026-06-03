@@ -78,6 +78,10 @@ def _read_completed_asset_bundle(assets_root: Path) -> str:
     return "\n".join(
         (assets_root / name).read_text(encoding="utf-8")
         for name in [
+            "completed/statusBoards.js",
+            "completed/promotionCommands.js",
+            "completed/openActions.js",
+            "completed/selection.js",
             "completed/table.js",
             "completedView.review.js",
             "completedView.evidence.js",
@@ -105,6 +109,8 @@ def _read_settings_asset_bundle(assets_root: Path) -> str:
     return "\n".join(
         (assets_root / name).read_text(encoding="utf-8")
         for name in [
+            "settings/metadataFields.js",
+            "settings/builderControls.js",
             "settings/backendResult.js",
             "settings/patchReview.js",
             "settings/policyImpact.js",
@@ -402,7 +408,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         desktop_root = Path(__file__).resolve().parents[1]
         static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static"
         asset_text = _render_static_index_html(static_root)
-        for asset in (static_root / "assets").glob("*.js"):
+        for asset in (static_root / "assets").rglob("*.js"):
             asset_text += "\n" + asset.read_text(encoding="utf-8")
         tauri_lib = desktop_root / "tauri_shell" / "src-tauri" / "src" / "lib.rs"
         shell_text = tauri_lib.read_text(encoding="utf-8") if tauri_lib.exists() else ""
@@ -575,7 +581,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("lastSettingsPatchSaveEvidence = {", settings_js)
         self.assertIn("signature,", settings_js)
         self.assertIn("result,", settings_js)
-        self.assertIn("if (result.ok) await refreshAll();", settings_js)
+        self.assertIn("if (result.ok) {", settings_js)
+        self.assertIn("await refreshAll();", settings_js)
         self.assertNotIn('setText("settings-patch-status", "Saved")', settings_js)
 
         self.assertIn('if (result.ok) return result.severity === "warning" ? "Warning" : successLabel;', launch_js)
@@ -864,7 +871,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         diagnostics_bridge_js = (static_root / "diagnosticsBridge.js").read_text(encoding="utf-8")
         queue_view_js = _read_queue_asset_bundle(static_root)
         completed_view_evidence_js = (static_root / "completedView.evidence.js").read_text(encoding="utf-8")
-        completed_view_js = (static_root / "completedView.js").read_text(encoding="utf-8")
+        completed_view_js = _read_completed_asset_bundle(static_root)
         rename_view_js = _read_rename_asset_bundle(static_root)
         rename_history_view_js = (static_root / "renameHistoryView.js").read_text(encoding="utf-8")
         maintenance_view_js = (static_root / "maintenanceView.js").read_text(encoding="utf-8")

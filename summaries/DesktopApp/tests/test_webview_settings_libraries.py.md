@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_webview_settings_libraries.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-05-29
-sha256: 84baf146c67e9ffdd7158e5d938437a40034fef2e1a14ff59c918df90af2f50a
+sha256: 68dff799a8566d38e6c78d84ee6161782839aaaf850c4e66a36e79e2225ea3b7
 ---
 # `DesktopApp/tests/test_webview_settings_libraries.py`
 
