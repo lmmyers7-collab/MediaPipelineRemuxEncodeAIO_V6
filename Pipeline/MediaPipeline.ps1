@@ -403,12 +403,12 @@ $configCandidates = if ($ConfigPath) {
         (Join-Path $scriptRoot "MediaPipeline_config_chatgpt.psd1")
     )
 }
-$configPath = $configCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-if (-not $configPath) {
+$resolvedConfigPath = $configCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+if (-not $resolvedConfigPath) {
     Write-Host "ERROR: Config not found. Checked: $($configCandidates -join ', ')" -ForegroundColor Red; exit 1
 }
-$configPath = (Resolve-Path -LiteralPath $configPath).Path
-$config = Import-PowerShellDataFile $configPath
+$resolvedConfigPath = (Resolve-Path -LiteralPath $resolvedConfigPath).Path
+$config = Import-PowerShellDataFile $resolvedConfigPath
 
 $configSchemaCheck = Test-MediaPipelineConfigSchema -Config $config
 if (-not $configSchemaCheck.Ok) {
@@ -1232,11 +1232,11 @@ Write-Log "===== PIPELINE START $($script:ProductVersion) (pipeline $($script:Pi
 $runMode = if ($ValidateOnly) { 'validate-only' } elseif ($WorkerChild) { 'local-worker-child' } elseif ($DrainPendingPushes) { 'drain-pending-pushes' } elseif ($Once) { 'single-pass' } else { 'continuous' }
 Write-PipelineEvent -EventType 'pipeline_started' -Stage 'startup' -Status 'started' -Data @{
     run_mode    = $runMode
-    config_path = $configPath
+    config_path = $resolvedConfigPath
     local_base  = $LocalBase
 } | Out-Null
 Write-Log "Run mode      : $runMode"
-Write-Log "Config file   : $configPath"
+Write-Log "Config file   : $resolvedConfigPath"
 Write-Log "PowerShell    : $($PSVersionTable.PSVersion)"
 Write-Log "SleepSeconds  : $SleepSeconds"
 $workerSlotLog = if ($WorkerChild) { " worker_slot=$WorkerSlotId" } else { "" }
@@ -1588,7 +1588,7 @@ $enginePlan = New-MediaPipelineEnginePlan `
     -Once:$Once `
     -SleepSeconds $SleepSeconds `
     -ScriptPath $pipelineScriptPath `
-    -ConfigPath $configPath `
+    -ConfigPath $resolvedConfigPath `
     -PowerShellPath $currentPowerShellPath `
     -ParallelEncodeMode ([string]$script:ParallelEncodeMode) `
     -MaxParallelEncodes ([int]$script:MaxParallelEncodes)
