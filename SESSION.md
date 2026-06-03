@@ -426,3 +426,56 @@ Next step (new session): Wave 6 cleanup -- rewrite importers to the
 `app.kernel.*` paths and delete all shims, then add the dependency-direction
 check from ADR-0012 §Validation. Hold until ADR-0012/0013 are accepted and
 the §7 validation above passes.
+
+## Handoff 2026-06-03 -- MediaPipeline.ps1 keystone hardening (operator-approved in chat; separate from kernel migration)
+
+Operator approved a code-review of the main pipeline file and, after a written
+per-issue plan, said "I'll proceed with your suggestions" -- explicit
+current-turn scope for `Pipeline/MediaPipeline.ps1` and
+`Pipeline/MediaPipeline/remux.ps1`. NOT the ADR-0013 kernel work. Branch:
+`fix/mediapipeline-keystone-hardening` (off `master`). Eight isolated commits,
+end-to-end smoke (`Pipeline/Tests/Invoke-EndToEndSmokeChecks.ps1`) green after
+each cut.
+
+Changed files / commits (most severe first):
+- `Pipeline/MediaPipeline.ps1` -- config-loader reserved-name denylist +
+  try/catch + re-assert ErrorActionPreference/ProgressPreference (config keys
+  could clobber preference/automatic variables).
+- `Pipeline/MediaPipeline.ps1` -- ass_to_srt.py existence check: de-dup
+  candidates, null-guard before Test-Path (clean FATAL instead of binding
+  exception).
+- `Pipeline/MediaPipeline.ps1` -- progress reload: -LiteralPath + [int] field
+  coercion (partial-file / bracketed-path safety).
+- `Pipeline/MediaPipeline/remux.ps1` -- surface mkvmerge stdout (Output) tail
+  on exit-code-1 warnings. Behaviour unchanged: exit 1 still publishes.
+- `Pipeline/MediaPipeline.ps1` -- declare `$logLock = $null` before the
+  ExitCleanup closure.
+- `Pipeline/MediaPipeline.ps1` -- PS7 relaunch: default null `$LASTEXITCODE`
+  to 1 so a failed relaunch is not reported as success.
+- `Pipeline/MediaPipeline.ps1` -- rename resolved `$configPath` ->
+  `$resolvedConfigPath` (stop reassigning the `$ConfigPath` parameter via its
+  case-variant); updated 3 downstream consumers.
+- `Pipeline/MediaPipeline.ps1` -- collapse 7 redundant array-coercion
+  `elseif/else` branches to `if/else` (no behaviour change).
+
+Ollama: not used this session.
+
+Validation performed (agent-side):
+- Baseline + per-cut `Invoke-EndToEndSmokeChecks.ps1`: exit 0 each time.
+- `Invoke-ConfigKeyRegistryChecks.ps1`: passed (130 keys).
+- Parser parse-check after every edit: clean.
+- Integration: `pwsh -File MediaPipeline.ps1 -ValidateOnly` against the live
+  config -> exit 0, "PIPELINE SHUTDOWN CLEANLY", "ass_to_srt import: OK", all
+  config keys loaded, no reserved-key warnings.
+
+NOT self-certified (AGENTS.md §7 -- config/settings and FFmpeg/publish paths):
+operator validation still required before declaring §7-safe:
+- Representative real-media remux that produces a mkvmerge exit-1 warning, to
+  confirm the new warning-tail logging (remux.ps1) and that publish behaviour
+  is unchanged.
+- A real continuous/`-Once` run (this session only ran `-ValidateOnly`).
+- `python scripts/dev/ai_guardrail.py` and, per AGENTS.md §5 media row,
+  the release gate / real-media validation worksheet.
+
+Not mine / left untouched: stray untracked `CON` file at repo root (pre-existing;
+never staged).
