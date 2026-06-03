@@ -1135,22 +1135,26 @@ $script:TVScanCache          = @()
 $script:TVScanCacheAt        = $null
 $script:ForceProcessedIndexRefresh = $false
 
-$progressReadPath = if (Test-Path $ProgressFile) {
+$progressReadPath = if (Test-Path -LiteralPath $ProgressFile) {
     $ProgressFile
-} elseif (Test-Path $script:LocalStateLayout.LegacyPaths.ProgressFile) {
+} elseif (Test-Path -LiteralPath $script:LocalStateLayout.LegacyPaths.ProgressFile) {
     $script:LocalStateLayout.LegacyPaths.ProgressFile
 } else {
     $null
 }
 if ($progressReadPath) {
     try {
-        $saved = Get-Content $progressReadPath -Raw | ConvertFrom-Json
-        $script:totalProcessed  = $saved.TotalProcessed
-        $script:totalEncoded    = $saved.Encoded
-        $script:totalRemuxed    = $saved.Remuxed
-        $script:totalFailed     = $saved.Failed
-        $script:totalMovies     = $saved.Movies
-        $script:totalTVEpisodes = $saved.TVEpisodes
+        $saved = Get-Content -LiteralPath $progressReadPath -Raw | ConvertFrom-Json
+        # Coerce each counter defensively: a partially written / truncated
+        # progress file can still parse yet be missing fields, which would
+        # otherwise leave the counters $null and corrupt later arithmetic
+        # and status text. [int]$null and a missing property both yield 0.
+        $script:totalProcessed  = [int]($saved.TotalProcessed)
+        $script:totalEncoded    = [int]($saved.Encoded)
+        $script:totalRemuxed    = [int]($saved.Remuxed)
+        $script:totalFailed     = [int]($saved.Failed)
+        $script:totalMovies     = [int]($saved.Movies)
+        $script:totalTVEpisodes = [int]($saved.TVEpisodes)
         Write-Log "Loaded previous progress: $($script:totalProcessed) files processed"
     } catch { Write-Log "Could not load progress file" "WARN" }
 }
