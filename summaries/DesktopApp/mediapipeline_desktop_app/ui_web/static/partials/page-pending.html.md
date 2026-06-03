@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/page-pending.h
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-29
+last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: c391081ced7b3981bba2a10b13a38baeebbd9fcd9dbe10386fe6dba00af6ce14
+sha256: 403c8ba721df46fd196d9ed73157caaa0a894078cbcafa680578183a73e03553
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/page-pending.html`
 

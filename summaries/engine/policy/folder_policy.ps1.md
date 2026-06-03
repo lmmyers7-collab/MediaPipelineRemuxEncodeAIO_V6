@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: policy
 last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: c9493a838de5e292a15166fc3a4d708a1f3e185b87661967d5a88962fe35c8e3
+sha256: 7efdc5d7f510674fa54e1031f1c7ae4b129665b333fd05c5a540d0551eeb52ec
 ---
 # `engine/policy/folder_policy.ps1`
 

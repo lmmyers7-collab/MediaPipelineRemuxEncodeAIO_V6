@@ -52,6 +52,7 @@ class ProcessGuardFacadeMixin:
         )
 
     def _active_work_block_message(self, resolved: ResolvedPaths, action: str) -> str:
+        self._cleanup_stale_launch_guards(resolved, action)
         related_method = getattr(self.service, "find_related_pipeline_processes", None)
         if callable(related_method):
             try:
@@ -81,6 +82,15 @@ class ProcessGuardFacadeMixin:
         if audit_block:
             return audit_block
         return ""
+
+    def _cleanup_stale_launch_guards(self, resolved: ResolvedPaths, action: str) -> None:
+        cleanup = getattr(self.service, "cleanup_stale_launch_guards", None)
+        if not callable(cleanup):
+            return
+        try:
+            cleanup(resolved)
+        except Exception as exc:
+            self._log_close_guard_exception(f"{action} stale launch guard cleanup failed", exc)
 
     def _final_library_promotion_block_message(self, action: str) -> str:
         block_message = getattr(self.service, "final_library_promotion_active_block_message", None)

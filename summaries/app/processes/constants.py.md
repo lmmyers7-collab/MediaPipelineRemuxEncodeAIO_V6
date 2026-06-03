@@ -3,9 +3,9 @@ file: app/processes/constants.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-31
-sha256: edb1069db002ed09ca1d1fca252295ad07fa47fa438d47f7e8d7cf4db5e89288
+sha256: 64e163d9544713327d3801874956950602ab4b1a94d0e4eace527f50145d4ee9
 ---
 # `app/processes/constants.py`
 

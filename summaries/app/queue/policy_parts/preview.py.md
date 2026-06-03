@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: queue
 last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: a5bd7dd71eacfc56d05450fbc1a42dd601787825f9248647e3ed9a04735a6691
+sha256: 5cac441350176aa2e2bf1bfd09ba70a041c4441ab87c4272afb572d9b053719d
 ---
 # `app/queue/policy_parts/preview.py`
 

@@ -104,6 +104,10 @@ function Read-Path {
                 }
             } else {
                 Write-Warn "Folder must exist before deployment can use it."
+                if ($script:UseAcceptDefaults) {
+                    Write-Warn "Keeping missing path for validation failure: $path"
+                    return $path
+                }
                 continue
             }
         }
@@ -120,6 +124,10 @@ function Read-Path {
 
         if ($MustBeWritable -and $exists -and -not (Test-PathWritable $path)) {
             Write-Fail "Path is not writable: $path"
+            if ($script:UseAcceptDefaults) {
+                Write-Warn "Keeping non-writable path for validation failure: $path"
+                return $path
+            }
             continue
         }
 

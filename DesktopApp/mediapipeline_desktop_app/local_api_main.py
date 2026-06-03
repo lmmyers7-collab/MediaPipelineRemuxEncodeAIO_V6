@@ -8,6 +8,9 @@ from pathlib import Path
 from typing import Any
 from typing import Sequence
 
+from app.config.identity import config_identity_block_reasons
+from app.config.recovery import ensure_canonical_config, restore_verified_last_good_config
+
 from .api import LocalApiServer
 from .api.http_helpers import NO_TOKEN_DEV_ENV_VAR, no_token_dev_allowed
 from .application import MediaPipelineApplicationFacade
@@ -134,7 +137,22 @@ def build_backend(
         detail=str(selected_pipeline_path),
         callback=startup_progress_callback,
     )
-    selected_config_path = config_path or service.default_config_path()
+    if config_path is not None:
+        selected_config_path = config_path
+    else:
+        recovery = ensure_canonical_config(service.app_root, service.workspace_root)
+        startup_progress = record_startup_step(
+            startup_steps,
+            "recover_config",
+            "Recover live config",
+            detail=recovery.message,
+            status="complete" if recovery.ok else "warning",
+            callback=startup_progress_callback,
+        )
+        # recovery resolves the canonical local config, completes the legacy
+        # rename, or points at the per-user config (packaged builds). Use it as
+        # the selection so dev and packaged shells agree.
+        selected_config_path = recovery.canonical_path
     startup_progress = record_startup_step(
         startup_steps,
         "resolve_config_path",
@@ -153,6 +171,36 @@ def build_backend(
         "resolve_paths",
         "Resolve runtime paths",
         detail=f"workspace={resolved.workspace_root}",
+        callback=startup_progress_callback,
+    )
+    if config_path is None:
+        config_block_reasons = config_identity_block_reasons(getattr(resolved, "config_identity", {}) or {})
+        if config_block_reasons:
+            recovery = restore_verified_last_good_config(
+                selected_config_path,
+                app_root=service.app_root,
+                workspace_root=service.workspace_root,
+                powershell_host=resolved.powershell_host,
+                load_config_data=service.load_config_data,
+                local_base=resolved.local_base,
+            )
+            startup_progress = record_startup_step(
+                startup_steps,
+                "repair_blocked_config",
+                "Repair blocked config",
+                detail=recovery.message,
+                status="complete" if recovery.ok else "warning",
+                callback=startup_progress_callback,
+            )
+            if recovery.ok:
+                resolved = resolved_state.reload()
+    config_loaded = bool(getattr(resolved, "config_data", None))
+    startup_progress = record_startup_step(
+        startup_steps,
+        "verify_config_loaded",
+        "Verify settings loaded",
+        detail="settings loaded" if config_loaded else f"settings NOT loaded from {resolved.config_path}",
+        status="complete" if config_loaded else "warning",
         callback=startup_progress_callback,
     )
     startup_progress = record_startup_step(

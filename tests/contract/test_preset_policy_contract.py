@@ -4,6 +4,8 @@ import json
 import unittest
 from pathlib import Path
 
+from pydantic import ValidationError
+
 import app.config.preset_migration as preset_migration
 from app.config.preset_migration import (
     BLOCKED_FUTURE_PERSISTED_KEYS,
@@ -40,6 +42,10 @@ def load_source(name: str) -> SourceMediaInfo:
 
 
 class PresetPolicyContractTests(unittest.TestCase):
+    def test_preset_audio_transcode_bitrate_rejects_zero_value(self) -> None:
+        with self.assertRaises(ValidationError):
+            PresetV2.model_validate({"audio": {"transcodeBitrate": "0k"}})
+
     def test_migration_policy_declares_label_only_and_legacy_statuses(self) -> None:
         expected_statuses = {
             "stable_persisted_key",

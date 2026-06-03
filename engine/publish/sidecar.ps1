@@ -26,7 +26,7 @@
 #     "<Title>.pipeline.json"  ← sidecar; canonical truth for "what produced this"
 #
 #   Completed-jobs manifest (LOCAL, append-only JSONL)
-#     LocalBase\Completed\completed_jobs.jsonl
+#     LocalBase\State\Completed\completed_jobs.jsonl
 #     One line per successful publish. Read-optimised mirror for the
 #     desktop UI's Completed tab — walking the SMB outsource tree to
 #     enumerate sidecars proved unacceptably slow.

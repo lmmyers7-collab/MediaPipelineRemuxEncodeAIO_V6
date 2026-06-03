@@ -14,6 +14,8 @@ from app.observability.status_policy import (
 from app.status.active_jobs import worker_progress_payload
 from app.status.eta import eta_payload
 from app.status.ffmpeg_progress import ffmpeg_progress_payload
+from app.status.presentation import build_current_work
+from app.processes.path_evidence import configured_path_health, path_health_warning_lines
 from mediapipeline_desktop_app.application.dto_status import AppSnapshotDto, HealthDto, TelemetryDto
 from mediapipeline_desktop_app.models import ResolvedPaths, Snapshot, TelemetrySnapshot
 
@@ -61,11 +63,14 @@ class StatusFacadeMixin:
         audit_progress = dict(snapshot.audit_progress or {})
         pipeline_state = self._pipeline_state(snapshot)
         worker_progress = worker_progress_payload(snapshot.resolved.active_jobs_path, progress, snapshot.log_tail)
+        warnings = snapshot_warnings(snapshot)
+        warnings.extend(path_health_warning_lines(configured_path_health(snapshot.resolved)))
         return AppSnapshotDto(
             app_version=self.app_version,
             activity=str(snapshot.current_activity or ""),
             pipeline_state=pipeline_state,
             status_summary=str(snapshot.status_summary or ""),
+            current_work=build_current_work(progress),
             counts=snapshot_counts(progress),
             progress=progress,
             audit_progress=audit_progress,
@@ -75,7 +80,7 @@ class StatusFacadeMixin:
             progress_bars=snapshot_progress_bars(snapshot, pipeline_state=pipeline_state),
             recent_events=snapshot_recent_events(snapshot),
             latest_paths=snapshot_latest_paths(snapshot),
-            warnings=snapshot_warnings(snapshot),
+            warnings=warnings,
         )
 
     def get_cached_telemetry(self) -> TelemetryDto:

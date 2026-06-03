@@ -149,8 +149,8 @@ def _browser_layout_manager_runner_source() -> str:
               completed: ["Output Files", "Current Output Status", "Completed History Summary", "Size Evidence", "Proof Check", "Integrity Check", "Diagnostics Links"],
               settings: ["Staged Changes", "Active Policy", "Save Status", "Launch Impact", "Save Result"],
               diagnostics: ["Recovery Steps", "Read Order", "Impact Summary", "Related Evidence", "Contract Review"],
-              launch: ["Readiness", "Settings Check", "Start Pipeline", "Start Summary", "Control Running Pipeline", "Command Review"],
-              reports: ["Failure Details", "Clear Retry Blockers", "Audit Entries"],
+              launch: ["Readiness", "Settings Check", "Pipeline Controller", "Start Evidence", "Start Summary", "Command Review"],
+              reports: ["Error Details", "Clear Errors", "Audit Entries"],
             };
             const keys = {};
             for (const [page, headings] of Object.entries(required)) {
@@ -172,7 +172,7 @@ def _browser_layout_manager_runner_source() -> str:
             if (completedPaneKeys !== "advanced|history|overview") throw new Error("Completed tab panes were not merged to one container per tab: " + completedPaneKeys);
             if (document.querySelector('[data-page-panel="completed"] section.panel.settings-tab-pane')) throw new Error("Completed tab panes should be containers, not draggable panels");
             requireDrawerGroups("launch", ["Readiness", "Pipeline", "Audit", "CSV Rerun", "History"]);
-            requireDrawerGroups("reports", ["Overview", "Failures", "Audit", "Files"]);
+            requireDrawerGroups("reports", ["Failures", "Audit", "Files"]);
             const nestedCompletedPanels = Array.from(document.querySelectorAll('[data-page-panel="completed"] section.panel[data-panel-key] section.panel[data-panel-key]'));
             if (nestedCompletedPanels.length) throw new Error("Completed layout still has nested managed panels: " + nestedCompletedPanels.map(headingText).join(" | "));
             const overviewPane = document.querySelector('[data-page-panel="completed"] .settings-tab-pane[data-completed-tab="overview"]');

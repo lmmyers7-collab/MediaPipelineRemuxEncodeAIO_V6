@@ -18,6 +18,7 @@ graph LR
   files["files"]
   final_library["final_library"]
   folder_policy["folder_policy"]
+  kernel["kernel"]
   library["library"]
   maintenance["maintenance"]
   naming["naming"]
@@ -47,15 +48,15 @@ graph LR
   validation["validation"]
   webview["webview"]
   tests -->|298| api
-  tests -->|53| config
-  tests -->|32| processes
+  tests -->|55| config
+  tests -->|33| processes
   tests -->|29| contracts
   unknown -->|29| api
   process -->|24| api
   config -->|22| api
+  process -->|21| processes
   tests -->|21| rename
   observability -->|19| status
-  process -->|18| processes
   tests -->|18| status
   observability -->|16| api
   tests -->|15| queue
@@ -63,7 +64,8 @@ graph LR
   tests -->|13| publish
   queue -->|12| api
   completed -->|11| api
-  tests -->|10| paths
+  tests -->|11| paths
+  contracts -->|10| kernel
   tests -->|9| audit
   tests -->|9| completed
   decide -->|8| contracts
@@ -71,6 +73,7 @@ graph LR
   config -->|7| contracts
   unknown -->|7| folder_policy
   unknown -->|7| paths
+  application -->|6| kernel
   failures -->|6| api
   publish -->|6| api
   rename -->|6| api
@@ -79,21 +82,25 @@ graph LR
   tests -->|6| folder_policy
   diagnostics -->|5| api
   final_library -->|5| api
+  orchestration -->|5| config
   tests -->|5| maintenance
   tests -->|5| storage
+  unknown -->|5| config
   unknown -->|5| files
+  unknown -->|5| kernel
   unknown -->|5| schedule
   api -->|4| config
   diagnostics -->|4| status
   observability -->|4| telemetry
-  orchestration -->|4| config
   orchestration -->|4| contracts
+  process -->|4| config
   queue -->|4| observability
   tests -->|4| failures
   tests -->|4| orchestration
   tests -->|4| telemetry
   api -->|3| contracts
   api -->|3| queue
+  config -->|3| kernel
   network -->|3| api
   orchestration -->|3| decide
   rename -->|3| files
@@ -106,7 +113,6 @@ graph LR
   completed -->|2| observability
   rename -->|2| paths
   tests -->|2| validation
-  unknown -->|2| config
   unknown -->|2| failures
   api -->|1| orchestration
   api -->|1| publish
@@ -138,15 +144,15 @@ graph LR
 | From | To | Edges |
 |---|---|---|
 | tests | api | 298 |
-| tests | config | 53 |
-| tests | processes | 32 |
+| tests | config | 55 |
+| tests | processes | 33 |
 | tests | contracts | 29 |
 | unknown | api | 29 |
 | process | api | 24 |
 | config | api | 22 |
+| process | processes | 21 |
 | tests | rename | 21 |
 | observability | status | 19 |
-| process | processes | 18 |
 | tests | status | 18 |
 | observability | api | 16 |
 | tests | queue | 15 |
@@ -154,7 +160,8 @@ graph LR
 | tests | publish | 13 |
 | queue | api | 12 |
 | completed | api | 11 |
-| tests | paths | 10 |
+| tests | paths | 11 |
+| contracts | kernel | 10 |
 | tests | audit | 9 |
 | tests | completed | 9 |
 | decide | contracts | 8 |
@@ -162,6 +169,7 @@ graph LR
 | config | contracts | 7 |
 | unknown | folder_policy | 7 |
 | unknown | paths | 7 |
+| application | kernel | 6 |
 | failures | api | 6 |
 | publish | api | 6 |
 | rename | api | 6 |
@@ -170,21 +178,25 @@ graph LR
 | tests | folder_policy | 6 |
 | diagnostics | api | 5 |
 | final_library | api | 5 |
+| orchestration | config | 5 |
 | tests | maintenance | 5 |
 | tests | storage | 5 |
+| unknown | config | 5 |
 | unknown | files | 5 |
+| unknown | kernel | 5 |
 | unknown | schedule | 5 |
 | api | config | 4 |
 | diagnostics | status | 4 |
 | observability | telemetry | 4 |
-| orchestration | config | 4 |
 | orchestration | contracts | 4 |
+| process | config | 4 |
 | queue | observability | 4 |
 | tests | failures | 4 |
 | tests | orchestration | 4 |
 | tests | telemetry | 4 |
 | api | contracts | 3 |
 | api | queue | 3 |
+| config | kernel | 3 |
 | network | api | 3 |
 | orchestration | decide | 3 |
 | rename | files | 3 |
@@ -197,7 +209,6 @@ graph LR
 | completed | observability | 2 |
 | rename | paths | 2 |
 | tests | validation | 2 |
-| unknown | config | 2 |
 | unknown | failures | 2 |
 | api | orchestration | 1 |
 | api | publish | 1 |

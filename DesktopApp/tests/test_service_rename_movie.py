@@ -10,6 +10,7 @@ from app.rename.service import RenameServiceMixin
 from app.rename.movie import (
     clean_pipeline_movie_name,
     movie_filter_options_are_default,
+    rename_movie_filter_default_terms,
     normalize_movie_filter_options,
     normalize_movie_filter_terms,
     remove_movie_filter_terms,
@@ -49,13 +50,13 @@ class RenameMovieHelperTests(unittest.TestCase):
             "Movie 1080p BluRay X265 (2001)",
         )
 
-    def test_editable_movie_filter_terms_replace_enabled_category_defaults(self) -> None:
+    def test_movie_filter_terms_extend_enabled_category_defaults(self) -> None:
         self.assertEqual(
             clean_pipeline_movie_name(
                 "Movie.CustomTag.1080p.BluRay.mkv",
                 movie_filter_terms={"video_source": ["customtag"]},
             ),
-            "Movie 1080p BluRay",
+            "Movie",
         )
         self.assertEqual(
             clean_pipeline_movie_name(
@@ -66,6 +67,24 @@ class RenameMovieHelperTests(unittest.TestCase):
             "Movie CustomTag 1080p BluRay",
         )
         self.assertEqual(normalize_movie_filter_terms({"video_source": ["Tag", "tag", ""]}), {"video_source": ["Tag"]})
+        self.assertEqual(
+            clean_pipeline_movie_name(
+                "Together.2025.1080p.WEBRip.10Bit.DDP5.1.x265-NeoNoir.mkv",
+                movie_filter_terms={"release_groups": ["neonoir"]},
+            ),
+            "Together (2025)",
+        )
+
+    def test_movie_filter_default_terms_include_backend_display_catalog(self) -> None:
+        defaults = rename_movie_filter_default_terms()
+
+        self.assertIn("video_source", defaults)
+        self.assertIn("audio_channels", defaults)
+        self.assertIn("release_groups", defaults)
+        self.assertIn("1080p", defaults["video_source"])
+        self.assertIn("ddp", defaults["audio_channels"])
+        self.assertIn("cmrg", defaults["release_groups"])
+        self.assertIn("neonoir", defaults["release_groups"])
 
     def test_service_wrappers_match_extracted_movie_helpers(self) -> None:
         service = DummyRenameMovieService()

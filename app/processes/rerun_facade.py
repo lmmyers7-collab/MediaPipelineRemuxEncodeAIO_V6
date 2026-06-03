@@ -14,15 +14,23 @@ from app.processes.rerun_policy import (
     rerun_modes_are_supported,
     rerun_modes_from_request,
     rerun_start_active_work_result,
+    rerun_start_config_blocked_result,
     rerun_start_exception_result,
     rerun_start_success_result,
 )
+from app.config.identity import config_operation_block_data, config_operation_block_message
 
 
 class RerunLaunchFacadeMixin:
     """CSV rerun process start command adapter for the application facade."""
 
     def start_rerun_csv_process(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
+        config_identity = dict(getattr(resolved, "config_identity", {}) or {})
+        if config_identity.get("blocks_operations") is True:
+            return rerun_start_config_blocked_result(
+                config_operation_block_message(config_identity, "CSV rerun start"),
+                config_operation_block_data(config_identity),
+            )
         csv_path = rerun_csv_path_from_request(request)
         if csv_path is None:
             return rerun_csv_path_missing_result()

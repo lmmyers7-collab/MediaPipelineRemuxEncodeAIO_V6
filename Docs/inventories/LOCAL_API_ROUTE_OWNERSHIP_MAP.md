@@ -2,7 +2,7 @@
 
 Documents all Local API routes, their mutation risk, auth requirements, backend owner confirmation, and primary frontend caller. Source of truth is `contract_read.py` and `contract_command.py`; handler dispatch is in `routes_read.py` and `routes_command.py`.
 
-Total routes: 75 (31 read, 44 command).
+Total routes: 76 (31 read, 45 command).
 
 All routes that mutate state are backend-owned. The WebView never resolves filesystem paths, selects output targets, chooses encode settings, or launches processes directly — it forwards requests with allowlisted parameters and the backend validates, plans, and executes.
 
@@ -185,6 +185,7 @@ The dry-run routes run existing backend scripts with `-DryRun` and write no rele
 | Route | Effect | Key Request Keys | Mutation Risk | Frontend Caller |
 |---|---|---|---|---|
 | `POST /api/pipeline/control` | `control-flag-write` | `action` (`pause`, `stop`, `rescan`, `kill`) | Medium — writes control flags or runs backend-owned emergency process cleanup for `kill` | Launch |
+| `POST /api/pipeline/browse-file` | `shell-dialog` | `selection_mode` (`files`), `initial_path` | Low — backend-owned native Windows file browser for Launch single-file staging only; no config save, launch, queue mutation, or media mutation | Launch |
 | `POST /api/pipeline/start` | `process-launch` | `mode`, `sleep_seconds`, `show_config`, `show_console`, `single_file`, `schedule_override` | **High** — spawns pipeline process | Launch |
 | `POST /api/audit/start` | `process-launch` | `library_root`, `include_sidecars`, `show_console` | **High** — spawns audit process | Launch, Reports |
 | `POST /api/rerun/start` | `process-launch` | `csv_path`, `dry_run`, `stage_mode`, `original_mode`, `return_mode`, `show_console` | **High** — spawns rerun process | Reports |
@@ -202,7 +203,7 @@ The dry-run routes run existing backend scripts with `-DryRun` and write no rele
 | `bounded-health-check` | `GET /api/maintenance` | Read-only probes |
 | `read-only-preview` | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/folder-preview` | Advisory backend previews only |
 | `shell-open` | `POST /api/queue/open`, `POST /api/completed/open`, `POST /api/pending-publish/open`, `POST /api/diagnostics/open` | OS open only; no file mutation |
-| `shell-dialog` | `POST /api/rename/browse`, `POST /api/settings/browse-path` | Native Windows picker only; no file mutation |
+| `shell-dialog` | `POST /api/rename/browse`, `POST /api/settings/browse-path`, `POST /api/pipeline/browse-file` | Native Windows picker only; no file mutation |
 | `ui-state-write` | `POST /api/ui-preferences` | Allowlisted UI preference JSON only |
 | `queue-state-write` | `POST /api/queue/priority`, `POST /api/queue/strategy`, `POST /api/queue/file-overrides`, `POST /api/queue/file-overrides/folder-rule` | Non-destructive queue state JSON only |
 | `failure-marker-write` | `POST /api/failures/clear` | Moves retry-blocker marker JSON out of the active marker folder only |

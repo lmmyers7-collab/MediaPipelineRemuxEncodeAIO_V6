@@ -66,6 +66,18 @@ def audit_start_active_work_result(block_message: str) -> "CommandResult":
     )
 
 
+def audit_start_config_blocked_result(message: str, data: dict[str, Any]) -> "CommandResult":
+    return _command_result(
+        command=AUDIT_START_COMMAND,
+        ok=False,
+        message=message,
+        severity="error",
+        errors=[message],
+        refresh_hint="settings",
+        data=data,
+    )
+
+
 def audit_start_exception_result(exc: Exception) -> "CommandResult":
     return _command_result(
         command=AUDIT_START_COMMAND,
@@ -109,6 +121,7 @@ __all__ = [
     "audit_start_success_data",
     "audit_missing_library_root_result",
     "audit_start_active_work_result",
+    "audit_start_config_blocked_result",
     "audit_start_exception_result",
     "audit_start_success_result",
 ]

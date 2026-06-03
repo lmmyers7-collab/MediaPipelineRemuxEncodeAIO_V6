@@ -23,19 +23,13 @@
   };
   const appendCommandResultLocal = window.appendCommandResult || function () {};
 
-  const stepLabels = [
-    "Welcome / Mode Selection",
-    "Media Libraries",
-    "Output and Publish",
-    "Local Scratch",
-    "FFmpeg / FFprobe Detection",
-    "Hardware and Encoding",
-    "Audio Policy",
-    "Subtitle Policy",
-    "Worker / Parallel Processing",
-    "Safety and Recovery",
-    "Review Summary",
-    "Save",
+  const WIZARD_TAB_ID = "guided-setup";
+  const stepLabels = ["Start", "Paths", "Toolchain", "Policy", "Review & Save"];
+  const riskAckRules = [
+    { key: "AllowSystemTools", inputId: "wizard-danger-allow-system-tools" },
+    { key: "AllowNoAudio", inputId: "wizard-danger-allow-no-audio" },
+    { key: "CleanupRemoteStaging", inputId: "wizard-danger-cleanup-remote" },
+    { key: "ReprocessAll", inputId: "wizard-danger-reprocess-all", selectValueId: "wizard-existing-policy", selectValue: "reprocess_all_once" },
   ];
   const profileChoices = [
     ["general_plex_direct_play", "General Plex Direct Play"],
@@ -57,6 +51,16 @@
     defaultsLoaded: false,
     firstRunPrompted: false,
     lastPreview: null,
+    lastPreviewSignature: "",
+    commandBusy: false,
+    pathValidation: null,
+    pathValidationSignature: "",
+    toolsValidation: null,
+    toolsValidationSignature: "",
+    hardwareProbe: null,
+    hardwareProbeSignature: "",
+    workerValidation: null,
+    workerValidationSignature: "",
     deps: {},
   };
 
@@ -116,6 +120,180 @@
     }
   }
 
+  function wizardResultData(result) {
+    return result?.data && typeof result.data === "object" ? result.data : (result || {});
+  }
+
+  function wizardPayloadSignature() {
+    try { return JSON.stringify(collectWizardPayload()); } catch (_error) { return ""; }
+  }
+
+  function setStatusChip(id, text, stateName) {
+    const node = byIdLocal(id);
+    if (!node) return;
+    node.textContent = text;
+    node.dataset.state = stateName || text.toLowerCase().replace(/\s+/g, "-");
+  }
+
+  function activeRiskAckRules() {
+    return riskAckRules.filter((rule) => {
+      if (boolValue(rule.inputId)) return true;
+      return Boolean(rule.selectValueId && textValue(rule.selectValueId) === rule.selectValue);
+    });
+  }
+
+  function syncRiskAckRows() {
+    const active = new Set(activeRiskAckRules().map((rule) => rule.key));
+    document.querySelectorAll("[data-risk-ack-row]").forEach((row) => {
+      const key = row.dataset.riskAckRow || "";
+      const isActive = active.has(key);
+      row.hidden = !isActive;
+      if (!isActive) {
+        const input = row.querySelector("input");
+        if (input) input.checked = false;
+      }
+    });
+  }
+
+  function activeRiskAckMissing() {
+    return activeRiskAckRules()
+      .map((rule) => rule.key)
+      .filter((key) => !boolValue(`wizard-ack-${key}`));
+  }
+
+  function collectErrorsAndWarnings(...payloads) {
+    const errors = [];
+    const warnings = [];
+    payloads.forEach((payload) => {
+      if (!payload || typeof payload !== "object") return;
+      errors.push(...(Array.isArray(payload.errors) ? payload.errors : []));
+      warnings.push(...(Array.isArray(payload.warnings) ? payload.warnings : []));
+    });
+    return { errors, warnings };
+  }
+
+  function resultStatus(payload, signature, freshRequired = true) {
+    if (!payload) return "Not started";
+    if (freshRequired && signature && signature !== wizardPayloadSignature()) return "Stale";
+    if ((payload.errors || []).length) return "Blocked";
+    if ((payload.warnings || []).length || payload.ok === false) return "Warning";
+    return "Ready";
+  }
+
+  function previewPayload() {
+    const data = wizardResultData(state.lastPreview);
+    return data.wizard || data;
+  }
+
+  function previewStatus() {
+    if (!state.lastPreview) return "Not run";
+    if (state.lastPreviewSignature !== wizardPayloadSignature()) return "Stale";
+    const payload = previewPayload();
+    if ((state.lastPreview.errors || payload.errors || []).length || state.lastPreview.ok === false) return "Blocked";
+    if ((state.lastPreview.warnings || payload.warnings || []).length) return "Warning";
+    return "Ready";
+  }
+
+  function settingsWizardSaveReadinessIssues() {
+    const issues = [];
+    if (state.commandBusy) issues.push("A Settings command is still running.");
+    if (!state.lastPreview) {
+      issues.push("Run Preview Config before saving.");
+    } else if (state.lastPreviewSignature !== wizardPayloadSignature()) {
+      issues.push("Wizard draft changed after the last preview. Preview Config again before saving.");
+    } else if (state.lastPreview.ok === false) {
+      issues.push("Backend preview has blockers. Resolve them before saving.");
+    }
+    activeRiskAckMissing().forEach((key) => {
+      issues.push(`${key} acknowledgement is required before Save & Reload.`);
+    });
+    return issues;
+  }
+
+  function phaseStatuses() {
+    const startReady = textValue("wizard-mode") && textValue("wizard-output-container");
+    const pathStatus = resultStatus(state.pathValidation, state.pathValidationSignature);
+    const toolPayloads = [state.toolsValidation, state.hardwareProbe, state.workerValidation].filter(Boolean);
+    const toolIssues = collectErrorsAndWarnings(...toolPayloads);
+    let toolchainStatus = "Not started";
+    if (toolPayloads.length) {
+      const signatures = [state.toolsValidationSignature, state.hardwareProbeSignature, state.workerValidationSignature].filter(Boolean);
+      if (signatures.some((signature) => signature !== wizardPayloadSignature())) toolchainStatus = "Stale";
+      else if (toolIssues.errors.length) toolchainStatus = "Blocked";
+      else if (toolIssues.warnings.length || toolPayloads.some((payload) => payload.ok === false)) toolchainStatus = "Warning";
+      else if (toolPayloads.length < 3) toolchainStatus = "Needs input";
+      else toolchainStatus = "Ready";
+    }
+    const policyStatus = activeRiskAckRules().length ? "Warning" : "Ready";
+    return [
+      startReady ? "Ready" : "Needs input",
+      pathStatus,
+      toolchainStatus,
+      policyStatus,
+      previewStatus(),
+    ];
+  }
+
+  function footerActionLabel() {
+    const statuses = phaseStatuses();
+    if (state.currentStep === 0) return "Validate Paths";
+    if (state.currentStep === 1) return statuses[1] === "Ready" || statuses[1] === "Warning" ? "Detect Tools" : "Validate Paths";
+    if (state.currentStep === 2) {
+      if (!state.toolsValidation || state.toolsValidationSignature !== wizardPayloadSignature()) return "Detect Tools";
+      if ((state.toolsValidation.errors || []).length || state.toolsValidation.ok === false) return "Detect Tools";
+      if (!state.hardwareProbe || state.hardwareProbeSignature !== wizardPayloadSignature()) return "Probe Encoders";
+      if ((state.hardwareProbe.errors || []).length || state.hardwareProbe.ok === false) return "Probe Encoders";
+      if (!state.workerValidation || state.workerValidationSignature !== wizardPayloadSignature()) return "Validate Workers";
+      if ((state.workerValidation.errors || []).length || state.workerValidation.ok === false) return "Validate Workers";
+      return "Preview Config";
+    }
+    if (state.currentStep === 3) return "Preview Config";
+    return settingsWizardSaveReadinessIssues().length ? "Preview Config" : "Save & Reload";
+  }
+
+  function updateWizardReadiness() {
+    const currentSignature = wizardPayloadSignature();
+    const preview = previewPayload();
+    const resultIssues = collectErrorsAndWarnings(
+      state.pathValidation,
+      state.toolsValidation,
+      state.hardwareProbe,
+      state.workerValidation,
+      preview
+    );
+    const previewErrors = state.lastPreview?.errors || [];
+    const previewWarnings = state.lastPreview?.warnings || [];
+    const blockers = new Set([...resultIssues.errors, ...previewErrors]);
+    const warnings = new Set([...resultIssues.warnings, ...previewWarnings, ...activeRiskAckMissing()]);
+    const changedKeys = preview?.changed_keys || wizardResultData(state.lastPreview).changed_keys || [];
+    const validationStale = [
+      state.pathValidationSignature,
+      state.toolsValidationSignature,
+      state.hardwareProbeSignature,
+      state.workerValidationSignature,
+    ].filter(Boolean).some((signature) => signature !== currentSignature);
+    setStatusChip("settings-wizard-readiness-blockers", String(blockers.size), blockers.size ? "blocked" : "ready");
+    setStatusChip("settings-wizard-readiness-warnings", String(warnings.size), warnings.size ? "warning" : "ready");
+    setStatusChip("settings-wizard-readiness-changed", String(changedKeys.length || 0), changedKeys.length ? "warning" : "ready");
+    setStatusChip("settings-wizard-readiness-validation", validationStale ? "Stale" : blockers.size ? "Blocked" : "Current", validationStale ? "stale" : blockers.size ? "blocked" : "ready");
+    setStatusChip("settings-wizard-readiness-preview", previewStatus(), previewStatus().toLowerCase().replace(/\s+/g, "-"));
+    setStatusChip("settings-wizard-readiness-draft", state.dirty ? "Unsaved" : "Clean", state.dirty ? "warning" : "ready");
+    phaseStatuses().forEach((status, index) => {
+      setStatusChip(`settings-wizard-phase-${index}-status`, status, status.toLowerCase().replace(/\s+/g, "-"));
+    });
+    const next = byIdLocal("settings-wizard-next-button");
+    if (next) {
+      next.textContent = footerActionLabel();
+      next.disabled = state.commandBusy || (state.currentStep >= stepLabels.length - 1 && footerActionLabel() === "Save & Reload" && settingsWizardSaveReadinessIssues().length > 0);
+    }
+    const save = byIdLocal("settings-wizard-save-button");
+    if (save) {
+      const saveIssues = settingsWizardSaveReadinessIssues();
+      save.disabled = saveIssues.length > 0;
+      save.title = saveIssues.join("\n");
+    }
+  }
+
   function setCurrentStep(index) {
     const bounded = Math.max(0, Math.min(stepLabels.length - 1, Number(index) || 0));
     state.currentStep = bounded;
@@ -127,33 +305,34 @@
       node.setAttribute("aria-current", active ? "step" : "false");
     });
     const back = byIdLocal("settings-wizard-back-button");
-    const next = byIdLocal("settings-wizard-next-button");
     if (back) back.disabled = bounded <= 0;
-    if (next) next.disabled = bounded >= stepLabels.length - 1;
     setTextLocal("settings-wizard-status", stepLabels[bounded]);
+    updateWizardReadiness();
   }
 
   function markDirty() {
     state.dirty = true;
-    state.lastPreview = null;
+    syncRiskAckRows();
+    updateWizardReadiness();
   }
 
   function activateWizardTab() {
     const page = document.querySelector('[data-page-panel="settings"]');
     if (!page) return;
     page.querySelectorAll(".settings-tab-btn[data-settings-tab]").forEach((button) => {
-      const active = button.dataset.settingsTab === "presets";
+      const active = button.dataset.settingsTab === WIZARD_TAB_ID;
       button.setAttribute("aria-selected", String(active));
     });
     page.querySelectorAll(".settings-tab-pane[data-settings-tab]").forEach((pane) => {
-      pane.classList.toggle("is-active", pane.dataset.settingsTab === "presets");
+      pane.classList.toggle("is-active", pane.dataset.settingsTab === WIZARD_TAB_ID);
     });
-    try { localStorage.setItem("mediapipeline-settings-tab", "presets"); } catch (_error) {}
-    if (typeof updatePagePanelEmptyStates === "function") updatePagePanelEmptyStates();
+    try { localStorage.setItem("mediapipeline-settings-tab", WIZARD_TAB_ID); } catch (_error) {}
+    if (typeof window.updatePagePanelEmptyStates === "function") window.updatePagePanelEmptyStates();
   }
 
   async function openWizard() {
     activateWizardTab();
+    setCurrentStep(0);
     if (!state.defaultsLoaded || !state.dirty) await loadWizardDefaults();
   }
 
@@ -165,6 +344,19 @@
       renderToolCandidates(payload.tool_candidates || {});
       renderSettingsWizardStatus(payload.status || {});
       state.dirty = false;
+      state.pathValidation = null;
+      state.pathValidationSignature = "";
+      state.toolsValidation = null;
+      state.toolsValidationSignature = "";
+      state.hardwareProbe = null;
+      state.hardwareProbeSignature = "";
+      state.workerValidation = null;
+      state.workerValidationSignature = "";
+      state.lastPreview = null;
+      state.lastPreviewSignature = "";
+      const pathRows = byIdLocal("settings-wizard-path-rows");
+      if (pathRows) clearRowsLocal(pathRows, 4, "Path validation has not run.");
+      updateWizardReadiness();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setTextLocal("settings-wizard-status-detail", `Wizard defaults failed to load: ${message}`);
@@ -225,6 +417,7 @@
     ["AllowSystemTools", "AllowNoAudio", "CleanupRemoteStaging", "ReprocessAll"].forEach((key) => {
       setChecked(`wizard-ack-${key}`, false);
     });
+    syncRiskAckRows();
   }
 
   function renderToolCandidates(candidates) {
@@ -334,7 +527,9 @@
   }
 
   function collectDangerAck() {
+    const active = new Set(activeRiskAckRules().map((rule) => rule.key));
     return ["AllowSystemTools", "AllowNoAudio", "CleanupRemoteStaging", "ReprocessAll"]
+      .filter((key) => active.has(key))
       .filter((key) => boolValue(`wizard-ack-${key}`));
   }
 
@@ -391,6 +586,8 @@
 
   async function runWizardCommand(command, statusId, fn) {
     if (state.deps.rejectSettingsCommandWhileBusy && state.deps.rejectSettingsCommandWhileBusy(command, statusId, "")) return null;
+    state.commandBusy = true;
+    updateWizardReadiness();
     if (state.deps.setSettingsCommandBusy) state.deps.setSettingsCommandBusy(true);
     try {
       const result = await fn();
@@ -403,7 +600,9 @@
       setTextLocal(statusId, message);
       return result;
     } finally {
+      state.commandBusy = false;
       if (state.deps.setSettingsCommandBusy) state.deps.setSettingsCommandBusy(false);
+      updateWizardReadiness();
     }
   }
 
@@ -420,51 +619,151 @@
     return lines.join("\n");
   }
 
+  function renderPathRows(rows) {
+    const tbody = byIdLocal("settings-wizard-path-rows");
+    if (!tbody) return;
+    if (!rows.length) {
+      clearRowsLocal(tbody, 4, "Path validation has not run.");
+      return;
+    }
+    tbody.textContent = "";
+    rows.forEach((item) => {
+      const row = document.createElement("tr");
+      appendCellsLocal(row, [
+        item.label || "",
+        item.status || "",
+        `${item.path || "not configured"}${item.exists ? " (exists)" : ""}${item.is_dir ? " (folder)" : ""}`,
+      ]);
+      const actionCell = document.createElement("td");
+      if (item.target) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "secondary-button";
+        button.dataset.wizardFocusTarget = item.target;
+        button.textContent = "Focus";
+        actionCell.appendChild(button);
+      } else {
+        actionCell.textContent = "";
+      }
+      row.appendChild(actionCell);
+      tbody.appendChild(row);
+    });
+  }
+
+  function renderResultList(id, items) {
+    const node = byIdLocal(id);
+    if (!node) return;
+    node.textContent = "";
+    const rows = Array.isArray(items) ? items : [];
+    if (!rows.length) {
+      node.textContent = "No result loaded.";
+      return;
+    }
+    rows.forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "settings-wizard-result-row";
+      if (typeof item === "string") {
+        row.textContent = item;
+      } else {
+        row.dataset.state = String(item.state || item.status || "").toLowerCase();
+        const label = document.createElement("strong");
+        label.textContent = item.label || "";
+        const status = document.createElement("span");
+        status.textContent = item.status || "";
+        const detail = document.createElement("span");
+        detail.textContent = item.detail || "";
+        row.append(label, status, detail);
+      }
+      node.appendChild(row);
+    });
+  }
+
+  function focusWizardTarget(target) {
+    let node = null;
+    const text = String(target || "");
+    if (text.startsWith("library:")) {
+      const [, indexText, field] = text.split(":");
+      const index = Number.parseInt(indexText, 10) - 1;
+      node = document.querySelector(`.settings-wizard-library-row[data-library-index="${index}"] [data-library-field="${field}"]`);
+    } else if (text.startsWith("#") || text.startsWith(".")) {
+      node = document.querySelector(text);
+    }
+    if (node) {
+      node.focus();
+      node.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+  }
+
   async function validatePaths() {
+    const signature = wizardPayloadSignature();
     const result = await runWizardCommand("settings.wizard.validate_paths", "settings-wizard-status-detail", () => (
       apiPostLocal("/api/settings/wizard/validate-paths", { wizard: collectWizardPayload() })
     ));
     if (result) {
-      setTextLocal("settings-wizard-validation-summary", validationText(result.data || result));
+      const data = wizardResultData(result);
+      state.pathValidation = data;
+      state.pathValidationSignature = signature;
+      renderPathRows(data.path_validation?.rows || data.rows || []);
+      setTextLocal("settings-wizard-validation-summary", validationText(data));
       setTextLocal("settings-wizard-status-detail", result.message || "Path validation completed.");
+      updateWizardReadiness();
     }
   }
 
   async function detectTools() {
+    const signature = wizardPayloadSignature();
     const result = await runWizardCommand("settings.wizard.validate_tools", "settings-wizard-tools-result", () => (
       apiPostLocal("/api/settings/wizard/validate-tools", { wizard: collectWizardPayload() })
     ));
     if (result) {
-      const data = result.data || {};
-      setTextLocal("settings-wizard-tools-result", [
-        result.message || "Tool validation completed.",
-        `FFmpeg: ${data.ffmpeg?.ok ? "PASS" : "WARN"} ${data.ffmpeg?.path || ""}`,
-        `FFprobe: ${data.ffprobe?.ok ? "PASS" : "WARN"} ${data.ffprobe?.path || ""}`,
-        ...(data.warnings || []),
-      ].filter(Boolean).join("\n"));
+      const data = wizardResultData(result);
+      state.toolsValidation = data;
+      state.toolsValidationSignature = signature;
+      renderResultList("settings-wizard-tools-result", [
+        { label: "FFmpeg", status: data.ffmpeg?.ok ? "Ready" : "Blocked", detail: data.ffmpeg?.path || "not configured", state: data.ffmpeg?.ok ? "ready" : "blocked" },
+        { label: "FFprobe", status: data.ffprobe?.ok ? "Ready" : "Blocked", detail: data.ffprobe?.path || "not configured", state: data.ffprobe?.ok ? "ready" : "blocked" },
+        ...(data.warnings || []).map((item) => ({ label: "Warning", status: "Warning", detail: item, state: "warning" })),
+        ...(data.errors || []).map((item) => ({ label: "Error", status: "Blocked", detail: item, state: "blocked" })),
+      ]);
+      updateWizardReadiness();
     }
   }
 
   async function probeHardware() {
+    const signature = wizardPayloadSignature();
     const result = await runWizardCommand("settings.wizard.probe_hardware", "settings-wizard-hardware-result", () => (
       apiPostLocal("/api/settings/wizard/probe-hardware", { wizard: collectWizardPayload() })
     ));
     if (result) {
-      const data = result.data || {};
-      setTextLocal("settings-wizard-hardware-result", [
-        result.message || "Encoder probe completed.",
-        `Detected encoders: ${(data.detected_encoders || []).join(", ") || "none"}`,
-        ...(data.warnings || []),
-        ...(data.errors || []),
-      ].filter(Boolean).join("\n"));
+      const data = wizardResultData(result);
+      state.hardwareProbe = data;
+      state.hardwareProbeSignature = signature;
+      renderResultList("settings-wizard-hardware-result", [
+        { label: "Detected encoders", status: data.ok ? "Ready" : "Blocked", detail: (data.detected_encoders || []).join(", ") || "none", state: data.ok ? "ready" : "blocked" },
+        ...(data.warnings || []).map((item) => ({ label: "Warning", status: "Warning", detail: item, state: "warning" })),
+        ...(data.errors || []).map((item) => ({ label: "Error", status: "Blocked", detail: item, state: "blocked" })),
+      ]);
+      updateWizardReadiness();
     }
   }
 
   async function validateWorkers() {
+    const signature = wizardPayloadSignature();
     const result = await runWizardCommand("settings.wizard.validate_workers", "settings-wizard-workers-result", () => (
       apiPostLocal("/api/settings/wizard/validate-workers", { wizard: collectWizardPayload() })
     ));
-    if (result) setTextLocal("settings-wizard-workers-result", validationText(result.data || result));
+    if (result) {
+      const data = wizardResultData(result);
+      state.workerValidation = data;
+      state.workerValidationSignature = signature;
+      renderResultList("settings-wizard-workers-result", [
+        { label: "Mode", status: data.ok ? "Ready" : "Blocked", detail: data.parallel_encode_mode || "single", state: data.ok ? "ready" : "blocked" },
+        { label: "Max encodes", status: data.ok ? "Ready" : "Blocked", detail: String(data.max_parallel_encodes || 1), state: data.ok ? "ready" : "blocked" },
+        ...(data.warnings || []).map((item) => ({ label: "Warning", status: "Warning", detail: item, state: "warning" })),
+        ...(data.errors || []).map((item) => ({ label: "Error", status: "Blocked", detail: item, state: "blocked" })),
+      ]);
+      updateWizardReadiness();
+    }
   }
 
   function renderSummaryRows(rows) {
@@ -498,19 +797,32 @@
     ].join("\n"));
     renderSummaryRows(wizard.summary?.categories || []);
     setTextLocal("settings-wizard-validation-summary", validationText(wizard));
+    updateWizardReadiness();
   }
 
   async function previewWizard() {
+    const signature = wizardPayloadSignature();
     const result = await runWizardCommand("settings.wizard.preview", "settings-wizard-review-summary", () => (
       apiPostLocal("/api/settings/wizard/preview", { wizard: collectWizardPayload() })
     ));
     if (result) {
       state.lastPreview = result;
+      state.lastPreviewSignature = signature;
       renderPreview(result);
     }
   }
 
   async function saveWizard() {
+    const saveIssues = settingsWizardSaveReadinessIssues();
+    if (saveIssues.length) {
+      setCurrentStep(4);
+      setTextLocal("settings-wizard-save-result", [
+        "Save & Reload is blocked.",
+        ...saveIssues.map((item) => `- ${item}`),
+      ].join("\n"));
+      updateWizardReadiness();
+      return;
+    }
     const runtimeNote = window.mediaPipelineSettingsView?.settingsRuntimeRestartConfirmationLine?.()
       || "Runtime note: restarting Tauri is not required after a successful reload; future launches use the saved settings.";
     const confirmed = typeof window.confirm === "function"
@@ -540,8 +852,33 @@
       if (result.ok) {
         window.mediaPipelineSettingsView?.maybeShowSettingsRuntimeRestartNotice?.(result);
         state.dirty = false;
+        state.lastPreview = result;
+        state.lastPreviewSignature = wizardPayloadSignature();
         if (typeof state.deps.refreshAll === "function") state.deps.refreshAll();
       }
+      updateWizardReadiness();
+    }
+  }
+
+  async function handlePrimaryWizardAction() {
+    const label = footerActionLabel();
+    if (label === "Validate Paths") {
+      setCurrentStep(1);
+      await validatePaths();
+    } else if (label === "Detect Tools") {
+      setCurrentStep(2);
+      await detectTools();
+    } else if (label === "Probe Encoders") {
+      setCurrentStep(2);
+      await probeHardware();
+    } else if (label === "Validate Workers") {
+      setCurrentStep(2);
+      await validateWorkers();
+    } else if (label === "Save & Reload") {
+      await saveWizard();
+    } else {
+      setCurrentStep(4);
+      await previewWizard();
     }
   }
 
@@ -590,7 +927,7 @@
       button.addEventListener("click", () => setCurrentStep(button.dataset.wizardStepButton));
     });
     byIdLocal("settings-wizard-back-button")?.addEventListener("click", () => setCurrentStep(state.currentStep - 1));
-    byIdLocal("settings-wizard-next-button")?.addEventListener("click", () => setCurrentStep(state.currentStep + 1));
+    byIdLocal("settings-wizard-next-button")?.addEventListener("click", handlePrimaryWizardAction);
     byIdLocal("settings-open-wizard-button")?.addEventListener("click", openWizard);
     byIdLocal("settings-wizard-add-library-button")?.addEventListener("click", addLibraryRow);
     byIdLocal("settings-wizard-validate-paths-button")?.addEventListener("click", validatePaths);
@@ -603,6 +940,12 @@
     document.querySelectorAll(".settings-wizard-panel input, .settings-wizard-panel select").forEach((node) => {
       node.addEventListener("input", markDirty);
       node.addEventListener("change", markDirty);
+    });
+    document.addEventListener("click", (event) => {
+      const button = event.target?.closest?.("[data-wizard-focus-target]");
+      if (!button) return;
+      event.preventDefault();
+      focusWizardTarget(button.dataset.wizardFocusTarget);
     });
     setCurrentStep(0);
     loadWizardStatus();

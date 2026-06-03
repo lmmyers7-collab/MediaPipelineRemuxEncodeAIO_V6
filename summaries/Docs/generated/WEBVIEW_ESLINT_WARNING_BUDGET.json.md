@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-06-02
 last_reviewed: 2026-06-02
-sha256: bd041bf0d67c210038bba1d4e48f0b94fb3e54132fae259e324f503b0096e286
+sha256: a7821964434361c0bf10188e7e4cafb4045d6cafaf6aeefb7f0d7f96210e4ef0
 ---
 # `Docs/generated/WEBVIEW_ESLINT_WARNING_BUDGET.json`
 

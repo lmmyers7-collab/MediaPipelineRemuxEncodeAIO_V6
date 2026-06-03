@@ -16,7 +16,7 @@
         "passthrough_codecs": { "type": "array", "items": { "type": "string" } },
         "preferred_default_languages": { "type": "array", "items": { "type": "string" } },
         "transcode_codec": { "type": "string", "enum": [ "", "eac3", "ac3", "aac" ] },
-        "transcode_bitrate": { "type": "string", "pattern": "^(|\\d+k)$" },
+        "transcode_bitrate": { "type": "string", "pattern": "^(|[1-9]\\d*k)$" },
         "downmix_mode": { "type": "string", "enum": [ "", "preserve", "max_channels", "stereo" ] },
         "max_channels": { "type": [ "integer", "null" ], "minimum": 1, "maximum": 16 }
       }

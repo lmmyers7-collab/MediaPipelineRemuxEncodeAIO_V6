@@ -143,14 +143,28 @@ $pendingManifest = Convert-RoundTripJson ([ordered]@{
     parked_file            = 'C:\Scratch\Pending\Movie.mkv'
     server_out             = '\\server\Movies\Movie.mkv'
     route                  = 'remux'
+    media_type             = 'movie'
     source_path            = 'C:\Media\Source\Movie.mkv'
     source_size            = 42
+    source_mtime_utc       = '2026-05-06T11:59:00Z'
     output_size            = 42
     publish_mode           = 'deferred'
-    sidecar_files          = @()
+    sidecar_files          = @([ordered]@{ local_file = 'C:\Scratch\Pending\Movie.eng.srt'; server_out = '\\server\Movies\Movie.eng.srt' })
+    tx3g_srt_tracks        = @([ordered]@{ language = 'eng' })
+    tx3g_srt_failures      = @()
+    bdpgs_srt_failures     = @()
+    vobsub_srt_failures    = @([ordered]@{ reason = 'ocr unavailable' })
+    tx3g_embedded_srt_tracks = @([ordered]@{ language = 'eng' })
+    bdpgs_embedded_srt_tracks = @()
+    vobsub_embedded_srt_tracks = @([ordered]@{ language = 'eng' })
+    vobsub_srt_conversion_enabled = $true
+    drop_vobsub_after_conversion = $false
 })
 Assert-Equal $pendingManifest.schema_version 'pending_push_manifest.v1' 'Pending manifest schema_version mismatch.'
 Assert-Equal $pendingManifest.manifest_state 'parked' 'Pending manifest state mismatch.'
+Assert-Equal $pendingManifest.media_type 'movie' 'Pending manifest media_type mismatch.'
+Assert-Equal @($pendingManifest.vobsub_srt_failures).Count 1 'Pending manifest VobSub failure evidence did not round-trip.'
+Assert-True ([bool]$pendingManifest.vobsub_srt_conversion_enabled) 'Pending manifest VobSub conversion flag did not round-trip.'
 
 $completedJob = Convert-RoundTripJson ([ordered]@{
     schema_version   = 'pipeline_sidecar.v1'
@@ -174,7 +188,15 @@ Assert-Equal $publishResult.OutputSizeBytes 42 'Publish result output size misma
 $partialPath = New-PublishPartialMediaPath -ServerOut 'C:\Out\Movie.mkv' -PublishTransactionId 'tx-test'
 Assert-True ($partialPath -like '*Movie.mkv.mp-publish-partial.tx-test') 'Publish partial path format changed.'
 
+. (Join-Path $repoRoot 'engine\config\config_keys.ps1')
+. (Join-Path $repoRoot 'engine\config\config_schema.ps1')
 . (Join-Path $repoRoot 'engine\policy\folder_policy.ps1')
+$zeroBitratePolicy = Convert-RoundTripJson ([ordered]@{
+    schema_version = 'folder_policy.v1'
+    audio = [ordered]@{ transcode_bitrate = '0k' }
+})
+$zeroBitrateOverrides = ConvertTo-MediaPipelineFolderPolicyOverrides -Policy $zeroBitratePolicy -PolicyPath 'C:\Media\mediapipeline.folder.json'
+Assert-True (-not $zeroBitrateOverrides.ContainsKey('AudioTranscodeBitrate')) 'Folder policy must not promote zero audio transcode bitrate overrides.'
 $pythonWrittenTopology = Convert-RoundTripJson ([ordered]@{
     audio = @(@('eac3', 'eng', 6))
     subtitles = @(@('ass', 'eng'))

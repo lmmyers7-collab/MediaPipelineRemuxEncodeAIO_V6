@@ -18,6 +18,8 @@ $pipelineRoot = Split-Path -Parent (Split-Path -Parent $testsRoot)
 $repoRoot = Split-Path -Parent $pipelineRoot
 $releasePolicyPath = Join-Path $repoRoot 'scripts\release\release_policy.ps1'
 $backupScriptPath = Join-Path $repoRoot 'scripts\release\Backup-PreOverhaul.ps1'
+$setupLauncherPath = Join-Path $repoRoot 'scripts\dev\setup.bat'
+$runLauncherPath = Join-Path $repoRoot 'scripts\dev\run.bat'
 
 function Assert-True {
     param(
@@ -47,9 +49,15 @@ function Assert-ReleaseExclusion {
 
 Assert-True (Test-Path -LiteralPath $releasePolicyPath -PathType Leaf) 'release_policy.ps1 is missing.'
 Assert-True (Test-Path -LiteralPath $backupScriptPath -PathType Leaf) 'Backup-PreOverhaul.ps1 is missing.'
+Assert-True (Test-Path -LiteralPath $setupLauncherPath -PathType Leaf) 'scripts\dev\setup.bat is missing.'
+Assert-True (Test-Path -LiteralPath $runLauncherPath -PathType Leaf) 'scripts\dev\run.bat is missing.'
 
 . $releasePolicyPath
 
+Assert-ReleaseExclusion -RelativePath '.github\workflows\ci.yml' -ExpectedReason 'source-control metadata'
+Assert-ReleaseExclusion -RelativePath '.gitattributes' -ExpectedReason 'source-control metadata'
+Assert-ReleaseExclusion -RelativePath '.codex\state.json' -ExpectedReason 'local assistant metadata'
+Assert-ReleaseExclusion -RelativePath '.codex-plugin\plugin.json' -ExpectedReason 'local assistant metadata'
 Assert-ReleaseExclusion -RelativePath 'node_modules\eslint\bin\eslint.js' -ExpectedReason 'node modules omitted'
 Assert-ReleaseExclusion -RelativePath 'tools\node_modules\package\index.js' -ExpectedReason 'node modules omitted'
 Assert-ReleaseExclusion -RelativePath 'DesktopApp\tauri_shell\node_modules\package\index.js' -ExpectedReason 'tauri node modules omitted'
@@ -72,6 +80,8 @@ $rulePaths = @(
         ForEach-Object { $_.relative_path }
 )
 Assert-True ($rulePaths -contains 'node_modules') 'Release hygiene rules must reject root node_modules.'
+Assert-True ($rulePaths -contains '.github') 'Release hygiene rules must reject source-control workflow metadata.'
+Assert-True ($rulePaths -contains '.codex') 'Release hygiene rules must reject local Codex metadata.'
 Assert-True ($rulePaths -contains 'DesktopApp\tauri_shell\node_modules') 'Release hygiene rules must reject Tauri node_modules.'
 Assert-True ($rulePaths -contains 'Pipeline\MediaPipeline_config.psd1') 'Release hygiene rules must reject the active live config by default.'
 
@@ -82,5 +92,16 @@ Assert-True ($policyManifest.hygiene_rule_count -eq $hygieneRules.Count) 'Releas
 $backupScriptText = Get-Content -LiteralPath $backupScriptPath -Raw
 Assert-Contains $backupScriptText '& $buildScript -DestinationRoot $ReleaseDir -Verify -Zip' 'Backup script must call the canonical release builder for the release copy.'
 Assert-True (-not $backupScriptText.Contains('New-Item -ItemType Directory -Path $ReleaseDir')) 'Backup script must not pre-create the release destination before invoking build.ps1.'
+
+$setupLauncherText = Get-Content -LiteralPath $setupLauncherPath -Raw
+$runLauncherText = Get-Content -LiteralPath $runLauncherPath -Raw
+foreach ($launcher in @(
+    @{ Label = 'setup.bat'; Text = $setupLauncherText },
+    @{ Label = 'run.bat'; Text = $runLauncherText }
+)) {
+    Assert-Contains $launcher.Text 'where pwsh.exe' "$($launcher.Label) must use cmd-native pwsh discovery."
+    Assert-Contains $launcher.Text 'ERROR: PowerShell 7 was not found.' "$($launcher.Label) must fail explicitly when PS7 is unavailable."
+    Assert-True (-not $launcher.Text.Contains('powershell.exe')) "$($launcher.Label) must not fall back to Windows PowerShell."
+}
 
 Write-Host 'Release package policy checks passed.'

@@ -3,9 +3,9 @@ file: app/completed/open_policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: completed
-last_modified: 2026-05-28
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 3449ff33f0413f337ead6a267d7486fe9fc349c3e4f2e3f807336161b56a0847
+sha256: ddcba96ac0030be480a34cf6f2ef33b2b97c67f0ee590abaeeb77805b2dedb7c
 ---
 # `app/completed/open_policy.py`
 

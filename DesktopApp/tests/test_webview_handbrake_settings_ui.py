@@ -138,8 +138,8 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
         expected_order = [
             "Summary / Effective Decision",
+            "Guided Setup",
             "Routing",
-            "Source / Compatibility",
             "Dimensions",
             "Filters",
             "Video",
@@ -159,8 +159,8 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
         for tab in (
             'data-settings-tab="status"',
+            'data-settings-tab="guided-setup"',
             'data-settings-tab="editor"',
-            'data-settings-tab="source-compat"',
             'data-settings-tab="dimensions"',
             'data-settings-tab="filters"',
             'data-settings-tab="video"',
@@ -179,11 +179,13 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             ">Container / Output Size Check</button>",
             ">Wizard</button>",
             ">Rename Filters</button>",
+            ">Source / Compatibility</button>",
             ">System</button>",
             'data-settings-tab="media"',
             'data-settings-tab="container-size"',
             'data-settings-tab="wizard"',
             'data-settings-tab="rename-filters"',
+            'data-settings-tab="source-compat"',
             'data-settings-tab="system"',
         ):
             self.assertNotIn(retired_tab, html)
@@ -201,7 +203,6 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "Encode if required",
             "Size / bitrate guards",
             "Evidence scope",
-            "No backend SourceMediaInfo payload loaded",
             "data-settings-summary-key=\"RoutingProfile\"",
             "data-settings-summary-key=\"OutputContainer\"",
             "data-settings-summary-key=\"VideoCodec\"",
@@ -209,7 +210,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "library_effective_settings is library-only",
             "final runtime decision is resolved during queue/job processing",
             "The WebView does not compute copy/remux/encode routing",
-            "pipeline_plan.v1 results from /api/settings/pipeline-plan-preview",
+            "This panel shows saved output policy for orientation only",
             "cannot launch, save settings, encode, remux, publish, rename, drain pending publish, or touch media files",
         ):
             self.assertIn(token, html)
@@ -238,33 +239,30 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         ):
             self.assertIn(token, review_js)
 
-        for token in (
-            'settingsPatchReviewFunction("renderSettingsEffectiveIntentSummary")',
-            "backend pipeline_plan.v1 preview, diagnostic-only",
-            "preview failed; saved settings orientation only",
-        ):
-            self.assertIn(token, settings_js)
-
         for forbidden in (
             "ProcessingStrategy:",
             "OutputSizeCheck:",
             "runtime_effective_settings:",
+            "backend pipeline_plan.v1 preview, diagnostic-only",
+            "preview failed; saved settings orientation only",
         ):
             self.assertNotIn(forbidden, review_js + settings_js)
 
-    def test_source_compatibility_accepts_source_facts_for_backend_preview(self) -> None:
+    def test_source_compatibility_tab_and_preview_call_are_removed(self) -> None:
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
         review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
 
         for token in (
+            "Source / Compatibility",
+            'data-settings-tab="source-compat"',
             'id="settings-source-media-json"',
             'id="settings-preview-plan-button"',
             'id="settings-source-facts-rows"',
             "SourceMediaInfo source facts JSON",
             "Backend validation remains authoritative",
         ):
-            self.assertIn(token, html)
+            self.assertNotIn(token, html)
 
         for token in (
             'apiPost("/api/settings/pipeline-plan-preview", {',
@@ -276,11 +274,42 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "Command preview:",
             "Preview label remains Predicted pending cutover",
         ):
-            self.assertIn(token, settings_js)
+            self.assertNotIn(token, settings_js)
 
-        self.assertIn('bindSettingsClick("settings-preview-plan-button", addSettingsEventHandlers.previewSettingsPipelinePlan)', review_js)
+        self.assertNotIn('bindSettingsClick("settings-preview-plan-button", addSettingsEventHandlers.previewSettingsPipelinePlan)', review_js)
+        self.assertIn("Source-specific route previews are not exposed in Settings", review_js)
 
-    def test_routing_badges_and_handbrake_labels_are_visible(self) -> None:
+    def test_guided_setup_tab_uses_five_phase_backend_owned_flow(self) -> None:
+        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        wizard_js = (STATIC_ROOT / "assets" / "settingsWizard.js").read_text(encoding="utf-8")
+
+        for token in (
+            'data-settings-tab="guided-setup"',
+            "settings-wizard-readiness-strip",
+            "settings-wizard-phase-0-status",
+            "settings-wizard-phase-4-status",
+            "settings-wizard-path-rows",
+            "settings-wizard-next-button",
+            "settings-open-wizard-button",
+            'data-risk-ack-row="AllowSystemTools"',
+            'data-risk-ack-row="ReprocessAll"',
+            "Save &amp; Reload",
+        ):
+            self.assertIn(token, html)
+
+        for token in (
+            'const WIZARD_TAB_ID = "guided-setup";',
+            'const stepLabels = ["Start", "Paths", "Toolchain", "Policy", "Review & Save"];',
+            "function settingsWizardSaveReadinessIssues()",
+            "function handlePrimaryWizardAction()",
+            "function syncRiskAckRows()",
+            "Wizard draft changed after the last preview. Preview Config again before saving.",
+            'apiPostLocal("/api/settings/wizard/preview", { wizard: collectWizardPayload() })',
+            'apiPostLocal("/api/settings/wizard/save", { wizard: collectWizardPayload(), confirm_save: true })',
+        ):
+            self.assertIn(token, wizard_js)
+
+    def test_routing_labels_are_visible_without_taxonomy_badges(self) -> None:
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
 
         for token in (
@@ -294,10 +323,6 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "TV target output size",
             "Movie max bitrate for direct copy",
             "TV max bitrate for direct copy",
-            'data-rule-kind="routing">ROUTING',
-            'data-rule-kind="hard">HARD',
-            'data-rule-kind="soft">SOFT',
-            'data-rule-kind="advisory">ADVISORY',
             "Bitrate strict, size flexible",
             "Target size strict",
             "Direct-copy bitrate strict",
@@ -310,6 +335,10 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertNotIn(">Encode tuning", html)
         self.assertNotIn("Compatibility advisory", html)
         self.assertNotIn("fallback tuning", html)
+        self.assertNotIn("settings-rule-badge-row", html)
+        self.assertNotIn("rule-badge", html)
+        self.assertNotIn("data-rule-kind", html)
+        self.assertNotIn("FORCES ENCODE", html)
 
     def test_advanced_encoder_controls_are_collapsed_by_default(self) -> None:
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
@@ -322,6 +351,64 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertLess(details_start, summary_index)
         self.assertLess(summary_index, extra_flags_index)
         self.assertLess(extra_flags_index, details_end)
+
+    def test_video_detail_merge_button_has_hover_hint(self) -> None:
+        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+
+        self.assertIn('id="settings-video-apply-button"', html)
+        self.assertIn('aria-describedby="settings-video-apply-hint"', html)
+        self.assertIn('id="settings-video-apply-hint" class="action-hover-hint" role="tooltip"', html)
+        self.assertIn("Stages the values in this Video builder into Changes JSON.", html)
+        self.assertIn("backend owns routing, codec, container, and encoder policy", html)
+
+    def test_video_speed_and_quality_targets_use_descriptive_sliders(self) -> None:
+        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
+        builder_js = (STATIC_ROOT / "assets" / "settingsView.builders.video.js").read_text(encoding="utf-8")
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        styles = (STATIC_ROOT / "assets" / "styles.components.css").read_text(encoding="utf-8")
+
+        for token in (
+            'id="settings-video-preset"',
+            'type="range"',
+            'min="1"',
+            'max="7"',
+            'settings-video-preset-value',
+            'P1 fastest',
+            'P7 slowest',
+            'settings-video-quality-value',
+            'Cleaner / larger',
+            'Smaller / softer',
+        ):
+            self.assertIn(token, html)
+
+        self.assertIn('["VideoPreset", "settings-video-preset", "preset_slider"]', metadata_js)
+        self.assertIn('["VideoQuality", "settings-video-quality", "quality_slider"]', metadata_js)
+        self.assertIn(
+            'setVideoDetailBuilderControl("settings-video-preset", "VideoPreset", "preset_slider", "p5")',
+            builder_js,
+        )
+        self.assertIn(
+            'setVideoDetailBuilderControl("settings-video-quality", "VideoQuality", "quality_slider", 22)',
+            builder_js,
+        )
+        self.assertIn('return `p${clampedInteger(value, 5, 1, 7)}`;', builder_js)
+        self.assertIn('if (kind === "preset_slider") return videoPresetKeyFromSliderValue', builder_js)
+        self.assertIn('if (kind === "quality_slider") return Number(videoQualitySliderValue', builder_js)
+        self.assertIn('element.dataset.settingsPreserveRangeLimits === "true"', settings_js)
+        self.assertIn('.settings-slider-field input[type="range"]', styles)
+
+    def test_successful_settings_save_resyncs_saved_builder_values(self) -> None:
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+
+        self.assertIn("function resetSettingsBuilderSyncState(options = {})", settings_js)
+        self.assertIn("videoDetailSettingsBuilderState,", settings_js)
+        self.assertIn("state.dirty = false;", settings_js)
+        self.assertIn("resetSettingsBuilderSyncState();\n      await refreshAll();", settings_js)
+        self.assertIn(
+            "resetSettingsBuilderSyncState({ includeFinalLibraryPromotion: true });\n      await refreshAll();",
+            settings_js,
+        )
 
     def test_advanced_fields_use_metadata_and_fallback_toggle(self) -> None:
         metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
@@ -340,11 +427,21 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "VobSubOcrTimeoutSeconds",
             "ExcludeSubtitleStyles",
             "IncludeSubtitleStyles",
+        ):
+            self.assertIn(f'"{key}"', metadata_js)
+
+        advanced_fallback_start = metadata_js.index("const settingsAdvancedFallbackKeys = [")
+        advanced_fallback_end = metadata_js.index("];", advanced_fallback_start)
+        advanced_fallback_source = metadata_js[advanced_fallback_start:advanced_fallback_end]
+        for key in (
+            "DropAssAfterConversion",
             "RemoveKaraoke",
             "StripFormatting",
             "MergeAdjacent",
+            "KeepSignsAndSongs",
+            "TreatAssSignsSongsAsForced",
         ):
-            self.assertIn(f'"{key}"', metadata_js)
+            self.assertNotIn(f'"{key}"', advanced_fallback_source)
 
         for token in (
             "settingsAdvancedFallbackKeys",
@@ -372,42 +469,28 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         ):
             self.assertIn(token, styles)
 
-    def test_rule_and_strictness_badges_are_display_only(self) -> None:
+    def test_rule_and_strictness_badges_are_not_rendered(self) -> None:
+        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
         styles = (STATIC_ROOT / "assets" / "styles.components.css").read_text(encoding="utf-8")
         review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
         video_builder_js = (STATIC_ROOT / "assets" / "settingsView.builders.video.js").read_text(encoding="utf-8")
 
-        for badge in (
-            "ROUTING",
-            "COMPATIBILITY",
-            "QUALITY",
-            "SIZE",
-            "BITRATE",
-            "OUTPUT",
-            "VERIFY",
-            "PUBLISH",
-            "ADVISORY",
-            "HARD",
-            "SOFT",
-            "ADVANCED",
+        combined_tag_sources = html + settings_js + styles
+        for token in (
+            "settingsMetadataBadgeLabels",
+            "settingsMetadataBadgeKind",
+            "settingsMetadataBadgeText",
+            "renderSettingsFieldTaxonomyBadges",
+            "settings-field-metadata-badge",
+            "settings-field-metadata-badges",
+            "settings-rule-badge-row",
+            "rule-badge",
+            "data-rule-kind",
+            "Display-only backend metadata; not a saved config key.",
         ):
-            self.assertIn(badge, settings_js)
+            self.assertNotIn(token, combined_tag_sources)
 
-        for kind in (
-            'data-rule-kind="routing"',
-            'data-rule-kind="compatibility"',
-            'data-rule-kind="quality"',
-            'data-rule-kind="size"',
-            'data-rule-kind="bitrate"',
-            'data-rule-kind="output"',
-            'data-rule-kind="verification"',
-            'data-rule-kind="publish"',
-            'data-rule-kind="advanced"',
-        ):
-            self.assertIn(kind, styles)
-
-        self.assertIn("Display-only backend metadata; not a saved config key.", settings_js)
         self.assertNotIn("settingsRuleTaxonomy", review_js)
         self.assertNotIn("settingsStrictness", review_js)
         self.assertNotIn("settingsAdvancedVisibility", review_js)
@@ -454,10 +537,6 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "function settingsFieldLabel(key, fallback = \"\")",
             "function settingsFieldHelpText(field)",
             "field?.help_text || field?.help",
-            "function renderSettingsFieldTaxonomyBadges(label, control, field)",
-            "field.rule_taxonomy",
-            "field.strictness",
-            "settings-field-metadata-badge",
             "function applySettingsFieldMetadataToControl([key, id, fallbackKind])",
             "if (!field || !element) return;",
             "dataset.settingsKey",
@@ -466,14 +545,19 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "dataset.settingsDefaultValue",
             "dataset.settingsAdvancedVisibility",
             "dataset.settingsSection",
-            "dataset.settingsRuleTaxonomy",
-            "dataset.settingsStrictness",
             "field.min",
             "field.max",
             "field.step",
             "applySettingsFieldMetadataToControls();",
         ):
             self.assertIn(token, settings_js)
+        for token in (
+            "function renderSettingsFieldTaxonomyBadges(label, control, field)",
+            "settings-field-metadata-badge",
+            "dataset.settingsRuleTaxonomy",
+            "dataset.settingsStrictness",
+        ):
+            self.assertNotIn(token, settings_js)
         self.assertNotIn("rule_taxonomy", metadata_js)
         self.assertNotIn("strictness", metadata_js)
 

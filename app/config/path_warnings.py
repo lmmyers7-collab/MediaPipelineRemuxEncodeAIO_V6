@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Callable, Any
 
@@ -8,6 +9,37 @@ from app.config.value_checks import add_unique_warning
 
 PathKeyFunc = Callable[[Path], str]
 PathWithinRootFunc = Callable[[Path, Path], bool]
+
+
+def normalized_config_warning_path_key(path: Any) -> str:
+    """Return a lexical path key for read-only config warnings.
+
+    Settings validation must not resolve paths because UNC roots can block the
+    WebView while offline. Mutation safety checks use app.paths.layout instead.
+    """
+    text = str(path or "").strip()
+    if not text:
+        return ""
+    try:
+        expanded = str(Path(text).expanduser())
+    except (OSError, RuntimeError, ValueError):
+        expanded = text
+    try:
+        path_text = os.path.abspath(os.path.normpath(expanded))
+    except (OSError, ValueError):
+        path_text = os.path.normpath(expanded)
+    return os.path.normcase(path_text) if os.name == "nt" else path_text
+
+
+def config_warning_path_within_root(path: Any, root: Any) -> bool:
+    path_text = normalized_config_warning_path_key(path)
+    root_text = normalized_config_warning_path_key(root)
+    if not path_text or not root_text:
+        return False
+    try:
+        return os.path.commonpath([path_text, root_text]) == root_text
+    except ValueError:
+        return False
 
 
 def _path_text_for_warning(value: Any) -> str:

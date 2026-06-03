@@ -7,8 +7,11 @@ import json
 import logging
 import os
 import re
+import shutil
+import subprocess
 import sys
 import tempfile
+import textwrap
 import threading
 import time
 import unittest
@@ -131,6 +134,270 @@ def _assert_namespace_export(testcase: unittest.TestCase, source: str, namespace
 
 
 class ApplicationFacadeWebStaticTests(unittest.TestCase):
+    def test_sidebar_nav_order_and_output_publish_tab(self) -> None:
+        desktop_root = Path(__file__).resolve().parents[1]
+        static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static"
+        shell_html = (static_root / "partials" / "app-shell-start.html").read_text(encoding="utf-8")
+        completed_html = (static_root / "partials" / "page-completed.html").read_text(encoding="utf-8")
+        pending_html = (static_root / "partials" / "page-pending.html").read_text(encoding="utf-8")
+
+        ordered_pages = [
+            "home",
+            "launch",
+            "live",
+            "queue",
+            "completed",
+            "rename",
+            "reports",
+            "network",
+            "libraries",
+            "schedule",
+            "settings",
+            "diagnostics",
+            "maintenance",
+        ]
+        positions = [shell_html.index(f'data-page="{page}"') for page in ordered_pages]
+        self.assertEqual(positions, sorted(positions))
+        self.assertNotIn('data-page="pending"', shell_html)
+
+        completed_tab_order = [
+            'data-completed-tab="overview"',
+            'data-output-page-target="pending"',
+            'data-completed-tab="history"',
+            'data-completed-tab="advanced"',
+        ]
+        completed_positions = [completed_html.index(token) for token in completed_tab_order]
+        self.assertEqual(completed_positions, sorted(completed_positions))
+        self.assertIn(">Publish</button>", completed_html)
+        pending_tab_order = [
+            'data-output-completed-tab="overview"',
+            'data-output-page-target="pending"',
+            'data-output-completed-tab="history"',
+            'data-output-completed-tab="advanced"',
+        ]
+        pending_positions = [pending_html.index(token) for token in pending_tab_order]
+        self.assertEqual(pending_positions, sorted(pending_positions))
+        self.assertIn('data-output-page-target="pending" aria-selected="true">Publish</button>', pending_html)
+
+    def test_topbar_event_ticker_formats_pending_and_backend_events(self) -> None:
+        node = shutil.which("node")
+        if not node:
+            raise unittest.SkipTest("Node.js is required for the WebView lifecycle ticker static smoke.")
+        repo_root = Path(__file__).resolve().parents[2]
+        script = textwrap.dedent(
+            r"""
+            const fs = require("fs");
+            const vm = require("vm");
+            const path = require("path");
+            const lifecyclePath = path.join(
+              process.cwd(),
+              "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app/lifecycle.js"
+            );
+            const source = fs.readFileSync(lifecyclePath, "utf8");
+            const ticker = { textContent: "", title: "", dataset: {} };
+            const context = {
+              window: {},
+              console,
+              Date,
+              setTimeout,
+              clearTimeout,
+              lastSnapshot: { pipeline_state: "processing", recent_events: [] },
+              byId(id) { return id === "topbar-event-ticker" ? ticker : null; },
+              formatProgressValue(value) { return value == null ? "" : String(value); },
+              homeAtAGlancePercent(value) { return value == null || value === "" ? "" : `${value}%`; },
+            };
+            context.window = context;
+            vm.createContext(context);
+            vm.runInContext(source, context, { filename: lifecyclePath });
+            const lifecycle = context.window.mediaPipelineAppLifecycle;
+            if (!lifecycle?.renderTopbarEventTicker || !lifecycle?.setTopbarPendingLaunch) {
+              throw new Error("Ticker lifecycle exports are missing");
+            }
+
+            lifecycle.renderTopbarEventTicker({ pipeline_state: "idle", recent_events: [] });
+            if (ticker.dataset.state !== "empty" || !ticker.textContent.includes("no backend pipeline events")) {
+              throw new Error(`Unexpected empty ticker: ${ticker.dataset.state} ${ticker.textContent}`);
+            }
+
+            lifecycle.setTopbarPendingLaunch({ pid: "20676" });
+            if (
+              ticker.dataset.state !== "pending"
+              || !ticker.textContent.includes("pipeline.start accepted")
+              || !ticker.textContent.includes("PID 20676")
+            ) {
+              throw new Error(`Unexpected pending ticker: ${ticker.dataset.state} ${ticker.textContent}`);
+            }
+
+            lifecycle.renderTopbarEventTicker({
+              pipeline_state: "processing",
+              recent_events: [
+                {
+                  event_type: "job_started",
+                  timestamp: "2026-06-02T10:00:02Z",
+                  stage: "processing",
+                  status: "active",
+                  data: { source_path: "C:/Movies/The Hobbit The Desolation of Smaug 2013 Extended.mkv" },
+                },
+                { event_type: "queue_scan_started", timestamp: "2026-06-02T10:00:00Z", status: "started" },
+              ],
+            });
+            if (
+              ticker.dataset.state !== "event"
+              || !ticker.textContent.includes("job_started")
+              || !ticker.textContent.includes("The Hobbit")
+            ) {
+              throw new Error(`Unexpected event ticker: ${ticker.dataset.state} ${ticker.textContent}`);
+            }
+
+            const formatted = lifecycle.topbarEventTickerLine({
+              event_type: "very_long_event_name_that_should_still_render",
+              data: { source_path: `C:/Movies/${"A".repeat(180)}.mkv` },
+            });
+            if (!formatted.includes("Latest event:") || formatted.length > 180) {
+              throw new Error(`Unexpected formatted ticker length/text: ${formatted.length} ${formatted}`);
+            }
+            """
+        )
+        result = subprocess.run(
+            [node, "-e", script],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
+    def test_home_recent_completed_prefers_episode_identity_for_tv_rows(self) -> None:
+        node = shutil.which("node")
+        if not node:
+            raise unittest.SkipTest("Node.js is required for the Home recent-completed formatter smoke.")
+        repo_root = Path(__file__).resolve().parents[2]
+        script = textwrap.dedent(
+            r"""
+            const fs = require("fs");
+            const vm = require("vm");
+            const path = require("path");
+            const homePath = path.join(
+              process.cwd(),
+              "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app/home.js"
+            );
+            const source = fs.readFileSync(homePath, "utf8");
+            function makeElement(tag) {
+              const node = {
+                tagName: String(tag || "").toUpperCase(),
+                children: [],
+                cells: [],
+                title: "",
+                dataset: {},
+                className: "",
+                classList: { add(value) { node.className = [node.className, value].filter(Boolean).join(" "); } },
+                appendChild(child) {
+                  this.children.push(child);
+                  if (this.tagName === "TR" && child.tagName === "TD") this.cells.push(child);
+                  return child;
+                },
+                append(...items) { items.forEach((item) => this.appendChild(item)); },
+                _textContent: "",
+              };
+              Object.defineProperty(node, "textContent", {
+                get() {
+                  return this._textContent || this.children.map((child) => child.textContent || "").join("");
+                },
+                set(value) {
+                  this._textContent = String(value ?? "");
+                  if (this.tagName === "TBODY") this.children = [];
+                },
+              });
+              Object.defineProperty(node, "innerText", {
+                get() { return this.textContent; },
+                set(value) { this.textContent = value; },
+              });
+              return node;
+            }
+            const elements = {
+              "home-recent-completed-tbody": makeElement("tbody"),
+              "home-recent-completed-status": makeElement("strong"),
+            };
+            const context = {
+              window: {},
+              console,
+              document: { createElement: makeElement },
+              byId(id) { return elements[id] || null; },
+              appendCells(row, values) {
+                values.forEach((value) => {
+                  const cell = makeElement("td");
+                  cell.textContent = value;
+                  row.appendChild(cell);
+                });
+              },
+              formatProgressValue(value) { return value == null ? "" : String(value); },
+            };
+            context.window = context;
+            vm.createContext(context);
+            vm.runInContext(source, context, { filename: homePath });
+            const home = context.window.mediaPipelineAppHome;
+            if (!home?.renderHomeRecentCompleted) {
+              throw new Error("Home recent-completed renderer export is missing");
+            }
+
+            home.renderHomeRecentCompleted({
+              count: 2,
+              rows: [
+                {
+                  media_type: "TV",
+                  lookup_title: "TV (Season 02)",
+                  output_file: "TV (Season 02).mkv",
+                  output_path: "D:/Outsource/TV/TV/Season 02/TV (Season 02).mkv",
+                  source_path: "D:/Source/Anime/Serial Experiments Lain/Season 02/Serial Experiments Lain - S02E01 - Weird.mkv",
+                  relative_path: "Serial Experiments Lain/Season 02/Serial Experiments Lain - S02E01 - Weird.mkv",
+                  route: "remux",
+                  completed_at: "Jun 2 10:14 PM",
+                },
+                {
+                  media_type: "Movie",
+                  lookup_title: "Movie (2024)",
+                  output_file: "Movie (2024).mkv",
+                  output_path: "D:/Outsource/Movies/Movie (2024)/Movie (2024).mkv",
+                  route_label: "ENCODE",
+                  completed_at: "Jun 2 10:13 PM",
+                },
+              ],
+            });
+            const tbody = elements["home-recent-completed-tbody"];
+            const tvRow = tbody.children[0];
+            const fileCell = tvRow.cells[0];
+            const title = fileCell.children[0]?.textContent || "";
+            const meta = fileCell.children[1]?.textContent || "";
+            if (title !== "Serial Experiments Lain - S02E01 - Weird.mkv") {
+              throw new Error(`Expected concrete episode filename, got ${title}`);
+            }
+            if (!meta.includes("Serial Experiments Lain") || !meta.includes("Season 02")) {
+              throw new Error(`Expected show/season context, got ${meta}`);
+            }
+            if (title.includes("TV (Season 02)")) {
+              throw new Error(`Season-only lookup leaked into primary title: ${title}`);
+            }
+            if (tvRow.cells[1].textContent !== "REMUX") {
+              throw new Error(`Route fallback did not render REMUX: ${tvRow.cells[1].textContent}`);
+            }
+            const movieRow = tbody.children[1];
+            if ((movieRow.cells[0].children[0]?.textContent || "") !== "Movie (2024)") {
+              throw new Error(`Movie lookup title changed unexpectedly: ${movieRow.cells[0].textContent}`);
+            }
+            if (movieRow.cells[1].textContent !== "ENCODE") {
+              throw new Error(`Route label did not render ENCODE: ${movieRow.cells[1].textContent}`);
+            }
+            """
+        )
+        result = subprocess.run(
+            [node, "-e", script],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
     def test_web_and_tauri_shell_reference_all_local_api_contract_routes(self) -> None:
         desktop_root = Path(__file__).resolve().parents[1]
         static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static"
@@ -183,10 +450,14 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         control_actions = set(re.findall(r'data-control-action="([^"]+)"', html))
         self.assertEqual(set(command_routes["/api/pipeline/control"]["allowed_actions"]) - control_actions, set())
 
-        mode_match = re.search(r'<select id="pipeline-start-mode">(.*?)</select>', html, re.S)
+        self.assertIn('id="pipeline-single-file-browse-button"', html)
+        self.assertIn('id="pipeline-single-file-clear-button"', html)
+        self.assertEqual(command_routes["/api/pipeline/browse-file"]["allowed_selection_modes"], ["files"])
+        mode_match = re.search(r'<select id="pipeline-start-mode"[^>]*>(.*?)</select>', html, re.S)
         self.assertIsNotNone(mode_match)
         mode_options = set(re.findall(r'<option value="([^"]*)"', mode_match.group(1)))
         self.assertEqual(set(command_routes["/api/pipeline/start"]["allowed_modes"]) - mode_options, set())
+        self.assertIn('<option value="once" selected>Run Once</option>', mode_match.group(1))
 
         schedule_match = re.search(r'<select id="pipeline-start-schedule-override">(.*?)</select>', html, re.S)
         self.assertIsNotNone(schedule_match)
@@ -225,6 +496,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         desktop_root = Path(__file__).resolve().parents[1]
         static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static"
         html = _render_static_index_html(static_root)
+        app_js = (static_root / "assets" / "app.js").read_text(encoding="utf-8")
+        home_js = (static_root / "assets" / "app" / "home.js").read_text(encoding="utf-8")
         home_match = re.search(
             r'<section class="page is-visible" data-page-panel="home">(.*?)<section class="page" data-page-panel="live">',
             html,
@@ -251,6 +524,13 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("Dashboard controls navigate or open backend-allowlisted evidence", home_html)
         self.assertIn('data-cross-page-target="completed" data-home-promotion-entry', home_html)
         self.assertIn("Promote Files", home_html)
+        self.assertIn('id="home-scratch-storage-status"', home_html)
+        self.assertIn('id="home-scratch-storage-detail"', home_html)
+        self.assertIn('id="home-output-storage-status"', home_html)
+        self.assertIn('id="home-output-storage-detail"', home_html)
+        self.assertIn("function renderHomeStorageHealth", home_js)
+        self.assertIn("homeActiveOutputPath", home_js)
+        self.assertIn("renderHomeStorageHealth(dashboardContext)", app_js)
         self.assertIn('id="pipeline-start-button"', html)
         self.assertIn('id="pending-drain-button"', html)
         self.assertIn('data-control-action="pause"', html)
@@ -277,6 +557,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("const stuck = pipelineProgressIsStuck(snapshot);", launch_js)
         self.assertIn("const killable = active || stuck;", launch_js)
         self.assertIn("button.hidden = !killable", launch_js)
+        self.assertIn("let pipelineFileBrowseInFlight = false", launch_js)
+        self.assertIn("function browsePipelineSingleFile", launch_js)
+        self.assertIn('apiPost("/api/pipeline/browse-file", request)', launch_js)
+        self.assertIn("function clearPipelineSingleFile", launch_js)
         self.assertIn('setButtonClass(button, active ? "primary-button" : "secondary-button")', launch_js)
         self.assertIn("window.mediaPipelineLaunchView?.updateLaunchCommandButtonStates", app_js)
 
@@ -335,6 +619,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("function progressWorkerRows", progress_js)
         self.assertIn("desktop_worker_progress.v1", progress_js)
         self.assertIn("Worker progress", progress_js)
+        self.assertIn("progressWorkerSummaryLine(snapshot, diagnostics)", progress_js)
         self.assertIn("function progressFfmpegPayload", progress_js)
         self.assertIn("desktop_ffmpeg_progress.v1", progress_js)
         self.assertIn("FFmpeg progress proof", progress_js)
@@ -555,6 +840,23 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("[data-settings-path-key]", app_js)
         self.assertIn('command === "settings.browse_path"', settings_history_js)
 
+    def test_settings_tv_library_folder_panel_explains_backend_owned_keys(self) -> None:
+        desktop_root = Path(__file__).resolve().parents[1]
+        static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static"
+        html = _render_static_index_html(static_root)
+        assets_root = static_root / "assets"
+        file_safety_js = (assets_root / "settingsView.builders.file_safety.js").read_text(encoding="utf-8")
+
+        self.assertIn("TV Library Folders", html)
+        self.assertIn('id="settings-file-safety-aggressive-episode"', html)
+        self.assertIn('id="settings-file-safety-create-tv-subfolder"', html)
+        self.assertIn('id="settings-tv-library-folder-status"', html)
+        self.assertIn('id="settings-tv-library-folder-evidence"', html)
+        self.assertIn("settings-tv-library-panel", html)
+        self.assertIn("renderTvLibraryFolderEvidence", file_safety_js)
+        self.assertIn("folder season hints and loose anime/import filename patterns", file_safety_js)
+        self.assertIn("backend Preview/Save and engine naming/publish behavior remain authoritative", file_safety_js)
+
     def test_web_command_feedback_preserves_backend_warnings_and_errors(self) -> None:
         desktop_root = Path(__file__).resolve().parents[1]
         static_root = desktop_root / "mediapipeline_desktop_app" / "ui_web" / "static" / "assets"
@@ -734,6 +1036,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             "rename-table-legend",
             "failure-table-legend",
             "audit-preview-table-legend",
+            "audit-launch-log-table-legend",
             "network-worker-table-legend",
             "diagnostics-first-response-legend",
             "diagnostics-state-summary-table-legend",
@@ -862,6 +1165,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             (command_history_js, "command-table-legend"),
             (reports_view_js, "failure-table-legend"),
             (reports_view_js, "audit-preview-table-legend"),
+            (launch_view_js, "audit-launch-log-table-legend"),
             (network_view_js, "network-worker-table-legend"),
             (diagnostics_view_js, "diagnostics-first-response-legend"),
             (diagnostics_state_js, "diagnostics-state-summary-table-legend"),

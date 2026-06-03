@@ -41,7 +41,9 @@ These focused PowerShell checks sit outside `DesktopApp\tests` and guard cross-c
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-ContractSchemaChecks.ps1
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-ConfigKeyRegistryChecks.ps1
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-FailureCodeRegistryChecks.ps1
+.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-NamingSupportChecks.ps1
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-PipelineQueueEngineChecks.ps1
+.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-RerunSourceIdentityChecks.ps1
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-ReleasePackagePolicyChecks.ps1
 .\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Invoke-AdversarialForceKillEncodeChecks.ps1
 ```
@@ -63,6 +65,10 @@ These focused PowerShell checks sit outside `DesktopApp\tests` and guard cross-c
 `Invoke-ConfigKeyRegistryChecks.ps1` guards `ConfigKeys.ps1`: the PowerShell config-key registry must stay in the same order as `ConfigSchema.ps1`, template/live PSD1 files may not contain unknown keys, helper lookups must fail closed, and literal PowerShell `$config[...]`, `$config.ContainsKey(...)`, and `Get-Config*` call sites may not reference unknown config keys. `test_config_keys.py` also guards Python-side Network runtime and settings/media-policy raw registered-key lookups, plus a package-wide registered-key raw-lookup scan across `mediapipeline_desktop_app`.
 
 `Invoke-PipelineQueueEngineChecks.ps1` guards queue-engine dispatch mode selection: one local worker slot stays serial, multi-slot `local_worker_slots` dispatches through the worker scheduler with the expected script/config/PowerShell context, missing worker context fails closed without falling back to serial dispatch, and worker-child result writing remains versioned.
+
+`Invoke-NamingSupportChecks.ps1` guards runtime naming and library identity support: shared Plex movie/TV destination planning, forced rename sidecar sanitization/evidence, TV identity keys used by the processed-library index, and source identity v2 path-independence/sample-byte sensitivity.
+
+`Invoke-RerunSourceIdentityChecks.ps1` guards CSV rerun source identity fallback behavior: when `ffprobe` is unavailable, source identity still emits a deterministic SHA-256 value and changes when source sample bytes change.
 
 `Invoke-ReleasePackagePolicyChecks.ps1` guards release packaging policy: rebuildable/vendor/runtime/local-state/personal-config paths remain excluded by default, release hygiene rules stay aligned with the policy manifest, and `Backup-PreOverhaul.ps1` continues to delegate release copy creation to the canonical release builder.
 
@@ -127,7 +133,7 @@ Tests for pipeline state, progress tracking, event reading, snapshot assembly, a
 | `test_status_service.py` | General status service |
 | `test_service_status_errors.py` | Error state classification |
 | `test_service_status_progress.py` | Progress field parsing |
-| `test_service_status_ffmpeg_progress.py` | FFmpeg progress proof payload parsing, read-only contract shape, parse-error reporting for active encode/remux evidence without key/value fields, and idle no-fake-row behavior |
+| `test_service_status_ffmpeg_progress.py` | FFmpeg progress proof payload parsing, coherent console/progress-block snapshot handling, read-only contract shape, parse-error reporting for active encode/remux evidence without key/value fields, and idle no-fake-row behavior |
 | `test_service_status_eta.py` | ETA telemetry payload calculation from worker-progress percent/elapsed evidence, unavailable-reason reporting when ETA cannot be estimated, read-only contract shape, and idle no-fake-row behavior |
 | `test_service_status_files.py` | Status file discovery |
 | `test_service_status_summary.py` | Summary aggregation |
@@ -496,6 +502,7 @@ General facade policy and desktop shell bootstrap tests not covered by subsystem
 | `test_app_bootstrap.py` | Historical app bootstrap state/controller setup and static legacy launcher fallback contract |
 | `test_application_facade.py` | Shared fixture/helper module for split application-facade tests; intentionally owns no direct tests |
 | `test_application_public_api.py` | Application facade/DTO public API boundary: package-level exports, per-module literal `__all__` declarations, export uniqueness/completeness, and declared export importability |
+| `test_phase4_storage_observability.py` | Phase 4 storage, command-journal, boundary-validation, SQLite mirror, and JSON-line logging contracts, including required-field preservation and duplicate-handler prevention |
 | `test_application_facade_close_readiness.py` | Application-facade close-readiness fail-closed behavior for active/unknown runtime state, fresh progress, progress read failures, ActiveJobs, schedule-stop watcher, and related-process inspection failures |
 | `test_application_facade_completed.py` | Application-facade completed/output preview evidence, validation-state child payload, size/runtime/missing-output classification, completed-open row-key allowlists, and completed-manifest backfill dry-run behavior |
 | `test_application_facade_core_contracts.py` | Application-facade core contract helpers: command-result serialization, runtime outcome normalization, command journal bounds, strict JSON guards, Local API HTTP helper guards, static bootstrap/asset helpers, and route-map coverage |
@@ -581,7 +588,7 @@ Browser-backed smoke tests under `DesktopApp\tests\`. Require Chrome or Edge; sk
 | `test_webview_browser_pending_drain_guard_smoke.py` | Publish Button Guard refresh, blocked drain does not POST |
 | `test_webview_browser_completed_pending_proof_smoke.py` | Completed-to-Pending proof board, Completed Manifest correlation |
 | `test_webview_browser_large_table_smoke.py` | 260-row render-cap disclosure, filter warnings, hidden selected-row detail, no mutation posts |
-| `test_webview_browser_maintenance_reports_smoke.py` | Maintenance health/dry-run result rendering, Reports triage, retry-state display, read-only Launch/Diagnostics handoff |
+| `test_webview_browser_maintenance_reports_smoke.py` | Maintenance health/dry-run result rendering, Reports triage, tab placement, retry-state display, marker-clear payload guard |
 | `test_webview_browser_sample_validation_smoke.py` | Home sample-validation pilot/readiness/reconciliation, worksheet detail, preview-only backend route |
 | `test_webview_browser_home_live_state_smoke.py` | Home Daily-Driver, Operator Readiness, active work, command history, live progress evidence, page-switch viewport reset |
 | `test_webview_browser_launch_queue_readiness_smoke.py` | Launch/Queue/Schedule readiness, scope reconciliation, sample proof handoff, no POSTs |

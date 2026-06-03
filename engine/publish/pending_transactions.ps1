@@ -230,8 +230,15 @@ function Publish-PendingSidecarFiles {
 
         $copy = Copy-SrtAtomic -SourcePath $localFile -DestinationPath $serverOut
         if (-not $copy.Ok) {
-            if (-not [string]::IsNullOrWhiteSpace($backupPath)) {
-                Remove-Item -LiteralPath $backupPath -Force -ErrorAction SilentlyContinue
+            if (-not [string]::IsNullOrWhiteSpace($backupPath) -and (Test-Path -LiteralPath $backupPath -PathType Leaf -ErrorAction SilentlyContinue)) {
+                try {
+                    Restore-PendingSidecarBackupIntoPlace -BackupPath $backupPath -DestinationPath $serverOut -Context 'Pending: '
+                    Write-Log "Pending: restored existing sidecar after failed pending sidecar publish: $serverOut" "WARN"
+                } catch {
+                    Write-Log "Pending: sidecar backup restore failed after pending sidecar publish failure for $serverOut : $_" "ERROR"
+                }
+            } elseif (-not $existedBefore -and (Test-Path -LiteralPath $serverOut -PathType Leaf -ErrorAction SilentlyContinue)) {
+                Remove-Item -LiteralPath $serverOut -Force -ErrorAction SilentlyContinue
             }
             $failures.Add((New-PendingTx3gPublishFailure -Record $record -Reason $copy.Reason))
             continue

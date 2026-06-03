@@ -128,6 +128,9 @@ class SettingsBrowsePathCommandPayload(ApiCommandPayload):
 
 class ScheduleCommandPayload(ApiCommandPayload):
     enabled: Any = None
+    day_windows: Any = None
+    grid: Any = None
+    confirm_save: Any = None
     days: Any = None
     start_time: Any = None
     stop_time: Any = None
@@ -182,6 +185,11 @@ class PipelineControlCommandPayload(StrictApiCommandPayload):
     action: Any = None
 
 
+class PipelineBrowseFileCommandPayload(StrictApiCommandPayload):
+    selection_mode: Any = None
+    initial_path: Any = None
+
+
 class PipelineStartCommandPayload(StrictApiCommandPayload):
     mode: Any = None
     sleep_seconds: Any = None
@@ -201,10 +209,16 @@ class UiPreferencesCommandPayload(StrictApiCommandPayload):
     source_surface: Any = None
 
 
-class MaintenanceCommandPayload(ApiCommandPayload):
-    dry_run: Any = None
-    include_package_check: Any = None
-    output_root: Any = None
+class MaintenanceReleaseDryRunCommandPayload(StrictApiCommandPayload):
+    destination_root: Any = None
+    zip_package: Any = None
+    verify: Any = None
+    include_tests: Any = None
+    include_dev_docs: Any = None
+    include_optional_tools: Any = None
+    include_tool_docs: Any = None
+    keep_personal_config: Any = None
+    timeout_seconds: Any = None
 
 
 class MaintenanceReleaseBuildCommandPayload(StrictApiCommandPayload):
@@ -227,6 +241,10 @@ class MaintenanceDependencyAtlasCommandPayload(StrictApiCommandPayload):
     min_overview_files: Any = None
 
 
+class MaintenanceCompletedBackfillDryRunCommandPayload(StrictApiCommandPayload):
+    timeout_seconds: Any = None
+
+
 class SampleValidationCommandPayload(ApiCommandPayload):
     shell: Any = None
     source_path: Any = None
@@ -244,10 +262,10 @@ class SampleValidationCommandPayload(ApiCommandPayload):
     notes: Any = None
 
 
-class FailureCommandPayload(ApiCommandPayload):
-    dry_run: Any = None
-    confirm: Any = None
-    confirm_clear: Any = None
+class FailureCommandPayload(StrictApiCommandPayload):
+    dry_run: StrictBool | None = None
+    confirm: StrictBool | None = None
+    confirm_clear: StrictBool | None = None
     scope: Any = None
     marker_path: Any = None
     marker_paths: Any = None
@@ -292,14 +310,15 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/settings/wizard/save": SettingsWizardCommandPayload,
     "/api/schedule/preview": ScheduleCommandPayload,
     "/api/schedule/save": ScheduleCommandPayload,
-    "/api/maintenance/release-dry-run": MaintenanceCommandPayload,
+    "/api/maintenance/release-dry-run": MaintenanceReleaseDryRunCommandPayload,
     "/api/maintenance/release-build": MaintenanceReleaseBuildCommandPayload,
-    "/api/maintenance/completed-backfill-dry-run": MaintenanceCommandPayload,
+    "/api/maintenance/completed-backfill-dry-run": MaintenanceCompletedBackfillDryRunCommandPayload,
     "/api/maintenance/dependency-atlas": MaintenanceDependencyAtlasCommandPayload,
     "/api/settings/reload": EmptyCommandPayload,
     "/api/sample-validation/preview": SampleValidationCommandPayload,
     "/api/sample-validation/append": SampleValidationCommandPayload,
     "/api/pipeline/control": PipelineControlCommandPayload,
+    "/api/pipeline/browse-file": PipelineBrowseFileCommandPayload,
     "/api/pipeline/start": PipelineStartCommandPayload,
     "/api/audit/start": ProcessControlCommandPayload,
     "/api/rerun/start": ProcessControlCommandPayload,

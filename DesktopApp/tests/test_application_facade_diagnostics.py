@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -194,6 +195,57 @@ class ApplicationFacadeDiagnosticsTests(unittest.TestCase):
         self.assertEqual(rows["settings_bdpgs_ocr_paths"]["operator_status_state"], "blocked")
         self.assertEqual(payload["triage"][0]["target"], "settings_bdpgs_ocr_paths")
         self.assertIn("Review the artifact detail", payload["triage"][0]["safe_next_action"])
+
+    def test_facade_diagnostics_state_summary_surfaces_configured_path_health(self) -> None:
+        health = {
+            "schema_version": "desktop_configured_path_health.v1",
+            "read_only": True,
+            "operator_status": "blocked",
+            "rows": [
+                {
+                    "key": "source_movies",
+                    "label": "SourceMovies root",
+                    "role": "source",
+                    "path": r"\\LAYNE-SERVER\Video\Movies",
+                    "configured_key": "SourceMovies",
+                    "is_unc": True,
+                    "server": "LAYNE-SERVER",
+                    "share": "Video",
+                    "status": "blocked",
+                    "operator_status": "blocked",
+                    "exists": False,
+                    "path_kind": "missing",
+                    "can_list": False,
+                    "elapsed_ms": 1500,
+                    "server_probe": {"dns_status": "blocked", "tcp_445_status": "blocked"},
+                    "path_probe": {"exists": False, "path_kind": "missing", "can_list": False},
+                    "message": "SourceMovies root does not exist or is not reachable from this Windows session.",
+                    "safe_next_action": "Log back into Windows/server share, then refresh path health.",
+                }
+            ],
+        }
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {"SourceMovies": r"\\LAYNE-SERVER\Video\Movies"}
+
+            with patch("app.diagnostics.facade.configured_path_health", return_value=health):
+                payload = facade.read_diagnostics_state_summary(resolved)
+
+        self.assertEqual(payload["path_health"]["schema_version"], "desktop_configured_path_health.v1")
+        self.assertEqual(len(payload["path_health_issues"]), 1)
+        issue = payload["path_health_issues"][0]
+        self.assertEqual(issue["target"], "configured_path_health_source_movies")
+        self.assertEqual(issue["kind"], "path_health")
+        self.assertEqual(issue["status"], "error")
+        self.assertEqual(issue["operator_status"], "blocked")
+        self.assertEqual(issue["recovery_stage"], "configured_server_folder_health")
+        self.assertIn("server/share", issue["operator_guidance"].casefold())
+        self.assertIn("scan, copy, remux", issue["unsafe_if_ignored"])
+        self.assertIn("SMB TCP 445: blocked", "\n".join(issue["facts"]))
+        self.assertEqual(payload["triage"][0]["target"], "configured_path_health_source_movies")
 
     def test_diagnostics_path_lookup_failures_are_logged(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

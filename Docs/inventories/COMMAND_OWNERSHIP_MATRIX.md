@@ -7,7 +7,7 @@ contract group, primary frontend owner, mutation class, and key restrictions.
 Source: `DesktopApp/mediapipeline_desktop_app/api/contract_command.py`,
 `app/api/commands.py`, and the WebView `apiPost` call inventory.
 
-Total command routes: 44 POST routes across 9 contract groups.
+Total command routes: 45 POST routes across 9 contract groups.
 
 Network lifecycle and repair/reconcile mutation controls remain design-only.
 `/api/contract` publishes future contract gates for those areas, but no Network
@@ -28,7 +28,7 @@ POST route is authorized until the matching architecture contract is satisfied.
 | `LOCAL_API_SCHEDULE_COMMAND_ROUTE_CONTRACT` | schedule/preview, schedule/save |
 | `LOCAL_API_SAMPLE_VALIDATION_COMMAND_ROUTE_CONTRACT` | sample-validation/preview, sample-validation/append |
 | `LOCAL_API_UI_COMMAND_ROUTE_CONTRACT` | ui-preferences |
-| `LOCAL_API_PROCESS_COMMAND_ROUTE_CONTRACT` | pipeline/control, pipeline/start, audit/start, rerun/start, backend/shutdown |
+| `LOCAL_API_PROCESS_COMMAND_ROUTE_CONTRACT` | pipeline/control, pipeline/browse-file, pipeline/start, audit/start, rerun/start, backend/shutdown |
 
 ---
 
@@ -154,6 +154,7 @@ Allowed targets: `run_logs`, `cluster_log`, `config`, `config_folder`,
 | Route | Owner page | Owner JS | Mutation class | Key restriction |
 |---|---|---|---|---|
 | `POST /api/pipeline/control` | Launch | `launchView.js` | `control-flag-write` | `action`: `pause`, `stop`, `rescan`, `kill`; backend owns flag writes and emergency process cleanup |
+| `POST /api/pipeline/browse-file` | Launch | `launchView.js` | `shell-dialog` | `selection_mode`: `files`; backend owns native file browser and validates single-file staging only |
 | `POST /api/pipeline/start` | Launch | `launchView.js` | `process-launch` | `mode`: `once`, `continuous`, `validate`, `drain_pending_pushes`; backend owns launch lock and process args |
 | `POST /api/audit/start` | Launch | `launchView.js` | `process-launch` | Backend owns audit script invocation |
 | `POST /api/rerun/start` | Launch | `launchView.js` | `process-launch` | Default safe: `stage_mode: copy`, `original_mode: keep`, `return_mode: park` |
@@ -168,7 +169,7 @@ Allowed targets: `run_logs`, `cluster_log`, `config`, `config_folder`,
 | `none` | 13 | pending-publish/recovery-plan, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, settings/wizard/validate-paths, settings/wizard/validate-tools, settings/wizard/probe-hardware, settings/wizard/validate-workers, settings/wizard/preview, settings/reload, schedule/preview, sample-validation/preview |
 | `read-only-preview` | 2 | queue/file-overrides/route-preview, queue/file-overrides/folder-preview |
 | `shell-open` | 4 | queue/open, completed/open, pending-publish/open, diagnostics/open |
-| `shell-dialog` | 2 | rename/browse, settings/browse-path |
+| `shell-dialog` | 3 | rename/browse, settings/browse-path, pipeline/browse-file |
 | `queue-state-write` | 4 | queue/priority, queue/strategy, queue/file-overrides, queue/file-overrides/folder-rule |
 | `failure-marker-write` | 1 | failures/clear |
 | `validation-log-write` | 1 | sample-validation/append |
@@ -221,6 +222,7 @@ operator evidence only:
 - All `*/open` routes
 - `rename/browse`
 - `settings/browse-path`
+- `pipeline/browse-file`
 - `ui-preferences`
 - `sample-validation/append`
 
@@ -254,7 +256,7 @@ These are backend/API contract requirements, not frontend conventions.
 ## Freshness Review - 2026-06-01 (MDS-005)
 
 Re-checked `COMMAND_ROUTE_METHODS`, `LOCAL_API_COMMAND_ROUTE_CONTRACT`, and
-`COMMAND_ROUTE_PAYLOAD_MODELS`; all three contain the same 44 POST routes.
+`COMMAND_ROUTE_PAYLOAD_MODELS`; all three contain the same 45 POST routes.
 This review refreshed the matrix for the route-preview, folder-preview,
 folder-rule, Settings Wizard, pipeline-plan preview, UI preferences, and
 final-library pause/resume routes, and records `folder_files` rename browse

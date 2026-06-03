@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from app.paths.defaults import (
+    CONFIG_CANONICAL_NAME,
+    PER_USER_APP_DIR_NAME,
     default_audit_script_path_for_roots,
     default_config_path_for_roots,
     default_pipeline_path_for_roots,
@@ -36,7 +39,23 @@ class ServicePathDefaultsTests(unittest.TestCase):
             fallback.parent.mkdir(parents=True)
             fallback.write_text("", encoding="utf-8")
 
-            self.assertEqual(default_config_path_for_roots(app_root, workspace_root), fallback)
+            with mock.patch.dict("os.environ", {"LOCALAPPDATA": str(root / "LocalAppData")}):
+                self.assertEqual(default_config_path_for_roots(app_root, workspace_root), fallback)
+
+    def test_default_config_path_prefers_existing_per_user_config(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            app_root = root / "DesktopApp"
+            workspace_root = root
+            user_config = root / "LocalAppData" / PER_USER_APP_DIR_NAME / CONFIG_CANONICAL_NAME
+            local_config = workspace_root / "Pipeline" / CONFIG_CANONICAL_NAME
+            user_config.parent.mkdir(parents=True)
+            local_config.parent.mkdir(parents=True)
+            user_config.write_text("", encoding="utf-8")
+            local_config.write_text("", encoding="utf-8")
+
+            with mock.patch.dict("os.environ", {"LOCALAPPDATA": str(root / "LocalAppData")}):
+                self.assertEqual(default_config_path_for_roots(app_root, workspace_root), user_config)
 
     def test_default_audit_script_path_falls_back_to_workspace_root(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

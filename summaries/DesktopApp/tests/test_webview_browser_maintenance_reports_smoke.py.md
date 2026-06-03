@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-02
 last_reviewed: 2026-05-31
-sha256: 719867fc5c0baf3122a148bf67869c3a0726f0670ac8d227176b33b16a482015
+sha256: 3b8eba1bda7af164a00bb7ecf36bc3236bdca96520d98df67edf6a4e61cbd9be
 ---
 # `DesktopApp/tests/test_webview_browser_maintenance_reports_smoke.py`
 

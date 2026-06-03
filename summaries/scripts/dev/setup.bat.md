@@ -3,9 +3,9 @@ file: scripts/dev/setup.bat
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-05-29
+last_modified: 2026-06-02
 last_reviewed: 2026-06-02
-sha256: e437acfe865f8cf51a2865367e30e2c67ab31b99c8c68bc34f2fcaa6dbcfd91c
+sha256: ac06e40c33cc3cc1a39d2987deca19c23d16010972c085fa7f1e012c7ef3c7bf
 ---
 # `scripts/dev/setup.bat`
 

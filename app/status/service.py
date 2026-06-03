@@ -7,6 +7,7 @@ from mediapipeline_desktop_app.models import ResolvedPaths, Snapshot
 from app.status.active_jobs import format_active_job_summary
 from app.status.presentation import (
     activity_from_pipeline_events,
+    build_current_work,
     build_current_activity as build_current_activity_text,
     display_current_file,
     display_current_file_from_pipeline_events,
@@ -161,6 +162,9 @@ class StatusServiceMixin:
     ) -> str:
         _ = resolved, log_tail
         return build_current_activity_text(progress, pipeline_events)
+
+    def _build_current_work(self, progress: dict[str, Any] | None) -> dict[str, str]:
+        return build_current_work(progress)
 
     def _format_pipeline_event_summary(self, events: list[dict[str, Any]], *, max_items: int = 8) -> list[str]:
         return format_pipeline_event_summary(events, max_items=max_items)

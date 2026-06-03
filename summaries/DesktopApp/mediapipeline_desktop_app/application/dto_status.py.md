@@ -3,14 +3,14 @@ file: DesktopApp/mediapipeline_desktop_app/application/dto_status.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: application
-last_modified: 2026-05-29
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: b16b1cc98444891070b74f4073d6273be34d7ccd2375d271113994ebf3276d28
+sha256: 1666242e1aa4282974fedc3026735620f812f546c6738701f2e0615f175e73fe
 ---
 # `DesktopApp/mediapipeline_desktop_app/application/dto_status.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Compatibility shim. Moved to ``app.kernel.dto_status`` by ADR-0013 (Wave 4).
 
-**Classes:** `AppSnapshotDto`, `CloseReadinessDto`, `DiagnosticsDto`, `HealthDto`, `TelemetryDto`
+**In-repo imports:** `app.kernel`
 
 _Edit the source, not this file. Regenerate with `python scripts/dev/refresh_summaries.py --paths DesktopApp/mediapipeline_desktop_app/application/dto_status.py`._

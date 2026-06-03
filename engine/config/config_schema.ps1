@@ -1260,8 +1260,8 @@ function Test-MediaPipelineConfigEncodeAudioPolicy {
 
     if (Test-MediaPipelineConfigHasKey -Config $Config -Key 'AudioTranscodeBitrate') {
         $bitrate = ([string](Get-MediaPipelineConfigValue -Config $Config -Key 'AudioTranscodeBitrate')).Trim().ToLowerInvariant()
-        if ($bitrate -notmatch '^\d+k$') {
-            $Errors.Add('AudioTranscodeBitrate must use an ffmpeg bitrate value like 640k.')
+        if ($bitrate -notmatch '^[1-9]\d*k$') {
+            $Errors.Add('AudioTranscodeBitrate must use a positive ffmpeg bitrate value like 640k.')
         }
     }
 

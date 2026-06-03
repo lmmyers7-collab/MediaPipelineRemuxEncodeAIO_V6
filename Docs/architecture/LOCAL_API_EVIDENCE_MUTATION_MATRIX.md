@@ -2,7 +2,7 @@
 
 Companion to `Docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`. This document separates every route into its mutation class, states whether the frontend can own the behavior, and notes the key restriction on each command route.
 
-Total routes: 75 (31 read, 44 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
+Total routes: 76 (31 read, 45 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
 
 ---
 
@@ -109,6 +109,7 @@ Opens a backend-owned native Windows dialog and returns operator-selected paths 
 |---|---|---|---|
 | `POST /api/rename/browse` | `shell-dialog` | Frontend cannot enumerate or mutate files directly | `selection_mode`: `files`, `folder`, or `folder_files`; selected paths are staged only and must still go through `rename/preview` and guarded `rename/apply` |
 | `POST /api/settings/browse-path` | `shell-dialog` | Frontend cannot browse or resolve settings paths directly | Folder-only browser for allowlisted source/output/scratch and final-library promotion root settings; result is staged evidence only and does not save config |
+| `POST /api/pipeline/browse-file` | `shell-dialog` | Frontend cannot browse or validate single-file paths directly | File-only browser for Launch single-file staging; result does not save config, launch work, mutate queue state, or touch media |
 
 ### dry-run / validation / preview (effect `none`)
 

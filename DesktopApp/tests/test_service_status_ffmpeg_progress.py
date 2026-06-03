@@ -115,6 +115,30 @@ class FfmpegProgressPayloadTests(unittest.TestCase):
 
         self.assertEqual(payload["rows"][0]["time"], "00:00:10.000000")
 
+    def test_ffmpeg_progress_payload_does_not_merge_older_block_fields_into_latest_partial_block(self) -> None:
+        payload = ffmpeg_progress_payload(
+            {
+                "Status": "Processing",
+                "CurrentStage": "encode",
+                "CurrentFileDisplay": "Movie.mkv",
+                "LastUpdate": "2026-05-08T12:05:00-04:00",
+            },
+            "\n".join(
+                [
+                    "2026-05-08 12:02:01 frame=240 fps=29.97 time=00:00:08.01 speed=1.23x",
+                    "frame=260",
+                ]
+            ),
+        )
+
+        row = payload["rows"][0]
+        self.assertEqual(payload["status"], "loaded")
+        self.assertEqual(row["frame"], 260)
+        self.assertIsNone(row["fps"])
+        self.assertEqual(row["time"], "")
+        self.assertEqual(row["speed"], "")
+        self.assertEqual(row["updated_at"], "2026-05-08T12:05:00-04:00")
+
     def test_ffmpeg_progress_payload_reports_parse_error_for_relevant_active_work(self) -> None:
         payload = ffmpeg_progress_payload(
             {

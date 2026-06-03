@@ -127,7 +127,7 @@ settings, smoke, and test registries.
 
 | Feature | Primary files |
 |---|---|
-| State-root layout and JSON state files | `app/paths/layout.py`; `app/storage/constants.py`; `app/storage/contracts.py`; `app/storage/state_migration.py`; `engine/storage/state_store.ps1`; docs: `Docs/architecture/STATE_SURFACE_INVENTORY.md`; `Docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md`; `STATE_FILE_SCHEMA_REFERENCE.md` |
+| State-root layout and JSON state files | `app/paths/layout.py`; `app/storage/constants.py`; `app/storage/contracts.py`; `app/storage/state_migration.py`; `engine/storage/state_store.ps1`; docs: `Docs/architecture/STATE_SURFACE_INVENTORY.md`; `Docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md`; `Docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md` |
 | SQLite mirror for command journal, stage events, queue dry-run snapshots, completed rows | `app/storage/db.py`; `app/storage/contracts.py`; `app/observability/logging.py`; `app/validation/boundary.py`; docs: `Docs/architecture/FILE_LIFECYCLE_MAP.md`; `scripts/dev/generate_lifecycle_map.py` |
 | ActiveJobs, control flags, runtime artifacts, logs, spawn/kill/cleanup | `app/processes/active_jobs.py`; `active_job_runner.py`; `control_flags.py`; `control_runner.py`; `runtime_artifacts.py`; `runtime_runner.py`; `launch_cleanup.py`; `launch_env.py`; `launch_plans.py`; `launch_runner.py`; `logs.py`; `spawn.py`; `spawn_runner.py`; `kill.py`; `file_io.py`; `subprocess_runner.py` |
 | File open planning and shell-open command safety | `app/files/open_plan.py`; `app/files/opening.py`; `app/files/constants.py`; command facades: `app/completed/open_facade.py`; `app/publish/pending_facade.py`; `app/queue/policy_parts/open_policy.py`; `app/diagnostics/open_policy.py` |

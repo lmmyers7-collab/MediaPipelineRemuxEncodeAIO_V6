@@ -144,7 +144,7 @@ class ServiceConfigValidationTests(unittest.TestCase):
             {
                 "VideoQuality": 99,
                 "OutputContainer": "avi",
-                "AudioTranscodeBitrate": "640",
+                "AudioTranscodeBitrate": "0k",
                 "ConsoleLogLevel": "TRACE",
                 "CompatibleAudioCodecs": [],
                 "RoutingProfile": "unknown",
@@ -161,7 +161,7 @@ class ServiceConfigValidationTests(unittest.TestCase):
 
         self.assertIn("VideoQuality must be <= 51.", errors)
         self.assertIn("OutputContainer must be 'mkv' or 'mp4'.", errors)
-        self.assertIn("AudioTranscodeBitrate must look like 640k.", errors)
+        self.assertIn("AudioTranscodeBitrate must be a positive ffmpeg bitrate like 640k.", errors)
         self.assertIn("ConsoleLogLevel must be one of: ERROR, WARN, INFO, DEBUG, or blank.", errors)
         self.assertIn("CompatibleAudioCodecs must contain at least one value.", errors)
         self.assertTrue(any(error.startswith("RoutingProfile must be one of:") for error in errors))
@@ -293,6 +293,29 @@ class ServiceConfigValidationTests(unittest.TestCase):
         errors, warnings = service.validate_config_values(_valid_config_values())
         self.assertEqual(errors, [])
         self.assertEqual(warnings, [])
+
+    def test_service_mixin_validation_does_not_resolve_config_warning_paths(self) -> None:
+        class NoFilesystemPathResolutionService(_ConfigValidationWrapperService):
+            def _normalized_path_key(self, path: Path) -> str:
+                raise AssertionError(f"validation should not resolve {path}")
+
+            def _path_within_root(self, path: Path, root: Path) -> bool:
+                raise AssertionError(f"validation should not resolve {path} under {root}")
+
+        values = _valid_config_values()
+        values.update(
+            {
+                "SourceMovies": r"\\LAYNE-SERVER\Users\Layne\Videos\Encode\Movies",
+                "SourceTV": r"\\LAYNE-SERVER\Users\Layne\Videos\Encode\TV",
+                "Outsource": r"\\LAYNE-SERVER\Users\Layne\Videos\outsource\Movies",
+                "LocalBase": r"E:\Videos\Scratch",
+            }
+        )
+
+        errors, warnings = NoFilesystemPathResolutionService().validate_config_values(values)
+
+        self.assertEqual(errors, [])
+        self.assertIsInstance(warnings, list)
 
     def test_save_config_document_rejects_invalid_values_before_write(self) -> None:
         service = _ConfigValidationWrapperService()

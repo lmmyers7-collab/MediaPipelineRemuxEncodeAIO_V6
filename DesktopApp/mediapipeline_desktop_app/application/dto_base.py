@@ -1,43 +1,14 @@
-from __future__ import annotations
+"""Compatibility shim. Moved to ``app.kernel.dto_base`` by ADR-0013 (Wave 3).
 
-from collections.abc import Mapping, Sequence
-from dataclasses import asdict
-from datetime import datetime
-import math
-from pathlib import Path
-from typing import Any
+Re-exports the full public namespace from the new home, including names not
+listed in ``__all__`` (e.g. ``JsonMap``), so existing imports keep working.
+New code should import from ``app.kernel.dto_base`` directly; this shim is
+removed in the ADR-0013 Wave 6 cleanup.
+"""
+from app.kernel import dto_base as _moved
+globals().update({_k: getattr(_moved, _k) for _k in dir(_moved) if not _k.startswith("__")})
+del _moved
 
-
-JsonMap = dict[str, Any]
-
-
-def json_safe(value: Any) -> Any:
-    if isinstance(value, datetime):
-        return value.astimezone().isoformat() if value.tzinfo else value.isoformat()
-    if isinstance(value, Path):
-        return str(value)
-    if isinstance(value, float) and not math.isfinite(value):
-        return None
-    if isinstance(value, Mapping):
-        return {str(key): json_safe(item) for key, item in value.items()}
-    if isinstance(value, tuple | list):
-        return [json_safe(item) for item in value]
-    if isinstance(value, set):
-        return [json_safe(item) for item in sorted(value, key=str)]
-    return value
-
-
-def dto_mapping(instance: Any) -> JsonMap:
-    return json_safe(asdict(instance))
-
-
-def split_summary_lines(value: object) -> list[str]:
-    if isinstance(value, Sequence) and not isinstance(value, str | bytes | bytearray):
-        return [str(item) for item in value if str(item).strip()]
-    return [line.strip() for line in str(value or "").splitlines() if line.strip()]
-
-__all__ = [
-    "json_safe",
-    "dto_mapping",
-    "split_summary_lines",
-]
+# Literal __all__ mirrors app.kernel.dto_base (application public-API contract,
+# tests/test_application_public_api.py requires a literal list here).
+__all__ = ["json_safe", "dto_mapping", "split_summary_lines"]

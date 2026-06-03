@@ -11,12 +11,14 @@ sys.path.insert(0, str(REPO_ROOT))
 sys.path.insert(0, str(REPO_ROOT / "DesktopApp"))
 
 from app.config.settings_wizard import (  # noqa: E402
+    preview_settings_wizard,
     validate_ffmpeg_tools,
     validate_wizard_paths,
     validate_wizard_payload,
     validate_worker_settings,
     wizard_changes,
 )
+from mediapipeline_desktop_app.application.dto_commands import CommandResult  # noqa: E402
 from mediapipeline_desktop_app.models import ResolvedPaths  # noqa: E402
 
 
@@ -63,6 +65,7 @@ class SettingsWizardPolicyTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertIn("Wizard library row 1 must be a JSON object.", result["errors"])
         self.assertTrue(any(row["label"] == "Library Movies" for row in result["rows"]))
+        self.assertTrue(any(row["target"] == "library:2:source_path" for row in result["rows"]))
 
     def test_validate_wizard_payload_reports_malformed_worker_settings(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -79,6 +82,25 @@ class SettingsWizardPolicyTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertIn("Wizard workers must be a JSON object.", result["errors"])
         self.assertFalse(result["worker_validation"]["ok"])
+
+    def test_validate_wizard_payload_warns_for_unacknowledged_reprocess_all(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            result = validate_wizard_payload(
+                {
+                    "libraries": [],
+                    "output": {"root": str(root / "Output"), "existing_policy": "reprocess_all_once"},
+                    "scratch": {"path": str(root / "Scratch")},
+                    "workers": {"max_parallel_encodes": 1, "parallel_encode_mode": "single"},
+                    "safety": {"danger_ack": []},
+                }
+            )
+
+        self.assertTrue(result["ok"])
+        self.assertIn(
+            "ReprocessAll is enabled; acknowledge it on the Save step before relying on this config.",
+            result["warnings"],
+        )
 
     def test_validate_wizard_payload_reports_non_object_payload(self) -> None:
         result = validate_wizard_payload(["not-a-wizard-object"])
@@ -145,6 +167,43 @@ class SettingsWizardPolicyTests(unittest.TestCase):
         self.assertEqual(result["errors"], [])
         self.assertTrue(result["ffmpeg"]["ok"])
         self.assertTrue(result["ffprobe"]["ok"])
+
+    def test_preview_settings_wizard_summary_uses_guided_setup_phases(self) -> None:
+        class Facade:
+            def preview_settings_patch(self, _resolved: ResolvedPaths, request: dict[str, object]) -> CommandResult:
+                changes = request["changes"]
+                return CommandResult(
+                    command="settings.preview_patch",
+                    ok=True,
+                    message="preview ok",
+                    severity="info",
+                    data={"changed_keys": sorted(changes)},
+                )
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            source = root / "Movies"
+            source.mkdir()
+            request = {
+                "wizard": {
+                    "mode": "first_run",
+                    "output_container": "mkv",
+                    "libraries": [{"name": "Movies", "source_path": str(source), "output_path": str(root / "Output")}],
+                    "output": {"root": str(root / "Output"), "existing_policy": "skip_existing"},
+                    "scratch": {"path": str(root / "Scratch")},
+                    "workers": {"max_parallel_encodes": 1, "parallel_encode_mode": "single"},
+                    "safety": {},
+                }
+            }
+            result = preview_settings_wizard(Facade(), _resolved(root), request)
+
+        categories = result.data["wizard"]["summary"]["categories"]
+        self.assertEqual(
+            [row["category"] for row in categories],
+            ["Start", "Paths", "Toolchain", "Policy", "Review & Save"],
+        )
+        self.assertEqual(categories[-1]["status"], "warning")
+        self.assertFalse(result.data["wizard"]["touches_media"])
 
 
 if __name__ == "__main__":

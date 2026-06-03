@@ -105,7 +105,7 @@ def _browser_pending_drain_guard_runner_source() -> str:
                   });
                 }
               }
-              const pendingButton = document.querySelector("button[data-page='pending']");
+              const pendingButton = document.querySelector("button[data-output-page-target='pending']");
               if (pendingButton) pendingButton.click();
               return findings;
             }
@@ -160,6 +160,50 @@ def _browser_pending_drain_guard_runner_source() -> str:
             if (initialGuardStatus === "Blocked") {
               throw new Error("fixture unexpectedly started blocked; cannot prove recovery-plan guard refresh");
             }
+            requireText("pending-file-inventory-summary", [
+              "Pending parked file inventory:",
+              "Files scanned:",
+              "Evidence boundary: directory listing only",
+            ]);
+            requireText("pending-file-inventory-rows", [
+              "manifest",
+              "referenced_payload",
+              "pending manifest",
+            ]);
+            const emptyPending = JSON.parse(JSON.stringify(payload.pending));
+            emptyPending.rows = [];
+            emptyPending.count = 0;
+            emptyPending.payload_count = 0;
+            emptyPending.ready_count = 0;
+            emptyPending.issue_count = 0;
+            emptyPending.file_inventory = {
+              schema_version: "desktop_pending_publish_file_inventory.v1",
+              pending_root: payload.pending.pending_root || "PendingServerPush",
+              exists: true,
+              status: "complete",
+              rows: [],
+              total_count: 0,
+              shown_count: 0,
+              manifest_count: 0,
+              payload_like_count: 0,
+              referenced_payload_count: 0,
+              orphan_payload_count: 0,
+              total_size_text: "0 B",
+              summary_lines: [
+                "Pending parked file inventory:",
+                "Files scanned: 0",
+                "Rows shown: 0",
+                "Evidence boundary: directory listing only; file bytes were not read and no files were changed.",
+              ],
+            };
+            window.renderPendingPublish(emptyPending, {});
+            await waitFor(
+              () => text("pending-file-inventory-status") === "No parked files"
+                && document.querySelectorAll("#pending-file-inventory-rows tr").length >= 1
+                && text("pending-file-inventory-rows").includes("No parked files were reported"),
+              "empty parked file inventory table stays visible",
+            );
+            window.renderPendingPublish(payload.pending, {});
             requireText("pending-post-drain-trust-summary", [
               "Pending Publish post-drain trust review:",
               "Decision rule: a drain is trusted only when current parked rows",

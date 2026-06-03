@@ -47,6 +47,7 @@ COMMAND_ROUTE_METHODS: dict[str, str] = {
     "/api/sample-validation/preview": "_sample_validation_preview_payload",
     "/api/sample-validation/append": "_sample_validation_append_payload",
     "/api/pipeline/control": "_pipeline_control_payload",
+    "/api/pipeline/browse-file": "_pipeline_browse_file_payload",
     "/api/pipeline/start": "_pipeline_start_payload",
     "/api/audit/start": "_audit_start_payload",
     "/api/rerun/start": "_rerun_start_payload",

@@ -142,6 +142,18 @@ def pipeline_start_active_work_result(block_message: str) -> "CommandResult":
     )
 
 
+def pipeline_start_config_blocked_result(message: str, data: dict[str, Any]) -> "CommandResult":
+    return _command_result(
+        command=PIPELINE_START_COMMAND,
+        ok=False,
+        message=message,
+        severity="error",
+        errors=[message],
+        refresh_hint="settings",
+        data=data,
+    )
+
+
 def pipeline_start_exception_result(exc: Exception) -> "CommandResult":
     return _command_result(
         command=PIPELINE_START_COMMAND,
@@ -196,6 +208,7 @@ __all__ = [
     "pipeline_start_extra_args_error_result",
     "pipeline_start_schedule_gate_result",
     "pipeline_start_active_work_result",
+    "pipeline_start_config_blocked_result",
     "pipeline_start_exception_result",
     "pipeline_start_success_result",
 ]

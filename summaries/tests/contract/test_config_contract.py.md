@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 88e0f5587eb987d887a77b0eca185893584a3d1acc11cdfc4d4aec203f03389a
+sha256: 7f1e01fffa4c274b32fb66706c75a63efd7b8541284e4419053d6d5c344f4ac5
 ---
 # `tests/contract/test_config_contract.py`
 

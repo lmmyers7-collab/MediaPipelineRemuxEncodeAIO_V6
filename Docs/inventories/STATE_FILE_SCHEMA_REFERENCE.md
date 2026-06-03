@@ -64,14 +64,23 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 | `route` | `str` | — | Processing route (`"remux"` or `"encode"`) |
 | `route_reason_code` | `str` | `""` | Route determination code |
 | `route_reason` | `str` | `""` | Route determination reason text |
+| `media_type` | `str` | `""` | Destination media kind (`"movie"` or `"tv"` when known) |
 | `source_identity` | `str` | `""` | Legacy source identity (v1 compat) |
 | `source_identity_v2` | `str` | `""` | Content hash of source file |
 | `source_identity_v2_algorithm` | `str` | `""` | Hash algorithm name |
 | `source_path` | `str` | `""` | Original source file path |
 | `source_size` | `int` | `0` | Source file size in bytes |
+| `source_mtime_utc` | `str` | `""` | Source file modified time at parking |
 | `output_size` | `int` | `0` | Output file size in bytes |
 | `publish_mode` | `str` | `""` | Publishing mode |
 | `sidecar_files` | `list` | `[]` | Associated sidecar file list |
+| `tx3g_srt_tracks` | `list` | `[]` | TX3G SRT sidecar evidence carried into drain |
+| `tx3g_srt_failures` | `list` | `[]` | TX3G SRT publish/conversion failures |
+| `bdpgs_srt_failures` | `list` | `[]` | BDPGS SRT conversion/OCR failures |
+| `vobsub_srt_failures` | `list` | `[]` | VobSub SRT conversion/OCR failures |
+| `tx3g_embedded_srt_tracks` | `list` | `[]` | Embedded TX3G track records for completed sidecar evidence |
+| `bdpgs_embedded_srt_tracks` | `list` | `[]` | Embedded BDPGS track records for completed sidecar evidence |
+| `vobsub_embedded_srt_tracks` | `list` | `[]` | Embedded VobSub track records for completed sidecar evidence |
 | `tx3g_srt_conversion_enabled` | `bool` | `False` | TX3G subtitle conversion flag |
 | `tx3g_external_srt_sidecars_enabled` | `bool` | `False` | External SRT sidecar support flag |
 | `drop_tx3g_after_conversion` | `bool` | `False` | Drop original TX3G after conversion |
@@ -185,7 +194,7 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 **Artifact**: `State\Progress\queue_snapshot.json` — rewritten each time the queue is evaluated
 **Schema version**: `queue_plan_snapshot.v1`
 
-The snapshot contains a container record and two row lists: runnable rows and excluded rows.
+The snapshot contains a container record and two row lists: queue display rows and excluded rows. `runnable_count` reports only items ready to process; display rows can include blocked or held rows for operator review.
 
 ### QueuePlanSnapshot (Container)
 

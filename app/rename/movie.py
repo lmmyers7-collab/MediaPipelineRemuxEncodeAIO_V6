@@ -37,17 +37,29 @@ MOVIE_RELEASE_GROUP_TERMS = (
     "psa",
     "tigole",
     "kris",
+    "sparks",
+    "ntb",
+    "evo",
+    "tepes",
+    "flux",
+    "framestor",
+    "cmrg",
+    "neonoir",
 )
 RENAME_MOVIE_FILTER_DEFAULT_TERMS: dict[str, tuple[str, ...]] = {
     "video_source": (
         "2160p",
         "1080p",
+        "1080i",
         "720p",
+        "720i",
         "480p",
+        "4k",
         "uhd",
         "hdr",
         "hdr10",
         "hdr10+",
+        "hlg",
         "dv",
         "dovi",
         "dolby vision",
@@ -60,6 +72,8 @@ RENAME_MOVIE_FILTER_DEFAULT_TERMS: dict[str, tuple[str, ...]] = {
         "x265",
         "av1",
         "avc",
+        "xvid",
+        "divx",
         "blu ray",
         "bluray",
         "brrip",
@@ -69,9 +83,15 @@ RENAME_MOVIE_FILTER_DEFAULT_TERMS: dict[str, tuple[str, ...]] = {
         "webdl",
         "web",
         "hdtv",
+        "hdrip",
         "dvdrip",
         "dvd",
+        "dvdscr",
+        "ts",
+        "cam",
+        "scr",
         "remux",
+        "hybrid",
         "10 bit",
         "8 bit",
     ),
@@ -84,14 +104,23 @@ RENAME_MOVIE_FILTER_DEFAULT_TERMS: dict[str, tuple[str, ...]] = {
         "ac3",
         "aac",
         "dd",
+        "dd+",
         "ddp",
         "dts",
         "dts hd",
+        "dts-x",
+        "dtsx",
         "dtshd",
+        "lpcm",
+        "pcm",
+        "mp3",
+        "mp2",
         "1.0",
         "2.0",
         "5.1",
         "7.1",
+        "stereo",
+        "mono",
         "6ch",
         "6 ch",
         "8ch",
@@ -105,21 +134,41 @@ RENAME_MOVIE_FILTER_DEFAULT_TERMS: dict[str, tuple[str, ...]] = {
         "extended",
         "remastered",
         "remaster",
+        "restored",
+        "restoration",
         "unrated",
         "theatrical",
         "criterion",
         "director cut",
         "directors cut",
         "director's cut",
+        "dc",
         "final cut",
         "open matte",
+        "redux",
+        "special edition",
+        "se",
+        "anniversary",
+        "collectors edition",
+        "supercut",
     ),
     "file_size": (
+        "500mb",
         "700mb",
         "1400mb",
         "1gb",
+        "1.5gb",
         "2gb",
+        "3gb",
         "4.7gb",
+        "5gb",
+        "6gb",
+        "8gb",
+        "10gb",
+        "15gb",
+        "20gb",
+        "25gb",
+        "30gb",
     ),
     "services_containers": (
         "amzn",
@@ -129,9 +178,18 @@ RENAME_MOVIE_FILTER_DEFAULT_TERMS: dict[str, tuple[str, ...]] = {
         "hulu",
         "itunes",
         "appletv",
+        "atvp",
+        "peacock",
+        "pck",
+        "vudu",
+        "stan",
+        "sho",
         "mkv",
         "mp4",
         "m4v",
+        "avi",
+        "mov",
+        "wmv",
     ),
     "release_groups": MOVIE_RELEASE_GROUP_TERMS,
 }
@@ -174,9 +232,30 @@ def normalize_movie_filter_terms(movie_filter_terms: dict[str, list[str]] | None
     return terms
 
 
+def rename_movie_filter_default_terms() -> dict[str, list[str]]:
+    return {key: list(values) for key, values in RENAME_MOVIE_FILTER_DEFAULT_TERMS.items()}
+
+
 def movie_filter_terms_for_key(movie_filter_terms: dict[str, list[str]] | None, key: str) -> list[str] | None:
     normalized = normalize_movie_filter_terms(movie_filter_terms)
     return normalized[key] if key in normalized else None
+
+
+def collective_movie_filter_terms(movie_filter_terms: dict[str, list[str]] | None, key: str) -> list[str]:
+    seen: set[str] = set()
+    terms: list[str] = []
+    for term in list(RENAME_MOVIE_FILTER_DEFAULT_TERMS.get(key, ())) + list(movie_filter_terms_for_key(movie_filter_terms, key) or []):
+        term_key = str(term or "").casefold()
+        if not term_key or term_key in seen:
+            continue
+        seen.add(term_key)
+        terms.append(str(term))
+    return terms
+
+
+def remove_custom_movie_filter_terms(text: str, movie_filter_terms: dict[str, list[str]] | None, key: str) -> str:
+    custom_terms = movie_filter_terms_for_key(movie_filter_terms, key)
+    return remove_movie_filter_terms(text, custom_terms) if custom_terms is not None else text
 
 
 def title_case_movie_name(value: str) -> str:
@@ -232,9 +311,7 @@ def strip_movie_release_groups(
     if not movie_filter_enabled(movie_filter_options, "release_groups"):
         return str(text or "")
     result = str(text or "")
-    release_group_terms = movie_filter_terms_for_key(movie_filter_terms, "release_groups")
-    if release_group_terms is None:
-        release_group_terms = list(MOVIE_RELEASE_GROUP_TERMS)
+    release_group_terms = collective_movie_filter_terms(movie_filter_terms, "release_groups")
     for _ in range(4):
         before = result
         for term in release_group_terms:
@@ -277,24 +354,21 @@ def clean_pipeline_movie_name(
             break
     title = re.sub(r"[{}\[\]()]", " ", title)
     if filter_options["file_size"]:
-        custom_terms = movie_filter_terms_for_key(filter_terms, "file_size")
-        title = remove_movie_filter_terms(title, custom_terms) if custom_terms is not None else MOVIE_SIZE_TAG_PATTERN.sub(" ", title)
+        title = MOVIE_SIZE_TAG_PATTERN.sub(" ", title)
+        title = remove_custom_movie_filter_terms(title, filter_terms, "file_size")
     if filter_options["audio_channels"]:
-        custom_terms = movie_filter_terms_for_key(filter_terms, "audio_channels")
-        title = remove_movie_filter_terms(title, custom_terms) if custom_terms is not None else MOVIE_AUDIO_TAG_PATTERN.sub(" ", title)
+        title = MOVIE_AUDIO_TAG_PATTERN.sub(" ", title)
+        title = remove_custom_movie_filter_terms(title, filter_terms, "audio_channels")
     if filter_options["video_source"]:
-        custom_terms = movie_filter_terms_for_key(filter_terms, "video_source")
-        if custom_terms is not None:
-            title = remove_movie_filter_terms(title, custom_terms)
-        else:
-            title = MOVIE_VIDEO_SOURCE_TAG_PATTERN.sub(" ", title)
-            title = re.sub(r"\b(?:10|8)\s*bit\b", " ", title, flags=re.IGNORECASE)
+        title = MOVIE_VIDEO_SOURCE_TAG_PATTERN.sub(" ", title)
+        title = re.sub(r"\b(?:10|8)\s*bit\b", " ", title, flags=re.IGNORECASE)
+        title = remove_custom_movie_filter_terms(title, filter_terms, "video_source")
     if filter_options["editions"]:
-        custom_terms = movie_filter_terms_for_key(filter_terms, "editions")
-        title = remove_movie_filter_terms(title, custom_terms) if custom_terms is not None else MOVIE_EDITION_TAG_PATTERN.sub(" ", title)
+        title = MOVIE_EDITION_TAG_PATTERN.sub(" ", title)
+        title = remove_custom_movie_filter_terms(title, filter_terms, "editions")
     if filter_options["services_containers"]:
-        custom_terms = movie_filter_terms_for_key(filter_terms, "services_containers")
-        title = remove_movie_filter_terms(title, custom_terms) if custom_terms is not None else MOVIE_SERVICE_CONTAINER_TAG_PATTERN.sub(" ", title)
+        title = MOVIE_SERVICE_CONTAINER_TAG_PATTERN.sub(" ", title)
+        title = remove_custom_movie_filter_terms(title, filter_terms, "services_containers")
     title = remove_movie_filter_terms(title, remove_terms)
     title = strip_movie_release_groups(title, filter_options, filter_terms)
     title = re.sub(r"[\._]", " ", title)

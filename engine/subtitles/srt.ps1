@@ -82,20 +82,51 @@ function Test-SrtFileUsable {
 
             $i++
             $cueTextLineCount = 0
-            while ($i -lt $lines.Count -and -not [string]::IsNullOrWhiteSpace([string]$lines[$i])) {
+            while ($i -lt $lines.Count) {
                 $textLine = [string]$lines[$i]
+
+                if ([string]::IsNullOrWhiteSpace($textLine)) {
+                    # A blank line ends the cue only when it begins a real cue
+                    # boundary: the next non-blank content starts a new cue
+                    # (an index line followed by a timing line, or a timing line
+                    # directly) or we reach end of file. Otherwise the blank is
+                    # embedded inside multi-region OCR cue text (PgsToSrt emits a
+                    # blank line between separate on-screen text regions), so we
+                    # keep it as part of the current cue rather than orphaning the
+                    # text that follows it.
+                    $j = $i
+                    while ($j -lt $lines.Count -and [string]::IsNullOrWhiteSpace([string]$lines[$j])) { $j++ }
+                    if ($j -ge $lines.Count) { $i = $j; break }
+
+                    $peek = [string]$lines[$j]
+                    $peekIsCueHeader = $false
+                    if ($peek.Trim() -match '^\d+$') {
+                        if (($j + 1) -lt $lines.Count -and ([string]$lines[$j + 1]) -match $timingPattern) {
+                            $peekIsCueHeader = $true
+                        }
+                    } elseif ($peek -match $timingPattern) {
+                        $peekIsCueHeader = $true
+                    }
+
+                    if ($peekIsCueHeader) { $i = $j; break }
+                    # Embedded blank run inside cue text: skip it and keep reading.
+                    $i = $j
+                    continue
+                }
+
                 if ($textLine -match $timingPattern) {
                     $result.Reason = 'SRT cue separator is missing before a timing line'
                     return [pscustomobject]$result
                 }
-                if (-not [string]::IsNullOrWhiteSpace($textLine)) { $cueTextLineCount++ }
+                $cueTextLineCount++
                 $i++
             }
 
-            if ($cueTextLineCount -le 0) {
-                $result.Reason = 'SRT cue has no text'
-                return [pscustomobject]$result
-            }
+            # A single empty-text cue (timing line followed immediately by a
+            # blank line) is tolerated: OCR engines such as PgsToSrt routinely
+            # emit a few empty cues for blank/sign frames. Count the cue
+            # structurally but contribute no text; the aggregate text check
+            # below still fails the file only if no cue anywhere has text.
             $cueCount++
             $textLineCount += $cueTextLineCount
         }

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: 65aed81e8e3638d9093b4c2fc97a2d538295e33e46155cf0da77592bfa63daf8
+sha256: cc4b9cdc2109590ff92caf8db70313017ab87715cf0112dcff34e64f36c4c21e
 ---
 # `Pipeline/Tests/Unit/Invoke-AudioPolicyChecks.ps1`
 

@@ -16,13 +16,13 @@
   const REPORTS_TAB_STORAGE_KEY = "mediapipeline-reports-tab";
 
   function reportsTabIds() {
-    return ["overview", "failures", "audit", "files"];
+    return ["failures", "audit", "files"];
   }
 
   function activateReportsTab(tabId) {
     const page = document.querySelector('[data-page-panel="reports"]');
     if (!page) return;
-    const selected = reportsTabIds().includes(tabId) ? tabId : "overview";
+    const selected = reportsTabIds().includes(tabId) ? tabId : "failures";
     const buttons = Array.from(page.querySelectorAll(".settings-tab-btn[data-reports-tab]"));
     const panels = Array.from(page.querySelectorAll(":scope > .reports-tab-panel[data-reports-tab-panel]"));
     buttons.forEach((button) => {
@@ -44,12 +44,12 @@
     if (!buttons.length || !panels.length) return;
     if (!reportsTabNavInitialized) {
       buttons.forEach((button) => {
-        button.addEventListener("click", () => activateReportsTab(button.dataset.reportsTab || "overview"));
+        button.addEventListener("click", () => activateReportsTab(button.dataset.reportsTab || "failures"));
       });
       reportsTabNavInitialized = true;
     }
-    let stored = "overview";
-    try { stored = localStorage.getItem(REPORTS_TAB_STORAGE_KEY) || "overview"; } catch (_) {}
+    let stored = "failures";
+    try { stored = localStorage.getItem(REPORTS_TAB_STORAGE_KEY) || "failures"; } catch (_) {}
     activateReportsTab(stored);
   }
 
@@ -290,7 +290,7 @@
       item?.stage || "",
       item?.error_code || "",
       item?.recorded_at || "",
-    ].join("\u001f").toLocaleLowerCase();
+    ].join("\u001f").toLowerCase();
   }
 
   function failureDisplayValue(value, fallback) {
@@ -311,12 +311,88 @@
   }
 
   function failureSuggestedActionText(item) {
+    const triageFix = failureDisplayValue(item?.triage?.suggested_fix, "");
+    if (triageFix) return triageFix;
     const explicit = failureDisplayValue(item?.suggested_action || item?.recommended_action || item?.next_step, "");
     if (explicit) return explicit;
     const classification = String(item?.classification || "").toLowerCase();
     if (classification === "transient") return "Preview marker clear, then rerun after confirming logs.";
     if (classification === "operator_required" || classification === "permanent") return "Open diagnostics and review the source before retry.";
     return "Review diagnostics before retry.";
+  }
+
+  function failureTriage(item) {
+    return item?.triage && typeof item.triage === "object" ? item.triage : {};
+  }
+
+  function failureClearError(item) {
+    return item?.clear_error && typeof item.clear_error === "object" ? item.clear_error : {};
+  }
+
+  function failureStatusLabel(item) {
+    const triage = failureTriage(item);
+    const label = failureDisplayValue(triage.status_label, "");
+    if (label) return label;
+    const retryState = failureRetryStateForRow(item);
+    const classification = String(item?.classification || "").toLowerCase();
+    if (retryState?.status_state === "blocked" || classification === "operator_required" || classification === "permanent") return "Needs operator";
+    if (retryState?.retry_allowed) return "Will retry";
+    if (item?.reason || item?.error_code) return "Review";
+    return "Recorded";
+  }
+
+  function failureSeverity(item) {
+    const triage = failureTriage(item);
+    const severity = String(triage.severity || "").toLowerCase();
+    if (severity) return severity;
+    const retryState = failureRetryStateForRow(item);
+    if (retryState?.status_state === "blocked") return "blocked";
+    if (retryState?.retry_allowed || item?.reason || item?.error_code) return "warning";
+    return "info";
+  }
+
+  function failurePlainSummaryText(item) {
+    return failureDisplayValue(failureTriage(item).plain_summary, failureReasonText(item));
+  }
+
+  function failureFileText(item) {
+    return failureDisplayValue(item?.lookup_title || item?.source_path, "Unknown file");
+  }
+
+  function normalizeFailureMarkerPaths(paths) {
+    const seen = new Set();
+    const result = [];
+    (Array.isArray(paths) ? paths : []).forEach((path) => {
+      const markerPath = String(path || "").trim();
+      const key = markerPath.toLowerCase();
+      if (markerPath && !seen.has(key)) {
+        seen.add(key);
+        result.push(markerPath);
+      }
+    });
+    return result;
+  }
+
+  function failureClearMarkerPathsForRow(item) {
+    const clear = failureClearError(item);
+    const markerPaths = normalizeFailureMarkerPaths([
+      ...(Array.isArray(clear.marker_paths) ? clear.marker_paths : []),
+      clear.marker_path,
+    ]);
+    if (markerPaths.length) return markerPaths;
+    if (failureMarkerModeActive()) return normalizeFailureMarkerPaths([failureMarkerPath(item)]);
+    return [];
+  }
+
+  function failureClearMarkerPath(item) {
+    return failureClearMarkerPathsForRow(item)[0] || "";
+  }
+
+  function failureClearUnavailableReason(item) {
+    return failureDisplayValue(
+      failureClearError(item).unavailable_reason,
+      "No active failure marker is available for this row."
+    );
   }
 
   function failureRetryStatePayload(failures = lastFailurePreviewPayload) {
@@ -495,6 +571,7 @@
       "source_path",
       "reason",
       "suggested_action",
+      "retry_safe_next_action",
     ]);
   }
 
@@ -506,12 +583,13 @@
     const seen = new Set();
     const paths = [];
     getSelectedFailureRows().forEach((item) => {
-      const markerPath = failureMarkerPath(item);
-      const key = markerPath.toLowerCase();
-      if (markerPath && !seen.has(key)) {
-        seen.add(key);
-        paths.push(markerPath);
-      }
+      failureClearMarkerPathsForRow(item).forEach((markerPath) => {
+        const key = markerPath.toLowerCase();
+        if (markerPath && !seen.has(key)) {
+          seen.add(key);
+          paths.push(markerPath);
+        }
+      });
     });
     return paths;
   }
@@ -520,12 +598,13 @@
     const seen = new Set();
     const paths = [];
     visibleFailureRows().forEach((item) => {
-      const markerPath = failureMarkerPath(item);
-      const key = markerPath.toLowerCase();
-      if (markerPath && !seen.has(key)) {
-        seen.add(key);
-        paths.push(markerPath);
-      }
+      failureClearMarkerPathsForRow(item).forEach((markerPath) => {
+        const key = markerPath.toLowerCase();
+        if (markerPath && !seen.has(key)) {
+          seen.add(key);
+          paths.push(markerPath);
+        }
+      });
     });
     return paths;
   }
@@ -534,20 +613,18 @@
     const seen = new Set();
     const paths = [];
     lastFailureRows.forEach((item) => {
-      const markerPath = failureMarkerPath(item);
-      const key = markerPath.toLowerCase();
-      if (markerPath && !seen.has(key)) {
-        seen.add(key);
-        paths.push(markerPath);
-      }
+      failureClearMarkerPathsForRow(item).forEach((markerPath) => {
+        const key = markerPath.toLowerCase();
+        if (markerPath && !seen.has(key)) {
+          seen.add(key);
+          paths.push(markerPath);
+        }
+      });
     });
     return paths;
   }
 
   function failureClearRequest(scope, dryRun) {
-    if (!failureMarkerModeActive()) {
-      return { error: "Switch on Use failure markers first. Latest failure reports are evidence, not retry-blocker state." };
-    }
     const clearAll = scope === "all" || scope === "all_markers";
     const apiScope = scope === "all" ? "all_markers" : scope;
     const markerPaths = clearAll ? [] : scope === "visible" ? visibleFailureMarkerPaths() : selectedFailureMarkerPaths();
@@ -580,7 +657,7 @@
       data.manifest_path ? `Clear manifest: ${data.manifest_path}` : "",
       data.archive_dir ? `Cleared marker archive: ${data.archive_dir}` : "",
       `Safe next action: ${data.safe_next_action || "Review marker rows before confirming."}`,
-      "Guardrail: this command moves marker JSON out of State\\Failures\\Markers only; it does not delete media, reports, completed manifests, pending publish state, or source/output files.",
+      "Guardrail: this command moves marker JSON out of State\\Failures\\Markers only; it does not delete media, logs, reports, completed manifests, pending publish state, or source/output files.",
       "",
       result?.message || "",
     ].filter((line) => line !== "");
@@ -611,8 +688,10 @@
         : Array.isArray(request.marker_paths) ? request.marker_paths.length : 0;
       const targetText = request.all_markers
         ? "all backend failure markers"
-        : `${count} failure marker${count === 1 ? "" : "s"}`;
-      const message = `Clear ${targetText}?\n\nThis moves marker JSON out of the active marker folder so the pipeline can retry those source files. It does not touch media files or failure reports.`;
+        : `${count} failure error${count === 1 ? "" : "s"}`;
+      const message = request.all_markers
+        ? `Clear ${targetText}?\n\nThis moves marker JSON out of the active marker folder so the pipeline can retry those source files. It does not delete media files, logs, reports, manifests, source files, or output files.`
+        : "Clear this error?\n\nThis moves the active failure marker out of the blocking folder so the file can be retried later. It does not delete media files, logs, reports, manifests, source files, or output files.";
       if (!window.confirm(message)) return;
     }
     setText("failure-clear-status", dryRun ? "Previewing..." : "Clearing...");
@@ -644,6 +723,19 @@
       if (typeof appendCommandResult === "function") appendCommandResult(result);
       renderFailureClearResult(result);
     }
+  }
+
+  async function requestFailureRowClear(item) {
+    const markerPaths = failureClearMarkerPathsForRow(item);
+    if (!markerPaths.length) {
+      setText("failure-clear-status", "Blocked");
+      setText("failure-clear-summary", failureClearUnavailableReason(item));
+      return;
+    }
+    selectedFailureRowKey = failureRowKey(item);
+    selectedFailureRowKeys = new Set([selectedFailureRowKey].filter(Boolean));
+    renderFailureRows();
+    await requestFailureMarkerClear("selected", false);
   }
 
   function auditDiagnosticsActionsForRow(item) {
@@ -713,10 +805,12 @@
 
   function renderFailureDetail(item) {
     if (!item) {
-      setText("failure-detail", "No failure row selected. Select a row to inspect classification, error code, stage, suggested action, backend-authored retry state, and repro path.");
+      setText("failure-detail", "No failure row selected. Select a row or use Open details to inspect the full error log.");
       renderReportDiagnosticsActions("failure-diagnostics-actions", failureDiagnosticsActionsForRow(null), "Reports failure page");
       return;
     }
+    const clearMarkerPaths = failureClearMarkerPathsForRow(item);
+    const clearAvailable = clearMarkerPaths.length > 0;
     const handoffLines = typeof diagnosticsBridgeHandoffLines === "function"
       ? diagnosticsBridgeHandoffLines("Reports failure selected row", failureDiagnosticsActionsForRow(item), {
         evidence: [
@@ -731,22 +825,33 @@
     const detail = [
       ...handoffLines,
       "",
-      `Title: ${item.lookup_title || ""}`,
-      `Media: ${item.media_type || ""}`,
-      `Class: ${failureClassificationText(item)}`,
-      `Code: ${item.error_code || ""}`,
-      `Stage: ${failureStageText(item)}`,
+      "What happened",
+      `Status: ${failureStatusLabel(item)}`,
+      `Summary: ${failurePlainSummaryText(item)}`,
       `Reason: ${failureReasonText(item)}`,
+      `Stage: ${failureStageText(item)}`,
+      `Code: ${item.error_code || ""}`,
+      `Class: ${failureClassificationText(item)}`,
+      "",
+      "Suggested fix",
       `Suggested action: ${failureSuggestedActionText(item)}`,
       `Suggested rename: ${item.suggested_rename || ""}`,
+      "",
+      "Retry state",
       `Retry: ${item.retry_count || 0}/${item.retry_limit || 0}`,
       ...failureRetryDetailLines(item),
+      `Safe next action: ${item.retry_safe_next_action || failureSuggestedActionText(item)}`,
+      "",
+      "Evidence",
+      `Title: ${item.lookup_title || ""}`,
+      `Media: ${item.media_type || ""}`,
       `Escalated: ${item.escalated ? "yes" : "no"}`,
       `Recorded: ${failureRecordedText(item.recorded_at)}`,
       `Source: ${item.source_path || ""}`,
       `Artifact: ${item.artifact_path || ""}`,
       `Repro: ${item.repro_path || ""}`,
       `Record file: ${item.source_json || ""}`,
+      `Clear error: ${clearAvailable ? `available (${clearMarkerPaths.length} marker${clearMarkerPaths.length === 1 ? "" : "s"})` : failureClearUnavailableReason(item)}`,
     ];
     setText("failure-detail", detail.join("\n"));
     renderReportDiagnosticsActions("failure-diagnostics-actions", failureDiagnosticsActionsForRow(item), "Reports failure selected row");
@@ -757,16 +862,14 @@
     setText("failure-status", `${rows.length} / ${lastFailureRows.length} row${lastFailureRows.length === 1 ? "" : "s"}`);
     const tbody = byId("failure-rows");
     if (!rows.length) {
-      clearRows(tbody, 10, lastFailureRows.length ? "No failure rows match the filter." : lastFailureEmptyMessage);
+      clearRows(tbody, 5, lastFailureRows.length ? "No failure rows match the filter." : lastFailureEmptyMessage);
       updateTableStatusLegend("failure-table-legend", tbody, "Failure rows");
       return;
     }
     tbody.replaceChildren();
     rows.slice(0, 250).forEach((item) => {
       const row = document.createElement("tr");
-      const classification = String(failureClassificationText(item)).toLowerCase();
-      const retryState = failureRetryStateForRow(item);
-      row.dataset.status = retryState?.status_state || (classification === "operator_required" || classification === "permanent" ? "blocked" : classification === "transient" ? "warning" : "");
+      row.dataset.status = failureSeverity(item);
       const key = failureRowKey(item);
       row.dataset.rowKey = key;
       const selectCell = document.createElement("td");
@@ -779,16 +882,39 @@
       selectCell.appendChild(checkbox);
       row.appendChild(selectCell);
       appendCells(row, [
-        failureClassificationText(item),
-        item.error_code || "",
-        failureStageText(item),
-        item.media_type || "",
-        item.lookup_title || item.source_path || "",
-        failureReasonText(item),
+        failureStatusLabel(item),
+        failureFileText(item),
         failureSuggestedActionText(item),
-        failureRetrySummaryText(item),
-        failureRecordedText(item.recorded_at),
       ]);
+      const actionCell = document.createElement("td");
+      const actions = document.createElement("div");
+      actions.className = "action-row action-row-left wrap-actions";
+      const detailsButton = document.createElement("button");
+      detailsButton.type = "button";
+      detailsButton.className = "secondary-button";
+      detailsButton.textContent = "Open details";
+      detailsButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        selectFailureRow(item);
+      });
+      actions.appendChild(detailsButton);
+      const markerPaths = failureClearMarkerPathsForRow(item);
+      const clearAvailable = markerPaths.length > 0;
+      const clearButton = document.createElement("button");
+      clearButton.type = "button";
+      clearButton.className = clearAvailable ? "danger-button" : "secondary-button";
+      clearButton.textContent = "Clear error";
+      clearButton.disabled = !clearAvailable;
+      clearButton.title = clearAvailable
+        ? `Clear ${markerPaths.length === 1 ? "this active failure marker" : `${markerPaths.length} active failure markers`} without deleting media or logs.`
+        : failureClearUnavailableReason(item);
+      clearButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        requestFailureRowClear(item);
+      });
+      actions.appendChild(clearButton);
+      actionCell.appendChild(actions);
+      row.appendChild(actionCell);
       makeRowSelectable(row, () => selectFailureRow(item), {
         selected: Boolean(key && key === selectedFailureRowKey),
         label: `Failure row ${item.lookup_title || item.source_path || item.error_code || ""}`,
@@ -889,7 +1015,7 @@
       return [
         "Failure review board: no failure preview has loaded yet.",
         "First action: refresh Reports or open Failure Reports if you expected recent failures.",
-        "Mutation guardrail: Reports triage is read-only until marker mode is enabled; Clear Retry Blockers only moves marker JSON through the backend command.",
+        "Mutation guardrail: Reports triage is read-only except Clear Errors, which only moves marker JSON through the backend command.",
       ];
     }
     const operatorRows = rows.filter((row) => ["operator_required", "permanent"].includes(String(row.classification || "").toLowerCase()));
@@ -1161,153 +1287,12 @@
   function renderReportInvestigation() {
     setText("report-investigation-status", reportInvestigationStatus());
     setText("report-investigation-checklist", reportInvestigationChecklistLines().join("\n"));
-    renderReportLaunchHandoff();
-  }
-
-  function reportLaunchCandidateCsvRows() {
-    const latestPaths = lastReportSnapshot?.latest_paths || {};
-    return [
-      {
-        label: "Latest Priority CSV",
-        path: latestPaths.latest_priority_csv || "",
-        purpose: "CSV Rerun candidate when priority-only audit rows were generated.",
-      },
-      {
-        label: "Latest Audit CSV",
-        path: latestPaths.latest_audit_csv || "",
-        purpose: "CSV Rerun candidate when full audit rows include rerun recommendations.",
-      },
-    ].filter((item) => item.path);
-  }
-
-  function reportLaunchHandoffStatus() {
-    const failures = lastFailurePreviewPayload || {};
-    const audit = lastAuditPreviewPayload || {};
-    const candidateCsvs = reportLaunchCandidateCsvRows();
-    if (failures.error || audit.error) return "Diagnostics first";
-    if (reportNumber(failures.operator_required_count) > 0 || reportNumber(failures.permanent_count) > 0) return "Failure review first";
-    if (reportNumber(audit.redownload_count) > 0) return "Manual review first";
-    if (reportNumber(audit.rerun_count) > 0 || reportNumber(audit.high_priority_count) > 0) {
-      return candidateCsvs.length ? "CSV rerun candidate" : "CSV missing";
-    }
-    if (!reportPreviewLoaded(audit, lastAuditRows) && !candidateCsvs.length) return "Run audit first";
-    if (candidateCsvs.length) return "CSV available";
-    return "No handoff";
-  }
-
-  function selectedAuditLaunchHint() {
-    const item = getSelectedAuditRow();
-    if (!item) return "Selected audit row: none.";
-    return [
-      "Selected audit row:",
-      `- Bucket: ${item.effective_bucket || "unknown"}`,
-      `- Priority: ${item.priority_fix_level || ""} ${item.priority_score || ""}`.trim(),
-      `- Issue: ${item.primary_issue_code || item.issue_messages || "unknown"}`,
-      `- Suggested action: ${item.primary_suggested_action || "review before rerun"}`,
-      `- Path: ${item.path || item.relative_path || "not reported"}`,
-    ].join("\n");
-  }
-
-  function reportLaunchHandoffLines() {
-    const failures = lastFailurePreviewPayload || {};
-    const audit = lastAuditPreviewPayload || {};
-    const candidateCsvs = reportLaunchCandidateCsvRows();
-    const lines = [
-      "Reports to Launch handoff:",
-      `Status: ${reportLaunchHandoffStatus()}`,
-      `Audit rerun rows: ${reportNumber(audit.rerun_count)}`,
-      `Audit high-priority rows: ${reportNumber(audit.high_priority_count)}`,
-      `Audit redownload rows: ${reportNumber(audit.redownload_count)}`,
-      `Failure operator/permanent rows: ${reportNumber(failures.operator_required_count) + reportNumber(failures.permanent_count)}`,
-      `Candidate CSV paths: ${candidateCsvs.length}`,
-    ];
-    if (candidateCsvs.length) {
-      lines.push("", "Candidate CSV path(s) to verify manually:");
-      candidateCsvs.forEach((item) => {
-        lines.push(`- ${item.label}: ${item.path}`);
-        lines.push(`  ${item.purpose}`);
-      });
-    } else {
-      lines.push("", "No candidate CSV path is currently reported by the backend snapshot.");
-    }
-    lines.push("", selectedAuditLaunchHint());
-    lines.push("", "Safe handoff:");
-    if (failures.error || audit.error) {
-      lines.push("- Open Diagnostics first because a report preview could not be read.");
-    } else if (reportNumber(failures.operator_required_count) > 0 || reportNumber(failures.permanent_count) > 0) {
-      lines.push("- Inspect operator/permanent failure rows before using CSV Rerun; these rows may need manual action.");
-    } else if (reportNumber(audit.redownload_count) > 0) {
-      lines.push("- Redownload candidates should be manually reviewed; WebView does not auto-redownload or delete media.");
-    } else if (reportNumber(audit.rerun_count) > 0 || reportNumber(audit.high_priority_count) > 0) {
-      lines.push("- Use Go To CSV Rerun, then manually paste the verified CSV path into Launch > CSV Path.");
-      lines.push("- Confirm Launch preflight still says copy / keep / park before starting.");
-    } else if (!reportPreviewLoaded(audit, lastAuditRows)) {
-      lines.push("- Use Go To Audit Launch if no current audit CSV exists and you need fresh recommendations.");
-    } else {
-      lines.push("- No report-driven Launch action is currently indicated.");
-    }
-    lines.push("");
-    lines.push("Mutation guardrail: this panel only navigates and explains context. It never fills CSV Path, starts CSV Rerun, runs Audit, exports reports, or mutates files.");
-    return lines;
-  }
-
-  function renderReportLaunchHandoff() {
-    setText("report-launch-handoff-status", reportLaunchHandoffStatus());
-    setText("report-launch-handoff", reportLaunchHandoffLines().join("\n"));
-  }
-
-  function reportNavigateToLaunchTarget(targetId, statusMessage) {
-    if (typeof showPage === "function") {
-      showPage("launch");
-    }
-    const tabByTarget = {
-      "audit-start-library-root": "audit",
-      "rerun-start-csv-path": "rerun",
-    };
-    const targetTab = tabByTarget[targetId] || "";
-    if (targetTab) window.mediaPipelineLaunchView?.activateLaunchTab?.(targetTab);
-    const target = byId(targetId);
-    if (target) {
-      target.scrollIntoView({ block: "center" });
-      target.focus({ preventScroll: true });
-    }
-    setText("report-launch-handoff-action-status", statusMessage);
-  }
-
-  function reportGoToCsvRerun() {
-    reportNavigateToLaunchTarget(
-      "rerun-start-csv-path",
-      "Opened Launch > CSV Rerun. Paste the verified CSV path manually; Reports did not fill or submit it."
-    );
-  }
-
-  function reportGoToAuditLaunch() {
-    reportNavigateToLaunchTarget(
-      "audit-start-library-root",
-      "Opened Launch > Audit. Review the library root manually; Reports did not fill or submit it."
-    );
-    if (typeof renderLaunchAuditProgress === "function") {
-      renderLaunchAuditProgress(lastReportSnapshot);
-    }
-  }
-
-  function reportGoToDiagnostics() {
-    if (typeof showPage === "function") {
-      showPage("diagnostics");
-    }
-    setText("report-launch-handoff-action-status", "Opened Diagnostics for read-only evidence review before rerun or audit decisions.");
   }
 
   function initReportsViewEvents() {
     initReportsTabNav();
     if (reportsViewEventsInitialized) return;
     reportsViewEventsInitialized = true;
-    const rerunButton = byId("report-go-rerun-button");
-    if (rerunButton) rerunButton.addEventListener("click", reportGoToCsvRerun);
-    const auditButton = byId("report-go-audit-button");
-    if (auditButton) auditButton.addEventListener("click", reportGoToAuditLaunch);
-    const diagnosticsButton = byId("report-go-diagnostics-button");
-    if (diagnosticsButton) diagnosticsButton.addEventListener("click", reportGoToDiagnostics);
     const previewSelectedClearButton = byId("failure-preview-selected-clear-button");
     if (previewSelectedClearButton) previewSelectedClearButton.addEventListener("click", () => requestFailureMarkerClear("selected", true));
     const clearSelectedButton = byId("failure-clear-selected-button");
@@ -1343,7 +1328,7 @@
       item?.relative_path || "",
       item?.primary_issue_code || "",
       item?.priority_score || "",
-    ].join("\u001f").toLocaleLowerCase();
+    ].join("\u001f").toLowerCase();
   }
 
   function getSelectedAuditRow() {
@@ -1355,7 +1340,6 @@
     selectedAuditRowKey = auditRowKey(item);
     renderAuditDetail(item || null);
     renderAuditRows();
-    renderReportLaunchHandoff();
   }
 
   function renderAuditDetail(item) {
@@ -1448,13 +1432,6 @@
     renderReportInvestigation,
     reportInvestigationStatus,
     reportInvestigationChecklistLines,
-    renderReportLaunchHandoff,
-    reportLaunchHandoffStatus,
-    reportLaunchHandoffLines,
-    reportLaunchCandidateCsvRows,
-    reportGoToCsvRerun,
-    reportGoToAuditLaunch,
-    reportGoToDiagnostics,
     initReportsViewEvents,
     reportTriageStatus,
     reportTriageLines,

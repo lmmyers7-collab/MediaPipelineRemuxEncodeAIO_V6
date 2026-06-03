@@ -323,6 +323,18 @@ def settings_save_service_unavailable_result() -> CommandResult:
     )
 
 
+def settings_save_config_blocked_result(message: str, data: dict[str, Any]) -> CommandResult:
+    return _command_result(
+        command=SETTINGS_SAVE_PATCH_COMMAND,
+        ok=False,
+        message=message,
+        severity="error",
+        errors=[message],
+        refresh_hint=SETTINGS_REFRESH_HINT,
+        data=data,
+    )
+
+
 def settings_save_exception_result(exc: Exception, warnings: list[str]) -> CommandResult:
     return _command_result(
         command=SETTINGS_SAVE_PATCH_COMMAND,
@@ -393,6 +405,7 @@ __all__ = [
     "settings_save_validation_error_result",
     "settings_save_no_changes_result",
     "settings_save_service_unavailable_result",
+    "settings_save_config_blocked_result",
     "settings_save_exception_result",
     "settings_save_success_result",
 ]

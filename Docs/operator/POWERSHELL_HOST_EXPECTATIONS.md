@@ -50,6 +50,8 @@ This pattern is implemented in:
 
 | Entry point | Shell chain | PowerShell used |
 |---|---|---|
+| `scripts\dev\setup.bat` | `.bat` → `pwsh.exe -File ...` | Bundled `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe` (system fallback if absent; explicit failure if no PS7 host exists) |
+| `scripts\dev\run.bat` | `.bat` → `pwsh.exe -File ...` | Bundled `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe` (system fallback if absent; explicit failure if no PS7 host exists) |
 | `scripts\dev\start-tauri-preview.bat` | `.bat` → `pwsh.exe -File ...` | Bundled `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe` (system fallback if absent) |
 | `scripts\dev\start-local-api.bat` | `.bat` → `DesktopApp\Launch-*.bat` → Python | No PowerShell in this chain |
 
@@ -132,7 +134,7 @@ Scripts must not hard-code `C:\Program Files\PowerShell\7\pwsh.exe` or similar a
 
 If `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe` is missing (e.g., a partial release package):
 
-- **Batch wrappers**: fall back to system `pwsh`; if system `pwsh` is also absent, the `.bat` will pass a bad path to the shell and exit nonzero.
+- **Batch wrappers**: fall back to system `pwsh`; if system `pwsh` is also absent, the `.bat` exits nonzero with an explicit PowerShell 7 missing message.
 - **Build/test resolvers**: fall back to system `pwsh`; if absent, throw an explicit error naming the missing runtime.
 - **Python service layer**: the bundled pwsh directory is simply not prepended; system `pwsh` becomes the PATH-resolved host for subprocesses.
 - **Reliability regression checks**: `$PSVersionTable` guard fires and attempts to find system `pwsh`; fails with a human-readable error if not found.

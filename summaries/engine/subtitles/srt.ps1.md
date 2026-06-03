@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: subtitles
 last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: 50aa4ff16ff057cb324d3be1f16f12d782e4ce04573f7d3fe95f1cc31c806128
+sha256: 72a9c281afeb187336b980e78ccbba85f9ebe690c0ce953dd454dc20e0dbd2fe
 ---
 # `engine/subtitles/srt.ps1`
 

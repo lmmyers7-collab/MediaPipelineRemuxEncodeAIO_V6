@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-06-02
 last_reviewed: 2026-05-31
-sha256: 4f8b2772b039958a80a7d7bd0bec9fae18ae9c93f518964a7c553761e92c11e0
+sha256: b59f03419a18fcc390671170a8186f799f2248d0b664ad8ff3866dc54dc7f4d1
 ---
 # `Docs/inventories/COMMAND_OWNERSHIP_MATRIX.md`
 

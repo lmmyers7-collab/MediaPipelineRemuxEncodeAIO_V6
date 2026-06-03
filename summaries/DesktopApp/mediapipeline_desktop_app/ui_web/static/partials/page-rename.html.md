@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: 49a871178ca59b297227f013cc3c82f48d3fb468da609aeb6e1d24a360a90569
+sha256: 0a15972236824164fee67c749c0de9dddef0859ce963c5e07186f5cf84b59f63
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/page-rename.html`
 

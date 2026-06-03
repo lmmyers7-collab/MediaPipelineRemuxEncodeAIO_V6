@@ -3,9 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 import subprocess
 import threading
+import time
 from typing import Any, Mapping, Protocol
 
 from mediapipeline_desktop_app.models import ResolvedPaths
+from app.processes.constants import ACTIVE_JOB_HEARTBEAT_SECONDS
 
 from .spawn import (
     build_spawn_command_line,
@@ -100,6 +102,40 @@ def _start_active_job_completion_watcher(
     return True
 
 
+def _start_active_job_heartbeat_watcher(
+    service: ProcessSpawnService,
+    proc: subprocess.Popen[Any],
+    job_kind: str,
+    *,
+    interval_seconds: float = ACTIVE_JOB_HEARTBEAT_SECONDS,
+) -> bool:
+    update_active_job = getattr(service, "update_active_job_record", None)
+    poll = getattr(proc, "poll", None)
+    if not callable(update_active_job) or not callable(poll):
+        return False
+    is_active_process_registered = getattr(service, "_active_spawned_process_is_registered", None)
+
+    def _heartbeat() -> None:
+        while True:
+            time.sleep(max(1.0, float(interval_seconds)))
+            if callable(is_active_process_registered) and not is_active_process_registered(proc):
+                return
+            try:
+                if poll() is not None:
+                    return
+                update_active_job(proc, status="active", return_code=None)
+            except Exception as exc:
+                service.logger.warning("Failed to heartbeat %s ActiveJobs record: %s", job_kind, exc)
+
+    watcher = threading.Thread(
+        target=_heartbeat,
+        name=f"mediapipeline-{job_kind}-active-job-heartbeat",
+        daemon=True,
+    )
+    watcher.start()
+    return True
+
+
 def spawn_process_for_service(
     service: ProcessSpawnService,
     args: list[str],
@@ -146,6 +182,7 @@ def spawn_process_for_service(
             register_active_process = getattr(service, "_register_active_spawned_process", None)
             if callable(register_active_process):
                 register_active_process(proc, job_kind)
+            _start_active_job_heartbeat_watcher(service, proc, job_kind)
             if not _start_active_job_completion_watcher(service, proc, job_kind):
                 unregister_active_process = getattr(service, "_unregister_active_spawned_process", None)
                 if callable(unregister_active_process):

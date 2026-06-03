@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/app-shell-star
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-29
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: 5976b0eb9e5dc226ff2b1d2adf32a1a6e22449c9e45032c845a0c38ef13f53e2
+sha256: dce4d47018a423679fd141cf5d9e9ce3f8b2616984d8ea133a40b78991f8d908
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/app-shell-start.html`
 

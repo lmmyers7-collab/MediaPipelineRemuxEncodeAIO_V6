@@ -3,14 +3,14 @@ file: DesktopApp/mediapipeline_desktop_app/application/dto_base.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: application
-last_modified: 2026-06-01
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 6e869b3f9a720bd512594bf46b2e98d7e82d1907e280a62a3da562f7c0f18969
+sha256: b33963227b518a676865021fcc211925abb2d24f14cadc03f69ac03697981dad
 ---
 # `DesktopApp/mediapipeline_desktop_app/application/dto_base.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Compatibility shim. Moved to ``app.kernel.dto_base`` by ADR-0013 (Wave 3).
 
-**Public functions:** `dto_mapping()`, `json_safe()`, `split_summary_lines()`
+**In-repo imports:** `app.kernel`
 
 _Edit the source, not this file. Regenerate with `python scripts/dev/refresh_summaries.py --paths DesktopApp/mediapipeline_desktop_app/application/dto_base.py`._

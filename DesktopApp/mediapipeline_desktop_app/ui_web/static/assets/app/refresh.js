@@ -1,5 +1,53 @@
 /* global lastRefreshCompletedAt, lastRefreshDurationMs, lastRefreshStartedAt, refreshAll, renderCompleted, renderHomeRecentCompleted, renderTopbarActivity */
 (function () {
+  let queueRefreshBusy = false;
+
+  function queueRefreshButton() {
+    return typeof document.querySelector === "function" ? document.querySelector("[data-queue-refresh-button]") : null;
+  }
+
+  function setQueueRefreshButtonBusy(isBusy) {
+    queueRefreshBusy = Boolean(isBusy);
+    const button = queueRefreshButton();
+    if (!button) return;
+    button.disabled = Boolean(isBusy);
+    button.textContent = isBusy ? "Scanning..." : "Refresh Queue";
+    if (isBusy) {
+      button.setAttribute("aria-busy", "true");
+      button.title = "Scanning backend queue snapshot. This reloads read-only state only.";
+    } else {
+      button.removeAttribute("aria-busy");
+      button.title = "Refresh Queue reloads backend snapshots only; it does not change launch scope or media files.";
+    }
+  }
+
+  function renderQueueRefreshInProgress() {
+    setQueueRefreshButtonBusy(true);
+    renderTopbarActivity({
+      activity: "Scanning",
+      current_work: {
+        phase_label: "Queue refresh",
+        percent_label: "0%",
+      },
+      progress: {
+        CurrentStage: "scanning",
+        CurrentStagePercent: 0,
+      },
+    });
+    const ticker = byId("topbar-event-ticker");
+    if (ticker) {
+      const text = "Latest event: queue refresh requested - scanning backend snapshot";
+      ticker.textContent = text;
+      ticker.title = text;
+      ticker.dataset.state = "pending";
+    }
+    setText("queue-filter-summary", [
+      "Scanning backend queue snapshot.",
+      "Refresh Queue reloads read-only state only; filters, launch scope, queue state, source files, and processing commands are unchanged.",
+    ].join("\n"));
+    setText("queue-open-status", "Scanning queue snapshot...");
+  }
+
   async function refreshCurrentOutputStatus() {
     const button = byId("completed-refresh-current-output-button");
     if (button) button.disabled = true;
@@ -41,7 +89,7 @@
     }
   }
   
-    function renderRefreshInProgress() {
+    function renderRefreshInProgress(options = {}) {
     const node = byId("refresh-health");
     if (node) {
       node.textContent = "Refresh";
@@ -56,15 +104,21 @@
       button.setAttribute("aria-busy", "true");
       button.title = "Refreshing backend health, queue, completed, pending publish, diagnostics, settings, network, schedule, and contract state.";
     }
+    if (options && options.queueRefresh === true) setQueueRefreshButtonBusy(true);
   }
   
-    function renderRefreshHealth(failures) {
+    function renderRefreshHealth(failures, options = {}) {
     const node = byId("refresh-health");
     const button = byId("refresh-button");
     if (button) {
       button.disabled = false;
       button.textContent = "Refresh";
       button.removeAttribute("aria-busy");
+    }
+    if (options && options.queueRefresh === true) {
+      setQueueRefreshButtonBusy(false);
+    } else if (!queueRefreshBusy) {
+      setQueueRefreshButtonBusy(false);
     }
     if (!node) return;
     node.removeAttribute("aria-busy");
@@ -130,6 +184,7 @@
     refreshTimeLabel,
     renderRefreshInProgress,
     renderRefreshHealth,
+    renderQueueRefreshInProgress,
     attachRefreshMetadata,
     initPageRefreshButtons,
     refreshFailure

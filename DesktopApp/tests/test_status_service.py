@@ -167,6 +167,90 @@ class StatusServiceContractTests(unittest.TestCase):
         self.assertEqual(len(rows), 1)
         self.assertIn("invalid active job contract", rows[0])
 
+    def test_build_current_work_cleans_noisy_movie_progress(self) -> None:
+        service = DummyStatusService()
+
+        current_work = service._build_current_work(
+            {
+                "CurrentFileDisplay": "[Movie 14/15] Together.2025.1080p.WEBRip.10Bit.DDP5.1.x265-NeoNoir.mkv",
+                "CurrentMediaType": "movie",
+                "CurrentStage": "push",
+                "CurrentStagePercent": 94,
+                "CurrentLibraryName": "Movies",
+                "CurrentQueueIndex": 14,
+                "CurrentQueueTotal": 15,
+                "CurrentRoute": "remux",
+            }
+        )
+
+        self.assertEqual(current_work["schema_version"], "desktop_current_work.v1")
+        self.assertEqual(current_work["item_label"], "Together (2025)")
+        self.assertEqual(current_work["phase_label"], "Publishing output")
+        self.assertEqual(current_work["library_label"], "Movies")
+        self.assertEqual(current_work["queue_label"], "Movies")
+        self.assertEqual(current_work["queue_position_label"], "item 14 of 15")
+        self.assertEqual(current_work["route_label"], "Remux route")
+        self.assertEqual(current_work["percent_label"], "94%")
+
+    def test_build_current_work_falls_back_to_library_and_omits_missing_percent(self) -> None:
+        service = DummyStatusService()
+
+        current_work = service._build_current_work(
+            {
+                "CurrentFileDisplay": "Noisy.File.Name.2024.2160p.WEB-DL.x265-GROUP.mkv",
+                "CurrentMediaType": "movie",
+                "CurrentStage": "remux",
+            }
+        )
+
+        self.assertEqual(current_work["item_label"], "Noisy File Name (2024)")
+        self.assertEqual(current_work["phase_label"], "Remuxing")
+        self.assertEqual(current_work["library_label"], "Movies")
+        self.assertEqual(current_work["queue_label"], "Movies")
+        self.assertEqual(current_work["queue_position_label"], "")
+        self.assertEqual(current_work["route_label"], "")
+        self.assertEqual(current_work["percent_label"], "")
+
+    def test_build_current_work_formats_tv_episode_from_path(self) -> None:
+        service = DummyStatusService()
+
+        current_work = service._build_current_work(
+            {
+                "CurrentFileDisplay": "[TV 2/5] Serial.Experiments.Lain.S02E01.Weird.1080p.WEBRip.x265-NeoNoir.mkv",
+                "CurrentMediaType": "tv",
+                "CurrentLibraryName": "Anime Library",
+                "CurrentLibraryDesignation": "TV",
+                "CurrentQueueIndex": 2,
+                "CurrentQueueTotal": 5,
+                "CurrentRoute": "encode",
+                "CurrentStage": "Encoding",
+                "CurrentStagePercent": 42.5,
+                "CurrentFile": r"C:\Media\TV\Serial Experiments Lain\Season 02\Serial Experiments Lain S02E01 Weird.mkv",
+            }
+        )
+
+        self.assertEqual(current_work["item_label"], "Serial Experiments Lain - S02E01 - Weird")
+        self.assertEqual(current_work["phase_label"], "Encoding")
+        self.assertEqual(current_work["library_label"], "Anime Library")
+        self.assertEqual(current_work["queue_label"], "TV")
+        self.assertEqual(current_work["queue_position_label"], "item 2 of 5")
+        self.assertEqual(current_work["route_label"], "Encode route")
+        self.assertEqual(current_work["percent_label"], "42.5%")
+
+    def test_build_current_work_falls_back_to_clean_tv_stem(self) -> None:
+        service = DummyStatusService()
+
+        current_work = service._build_current_work(
+            {
+                "CurrentFileDisplay": "Planet.Earth.Special.Featurette.mkv",
+                "CurrentMediaType": "tv",
+            }
+        )
+
+        self.assertEqual(current_work["item_label"], "Planet Earth Featurette")
+        self.assertEqual(current_work["library_label"], "TV")
+        self.assertEqual(current_work["queue_label"], "TV")
+
 
 if __name__ == "__main__":
     unittest.main()

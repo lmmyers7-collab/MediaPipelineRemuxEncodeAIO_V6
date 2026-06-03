@@ -32,6 +32,13 @@
     return Number.isFinite(number) ? Math.max(0, Math.round(number)) : 0;
   }
 
+  function crossPageRunnableCount(queue) {
+    if (queue && Object.prototype.hasOwnProperty.call(queue, "runnable_count")) {
+      return crossPageCount(queue.runnable_count);
+    }
+    return crossPageRows(queue).length;
+  }
+
   function crossPageFormatCounts(value) {
     const entries = value && typeof value === "object" ? Object.entries(value) : [];
     if (!entries.length) return "none";
@@ -444,7 +451,7 @@
     if (crossPageCount(completed.missing_output_count) || crossPageCount(completed.size_growth_over_5_count)) return "Completed review";
     if (String(queue.snapshot_file_freshness_status || "").toLowerCase() === "stale") return "Queue stale";
     if (crossPageRuntimeFailureCount(queue.runtime_outcome_status_counts) || crossPageRuntimeFailureCount(completed.runtime_outcome_status_counts)) return "Runtime review";
-    if (crossPageCount(queue.runnable_count) || crossPageRows(queue).length) return "Queue ready";
+    if (crossPageRunnableCount(queue)) return "Queue ready";
     return "Context loaded";
   }
 
@@ -478,7 +485,7 @@
     if (diagnosticsCounts.error || diagnosticsCounts.warning) {
       return "Open Diagnostics and inspect the current warnings/errors before unattended operation.";
     }
-    if (crossPageCount(queue.runnable_count) || crossPageRows(queue).length) {
+    if (crossPageRunnableCount(queue)) {
       return "Queue has visible work. Use Launch for backend-owned processing after schedule and settings preflight look correct.";
     }
     return "No immediate cross-page conflict is visible. Refresh before starting long unattended work.";
@@ -503,7 +510,7 @@
     if (String(queue.snapshot_file_freshness_status || "").toLowerCase() === "stale" || crossPageCount(queue.invalid_row_count) || crossPageCount(queue.blocked_row_count)) {
       addStep("Queue: refresh stale snapshots and inspect blocked/invalid rows before Launch.");
     }
-    if (crossPageCount(queue.runnable_count) || crossPageRows(queue).length) {
+    if (crossPageRunnableCount(queue)) {
       addStep("Launch: start backend-owned processing only after Queue, Completed, Pending Publish, Diagnostics, schedule, and saved settings agree.");
     } else {
       addStep("Launch: do not start processing from empty or unresolved context; refresh and inspect owning pages first.");
@@ -534,7 +541,7 @@
     const conflictRows = crossPageConflictRows(context || {});
     const lines = [
       "Cross-page context is read-only and derived from already-loaded backend payloads.",
-      `Queue: rows=${queueRows.length}, runnable=${crossPageCount(queue.runnable_count || queueRows.length)}, stale=${String(queue.snapshot_file_freshness_status || "unknown")}, excluded=${crossPageCount(queue.completed_excluded_count)}`,
+      `Queue: rows=${queueRows.length}, runnable=${crossPageRunnableCount(queue)}, stale=${String(queue.snapshot_file_freshness_status || "unknown")}, excluded=${crossPageCount(queue.completed_excluded_count)}`,
       `Completed: rows=${completed.count || completedRows.length || 0}, missing outputs=${crossPageCount(completed.missing_output_count)}, size growth >5%=${crossPageCount(completed.size_growth_over_5_count)}, manifest freshness=${completed.manifest_freshness_status || "unknown"}`,
       `Pending Publish: rows=${pending.count || pendingRows.length || 0}, ready=${crossPageCount(pending.ready_count)}, issue=${crossPageCount(pending.issue_count)}, diagnostic statuses=${crossPageFormatCounts(pending.diagnostic_status_counts)}`,
       crossPageCount(completed.missing_output_count) && !pendingRows.length

@@ -32,6 +32,8 @@ If you find yourself wanting to "update" an ADR, write a new one with
 | 0009   | accepted               | One canonical CHANGELOG; PR descriptions are not docs  |
 | 0010   | historical             | Monolith-split campaign (V5 → V6 facade/service split) |
 | 0011   | historical             | V5 → V6 split (WebView-first carve-out from V5)        |
+| 0012   | proposed               | Extract a shared kernel for cross-layer types          |
+| 0013   | proposed               | Shared-kernel migration sequence                       |
 
 ADR-0011 was written from `V6_SPLIT_NOTES.md` (the original repo-root
 source notes, dated 2026-05-20). The source was archived in the same

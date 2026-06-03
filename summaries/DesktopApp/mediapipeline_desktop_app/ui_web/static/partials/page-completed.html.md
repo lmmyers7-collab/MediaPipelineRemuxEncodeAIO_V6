@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/page-completed
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-30
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: ee4e0a8e67ee41605aeea73e1e18d831b94f2c268892e808ddb3bedff52f0d86
+sha256: e3b652f70834a7b9b15d721a720f327a1ebad7d8e80a919046a31380ee5a4f9a
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/page-completed.html`
 

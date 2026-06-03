@@ -3,9 +3,9 @@ file: Pipeline/Tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-30
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 172c60188b9b38e7a3921d6b7f61a28112f77254553601b38382b4db27919566
+sha256: 753dec084ae8f96091fd1e45696a747b02ae7a073451932dd78587405e1f80ca
 ---
 # `Pipeline/Tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1`
 

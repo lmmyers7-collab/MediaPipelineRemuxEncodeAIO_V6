@@ -1,7 +1,7 @@
 """V7 Rename Workbench static + backend tests.
 
 Asserts the standalone-tool redesign:
-  - 3-step stepper, queue controls removed
+  - header stepper removed, three workflow sections retained, queue controls removed
   - manual-path / paste-paths removed
   - single Title/Show field, Movie Title removed
   - Template labels match the new copy
@@ -35,11 +35,17 @@ class RenameV7HtmlTests(unittest.TestCase):
     def setUp(self) -> None:
         self.html = _read(PARTIAL)
 
-    def test_stepper_has_only_three_chips(self) -> None:
-        self.assertIn("1 Choose Files", self.html)
-        self.assertIn("2 Naming Mode", self.html)
-        self.assertIn("3 Preview / Apply", self.html)
-        # Removed legacy chips:
+    def test_header_stepper_removed_but_workflow_sections_remain(self) -> None:
+        self.assertNotIn("rename-status-strip", self.html)
+        self.assertNotIn("rename-status-chip", self.html)
+        for heading_id, label in (
+            ("rename-stage-files-heading", "Choose Files"),
+            ("rename-stage-mode-heading", "Naming Mode"),
+            ("rename-stage-preview-heading", "Preview / Apply"),
+        ):
+            self.assertIn(heading_id, self.html)
+            self.assertIn(label, self.html)
+        # Removed legacy workflow chips:
         self.assertNotIn("4 Review Scope", self.html)
         self.assertNotIn("5 Apply", self.html)
         self.assertNotIn("6 Result", self.html)
@@ -178,6 +184,10 @@ class RenameV7JsTests(unittest.TestCase):
         self.assertIn("applyRenameWorkbenchV7", self.js)
         self.assertIn("renameApplicablePreviewRows", self.js)
         self.assertIn('source: "all applicable preview rows"', self.js)
+
+    def test_result_dialog_does_not_direct_open_file_urls(self) -> None:
+        self.assertNotIn("window.open(`file://", self.js)
+        self.assertIn("Open logs through the backend-owned Diagnostics targets.", self.js)
 
 
 class RenameBackendBrowseModeTests(unittest.TestCase):

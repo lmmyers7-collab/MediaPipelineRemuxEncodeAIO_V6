@@ -174,6 +174,20 @@ class ProcessingDecisionTests(unittest.TestCase):
         self.assertIn("MEDIA_TYPE_UNKNOWN_CONSERVATIVE_CAP", {reason.code for reason in decision.advisory_warnings})
         self.assertIn("MISSING_BITRATE_METADATA", {reason.code for reason in decision.advisory_warnings})
 
+    def test_missing_duration_does_not_fall_back_to_probe_bitrate(self) -> None:
+        raw = json.loads((FIXTURE_ROOT / "tv_h264_1080p_24mbps_mkv.json").read_text(encoding="utf-8"))
+        raw["source"]["file_size_bytes"] = 1024**3
+        raw["format"]["duration"] = "0.0"
+        source = source_media_from_ffprobe(raw)
+
+        decision = build_processing_decision(source, EffectiveDecisionPolicy(route_threshold_mode="bitrate"))
+
+        self.assertIn(decision.route_summary, {"COPY", "REMUX"})
+        self.assertEqual(decision.stream_actions.video.action, "copy")
+        self.assertEqual(decision.source_facts_used["estimated_video_bitrate_mbps"], 0.0)
+        self.assertIn("MISSING_BITRATE_METADATA", {reason.code for reason in decision.advisory_warnings})
+        self.assertNotIn("VIDEO_BITRATE_EXCEEDS_DIRECT_COPY_CAP", reason_codes(decision))
+
     def test_h264_bitrate_cap_zero_is_uncapped_without_crashing(self) -> None:
         policy = EffectiveDecisionPolicy(
             movie_direct_copy_max_bitrate_mbps=0,

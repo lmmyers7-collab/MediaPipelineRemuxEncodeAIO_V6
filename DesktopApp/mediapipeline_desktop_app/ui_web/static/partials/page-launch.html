@@ -258,48 +258,158 @@
           <pre id="launch-backend-preflight-detail" class="prose-block">Select a backend preflight check for details.</pre>
           </div><!-- end #launch-evidence-body -->
         </section>
-        <section class="panel settings-tab-pane is-active launch-tab-panel" data-launch-tab-panel="pipeline" data-panel-type="interactive">
+        <section class="panel settings-tab-pane is-active launch-tab-panel pipeline-controller-panel" data-launch-tab-panel="pipeline" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Start Pipeline</h2>
+            <h2>Pipeline Controller</h2>
             <strong id="pipeline-launch-status">Idle</strong>
           </div>
-          <div class="form-grid launch-form-grid">
-            <label>
-              Mode
-              <select id="pipeline-start-mode">
-                <option value="validate">Validate</option>
-                <option value="once">Run Once</option>
-                <option value="drain_pending_pushes">Publish Parked</option>
+          <div class="pipeline-controller-status-strip" aria-label="Pipeline controller status">
+            <div class="pipeline-controller-status-card">
+              <span class="pipeline-controller-status-label">Backend</span>
+              <strong id="pipeline-controller-backend-status">Started</strong>
+              <span id="pipeline-controller-backend-detail">Local API loaded.</span>
+            </div>
+            <div class="pipeline-controller-status-card">
+              <span class="pipeline-controller-status-label">Pipeline</span>
+              <strong id="pipeline-controller-pipeline-state">Idle</strong>
+              <span id="pipeline-controller-stage-summary">No active backend work.</span>
+            </div>
+            <div class="pipeline-controller-status-card">
+              <span class="pipeline-controller-status-label">Control readiness</span>
+              <strong id="control-readiness-status">Not loaded</strong>
+              <span id="pipeline-controller-control-summary">Waiting for backend snapshot.</span>
+            </div>
+            <div class="pipeline-controller-status-card">
+              <span class="pipeline-controller-status-label">Last start</span>
+              <strong id="pipeline-controller-last-start-status">Idle</strong>
+              <span id="pipeline-controller-last-start-summary">No launch command in recent history.</span>
+            </div>
+          </div>
+          <div class="pipeline-controller-grid">
+            <div class="pipeline-controller-start">
+              <div class="panel-heading panel-subheading pipeline-controller-subheading">
+                <h3>Start Work</h3>
+                <strong>Normal launch path</strong>
+              </div>
+              <div class="pipeline-mode-command-grid" role="group" aria-label="Common pipeline start modes">
+                <button type="button" class="pipeline-mode-button" data-pipeline-mode-preset="once" aria-pressed="false">
+                  <span class="pipeline-mode-title">Run Once</span>
+                  <span class="pipeline-mode-hint">Process the current queue one time, then return to idle.</span>
+                </button>
+                <button type="button" class="pipeline-mode-button" data-pipeline-mode-preset="continuous" aria-pressed="false">
+                  <span class="pipeline-mode-title">Continuous</span>
+                  <span class="pipeline-mode-hint">Keep processing until stopped or schedule policy blocks work.</span>
+                </button>
+              </div>
+              <div class="pipeline-mode-secondary-row" role="group" aria-label="Secondary pipeline start modes">
+                <button type="button" class="secondary-button pipeline-mode-secondary-button" data-pipeline-mode-preset="validate">Validate</button>
+                <button type="button" class="secondary-button pipeline-mode-secondary-button" data-cross-page-target="pending">Open Pending Publish</button>
+              </div>
+              <select id="pipeline-start-mode" hidden aria-hidden="true">
+                <option value="once" selected>Run Once</option>
                 <option value="continuous">Continuous</option>
+                <option value="validate">Validate</option>
+                <option value="drain_pending_pushes">Publish Parked</option>
               </select>
-            </label>
-            <label>
-              Sleep Seconds
-              <input id="pipeline-start-sleep" type="number" min="1" step="1" value="30">
-            </label>
-            <label>
-              Single File
-              <input id="pipeline-start-single-file" type="text" autocomplete="off" placeholder="Optional absolute path">
-            </label>
-            <label>
-              Schedule Override
-              <select id="pipeline-start-schedule-override">
-                <option value="">None</option>
-                <option value="run_once">Run Once Outside Window</option>
-                <option value="ignore">Ignore Schedule</option>
-              </select>
-            </label>
-            <label class="check-row launch-check-row"><input id="pipeline-start-show-config" type="checkbox"> Show Config</label>
-            <label class="check-row launch-check-row"><input id="pipeline-start-show-console" type="checkbox"> Show Console</label>
+              <div class="pipeline-scope-row">
+                <span class="pipeline-controller-field-label">Scope</span>
+                <div class="pipeline-scope-segmented" role="group" aria-label="Pipeline launch scope">
+                  <button type="button" class="pipeline-scope-button is-active" data-pipeline-scope-preset="queue" aria-pressed="true">Queue</button>
+                  <button type="button" class="pipeline-scope-button" data-pipeline-scope-preset="single_file" aria-pressed="false">Single File</button>
+                </div>
+              </div>
+              <div class="pipeline-single-file-group" data-pipeline-single-file-container hidden aria-hidden="true">
+                <div class="pipeline-single-file-row">
+                  <label>
+                    Single File
+                    <input id="pipeline-start-single-file" type="text" autocomplete="off" placeholder="Optional absolute path">
+                  </label>
+                  <div class="pipeline-single-file-actions">
+                    <button type="button" id="pipeline-single-file-browse-button" class="secondary-button">Browse File</button>
+                    <button type="button" id="pipeline-single-file-clear-button" class="secondary-button">Clear</button>
+                  </div>
+                </div>
+                <p id="pipeline-single-file-browse-status" class="note">Queue scope selected. Use Single File to stage one path.</p>
+              </div>
+              <div data-advanced class="pipeline-controller-advanced">
+                <div class="panel-heading panel-subheading pipeline-controller-subheading">
+                  <h3>Advanced Controller</h3>
+                  <strong>Start parameters</strong>
+                </div>
+                <div class="form-grid launch-form-grid pipeline-controller-settings-grid">
+                  <label>
+                    Sleep Seconds
+                    <input id="pipeline-start-sleep" type="number" min="1" step="1" value="30">
+                  </label>
+                  <label>
+                    Schedule Override
+                    <select id="pipeline-start-schedule-override">
+                      <option value="">None</option>
+                      <option value="run_once">Run Once Outside Window</option>
+                      <option value="ignore">Ignore Schedule</option>
+                    </select>
+                  </label>
+                  <label class="check-row launch-check-row"><input id="pipeline-start-show-config" type="checkbox"> Show Config</label>
+                  <label class="check-row launch-check-row"><input id="pipeline-start-show-console" type="checkbox"> Show Console</label>
+                </div>
+              </div>
+              <div class="pipeline-controller-start-actions">
+                <button type="button" id="pipeline-start-button" class="primary-button pipeline-start-command-button">Start Pipeline</button>
+                <span class="pipeline-controller-action-note">Backend start still re-checks queue, schedule, settings, and process locks.</span>
+              </div>
+              <p class="pipeline-startup-banner note" hidden></p>
+            </div>
+            <div class="pipeline-controller-controls" aria-label="Running pipeline controls" data-live-state="idle">
+              <div class="panel-heading panel-subheading pipeline-controller-subheading">
+                <h3>Live Run Controls</h3>
+                <strong id="pipeline-live-control-state">Idle</strong>
+              </div>
+              <p id="pipeline-live-control-summary" class="pipeline-controller-action-note">No active backend work.</p>
+              <div class="pipeline-controller-button-row">
+                <button type="button" class="secondary-button pipeline-control-button" data-control-action="pause">Pause / Resume</button>
+                <button type="button" class="secondary-button pipeline-control-button" data-control-action="rescan" data-confirm-command="true">Rescan</button>
+              </div>
+              <div class="pipeline-controller-stop-zone">
+                <div class="pipeline-controller-stop-heading">
+                  <span>Stop controls</span>
+                  <span>Use graceful stop first unless the process is stalled.</span>
+                </div>
+                <div class="pipeline-controller-button-row">
+                  <button type="button" class="danger-button pipeline-stop-button" data-control-action="stop" data-confirm-command="true">Stop After Current</button>
+                </div>
+                <div class="pipeline-controller-emergency" hidden aria-hidden="true">
+                  <span class="pipeline-controller-emergency-label">Emergency</span>
+                  <button type="button" class="danger-button emergency-button pipeline-emergency-button" data-control-action="kill" data-confirm-command="true">Force Stop</button>
+                </div>
+              </div>
+              <p id="control-status" class="note"></p>
+            </div>
           </div>
-          <div class="action-row action-row-left">
-            <button type="button" id="pipeline-start-button" class="primary-button">Start Pipeline</button>
+          <div class="pipeline-controller-history">
+            <div class="panel-heading panel-subheading pipeline-controller-subheading">
+              <h3>Command Journal</h3>
+              <strong>Latest control</strong>
+            </div>
+            <pre id="control-latest" class="prose-block">No pipeline control command in recent history.</pre>
+            <details class="pipeline-controller-history-details">
+              <summary>Full recent control history</summary>
+              <pre id="control-history" class="prose-block">No pipeline control command history loaded.</pre>
+            </details>
+            <pre id="status-summary" class="prose-block" style="display:none">No status loaded.</pre>
+            <pre id="control-readiness" class="prose-block" style="display:none">No pipeline control readiness loaded.</pre>
           </div>
-          <p class="pipeline-startup-banner note" hidden></p>
-          <pre id="pipeline-launch-preflight" class="prose-block">No pipeline launch preflight loaded.</pre>
-          <pre id="pipeline-launch-detail" class="prose-block">No launch result.</pre>
-          <div class="panel-heading panel-subheading">
-            <h3>Start Summary</h3>
+        </section>
+        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="pipeline" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Start Evidence</h2>
+            <strong>Read-only</strong>
+          </div>
+          <pre id="pipeline-launch-preflight" class="prose-block">No pipeline launch evidence loaded.</pre>
+          <pre id="pipeline-launch-detail" class="prose-block">No launch result evidence.</pre>
+        </section>
+        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="pipeline" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Start Summary</h2>
             <strong id="launch-start-decision-status">Not evaluated</strong>
           </div>
           <pre id="launch-start-decision-summary" class="prose-block">No launch start decision summary loaded.</pre>
@@ -324,23 +434,6 @@
           </div>
           <p id="launch-start-decision-legend" class="note table-legend">Launch start decision rows: no selectable rows.</p>
           <pre id="launch-start-decision-detail" class="prose-block">Select a start decision signal before using backend-owned start controls.</pre>
-          <div class="panel-heading panel-subheading">
-            <h3>Control Running Pipeline</h3>
-            <strong id="control-readiness-status">Not loaded</strong>
-          </div>
-          <div class="action-row action-row-left">
-            <button type="button" class="secondary-button" data-control-action="pause">Pause / Resume</button>
-            <button type="button" class="secondary-button" data-control-action="rescan" data-confirm-command="true">Rescan</button>
-          </div>
-          <div class="action-row action-row-left run-controls-interrupt">
-            <span class="action-group-label">Interrupt controls</span>
-            <button type="button" class="danger-button" data-control-action="stop" data-confirm-command="true">Stop After Current</button>
-            <button type="button" class="danger-button" data-control-action="kill" data-confirm-command="true">Force Stop</button>
-          </div>
-          <p id="control-status" class="note"></p>
-          <pre id="control-history" class="prose-block">No pipeline control command history loaded.</pre>
-          <pre id="status-summary" class="prose-block" style="display:none">No status loaded.</pre>
-          <pre id="control-readiness" class="prose-block" style="display:none">No pipeline control readiness loaded.</pre>
         </section>
         <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="audit" data-panel-type="interactive">
           <div class="panel-heading">
@@ -363,6 +456,34 @@
             <p class="note">No audit progress loaded.</p>
           </div>
           <pre id="audit-launch-progress-summary" class="prose-block">No audit progress loaded.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Latest Audit Log</h3>
+            <strong id="audit-launch-log-status">No rows</strong>
+          </div>
+          <pre id="audit-launch-log-summary" class="prose-block">No audit log loaded.</pre>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col" class="num">Score</th>
+                  <th scope="col">Priority</th>
+                  <th scope="col">Bucket</th>
+                  <th scope="col">Media</th>
+                  <th scope="col">Title</th>
+                  <th scope="col">Issue</th>
+                </tr>
+              </thead>
+              <tbody id="audit-launch-log-rows">
+                <tr><td colspan="6">No audit rows loaded.</td></tr>
+              </tbody>
+            </table>
+            <div class="empty-state" data-empty-state="hidden" style="display:none">
+              <span class="empty-state-label">Audit log not loaded</span>
+              <span class="empty-state-hint">Audit rows appear here after the backend produces an audit CSV.</span>
+            </div>
+          </div>
+          <p id="audit-launch-log-table-legend" class="note table-legend">Audit log rows: no selectable rows.</p>
+          <pre id="audit-launch-log-detail" class="prose-block">No audit row selected.</pre>
           <pre id="audit-launch-preflight" class="prose-block">No audit launch preflight loaded.</pre>
           <div class="action-row action-row-left">
             <button type="button" id="audit-start-button" class="primary-button">Start Audit</button>

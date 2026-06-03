@@ -92,6 +92,36 @@ def _browser_settings_launch_runner_source() -> str:
               if (!node) throw new Error("missing button " + id);
               node.click();
             }
+            function clickSettingsTab(tabId) {
+              const button = document.querySelector('.settings-tab-btn[data-settings-tab="' + tabId + '"]');
+              if (!button) throw new Error("missing settings tab " + tabId);
+              button.click();
+            }
+            function requireDefaultVisibleAssSsaCheckboxes() {
+              clickSettingsTab("subtitles");
+              for (const id of [
+                "settings-subtitle-drop-ass",
+                "settings-subtitle-remove-karaoke",
+                "settings-subtitle-strip-formatting",
+                "settings-subtitle-merge-adjacent",
+                "settings-subtitle-keep-signs",
+                "settings-subtitle-ass-signs-forced",
+              ]) {
+                const node = byId(id);
+                if (!node) throw new Error("missing ASS/SSA checkbox " + id);
+                const row = node.closest("label") || node;
+                if (row.hidden || node.hidden) throw new Error(id + " is hidden in the default Subtitles view");
+                if (row.classList.contains("settings-advanced-field")) throw new Error(id + " is still classified as an advanced field");
+                if (row.dataset.settingsAdvancedControl === "true" || node.dataset.settingsAdvancedControl === "true") {
+                  throw new Error(id + " is still behind the advanced controls toggle");
+                }
+                const style = window.getComputedStyle(row);
+                if (style.display === "none" || style.visibility === "hidden") {
+                  throw new Error(id + " is not visible in the default Subtitles view");
+                }
+              }
+              clickSettingsTab("status");
+            }
             function historyHasPreview() {
               const entries = typeof window.getCommandHistory === "function" ? window.getCommandHistory() : [];
               return entries.some((entry) => {
@@ -146,6 +176,7 @@ def _browser_settings_launch_runner_source() -> str:
 
             window.renderSettings(payload.settings);
             window.showPage("settings");
+            requireDefaultVisibleAssSsaCheckboxes();
             requireText("settings-raw-action-plan-summary", [
               "Settings raw-key action plan:",
               "Purpose: separate schema drift, OCR path evidence, subtitle keyword builder coverage, intentionally excluded auth secrets",

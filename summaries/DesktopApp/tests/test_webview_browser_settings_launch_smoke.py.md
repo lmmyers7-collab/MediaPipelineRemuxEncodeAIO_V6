@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-02
 last_reviewed: 2026-06-02
-sha256: 4365a832d9beb68d1583a0e2df083921c80e32ec2daeeabda701c0dfd314d2ba
+sha256: c680c4ce6e531cda46bd73dccbe4dda1f725c7f4a2c407b4e85f6a5165ceebee
 ---
 # `DesktopApp/tests/test_webview_browser_settings_launch_smoke.py`
 

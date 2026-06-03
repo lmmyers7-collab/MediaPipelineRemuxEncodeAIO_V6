@@ -116,13 +116,24 @@ class ServiceConfigOptionPolicyTests(unittest.TestCase):
         self.assertIn("OutputContainer must be 'mkv' or 'mp4'.", errors)
         self.assertIn("EncodeLadder must be one of: auto, tv_balanced, tv_space_saver, movie_balanced, movie_archive, plex_compat.", errors)
         self.assertIn("RouteThresholdMode must be one of: compatibility_advisory, size, bitrate, size_or_bitrate.", errors)
-        self.assertIn("AudioTranscodeBitrate must look like 640k.", errors)
+        self.assertIn("AudioTranscodeBitrate must be a positive ffmpeg bitrate like 640k.", errors)
         self.assertIn("ConsoleLogLevel must be one of: ERROR, WARN, INFO, DEBUG, or blank.", errors)
         self.assertIn("CompatibleAudioCodecs must contain at least one value.", errors)
         self.assertIn("ValidExtensions entries must start with a dot and contain only extension-safe characters.", errors)
         self.assertIn("RobocopyFlags entries must be non-empty robocopy switches beginning with '/'.", errors)
         self.assertIn("VideoCodec must be one of: av1_nvenc, h264_nvenc, hevc_nvenc, libx264, libx265.", errors)
         self.assertIn("VideoPreset must be one of: p1, p2, p3, p4, p5, p6, p7.", errors)
+        self.assertEqual(warnings, [])
+
+    def test_option_policy_rejects_zero_audio_transcode_bitrate(self) -> None:
+        values = _option_baseline()
+        values["AudioTranscodeBitrate"] = "0k"
+        errors: list[str] = []
+        warnings: list[str] = []
+
+        validate_option_config(values, errors, warnings)
+
+        self.assertIn("AudioTranscodeBitrate must be a positive ffmpeg bitrate like 640k.", errors)
         self.assertEqual(warnings, [])
 
     def test_option_policy_warns_on_ignored_custom_flags_and_strict_archive(self) -> None:

@@ -141,33 +141,39 @@ function Get-RerunSourceIdentityV2 {
         [string]$FfprobePath,
         [int]$TimeoutSeconds = 30
     )
-    if (-not $FfprobePath -or -not (Test-Path -LiteralPath $FfprobePath)) { return '' }
 
     $duration = 0.0
     $codec = ''
-    try {
-        $probeResult = Invoke-RerunNativeCommand -FilePath $FfprobePath -ArgumentList @(
-            '-v', 'error',
-            '-show_entries', 'format=duration:stream=codec_type,codec_name',
-            '-of', 'json',
-            '--', $FileInfo.FullName
-        ) -TimeoutSeconds $TimeoutSeconds -Label 'ffprobe-rerun-identity'
-        if ($probeResult.TimedOut) {
-            Write-RerunIdentityLog "ffprobe identity check timed out after ${TimeoutSeconds}s for $($FileInfo.FullName)" "WARN"
-        } elseif ([int]$probeResult.ExitCode -eq 0 -and $probeResult.Output) {
-            $probe = ($probeResult.Output | ConvertFrom-Json -ErrorAction Stop)
-            try { $duration = [double]$probe.format.duration } catch {}
-            foreach ($stream in @($probe.streams)) {
-                if ([string]$stream.codec_type -eq 'video') {
-                    $codec = [string]$stream.codec_name
-                    break
+    if ($FfprobePath -and (Test-Path -LiteralPath $FfprobePath)) {
+        try {
+            $probeResult = Invoke-RerunNativeCommand -FilePath $FfprobePath -ArgumentList @(
+                '-v', 'error',
+                '-show_entries', 'format=duration:stream=codec_type,codec_name',
+                '-of', 'json',
+                '--', $FileInfo.FullName
+            ) -TimeoutSeconds $TimeoutSeconds -Label 'ffprobe-rerun-identity'
+            if ($probeResult.TimedOut) {
+                Write-RerunIdentityLog "ffprobe identity check timed out after ${TimeoutSeconds}s for $($FileInfo.FullName)" "WARN"
+            } elseif ([int]$probeResult.ExitCode -eq 0 -and $probeResult.Output) {
+                $probe = ($probeResult.Output | ConvertFrom-Json -ErrorAction Stop)
+                try { $duration = [double]$probe.format.duration } catch {}
+                foreach ($stream in @($probe.streams)) {
+                    if ([string]$stream.codec_type -eq 'video') {
+                        $codec = [string]$stream.codec_name
+                        break
+                    }
                 }
+            } elseif ([int]$probeResult.ExitCode -ne 0) {
+                Write-RerunIdentityLog "ffprobe identity check failed for $($FileInfo.FullName) with exit $($probeResult.ExitCode): $($probeResult.Error)" "WARN"
             }
-        } elseif ([int]$probeResult.ExitCode -ne 0) {
-            Write-RerunIdentityLog "ffprobe identity check failed for $($FileInfo.FullName) with exit $($probeResult.ExitCode): $($probeResult.Error)" "WARN"
+        } catch {
+            Write-RerunIdentityLog "ffprobe identity check failed for $($FileInfo.FullName): $_" "WARN"
         }
-    } catch {
-        Write-RerunIdentityLog "ffprobe identity check failed for $($FileInfo.FullName): $_" "WARN"
+    } else {
+        if (-not ($script:RerunSourceIdentityMissingFfprobeWarningEmitted -eq $true)) {
+            Write-RerunIdentityLog "ffprobe identity check unavailable; using source size and sample hash only for rerun source identity." "WARN"
+            $script:RerunSourceIdentityMissingFfprobeWarningEmitted = $true
+        }
     }
 
     $sampleHash = Get-RerunSourceSampleHash -Path $FileInfo.FullName -Size ([long]$FileInfo.Length)

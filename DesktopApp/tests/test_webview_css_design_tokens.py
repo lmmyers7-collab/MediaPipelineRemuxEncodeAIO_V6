@@ -287,11 +287,25 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
 
         self.assertRegex(pages, r"\.settings-library-card\s*\{[^}]*border-radius: var\(--radius-sm\);")
         self.assertRegex(pages, r"\.settings-wizard-library-row\s*\{[^}]*border-radius: var\(--radius-sm\);")
+        self.assertRegex(pages, r"\.settings-wizard-readiness-strip\s*\{[^}]*border-radius: var\(--radius-sm\);")
+        self.assertRegex(pages, r"\.settings-wizard-result-row\s*\{[^}]*border-radius: var\(--radius-sm\);")
         self.assertIn(".table-toolbar {", components)
         self.assertIn('class="table-toolbar queue-priority-toolbar"', html)
         self.assertIn('class="table-toolbar queue-strategy-toolbar"', html)
         self.assertIn(".rename-workbench > h1.visually-hidden", rename_css)
         self.assertIn('<h1 class="visually-hidden">Rename Files</h1>', rename_html)
+
+    def test_rename_workbench_keeps_mode_stage_left_aligned_at_wide_width(self) -> None:
+        rename_css = (ASSETS_ROOT / "styles.rename.css").read_text(encoding="utf-8")
+
+        workbench_grid_match = re.search(
+            r"\.rename-workbench-grid\s*\{(?P<body>[^}]*)\}",
+            rename_css,
+            re.S,
+        )
+        self.assertIsNotNone(workbench_grid_match)
+        self.assertIn("grid-template-columns: minmax(0, 1fr);", workbench_grid_match.group("body"))
+        self.assertNotIn("minmax(300px, 0.9fr) minmax(420px, 1.1fr)", rename_css)
 
     def test_webview_shell_has_narrow_viewport_layout(self) -> None:
         layout = (ASSETS_ROOT / "styles.layout.css").read_text(encoding="utf-8")

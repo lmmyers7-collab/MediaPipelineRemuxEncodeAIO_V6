@@ -673,7 +673,7 @@
         `- video encoder: ${formatSettingsChoiceLabel(videoCodec)}`,
         `- output container: ${formatSettingsChoiceLabel(outputContainer)}`,
         `- Output Size Check: ${formatSettingsOutputSizeCheckMode(sizeGuard)}`,
-        "Use Source / Compatibility Preview Plan with a strict SourceMediaInfo payload to render backend pipeline_plan.v1 route summary, stream actions, output proposal, warnings, reasons, and command preview lines.",
+        "Source-specific route previews are not exposed in Settings; final route decisions remain backend-owned during queue/job processing.",
         "Preview remains predicted until production cutover because legacy execution still owns production work.",
       ].join("\n"));
     }
@@ -954,7 +954,6 @@
     function initSettingsViewEvents() {
       bindSettingsClick("settings-validate-button", addSettingsEventHandlers.validateCurrentSettings);
       bindSettingsClick("settings-reload-button", addSettingsEventHandlers.reloadSettingsFromDisk);
-      bindSettingsClick("settings-preview-plan-button", addSettingsEventHandlers.previewSettingsPipelinePlan);
       bindSettingsClick("settings-preview-patch-button", addSettingsEventHandlers.previewSettingsPatch);
       bindSettingsClick("settings-save-patch-button", addSettingsEventHandlers.saveSettingsPatch);
       bindSettingsClick("settings-summarize-patch-button", renderSettingsPatchSummary);

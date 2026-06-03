@@ -517,6 +517,41 @@ class ApplicationFacadeCompletedTests(unittest.TestCase):
         self.assertFalse(missing.ok)
         self.assertIn("no longer available", missing.message)
 
+    def test_completed_open_resolves_rows_visible_from_full_history(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            old_output = root / "Outsource" / "Movies" / "Old Movie.mkv"
+            old_output.parent.mkdir(parents=True)
+            old_output.write_bytes(b"old-media")
+            manifest = root / "State" / "Completed" / "completed_jobs.jsonl"
+            manifest.parent.mkdir(parents=True)
+            lines: list[str] = []
+            for index in range(501):
+                output = old_output if index == 0 else root / "Outsource" / "Movies" / f"Movie {index}.mkv"
+                lines.append(
+                    json.dumps(
+                        {
+                            "source_path": str(root / "Source" / f"Movie {index}.mkv"),
+                            "output_path": str(output),
+                            "route": "remux",
+                            "encoded_at": f"2026-05-07T21:{index % 60:02d}:00-04:00",
+                        }
+                    )
+                )
+            manifest.write_text("\n".join(lines) + "\n", encoding="utf-8")
+            resolved = _resolved(root)
+            resolved.completed_manifest_path = manifest
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service)
+            full_preview = facade.get_completed_preview(resolved, limit="all").to_mapping()
+            old_row_key = full_preview["rows"][-1]["row_key"]
+
+            opened = facade.open_completed_location(resolved, {"row_key": old_row_key, "target": "output_file"})
+
+        self.assertTrue(opened.ok)
+        self.assertEqual(opened.data["path"], str(old_output))
+        self.assertEqual(service.opened_paths, [old_output])
+
     def test_completed_backfill_returns_runner_stdout_after_success(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

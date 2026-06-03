@@ -36,7 +36,14 @@ class ReportsViewStaticTests(unittest.TestCase):
 
         self.assertNotIn("Reports remains read-only", source)
         self.assertIn("Reports triage is read-only", source)
-        self.assertIn("Clear Retry Blockers only moves marker JSON through the backend command.", source)
+        self.assertIn("Clear Errors, which only moves marker JSON through the backend command.", source)
+        self.assertIn("Clear this error?", source)
+
+    def test_row_keys_use_locale_invariant_lowercase(self) -> None:
+        source = REPORTS_VIEW.read_text(encoding="utf-8")
+
+        self.assertNotIn("toLocaleLowerCase", source)
+        self.assertIn('].join("\\u001f").toLowerCase();', source)
 
 
 if __name__ == "__main__":

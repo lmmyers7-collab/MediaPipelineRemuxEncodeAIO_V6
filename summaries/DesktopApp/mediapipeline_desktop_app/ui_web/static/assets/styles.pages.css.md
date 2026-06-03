@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: 8bdf2fe84be59177a8e336d0997fcfd6dc5a73f734d15bc9926c96d7778080ef
+sha256: 8f420f4685bf51f63d7501591771714a6268ced2db59ebabccc2b9f63b44c500
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/styles.pages.css`
 

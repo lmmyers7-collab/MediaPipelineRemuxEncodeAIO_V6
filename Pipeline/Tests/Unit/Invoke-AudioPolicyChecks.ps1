@@ -200,6 +200,13 @@ $script:ActiveOverrides = @{}
 $script:AllowNoAudio = $false
 $script:CompatibleAudioCodecs = @('ac3', 'eac3', 'aac', 'truehd', 'flac')
 
+$script:AudioTranscodeBitrate = '0k'
+Assert-Equal (Get-EffectiveAudioTranscodeBitrate) '640k' 'Invalid zero audio transcode bitrate should fall back to the default.'
+$script:ActiveOverrides = @{ AudioTranscodeBitrate = '0k' }
+Assert-Equal (Get-EffectiveAudioTranscodeBitrate) '640k' 'Invalid zero override audio transcode bitrate should fall back to the default.'
+$script:ActiveOverrides = @{}
+$script:AudioTranscodeBitrate = '640k'
+
 $expectedArgs = @(
     '-map','0:a:0',
     '-map','0:a:1',

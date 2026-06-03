@@ -655,6 +655,27 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "Queue launch decision checklist:",
               "Guardrail: only backend Launch routes can start processing",
             ]);
+            const queueRefreshButton = document.querySelector("[data-queue-refresh-button]");
+            if (!queueRefreshButton) throw new Error("missing Refresh Queue button");
+            queueRefreshButton.click();
+            const topbarPrimaryNode = document.querySelector("#activity .activity-primary");
+            const topbarPrimary = topbarPrimaryNode && topbarPrimaryNode.textContent ? topbarPrimaryNode.textContent.trim() : "";
+            if (topbarPrimary !== "Scanning") {
+              throw new Error("Refresh Queue did not update topbar activity immediately; got " + topbarPrimary);
+            }
+            if (!text("queue-filter-summary").includes("Scanning backend queue snapshot.")) {
+              throw new Error("Refresh Queue did not update queue status immediately:\\n" + text("queue-filter-summary"));
+            }
+            if (queueRefreshButton.textContent.trim() !== "Scanning...") {
+              throw new Error("Refresh Queue button did not switch to scanning text; got " + queueRefreshButton.textContent.trim());
+            }
+            await waitFor(
+              () => {
+                const button = document.querySelector("[data-queue-refresh-button]");
+                return Boolean(button && !button.hasAttribute("aria-busy"));
+              },
+              "Queue refresh completion",
+            );
 
             window.showPage("schedule");
             await waitFor(

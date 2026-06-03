@@ -3,9 +3,9 @@ file: app/observability/logging.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-05-28
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 279568cd65e8764a0d0c88cd4f73174f1aa81221599cd8b256678fcb46be0fae
+sha256: bd0e7b9387e166d02e37af71f00de0133afd1b98d1624fdf7944f6d41d598637
 ---
 # `app/observability/logging.py`
 

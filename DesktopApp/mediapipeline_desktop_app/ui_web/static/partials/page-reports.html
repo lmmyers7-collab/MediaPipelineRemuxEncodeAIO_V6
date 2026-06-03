@@ -19,57 +19,19 @@
           </section>
         </div>
         <div class="settings-tab-bar reports-tab-bar" role="tablist" aria-label="Reports sections">
-          <button type="button" class="settings-tab-btn" role="tab" data-reports-tab="overview" aria-selected="true">Overview</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-reports-tab="failures" aria-selected="false">Failures</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-reports-tab="failures" aria-selected="true">Failures</button>
           <button type="button" class="settings-tab-btn" role="tab" data-reports-tab="audit" aria-selected="false">Audit</button>
           <button type="button" class="settings-tab-btn" role="tab" data-reports-tab="files" aria-selected="false">Files</button>
         </div>
-        <section class="panel settings-tab-pane is-active reports-tab-panel" data-reports-tab-panel="overview" data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Audit Progress</h2>
-            <strong id="report-progress-status">Not loaded</strong>
-          </div>
-          <div id="report-progress-bars" class="progress-bar-list" aria-live="polite">
-            <p class="note">No audit progress loaded.</p>
-          </div>
-          <pre id="report-progress-summary" class="prose-block">No audit report progress loaded.</pre>
-        </section>
-        <section class="panel settings-tab-pane is-active reports-tab-panel" data-reports-tab-panel="overview" data-advanced data-panel-type="interactive">
-          <div class="panel-heading">
-            <h2>Report Summary</h2>
-            <strong id="report-triage-status">Not loaded</strong>
-          </div>
-          <pre id="report-triage" class="prose-block">No report triage loaded.</pre>
-        </section>
-        <section class="panel settings-tab-pane is-active reports-tab-panel" data-reports-tab-panel="overview" data-advanced data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Investigation Steps</h2>
-            <strong id="report-investigation-status">Not loaded</strong>
-          </div>
-          <pre id="report-investigation-checklist" class="prose-block">No report investigation checklist loaded.</pre>
-        </section>
-        <section class="panel settings-tab-pane is-active reports-tab-panel" data-reports-tab-panel="overview" data-advanced data-panel-type="interactive">
-          <div class="panel-heading">
-            <h2>Pre-Launch Context</h2>
-            <strong id="report-launch-handoff-status">Not loaded</strong>
-          </div>
-          <pre id="report-launch-handoff" class="prose-block">No report-to-launch handoff loaded.</pre>
-          <div class="action-row action-row-left wrap-actions">
-            <button type="button" id="report-go-rerun-button" class="secondary-button">Go To CSV Rerun</button>
-            <button type="button" id="report-go-audit-button" class="secondary-button">Go To Audit Launch</button>
-            <button type="button" id="report-go-diagnostics-button" class="secondary-button">Go To Diagnostics</button>
-          </div>
-          <p id="report-launch-handoff-action-status" class="note">Navigation only. Reports does not fill CSV paths or start commands.</p>
-        </section>
 
-<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="failures" data-panel-type="interactive">
+<section class="panel settings-tab-pane is-active reports-tab-panel" data-reports-tab-panel="failures" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Failures</h2>
             <strong id="failure-status">No rows</strong>
           </div>
           <pre id="failure-summary" class="prose-block">No failure preview loaded.</pre>
           <div class="panel-heading panel-subheading">
-            <h3>Failure Details</h3>
+            <h3>Error Details</h3>
             <strong id="failure-review-status">Not loaded</strong>
           </div>
           <pre id="failure-review-board" class="prose-block">No failure review board loaded.</pre>
@@ -85,19 +47,14 @@
               <thead>
                 <tr>
                   <th scope="col">Select</th>
-                  <th scope="col">Class</th>
-                  <th scope="col">Code</th>
-                  <th scope="col">Stage</th>
-                  <th scope="col">Media</th>
-                  <th scope="col">Title</th>
-                  <th scope="col">Reason</th>
-                  <th scope="col">Recommended Action</th>
-                  <th scope="col">Retry State</th>
-                  <th scope="col">Recorded</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">File</th>
+                  <th scope="col">Suggested fix</th>
+                  <th scope="col">Actions</th>
                 </tr>
               </thead>
               <tbody id="failure-rows">
-                <tr><td colspan="10">No failure rows loaded.</td></tr>
+                <tr><td colspan="5">No failure rows loaded.</td></tr>
               </tbody>
             </table>
           <div class="empty-state" data-empty-state="hidden" style="display:none">
@@ -109,8 +66,8 @@
           <pre id="failure-detail" class="prose-block">No failure row selected.</pre>
           <div id="failure-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
           <div class="panel-heading panel-subheading">
-            <h3>Clear Retry Blockers</h3>
-            <strong id="failure-clear-status">Marker mode required</strong>
+            <h3>Clear Errors</h3>
+            <strong id="failure-clear-status">No clear action</strong>
           </div>
           <div class="action-row action-row-left wrap-actions">
             <button type="button" id="failure-preview-selected-clear-button" class="secondary-button">Preview Selected</button>
@@ -120,14 +77,18 @@
             <button type="button" id="failure-preview-all-clear-button" class="secondary-button">Preview All</button>
             <button type="button" id="failure-clear-all-button" class="danger-button">Clear All</button>
           </div>
-          <pre id="failure-clear-summary" class="prose-block">Switch on Use failure markers, select a row, then preview the marker clear before confirming. This moves marker JSON out of the active marker folder only; it does not touch media or failure reports.</pre>
+          <pre id="failure-clear-summary" class="prose-block">Select rows with active failure markers, then preview or clear errors. This moves marker JSON out of the active marker folder only; it does not delete media, logs, reports, manifests, source files, or output files.</pre>
         </section>
 
-<section class="panel settings-tab-pane is-active reports-tab-panel" data-reports-tab-panel="overview" data-panel-type="evidence">
+<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Warnings</h2>
+            <h2>Audit Progress</h2>
+            <strong id="report-progress-status">Not loaded</strong>
           </div>
-          <pre id="report-warnings" class="prose-block">No snapshot warnings.</pre>
+          <div id="report-progress-bars" class="progress-bar-list" aria-live="polite">
+            <p class="note">No audit progress loaded.</p>
+          </div>
+          <pre id="report-progress-summary" class="prose-block">No audit report progress loaded.</pre>
         </section>
 
 <section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="interactive">
@@ -136,11 +97,6 @@
             <strong id="audit-preview-status">No rows</strong>
           </div>
           <pre id="audit-preview-summary" class="prose-block">No audit preview loaded.</pre>
-          <div class="panel-heading panel-subheading">
-            <h3>Audit Entries</h3>
-            <strong id="audit-review-status">Not loaded</strong>
-          </div>
-          <pre id="audit-review-board" class="prose-block">No audit review board loaded.</pre>
           <label class="filter-field">
             Filter audit rows
             <input id="audit-preview-filter" type="search" autocomplete="off" placeholder="Title, path, bucket, issue, action">
@@ -172,6 +128,37 @@
           <p id="audit-preview-table-legend" class="note table-legend">Audit rows: no selectable rows.</p>
           <pre id="audit-preview-detail" class="prose-block">No audit row selected.</pre>
           <div id="audit-preview-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
+        </section>
+
+<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Audit Entries</h2>
+            <strong id="audit-review-status">Not loaded</strong>
+          </div>
+          <pre id="audit-review-board" class="prose-block">No audit review board loaded.</pre>
+        </section>
+
+<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="files" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Report Summary</h2>
+            <strong id="report-triage-status">Not loaded</strong>
+          </div>
+          <pre id="report-triage" class="prose-block">No report triage loaded.</pre>
+        </section>
+
+<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="files" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Investigation Steps</h2>
+            <strong id="report-investigation-status">Not loaded</strong>
+          </div>
+          <pre id="report-investigation-checklist" class="prose-block">No report investigation checklist loaded.</pre>
+        </section>
+
+<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="files" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Warnings</h2>
+          </div>
+          <pre id="report-warnings" class="prose-block">No snapshot warnings.</pre>
         </section>
 
 <section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="files" data-panel-type="evidence">

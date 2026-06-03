@@ -360,7 +360,7 @@ def _node_runner_source() -> str:
           output_exists: false,
           output_health: "missing output",
         }];
-        context.getLastCompletedPayload = () => ({ source: "completed_manifest.json", count: 1 });
+        context.getLastCompletedPayload = () => ({ source: "completed_jobs.jsonl", count: 1 });
         context.getLastPendingPublishPayload = () => ({
           pending_root: "PendingServerPush",
           rows: [{

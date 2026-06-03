@@ -76,6 +76,58 @@ class StageEntrypointTests(unittest.TestCase):
         self.assertEqual(result.stage, "decide")
         self.assertEqual(result.error.code if result.error else "", "stage.invalid_payload")
 
+    def test_unknown_envelope_fields_are_rejected_before_dispatch(self) -> None:
+        completed = self.run_entrypoint(
+            "decide",
+            {
+                "schema_version": "v1",
+                "stage": "decide",
+                "payload": {"file_size_bytes": 1024},
+                "unexpected": True,
+            },
+        )
+
+        self.assertNotEqual(completed.returncode, 0)
+        result = StageResult.model_validate(json.loads(completed.stdout))
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error.code if result.error else "", "stage.invalid_payload")
+        self.assertIn("unknown stage request envelope field 'unexpected'", result.error.message if result.error else "")
+
+    def test_decide_stage_rejects_unknown_payload_fields(self) -> None:
+        completed = self.run_entrypoint(
+            "decide",
+            {
+                "schema_version": "v1",
+                "stage": "decide",
+                "payload": {"file_size_bytes": 1024, "unexpected": True},
+            },
+        )
+
+        self.assertNotEqual(completed.returncode, 0)
+        result = StageResult.model_validate(json.loads(completed.stdout))
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error.code if result.error else "", "stage.invalid_payload")
+        self.assertIn("unknown decide payload field 'unexpected'", result.error.message if result.error else "")
+
+    def test_decide_stage_rejects_string_boolean_payload_fields(self) -> None:
+        completed = self.run_entrypoint(
+            "decide",
+            {
+                "schema_version": "v1",
+                "stage": "decide",
+                "payload": {
+                    "file_size_bytes": 1024,
+                    "is_tv": "false",
+                },
+            },
+        )
+
+        self.assertNotEqual(completed.returncode, 0)
+        result = StageResult.model_validate(json.loads(completed.stdout))
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error.code if result.error else "", "stage.invalid_payload")
+        self.assertIn("payload field 'is_tv' must be a JSON boolean", result.error.message if result.error else "")
+
     def test_decide_stage_round_trip_uses_existing_routing_module(self) -> None:
         completed = self.run_entrypoint(
             "decide",

@@ -1008,13 +1008,40 @@ function Test-OutputPathCapability {
         [Parameter(Mandatory)] $Paths
     )
 
+    $localOutputRoot = ''
+    try {
+        $localOutputRootValue = Get-Variable -Name LocalEncoded -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+        if ($null -ne $localOutputRootValue) { $localOutputRoot = [string]$localOutputRootValue }
+    } catch {
+        $localOutputRoot = ''
+    }
+    $serverOutputRoot = ''
+    try {
+        if ($Paths -is [System.Collections.IDictionary] -and $Paths.Contains('OutputRoot')) {
+            $serverOutputRoot = [string]$Paths['OutputRoot']
+        } elseif ($Paths -and $Paths.PSObject.Properties['OutputRoot']) {
+            $serverOutputRoot = [string]$Paths.OutputRoot
+        }
+    } catch {
+        $serverOutputRoot = ''
+    }
+    if ([string]::IsNullOrWhiteSpace($serverOutputRoot)) {
+        try {
+            $serverOutputRootValue = Get-Variable -Name Outsource -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+            if ($null -ne $serverOutputRootValue) { $serverOutputRoot = [string]$serverOutputRootValue }
+        } catch {
+            $serverOutputRoot = ''
+        }
+    }
+
     foreach ($target in @(
-        @{ Label = 'local output';  Path = [string]$Paths.LocalOut;  Required = $true },
-        @{ Label = 'server output'; Path = [string]$Paths.ServerOut; Required = $false }
+        @{ Label = 'local output';  Path = [string]$Paths.LocalOut;  Required = $true;  Root = $localOutputRoot },
+        @{ Label = 'server output'; Path = [string]$Paths.ServerOut; Required = $false; Root = $serverOutputRoot }
     )) {
         $label = [string]$target.Label
         $path = [string]$target.Path
         $required = [bool]$target.Required
+        $boundaryRoot = [string]$target.Root
         if ([string]::IsNullOrWhiteSpace($path)) {
             return @{ Ok = $false; Reason = "$label path is empty"; Path = $path }
         }
@@ -1027,6 +1054,24 @@ function Test-OutputPathCapability {
         $dir = Split-Path $path -Parent
         if ([string]::IsNullOrWhiteSpace($dir)) {
             return @{ Ok = $false; Reason = "$label has no parent directory"; Path = $path }
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($boundaryRoot) -and (Get-Command -Name Test-MediaPipelinePathBoundarySafe -ErrorAction SilentlyContinue)) {
+            $boundary = Test-MediaPipelinePathBoundarySafe -Path $path -Root $boundaryRoot -AllowMissingLeaf
+            if (-not [bool]$boundary.Ok) {
+                if (-not $required -and [string]$boundary.ReasonCode -eq 'ROOT_MISSING') {
+                    Write-Log "Output path preflight: $label configured root is missing/unavailable now. Publish/parking will handle this later. Root: $boundaryRoot" "WARN"
+                    continue
+                }
+                $reason = "$label path is outside or unsafe for configured root ($($boundary.ReasonCode)): $($boundary.Reason)"
+                return @{
+                    Ok                 = $false
+                    Reason             = $reason
+                    Path               = $path
+                    BoundaryRoot       = $boundaryRoot
+                    BoundaryReasonCode = [string]$boundary.ReasonCode
+                }
+            }
         }
 
         $createdDir = $false

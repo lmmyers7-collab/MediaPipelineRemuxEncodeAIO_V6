@@ -22,7 +22,7 @@
   ],
   "report_note": "Pre-split report only. IDs are collected from index.html with mp-include partials expanded. Missing IDs can be legitimate when markup is generated at runtime, but every future split should keep this report stable or deliberately update it.",
   "counts": {
-    "html_ids": 1300,
+    "html_ids": 1329,
     "js_touched_ids": 401,
     "ids_present_in_index": 376,
     "ids_missing_from_index": 25,
@@ -39,6 +39,7 @@
     "api-contract-rows",
     "api-contract-safety-rows",
     "api-contract-scope",
+    "audit-launch-log-rows",
     "audit-preview-filter",
     "audit-preview-priority-only",
     "audit-preview-rows",
@@ -73,6 +74,7 @@
     "completed-selected-status",
     "completed-size-evidence-rows",
     "completed-status-filter",
+    "control-readiness-status",
     "cross-page-conflict-rows",
     "cross-page-real-media-rows",
     "cross-page-sample-rows",
@@ -218,6 +220,7 @@
     "pending-drain-decision-status",
     "pending-drain-guard-status",
     "pending-evidence-rows",
+    "pending-file-inventory-rows",
     "pending-filter",
     "pending-investigation-filter",
     "pending-post-drain-trust-rows",
@@ -230,6 +233,10 @@
     "pending-selected-status",
     "pending-status-filter",
     "pipeline-event-rows",
+    "pipeline-launch-status",
+    "pipeline-single-file-browse-button",
+    "pipeline-single-file-browse-status",
+    "pipeline-single-file-clear-button",
     "pipeline-sparkline",
     "pipeline-start-button",
     "pipeline-start-mode",
@@ -304,9 +311,6 @@
     "rename-start",
     "rename-table-legend",
     "rename-template-preset",
-    "report-go-audit-button",
-    "report-go-diagnostics-button",
-    "report-go-rerun-button",
     "rerun-start-button",
     "rerun-start-csv-path",
     "rerun-start-show-console",
@@ -376,14 +380,11 @@
     "settings-policy-delta-rows",
     "settings-raw-action-plan-rows",
     "settings-raw-triage-rows",
-    "settings-rename-aggressive-match",
+    "settings-rename-filter-release-groups",
+    "settings-rename-preview-button",
     "settings-rename-preview-input",
     "settings-rename-preview-output",
-    "settings-rename-sep-dashes",
-    "settings-rename-sep-dots",
-    "settings-rename-sep-none",
-    "settings-rename-sep-underscores",
-    "settings-rename-strip-trailing-year",
+    "settings-rename-preview-status",
     "settings-rows",
     "settings-safety-lock-rows",
     "settings-save-header-patch-status",
@@ -392,8 +393,6 @@
     "settings-save-header-reload-status",
     "settings-save-header-save-button",
     "settings-save-review-rows",
-    "settings-source-facts-rows",
-    "settings-source-media-json",
     "settings-subtitle-bdpgs-path-status",
     "settings-subtitle-convert-bdpgs",
     "settings-subtitle-convert-tx3g",
@@ -405,7 +404,8 @@
     "settings-subtitle-languages",
     "settings-subtitle-vobsub-path-status",
     "state-pill",
-    "theme-toggle"
+    "theme-toggle",
+    "topbar-event-ticker"
   ],
   "ids_missing_from_index": [
     "completed-review-rows",
@@ -479,6 +479,17 @@
       "src": "/assets/formatters.js",
       "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/formatters.js",
       "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/progressView.js",
+      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/progressView.js",
+      "dom_ids_touched": [
+        "diagnostics-progress-rows",
+        "pipeline-event-rows",
+        "progress-detail-rows",
+        "progress-evidence-rows"
+      ],
       "missing_from_index": []
     },
     {
@@ -779,6 +790,7 @@
       "src": "/assets/pendingPublishView.js",
       "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/pendingPublishView.js",
       "dom_ids_touched": [
+        "pending-file-inventory-rows",
         "pending-filter",
         "pending-investigation-filter",
         "pending-rows",
@@ -944,14 +956,10 @@
         "rename-template-preset",
         "rename-use-loaded-queue-button",
         "rename-use-selected-queue-button",
-        "settings-rename-aggressive-match",
+        "settings-rename-preview-button",
         "settings-rename-preview-input",
         "settings-rename-preview-output",
-        "settings-rename-sep-dashes",
-        "settings-rename-sep-dots",
-        "settings-rename-sep-none",
-        "settings-rename-sep-underscores",
-        "settings-rename-strip-trailing-year"
+        "settings-rename-preview-status"
       ],
       "missing_from_index": [
         "rename-bulk-find",
@@ -1122,13 +1130,12 @@
         "settings-handbrake-active-preset",
         "settings-patch-json",
         "settings-patch-status",
+        "settings-rename-filter-release-groups",
         "settings-save-header-patch-status",
         "settings-save-header-preview-button",
         "settings-save-header-reload-button",
         "settings-save-header-reload-status",
-        "settings-save-header-save-button",
-        "settings-source-facts-rows",
-        "settings-source-media-json"
+        "settings-save-header-save-button"
       ],
       "missing_from_index": []
     },
@@ -1254,10 +1261,7 @@
         "failure-preview-all-clear-button",
         "failure-preview-selected-clear-button",
         "failure-preview-visible-clear-button",
-        "failure-rows",
-        "report-go-audit-button",
-        "report-go-diagnostics-button",
-        "report-go-rerun-button"
+        "failure-rows"
       ],
       "missing_from_index": []
     },
@@ -1303,17 +1307,6 @@
       "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/telemetryView.js",
       "dom_ids_touched": [
         "gpu-rows"
-      ],
-      "missing_from_index": []
-    },
-    {
-      "src": "/assets/progressView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/progressView.js",
-      "dom_ids_touched": [
-        "diagnostics-progress-rows",
-        "pipeline-event-rows",
-        "progress-detail-rows",
-        "progress-evidence-rows"
       ],
       "missing_from_index": []
     },
@@ -1389,10 +1382,16 @@
       "src": "/assets/launchView.js",
       "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.js",
       "dom_ids_touched": [
+        "audit-launch-log-rows",
         "audit-start-include-sidecars",
         "audit-start-library-root",
         "audit-start-show-console",
+        "control-readiness-status",
         "launch-backend-preflight-refresh-button",
+        "pipeline-launch-status",
+        "pipeline-single-file-browse-button",
+        "pipeline-single-file-browse-status",
+        "pipeline-single-file-clear-button",
         "pipeline-start-button",
         "pipeline-start-mode",
         "pipeline-start-schedule-override",
@@ -1432,7 +1431,8 @@
         "launch-evidence-toggle",
         "pipeline-sparkline",
         "refresh-health",
-        "theme-toggle"
+        "theme-toggle",
+        "topbar-event-ticker"
       ],
       "missing_from_index": []
     },
@@ -1442,7 +1442,8 @@
       "dom_ids_touched": [
         "completed-refresh-current-output-button",
         "refresh-button",
-        "refresh-health"
+        "refresh-health",
+        "topbar-event-ticker"
       ],
       "missing_from_index": []
     },

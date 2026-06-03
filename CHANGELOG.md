@@ -13,6 +13,11 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Added
 
+- Active naming support unit gate:
+  `Pipeline\Tests\Unit\Invoke-NamingSupportChecks.ps1` now verifies shared
+  Plex movie/TV destination planning, forced rename sidecar sanitization and
+  evidence, TV identity keys used by the processed-library index, and source
+  identity v2 path-independence/sample-byte sensitivity.
 - Route policy evidence lockdown:
   `Resolve-MediaRouteBySize` now carries size/bitrate threshold evidence
   through decide-stage results and queue preview rows, with characterization
@@ -222,6 +227,59 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Fixed
 
+- Python JSON-line logging now preserves required envelope fields when
+  structured context uses colliding keys, while repeated
+  `configure_json_logging` calls reuse the same stream handler instead of
+  duplicating evidence lines.
+- FFmpeg progress proof now treats each console line or native progress block
+  as a coherent evidence snapshot. A newer partial block no longer inherits
+  older `fps`, `time`, `speed`, or timestamp fields from a previous block.
+- CSV rerun source identity now keeps emitting a deterministic
+  `source_identity_v2` from source size plus sample hash when bundled
+  `ffprobe` is unavailable, instead of silently dropping identity evidence
+  down to size/mtime-only checks. Added a focused PowerShell unit gate for
+  the missing-ffprobe fallback.
+- Failure marker clear results now report `writes_failure_markers` only when a
+  marker actually moved, so blocked clear attempts do not look like active
+  marker-folder writes. Reports failure/audit row keys now use locale-invariant
+  lowercasing for stable row selection.
+- Completed open commands now resolve row keys against the same full completed
+  history window used by `/api/completed?limit=all`, so backend-selected open
+  actions work for older visible history rows instead of only the latest 500
+  manifest entries.
+- Final-library promotion now removes a newly revealed destination file if the
+  final verification pass fails after the staged copy was promoted into place,
+  preventing unverified files from remaining in the final library when there
+  was no prior destination to restore. Settings guidance now matches the
+  staged-copy/restore flow for destructive overwrite.
+- Pending-publish manifest contracts and schema now document the VobSub
+  subtitle evidence fields and `media_type`/`source_mtime_utc` metadata that
+  the PowerShell pending park transaction already writes, keeping Python
+  parsing, JSON schema checks, and the state-file reference aligned.
+- Completed-manifest evidence references now consistently use the active
+  `State\Completed\completed_jobs.jsonl` path in operator triage guidance,
+  publish sidecar comments, service documentation, and WebView command
+  evidence fixtures.
+- Launch active-policy boundary fallback rows now classify staged VobSub
+  drop-without-OCR settings the same way as TX3G and BDPGS: blocked when
+  drop is enabled without conversion and review when VobSub OCR is disabled.
+- Pending-publish sidecar drain now restores an existing SRT sidecar from its
+  backup if the replacement sidecar copy fails after touching the destination,
+  matching the immediate-publish rollback path.
+- Audio transcode bitrate validation now rejects zero-valued tokens such as
+  `0k` across the Python config contract, desktop settings validation,
+  PowerShell schema checks, and runtime audio fallback handling.
+- Python route decisions no longer fall back to ffprobe stream/container
+  bitrate when duration-derived bitrate evidence is unavailable. Missing or
+  zero duration now leaves the direct-copy bitrate gate inactive and records
+  missing bitrate metadata, matching the PowerShell decide stage contract.
+- `Invoke-MkvmergeWithProgress` now treats mkvmerge exit `1` as a warning
+  success in tool evidence and progress updates, matching the remux caller's
+  existing non-fatal mkvmerge warning policy.
+- Output path preflight no longer creates a missing optional server output
+  root while checking path capability. Missing final roots are left for the
+  existing publish/pending-publish parking flow, while paths outside the
+  configured output root now fail preflight with boundary evidence.
 - Rename apply now requires literal JSON boolean `true` for both
   `confirm_apply` and the outside-configured-roots confirmation. Truthy
   strings such as `"false"` no longer satisfy filesystem-mutation guards,

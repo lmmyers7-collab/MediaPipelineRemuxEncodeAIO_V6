@@ -19,7 +19,7 @@ These are shipped with the package and do not require a separate install.
 | Expected path | `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe` |
 | Checked by | `scripts\verify-env.bat`, release self-test |
 | Failure symptom | Scripts fall back to system `pwsh`; if system `pwsh` is also absent, scripts throw with a human-readable error |
-| Notes | Scripts that detect PS5 re-invoke under `pwsh`; never spawn `powershell.exe` explicitly |
+| Notes | Scripts that detect PS5 re-invoke under `pwsh`; batch wrappers resolve `pwsh.exe` with bundled-first, cmd-native discovery and do not execute through `powershell.exe` |
 
 See `Docs/operator/POWERSHELL_HOST_EXPECTATIONS.md` for full resolution order and prohibited patterns.
 

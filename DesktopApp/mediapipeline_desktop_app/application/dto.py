@@ -1,12 +1,17 @@
-from __future__ import annotations
+"""Compatibility shim. Moved to ``app.kernel.dto`` by ADR-0013 (Wave 4).
 
-from .dto_base import JsonMap, json_safe, split_summary_lines
-from .dto_commands import CommandResult
-from .dto_inventory import AuditPreviewDto, CompletedPreviewDto, FailurePreviewDto, PendingPublishPreviewDto, PublishReconciliationDto, QueuePreviewDto
-from .dto_status import AppSnapshotDto, CloseReadinessDto, DiagnosticsDto, HealthDto, TelemetryDto
-from .dto_workspaces import MaintenanceWorkspaceDto, NetworkWorkersDto, RenamePreviewDto, ScheduleWorkspaceDto, SettingsWorkspaceDto
+This aggregator re-exports the kernel DTO families. The full public namespace
+is copied from the new home so existing imports (including
+``application/__init__.py``) keep working. New code should import from
+``app.kernel.dto`` directly; this shim is removed in the ADR-0013 Wave 6
+cleanup.
+"""
+from app.kernel import dto as _moved
+globals().update({_k: getattr(_moved, _k) for _k in dir(_moved) if not _k.startswith("__")})
+del _moved
 
-
+# Literal __all__ mirrors app.kernel.dto (application public-API contract,
+# tests/test_application_public_api.py requires a literal list here).
 __all__ = [
     "AppSnapshotDto",
     "AuditPreviewDto",

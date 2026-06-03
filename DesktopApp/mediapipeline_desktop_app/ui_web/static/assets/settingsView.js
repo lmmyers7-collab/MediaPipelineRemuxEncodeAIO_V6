@@ -59,12 +59,10 @@ let settingsPatchTouched = false;
 let lastSettingsPatchPreviewEvidence = null;
 let lastSettingsPatchSaveEvidence = null;
 let lastSettingsReloadEvidence = null;
-let settingsPipelinePlanPreviewRequestId = 0;
 
 const settingsCommandButtonIds = [
   "settings-validate-button",
   "settings-reload-button",
-  "settings-preview-plan-button",
   "settings-preview-patch-button",
   "settings-save-patch-button",
   "settings-final-library-preview-button",
@@ -411,35 +409,6 @@ function settingsMetadataTags(value) {
   return text ? [text] : [];
 }
 
-const settingsMetadataBadgeLabels = {
-  routing: "ROUTING",
-  route: "ROUTING",
-  compatibility: "COMPATIBILITY",
-  quality: "QUALITY",
-  size: "SIZE",
-  bitrate: "BITRATE",
-  output: "OUTPUT",
-  verification: "VERIFY",
-  verify: "VERIFY",
-  publish: "PUBLISH",
-  advisory: "ADVISORY",
-  hard: "HARD",
-  soft: "SOFT",
-  advanced: "ADVANCED",
-};
-
-function settingsMetadataBadgeKind(value) {
-  const normalized = String(value || "").trim().toLowerCase().replace(/_/g, "-");
-  if (normalized === "route") return "routing";
-  if (normalized === "verify") return "verification";
-  return normalized;
-}
-
-function settingsMetadataBadgeText(value) {
-  const kind = settingsMetadataBadgeKind(value);
-  return settingsMetadataBadgeLabels[kind] || String(value || "").replace(/_/g, " ").toUpperCase();
-}
-
 function settingsFieldIsAdvanced(key, field) {
   const advancedVisibility = String(field?.advanced_visibility || "").trim().toLowerCase();
   const section = String(field?.section || "").trim().toLowerCase();
@@ -451,45 +420,6 @@ function settingsFieldIsAdvanced(key, field) {
     || section === "advanced"
     || tags.includes("advanced")
     || settingsAdvancedFallbackKeys.has(String(key || field?.key || ""));
-}
-
-function settingsDirectLabelChild(label, descendant) {
-  let node = descendant;
-  while (node && node.parentElement && node.parentElement !== label) {
-    node = node.parentElement;
-  }
-  return node?.parentElement === label ? node : null;
-}
-
-function renderSettingsFieldTaxonomyBadges(label, control, field) {
-  if (!label || !control || !field) return;
-  label.querySelectorAll(".settings-field-metadata-badges").forEach((node) => node.remove());
-  const taxonomy = settingsMetadataTags(field.rule_taxonomy).map((value) => ["taxonomy", value]);
-  const strictness = settingsMetadataTags(field.strictness).map((value) => ["strictness", value]);
-  const badges = [...taxonomy, ...strictness];
-  const fieldKey = String(field.key || control.dataset.settingsKey || "");
-  if (settingsFieldIsAdvanced(fieldKey, field) && !badges.some(([, value]) => settingsMetadataBadgeKind(value) === "advanced")) {
-    badges.push(["visibility", "advanced"]);
-  }
-  if (!badges.length) return;
-  const row = document.createElement("span");
-  row.className = "settings-field-metadata-badges";
-  row.dataset.settingsMetadataSource = "backend";
-  badges.forEach(([kind, value]) => {
-    const badge = document.createElement("span");
-    badge.className = "rule-badge settings-field-metadata-badge";
-    badge.dataset.metadataKind = kind;
-    badge.dataset.ruleKind = settingsMetadataBadgeKind(value);
-    badge.title = "Display-only backend metadata; not a saved config key.";
-    badge.textContent = settingsMetadataBadgeText(value);
-    row.appendChild(badge);
-  });
-  const anchor = settingsDirectLabelChild(label, control);
-  if (anchor) {
-    label.insertBefore(row, anchor);
-  } else {
-    label.appendChild(row);
-  }
 }
 
 function settingsMetadataValue(value) {
@@ -520,6 +450,7 @@ function updateSettingsLabelText(label, control, labelText) {
   target.nodeValue = `${leading}${labelText}${trailing || " "}`;
 }
 
+// eslint-disable-next-line complexity -- legacy metadata sync owns several independent control attributes.
 function applySettingsFieldMetadataToControl([key, id, fallbackKind]) {
   const field = settingsFieldDefinition(key);
   const element = byId(id);
@@ -538,8 +469,6 @@ function applySettingsFieldMetadataToControl([key, id, fallbackKind]) {
   element.dataset.settingsAdvancedControl = String(isAdvanced);
   if (field.short_label) element.dataset.settingsShortLabel = String(field.short_label);
   if (field.section) element.dataset.settingsSection = String(field.section);
-  if (field.strictness) element.dataset.settingsStrictness = String(field.strictness);
-  if (field.rule_taxonomy) element.dataset.settingsRuleTaxonomy = settingsMetadataTags(field.rule_taxonomy).join(",");
   advancedTarget.classList.toggle("settings-advanced-field", isAdvanced);
   if (isAdvanced) {
     advancedTarget.dataset.settingsAdvancedControl = "true";
@@ -554,10 +483,7 @@ function applySettingsFieldMetadataToControl([key, id, fallbackKind]) {
     label.dataset.settingsAdvancedControl = String(isAdvanced);
     if (field.short_label) label.dataset.settingsShortLabel = String(field.short_label);
     if (field.section) label.dataset.settingsSection = String(field.section);
-    if (field.strictness) label.dataset.settingsStrictness = String(field.strictness);
-    if (field.rule_taxonomy) label.dataset.settingsRuleTaxonomy = settingsMetadataTags(field.rule_taxonomy).join(",");
     updateSettingsLabelText(label, element, labelText);
-    renderSettingsFieldTaxonomyBadges(label, element, field);
   }
   const help = settingsFieldHelpText(field);
   if (help) {
@@ -573,11 +499,12 @@ function applySettingsFieldMetadataToControl([key, id, fallbackKind]) {
   if (field.runtime_consumer) element.dataset.settingsRuntimeConsumer = String(field.runtime_consumer);
   if (element instanceof HTMLInputElement && element.type !== "checkbox") {
     if (["integer", "number"].includes(String(field.value_type || ""))) {
-      element.type = "number";
+      if (element.type !== "range") element.type = "number";
     }
-    if (field.min !== null && field.min !== undefined) element.min = String(field.min);
-    if (field.max !== null && field.max !== undefined) element.max = String(field.max);
-    if (field.step !== null && field.step !== undefined) element.step = String(field.step);
+    const preserveRangeLimits = element.type === "range" && element.dataset.settingsPreserveRangeLimits === "true";
+    if (!preserveRangeLimits && field.min !== null && field.min !== undefined) element.min = String(field.min);
+    if (!preserveRangeLimits && field.max !== null && field.max !== undefined) element.max = String(field.max);
+    if (!preserveRangeLimits && field.step !== null && field.step !== undefined) element.step = String(field.step);
   }
 }
 
@@ -1389,7 +1316,6 @@ settingsPatchReview = typeof settingsPatchReviewModule.createSettingsPatchReview
       markSubtitleSettingsBuilderDirty,
       markVideoDetailSettingsBuilderDirty,
       previewFinalLibraryPromotionSettings,
-      previewSettingsPipelinePlan,
       previewSettingsPatch,
       renderAudioSettingsBuilderGuidance,
       renderFileSafetySettingsBuilderGuidance,
@@ -1701,290 +1627,6 @@ function appendSettingsRiskSummaryLines(lines, riskSummary) {
   });
 }
 
-function planValue(item, keys, fallback = "") {
-  if (!item || typeof item !== "object") return fallback;
-  for (const key of keys) {
-    if (Object.prototype.hasOwnProperty.call(item, key) && item[key] !== undefined && item[key] !== null && item[key] !== "") {
-      return item[key];
-    }
-  }
-  return fallback;
-}
-
-function compactPlanList(values, fallback = "none") {
-  const lines = (Array.isArray(values) ? values : [])
-    .map((value) => String(value || "").trim())
-    .filter(Boolean);
-  return lines.length ? lines.join(", ") : fallback;
-}
-
-function formatSettingsBytes(value) {
-  const bytes = Number(value);
-  if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let scaled = bytes;
-  let unitIndex = 0;
-  while (scaled >= 1024 && unitIndex < units.length - 1) {
-    scaled /= 1024;
-    unitIndex += 1;
-  }
-  const digits = unitIndex === 0 ? 0 : 1;
-  return `${scaled.toFixed(digits)} ${units[unitIndex]}`;
-}
-
-function parseSettingsSourceMediaJson() {
-  const raw = byId("settings-source-media-json")?.value || "";
-  if (!raw.trim()) {
-    throw new Error("SourceMediaInfo source facts JSON is required.");
-  }
-  const parsed = JSON.parse(raw);
-  if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") {
-    throw new Error("SourceMediaInfo JSON must be an object.");
-  }
-  return parsed;
-}
-
-function settingsSourceFactSummary(sourceMedia) {
-  const container = planValue(sourceMedia, ["container"], {});
-  const videos = Array.isArray(sourceMedia?.video_streams) ? sourceMedia.video_streams : [];
-  const audio = Array.isArray(sourceMedia?.audio_streams) ? sourceMedia.audio_streams : [];
-  const subtitles = Array.isArray(sourceMedia?.subtitle_streams) ? sourceMedia.subtitle_streams : [];
-  const video = videos[0] || {};
-  const containerText = [
-    planValue(container, ["format_name"], "unknown container"),
-    planValue(container, ["media_type"], "unknown"),
-    formatSettingsBytes(Number(planValue(container, ["file_size_bytes"], 0)) || 0),
-  ].filter(Boolean).join("; ");
-  const videoText = video && Object.keys(video).length
-    ? [
-      planValue(video, ["codec"], "unknown codec"),
-      `${planValue(video, ["width"], 0)}x${planValue(video, ["height"], 0)}`,
-      `${Math.round((Number(planValue(video, ["bitrate_bps"], 0)) || 0) / 1000000)} Mbps`,
-    ].join("; ")
-    : "No video stream facts loaded";
-  return {
-    container: containerText,
-    video: videoText,
-    audio: `${audio.length} track${audio.length === 1 ? "" : "s"}`,
-    subtitles: `${subtitles.length} track${subtitles.length === 1 ? "" : "s"}`,
-  };
-}
-
-function renderSettingsSourceFactsRows(sourceMedia, routeSummary) {
-  const tbody = byId("settings-source-facts-rows");
-  if (!tbody) return;
-  const summary = settingsSourceFactSummary(sourceMedia || {});
-  const rows = [
-    ["Container", summary.container || "No SourceMediaInfo payload loaded.", "Read-only source fact"],
-    ["Video codec / profile / level", summary.video, "Backend validated before preview"],
-    ["Dimensions / aspect / bitrate", summary.video, "Backend validated before preview"],
-    ["Audio tracks", summary.audio, "Backend stream actions only"],
-    ["Subtitle tracks", summary.subtitles, "Backend stream actions only"],
-    ["Compatibility verdict", routeSummary || "UNKNOWN", "Rendered from backend PipelinePlan"],
-  ];
-  tbody.replaceChildren();
-  rows.forEach((rowValues) => {
-    const row = document.createElement("tr");
-    appendCells(row, rowValues);
-    tbody.appendChild(row);
-  });
-}
-
-function settingsPipelinePlanPatchRequest() {
-  const raw = byId("settings-patch-json")?.value || "{}";
-  const changes = JSON.parse(raw);
-  if (!changes || Array.isArray(changes) || typeof changes !== "object") {
-    throw new Error("Patch JSON must be an object of config keys and values.");
-  }
-  return { changes, removeKeys: [] };
-}
-
-function settingsPipelinePlanActionLines(plan) {
-  const actions = Array.isArray(plan?.streamActions) ? plan.streamActions : [];
-  if (!actions.length) return ["- none returned"];
-  return actions.map((action) => {
-    const type = planValue(action, ["streamType"], "stream");
-    const index = planValue(action, ["streamIndex"], null);
-    const indexText = index === null || index === undefined ? "" : ` ${index}`;
-    const input = planValue(action, ["inputCodec"], "unknown");
-    const output = planValue(action, ["outputCodec"], "unchanged");
-    const reasons = compactPlanList(planValue(action, ["reasonCodes"], []), "no reason code");
-    return `- ${type}${indexText}: ${planValue(action, ["action"], "unknown")} (${input} -> ${output}; ${reasons})`;
-  });
-}
-
-function settingsPipelinePlanReasonLines(plan) {
-  const reasons = Array.isArray(plan?.reasonSummary) ? plan.reasonSummary : [];
-  if (!reasons.length) return ["- none returned"];
-  return reasons.map((reason) => `- ${planValue(reason, ["code"], "reason")}: ${planValue(reason, ["text"], "")}`);
-}
-
-function settingsPipelinePlanCommandLines(plan) {
-  const commandPlans = Array.isArray(plan?.commandPlans) ? plan.commandPlans : [];
-  if (!commandPlans.length) return ["- no abstract command plan returned"];
-  const lines = [];
-  commandPlans.forEach((commandPlan) => {
-    const previewLines = Array.isArray(commandPlan.previewLines) ? commandPlan.previewLines : [];
-    previewLines.forEach((line) => lines.push(`- ${line}`));
-    const steps = Array.isArray(commandPlan.steps) ? commandPlan.steps : [];
-    steps.forEach((step) => lines.push(`- ${planValue(step, ["label"], "Step")}: ${planValue(step, ["dryRunText"], "")}`));
-  });
-  return lines.length ? lines : ["- no command preview lines returned"];
-}
-
-function settingsPipelinePlanVerificationLines(plan) {
-  const result = plan?.verificationResult && typeof plan.verificationResult === "object" ? plan.verificationResult : {};
-  const check = result.outputSizeCheck && typeof result.outputSizeCheck === "object" ? result.outputSizeCheck : {};
-  const guards = Array.isArray(plan?.verificationGuards) ? plan.verificationGuards : [];
-  const publishRequirements = Array.isArray(plan?.publishRequirements) ? plan.publishRequirements : [];
-  const lines = [
-    `- status: ${planValue(result, ["status"], "planned")}`,
-    `- Output Size Check: ${planValue(check, ["action"], "not returned")} / ${planValue(check, ["status"], "not returned")}`,
-    `- target output size: ${planValue(check, ["targetOutputSizeBytes"], "not available")}`,
-    `- growth tolerance: ${planValue(check, ["growthTolerancePercent"], "not returned")}%; actual output size: ${planValue(check, ["actualOutputSizeBytes"], "pending post-process")}`,
-  ];
-  const guardLines = guards.map((guard) => `- guard ${planValue(guard, ["code"], "guard")}: ${planValue(guard, ["stage"], "stage")} ${planValue(guard, ["enforcement"], "enforcement")} -> ${planValue(guard, ["onFail"], "on fail not returned")}`);
-  const publishLines = publishRequirements.map((item) => `- publish ${planValue(item, ["code"], "requirement")}: ${planValue(item, ["text"], "")}`);
-  return [
-    ...lines,
-    ...(guardLines.length ? guardLines : ["- no verification guards returned"]),
-    ...(publishLines.length ? publishLines : ["- no publish requirements returned"]),
-  ];
-}
-
-function renderSettingsPipelinePlanPreview(result, sourceMedia) {
-  const plan = result?.data && typeof result.data === "object" ? result.data : {};
-  const routeSummary = String(plan.routeSummary || "UNKNOWN").toUpperCase();
-  const meta = plan.effectivePresetSnapshot?.settingsPreview || {};
-  const output = plan.output && typeof plan.output === "object" ? plan.output : {};
-  const verification = plan.verificationResult && typeof plan.verificationResult === "object" ? plan.verificationResult : {};
-  const outputSizeCheck = verification.outputSizeCheck && typeof verification.outputSizeCheck === "object" ? verification.outputSizeCheck : {};
-  const warnings = Array.from(new Set([
-    ...(Array.isArray(plan.warnings) ? plan.warnings : []),
-    ...(Array.isArray(result?.warnings) ? result.warnings : []),
-  ]));
-  const summary = settingsSourceFactSummary(sourceMedia || {});
-  setText("settings-handbrake-preview-status", "Predicted pending cutover");
-  setText("settings-handbrake-decision", routeSummary);
-  setText("settings-handbrake-active-preset", "Saved settings plus staged patch");
-  setText("settings-handbrake-source-container", summary.container || "No source selected");
-  setText("settings-handbrake-source-video", summary.video);
-  setText("settings-handbrake-source-audio", summary.audio);
-  setText("settings-handbrake-source-subtitles", summary.subtitles);
-  setText("settings-handbrake-output-container", planValue(output, ["container"], "Not returned"));
-  setText("settings-handbrake-publish-requirements", planValue(plan, ["publishStrategy"], "Not returned"));
-  const intentRenderer = settingsPatchReviewFunction("renderSettingsEffectiveIntentSummary");
-  if (intentRenderer) {
-    intentRenderer({
-      routeSummary,
-      outputContainer: planValue(output, ["container"], ""),
-      planAuthority: "backend pipeline_plan.v1 preview, diagnostic-only",
-    });
-  }
-  setText(
-    "settings-handbrake-output-guards",
-    `Output Size Check: ${planValue(outputSizeCheck, ["action"], "not returned")} / ${planValue(outputSizeCheck, ["status"], "not returned")}`
-  );
-  renderSettingsSourceFactsRows(sourceMedia, routeSummary);
-  const lines = [
-    result?.message || "Settings PipelinePlan preview returned.",
-    "",
-    `Schema: ${plan.schemaVersion || "unknown"}`,
-    `Route: ${routeSummary}`,
-    `Output proposal: ${planValue(output, ["path"], "not returned")}`,
-    `Dry run only: ${meta.dryRunOnly === false ? "no" : "yes"}`,
-    `Can execute: ${meta.canExecute === true ? "yes" : "no"}`,
-    `Authority: ${meta.authority || "python_preview_legacy_execution_still_authoritative"}`,
-    "",
-    "Stream actions:",
-    ...settingsPipelinePlanActionLines(plan),
-    "",
-    "Reasons:",
-    ...settingsPipelinePlanReasonLines(plan),
-    "",
-    "Warnings:",
-    ...(warnings.length ? warnings.map((warning) => `- ${warning}`) : ["- none returned"]),
-    "",
-    "Verification / publish:",
-    ...settingsPipelinePlanVerificationLines(plan),
-    "",
-    "Command preview:",
-    ...settingsPipelinePlanCommandLines(plan),
-    "",
-    "Preview label remains Predicted pending cutover because legacy execution is still authoritative.",
-  ];
-  setText("settings-source-media-json-status", result?.ok ? "Preview ready" : "Preview returned issues");
-  setText("settings-source-media-json-detail", `Backend route: ${routeSummary}. This dry-run preview did not save settings, launch work, or touch media files.`);
-  setText("settings-handbrake-preview-detail", lines.join("\n"));
-}
-
-function renderSettingsPipelinePlanPreviewError(message) {
-  setText("settings-source-media-json-status", "Preview failed");
-  setText("settings-source-media-json-detail", message);
-  setText("settings-handbrake-preview-status", "Predicted pending cutover");
-  setText("settings-handbrake-decision", "UNKNOWN");
-  const intentRenderer = settingsPatchReviewFunction("renderSettingsEffectiveIntentSummary");
-  if (intentRenderer) {
-    intentRenderer({
-      planAuthority: "preview failed; saved settings orientation only",
-    });
-  }
-  setText(
-    "settings-handbrake-preview-detail",
-    [
-      `Settings PipelinePlan preview failed: ${message}`,
-      "No backend route summary or stream actions were rendered.",
-      "This did not save settings, launch work, mutate queue state, publish, rename, drain pending publish, or touch media files.",
-    ].join("\n")
-  );
-}
-
-async function previewSettingsPipelinePlan() {
-  if (rejectSettingsCommandWhileBusy("settings.pipeline_plan_preview", "settings-source-media-json-status", "settings-source-media-json-detail")) return;
-  let sourceMedia;
-  let patchRequest;
-  try {
-    sourceMedia = parseSettingsSourceMediaJson();
-    patchRequest = settingsPipelinePlanPatchRequest();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    appendCommandResult({
-      command: "settings.pipeline_plan_preview",
-      ok: false,
-      severity: "error",
-      message,
-    });
-    renderSettingsPipelinePlanPreviewError(message);
-    return;
-  }
-  const requestId = ++settingsPipelinePlanPreviewRequestId;
-  setSettingsCommandBusy(true);
-  setText("settings-source-media-json-status", "Previewing...");
-  setText("settings-source-media-json-detail", "Requesting backend-owned dry-run PipelinePlan preview. No settings will be saved.");
-  try {
-    const result = await apiPost("/api/settings/pipeline-plan-preview", {
-      source_media: sourceMedia,
-      changes: patchRequest.changes,
-      remove_keys: patchRequest.removeKeys,
-    });
-    if (requestId !== settingsPipelinePlanPreviewRequestId) return;
-    appendCommandResult(result);
-    renderSettingsPipelinePlanPreview(result, sourceMedia);
-  } catch (error) {
-    if (requestId !== settingsPipelinePlanPreviewRequestId) return;
-    const message = error instanceof Error ? error.message : String(error);
-    appendCommandResult({
-      command: "settings.pipeline_plan_preview",
-      ok: false,
-      severity: "error",
-      message,
-    });
-    renderSettingsPipelinePlanPreviewError(message);
-  } finally {
-    if (requestId === settingsPipelinePlanPreviewRequestId) setSettingsCommandBusy(false);
-  }
-}
-
   function flushDirtySettingsBuilders() {
     // Merge any builder the operator edited (dirty) into the Changes JSON before
     // preview/save read it. Without this, toggling a control only marks the builder
@@ -2011,6 +1653,35 @@ async function previewSettingsPipelinePlan() {
       }
     });
     return flushed;
+  }
+
+  function resetSettingsBuilderSyncState(options = {}) {
+    settingsBuilderInitialized = false;
+    settingsBuilderDirty = false;
+    [
+      videoDetailSettingsBuilderState,
+      fileSafetySettingsBuilderState,
+      networkSettingsBuilderState,
+      queueSettingsBuilderState,
+      runtimeSettingsBuilderState,
+      pendingPublishSettingsBuilderState,
+      subtitleSettingsBuilderState,
+      audioSettingsBuilderState,
+    ].forEach((state) => {
+      state.initialized = false;
+      state.dirty = false;
+    });
+    if (options.includeFinalLibraryPromotion) {
+      finalLibraryPromotionSettingsBuilderState.initialized = false;
+      finalLibraryPromotionSettingsBuilderState.dirty = false;
+    }
+  }
+
+  function saveRenameCleaningFiltersFromSettingsSave() {
+    const releaseGroupsEditor = byId("settings-rename-filter-release-groups");
+    const renameView = window.mediaPipelineRenameView || {};
+    if (!releaseGroupsEditor || typeof renameView.saveRenameCleaningFilterState !== "function") return false;
+    return renameView.saveRenameCleaningFilterState("Rename filters saved with Settings for this browser.");
   }
 
   async function previewSettingsPatch() {
@@ -2162,13 +1833,19 @@ async function saveSettingsPatch() {
     setText("settings-patch-detail", message);
     return;
   }
+  const requestExtras = settingsPatchRequestExtras();
+  const libraryProfileResetCount = Array.isArray(requestExtras.library_profile_resets) ? requestExtras.library_profile_resets.length : 0;
+  const hasLibraryProfileResets = libraryProfileResetCount > 0;
   const keys = Object.keys(changes);
-  if (!keys.length) {
+  if (!keys.length && !hasLibraryProfileResets) {
+    const renameFiltersSaved = saveRenameCleaningFiltersFromSettingsSave();
     setText("settings-patch-status", "No changes");
-    setText("settings-patch-detail", "No settings patch keys were provided.");
+    setText("settings-patch-detail", [
+      renameFiltersSaved ? "Rename cleaning filters were saved to browser storage." : "",
+      "No backend settings patch keys were provided, so the PSD1 was not changed.",
+    ].filter(Boolean).join("\n"));
     return;
   }
-  const requestExtras = settingsPatchRequestExtras();
   const signature = settingsPatchRequestSignature(changes, requestExtras);
   const localHintLines = settingsPatchLocalValidationHintLines(changes);
   const previewMatches = Boolean(lastSettingsPatchPreviewEvidence && lastSettingsPatchPreviewEvidence.signature === signature);
@@ -2183,9 +1860,11 @@ async function saveSettingsPatch() {
     return !settingsValuesEqual(lastSettingsValues[key], changes[key]);
   };
   const changedKeys = keys.filter(keyChanged);
-  if (!changedKeys.length) {
+  if (!changedKeys.length && !hasLibraryProfileResets) {
+    const renameFiltersSaved = saveRenameCleaningFiltersFromSettingsSave();
     setText("settings-patch-status", "No changes");
     setText("settings-patch-detail", [
+      renameFiltersSaved ? "Rename cleaning filters were saved to browser storage." : "",
       "No staged settings differ from the saved config, so nothing was saved.",
       "Edit a setting on any tab (subtitle / audio / routing / etc.), then Save again.",
       "Builder edits are merged into the Changes JSON automatically when you Save.",
@@ -2204,13 +1883,14 @@ async function saveSettingsPatch() {
   if (changedKeys.length > 12) overwriteLines.push(`  ...and ${changedKeys.length - 12} more changed key(s)`);
   const confirmLines = [
     `Save ${keys.length} setting patch key(s) to the active PSD1 config?`,
-    `Changed keys: ${changedKeys.length}; staged patch keys: ${keys.length}.`,
+    `Changed keys: ${changedKeys.length}; staged patch keys: ${keys.length}; library profile resets: ${libraryProfileResetCount}.`,
     "",
     previewWarning,
     ...(localHintLines.length ? ["", ...localHintLines] : []),
     "",
-    "Values being overwritten:",
-    ...overwriteLines,
+    ...(overwriteLines.length
+      ? ["Values being overwritten:", ...overwriteLines]
+      : ["No direct setting key overwrites are staged; backend will apply requested library profile reset(s)."]),
     "",
     "A backup will be created first.",
     "",
@@ -2229,6 +1909,7 @@ async function saveSettingsPatch() {
     if (typeof renderAllLaunchPreflights === "function") renderAllLaunchPreflights();
     return;
   }
+  saveRenameCleaningFiltersFromSettingsSave();
   const snapshotBefore = {};
   changedKeys.forEach((key) => {
     if (lastSettingsValues && Object.prototype.hasOwnProperty.call(lastSettingsValues, key)) {
@@ -2294,7 +1975,10 @@ async function saveSettingsPatch() {
     setText("settings-patch-detail", lines.join("\n"));
     renderSettingsPatchSummary();
     maybeShowSettingsRuntimeRestartNotice(result);
-    if (result.ok) await refreshAll();
+    if (result.ok) {
+      resetSettingsBuilderSyncState();
+      await refreshAll();
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const result = {
@@ -2333,6 +2017,7 @@ async function reloadSettingsFromDisk() {
     setText("settings-status", result.message || "Settings reload completed.");
     renderSettingsPatchSummary();
     if (result.ok) {
+      resetSettingsBuilderSyncState({ includeFinalLibraryPromotion: true });
       await refreshAll();
     }
   } catch (error) {
@@ -2451,7 +2136,7 @@ async function reloadSettingsFromDisk() {
     settingsRawActionPlanRows, settingsRawActionPlanStatus, settingsRawActionPlanSummaryLines, settingsRawActionPlanDetailLines, renderSettingsRawActionPlan,
     settingsSafetyLockRows, settingsSafetyLockStatus, settingsSafetyLockSummaryLines, renderSettingsSafetyLocks,
     renderSettings, getLastSettings, validateCurrentSettings, reloadSettingsFromDisk, browseSettingsPath, settingsBrowsePathDetailLines,
-    setSettingsCommandBusy, rejectSettingsCommandWhileBusy, previewSettingsPipelinePlan, previewSettingsPatch, saveSettingsPatch, isSettingsCommand, settingsCommandHistoryLine, renderSettingsCommandHistory,
+    setSettingsCommandBusy, rejectSettingsCommandWhileBusy, previewSettingsPatch, saveSettingsPatch, isSettingsCommand, settingsCommandHistoryLine, renderSettingsCommandHistory,
     settingsPatchLocalValidationHints, settingsPatchLocalValidationHintLines,
     renderSettingsPatchSummary, settingsPatchImpactEntries, renderSettingsPatchImpactSummaryFromEntries, settingsPatchSaveReadinessIssues, settingsPatchSaveReadinessStatus, renderSettingsPatchSaveReadinessFromEntries,
     settingsPolicyDeltaRows, settingsPolicyDeltaStatus, settingsPolicyDeltaSummaryLines, renderSettingsPolicyDeltaFromEntries,
@@ -2496,7 +2181,7 @@ async function reloadSettingsFromDisk() {
   window.settingsBdpgsOcrPathEvidenceLines = settingsBdpgsOcrPathEvidenceLines; window.renderSettingsBdpgsOcrPathEvidence = renderSettingsBdpgsOcrPathEvidence; window.settingsVobSubOcrPathEvidence = settingsVobSubOcrPathEvidence; window.settingsVobSubOcrPathEvidenceStatus = settingsVobSubOcrPathEvidenceStatus;
   window.settingsVobSubOcrPathEvidenceLines = settingsVobSubOcrPathEvidenceLines; window.renderSettingsVobSubOcrPathEvidence = renderSettingsVobSubOcrPathEvidence; window.markSubtitleSettingsBuilderDirty = markSubtitleSettingsBuilderDirty; window.syncAudioSettingsBuilderFromConfig = syncAudioSettingsBuilderFromConfig;
   window.collectAudioSettingsBuilderPatch = collectAudioSettingsBuilderPatch; window.applyAudioSettingsBuilderToPatch = applyAudioSettingsBuilderToPatch; window.renderAudioSettingsBuilderGuidance = renderAudioSettingsBuilderGuidance; window.markAudioSettingsBuilderDirty = markAudioSettingsBuilderDirty;
-  window.renderSettingsMediaPolicyCrossCheck = renderSettingsMediaPolicyCrossCheck; window.writeSettingsPatchJson = writeSettingsPatchJson; window.previewSettingsPipelinePlan = previewSettingsPipelinePlan; window.initSettingsViewEvents = initSettingsViewEvents;
+  window.renderSettingsMediaPolicyCrossCheck = renderSettingsMediaPolicyCrossCheck; window.writeSettingsPatchJson = writeSettingsPatchJson; window.initSettingsViewEvents = initSettingsViewEvents;
   window.settingsRuntimeRestartConfirmationLine = settingsRuntimeRestartConfirmationLine; window.settingsRuntimeRestartNoticeLines = settingsRuntimeRestartNoticeLines;
 
   (function () {

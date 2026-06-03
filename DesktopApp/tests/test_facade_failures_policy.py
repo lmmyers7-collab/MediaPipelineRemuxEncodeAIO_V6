@@ -16,6 +16,7 @@ from app.failures.policy import (
     failure_json_read_error_result,
     failure_latest_json_resolution_error_result,
     failure_loader_unavailable_result,
+    failure_marker_lookup,
     failure_marker_service_unavailable_result,
     failure_markers_read_error_result,
     failure_no_json_report_result,
@@ -95,6 +96,25 @@ class FailureFacadePolicyTests(unittest.TestCase):
         self.assertEqual(row["suggested_action"], "Review manually.")
         self.assertEqual(row["suggested_rename"], "Movie (2024)")
         self.assertEqual(row["source_json"], str(Path("C:/Reports/failure.json")))
+        self.assertEqual(row["triage"]["status_label"], "Needs operator")
+        self.assertEqual(row["triage"]["severity"], "blocked")
+        self.assertEqual(row["triage"]["plain_summary"], "Pipeline stage failed.")
+        self.assertEqual(row["triage"]["suggested_fix"], "Review manually.")
+        self.assertFalse(row["clear_error"]["available"])
+        self.assertIn("could not be loaded", row["clear_error"]["unavailable_reason"])
+
+    def test_failure_marker_lookup_and_marker_rows_enable_clear_error(self) -> None:
+        record = _record(
+            source_json="C:/State/Failures/Markers/one.json",
+            source_path="C:/Source/Movies/Movie (2024)/Movie.mkv",
+        )
+        lookup = failure_marker_lookup([record])
+        row = failure_record_to_row(record, source_kind="markers", marker_lookup=lookup)
+
+        self.assertIn("c:\\source\\movies\\movie (2024)\\movie.mkv", lookup)
+        self.assertTrue(row["clear_error"]["available"])
+        self.assertEqual(row["clear_error"]["marker_path"], str(Path("C:/State/Failures/Markers/one.json")))
+        self.assertEqual(row["clear_error"]["marker_paths"], [str(Path("C:/State/Failures/Markers/one.json"))])
 
     def test_failure_preview_fields_count_visible_classifications_and_truncation(self) -> None:
         records = [
@@ -200,6 +220,8 @@ class FailureFacadePolicyTests(unittest.TestCase):
         self.assertTrue(preview["retry_state"]["rows"][0]["retry_allowed"])
         self.assertEqual(preview["rows"][0]["retry_status_state"], "retrying")
         self.assertIn("next backend queue pass", preview["rows"][0]["retry_safe_next_action"])
+        self.assertTrue(preview["rows"][0]["clear_error"]["available"])
+        self.assertEqual(preview["rows"][0]["clear_error"]["marker_paths"], [str(Path("C:/Reports/failure.json"))])
 
 
 if __name__ == "__main__":

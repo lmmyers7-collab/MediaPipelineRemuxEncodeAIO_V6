@@ -3,9 +3,9 @@ file: app/contracts/source_media_adapters.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: 8de6cd48a5d669f4b5fae9376c03e9736678d0f3124c80a56d2ba1d758ffc1d3
+sha256: 3922d0a4b09aa826d467d02de54bdc17080eacb2932cc87679f55ed37998b8ac
 ---
 # `app/contracts/source_media_adapters.py`
 

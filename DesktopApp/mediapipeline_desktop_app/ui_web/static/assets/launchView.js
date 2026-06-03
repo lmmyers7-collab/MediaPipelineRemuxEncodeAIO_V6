@@ -41,6 +41,8 @@
   const LAUNCH_TAB_STORAGE_KEY = "mediapipeline-launch-tab";
   let launchCommandInFlight = false;
   let controlCommandInFlight = false;
+  let pipelineFileBrowseInFlight = false;
+  let pipelineStartScope = "queue";
   let selectedLaunchSettingsRiskKey = "";
   let selectedLaunchPolicyBoundaryKey = "";
   let selectedLaunchSettingsIntentKey = "";
@@ -48,6 +50,9 @@
   let selectedLaunchStartDecisionKey = "";
   let selectedLaunchRealMediaProofKey = "";
   let selectedLaunchSampleExecutionKey = "";
+  let selectedLaunchAuditLogRowKey = "";
+  let lastLaunchAuditLogRows = [];
+  let lastLaunchAuditLogEmptyMessage = "No audit rows loaded.";
   let lastLaunchRealMediaProofContext = {};
   let lastLaunchCommandState = { snapshot: null, closeReadiness: null };
 
@@ -215,6 +220,106 @@
     setText("home-control-message", message);
   }
 
+  function setPipelineSingleFileBrowseStatus(message) {
+    setText("pipeline-single-file-browse-status", message);
+  }
+
+  function setControllerStatusText(id, text, state = "") {
+    setText(id, text);
+    const element = byId(id);
+    if (!element) return;
+    if (state) element.dataset.state = state;
+    else delete element.dataset.state;
+  }
+
+  function pipelineSingleFileValue() {
+    return String(byId("pipeline-start-single-file")?.value || "").trim();
+  }
+
+  function commandHistoryEntries() {
+    if (typeof window.getCommandHistory === "function") return window.getCommandHistory();
+    if (typeof window.mediaPipelineCommandHistory?.getCommandHistory === "function") return window.mediaPipelineCommandHistory.getCommandHistory();
+    return [];
+  }
+
+  function latestCommandEntry(predicate) {
+    const history = commandHistoryEntries();
+    return Array.isArray(history) ? history.find(predicate) || null : null;
+  }
+
+  function commandEntryState(entry) {
+    if (!entry) return "";
+    const severity = String(entry.severity || entry.result || "").toLowerCase();
+    if (entry.ok === true && !["warning", "error", "blocked"].some((token) => severity.includes(token))) return "ok";
+    if (severity.includes("warning")) return "warning";
+    if (severity.includes("error") || severity.includes("blocked") || entry.ok === false) return "blocked";
+    return "review";
+  }
+
+  function commandEntrySummary(entry, emptyText) {
+    if (!entry) return emptyText;
+    const message = String(entry.message || entry.command || "").replace(/\s+/g, " ").trim();
+    const prefix = entry.at ? `${entry.at} - ` : "";
+    return `${prefix}${message || entry.command || "Command recorded."}`.slice(0, 220);
+  }
+
+  function pipelineControllerState(snapshot, closeReadiness, active, stuck) {
+    if (stuck) return "stuck";
+    if (active) return "active";
+    const state = String(snapshot?.pipeline_state || closeReadiness?.state || "idle").trim().toLowerCase();
+    if (["failed", "blocked", "error"].includes(state)) return "blocked";
+    if (["completed", "idle", ""].includes(state)) return "idle";
+    return "review";
+  }
+
+  function pipelineControllerStageSummary(snapshot, closeReadiness, active, stuck) {
+    const progress = snapshot?.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
+    const stage = String(progress.CurrentStage || progress.current_stage || "").trim();
+    const status = String(progress.Status || progress.status || "").trim();
+    if (stuck) return stage ? `Progress reports ${stage}; no matching active work is confirmed.` : "Progress appears stuck; review Diagnostics before forcing stop.";
+    if (active) return [stage ? `Stage: ${stage}` : "Backend work is active.", status].filter(Boolean).join(" - ");
+    if (closeReadiness?.reason) return `Close-readiness: ${closeReadiness.reason}`;
+    return "No active backend work.";
+  }
+
+  function renderPipelineControllerStatus(
+    snapshot = lastLaunchCommandState.snapshot,
+    closeReadiness = lastLaunchCommandState.closeReadiness,
+    active = launchPipelineIsActive(snapshot, closeReadiness),
+    stuck = pipelineProgressIsStuck(snapshot)
+  ) {
+    const state = pipelineControllerState(snapshot, closeReadiness, active, stuck);
+    const panel = document.querySelector(".pipeline-controller-panel");
+    if (panel) panel.dataset.pipelineControllerState = state;
+    const controls = document.querySelector(".pipeline-controller-controls");
+    if (controls) controls.dataset.liveState = stuck ? "stuck" : active ? "active" : "idle";
+
+    setControllerStatusText("pipeline-controller-backend-status", snapshot ? "Started" : "Snapshot pending", snapshot ? "ok" : "warning");
+    setText("pipeline-controller-backend-detail", snapshot ? "Backend snapshot loaded." : "Waiting for backend snapshot refresh.");
+
+    const pipelineLabel = stuck ? "Review" : active ? "Active" : String(snapshot?.pipeline_state || closeReadiness?.state || "idle");
+    setControllerStatusText("pipeline-controller-pipeline-state", pipelineLabel, state);
+    setText("pipeline-controller-stage-summary", pipelineControllerStageSummary(snapshot, closeReadiness, active, stuck));
+
+    const controlLabel = stuck ? "Emergency available" : active ? "Controls active" : "Idle";
+    setControllerStatusText("pipeline-live-control-state", stuck ? "Stuck" : active ? "Active" : "Idle", state);
+    setText("pipeline-controller-control-summary", stuck ? "Stuck progress can be force-stopped after review." : active ? "Pause, rescan, or graceful stop can be submitted." : "No active backend work; controls are disabled.");
+    setText("pipeline-live-control-summary", stuck ? "Progress is non-idle without confirmed active work. Use Force Stop only after checking Diagnostics." : active ? "Backend work is active. Prefer Stop After Current before emergency control." : "No active backend work.");
+    const controlSummary = byId("control-readiness-status");
+    if (controlSummary && !controlSummary.textContent.trim()) controlSummary.textContent = controlLabel;
+
+    const latestStart = latestCommandEntry((entry) => String(entry?.command || "").toLowerCase() === "pipeline.start");
+    const launchStatus = String(byId("pipeline-launch-status")?.textContent || "Idle").trim() || "Idle";
+    const launchStatusState = latestStart ? commandEntryState(latestStart) : (launchStatus.toLowerCase() === "idle" ? "idle" : "review");
+    setControllerStatusText("pipeline-controller-last-start-status", latestStart ? (entryResultLabel(latestStart) || launchStatus) : launchStatus, launchStatusState);
+    setText("pipeline-controller-last-start-summary", commandEntrySummary(latestStart, "No launch command in recent history."));
+  }
+
+  function entryResultLabel(entry) {
+    if (!entry) return "";
+    return String(entry.result || (entry.ok ? "ok" : entry.severity || "") || "").trim();
+  }
+
   function setStartupBanner(text) {
     document.querySelectorAll(".pipeline-startup-banner").forEach((el) => {
       el.textContent = text;
@@ -235,6 +340,7 @@
     lastLaunchCommandState = { snapshot: snapshot || null, closeReadiness: closeReadiness || null };
     const active = launchPipelineIsActive(snapshot, closeReadiness);
     const stuck = pipelineProgressIsStuck(snapshot);
+    syncPipelineScopeControls();
     if (active) clearStartupBanner();
     const startReason = active
       ? "Disabled while backend close-readiness reports active work. Stop or wait for idle before starting another pipeline/audit/rerun command."
@@ -248,6 +354,22 @@
         launchCommandInFlight ? "A launch command is already in progress." : (active ? startReason : (gate.reason || startReason))
       );
     });
+
+    const singleFile = String(byId("pipeline-start-single-file")?.value || "").trim();
+    setButtonDisabledWithReason(
+      byId("pipeline-single-file-browse-button"),
+      pipelineFileBrowseInFlight || launchCommandInFlight || active,
+      pipelineFileBrowseInFlight
+        ? "Windows file browser is already open."
+        : (launchCommandInFlight || active ? startReason : "Open the backend-owned Windows file browser for single-file staging.")
+    );
+    setButtonDisabledWithReason(
+      byId("pipeline-single-file-clear-button"),
+      pipelineFileBrowseInFlight || launchCommandInFlight || active || !singleFile,
+      pipelineFileBrowseInFlight
+        ? "Windows file browser is already open."
+        : (singleFile ? "Clear the staged single-file path." : "No single-file path is staged.")
+    );
 
     const pauseLabel = active ? (launchPauseRequested(snapshot) ? "Resume" : "Pause") : "Pause / Resume";
     document.querySelectorAll('[data-control-action="pause"]').forEach((button) => {
@@ -271,15 +393,22 @@
       setButtonDisabledWithReason(button, disabled, controlCommandInFlight ? busyReason : (effective ? activeReason : idleReason));
       if (action === "pause") setButtonClass(button, active ? "primary-button" : "secondary-button");
       if (action === "rescan") setButtonClass(button, "secondary-button");
-      if (action === "stop") setButtonClass(button, active ? "primary-button" : "secondary-button");
+      if (action === "stop") setButtonClass(button, active ? "danger-button pipeline-stop-button" : "secondary-button pipeline-stop-button");
       if (action === "kill") {
-        setButtonClass(button, button.classList.contains("topbar-emergency-control") ? "danger-button emergency-button topbar-emergency-control" : "danger-button emergency-button");
+        setButtonClass(button, button.classList.contains("topbar-emergency-control") ? "danger-button emergency-button topbar-emergency-control" : "danger-button emergency-button pipeline-emergency-button");
         if (button.classList.contains("topbar-emergency-control")) {
           button.hidden = !killable;
           button.setAttribute("aria-hidden", killable ? "false" : "true");
+        } else {
+          const emergency = button.closest?.(".pipeline-controller-emergency");
+          if (emergency) {
+            emergency.hidden = !killable;
+            emergency.setAttribute("aria-hidden", killable ? "false" : "true");
+          }
         }
       }
     });
+    renderPipelineControllerStatus(snapshot, closeReadiness, active, stuck);
   }
 
   function setLaunchCommandBusy(isBusy) {
@@ -337,6 +466,69 @@
       drain_pending_pushes: "Publish Parked",
     };
     return labels[mode] || mode || "Pipeline";
+  }
+
+  function pipelineModeStartLabel(mode) {
+    return `Start ${pipelineModeLabel(mode)}`;
+  }
+
+  function syncPipelineScopeControls() {
+    const singleFile = pipelineSingleFileValue();
+    if (singleFile) pipelineStartScope = "single_file";
+    const selectedScope = pipelineStartScope === "single_file" ? "single_file" : "queue";
+    document.querySelectorAll("[data-pipeline-scope-preset]").forEach((button) => {
+      const active = String(button.dataset.pipelineScopePreset || "") === selectedScope;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    const singleFileContainer = document.querySelector("[data-pipeline-single-file-container]");
+    if (singleFileContainer) {
+      const show = selectedScope === "single_file" || Boolean(singleFile);
+      singleFileContainer.hidden = !show;
+      singleFileContainer.setAttribute("aria-hidden", show ? "false" : "true");
+    }
+    const status = byId("pipeline-single-file-browse-status");
+    if (status && !singleFile && selectedScope === "queue" && !pipelineFileBrowseInFlight) {
+      status.textContent = "Queue scope selected. Use Single File to stage one path.";
+    }
+  }
+
+  function selectPipelineScopePreset(scope) {
+    const selectedScope = String(scope || "").trim() === "single_file" ? "single_file" : "queue";
+    pipelineStartScope = selectedScope;
+    if (selectedScope === "queue") {
+      const input = byId("pipeline-start-single-file");
+      if (input && input.value) {
+        input.value = "";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+    }
+    syncPipelineScopeControls();
+    renderAllLaunchPreflights();
+    updateLaunchCommandButtonStates();
+  }
+
+  function syncPipelineModeControls() {
+    const selectedMode = byId("pipeline-start-mode")?.value || "validate";
+    document.querySelectorAll("[data-pipeline-mode-preset]").forEach((button) => {
+      const active = String(button.dataset.pipelineModePreset || "") === selectedMode;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    const startButton = byId("pipeline-start-button");
+    if (startButton && !launchCommandInFlight) {
+      startButton.textContent = pipelineModeStartLabel(selectedMode);
+    }
+    syncPipelineScopeControls();
+  }
+
+  function selectPipelineModePreset(mode) {
+    const selectedMode = String(mode || "").trim();
+    const modeSelect = byId("pipeline-start-mode");
+    if (!selectedMode || !modeSelect) return;
+    modeSelect.value = selectedMode;
+    syncPipelineModeControls();
+    modeSelect.dispatchEvent(new Event("change", { bubbles: true }));
   }
 
   function launchCommandStatusLabel(result, successLabel = "Started") {
@@ -399,19 +591,19 @@
     const success = payload.ok === true && !["warning", "error", "blocked"].includes(issue);
     const lines = [
       "",
-      "Checklist correlation:",
+      "Command evidence snapshot:",
       `Status: ${status}`,
     ];
     if (success) {
-      lines.push("Backend command accepted. Rows below are cached advisory evidence; they did not block this submitted command.");
+      lines.push("Backend command accepted. Rows below are cached evidence only; they did not block or authorize this submitted command.");
     }
     if (!rows.length) {
-      lines.push("- No cached Backend Preflight, Launch intent, or Queue checklist rows were available.");
+      lines.push("- No cached Backend Preflight, Launch intent, or Queue evidence rows were available.");
     } else {
       rows.slice(0, 8).forEach((row) => {
         lines.push(`- ${row.source} / ${row.checkpoint}: ${row.posture}; ${row.evidence || "no evidence"}; ${row.action || "review before retry"}`);
       });
-      if (rows.length > 8) lines.push(`- ${rows.length - 8} more correlated checklist/preflight row(s) omitted.`);
+      if (rows.length > 8) lines.push(`- ${rows.length - 8} more correlated evidence row(s) omitted.`);
     }
     if (typeof launchCommandDiagnosticsActions === "function") {
       const actions = launchCommandDiagnosticsActions(entry);
@@ -426,7 +618,7 @@
         lines.push(`Open-next targets: ${openTargets}`);
       }
     }
-    lines.push("Correlation is explanatory only; backend start routes remain authoritative at submission time.");
+    lines.push("Evidence is explanatory only; backend start routes remain authoritative at submission time.");
     return lines;
   }
 
@@ -473,6 +665,132 @@
     if (detailId) {
       setText(detailId, formatLaunchCommandDetail(result, request));
     }
+  }
+
+  function launchAuditLogRowKey(item) {
+    return [
+      item?.source_csv || "",
+      item?.path || "",
+      item?.relative_path || "",
+      item?.primary_issue_code || "",
+      item?.priority_score || "",
+    ].join("\u001f").toLowerCase();
+  }
+
+  function launchAuditLogEmptyStateMessage(audit, rows) {
+    if (audit?.error) {
+      return `Audit log unavailable: ${audit.error}. Run a fresh audit from this panel or inspect Diagnostics > Audit Reports.`;
+    }
+    const warnings = Array.isArray(audit?.warnings) ? audit.warnings.filter(Boolean) : [];
+    if (warnings.length) return `Audit log loaded with warning: ${warnings.join(" | ")}`;
+    if (!rows.length) return "No audit rows found. Run Audit from this panel, or use Reports priority mode if you only need priority rows.";
+    return "No audit rows available.";
+  }
+
+  function getSelectedLaunchAuditLogRow() {
+    if (!selectedLaunchAuditLogRowKey) return null;
+    return lastLaunchAuditLogRows.find((row) => launchAuditLogRowKey(row) === selectedLaunchAuditLogRowKey) || null;
+  }
+
+  function renderLaunchAuditLogDetail(item) {
+    if (!item) {
+      setText("audit-launch-log-detail", "No audit row selected. Select a row to inspect priority score, issue bucket, suggested action, and source CSV.");
+      return;
+    }
+    const detail = [
+      "Launch audit log selected row:",
+      `Title: ${item.lookup_title || ""}`,
+      `Media: ${item.media_type || ""}`,
+      `Bucket: ${item.effective_bucket || ""}`,
+      `Priority: ${item.priority_fix_level || ""} (${item.priority_score || 0})`,
+      `Issue: ${item.primary_issue_code || ""}`,
+      `Suggested action: ${item.primary_suggested_action || ""}`,
+      `Messages: ${item.issue_messages || ""}`,
+      `Path: ${item.path || ""}`,
+      `Relative: ${item.relative_path || ""}`,
+      `Source CSV: ${item.source_csv || ""}`,
+      "",
+      "Guardrail: this Launch copy of the audit log is read-only evidence. It cannot rerun, publish, rename, delete, save settings, or touch media.",
+    ];
+    setText("audit-launch-log-detail", detail.join("\n"));
+  }
+
+  function selectLaunchAuditLogRow(item) {
+    selectedLaunchAuditLogRowKey = launchAuditLogRowKey(item);
+    renderLaunchAuditLogDetail(item || null);
+    renderLaunchAuditLogRows();
+  }
+
+  function launchAuditLogRowStatus(item) {
+    const bucket = String(item?.effective_bucket || "").toUpperCase();
+    const priority = String(item?.priority_fix_level || "").toUpperCase();
+    if (bucket === "REDOWNLOAD_CANDIDATE") return "blocked";
+    if (bucket === "RERUN_PIPELINE" || priority === "HIGH") return "warning";
+    if (bucket === "OK") return "match";
+    return "";
+  }
+
+  function renderLaunchAuditLogRows() {
+    setText("audit-launch-log-status", `${lastLaunchAuditLogRows.length} row${lastLaunchAuditLogRows.length === 1 ? "" : "s"}`);
+    const tbody = byId("audit-launch-log-rows");
+    if (!tbody) return;
+    if (!lastLaunchAuditLogRows.length) {
+      clearRows(tbody, 6, lastLaunchAuditLogEmptyMessage);
+      updateTableStatusLegend("audit-launch-log-table-legend", tbody, "Audit log rows");
+      return;
+    }
+    tbody.replaceChildren();
+    lastLaunchAuditLogRows.slice(0, 250).forEach((item) => {
+      const row = document.createElement("tr");
+      const key = launchAuditLogRowKey(item);
+      row.dataset.status = launchAuditLogRowStatus(item);
+      row.dataset.rowKey = key;
+      appendCells(row, [
+        item.priority_score || "",
+        item.priority_fix_level || "",
+        item.effective_bucket || "",
+        item.media_type || "",
+        item.lookup_title || item.relative_path || item.path || "",
+        item.primary_issue_code || item.issue_messages || item.primary_suggested_action || "",
+      ], ["num", null, null, null, null, null]);
+      if (typeof makeRowSelectable === "function") {
+        makeRowSelectable(row, () => selectLaunchAuditLogRow(item), {
+          selected: Boolean(key && key === selectedLaunchAuditLogRowKey),
+          label: `Launch audit log row ${item.lookup_title || item.relative_path || item.path || ""}`,
+        });
+      } else {
+        row.addEventListener("click", () => selectLaunchAuditLogRow(item));
+      }
+      tbody.appendChild(row);
+    });
+    updateTableStatusLegend("audit-launch-log-table-legend", tbody, "Audit log rows");
+  }
+
+  function renderLaunchAuditLog(audit) {
+    const payload = audit && typeof audit === "object" ? audit : {};
+    const rows = Array.isArray(payload.rows) ? payload.rows : [];
+    lastLaunchAuditLogRows = rows;
+    if (selectedLaunchAuditLogRowKey && !rows.some((row) => launchAuditLogRowKey(row) === selectedLaunchAuditLogRowKey)) {
+      selectedLaunchAuditLogRowKey = "";
+    }
+    lastLaunchAuditLogEmptyMessage = launchAuditLogEmptyStateMessage(payload, rows);
+    const warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
+    const summary = [
+      payload.source ? `Source: ${payload.source}` : "",
+      `Priority CSV mode: ${payload.priority_only ? "yes" : "no"}`,
+      `Rows: ${payload.count || rows.length || 0}`,
+      `High priority: ${payload.high_priority_count || 0}`,
+      `Rerun: ${payload.rerun_count || 0}`,
+      `Redownload: ${payload.redownload_count || 0}`,
+      `Review: ${payload.review_count || 0}`,
+      `Duplicate groups: ${payload.duplicate_group_count || 0}`,
+      ...warnings,
+      !rows.length ? lastLaunchAuditLogEmptyMessage : "",
+      "Mutation guardrail: this is the same read-only audit-results evidence shown in Reports. Audit launch and report writing remain backend-owned.",
+    ].filter(Boolean);
+    setText("audit-launch-log-summary", summary.join("\n") || "No audit log loaded.");
+    renderLaunchAuditLogDetail(getSelectedLaunchAuditLogRow());
+    renderLaunchAuditLogRows();
   }
 
   const launchRiskState = {
@@ -602,6 +920,26 @@
   let isPipelineControlCommand = function (entry) { return String(entry?.command || "").toLowerCase().startsWith("pipeline.control."); };
   let pipelineControlHistoryLine = function (entry) { return String(entry?.message || entry?.command || "pipeline.control"); };
   let renderPipelineControlHistory = launchPreflightFallbackRender;
+
+  function pipelineControlHistoryEntries(history = []) {
+    return Array.isArray(history) ? history.filter(isPipelineControlCommand) : [];
+  }
+
+  function renderPipelineControlLatest(history = []) {
+    const entries = pipelineControlHistoryEntries(history);
+    const latest = entries[0] || null;
+    if (!latest) {
+      setText("control-latest", "No pipeline control command in recent history.");
+      return;
+    }
+    setText("control-latest", pipelineControlHistoryLine(latest));
+  }
+
+  function renderPipelineControlJournal(history = [], renderFullHistory = null) {
+    renderPipelineControlLatest(history);
+    if (typeof renderFullHistory === "function") renderFullHistory(history);
+    renderPipelineControllerStatus();
+  }
 
   const launchScopeState = {
     get selectedLaunchScopeReconciliationKey() {
@@ -871,16 +1209,27 @@
   renderAllLaunchPreflights = typeof launchPreflight.renderAllLaunchPreflights === "function" ? launchPreflight.renderAllLaunchPreflights : renderAllLaunchPreflights;
   isPipelineControlCommand = typeof launchPreflight.isPipelineControlCommand === "function" ? launchPreflight.isPipelineControlCommand : isPipelineControlCommand;
   pipelineControlHistoryLine = typeof launchPreflight.pipelineControlHistoryLine === "function" ? launchPreflight.pipelineControlHistoryLine : pipelineControlHistoryLine;
-  renderPipelineControlHistory = typeof launchPreflight.renderPipelineControlHistory === "function" ? launchPreflight.renderPipelineControlHistory : renderPipelineControlHistory;
+  {
+    const renderPipelineControlFullHistory = typeof launchPreflight.renderPipelineControlHistory === "function" ? launchPreflight.renderPipelineControlHistory : renderPipelineControlHistory;
+    renderPipelineControlHistory = (history = []) => renderPipelineControlJournal(history, renderPipelineControlFullHistory);
+  }
 
   function initLaunchViewEvents() {
     initLaunchTabNav();
     const refreshLaunchControlsForInput = () => {
+      syncPipelineModeControls();
       renderAllLaunchPreflights();
       updateLaunchCommandButtonStates();
     };
+    document.querySelectorAll("[data-pipeline-mode-preset]").forEach((button) => {
+      button.addEventListener("click", () => selectPipelineModePreset(button.dataset.pipelineModePreset || ""));
+    });
+    document.querySelectorAll("[data-pipeline-scope-preset]").forEach((button) => {
+      button.addEventListener("click", () => selectPipelineScopePreset(button.dataset.pipelineScopePreset || ""));
+    });
     [
       "pipeline-start-mode",
+      "pipeline-start-single-file",
       "pipeline-start-sleep",
       "pipeline-start-schedule-override",
       "pipeline-start-show-config",
@@ -903,7 +1252,16 @@
         updateLaunchCommandButtonStates();
       });
     }
+    const pipelineFileBrowseButton = byId("pipeline-single-file-browse-button");
+    if (pipelineFileBrowseButton) {
+      pipelineFileBrowseButton.addEventListener("click", () => browsePipelineSingleFile());
+    }
+    const pipelineFileClearButton = byId("pipeline-single-file-clear-button");
+    if (pipelineFileClearButton) {
+      pipelineFileClearButton.addEventListener("click", () => clearPipelineSingleFile());
+    }
     renderAllLaunchPreflights();
+    syncPipelineModeControls();
     updateLaunchCommandButtonStates();
   }
 
@@ -955,6 +1313,77 @@
     }
   }
 
+  async function browsePipelineSingleFile() {
+    if (pipelineFileBrowseInFlight || launchCommandInFlight) {
+      setPipelineSingleFileBrowseStatus("Single-file browser is busy. Wait for the current Launch command to finish.");
+      return;
+    }
+    if (launchPipelineIsActive()) {
+      setPipelineSingleFileBrowseStatus("Single-file browser is disabled while backend work is active.");
+      return;
+    }
+    const input = byId("pipeline-start-single-file");
+    const initialPath = String(input?.value || "").trim();
+    const request = { selection_mode: "files", initial_path: initialPath };
+    pipelineStartScope = "single_file";
+    pipelineFileBrowseInFlight = true;
+    syncPipelineScopeControls();
+    updateLaunchCommandButtonStates();
+    setPipelineSingleFileBrowseStatus("Opening Windows file browser...");
+    try {
+      const result = await apiPost("/api/pipeline/browse-file", request);
+      appendCommandResult(result);
+      const data = result.data && typeof result.data === "object" ? result.data : {};
+      const selectedPath = String(data.selected_path || "").trim();
+      if (!result.ok) {
+        setPipelineSingleFileBrowseStatus(result.message || "Windows file browser failed.");
+        return;
+      }
+      if (data.canceled || !selectedPath) {
+        setPipelineSingleFileBrowseStatus(result.message || "Windows file browser canceled. No Launch field was changed.");
+        return;
+      }
+      if (input) {
+        input.value = selectedPath;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      pipelineStartScope = "single_file";
+      syncPipelineScopeControls();
+      setPipelineSingleFileBrowseStatus(`Single file staged: ${selectedPath}`);
+      renderAllLaunchPreflights();
+      updateLaunchCommandButtonStates();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const routeMissing = String(message || "").trim().toLowerCase() === "not found";
+      const displayMessage = routeMissing
+        ? "Pipeline single-file browser route is not available in the running backend. Restart the Local API/Tauri shell, then open Launch again."
+        : `Windows file browser failed:\n${message}`;
+      appendCommandResult({
+        command: "pipeline.browse_file",
+        ok: false,
+        severity: "error",
+        message: displayMessage,
+      });
+      setPipelineSingleFileBrowseStatus(displayMessage);
+    } finally {
+      pipelineFileBrowseInFlight = false;
+      updateLaunchCommandButtonStates();
+    }
+  }
+
+  function clearPipelineSingleFile() {
+    const input = byId("pipeline-start-single-file");
+    if (input) {
+      input.value = "";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    pipelineStartScope = "queue";
+    syncPipelineScopeControls();
+    setPipelineSingleFileBrowseStatus("Single-file staging cleared.");
+    renderAllLaunchPreflights();
+    updateLaunchCommandButtonStates();
+  }
+
   function collectPipelineStartRequest() {
     const rawSleep = Number(byId("pipeline-start-sleep")?.value || 30);
     const mode = byId("pipeline-start-mode")?.value || "validate";
@@ -1002,16 +1431,19 @@
       const result = await apiPost("/api/pipeline/start", request);
       appendCommandResult(result);
       renderLaunchCommandResult("pipeline-launch-status", "pipeline-launch-detail", result, request);
-      if ((result.refresh_hint || "") === "snapshot") {
-        await refreshAll();
-      }
       if (result.ok) {
         const pidMatch = String(result.message || "").match(/\bPID\s*(\d+)\b/i);
         const pid = pidMatch ? pidMatch[1] : "";
+        window.setTopbarPendingLaunch?.({ pid });
         setStartupBanner(pid
           ? `Pipeline starting — PID ${pid}. Waiting for first status update…`
           : "Pipeline starting. Waiting for first status update…"
         );
+      }
+      if ((result.refresh_hint || "") === "snapshot") {
+        await refreshAll();
+      }
+      if (result.ok) {
         window.setTimeout(refreshAll, 2000);
         window.setTimeout(refreshAll, 6000);
         window.setTimeout(refreshAll, 12000);
@@ -1031,8 +1463,8 @@
         message,
       }, request);
     } finally {
-      if (startBtn) startBtn.textContent = "Start Pipeline";
       setLaunchCommandBusy(false);
+      syncPipelineModeControls();
     }
   }
 
@@ -1259,10 +1691,15 @@
     updateLaunchCommandButtonStates,
     rejectLaunchCommandWhileBusy,
     collectPipelineStartRequest,
+    syncPipelineModeControls,
+    selectPipelineModePreset,
+    browsePipelineSingleFile,
+    clearPipelineSingleFile,
     startPipelineFromForm,
     startPendingPublishDrain,
     collectAuditStartRequest,
     startAuditFromForm,
+    renderLaunchAuditLog,
     collectRerunStartRequest,
     startRerunFromForm,
     pipelineModeLabel,
@@ -1356,9 +1793,14 @@
   window.launchReadinessStatus = launchReadinessStatus;
   window.launchReadinessLines = launchReadinessLines;
   window.renderLaunchReadiness = renderLaunchReadiness;
+  window.syncPipelineModeControls = syncPipelineModeControls;
+  window.selectPipelineModePreset = selectPipelineModePreset;
+  window.browsePipelineSingleFile = browsePipelineSingleFile;
+  window.clearPipelineSingleFile = clearPipelineSingleFile;
   window.startPipelineFromForm = startPipelineFromForm;
   window.collectAuditStartRequest = collectAuditStartRequest;
   window.startAuditFromForm = startAuditFromForm;
+  window.renderLaunchAuditLog = renderLaunchAuditLog;
   window.collectRerunStartRequest = collectRerunStartRequest;
   window.startRerunFromForm = startRerunFromForm;
   window.launchSettingsWorkspace = launchSettingsWorkspace;

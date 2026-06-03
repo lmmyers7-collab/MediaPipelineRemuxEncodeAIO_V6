@@ -1,36 +1,25 @@
 /* global THEME_STORAGE_KEY, _layoutRenderDrawer, backendShutdownInFlight, commandHistoryCompactEvidenceLine, getCommandHistory, hasMaintenanceLoaded, homeAtAGlancePercent, lastCloseReadiness, lastSnapshot, lastStartupProgress, lastTauriBackendLifecycleEvent, refreshAll, refreshMaintenance, scheduleDisplayValue */
 (function () {
+  const TOPBAR_PENDING_LAUNCH_TTL_MS = 120000;
+  const TOPBAR_IDLE_PENDING_GRACE_MS = 45000;
+  const COMPLETED_TAB_STORAGE_KEY = "mediapipeline-completed-tab";
+  let topbarPendingLaunch = null;
+
   function topbarPathLeaf(value) {
     const text = formatProgressValue(value || "").trim();
     if (!text) return "";
     return text.split(/[\\/]/).filter(Boolean).pop() || text;
   }
 
-  function topbarCleanCurrentName(progress = {}) {
+  function topbarCleanCurrentName(progress = {}, currentWork = {}) {
     return formatProgressValue(
-      progress.CurrentFileDisplay
+      currentWork.item_label
         || progress.CurrentDisplayName
         || progress.CleanDisplayName
         || progress.CleanedName
+        || progress.CurrentFileDisplay
         || "",
     ).trim();
-  }
-
-  function topbarOriginalCurrentName(progress = {}) {
-    const candidates = [
-      progress.CurrentFilePath,
-      progress.CurrentFile,
-      progress.InputFile,
-      progress.SourceFile,
-      progress.SourcePath,
-      progress.InputPath,
-      progress.OutputPath,
-    ];
-    for (const candidate of candidates) {
-      const leaf = topbarPathLeaf(candidate);
-      if (leaf) return leaf;
-    }
-    return "";
   }
 
   function topbarStageContext(progress = {}) {
@@ -44,30 +33,179 @@
     ].filter(Boolean).join(" · ");
   }
 
+  function topbarCurrentWorkMeta(currentWork = {}, progress = {}) {
+    const library = formatProgressValue(currentWork.library_label || "").trim();
+    const queue = formatProgressValue(currentWork.queue_label || "").trim();
+    const queuePosition = formatProgressValue(currentWork.queue_position_label || "").trim();
+    const route = formatProgressValue(currentWork.route_label || "").trim();
+    const percent = formatProgressValue(currentWork.percent_label || "").trim() || homeAtAGlancePercent(progress.CurrentStagePercent);
+    const parts = [];
+    if (library) parts.push(library);
+    if (queue && queue.toLowerCase() !== library.toLowerCase()) parts.push(queue);
+    if (queuePosition) parts.push(queuePosition);
+    if (route) parts.push(route);
+    if (percent) parts.push(percent);
+    return parts.join(" · ");
+  }
+
   function renderTopbarActivity(snapshot = {}) {
     const node = byId("activity");
     if (!node) return;
     const payload = snapshot && typeof snapshot === "object" ? snapshot : {};
     const progress = payload.progress && typeof payload.progress === "object" ? payload.progress : {};
+    const currentWork = payload.current_work && typeof payload.current_work === "object" ? payload.current_work : {};
     const activity = formatProgressValue(payload.activity || "No active work reported.").trim();
-    const cleanName = topbarCleanCurrentName(progress);
-    const originalName = topbarOriginalCurrentName(progress);
-    const stageContext = topbarStageContext(progress);
-    const primaryText = cleanName
-      ? [cleanName, stageContext].filter(Boolean).join(" | ")
-      : activity || "No active work reported.";
-    const shouldShowOriginal = Boolean(originalName && (!cleanName || originalName !== cleanName));
+    const cleanName = topbarCleanCurrentName(progress, currentWork);
+    const phaseLabel = formatProgressValue(currentWork.phase_label || "").trim();
+    const metaText = topbarCurrentWorkMeta(currentWork, progress) || topbarStageContext(progress);
+    const primaryText = cleanName || activity || "No active work reported.";
   
     const primary = document.createElement("span");
     primary.className = "activity-primary";
     primary.textContent = primaryText;
     primary.title = primaryText;
-    const original = document.createElement("span");
-    original.className = "activity-original";
-    original.textContent = shouldShowOriginal ? `Original: ${originalName}` : "";
-    if (shouldShowOriginal) original.title = originalName;
-    node.replaceChildren(primary, original);
-    node.title = [primaryText, shouldShowOriginal ? `Original: ${originalName}` : ""].filter(Boolean).join("\n");
+    const meta = document.createElement("span");
+    meta.className = "activity-meta";
+    meta.textContent = metaText;
+    if (metaText) meta.title = metaText;
+    node.replaceChildren(primary, meta);
+    node.title = [phaseLabel, primaryText, metaText].filter(Boolean).join("\n");
+  }
+
+  function topbarTickerCompactText(value, maxLength = 96) {
+    const text = formatProgressValue(value || "").replace(/\s+/g, " ").trim();
+    if (!text) return "";
+    return text.length > maxLength ? `${text.slice(0, Math.max(0, maxLength - 1))}…` : text;
+  }
+
+  function topbarEventData(event = {}) {
+    return event && typeof event.data === "object" && event.data && !Array.isArray(event.data) ? event.data : {};
+  }
+
+  function topbarEventTimestampMs(event = {}) {
+    const value = event.timestamp || event.created_at || event.recorded_at || event.time || "";
+    if (!value) return null;
+    const parsed = Date.parse(String(value));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  function topbarLatestEvent(events) {
+    const items = Array.isArray(events) ? events.filter(Boolean) : [];
+    if (!items.length) return null;
+    let latest = items[items.length - 1];
+    let latestTimestamp = topbarEventTimestampMs(latest);
+    items.forEach((item) => {
+      const timestamp = topbarEventTimestampMs(item);
+      if (timestamp !== null && (latestTimestamp === null || timestamp >= latestTimestamp)) {
+        latest = item;
+        latestTimestamp = timestamp;
+      }
+    });
+    return latest;
+  }
+
+  function topbarEventKey(event) {
+    if (!event || typeof event !== "object") return "";
+    const data = topbarEventData(event);
+    return [
+      event.event_id,
+      event.timestamp,
+      event.created_at,
+      event.event_type || event.type || event.kind,
+      event.stage,
+      event.route,
+      event.status,
+      event.source_path || data.source_path || data.local_file || data.input_file,
+    ].map((value) => String(value || "").trim()).join("|");
+  }
+
+  function topbarEventDisplayName(event = {}) {
+    const data = topbarEventData(event);
+    return topbarPathLeaf(
+      data.display_name
+        || data.current_file
+        || data.currentFile
+        || data.source_path
+        || data.local_file
+        || data.input_file
+        || event.source_path
+        || event.SourcePath
+        || "",
+    );
+  }
+
+  function topbarEventTickerLine(event) {
+    if (!event || typeof event !== "object") return "";
+    const type = topbarTickerCompactText(event.event_type || event.type || event.kind || "event", 48);
+    const stage = topbarTickerCompactText(event.stage || "", 44);
+    const route = topbarTickerCompactText(event.route || "", 44);
+    const status = topbarTickerCompactText(event.status || "", 44);
+    const display = topbarTickerCompactText(topbarEventDisplayName(event), 96);
+    const parts = [type, stage, route, status, display].filter(Boolean);
+    return parts.length ? `Latest event: ${parts.join(" · ")}` : "Latest event: backend event received";
+  }
+
+  function topbarPendingLaunchLine(pending) {
+    const pid = pending?.pid ? ` · PID ${pending.pid}` : "";
+    return `Latest event: pipeline.start accepted${pid} · waiting for backend event`;
+  }
+
+  function topbarPipelineState(snapshot = {}) {
+    return String(snapshot?.pipeline_state || snapshot?.progress?.Status || "").trim().toLowerCase();
+  }
+
+  function topbarPendingLaunchIsValid(snapshot = {}, latestEvent = null) {
+    if (!topbarPendingLaunch) return false;
+    const now = Date.now();
+    if (now > Number(topbarPendingLaunch.expiresAt || 0)) {
+      topbarPendingLaunch = null;
+      return false;
+    }
+    const latestKey = topbarEventKey(latestEvent);
+    if (latestKey && latestKey !== topbarPendingLaunch.baselineEventKey) {
+      topbarPendingLaunch = null;
+      return false;
+    }
+    const elapsed = now - Number(topbarPendingLaunch.acceptedAt || now);
+    if (elapsed > TOPBAR_IDLE_PENDING_GRACE_MS && topbarPipelineState(snapshot) === "idle") {
+      topbarPendingLaunch = null;
+      return false;
+    }
+    return true;
+  }
+
+  function renderTopbarEventTicker(snapshot = {}) {
+    const node = byId("topbar-event-ticker");
+    if (!node) return;
+    const payload = snapshot && typeof snapshot === "object" ? snapshot : {};
+    const events = Array.isArray(payload.recent_events) ? payload.recent_events : [];
+    const latestEvent = topbarLatestEvent(events);
+    let text = "";
+    let state = "empty";
+    if (topbarPendingLaunchIsValid(payload, latestEvent)) {
+      text = topbarPendingLaunchLine(topbarPendingLaunch);
+      state = "pending";
+    } else if (latestEvent) {
+      text = topbarEventTickerLine(latestEvent);
+      state = "event";
+    } else {
+      text = "Latest event: no backend pipeline events reported yet";
+    }
+    node.textContent = text;
+    node.title = text;
+    node.dataset.state = state;
+  }
+
+  function setTopbarPendingLaunch(payload = {}) {
+    const latestEvent = topbarLatestEvent(Array.isArray(lastSnapshot?.recent_events) ? lastSnapshot.recent_events : []);
+    const acceptedAt = Date.now();
+    topbarPendingLaunch = {
+      acceptedAt,
+      baselineEventKey: topbarEventKey(latestEvent),
+      expiresAt: acceptedAt + TOPBAR_PENDING_LAUNCH_TTL_MS,
+      pid: topbarTickerCompactText(payload.pid || "", 24),
+    };
+    renderTopbarEventTicker(lastSnapshot || {});
   }
 
   function formatCloseReadiness(closeReadiness) {
@@ -395,7 +533,8 @@
     const buttons = Array.from(document.querySelectorAll(".nav-button"));
     const panels = Array.from(document.querySelectorAll("[data-page-panel]"));
     const current = panels.find((panel) => panel.classList.contains("is-visible"))?.dataset.pagePanel || "";
-    buttons.forEach((item) => item.classList.toggle("is-active", item.dataset.page === normalized));
+    const activeNavPage = normalized === "pending" ? "completed" : normalized;
+    buttons.forEach((item) => item.classList.toggle("is-active", item.dataset.page === activeNavPage));
     panels.forEach((panel) => panel.classList.toggle("is-visible", panel.dataset.pagePanel === normalized));
     if (current && current !== normalized) resetWorkspaceScroll();
     updatePagePanelEmptyStates();
@@ -521,36 +660,47 @@
     activateTab(stored);
   }
 
+  function activateCompletedTab(tabId) {
+    const page = document.querySelector('[data-page-panel="completed"]');
+    if (!page) return false;
+    const btns = Array.from(page.querySelectorAll(".settings-tab-btn[data-completed-tab]"));
+    const panes = Array.from(page.querySelectorAll(".settings-tab-pane[data-completed-tab]"));
+    if (!btns.length || !panes.length) return false;
+
+    let normalized = String(tabId || "overview").trim() || "overview";
+    if (normalized === "evidence" || normalized === "proof") normalized = "advanced";
+    if (!btns.some((b) => b.dataset.completedTab === normalized)) normalized = "overview";
+    btns.forEach((b) => {
+      const active = b.dataset.completedTab === normalized;
+      b.setAttribute("aria-selected", String(active));
+    });
+    panes.forEach((p) => {
+      p.classList.toggle("is-active", p.dataset.completedTab === normalized);
+    });
+    try { localStorage.setItem(COMPLETED_TAB_STORAGE_KEY, normalized); } catch (_) {}
+    updatePagePanelEmptyStates();
+    return true;
+  }
+
+  function showCompletedOutputTab(tabId) {
+    activateCompletedTab(tabId);
+    showPage("completed");
+  }
+
   function initCompletedTabNav() {
-    const STORAGE_KEY = "mediapipeline-completed-tab";
     const page = document.querySelector('[data-page-panel="completed"]');
     if (!page) return;
     const btns = Array.from(page.querySelectorAll(".settings-tab-btn[data-completed-tab]"));
     const panes = Array.from(page.querySelectorAll(".settings-tab-pane[data-completed-tab]"));
     if (!btns.length || !panes.length) return;
   
-    function activateTab(tabId) {
-      btns.forEach((b) => {
-        const active = b.dataset.completedTab === tabId;
-        b.setAttribute("aria-selected", String(active));
-      });
-      panes.forEach((p) => {
-        p.classList.toggle("is-active", p.dataset.completedTab === tabId);
-      });
-      try { localStorage.setItem(STORAGE_KEY, tabId); } catch (_) {}
-      updatePagePanelEmptyStates();
-    }
-  
     btns.forEach((btn) => {
-      btn.addEventListener("click", () => activateTab(btn.dataset.completedTab));
+      btn.addEventListener("click", () => activateCompletedTab(btn.dataset.completedTab));
     });
   
     let stored = "overview";
-    try { stored = localStorage.getItem(STORAGE_KEY) || "overview"; } catch (_) {}
-    if (stored === "evidence" || stored === "proof") stored = "advanced";
-    // Validate stored value is a real tab, fall back to overview
-    if (!btns.some((b) => b.dataset.completedTab === stored)) stored = "overview";
-    activateTab(stored);
+    try { stored = localStorage.getItem(COMPLETED_TAB_STORAGE_KEY) || "overview"; } catch (_) {}
+    activateCompletedTab(stored);
   }
 
   function initNavigation() {
@@ -562,6 +712,12 @@
     });
     document.querySelectorAll("[data-cross-page-target]").forEach((button) => {
       button.addEventListener("click", () => showPage(button.dataset.crossPageTarget));
+    });
+    document.querySelectorAll("[data-output-completed-tab]").forEach((button) => {
+      button.addEventListener("click", () => showCompletedOutputTab(button.dataset.outputCompletedTab));
+    });
+    document.querySelectorAll("[data-output-page-target]").forEach((button) => {
+      button.addEventListener("click", () => showPage(button.dataset.outputPageTarget));
     });
     // S15: topbar health badges → click navigates to Diagnostics
     const refreshHealthBadge = byId("refresh-health");
@@ -979,6 +1135,9 @@
     renderBackendLifecycleHistory,
     topbarStageContext,
     renderTopbarActivity,
+    renderTopbarEventTicker,
+    setTopbarPendingLaunch,
+    topbarEventTickerLine,
     formatCloseReadiness,
     closeReadinessWatcherData,
     closeReadinessWatcherSummary,

@@ -72,6 +72,28 @@ def _browser_maintenance_reports_runner_source() -> str:
                   },
                 };
               }
+              if (String(path || "").includes("/api/failures/clear") && body?.confirm_clear === true) {
+                return {
+                  command: "failures.clear",
+                  ok: false,
+                  severity: "error",
+                  message: "maintenance/reports smoke captured row clear post without moving marker files.",
+                  errors: ["smoke harness blocks marker movement"],
+                  data: {
+                    scope: body.scope,
+                    dry_run: false,
+                    markers: 0,
+                    planned: [{ path: body?.marker_paths?.[0] || "" }],
+                    skipped: [],
+                    errors: ["smoke harness blocks marker movement"],
+                    manifest_path: "C:/State/Failures/ClearManifests/failure_clear.json",
+                    archive_dir: "C:/State/Failures/ClearManifests/ClearedMarkers/failure_clear",
+                    writes_failure_markers: false,
+                    touches_media: false,
+                    safe_next_action: "Smoke harness captured the payload only.",
+                  },
+                };
+              }
               return { ok: false, message: "maintenance/reports smoke blocks mutation posts" };
             };
             function byId(id) { return document.getElementById(id); }
@@ -332,9 +354,32 @@ def _browser_maintenance_reports_runner_source() -> str:
 
             window.showPage("reports");
             await waitFor(() => visiblePage("reports"), "Reports page visible");
-            if (document.querySelector('[data-reports-tab="overview"]')?.getAttribute("aria-selected") !== "true") {
-              throw new Error("Reports Overview tab was not selected by default.");
+            if (document.querySelector('[data-reports-tab="overview"]')) {
+              throw new Error("Reports Overview tab should not be present.");
             }
+            if (document.querySelector('[data-reports-tab="failures"]')?.getAttribute("aria-selected") !== "true") {
+              throw new Error("Reports Failures tab was not selected by default.");
+            }
+            [
+              "report-launch-handoff",
+              "report-launch-handoff-status",
+              "report-launch-handoff-action-status",
+              "report-go-rerun-button",
+              "report-go-audit-button",
+              "report-go-diagnostics-button",
+            ].forEach((id) => {
+              if (byId(id)) throw new Error("removed Reports pre-launch DOM node is still present: " + id);
+            });
+            [
+              "renderReportLaunchHandoff",
+              "reportGoToCsvRerun",
+              "reportGoToAuditLaunch",
+              "reportGoToDiagnostics",
+            ].forEach((name) => {
+              if (typeof window.mediaPipelineReportsView[name] === "function") {
+                throw new Error("removed Reports pre-launch helper is still exported: " + name);
+              }
+            });
             window.mediaPipelineReportsView.renderReports(
               {
                 latest_paths: {
@@ -388,6 +433,7 @@ def _browser_maintenance_reports_runner_source() -> str:
                 },
               }
             );
+            clickFirst('[data-reports-tab="audit"]', "Reports Audit tab");
             requireText("report-progress-summary", [
               "Audit status: writing-reports",
               "Report generation: 2 / 5 (write csv)",
@@ -421,7 +467,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               }],
             };
             window.mediaPipelineReportsView.renderFailurePreview(reportFailurePreview);
-            window.mediaPipelineReportsView.renderAuditPreview({
+            const reportAuditPreview = {
               source: "C:/Reports/audit_priority.csv",
               priority_only: true,
               count: 1,
@@ -444,7 +490,12 @@ def _browser_maintenance_reports_runner_source() -> str:
                 primary_suggested_action: "Rerun pipeline for preferred-language SRT.",
                 issue_messages: "Preferred-language SRT missing.",
               }],
-            });
+            };
+            window.mediaPipelineReportsView.renderAuditPreview(reportAuditPreview);
+            clickFirst('[data-reports-tab="files"]', "Reports Files tab");
+            if (document.querySelector('[data-reports-tab="files"]')?.getAttribute("aria-selected") !== "true") {
+              throw new Error("Reports Files tab did not become selected.");
+            }
             requireText("report-triage", [
               "Failure JSON: present",
               "Audit CSV: present",
@@ -457,6 +508,9 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Failure preview loaded: yes",
               "Audit preview loaded: yes",
               "Suggested investigation order:",
+            ]);
+            requireText("report-warnings", [
+              "No snapshot warnings.",
             ]);
             requireText("failure-review-board", [
               "Failure review board:",
@@ -480,12 +534,11 @@ def _browser_maintenance_reports_runner_source() -> str:
               throw new Error("Reports Failures tab did not become selected.");
             }
             requireText("failure-rows", [
-              "operator_required",
-              "source-stability",
-              "Source changed during probe.",
+              "Needs operator",
+              "Broken Movie",
               "Wait for the source to stabilize before rerun.",
-              "Blocked (1/3)",
-              "2026-05-14 22:00",
+              "Open details",
+              "Clear error",
             ]);
             if (text("failure-rows").includes("2026-05-14T22:00:00-04:00")) {
               throw new Error("failure table still shows the long recorded timestamp");
@@ -496,15 +549,86 @@ def _browser_maintenance_reports_runner_source() -> str:
             if (!document.querySelector('#failure-rows input[type="checkbox"]')?.checked) {
               throw new Error("failure row multi-select checkbox did not stay checked");
             }
+            const disabledClear = document.querySelector('#failure-rows button[disabled]');
+            if (!disabledClear || !disabledClear.textContent.includes("Clear error")) {
+              throw new Error("latest-json failure row did not render disabled Clear error action");
+            }
+            const beforeDisabledClickPosts = posts.length;
+            disabledClear.click();
+            if (posts.length !== beforeDisabledClickPosts) {
+              throw new Error("disabled Clear error action posted unexpectedly");
+            }
             clickFirst('#failure-rows tr[data-row-key]', "failure row");
             requireText("failure-detail", [
               "Reports failure selected row",
+              "What happened",
+              "Status: Needs operator",
               "Class: operator_required",
               "Code: source_locked",
+              "Suggested fix",
               "Suggested action: Wait for the source to stabilize before rerun.",
+              "Retry state",
               "Retry status: blocked",
               "Retry route/command: none_exposed",
+              "Evidence",
             ]);
+            window.confirm = () => true;
+            window.mediaPipelineReportsView.renderFailurePreview({
+              source: "C:/Reports/failures.json",
+              source_kind: "latest_json",
+              count: 1,
+              operator_required_count: 0,
+              permanent_count: 0,
+              transient_count: 1,
+              rows: [{
+                source_json: "C:/Reports/failures.json",
+                source_path: "C:/Source/Retry Latest.mkv",
+                lookup_title: "Retry Latest",
+                media_type: "movie",
+                classification: "transient",
+                error_code: "SUBTITLE_BDPGS_OCR_FAILED",
+                stage: "subtitle-extract",
+                reason: "BDPGS subtitle OCR failed.",
+                suggested_action: "Configure PgsToSrt before retry.",
+                retry_count: 1,
+                retry_limit: 5,
+                triage: {
+                  status_label: "Will retry",
+                  severity: "warning",
+                  plain_summary: "BDPGS subtitle OCR failed.",
+                  suggested_fix: "Configure PgsToSrt before retry.",
+                  safe_next_action: "Backend will retry this transient failure on the next backend queue pass.",
+                  detail_available: true,
+                },
+                clear_error: {
+                  available: true,
+                  marker_path: "C:/State/Failures/Markers/latest-warning-a.json",
+                  marker_paths: [
+                    "C:/State/Failures/Markers/latest-warning-a.json",
+                    "C:/State/Failures/Markers/latest-warning-b.json",
+                  ],
+                  marker_count: 2,
+                  unavailable_reason: "",
+                },
+              }],
+            });
+            requireText("failure-rows", [
+              "Will retry",
+              "Retry Latest",
+              "Configure PgsToSrt before retry.",
+              "Clear error",
+            ]);
+            const latestWarningClearButton = Array.from(document.querySelectorAll('#failure-rows button'))
+              .find((button) => button.textContent.includes("Clear error") && !button.disabled);
+            if (!latestWarningClearButton) throw new Error("latest-json retryable warning clear action missing");
+            latestWarningClearButton.click();
+            await waitFor(
+              () => posts.some((entry) => Array.isArray(entry.body?.marker_paths) && entry.body.marker_paths.includes("C:/State/Failures/Markers/latest-warning-b.json")),
+              "latest-json retryable warning clear post"
+            );
+            const latestWarningClearPost = posts.find((entry) => Array.isArray(entry.body?.marker_paths) && entry.body.marker_paths.includes("C:/State/Failures/Markers/latest-warning-b.json"));
+            if (latestWarningClearPost.body.scope !== "selected") throw new Error("latest-json warning clear did not use selected scope");
+            if (latestWarningClearPost.body.marker_paths.length !== 2) throw new Error("latest-json warning clear did not post every marker path");
             window.mediaPipelineReportsView.renderFailurePreview({
               source: "C:/State/Failures/Markers",
               source_kind: "markers",
@@ -525,6 +649,19 @@ def _browser_maintenance_reports_runner_source() -> str:
                 retry_count: 1,
                 retry_limit: 5,
                 recorded_at: "2026-05-14T23:00:00-04:00",
+                triage: {
+                  status_label: "Will retry",
+                  severity: "warning",
+                  plain_summary: "Source was locked.",
+                  suggested_fix: "Retry after the lock clears.",
+                  safe_next_action: "Backend will retry this transient failure on the next backend queue pass.",
+                  detail_available: true,
+                },
+                clear_error: {
+                  available: true,
+                  marker_path: "C:/State/Failures/Markers/marker-1.json",
+                  unavailable_reason: "",
+                },
               }, {
                 source_json: "C:/State/Failures/Markers/marker-2.json",
                 source_path: "C:/Source/Retry Two.mkv",
@@ -538,10 +675,77 @@ def _browser_maintenance_reports_runner_source() -> str:
                 retry_count: 0,
                 retry_limit: 5,
                 recorded_at: "2026-05-14T23:05:00-04:00",
+                triage: {
+                  status_label: "Will retry",
+                  severity: "warning",
+                  plain_summary: "Destination was unavailable.",
+                  suggested_fix: "Retry after the share is online.",
+                  safe_next_action: "Backend will retry this transient failure on the next backend queue pass.",
+                  detail_available: true,
+                },
+                clear_error: {
+                  available: true,
+                  marker_path: "C:/State/Failures/Markers/marker-2.json",
+                  unavailable_reason: "",
+                },
               }],
             });
             window.initReportsViewEvents();
             window.mediaPipelineReportsView.initReportsViewEvents();
+            const firstClearErrorButton = Array.from(document.querySelectorAll('#failure-rows button'))
+              .find((button) => button.textContent.includes("Clear error") && !button.disabled);
+            if (!firstClearErrorButton) throw new Error("enabled row Clear error action missing");
+            firstClearErrorButton.click();
+            await waitFor(
+              () => posts.some((entry) => entry.path.includes("/api/failures/clear") && entry.body?.confirm_clear === true && entry.body?.marker_paths?.[0] === "C:/State/Failures/Markers/marker-1.json"),
+              "row clear post"
+            );
+            const rowClearPost = posts.find((entry) => entry.path.includes("/api/failures/clear") && entry.body?.confirm_clear === true && entry.body?.marker_paths?.[0] === "C:/State/Failures/Markers/marker-1.json");
+            if (rowClearPost.body.scope !== "selected") throw new Error("row clear did not use selected scope");
+            if (rowClearPost.body.dry_run !== false) throw new Error("row clear must not be a dry run");
+            if (!Array.isArray(rowClearPost.body.marker_paths) || rowClearPost.body.marker_paths.length !== 1) {
+              throw new Error("row clear did not send exactly one marker path");
+            }
+            if (rowClearPost.body.marker_paths[0] !== "C:/State/Failures/Markers/marker-1.json") {
+              throw new Error("row clear posted the wrong marker path");
+            }
+            window.mediaPipelineReportsView.renderFailurePreview({
+              source: "C:/State/Failures/Markers",
+              source_kind: "markers",
+              count: 2,
+              operator_required_count: 0,
+              permanent_count: 0,
+              transient_count: 2,
+              rows: [{
+                source_json: "C:/State/Failures/Markers/marker-1.json",
+                source_path: "C:/Source/Retry One.mkv",
+                lookup_title: "Retry One",
+                media_type: "movie",
+                classification: "transient",
+                error_code: "SOURCE_LOCKED",
+                stage: "scratch-copy",
+                reason: "Source was locked.",
+                suggested_action: "Retry after the lock clears.",
+                retry_count: 1,
+                retry_limit: 5,
+                recorded_at: "2026-05-14T23:00:00-04:00",
+                clear_error: { available: true, marker_path: "C:/State/Failures/Markers/marker-1.json", unavailable_reason: "" },
+              }, {
+                source_json: "C:/State/Failures/Markers/marker-2.json",
+                source_path: "C:/Source/Retry Two.mkv",
+                lookup_title: "Retry Two",
+                media_type: "movie",
+                classification: "transient",
+                error_code: "NETWORK_TEMPORARY",
+                stage: "publish",
+                reason: "Destination was unavailable.",
+                suggested_action: "Retry after the share is online.",
+                retry_count: 0,
+                retry_limit: 5,
+                recorded_at: "2026-05-14T23:05:00-04:00",
+                clear_error: { available: true, marker_path: "C:/State/Failures/Markers/marker-2.json", unavailable_reason: "" },
+              }],
+            });
             byId("failure-preview-all-clear-button").click();
             await waitFor(() => text("failure-clear-status").includes("Preview ready"), "failure marker clear dry-run preview");
             const markerDryRunPost = posts.find((entry) => entry.path.includes("/api/failures/clear") && entry.body?.dry_run === true);
@@ -558,6 +762,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Touches media: no",
             ]);
             window.mediaPipelineReportsView.renderFailurePreview(reportFailurePreview);
+            window.mediaPipelineReportsView.renderAuditPreview(reportAuditPreview);
             clickFirst('[data-reports-tab="audit"]', "Reports Audit tab");
             if (document.querySelector('[data-reports-tab="audit"]')?.getAttribute("aria-selected") !== "true") {
               throw new Error("Reports Audit tab did not become selected.");
@@ -569,33 +774,15 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Issue: subtitle_missing_srt",
               "Suggested action: Rerun pipeline for preferred-language SRT.",
             ]);
-            clickFirst('[data-reports-tab="overview"]', "Reports Overview tab");
-            requireText("report-launch-handoff", [
-              "Reports to Launch handoff:",
-              "Status: Failure review first",
-              "Candidate CSV paths: 2",
+            clickFirst('[data-reports-tab="files"]', "Reports Files tab");
+            requireText("report-triage", [
+              "Failure rows: 1",
+              "Audit rows: 1",
               "Mutation guardrail:",
             ]);
-            byId("report-go-rerun-button").click();
-            requireText("report-launch-handoff-action-status", [
-              "Opened Launch > CSV Rerun",
-              "Reports did not fill or submit it",
-            ]);
-            if (!visiblePage("launch")) throw new Error("Go To CSV Rerun did not navigate to Launch.");
-            window.showPage("reports");
-            byId("report-go-audit-button").click();
-            requireText("audit-launch-progress-summary", [
-              "Audit status: writing-reports",
-              "Report generation: 2 / 5 (write csv)",
-              "Mutation guardrail:",
-            ]);
-            if (!visiblePage("launch")) throw new Error("Go To Audit Launch did not navigate to Launch.");
-            window.showPage("reports");
-            byId("report-go-diagnostics-button").click();
-            requireText("report-launch-handoff-action-status", [
-              "Opened Diagnostics for read-only evidence review",
-            ]);
-            if (!visiblePage("diagnostics")) throw new Error("Go To Diagnostics did not navigate to Diagnostics.");
+            if (byId("report-launch-handoff") || byId("report-go-rerun-button") || document.querySelector('[data-reports-tab="overview"]')) {
+              throw new Error("Reports pre-launch/overview surface was still present after tab navigation.");
+            }
 
             const forbidden = [
               "/api/pipeline/start",
@@ -608,12 +795,8 @@ def _browser_maintenance_reports_runner_source() -> str:
               "/api/settings/save-patch",
               "/api/rename/apply",
               "/api/pending-publish/drain",
-              "/api/failures/clear",
             ];
             const forbiddenPosts = posts.filter((entry) => {
-              if (entry.path.includes("/api/failures/clear") && entry.body?.dry_run === true && entry.body?.confirm_clear === false) {
-                return false;
-              }
               return forbidden.some((path) => entry.path.includes(path));
             });
             if (forbiddenPosts.length) throw new Error("maintenance/reports smoke posted mutation routes: " + JSON.stringify(forbiddenPosts));
@@ -728,7 +911,7 @@ def _run_browser_maintenance_reports_smoke(*, browser_path: str, url: str) -> di
 
 
 class WebViewBrowserMaintenanceReportsSmokeTests(unittest.TestCase):
-    def test_real_browser_renders_maintenance_and_reports_operator_evidence_without_mutation_posts(self) -> None:
+    def test_real_browser_renders_maintenance_reports_and_clear_error_payloads(self) -> None:
         browser_path = _find_browser()
         if not browser_path:
             raise unittest.SkipTest("Chrome or Edge is required for the browser-backed WebView maintenance/reports smoke.")
@@ -754,12 +937,39 @@ class WebViewBrowserMaintenanceReportsSmokeTests(unittest.TestCase):
 
         browser_result = result["result"]
         posts = browser_result["posts"]
-        self.assertEqual(len(posts), 1)
-        self.assertEqual(posts[0]["path"], "/api/failures/clear")
-        self.assertEqual(posts[0]["body"]["scope"], "all_markers")
-        self.assertTrue(posts[0]["body"]["dry_run"])
-        self.assertFalse(posts[0]["body"]["confirm_clear"])
-        self.assertNotIn("marker_paths", posts[0]["body"])
+        self.assertEqual(len(posts), 3)
+        latest_warning_clear = next(
+            post
+            for post in posts
+            if "C:/State/Failures/Markers/latest-warning-b.json" in post["body"].get("marker_paths", [])
+        )
+        row_clear = next(
+            post
+            for post in posts
+            if post["body"].get("marker_paths") == ["C:/State/Failures/Markers/marker-1.json"]
+        )
+        bulk_preview = next(post for post in posts if post["body"].get("scope") == "all_markers")
+        self.assertEqual(latest_warning_clear["path"], "/api/failures/clear")
+        self.assertEqual(latest_warning_clear["body"]["scope"], "selected")
+        self.assertFalse(latest_warning_clear["body"]["dry_run"])
+        self.assertTrue(latest_warning_clear["body"]["confirm_clear"])
+        self.assertEqual(
+            latest_warning_clear["body"]["marker_paths"],
+            [
+                "C:/State/Failures/Markers/latest-warning-a.json",
+                "C:/State/Failures/Markers/latest-warning-b.json",
+            ],
+        )
+        self.assertEqual(row_clear["path"], "/api/failures/clear")
+        self.assertEqual(row_clear["body"]["scope"], "selected")
+        self.assertFalse(row_clear["body"]["dry_run"])
+        self.assertTrue(row_clear["body"]["confirm_clear"])
+        self.assertEqual(row_clear["body"]["marker_paths"], ["C:/State/Failures/Markers/marker-1.json"])
+        self.assertEqual(bulk_preview["path"], "/api/failures/clear")
+        self.assertEqual(bulk_preview["body"]["scope"], "all_markers")
+        self.assertTrue(bulk_preview["body"]["dry_run"])
+        self.assertFalse(bulk_preview["body"]["confirm_clear"])
+        self.assertNotIn("marker_paths", bulk_preview["body"])
         self.assertIn(browser_result["maintenanceStatus"], {"Ready", "Warnings", "Blocked"})
         self.assertEqual(browser_result["reportStatus"], "Action needed")
         self.assertEqual(browser_result["failureStatus"], "Action needed")

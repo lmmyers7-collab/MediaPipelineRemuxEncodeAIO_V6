@@ -458,6 +458,7 @@ function Build-QueuePlanSnapshotRows {
     $excludedRows = New-Object System.Collections.Generic.List[object]
     $excludedRowsTotal = 0
     $excludedRowsLimit = 500
+    $runnableRowCount = 0
     $globalOrder = 0
     $sourceOrder = 0
     foreach ($entry in $ordered) {
@@ -618,6 +619,9 @@ function Build-QueuePlanSnapshotRows {
             $routeReason = "route preview failed: $($_.Exception.Message)"
         }
         }
+        if (-not $blocked) {
+            $runnableRowCount++
+        }
         $rows.Add([ordered]@{
             global_order            = $globalOrder
             phase                   = [string]$entry.QueuePhase
@@ -663,8 +667,8 @@ function Build-QueuePlanSnapshotRows {
         }) | Out-Null
     }
 
-    # Append hold entries to the runnable rows list so the UI can render them
-    # with a HOLD badge. They are pre-marked with phase="hold".
+    # Append hold entries to the display rows so the UI can render them with a
+    # HOLD badge. They are not included in runnable_count and never process.
     foreach ($holdEntry in $holdOrdered) {
         if (-not $holdEntry -or -not $holdEntry.File) { continue }
         $holdFile = $holdEntry.File
@@ -749,7 +753,7 @@ function Build-QueuePlanSnapshotRows {
         hold_count        = [int]$QueuePlan.HoldCount
         mix_priority_phase        = [bool]$QueuePlan.MixPriorityPhase
         queue_ordering_strategy   = [string]$QueuePlan.QueueOrderingStrategy
-        runnable_count    = $rows.Count
+        runnable_count    = [int]$runnableRowCount
         excluded_count    = [int]$excludedRowsTotal
         excluded_row_limit = [int]$excludedRowsLimit
         excluded_rows_truncated = [bool]($excludedRowsTotal -gt $excludedRows.Count)

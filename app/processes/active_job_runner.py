@@ -12,6 +12,7 @@ from .active_jobs import (
     active_job_pid_is_alive,
     active_job_record_path_for_proc,
     active_jobs_dir_for_resolved,
+    cleanup_stale_validate_active_jobs,
     reconcile_active_job_records,
     update_active_job_record,
     write_active_job_launch_record,
@@ -101,6 +102,23 @@ def reconcile_active_job_records_for_service(
     return reconcile_active_job_records(
         resolved,
         max_items=max_items,
+        psutil_module=psutil_module,
+        logger=service.logger,
+    )
+
+
+def cleanup_stale_launch_guards_for_service(
+    service: ActiveJobLoggedService,
+    resolved: ResolvedPaths,
+    *,
+    max_items: int,
+    stale_after_seconds: float,
+    psutil_module: Any,
+) -> list[str]:
+    return cleanup_stale_validate_active_jobs(
+        resolved,
+        max_items=max_items,
+        stale_after_seconds=stale_after_seconds,
         psutil_module=psutil_module,
         logger=service.logger,
     )

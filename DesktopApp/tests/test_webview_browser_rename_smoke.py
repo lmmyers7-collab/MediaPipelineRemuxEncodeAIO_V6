@@ -57,6 +57,12 @@ def _browser_rename_runner_source() -> str:
               node.checked = Boolean(value);
               node.dispatchEvent(new Event("change", { bubbles: true }));
             }
+            function setCheckedBySelector(selector, value) {
+              const node = document.querySelector(selector);
+              if (!node) throw new Error("missing checkbox selector " + selector);
+              node.checked = Boolean(value);
+              node.dispatchEvent(new Event("change", { bubbles: true }));
+            }
             function requireText(id, fragments) {
               const actual = text(id);
               for (const fragment of fragments) {
@@ -96,6 +102,9 @@ def _browser_rename_runner_source() -> str:
               "renameApplyOutcomeRows",
               "renameApplyProgressBars",
             ].forEach(requireFunction);
+            if (typeof window.mediaPipelineSettingsView?.saveSettingsPatch !== "function") {
+              throw new Error("missing settings save namespace function");
+            }
             window.getLastSettings = () => ({
               config: {
                 RoutingProfile: "plex_direct_stream",
@@ -109,6 +118,42 @@ def _browser_rename_runner_source() -> str:
                 DeferredPublish: true,
               },
             });
+
+            window.showPage("settings");
+            localStorage.removeItem("mediapipeline.rename.cleaningFilters.v1");
+            setValue("settings-patch-json", "{}");
+            setValue("settings-rename-filter-release-groups", "rarbg, yify, codexrg, neonoir");
+            setCheckedBySelector('[data-rename-movie-filter="release_groups"]', false);
+            click("#settings-save-header-save-button", "main settings save");
+            await new Promise((resolve) => setTimeout(resolve, 150));
+            requireText("settings-patch-detail", ["Rename cleaning filters were saved to browser storage.", "PSD1 was not changed"]);
+            const storedRenameFilters = JSON.parse(localStorage.getItem("mediapipeline.rename.cleaningFilters.v1") || "null");
+            if (Object.prototype.hasOwnProperty.call(storedRenameFilters || {}, "use_editable_filters")) {
+              throw new Error("removed editable rename filter toggle was saved");
+            }
+            if (storedRenameFilters?.movie_filter_options?.release_groups !== false) {
+              throw new Error("release-group checkbox state was not saved: " + JSON.stringify(storedRenameFilters?.movie_filter_options));
+            }
+            if (!String(storedRenameFilters?.movie_filter_terms_text?.release_groups || "").includes("codexrg")) {
+              throw new Error("release-group terms were not saved: " + JSON.stringify(storedRenameFilters?.movie_filter_terms_text));
+            }
+            setValue("settings-rename-filter-release-groups", "temporary lost value");
+            setCheckedBySelector('[data-rename-movie-filter="release_groups"]', true);
+            window.mediaPipelineRenameView.initRenameCleaningFilterEditorEvents();
+            if (document.querySelector('[data-rename-movie-filter="release_groups"]').checked) {
+              throw new Error("release-group checkbox state was not restored");
+            }
+            if (!byId("settings-rename-filter-release-groups").value.includes("codexrg")) {
+              throw new Error("release-group terms did not reload from browser storage: " + byId("settings-rename-filter-release-groups").value);
+            }
+            requireText("settings-rename-cleaning-filter-summary", ["Cleaning filters loaded from browser storage", "release groups=4", "always sent"]);
+            const savedReleaseGroups = byId("settings-rename-filter-release-groups").value;
+            setCheckedBySelector('[data-rename-movie-filter="release_groups"]', true);
+            setValue("settings-rename-preview-input", "Together.2025.1080p.WEBRip.10Bit.DDP5.1.x265-NeoNoir.mkv");
+            click("#settings-rename-preview-button", "backend filename cleaner test");
+            await new Promise((resolve) => setTimeout(resolve, 600));
+            requireText("settings-rename-preview-output", ["Together (2025).mkv", "Movie filter terms: always on.", "Source: backend clean_pipeline_movie_name."]);
+            requireText("settings-rename-preview-status", ["Backend clean preview complete"]);
 
             window.showPage("rename");
             const originalApiPost = window.apiPost;
@@ -274,6 +319,7 @@ def _browser_rename_runner_source() -> str:
               detail: text("rename-detail"),
               browsePosts,
               posted,
+              savedReleaseGroups,
             };
           })()
           `;
@@ -305,14 +351,14 @@ def _browser_rename_runner_source() -> str:
             const deadline = Date.now() + 20000;
             while (Date.now() < deadline) {
               const ready = await client.send("Runtime.evaluate", {
-                expression: `Boolean(document.getElementById("rename-apply-readiness-rows") && typeof window.showPage === "function" && typeof window.mediaPipelineRenameView.renderRenamePreview === "function" && typeof window.mediaPipelineRenameView.applySelectedRename === "function")`,
+                expression: `Boolean(document.getElementById("rename-apply-readiness-rows") && typeof window.showPage === "function" && typeof window.mediaPipelineRenameView.renderRenamePreview === "function" && typeof window.mediaPipelineRenameView.applySelectedRename === "function" && typeof window.mediaPipelineSettingsView?.saveSettingsPatch === "function")`,
                 returnByValue: true,
               });
               if (ready.result?.value === true) break;
               await sleep(150);
             }
             const ready = await client.send("Runtime.evaluate", {
-              expression: `Boolean(document.getElementById("rename-apply-readiness-rows") && typeof window.showPage === "function" && typeof window.mediaPipelineRenameView.renderRenamePreview === "function" && typeof window.mediaPipelineRenameView.applySelectedRename === "function")`,
+              expression: `Boolean(document.getElementById("rename-apply-readiness-rows") && typeof window.showPage === "function" && typeof window.mediaPipelineRenameView.renderRenamePreview === "function" && typeof window.mediaPipelineRenameView.applySelectedRename === "function" && typeof window.mediaPipelineSettingsView?.saveSettingsPatch === "function")`,
               returnByValue: true,
             });
             if (ready.result?.value !== true) throw new Error("Rename WebView globals or readiness DOM nodes did not become ready.");
@@ -411,6 +457,8 @@ class WebViewBrowserRenameSmokeTests(unittest.TestCase):
         self.assertEqual(browser_result["browsePosts"][0]["body"]["selection_mode"], "files")
         self.assertEqual(browser_result["appliedOutcomeStatus"], "Applied")
         self.assertEqual(browser_result["outcomeStatus"], "Applied")
+        self.assertIn("codexrg", browser_result["savedReleaseGroups"])
+        self.assertIn("neonoir", browser_result["savedReleaseGroups"].lower())
         self.assertIn("blocked by apply readiness", browser_result["detail"])
         self.assertEqual(browser_result["posted"], [])
 

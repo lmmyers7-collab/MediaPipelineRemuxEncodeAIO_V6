@@ -70,6 +70,46 @@ class ApplicationFacadeSnapshotTests(unittest.TestCase):
         self.assertTrue(diagnostics.eta["read_only"])
         self.assertEqual(diagnostics.recent_events, ["job_started"])
 
+    def test_snapshot_includes_display_only_current_work_labels(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            service = DummyFacadeService(root)
+            service.snapshot = Snapshot(
+                resolved=resolved,
+                current_activity="Publishing current item.",
+                status_summary="Status OK",
+                log_tail="",
+                progress={
+                    "ProgressVersion": 2,
+                    "Status": "Processing",
+                    "CurrentStage": "push",
+                    "CurrentStagePercent": 94,
+                    "CurrentMediaType": "movie",
+                    "CurrentLibraryName": "Movies",
+                    "CurrentQueueIndex": 14,
+                    "CurrentQueueTotal": 15,
+                    "CurrentRoute": "remux",
+                    "CurrentFileDisplay": "[Movie 14/15] Together.2025.1080p.WEBRip.10Bit.DDP5.1.x265-NeoNoir.mkv",
+                },
+                audit_progress=None,
+                latest_failure_report=None,
+                latest_failure_json=None,
+                latest_audit_csv=None,
+                latest_priority_csv=None,
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            snapshot = facade.get_snapshot(resolved)
+
+        self.assertEqual(snapshot.current_work["schema_version"], "desktop_current_work.v1")
+        self.assertEqual(snapshot.current_work["item_label"], "Together (2025)")
+        self.assertEqual(snapshot.current_work["phase_label"], "Publishing output")
+        self.assertEqual(snapshot.current_work["library_label"], "Movies")
+        self.assertEqual(snapshot.current_work["queue_label"], "Movies")
+        self.assertEqual(snapshot.current_work["queue_position_label"], "item 14 of 15")
+        self.assertEqual(snapshot.current_work["route_label"], "Remux route")
+        self.assertEqual(snapshot.current_work["percent_label"], "94%")
+
     def test_snapshot_progress_bars_include_pipeline_publish_and_audit(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

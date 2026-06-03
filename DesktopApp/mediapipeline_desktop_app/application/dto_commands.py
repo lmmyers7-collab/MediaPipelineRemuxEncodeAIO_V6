@@ -1,27 +1,13 @@
-from __future__ import annotations
+"""Compatibility shim. Moved to ``app.kernel.dto_commands`` by ADR-0013 (Wave 3).
 
-from dataclasses import dataclass, field
+Re-exports the full public namespace from the new home so existing imports
+keep working. New code should import from ``app.kernel.dto_commands``
+directly; this shim is removed in the ADR-0013 Wave 6 cleanup.
+"""
+from app.kernel import dto_commands as _moved
+globals().update({_k: getattr(_moved, _k) for _k in dir(_moved) if not _k.startswith("__")})
+del _moved
 
-from .dto_base import JsonMap, dto_mapping
-
-
-@dataclass(frozen=True)
-class CommandResult:
-    command: str
-    ok: bool
-    message: str
-    severity: str = "info"
-    warnings: list[str] = field(default_factory=list)
-    errors: list[str] = field(default_factory=list)
-    job_id: str = ""
-    refresh_hint: str = ""
-    log_paths: dict[str, str] = field(default_factory=dict)
-    data: JsonMap = field(default_factory=dict)
-    schema_version: str = "desktop_command_result.v1"
-
-    def to_mapping(self) -> JsonMap:
-        return dto_mapping(self)
-
-__all__ = [
-    "CommandResult",
-]
+# Literal __all__ mirrors app.kernel.dto_commands (application public-API
+# contract, tests/test_application_public_api.py requires a literal list here).
+__all__ = ["CommandResult"]

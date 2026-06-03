@@ -4,7 +4,7 @@ Date: 2026-05-31
 
 Full inventory of all Local API routes: route, method, effect class, backend contract/handler, mutation risk, primary frontend caller, and test coverage. Source: `contract_read.py`, `contract_command.py`, `routes_read.py`, `routes_command.py`.
 
-Total: 75 routes — 31 GET (read) + 44 POST (command).
+Total: 76 routes — 31 GET (read) + 45 POST (command).
 
 All routes require the bootstrap token (`Authorization: Bearer` or `X-MediaPipeline-Token`) except `GET /api/health`.
 
@@ -194,11 +194,12 @@ The dry-run routes do not write a release folder, zip, manifest, or completed ma
 
 `append` does not mark jobs complete, clear failures, drain pending publish, rewrite manifests, launch work, or mutate media files.
 
-### Process Commands (5 routes)
+### Process Commands (6 routes)
 
 | Route | Effect | Key Request Keys / Allowed Values | Frontend Caller | Mutation Risk | Backend Test Coverage |
 |---|---|---|---|---|---|
 | `POST /api/pipeline/control` | `control-flag-write` | `action`: `pause`, `stop`, `rescan`, `kill` | Launch | Medium — writes control flags or runs backend-owned emergency process cleanup for `kill` | `test_facade_process_control_policy.py`, `test_application_facade_process_control.py`, `test_service_process_control_flags.py` |
+| `POST /api/pipeline/browse-file` | `shell-dialog` | `selection_mode`: `files`; `initial_path` | Launch | Low — opens backend-owned native Windows file browser for single-file staging only; does not save config or launch work | `test_application_facade_local_api.py`, `test_webview_frontend_mutation_boundary.py` |
 | `POST /api/pipeline/start` | `process-launch` | `mode`: `once`/`continuous`/`validate`/`drain_pending_pushes`; `schedule_override`: `""`/`run_once`/`ignore` | Launch | **High** — spawns pipeline process | `test_facade_process_pipeline_policy.py`, `test_application_facade_process_launch.py`, `test_facade_process_guard_policy.py` |
 | `POST /api/audit/start` | `process-launch` | `library_root`, `include_sidecars`, `show_console` | Launch, Reports | **High** — spawns audit process | `test_facade_process_audit_policy.py`, `test_application_facade_process_launch.py` |
 | `POST /api/rerun/start` | `process-launch` | `csv_path`, `dry_run`, `stage_mode`, `original_mode`, `return_mode`, `show_console` | Reports | **High** — spawns rerun process | `test_facade_process_rerun_policy.py`, `test_application_facade_process_launch.py` |
@@ -216,7 +217,7 @@ The dry-run routes do not write a release folder, zip, manifest, or completed ma
 | `bounded-health-check` | 1 | `GET /api/maintenance` |
 | `read-only-preview` | 2 | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/folder-preview` |
 | `shell-open` | 4 | `POST /api/queue/open`, `completed/open`, `pending-publish/open`, `diagnostics/open` |
-| `shell-dialog` | 2 | `POST /api/rename/browse`, `POST /api/settings/browse-path` |
+| `shell-dialog` | 3 | `POST /api/rename/browse`, `POST /api/settings/browse-path`, `POST /api/pipeline/browse-file` |
 | `ui-state-write` | 1 | `POST /api/ui-preferences` |
 | `queue-state-write` | 4 | `POST /api/queue/priority`, `queue/strategy`, `queue/file-overrides`, `queue/file-overrides/folder-rule` |
 | `failure-marker-write` | 1 | `POST /api/failures/clear` |

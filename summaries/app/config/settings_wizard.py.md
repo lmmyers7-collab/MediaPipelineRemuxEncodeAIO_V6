@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: 744cbef3a993b720ff4abb798903f96117a21d9b0002fe12445567422bd74137
+sha256: b5ab03999ae6a2278c4963417c511c4b493110cd501a0d61f6322bc05ec3501b
 ---
 # `app/config/settings_wizard.py`
 

@@ -21,6 +21,7 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/backend/shutdown": {"app.js"},
     "/api/ui-preferences": {"app.js"},
     "/api/pipeline/control": {"launchView.js"},
+    "/api/pipeline/browse-file": {"launchView.js"},
     "/api/pipeline/start": {"launchView.js"},
     "/api/audit/start": {"launchView.js"},
     "/api/rerun/start": {"launchView.js"},
@@ -52,7 +53,6 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/schedule/save": {"scheduleView.js"},
     "/api/settings/validate": {"settingsView.js"},
     "/api/settings/browse-path": {"settingsView.js"},
-    "/api/settings/pipeline-plan-preview": {"settingsView.js"},
     "/api/settings/preview-patch": {"settingsView.js"},
     "/api/settings/save-patch": {"settingsView.js"},
     "/api/settings/reload": {"settingsView.js"},
@@ -192,6 +192,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn("if (!request.all_markers) payload.marker_paths = request.marker_paths;", reports_view_js)
         self.assertIn("confirm_clear: !dryRun", reports_view_js)
         self.assertIn('apiPost("/api/settings/save-patch", { changes, ...requestExtras, confirm_save: true })', _asset_sources()["settingsView.js"])
+        self.assertIn('apiPostLocal("/api/settings/wizard/save", { wizard: collectWizardPayload(), confirm_save: true })', _asset_sources()["settingsWizard.js"])
         self.assertIn('apiPost("/api/schedule/save", { ...request, confirm_save: true })', _asset_sources()["scheduleView.js"])
         completed_js = _asset_sources()["completedView.js"]
         self.assertIn("const request = { confirm_promote: true };", completed_js)
@@ -236,19 +237,15 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn("staging only", browse_contract["purpose"])
         self.assertIn("touch media files", browse_contract["purpose"])
 
-    def test_settings_pipeline_plan_preview_is_non_mutating(self) -> None:
-        payload = _payload_for_route("settingsView.js", "/api/settings/pipeline-plan-preview")
-        self.assertIn("source_media: sourceMedia", payload)
-        self.assertIn("changes: patchRequest.changes", payload)
-        self.assertIn("remove_keys: patchRequest.removeKeys", payload)
-        self.assertNotIn("confirm_save", payload)
-
+    def test_settings_pipeline_plan_preview_route_is_non_mutating_but_not_webview_callable(self) -> None:
         preview_contract = next(route for route in LOCAL_API_ROUTE_CONTRACT if route["path"] == "/api/settings/pipeline-plan-preview")
         self.assertEqual(preview_contract["effect"], "none")
         self.assertEqual(preview_contract["data_schema"], "pipeline_plan.v1")
         self.assertIn("without probing paths", preview_contract["purpose"])
         self.assertIn("saving config", preview_contract["purpose"])
         self.assertIn("touching media files", preview_contract["purpose"])
+        self.assertNotIn("/api/settings/pipeline-plan-preview", _literal_api_post_owners())
+        self.assertNotIn("/api/settings/pipeline-plan-preview", _asset_sources()["settingsView.js"])
 
     def test_repair_reconcile_mutation_remains_design_only_and_not_webview_callable(self) -> None:
         payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")
@@ -357,6 +354,20 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         ]:
             with self.subTest(asset="launchView.risk.js", snippet=snippet):
                 self.assertIn(snippet, launch_risk)
+
+    def test_launch_staged_policy_boundary_includes_vobsub_drop_without_ocr(self) -> None:
+        launch_risk = _asset_sources()["launchView.risk.js"]
+        match = re.search(
+            r"function launchPolicyCandidatePosture\(area, candidate, changedCount\) \{(?P<body>.*?)\n  \}",
+            launch_risk,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        helper_body = match.group("body")
+
+        self.assertIn("candidate.dropVobSub && !candidate.convertVobSub", helper_body)
+        self.assertIn("candidate.dropVobSub", helper_body)
+        self.assertIn("!candidate.convertVobSub", helper_body)
 
     def test_only_api_client_owns_fetch_and_no_direct_process_or_filesystem_apis_exist(self) -> None:
         forbidden_patterns = {

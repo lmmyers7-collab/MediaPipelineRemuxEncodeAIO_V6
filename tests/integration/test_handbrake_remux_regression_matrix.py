@@ -178,6 +178,19 @@ class HandBrakeRemuxRegressionMatrixTests(unittest.TestCase):
                 "advisories": {"MISSING_BITRATE_METADATA", "MEDIA_TYPE_UNKNOWN_CONSERVATIVE_CAP"},
                 "forbidden_steps": {"encode_video"},
             },
+            {
+                "name": "Missing duration ignores probe bitrate",
+                "source": lambda: source_from_fixture(
+                    "tv_h264_1080p_24mbps_mkv.json",
+                    source={"file_size_bytes": 1024**3},
+                    format={"duration": "0.0"},
+                ),
+                "policy": EffectiveDecisionPolicy(route_threshold_mode="bitrate"),
+                "route": {"COPY", "REMUX"},
+                "video": "copy",
+                "advisories": {"MISSING_BITRATE_METADATA"},
+                "forbidden_steps": {"encode_video"},
+            },
         ]
 
         for case in cases:

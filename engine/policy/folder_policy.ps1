@@ -202,7 +202,7 @@ function ConvertTo-MediaPipelineFolderPolicyOverrides {
         if ($transcodeCodec -in @('eac3','ac3','aac')) { $overrides.AudioTranscodeCodec = $transcodeCodec }
 
         $transcodeBitrate = ([string](Get-FolderPolicyProperty -Object $audio -Name 'transcode_bitrate')).Trim().ToLowerInvariant()
-        if ($transcodeBitrate -match '^\d+k$') { $overrides.AudioTranscodeBitrate = $transcodeBitrate }
+        if ($transcodeBitrate -match '^[1-9]\d*k$') { $overrides.AudioTranscodeBitrate = $transcodeBitrate }
 
         $downmixMode = ([string](Get-FolderPolicyProperty -Object $audio -Name 'downmix_mode')).Trim().ToLowerInvariant()
         if ($downmixMode -in @('preserve','max_channels','stereo')) { $overrides.AudioDownmixMode = $downmixMode }

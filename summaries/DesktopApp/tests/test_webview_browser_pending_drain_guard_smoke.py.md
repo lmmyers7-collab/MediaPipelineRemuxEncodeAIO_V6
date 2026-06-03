@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: b0b357c39119dea48d3c89914cee23770bcc5fb71e779ca1fdfc62bd2219de31
+sha256: 5494262fb2ef64099b2798aa6f6adce1bde0bcad2b1a6ed3aafe88b5fffeef77
 ---
 # `DesktopApp/tests/test_webview_browser_pending_drain_guard_smoke.py`
 

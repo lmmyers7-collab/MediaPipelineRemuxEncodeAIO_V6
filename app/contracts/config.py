@@ -769,7 +769,7 @@ class Config(BaseModel):
     )
     PreferredDefaultAudioLanguages: list[str] = Field(default_factory=lambda: ["english"])
     AudioTranscodeCodec: Literal["eac3", "ac3", "aac"] = "eac3"
-    AudioTranscodeBitrate: str = Field(default="640k", pattern=r"^\d+k$")
+    AudioTranscodeBitrate: str = Field(default="640k", pattern=r"^[1-9]\d*k$")
     AudioTranscodeAutoBitrateByChannels: bool = False
     AudioDownmixMode: Literal["preserve", "max_channels", "stereo"] = "max_channels"
     AudioMaxChannels: int = Field(default=6, ge=1, le=16)

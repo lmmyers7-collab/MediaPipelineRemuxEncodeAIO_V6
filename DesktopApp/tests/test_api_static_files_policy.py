@@ -178,6 +178,8 @@ class LocalApiStaticFilesPolicyTests(unittest.TestCase):
         self.assertIn('id="settings-patch-json"', body)
         self.assertIn('id="settings-save-patch-button"', body)
         self.assertIn('id="settings-audio-builder-status"', body)
+        self.assertIn("Stages audio builder values into Changes JSON", body)
+        self.assertIn("Preview/Save still run backend validation", body)
         self.assertIn('id="settings-network-builder-status"', body)
         self.assertIn('id="settings-raw-triage-rows"', body)
         self.assertIn('"token": "secret"', body)

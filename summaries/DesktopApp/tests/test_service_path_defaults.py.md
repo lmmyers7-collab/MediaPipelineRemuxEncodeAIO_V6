@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_service_path_defaults.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-29
+last_modified: 2026-06-02
 last_reviewed: 2026-06-02
-sha256: 221430cf5952e7735f87aa61560b6d87f8dff95d802e03191df34d85ba2fd2c5
+sha256: 16ee25f068d5b29639aac5618dae5bbf3bd14283d112e266e936d3950dd23b00
 ---
 # `DesktopApp/tests/test_service_path_defaults.py`
 

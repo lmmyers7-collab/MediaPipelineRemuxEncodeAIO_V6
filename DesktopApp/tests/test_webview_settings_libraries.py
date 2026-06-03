@@ -145,33 +145,35 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "field?.allowed_values",
             "field?.help_text || field?.help",
             "metadataTags(field?.rule_taxonomy)",
-            'String(field?.strictness || "")',
             '"default_value"',
             "field.default_value",
             "buildOverrideControl(fieldKey, value, !editable)",
             'data-library-persisted-key="${escapeHtml(persistedKey)}"',
             'data-library-override-eligible="${editable ? "true" : "false"}"',
             'data-library-section="${escapeHtml(section)}"',
-            'data-library-rule-taxonomy="${escapeHtml(ruleTaxonomy)}"',
-            'data-library-strictness="${escapeHtml(strictness)}"',
             'data-library-advanced-visibility="${escapeHtml(advancedVisibility)}"',
             'data-library-unavailable-reason="${escapeHtml(unavailableReason)}"',
             "Global-only — unavailable",
             "Source/computed — read-only",
             "fieldIsAdvanced(fieldKey, field) ? \" data-advanced\" : \"\"",
             "return fields.filter((fieldKey) => overrideStatus(groupKey, fieldKey).render);",
-            "renderMetadataBadges",
-            "settings-library-metadata-badge",
-            "settings-library-metadata-badges",
-            "rule-badge settings-library",
-            "data-metadata-kind",
-            "Display-only backend metadata; not a saved config key.",
             "settingsAdvancedFallbackKeys",
             "function fieldIsAdvanced(key, field)",
             "metadataTags(field?.rule_taxonomy)",
             "metadataTags(field?.strictness)",
         ):
             self.assertIn(token, js)
+        for token in (
+            'data-library-rule-taxonomy="${escapeHtml(ruleTaxonomy)}"',
+            'data-library-strictness="${escapeHtml(strictness)}"',
+            "renderMetadataBadges",
+            "settings-library-metadata-badge",
+            "settings-library-metadata-badges",
+            "rule-badge settings-library",
+            "data-metadata-kind",
+            "Display-only backend metadata; not a saved config key.",
+        ):
+            self.assertNotIn(token, js)
 
     def test_phase3_library_override_labels_match_backend_metadata(self) -> None:
         metadata = _backend_field_metadata()
@@ -408,7 +410,8 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertRegex(css, r"\.settings-library-state\.is-inherited\s*\{[^}]*color: var\(--grey-400\);")
         self.assertRegex(css, r"\.settings-library-state\.is-custom\s*\{[^}]*color: var\(--blue-200\);")
         self.assertRegex(css, r"\.settings-library-state\.is-readonly\s*\{[^}]*color: var\(--amber-100\);")
-        self.assertRegex(css, r"\.settings-library-metadata-badges\s*\{[^}]*display: inline-flex;")
+        self.assertNotIn(".settings-library-metadata-badges", css)
+        self.assertNotIn(".settings-library-metadata-badge", css)
         self.assertRegex(css, r"\.settings-library-override-unavailable\s*\{[^}]*color: var\(--grey-400\);")
         self.assertNotRegex(css, r"\.settings-library-state\s*\{[^}]*background:")
         self.assertNotRegex(css, r"\.settings-library-state\.is-inherited\s*\{[^}]*background:")
@@ -453,11 +456,22 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "function settingsPatchRequestExtras()",
             "window.mediaPipelineSettingsLibraries?.libraryProfileResetRequest",
             "library_profile_resets",
+            "const libraryProfileResetCount = Array.isArray(requestExtras.library_profile_resets) ? requestExtras.library_profile_resets.length : 0;",
+            "if (!keys.length && !hasLibraryProfileResets)",
+            "if (!changedKeys.length && !hasLibraryProfileResets)",
+            "`Changed keys: ${changedKeys.length}; staged patch keys: ${keys.length}; library profile resets: ${libraryProfileResetCount}.`",
+            "No direct setting key overwrites are staged; backend will apply requested library profile reset(s).",
             'apiPost("/api/settings/preview-patch", { changes, ...requestExtras })',
             'apiPost("/api/settings/save-patch", { changes, ...requestExtras, confirm_save: true })',
             "settingsPatchRequestSignature(changes, requestExtras)",
         ):
             self.assertIn(token, settings_js)
+
+        save_start = settings_js.index("async function saveSettingsPatch()")
+        self.assertLess(
+            settings_js.index("const requestExtras = settingsPatchRequestExtras();", save_start),
+            settings_js.index("if (!keys.length && !hasLibraryProfileResets)", save_start),
+        )
 
     def test_settings_libraries_asset_preserves_unsaved_cards_during_refresh(self) -> None:
         js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")

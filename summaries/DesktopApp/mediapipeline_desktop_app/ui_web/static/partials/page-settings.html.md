@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/page-settings.
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-01
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: 063895a10a12e03666bac4d92339f92be6d263e2de06411190d5e24563f19581
+sha256: e35260ac364ec8d21d769720d7a508493a7069cf47742d7fb259c21d2b472095
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/page-settings.html`
 

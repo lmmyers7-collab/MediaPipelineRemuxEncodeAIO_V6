@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: 4a565208f610daa613df6562a573aeadec1e314a7bde05dde68a4c5568db5572
+sha256: 096d2d98bcc436984b88fe8aa43af919c2a2942f878eb7fe39059be5bd2cbaef
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsMetadata.js`
 

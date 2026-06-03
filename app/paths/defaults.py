@@ -2,7 +2,20 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .layout import first_existing
+from app.kernel.config_locations import (
+    CONFIG_CANONICAL_NAME,
+    CONFIG_LEGACY_NAME,
+    PER_USER_APP_DIR_NAME,
+    user_config_candidates,
+    user_config_dir,
+)
+
+
+def first_existing(*paths: Path) -> Path:
+    for path in paths:
+        if path.exists():
+            return path
+    return paths[0]
 
 
 def default_pipeline_path_for_roots(app_root: Path, workspace_root: Path) -> Path:
@@ -15,19 +28,19 @@ def default_pipeline_path_for_roots(app_root: Path, workspace_root: Path) -> Pat
 
 
 def default_config_path_for_roots(app_root: Path, workspace_root: Path) -> Path:
-    # Prefer the V7 convention (no brand-smell suffix); fall back to the
-    # legacy `_chatgpt` name so operators with an existing local config
-    # keep working until they rename. Remove the legacy entries one release
-    # after every active operator has migrated.
+    # Prefer the per-user durable home. The repository/bundle config is a seed
+    # and dev fallback because personal configs are gitignored and release
+    # hygiene can intentionally exclude them.
     return first_existing(
-        workspace_root / "Pipeline" / "MediaPipeline_config.psd1",
-        app_root / "Pipeline" / "MediaPipeline_config.psd1",
-        workspace_root / "MediaPipeline_config.psd1",
-        app_root / "MediaPipeline_config.psd1",
-        workspace_root / "Pipeline" / "MediaPipeline_config_chatgpt.psd1",
-        app_root / "Pipeline" / "MediaPipeline_config_chatgpt.psd1",
-        workspace_root / "MediaPipeline_config_chatgpt.psd1",
-        app_root / "MediaPipeline_config_chatgpt.psd1",
+        *user_config_candidates(),
+        workspace_root / "Pipeline" / CONFIG_CANONICAL_NAME,
+        app_root / "Pipeline" / CONFIG_CANONICAL_NAME,
+        workspace_root / CONFIG_CANONICAL_NAME,
+        app_root / CONFIG_CANONICAL_NAME,
+        workspace_root / "Pipeline" / CONFIG_LEGACY_NAME,
+        app_root / "Pipeline" / CONFIG_LEGACY_NAME,
+        workspace_root / CONFIG_LEGACY_NAME,
+        app_root / CONFIG_LEGACY_NAME,
     )
 
 

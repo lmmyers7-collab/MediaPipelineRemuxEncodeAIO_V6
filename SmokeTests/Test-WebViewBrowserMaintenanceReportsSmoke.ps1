@@ -33,8 +33,8 @@ $python = Resolve-WebViewBrowserMaintenanceReportsSmokePython -ProjectRoot $proj
 Write-Host 'WebView browser Maintenance/Reports smoke'
 Write-Host 'Boundary: starts a temporary local API against generated temporary state.'
 Write-Host 'Boundary: launches installed Chrome/Edge headless and drives real backend-served WebView Maintenance and Reports pages.'
-Write-Host 'Boundary: verifies Maintenance health, dry-run result rendering, dry-run history, Reports failure/audit triage, row details, and read-only Launch/Diagnostics handoff navigation.'
-Write-Host 'Boundary: verifies Reports failure-marker clear is dry-run preview only and no non-dry-run backend mutation routes are posted.'
+Write-Host 'Boundary: verifies Maintenance health, dry-run result rendering, dry-run history, Reports failure/audit triage, tab placement, row details, and row Clear Error payloads.'
+Write-Host 'Boundary: verifies Reports failure-marker clear remains confined to /api/failures/clear and all other backend mutation routes stay blocked.'
 Write-Host 'Boundary: does not process media, launch pipeline commands, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or modify source/output/scratch media.'
 Write-Host 'Boundary: skips cleanly when Chrome/Edge is not installed.'
 Write-Host "Python: $python"

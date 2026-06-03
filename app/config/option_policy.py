@@ -118,8 +118,8 @@ def validate_option_config(values: dict[str, Any], errors: list[str], warnings: 
     if audio_codec not in {"eac3", "ac3", "aac"}:
         errors.append("AudioTranscodeCodec must be one of: eac3, ac3, aac.")
     audio_bitrate = str(values.get(KEY_AUDIO_TRANSCODE_BITRATE, "640k") or "640k").strip().lower()
-    if not re.fullmatch(r"\d+k", audio_bitrate):
-        errors.append("AudioTranscodeBitrate must look like 640k.")
+    if not re.fullmatch(r"[1-9]\d*k", audio_bitrate):
+        errors.append("AudioTranscodeBitrate must be a positive ffmpeg bitrate like 640k.")
     audio_downmix = str(values.get(KEY_AUDIO_DOWNMIX_MODE, "max_channels") or "max_channels").strip().lower()
     if audio_downmix not in {"preserve", "max_channels", "stereo"}:
         errors.append("AudioDownmixMode must be one of: preserve, max_channels, stereo.")

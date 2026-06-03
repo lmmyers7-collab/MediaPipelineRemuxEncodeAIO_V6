@@ -17,9 +17,11 @@ from app.rename.policy import (
     annotate_rename_plan_path_authority,
     normalize_rename_template_preset,
     rename_configured_media_roots_from_request,
+    rename_movie_filter_catalog_payload,
     rename_plan_kwargs_from_request,
     rename_plan_build_exception_result,
     rename_plan_outside_configured_roots,
+    rename_clean_filename_preview_from_request,
     rename_preview_change_kind_counts,
     rename_preview_confidence_counts,
     rename_preview_counts,
@@ -69,6 +71,32 @@ class RenameFacadeMixin:
             template_catalog=rename_template_catalog(mode),
             warnings=warnings,
         )
+
+    def get_rename_clean_filename_preview(self, request: dict[str, Any]) -> dict[str, Any]:
+        cleaner = getattr(self.service, "_clean_pipeline_movie_name", None)
+        if not callable(cleaner):
+            return {
+                "schema_version": "desktop_rename_clean_filename_preview.v1",
+                "ok": False,
+                "input": str(request.get("filename") or ""),
+                "input_name": "",
+                "cleaned_title": "",
+                "target_name": "",
+                "preview_source": "backend_movie_cleaner",
+                "evidence_authority": "backend",
+                "warnings": [],
+                "errors": ["Rename movie cleaner is not available."],
+                "mutation_boundary": "read-only filename preview; no filesystem paths are opened, renamed, moved, deleted, or written",
+            }
+        parser = getattr(self.service, "parse_rename_remove_terms", None)
+        return rename_clean_filename_preview_from_request(
+            request,
+            parse_remove_terms=parser if callable(parser) else None,
+            clean_movie_name=cleaner,
+        )
+
+    def get_rename_movie_filter_catalog(self) -> dict[str, Any]:
+        return rename_movie_filter_catalog_payload()
 
     def apply_rename_selection(self, request: dict[str, Any]) -> CommandResult:
         """Apply a selected rename plan rebuilt by the backend from the current request."""

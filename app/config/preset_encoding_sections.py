@@ -122,7 +122,7 @@ class AudioPolicy(PresetSectionModel):
     compatible_codecs: list[str] = Field(default_factory=lambda: ["aac", "ac3", "eac3", "mp3", "opus", "vorbis", "truehd", "mlp"], alias="compatibleCodecs")
     preferred_default_languages: list[str] = Field(default_factory=lambda: ["english"], alias="preferredDefaultLanguages")
     transcode_codec: Literal["eac3", "ac3", "aac"] = Field(default="eac3", alias="transcodeCodec")
-    transcode_bitrate: str = Field(default="640k", pattern=r"^\d+k$", alias="transcodeBitrate")
+    transcode_bitrate: str = Field(default="640k", pattern=r"^[1-9]\d*k$", alias="transcodeBitrate")
     transcode_auto_bitrate_by_channels: bool = Field(default=False, alias="transcodeAutoBitrateByChannels")
     downmix_mode: Literal["preserve", "max_channels", "stereo"] = Field(default="max_channels", alias="downmixMode")
     max_channels: int = Field(default=6, ge=1, le=16, alias="maxChannels")

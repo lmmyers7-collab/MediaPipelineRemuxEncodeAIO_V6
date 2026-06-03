@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-02
 last_reviewed: 2026-05-31
-sha256: 7cb0cc3a32ca04ae8ea4d7e88c5b179c54bc26af7bd9ac38acae965eea4a1ab7
+sha256: 88159fcf2f40074222b066066990acd18be2a417a82e4171d46bf848e5d98028
 ---
 # `DesktopApp/tests/test_facade_queue_policy.py`
 

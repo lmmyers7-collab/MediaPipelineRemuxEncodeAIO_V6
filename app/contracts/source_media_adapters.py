@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from app.contracts.source_media_models import (
+    HDR_COLOR_TRANSFERS,
     MediaType,
     SourceCompatibilityPolicy,
     SourceContainerInfo,
@@ -81,6 +82,16 @@ def source_media_from_probe_result(
         for row in stream_rows
         if stream_kind(row) == "video"
     ]
+    if videos:
+        color_transfer = normalize_text(data.get("color_transfer"))
+        top_level_hdr = bool_value(data.get("is_hdr")) or color_transfer in HDR_COLOR_TRANSFERS
+        if top_level_hdr or color_transfer:
+            videos[0] = videos[0].model_copy(
+                update={
+                    "is_hdr": videos[0].is_hdr or top_level_hdr,
+                    "hdr_format": color_transfer or videos[0].hdr_format,
+                }
+            )
     if not videos and normalize_codec(data.get("video_codec")) != "unknown":
         videos.append(
             SourceVideoStream(

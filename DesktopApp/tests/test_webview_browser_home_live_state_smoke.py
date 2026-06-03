@@ -138,6 +138,7 @@ def _browser_home_live_state_runner_source() -> str:
             [
               "showPage",
               "renderHomeAtAGlance",
+              "renderHomeStorageHealth",
               "renderDailyDriverReadiness",
               "renderHomeReadiness",
               "renderHomeActiveWork",
@@ -156,7 +157,10 @@ def _browser_home_live_state_runner_source() -> str:
             window.showPage("home");
             await waitFor(
               () => text("daily-driver-summary").includes("Daily-driver readiness checklist:")
-                && text("home-at-a-glance-current").includes("Current Fixture.mkv")
+                && text("state-pill").includes("Encoding")
+                && text("home-at-a-glance-current").includes("Current Fixture")
+                && text("home-scratch-storage-status").includes("OK")
+                && text("home-output-storage-status").includes("OK")
                 && text("home-at-a-glance-progress-bars").includes("Current item")
                 && text("home-at-a-glance-progress-bars").includes("Push file")
                 && text("home-readiness-summary").includes("Backend snapshot: ok")
@@ -262,24 +266,45 @@ def _browser_home_live_state_runner_source() -> str:
               "Next operator action:",
               "Mutation guardrail: this checklist is read-only",
             ]);
-            requireText("activity", [
-              "Current Fixture.mkv",
+            requireText("state-pill", [
               "Encoding",
-              "42.5%",
-              "Original: Serial Experiments Lain S02E01 Weird.mkv",
             ]);
-            const activityOriginal = document.querySelector("#activity .activity-original");
-            if (!activityOriginal) throw new Error("Topbar activity original filename line is missing.");
-            const originalStyle = window.getComputedStyle(activityOriginal);
-            if (originalStyle.textOverflow !== "ellipsis" || originalStyle.whiteSpace !== "nowrap") {
-              throw new Error("Topbar original filename is not clipped: textOverflow=" + originalStyle.textOverflow + "; whiteSpace=" + originalStyle.whiteSpace);
+            requireText("activity", [
+              "Current Fixture",
+              "Anime Library",
+              "TV",
+              "item 2 of 5",
+              "Encode route",
+              "42.5%",
+            ]);
+            const activityMeta = document.querySelector("#activity .activity-meta");
+            if (!activityMeta) throw new Error("Topbar activity metadata line is missing.");
+            const metaStyle = window.getComputedStyle(activityMeta);
+            if (metaStyle.textOverflow !== "ellipsis" || metaStyle.whiteSpace !== "nowrap") {
+              throw new Error("Topbar activity metadata is not clipped: textOverflow=" + metaStyle.textOverflow + "; whiteSpace=" + metaStyle.whiteSpace);
+            }
+            const activityText = text("activity");
+            for (const forbidden of ["Original:", "Current Fixture.mkv", "Serial Experiments Lain S02E01 Weird.mkv"]) {
+              if (activityText.includes(forbidden)) {
+                throw new Error("Topbar activity leaked raw filename text: " + forbidden + "\\nActual:\\n" + activityText);
+              }
             }
             requireText("home-at-a-glance-detail", [
-              "Stage Encoding",
+              "Phase Encoding",
+              "Anime Library",
+              "TV",
               "42.5%",
-              "Route encode",
-              "Queue 2 / 5",
+              "Encode route",
+              "item 2 of 5",
             ]);
+            for (const id of ["home-at-a-glance-current", "home-at-a-glance-detail"]) {
+              const actual = text(id);
+              for (const forbidden of ["Current Fixture.mkv", "Original:", "Serial Experiments Lain S02E01 Weird.mkv"]) {
+                if (actual.includes(forbidden)) {
+                  throw new Error(id + " leaked raw filename text: " + forbidden + "\\nActual:\\n" + actual);
+                }
+              }
+            }
             requireText("home-at-a-glance-progress-bars", [
               "Current item",
               "active · 42.5%",
@@ -468,14 +493,23 @@ def _browser_home_live_state_runner_source() -> str:
               "Pilot checkpoints:",
               "Current evidence reconciliation:",
             ]);
+            requireText("home-scratch-storage-detail", [
+              "free / 1 GB reserve",
+            ]);
+            requireText("home-output-storage-detail", [
+              "free / 1 GB reserve",
+            ]);
             if (posts.length) throw new Error("Home live-state render posted unexpected routes: " + JSON.stringify(posts));
             window.apiPost = originalApiPost;
             return {
               ok: true,
               posts,
+              statePill: text("state-pill"),
               readiness: text("home-readiness-summary"),
               atAGlanceCurrent: text("home-at-a-glance-current"),
               atAGlanceDetail: text("home-at-a-glance-detail"),
+              scratchStorage: text("home-scratch-storage-status") + " " + text("home-scratch-storage-detail"),
+              outputStorage: text("home-output-storage-status") + " " + text("home-output-storage-detail"),
               activity: text("activity"),
               atAGlanceQueue: text("home-at-a-glance-up-next"),
               dailyDriver: text("daily-driver-summary"),
@@ -598,6 +632,13 @@ class WebViewBrowserHomeLiveStateSmokeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             resolved, source, output = _write_fixture_state(root)
+            scratch_root = root / "Scratch"
+            scratch_root.mkdir(parents=True, exist_ok=True)
+            resolved.local_base = scratch_root
+            resolved.config_data["LocalBase"] = str(scratch_root)
+            resolved.config_data["Outsource"] = str(root / "Outsource")
+            resolved.config_data["MinFreeSpaceGB"] = 1
+            resolved.config_data["OutsourceMinFreeSpaceGB"] = 1
             media_snapshot = capture_media_no_mutation_snapshot(root)
             command_journal_path = root / "RunLogs" / "local_api_command_history.json"
             _write_command_history(command_journal_path)
@@ -703,9 +744,16 @@ class WebViewBrowserHomeLiveStateSmokeTests(unittest.TestCase):
             self.assertTrue(result["ok"])
             browser_result = result["result"]
             self.assertEqual(browser_result["posts"], [])
-            self.assertIn("Current Fixture.mkv", browser_result["atAGlanceCurrent"])
-            self.assertIn("Stage Encoding", browser_result["atAGlanceDetail"])
+            self.assertIn("Encoding", browser_result["statePill"])
+            self.assertIn("Current Fixture", browser_result["atAGlanceCurrent"])
+            self.assertNotIn("Current Fixture.mkv", browser_result["atAGlanceCurrent"])
+            self.assertIn("Phase Encoding", browser_result["atAGlanceDetail"])
+            self.assertIn("Encode route", browser_result["atAGlanceDetail"])
             self.assertIn("Serial Experiments Lain S02E01 Weird.mkv", browser_result["atAGlanceQueue"])
+            self.assertIn("OK", browser_result["scratchStorage"])
+            self.assertIn("1 GB reserve", browser_result["scratchStorage"])
+            self.assertIn("OK", browser_result["outputStorage"])
+            self.assertIn("1 GB reserve", browser_result["outputStorage"])
             self.assertIn("Daily-driver readiness checklist:", browser_result["dailyDriver"])
             self.assertIn("Anime Library", browser_result["progressDetails"])
             self.assertNotIn("Controls", browser_result["progressDetails"])

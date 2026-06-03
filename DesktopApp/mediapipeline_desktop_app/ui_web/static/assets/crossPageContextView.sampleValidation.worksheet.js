@@ -33,6 +33,13 @@
       return { checkpoint, posture, evidence, nextCheck, detail };
     }
 
+    function crossPageWorksheetRunnableCount(queue) {
+      if (queue && Object.prototype.hasOwnProperty.call(queue, "runnable_count")) {
+        return crossPageCount(queue.runnable_count);
+      }
+      return crossPageRows(queue).length;
+    }
+
     function crossPageSampleValidationEvidence(context = {}) {
       const log = context.sampleValidation && typeof context.sampleValidation === "object" ? context.sampleValidation : {};
       const readiness = log.readiness && typeof log.readiness === "object" ? log.readiness : {};
@@ -120,7 +127,7 @@
       rows.push(crossPageWorksheetRow(
         "Queue route decision",
         queue.error ? "blocked" : queueStrength === "exact" ? "match" : queueStrength === "advisory" || crossPageRows(queue).length ? "warning" : "unknown",
-        `queue rows=${crossPageRows(queue).length}; runnable=${crossPageCount(queue.runnable_count || crossPageRows(queue).length)}; stale=${queue.snapshot_file_freshness_status || "unknown"}; sample evidence=${queueStrength || "none"}`,
+        `queue rows=${crossPageRows(queue).length}; runnable=${crossPageWorksheetRunnableCount(queue)}; stale=${queue.snapshot_file_freshness_status || "unknown"}; sample evidence=${queueStrength || "none"}`,
         queueStrength === "exact"
           ? "Open Queue selected-row trace and compare route/remux-vs-encode reason against FFmpeg/run evidence after processing."
           : "Review Queue route evidence before launch; missing Queue evidence means this worksheet cannot prove the sample route.",

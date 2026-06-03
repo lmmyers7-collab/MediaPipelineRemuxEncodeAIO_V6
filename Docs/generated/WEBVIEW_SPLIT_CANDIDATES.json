@@ -21,6 +21,7 @@
         "refreshAll",
         "refreshAllNow",
         "renderExternalDependencyDigest",
+        "setTopbarPendingLaunch",
         "showPage"
       ],
       "candidate_count": 4,
@@ -30,8 +31,8 @@
           "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 805,
-            "end": 1066,
+            "start": 826,
+            "end": 1087,
             "line_count": 262
           },
           "functions_to_move": [
@@ -87,6 +88,7 @@
             "refreshAll",
             "refreshAllNow",
             "renderExternalDependencyDigest",
+            "setTopbarPendingLaunch",
             "showPage"
           ],
           "api_routes": [
@@ -158,9 +160,9 @@
           "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.refresh.js",
           "topic": "app-refresh",
           "line_range": {
-            "start": 549,
-            "end": 777,
-            "line_count": 229
+            "start": 565,
+            "end": 797,
+            "line_count": 233
           },
           "functions_to_move": [
             "refreshAll",
@@ -194,6 +196,7 @@
             "renderHomeQueueSnapshot",
             "renderHomeReadiness",
             "renderHomeRecentCompleted",
+            "renderHomeStorageHealth",
             "renderRefreshHealth",
             "renderRefreshInProgress",
             "renderSnapshot",
@@ -209,6 +212,7 @@
             "refreshAll",
             "refreshAllNow",
             "renderExternalDependencyDigest",
+            "setTopbarPendingLaunch",
             "showPage"
           ],
           "api_routes": [
@@ -258,6 +262,7 @@
               "renderHomeQueueSnapshot",
               "renderHomeReadiness",
               "renderHomeRecentCompleted",
+              "renderHomeStorageHealth",
               "renderRefreshHealth",
               "renderRefreshInProgress",
               "renderSnapshot",
@@ -330,6 +335,7 @@
               "renderFailurePreview",
               "renderFinalLibraryPromotion",
               "renderHomeActiveWork",
+              "renderLaunchAuditLog",
               "renderLaunchReadiness",
               "renderLaunchRealMediaProofHandoff",
               "renderNetworkView",
@@ -362,8 +368,8 @@
           "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 441,
-            "end": 545,
+            "start": 457,
+            "end": 561,
             "line_count": 105
           },
           "functions_to_move": [
@@ -395,6 +401,7 @@
             "refreshAll",
             "refreshAllNow",
             "renderExternalDependencyDigest",
+            "setTopbarPendingLaunch",
             "showPage"
           ],
           "api_routes": [],
@@ -440,9 +447,9 @@
           "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 72,
-            "end": 165,
-            "line_count": 94
+            "start": 82,
+            "end": 177,
+            "line_count": 96
           },
           "functions_to_move": [
             "renderTauriBackendLifecycleAlert",
@@ -462,7 +469,8 @@
             "renderBrandVersion",
             "renderControlReadiness",
             "renderSparkline",
-            "renderTopbarActivity"
+            "renderTopbarActivity",
+            "renderTopbarEventTicker"
           ],
           "globals_to_preserve": [
             "externalDependencyEvidenceText",
@@ -473,6 +481,7 @@
             "refreshAll",
             "refreshAllNow",
             "renderExternalDependencyDigest",
+            "setTopbarPendingLaunch",
             "showPage"
           ],
           "api_routes": [],
@@ -496,7 +505,8 @@
               "renderBrandVersion",
               "renderControlReadiness",
               "renderSparkline",
-              "renderTopbarActivity"
+              "renderTopbarActivity",
+              "renderTopbarEventTicker"
             ],
             "dom_dependencies": [
               "close-readiness",
@@ -516,8 +526,10 @@
             ],
             "unresolved_global_dependencies": [
               "byId",
+              "current_work",
               "detail",
               "getLastSettings",
+              "phase_label",
               "renderDiagnosticsProgress",
               "renderLaunchAuditProgress",
               "renderLaunchReadiness",
@@ -579,7 +591,6 @@
         "markVideoDetailSettingsBuilderDirty",
         "mediaPipelineSettingsView",
         "previewFinalLibraryPromotionSettings",
-        "previewSettingsPipelinePlan",
         "renderAudioSettingsBuilderGuidance",
         "renderFileSafetySettingsBuilderGuidance",
         "renderFinalLibraryPromotionSettingsGuidance",
@@ -641,20 +652,22 @@
         "syncVideoDetailSettingsBuilderFromConfig",
         "writeSettingsPatchJson"
       ],
-      "candidate_count": 10,
+      "candidate_count": 8,
       "candidates": [
         {
           "source_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js",
           "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 1942,
-            "end": 2442,
-            "line_count": 501
+            "start": 1590,
+            "end": 2101,
+            "line_count": 512
           },
           "functions_to_move": [
-            "previewSettingsPipelinePlan",
+            "validateCurrentSettings",
+            "appendSettingsRiskSummaryLines",
             "flushDirtySettingsBuilders",
+            "saveRenameCleaningFiltersFromSettingsSave",
             "previewSettingsPatch",
             "saveSettingsPatch",
             "reloadSettingsFromDisk",
@@ -664,6 +677,7 @@
             "initSettingsViewEvents"
           ],
           "parent_wrappers_required": [
+            "validateCurrentSettings",
             "previewSettingsPatch",
             "saveSettingsPatch",
             "reloadSettingsFromDisk",
@@ -672,7 +686,6 @@
             "initSettingsViewEvents"
           ],
           "dependencies_to_resolve": [
-            "appendSettingsRiskSummaryLines",
             "applyAudioSettingsBuilderToPatch",
             "applyFileSafetySettingsBuilderToPatch",
             "applyNetworkSettingsBuilderToPatch",
@@ -694,14 +707,15 @@
             "markSettingsPatchTouched",
             "maybeShowSettingsRuntimeRestartNotice",
             "networkSettingsBuilderState",
-            "parseSettingsSourceMediaJson",
             "pendingPublishSettingsBuilderState",
             "queueSettingsBuilderState",
             "rejectSettingsCommandWhileBusy",
             "renderSettingsActiveMediaPolicyHandoff",
             "renderSettingsPatchSummary",
-            "renderSettingsPipelinePlanPreview",
-            "renderSettingsPipelinePlanPreviewError"
+            "runtimeSettingsBuilderState",
+            "selectedSettingsBackendResultKey",
+            "setSettingsCommandBusy",
+            "settingsAdvancedToggleEventsBound"
           ],
           "globals_to_preserve": [
             "applyAudioSettingsBuilderToPatch",
@@ -737,7 +751,6 @@
             "markVideoDetailSettingsBuilderDirty",
             "mediaPipelineSettingsView",
             "previewFinalLibraryPromotionSettings",
-            "previewSettingsPipelinePlan",
             "renderAudioSettingsBuilderGuidance",
             "renderFileSafetySettingsBuilderGuidance",
             "renderFinalLibraryPromotionSettingsGuidance",
@@ -801,14 +814,15 @@
           ],
           "api_routes": [
             "/api/settings/browse-path",
-            "/api/settings/pipeline-plan-preview",
             "/api/settings/preview-patch",
             "/api/settings/reload",
-            "/api/settings/save-patch"
+            "/api/settings/save-patch",
+            "/api/settings/validate"
           ],
           "dom_ids_touched": [
             "settings-handbrake-active-preset",
-            "settings-patch-json"
+            "settings-patch-json",
+            "settings-rename-filter-release-groups"
           ],
           "event_types": [
             "click"
@@ -835,24 +849,19 @@
               "runtimeSettingsBuilderState",
               "settingsBuilderDirty",
               "settingsPatchPreviewRequestId",
-              "settingsPipelinePlanPreviewRequestId",
               "settingsValuesEqual",
               "subtitleSettingsBuilderState",
               "videoDetailSettingsBuilderState"
             ],
             "parent_state_writes": [],
             "outside_local_functions": [
-              "appendSettingsRiskSummaryLines",
               "applySettingsBuilderToPatch",
               "handleSettingsAdvancedToggleClick",
               "markSettingsPatchTouched",
               "maybeShowSettingsRuntimeRestartNotice",
-              "parseSettingsSourceMediaJson",
               "rejectSettingsCommandWhileBusy",
               "renderSettingsActiveMediaPolicyHandoff",
               "renderSettingsPatchSummary",
-              "renderSettingsPipelinePlanPreview",
-              "renderSettingsPipelinePlanPreviewError",
               "setSettingsCommandBusy",
               "settingsBuilderConfigValue",
               "settingsFieldDefinition",
@@ -861,24 +870,25 @@
               "settingsPatchRequestSignature",
               "settingsPatchReviewFunction",
               "settingsPersistedKeyDisplayList",
-              "settingsPipelinePlanPatchRequest",
               "settingsRuntimeRestartConfirmationLine",
               "settingsRuntimeRestartNoticeLines",
               "settingsStableJsonValue"
             ],
             "dom_dependencies": [
               "settings-handbrake-active-preset",
-              "settings-patch-json"
+              "settings-patch-json",
+              "settings-rename-filter-release-groups"
             ],
             "api_dependencies": [
               "/api/settings/browse-path",
-              "/api/settings/pipeline-plan-preview",
               "/api/settings/preview-patch",
               "/api/settings/reload",
-              "/api/settings/save-patch"
+              "/api/settings/save-patch",
+              "/api/settings/validate"
             ],
             "window_dependencies": [
-              "window.confirm"
+              "window.confirm",
+              "window.mediaPipelineRenameView"
             ],
             "browser_globals": [
               "Array",
@@ -915,11 +925,184 @@
           },
           "route_ownership_notes": [
             "/api/settings/browse-path must remain settings-owned and backend-confirmed where applicable.",
-            "/api/settings/pipeline-plan-preview must remain settings-owned and backend-confirmed where applicable.",
             "/api/settings/preview-patch must remain settings-owned and backend-confirmed where applicable.",
             "/api/settings/reload must remain settings-owned and backend-confirmed where applicable.",
-            "/api/settings/save-patch must remain settings-owned and backend-confirmed where applicable."
+            "/api/settings/save-patch must remain settings-owned and backend-confirmed where applicable.",
+            "/api/settings/validate must remain settings-owned and backend-confirmed where applicable."
           ],
+          "tests_affected": [
+            "DesktopApp.tests.test_application_facade_settings_workspace",
+            "DesktopApp.tests.test_webview_frontend_mutation_boundary",
+            "DesktopApp.tests.test_webview_inventory_docs",
+            "DesktopApp.tests.test_webview_settings_libraries",
+            "DesktopApp.tests.test_webview_settings_patch_smoke"
+          ]
+        },
+        {
+          "source_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js",
+          "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js",
+          "topic": "settings-core",
+          "line_range": {
+            "start": 383,
+            "end": 564,
+            "line_count": 182
+          },
+          "functions_to_move": [
+            "settingsFieldLabel",
+            "settingsPersistedKeyDisplay",
+            "settingsPersistedKeyDisplayList",
+            "settingsFieldHelpText",
+            "settingsMetadataTags",
+            "settingsFieldIsAdvanced",
+            "settingsMetadataValue",
+            "updateSettingsLabelText",
+            "applySettingsFieldMetadataToControl",
+            "settingsAdvancedFieldContainers",
+            "ensureSettingsAdvancedToggle",
+            "syncSettingsAdvancedPane"
+          ],
+          "parent_wrappers_required": [],
+          "dependencies_to_resolve": [
+            "settingsAdvancedFallbackKeys",
+            "settingsFieldDefaultValue",
+            "settingsFieldDefinition"
+          ],
+          "globals_to_preserve": [
+            "applyAudioSettingsBuilderToPatch",
+            "applyFileSafetySettingsBuilderToPatch",
+            "applyNetworkSettingsBuilderToPatch",
+            "applyPendingPublishSettingsBuilderToPatch",
+            "applyQueueSettingsBuilderToPatch",
+            "applyRuntimeSettingsBuilderToPatch",
+            "applySubtitleSettingsBuilderToPatch",
+            "applyVideoDetailSettingsBuilderToPatch",
+            "buildSettingsOverviewRows",
+            "collectAudioSettingsBuilderPatch",
+            "collectFileSafetySettingsBuilderPatch",
+            "collectFinalLibraryPromotionSettingsPatch",
+            "collectNetworkSettingsBuilderPatch",
+            "collectPendingPublishSettingsBuilderPatch",
+            "collectQueueSettingsBuilderPatch",
+            "collectRuntimeSettingsBuilderPatch",
+            "collectSubtitleSettingsBuilderPatch",
+            "collectVideoDetailSettingsBuilderPatch",
+            "configValue",
+            "getLastSettings",
+            "initSettingsViewEvents",
+            "isSettingsCommand",
+            "markAudioSettingsBuilderDirty",
+            "markFileSafetySettingsBuilderDirty",
+            "markFinalLibraryPromotionSettingsBuilderDirty",
+            "markNetworkSettingsBuilderDirty",
+            "markPendingPublishSettingsBuilderDirty",
+            "markQueueSettingsBuilderDirty",
+            "markRuntimeSettingsBuilderDirty",
+            "markSubtitleSettingsBuilderDirty",
+            "markVideoDetailSettingsBuilderDirty",
+            "mediaPipelineSettingsView",
+            "previewFinalLibraryPromotionSettings",
+            "renderAudioSettingsBuilderGuidance",
+            "renderFileSafetySettingsBuilderGuidance",
+            "renderFinalLibraryPromotionSettingsGuidance",
+            "renderNetworkSettingsBuilderGuidance",
+            "renderPendingPublishSettingsBuilderGuidance",
+            "renderQueueSettingsBuilderGuidance",
+            "renderRuntimeSettingsBuilderGuidance",
+            "renderSettings",
+            "renderSettingsBdpgsOcrPathEvidence",
+            "renderSettingsCommandHistory",
+            "renderSettingsMediaPolicyCrossCheck",
+            "renderSettingsOverview",
+            "renderSettingsRawActionPlan",
+            "renderSettingsRawTriage",
+            "renderSettingsRows",
+            "renderSettingsSafetyLocks",
+            "renderSettingsVobSubOcrPathEvidence",
+            "renderSubtitleSettingsBuilderGuidance",
+            "renderVideoDetailSettingsBuilderGuidance",
+            "saveFinalLibraryPromotionSettings",
+            "setSettingsRows",
+            "settingsBdpgsOcrPathEvidence",
+            "settingsBdpgsOcrPathEvidenceLines",
+            "settingsBdpgsOcrPathEvidenceStatus",
+            "settingsBuilderCoveredKeys",
+            "settingsCommandHistoryLine",
+            "settingsLaunchImpactRows",
+            "settingsLaunchImpactStatus",
+            "settingsPatchEffectiveChangedEntries",
+            "settingsPatchIsTouched",
+            "settingsPatchLocalValidationHintLines",
+            "settingsPatchLocalValidationHints",
+            "settingsPolicyDeltaRows",
+            "settingsPolicyDeltaStatus",
+            "settingsRawActionPlanDetailLines",
+            "settingsRawActionPlanRows",
+            "settingsRawActionPlanStatus",
+            "settingsRawActionPlanSummaryLines",
+            "settingsRawTriageDetailLines",
+            "settingsRawTriageRows",
+            "settingsRawTriageStatus",
+            "settingsRawTriageSummaryLines",
+            "settingsRuntimeRestartConfirmationLine",
+            "settingsRuntimeRestartNoticeLines",
+            "settingsSafetyLockRows",
+            "settingsSafetyLockStatus",
+            "settingsSafetyLockSummaryLines",
+            "settingsVobSubOcrPathEvidence",
+            "settingsVobSubOcrPathEvidenceLines",
+            "settingsVobSubOcrPathEvidenceStatus",
+            "syncAudioSettingsBuilderFromConfig",
+            "syncFileSafetySettingsBuilderFromConfig",
+            "syncFinalLibraryPromotionSettingsBuilderFromConfig",
+            "syncNetworkSettingsBuilderFromConfig",
+            "syncPendingPublishSettingsBuilderFromConfig",
+            "syncQueueSettingsBuilderFromConfig",
+            "syncRuntimeSettingsBuilderFromConfig",
+            "syncSubtitleSettingsBuilderFromConfig",
+            "syncVideoDetailSettingsBuilderFromConfig",
+            "writeSettingsPatchJson"
+          ],
+          "api_routes": [],
+          "dom_ids_touched": [],
+          "event_types": [],
+          "dependency_classification": {
+            "parent_state_reads": [
+              "settingsAdvancedFallbackKeys"
+            ],
+            "parent_state_writes": [],
+            "outside_local_functions": [
+              "settingsFieldDefaultValue",
+              "settingsFieldDefinition"
+            ],
+            "dom_dependencies": [],
+            "api_dependencies": [],
+            "window_dependencies": [],
+            "browser_globals": [
+              "Array",
+              "Boolean",
+              "JSON",
+              "Node",
+              "Set",
+              "String",
+              "document",
+              "undefined"
+            ],
+            "unresolved_global_dependencies": [
+              "HTMLInputElement",
+              "advanced_visibility",
+              "byId",
+              "help",
+              "help_text",
+              "label",
+              "rule_taxonomy",
+              "strictness"
+            ],
+            "movement_assessment": "needs_wrapper_or_context",
+            "assessment_reasons": [
+              "uses unresolved ordered-script globals"
+            ]
+          },
+          "route_ownership_notes": [],
           "tests_affected": [
             "DesktopApp.tests.test_application_facade_settings_workspace",
             "DesktopApp.tests.test_webview_frontend_mutation_boundary",
@@ -933,8 +1116,8 @@
           "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.policyImpact.js",
           "topic": "settings-final-library",
           "line_range": {
-            "start": 1118,
-            "end": 1284,
+            "start": 1045,
+            "end": 1211,
             "line_count": 167
           },
           "functions_to_move": [
@@ -995,7 +1178,6 @@
             "markVideoDetailSettingsBuilderDirty",
             "mediaPipelineSettingsView",
             "previewFinalLibraryPromotionSettings",
-            "previewSettingsPipelinePlan",
             "renderAudioSettingsBuilderGuidance",
             "renderFileSafetySettingsBuilderGuidance",
             "renderFinalLibraryPromotionSettingsGuidance",
@@ -1132,8 +1314,8 @@
           "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 645,
-            "end": 803,
+            "start": 572,
+            "end": 730,
             "line_count": 159
           },
           "functions_to_move": [
@@ -1231,7 +1413,6 @@
             "markVideoDetailSettingsBuilderDirty",
             "mediaPipelineSettingsView",
             "previewFinalLibraryPromotionSettings",
-            "previewSettingsPipelinePlan",
             "renderAudioSettingsBuilderGuidance",
             "renderFileSafetySettingsBuilderGuidance",
             "renderFinalLibraryPromotionSettingsGuidance",
@@ -1371,8 +1552,8 @@
           "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 812,
-            "end": 962,
+            "start": 739,
+            "end": 889,
             "line_count": 151
           },
           "functions_to_move": [
@@ -1483,7 +1664,6 @@
             "markVideoDetailSettingsBuilderDirty",
             "mediaPipelineSettingsView",
             "previewFinalLibraryPromotionSettings",
-            "previewSettingsPipelinePlan",
             "renderAudioSettingsBuilderGuidance",
             "renderFileSafetySettingsBuilderGuidance",
             "renderFinalLibraryPromotionSettingsGuidance",
@@ -1630,183 +1810,14 @@
           "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 495,
-            "end": 637,
-            "line_count": 143
-          },
-          "functions_to_move": [
-            "settingsMetadataValue",
-            "updateSettingsLabelText",
-            "applySettingsFieldMetadataToControl",
-            "settingsAdvancedFieldContainers",
-            "ensureSettingsAdvancedToggle",
-            "syncSettingsAdvancedPane"
-          ],
-          "parent_wrappers_required": [],
-          "dependencies_to_resolve": [
-            "renderSettingsFieldTaxonomyBadges",
-            "settingsFieldDefaultValue",
-            "settingsFieldDefinition",
-            "settingsFieldHelpText",
-            "settingsFieldIsAdvanced",
-            "settingsFieldLabel",
-            "settingsMetadataTags"
-          ],
-          "globals_to_preserve": [
-            "applyAudioSettingsBuilderToPatch",
-            "applyFileSafetySettingsBuilderToPatch",
-            "applyNetworkSettingsBuilderToPatch",
-            "applyPendingPublishSettingsBuilderToPatch",
-            "applyQueueSettingsBuilderToPatch",
-            "applyRuntimeSettingsBuilderToPatch",
-            "applySubtitleSettingsBuilderToPatch",
-            "applyVideoDetailSettingsBuilderToPatch",
-            "buildSettingsOverviewRows",
-            "collectAudioSettingsBuilderPatch",
-            "collectFileSafetySettingsBuilderPatch",
-            "collectFinalLibraryPromotionSettingsPatch",
-            "collectNetworkSettingsBuilderPatch",
-            "collectPendingPublishSettingsBuilderPatch",
-            "collectQueueSettingsBuilderPatch",
-            "collectRuntimeSettingsBuilderPatch",
-            "collectSubtitleSettingsBuilderPatch",
-            "collectVideoDetailSettingsBuilderPatch",
-            "configValue",
-            "getLastSettings",
-            "initSettingsViewEvents",
-            "isSettingsCommand",
-            "markAudioSettingsBuilderDirty",
-            "markFileSafetySettingsBuilderDirty",
-            "markFinalLibraryPromotionSettingsBuilderDirty",
-            "markNetworkSettingsBuilderDirty",
-            "markPendingPublishSettingsBuilderDirty",
-            "markQueueSettingsBuilderDirty",
-            "markRuntimeSettingsBuilderDirty",
-            "markSubtitleSettingsBuilderDirty",
-            "markVideoDetailSettingsBuilderDirty",
-            "mediaPipelineSettingsView",
-            "previewFinalLibraryPromotionSettings",
-            "previewSettingsPipelinePlan",
-            "renderAudioSettingsBuilderGuidance",
-            "renderFileSafetySettingsBuilderGuidance",
-            "renderFinalLibraryPromotionSettingsGuidance",
-            "renderNetworkSettingsBuilderGuidance",
-            "renderPendingPublishSettingsBuilderGuidance",
-            "renderQueueSettingsBuilderGuidance",
-            "renderRuntimeSettingsBuilderGuidance",
-            "renderSettings",
-            "renderSettingsBdpgsOcrPathEvidence",
-            "renderSettingsCommandHistory",
-            "renderSettingsMediaPolicyCrossCheck",
-            "renderSettingsOverview",
-            "renderSettingsRawActionPlan",
-            "renderSettingsRawTriage",
-            "renderSettingsRows",
-            "renderSettingsSafetyLocks",
-            "renderSettingsVobSubOcrPathEvidence",
-            "renderSubtitleSettingsBuilderGuidance",
-            "renderVideoDetailSettingsBuilderGuidance",
-            "saveFinalLibraryPromotionSettings",
-            "setSettingsRows",
-            "settingsBdpgsOcrPathEvidence",
-            "settingsBdpgsOcrPathEvidenceLines",
-            "settingsBdpgsOcrPathEvidenceStatus",
-            "settingsBuilderCoveredKeys",
-            "settingsCommandHistoryLine",
-            "settingsLaunchImpactRows",
-            "settingsLaunchImpactStatus",
-            "settingsPatchEffectiveChangedEntries",
-            "settingsPatchIsTouched",
-            "settingsPatchLocalValidationHintLines",
-            "settingsPatchLocalValidationHints",
-            "settingsPolicyDeltaRows",
-            "settingsPolicyDeltaStatus",
-            "settingsRawActionPlanDetailLines",
-            "settingsRawActionPlanRows",
-            "settingsRawActionPlanStatus",
-            "settingsRawActionPlanSummaryLines",
-            "settingsRawTriageDetailLines",
-            "settingsRawTriageRows",
-            "settingsRawTriageStatus",
-            "settingsRawTriageSummaryLines",
-            "settingsRuntimeRestartConfirmationLine",
-            "settingsRuntimeRestartNoticeLines",
-            "settingsSafetyLockRows",
-            "settingsSafetyLockStatus",
-            "settingsSafetyLockSummaryLines",
-            "settingsVobSubOcrPathEvidence",
-            "settingsVobSubOcrPathEvidenceLines",
-            "settingsVobSubOcrPathEvidenceStatus",
-            "syncAudioSettingsBuilderFromConfig",
-            "syncFileSafetySettingsBuilderFromConfig",
-            "syncFinalLibraryPromotionSettingsBuilderFromConfig",
-            "syncNetworkSettingsBuilderFromConfig",
-            "syncPendingPublishSettingsBuilderFromConfig",
-            "syncQueueSettingsBuilderFromConfig",
-            "syncRuntimeSettingsBuilderFromConfig",
-            "syncSubtitleSettingsBuilderFromConfig",
-            "syncVideoDetailSettingsBuilderFromConfig",
-            "writeSettingsPatchJson"
-          ],
-          "api_routes": [],
-          "dom_ids_touched": [],
-          "event_types": [],
-          "dependency_classification": {
-            "parent_state_reads": [],
-            "parent_state_writes": [],
-            "outside_local_functions": [
-              "renderSettingsFieldTaxonomyBadges",
-              "settingsFieldDefaultValue",
-              "settingsFieldDefinition",
-              "settingsFieldHelpText",
-              "settingsFieldIsAdvanced",
-              "settingsFieldLabel",
-              "settingsMetadataTags"
-            ],
-            "dom_dependencies": [],
-            "api_dependencies": [],
-            "window_dependencies": [],
-            "browser_globals": [
-              "Array",
-              "JSON",
-              "Node",
-              "Set",
-              "String",
-              "document",
-              "undefined"
-            ],
-            "unresolved_global_dependencies": [
-              "HTMLInputElement",
-              "byId"
-            ],
-            "movement_assessment": "needs_wrapper_or_context",
-            "assessment_reasons": [
-              "uses unresolved ordered-script globals"
-            ]
-          },
-          "route_ownership_notes": [],
-          "tests_affected": [
-            "DesktopApp.tests.test_application_facade_settings_workspace",
-            "DesktopApp.tests.test_webview_frontend_mutation_boundary",
-            "DesktopApp.tests.test_webview_inventory_docs",
-            "DesktopApp.tests.test_webview_settings_libraries",
-            "DesktopApp.tests.test_webview_settings_patch_smoke"
-          ]
-        },
-        {
-          "source_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js",
-          "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js",
-          "topic": "settings-core",
-          "line_range": {
             "start": 59,
-            "end": 178,
-            "line_count": 120
+            "end": 176,
+            "line_count": 118
           },
           "functions_to_move": [
             "lastSettingsPatchPreviewEvidence",
             "lastSettingsPatchSaveEvidence",
             "lastSettingsReloadEvidence",
-            "settingsPipelinePlanPreviewRequestId",
             "settingsCommandButtonIds",
             "settingsCommandInFlight",
             "settingsRuntimeActiveStates",
@@ -1872,7 +1883,6 @@
             "markVideoDetailSettingsBuilderDirty",
             "mediaPipelineSettingsView",
             "previewFinalLibraryPromotionSettings",
-            "previewSettingsPipelinePlan",
             "renderAudioSettingsBuilderGuidance",
             "renderFileSafetySettingsBuilderGuidance",
             "renderFinalLibraryPromotionSettingsGuidance",
@@ -1976,194 +1986,11 @@
         },
         {
           "source_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js",
-          "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js",
-          "topic": "settings-core",
-          "line_range": {
-            "start": 1664,
-            "end": 1771,
-            "line_count": 108
-          },
-          "functions_to_move": [
-            "validateCurrentSettings",
-            "appendSettingsRiskSummaryLines",
-            "planValue",
-            "compactPlanList",
-            "formatSettingsBytes",
-            "parseSettingsSourceMediaJson",
-            "settingsSourceFactSummary"
-          ],
-          "parent_wrappers_required": [
-            "validateCurrentSettings"
-          ],
-          "dependencies_to_resolve": [
-            "lastSettingsValues",
-            "rejectSettingsCommandWhileBusy",
-            "setSettingsCommandBusy"
-          ],
-          "globals_to_preserve": [
-            "applyAudioSettingsBuilderToPatch",
-            "applyFileSafetySettingsBuilderToPatch",
-            "applyNetworkSettingsBuilderToPatch",
-            "applyPendingPublishSettingsBuilderToPatch",
-            "applyQueueSettingsBuilderToPatch",
-            "applyRuntimeSettingsBuilderToPatch",
-            "applySubtitleSettingsBuilderToPatch",
-            "applyVideoDetailSettingsBuilderToPatch",
-            "buildSettingsOverviewRows",
-            "collectAudioSettingsBuilderPatch",
-            "collectFileSafetySettingsBuilderPatch",
-            "collectFinalLibraryPromotionSettingsPatch",
-            "collectNetworkSettingsBuilderPatch",
-            "collectPendingPublishSettingsBuilderPatch",
-            "collectQueueSettingsBuilderPatch",
-            "collectRuntimeSettingsBuilderPatch",
-            "collectSubtitleSettingsBuilderPatch",
-            "collectVideoDetailSettingsBuilderPatch",
-            "configValue",
-            "getLastSettings",
-            "initSettingsViewEvents",
-            "isSettingsCommand",
-            "markAudioSettingsBuilderDirty",
-            "markFileSafetySettingsBuilderDirty",
-            "markFinalLibraryPromotionSettingsBuilderDirty",
-            "markNetworkSettingsBuilderDirty",
-            "markPendingPublishSettingsBuilderDirty",
-            "markQueueSettingsBuilderDirty",
-            "markRuntimeSettingsBuilderDirty",
-            "markSubtitleSettingsBuilderDirty",
-            "markVideoDetailSettingsBuilderDirty",
-            "mediaPipelineSettingsView",
-            "previewFinalLibraryPromotionSettings",
-            "previewSettingsPipelinePlan",
-            "renderAudioSettingsBuilderGuidance",
-            "renderFileSafetySettingsBuilderGuidance",
-            "renderFinalLibraryPromotionSettingsGuidance",
-            "renderNetworkSettingsBuilderGuidance",
-            "renderPendingPublishSettingsBuilderGuidance",
-            "renderQueueSettingsBuilderGuidance",
-            "renderRuntimeSettingsBuilderGuidance",
-            "renderSettings",
-            "renderSettingsBdpgsOcrPathEvidence",
-            "renderSettingsCommandHistory",
-            "renderSettingsMediaPolicyCrossCheck",
-            "renderSettingsOverview",
-            "renderSettingsRawActionPlan",
-            "renderSettingsRawTriage",
-            "renderSettingsRows",
-            "renderSettingsSafetyLocks",
-            "renderSettingsVobSubOcrPathEvidence",
-            "renderSubtitleSettingsBuilderGuidance",
-            "renderVideoDetailSettingsBuilderGuidance",
-            "saveFinalLibraryPromotionSettings",
-            "setSettingsRows",
-            "settingsBdpgsOcrPathEvidence",
-            "settingsBdpgsOcrPathEvidenceLines",
-            "settingsBdpgsOcrPathEvidenceStatus",
-            "settingsBuilderCoveredKeys",
-            "settingsCommandHistoryLine",
-            "settingsLaunchImpactRows",
-            "settingsLaunchImpactStatus",
-            "settingsPatchEffectiveChangedEntries",
-            "settingsPatchIsTouched",
-            "settingsPatchLocalValidationHintLines",
-            "settingsPatchLocalValidationHints",
-            "settingsPolicyDeltaRows",
-            "settingsPolicyDeltaStatus",
-            "settingsRawActionPlanDetailLines",
-            "settingsRawActionPlanRows",
-            "settingsRawActionPlanStatus",
-            "settingsRawActionPlanSummaryLines",
-            "settingsRawTriageDetailLines",
-            "settingsRawTriageRows",
-            "settingsRawTriageStatus",
-            "settingsRawTriageSummaryLines",
-            "settingsRuntimeRestartConfirmationLine",
-            "settingsRuntimeRestartNoticeLines",
-            "settingsSafetyLockRows",
-            "settingsSafetyLockStatus",
-            "settingsSafetyLockSummaryLines",
-            "settingsVobSubOcrPathEvidence",
-            "settingsVobSubOcrPathEvidenceLines",
-            "settingsVobSubOcrPathEvidenceStatus",
-            "syncAudioSettingsBuilderFromConfig",
-            "syncFileSafetySettingsBuilderFromConfig",
-            "syncFinalLibraryPromotionSettingsBuilderFromConfig",
-            "syncNetworkSettingsBuilderFromConfig",
-            "syncPendingPublishSettingsBuilderFromConfig",
-            "syncQueueSettingsBuilderFromConfig",
-            "syncRuntimeSettingsBuilderFromConfig",
-            "syncSubtitleSettingsBuilderFromConfig",
-            "syncVideoDetailSettingsBuilderFromConfig",
-            "writeSettingsPatchJson"
-          ],
-          "api_routes": [
-            "/api/settings/validate"
-          ],
-          "dom_ids_touched": [
-            "settings-source-media-json"
-          ],
-          "event_types": [],
-          "dependency_classification": {
-            "parent_state_reads": [
-              "lastSettingsValues"
-            ],
-            "parent_state_writes": [],
-            "outside_local_functions": [
-              "rejectSettingsCommandWhileBusy",
-              "setSettingsCommandBusy"
-            ],
-            "dom_dependencies": [
-              "settings-source-media-json"
-            ],
-            "api_dependencies": [
-              "/api/settings/validate"
-            ],
-            "window_dependencies": [],
-            "browser_globals": [
-              "Array",
-              "Boolean",
-              "Error",
-              "JSON",
-              "Math",
-              "Number",
-              "Object",
-              "String",
-              "undefined"
-            ],
-            "unresolved_global_dependencies": [
-              "apiPost",
-              "appendCommandResult",
-              "audio_streams",
-              "byId",
-              "setText",
-              "subtitle_streams",
-              "value",
-              "video_streams"
-            ],
-            "movement_assessment": "needs_wrapper_or_context",
-            "assessment_reasons": [
-              "touches settings-owned backend routes",
-              "uses unresolved ordered-script globals"
-            ]
-          },
-          "route_ownership_notes": [
-            "/api/settings/validate must remain settings-owned and backend-confirmed where applicable."
-          ],
-          "tests_affected": [
-            "DesktopApp.tests.test_application_facade_settings_workspace",
-            "DesktopApp.tests.test_webview_frontend_mutation_boundary",
-            "DesktopApp.tests.test_webview_inventory_docs",
-            "DesktopApp.tests.test_webview_settings_libraries",
-            "DesktopApp.tests.test_webview_settings_patch_smoke"
-          ]
-        },
-        {
-          "source_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js",
           "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.patchReview.js",
           "topic": "settings-patch-review",
           "line_range": {
-            "start": 278,
-            "end": 383,
+            "start": 276,
+            "end": 381,
             "line_count": 106
           },
           "functions_to_move": [
@@ -2216,7 +2043,6 @@
             "markVideoDetailSettingsBuilderDirty",
             "mediaPipelineSettingsView",
             "previewFinalLibraryPromotionSettings",
-            "previewSettingsPipelinePlan",
             "renderAudioSettingsBuilderGuidance",
             "renderFileSafetySettingsBuilderGuidance",
             "renderFinalLibraryPromotionSettingsGuidance",
@@ -2320,8 +2146,8 @@
           "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 180,
-            "end": 276,
+            "start": 178,
+            "end": 274,
             "line_count": 97
           },
           "functions_to_move": [
@@ -2376,7 +2202,6 @@
             "markVideoDetailSettingsBuilderDirty",
             "mediaPipelineSettingsView",
             "previewFinalLibraryPromotionSettings",
-            "previewSettingsPipelinePlan",
             "renderAudioSettingsBuilderGuidance",
             "renderFileSafetySettingsBuilderGuidance",
             "renderFinalLibraryPromotionSettingsGuidance",
@@ -2465,171 +2290,6 @@
               "allowed_values",
               "choices",
               "value_type"
-            ],
-            "movement_assessment": "needs_wrapper_or_context",
-            "assessment_reasons": [
-              "uses unresolved ordered-script globals"
-            ]
-          },
-          "route_ownership_notes": [],
-          "tests_affected": [
-            "DesktopApp.tests.test_application_facade_settings_workspace",
-            "DesktopApp.tests.test_webview_frontend_mutation_boundary",
-            "DesktopApp.tests.test_webview_inventory_docs",
-            "DesktopApp.tests.test_webview_settings_libraries",
-            "DesktopApp.tests.test_webview_settings_patch_smoke"
-          ]
-        },
-        {
-          "source_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js",
-          "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.renderCore.js",
-          "topic": "settings-render-core",
-          "line_range": {
-            "start": 1855,
-            "end": 1940,
-            "line_count": 86
-          },
-          "functions_to_move": [
-            "renderSettingsPipelinePlanPreview",
-            "renderSettingsPipelinePlanPreviewError"
-          ],
-          "parent_wrappers_required": [],
-          "dependencies_to_resolve": [
-            "planValue",
-            "renderSettingsSourceFactsRows",
-            "settingsPatchReviewFunction",
-            "settingsPipelinePlanActionLines",
-            "settingsPipelinePlanCommandLines",
-            "settingsPipelinePlanReasonLines",
-            "settingsPipelinePlanVerificationLines",
-            "settingsSourceFactSummary"
-          ],
-          "globals_to_preserve": [
-            "applyAudioSettingsBuilderToPatch",
-            "applyFileSafetySettingsBuilderToPatch",
-            "applyNetworkSettingsBuilderToPatch",
-            "applyPendingPublishSettingsBuilderToPatch",
-            "applyQueueSettingsBuilderToPatch",
-            "applyRuntimeSettingsBuilderToPatch",
-            "applySubtitleSettingsBuilderToPatch",
-            "applyVideoDetailSettingsBuilderToPatch",
-            "buildSettingsOverviewRows",
-            "collectAudioSettingsBuilderPatch",
-            "collectFileSafetySettingsBuilderPatch",
-            "collectFinalLibraryPromotionSettingsPatch",
-            "collectNetworkSettingsBuilderPatch",
-            "collectPendingPublishSettingsBuilderPatch",
-            "collectQueueSettingsBuilderPatch",
-            "collectRuntimeSettingsBuilderPatch",
-            "collectSubtitleSettingsBuilderPatch",
-            "collectVideoDetailSettingsBuilderPatch",
-            "configValue",
-            "getLastSettings",
-            "initSettingsViewEvents",
-            "isSettingsCommand",
-            "markAudioSettingsBuilderDirty",
-            "markFileSafetySettingsBuilderDirty",
-            "markFinalLibraryPromotionSettingsBuilderDirty",
-            "markNetworkSettingsBuilderDirty",
-            "markPendingPublishSettingsBuilderDirty",
-            "markQueueSettingsBuilderDirty",
-            "markRuntimeSettingsBuilderDirty",
-            "markSubtitleSettingsBuilderDirty",
-            "markVideoDetailSettingsBuilderDirty",
-            "mediaPipelineSettingsView",
-            "previewFinalLibraryPromotionSettings",
-            "previewSettingsPipelinePlan",
-            "renderAudioSettingsBuilderGuidance",
-            "renderFileSafetySettingsBuilderGuidance",
-            "renderFinalLibraryPromotionSettingsGuidance",
-            "renderNetworkSettingsBuilderGuidance",
-            "renderPendingPublishSettingsBuilderGuidance",
-            "renderQueueSettingsBuilderGuidance",
-            "renderRuntimeSettingsBuilderGuidance",
-            "renderSettings",
-            "renderSettingsBdpgsOcrPathEvidence",
-            "renderSettingsCommandHistory",
-            "renderSettingsMediaPolicyCrossCheck",
-            "renderSettingsOverview",
-            "renderSettingsRawActionPlan",
-            "renderSettingsRawTriage",
-            "renderSettingsRows",
-            "renderSettingsSafetyLocks",
-            "renderSettingsVobSubOcrPathEvidence",
-            "renderSubtitleSettingsBuilderGuidance",
-            "renderVideoDetailSettingsBuilderGuidance",
-            "saveFinalLibraryPromotionSettings",
-            "setSettingsRows",
-            "settingsBdpgsOcrPathEvidence",
-            "settingsBdpgsOcrPathEvidenceLines",
-            "settingsBdpgsOcrPathEvidenceStatus",
-            "settingsBuilderCoveredKeys",
-            "settingsCommandHistoryLine",
-            "settingsLaunchImpactRows",
-            "settingsLaunchImpactStatus",
-            "settingsPatchEffectiveChangedEntries",
-            "settingsPatchIsTouched",
-            "settingsPatchLocalValidationHintLines",
-            "settingsPatchLocalValidationHints",
-            "settingsPolicyDeltaRows",
-            "settingsPolicyDeltaStatus",
-            "settingsRawActionPlanDetailLines",
-            "settingsRawActionPlanRows",
-            "settingsRawActionPlanStatus",
-            "settingsRawActionPlanSummaryLines",
-            "settingsRawTriageDetailLines",
-            "settingsRawTriageRows",
-            "settingsRawTriageStatus",
-            "settingsRawTriageSummaryLines",
-            "settingsRuntimeRestartConfirmationLine",
-            "settingsRuntimeRestartNoticeLines",
-            "settingsSafetyLockRows",
-            "settingsSafetyLockStatus",
-            "settingsSafetyLockSummaryLines",
-            "settingsVobSubOcrPathEvidence",
-            "settingsVobSubOcrPathEvidenceLines",
-            "settingsVobSubOcrPathEvidenceStatus",
-            "syncAudioSettingsBuilderFromConfig",
-            "syncFileSafetySettingsBuilderFromConfig",
-            "syncFinalLibraryPromotionSettingsBuilderFromConfig",
-            "syncNetworkSettingsBuilderFromConfig",
-            "syncPendingPublishSettingsBuilderFromConfig",
-            "syncQueueSettingsBuilderFromConfig",
-            "syncRuntimeSettingsBuilderFromConfig",
-            "syncSubtitleSettingsBuilderFromConfig",
-            "syncVideoDetailSettingsBuilderFromConfig",
-            "writeSettingsPatchJson"
-          ],
-          "api_routes": [],
-          "dom_ids_touched": [],
-          "event_types": [],
-          "dependency_classification": {
-            "parent_state_reads": [],
-            "parent_state_writes": [],
-            "outside_local_functions": [
-              "planValue",
-              "renderSettingsSourceFactsRows",
-              "settingsPatchReviewFunction",
-              "settingsPipelinePlanActionLines",
-              "settingsPipelinePlanCommandLines",
-              "settingsPipelinePlanReasonLines",
-              "settingsPipelinePlanVerificationLines",
-              "settingsSourceFactSummary"
-            ],
-            "dom_dependencies": [],
-            "api_dependencies": [],
-            "window_dependencies": [],
-            "browser_globals": [
-              "Array",
-              "Set",
-              "String"
-            ],
-            "unresolved_global_dependencies": [
-              "data",
-              "message",
-              "ok",
-              "setText",
-              "settingsPreview"
             ],
             "movement_assessment": "needs_wrapper_or_context",
             "assessment_reasons": [

@@ -92,9 +92,20 @@
     }
 
 
+    function queueNumericField(payload, key, fallback = 0) {
+      if (payload && Object.prototype.hasOwnProperty.call(payload, key)) {
+        const value = Number(payload[key]);
+        return Number.isFinite(value) ? Math.max(0, value) : 0;
+      }
+      const fallbackValue = Number(fallback);
+      return Number.isFinite(fallbackValue) ? Math.max(0, fallbackValue) : 0;
+    }
+
+
     function queueVisibleRunnableCount(queue, visibleRows, hiddenRows, allRows) {
-      const original = Number(queue?.runnable_count || 0);
-      if (!original) return visibleRows.length;
+      if (!queue || !Object.prototype.hasOwnProperty.call(queue, "runnable_count")) return visibleRows.length;
+      const original = queueNumericField(queue, "runnable_count", 0);
+      if (!original) return 0;
       if (original >= allRows.length) return Math.max(0, original - hiddenRows.length);
       return Math.min(original, visibleRows.length);
     }
@@ -157,7 +168,8 @@
       const progress = queue?.queue_progress && typeof queue.queue_progress === "object" ? { ...queue.queue_progress } : queue?.queue_progress;
       if (!progress || typeof progress !== "object" || !hiddenSidecars.length) return progress;
       const sourceLine = `Source candidates: ${queue.source_count_total || rows.length} (${queue.movie_count_total || 0} movie / ${queue.tv_count_total || 0} TV)`;
-      const runnableLine = `Runnable rows loaded: ${queue.runnable_count || rows.length}`;
+      const runnableCount = queueNumericField(queue, "runnable_count", rows.length);
+      const runnableLine = `Runnable rows loaded: ${runnableCount}`;
       const displayedLine = `Rows displayed: ${rows.length}`;
       const hiddenLine = queueHiddenSidecarLine(queue);
       const summary = Array.isArray(progress.summary_lines) ? progress.summary_lines.map((line) => {
@@ -176,7 +188,7 @@
         progress.progress_bars = progress.progress_bars.map((bar) => ({
           ...bar,
           detail: String(bar?.id || "") === "queue_source_scan"
-            ? `${sourceLine} | runnable ${queue.runnable_count || rows.length}`
+            ? `${sourceLine} | runnable ${runnableCount}`
             : bar?.detail,
         }));
       }
@@ -309,7 +321,7 @@
         `Rows: ${rows.length}`,
         queueHiddenSidecarLine(queue),
         sourceCount ? `Source candidates: ${sourceCount} (${movieCount} movie / ${tvCount} TV)` : "",
-        `Runnable: ${queue.runnable_count || rows.length || 0}`,
+        `Runnable: ${queueNumericField(queue, "runnable_count", rows.length)}`,
         `Completed/blocked exclusions: ${completedExcluded}`,
         queue.excluded_row_count !== undefined ? `Excluded row detail: ${queue.excluded_row_count || 0}${queue.excluded_rows_truncated ? " (truncated)" : ""}` : "",
         `Visible blocked rows: ${queue.blocked_row_count || 0}`,
@@ -335,7 +347,7 @@
       const movieCount = Number(queue?.movie_count_total || 0);
       const tvCount = Number(queue?.tv_count_total || 0);
       const sourceCount = Number(queue?.source_count_total || movieCount + tvCount || 0);
-      const runnable = Number(queue?.runnable_count || rows.length || 0);
+      const runnable = queueNumericField(queue, "runnable_count", rows.length);
       const completedExcluded = Number(queue?.completed_excluded_count || 0);
       const priorityRows = rows.filter((row) => row?.is_priority).length;
       const invalidRows = rows.filter((row) => String(row?.status || "").toLowerCase() === "invalid").length;

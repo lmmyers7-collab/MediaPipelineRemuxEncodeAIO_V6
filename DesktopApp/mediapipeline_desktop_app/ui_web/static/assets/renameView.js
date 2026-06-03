@@ -10,8 +10,9 @@
   const renderRenameApplyHistory = window.renderRenameApplyHistory || renameHistoryView.renderRenameApplyHistory || function () {};
   const RENAME_PREVIEW_RENDER_LIMIT = 250;
   const RENAME_CLEANING_FILTER_STORAGE_KEY = "mediapipeline.rename.cleaningFilters.v1";
+  const RENAME_MOVIE_FILTER_CATALOG_ROUTE = "/api/rename/movie-cleaning-filters";
+  const RENAME_CLEAN_FILENAME_PREVIEW_ROUTE = "/api/rename/clean-filename-preview";
   const RENAME_CLEANING_IDS = {
-    editableToggle: ["settings-rename-use-editable-cleaning-filters", "rename-use-editable-cleaning-filters"],
     removeTerms: ["settings-rename-remove-terms", "rename-remove-terms"],
     status: ["settings-rename-cleaning-filter-status", "rename-cleaning-filter-status"],
     summary: ["settings-rename-cleaning-filter-summary", "rename-cleaning-filter-summary"],
@@ -25,6 +26,8 @@
   let lastRenameEmptyMessage = "No rename rows available.";
   let renamePreviewRequestId = 0;
   let activeRenamePreviewRequestId = 0;
+  let renameFilterPreviewRequestId = 0;
+  let renameFilterPreviewTimer = 0;
   let renamePreviewInFlight = false;
   let renameBrowseInFlight = false;
   let renameApplyInFlight = false;
@@ -47,11 +50,6 @@
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter(Boolean);
-    const movieFilterOptions = {};
-    document.querySelectorAll("[data-rename-movie-filter], [data-movie-filter]").forEach((input) => {
-      movieFilterOptions[input.dataset.renameMovieFilter || input.dataset.movieFilter || ""] = Boolean(input.checked);
-    });
-    const editableCleaningFilters = Boolean(renameCleaningNode("editableToggle")?.checked);
     return {
       paths: rawPaths,
       mode: byId("rename-mode")?.value || "tv",
@@ -62,9 +60,8 @@
       movie_title: byId("rename-movie-title")?.value || "",
       movie_year: byId("rename-movie-year")?.value || "",
       remove_terms_text: renameCleaningNode("removeTerms")?.value || "",
-      movie_filter_options: movieFilterOptions,
-      movie_filter_terms_enabled: editableCleaningFilters,
-      movie_filter_terms: editableCleaningFilters ? collectRenameMovieFilterTerms() : {},
+      movie_filter_options: collectRenameMovieFilterOptions(),
+      movie_filter_terms: collectRenameMovieFilterTerms(),
       final_name_overrides: { ...renameFinalOverrides },
       rename_sidecars: Boolean(byId("rename-sidecars")?.checked),
       force_pipeline_name: Boolean(byId("rename-force-pipeline")?.checked),
@@ -75,6 +72,19 @@
 
   function renameCleaningFilterTextareas() {
     return Array.from(document.querySelectorAll("[data-rename-movie-filter-terms], [data-movie-filter-terms]"));
+  }
+
+  function renameMovieFilterCheckboxes() {
+    return Array.from(document.querySelectorAll("[data-rename-movie-filter], [data-movie-filter]"));
+  }
+
+  function collectRenameMovieFilterOptions() {
+    const options = {};
+    renameMovieFilterCheckboxes().forEach((input) => {
+      const key = input.dataset.renameMovieFilter || input.dataset.movieFilter || "";
+      if (key) options[key] = Boolean(input.checked);
+    });
+    return options;
   }
 
   function parseRenameFilterTerms(value) {
@@ -109,51 +119,56 @@
 
   function renameCleaningFilterState() {
     return {
-      use_editable_filters: Boolean(renameCleaningNode("editableToggle")?.checked),
       remove_terms_text: renameCleaningNode("removeTerms")?.value || "",
+      movie_filter_options: collectRenameMovieFilterOptions(),
       movie_filter_terms_text: collectRenameMovieFilterTermsText(),
     };
   }
 
   function renderRenameCleaningFilterEditor(message = "") {
-    const editable = Boolean(renameCleaningNode("editableToggle")?.checked);
     const movieTerms = collectRenameMovieFilterTerms();
     const categoryCounts = Object.entries(movieTerms)
       .map(([key, values]) => `${key.replace(/_/g, " ")}=${values.length}`)
       .join("; ");
     const customTermsCount = parseRenameFilterTerms(renameCleaningNode("removeTerms")?.value || "").length;
     const statusNode = renameCleaningNode("status");
-    if (statusNode) statusNode.textContent = editable ? "Editable terms" : "Backend built-ins";
+    if (statusNode) statusNode.textContent = "Backend terms active";
     const summaryNode = renameCleaningNode("summary");
     if (summaryNode) setText(summaryNode.id, [
       message,
       `Custom negative terms: ${customTermsCount}`,
-      editable ? `Editable movie filters: ${categoryCounts || "none"}` : "Movie filters: backend built-in regex/categories",
-      editable ? "Preview request will replace enabled built-in movie filter categories with these literal terms." : "Enable editable terms to replace built-in movie filter categories for preview.",
+      `Movie filter terms: ${categoryCounts || "none"}`,
+      "Movie filter terms are always sent to the backend cleaner for enabled categories.",
+      "Backend built-in regex/categories still run; these visible lists add operator terms such as release groups.",
       "Storage boundary: these terms are browser-local Rename preview preferences, not saved PSD1 settings.",
       "Mutation guardrail: editing cleaning filters changes rename preview/apply planning only; filesystem changes still require backend rename apply confirmation.",
     ].filter(Boolean).join("\n"));
   }
 
-  function saveRenameCleaningFilterState() {
+  function saveRenameCleaningFilterState(message = "Cleaning filters saved for this browser.") {
     try {
       localStorage.setItem(RENAME_CLEANING_FILTER_STORAGE_KEY, JSON.stringify(renameCleaningFilterState()));
-      renderRenameCleaningFilterEditor("Cleaning filters saved for this browser.");
+      renderRenameCleaningFilterEditor(message);
+      updateRenameFilterPreview();
+      return true;
     } catch (_) {
       renderRenameCleaningFilterEditor("Cleaning filters could not be saved in browser storage.");
+      return false;
     }
   }
 
   function resetRenameCleaningFilters() {
     const removeTerms = renameCleaningNode("removeTerms");
     if (removeTerms) removeTerms.value = removeTerms.dataset.defaultTerms || "sample, trailer, extras, featurette, deleted scenes, behind the scenes";
-    const editableToggle = renameCleaningNode("editableToggle");
-    if (editableToggle) editableToggle.checked = false;
+    renameMovieFilterCheckboxes().forEach((input) => {
+      input.checked = Boolean(input.defaultChecked);
+    });
     renameCleaningFilterTextareas().forEach((input) => {
       input.value = input.dataset.defaultTerms || "";
     });
     try { localStorage.removeItem(RENAME_CLEANING_FILTER_STORAGE_KEY); } catch (_) {}
     renderRenameCleaningFilterEditor("Cleaning filters reset to defaults.");
+    updateRenameFilterPreview();
     syncRenameCommandButtons();
   }
 
@@ -162,12 +177,17 @@
     try { state = JSON.parse(localStorage.getItem(RENAME_CLEANING_FILTER_STORAGE_KEY) || "null"); } catch (_) { state = null; }
     if (!state || typeof state !== "object") {
       renderRenameCleaningFilterEditor();
-      return;
+      return false;
     }
-    const editableToggle = renameCleaningNode("editableToggle");
-    if (editableToggle) editableToggle.checked = Boolean(state.use_editable_filters);
     const removeTerms = renameCleaningNode("removeTerms");
     if (removeTerms && typeof state.remove_terms_text === "string") removeTerms.value = state.remove_terms_text;
+    const filterOptions = state.movie_filter_options && typeof state.movie_filter_options === "object"
+      ? state.movie_filter_options
+      : {};
+    renameMovieFilterCheckboxes().forEach((input) => {
+      const key = input.dataset.renameMovieFilter || input.dataset.movieFilter || "";
+      if (Object.prototype.hasOwnProperty.call(filterOptions, key)) input.checked = Boolean(filterOptions[key]);
+    });
     const textByKey = state.movie_filter_terms_text && typeof state.movie_filter_terms_text === "object"
       ? state.movie_filter_terms_text
       : {};
@@ -176,80 +196,116 @@
       if (Object.prototype.hasOwnProperty.call(textByKey, key)) input.value = String(textByKey[key] || "");
     });
     renderRenameCleaningFilterEditor("Cleaning filters loaded from browser storage.");
+    updateRenameFilterPreview();
+    return true;
   }
 
-  function collectAllActivePreviewTerms() {
-    const terms = [];
-    terms.push(...parseRenameFilterTerms(renameCleaningNode("removeTerms")?.value || ""));
-    const editableActive = Boolean(renameCleaningNode("editableToggle")?.checked);
-    renameCleaningFilterTextareas().forEach((ta) => {
-      const key = ta.dataset.renameMovieFilterTerms || ta.dataset.movieFilterTerms || "";
-      if (!key) return;
-      const checkbox = document.querySelector(`[data-rename-movie-filter="${key}"], [data-movie-filter="${key}"]`);
-      if (checkbox && !checkbox.checked) return;
-      const source = editableActive ? ta.value : (ta.dataset.defaultTerms || "");
-      terms.push(...parseRenameFilterTerms(source));
-    });
-    return terms;
-  }
-
-  function applyRenameCleaningPreview(rawInput) {
-    let name = rawInput.replace(/\.(?:mkv|mp4|avi|m4v|mov|wmv|ts|m2ts|mts|webm|flv)$/i, "");
-
-    const sepDots        = document.getElementById("settings-rename-sep-dots")?.checked;
-    const sepUnderscores = document.getElementById("settings-rename-sep-underscores")?.checked;
-    const sepDashes      = document.getElementById("settings-rename-sep-dashes")?.checked;
-    const sepParts = [sepDots && "\\.", sepUnderscores && "_", sepDashes && "\\-"].filter(Boolean);
-    if (sepParts.length) {
-      name = name.replace(new RegExp(`[${sepParts.join("")}]+`, "g"), " ");
-    }
-
-    const aggressive = Boolean(document.getElementById("settings-rename-aggressive-match")?.checked);
-    const terms = collectAllActivePreviewTerms();
-    terms.sort((a, b) => b.length - a.length);
-
-    if (aggressive) {
-      terms.forEach((term) => {
-        const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        name = name.replace(new RegExp(escaped, "gi"), " ");
+  async function loadRenameMovieFilterCatalog(options = {}) {
+    const get = typeof apiGet === "function" ? apiGet : window.apiGet;
+    if (typeof get !== "function") return;
+    try {
+      const payload = await get(RENAME_MOVIE_FILTER_CATALOG_ROUTE, { timeoutMs: 10000 });
+      const textByKey = payload?.default_terms_text && typeof payload.default_terms_text === "object"
+        ? payload.default_terms_text
+        : {};
+      renameCleaningFilterTextareas().forEach((input) => {
+        const key = input.dataset.renameMovieFilterTerms || input.dataset.movieFilterTerms || "";
+        const backendText = String(textByKey[key] || "");
+        if (!backendText) return;
+        const previousDefault = input.dataset.defaultTerms || "";
+        input.dataset.defaultTerms = backendText;
+        if (!options.preserveValues && (!input.value || input.value === previousDefault)) {
+          input.value = backendText;
+        }
       });
+      renderRenameCleaningFilterEditor(options.preserveValues ? "Backend movie filter catalog loaded; saved browser edits preserved." : "Backend movie filter catalog loaded.");
+      updateRenameFilterPreview();
+    } catch (error) {
+      renderRenameCleaningFilterEditor(`Backend movie filter catalog could not load; using packaged fallback terms. ${error?.message || error}`);
+    }
+  }
+
+  function renameCleanFilenamePreviewQuery(rawInput) {
+    const pairs = [
+      ["filename", rawInput],
+      ["remove_terms_text", renameCleaningNode("removeTerms")?.value || ""],
+      ["movie_filter_options", JSON.stringify(collectRenameMovieFilterOptions())],
+      ["movie_filter_terms", JSON.stringify(collectRenameMovieFilterTerms())],
+    ];
+    return `${RENAME_CLEAN_FILENAME_PREVIEW_ROUTE}?${pairs
+      .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`)
+      .join("&")}`;
+  }
+
+  function renderRenameFilterPreviewPayload(payload, rawInput) {
+    const targetName = String(payload?.target_name || payload?.cleaned_title || "").trim();
+    const lines = [];
+    if (targetName) {
+      lines.push(targetName);
     } else {
-      name = " " + name + " ";
-      terms.forEach((term) => {
-        const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const re = new RegExp(` ${escaped} `, "gi");
-        let prev;
-        do { prev = name; name = name.replace(re, " "); } while (name !== prev);
-      });
-      name = name.trim();
+      lines.push("Filename is empty after backend movie cleaning.");
     }
-
-    if (document.getElementById("settings-rename-strip-trailing-year")?.checked) {
-      name = name.replace(/\s*\(\s*(?:19|20)\d{2}\s*\)\s*$/, "");
-      name = name.replace(/\s+(?:19|20)\d{2}\s*$/, "");
+    (payload?.warnings || []).forEach((warning) => lines.push(`Warning: ${warning}`));
+    (payload?.errors || []).forEach((error) => lines.push(`Error: ${error}`));
+    if (payload?.movie_filter_terms_mode) {
+      lines.push(`Movie filter terms: ${String(payload.movie_filter_terms_mode).replace(/_/g, " ")}.`);
     }
-    return name.replace(/\(\s*\)/g, "").replace(/\[\s*\]/g, "").replace(/\s+/g, " ").trim();
+    lines.push("Source: backend clean_pipeline_movie_name.");
+    return {
+      text: lines.join("\n"),
+      state: targetName && targetName !== rawInput ? "changed" : "unchanged",
+      status: payload?.ok ? "Backend clean preview complete." : "Backend clean preview needs review.",
+    };
   }
 
-  function updateRenameFilterPreview() {
+  function updateRenameFilterPreview(options = {}) {
     const input = document.getElementById("settings-rename-preview-input");
     const output = document.getElementById("settings-rename-preview-output");
+    const status = document.getElementById("settings-rename-preview-status");
     if (!input || !output) return;
     const raw = input.value.trim();
-    if (!raw) { output.textContent = ""; output.dataset.state = ""; return; }
-    const cleaned = applyRenameCleaningPreview(raw);
-    output.textContent = cleaned || raw;
-    output.dataset.state = cleaned && cleaned !== raw ? "changed" : "unchanged";
+    if (typeof window.clearTimeout === "function") window.clearTimeout(renameFilterPreviewTimer);
+    const requestId = ++renameFilterPreviewRequestId;
+    if (!raw) {
+      output.textContent = "";
+      output.dataset.state = "";
+      if (status) status.textContent = "Backend cleaner waits for input.";
+      return;
+    }
+    const runPreview = async () => {
+      const get = typeof apiGet === "function" ? apiGet : window.apiGet;
+      if (typeof get !== "function") {
+        output.textContent = "Backend filename preview is unavailable in this surface.";
+        output.dataset.state = "unchanged";
+        if (status) status.textContent = "Backend cleaner unavailable.";
+        return;
+      }
+      if (status) status.textContent = "Testing with backend cleaner...";
+      try {
+        const payload = await get(renameCleanFilenamePreviewQuery(raw), { timeoutMs: 10000 });
+        if (requestId !== renameFilterPreviewRequestId) return;
+        const rendered = renderRenameFilterPreviewPayload(payload, raw);
+        output.textContent = rendered.text;
+        output.dataset.state = rendered.state;
+        if (status) status.textContent = rendered.status;
+      } catch (error) {
+        if (requestId !== renameFilterPreviewRequestId) return;
+        output.textContent = `Backend filename preview failed: ${error?.message || error}`;
+        output.dataset.state = "unchanged";
+        if (status) status.textContent = "Backend clean preview failed.";
+      }
+    };
+    if (options.immediate) {
+      runPreview();
+    } else {
+      renameFilterPreviewTimer = typeof window.setTimeout === "function" ? window.setTimeout(runPreview, 300) : 0;
+      if (!renameFilterPreviewTimer) runPreview();
+    }
   }
 
   function initRenameCleaningFilterEditorEvents() {
-    loadRenameCleaningFilterState();
-    const editableToggle = renameCleaningNode("editableToggle");
-    if (editableToggle) editableToggle.addEventListener("change", () => {
-      renderRenameCleaningFilterEditor();
-      syncRenameCommandButtons();
-      updateRenameFilterPreview();
-    });
+    const preserveValues = loadRenameCleaningFilterState();
+    loadRenameMovieFilterCatalog({ preserveValues });
     const removeTerms = renameCleaningNode("removeTerms");
     if (removeTerms) removeTerms.addEventListener("input", () => {
       renderRenameCleaningFilterEditor();
@@ -264,36 +320,16 @@
       });
     });
     const saveButton = renameCleaningNode("saveButton");
-    if (saveButton) saveButton.addEventListener("click", saveRenameCleaningFilterState);
+    if (saveButton) saveButton.addEventListener("click", () => saveRenameCleaningFilterState());
     const resetButton = renameCleaningNode("resetButton");
     if (resetButton) resetButton.addEventListener("click", resetRenameCleaningFilters);
     const previewInput = document.getElementById("settings-rename-preview-input");
     if (previewInput) {
       previewInput.addEventListener("input", updateRenameFilterPreview);
-      document.getElementById("settings-rename-strip-trailing-year")
-        ?.addEventListener("change", updateRenameFilterPreview);
-      document.getElementById("settings-rename-aggressive-match")
-        ?.addEventListener("change", updateRenameFilterPreview);
-      document.querySelectorAll("[data-rename-movie-filter]")
+      document.getElementById("settings-rename-preview-button")
+        ?.addEventListener("click", () => updateRenameFilterPreview({ immediate: true }));
+      renameMovieFilterCheckboxes()
         .forEach((cb) => cb.addEventListener("change", updateRenameFilterPreview));
-
-      const sepNone        = document.getElementById("settings-rename-sep-none");
-      const sepDots        = document.getElementById("settings-rename-sep-dots");
-      const sepUnderscores = document.getElementById("settings-rename-sep-underscores");
-      const sepDashes      = document.getElementById("settings-rename-sep-dashes");
-      const sepIndividual  = [sepDots, sepUnderscores, sepDashes].filter(Boolean);
-      if (sepNone) {
-        sepNone.addEventListener("change", () => {
-          if (sepNone.checked) sepIndividual.forEach((cb) => { cb.checked = false; });
-          updateRenameFilterPreview();
-        });
-      }
-      sepIndividual.forEach((cb) => {
-        cb.addEventListener("change", () => {
-          if (cb.checked && sepNone) sepNone.checked = false;
-          updateRenameFilterPreview();
-        });
-      });
     }
   }
 
@@ -1416,17 +1452,11 @@
     const openLogButton = byId("rename-result-open-log-button");
     if (openLogButton) {
       const logPath = String(data.log_path || data.log_folder || data.output_log || "");
-      if (logPath) {
-        openLogButton.hidden = false;
-        openLogButton.onclick = () => {
-          try {
-            window.open(`file://${logPath}`, "_blank");
-          } catch (_err) { /* swallow */ }
-        };
-      } else {
-        openLogButton.hidden = true;
-        openLogButton.onclick = null;
-      }
+      openLogButton.hidden = true;
+      openLogButton.onclick = null;
+      openLogButton.title = logPath
+        ? `Log evidence reported by backend: ${logPath}. Open logs through the backend-owned Diagnostics targets.`
+        : "";
     }
     try {
       dialog.showModal();

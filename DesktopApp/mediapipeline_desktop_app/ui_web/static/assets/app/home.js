@@ -233,7 +233,7 @@
     rows.push(dailyDriverRow(
       "Queue",
       queue.error ? "review" : String(queue.snapshot_file_freshness_status || "").toLowerCase() === "stale" || dailyDriverCount(queue.invalid_row_count) || dailyDriverCount(queue.blocked_row_count) ? "review" : "ready",
-      `rows=${Array.isArray(queue.rows) ? queue.rows.length : 0}; runnable=${dailyDriverCount(queue.runnable_count || (Array.isArray(queue.rows) ? queue.rows.length : 0))}; stale=${queue.snapshot_file_freshness_status || "unknown"}; blocked=${dailyDriverCount(queue.blocked_row_count)}; invalid=${dailyDriverCount(queue.invalid_row_count)}`,
+      `rows=${Array.isArray(queue.rows) ? queue.rows.length : 0}; runnable=${dailyDriverCount(Object.prototype.hasOwnProperty.call(queue, "runnable_count") ? queue.runnable_count : (Array.isArray(queue.rows) ? queue.rows.length : 0))}; stale=${queue.snapshot_file_freshness_status || "unknown"}; blocked=${dailyDriverCount(queue.blocked_row_count)}; invalid=${dailyDriverCount(queue.invalid_row_count)}`,
       queue.error
         ? "Open Queue and Diagnostics; queue payload reported an error."
         : String(queue.snapshot_file_freshness_status || "").toLowerCase() === "stale"
@@ -366,6 +366,19 @@
     return `${formatProgressValue(index || 0)} / ${formatProgressValue(total || 0)}`;
   }
 
+  function homeAtAGlanceCurrentWork(snapshot = {}, progress = {}) {
+    const currentWork = snapshot?.current_work && typeof snapshot.current_work === "object" ? snapshot.current_work : {};
+    return {
+      item: formatProgressValue(currentWork.item_label || "").trim() || homeAtAGlanceCurrentFile(progress),
+      phase: formatProgressValue(currentWork.phase_label || "").trim() || formatProgressValue(progress.CurrentStage || progress.Status || "").trim(),
+      library: formatProgressValue(currentWork.library_label || "").trim(),
+      queue: formatProgressValue(currentWork.queue_label || "").trim(),
+      queuePosition: formatProgressValue(currentWork.queue_position_label || "").trim(),
+      route: formatProgressValue(currentWork.route_label || "").trim(),
+      percent: formatProgressValue(currentWork.percent_label || "").trim() || homeAtAGlancePercent(progress.CurrentStagePercent),
+    };
+  }
+
   function homeAtAGlanceQueueTitle(item = {}) {
     return item.lookup_title
       || item.display_name
@@ -414,7 +427,7 @@
 
   void [homeAtAGlanceBarStatusLabel];
 
-  function homeAtAGlancePerFilePushBar(snapshot = null, progress = {}) {
+  function homeAtAGlancePerFilePushBar(snapshot = null, progress = {}, currentWork = {}) {
     const bars = Array.isArray(snapshot?.progress_bars) ? snapshot.progress_bars.filter(Boolean) : [];
     const backendBar = bars.find((bar) => String(bar?.id || "").toLowerCase() === "publish_copy");
     if (backendBar) {
@@ -430,11 +443,11 @@
     const copyPercent = homeAtAGlanceProgressNumber(progress.CopyPercent ?? progress.copy_percent);
     const copied = progress.CopyBytesCopied ?? progress.copy_bytes_copied ?? "";
     const total = progress.CopyTotalBytes ?? progress.copy_total_bytes ?? "";
-    const file = homeAtAGlanceShortValue(homeAtAGlanceCurrentFile(progress), 88);
+    const file = homeAtAGlanceShortValue(currentWork.item || homeAtAGlanceCurrentFile(progress), 88);
     const detail = [
       pushState ? `Push ${formatProgressValue(pushState)}` : "",
       copied !== "" && total !== "" ? `${formatProgressValue(copied)} / ${formatProgressValue(total)} bytes` : "",
-      file ? `File ${file}` : "",
+      file ? `Item ${file}` : "",
     ].filter(Boolean).join(" · ");
     return {
       id: "home_push_file",
@@ -474,19 +487,20 @@
     const active = activeJobs.length > 0 || activeWorkerRows.length > 0 || closeReadiness?.safe_to_close === false || stateActive;
     const primaryWorker = activeWorkerRows[0] || workerRows[0] || {};
     const stage = progress.CurrentStage || primaryWorker.stage || progress.Status || "";
-    const percent = homeAtAGlancePercent(progress.CurrentStagePercent);
+    const currentWork = homeAtAGlanceCurrentWork(snapshot, progress);
+    const percent = currentWork.percent || homeAtAGlancePercent(progress.CurrentStagePercent);
     const percentNumber = Number(progress.CurrentStagePercent);
-    const rawFile = homeAtAGlanceCurrentFile(progress) || primaryWorker.source || "";
+    const rawFile = currentWork.item || homeAtAGlanceCurrentFile(progress) || primaryWorker.source || "";
     const file = homeAtAGlanceShortValue(rawFile, 88);
-    const queuePosition = homeAtAGlanceQueuePosition(progress);
-    const route = progress.CurrentRoute || progress.Route || "";
+    const queuePosition = currentWork.queuePosition || homeAtAGlanceQueuePosition(progress);
+    const route = currentWork.route || progress.CurrentRoute || progress.Route || "";
     const detail = [
-      stage ? `Stage ${formatProgressValue(stage)}` : "",
-      percent ? percent : "",
-      route ? `Route ${formatProgressValue(route)}` : "",
-      queuePosition ? `Queue ${queuePosition}` : "",
-      workerProgress.status ? `Workers ${formatProgressValue(workerProgress.status)}` : "",
-      activeJobs.length ? `${activeJobs.length} ActiveJobs` : "",
+      currentWork.phase || stage ? `Phase ${formatProgressValue(currentWork.phase || stage)}` : "",
+      currentWork.library || "",
+      currentWork.queue && (!currentWork.library || String(currentWork.queue).toLowerCase() !== String(currentWork.library).toLowerCase()) ? currentWork.queue : "",
+      queuePosition || "",
+      route ? formatProgressValue(route) : "",
+      percent || "",
     ].filter(Boolean).join(" · ");
     const status = !snapshot && !closeReadiness
       ? "Checking"
@@ -506,9 +520,9 @@
       percentNumber,
       route,
       queuePosition,
-      pushBar: homeAtAGlancePerFilePushBar(snapshot, progress),
+      pushBar: homeAtAGlancePerFilePushBar(snapshot, progress, currentWork),
       detail: detail || `Pipeline ${pipelineState}; close ${closeReadiness ? (closeReadiness.safe_to_close ? "safe" : "active work") : "unknown"}.`,
-      currentText: file ? `${stage ? formatProgressValue(stage) : "Processing"}: ${file}` : active ? "Backend work is active." : "No active item.",
+      currentText: file || (active ? "Backend work is active." : "No active item."),
       upcoming: homeAtAGlanceUpcomingRows(queue, progress),
     };
   }
@@ -541,6 +555,136 @@
     setText("home-network-role", role);
   }
 
+  function homeStorageRows(settings = {}) {
+    const pathHealth = settings?.path_health && typeof settings.path_health === "object" ? settings.path_health : {};
+    return Array.isArray(pathHealth.rows) ? pathHealth.rows.filter(Boolean) : [];
+  }
+
+  function normalizeStoragePath(value) {
+    return String(value || "").trim().replace(/[\\/]+$/g, "").replace(/\\/g, "/").toLowerCase();
+  }
+
+  function homeStoragePath(row = {}) {
+    return String(row?.path || row?.storage_probe?.path || "").trim();
+  }
+
+  function homeStorageRowForPath(settings = {}, pathValue = "", role = "") {
+    const target = normalizeStoragePath(pathValue);
+    if (!target) return null;
+    const normalizedRole = String(role || "").toLowerCase();
+    return homeStorageRows(settings).find((row) => {
+      const rowRole = String(row?.role || "").toLowerCase();
+      const rowPath = normalizeStoragePath(homeStoragePath(row));
+      return (!normalizedRole || rowRole === normalizedRole) && rowPath && (target === rowPath || target.startsWith(`${rowPath}/`));
+    }) || null;
+  }
+
+  function homeFirstStorageRow(settings = {}, role = "", keys = []) {
+    const normalizedRole = String(role || "").toLowerCase();
+    const normalizedKeys = keys.map((key) => String(key || "").toLowerCase()).filter(Boolean);
+    const rows = homeStorageRows(settings);
+    return rows.find((row) => normalizedKeys.includes(String(row?.key || "").toLowerCase()))
+      || rows.find((row) => String(row?.role || "").toLowerCase() === normalizedRole)
+      || null;
+  }
+
+  function homeActiveOutputPath(context = {}) {
+    const progress = context?.snapshot?.progress && typeof context.snapshot.progress === "object" ? context.snapshot.progress : {};
+    const activeOutput = String(progress.CurrentLibraryOutputRoot || progress.current_library_output_root || "").trim();
+    if (activeOutput) return activeOutput;
+    const rows = Array.isArray(context?.queue?.rows) ? context.queue.rows : [];
+    const queueRow = rows.find((row) => String(row?.library_output_root || "").trim());
+    if (queueRow) return String(queueRow.library_output_root || "").trim();
+    const settingsOutput = String(context?.settings?.config?.Outsource || "").trim();
+    return settingsOutput;
+  }
+
+  function homeStorageUnknownRow(label, pathValue, message) {
+    return {
+      label,
+      role: "",
+      path: pathValue || "",
+      storage_status: "unknown",
+      storage_status_state: "warning",
+      free_space_gb: null,
+      total_space_gb: null,
+      reserve_gb: null,
+      storage_probe: {
+        status: "unknown",
+        status_state: "warning",
+        message,
+        free_gb: null,
+        total_gb: null,
+        reserve_gb: null,
+      },
+    };
+  }
+
+  function homeScratchStorageRow(context = {}) {
+    return homeFirstStorageRow(context.settings || {}, "scratch", ["local_base"])
+      || homeStorageUnknownRow("LocalBase scratch/state root", "", "No scratch storage evidence was loaded from backend path health.");
+  }
+
+  function homeOutputStorageRow(context = {}) {
+    const settings = context.settings || {};
+    const activeOutput = homeActiveOutputPath(context);
+    if (activeOutput) {
+      return homeStorageRowForPath(settings, activeOutput, "output")
+        || homeStorageUnknownRow("Active library output root", activeOutput, "Active library output was not present in backend path-health evidence.");
+    }
+    return homeFirstStorageRow(settings, "output", ["outsource"])
+      || homeStorageUnknownRow("Library output root", "", "No output storage evidence was loaded from backend path health.");
+  }
+
+  function homeStorageNumber(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : null;
+  }
+
+  function homeStorageStatus(row = {}) {
+    const probe = row?.storage_probe && typeof row.storage_probe === "object" ? row.storage_probe : {};
+    const status = String(row.storage_status || probe.status || "").toLowerCase();
+    if (status === "ready") return { text: "OK", state: "ok" };
+    if (status === "low") return { text: "Low", state: "blocked" };
+    if (status === "blocked") return { text: "Blocked", state: "blocked" };
+    if (status === "unknown") return { text: "Unknown", state: "warning" };
+    return { text: "Not checked", state: "empty" };
+  }
+
+  function homeStorageGbText(value) {
+    const number = homeStorageNumber(value);
+    if (number === null) return "";
+    return `${number.toFixed(number % 1 ? 1 : 0)} GB`;
+  }
+
+  function homeStorageDetail(row = {}) {
+    const probe = row?.storage_probe && typeof row.storage_probe === "object" ? row.storage_probe : {};
+    const free = homeStorageGbText(row.free_space_gb ?? probe.free_gb);
+    const reserve = homeStorageGbText(row.reserve_gb ?? probe.reserve_gb);
+    const message = String(probe.message || row.message || "").trim();
+    if (free && reserve) return `${free} free / ${reserve} reserve`;
+    if (free) return `${free} free`;
+    return message || "No free-space evidence loaded.";
+  }
+
+  function setHomeStorageMetric(statusId, detailId, row = {}) {
+    const status = homeStorageStatus(row);
+    setTextState(statusId, status.text, status.state);
+    const detail = byId(detailId);
+    if (!detail) return;
+    detail.textContent = homeStorageDetail(row);
+    detail.title = [
+      row.label || "",
+      homeStoragePath(row) || "",
+      row?.storage_probe?.message || row.message || "",
+    ].filter(Boolean).join("\n");
+  }
+
+  function renderHomeStorageHealth(context = {}) {
+    setHomeStorageMetric("home-scratch-storage-status", "home-scratch-storage-detail", homeScratchStorageRow(context));
+    setHomeStorageMetric("home-output-storage-status", "home-output-storage-detail", homeOutputStorageRow(context));
+  }
+
   function renderHomeQueueSnapshot(queue) {
     queue = queue && typeof queue === "object" ? queue : {};
     const rows = Array.isArray(queue.rows) ? queue.rows : [];
@@ -567,6 +711,140 @@
     if (pre) pre.textContent = lines.join("\n") || "No queue data loaded.";
   }
 
+  function homeCompletedText(value) {
+    return String(value ?? "").trim();
+  }
+
+  function homeCompletedPathSegments(value) {
+    return homeCompletedText(value).replace(/\\/g, "/").split("/").map((part) => part.trim()).filter(Boolean);
+  }
+
+  function homeCompletedPathLeaf(value) {
+    const parts = homeCompletedPathSegments(value);
+    return parts.length ? parts[parts.length - 1] : homeCompletedText(value);
+  }
+
+  function homeCompletedStem(value) {
+    return homeCompletedText(value).replace(/\.[A-Za-z0-9]{2,5}$/, "").trim();
+  }
+
+  function homeCompletedSeasonOnlyText(value) {
+    const text = homeCompletedStem(value);
+    return /^(?:season\s*\d{1,2}|s\d{1,2})(?:\s*\((?:season\s*|s)\d{1,2}\))?$/i.test(text)
+      || /^(?:tv|show|episode)\s*\((?:season\s*|s)\d{1,2}\)$/i.test(text);
+  }
+
+  function homeCompletedLooksTv(row = {}) {
+    const mediaType = homeCompletedText(row.media_type).toLowerCase();
+    const lookup = homeCompletedText(row.lookup_title);
+    const haystack = [
+      row.relative_path,
+      row.output_file,
+      row.output_path,
+      row.source_path,
+      lookup,
+    ].map(homeCompletedText).join(" ");
+    return mediaType.includes("tv")
+      || mediaType.includes("episode")
+      || /\bs\d{1,2}e\d{1,3}\b/i.test(haystack)
+      || /(?:^|[\\/])season\s*\d{1,2}(?:[\\/]|$)/i.test(haystack)
+      || homeCompletedSeasonOnlyText(lookup);
+  }
+
+  function homeCompletedUnique(values) {
+    const seen = new Set();
+    const result = [];
+    values.map(homeCompletedText).filter(Boolean).forEach((value) => {
+      const key = value.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      result.push(value);
+    });
+    return result;
+  }
+
+  function homeCompletedSpecificFileLabel(row = {}) {
+    const candidates = homeCompletedUnique([
+      row.output_file,
+      homeCompletedPathLeaf(row.output_path),
+      homeCompletedPathLeaf(row.source_path),
+      homeCompletedPathLeaf(row.relative_path),
+      row.output_path,
+      row.source_path,
+      row.relative_path,
+    ]);
+    if (!candidates.length) return "";
+    const episodeCandidate = candidates.find((value) => /\bs\d{1,2}e\d{1,3}\b/i.test(value));
+    if (episodeCandidate) return episodeCandidate;
+    const concrete = candidates.find((value) => !homeCompletedSeasonOnlyText(value));
+    return concrete || candidates[0];
+  }
+
+  function homeCompletedParentContext(row = {}) {
+    const candidates = [row.relative_path, row.output_path, row.source_path];
+    for (const candidate of candidates) {
+      const parts = homeCompletedPathSegments(candidate);
+      if (parts.length <= 1) continue;
+      const contextParts = parts.slice(0, -1).filter((part) => !/^[A-Za-z]:$/.test(part));
+      if (!contextParts.length) continue;
+      return contextParts.slice(-2).join(" / ");
+    }
+    return "";
+  }
+
+  function homeCompletedRouteLabel(row = {}) {
+    const raw = homeCompletedText(row.route_label || row.route_name || row.route || row.mode);
+    if (!raw) return "-";
+    const normalized = raw.toLowerCase();
+    if (normalized === "remux") return "REMUX";
+    if (normalized === "encode") return "ENCODE";
+    return raw;
+  }
+
+  function homeCompletedRowModel(row = {}) {
+    const lookupTitle = homeCompletedText(row.lookup_title);
+    const outputFile = homeCompletedText(row.output_file || homeCompletedPathLeaf(row.output_path));
+    const specificFile = homeCompletedSpecificFileLabel(row);
+    const isTv = homeCompletedLooksTv(row);
+    const titleRaw = isTv
+      ? (specificFile || outputFile || lookupTitle || row.output_path || row.source_path || "-")
+      : (lookupTitle || outputFile || row.output_path || row.source_path || "-");
+    const parentContext = homeCompletedParentContext(row);
+    const metaCandidates = isTv
+      ? [parentContext, lookupTitle]
+      : [outputFile && outputFile !== titleRaw ? outputFile : ""];
+    const metaDisplay = homeCompletedUnique(metaCandidates)
+      .find((value) => value && value.toLowerCase() !== homeCompletedText(titleRaw).toLowerCase()) || "";
+    const tooltip = homeCompletedUnique([
+      lookupTitle ? `Title: ${lookupTitle}` : "",
+      row.relative_path ? `Relative: ${row.relative_path}` : "",
+      row.output_path ? `Output: ${row.output_path}` : "",
+      row.source_path ? `Source: ${row.source_path}` : "",
+    ]).join("\n");
+    return {
+      titleDisplay: homeAtAGlanceShortValue(titleRaw, 96) || "-",
+      metaDisplay: homeAtAGlanceShortValue(metaDisplay, 96),
+      tooltip: tooltip || homeCompletedText(titleRaw),
+    };
+  }
+
+  function renderHomeCompletedFileCell(cell, model) {
+    if (!cell) return;
+    cell.textContent = "";
+    cell.classList.add("home-completed-file-cell");
+    const title = document.createElement("span");
+    title.className = "home-completed-title-main";
+    title.textContent = model.titleDisplay;
+    cell.appendChild(title);
+    if (model.metaDisplay) {
+      const meta = document.createElement("span");
+      meta.className = "home-completed-title-meta";
+      meta.textContent = model.metaDisplay;
+      cell.appendChild(meta);
+    }
+    if (model.tooltip) cell.title = model.tooltip;
+  }
+
   function renderHomeRecentCompleted(completed) {
     completed = completed && typeof completed === "object" ? completed : {};
     const rows = Array.isArray(completed.rows) ? completed.rows : [];
@@ -583,14 +861,12 @@
       return;
     }
     recent.forEach((row) => {
-      const title = String(row.lookup_title || row.output_file || row.output_path || "—");
-      const shortTitle = title.length > 48 ? "…" + title.slice(-47) : title;
-      const route = String(row.route_name || row.mode || "—");
-      const finished = String(row.completed_at || row.manifest_recorded_at || "—");
+      const model = homeCompletedRowModel(row);
+      const route = homeCompletedRouteLabel(row);
+      const finished = homeCompletedText(row.completed_at || row.manifest_recorded_at) || "-";
       const tr = document.createElement("tr");
-      if (typeof appendCells === "function") appendCells(tr, [shortTitle, route, finished]);
-      const firstCell = tr.cells[0];
-      if (firstCell) firstCell.title = title;
+      if (typeof appendCells === "function") appendCells(tr, [model.titleDisplay, route, finished]);
+      renderHomeCompletedFileCell(tr.cells[0], model);
       tbody.appendChild(tr);
     });
   }
@@ -841,6 +1117,7 @@
     homeAtAGlanceProgressBar,
     renderHomePendingCount,
     renderHomeNetworkRole,
+    renderHomeStorageHealth,
     renderHomeQueueSnapshot,
     renderHomeRecentCompleted,
     homePromotionRunActive,

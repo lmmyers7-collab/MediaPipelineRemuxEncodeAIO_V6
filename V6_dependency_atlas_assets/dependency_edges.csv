@@ -2,6 +2,7 @@ source_category,target_category,source_files_importing_target_category
 app/processes,desktop/application,11
 app/processes,desktop/models,11
 app/sample_validation,desktop/application,11
+desktop/contracts,app/kernel,10
 app/config,desktop/application,9
 app/config,desktop/models,9
 app/audit,desktop/models,8
@@ -15,6 +16,8 @@ desktop/application,app/processes,7
 desktop/application,desktop/models,7
 app/maintenance,desktop/application,6
 desktop/application,app/config,6
+desktop/application,app/kernel,6
+app/orchestration,app/config,5
 app/rename,desktop/application,5
 app/schedule,desktop/application,5
 app/status,desktop/models,5
@@ -26,8 +29,8 @@ app/diagnostics,app/status,4
 app/failures,desktop/application,4
 app/failures,desktop/models,4
 app/maintenance,desktop/models,4
-app/orchestration,app/config,4
 app/orchestration,app/contracts,4
+app/processes,app/config,4
 app/processes,desktop/contracts,4
 app/queue,app/observability,4
 app/rename,desktop/subprocess_runner,4
@@ -50,6 +53,7 @@ app/queue,desktop/application,3
 app/rename,app/files,3
 app/completed,app/observability,2
 app/completed,desktop/subprocess_runner,2
+app/config,app/kernel,2
 app/config,desktop/subprocess_runner,2
 app/network,desktop/network,2
 app/observability,desktop/models,2
@@ -65,6 +69,7 @@ app/validation,app/contracts,2
 desktop/api,app/api,2
 desktop/application,app/completed,2
 desktop/application,app/publish,2
+desktop/local_api_main,app/config,2
 desktop/local_api_main,desktop/api,2
 desktop/network,desktop/models,2
 desktop/services,app/config,2
@@ -98,6 +103,8 @@ app/observability,app/telemetry,1
 app/orchestration,app/storage,1
 app/orchestration,desktop/application,1
 app/orchestration,desktop/models,1
+app/paths,app/config,1
+app/paths,app/kernel,1
 app/processes,desktop/config_keys,1
 app/publish,app/completed,1
 app/publish,desktop/contracts,1
@@ -134,12 +141,14 @@ desktop/application,app/sample_validation,1
 desktop/application,app/schedule,1
 desktop/application,app/status,1
 desktop/application,desktop/root,1
+desktop/config_keys,app/kernel,1
 desktop/local_api_main,desktop/application,1
 desktop/local_api_main,desktop/backend_bootstrap,1
 desktop/local_api_main,desktop/models,1
 desktop/local_api_main,desktop/services,1
-desktop/models,desktop/models_core,1
-desktop/models,desktop/models_media_paths,1
+desktop/models,app/kernel,1
+desktop/models_core,app/kernel,1
+desktop/models_media_paths,app/kernel,1
 desktop/services,app/audit,1
 desktop/services,app/completed,1
 desktop/services,app/contracts,1
@@ -153,6 +162,7 @@ desktop/services,app/status,1
 desktop/services,app/storage,1
 desktop/services,app/telemetry,1
 desktop/services,desktop/models,1
+desktop/subprocess_runner,app/kernel,1
 desktop/webview_settings_live_smoke,app/storage,1
 desktop/webview_settings_live_smoke,desktop/api,1
 desktop/webview_settings_live_smoke,desktop/application,1

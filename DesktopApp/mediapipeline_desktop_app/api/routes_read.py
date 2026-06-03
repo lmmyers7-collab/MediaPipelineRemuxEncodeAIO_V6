@@ -32,6 +32,8 @@ GET_ROUTE_HANDLERS: dict[str, RouteHandlerSpec] = {
     "/api/settings/workspace": RouteHandlerSpec("_settings_workspace_payload"),
     "/api/settings/wizard/status": RouteHandlerSpec("_settings_wizard_status_payload"),
     "/api/settings/wizard/defaults": RouteHandlerSpec("_settings_wizard_defaults_payload"),
+    "/api/rename/movie-cleaning-filters": RouteHandlerSpec("_rename_movie_filter_catalog_payload"),
+    "/api/rename/clean-filename-preview": RouteHandlerSpec("_rename_clean_filename_preview_payload", needs_query=True),
     "/api/network/workers": RouteHandlerSpec("_network_workers_payload"),
     "/api/sample-validation": RouteHandlerSpec("_sample_validation_payload", needs_query=True),
 }

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: cd5c4e4b6b6cf0f36a7bf8861d8d414a15d9fc51ff6a525cab4a7e0d7d73b99c
+sha256: 8e5e90fc82c9d98c284484eb4502970e28aa809d2a59aa3e243399f57b82d316
 ---
 # `DesktopApp/tests/test_service_process_active_jobs.py`
 

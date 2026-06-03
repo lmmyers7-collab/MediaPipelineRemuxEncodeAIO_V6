@@ -693,7 +693,7 @@
     },
     "AudioTranscodeBitrate": {
       "default": "640k",
-      "pattern": "^\\d+k$",
+      "pattern": "^[1-9]\\d*k$",
       "title": "Audiotranscodebitrate",
       "type": "string"
     },

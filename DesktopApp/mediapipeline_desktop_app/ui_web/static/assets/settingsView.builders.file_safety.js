@@ -103,6 +103,39 @@
       renderSettingsActiveMediaPolicyHandoff();
     }
 
+    function fileSafetyChecked(id) {
+      return byId(id)?.checked === true;
+    }
+
+    function fileSafetyToggleText(enabled) {
+      return enabled ? "enabled" : "disabled";
+    }
+
+    function renderTvLibraryFolderEvidence() {
+      const aggressiveEnabled = fileSafetyChecked("settings-file-safety-aggressive-episode");
+      const foldersEnabled = fileSafetyChecked("settings-file-safety-create-tv-subfolder");
+      const aggressiveField = settingsFieldDefinition("AggressiveEpisodeParsing");
+      const foldersField = settingsFieldDefinition("CreateTVSubfolder");
+      const lines = [
+        `Aggressive episode parsing: ${fileSafetyToggleText(aggressiveEnabled)}.`,
+        aggressiveEnabled
+          ? "Effect: folder season hints and loose anime/import filename patterns can help build SxxEyy when strict parsing fails."
+          : "Effect: folder and loose filename fallbacks stay off; strict season/episode evidence must carry TV identity.",
+        `TV library folders: ${fileSafetyToggleText(foldersEnabled)}.`,
+        foldersEnabled
+          ? "Effect: future TV outputs can be planned under Plex-style TV\\Show\\Season NN folders."
+          : "Effect: future TV outputs may be flatter and should be reviewed before Plex library scans.",
+        "Boundary: this panel only stages existing settings keys into Changes JSON; backend Preview/Save and engine naming/publish behavior remain authoritative.",
+      ];
+      if (aggressiveField?.help) lines.push(`Metadata: ${aggressiveField.help}`);
+      if (foldersField?.help) lines.push(`Metadata: ${foldersField.help}`);
+      setText(
+        "settings-tv-library-folder-status",
+        `Episode parsing ${fileSafetyToggleText(aggressiveEnabled)}; TV folders ${fileSafetyToggleText(foldersEnabled)}`,
+      );
+      setText("settings-tv-library-folder-evidence", lines.join("\n"));
+    }
+
     function renderFileSafetySettingsBuilderGuidance() {
       const lines = [
         "Guardrail: the pipeline should copy source files to scratch and should not mutate source files during normal processing.",
@@ -149,6 +182,7 @@
         }
       });
       setText("settings-file-safety-guidance", lines.join("\n") || "No file-safety guidance loaded.");
+      renderTvLibraryFolderEvidence();
     }
 
     return {

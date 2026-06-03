@@ -106,6 +106,18 @@ def rerun_start_active_work_result(block_message: str) -> "CommandResult":
     )
 
 
+def rerun_start_config_blocked_result(message: str, data: dict[str, Any]) -> "CommandResult":
+    return _command_result(
+        command=CSV_RERUN_START_COMMAND,
+        ok=False,
+        message=message,
+        severity="error",
+        errors=[message],
+        refresh_hint="settings",
+        data=data,
+    )
+
+
 def rerun_start_exception_result(exc: Exception) -> "CommandResult":
     return _command_result(
         command=CSV_RERUN_START_COMMAND,
@@ -159,6 +171,7 @@ __all__ = [
     "rerun_csv_path_missing_result",
     "rerun_mode_error_result",
     "rerun_start_active_work_result",
+    "rerun_start_config_blocked_result",
     "rerun_start_exception_result",
     "rerun_start_success_result",
 ]

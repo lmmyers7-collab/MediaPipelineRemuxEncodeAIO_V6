@@ -42,6 +42,7 @@ PENDING_PUBLISH_RECOVERY_PLAN_COMMAND = "pending_publish.recovery_plan_dry_run"
 PENDING_PUBLISH_RECOVERY_PLAN_SCHEMA_VERSION = "pending_publish_recovery_plan.v1"
 PENDING_PUBLISH_INVENTORY_PROGRESS_SCHEMA_VERSION = "desktop_pending_publish_inventory_progress.v1"
 PENDING_DRAIN_CONFIDENCE_SCHEMA_VERSION = "desktop_pending_drain_confidence.v1"
+PENDING_FILE_INVENTORY_SCHEMA_VERSION = "desktop_pending_publish_file_inventory.v1"
 PENDING_PUBLISH_OPEN_TARGETS = {
     "local_file": "parked local payload",
     "manifest": "pending manifest",
@@ -99,6 +100,66 @@ def pending_publish_inventory_progress_payload(
     }
 
 
+def pending_publish_file_inventory_payload(
+    value: Any,
+    *,
+    pending_root: str = "",
+    exists: bool = False,
+    status: str = "unknown",
+    error: str = "",
+) -> dict[str, Any]:
+    if isinstance(value, Mapping):
+        safe = _json_safe(dict(value))
+        rows = safe.get("rows") if isinstance(safe.get("rows"), list) else []
+        safe["rows"] = rows
+        safe.setdefault("schema_version", PENDING_FILE_INVENTORY_SCHEMA_VERSION)
+        safe.setdefault("pending_root", pending_root)
+        safe.setdefault("exists", bool(exists))
+        safe.setdefault("status", status)
+        safe.setdefault("row_limit", 0)
+        safe.setdefault("total_count", len(rows))
+        safe.setdefault("shown_count", len(rows))
+        safe.setdefault("truncated", False)
+        safe.setdefault("total_bytes", 0)
+        safe.setdefault("total_size_text", "0 B")
+        safe.setdefault("manifest_count", 0)
+        safe.setdefault("payload_like_count", 0)
+        safe.setdefault("referenced_payload_count", 0)
+        safe.setdefault("orphan_payload_count", 0)
+        safe.setdefault("kind_counts", {})
+        safe.setdefault("role_counts", {})
+        safe.setdefault("summary_lines", [])
+        safe.setdefault("error", error)
+        return safe
+    return {
+        "schema_version": PENDING_FILE_INVENTORY_SCHEMA_VERSION,
+        "pending_root": pending_root,
+        "exists": bool(exists),
+        "status": status,
+        "rows": [],
+        "row_limit": 0,
+        "total_count": 0,
+        "shown_count": 0,
+        "truncated": False,
+        "total_bytes": 0,
+        "total_size_text": "0 B",
+        "manifest_count": 0,
+        "payload_like_count": 0,
+        "referenced_payload_count": 0,
+        "orphan_payload_count": 0,
+        "kind_counts": {},
+        "role_counts": {},
+        "summary_lines": [
+            "Pending parked file inventory:",
+            f"Pending root: {pending_root or 'not resolved'}",
+            f"Status: {status}",
+            "Rows shown: 0",
+            "Evidence boundary: directory listing only; file bytes were not read and no files were changed.",
+        ],
+        "error": error,
+    }
+
+
 def pending_publish_rows(value: Any) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     for row in value or []:
@@ -126,6 +187,8 @@ def pending_publish_row_key(row: Mapping[str, Any]) -> str:
 
 def pending_publish_preview_fields(raw: Mapping[str, Any]) -> dict[str, Any]:
     error = str(raw.get("error") or "").strip()
+    pending_root = str(raw.get("pending_root") or "")
+    exists = bool(raw.get("exists", False))
     rows = pending_publish_rows(raw.get("rows"))
     health_rows = pending_publish_rows(raw.get("health_rows"))
     issue_count = sum(1 for row in rows if not pending_publish_row_ready_to_drain(row))
@@ -134,13 +197,13 @@ def pending_publish_preview_fields(raw: Mapping[str, Any]) -> dict[str, Any]:
     progress = pending_publish_inventory_progress_payload(
         rows_loaded=len(rows),
         rows_scanned=rows_scanned,
-        source=str(raw.get("pending_root") or ""),
+        source=pending_root,
         status="blocked" if error else "complete",
         detail=error or "",
     )
     fields = {
-        "pending_root": str(raw.get("pending_root") or ""),
-        "exists": bool(raw.get("exists", False)),
+        "pending_root": pending_root,
+        "exists": exists,
         "rows": rows,
         "health_rows": health_rows,
         "count": row_count,
@@ -165,6 +228,13 @@ def pending_publish_preview_fields(raw: Mapping[str, Any]) -> dict[str, Any]:
         "missing_sidecar_count": sum(int_value(row.get("missing_sidecar_count")) for row in rows),
         "recovery_summary": pending_publish_recovery_summary(rows, raw),
         "drain_summary": _json_safe(raw.get("drain_summary") or {}),
+        "file_inventory": pending_publish_file_inventory_payload(
+            raw.get("file_inventory"),
+            pending_root=pending_root,
+            exists=exists,
+            status="blocked" if error else "complete" if exists else "missing",
+            error=error,
+        ),
         "inventory_progress": progress,
         "progress_bars": progress["progress_bars"],
         "warnings": pending_publish_error_warning(error),
@@ -677,6 +747,13 @@ def pending_publish_scan_exception_fields(pending_root: Any, exists: bool, error
         "pending_root": str(pending_root or ""),
         "exists": bool(exists),
         "error": str(error),
+        "file_inventory": pending_publish_file_inventory_payload(
+            None,
+            pending_root=str(pending_root or ""),
+            exists=bool(exists),
+            status="blocked",
+            error=str(error),
+        ),
         "inventory_progress": progress,
         "progress_bars": progress["progress_bars"],
         "warnings": [detail],
@@ -691,6 +768,11 @@ def pending_publish_service_unavailable_result() -> PendingPublishPreviewDto:
         detail=PENDING_PUBLISH_SERVICE_UNAVAILABLE_MESSAGE,
     )
     return _pending_publish_preview_dto(
+        file_inventory=pending_publish_file_inventory_payload(
+            None,
+            status="unavailable",
+            error=PENDING_PUBLISH_SERVICE_UNAVAILABLE_MESSAGE,
+        ),
         inventory_progress=progress,
         progress_bars=progress["progress_bars"],
         warnings=[PENDING_PUBLISH_SERVICE_UNAVAILABLE_MESSAGE],
@@ -711,6 +793,11 @@ def pending_publish_invalid_result() -> PendingPublishPreviewDto:
         detail=PENDING_PUBLISH_INVALID_RESULT_MESSAGE,
     )
     return _pending_publish_preview_dto(
+        file_inventory=pending_publish_file_inventory_payload(
+            None,
+            status="blocked",
+            error=PENDING_PUBLISH_INVALID_RESULT_MESSAGE,
+        ),
         inventory_progress=progress,
         progress_bars=progress["progress_bars"],
         warnings=[PENDING_PUBLISH_INVALID_RESULT_MESSAGE],
@@ -1046,10 +1133,12 @@ __all__ = [
     "PENDING_PUBLISH_RECOVERY_PLAN_COMMAND",
     "PENDING_PUBLISH_RECOVERY_PLAN_SCHEMA_VERSION",
     "PENDING_PUBLISH_INVENTORY_PROGRESS_SCHEMA_VERSION",
+    "PENDING_FILE_INVENTORY_SCHEMA_VERSION",
     "PENDING_PUBLISH_OPEN_TARGETS",
     "int_value",
     "pending_publish_error_warning",
     "pending_publish_inventory_progress_payload",
+    "pending_publish_file_inventory_payload",
     "pending_publish_rows",
     "pending_publish_row_key",
     "pending_publish_preview_fields",

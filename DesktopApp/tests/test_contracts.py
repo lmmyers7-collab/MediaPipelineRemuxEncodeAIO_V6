@@ -333,25 +333,52 @@ class ContractTests(unittest.TestCase):
             "parked_file": r"C:\Scratch\Pending\Movie.mkv",
             "server_out": r"\\server\Movies\Movie.mkv",
             "route": "remux",
+            "route_reason_code": "container_only",
+            "route_reason": "Container normalization only",
+            "media_type": "movie",
             "source_path": r"C:\Media\Source\Movie.mkv",
             "source_size": 42,
+            "source_mtime_utc": "2026-05-06T11:59:00Z",
             "output_size": 42,
             "publish_mode": "deferred",
-            "sidecar_files": [],
+            "sidecar_files": [{"local_file": r"C:\Scratch\Pending\Movie.eng.srt"}],
+            "tx3g_srt_tracks": [{"language": "eng"}],
+            "tx3g_srt_failures": [],
+            "bdpgs_srt_failures": [],
+            "vobsub_srt_failures": [{"reason": "ocr unavailable"}],
+            "tx3g_embedded_srt_tracks": [{"language": "eng"}],
+            "bdpgs_embedded_srt_tracks": [],
+            "vobsub_embedded_srt_tracks": [{"language": "eng"}],
             "tx3g_srt_conversion_enabled": True,
+            "vobsub_srt_conversion_enabled": True,
+            "drop_vobsub_after_conversion": False,
         }
 
         manifest = PendingPushManifest.from_mapping(payload)
 
         self.assertEqual(manifest.manifest_state, "parked")
         self.assertEqual(manifest.product_version, "v6.000")
+        self.assertEqual(manifest.media_type, "movie")
+        self.assertEqual(manifest.source_mtime_utc, "2026-05-06T11:59:00Z")
+        self.assertEqual(manifest.vobsub_srt_failures, [{"reason": "ocr unavailable"}])
+        self.assertEqual(manifest.vobsub_embedded_srt_tracks, [{"language": "eng"}])
         self.assertTrue(manifest.tx3g_srt_conversion_enabled)
+        self.assertTrue(manifest.vobsub_srt_conversion_enabled)
 
     def test_pending_push_manifest_states_match_schema_enum(self) -> None:
         schema = json.loads((SCHEMA_DIR / "media_pipeline_pending_push_manifest.schema.json").read_text(encoding="utf-8"))
         schema_states = set(schema["properties"]["manifest_state"]["enum"])
 
         self.assertEqual(schema_states, PENDING_PUSH_MANIFEST_STATES)
+        for field in (
+            "media_type",
+            "source_mtime_utc",
+            "vobsub_srt_failures",
+            "vobsub_embedded_srt_tracks",
+            "vobsub_srt_conversion_enabled",
+            "drop_vobsub_after_conversion",
+        ):
+            self.assertIn(field, schema["properties"])
 
     def test_pending_push_manifest_contract_accepts_recovery_and_sidecar_retry_states(self) -> None:
         base = {

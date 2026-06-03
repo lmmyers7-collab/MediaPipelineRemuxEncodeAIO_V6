@@ -684,6 +684,47 @@ class FinalLibraryPromotionTests(unittest.TestCase):
             self.assertFalse(destination.exists())
             self.assertEqual(list(destination.parent.glob(".*.promotion-*.tmp")), [])
 
+    def test_final_verification_failure_removes_new_unverified_destination(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            source = root / "Outsource" / "Movie.mkv"
+            destination_root = root / "Final"
+            destination = destination_root / "Movie.mkv"
+            source.parent.mkdir(parents=True)
+            destination_root.mkdir(parents=True)
+            source.write_bytes(b"media")
+            real_verify = promotion_transfer.verify_copy
+
+            def fail_only_final_copy(check_source, check_destination, mode):
+                if Path(check_destination) == destination:
+                    return {
+                        "source_path": str(check_source),
+                        "destination_path": str(check_destination),
+                        "mode": mode,
+                        "exists": True,
+                        "size_match": True,
+                        "hash_match": False,
+                        "ok": False,
+                        "error": "forced final verification failure",
+                    }
+                return real_verify(check_source, check_destination, mode)
+
+            with patch.object(promotion_transfer, "verify_copy", side_effect=fail_only_final_copy):
+                result = promotion_transfer.copy_file_with_verification(
+                    source,
+                    destination,
+                    destination_root=destination_root,
+                    verification_mode="cautious",
+                    overwrite_existing=False,
+                )
+
+            self.assertFalse(result["ok"])
+            self.assertIn("forced final verification failure", result["error"])
+            self.assertTrue(result["removed_unverified_destination"])
+            self.assertFalse(destination.exists())
+            self.assertTrue(source.exists())
+            self.assertEqual(list(destination.parent.glob(".*.promotion-*.tmp")), [])
+
     def test_overwrite_copy_hash_mismatch_preserves_existing_destination(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
@@ -1007,6 +1048,7 @@ class FinalLibraryPromotionWebViewSettingsTests(unittest.TestCase):
         self.assertIn("/api/settings/save-patch", settings_script_text)
         self.assertIn("confirm_save: true", settings_script_text)
         self.assertIn("It never promotes, overwrites, cleans up, or touches media files", settings_script_text)
+        self.assertIn("Existing final files are staged and verified before the replacement is revealed", metadata_js)
         self.assertIn("finalLibraryPromotionSettingsBuilderFields", metadata_js)
 
     def test_webview_exposes_dashboard_and_selected_file_promotion_entry_points(self) -> None:

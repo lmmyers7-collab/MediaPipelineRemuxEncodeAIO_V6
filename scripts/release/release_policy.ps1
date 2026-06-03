@@ -21,7 +21,8 @@ function Get-MediaPipelineReleaseExclusionReason {
     $segments = @($relative -split '\\' | Where-Object { $_ })
 
     if ($segments -contains '.git') { return 'git metadata' }
-    if ($segments -contains '.claude') { return 'local assistant metadata' }
+    if ($segments -contains '.github') { return 'source-control metadata' }
+    if ($segments -contains '.claude' -or $segments -contains '.codex' -or $segments -contains '.codex-plugin') { return 'local assistant metadata' }
     if ($segments -contains '__pycache__') { return 'python bytecode cache' }
     if ($segments -contains '.pytest_cache' -or $segments -contains '.mypy_cache' -or $segments -contains '.ruff_cache') { return 'test/tool cache' }
     if ($name -like '*.pyc' -or $name -like '*.pyo') { return 'python bytecode cache' }
@@ -45,7 +46,7 @@ function Get-MediaPipelineReleaseExclusionReason {
     if ($relative -like 'DesktopApp\tauri_shell\src-tauri\target\*') { return 'tauri rust build output omitted' }
     if ($name -like '~$*') { return 'Office lock/temp file' }
     if ($name -match '\.(doc|docx|docm|dotx|xlsx|xlsm|pptx|pptm)$') { return 'local Office working document' }
-    if ($name -eq '.gitignore') { return 'source-control metadata' }
+    if ($name -in @('.gitignore', '.gitattributes')) { return 'source-control metadata' }
 
     if (-not $IncludeOptionalTools) {
         if ($relative -eq 'Pipeline\Tools\ffmpeg\bin\ffplay.exe') { return 'optional media playback tool omitted' }
@@ -127,6 +128,13 @@ function Get-MediaPipelineReleaseHygieneRules {
 
     $rules = [System.Collections.Generic.List[object]]::new()
     foreach ($rule in @(
+        (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath '.git' -Label 'git metadata'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath '.github' -Label 'source-control metadata'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath '.gitignore' -Label 'source-control metadata'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath '.gitattributes' -Label 'source-control metadata'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath '.claude' -Label 'local assistant metadata'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath '.codex' -Label 'local assistant metadata'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath '.codex-plugin' -Label 'local assistant metadata'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'CodexVerification' -Label 'local verification evidence'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'LocalBase' -Label 'local runtime state'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'RunLogs' -Label 'root runtime logs'),

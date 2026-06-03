@@ -6,19 +6,18 @@
       </div>
       <nav class="nav">
         <button type="button" class="nav-button is-active" data-page="home">Dashboard</button>
+        <button type="button" class="nav-button" data-page="launch">Launch</button>
         <button type="button" class="nav-button" data-page="live">Telemetry</button>
         <button type="button" class="nav-button" data-page="queue">Queue</button>
         <button type="button" class="nav-button" data-page="completed">Output</button>
-        <button type="button" class="nav-button" data-page="pending">Publish</button>
         <button type="button" class="nav-button" data-page="rename">Rename</button>
-        <button type="button" class="nav-button" data-page="launch">Launch</button>
         <button type="button" class="nav-button" data-page="reports">Reports</button>
-        <button type="button" class="nav-button" data-page="schedule">Schedule</button>
         <button type="button" class="nav-button" data-page="network">Workers</button>
-        <button type="button" class="nav-button" data-page="maintenance">Maintenance</button>
-        <button type="button" class="nav-button" data-page="diagnostics">Diagnostics</button>
         <button type="button" class="nav-button" data-page="libraries">Libraries</button>
+        <button type="button" class="nav-button" data-page="schedule">Schedule</button>
         <button type="button" class="nav-button" data-page="settings">Settings</button>
+        <button type="button" class="nav-button" data-page="diagnostics">Diagnostics</button>
+        <button type="button" class="nav-button" data-page="maintenance">Maintenance</button>
       </nav>
     </aside>
 
@@ -28,8 +27,9 @@
           <div id="state-pill" class="state-pill">Connecting</div>
           <p class="activity-display" id="activity">
             <span class="activity-primary">Waiting for backend...</span>
-            <span class="activity-original"></span>
+            <span class="activity-meta"></span>
           </p>
+          <p class="topbar-event-ticker" id="topbar-event-ticker" aria-live="polite">Latest event: waiting for backend snapshot...</p>
         </div>
         <div class="topbar-actions">
           <span id="refresh-health" class="refresh-health" data-state="unknown" title="Click to open Diagnostics">Refresh: starting</span>

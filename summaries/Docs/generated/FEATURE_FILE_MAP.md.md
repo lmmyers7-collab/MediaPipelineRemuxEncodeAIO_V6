@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-06-02
 last_reviewed: 2026-06-01
-sha256: abc8254515dab8bbdf0f6602936b161f56023aef25d7031a55991c86fd93f146
+sha256: 8a71f830df9eb40e33d3cd82de9e6b030e5a80089e7486ba69f06b78cfc62382
 ---
 # `Docs/generated/FEATURE_FILE_MAP.md`
 

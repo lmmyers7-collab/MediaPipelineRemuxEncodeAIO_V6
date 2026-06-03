@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settings/patchRe
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: 45d6748443c5d6b3223390452760d798866703afb8c087bca8611cda9ab0fc25
+sha256: fa8420a163c6311dc95f8fd811c596fb30e8fe37fafbcbf8b73cdc228b82e9d4
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settings/patchReview.js`
 

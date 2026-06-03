@@ -4,7 +4,7 @@ Date: 2026-06-02
 
 Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `DesktopApp/mediapipeline_desktop_app/ui_web/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 1300. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 1311. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -229,6 +229,9 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | ID | Element | Purpose |
 |---|---|---|
 | `pipeline-start-button` | `<button>` | Trigger `/api/pipeline/start` |
+| `pipeline-single-file-browse-button` | `<button>` | Open backend-owned Windows file browser for Launch single-file staging |
+| `pipeline-single-file-clear-button` | `<button>` | Clear staged single-file path |
+| `pipeline-single-file-browse-status` | `<p>` | Single-file browser staging status |
 | `pipeline-launch-detail` | `<div>` | Launch request detail |
 | `pipeline-launch-status` (inferred) | `<span>` | Launch status |
 | `launch-sample-execution-status` | `<strong>` | Launch sample execution checklist status |
@@ -553,7 +556,7 @@ Risk: Low — additive only; new IDs for queue drawer UI
 
 This section is generated from `DesktopApp/mediapipeline_desktop_app/ui_web/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 1300
+Count: 1311
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
 active-job-detail
@@ -579,6 +582,11 @@ api-contract-status
 api-contract-table-legend
 app-version
 audit-launch-detail
+audit-launch-log-detail
+audit-launch-log-rows
+audit-launch-log-status
+audit-launch-log-summary
+audit-launch-log-table-legend
 audit-launch-preflight
 audit-launch-progress-bars
 audit-launch-progress-status
@@ -933,6 +941,8 @@ home-control-readiness-status
 home-external-dependencies-status
 home-external-dependencies-summary
 home-failed-count
+home-output-storage-detail
+home-output-storage-status
 home-pending-count
 home-queue-snapshot
 home-queue-snapshot-status
@@ -942,6 +952,8 @@ home-recent-completed-status
 home-recent-completed-tbody
 home-refresh-button
 home-runtime-open-status
+home-scratch-storage-detail
+home-scratch-storage-status
 home-settings-trust-status
 home-settings-trust-summary
 launch-backend-preflight-detail
@@ -1121,6 +1133,10 @@ pending-evidence-legend
 pending-evidence-rows
 pending-evidence-status
 pending-evidence-summary
+pending-file-inventory-legend
+pending-file-inventory-rows
+pending-file-inventory-status
+pending-file-inventory-summary
 pending-filter
 pending-filter-summary
 pending-health-count
@@ -1167,6 +1183,9 @@ pipeline-events-status
 pipeline-launch-detail
 pipeline-launch-preflight
 pipeline-launch-status
+pipeline-single-file-browse-button
+pipeline-single-file-browse-status
+pipeline-single-file-clear-button
 pipeline-sparkline
 pipeline-start-button
 pipeline-start-mode
@@ -1346,14 +1365,8 @@ rename-table-legend
 rename-template-preset
 report-audit-csv-state
 report-failure-json-state
-report-go-audit-button
-report-go-diagnostics-button
-report-go-rerun-button
 report-investigation-checklist
 report-investigation-status
-report-launch-handoff
-report-launch-handoff-action-status
-report-launch-handoff-status
 report-open-history
 report-open-history-status
 report-path-rows
@@ -1819,6 +1832,7 @@ status-summary
 telemetry-readiness-status
 telemetry-readiness-summary
 theme-toggle
+topbar-event-ticker
 wizard-ack-AllowNoAudio
 wizard-ack-AllowSystemTools
 wizard-ack-CleanupRemoteStaging

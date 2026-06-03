@@ -52,6 +52,28 @@ class ApiCommandContractsTests(unittest.TestCase):
         self.assertEqual(validate_api_payload("/api/queue/strategy", {"strategy": "Standard"}), {"strategy": "Standard"})
         self.assertEqual(validate_api_payload("/api/queue/priority", {"clear_all": True}), {"clear_all": True})
 
+    def test_schedule_day_window_payload_contract_preserves_active_wire_shape(self) -> None:
+        payload = {
+            "enabled": True,
+            "day_windows": {"Monday": "9:00 AM - 10:00 AM"},
+            "confirm_save": True,
+        }
+
+        self.assertEqual(validate_api_payload("/api/schedule/save", payload), payload)
+
+    def test_failure_marker_clear_requires_strict_contract_fields(self) -> None:
+        payload = {
+            "scope": "selected",
+            "marker_paths": [r"C:\LocalBase\State\Failures\Markers\one.json"],
+            "dry_run": True,
+        }
+
+        self.assertEqual(validate_api_payload("/api/failures/clear", payload), payload)
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/failures/clear", {**payload, "path": r"C:\Media\Movie.mkv"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/failures/clear", {**payload, "confirm_clear": "false"})
+
     def test_failure_clear_contract_names_backend_marker_fields(self) -> None:
         payload = {
             "scope": "selected",
@@ -77,7 +99,10 @@ class ApiCommandContractsTests(unittest.TestCase):
             "/api/rename/apply": {"paths": [], "selected_sources": [], "confirm_apply": True, "selected_ids": ["1"]},
             "/api/settings/preview-patch": {"changes": {}, "values": {}},
             "/api/settings/save-patch": {"changes": {}, "confirm_save": True, "values": {}},
+            "/api/maintenance/release-dry-run": {"destination_root": "C:/Deploy", "output_root": "C:/Other"},
             "/api/maintenance/release-build": {"destination_root": "C:/Deploy", "output_root": "C:/Other"},
+            "/api/maintenance/completed-backfill-dry-run": {"timeout_seconds": 600, "output_root": "C:/Other"},
+            "/api/maintenance/dependency-atlas": {"timeout_seconds": 600, "output_root": "C:/Other"},
             "/api/final-library-promotion/promote-queue": {"confirm_promote": True, "row_key": "client-owned"},
             "/api/final-library-promotion/pause": {"run_id": "run-1", "row_key": "client-owned"},
             "/api/final-library-promotion/resume": {"run_id": "run-1", "row_key": "client-owned"},
@@ -101,6 +126,44 @@ class ApiCommandContractsTests(unittest.TestCase):
         self.assertEqual(
             validate_api_payload("/api/settings/save-patch", {"changes": {}, "confirm_save": True}),
             {"changes": {}, "confirm_save": True},
+        )
+        self.assertEqual(
+            validate_api_payload(
+                "/api/maintenance/release-dry-run",
+                {
+                    "destination_root": "C:/Deploy",
+                    "zip_package": True,
+                    "verify": True,
+                    "include_tests": False,
+                    "include_dev_docs": False,
+                    "include_optional_tools": False,
+                    "include_tool_docs": False,
+                    "keep_personal_config": False,
+                    "timeout_seconds": 900,
+                },
+            ),
+            {
+                "destination_root": "C:/Deploy",
+                "zip_package": True,
+                "verify": True,
+                "include_tests": False,
+                "include_dev_docs": False,
+                "include_optional_tools": False,
+                "include_tool_docs": False,
+                "keep_personal_config": False,
+                "timeout_seconds": 900,
+            },
+        )
+        self.assertEqual(
+            validate_api_payload("/api/maintenance/completed-backfill-dry-run", {"timeout_seconds": 600}),
+            {"timeout_seconds": 600},
+        )
+        self.assertEqual(
+            validate_api_payload(
+                "/api/maintenance/dependency-atlas",
+                {"timeout_seconds": 600, "min_overview_edge_count": 4, "min_overview_files": 2},
+            ),
+            {"timeout_seconds": 600, "min_overview_edge_count": 4, "min_overview_files": 2},
         )
         self.assertEqual(
             validate_api_payload(
@@ -153,7 +216,7 @@ class ApiCommandContractsTests(unittest.TestCase):
     def test_command_ownership_matrix_lists_every_post_command_route(self) -> None:
         matrix = (REPO_ROOT / "Docs" / "inventories" / "COMMAND_OWNERSHIP_MATRIX.md").read_text(encoding="utf-8")
 
-        self.assertIn("Total command routes: 44 POST routes across 9 contract groups.", matrix)
+        self.assertIn("Total command routes: 45 POST routes across 9 contract groups.", matrix)
         for route in COMMAND_ROUTE_METHODS:
             with self.subTest(route=route):
                 self.assertIn(f"`POST {route}`", matrix)

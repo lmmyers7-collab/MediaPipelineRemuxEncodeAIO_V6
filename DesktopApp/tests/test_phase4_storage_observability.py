@@ -14,7 +14,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from app.observability.logging import JsonLineFormatter, bind_run_context
+from app.observability.logging import JsonLineFormatter, bind_run_context, configure_json_logging
 from app.orchestration.runner import RunnerOptions, StageProcessResult, run_decide_stage
 from app.storage.db import CURRENT_SCHEMA_VERSION, STATE_DB_FILENAME, StateDbIncompatibleVersion, open_state_db
 from app.validation.boundary import ValidationFailure, validate_api_payload, validate_stage_payload, validate_stage_result
@@ -416,6 +416,46 @@ class Phase4StorageObservabilityTests(unittest.TestCase):
         self.assertEqual(line["auth_token"], "[redacted]")
         self.assertEqual(line["safe"], "visible")
         self.assertEqual(line["error"]["type"], "RuntimeError")
+
+    def test_json_logging_preserves_envelope_when_structured_keys_collide(self) -> None:
+        stream = io.StringIO()
+        handler = logging.StreamHandler(stream)
+        handler.setFormatter(JsonLineFormatter())
+        logger = logging.getLogger("test.phase4.json.collision")
+        logger.handlers.clear()
+        logger.propagate = False
+        logger.setLevel(logging.INFO)
+        logger.addHandler(handler)
+
+        adapter = bind_run_context(logger, run_id="run-1", command_id="cmd-1", stage="decide")
+        adapter.info(
+            "operator event",
+            extra={"structured": {"level": "wrong", "logger": "wrong", "source": "wrong", "safe": "visible"}},
+        )
+
+        line = json.loads(stream.getvalue())
+
+        self.assertEqual(line["level"], "info")
+        self.assertEqual(line["logger"], "test.phase4.json.collision")
+        self.assertEqual(line["source"], "python")
+        self.assertEqual(line["safe"], "visible")
+        self.assertEqual(line["structured"], {"level": "wrong", "logger": "wrong", "source": "wrong"})
+
+    def test_configure_json_logging_reuses_same_stream_handler(self) -> None:
+        stream = io.StringIO()
+        logger = logging.getLogger("test.phase4.json.configure")
+        logger.handlers.clear()
+        logger.propagate = False
+
+        first = configure_json_logging(stream, logger_name="test.phase4.json.configure")
+        second = configure_json_logging(stream, logger_name="test.phase4.json.configure")
+        logger.info("single event")
+
+        lines = [json.loads(line) for line in stream.getvalue().splitlines()]
+
+        self.assertIs(first, second)
+        self.assertEqual(len(lines), 1)
+        self.assertEqual(lines[0]["event"], "single event")
 
 
 if __name__ == "__main__":

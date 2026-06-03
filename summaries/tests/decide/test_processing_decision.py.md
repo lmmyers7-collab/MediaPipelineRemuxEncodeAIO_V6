@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: tests
 last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: afd45d215ec3b04029bf92f666c380a4de0797a16df4484b00722cec5b8f8c6b
+sha256: abfd6a17a3279cabd6d3e863d34f9bc77ac412767ac18e84760e87e851901758
 ---
 # `tests/decide/test_processing_decision.py`
 

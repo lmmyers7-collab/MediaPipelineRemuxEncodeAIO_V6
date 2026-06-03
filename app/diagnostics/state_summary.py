@@ -143,10 +143,13 @@ def diagnostics_state_summary_payload(
     items: Iterable[dict[str, Any]],
     *,
     settings_tool_path_evidence: Mapping[str, Any] | None = None,
+    path_health: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     summaries = [diagnostics_state_summary_item(item) for item in items]
     settings_rows = diagnostics_settings_tool_path_summary_rows(settings_tool_path_evidence)
+    path_health_rows = diagnostics_path_health_summary_rows(path_health)
     summaries.extend(settings_rows)
+    summaries.extend(path_health_rows)
     counts: dict[str, int] = {}
     operator_counts: dict[str, int] = {}
     operator_state_counts: dict[str, int] = {}
@@ -186,6 +189,8 @@ def diagnostics_state_summary_payload(
         "triage": triage,
         "settings_tool_path_evidence": dict(settings_tool_path_evidence or {}),
         "settings_tool_path_issues": settings_rows,
+        "path_health": dict(path_health or {}),
+        "path_health_issues": path_health_rows,
         "warnings": warnings[:DIAGNOSTICS_STATE_SUMMARY_FACT_LIMIT],
         "errors": errors[:DIAGNOSTICS_STATE_SUMMARY_FACT_LIMIT],
     }
@@ -281,6 +286,80 @@ def diagnostics_settings_tool_path_summary_rows(evidence: Mapping[str, Any] | No
                 "warnings": warnings[:DIAGNOSTICS_STATE_SUMMARY_FACT_LIMIT],
                 "errors": errors[:DIAGNOSTICS_STATE_SUMMARY_FACT_LIMIT],
                 "summary_lines": summary_lines[:DIAGNOSTICS_STATE_SUMMARY_FACT_LIMIT],
+            }
+        )
+    return rows
+
+
+def diagnostics_path_health_summary_rows(path_health: Mapping[str, Any] | None) -> list[dict[str, Any]]:
+    if not isinstance(path_health, Mapping):
+        return []
+    health_rows = path_health.get("rows")
+    if not isinstance(health_rows, list):
+        return []
+    rows: list[dict[str, Any]] = []
+    for health_row in health_rows:
+        if not isinstance(health_row, Mapping):
+            continue
+        operator_status = str(health_row.get("operator_status") or health_row.get("status") or "unknown").strip().casefold()
+        if operator_status == "ready":
+            continue
+        row_status = "error" if operator_status == "blocked" else "warning"
+        label = str(health_row.get("label") or health_row.get("key") or "Configured path").strip()
+        key = str(health_row.get("key") or "configured_path").strip()
+        path = str(health_row.get("path") or "").strip()
+        server = str(health_row.get("server") or "").strip()
+        share = str(health_row.get("share") or "").strip()
+        path_probe = health_row.get("path_probe") if isinstance(health_row.get("path_probe"), Mapping) else {}
+        server_probe = health_row.get("server_probe") if isinstance(health_row.get("server_probe"), Mapping) else {}
+        message = str(health_row.get("message") or "Configured path health needs review.").strip()
+        safe_next_action = str(health_row.get("safe_next_action") or "Review Settings and Launch before starting work.").strip()
+        facts = [
+            f"Role: {health_row.get('role') or 'unknown'}",
+            f"Configured key: {health_row.get('configured_key') or 'unknown'}",
+            f"UNC path: {'yes' if bool(health_row.get('is_unc')) else 'no'}",
+            f"Server/share: {server or '(local)'}/{share or '(none)'}",
+            f"Path kind: {path_probe.get('path_kind') or health_row.get('path_kind') or 'unknown'}",
+            f"Exists: {'yes' if bool(path_probe.get('exists') or health_row.get('exists')) else 'no'}",
+            f"Can list root: {'yes' if bool(path_probe.get('can_list') or health_row.get('can_list')) else 'no'}",
+            f"DNS: {server_probe.get('dns_status') or 'not_applicable'}; SMB TCP 445: {server_probe.get('tcp_445_status') or 'not_applicable'}",
+            f"Elapsed: {int(health_row.get('elapsed_ms') or 0)} ms",
+            "Write probe: not checked; this Diagnostics row is read-only.",
+        ]
+        issue_list = [message]
+        row_errors = issue_list if operator_status == "blocked" else []
+        row_warnings = issue_list if operator_status != "blocked" else []
+        rows.append(
+            {
+                "target": f"configured_path_health_{key}",
+                "label": f"Configured path health: {label}",
+                "path": path,
+                "exists": bool(path_probe.get("exists") or health_row.get("exists")),
+                "kind": "path_health",
+                "size_bytes": None,
+                "modified_at": "",
+                "status": row_status,
+                "operator_status": operator_status,
+                "operator_status_state": diagnostics_operator_status_state(operator_status, row_status),
+                "operator_guidance": (
+                    "Configured root health is checked by the backend before launch. "
+                    "Reconnect the server/share or restore the folder, then refresh Settings or Launch before starting work."
+                ),
+                "recovery_stage": "configured_server_folder_health",
+                "unsafe_if_ignored": (
+                    "Ignoring unreachable configured roots can make a scan, copy, remux, encode, or publish attempt fail or stall before useful media evidence is produced."
+                ),
+                "recommended_open_target": "",
+                "recommended_tail_target": "",
+                "facts": facts[:DIAGNOSTICS_STATE_SUMMARY_FACT_LIMIT],
+                "recent_entries": [],
+                "warnings": row_warnings[:DIAGNOSTICS_STATE_SUMMARY_FACT_LIMIT],
+                "errors": row_errors[:DIAGNOSTICS_STATE_SUMMARY_FACT_LIMIT],
+                "summary_lines": [
+                    message,
+                    safe_next_action,
+                    "Mutation guardrail: this row cannot save settings, start work, scan media, write test files, or clear state.",
+                ][:DIAGNOSTICS_STATE_SUMMARY_FACT_LIMIT],
             }
         )
     return rows
@@ -726,5 +805,6 @@ __all__ = [
     "diagnostics_should_include_settings_tool_path_evidence",
     "diagnostics_state_summary_payload",
     "diagnostics_settings_tool_path_summary_rows",
+    "diagnostics_path_health_summary_rows",
     "diagnostics_state_summary_item",
 ]

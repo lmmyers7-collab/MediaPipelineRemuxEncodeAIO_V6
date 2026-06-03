@@ -109,7 +109,7 @@
 <title>app_orchestration_settings_patch_facade&#45;&gt;external_app_config</title>
 <path fill="none" stroke="#9333ea" stroke-width="1.05" d="M329.61,-382.67C349.57,-385.86 370.26,-389.08 389.71,-391.98 464.78,-403.15 483.72,-404.76 558.92,-414.98 569.2,-416.38 580.3,-417.88 590.67,-419.29"/>
 <polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="590.12,-421.51 596.87,-420.14 590.74,-417.01 590.12,-421.51"/>
-<text xml:space="preserve" text-anchor="middle" x="460.32" y="-416.35" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">2</text>
+<text xml:space="preserve" text-anchor="middle" x="460.32" y="-416.35" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">3</text>
 </g>
 <!-- app_orchestration_settings_patch_facade&#45;&gt;external_app_contracts -->
 <g id="edge8" class="edge">

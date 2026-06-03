@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Mapping
 
+from app.files.constants import MEDIA_FILE_SUFFIXES
 from app.paths.layout import path_within_root
 from mediapipeline_desktop_app.config_keys import KEY_OUTSOURCE
+from app.rename.movie import rename_movie_filter_default_terms
 from app.rename.plan_policy import normalize_rename_template_preset, rename_template_catalog
 
 if TYPE_CHECKING:
@@ -445,6 +447,105 @@ def remove_terms_from_request(
     return []
 
 
+def rename_filename_leaf(value: object) -> str:
+    text = str(value or "").strip().strip('"')
+    if not text:
+        return ""
+    return PureWindowsPath(PurePosixPath(text).name).name
+
+
+def rename_clean_filename_preview_from_request(
+    request: Mapping[str, Any],
+    *,
+    parse_remove_terms: Callable[[str], list[str]] | None = None,
+    clean_movie_name: Callable[
+        [str, list[str] | None, dict[str, bool] | None, dict[str, list[str]] | None],
+        str,
+    ],
+) -> dict[str, Any]:
+    raw_input = str(request.get("filename") or request.get("file_name") or request.get("input") or "").strip()
+    input_name = rename_filename_leaf(raw_input)
+    warnings: list[str] = []
+    if raw_input and input_name != raw_input.strip().strip('"'):
+        warnings.append("Only the filename portion was evaluated; parent paths are ignored by this read-only test.")
+    if not input_name:
+        return {
+            "schema_version": "desktop_rename_clean_filename_preview.v1",
+            "ok": False,
+            "input": raw_input,
+            "input_name": "",
+            "cleaned_title": "",
+            "target_name": "",
+            "preview_source": "backend_movie_cleaner",
+            "evidence_authority": "backend",
+            "warnings": ["Enter a filename to test the backend movie cleaner."],
+            "errors": [],
+            "mutation_boundary": "read-only filename preview; no filesystem paths are opened, renamed, moved, deleted, or written",
+        }
+
+    suffix = PureWindowsPath(input_name).suffix.lower()
+    has_media_suffix = suffix in MEDIA_FILE_SUFFIXES
+    cleaner_input = input_name if has_media_suffix else f"{input_name}.mkv"
+    remove_terms = remove_terms_from_request(request, parse_remove_terms)
+    movie_filter_options = dict_bool(request.get("movie_filter_options"))
+    movie_filter_terms = dict_terms(request.get("movie_filter_terms"), parse_remove_terms)
+    try:
+        cleaned_title = clean_movie_name(cleaner_input, remove_terms, movie_filter_options, movie_filter_terms)
+    except Exception as exc:
+        return {
+            "schema_version": "desktop_rename_clean_filename_preview.v1",
+            "ok": False,
+            "input": raw_input,
+            "input_name": input_name,
+            "cleaned_title": "",
+            "target_name": "",
+            "preview_source": "backend_movie_cleaner",
+            "evidence_authority": "backend",
+            "warnings": warnings,
+            "errors": [str(exc)],
+            "mutation_boundary": "read-only filename preview; no filesystem paths are opened, renamed, moved, deleted, or written",
+        }
+
+    target_name = f"{cleaned_title}{suffix}" if cleaned_title and has_media_suffix else cleaned_title
+    if not has_media_suffix:
+        warnings.append("No known media extension was supplied; the cleaner assumed .mkv internally and returned a title-only preview.")
+    return {
+        "schema_version": "desktop_rename_clean_filename_preview.v1",
+        "ok": bool(cleaned_title),
+        "input": raw_input,
+        "input_name": input_name,
+        "cleaned_title": cleaned_title,
+        "target_name": target_name,
+        "preview_source": "backend_movie_cleaner",
+        "evidence_authority": "backend",
+        "remove_terms_count": len(remove_terms),
+        "movie_filter_terms_enabled": True,
+        "movie_filter_terms_mode": "always_on",
+        "movie_filter_option_count": len(movie_filter_options),
+        "movie_filter_term_counts": {key: len(values) for key, values in movie_filter_terms.items()},
+        "assumed_media_extension": not has_media_suffix,
+        "warnings": warnings,
+        "errors": [] if cleaned_title else ["Filename is empty after backend movie cleaning."],
+        "mutation_boundary": "read-only filename preview; no filesystem paths are opened, renamed, moved, deleted, or written",
+    }
+
+
+def rename_movie_filter_catalog_payload() -> dict[str, Any]:
+    default_terms = rename_movie_filter_default_terms()
+    return {
+        "schema_version": "desktop_rename_movie_filter_catalog.v1",
+        "ok": True,
+        "preview_source": "backend_movie_cleaner",
+        "evidence_authority": "backend",
+        "movie_filter_terms_enabled": True,
+        "movie_filter_terms_mode": "always_on",
+        "default_terms": default_terms,
+        "default_terms_text": {key: ", ".join(values) for key, values in default_terms.items()},
+        "option_keys": list(default_terms.keys()),
+        "mutation_boundary": "read-only movie filter catalog; no filesystem paths are opened, renamed, moved, deleted, or written",
+    }
+
+
 def rename_plan_kwargs_from_request(
     request: Mapping[str, Any],
     *,
@@ -459,9 +560,7 @@ def rename_plan_kwargs_from_request(
         "movie_year": str(request.get("movie_year") or ""),
         "remove_terms": remove_terms_from_request(request, parse_remove_terms),
         "movie_filter_options": dict_bool(request.get("movie_filter_options")),
-        "movie_filter_terms": dict_terms(request.get("movie_filter_terms"), parse_remove_terms)
-        if bool(request.get("movie_filter_terms_enabled", False))
-        else {},
+        "movie_filter_terms": dict_terms(request.get("movie_filter_terms"), parse_remove_terms),
         "final_name_overrides": dict_str(request.get("final_name_overrides")),
         "rename_sidecars": bool(request.get("rename_sidecars", True)),
         "force_pipeline_name": bool(request.get("force_pipeline_name", False)),
@@ -518,5 +617,8 @@ __all__ = [
     "rename_request_allows_outside_configured_roots",
     "rename_configured_media_roots_from_resolved",
     "remove_terms_from_request",
+    "rename_clean_filename_preview_from_request",
+    "rename_movie_filter_catalog_payload",
+    "rename_filename_leaf",
     "rename_plan_kwargs_from_request",
 ]

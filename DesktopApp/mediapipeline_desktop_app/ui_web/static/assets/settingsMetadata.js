@@ -65,8 +65,8 @@
   ];
 
   const videoDetailSettingsBuilderFields = [
-    ["VideoPreset", "settings-video-preset", "select"],
-    ["VideoQuality", "settings-video-quality", "number_select"],
+    ["VideoPreset", "settings-video-preset", "preset_slider"],
+    ["VideoQuality", "settings-video-quality", "quality_slider"],
     ["AllowH264RemuxIfPlexCompatible", "settings-video-h264-remux", "bool"],
     ["H264RemuxMaxBitrateMbps", "settings-video-h264-max-bitrate", "number_positive"],
     ["H264RemuxMaxHeight", "settings-video-h264-max-height", "number_select"],
@@ -437,7 +437,7 @@
     FinalLibraryPromotionRules: "Maps each source root to a final library destination. Longest matching source root wins.",
     FinalLibraryPromotionVerificationMode: "Cautious hashes every copied media and sidecar file; fast checks existence and byte size only.",
     FinalLibraryPromotionCleanupAfterVerified: "Deletes only verified promoted publish-output files below Outsource and then removes empty folders.",
-    FinalLibraryPromotionOverwriteExisting: "Destructive overwrite deletes the existing final file before copying the replacement.",
+    FinalLibraryPromotionOverwriteExisting: "Existing final files are staged and verified before the replacement is revealed; failed replacements restore the prior final file when one existed.",
     CleanupStaleAgeHours: "Lower values can clean stale scratch or pending artifacts sooner; inspect pending publish before aggressive cleanup.",
     RobocopyTimeoutSeconds: "Too-low copy timeouts can fail large files on slow SMB shares before the transfer has a fair chance to finish.",
     OutsourceMinFreeSpaceGB: "Output free-space reserve should account for pending publish drains and same-disk source/output/scratch layouts.",
@@ -552,12 +552,6 @@
     "SubSDHTitleKeywords",
     "SubSupplementalKeywords",
     "MergeThresholdMs",
-    "DropAssAfterConversion",
-    "RemoveKaraoke",
-    "StripFormatting",
-    "MergeAdjacent",
-    "KeepSignsAndSongs",
-    "TreatAssSignsSongsAsForced",
   ];
 
   /**

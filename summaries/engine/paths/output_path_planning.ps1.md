@@ -3,9 +3,9 @@ file: engine/paths/output_path_planning.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: paths
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: aa5a85b89aae98c9acb9a02e18b109d25194c1a2d465bdf493f23a8683a2e99b
+sha256: 56d667983df43df3694a4c50aefc13d5ed9436634dd22858397174b1a85133da
 ---
 # `engine/paths/output_path_planning.ps1`
 

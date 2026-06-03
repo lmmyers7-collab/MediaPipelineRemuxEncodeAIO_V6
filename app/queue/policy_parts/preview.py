@@ -24,6 +24,12 @@ from app.queue.policy_parts.rows import queue_row_available_open_targets
 from app.queue.policy_parts.rules import QUEUE_SNAPSHOT_STALE_AFTER_SECONDS, QUEUE_SOURCE_SCAN_PROGRESS_SCHEMA_VERSION
 
 
+def _snapshot_int_with_fallback(snapshot: Mapping[str, Any], key: str, fallback: int) -> int:
+    if key in snapshot:
+        return queue_snapshot_int(dict(snapshot), key)
+    return max(0, int(fallback or 0))
+
+
 def queue_row_has_visible_priority(row: dict[str, Any]) -> bool:
     manifest_level = str(row.get("manifest_priority_level") or "normal").strip().casefold()
     return bool(row.get("is_priority")) or manifest_level in {"high", "low", "hold"}
@@ -181,7 +187,7 @@ def queue_source_scan_progress_payload(
     source_count = max(0, queue_snapshot_int(fields, "source_count_total"))
     movie_count = max(0, queue_snapshot_int(fields, "movie_count_total"))
     tv_count = max(0, queue_snapshot_int(fields, "tv_count_total"))
-    runnable_count = max(0, queue_snapshot_int(fields, "runnable_count") or row_count)
+    runnable_count = _snapshot_int_with_fallback(fields, "runnable_count", row_count)
     effective_status = status.strip().casefold() if status else ""
     if not effective_status:
         if stale or warnings_list:
@@ -257,9 +263,7 @@ def queue_preview_metadata(
     movie_count = queue_snapshot_int(snapshot, "movie_count_total")
     tv_count = queue_snapshot_int(snapshot, "tv_count_total")
     source_count = movie_count + tv_count
-    runnable_count = queue_snapshot_int(snapshot, "runnable_count")
-    if not runnable_count and rows:
-        runnable_count = len(rows)
+    runnable_count = _snapshot_int_with_fallback(snapshot, "runnable_count", len(rows))
     completed_excluded = max(0, source_count - runnable_count)
     invalid_row_count = sum(1 for row in rows if str(row.get("status") or "").casefold() == "invalid")
     blocked_rows = [row for row in rows if str(row.get("blocked_reason") or "").strip()]

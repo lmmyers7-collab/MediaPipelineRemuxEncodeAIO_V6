@@ -356,13 +356,16 @@ function Invoke-MkvmergeWithProgress {
 
     $reproPath = $null
     $mkvmergeFailed = ([bool]$result.TimedOut -or [bool]$result.Stopped -or $exitCode -lt 0 -or $exitCode -ge 2)
+    $mkvmergeWarning = (-not $mkvmergeFailed -and $exitCode -eq 1)
     if ($SaveReproOnFailure -and $mkvmergeFailed) {
         if (Get-Command -Name Save-ReproCommand -ErrorAction SilentlyContinue) {
             $reproPath = Save-ReproCommand -ToolName 'mkvmerge' -Executable $mkvmergePath -ArgumentList $ArgumentList -Stage $Stage
         }
     }
 
-    $toolErrorCode = if (Get-Command -Name Get-ExternalToolFailureCode -ErrorAction SilentlyContinue) {
+    $toolErrorCode = if ($mkvmergeWarning) {
+        'MKVMERGE_WARNINGS'
+    } elseif (Get-Command -Name Get-ExternalToolFailureCode -ErrorAction SilentlyContinue) {
         Get-ExternalToolFailureCode -ToolName 'mkvmerge' -Result $result
     } else {
         if ($exitCode -eq 0) { 'OK' } else { "MKVMERGE_EXIT_$exitCode" }
@@ -386,7 +389,7 @@ function Invoke-MkvmergeWithProgress {
     }
 
     if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
-        Write-PipelineEvent -EventType 'tool_completed' -Stage $ProgressStage -Route $ProgressRoute -Status $(if ($exitCode -eq 0) { 'succeeded' } else { 'failed' }) -Data @{
+        Write-PipelineEvent -EventType 'tool_completed' -Stage $ProgressStage -Route $ProgressRoute -Status $(if (-not $mkvmergeFailed) { 'succeeded' } else { 'failed' }) -Data @{
             tool_name        = 'mkvmerge'
             label            = $Label
             executable       = $mkvmergePath
@@ -401,13 +404,13 @@ function Invoke-MkvmergeWithProgress {
         } | Out-Null
     }
 
-    if ($ProgressStage -and $exitCode -eq 0) {
+    if ($ProgressStage -and -not $mkvmergeFailed) {
         Set-ProgressStage -Stage $ProgressStage -Percent 100 -Route $ProgressRoute -SaveNow
     } elseif ($ProgressStage) {
         Set-ProgressStage -Stage $ProgressStage -Percent $null -Route $ProgressRoute -SaveNow
     }
 
-    if ($exitCode -eq 0) { Write-Log "$Label : 100% complete" }
+    if (-not $mkvmergeFailed) { Write-Log "$Label : 100% complete" }
 
     return $result
 }

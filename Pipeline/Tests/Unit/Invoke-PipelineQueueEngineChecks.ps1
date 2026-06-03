@@ -39,6 +39,7 @@ function New-TestQueuePlan {
         NormalMovieEntries       = @()
         NormalTVEntries          = @()
         LowEntries               = @()
+        HoldEntries              = @()
         MixPriorityPhase         = $false
         MovieCount               = 0
         TVCount                  = 0
@@ -88,6 +89,62 @@ function Get-MediaQueueDiscoveryPlan {
     )
     return New-TestQueuePlan
 }
+
+function Invoke-QueueSnapshotHoldRowsRunnableCountCheck {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("MediaPipelineQueueHoldTest_" + [guid]::NewGuid().ToString('N'))
+    try {
+        New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+        $sourcePath = Join-Path $tempRoot 'HeldMovie.mkv'
+        Set-Content -LiteralPath $sourcePath -Value 'not real media' -Encoding UTF8
+        $file = Get-Item -LiteralPath $sourcePath
+        $plan = New-TestQueuePlan
+        $plan.MovieCount = 1
+        $plan.HoldCount = 1
+        $plan.HoldEntries = @([pscustomobject]@{
+            File                   = $file
+            SourcePath             = [string]$file.FullName
+            RootPath               = [string]$tempRoot
+            QueuePhase             = 'hold'
+            MediaKind              = 'movie'
+            IsTV                   = $false
+            IsPriority             = $false
+            PriorityInfo           = [pscustomobject]@{ Reasons = @(); PriorityOrderTicks = 0L }
+            PriorityOrderTicks     = 0L
+            EffectivePriorityLevel = 'hold'
+            QueueIndex             = 0
+            QueueTotal             = 0
+            SortName               = 'HeldMovie'
+            ShowSortKey            = 'HeldMovie'
+            SeasonSortOrder        = 0
+            SeasonSortKey          = ''
+            EpisodeSortOrder       = 0
+            RelativePathSort       = 'HeldMovie.mkv'
+            LibraryId              = ''
+            LibraryName            = ''
+            LibraryDesignation     = ''
+            LibraryOutputRoot      = ''
+            LastWriteUtc           = $file.LastWriteTimeUtc
+            Metadata               = @{}
+        })
+
+        $script:configPath = ''
+        $script:LocalBase = $tempRoot
+        $script:SourceMovies = $tempRoot
+        $script:SourceTV = ''
+        $script:Outsource = ''
+        $snapshot = Build-QueuePlanSnapshotRows -QueuePlan $plan -ProcessedIndex @{}
+        Assert-Equal $snapshot.runnable_count 0 'Hold-only snapshots must not report runnable work.'
+        Assert-Equal ([int]$snapshot.rows.Count) 1 'Hold rows should remain visible for operator review.'
+        Assert-Equal $snapshot.rows[0]['blocked_reason_code'] 'hold' 'Hold rows should be marked blocked by hold policy.'
+    } finally {
+        if (Test-Path -LiteralPath $tempRoot -ErrorAction SilentlyContinue) {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+Invoke-QueueSnapshotHoldRowsRunnableCountCheck
+
 function Build-QueuePlanSnapshotRows {
     param($QueuePlan, $ProcessedIndex)
     return [pscustomobject]@{

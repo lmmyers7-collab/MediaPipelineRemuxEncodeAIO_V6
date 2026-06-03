@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_service_config_option_policy.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-31
+last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: c5318322eea3424c46109e413dcf9337824995a76d50be5c1757e3a7dd379bc8
+sha256: 801b6fc4ff3ddb0be8bb27c128cae20464f72f71574e5ffea7fec051f4ac2c0f
 ---
 # `DesktopApp/tests/test_service_config_option_policy.py`
 

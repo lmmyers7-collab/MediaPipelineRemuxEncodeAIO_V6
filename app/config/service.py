@@ -28,6 +28,10 @@ from app.config.validation import (
     split_list_input as split_config_list_input,
     validate_config_values as validate_config_value_set,
 )
+from app.config.path_warnings import (
+    config_warning_path_within_root,
+    normalized_config_warning_path_key,
+)
 from mediapipeline_desktop_app.subprocess_runner import run_capture
 
 
@@ -55,8 +59,8 @@ class ConfigProfileServiceMixin:
     def validate_config_values(self, values: dict[str, Any]) -> tuple[list[str], list[str]]:
         return validate_config_value_set(
             values,
-            normalized_path_key=self._normalized_path_key,
-            path_within_root=self._path_within_root,
+            normalized_path_key=normalized_config_warning_path_key,
+            path_within_root=config_warning_path_within_root,
         )
 
     def _config_path_overlap_warning(self, left_key: str, right_key: str, path_values: dict[str, str]) -> str | None:

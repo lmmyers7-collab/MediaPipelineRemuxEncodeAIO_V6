@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: final_library
 last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: d26618f68404d4f0b79f67dbab6376c4b7fe78c5ce3fd39c07eab9863164fd38
+sha256: b92a53ff93f36b3cf2712f4838fdecbfadd5885f1ad55c1eb7aebd233527cfc0
 ---
 # `app/final_library/promotion_parts/transfer.py`
 

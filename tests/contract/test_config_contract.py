@@ -5,6 +5,8 @@ import sys
 import unittest
 from pathlib import Path
 
+from pydantic import ValidationError
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO_ROOT / "DesktopApp"))
 
@@ -246,6 +248,10 @@ class ConfigContractTests(unittest.TestCase):
         self.assertEqual(schema["properties"], generated["properties"])
         self.assertEqual(schema["x-config-schema-version"], CONFIG_SCHEMA_VERSION)
         self.assertEqual(schema.get("allOf"), generated.get("allOf"))
+
+    def test_audio_transcode_bitrate_rejects_zero_value(self) -> None:
+        with self.assertRaises(ValidationError):
+            Config.model_validate({"AudioTranscodeBitrate": "0k"})
 
     def test_generated_schema_declares_runtime_subtitle_cross_field_policy(self) -> None:
         schema_path = REPO_ROOT / "schemas" / "config.v1.schema.json"

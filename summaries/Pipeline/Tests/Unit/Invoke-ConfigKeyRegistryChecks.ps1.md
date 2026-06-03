@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: fee1d809acfffcad32f45a9703201a4963cbfe4b2d0958ad8a9286acc13d2617
+sha256: 1b27898e1363bca006a5286ca6be760dc5bb9937e0d08051752b432d1cc8525f
 ---
 # `Pipeline/Tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1`
 

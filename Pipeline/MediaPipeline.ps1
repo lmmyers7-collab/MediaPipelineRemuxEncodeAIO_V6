@@ -716,8 +716,8 @@ if ($script:AudioPassthroughProfile -eq 'custom_codec_list') {
 $script:AudioTranscodeCodec = Get-ConfigChoice 'AudioTranscodeCodec' 'eac3' @('eac3','ac3','aac')
 $script:AudioTranscodeBitrate = if ($config.ContainsKey('AudioTranscodeBitrate')) {
     $rawAudioBitrate = ([string]$config['AudioTranscodeBitrate']).Trim().ToLowerInvariant()
-    if ($rawAudioBitrate -match '^\d+k$') { $rawAudioBitrate } else {
-        Add-StartupWarning "Config key 'AudioTranscodeBitrate' should look like 640k; using default 640k"
+    if ($rawAudioBitrate -match '^[1-9]\d*k$') { $rawAudioBitrate } else {
+        Add-StartupWarning "Config key 'AudioTranscodeBitrate' should be a positive ffmpeg bitrate like 640k; using default 640k"
         '640k'
     }
 } else {
@@ -1299,6 +1299,11 @@ if ($DrainPendingPushes) {
         @{ Label = 'SourceTV';     Path = $SourceTV },
         @{ Label = 'Outsource';    Path = $Outsource }
     )) {
+        if (Test-IsUncPath ([string]$pair.Path)) {
+            Write-Log "STARTUP WARNING: $($pair.Label) is a network path; startup reachability probe skipped: $($pair.Path)" "WARN"
+            Write-Log "                 Scan/copy phases remain bounded by SourceScanTimeoutSeconds/IndexScanTimeoutSeconds and will report unreachable shares during real work." "WARN"
+            continue
+        }
         $reachable = Test-PathAccessibleBounded -Path ([string]$pair.Path) -TimeoutSeconds 10
         if ($reachable -ne $true) {
             $reachability = if ($null -eq $reachable) { 'check timed out' } else { 'path is not accessible' }

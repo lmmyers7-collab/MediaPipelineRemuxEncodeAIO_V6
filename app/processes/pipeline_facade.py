@@ -15,6 +15,7 @@ from app.processes.pipeline_policy import (
     parse_pipeline_sleep_seconds,
     pipeline_extra_args_error,
     pipeline_start_active_work_result,
+    pipeline_start_config_blocked_result,
     pipeline_start_exception_result,
     pipeline_start_extra_args_error_result,
     pipeline_start_schedule_gate_result,
@@ -22,6 +23,7 @@ from app.processes.pipeline_policy import (
     pipeline_start_success_result,
     pipeline_start_unsupported_mode_result,
 )
+from app.config.identity import config_operation_block_data, config_operation_block_message
 from app.processes.schedule_policy import normalize_schedule_override
 
 
@@ -63,6 +65,12 @@ class PipelineLaunchFacadeMixin:
         return [message] if message else []
 
     def start_pipeline_process(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
+        config_identity = dict(getattr(resolved, "config_identity", {}) or {})
+        if config_identity.get("blocks_operations") is True:
+            return pipeline_start_config_blocked_result(
+                config_operation_block_message(config_identity, "Pipeline start"),
+                config_operation_block_data(config_identity),
+            )
         mode = normalize_pipeline_start_mode(request.get("mode"))
         if not is_supported_pipeline_start_mode(mode):
             return pipeline_start_unsupported_mode_result()

@@ -39,7 +39,9 @@ class CompletedOpenFacadeMixin:
         if not callable(loader):
             return completed_open_service_unavailable_result()
         try:
-            records = loader(resolved, limit=500)
+            # The Completed page loads `limit=all`; open commands must resolve
+            # any visible backend row key, not only the latest page.
+            records = loader(resolved, limit=None)
         except Exception as exc:
             return completed_open_read_exception_result(exc)
         record = find_completed_record_by_key(records, row_key, self._completed_record_key)

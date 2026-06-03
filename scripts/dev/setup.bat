@@ -39,8 +39,8 @@ if not defined PWSH_PATH (
 )
 
 if not defined PWSH_PATH (
-    for /f "usebackq delims=" %%I in (`powershell.exe -NoProfile -Command "$cmd=Get-Command pwsh -ErrorAction SilentlyContinue; if($cmd){$cmd.Source}"`) do (
-        set "PWSH_PATH=%%I"
+    for /f "delims=" %%I in ('where pwsh.exe 2^>nul') do (
+        if not defined PWSH_PATH set "PWSH_PATH=%%I"
     )
 )
 
@@ -49,8 +49,10 @@ if defined PWSH_PATH (
     echo Launching setup with PowerShell 7: !PWSH_PATH!
     "!PWSH_PATH!" -NoProfile -ExecutionPolicy Bypass -File "%PIPELINE_ROOT%\Setup-MediaPipeline.ps1" !SETUP_ARGS!
 ) else (
-    echo PowerShell 7 was not found. Falling back to Windows PowerShell for setup only.
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PIPELINE_ROOT%\Setup-MediaPipeline.ps1" !SETUP_ARGS!
+    echo ERROR: PowerShell 7 was not found.
+    echo Expected bundled runtime under "%PIPELINE_ROOT%\PowerShell-7.6.0-win-x64" or pwsh.exe on PATH.
+    pause
+    exit /b 1
 )
 
 set "EXIT_CODE=!ERRORLEVEL!"

@@ -134,6 +134,8 @@ class SourceMediaContractTests(unittest.TestCase):
             video_codec="hevc",
             width=1920,
             height=1080,
+            is_hdr=True,
+            color_transfer="smpte2084",
             estimated_bitrate_mbps=8.0,
             size_bytes=300000000,
             streams=[
@@ -148,6 +150,8 @@ class SourceMediaContractTests(unittest.TestCase):
         self.assertEqual(source.container.path, r"D:\scratch\episode.mkv")
         self.assertEqual(source.container.media_type, "tv")
         self.assertEqual(source.video_streams[0].codec, "hevc")
+        self.assertTrue(source.video_streams[0].is_hdr)
+        self.assertEqual(source.video_streams[0].hdr_format, "smpte2084")
         self.assertEqual(source.audio_streams[0].codec, "eac3")
         self.assertEqual(source.subtitle_streams[0].codec, "ass")
         self.assertEqual(source.subtitle_streams[0].subtitle_kind, "text")

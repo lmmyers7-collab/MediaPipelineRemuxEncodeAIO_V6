@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: 4321725139972b1904f16ac53f246004add44836a985a0c597b4fd5dd141e3bf
+sha256: 3f24b1e608170b5ada684b473e33df862584fd4057d615fc29ebb0f061ef0689
 ---
 # `DesktopApp/tests/test_final_library_promotion.py`
 

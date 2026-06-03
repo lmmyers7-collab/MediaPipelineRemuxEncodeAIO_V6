@@ -118,7 +118,7 @@ For browser-free sample-validation route coverage, run the local API sample vali
 .\SmokeTests\Test-WebViewBrowserLargeTableSmoke.ps1
 ```
 
-14. Run the browser-backed Maintenance/Reports smoke. This starts a temporary local API, launches installed Chrome/Edge headless, verifies Maintenance health and dry-run result rendering, verifies Reports failure/audit triage plus row details, and confirms read-only Launch/Diagnostics handoff navigation posts no mutation routes:
+14. Run the browser-backed Maintenance/Reports smoke. This starts a temporary local API, launches installed Chrome/Edge headless, verifies Maintenance health and dry-run result rendering, verifies Reports failure/audit triage, tab placement, row details, and confirms marker-clear payloads stay confined to the backend-owned failure-clear route:
 
 ```powershell
 .\SmokeTests\Test-WebViewBrowserMaintenanceReportsSmoke.ps1

@@ -1,8 +1,21 @@
 from __future__ import annotations
 
+import json
 from typing import Any
 
+from .http_helpers import query_value
 from .read_payloads_policy import read_unavailable_payload
+
+
+def _query_json_dict(query: dict[str, list[str]], key: str) -> dict[str, Any]:
+    raw = query_value(query, key, "")
+    if not raw:
+        return {}
+    try:
+        value = json.loads(raw)
+    except (TypeError, ValueError):
+        return {}
+    return value if isinstance(value, dict) else {}
 
 
 class LocalApiWorkspaceReadPayloadMixin:
@@ -38,6 +51,18 @@ class LocalApiWorkspaceReadPayloadMixin:
         if resolved is None:
             return read_unavailable_payload("settings wizard defaults")
         return self.facade.get_settings_wizard_defaults(resolved)
+
+    def _rename_clean_filename_preview_payload(self, query: dict[str, list[str]]) -> dict[str, Any]:
+        request = {
+            "filename": query_value(query, "filename", ""),
+            "remove_terms_text": query_value(query, "remove_terms_text", ""),
+            "movie_filter_options": _query_json_dict(query, "movie_filter_options"),
+            "movie_filter_terms": _query_json_dict(query, "movie_filter_terms"),
+        }
+        return self.facade.get_rename_clean_filename_preview(request)
+
+    def _rename_movie_filter_catalog_payload(self) -> dict[str, Any]:
+        return self.facade.get_rename_movie_filter_catalog()
 
     def _network_workers_payload(self) -> dict[str, Any]:
         resolved = self._resolved()

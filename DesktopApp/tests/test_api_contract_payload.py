@@ -283,6 +283,12 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")
         routes = {route["path"]: route for route in payload["routes"]}
 
+        self.assertEqual(routes["/api/rename/clean-filename-preview"]["effect"], "none")
+        self.assertEqual(routes["/api/rename/clean-filename-preview"]["response_schema"], "desktop_rename_clean_filename_preview.v1")
+        self.assertIn("movie_filter_terms", routes["/api/rename/clean-filename-preview"]["query_keys"])
+        self.assertNotIn("movie_filter_terms_enabled", routes["/api/rename/clean-filename-preview"]["query_keys"])
+        self.assertEqual(routes["/api/rename/movie-cleaning-filters"]["effect"], "none")
+        self.assertEqual(routes["/api/rename/movie-cleaning-filters"]["response_schema"], "desktop_rename_movie_filter_catalog.v1")
         self.assertEqual(
             routes["/api/rename/browse"]["allowed_selection_modes"],
             ["files", "folder", "folder_files"],

@@ -3,14 +3,14 @@ file: DesktopApp/mediapipeline_desktop_app/contracts/control_flag.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-05-07
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 4a963e3cb6afb8de896602f5d646c0a963aedcddc0a5ea68da80e78891ec1802
+sha256: b5f92e2f01766855cbe93967d0918879601457b006c10b4e0fc9b6c2f2769032
 ---
 # `DesktopApp/mediapipeline_desktop_app/contracts/control_flag.py`
 
-**Purpose:** (no module docstring)
+**Purpose:** Compatibility shim. Moved to `app.kernel.contracts.control_flag` by ADR-0013 (Wave 5).
 
-**Classes:** `ControlFlagRecord`
+**In-repo imports:** `app.kernel.contracts`
 
 _Edit the source, not this file. Regenerate with `python scripts/dev/refresh_summaries.py --paths DesktopApp/mediapipeline_desktop_app/contracts/control_flag.py`._

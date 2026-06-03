@@ -67,6 +67,10 @@ class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
         self.assertEqual(settings["tool_path_evidence"]["schema_version"], "settings_tool_path_evidence.v1")
         self.assertEqual(settings["tool_path_evidence"]["bdpgs_ocr"]["operator_status"], "Ready")
         self.assertTrue(settings["tool_path_evidence"]["bdpgs_ocr"]["read_only"])
+        self.assertEqual(settings["path_health"]["schema_version"], "desktop_configured_path_health.v1")
+        self.assertTrue(settings["path_health"]["read_only"])
+        self.assertGreaterEqual(settings["path_health"]["row_count"], 1)
+        self.assertTrue(any("path health" in warning for warning in settings["warnings"]))
         self.assertEqual(settings["profiles"], ["Default", "DirectPlay"])
         self.assertEqual(settings["profile_summary"]["schema_version"], "desktop_settings_profile_summary.v1")
         self.assertTrue(settings["profile_summary"]["read_only"])
@@ -267,6 +271,27 @@ class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
         self.assertEqual(rows["Subtitle SRT routing"]["impact"], "blocked")
         self.assertEqual(rows["Audio predictability"]["impact"], "blocked")
         self.assertIn("Backend-authored saved-policy readiness", "\n".join(impact["summary_lines"]))
+
+    def test_settings_workspace_exposes_blocked_config_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            resolved.config_identity = {
+                "schema_version": "desktop_config_identity.v1",
+                "config_path": str(resolved.config_path),
+                "blocks_operations": True,
+                "status_state": "blocked",
+                "operator_status": "Config unavailable",
+                "reasons": ["Config file is missing: config.psd1"],
+            }
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v5-test")
+
+            settings = facade.get_settings_workspace(resolved).to_mapping()
+
+        self.assertEqual(settings["config_identity"]["status_state"], "blocked")
+        self.assertTrue(settings["config_identity"]["blocks_operations"])
+        self.assertIn("Active config is not a verified operator config.", settings["errors"])
+        self.assertIn("Config file is missing", "\n".join(settings["errors"]))
 
     def test_settings_workspace_compares_default_profile_without_exposing_values(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

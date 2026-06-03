@@ -94,6 +94,7 @@ def copy_file_with_verification(
     destination.parent.mkdir(parents=True, exist_ok=True)
     temp_path = destination.with_name(f".{destination.name}.promotion-{uuid.uuid4().hex}.tmp")
     backup_path: Path | None = None
+    published_destination = False
     try:
         shutil.copy2(source, temp_path)
         temp_verification = verify_copy(source, temp_path, verification_mode)
@@ -107,6 +108,7 @@ def copy_file_with_verification(
             destination.replace(backup_path)
 
         temp_path.replace(destination)
+        published_destination = True
         final_verification = verify_copy(source, destination, verification_mode)
         evidence["final_verification"] = final_verification
         if not final_verification.get("ok"):
@@ -117,6 +119,13 @@ def copy_file_with_verification(
                         destination.unlink()
                     backup_path.replace(destination)
                     evidence["restored_existing"] = True
+            elif not destination_exists:
+                try:
+                    if destination.exists():
+                        destination.unlink()
+                        evidence["removed_unverified_destination"] = True
+                except OSError as cleanup_exc:
+                    evidence["unverified_destination_cleanup_error"] = str(cleanup_exc)
             return evidence
         if destination_exists:
             evidence["overwritten"] = True
@@ -135,6 +144,13 @@ def copy_file_with_verification(
                     destination.unlink()
                 backup_path.replace(destination)
                 evidence["restored_existing"] = True
+        elif published_destination and not destination_exists:
+            try:
+                if destination.exists():
+                    destination.unlink()
+                    evidence["removed_unverified_destination"] = True
+            except OSError as cleanup_exc:
+                evidence["unverified_destination_cleanup_error"] = str(cleanup_exc)
         return evidence
     finally:
         with contextlib.suppress(OSError):

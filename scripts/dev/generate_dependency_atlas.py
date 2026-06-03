@@ -696,7 +696,12 @@ def validate_html_links() -> int:
 
 def main() -> int:
     args = parse_args()
-    dot_path = resolve_dot(args.dot)
+    try:
+        dot_path = resolve_dot(args.dot)
+    except FileNotFoundError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        print("Install Graphviz or pass --dot C:\\path\\to\\dot.exe.", file=sys.stderr)
+        return 2
     clean_outputs()
 
     data = collect_data(DEFAULT_PACKAGE_ROOTS)

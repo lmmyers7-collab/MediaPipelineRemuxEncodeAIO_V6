@@ -338,9 +338,6 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("id=\\\"settings-handbrake-preview-status\\\"", source)
         self.assertIn("id=\\\"settings-handbrake-decision\\\"", source)
         self.assertIn("id=\\\"settings-handbrake-active-preset\\\"", source)
-        self.assertIn("id=\\\"settings-source-media-json\\\"", source)
-        self.assertIn("id=\\\"settings-preview-plan-button\\\"", source)
-        self.assertIn("id=\\\"settings-source-facts-rows\\\"", source)
         self.assertIn("id=\\\"settings-builder-routing-profile\\\"", source)
         self.assertIn("id=\\\"settings-builder-output-container\\\"", source)
         self.assertIn("id=\\\"launch-settings-risk-rows\\\"", source)
@@ -378,14 +375,15 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("function collectSettingsBuilderPatch", source)
         self.assertIn("RoutingProfile: settingsBuilderInputValue(\\\"settings-builder-routing-profile\\\")", source)
         self.assertIn("OutputContainer: settingsBuilderInputValue(\\\"settings-builder-output-container\\\")", source)
-        self.assertIn("bindSettingsClick(\\\"settings-preview-plan-button\\\", addSettingsEventHandlers.previewSettingsPipelinePlan)", source)
-        self.assertIn("function parseSettingsSourceMediaJson", source)
-        self.assertIn("function renderSettingsPipelinePlanPreview", source)
-        self.assertIn("async function previewSettingsPipelinePlan", source)
-        self.assertIn("/api/settings/pipeline-plan-preview", source)
-        self.assertIn("source_media: sourceMedia", source)
-        self.assertIn("Preview label remains Predicted pending cutover", source)
-        self.assertIn("This did not save settings, launch work, mutate queue state, publish, rename, drain pending publish, or touch media files.", source)
+        self.assertIn("Source-specific route previews are not exposed in Settings", source)
+        self.assertNotIn("id=\\\"settings-source-media-json\\\"", source)
+        self.assertNotIn("id=\\\"settings-preview-plan-button\\\"", source)
+        self.assertNotIn("id=\\\"settings-source-facts-rows\\\"", source)
+        self.assertNotIn("bindSettingsClick(\\\"settings-preview-plan-button\\\", addSettingsEventHandlers.previewSettingsPipelinePlan)", source)
+        self.assertNotIn("function parseSettingsSourceMediaJson", source)
+        self.assertNotIn("function renderSettingsPipelinePlanPreview", source)
+        self.assertNotIn("async function previewSettingsPipelinePlan", source)
+        self.assertNotIn("source_media: sourceMedia", source)
         self.assertIn("function settingsPolicyDeltaRows", source)
         self.assertIn("Staged media-policy delta:", source)
         self.assertIn("function settingsEffectivePolicyRows", source)
@@ -789,6 +787,13 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("$validationPathTimeoutSeconds = 12", source)
         self.assertIn("timed out after $validationPathTimeoutSeconds second(s) while checking path availability", source)
         self.assertIn("timed out after $validationPathTimeoutSeconds second(s) while checking writability", source)
+
+    def test_setup_accept_defaults_missing_paths_fail_validation_instead_of_reprompting(self) -> None:
+        source = (PROJECT_ROOT / "Pipeline" / "Setup-MediaPipeline" / "PathValidation.ps1").read_text(encoding="utf-8")
+
+        self.assertIn("Keeping missing path for validation failure", source)
+        self.assertIn("Keeping non-writable path for validation failure", source)
+        self.assertIn("if ($script:UseAcceptDefaults)", source)
 
     def test_setup_wizard_guidance_uses_canonical_launchers(self) -> None:
         setup_root = PROJECT_ROOT / "Pipeline" / "Setup-MediaPipeline.ps1"

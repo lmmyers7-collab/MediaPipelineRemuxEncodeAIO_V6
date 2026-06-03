@@ -204,6 +204,7 @@
     ].filter(Boolean);
     setText("pending-summary", summary.join("\n") || pending.error || "No pending publish health issues.");
     renderPendingInventoryProgress(pending);
+    renderPendingFileInventory(pending);
     renderPendingPublishReadiness(pending, rows);
     renderPendingRiskBreakdown(pending, rows);
     renderPendingValidation(pending, rows);
@@ -254,6 +255,95 @@
 
   function getLastPendingPublishRows() {
     return lastPendingRows.slice();
+  }
+
+  function pendingFileInventoryPayload(pending) {
+    const inventory = pending?.file_inventory;
+    return inventory && typeof inventory === "object" ? inventory : {};
+  }
+
+  function pendingFileInventoryRows(pending) {
+    const rows = pendingFileInventoryPayload(pending).rows;
+    return Array.isArray(rows) ? rows.filter(Boolean) : [];
+  }
+
+  function pendingFileInventoryStatus(pending) {
+    const inventory = pendingFileInventoryPayload(pending);
+    const rows = pendingFileInventoryRows(pending);
+    if (inventory.error) return "Unavailable";
+    if (inventory.exists === false) return "No pending root";
+    if (!Number(inventory.total_count || rows.length || 0)) return "No parked files";
+    if (inventory.truncated) return `${rows.length} shown / ${inventory.total_count} files`;
+    if (Number(inventory.orphan_payload_count || 0) > 0) return "Review files";
+    return "Inventory loaded";
+  }
+
+  function pendingFileInventorySummaryLines(pending) {
+    const inventory = pendingFileInventoryPayload(pending);
+    const summary = Array.isArray(inventory.summary_lines) ? inventory.summary_lines.filter(Boolean) : [];
+    if (summary.length) return summary;
+    if (inventory.error) {
+      return [
+        "Pending parked file inventory:",
+        `Status: unavailable`,
+        `Error: ${inventory.error}`,
+        "Safe action: open Diagnostics > Pending Publish and Run Logs before drain, cleanup, rerun, or manual move.",
+      ];
+    }
+    return [
+      "Pending parked file inventory:",
+      `Pending root: ${inventory.pending_root || pending?.pending_root || "not reported"}`,
+      `Files scanned: ${inventory.total_count || 0}`,
+      `Rows shown: ${inventory.shown_count || pendingFileInventoryRows(pending).length || 0}`,
+      `Manifest files: ${inventory.manifest_count || 0}`,
+      `Payload-like files: ${inventory.payload_like_count || 0}`,
+      `Referenced payload files: ${inventory.referenced_payload_count || 0}`,
+      `Unreferenced payload files: ${inventory.orphan_payload_count || 0}`,
+      `Total size: ${inventory.total_size_text || "0 B"}`,
+      "Evidence boundary: directory listing only; file bytes were not read and no files were changed.",
+    ];
+  }
+
+  function pendingFileInventoryRowStatus(item) {
+    const role = String(item?.role || "").toLowerCase();
+    const status = String(item?.status || "").toLowerCase();
+    if (role === "scan_error" || status === "error") return "failed";
+    if (role === "orphan_payload" || status === "unreferenced") return "warning";
+    if (role === "manifest") return "changed";
+    return "match";
+  }
+
+  function renderPendingFileInventory(pending) {
+    setText("pending-file-inventory-status", pendingFileInventoryStatus(pending || {}));
+    setText("pending-file-inventory-summary", pendingFileInventorySummaryLines(pending || {}).join("\n"));
+    const tbody = byId("pending-file-inventory-rows");
+    if (!tbody) return;
+    const rows = pendingFileInventoryRows(pending || {});
+    if (!rows.length) {
+      clearRows(tbody, 6, "No parked files were reported by the backend pending directory scan.");
+      updateTableStatusLegend("pending-file-inventory-legend", tbody, "Parked file inventory rows");
+      return;
+    }
+    tbody.replaceChildren();
+    rows.slice(0, 250).forEach((item) => {
+      const row = document.createElement("tr");
+      row.dataset.status = pendingFileInventoryRowStatus(item);
+      const pathRaw = item.path || item.name || "";
+      const pathDisplay = typeof shortenPath === "function" ? shortenPath(pathRaw, 56) : pathRaw;
+      appendCells(row, [
+        item.kind || "unknown",
+        item.role || item.status || "unknown",
+        item.size_text || "",
+        item.modified_at || "",
+        pathDisplay,
+        item.evidence || "",
+      ], [null, null, "num", null, "path-cell", null]);
+      const cells = row.querySelectorAll("td");
+      if (typeof setCellStatusChip === "function") setCellStatusChip(cells[0], item.kind || "unknown", row.dataset.status);
+      if (cells[4] && pathRaw) cells[4].title = pathRaw;
+      tbody.appendChild(row);
+    });
+    updateTableStatusLegend("pending-file-inventory-legend", tbody, "Parked file inventory rows");
   }
 
   let pendingInventoryProgressBars = function () { return []; };
@@ -809,6 +899,11 @@
     renderPendingPublish,
     renderPendingInventoryProgress,
     pendingInventoryProgressBars,
+    renderPendingFileInventory,
+    pendingFileInventoryPayload,
+    pendingFileInventoryRows,
+    pendingFileInventoryStatus,
+    pendingFileInventorySummaryLines,
     renderPendingRows,
     resetPendingFilters,
     renderPendingDetail,
@@ -937,6 +1032,7 @@
     pendingRecoveryPlanHistoryLine,
   };
   window.renderPendingPublish = renderPendingPublish;
+  window.renderPendingFileInventory = renderPendingFileInventory;
   window.renderPendingDetail = renderPendingDetail;
   window.getLastPendingPublishPayload = getLastPendingPublishPayload;
   window.renderPendingDrainEvidence = renderPendingDrainEvidence;

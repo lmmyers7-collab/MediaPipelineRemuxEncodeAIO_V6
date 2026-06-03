@@ -12,6 +12,7 @@ except Exception:  # pragma: no cover - optional runtime dependency
 
 from mediapipeline_desktop_app.models import ResolvedPaths
 from app.processes.constants import (
+    ACTIVE_JOB_STALE_VALIDATE_HEARTBEAT_SECONDS,
     AUDIT_PROGRESS_LAUNCH_CLEANUP_STALE_SECONDS,
     CONTROL_FLAG_STALE_AFTER_SECONDS,
     PIPELINE_PROGRESS_LAUNCH_CLEANUP_STALE_SECONDS,
@@ -22,6 +23,7 @@ from .active_job_runner import (
     active_job_pid_is_alive_for_service,
     active_job_record_path_for_proc_for_service,
     active_jobs_dir_for_service,
+    cleanup_stale_launch_guards_for_service,
     reconcile_active_job_records_for_service,
     update_active_job_record_for_service,
     write_active_job_launch_record_for_service,
@@ -251,6 +253,21 @@ class ProcessLifecycleServiceMixin:
 
     def reconcile_active_job_records(self, resolved: ResolvedPaths, *, max_items: int = 24) -> list[str]:
         return reconcile_active_job_records_for_service(self, resolved, max_items=max_items, psutil_module=psutil)
+
+    def cleanup_stale_launch_guards(
+        self,
+        resolved: ResolvedPaths,
+        *,
+        max_items: int = 24,
+        stale_after_seconds: float = ACTIVE_JOB_STALE_VALIDATE_HEARTBEAT_SECONDS,
+    ) -> list[str]:
+        return cleanup_stale_launch_guards_for_service(
+            self,
+            resolved,
+            max_items=max_items,
+            stale_after_seconds=stale_after_seconds,
+            psutil_module=psutil,
+        )
 
     def update_active_job_record(
         self,

@@ -95,14 +95,17 @@ Documents what a clean release package is expected to include and exclude. Sourc
 | `DesktopApp\*.state.json` | Desktop local state |
 | `DesktopApp\encode_speed_history.json` | Desktop local telemetry |
 | `Docs\RealMediaValidationRuns\*` (except README.md) | Operator real-media validation evidence |
-| `LocalBase\State\*` (if present in source folder) | Runtime state |
+| `LocalBase\*` (if present in source folder) | Runtime state |
 
 ### Development and Build Artifacts
 
 | Excluded | Reason |
 |---|---|
 | `.git\` | Git metadata |
+| `.github\` | Source-control workflow metadata |
+| `.gitignore`, `.gitattributes` | Source-control metadata |
 | `.claude\` | Local assistant metadata |
+| `.codex\`, `.codex-plugin\` | Local assistant metadata |
 | `__pycache__\`, `*.pyc`, `*.pyo` | Python bytecode cache |
 | `.pytest_cache\`, `.mypy_cache\`, `.ruff_cache\` | Test/tool caches |
 | `node_modules\` | Root Node.js packages |

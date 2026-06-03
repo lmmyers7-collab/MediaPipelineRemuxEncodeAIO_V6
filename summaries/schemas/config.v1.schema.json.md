@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-06-02
 last_reviewed: 2026-05-31
-sha256: 7bdeb93ff64a1d11330cafaab2dc7d83f9b302450ac148ff44400bcf9217e94b
+sha256: 043b7a61bdefffa76ee3660031ca10e1b2b8e5a8cbcc5f4a15c044039b9e9c20
 ---
 # `schemas/config.v1.schema.json`
 

@@ -100,6 +100,43 @@ function Get-ObjectValue {
     return $Default
 }
 
+function Test-ObjectHasProperty {
+    param(
+        [Parameter(Mandatory = $true)] $Object,
+        [Parameter(Mandatory = $true)] [string] $Name
+    )
+
+    if ($null -eq $Object) { return $false }
+    if ($Object -is [System.Collections.IDictionary]) {
+        return $Object.Contains($Name)
+    }
+    return ($null -ne $Object.PSObject.Properties[$Name])
+}
+
+function Get-ObjectPropertyNames {
+    param($Object)
+
+    if ($null -eq $Object) { return @() }
+    if ($Object -is [System.Collections.IDictionary]) {
+        return @($Object.Keys | ForEach-Object { [string]$_ })
+    }
+    return @($Object.PSObject.Properties | ForEach-Object { [string]$_.Name })
+}
+
+function Assert-AllowedObjectProperties {
+    param(
+        [Parameter(Mandatory = $true)] $Object,
+        [Parameter(Mandatory = $true)] [string[]] $Allowed,
+        [Parameter(Mandatory = $true)] [string] $Context
+    )
+
+    foreach ($name in Get-ObjectPropertyNames $Object) {
+        if ($name -notin $Allowed) {
+            throw "unknown $Context field '$name'"
+        }
+    }
+}
+
 function Require-ObjectValue {
     param(
         [Parameter(Mandatory = $true)] $Object,
@@ -118,6 +155,18 @@ function Get-StagePayload {
         [Parameter(Mandatory = $true)] $Document,
         [Parameter(Mandatory = $true)] [string] $StageName
     )
+
+    $hasEnvelopeShape = (
+        (Test-ObjectHasProperty -Object $Document -Name 'schema_version') -or
+        (Test-ObjectHasProperty -Object $Document -Name 'stage') -or
+        (Test-ObjectHasProperty -Object $Document -Name 'payload')
+    )
+    if ($hasEnvelopeShape) {
+        Assert-AllowedObjectProperties `
+            -Object $Document `
+            -Allowed @('schema_version','stage','payload') `
+            -Context 'stage request envelope'
+    }
 
     $schemaVersion = [string](Get-ObjectValue -Object $Document -Name 'schema_version' -Default '')
     if ([string]::IsNullOrWhiteSpace($schemaVersion)) {
@@ -170,6 +219,210 @@ function ConvertTo-DoubleValue {
     }
 }
 
+function Test-JsonBooleanValue {
+    param($Value)
+    return ($Value -is [bool])
+}
+
+function Test-JsonIntegerValue {
+    param($Value)
+    if ($Value -is [bool] -or $null -eq $Value) { return $false }
+    return ($Value -is [byte] -or
+        $Value -is [sbyte] -or
+        $Value -is [int16] -or
+        $Value -is [uint16] -or
+        $Value -is [int] -or
+        $Value -is [uint32] -or
+        $Value -is [long] -or
+        $Value -is [uint64])
+}
+
+function Test-JsonNumberValue {
+    param($Value)
+    if ($Value -is [bool] -or $null -eq $Value) { return $false }
+    return ((Test-JsonIntegerValue $Value) -or
+        $Value -is [float] -or
+        $Value -is [double] -or
+        $Value -is [decimal])
+}
+
+function Test-JsonObjectValue {
+    param($Value)
+    if ($null -eq $Value) { return $false }
+    return ($Value -is [System.Collections.IDictionary] -or $Value -is [pscustomobject])
+}
+
+function Assert-StageStringField {
+    param(
+        [Parameter(Mandatory = $true)] $Payload,
+        [Parameter(Mandatory = $true)] [string] $Name,
+        [switch] $Required,
+        [string[]] $AllowedValues = @()
+    )
+
+    $exists = Test-ObjectHasProperty -Object $Payload -Name $Name
+    if (-not $exists) {
+        if ($Required) { throw "missing required payload field '$Name'" }
+        return
+    }
+    $value = Get-ObjectValue -Object $Payload -Name $Name
+    if ($null -eq $value) { throw "payload field '$Name' must be a JSON string" }
+    if ($value -isnot [string]) { throw "payload field '$Name' must be a JSON string" }
+    if ($Required -and [string]::IsNullOrWhiteSpace($value)) {
+        throw "missing required payload field '$Name'"
+    }
+    if ($AllowedValues.Count -gt 0 -and $value -notin $AllowedValues) {
+        throw "payload field '$Name' must be one of: $($AllowedValues -join ', ')"
+    }
+}
+
+function Assert-StageBooleanField {
+    param(
+        [Parameter(Mandatory = $true)] $Payload,
+        [Parameter(Mandatory = $true)] [string] $Name
+    )
+
+    if (-not (Test-ObjectHasProperty -Object $Payload -Name $Name)) { return }
+    $value = Get-ObjectValue -Object $Payload -Name $Name
+    if (-not (Test-JsonBooleanValue $value)) {
+        throw "payload field '$Name' must be a JSON boolean"
+    }
+}
+
+function Assert-StageIntegerField {
+    param(
+        [Parameter(Mandatory = $true)] $Payload,
+        [Parameter(Mandatory = $true)] [string] $Name,
+        [switch] $Required,
+        [long] $Minimum = [long]::MinValue,
+        [long] $Maximum = [long]::MaxValue
+    )
+
+    $exists = Test-ObjectHasProperty -Object $Payload -Name $Name
+    if (-not $exists) {
+        if ($Required) { throw "missing required payload field '$Name'" }
+        return
+    }
+    $value = Get-ObjectValue -Object $Payload -Name $Name
+    if (-not (Test-JsonIntegerValue $value)) {
+        throw "payload field '$Name' must be a JSON integer"
+    }
+    $typed = [decimal]$value
+    if ($typed -lt $Minimum) { throw "payload field '$Name' must be >= $Minimum" }
+    if ($typed -gt $Maximum) { throw "payload field '$Name' must be <= $Maximum" }
+}
+
+function Assert-StageNumberField {
+    param(
+        [Parameter(Mandatory = $true)] $Payload,
+        [Parameter(Mandatory = $true)] [string] $Name,
+        [double] $Minimum = [double]::NegativeInfinity,
+        [double] $Maximum = [double]::PositiveInfinity,
+        [switch] $ExclusiveMinimum
+    )
+
+    if (-not (Test-ObjectHasProperty -Object $Payload -Name $Name)) { return }
+    $value = Get-ObjectValue -Object $Payload -Name $Name
+    if (-not (Test-JsonNumberValue $value)) {
+        throw "payload field '$Name' must be a JSON number"
+    }
+    $typed = [double]$value
+    if ($ExclusiveMinimum) {
+        if ($typed -le $Minimum) { throw "payload field '$Name' must be > $Minimum" }
+    } elseif ($typed -lt $Minimum) {
+        throw "payload field '$Name' must be >= $Minimum"
+    }
+    if ($typed -gt $Maximum) { throw "payload field '$Name' must be <= $Maximum" }
+}
+
+function Assert-StageObjectField {
+    param(
+        [Parameter(Mandatory = $true)] $Payload,
+        [Parameter(Mandatory = $true)] [string] $Name
+    )
+
+    if (-not (Test-ObjectHasProperty -Object $Payload -Name $Name)) { return }
+    $value = Get-ObjectValue -Object $Payload -Name $Name
+    if (-not (Test-JsonObjectValue $value)) {
+        throw "payload field '$Name' must be a JSON object"
+    }
+}
+
+function Assert-StagePayloadContract {
+    param(
+        [Parameter(Mandatory = $true)] [string] $StageName,
+        [Parameter(Mandatory = $true)] $Payload
+    )
+
+    switch ($StageName) {
+        'probe' {
+            Assert-AllowedObjectProperties `
+                -Object $Payload `
+                -Allowed @('run_id','job_id','scratch_path') `
+                -Context 'probe payload'
+            Assert-StageStringField -Payload $Payload -Name 'run_id'
+            Assert-StageStringField -Payload $Payload -Name 'job_id'
+            Assert-StageStringField -Payload $Payload -Name 'scratch_path' -Required
+        }
+        'decide' {
+            Assert-AllowedObjectProperties `
+                -Object $Payload `
+                -Allowed @(
+                    'run_id',
+                    'job_id',
+                    'file_size_bytes',
+                    'is_tv',
+                    'duration_seconds',
+                    'video_codec',
+                    'video_height',
+                    'is_hdr',
+                    'routing_profile',
+                    'route_threshold_mode',
+                    'size_guard_mode',
+                    'encode_threshold_gb',
+                    'tv_encode_threshold_gb',
+                    'movie_route_max_video_bitrate_mbps',
+                    'tv_route_max_video_bitrate_mbps',
+                    'allow_h264_remux_if_plex_compatible',
+                    'h264_remux_max_bitrate_mbps',
+                    'h264_remux_max_height',
+                    'route_hints',
+                    'source_media_profile'
+                ) `
+                -Context 'decide payload'
+            Assert-StageStringField -Payload $Payload -Name 'run_id'
+            Assert-StageStringField -Payload $Payload -Name 'job_id'
+            Assert-StageIntegerField -Payload $Payload -Name 'file_size_bytes' -Required -Minimum 0
+            Assert-StageBooleanField -Payload $Payload -Name 'is_tv'
+            Assert-StageNumberField -Payload $Payload -Name 'duration_seconds' -Minimum 0
+            Assert-StageStringField -Payload $Payload -Name 'video_codec'
+            Assert-StageIntegerField -Payload $Payload -Name 'video_height' -Minimum 0 -Maximum 4320
+            Assert-StageBooleanField -Payload $Payload -Name 'is_hdr'
+            Assert-StageStringField `
+                -Payload $Payload `
+                -Name 'routing_profile' `
+                -AllowedValues @('plex_direct_stream','plex_direct_play','archive_shrink','archive_quality','manual')
+            Assert-StageStringField `
+                -Payload $Payload `
+                -Name 'route_threshold_mode' `
+                -AllowedValues @('compatibility_advisory','size','bitrate','size_or_bitrate')
+            Assert-StageStringField `
+                -Payload $Payload `
+                -Name 'size_guard_mode' `
+                -AllowedValues @('advisory','strict','off')
+            Assert-StageNumberField -Payload $Payload -Name 'encode_threshold_gb' -Minimum 0 -ExclusiveMinimum
+            Assert-StageNumberField -Payload $Payload -Name 'tv_encode_threshold_gb' -Minimum 0 -ExclusiveMinimum
+            Assert-StageNumberField -Payload $Payload -Name 'movie_route_max_video_bitrate_mbps' -Minimum 0 -Maximum 500 -ExclusiveMinimum
+            Assert-StageNumberField -Payload $Payload -Name 'tv_route_max_video_bitrate_mbps' -Minimum 0 -Maximum 500 -ExclusiveMinimum
+            Assert-StageBooleanField -Payload $Payload -Name 'allow_h264_remux_if_plex_compatible'
+            Assert-StageNumberField -Payload $Payload -Name 'h264_remux_max_bitrate_mbps' -Minimum 0 -ExclusiveMinimum
+            Assert-StageIntegerField -Payload $Payload -Name 'h264_remux_max_height' -Minimum 1 -Maximum 4320
+            Assert-StageObjectField -Payload $Payload -Name 'route_hints'
+            Assert-StageObjectField -Payload $Payload -Name 'source_media_profile'
+        }
+    }
+}
+
 function Resolve-StageExecutable {
     param(
         [Parameter(Mandatory = $true)] [string] $ToolName,
@@ -202,7 +455,9 @@ function New-StageErrorFromException {
     $code = 'stage.runtime_error'
     if ($message -match '^missing required payload field ' -or
         $message -match '^unsupported schema_version ' -or
-        $message -match '^payload stage ') {
+        $message -match '^payload stage ' -or
+        $message -match '^unknown .* field ' -or
+        $message -match '^payload field ') {
         $code = 'stage.invalid_payload'
     } elseif ($message -match 'bundled executable not found|executable not found') {
         $code = 'stage.tool_missing'
@@ -230,6 +485,7 @@ try {
 
     $document = Read-PayloadDocument -RawPayload $PayloadJson
     $payload = Get-StagePayload -Document $document -StageName $stageName
+    Assert-StagePayloadContract -StageName $stageName -Payload $payload
 
     switch ($stageName) {
         'probe' {

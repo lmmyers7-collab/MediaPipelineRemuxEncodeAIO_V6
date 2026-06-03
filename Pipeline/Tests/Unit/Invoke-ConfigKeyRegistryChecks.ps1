@@ -254,6 +254,18 @@ if (-not [bool]$strictDefaultSchemaCheck.Ok) {
     throw "PowerShell default config failed schema validation under StrictMode: $(@($strictDefaultSchemaCheck.Errors) -join '; ')"
 }
 
+$zeroAudioBitrateConfig = Get-MediaPipelineConfigDefaultValues
+$zeroAudioBitrateConfig['AudioTranscodeBitrate'] = '0k'
+$zeroAudioBitrateCheck = Test-MediaPipelineConfigSchema -Config $zeroAudioBitrateConfig
+$zeroAudioBitrateErrors = @($zeroAudioBitrateCheck.Errors) -join "`n"
+if ([bool]$zeroAudioBitrateCheck.Ok -or $zeroAudioBitrateErrors -notmatch 'AudioTranscodeBitrate') {
+    throw 'PowerShell schema must reject zero audio transcode bitrate values.'
+}
+$audioBitrateSchema = Get-JsonSchemaProperty -Key 'AudioTranscodeBitrate'
+if ([string]$audioBitrateSchema.pattern -ne '^[1-9]\d*k$') {
+    throw "JSON config schema AudioTranscodeBitrate pattern drifted. Actual='$($audioBitrateSchema.pattern)'"
+}
+
 $vobSubOcrToolDefault = 'Tools\SubtitleEditLegacy\SubtitleEdit.exe'
 $powershellDefaults = Get-MediaPipelineConfigDefaultValues
 if ([string]$powershellDefaults['VobSubOcrToolPath'] -ne $vobSubOcrToolDefault) {

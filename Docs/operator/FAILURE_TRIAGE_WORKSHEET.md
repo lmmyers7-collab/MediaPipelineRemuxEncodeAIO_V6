@@ -80,7 +80,7 @@ Capture this before refreshing or launching anything.
 | Output path in manifest exists on disk? | Yes / No | Completed row detail |
 | Sidecar present? | Yes / No | Completed row detail |
 | Route reason in manifest | | Completed row detail |
-| Completed manifest file age | | `State\Completed\completed_manifest.json` modified time |
+| Completed manifest file age | | `State\Completed\completed_jobs.jsonl` modified time |
 | Size in manifest vs actual file size | | Completed row / disk |
 
 ---

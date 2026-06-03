@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -48,6 +49,46 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertIn("Extra pipeline arguments", rejected["message"])
         self.assertFalse(rejected_with_client_allow["ok"])
         self.assertIn("Extra pipeline arguments", rejected_with_client_allow["message"])
+
+    def test_pipeline_start_blocks_unverified_active_config(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_identity = {
+                "schema_version": "desktop_config_identity.v1",
+                "blocks_operations": True,
+                "operator_status": "Config requires recovery",
+                "reasons": ["Config key count 4 is below the operator threshold 80."],
+            }
+
+            result = facade.start_pipeline_process(resolved, {"mode": "validate"}).to_mapping()
+            audit = facade.start_audit_process(resolved, {"library_root": str(root / "Outsource")}).to_mapping()
+            rerun_csv = root / "rerun.csv"
+            rerun_csv.write_text("enabled,source_path\ntrue,C:\\Media\\Movie.mkv\n", encoding="utf-8")
+            rerun = facade.start_rerun_csv_process(resolved, {"csv_path": str(rerun_csv)}).to_mapping()
+            preflight = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "validate"})
+            audit_preflight = facade.get_launch_preflight(resolved, {"target": "audit", "library_root": str(root / "Outsource")})
+            rerun_preflight = facade.get_launch_preflight(resolved, {"target": "rerun", "csv_path": str(rerun_csv)})
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["command"], "pipeline.start")
+        self.assertEqual(result["severity"], "error")
+        self.assertIn("not a verified operator config", result["message"])
+        self.assertFalse(result["data"]["can_execute"])
+        self.assertFalse(audit["ok"])
+        self.assertFalse(rerun["ok"])
+        self.assertIn("not a verified operator config", audit["message"])
+        self.assertIn("not a verified operator config", rerun["message"])
+        self.assertFalse(hasattr(service, "started_pipeline"))
+        self.assertFalse(hasattr(service, "started_audit"))
+        self.assertFalse(hasattr(service, "started_rerun"))
+        self.assertEqual(preflight["status"], "blocked")
+        self.assertFalse(preflight["can_request_start"])
+        self.assertTrue(any(row["key"] == "config_identity" and row["status"] == "blocked" for row in preflight["checks"]))
+        self.assertEqual(audit_preflight["status"], "blocked")
+        self.assertEqual(rerun_preflight["status"], "blocked")
 
     def test_pipeline_start_respects_schedule_gate_before_web_launch_ui(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -221,6 +262,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             root = Path(raw_root)
             csv_path = root / "rerun.csv"
             csv_path.write_text("enabled,source_path\ntrue,C:\\Media\\Movie.mkv\n", encoding="utf-8")
+            (root / "Outsource").mkdir()
             service = DummyWorkflowFacadeService(root)
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             resolved = _resolved(root)
@@ -273,6 +315,71 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertEqual(rerun["request"]["stage_mode"], "copy")
         self.assertEqual(blocked_rerun["status"], "blocked")
         self.assertTrue(any(row["key"] == "safe_modes" and row["status"] == "blocked" for row in blocked_rerun["checks"]))
+
+    def test_launch_preflight_surfaces_configured_path_health_warning(self) -> None:
+        health = {
+            "schema_version": "desktop_configured_path_health.v1",
+            "read_only": True,
+            "operator_status": "blocked",
+            "operator_summary": "1 configured root(s) are not reachable or listable.",
+            "rows": [
+                {
+                    "key": "source_movies",
+                    "label": "SourceMovies root",
+                    "status": "blocked",
+                    "message": "SourceMovies root does not exist or is not reachable from this Windows session.",
+                    "safe_next_action": "Log back into Windows/server share, then refresh path health.",
+                }
+            ],
+            "summary_lines": [
+                "Configured path health: blocked.",
+                "SourceMovies root: blocked; SourceMovies root does not exist or is not reachable from this Windows session.",
+            ],
+        }
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {"SourceMovies": r"\\LAYNE-SERVER\Video\Movies"}
+
+            with patch("app.processes.preflight_facade.configured_path_health", return_value=health):
+                preflight = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "validate"})
+
+        self.assertEqual(preflight["status"], "high review")
+        self.assertTrue(preflight["can_request_start"])
+        rows = {row["key"]: row for row in preflight["checks"]}
+        self.assertEqual(rows["configured_path_health"]["status"], "high review")
+        self.assertIn("not reachable", "\n".join(str(item) for item in rows["configured_path_health"]["detail"]))
+        self.assertIn("Configured server/folder health", rows["configured_path_health"]["label"])
+
+    def test_audit_preflight_skips_unc_library_root_exists_check(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "Outsource": r"\\LAYNE-SERVER\Users\Layne\Videos\outsource\Movies",
+            }
+
+            original_exists = Path.exists
+
+            def fail_only_for_unc(path: Path) -> bool:
+                if str(path).startswith(r"\\LAYNE-SERVER"):
+                    raise AssertionError("UNC existence check should not run")
+                return original_exists(path)
+
+            with patch.object(Path, "exists", fail_only_for_unc):
+                audit = facade.get_launch_preflight(resolved, {"target": "audit"})
+
+        self.assertEqual(audit["target"], "audit")
+        self.assertNotEqual(audit["status"], "blocked")
+        self.assertTrue(audit["can_request_start"])
+        library_rows = [row for row in audit["checks"] if row["key"] == "library_root"]
+        self.assertEqual(len(library_rows), 1)
+        self.assertEqual(library_rows[0]["status"], "review")
+        self.assertIn("network path not checked", library_rows[0]["evidence"])
 
     def test_launch_preflight_reports_schedule_and_lock_blocks_without_launching(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

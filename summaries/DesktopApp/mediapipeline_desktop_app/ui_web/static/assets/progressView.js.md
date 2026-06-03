@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: 9d0b4d7da171eb431171c8cf981def4650fa9df86ba9ab4a4c77da9b187ec6ee
+sha256: 2467eeecf56c9ee408307211bb548a9a5aa2de68e21560bacaff10145349cc93
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/progressView.js`
 

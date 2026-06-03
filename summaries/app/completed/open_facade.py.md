@@ -3,9 +3,9 @@ file: app/completed/open_facade.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: completed
-last_modified: 2026-05-28
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: b7f62d9d5e53e3b3a8653d9d5a7da0d25328ddc145e70c626a9765425a840b94
+sha256: 0d23baaa5812ada927425136d6149377c9c310dcc06411d5c09a8f3d6bc05a80
 ---
 # `app/completed/open_facade.py`
 

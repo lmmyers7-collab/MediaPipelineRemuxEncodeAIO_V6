@@ -18,9 +18,15 @@
             <strong id="pending-health-count">0</strong>
           </section>
         </div>
-        <section class="panel" data-panel-type="interactive">
+        <div class="settings-tab-bar completed-tab-bar" role="tablist" aria-label="Output Files sections">
+          <button type="button" class="settings-tab-btn" role="tab" data-output-completed-tab="overview" aria-selected="false">Overview</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-output-page-target="pending" aria-selected="true">Publish</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-output-completed-tab="history" aria-selected="false">History</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-output-completed-tab="advanced" aria-selected="false">Advanced</button>
+        </div>
+        <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Publish Parked Outputs</h2>
+            <h2>Publish Guard Evidence</h2>
             <strong id="pending-drain-guard-status">Not evaluated</strong>
           </div>
           <div id="pending-drain-guard-summary" class="diagnostic-callout" aria-live="polite">
@@ -31,6 +37,12 @@
             </details>
             <pre class="prose-block diagnostic-callout-body diagnostic-callout-advanced" data-advanced>No pending publish button guard loaded.</pre>
           </div>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Publish Parked Outputs</h2>
+            <strong>Backend command</strong>
+          </div>
           <div class="action-row action-row-left">
             <button type="button" id="pending-drain-button" class="danger-button">Publish Parked Outputs</button>
             <strong id="pending-drain-status">Idle</strong>
@@ -40,16 +52,51 @@
         </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Pending Items</h2>
-            <strong id="pending-status">No rows</strong>
+            <h2>Pending Refresh</h2>
+            <strong>Backend scan</strong>
           </div>
           <div class="action-row action-row-left">
             <button class="secondary-button" type="button" data-page-refresh-button="pending">Refresh Pending</button>
+          </div>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Pending Items</h2>
+            <strong id="pending-status">No rows</strong>
           </div>
           <pre id="pending-summary" class="prose-block">No pending publish data loaded.</pre>
           <div id="pending-inventory-progress-bars" class="progress-bar-list" aria-live="polite">
             <p class="note">No pending inventory progress loaded.</p>
           </div>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Parked Files</h2>
+            <strong id="pending-file-inventory-status">Not loaded</strong>
+          </div>
+          <pre id="pending-file-inventory-summary" class="prose-block">No parked file inventory loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Kind</th>
+                  <th scope="col">Role</th>
+                  <th scope="col" class="num">Size</th>
+                  <th scope="col">Modified</th>
+                  <th scope="col">File</th>
+                  <th scope="col">Evidence</th>
+                </tr>
+              </thead>
+              <tbody id="pending-file-inventory-rows">
+                <tr><td colspan="6">No parked file inventory loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No parked files</span>
+            <span class="empty-state-hint">PendingServerPush directory contents appear here as read-only evidence.</span>
+          </div>
+          </div>
+          <p id="pending-file-inventory-legend" class="note table-legend">Parked file inventory rows are read-only and do not open, move, drain, repair, delete, or publish files.</p>
         </section>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">

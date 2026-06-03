@@ -139,7 +139,6 @@ class RenameFacadePolicyTests(unittest.TestCase):
             "movie_year": 1999,
             "remove_terms_text": "sample, trailer",
             "movie_filter_options": {"video": 1, "audio": 0},
-            "movie_filter_terms_enabled": True,
             "movie_filter_terms": {"video_source": "custom tag, local rip", "release_groups": ["Group", "group"]},
             "final_name_overrides": {"C:/Media/Show E01.mkv": None},
             "rename_sidecars": False,

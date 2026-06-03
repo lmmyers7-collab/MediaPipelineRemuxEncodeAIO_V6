@@ -226,13 +226,17 @@ def validate_wizard_payload(wizard: object) -> dict[str, Any]:
     errors = [*path_validation["errors"], *worker_validation["errors"]]
     warnings = [*path_validation["warnings"], *worker_validation["warnings"]]
     safety = wizard.get("safety", {}) if isinstance(wizard.get("safety"), dict) else {}
+    danger_ack = set(safety.get("danger_ack") or [])
     for key, label in (
         ("allow_system_tools", "AllowSystemTools"),
         ("allow_no_audio", "AllowNoAudio"),
         ("cleanup_remote_staging", "CleanupRemoteStaging"),
     ):
-        if safety.get(key) and label not in set(safety.get("danger_ack") or []):
+        if safety.get(key) and label not in danger_ack:
             warnings.append(f"{label} is enabled; acknowledge it on the Save step before relying on this config.")
+    output = wizard.get("output", {}) if isinstance(wizard.get("output"), dict) else {}
+    if output.get("existing_policy") == "reprocess_all_once" and "ReprocessAll" not in danger_ack:
+        warnings.append("ReprocessAll is enabled; acknowledge it on the Save step before relying on this config.")
     return {
         "schema_version": "desktop_settings_wizard_validation.v1",
         "ok": not errors,
@@ -257,9 +261,9 @@ def validate_wizard_paths(wizard: object) -> dict[str, Any]:
             "rows": [],
         }
 
-    def check(label: str, raw_path: Any, *, must_exist: bool) -> None:
+    def check(label: str, raw_path: Any, *, must_exist: bool, target: str = "") -> None:
         text = str(raw_path or "").strip()
-        row = {"label": label, "path": text, "exists": False, "is_dir": False, "status": "blocked"}
+        row = {"label": label, "path": text, "exists": False, "is_dir": False, "status": "blocked", "target": target}
         if not text:
             errors.append(f"{label} path is required.")
         else:
@@ -285,23 +289,24 @@ def validate_wizard_paths(wizard: object) -> dict[str, Any]:
     if not isinstance(raw_libraries, list):
         errors.append("Wizard libraries must be a JSON array.")
         raw_libraries = []
-    enabled_libraries: list[dict[str, Any]] = []
+    enabled_libraries: list[tuple[int, dict[str, Any]]] = []
     for index, library in enumerate(raw_libraries, start=1):
         if not isinstance(library, dict):
             errors.append(f"Wizard library row {index} must be a JSON object.")
             continue
         if library.get("enabled", True):
-            enabled_libraries.append(library)
+            enabled_libraries.append((index, library))
 
-    for library in enabled_libraries:
-        check(f"Library {library.get('name') or 'source'}", library.get("source_path"), must_exist=True)
-        check(f"Library {library.get('name') or 'output'} output", library.get("output_path") or output.get("root"), must_exist=False)
+    for index, library in enabled_libraries:
+        check(f"Library {library.get('name') or 'source'}", library.get("source_path"), must_exist=True, target=f"library:{index}:source_path")
+        output_target = f"library:{index}:output_path" if library.get("output_path") else "#wizard-output-root"
+        check(f"Library {library.get('name') or 'output'} output", library.get("output_path") or output.get("root"), must_exist=False, target=output_target)
         if library.get("promotion_enabled", False):
-            check(f"Library {library.get('name') or 'promotion'} promotion", library.get("promotion_destination"), must_exist=False)
+            check(f"Library {library.get('name') or 'promotion'} promotion", library.get("promotion_destination"), must_exist=False, target=f"library:{index}:promotion_destination")
     scratch = wizard.get("scratch", {}) if isinstance(wizard.get("scratch"), dict) else {}
-    check("Final output", output.get("root"), must_exist=False)
-    check("Scratch / LocalBase", scratch.get("path"), must_exist=False)
-    source_paths = {str(row.get("source_path") or "").strip().casefold() for row in enabled_libraries}
+    check("Final output", output.get("root"), must_exist=False, target="#wizard-output-root")
+    check("Scratch / LocalBase", scratch.get("path"), must_exist=False, target="#wizard-scratch-path")
+    source_paths = {str(row.get("source_path") or "").strip().casefold() for _, row in enabled_libraries}
     scratch_path = str(scratch.get("path") or "").strip().casefold()
     if scratch_path and scratch_path in source_paths:
         errors.append("Scratch / LocalBase cannot be the same folder as an enabled source library.")
@@ -468,10 +473,27 @@ def _enabled_wizard_libraries(wizard: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _wizard_preview_payload(wizard: dict[str, Any], validation: dict[str, Any], preview_data: dict[str, Any], *, writes_config: bool, base_config: dict[str, Any] | None = None) -> dict[str, Any]:
     changes = wizard_changes(wizard, base_config)
+    path_validation = validation["path_validation"]
+    worker_validation = validation["worker_validation"]
+    safety = wizard.get("safety", {}) if isinstance(wizard.get("safety"), dict) else {}
+    output = wizard.get("output", {}) if isinstance(wizard.get("output"), dict) else {}
+    active_risks = [
+        label
+        for enabled, label in (
+            (safety.get("allow_system_tools"), "AllowSystemTools"),
+            (safety.get("allow_no_audio"), "AllowNoAudio"),
+            (safety.get("cleanup_remote_staging"), "CleanupRemoteStaging"),
+            (output.get("existing_policy") == "reprocess_all_once", "ReprocessAll"),
+        )
+        if enabled
+    ]
+    review_status = "blocked" if validation["errors"] else "warning" if validation["warnings"] else "ready"
     categories = [
-        {"category": "Paths", "status": "blocked" if validation["path_validation"]["errors"] else "ready", "detail": f"{len(validation['path_validation']['rows'])} path(s) checked."},
-        {"category": "Workers", "status": "blocked" if validation["worker_validation"]["errors"] else "ready", "detail": validation["worker_validation"]["parallel_encode_mode"]},
-        {"category": "Generated patch", "status": "ready", "detail": f"{len(changes)} setting key(s) generated."},
+        {"category": "Start", "status": "ready", "detail": f"Mode {wizard.get('mode') or 'first_run'}; container {wizard.get('output_container') or 'mkv'}."},
+        {"category": "Paths", "status": "blocked" if path_validation["errors"] else "warning" if path_validation["warnings"] else "ready", "detail": f"{len(path_validation['rows'])} path(s) checked."},
+        {"category": "Toolchain", "status": "blocked" if worker_validation["errors"] else "warning" if worker_validation["warnings"] else "ready", "detail": f"Worker mode {worker_validation['parallel_encode_mode']}; tool and encoder checks use bounded wizard routes."},
+        {"category": "Policy", "status": "warning" if active_risks else "ready", "detail": f"Active risk option(s): {', '.join(active_risks) if active_risks else 'none'}."},
+        {"category": "Review & Save", "status": review_status, "detail": f"{len(changes)} setting key(s) generated."},
     ]
     return {
         "schema_version": WIZARD_SCHEMA_VERSION,

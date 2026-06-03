@@ -299,7 +299,7 @@
     "CompatibleAudioCodecs": { "type": "array", "items": { "type": "string" } },
     "PreferredDefaultAudioLanguages": { "type": "array", "items": { "type": "string" } },
     "AudioTranscodeCodec": { "type": "string", "enum": [ "eac3", "ac3", "aac" ] },
-    "AudioTranscodeBitrate": { "type": "string", "pattern": "^\\d+k$" },
+    "AudioTranscodeBitrate": { "type": "string", "pattern": "^[1-9]\\d*k$" },
     "AudioDownmixMode": { "type": "string", "enum": [ "preserve", "max_channels", "stereo" ] },
     "AudioMaxChannels": { "type": "integer", "minimum": 1, "maximum": 16 },
     "AllowNoAudio": { "type": "boolean" },

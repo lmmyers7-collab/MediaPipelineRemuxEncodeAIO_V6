@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-02
 last_reviewed: 2026-05-30
-sha256: bd01a6bfb8a6bfd217b10b9ecba9339436654d585a610a45831c587468cef1e9
+sha256: 0e6fe5d1069a82cb6e0cf9e00236a650278bf640224dc966d4eb4583e718af19
 ---
 # `DesktopApp/tests/test_facade_pending_publish_policy.py`
 

@@ -304,7 +304,7 @@ textarea[data-state="error"]:focus {
 }
 
 .activity-primary,
-.activity-original {
+.activity-meta {
   display: block;
   min-width: 0;
   max-width: 100%;
@@ -313,11 +313,32 @@ textarea[data-state="error"]:focus {
   white-space: nowrap;
 }
 
-.activity-original {
+.activity-meta {
   color: var(--grey-400);
   font-size: var(--text-xs);
   font-weight: 500;
   line-height: 1.25;
+}
+
+.topbar-event-ticker {
+  min-width: 0;
+  max-width: 100%;
+  margin: var(--space-2) 0 0;
+  color: var(--grey-300);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-event-ticker[data-state="pending"] {
+  color: var(--amber-100);
+}
+
+.topbar-event-ticker[data-state="empty"] {
+  color: var(--grey-400);
 }
 
 .visually-hidden {

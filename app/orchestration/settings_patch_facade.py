@@ -10,6 +10,7 @@ from app.config.rollout import planner_comparison_from_decision_snapshot, resolv
 from app.config.settings_patch_policy import (
     settings_patch_preview_result,
     settings_save_busy_result,
+    settings_save_config_blocked_result,
     settings_save_confirmation_required_result,
     settings_save_exception_result,
     settings_save_no_changes_result,
@@ -17,6 +18,7 @@ from app.config.settings_patch_policy import (
     settings_save_success_result,
     settings_save_validation_error_result,
 )
+from app.config.identity import config_operation_block_data, config_operation_block_message
 from app.contracts.source_media import SourceMediaInfo
 from app.orchestration.planner import build_pipeline_plan_from_preset
 from mediapipeline_desktop_app.models import ResolvedPaths
@@ -165,6 +167,12 @@ class SettingsPatchFacadeMixin:
         """Validate and save explicit settings changes to the active PSD1 config."""
         if not bool(request.get("confirm_save", False)):
             return settings_save_confirmation_required_result()
+        config_identity = dict(getattr(resolved, "config_identity", {}) or {})
+        if config_identity.get("blocks_operations") is True:
+            return settings_save_config_blocked_result(
+                config_operation_block_message(config_identity, "Settings save"),
+                config_operation_block_data(config_identity),
+            )
         lock, block_message = self._acquire_settings_save_lock()
         if block_message:
             return settings_save_busy_result(block_message)

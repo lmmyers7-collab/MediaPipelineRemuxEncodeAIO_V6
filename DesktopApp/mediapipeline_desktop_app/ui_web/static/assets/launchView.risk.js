@@ -175,8 +175,8 @@
   function launchSettingsDecisionLines(settings = launchSettingsWorkspace(), request = null) {
     const decision = launchSettingsDecision(settings, request);
     const lines = [
-      "Launch settings decision:",
-      `- Decision: ${decision.decision}`,
+      "Launch settings evidence snapshot:",
+      `- Evidence posture: ${decision.decision}`,
       `- Saved settings status: ${decision.status}`,
       `- Launch mode: ${pipelineModeLabel(decision.mode)}`,
     ];
@@ -185,8 +185,8 @@
     } else {
       lines.push("- Reason: no saved-settings risks are currently reported.");
     }
-    lines.push(`- Start guidance: ${decision.guidance}`);
-    lines.push("- Preflight owner: Settings page edits/preview/save; Launch page displays saved posture only.");
+    lines.push(`- Evidence guidance: ${decision.guidance}`);
+    lines.push("- Evidence owner: Settings page edits/preview/save; Launch page displays saved posture only.");
     return lines;
   }
 
@@ -237,7 +237,7 @@
     const risk = settings.risk_summary || {};
     const warnings = Array.isArray(settings.warnings) ? settings.warnings : [];
     const errors = Array.isArray(settings.errors) ? settings.errors : [];
-    const lines = ["Saved settings preflight:"];
+    const lines = ["Saved settings evidence:"];
     lines.push(...launchSettingsDecisionLines(settings, request));
     lines.push(...launchUnsavedSettingsPatchLines());
     if (!settings.schema_version) {
@@ -788,8 +788,8 @@
   function launchPolicyCandidatePosture(area, candidate, changedCount) {
     if (!changedCount) return "same as saved";
     if (area === "subtitle") {
-      if ((candidate.dropTx3g && !candidate.convertTx3g) || (candidate.dropBdpgs && !candidate.convertBdpgs)) return "blocked";
-      if (candidate.container === "mp4" || candidate.dropTx3g || candidate.dropBdpgs || candidate.dropAss || !candidate.convertTx3g || !candidate.convertBdpgs) return "review";
+      if ((candidate.dropTx3g && !candidate.convertTx3g) || (candidate.dropBdpgs && !candidate.convertBdpgs) || (candidate.dropVobSub && !candidate.convertVobSub)) return "blocked";
+      if (candidate.container === "mp4" || candidate.dropTx3g || candidate.dropBdpgs || candidate.dropVobSub || candidate.dropAss || !candidate.convertTx3g || !candidate.convertBdpgs || !candidate.convertVobSub) return "review";
       return "preview required";
     }
     if (area === "audio") {

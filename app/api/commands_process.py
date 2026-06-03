@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from pathlib import Path
 import threading
 from typing import Any
+
+from mediapipeline_desktop_app.api.path_dialogs import select_windows_paths_with_dialog
+from mediapipeline_desktop_app.application.dto import CommandResult
 
 from .command_results import (
     backend_shutdown_success_payload,
@@ -9,6 +13,40 @@ from .command_results import (
     close_readiness_unavailable_payload,
     resolved_paths_unavailable_payload,
 )
+
+
+def _validate_pipeline_single_file_browse_path(raw_path: str) -> dict[str, Any]:
+    path_text = str(raw_path or "").strip()
+    validation: dict[str, Any] = {
+        "schema_version": "desktop_pipeline_single_file_validation.v1",
+        "path": path_text,
+        "exists": False,
+        "is_file": False,
+        "is_absolute": False,
+        "status_state": "blocked",
+        "message": "No file was selected.",
+    }
+    if not path_text:
+        return validation
+    try:
+        candidate = Path(path_text)
+        validation["is_absolute"] = candidate.is_absolute()
+        validation["exists"] = candidate.exists()
+        validation["is_file"] = candidate.is_file()
+    except OSError as exc:
+        validation["message"] = f"Selected single-file path could not be checked: {exc}"
+        return validation
+
+    if not validation["is_absolute"]:
+        validation["message"] = "Selected single-file path is not absolute."
+    elif not validation["exists"]:
+        validation["message"] = "Selected single-file path does not exist."
+    elif not validation["is_file"]:
+        validation["message"] = "Selected single-file path exists but is not a file."
+    else:
+        validation["status_state"] = "ready"
+        validation["message"] = "Selected single-file path exists. Review start readiness before launching."
+    return validation
 
 
 class LocalApiProcessCommandPayloadMixin:
@@ -35,6 +73,76 @@ class LocalApiProcessCommandPayloadMixin:
         if resolved is None:
             return resolved_paths_unavailable_payload("pipeline.control", "snapshot")
         return self.facade.request_pipeline_control(resolved, str(request.get("action") or "")).to_mapping()
+
+    def _pipeline_browse_file_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        requested_mode = str(request.get("selection_mode") or "files").strip().lower()
+        if requested_mode not in {"", "files"}:
+            return CommandResult(
+                command="pipeline.browse_file",
+                ok=False,
+                severity="error",
+                message="Pipeline single-file browse only supports selecting files.",
+                errors=["unsupported_selection_mode"],
+                data={
+                    "schema_version": "desktop_pipeline_single_file_browse.v1",
+                    "allowed_selection_modes": ["files"],
+                    "writes_config": False,
+                    "stages_only": True,
+                    "launches_work": False,
+                },
+            ).to_mapping()
+
+        initial_path = str(request.get("initial_path") or "")
+        picker = getattr(self, "_pipeline_file_picker", None)
+        picker_kwargs = {
+            "selection_mode": "files",
+            "initial_path": initial_path,
+            "dialog_title": "Select one media file for Pipeline single-file mode",
+            "file_filter": "Media files (*.mkv;*.mp4;*.m4v;*.avi;*.mov;*.wmv;*.ts;*.m2ts)|*.mkv;*.mp4;*.m4v;*.avi;*.mov;*.wmv;*.ts;*.m2ts|All files (*.*)|*.*",
+        }
+        if callable(picker):
+            result = picker(**picker_kwargs)
+        else:
+            result = select_windows_paths_with_dialog(**picker_kwargs)
+        paths = [str(path).strip() for path in result.get("paths", []) if str(path).strip()]
+        selected_path = paths[0] if paths else ""
+        canceled = bool(result.get("canceled", False))
+        picker_ok = bool(result.get("ok", False))
+        validation = _validate_pipeline_single_file_browse_path(selected_path)
+        validation_ready = validation.get("status_state") == "ready"
+        ok = picker_ok and (canceled or validation_ready)
+        if canceled:
+            message = "Windows file browser canceled. No Launch field was changed."
+            severity = "info"
+        elif picker_ok and validation_ready:
+            message = f"Windows file browser selected single file: {selected_path}"
+            severity = "info"
+        elif picker_ok:
+            message = str(validation.get("message") or "Selected single-file path did not pass backend validation.")
+            severity = "warning"
+        else:
+            message = str(result.get("message") or "Windows file browser failed.")
+            severity = "error"
+        return CommandResult(
+            command="pipeline.browse_file",
+            ok=ok,
+            severity=severity,
+            message=message,
+            errors=[str(error) for error in result.get("errors", [])],
+            data={
+                "schema_version": "desktop_pipeline_single_file_browse.v1",
+                "paths": paths,
+                "selected_path": selected_path,
+                "selection_mode": "files",
+                "canceled": canceled,
+                "path_count": len(paths),
+                "source": "windows_file_browser",
+                "validation": validation,
+                "writes_config": False,
+                "stages_only": True,
+                "launches_work": False,
+            },
+        ).to_mapping()
 
     def _pipeline_start_payload(self, request: dict[str, Any]) -> dict[str, Any]:
         resolved = self._resolved()

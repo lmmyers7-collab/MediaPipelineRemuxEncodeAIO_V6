@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-02
 last_reviewed: 2026-06-02
-sha256: 83cf1a4006d68bb0aeba65251520a32b0e3f02bd0b006889a2924a5df3781a87
+sha256: 2fab0f47e9c098b97a0fea047a44509b9d6d202d993242a37106a5d741486d0e
 ---
 # `DesktopApp/tests/test_application_facade_reports.py`
 

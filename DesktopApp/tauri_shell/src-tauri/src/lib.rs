@@ -637,7 +637,6 @@ mod tests {
   <strong id="settings-handbrake-preview-status">Predicted pending cutover</strong>
   <strong id="settings-handbrake-decision">UNKNOWN</strong>
   <strong id="settings-handbrake-active-preset">Saved settings</strong>
-  <dd id="settings-handbrake-source-container"></dd>
   <dd id="settings-handbrake-output-video"></dd>
   <dd id="settings-handbrake-output-guards"></dd>
   <pre id="settings-handbrake-preview-detail"></pre>
@@ -648,10 +647,6 @@ mod tests {
   <pre id="settings-effective-policy-detail"></pre>
   <tbody id="settings-backend-result-rows"></tbody>
   <pre id="settings-backend-result-detail"></pre>
-  <textarea id="settings-source-media-json"></textarea>
-  <button id="settings-preview-plan-button"></button>
-  <tbody id="settings-source-facts-rows"></tbody>
-  <pre id="settings-source-media-json-detail"></pre>
   <select id="settings-builder-routing-profile"></select>
   <select id="settings-builder-size-guard"></select>
   <select id="settings-builder-output-container"></select>
@@ -767,7 +762,7 @@ function renderSettingsBackendResultFromEntries() {
 }
 window.__settingsBackendResultModule = { createSettingsBackendResultModule };"#;
         let settings_patch_review_script = r#"function renderHandbrakePreviewSummary(settings) {
-  return "Use Source / Compatibility Preview Plan with a strict SourceMediaInfo payload";
+  return "Source-specific route previews are not exposed in Settings";
 }
 function collectSettingsBuilderPatch() {
   return {
@@ -775,23 +770,13 @@ function collectSettingsBuilderPatch() {
     OutputContainer: settingsBuilderInputValue("settings-builder-output-container"),
   };
 }
-function bindSettingsClick() {}
-bindSettingsClick("settings-preview-plan-button", addSettingsEventHandlers.previewSettingsPipelinePlan);"#;
+function bindSettingsClick() {}"#;
         let settings_script = r#"const settingsRawTriageModule = window.__settingsRawTriageModule || {};
 const settingsSafetyLocksModule = window.__settingsSafetyLocksModule || {};
 const settingsBackendResultModule = window.__settingsBackendResultModule || {};
 const settingsPolicyImpactModule = window.__settingsPolicyImpactModule || {};
 delete window.__settingsPolicyImpactModule;
-function parseSettingsSourceMediaJson() {}
-function renderSettingsPipelinePlanPreview(result, sourceMedia) {
-  return "Preview label remains Predicted pending cutover";
-}
-async function previewSettingsPipelinePlan() {
-  const result = await apiPost("/api/settings/pipeline-plan-preview", {
-    source_media: sourceMedia,
-  });
-  return "This did not save settings, launch work, mutate queue state, publish, rename, drain pending publish, or touch media files.";
-}"#;
+"#;
         let settings_policy_impact_script = r#"function createSettingsPolicyImpactModule() {}
 function settingsBackendMediaPolicyReadiness() {}
 function renderSettingsBackendMediaPolicyReadiness() {
@@ -983,7 +968,6 @@ const pendingConfidenceModule = window.__pendingPublishConfidenceModule || {};"#
   <strong id="settings-handbrake-preview-status">Predicted pending cutover</strong>
   <strong id="settings-handbrake-decision">UNKNOWN</strong>
   <strong id="settings-handbrake-active-preset">Saved settings</strong>
-  <dd id="settings-handbrake-source-container"></dd>
   <dd id="settings-handbrake-output-video"></dd>
   <dd id="settings-handbrake-output-guards"></dd>
   <pre id="settings-handbrake-preview-detail"></pre>
@@ -994,10 +978,6 @@ const pendingConfidenceModule = window.__pendingPublishConfidenceModule || {};"#
   <pre id="settings-effective-policy-detail"></pre>
   <tbody id="settings-backend-result-rows"></tbody>
   <pre id="settings-backend-result-detail"></pre>
-  <textarea id="settings-source-media-json"></textarea>
-  <button id="settings-preview-plan-button"></button>
-  <tbody id="settings-source-facts-rows"></tbody>
-  <pre id="settings-source-media-json-detail"></pre>
   <select id="settings-builder-routing-profile"></select>
   <select id="settings-builder-size-guard"></select>
   <select id="settings-builder-output-container"></select>

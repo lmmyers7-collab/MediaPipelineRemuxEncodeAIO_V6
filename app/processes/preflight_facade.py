@@ -8,6 +8,7 @@ from typing import Any
 from mediapipeline_desktop_app.application.dto_base import JsonMap, json_safe
 from mediapipeline_desktop_app.models import ResolvedPaths
 
+from app.config.identity import config_identity_block_reasons
 from app.processes.audit_policy import AUDIT_LIBRARY_ROOT_ERROR, resolve_audit_library_root
 from app.processes.pipeline_policy import (
     PIPELINE_EXTRA_ARGS_ERROR,
@@ -25,6 +26,7 @@ from app.processes.rerun_policy import (
     rerun_modes_are_supported,
     rerun_modes_from_request,
 )
+from app.processes.path_evidence import configured_path_health, path_evidence
 from app.processes.schedule_policy import continuous_schedule_stop_watcher_preflight_check
 
 
@@ -171,21 +173,6 @@ def _preflight_operator_readiness(
     }
 
 
-def _path_evidence(path: Path | None) -> tuple[str, list[str]]:
-    if path is None:
-        return "missing", []
-    details = [f"path={path}"]
-    try:
-        if path.exists():
-            details.append("exists=yes")
-            return "exists", details
-        details.append("exists=no")
-        return "missing on disk", details
-    except OSError as exc:
-        details.append(f"exists check failed={exc}")
-        return "existence unknown", details
-
-
 def _service_callable(service: object, name: str) -> bool:
     return callable(getattr(service, name, None))
 
@@ -293,6 +280,62 @@ class ProcessFacadeMixin:
             "Start route will re-check active work at submission time.",
         )
 
+    def _config_identity_preflight_check(self, resolved: ResolvedPaths) -> dict[str, Any]:
+        identity = dict(getattr(resolved, "config_identity", {}) or {})
+        reasons = config_identity_block_reasons(identity)
+        if reasons:
+            return _preflight_check(
+                "config_identity",
+                "Active config identity",
+                "blocked",
+                str(identity.get("operator_status") or "Config is not ready."),
+                "Restore a verified operator PSD1 before launching.",
+                detail=reasons + [f"config_path={identity.get('config_path') or resolved.config_path}"],
+            )
+        if identity:
+            return _preflight_check(
+                "config_identity",
+                "Active config identity",
+                "ready",
+                f"key_count={identity.get('key_count')}; sha256={str(identity.get('sha256') or '')[:16]}",
+                "Start route will re-check the active config identity before launch.",
+                detail=[f"config_path={identity.get('config_path') or resolved.config_path}"],
+            )
+        return _preflight_check(
+            "config_identity",
+            "Active config identity",
+            "unknown",
+            "Config identity evidence is not available in this resolved path snapshot.",
+            "Refresh the backend Settings workspace before launch.",
+        )
+
+    def _configured_path_health_preflight_check(self, resolved: ResolvedPaths) -> dict[str, Any] | None:
+        health = configured_path_health(resolved)
+        if not health.get("rows"):
+            return None
+        operator_status = str(health.get("operator_status") or "unknown").casefold()
+        if operator_status == "ready":
+            status = "ready"
+        elif operator_status == "blocked":
+            status = "high review"
+        elif operator_status == "review":
+            status = "review"
+        else:
+            status = "unknown"
+        issue_lines = [
+            str(line)
+            for line in health.get("summary_lines", [])
+            if str(line).strip()
+        ]
+        return _preflight_check(
+            "configured_path_health",
+            "Configured server/folder health",
+            status,
+            str(health.get("operator_summary") or "Configured path health is incomplete."),
+            "Resolve unreachable configured source/output/scratch roots before pressing Start.",
+            detail=issue_lines[:10],
+        )
+
     def _pipeline_launch_preflight_checks(
         self,
         resolved: ResolvedPaths,
@@ -367,6 +410,14 @@ class ProcessFacadeMixin:
         checks.extend(
             [
                 self._process_launch_lock_preflight_check("Pipeline preflight"),
+                self._config_identity_preflight_check(resolved),
+            ]
+        )
+        path_health_check = self._configured_path_health_preflight_check(resolved)
+        if path_health_check is not None:
+            checks.append(path_health_check)
+        checks.extend(
+            [
                 self._active_work_preflight_check(resolved, "Pipeline preflight"),
                 _preflight_check(
                     "service_start",
@@ -393,7 +444,7 @@ class ProcessFacadeMixin:
     ) -> tuple[list[dict[str, Any]], dict[str, Any], str]:
         library_root = resolve_audit_library_root(request, resolved.config_data)
         path = Path(library_root) if library_root else None
-        evidence, details = _path_evidence(path)
+        evidence, details = path_evidence(path)
         normalized = {
             "target": "audit",
             "library_root": library_root,
@@ -410,6 +461,7 @@ class ProcessFacadeMixin:
                 detail=details if library_root else [AUDIT_LIBRARY_ROOT_ERROR],
             ),
             self._process_launch_lock_preflight_check("Audit preflight"),
+            self._config_identity_preflight_check(resolved),
             self._active_work_preflight_check(resolved, "Audit preflight"),
             _preflight_check(
                 "service_start",
@@ -436,7 +488,7 @@ class ProcessFacadeMixin:
         _ = resolved
         csv_path = rerun_csv_path_from_request(request)
         stage_mode, original_mode, return_mode = rerun_modes_from_request(request)
-        evidence, details = _path_evidence(csv_path)
+        evidence, details = path_evidence(csv_path)
         modes_supported = rerun_modes_are_supported(stage_mode, original_mode, return_mode)
         normalized = {
             "target": "rerun",
@@ -465,6 +517,7 @@ class ProcessFacadeMixin:
                 detail=[] if modes_supported else [CSV_RERUN_MODE_ERROR],
             ),
             self._process_launch_lock_preflight_check("CSV rerun preflight"),
+            self._config_identity_preflight_check(resolved),
             self._active_work_preflight_check(resolved, "CSV rerun preflight"),
             _preflight_check(
                 "service_start",

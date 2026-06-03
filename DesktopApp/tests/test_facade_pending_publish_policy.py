@@ -143,6 +143,10 @@ class PendingPublishFacadePolicyTests(unittest.TestCase):
             "total_size_text": "",
             "missing_local_count": "1",
             "health_count": "1",
+            "file_inventory": {
+                "rows": [{"path": Path("C:/Pending/Movie.mkv"), "role": "orphan_payload"}],
+                "total_count": 1,
+            },
             "error": " partial scan ",
         }
 
@@ -160,6 +164,9 @@ class PendingPublishFacadePolicyTests(unittest.TestCase):
         self.assertEqual(fields["total_size_text"], "0 B")
         self.assertEqual(fields["missing_local_count"], 1)
         self.assertEqual(fields["health_count"], 1)
+        self.assertEqual(fields["file_inventory"]["schema_version"], "desktop_pending_publish_file_inventory.v1")
+        self.assertEqual(fields["file_inventory"]["rows"][0]["path"], str(Path("C:/Pending/Movie.mkv")))
+        self.assertEqual(fields["file_inventory"]["total_count"], 1)
         self.assertEqual(fields["available_open_target_counts"], {})
         self.assertEqual(fields["warnings"], ["partial scan"])
         self.assertEqual(fields["error"], "partial scan")

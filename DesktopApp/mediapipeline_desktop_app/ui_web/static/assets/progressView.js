@@ -888,7 +888,7 @@
       activeWorkRouteLine(progress),
       activeWorkQueueLine(progress),
       activeWorkControlLine(progress),
-      progressWorkerSummaryLine(snapshot, null),
+      progressWorkerSummaryLine(snapshot, diagnostics),
       progressFfmpegSummaryLine(snapshot, diagnostics),
       progressEtaSummaryLine(snapshot, diagnostics),
     ].filter(Boolean);

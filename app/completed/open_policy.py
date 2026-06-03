@@ -114,7 +114,7 @@ def completed_open_row_missing_result() -> CommandResult:
         ok=False,
         message="The selected completed row is no longer available.",
         severity="warning",
-        warnings=["The selected completed row key was not found in the recent manifest window."],
+        warnings=["The selected completed row key was not found in the loaded completed manifest."],
         refresh_hint=COMPLETED_REFRESH_HINT,
     )
 

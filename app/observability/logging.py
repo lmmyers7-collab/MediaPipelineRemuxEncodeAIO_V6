@@ -11,6 +11,7 @@ from typing import Any, TextIO
 
 REDACTED = "[redacted]"
 SECRET_FRAGMENTS = ("token", "secret", "password", "credential", "authorization")
+_JSON_LOGGING_HANDLER_MARKER = "_mediapipeline_json_logging_handler"
 
 
 def _utc_now() -> str:
@@ -58,7 +59,15 @@ class JsonLineFormatter(logging.Formatter):
         }
         structured = getattr(record, "structured", None)
         if isinstance(structured, dict):
-            payload.update(_redact(structured))
+            structured_payload = _redact(structured)
+            collisions: dict[str, Any] = {}
+            for key, value in structured_payload.items():
+                if key in payload:
+                    collisions[key] = value
+                    continue
+                payload[key] = value
+            if collisions:
+                payload["structured"] = collisions
         error = _exception_payload(record)
         if error is not None:
             payload["error"] = _redact(error)
@@ -105,11 +114,18 @@ def configure_json_logging(
     level: int = logging.INFO,
     logger_name: str | None = None,
 ) -> logging.Handler:
-    handler = logging.StreamHandler(stream)
-    handler.setLevel(level)
-    handler.setFormatter(JsonLineFormatter())
     target = logging.getLogger(logger_name) if logger_name else logging.getLogger()
     target.setLevel(level)
+    for existing in target.handlers:
+        if getattr(existing, _JSON_LOGGING_HANDLER_MARKER, False) and getattr(existing, "stream", None) is stream:
+            existing.setLevel(level)
+            existing.setFormatter(JsonLineFormatter())
+            return existing
+
+    handler = logging.StreamHandler(stream)
+    setattr(handler, _JSON_LOGGING_HANDLER_MARKER, True)
+    handler.setLevel(level)
+    handler.setFormatter(JsonLineFormatter())
     target.addHandler(handler)
     return handler
 

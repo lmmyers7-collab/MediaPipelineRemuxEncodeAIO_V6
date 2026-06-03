@@ -281,9 +281,52 @@ Invoke-WithTempRoot {
     Assert-True (-not (Test-Path -LiteralPath $newSidecar)) 'Newly written sidecar was not removed after rollback.'
 }
 
+Invoke-WithTempRoot {
+    param($Root)
+    $serverDir = Join-Path $Root.FullName 'Server'
+    [System.IO.Directory]::CreateDirectory($serverDir) | Out-Null
+    $localSidecar = Join-Path $Root.FullName 'parked.srt'
+    $serverSidecar = Join-Path $serverDir 'movie.eng.srt'
+    [System.IO.File]::WriteAllText($localSidecar, "1`n00:00:00,000 --> 00:00:01,000`nNew`n")
+    [System.IO.File]::WriteAllText($serverSidecar, 'old-srt')
+    $manifest = [pscustomobject]@{
+        sidecar_files = @(
+            [pscustomobject]@{
+                local_file = $localSidecar
+                server_out = $serverSidecar
+                preserve_existing = $false
+                tx3g_record = [pscustomobject]@{ stream_index = 2; language = 'eng'; title = 'English' }
+            }
+        )
+        tx3g_srt_tracks = @()
+        tx3g_srt_failures = @()
+    }
+
+    $originalCopySrtAtomic = (Get-Item -Path function:Copy-SrtAtomic).ScriptBlock
+    Set-Item -Path function:Copy-SrtAtomic -Value {
+        param(
+            [Parameter(Mandatory)] [string] $SourcePath,
+            [Parameter(Mandatory)] [string] $DestinationPath
+        )
+        [System.IO.File]::WriteAllText($DestinationPath, 'failed-new-srt')
+        return [pscustomobject]@{ Ok = $false; Reason = 'simulated publish failure after destination write'; CueCount = 0 }
+    }
+    try {
+        $result = Publish-PendingSidecarFiles -Manifest $manifest -PublishTransactionId 'tx-rollback'
+    } finally {
+        Set-Item -Path function:Copy-SrtAtomic -Value $originalCopySrtAtomic
+    }
+
+    Assert-Equal @($result.Failures).Count 1 'Pending sidecar copy failure was not reported.'
+    Assert-Equal ([System.IO.File]::ReadAllText($serverSidecar)) 'old-srt' 'Pending sidecar copy failure did not restore the previous SRT.'
+    $leftoverBackups = @(Get-ChildItem -LiteralPath $serverDir -Force | Where-Object { $_.Name -like '*.mp-pending-sidecar-backup.*' })
+    Assert-Equal $leftoverBackups.Count 0 'Pending sidecar copy failure left backup artifacts behind.'
+}
+
 $pendingTransactionsText = Get-Content -LiteralPath (Join-Path $repoRoot 'engine\publish\pending_transactions.ps1') -Raw
 Assert-MatchText $pendingTransactionsText 'function Restore-PendingSidecarBackupIntoPlace' 'Pending sidecar restore overwrite fallback helper is missing.'
 Assert-MatchText $pendingTransactionsText '\[System\.IO\.File\]::Move\(\$BackupPath,\s*\$DestinationPath,\s*\$true\)' 'Pending sidecar restore fallback must use overwrite move.'
+Assert-MatchText $pendingTransactionsText 'if \(-not \$copy\.Ok\)[\s\S]+Restore-PendingSidecarBackupIntoPlace' 'Pending sidecar copy failure must restore an existing destination from backup.'
 
 $publishCompletionText = Get-Content -LiteralPath (Join-Path $repoRoot 'engine\publish\publish_completion.ps1') -Raw
 $publishCompletionHelperText = Get-Content -LiteralPath (Join-Path $repoRoot 'engine\publish\publish_completion\context_builders.ps1') -Raw

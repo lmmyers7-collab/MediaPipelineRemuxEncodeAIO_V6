@@ -113,7 +113,7 @@ function Get-EffectiveAudioTranscodeBitrate {
         [string]$script:AudioTranscodeBitrate
     } else { '' }
     $normalized = $value.Trim().ToLowerInvariant()
-    if ($normalized -match '^\d+k$') { return $normalized }
+    if ($normalized -match '^[1-9]\d*k$') { return $normalized }
     return '640k'
 }
 

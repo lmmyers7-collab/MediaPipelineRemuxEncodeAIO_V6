@@ -25,36 +25,36 @@ _INDEX_HTML = _STATIC_ROOT / "index.html"
 
 _EXPECTED_NAV_PAGES = [
     "home",
+    "launch",
     "live",
     "queue",
     "completed",
-    "pending",
     "rename",
-    "launch",
     "reports",
-    "schedule",
     "network",
-    "maintenance",
-    "diagnostics",
     "libraries",
+    "schedule",
     "settings",
+    "diagnostics",
+    "maintenance",
 ]
+
+_EXPECTED_PAGE_PANELS = _EXPECTED_NAV_PAGES[:5] + ["pending"] + _EXPECTED_NAV_PAGES[5:]
 
 _EXPECTED_NAV_LABELS = {
     "home": "Dashboard",
+    "launch": "Launch",
     "live": "Telemetry",
     "queue": "Queue",
     "completed": "Output",
-    "pending": "Publish",
     "rename": "Rename",
-    "launch": "Launch",
     "reports": "Reports",
-    "schedule": "Schedule",
     "network": "Workers",
-    "maintenance": "Maintenance",
-    "diagnostics": "Diagnostics",
     "libraries": "Libraries",
+    "schedule": "Schedule",
     "settings": "Settings",
+    "diagnostics": "Diagnostics",
+    "maintenance": "Maintenance",
 }
 
 _INITIAL_ACTIVE_PAGE = "home"
@@ -241,7 +241,7 @@ class WebViewNavigationStaticTests(unittest.TestCase):
 
     def test_all_expected_nav_pages_have_panels(self) -> None:
         panel_pages = [p["panel"] for p in self.parsed.page_panels]
-        for page in _EXPECTED_NAV_PAGES:
+        for page in _EXPECTED_PAGE_PANELS:
             self.assertIn(page, panel_pages, f"Page panel for '{page}' missing from index.html")
 
     def test_no_duplicate_page_panels(self) -> None:
@@ -256,11 +256,13 @@ class WebViewNavigationStaticTests(unittest.TestCase):
         panel_pages = set(p["panel"] for p in self.parsed.page_panels)
         self.assertEqual(
             button_pages,
-            panel_pages,
+            panel_pages - {"pending"},
             f"Nav button pages and page panels differ.\n"
             f"  Buttons only: {button_pages - panel_pages}\n"
-            f"  Panels only:  {panel_pages - button_pages}",
+            f"  Panels without primary nav:  {panel_pages - button_pages}",
         )
+        self.assertIn("pending", panel_pages)
+        self.assertNotIn("pending", button_pages)
 
     def test_initial_active_nav_button_is_home(self) -> None:
         active_buttons = [b["page"] for b in self.parsed.nav_buttons if "is-active" in b["classes"]]
@@ -279,7 +281,7 @@ class WebViewNavigationStaticTests(unittest.TestCase):
         )
 
     def test_cross_page_targets_are_valid_page_names(self) -> None:
-        valid_pages = set(_EXPECTED_NAV_PAGES)
+        valid_pages = set(_EXPECTED_PAGE_PANELS)
         for target in self.parsed.cross_page_targets:
             self.assertIn(
                 target,

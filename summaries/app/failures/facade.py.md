@@ -3,9 +3,9 @@ file: app/failures/facade.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: failures
-last_modified: 2026-05-28
+last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 2a9213dc321d40d72f79160217f4d08739a02cc7648163ba744af1d3ee52d07e
+sha256: 629b5de45a8829391610f76c9c8a16d5ba4b92973a5b7a805d136d92b75866a3
 ---
 # `app/failures/facade.py`
 

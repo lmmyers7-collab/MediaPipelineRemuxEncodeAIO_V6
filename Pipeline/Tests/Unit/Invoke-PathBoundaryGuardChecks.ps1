@@ -18,6 +18,11 @@ $pipelineRoot = Split-Path -Parent (Split-Path -Parent $testsRoot)
 $repoRoot = Split-Path -Parent $pipelineRoot
 
 . (Join-Path $repoRoot 'engine\shared\path_helpers.ps1')
+. (Join-Path $repoRoot 'engine\paths\output_path_planning.ps1')
+
+function Write-Log {
+    param([string] $Message, [string] $Level = 'INFO')
+}
 
 function Assert-True {
     param([bool] $Condition, [string] $Message)
@@ -92,6 +97,44 @@ Invoke-WithTempRoot {
     } else {
         Write-Host 'Skipping symlink/junction assertion; creation was not permitted in this environment.'
     }
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    $script:LocalEncoded = Join-Path $Root.FullName 'local-output'
+    $missingServerRoot = Join-Path $Root.FullName 'missing-server-output'
+    [System.IO.Directory]::CreateDirectory($script:LocalEncoded) | Out-Null
+
+    $paths = [pscustomobject]@{
+        LocalOut  = Join-Path $script:LocalEncoded 'Movie\Movie.mkv'
+        ServerOut = Join-Path $missingServerRoot 'Movie\Movie.mkv'
+        OutputRoot = $missingServerRoot
+    }
+
+    $result = Test-OutputPathCapability -Paths $paths
+    Assert-True ([bool]$result.Ok) 'Missing optional server root should defer to publish/parking instead of blocking preflight.'
+    Assert-True (-not (Test-Path -LiteralPath $missingServerRoot -ErrorAction SilentlyContinue)) 'Output path preflight must not create a missing optional server root.'
+    Remove-Variable -Name LocalEncoded -Scope Script -ErrorAction SilentlyContinue
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    $script:LocalEncoded = Join-Path $Root.FullName 'local-output'
+    $serverRoot = Join-Path $Root.FullName 'server-output'
+    $outsideRoot = Join-Path $Root.FullName 'outside-output'
+    [System.IO.Directory]::CreateDirectory($script:LocalEncoded) | Out-Null
+    [System.IO.Directory]::CreateDirectory($serverRoot) | Out-Null
+
+    $paths = [pscustomobject]@{
+        LocalOut  = Join-Path $script:LocalEncoded 'Movie\Movie.mkv'
+        ServerOut = Join-Path $outsideRoot 'Movie\Movie.mkv'
+        OutputRoot = $serverRoot
+    }
+
+    $result = Test-OutputPathCapability -Paths $paths
+    Assert-True (-not [bool]$result.Ok) 'Server output outside configured OutputRoot should fail path capability preflight.'
+    Assert-Equal $result.BoundaryReasonCode 'OUTSIDE_ALLOWED_ROOT' 'Outside server output should report boundary failure evidence.'
+    Remove-Variable -Name LocalEncoded -Scope Script -ErrorAction SilentlyContinue
 }
 
 Write-Host 'Path boundary guard checks passed.'

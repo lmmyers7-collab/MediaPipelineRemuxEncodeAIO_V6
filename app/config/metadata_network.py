@@ -17,10 +17,9 @@ KEY_WORKER_SOURCE_PATH_MAP = "WorkerSourcePathMap"
 KEY_WORKER_CONFIG_OVERRIDES = "WorkerConfigOverrides"
 
 
-# These are intentionally kept out of CONFIG_FIELD_DEFINITIONS so the
-# standard settings page renderer does not try to auto-build UI for them.
-# The Network settings page is hand-built to support the role selector and
-# conditional sub-sections.
+# Network keys are exported through backend metadata for validation, drift
+# checks, and ownership docs. The Network settings page is still hand-built so
+# auth secrets can stay excluded from WebView builder controls.
 #
 # Defaults below document what load_config() will produce when a field is
 # absent, so existing config files load cleanly without changes.

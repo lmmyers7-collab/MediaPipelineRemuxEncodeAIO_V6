@@ -223,6 +223,31 @@ LOCAL_API_INVENTORY_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
     },
 )
 
+LOCAL_API_RENAME_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
+    {
+        "method": "GET",
+        "path": "/api/rename/movie-cleaning-filters",
+        "auth_required": True,
+        "effect": "none",
+        "response_schema": "desktop_rename_movie_filter_catalog.v1",
+        "purpose": "Read the backend movie cleaning filter catalog used to seed the Settings rename filter textareas without opening, renaming, moving, deleting, writing, or probing any filesystem path.",
+    },
+    {
+        "method": "GET",
+        "path": "/api/rename/clean-filename-preview",
+        "auth_required": True,
+        "effect": "none",
+        "query_keys": [
+            "filename",
+            "remove_terms_text",
+            "movie_filter_options",
+            "movie_filter_terms",
+        ],
+        "response_schema": "desktop_rename_clean_filename_preview.v1",
+        "purpose": "Preview backend movie filename cleaning for one typed filename without opening, renaming, moving, deleting, writing, or probing any filesystem path.",
+    },
+)
+
 LOCAL_API_WORKSPACE_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
     {
         "method": "GET",
@@ -294,6 +319,7 @@ LOCAL_API_WORKSPACE_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
 LOCAL_API_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
     LOCAL_API_STATUS_READ_ROUTE_CONTRACT
     + LOCAL_API_INVENTORY_READ_ROUTE_CONTRACT
+    + LOCAL_API_RENAME_READ_ROUTE_CONTRACT
     + LOCAL_API_WORKSPACE_READ_ROUTE_CONTRACT
 )
 
@@ -301,6 +327,7 @@ LOCAL_API_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
 __all__ = [
     "LOCAL_API_INVENTORY_READ_ROUTE_CONTRACT",
     "LOCAL_API_READ_ROUTE_CONTRACT",
+    "LOCAL_API_RENAME_READ_ROUTE_CONTRACT",
     "LOCAL_API_STATUS_READ_ROUTE_CONTRACT",
     "LOCAL_API_WORKSPACE_READ_ROUTE_CONTRACT",
 ]

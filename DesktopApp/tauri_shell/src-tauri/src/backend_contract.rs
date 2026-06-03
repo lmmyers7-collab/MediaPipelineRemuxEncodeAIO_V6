@@ -94,10 +94,6 @@ pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellRe
             "id=\"settings-handbrake-active-preset\"",
         ),
         (
-            "settings handbrake source facts",
-            "id=\"settings-handbrake-source-container\"",
-        ),
-        (
             "settings handbrake output video",
             "id=\"settings-handbrake-output-video\"",
         ),
@@ -136,22 +132,6 @@ pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellRe
         (
             "settings effective policy trust detail",
             "id=\"settings-effective-policy-detail\"",
-        ),
-        (
-            "settings source media editor",
-            "id=\"settings-source-media-json\"",
-        ),
-        (
-            "settings pipeline plan preview button",
-            "id=\"settings-preview-plan-button\"",
-        ),
-        (
-            "settings source facts rows",
-            "id=\"settings-source-facts-rows\"",
-        ),
-        (
-            "settings source media detail",
-            "id=\"settings-source-media-json-detail\"",
         ),
         (
             "settings builder routing profile",
@@ -718,12 +698,8 @@ pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellRe
             "OutputContainer: settingsBuilderInputValue(\"settings-builder-output-container\")",
         ),
         (
-            "settings pipeline plan preview button binding",
-            "bindSettingsClick(\"settings-preview-plan-button\", addSettingsEventHandlers.previewSettingsPipelinePlan)",
-        ),
-        (
-            "settings source compatibility preview guidance",
-            "Use Source / Compatibility Preview Plan with a strict SourceMediaInfo payload",
+            "settings source-specific route preview boundary",
+            "Source-specific route previews are not exposed in Settings",
         ),
     ] {
         if !settings_patch_review_script.contains(fragment) {
@@ -754,30 +730,6 @@ pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellRe
         (
             "settings policy impact child cleanup",
             "delete window.__settingsPolicyImpactModule",
-        ),
-        (
-            "settings source media parser",
-            "function parseSettingsSourceMediaJson",
-        ),
-        (
-            "settings pipeline plan preview renderer",
-            "function renderSettingsPipelinePlanPreview",
-        ),
-        (
-            "settings pipeline plan preview command",
-            "async function previewSettingsPipelinePlan",
-        ),
-        (
-            "settings pipeline plan preview route",
-            "apiPost(\"/api/settings/pipeline-plan-preview\", {",
-        ),
-        (
-            "settings pipeline plan source payload",
-            "source_media: sourceMedia",
-        ),
-        (
-            "settings pipeline plan no-mutation boundary",
-            "This did not save settings, launch work, mutate queue state, publish, rename, drain pending publish, or touch media files.",
         ),
     ] {
         if !settings_script.contains(fragment) {

@@ -4,6 +4,7 @@ from pathlib import Path
 
 from mediapipeline_desktop_app.config_keys import KEY_LOCAL_BASE, KEY_PRIORITY_MARKERS, KEY_SOURCE_MOVIES, KEY_SOURCE_TV
 from mediapipeline_desktop_app.models import ResolvedPaths
+from app.config.identity import build_config_identity, write_last_good_config_snapshot
 from app.paths.contracts import PathResolutionServiceProtocol
 from app.storage.state_migration import app_state_path_for_state_root
 
@@ -21,6 +22,12 @@ def resolve_paths_for_service(service: PathResolutionServiceProtocol, pipeline_p
 
     config_data = service.load_config_data(resolved.config_path, resolved.powershell_host)
     resolved.config_data = config_data
+    resolved.config_identity = build_config_identity(
+        resolved.config_path,
+        config_data,
+        app_root=resolved.app_root,
+        workspace_root=resolved.workspace_root,
+    )
 
     local_base_raw = config_data.get(KEY_LOCAL_BASE)
     if local_base_raw:
@@ -79,6 +86,17 @@ def resolve_paths_for_service(service: PathResolutionServiceProtocol, pipeline_p
         # Per-file à-la-carte processing overrides — read by PS1 at per-file
         # processing time.
         resolved.file_overrides_path = resolved.state_root / "file_overrides.json"
+        try:
+            snapshot_path = write_last_good_config_snapshot(
+                resolved.config_path,
+                resolved.local_base,
+                resolved.config_identity,
+            )
+            if snapshot_path is not None:
+                resolved.config_last_good_snapshot_path = snapshot_path
+                resolved.config_identity["last_good_snapshot_path"] = str(snapshot_path)
+        except Exception as exc:
+            resolved.config_identity["snapshot_error"] = str(exc)
 
     if not resolved.audit_reports_path:
         resolved.audit_reports_path = service.app_root / "AuditReports"

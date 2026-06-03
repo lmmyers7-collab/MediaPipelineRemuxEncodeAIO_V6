@@ -35,7 +35,7 @@ class CompletedJobsServiceMixin:
 
         The manifest at ``<LocalBase>/State/Completed/completed_jobs.jsonl`` is
         written by the pipeline itself (see Add-CompletedJobsManifestEntry
-        in MediaPipeline.ps1) or populated by the Backfill button,
+        in engine/publish/sidecar.ps1) or populated by the Backfill button,
         which runs Backfill-CompletedManifest.ps1. Reading a local file is
         trivially fast; the earlier SMB-walk approach that this replaced
         was unreliable on UNC shares (30s+ scans, intermittent timeouts).

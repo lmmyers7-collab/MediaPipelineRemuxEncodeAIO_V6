@@ -5,6 +5,7 @@ let lastCloseReadiness = null;
 let lastSchedule = null;
 let refreshInFlight = false;
 let refreshQueued = false;
+let refreshQueuedOptions = null;
 let lastRefreshStartedAt = null;
 let lastRefreshCompletedAt = null;
 let lastRefreshDurationMs = null;
@@ -30,6 +31,14 @@ function renderTopbarActivity(snapshot = {}) {
   return window.mediaPipelineAppLifecycle?.renderTopbarActivity?.(snapshot);
 }
 
+function renderTopbarEventTicker(snapshot = {}) {
+  return window.mediaPipelineAppLifecycle?.renderTopbarEventTicker?.(snapshot);
+}
+
+function setTopbarPendingLaunch(payload = {}) {
+  return window.mediaPipelineAppLifecycle?.setTopbarPendingLaunch?.(payload);
+}
+
 function formatCloseReadiness(closeReadiness) {
   return window.mediaPipelineAppLifecycle?.formatCloseReadiness?.(closeReadiness) || "Close readiness has not loaded yet.";
 }
@@ -47,6 +56,8 @@ function closeReadinessWatcherIsArmed(closeReadiness = lastCloseReadiness) {
 }
 void [
   topbarStageContext,
+  renderTopbarEventTicker,
+  setTopbarPendingLaunch,
   closeReadinessWatcherData,
   closeReadinessWatcherSummary,
   closeReadinessWatcherIsArmed,
@@ -78,11 +89,13 @@ function renderSnapshot(snapshot) {
   const state = snapshot.pipeline_state || "idle";
   renderBrandVersion(snapshot);
   renderTopbarActivity(snapshot);
+  renderTopbarEventTicker(snapshot);
   setText("pipeline-state", state);
   setText("status-summary", snapshot.status_summary || "No status summary.");
   const pill = byId("state-pill");
   if (pill) {
-    pill.textContent = state;
+    const phaseLabel = snapshot?.current_work?.phase_label || state;
+    pill.textContent = phaseLabel;
     pill.dataset.state = state;
   }
   const counts = snapshot.counts || {};
@@ -410,6 +423,10 @@ function renderHomeNetworkRole(settings) {
   return window.mediaPipelineAppHome?.renderHomeNetworkRole?.(settings);
 }
 
+function renderHomeStorageHealth(context = {}) {
+  return window.mediaPipelineAppHome?.renderHomeStorageHealth?.(context);
+}
+
 function renderHomeQueueSnapshot(queue) {
   return window.mediaPipelineAppHome?.renderHomeQueueSnapshot?.(queue);
 }
@@ -546,14 +563,33 @@ function applyDefaultActionTooltips(root = document) {
 
 void [showPage, refreshTimeLabel, "[data-settings-path-key]"];
 
-async function refreshAll() {
+function normalizeRefreshOptions(options = {}) {
+  return {
+    automatic: Boolean(options && options.automatic === true),
+    queueRefresh: Boolean(options && options.queueRefresh === true),
+  };
+}
+
+function mergeRefreshOptions(existing, next) {
+  const current = normalizeRefreshOptions(existing || {});
+  const incoming = normalizeRefreshOptions(next || {});
+  return {
+    automatic: current.automatic && incoming.automatic,
+    queueRefresh: current.queueRefresh || incoming.queueRefresh,
+  };
+}
+
+async function refreshAll(options = {}) {
+  const refreshOptions = normalizeRefreshOptions(options);
   if (refreshInFlight) {
+    if (refreshOptions.automatic) return;
     refreshQueued = true;
+    refreshQueuedOptions = mergeRefreshOptions(refreshQueuedOptions, refreshOptions);
     return;
   }
   refreshInFlight = true;
   try {
-    await refreshAllNow();
+    await refreshAllNow(refreshOptions);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     renderTopbarActivity({ activity: `Refresh failed: ${message}` });
@@ -561,12 +597,14 @@ async function refreshAll() {
       name: "refresh/render",
       required: true,
       message,
-    }]);
+    }], refreshOptions);
   } finally {
     refreshInFlight = false;
     if (refreshQueued) {
+      const queuedOptions = normalizeRefreshOptions(refreshQueuedOptions || {});
       refreshQueued = false;
-      window.setTimeout(refreshAll, 0);
+      refreshQueuedOptions = null;
+      window.setTimeout(() => refreshAll(queuedOptions), 0);
     }
   }
 }
@@ -575,10 +613,11 @@ async function refreshCurrentOutputStatus() {
   return window.mediaPipelineAppRefresh?.refreshCurrentOutputStatus?.();
 }
 
-async function refreshAllNow() {
+async function refreshAllNow(options = {}) {
+  const refreshOptions = normalizeRefreshOptions(options);
   lastRefreshStartedAt = new Date();
   const refreshStartedMs = Date.now();
-  renderRefreshInProgress();
+  renderRefreshInProgress(refreshOptions);
   const failureSourceMarkers = Boolean(byId("failure-source-markers")?.checked);
   const failureQuery = `/api/failures?limit=100${failureSourceMarkers ? "&source=markers" : ""}`;
   const auditPriorityOnly = Boolean(byId("audit-preview-priority-only")?.checked);
@@ -646,7 +685,10 @@ async function refreshAllNow() {
   renderHomePromotionEntry(values["final library promotion"] || {});
   renderHomeRecentCompleted(values.completed || {});
   if (values.failures) window.mediaPipelineReportsView?.renderFailurePreview?.(values.failures);
-  if (values["audit results"]) window.mediaPipelineReportsView?.renderAuditPreview?.(values["audit results"]);
+  if (values["audit results"]) {
+    window.mediaPipelineReportsView?.renderAuditPreview?.(values["audit results"]);
+    window.mediaPipelineLaunchView?.renderLaunchAuditLog?.(values["audit results"]);
+  }
   if (values["pending publish"]) renderPendingPublish(values["pending publish"], values.snapshot || lastSnapshot);
   renderHomePendingCount(values["pending publish"] || {});
   if (values.schedule) {
@@ -755,7 +797,7 @@ async function refreshAllNow() {
   }
   lastRefreshCompletedAt = new Date();
   lastRefreshDurationMs = Date.now() - refreshStartedMs;
-  renderRefreshHealth(failures);
+  renderRefreshHealth(failures, refreshOptions);
   const dashboardContext = {
     snapshot: values.snapshot || lastSnapshot,
     closeReadiness: values["close readiness"] || lastCloseReadiness,
@@ -773,11 +815,13 @@ async function refreshAllNow() {
     failures,
   };
   renderHomeAtAGlance(dashboardContext);
+  renderHomeStorageHealth(dashboardContext);
   renderDailyDriverReadiness(dashboardContext);
 }
 
 window.refreshAll = refreshAll;
 window.refreshAllNow = refreshAllNow;
+window.setTopbarPendingLaunch = setTopbarPendingLaunch;
 window.externalDependencyRows = externalDependencyRows;
 window.externalDependencyOverallStatus = externalDependencyOverallStatus;
 window.externalDependencySummaryLines = externalDependencySummaryLines;
@@ -1506,6 +1550,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
   initBackendRowOpenActions();
   updatePagePanelEmptyStates();
-  refreshAll();
-  window.setInterval(refreshAll, 4000);
+  refreshAll({ automatic: true });
+  window.setInterval(() => refreshAll({ automatic: true }), 4000);
 });

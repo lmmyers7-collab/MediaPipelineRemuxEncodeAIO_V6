@@ -121,6 +121,47 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
         self.assertEqual(row["confidence"], "review")
         self.assertIn(OUTSIDE_CONFIGURED_ROOTS_WARNING, row["warnings"])
 
+    def test_rename_clean_filename_preview_uses_backend_movie_cleaner(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+
+            default_preview = facade.get_rename_clean_filename_preview(
+                {
+                    "filename": "Together.2025.1080p.WEBRip.10Bit.DDP5.1.x265-NeoNoir",
+                    "movie_filter_options": {
+                        "video_source": True,
+                        "audio_channels": True,
+                        "editions": True,
+                        "file_size": True,
+                        "services_containers": True,
+                        "release_groups": True,
+                    },
+                }
+            )
+            editable_preview = facade.get_rename_clean_filename_preview(
+                {
+                    "filename": "Together.2025.1080p.WEBRip.10Bit.DDP5.1.x265-NeoNoir.mkv",
+                    "movie_filter_terms": {"release_groups": ["neonoir"]},
+                    "movie_filter_options": {"release_groups": True},
+                }
+            )
+            catalog = facade.get_rename_movie_filter_catalog()
+
+        self.assertEqual(default_preview["schema_version"], "desktop_rename_clean_filename_preview.v1")
+        self.assertTrue(default_preview["ok"])
+        self.assertEqual(default_preview["target_name"], "Together (2025)")
+        self.assertTrue(default_preview["assumed_media_extension"])
+        self.assertTrue(default_preview["warnings"])
+        self.assertEqual(editable_preview["target_name"], "Together (2025).mkv")
+        self.assertTrue(editable_preview["movie_filter_terms_enabled"])
+        self.assertEqual(editable_preview["movie_filter_terms_mode"], "always_on")
+        self.assertEqual(editable_preview["movie_filter_term_counts"], {"release_groups": 1})
+        self.assertEqual(catalog["schema_version"], "desktop_rename_movie_filter_catalog.v1")
+        self.assertTrue(catalog["movie_filter_terms_enabled"])
+        self.assertIn("cmrg", catalog["default_terms"]["release_groups"])
+        self.assertIn("neonoir", catalog["default_terms"]["release_groups"])
+
     def test_rename_apply_requires_extra_confirmation_for_outside_configured_roots(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

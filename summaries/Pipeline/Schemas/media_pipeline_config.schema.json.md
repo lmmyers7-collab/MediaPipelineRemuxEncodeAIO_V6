@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-06-02
 last_reviewed: 2026-05-31
-sha256: 1e5830348ef5900c94517b0a7e35931826695b963c6333f4424dd527b859e5cf
+sha256: 42245f6fa07e6704285f1d75af6e85e8a73bcb80e55bb4a82b83901efa22d0b0
 ---
 # `Pipeline/Schemas/media_pipeline_config.schema.json`
 

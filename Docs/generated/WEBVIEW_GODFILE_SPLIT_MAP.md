@@ -7,10 +7,10 @@ Candidate slices require at least **80** contiguous lines with gaps of **25** li
 
 ## `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js`
 
-- Lines: **1512** (1243 nonblank)
-- Top-level declarations: **133**
+- Lines: **1533** (1261 nonblank)
+- Top-level declarations: **136**
 - Namespace exports: -
-- Flat compatibility exports: **9**
+- Flat compatibility exports: **10**
 - API routes: `/api/backend/close-readiness`, `/api/backend/shutdown`, `/api/commands?limit=20`, `/api/completed?limit=all`, `/api/contract`, `/api/diagnostics`, `/api/diagnostics/state-summary`, `/api/final-library-promotion/status`, `/api/health`, `/api/network/workers`, `/api/pending-publish`, `/api/queue`, `/api/sample-validation?limit=10`, `/api/schedule` (+4)
 - DOM IDs touched: **69**
 - Event types: `DOMContentLoaded`, `beforeunload`, `change`, `click`, `focus`, `input`, `keydown`, `mediapipeline:backend-lifecycle`, `visibilitychange`
@@ -19,122 +19,120 @@ Candidate slices require at least **80** contiguous lines with gaps of **25** li
 
 | Lines | Topic | Declarations | Outside local deps | API routes | Suggested file |
 |---:|---|---|---|---|---|
-| 805-1066 (262) | `app-core` | `initSettingsTabNav`, `initDiagnosticsTabNav`, `initCompletedTabNav`, `initNavigation`, `renderSparkline`, `initLaunchEvidenceToggle`, `initCollapsibleSummaries` (+29) | `applySharedUiPreferenceRuntimeState`, `bootstrap`, `updatePagePanelEmptyStates` | `/api/ui-preferences` | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.core.js` |
-| 549-777 (229) | `app-refresh` | `refreshAll`, `refreshCurrentOutputStatus`, `refreshAllNow` | `attachRefreshMetadata`, `bootstrap`, `lastCloseReadiness`, `lastRefreshCompletedAt`, `lastRefreshDurationMs` (+22) | `/api/backend/close-readiness`, `/api/commands?limit=20`, `/api/completed?limit=all`, `/api/contract`, `/api/diagnostics` (+11) | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.refresh.js` |
-| 441-545 (105) | `app-core` | `renderExternalDependencyDigest`, `renderHomeAtAGlanceQueue`, `renderHomeAtAGlance`, `renderDailyDriverReadiness`, `recordLocalUiDiagnostic`, `renderTelemetrySafely`, `renderControlReadiness` (+3) | - | - | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.core.js` |
-| 72-165 (94) | `app-core` | `renderTauriBackendLifecycleAlert`, `renderSnapshot`, `renderCloseReadiness`, `handleTauriBackendLifecycleEvent` | `formatCloseReadiness`, `lastCloseReadiness`, `lastSchedule`, `lastSnapshot`, `lastTauriBackendLifecycleEvent` (+6) | - | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.core.js` |
+| 826-1087 (262) | `app-core` | `initSettingsTabNav`, `initDiagnosticsTabNav`, `initCompletedTabNav`, `initNavigation`, `renderSparkline`, `initLaunchEvidenceToggle`, `initCollapsibleSummaries` (+29) | `applySharedUiPreferenceRuntimeState`, `bootstrap`, `updatePagePanelEmptyStates` | `/api/ui-preferences` | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.core.js` |
+| 565-797 (233) | `app-refresh` | `refreshAll`, `refreshCurrentOutputStatus`, `refreshAllNow` | `attachRefreshMetadata`, `bootstrap`, `lastCloseReadiness`, `lastRefreshCompletedAt`, `lastRefreshDurationMs` (+23) | `/api/backend/close-readiness`, `/api/commands?limit=20`, `/api/completed?limit=all`, `/api/contract`, `/api/diagnostics` (+11) | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.refresh.js` |
+| 457-561 (105) | `app-core` | `renderExternalDependencyDigest`, `renderHomeAtAGlanceQueue`, `renderHomeAtAGlance`, `renderDailyDriverReadiness`, `recordLocalUiDiagnostic`, `renderTelemetrySafely`, `renderControlReadiness` (+3) | - | - | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.core.js` |
+| 82-177 (96) | `app-core` | `renderTauriBackendLifecycleAlert`, `renderSnapshot`, `renderCloseReadiness`, `handleTauriBackendLifecycleEvent` | `formatCloseReadiness`, `lastCloseReadiness`, `lastSchedule`, `lastSnapshot`, `lastTauriBackendLifecycleEvent` (+7) | - | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.core.js` |
 
 ### Largest Declarations
 
 | Lines | Name | Topic | Local deps | Referenced by |
 |---:|---|---|---|---|
-| 578-777 (200) | `refreshAllNow` | `app-refresh` | `attachRefreshMetadata`, `bootstrap`, `lastCloseReadiness`, `lastRefreshCompletedAt`, `lastRefreshDurationMs` (+20) | `refreshAll` |
-| 274-316 (43) | `rowOpenActionGroup` | `app-core` | - | `initBackendRowOpenActions` |
-| 76-115 (40) | `renderSnapshot` | `app-core` | `lastCloseReadiness`, `lastSchedule`, `lastSnapshot`, `renderBackendLifecycle`, `renderBrandVersion` (+3) | `refreshAllNow` |
-| 223-262 (40) | `requestBackendShutdown` | `app-lifecycle` | `appendBackendShutdownResult`, `backendLifecycleState`, `backendShutdownInFlight`, `lastCloseReadiness`, `lastSnapshot` (+2) | - |
-| 945-982 (38) | `restoreSharedUiPreferences` | `app-core` | `UI_PREFERENCES_ROUTE`, `applySharedUiPreferenceRuntimeState`, `applySharedUiPreferenceStorage`, `collectSharedUiPreferences`, `currentUiPreferenceSurface` (+4) | `startSharedUiPreferenceRemoteRefresh` |
-| 117-149 (33) | `renderCloseReadiness` | `app-core` | `formatCloseReadiness`, `lastCloseReadiness`, `lastSchedule`, `lastSnapshot`, `renderBackendLifecycle` (+1) | `refreshAllNow` |
-| 888-913 (26) | `persistSharedUiPreferencesNow` | `app-core` | `scheduleSharedUiPreferenceSync`, `sharedUiPreferencePayload`, `uiPreferenceApplyingRemote`, `uiPreferenceLastSerialized`, `uiPreferenceSyncInFlight` (+1) | `restoreSharedUiPreferences`, `scheduleSharedUiPreferenceSync` |
-| 549-572 (24) | `refreshAll` | `app-refresh` | `refreshAllNow`, `refreshInFlight`, `refreshQueued`, `renderRefreshHealth`, `renderTopbarActivity` | - |
-| 496-517 (22) | `renderTelemetrySafely` | `app-core` | `recordLocalUiDiagnostic` | `refreshAllNow` |
-| 915-934 (20) | `applySharedUiPreferenceStorage` | `app-core` | `collectSharedUiPreferences`, `isSharedUiPreferenceKey` | `restoreSharedUiPreferences` |
-| 997-1016 (20) | `installSharedUiPreferenceStorageSync` | `app-core` | `isSharedUiPreferenceKey`, `scheduleSharedUiPreferenceSync`, `uiPreferenceSyncInstalled` | - |
-| 318-334 (17) | `initBackendRowOpenActions` | `app-core` | `rowOpenActionGroup` | - |
-| 1053-1066 (14) | `applyEvidenceHiddenPreference` | `app-core` | `EVIDENCE_HIDDEN_STORAGE_KEY`, `updatePagePanelEmptyStates` | `initEvidenceToggle` |
-| 209-221 (13) | `rejectBackendShutdown` | `app-core` | `appendBackendShutdownResult`, `lastCloseReadiness`, `lastSnapshot`, `renderBackendLifecycle` | `requestBackendShutdown` |
-| 482-494 (13) | `recordLocalUiDiagnostic` | `app-core` | - | `renderTelemetrySafely` |
-| 859-870 (12) | `collectSharedUiPreferences` | `app-core` | `isSharedUiPreferenceKey` | `applySharedUiPreferenceStorage`, `restoreSharedUiPreferences`, `sharedUiPreferencePayload` |
-| 984-995 (12) | `startSharedUiPreferenceRemoteRefresh` | `app-core` | `currentUiPreferenceSurface`, `restoreSharedUiPreferences`, `uiPreferenceApplyingRemote`, `uiPreferenceRemoteRefreshTimer`, `uiPreferenceSyncInFlight` | - |
-| 1018-1029 (12) | `initAdvancedToggle` | `app-core` | `ADVANCED_MODE_STORAGE_KEY`, `applyAdvancedModePreference`, `readBooleanUiPreference` | - |
-| 1031-1040 (10) | `initEvidenceToggle` | `app-core` | `EVIDENCE_HIDDEN_STORAGE_KEY`, `applyEvidenceHiddenPreference`, `readBooleanUiPreference` | - |
-| 1042-1051 (10) | `applyAdvancedModePreference` | `app-core` | `ADVANCED_MODE_STORAGE_KEY`, `updatePagePanelEmptyStates` | `initAdvancedToggle` |
-| 175-182 (8) | `backendLifecycleCommandLine` | `app-lifecycle` | - | `_backendLifecycleSliceCompatibility` |
-| 936-943 (8) | `scheduleSharedUiPreferenceSync` | `app-core` | `persistSharedUiPreferencesNow`, `uiPreferenceApplyingRemote`, `uiPreferenceSyncInstalled`, `uiPreferenceSyncTimer` | `installSharedUiPreferenceStorageSync`, `persistSharedUiPreferencesNow` |
-| 195-201 (7) | `backendShutdownStatusMessage` | `app-core` | - | `appendBackendShutdownResult` |
-| 188-193 (6) | `_backendLifecycleSliceCompatibility` | `app-core` | `backendLifecycleCommandEntries`, `backendLifecycleCommandLine`, `startupProgressLines`, `tauriBackendLifecycleLines` | - |
-| 881-886 (6) | `sharedUiPreferencePayload` | `app-core` | `collectSharedUiPreferences`, `currentUiPreferenceSurface` | `persistSharedUiPreferencesNow` |
-| 161-165 (5) | `handleTauriBackendLifecycleEvent` | `app-core` | `lastCloseReadiness`, `lastSnapshot`, `lastTauriBackendLifecycleEvent`, `normalizeTauriBackendLifecycleEvent`, `renderBackendLifecycle` (+1) | - |
-| 203-207 (5) | `appendBackendShutdownResult` | `app-core` | `backendShutdownStatusMessage`, `renderBackendLifecycleHistory` | `rejectBackendShutdown`, `requestBackendShutdown` |
-| 264-268 (5) | `closeReadinessRequiresWarning` | `app-lifecycle` | `lastCloseReadiness`, `lastSnapshot` | - |
-| 872-875 (4) | `currentUiPreferenceSurface` | `app-core` | `bootstrap` | `restoreSharedUiPreferences`, `sharedUiPreferencePayload`, `startSharedUiPreferenceRemoteRefresh` |
+| 594-797 (204) | `refreshAllNow` | `app-refresh` | `attachRefreshMetadata`, `bootstrap`, `lastCloseReadiness`, `lastRefreshCompletedAt`, `lastRefreshDurationMs` (+21) | `refreshAll` |
+| 286-328 (43) | `rowOpenActionGroup` | `app-core` | - | `initBackendRowOpenActions` |
+| 86-127 (42) | `renderSnapshot` | `app-core` | `lastCloseReadiness`, `lastSchedule`, `lastSnapshot`, `renderBackendLifecycle`, `renderBrandVersion` (+4) | `refreshAllNow` |
+| 235-274 (40) | `requestBackendShutdown` | `app-lifecycle` | `appendBackendShutdownResult`, `backendLifecycleState`, `backendShutdownInFlight`, `lastCloseReadiness`, `lastSnapshot` (+2) | - |
+| 966-1003 (38) | `restoreSharedUiPreferences` | `app-core` | `UI_PREFERENCES_ROUTE`, `applySharedUiPreferenceRuntimeState`, `applySharedUiPreferenceStorage`, `collectSharedUiPreferences`, `currentUiPreferenceSurface` (+4) | `startSharedUiPreferenceRemoteRefresh` |
+| 129-161 (33) | `renderCloseReadiness` | `app-core` | `formatCloseReadiness`, `lastCloseReadiness`, `lastSchedule`, `lastSnapshot`, `renderBackendLifecycle` (+1) | `refreshAllNow` |
+| 909-934 (26) | `persistSharedUiPreferencesNow` | `app-core` | `scheduleSharedUiPreferenceSync`, `sharedUiPreferencePayload`, `uiPreferenceApplyingRemote`, `uiPreferenceLastSerialized`, `uiPreferenceSyncInFlight` (+1) | `restoreSharedUiPreferences`, `scheduleSharedUiPreferenceSync` |
+| 565-588 (24) | `refreshAll` | `app-refresh` | `refreshAllNow`, `refreshInFlight`, `refreshQueued`, `renderRefreshHealth`, `renderTopbarActivity` | - |
+| 512-533 (22) | `renderTelemetrySafely` | `app-core` | `recordLocalUiDiagnostic` | `refreshAllNow` |
+| 936-955 (20) | `applySharedUiPreferenceStorage` | `app-core` | `collectSharedUiPreferences`, `isSharedUiPreferenceKey` | `restoreSharedUiPreferences` |
+| 1018-1037 (20) | `installSharedUiPreferenceStorageSync` | `app-core` | `isSharedUiPreferenceKey`, `scheduleSharedUiPreferenceSync`, `uiPreferenceSyncInstalled` | - |
+| 330-346 (17) | `initBackendRowOpenActions` | `app-core` | `rowOpenActionGroup` | - |
+| 1074-1087 (14) | `applyEvidenceHiddenPreference` | `app-core` | `EVIDENCE_HIDDEN_STORAGE_KEY`, `updatePagePanelEmptyStates` | `initEvidenceToggle` |
+| 221-233 (13) | `rejectBackendShutdown` | `app-core` | `appendBackendShutdownResult`, `lastCloseReadiness`, `lastSnapshot`, `renderBackendLifecycle` | `requestBackendShutdown` |
+| 498-510 (13) | `recordLocalUiDiagnostic` | `app-core` | - | `renderTelemetrySafely` |
+| 880-891 (12) | `collectSharedUiPreferences` | `app-core` | `isSharedUiPreferenceKey` | `applySharedUiPreferenceStorage`, `restoreSharedUiPreferences`, `sharedUiPreferencePayload` |
+| 1005-1016 (12) | `startSharedUiPreferenceRemoteRefresh` | `app-core` | `currentUiPreferenceSurface`, `restoreSharedUiPreferences`, `uiPreferenceApplyingRemote`, `uiPreferenceRemoteRefreshTimer`, `uiPreferenceSyncInFlight` | - |
+| 1039-1050 (12) | `initAdvancedToggle` | `app-core` | `ADVANCED_MODE_STORAGE_KEY`, `applyAdvancedModePreference`, `readBooleanUiPreference` | - |
+| 1052-1061 (10) | `initEvidenceToggle` | `app-core` | `EVIDENCE_HIDDEN_STORAGE_KEY`, `applyEvidenceHiddenPreference`, `readBooleanUiPreference` | - |
+| 1063-1072 (10) | `applyAdvancedModePreference` | `app-core` | `ADVANCED_MODE_STORAGE_KEY`, `updatePagePanelEmptyStates` | `initAdvancedToggle` |
+| 187-194 (8) | `backendLifecycleCommandLine` | `app-lifecycle` | - | `_backendLifecycleSliceCompatibility` |
+| 957-964 (8) | `scheduleSharedUiPreferenceSync` | `app-core` | `persistSharedUiPreferencesNow`, `uiPreferenceApplyingRemote`, `uiPreferenceSyncInstalled`, `uiPreferenceSyncTimer` | `installSharedUiPreferenceStorageSync`, `persistSharedUiPreferencesNow` |
+| 207-213 (7) | `backendShutdownStatusMessage` | `app-core` | - | `appendBackendShutdownResult` |
+| 200-205 (6) | `_backendLifecycleSliceCompatibility` | `app-core` | `backendLifecycleCommandEntries`, `backendLifecycleCommandLine`, `startupProgressLines`, `tauriBackendLifecycleLines` | - |
+| 902-907 (6) | `sharedUiPreferencePayload` | `app-core` | `collectSharedUiPreferences`, `currentUiPreferenceSurface` | `persistSharedUiPreferencesNow` |
+| 173-177 (5) | `handleTauriBackendLifecycleEvent` | `app-core` | `lastCloseReadiness`, `lastSnapshot`, `lastTauriBackendLifecycleEvent`, `normalizeTauriBackendLifecycleEvent`, `renderBackendLifecycle` (+1) | - |
+| 215-219 (5) | `appendBackendShutdownResult` | `app-core` | `backendShutdownStatusMessage`, `renderBackendLifecycleHistory` | `rejectBackendShutdown`, `requestBackendShutdown` |
+| 276-280 (5) | `closeReadinessRequiresWarning` | `app-lifecycle` | `lastCloseReadiness`, `lastSnapshot` | - |
+| 893-896 (4) | `currentUiPreferenceSurface` | `app-core` | `bootstrap` | `restoreSharedUiPreferences`, `sharedUiPreferencePayload`, `startSharedUiPreferenceRemoteRefresh` |
 | 16-18 (3) | `renderBrandVersion` | `app-core` | `bootstrap` | `renderSnapshot` |
 | 25-27 (3) | `topbarStageContext` | `topbar` | - | - |
 | 29-31 (3) | `renderTopbarActivity` | `app-core` | - | `refreshAll`, `refreshAllNow`, `renderSnapshot` |
-| 33-35 (3) | `formatCloseReadiness` | `app-lifecycle` | - | `renderCloseReadiness` |
-| 37-39 (3) | `closeReadinessWatcherData` | `app-lifecycle` | `lastCloseReadiness` | - |
-| 41-43 (3) | `closeReadinessWatcherSummary` | `app-lifecycle` | `lastCloseReadiness` | - |
-| 45-47 (3) | `closeReadinessWatcherIsArmed` | `app-lifecycle` | `lastCloseReadiness` | - |
-| 56-58 (3) | `backendLifecycleState` | `app-lifecycle` | `lastCloseReadiness` | `requestBackendShutdown` |
-| 60-62 (3) | `startupProgressLines` | `app-core` | `lastStartupProgress` | `_backendLifecycleSliceCompatibility` |
-| 64-66 (3) | `normalizeTauriBackendLifecycleEvent` | `app-core` | - | `handleTauriBackendLifecycleEvent` |
-| 68-70 (3) | `tauriBackendLifecycleLines` | `app-lifecycle` | `lastTauriBackendLifecycleEvent` | `_backendLifecycleSliceCompatibility` |
+| 33-35 (3) | `renderTopbarEventTicker` | `app-core` | - | `renderSnapshot` |
+| 37-39 (3) | `setTopbarPendingLaunch` | `app-core` | - | - |
+| 41-43 (3) | `formatCloseReadiness` | `app-lifecycle` | - | `renderCloseReadiness` |
+| 45-47 (3) | `closeReadinessWatcherData` | `app-lifecycle` | `lastCloseReadiness` | - |
+| 49-51 (3) | `closeReadinessWatcherSummary` | `app-lifecycle` | `lastCloseReadiness` | - |
+| 53-55 (3) | `closeReadinessWatcherIsArmed` | `app-lifecycle` | `lastCloseReadiness` | - |
+| 66-68 (3) | `backendLifecycleState` | `app-lifecycle` | `lastCloseReadiness` | `requestBackendShutdown` |
+| 70-72 (3) | `startupProgressLines` | `app-core` | `lastStartupProgress` | `_backendLifecycleSliceCompatibility` |
 
 ## `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js`
 
-- Lines: **2511** (2377 nonblank)
-- Top-level declarations: **319**
+- Lines: **2170** (2054 nonblank)
+- Top-level declarations: **300**
 - Namespace exports: `mediaPipelineSettingsView`
-- Flat compatibility exports: **93**
-- API routes: `/api/settings/browse-path`, `/api/settings/pipeline-plan-preview`, `/api/settings/preview-patch`, `/api/settings/reload`, `/api/settings/save-patch`, `/api/settings/validate`
-- DOM IDs touched: **10**
+- Flat compatibility exports: **92**
+- API routes: `/api/settings/browse-path`, `/api/settings/preview-patch`, `/api/settings/reload`, `/api/settings/save-patch`, `/api/settings/validate`
+- DOM IDs touched: **9**
 - Event types: `click`
 
 ### Candidate Slices
 
 | Lines | Topic | Declarations | Outside local deps | API routes | Suggested file |
 |---:|---|---|---|---|---|
-| 1942-2442 (501) | `settings-core` | `previewSettingsPipelinePlan`, `flushDirtySettingsBuilders`, `previewSettingsPatch`, `saveSettingsPatch`, `reloadSettingsFromDisk`, `getLastSettings`, `settingsBrowsePathDetailLines` (+2) | `appendSettingsRiskSummaryLines`, `applyAudioSettingsBuilderToPatch`, `applyFileSafetySettingsBuilderToPatch`, `applyNetworkSettingsBuilderToPatch`, `applyPendingPublishSettingsBuilderToPatch` (+25) | `/api/settings/browse-path`, `/api/settings/pipeline-plan-preview`, `/api/settings/preview-patch`, `/api/settings/reload`, `/api/settings/save-patch` | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js` |
-| 1118-1284 (167) | `settings-final-library` | `browseFinalLibraryPromotionRulePath`, `previewFinalLibraryPromotionSettings`, `saveFinalLibraryPromotionSettings` | `collectFinalLibraryPromotionSettingsPatch`, `finalLibraryPromotionBrowseDetailLines`, `finalLibraryPromotionSettingsBuilderState`, `finalLibraryPromotionSettingsResultLines`, `lastSettingsPatchPreviewEvidence` (+11) | `/api/settings/browse-path`, `/api/settings/preview-patch`, `/api/settings/save-patch` | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.policyImpact.js` |
-| 645-803 (159) | `settings-core` | `toggleSettingsAdvancedPane`, `handleSettingsAdvancedToggleClick`, `settingsBuilderFieldGroups`, `settingsAllBuilderFields`, `applySettingsFieldMetadataToControls`, `refreshSettingsSelectChoices`, `refreshSettingsBuilderChoices` (+21) | `applySettingsFieldMetadataToControl`, `audioSettingsBuilderFields`, `audioSettingsBuilderState`, `fileSafetySettingsBuilderFields`, `finalLibraryPromotionSettingsBuilderFields` (+23) | - | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js` |
-| 812-962 (151) | `settings-core` | `renderSubtitleSettingsBuilderGuidance`, `queueSettingsBuilderModule`, `queueSettingsBuilder`, `syncQueueSettingsBuilderFromConfig`, `markQueueSettingsBuilderDirty`, `collectQueueSettingsBuilderPatch`, `applyQueueSettingsBuilderToPatch` (+32) | `fileSafetySettingsBuilderFields`, `fileSafetySettingsBuilderState`, `formatSettingsChoiceLabel`, `lastSettingsFieldDefinitions`, `lastSettingsValues` (+25) | - | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js` |
-| 495-637 (143) | `settings-core` | `settingsMetadataValue`, `updateSettingsLabelText`, `applySettingsFieldMetadataToControl`, `settingsAdvancedFieldContainers`, `ensureSettingsAdvancedToggle`, `syncSettingsAdvancedPane` | `renderSettingsFieldTaxonomyBadges`, `settingsFieldDefaultValue`, `settingsFieldDefinition`, `settingsFieldHelpText`, `settingsFieldIsAdvanced` (+2) | - | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js` |
-| 59-178 (120) | `settings-core` | `lastSettingsPatchPreviewEvidence`, `lastSettingsPatchSaveEvidence`, `lastSettingsReloadEvidence`, `settingsPipelinePlanPreviewRequestId`, `settingsCommandButtonIds`, `settingsCommandInFlight`, `settingsRuntimeActiveStates` (+25) | - | - | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js` |
-| 1664-1771 (108) | `settings-core` | `validateCurrentSettings`, `appendSettingsRiskSummaryLines`, `planValue`, `compactPlanList`, `formatSettingsBytes`, `parseSettingsSourceMediaJson`, `settingsSourceFactSummary` | `lastSettingsValues`, `rejectSettingsCommandWhileBusy`, `setSettingsCommandBusy` | `/api/settings/validate` | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js` |
-| 278-383 (106) | `settings-patch-review` | `settingsPatchLocalValidationHintsForKey`, `settingsPatchLibraryOverrideValidationHints`, `settingsPatchLocalValidationHints`, `settingsPatchLocalValidationHintLines` | `settingsAllowedValueHint`, `settingsFieldDefinition`, `settingsFriendlyPersistedKeyAliases`, `settingsHasBackendFieldDefinitions`, `settingsLocalValidationHint` (+2) | - | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.patchReview.js` |
-| 180-276 (97) | `settings-core` | `settingsAdvancedToggleEventsBound`, `settingsFieldDefaultValue`, `settingsBuilderConfigValue`, `settingsFieldDefinition`, `formatSettingsChoiceLabel`, `settingsFieldAllowedValues`, `settingsHasBackendFieldDefinitions` (+3) | `lastSettingsFieldMap`, `lastSettingsValues`, `settingsChoiceLabels` | - | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js` |
-| 1855-1940 (86) | `settings-render-core` | `renderSettingsPipelinePlanPreview`, `renderSettingsPipelinePlanPreviewError` | `planValue`, `renderSettingsSourceFactsRows`, `settingsPatchReviewFunction`, `settingsPipelinePlanActionLines`, `settingsPipelinePlanCommandLines` (+3) | - | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.renderCore.js` |
+| 1590-2101 (512) | `settings-core` | `validateCurrentSettings`, `appendSettingsRiskSummaryLines`, `flushDirtySettingsBuilders`, `saveRenameCleaningFiltersFromSettingsSave`, `previewSettingsPatch`, `saveSettingsPatch`, `reloadSettingsFromDisk` (+4) | `applyAudioSettingsBuilderToPatch`, `applyFileSafetySettingsBuilderToPatch`, `applyNetworkSettingsBuilderToPatch`, `applyPendingPublishSettingsBuilderToPatch`, `applyQueueSettingsBuilderToPatch` (+25) | `/api/settings/browse-path`, `/api/settings/preview-patch`, `/api/settings/reload`, `/api/settings/save-patch`, `/api/settings/validate` | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js` |
+| 383-564 (182) | `settings-core` | `settingsFieldLabel`, `settingsPersistedKeyDisplay`, `settingsPersistedKeyDisplayList`, `settingsFieldHelpText`, `settingsMetadataTags`, `settingsFieldIsAdvanced`, `settingsMetadataValue` (+5) | `settingsAdvancedFallbackKeys`, `settingsFieldDefaultValue`, `settingsFieldDefinition` | - | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js` |
+| 1045-1211 (167) | `settings-final-library` | `browseFinalLibraryPromotionRulePath`, `previewFinalLibraryPromotionSettings`, `saveFinalLibraryPromotionSettings` | `collectFinalLibraryPromotionSettingsPatch`, `finalLibraryPromotionBrowseDetailLines`, `finalLibraryPromotionSettingsBuilderState`, `finalLibraryPromotionSettingsResultLines`, `lastSettingsPatchPreviewEvidence` (+11) | `/api/settings/browse-path`, `/api/settings/preview-patch`, `/api/settings/save-patch` | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.policyImpact.js` |
+| 572-730 (159) | `settings-core` | `toggleSettingsAdvancedPane`, `handleSettingsAdvancedToggleClick`, `settingsBuilderFieldGroups`, `settingsAllBuilderFields`, `applySettingsFieldMetadataToControls`, `refreshSettingsSelectChoices`, `refreshSettingsBuilderChoices` (+21) | `applySettingsFieldMetadataToControl`, `audioSettingsBuilderFields`, `audioSettingsBuilderState`, `fileSafetySettingsBuilderFields`, `finalLibraryPromotionSettingsBuilderFields` (+23) | - | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js` |
+| 739-889 (151) | `settings-core` | `renderSubtitleSettingsBuilderGuidance`, `queueSettingsBuilderModule`, `queueSettingsBuilder`, `syncQueueSettingsBuilderFromConfig`, `markQueueSettingsBuilderDirty`, `collectQueueSettingsBuilderPatch`, `applyQueueSettingsBuilderToPatch` (+32) | `fileSafetySettingsBuilderFields`, `fileSafetySettingsBuilderState`, `formatSettingsChoiceLabel`, `lastSettingsFieldDefinitions`, `lastSettingsValues` (+25) | - | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js` |
+| 59-176 (118) | `settings-core` | `lastSettingsPatchPreviewEvidence`, `lastSettingsPatchSaveEvidence`, `lastSettingsReloadEvidence`, `settingsCommandButtonIds`, `settingsCommandInFlight`, `settingsRuntimeActiveStates`, `settingsRuntimeInactiveStages` (+24) | - | - | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js` |
+| 276-381 (106) | `settings-patch-review` | `settingsPatchLocalValidationHintsForKey`, `settingsPatchLibraryOverrideValidationHints`, `settingsPatchLocalValidationHints`, `settingsPatchLocalValidationHintLines` | `settingsAllowedValueHint`, `settingsFieldDefinition`, `settingsFriendlyPersistedKeyAliases`, `settingsHasBackendFieldDefinitions`, `settingsLocalValidationHint` (+2) | - | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.patchReview.js` |
+| 178-274 (97) | `settings-core` | `settingsAdvancedToggleEventsBound`, `settingsFieldDefaultValue`, `settingsBuilderConfigValue`, `settingsFieldDefinition`, `formatSettingsChoiceLabel`, `settingsFieldAllowedValues`, `settingsHasBackendFieldDefinitions` (+3) | `lastSettingsFieldMap`, `lastSettingsValues`, `settingsChoiceLabels` | - | `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js` |
 
 ### Largest Declarations
 
 | Lines | Name | Topic | Local deps | Referenced by |
 |---:|---|---|---|---|
-| 2132-2319 (188) | `saveSettingsPatch` | `settings-core` | `appendSettingsRiskSummaryLines`, `flushDirtySettingsBuilders`, `lastSettingsPatchPreviewEvidence`, `lastSettingsPatchSaveEvidence`, `lastSettingsValues` (+14) | - |
-| 2016-2130 (115) | `previewSettingsPatch` | `settings-core` | `appendSettingsRiskSummaryLines`, `flushDirtySettingsBuilders`, `lastSettingsPatchPreviewEvidence`, `markSettingsPatchTouched`, `rejectSettingsCommandWhileBusy` (+7) | - |
-| 1205-1284 (80) | `saveFinalLibraryPromotionSettings` | `settings-final-library` | `collectFinalLibraryPromotionSettingsPatch`, `finalLibraryPromotionSettingsBuilderState`, `finalLibraryPromotionSettingsResultLines`, `lastSettingsPatchSaveEvidence`, `maybeShowSettingsRuntimeRestartNotice` (+8) | - |
-| 1855-1919 (65) | `renderSettingsPipelinePlanPreview` | `settings-render-core` | `planValue`, `renderSettingsSourceFactsRows`, `settingsPatchReviewFunction`, `settingsPipelinePlanActionLines`, `settingsPipelinePlanCommandLines` (+3) | `previewSettingsPipelinePlan` |
-| 523-582 (60) | `applySettingsFieldMetadataToControl` | `settings-core` | `renderSettingsFieldTaxonomyBadges`, `settingsFieldDefaultValue`, `settingsFieldDefinition`, `settingsFieldHelpText`, `settingsFieldIsAdvanced` (+4) | `applySettingsFieldMetadataToControls` |
-| 2382-2433 (52) | `browseSettingsPath` | `settings-core` | `markFileSafetySettingsBuilderDirty`, `rejectSettingsCommandWhileBusy`, `renderSettingsActiveMediaPolicyHandoff`, `setSettingsCommandBusy`, `settingsBrowsePathDetailLines` (+2) | - |
-| 278-325 (48) | `settingsPatchLocalValidationHintsForKey` | `settings-patch-review` | `settingsAllowedValueHint`, `settingsFieldDefinition`, `settingsFriendlyPersistedKeyAliases`, `settingsHasBackendFieldDefinitions`, `settingsLocalValidationHint` (+2) | `settingsPatchLibraryOverrideValidationHints`, `settingsPatchLocalValidationHints` |
-| 1942-1986 (45) | `previewSettingsPipelinePlan` | `settings-core` | `parseSettingsSourceMediaJson`, `rejectSettingsCommandWhileBusy`, `renderSettingsPipelinePlanPreview`, `renderSettingsPipelinePlanPreviewError`, `setSettingsCommandBusy` (+2) | - |
-| 1160-1203 (44) | `previewFinalLibraryPromotionSettings` | `settings-final-library` | `collectFinalLibraryPromotionSettingsPatch`, `finalLibraryPromotionSettingsResultLines`, `lastSettingsPatchPreviewEvidence`, `rejectSettingsCommandWhileBusy`, `renderSettingsPatchSummary` (+4) | - |
-| 1118-1158 (41) | `browseFinalLibraryPromotionRulePath` | `settings-final-library` | `finalLibraryPromotionBrowseDetailLines`, `markFinalLibraryPromotionSettingsBuilderDirty`, `rejectSettingsCommandWhileBusy`, `setFinalLibraryPromotionStatus`, `setSettingsCommandBusy` | - |
-| 2321-2361 (41) | `reloadSettingsFromDisk` | `settings-core` | `lastSettingsReloadEvidence`, `rejectSettingsCommandWhileBusy`, `renderSettingsPatchSummary`, `setSettingsCommandBusy` | - |
-| 327-362 (36) | `settingsPatchLibraryOverrideValidationHints` | `settings-patch-review` | `settingsPatchLocalValidationHintsForKey` | `settingsPatchLocalValidationHints` |
-| 464-493 (30) | `renderSettingsFieldTaxonomyBadges` | `settings-render-core` | `settingsDirectLabelChild`, `settingsFieldIsAdvanced`, `settingsMetadataBadgeKind`, `settingsMetadataBadgeText`, `settingsMetadataTags` | `applySettingsFieldMetadataToControl` |
-| 248-276 (29) | `settingsNumericConstraintHints` | `settings-core` | `settingsLocalValidationHint` | `settingsPatchLocalValidationHintsForKey` |
-| 1988-2014 (27) | `flushDirtySettingsBuilders` | `settings-core` | `applyAudioSettingsBuilderToPatch`, `applyFileSafetySettingsBuilderToPatch`, `applyNetworkSettingsBuilderToPatch`, `applyPendingPublishSettingsBuilderToPatch`, `applyQueueSettingsBuilderToPatch` (+13) | `previewSettingsPatch`, `saveSettingsPatch` |
-| 1561-1586 (26) | `settingsBackendResult` | `settings-backend-result` | `jsonDetailText`, `lastSettingsPatchPreviewEvidence`, `lastSettingsPatchSaveEvidence`, `lastSettingsReloadEvidence`, `parseSettingsPatchJson` (+5) | `settingsBackendResultCall` |
-| 1747-1771 (25) | `settingsSourceFactSummary` | `settings-core` | `formatSettingsBytes`, `planValue` | `renderSettingsPipelinePlanPreview`, `renderSettingsSourceFactsRows` |
-| 596-617 (22) | `ensureSettingsAdvancedToggle` | `settings-core` | - | `syncSettingsAdvancedPane` |
-| 692-713 (22) | `refreshSettingsSelectChoices` | `settings-core` | `formatSettingsChoiceLabel`, `settingsFieldAllowedValues`, `settingsFieldDefaultValue`, `settingsFieldDefinition` | `audioSettingsBuilder`, `networkSettingsBuilder`, `refreshAudioSettingsBuilderChoices`, `refreshSettingsBuilderChoices`, `runtimeSettingsBuilder` (+1) |
-| 940-961 (22) | `settingsRawTriage` | `settings-core` | `lastSettingsFieldDefinitions`, `lastSettingsValues`, `settingsBdpgsOcrPathEvidenceLines`, `settingsBdpgsOcrPathEvidenceStatus`, `settingsBuilderCoveredKeys` (+6) | `boundedSettingsValueText`, `renderSettingsRawActionPlan`, `renderSettingsRawTriage`, `renderSettingsRows`, `setSettingsRows` (+8) |
-| 721-741 (21) | `audioSettingsBuilder` | `settings-core` | `audioSettingsBuilderFields`, `audioSettingsBuilderModule`, `audioSettingsBuilderState`, `formatSettingsChoiceLabel`, `readSettingsBuilderNumber` (+9) | `applyAudioSettingsBuilderToPatch`, `collectAudioSettingsBuilderPatch`, `markAudioSettingsBuilderDirty`, `refreshAudioSettingsBuilderChoices`, `renderAudioSettingsBuilderGuidance` (+1) |
-| 111-130 (20) | `settingsRuntimeRestartNoticeLines` | `settings-core` | `settingsRuntimeState` | `maybeShowSettingsRuntimeRestartNotice`, `saveFinalLibraryPromotionSettings`, `saveSettingsPatch` |
-| 753-772 (20) | `videoDetailSettingsBuilder` | `settings-core` | `formatSettingsChoiceLabel`, `readSettingsBuilderNumber`, `refreshSettingsSelectChoices`, `renderSettingsActiveMediaPolicyHandoff`, `setSettingsBuilderControl` (+8) | `applyVideoDetailSettingsBuilderToPatch`, `collectVideoDetailSettingsBuilderPatch`, `markVideoDetailSettingsBuilderDirty`, `renderVideoDetailSettingsBuilderGuidance`, `syncVideoDetailSettingsBuilderFromConfig` |
-| 1664-1683 (20) | `validateCurrentSettings` | `settings-core` | `lastSettingsValues`, `rejectSettingsCommandWhileBusy`, `setSettingsCommandBusy` | - |
-| 1921-1940 (20) | `renderSettingsPipelinePlanPreviewError` | `settings-render-core` | `settingsPatchReviewFunction` | `previewSettingsPipelinePlan` |
-| 228-246 (19) | `settingsAllowedValueHint` | `settings-core` | `settingsFieldAllowedValues`, `settingsLocalValidationHint` | `settingsPatchLocalValidationHintsForKey` |
-| 619-637 (19) | `syncSettingsAdvancedPane` | `settings-core` | `ensureSettingsAdvancedToggle`, `settingsAdvancedFieldContainers` | `renderSettingsAdvancedControls`, `toggleSettingsAdvancedPane` |
-| 781-799 (19) | `subtitleSettingsBuilder` | `settings-core` | `getLastSettings`, `readSettingsBuilderNumber`, `renderSettingsActiveMediaPolicyHandoff`, `renderSettingsMediaPolicyCrossCheck`, `settingsBuilderConfigValue` (+7) | `applySubtitleSettingsBuilderToPatch`, `collectSubtitleSettingsBuilderPatch`, `markSubtitleSettingsBuilderDirty`, `renderSettingsBdpgsOcrPathEvidence`, `renderSettingsVobSubOcrPathEvidence` (+8) |
-| 1773-1791 (19) | `renderSettingsSourceFactsRows` | `settings-render-core` | `settingsSourceFactSummary` | `renderSettingsPipelinePlanPreview` |
-| 1835-1853 (19) | `settingsPipelinePlanVerificationLines` | `settings-core` | `planValue` | `renderSettingsPipelinePlanPreview` |
-| 64-81 (18) | `settingsCommandButtonIds` | `settings-core` | - | `setSettingsCommandBusy` |
-| 864-881 (18) | `fileSafetySettingsBuilder` | `settings-core` | `fileSafetySettingsBuilderFields`, `fileSafetySettingsBuilderModule`, `fileSafetySettingsBuilderState`, `readSettingsBuilderFloat`, `readSettingsBuilderNumber` (+6) | `applyFileSafetySettingsBuilderToPatch`, `collectFileSafetySettingsBuilderPatch`, `markFileSafetySettingsBuilderDirty`, `renderFileSafetySettingsBuilderGuidance`, `syncFileSafetySettingsBuilderFromConfig` |
-| 890-907 (18) | `pendingPublishSettingsBuilder` | `settings-core` | `pendingPublishSettingsBuilderFields`, `pendingPublishSettingsBuilderModule`, `pendingPublishSettingsBuilderState`, `readSettingsBuilderFloat`, `readSettingsBuilderNumber` (+6) | `applyPendingPublishSettingsBuilderToPatch`, `collectPendingPublishSettingsBuilderPatch`, `markPendingPublishSettingsBuilderDirty`, `renderPendingPublishSettingsBuilderGuidance`, `syncPendingPublishSettingsBuilderFromConfig` |
-| 1685-1702 (18) | `appendSettingsRiskSummaryLines` | `settings-core` | - | `previewSettingsPatch`, `saveSettingsPatch` |
-| 1646-1662 (17) | `renderSettings` | `settings-render-core` | `applySettingsFieldMetadataToControls`, `lastSettings`, `lastSettingsFieldDefinitions`, `lastSettingsFieldMap`, `lastSettingsValues` (+2) | - |
-| 414-429 (16) | `settingsMetadataBadgeLabels` | `settings-core` | - | `settingsMetadataBadgeText` |
-| 816-831 (16) | `queueSettingsBuilder` | `settings-core` | `queueSettingsBuilderFields`, `queueSettingsBuilderModule`, `queueSettingsBuilderState`, `readSettingsBuilderNumber`, `settingsBuilderConfigValue` (+4) | `applyQueueSettingsBuilderToPatch`, `collectQueueSettingsBuilderPatch`, `markQueueSettingsBuilderDirty`, `renderQueueSettingsBuilderGuidance`, `syncQueueSettingsBuilderFromConfig` |
-| 840-855 (16) | `runtimeSettingsBuilder` | `settings-core` | `readSettingsBuilderNumber`, `refreshSettingsSelectChoices`, `runtimeSettingsBuilderFields`, `runtimeSettingsBuilderModule`, `runtimeSettingsBuilderState` (+6) | `applyRuntimeSettingsBuilderToPatch`, `collectRuntimeSettingsBuilderPatch`, `markRuntimeSettingsBuilderDirty`, `renderRuntimeSettingsBuilderGuidance`, `syncRuntimeSettingsBuilderFromConfig` |
-| 916-931 (16) | `networkSettingsBuilder` | `settings-core` | `formatSettingsChoiceLabel`, `networkSettingsBuilderFields`, `networkSettingsBuilderModule`, `networkSettingsBuilderState`, `readSettingsBuilderNumber` (+6) | `applyNetworkSettingsBuilderToPatch`, `collectNetworkSettingsBuilderPatch`, `markNetworkSettingsBuilderDirty`, `renderNetworkSettingsBuilderGuidance`, `syncNetworkSettingsBuilderFromConfig` |
+| 1781-1978 (198) | `saveSettingsPatch` | `settings-core` | `appendSettingsRiskSummaryLines`, `flushDirtySettingsBuilders`, `lastSettingsPatchPreviewEvidence`, `lastSettingsPatchSaveEvidence`, `lastSettingsValues` (+15) | - |
+| 1665-1779 (115) | `previewSettingsPatch` | `settings-core` | `appendSettingsRiskSummaryLines`, `flushDirtySettingsBuilders`, `lastSettingsPatchPreviewEvidence`, `markSettingsPatchTouched`, `rejectSettingsCommandWhileBusy` (+7) | - |
+| 1132-1211 (80) | `saveFinalLibraryPromotionSettings` | `settings-final-library` | `collectFinalLibraryPromotionSettingsPatch`, `finalLibraryPromotionSettingsBuilderState`, `finalLibraryPromotionSettingsResultLines`, `lastSettingsPatchSaveEvidence`, `maybeShowSettingsRuntimeRestartNotice` (+8) | - |
+| 454-509 (56) | `applySettingsFieldMetadataToControl` | `settings-core` | `settingsFieldDefaultValue`, `settingsFieldDefinition`, `settingsFieldHelpText`, `settingsFieldIsAdvanced`, `settingsFieldLabel` (+2) | `applySettingsFieldMetadataToControls` |
+| 2041-2092 (52) | `browseSettingsPath` | `settings-core` | `markFileSafetySettingsBuilderDirty`, `rejectSettingsCommandWhileBusy`, `renderSettingsActiveMediaPolicyHandoff`, `setSettingsCommandBusy`, `settingsBrowsePathDetailLines` (+2) | - |
+| 276-323 (48) | `settingsPatchLocalValidationHintsForKey` | `settings-patch-review` | `settingsAllowedValueHint`, `settingsFieldDefinition`, `settingsFriendlyPersistedKeyAliases`, `settingsHasBackendFieldDefinitions`, `settingsLocalValidationHint` (+2) | `settingsPatchLibraryOverrideValidationHints`, `settingsPatchLocalValidationHints` |
+| 1087-1130 (44) | `previewFinalLibraryPromotionSettings` | `settings-final-library` | `collectFinalLibraryPromotionSettingsPatch`, `finalLibraryPromotionSettingsResultLines`, `lastSettingsPatchPreviewEvidence`, `rejectSettingsCommandWhileBusy`, `renderSettingsPatchSummary` (+4) | - |
+| 1045-1085 (41) | `browseFinalLibraryPromotionRulePath` | `settings-final-library` | `finalLibraryPromotionBrowseDetailLines`, `markFinalLibraryPromotionSettingsBuilderDirty`, `rejectSettingsCommandWhileBusy`, `setFinalLibraryPromotionStatus`, `setSettingsCommandBusy` | - |
+| 1980-2020 (41) | `reloadSettingsFromDisk` | `settings-core` | `lastSettingsReloadEvidence`, `rejectSettingsCommandWhileBusy`, `renderSettingsPatchSummary`, `setSettingsCommandBusy` | - |
+| 325-360 (36) | `settingsPatchLibraryOverrideValidationHints` | `settings-patch-review` | `settingsPatchLocalValidationHintsForKey` | `settingsPatchLocalValidationHints` |
+| 246-274 (29) | `settingsNumericConstraintHints` | `settings-core` | `settingsLocalValidationHint` | `settingsPatchLocalValidationHintsForKey` |
+| 1630-1656 (27) | `flushDirtySettingsBuilders` | `settings-core` | `applyAudioSettingsBuilderToPatch`, `applyFileSafetySettingsBuilderToPatch`, `applyNetworkSettingsBuilderToPatch`, `applyPendingPublishSettingsBuilderToPatch`, `applyQueueSettingsBuilderToPatch` (+13) | `previewSettingsPatch`, `saveSettingsPatch` |
+| 1487-1512 (26) | `settingsBackendResult` | `settings-backend-result` | `jsonDetailText`, `lastSettingsPatchPreviewEvidence`, `lastSettingsPatchSaveEvidence`, `lastSettingsReloadEvidence`, `parseSettingsPatchJson` (+5) | `settingsBackendResultCall` |
+| 523-544 (22) | `ensureSettingsAdvancedToggle` | `settings-core` | - | `syncSettingsAdvancedPane` |
+| 619-640 (22) | `refreshSettingsSelectChoices` | `settings-core` | `formatSettingsChoiceLabel`, `settingsFieldAllowedValues`, `settingsFieldDefaultValue`, `settingsFieldDefinition` | `audioSettingsBuilder`, `networkSettingsBuilder`, `refreshAudioSettingsBuilderChoices`, `refreshSettingsBuilderChoices`, `runtimeSettingsBuilder` (+1) |
+| 867-888 (22) | `settingsRawTriage` | `settings-core` | `lastSettingsFieldDefinitions`, `lastSettingsValues`, `settingsBdpgsOcrPathEvidenceLines`, `settingsBdpgsOcrPathEvidenceStatus`, `settingsBuilderCoveredKeys` (+6) | `boundedSettingsValueText`, `renderSettingsRawActionPlan`, `renderSettingsRawTriage`, `renderSettingsRows`, `setSettingsRows` (+8) |
+| 648-668 (21) | `audioSettingsBuilder` | `settings-core` | `audioSettingsBuilderFields`, `audioSettingsBuilderModule`, `audioSettingsBuilderState`, `formatSettingsChoiceLabel`, `readSettingsBuilderNumber` (+9) | `applyAudioSettingsBuilderToPatch`, `collectAudioSettingsBuilderPatch`, `markAudioSettingsBuilderDirty`, `refreshAudioSettingsBuilderChoices`, `renderAudioSettingsBuilderGuidance` (+1) |
+| 109-128 (20) | `settingsRuntimeRestartNoticeLines` | `settings-core` | `settingsRuntimeState` | `maybeShowSettingsRuntimeRestartNotice`, `saveFinalLibraryPromotionSettings`, `saveSettingsPatch` |
+| 680-699 (20) | `videoDetailSettingsBuilder` | `settings-core` | `formatSettingsChoiceLabel`, `readSettingsBuilderNumber`, `refreshSettingsSelectChoices`, `renderSettingsActiveMediaPolicyHandoff`, `setSettingsBuilderControl` (+8) | `applyVideoDetailSettingsBuilderToPatch`, `collectVideoDetailSettingsBuilderPatch`, `markVideoDetailSettingsBuilderDirty`, `renderVideoDetailSettingsBuilderGuidance`, `syncVideoDetailSettingsBuilderFromConfig` |
+| 1590-1609 (20) | `validateCurrentSettings` | `settings-core` | `lastSettingsValues`, `rejectSettingsCommandWhileBusy`, `setSettingsCommandBusy` | - |
+| 226-244 (19) | `settingsAllowedValueHint` | `settings-core` | `settingsFieldAllowedValues`, `settingsLocalValidationHint` | `settingsPatchLocalValidationHintsForKey` |
+| 546-564 (19) | `syncSettingsAdvancedPane` | `settings-core` | `ensureSettingsAdvancedToggle`, `settingsAdvancedFieldContainers` | `renderSettingsAdvancedControls`, `toggleSettingsAdvancedPane` |
+| 708-726 (19) | `subtitleSettingsBuilder` | `settings-core` | `getLastSettings`, `readSettingsBuilderNumber`, `renderSettingsActiveMediaPolicyHandoff`, `renderSettingsMediaPolicyCrossCheck`, `settingsBuilderConfigValue` (+7) | `applySubtitleSettingsBuilderToPatch`, `collectSubtitleSettingsBuilderPatch`, `markSubtitleSettingsBuilderDirty`, `renderSettingsBdpgsOcrPathEvidence`, `renderSettingsVobSubOcrPathEvidence` (+8) |
+| 791-808 (18) | `fileSafetySettingsBuilder` | `settings-core` | `fileSafetySettingsBuilderFields`, `fileSafetySettingsBuilderModule`, `fileSafetySettingsBuilderState`, `readSettingsBuilderFloat`, `readSettingsBuilderNumber` (+6) | `applyFileSafetySettingsBuilderToPatch`, `collectFileSafetySettingsBuilderPatch`, `markFileSafetySettingsBuilderDirty`, `renderFileSafetySettingsBuilderGuidance`, `syncFileSafetySettingsBuilderFromConfig` |
+| 817-834 (18) | `pendingPublishSettingsBuilder` | `settings-core` | `pendingPublishSettingsBuilderFields`, `pendingPublishSettingsBuilderModule`, `pendingPublishSettingsBuilderState`, `readSettingsBuilderFloat`, `readSettingsBuilderNumber` (+6) | `applyPendingPublishSettingsBuilderToPatch`, `collectPendingPublishSettingsBuilderPatch`, `markPendingPublishSettingsBuilderDirty`, `renderPendingPublishSettingsBuilderGuidance`, `syncPendingPublishSettingsBuilderFromConfig` |
+| 1611-1628 (18) | `appendSettingsRiskSummaryLines` | `settings-core` | - | `previewSettingsPatch`, `saveSettingsPatch` |
+| 63-79 (17) | `settingsCommandButtonIds` | `settings-core` | - | `setSettingsCommandBusy` |
+| 1572-1588 (17) | `renderSettings` | `settings-render-core` | `applySettingsFieldMetadataToControls`, `lastSettings`, `lastSettingsFieldDefinitions`, `lastSettingsFieldMap`, `lastSettingsValues` (+2) | - |
+| 743-758 (16) | `queueSettingsBuilder` | `settings-core` | `queueSettingsBuilderFields`, `queueSettingsBuilderModule`, `queueSettingsBuilderState`, `readSettingsBuilderNumber`, `settingsBuilderConfigValue` (+4) | `applyQueueSettingsBuilderToPatch`, `collectQueueSettingsBuilderPatch`, `markQueueSettingsBuilderDirty`, `renderQueueSettingsBuilderGuidance`, `syncQueueSettingsBuilderFromConfig` |
+| 767-782 (16) | `runtimeSettingsBuilder` | `settings-core` | `readSettingsBuilderNumber`, `refreshSettingsSelectChoices`, `runtimeSettingsBuilderFields`, `runtimeSettingsBuilderModule`, `runtimeSettingsBuilderState` (+6) | `applyRuntimeSettingsBuilderToPatch`, `collectRuntimeSettingsBuilderPatch`, `markRuntimeSettingsBuilderDirty`, `renderRuntimeSettingsBuilderGuidance`, `syncRuntimeSettingsBuilderFromConfig` |
+| 843-858 (16) | `networkSettingsBuilder` | `settings-core` | `formatSettingsChoiceLabel`, `networkSettingsBuilderFields`, `networkSettingsBuilderModule`, `networkSettingsBuilderState`, `readSettingsBuilderNumber` (+6) | `applyNetworkSettingsBuilderToPatch`, `collectNetworkSettingsBuilderPatch`, `markNetworkSettingsBuilderDirty`, `renderNetworkSettingsBuilderGuidance`, `syncNetworkSettingsBuilderFromConfig` |
 | 24-37 (14) | `settingsBuilderCoveredKeys` | `settings-core` | `audioSettingsBuilderFields`, `fileSafetySettingsBuilderFields`, `finalLibraryPromotionSettingsBuilderFields`, `networkSettingsBuilderFields`, `pendingPublishSettingsBuilderFields` (+5) | `settingsRawTriage` |
+| 438-451 (14) | `updateSettingsLabelText` | `settings-core` | - | `applySettingsFieldMetadataToControl` |
+| 586-599 (14) | `settingsBuilderFieldGroups` | `settings-core` | `audioSettingsBuilderFields`, `fileSafetySettingsBuilderFields`, `finalLibraryPromotionSettingsBuilderFields`, `networkSettingsBuilderFields`, `pendingPublishSettingsBuilderFields` (+5) | `settingsAllBuilderFields` |
+| 2026-2039 (14) | `settingsBrowsePathDetailLines` | `settings-core` | - | `browseSettingsPath` |
+| 146-158 (13) | `rejectSettingsCommandWhileBusy` | `settings-core` | `settingsCommandInFlight` | `browseFinalLibraryPromotionRulePath`, `browseSettingsPath`, `previewFinalLibraryPromotionSettings`, `previewSettingsPatch`, `reloadSettingsFromDisk` (+3) |
+| 601-613 (13) | `settingsAllBuilderFields` | `settings-core` | `settingsBuilderFieldGroups` | `applySettingsFieldMetadataToControls` |
+| 1264-1276 (13) | `settingsPatchRequestExtras` | `settings-patch-review` | - | `previewSettingsPatch`, `saveSettingsPatch` |
+| 412-423 (12) | `settingsFieldIsAdvanced` | `settings-core` | `settingsAdvancedFallbackKeys`, `settingsMetadataTags` | `applySettingsFieldMetadataToControl` |
+| 425-436 (12) | `settingsMetadataValue` | `settings-core` | - | `applySettingsFieldMetadataToControl` |

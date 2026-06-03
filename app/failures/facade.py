@@ -10,6 +10,7 @@ from app.failures.policy import (
     failure_json_read_error_result,
     failure_latest_json_resolution_error_result,
     failure_loader_unavailable_result,
+    failure_marker_lookup,
     failure_marker_service_unavailable_result,
     failure_markers_read_error_result,
     failure_no_json_report_result,
@@ -39,12 +40,14 @@ class FailureFacadeMixin:
                 records = loader(resolved)
             except Exception as exc:
                 return failure_markers_read_error_result(resolved.failed_markers_path, exc)
+            marker_lookup = failure_marker_lookup(records)
             return self._failure_preview_from_records(
                 records,
                 source=str(resolved.failed_markers_path or ""),
                 source_kind="markers",
                 limit=bounded_limit,
                 empty_warning="No failure markers are available from the state store.",
+                marker_lookup=marker_lookup,
             )
 
         path_getter = getattr(self.service, "latest_failure_json", None)
@@ -65,13 +68,25 @@ class FailureFacadeMixin:
             records = loader(Path(report_path))
         except Exception as exc:
             return failure_json_read_error_result(report_path, exc)
+        marker_lookup = self._failure_marker_lookup_for_clear_errors(resolved)
         return self._failure_preview_from_records(
             records,
             source=str(report_path),
             source_kind="latest_json",
             limit=bounded_limit,
             empty_warning="Latest failure JSON contains no rows.",
+            marker_lookup=marker_lookup,
         )
+
+    def _failure_marker_lookup_for_clear_errors(self, resolved: ResolvedPaths) -> dict[str, list[str]] | None:
+        loader = getattr(self.service, "load_failure_marker_records", None)
+        if not callable(loader):
+            return None
+        try:
+            records = loader(resolved)
+        except Exception:
+            return None
+        return failure_marker_lookup(records)
 
     def _failure_preview_from_records(
         self,
@@ -81,6 +96,7 @@ class FailureFacadeMixin:
         source_kind: str,
         limit: int,
         empty_warning: str,
+        marker_lookup: dict[str, list[str]] | None = None,
     ) -> FailurePreviewDto:
         return failure_preview_from_records(
             records,
@@ -88,6 +104,7 @@ class FailureFacadeMixin:
             source_kind=source_kind,
             limit=limit,
             empty_warning=empty_warning,
+            marker_lookup=marker_lookup,
         )
 
     @staticmethod
@@ -96,8 +113,8 @@ class FailureFacadeMixin:
 
     def clear_failure_markers(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
         """Clear backend-owned failure marker files after explicit operator confirmation."""
-        dry_run = bool(request.get("dry_run", False))
-        confirm_clear = bool(request.get("confirm_clear", False))
+        dry_run = request.get("dry_run", False) is True
+        confirm_clear = request.get("confirm_clear", False) is True
         marker_paths = request.get("marker_paths")
         if marker_paths is None and request.get("marker_path"):
             marker_paths = [request.get("marker_path")]
@@ -176,7 +193,7 @@ class FailureFacadeMixin:
             message = "Failure marker clear blocked; review errors before retrying."
         data = dict(result)
         data["scope"] = scope
-        data["writes_failure_markers"] = not dry_run
+        data["writes_failure_markers"] = (not dry_run) and moved_count > 0
         data["touches_media"] = False
         data["safe_next_action"] = (
             "Refresh Queue/Reports. Cleared sources can be retried on the next backend queue build."

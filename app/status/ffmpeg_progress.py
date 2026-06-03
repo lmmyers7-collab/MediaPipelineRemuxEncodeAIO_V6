@@ -85,21 +85,36 @@ def _normalize_time_field(fields: Mapping[str, str]) -> str:
 
 
 def _ffmpeg_fields_from_log_tail(log_tail: str, *, max_lines: int = 160) -> tuple[dict[str, str], str, str]:
-    fields: dict[str, str] = {}
+    latest_fields: dict[str, str] = {}
     latest_line = ""
     latest_timestamp = ""
+    block_fields: dict[str, str] = {}
+    block_line = ""
+    block_timestamp = ""
     lines = str(log_tail or "").splitlines()[-max_lines:]
+
+    def commit_block() -> None:
+        nonlocal latest_fields, latest_line, latest_timestamp, block_fields, block_line, block_timestamp
+        if not block_fields:
+            return
+        latest_fields = dict(block_fields)
+        latest_line = block_line
+        latest_timestamp = block_timestamp
+        block_fields = {}
+        block_line = ""
+        block_timestamp = ""
+
     for raw_line in lines:
         line = raw_line.strip()
         if not line:
             continue
         pairs = list(_FFMPEG_KV_RE.finditer(line))
         if not pairs:
+            if line.casefold().startswith("progress="):
+                commit_block()
             continue
-        latest_line = _bounded_text(line)
         timestamp = _timestamp_from_line(line)
-        if timestamp:
-            latest_timestamp = timestamp
+        line_fields: dict[str, str] = {}
         for pair in pairs:
             key = pair.group("key").strip().lower()
             value = pair.group("value").strip()
@@ -107,8 +122,26 @@ def _ffmpeg_fields_from_log_tail(log_tail: str, *, max_lines: int = 160) -> tupl
                 continue
             if key == "out_time":
                 key = "time"
-            fields[key] = value
-    return fields, latest_line, latest_timestamp
+            line_fields[key] = value
+        if not line_fields:
+            continue
+        if len(line_fields) > 1:
+            latest_fields = line_fields
+            latest_line = _bounded_text(line)
+            latest_timestamp = timestamp
+            block_fields = {}
+            block_line = ""
+            block_timestamp = ""
+            continue
+        key, value = next(iter(line_fields.items()))
+        if key == "frame" and block_fields:
+            commit_block()
+        block_fields[key] = value
+        block_line = _bounded_text(line)
+        if timestamp:
+            block_timestamp = timestamp
+    commit_block()
+    return latest_fields, latest_line, latest_timestamp
 
 
 def _progress_active(progress: Mapping[str, Any]) -> bool:

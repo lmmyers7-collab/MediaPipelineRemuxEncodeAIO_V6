@@ -763,6 +763,21 @@ class QueueFacadePolicyTests(unittest.TestCase):
         )
         self.assertEqual(metadata["excluded_rows"][0]["available_open_targets"], ["source_file", "source_folder", "source_root"])
 
+    def test_queue_preview_metadata_preserves_zero_runnable_count(self) -> None:
+        rows = [queue_record_to_row(_record())]
+        metadata = queue_preview_metadata(
+            {
+                "movie_count_total": 1,
+                "tv_count_total": 0,
+                "runnable_count": 0,
+                "excluded_rows": [],
+            },
+            rows,
+        )
+
+        self.assertEqual(metadata["runnable_count"], 0)
+        self.assertEqual(metadata["completed_excluded_count"], 1)
+
     def test_queue_source_scan_progress_is_backend_authored_indeterminate(self) -> None:
         payload = queue_source_scan_progress_payload(
             source="C:/State/Progress/queue_snapshot.json",
@@ -785,6 +800,20 @@ class QueueFacadePolicyTests(unittest.TestCase):
         self.assertEqual(payload["progress_bars"][0]["id"], "queue_source_scan")
         self.assertEqual(payload["progress_bars"][0]["mode"], "indeterminate")
         self.assertEqual(payload["progress_bars"][0]["status"], "complete")
+
+    def test_queue_source_scan_progress_preserves_zero_runnable_count(self) -> None:
+        payload = queue_source_scan_progress_payload(
+            row_count=2,
+            metadata={
+                "source_count_total": 2,
+                "movie_count_total": 2,
+                "tv_count_total": 0,
+                "runnable_count": 0,
+            },
+        )
+
+        self.assertIn("Runnable rows loaded: 0", payload["summary_lines"])
+        self.assertIn("runnable 0", payload["progress_bars"][0]["detail"])
 
     def test_queue_preview_warning_constants_are_stable(self) -> None:
         self.assertEqual(queue_preview_warnings([]), [EMPTY_QUEUE_SNAPSHOT_WARNING])

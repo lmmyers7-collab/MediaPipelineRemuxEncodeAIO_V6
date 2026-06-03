@@ -67,6 +67,22 @@
     queueFormatCounts = _queueNoop,
   } = _queueSummary;
 
+  function queuePayloadNumber(payload, key, fallback = 0) {
+    if (payload && Object.prototype.hasOwnProperty.call(payload, key)) {
+      const value = Number(payload[key]);
+      return Number.isFinite(value) ? Math.max(0, value) : 0;
+    }
+    const fallbackValue = Number(fallback);
+    return Number.isFinite(fallbackValue) ? Math.max(0, fallbackValue) : 0;
+  }
+
+
+  function queuePayloadRunnableCount(payload, rows) {
+    const rowList = Array.isArray(rows) ? rows : [];
+    return queuePayloadNumber(payload, "runnable_count", rowList.length);
+  }
+
+
   const __queueReviewMod = window.__queueReviewModule || {};
   delete window.__queueReviewModule;
   const _queueReview = typeof __queueReviewMod.createQueueReviewModule === "function"
@@ -333,7 +349,7 @@
       queueHiddenSidecarLine(payload),
       queueFreshnessLine("Snapshot file age", payload.snapshot_file_age_text, payload.snapshot_file_freshness_status, payload.snapshot_file_mtime_utc),
       queueFreshnessLine("Produced age", payload.produced_age_text, payload.produced_freshness_status),
-      `Runnable rows: ${payload.runnable_count || rowList.length || 0}`,
+      `Runnable rows: ${queuePayloadRunnableCount(payload, rowList)}`,
       `Visible size: ${payload.total_visible_size_text || "0.00 GB"}`,
       `Invalid snapshot rows: ${payload.invalid_row_count || 0}`,
       `Visible priority rows: ${payload.priority_visible_count || 0}`,
@@ -507,7 +523,7 @@
       const rowList = Array.isArray(rows) ? rows : [];
       lines.push(
         `Source candidates: ${payload.source_count_total || 0}`,
-        `Runnable rows: ${payload.runnable_count || rowList.length || 0}`,
+        `Runnable rows: ${queuePayloadRunnableCount(payload, rowList)}`,
         `Completed/blocked exclusions: ${payload.completed_excluded_count || 0}`,
         "Row-level excluded-file detail: unavailable in the current queue snapshot contract."
       );
@@ -1029,7 +1045,14 @@
     wire("queue-priority-low-btn",     () => sendQueuePriority(getPath(), "low", "Operator demoted via toolbar"));
     wire("queue-priority-hold-btn",    () => sendQueuePriority(getPath(), "hold", "Operator hold via toolbar"));
     const refreshBtn = typeof document.querySelector === "function" ? document.querySelector("[data-queue-refresh-button]") : null;
-    if (refreshBtn) refreshBtn.addEventListener("click", () => (typeof refreshAll === "function" ? refreshAll() : setText("queue-filter-summary", "Refresh is unavailable until app refresh wiring is loaded.")));
+    if (refreshBtn) refreshBtn.addEventListener("click", () => {
+      window.mediaPipelineAppRefresh?.renderQueueRefreshInProgress?.();
+      if (typeof refreshAll === "function") {
+        refreshAll({ queueRefresh: true });
+      } else {
+        setText("queue-filter-summary", "Refresh is unavailable until app refresh wiring is loaded.");
+      }
+    });
 
     wire("queue-priority-promote-movies-btn", () => {
       const items = lastQueueRows

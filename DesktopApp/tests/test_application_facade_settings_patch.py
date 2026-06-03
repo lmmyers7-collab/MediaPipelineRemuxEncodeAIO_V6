@@ -281,6 +281,32 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
         self.assertIn("another settings save command is already in progress", result.message)
         self.assertEqual(service.saved_config_calls, [])
 
+    def test_settings_save_patch_blocks_unverified_active_config(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {"RoutingProfile": "plex_direct_stream"}
+            resolved.config_identity = {
+                "schema_version": "desktop_config_identity.v1",
+                "blocks_operations": True,
+                "operator_status": "Config requires recovery",
+                "reasons": ["Active config matches the deployment template/default paths."],
+            }
+
+            result = facade.save_settings_patch(
+                resolved,
+                {"changes": {"RoutingProfile": "plex_direct_play"}, "confirm_save": True},
+            )
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.command, "settings.save_patch")
+        self.assertEqual(result.severity, "error")
+        self.assertIn("not a verified operator config", result.message)
+        self.assertFalse(result.data["writes_config"])
+        self.assertEqual(service.saved_config_calls, [])
+
     def test_settings_patch_same_value_is_not_treated_as_changed(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

@@ -10,16 +10,24 @@ from mediapipeline_desktop_app.models import ResolvedPaths
 from app.processes.audit_policy import (
     audit_missing_library_root_result,
     audit_start_active_work_result,
+    audit_start_config_blocked_result,
     audit_start_exception_result,
     audit_start_success_result,
     resolve_audit_library_root,
 )
+from app.config.identity import config_operation_block_data, config_operation_block_message
 
 
 class AuditLaunchFacadeMixin:
     """Audit process start command adapter for the application facade."""
 
     def start_audit_process(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
+        config_identity = dict(getattr(resolved, "config_identity", {}) or {})
+        if config_identity.get("blocks_operations") is True:
+            return audit_start_config_blocked_result(
+                config_operation_block_message(config_identity, "Audit start"),
+                config_operation_block_data(config_identity),
+            )
         library_root = resolve_audit_library_root(request, resolved.config_data)
         if not library_root:
             return audit_missing_library_root_result()

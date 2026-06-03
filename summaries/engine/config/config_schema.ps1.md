@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-06-02
 last_reviewed: 2026-05-29
-sha256: 0b776101ca80d90521fc8fcfea2c4e4caa3ef679de5a011af65bcbcdf31d7483
+sha256: 366badc4b0636f0372ddaa05bd85d322da5a566c5f95a5b98c8918d13ae08397
 ---
 # `engine/config/config_schema.ps1`
 

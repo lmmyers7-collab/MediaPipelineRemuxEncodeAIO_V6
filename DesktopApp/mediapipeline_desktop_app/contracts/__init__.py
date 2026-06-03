@@ -1,14 +1,13 @@
-from __future__ import annotations
+"""Compatibility shim. Moved to ``app.kernel.contracts`` by ADR-0013 (Wave 5).
 
-from .active_job import ACTIVE_JOB_SCHEMA_VERSION, ACTIVE_JOB_STATUSES, ActiveJobRecord
-from .base import ContractError
-from .completed_job import CompletedJob
-from .control_flag import CONTROL_FLAG_ACTIONS, CONTROL_FLAG_SCHEMA_VERSION, ControlFlagRecord
-from .pending_publish import PENDING_PUSH_MANIFEST_STATES, PendingPushManifest
-from .pipeline_events import PipelineEvent
-from .process_result import ProcessFileResult
-from .progress import ProgressState
-from .queue_snapshot import QueuePlanExcludedRow, QueuePlanRow, QueuePlanSnapshot
+Re-exports the contracts aggregator public namespace from the new home so
+existing imports (``from mediapipeline_desktop_app.contracts import ...``)
+keep working. New code should import from ``app.kernel.contracts`` directly;
+this shim package is removed in the ADR-0013 Wave 6 cleanup.
+"""
+from app.kernel import contracts as _moved
+globals().update({_k: getattr(_moved, _k) for _k in dir(_moved) if not _k.startswith("__")})
+del _moved
 
 __all__ = [
     "ACTIVE_JOB_SCHEMA_VERSION",

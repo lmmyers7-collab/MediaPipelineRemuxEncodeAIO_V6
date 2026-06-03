@@ -39,6 +39,7 @@ from app.status.ffmpeg_progress import ffmpeg_progress_payload
 from mediapipeline_desktop_app.application.dto_commands import CommandResult
 from mediapipeline_desktop_app.application.dto_status import DiagnosticsDto
 from app.config.settings_policy import settings_tool_path_evidence
+from app.processes.path_evidence import configured_path_health
 from mediapipeline_desktop_app.models import ResolvedPaths, Snapshot
 
 
@@ -125,7 +126,12 @@ class DiagnosticsFacadeMixin:
             if diagnostics_should_include_settings_tool_path_evidence(config)
             else None
         )
-        return diagnostics_state_summary_payload(items, settings_tool_path_evidence=tool_path_evidence)
+        path_health = configured_path_health(resolved)
+        return diagnostics_state_summary_payload(
+            items,
+            settings_tool_path_evidence=tool_path_evidence,
+            path_health=path_health,
+        )
 
     def _active_job_rows(self, resolved: ResolvedPaths) -> list[str]:
         return diagnostics_active_job_rows(getattr(self.service, "_format_active_job_summary", None), resolved)

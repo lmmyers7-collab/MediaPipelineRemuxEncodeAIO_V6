@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-06-02
 last_reviewed: 2026-06-02
-sha256: 28e55f183482c13e3e1e16ebe79c558dbe0607e21f4c8bc9c6eff7bd63928ace
+sha256: 24a38f8118b957ea57708ad4e7c18717906c266f1a0b406a05a1536d59361fda
 ---
 # `Docs/generated/WEBVIEW_ROUTE_OWNERSHIP_GUARD.json`
 

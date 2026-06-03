@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-02
 last_reviewed: 2026-05-28
-sha256: 1072ef44cca43571e89488a44e689b8bcefb6967c966a520b31f85939cc072e1
+sha256: e7c6076ce18ed0d8fec656a21fedd7dab9142f2e322dbd8b176605098038da6c
 ---
 # `Pipeline/Tests/Unit/Invoke-ContractSchemaChecks.ps1`
 

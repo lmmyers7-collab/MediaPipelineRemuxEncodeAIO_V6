@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from app.config.library_profiles import library_profile_state_from_config
+from app.config.identity import config_identity_block_reasons
 from app.config.settings_policy import (
     settings_validation_exception_result,
     settings_validation_missing_values_result,
@@ -14,6 +15,7 @@ from app.config.settings_policy import (
     settings_tool_path_evidence,
     settings_workspace_paths,
 )
+from app.processes.path_evidence import configured_path_health, path_health_warning_lines
 from mediapipeline_desktop_app.application.settings_risk_policy import (
     build_current_settings_risk_summary,
     build_media_policy_readiness,
@@ -39,10 +41,17 @@ class SettingsFacadeMixin:
     def get_settings_workspace(self, resolved: ResolvedPaths) -> SettingsWorkspaceDto:
         """Return a redacted, read-only settings snapshot for future shells."""
         config = dict(resolved.config_data or {})
+        config_identity = dict(getattr(resolved, "config_identity", {}) or {})
         errors: list[str] = []
         warnings: list[str] = []
+        block_reasons = config_identity_block_reasons(config_identity)
+        if block_reasons:
+            errors.append("Active config is not a verified operator config.")
+            errors.extend(block_reasons)
+        if str(config_identity.get("snapshot_error") or "").strip():
+            warnings.append(f"Last-known-good config snapshot unavailable: {config_identity['snapshot_error']}")
         validator = getattr(self.service, "validate_config_values", None)
-        if callable(validator):
+        if callable(validator) and config:
             try:
                 raw_errors, raw_warnings = validator(config)
                 errors.extend(str(item) for item in raw_errors)
@@ -63,12 +72,16 @@ class SettingsFacadeMixin:
             library_profile_state = library_profile_state_from_config(config)
         except Exception as exc:
             warnings.append(f"Library profile inheritance evidence unavailable: {exc}")
+        tool_path_evidence = settings_tool_path_evidence(resolved, config)
+        path_health = configured_path_health(resolved)
+        warnings.extend(path_health_warning_lines(path_health))
         return _settings_workspace_dto(
             app_version=self.app_version,
             config_path=str(resolved.config_path),
             workspace_root=str(resolved.workspace_root),
             app_root=str(resolved.app_root),
             paths=settings_workspace_paths(resolved, config),
+            config_identity=config_identity,
             config=self._redacted_config(config),
             field_definitions=self._settings_field_definitions(),
             library_profile_state=library_profile_state,
@@ -84,7 +97,8 @@ class SettingsFacadeMixin:
                 errors=errors,
                 warnings=warnings,
             ),
-            tool_path_evidence=settings_tool_path_evidence(resolved, config),
+            tool_path_evidence=tool_path_evidence,
+            path_health=path_health,
             errors=errors,
             warnings=warnings,
         )

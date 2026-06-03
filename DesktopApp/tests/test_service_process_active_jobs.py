@@ -16,6 +16,7 @@ from app.processes.active_jobs import (
     active_job_close_block_messages,
     active_job_pid_is_alive,
     active_job_pid_matches_record,
+    cleanup_stale_validate_active_jobs,
     reconcile_active_job_records,
     update_active_job_record,
     write_active_job_launch_record,
@@ -504,6 +505,109 @@ class ProcessActiveJobHelperTests(unittest.TestCase):
             payload = json.loads(record.read_text(encoding="utf-8"))
 
         self.assertIsNone(active_job_pid_matches_record(ActiveJobRecord.from_mapping(payload), FakePsutil))
+
+    def test_cleanup_stale_validate_active_job_kills_only_validate_only_launch(self) -> None:
+        class FakeNoSuchProcess(Exception):
+            pass
+
+        class FakeProcess:
+            def __init__(self, pid: int, *, mode_arg: str) -> None:
+                self.pid = pid
+                self.mode_arg = mode_arg
+                self.killed = False
+
+            def is_running(self) -> bool:
+                return not self.killed
+
+            def status(self) -> str:
+                return "running"
+
+            def cmdline(self) -> list[str]:
+                return ["pwsh", "-File", "pipeline.ps1", self.mode_arg]
+
+            def cwd(self) -> str:
+                return str(root)
+
+            def children(self, recursive: bool = True) -> list[object]:
+                _ = recursive
+                return []
+
+            def kill(self) -> None:
+                self.killed = True
+
+            def terminate(self) -> None:
+                self.killed = True
+
+        class FakePsutil:
+            NoSuchProcess = FakeNoSuchProcess
+            STATUS_ZOMBIE = "zombie"
+            processes: dict[int, FakeProcess] = {}
+
+            @classmethod
+            def Process(cls, pid: int):
+                process = cls.processes.get(pid)
+                if process is None:
+                    raise FakeNoSuchProcess()
+                return process
+
+            @staticmethod
+            def wait_procs(targets: list[FakeProcess], timeout: float):
+                _ = timeout
+                alive = [target for target in targets if target.is_running()]
+                gone = [target for target in targets if not target.is_running()]
+                return gone, alive
+
+        def payload(name: str, *, pid: int, mode: str, mode_arg: str) -> dict[str, object]:
+            return {
+                "schema_version": "desktop_active_job.v1",
+                "launch_id": name,
+                "job_kind": "pipeline",
+                "mode": mode,
+                "status": "active",
+                "pid": pid,
+                "app_pid": 1,
+                "command_line": f"pwsh -File pipeline.ps1 {mode_arg}",
+                "args": ["pwsh", "-File", "pipeline.ps1", mode_arg],
+                "cwd": str(root),
+                "stdout_log": "",
+                "stderr_log": "",
+                "show_console": False,
+                "metadata": {},
+                "launched_at": "2026-05-06T12:00:00-04:00",
+                "last_update": "2026-05-06T12:00:01-04:00",
+                "return_code": None,
+            }
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            active_jobs = root / "ActiveJobs"
+            active_jobs.mkdir()
+            validate_proc = FakeProcess(7100, mode_arg="-ValidateOnly")
+            once_proc = FakeProcess(7200, mode_arg="-Once")
+            FakePsutil.processes = {7100: validate_proc, 7200: once_proc}
+            validate_record = active_jobs / "validate.json"
+            once_record = active_jobs / "once.json"
+            write_active_job_payload(validate_record, payload("validate", pid=7100, mode="validate", mode_arg="-ValidateOnly"))
+            write_active_job_payload(once_record, payload("once", pid=7200, mode="once", mode_arg="-Once"))
+            resolved = self._resolved(root)
+            resolved.active_jobs_path = active_jobs
+
+            messages = cleanup_stale_validate_active_jobs(
+                resolved,
+                stale_after_seconds=1.0,
+                psutil_module=FakePsutil,
+            )
+
+            validate_payload = json.loads(validate_record.read_text(encoding="utf-8"))
+            once_payload = json.loads(once_record.read_text(encoding="utf-8"))
+
+        self.assertTrue(validate_proc.killed)
+        self.assertFalse(once_proc.killed)
+        self.assertEqual(validate_payload["status"], "killed")
+        self.assertIn("validate-only heartbeat stale", validate_payload["reconcile_reason"])
+        self.assertEqual(once_payload["status"], "active")
+        self.assertEqual(len(messages), 1)
+        self.assertIn("Cleaned stale validate-only", messages[0])
 
     def test_active_job_pid_alive_distinguishes_running_zombie_missing_and_unknown(self) -> None:
         class FakeNoSuchProcess(Exception):
