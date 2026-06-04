@@ -1,16 +1,16 @@
 # API Route Inventory
 
-Date: 2026-05-31
+Date: 2026-06-04
 
 Full inventory of all Local API routes: route, method, effect class, backend contract/handler, mutation risk, primary frontend caller, and test coverage. Source: `contract_read.py`, `contract_command.py`, `routes_read.py`, `routes_command.py`.
 
-Total: 83 routes — 34 GET (read) + 49 POST (command).
+Total: 86 routes — 35 GET (read) + 51 POST (command).
 
 All routes require the bootstrap token (`Authorization: Bearer` or `X-MediaPipeline-Token`) except `GET /api/health`.
 
 ---
 
-## GET Routes (Read — 34 routes)
+## GET Routes (Read — 35 routes)
 
 All GET routes return data only. None launch pipeline work, write config, drain pending outputs, rename files, or mutate queue or manifest state.
 
@@ -58,12 +58,13 @@ Repair/reconcile mutation remains design-only. `/api/contract` publishes the fut
 
 Network lifecycle mutation remains design-only. `/api/contract` publishes the future dry-run, process cleanup/rollback, source-file, and route-exposure gates for coordinator/worker lifecycle commands, but there are no Network start/stop/reclaim/release/worker-polling POST routes in this inventory and no WebView controls may call one until `Docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` is satisfied.
 
-### Workspace Group (8 routes)
+### Workspace Group (9 routes)
 
 | Route | Effect | Response Schema | Frontend Caller | Auth | Backend Test Coverage |
 |---|---|---|---|---|---|
 | `GET /api/maintenance` | `bounded-health-check` | `desktop_maintenance_workspace.v1` | Maintenance | Yes | `test_facade_maintenance_policy.py`, `test_application_facade_maintenance.py` |
 | `GET /api/maintenance/progress` | `none` | `desktop_maintenance_health_progress.v1` | Maintenance | Yes | `test_application_facade_maintenance.py` |
+| `GET /api/maintenance/change-ledger` | `none` | `desktop_change_ledger.v1` | Maintenance | Yes | `test_maintenance_change_ledger.py` |
 | `GET /api/schedule` | `none` | `desktop_schedule_workspace.v1` | Schedule | Yes | `test_facade_schedule_policy.py`, `test_application_facade_schedule.py` |
 | `GET /api/settings/workspace` | `none` | `desktop_settings_workspace.v1` | Settings | Yes | `test_facade_settings_policy.py`, `test_application_facade_settings_workspace.py` |
 | `GET /api/settings/wizard/status` | `none` | `desktop_settings_wizard_status.v1` | Settings Wizard | Yes | `test_api_command_contracts.py`, `test_application_facade_settings_workspace.py` |
@@ -71,7 +72,7 @@ Network lifecycle mutation remains design-only. `/api/contract` publishes the fu
 | `GET /api/network/workers` | `none` | `desktop_network_workers.v1` | Network | Yes | `test_application_facade_network.py`, `test_webview_network_read_only_boundary.py` |
 | `GET /api/sample-validation` | `none` | `desktop_sample_validation_log.v1` + summary + readiness + reconciliation + worksheet runs + pilot plan/checklist + sample set + evidence gaps + pilot runbook + policy alignment + validation audit | Home (Validation Log) | Yes | `test_sample_validation_api.py` |
 
-`GET /api/maintenance` runs bounded environment and tool health probes. It does not repair, install, modify, or remove anything. Effect is `bounded-health-check` to distinguish it from pure data reads.
+`GET /api/maintenance` runs bounded environment and tool health probes. It does not repair, install, modify, or remove anything. Effect is `bounded-health-check` to distinguish it from pure data reads. `GET /api/maintenance/change-ledger` is a pure read of structured change-control packets and changelog source hygiene; it does not run health probes or regenerate changelog files.
 
 ---
 
@@ -79,7 +80,7 @@ Network lifecycle mutation remains design-only. `/api/contract` publishes the fu
 
 All POST routes require auth. File-open routes pass row keys or allowlisted target keys. Queue state routes accept only absolute paths under backend-configured `SourceMovies`/`SourceTV` roots and write non-destructive state manifests. Queue source scan is backend-owned and writes scan evidence plus an authoritative queue snapshot through the existing queue-plan dry run.
 
-### Queue Scan And State Commands (7 routes)
+### Queue Scan And State Commands (9 routes)
 
 | Route | Effect | Key Request Keys | Frontend Caller | Mutation Risk | Backend Test Coverage |
 |---|---|---|---|---|---|
@@ -88,10 +89,12 @@ All POST routes require auth. File-open routes pass row keys or allowlisted targ
 | `POST /api/queue/scan` | `process-dry-run` | `mode`, `force`, `scope`, `reason`; modes `inventory_then_curate`/`inventory_only`/`curate_only`; scope `all` | Queue | Medium — runs backend source inventory and queue-plan dry-run; no media processing or source mutation | `test_service_queue_source_scan.py`, `test_application_facade_queue.py` |
 | `POST /api/queue/file-overrides` | `queue-state-write` | `path`, `audio`, `subtitles`, `routing`, `video`, `clear`, `clear_all`, `clear_fields` | Queue | Medium — writes non-destructive file override manifest only | `test_application_facade_local_api.py`, `test_file_override_tracks.py` |
 | `POST /api/queue/file-overrides/route-preview` | `read-only-preview` | `path`, `proposed_override` | Queue | None — advisory route impact preview only | `test_application_facade_local_api.py` |
+| `POST /api/queue/file-overrides/series-preview` | `read-only-preview` | `path`, `proposed_override` | Queue | None — current-queue TV series batch preview only | `test_file_override_tracks.py` |
+| `POST /api/queue/file-overrides/series-apply` | `queue-state-write` | `path`, `proposed_override`, `confirm_apply`, `preview_fingerprint` | Queue | Medium — writes exact per-current-row overrides for eligible detected TV series rows only | `test_file_override_tracks.py`, `test_api_command_contracts.py` |
 | `POST /api/queue/file-overrides/folder-preview` | `read-only-preview` | `folder_path`, `proposed_override`, `options` | Queue | None — bounded folder rule impact preview only | `test_file_override_tracks.py` |
 | `POST /api/queue/file-overrides/folder-rule` | `queue-state-write` | `folder_path`, `override`, `confirmation`, `clear` | Queue | Medium — writes validated non-destructive folder-prefix override manifest entries only | `test_file_override_tracks.py` |
 
-Priority and file override/folder-rule path writes are rejected unless the submitted path is absolute and under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots). Priority `clear_all` clears priority manifest state only. Folder rules reject source/library roots, file-only stream indexes, and raw ffmpeg map fields. The preview routes are read-only and do not write `file_overrides.json`, scan source folders, run processing, or mutate source media. Queue source scan reads source metadata, writes `queue_source_inventory.json`, then uses the backend queue-plan dry-run to refresh `queue_snapshot.json`.
+Priority and file override/folder-rule path writes are rejected unless the submitted path is absolute and under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots). Priority `clear_all` clears priority manifest state only. Series apply requires an immediate matching preview fingerprint, protects exact manual rows, and does not create future show/folder policy. Folder rules reject source/library roots, file-only stream indexes, and raw ffmpeg map fields. The preview routes are read-only and do not write `file_overrides.json`, scan source folders, run processing, or mutate source media. Queue source scan reads source metadata, writes `queue_source_inventory.json`, then uses the backend queue-plan dry-run to refresh `queue_snapshot.json`.
 
 ### Failure Marker Commands (1 route)
 
@@ -147,9 +150,9 @@ Full target catalog: `Docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`.
 | `POST /api/maintenance/release-dry-run` | `process-dry-run` | `destination_root`, `zip_package`, `verify`, `include_tests` | Maintenance | None — `-DryRun` only | `test_facade_maintenance_command_policy.py`, `test_application_facade_maintenance.py` |
 | `POST /api/maintenance/release-build` | `deployment-write` | `destination_root`, `zip_package`, `verify`, `include_tests`, `force`, `confirm_create` | Maintenance | Medium — creates deployable release folder, manifest, and optional zip through the backend release builder; `force` may replace the destination | `test_facade_maintenance_command_policy.py`, `test_application_facade_maintenance.py` |
 | `POST /api/maintenance/completed-backfill-dry-run` | `process-dry-run` | `timeout_seconds` | Maintenance | None — `-DryRun` only | `test_facade_maintenance_command_policy.py`, `test_application_facade_maintenance.py` |
-| `POST /api/maintenance/dependency-atlas` | `tooling-artifact-write` | `timeout_seconds`, `min_overview_edge_count`, `min_overview_files` | Maintenance | Low — regenerates repository-root dependency atlas HTML, PNG/SVG, and CSV tooling artifacts only | `test_application_facade_maintenance.py`, `test_application_facade_local_api.py` |
+| `POST /api/maintenance/dependency-atlas` | `tooling-artifact-write` | `timeout_seconds`, `min_overview_edge_count`, `min_overview_files` | Maintenance | Low — regenerates dependency atlas HTML, PNG/SVG, and CSV tooling artifacts under `V6_dependency_atlas/` only | `test_application_facade_maintenance.py`, `test_application_facade_local_api.py` |
 
-The dry-run routes do not write a release folder, zip, manifest, or completed manifest. `dependency-atlas` writes generated tooling artifacts under the repository root only; it does not touch media, queue, settings, manifests, pending publish state, or pipeline state. `release-build` requires `confirm_create: true`, is blocked while active work is present, and writes deployment artifacts only through the backend release builder.
+The dry-run routes do not write a release folder, zip, manifest, or completed manifest. `dependency-atlas` writes generated tooling artifacts under `V6_dependency_atlas/` only; it does not touch media, queue, settings, manifests, pending publish state, or pipeline state. `release-build` requires `confirm_create: true`, is blocked while active work is present, and writes deployment artifacts only through the backend release builder.
 
 ### Rename Commands (3 routes)
 
@@ -231,11 +234,11 @@ media files.
 |---|---|---|
 | `none` (read-only) | 46 | All non-probing GET routes + preview/validate/reload POSTs |
 | `bounded-health-check` | 1 | `GET /api/maintenance` |
-| `read-only-preview` | 2 | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/folder-preview` |
+| `read-only-preview` | 3 | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/folder-preview` |
 | `shell-open` | 4 | `POST /api/queue/open`, `completed/open`, `pending-publish/open`, `diagnostics/open` |
 | `shell-dialog` | 3 | `POST /api/rename/browse`, `POST /api/settings/browse-path`, `POST /api/pipeline/browse-file` |
 | `ui-state-write` | 1 | `POST /api/ui-preferences` |
-| `queue-state-write` | 4 | `POST /api/queue/priority`, `queue/strategy`, `queue/file-overrides`, `queue/file-overrides/folder-rule` |
+| `queue-state-write` | 5 | `POST /api/queue/priority`, `queue/strategy`, `queue/file-overrides`, `queue/file-overrides/series-apply`, `queue/file-overrides/folder-rule` |
 | `failure-marker-write` | 1 | `POST /api/failures/clear` |
 | `audit-state-write` | 2 | `POST /api/audit/score-policy`, `audit/ignore` |
 | `report-file-write` | 1 | `POST /api/audit/export-rerun-csv` |
@@ -266,12 +269,12 @@ media files.
 | `test_contracts.py` | Data contract round-trip (all schema versions) |
 | Domain policy/facade tests (`test_*_policy.py`, `test_application_facade_*.py`) | Business logic and parameter validation per route group |
 | Domain service tests | Underlying service behavior exercised by route handlers |
-| WebView smokes (20 PS1 wrappers) | Integration rendering and mutation-boundary verification |
+| WebView smokes (21 PS1 wrappers) | Integration rendering and mutation-boundary verification |
 | `Test-LocalApiLifecycleContractSmoke.ps1` | Browser-free lifecycle route contract smoke for close-readiness/shutdown safe and watcher-blocked payloads |
 | `Test-LocalApiMaintenanceDryRunContractSmoke.ps1` | Browser-free Maintenance route contract smoke for dry-run-only release/backfill POSTs, token enforcement, command history, and unchanged temp source/output bytes |
 | `Test-LocalApiSampleValidationContractSmoke.ps1` | Browser-free sample-validation route contract smoke for preview/append/read/tail, token enforcement, current-backend-evidence preview, command history, and temp-only validation-log writes |
 
-Routes with no dedicated smoke coverage: `GET /api/telemetry` is covered by `Test-WebViewBrowserTelemetrySmoke.ps1` through the Live page rather than by a route-only smoke. `GET /api/failures` and `GET /api/audit-results` are covered through the browser-backed Maintenance/Reports smoke.
+Routes with no dedicated smoke coverage: `GET /api/telemetry` is covered by `Test-WebViewBrowserTelemetrySmoke.ps1` through the Live page rather than by a route-only smoke. `GET /api/failures` and `GET /api/audit-results` are covered through the browser-backed Maintenance/Reports smoke. `GET /api/maintenance/change-ledger` is covered by route/unit tests plus the browser-backed Maintenance Change Ledger smoke.
 
 ---
 

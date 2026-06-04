@@ -222,6 +222,7 @@ For real-media behavior, use `V5_REAL_MEDIA_VALIDATION_PLAYBOOK.md`.
 | `Test-WebViewBrowserCompletedPendingProofSmoke.ps1` | Proof ladder DOM IDs; missing-output blocker text; reconciliation endpoint shape |
 | `Test-WebViewBrowserLargeTableSmoke.ps1` | 260-row render-cap disclosure wording; filter warning rendering |
 | `Test-WebViewBrowserMaintenanceReportsSmoke.ps1` | Maintenance dry-run result text; Reports failure/audit triage and selected-row detail DOM IDs |
+| `Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1` | Maintenance Change Ledger DOM IDs; ledger summary/detail/hygiene text; filter and empty-state rendering |
 | `Test-WebViewBrowserRenameSmoke.ps1` | Apply Readiness DOM IDs; duplicate-target blocking text |
 | `Test-WebViewBrowserNetworkSmoke.ps1` | Worker detail rendering; filter warning wording |
 | `Test-WebViewBrowserTelemetrySmoke.ps1` | Zero-percent NVENC rendering without duplicate idle wording; CPU/RAM-only fallback wording |

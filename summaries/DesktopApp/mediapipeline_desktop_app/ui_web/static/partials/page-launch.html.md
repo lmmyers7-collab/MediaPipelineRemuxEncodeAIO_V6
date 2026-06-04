@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-03
 last_reviewed: 2026-05-29
-sha256: 76c607b8974af6ba177c2c37753d760ef4878c4b030d8b724b797b8fd58c528d
+sha256: ed285bd3e2bf6c375c36090ed9f3aaaeb55c999d314fae1df074937aea16392b
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/page-launch.html`
 

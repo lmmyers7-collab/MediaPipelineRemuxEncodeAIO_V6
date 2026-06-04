@@ -1,0 +1,50 @@
+{
+  "id": "MP-CHANGE-2026-0604-011",
+  "title": "Keep Library dropdowns open during auto refresh",
+  "version_target": "0.1.0-dev",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-04",
+  "date_completed": "2026-06-04",
+  "summary": "Preserve focused Library Profile dropdown controls across automatic WebView refreshes.",
+  "reason": "The shared 4-second automatic refresh rebuilt the Library Profiles DOM even when the operator had a Library dropdown focused, which closed the native dropdown while it was being used.",
+  "affected_areas": [
+    "webview",
+    "library_profiles",
+    "settings_launch_smoke"
+  ],
+  "behavior_before": "Automatic refresh called the Library Profiles renderer without refresh-mode context, so unchanged focused Library controls could be replaced and native dropdown popups closed.",
+  "behavior_after": "Automatic refresh passes refresh-mode context and the Library Profiles renderer defers only automatic DOM rebuilds while a Library control is focused; manual refresh and post-blur automatic refresh still repaint normally.",
+  "files_touched": [
+    "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js",
+    "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsLibraries.js",
+    "DesktopApp/tests/test_webview_settings_libraries.py",
+    "DesktopApp/tests/test_webview_browser_settings_launch_smoke.py",
+    "changes/unreleased/MP-CHANGE-2026-0604-011.json",
+    "summaries/DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js.md",
+    "summaries/DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsLibraries.js.md",
+    "summaries/DesktopApp/tests/test_webview_settings_libraries.py.md",
+    "summaries/DesktopApp/tests/test_webview_browser_settings_launch_smoke.py.md",
+    "summaries/changes/unreleased/MP-CHANGE-2026-0604-011.json.md"
+  ],
+  "tests_added": [
+    "DesktopApp/tests/test_webview_settings_libraries.py static assertion for automatic Library render deferral",
+    "DesktopApp/tests/test_webview_browser_settings_launch_smoke.py browser assertion that a focused Library dropdown survives automatic render and refreshes after blur"
+  ],
+  "manual_validation": [
+    "node --check DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsLibraries.js -- passed",
+    "node --check DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js -- passed",
+    "DesktopApp/Runtime/Python/python.exe -m unittest DesktopApp.tests.test_webview_settings_libraries.WebViewSettingsLibrariesStaticTests.test_settings_libraries_asset_preserves_unsaved_cards_during_refresh -q -- passed, 1 test",
+    "DesktopApp/Runtime/Python/python.exe -m unittest DesktopApp.tests.test_webview_settings_libraries -q -- passed, 16 tests",
+    "DesktopApp/Runtime/Python/python.exe -m unittest DesktopApp.tests.test_webview_browser_settings_launch_smoke -q -- passed, 1 browser-backed test",
+    "SmokeTests/Test-WebViewBrowserSettingsLaunchSmoke.ps1 -- passed",
+    "DesktopApp/Runtime/Python/python.exe scripts/dev/refresh_summaries.py --paths <touched files> -- passed, 5 written",
+    "DesktopApp/Runtime/Python/python.exe scripts/dev/refresh_summaries.py --paths changes/unreleased/MP-CHANGE-2026-0604-011.json -- passed, 1 written",
+    "DesktopApp/Runtime/Python/python.exe scripts/dev/refresh_summaries.py --paths DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsLibraries.js -- passed, 1 written",
+    "DesktopApp/Runtime/Python/python.exe scripts/change_control/validate_changes.py --require-worktree-coverage -- failed because 199 pre-existing dirty files are not covered by any unreleased packet; this packet's touched files were covered"
+  ],
+  "rollback_plan": "Revert the refresh-mode argument in app.js, the automatic-focus deferral helper in settingsLibraries.js, the focused static/browser assertions, regenerated summaries, and this packet.",
+  "related_changes": [],
+  "notes": "WebView-only interaction fix. No backend settings persistence, queue mutation, media policy, FFmpeg/subtitle/audio behavior, pending publish drain, source/scratch/output movement, cleanup behavior, or source media files changed."
+}

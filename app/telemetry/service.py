@@ -14,13 +14,20 @@ except Exception:  # pragma: no cover - optional runtime dependency
 
 from mediapipeline_desktop_app.models import ResolvedPaths, TelemetrySnapshot
 from app.telemetry.health import (
+    api_contract_health_rows,
     ass_to_srt_exception_row,
     ass_to_srt_missing_row,
     ass_to_srt_result_row,
+    bundle_layout_health_rows,
     bundled_tool_health_rows,
+    config_schema_health_rows,
+    configured_root_health_rows,
     find_ass_to_srt_script,
+    library_output_health_rows,
     nvidia_smi_health_row,
+    process_guard_health_rows,
     powershell_health_row,
+    runtime_state_health_rows,
     subtitle_tool_health_rows,
 )
 from app.telemetry.nvidia import apply_nvidia_smi_rows_to_snapshot, parse_nvidia_smi_encoder_rows
@@ -139,10 +146,35 @@ class TelemetryServiceMixin:
                     }
                 )
 
+        emit("config_parse", "Checking active config schema.")
+        results.extend(config_schema_health_rows(resolved))
+        emit("path_reachability", "Checking configured source/scratch/output roots.")
+        results.extend(configured_root_health_rows(resolved))
+        results.extend(library_output_health_rows(resolved))
+        emit("state_directory", "Checking runtime state files.")
+        results.extend(runtime_state_health_rows(resolved))
+        emit("api_contract", "Checking backend API contract surfaces.")
+        results.extend(api_contract_health_rows())
+        emit("process_guard", "Checking process and ActiveJobs safety posture.")
+        results.extend(process_guard_health_rows(resolved, self))
+        emit("bundle_layout", "Checking V6 bundle and launcher layout.")
+        results.extend(bundle_layout_health_rows(resolved.workspace_root, resolved.app_root))
         emit("powershell", "Checking PowerShell host.")
-        results.append(powershell_health_row(resolved.powershell_host))
+        results.append(
+            powershell_health_row(
+                resolved.powershell_host,
+                run_capture_func=run_capture,
+                extra_popen_kwargs=self._subprocess_kwargs_hidden(),
+            )
+        )
         emit("ffmpeg", "Checking bundled or system FFmpeg.")
-        for row in bundled_tool_health_rows(self.workspace_root, self.app_root):
+        for row in bundled_tool_health_rows(
+            self.workspace_root,
+            self.app_root,
+            config=getattr(resolved, "config_data", {}),
+            run_capture_func=run_capture,
+            extra_popen_kwargs=self._subprocess_kwargs_hidden(),
+        ):
             results.append(row)
             name = str(row[0]).casefold()
             if "ffmpeg" in name:
@@ -176,6 +208,8 @@ class TelemetryServiceMixin:
             resolved.workspace_root,
             resolved.app_root,
             getattr(resolved, "config_data", {}),
+            run_capture_func=run_capture,
+            extra_popen_kwargs=self._subprocess_kwargs_hidden(),
         ):
             results.append(row)
             name = str(row[0]).casefold()

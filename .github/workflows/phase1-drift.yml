@@ -62,6 +62,16 @@ jobs:
       - name: Check active doc references
         run: python scripts/dev/check_active_doc_references.py
 
+      - name: Check change packet coverage
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "pull_request") {
+            git fetch origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}" --depth=1
+            python scripts/change_control/validate_changes.py --require-diff-coverage "origin/${{ github.base_ref }}"
+          } else {
+            python scripts/change_control/validate_changes.py
+          }
+
       - name: Check Python typing
         run: python scripts/dev/check_python_typing.py
 

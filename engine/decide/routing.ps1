@@ -9,6 +9,8 @@
 #   $EncodeThresholdGB, $TVEncodeThresholdGB
 #   $RouteThresholdMode
 #   $MovieRouteMaxVideoBitrateMbps, $TVRouteMaxVideoBitrateMbps
+#   $Route1080pBucketMaxHeight, $Route1080pMaxVideoBitrateMbps
+#   $Route4KBucketMinHeight, $Route4KMaxVideoBitrateMbps
 # ==============================================================================
 
 function Normalize-MediaRouteCodecName {
@@ -202,6 +204,65 @@ function Get-MediaRouteDefaultMaxBitrateMbps {
     }
     if ($MovieRouteMaxVideoBitrateMbps -gt 0) { return [double]$MovieRouteMaxVideoBitrateMbps }
     return 35.0
+}
+
+function Resolve-MediaRouteResolutionBitrateSelection {
+    param(
+        [int] $VideoHeight = 0,
+        [bool] $IsTV = $false,
+        [double] $MovieRouteMaxVideoBitrateMbps = 35.0,
+        [double] $TVRouteMaxVideoBitrateMbps = 18.0,
+        [int] $Route1080pBucketMaxHeight = 1200,
+        [double] $Route1080pMaxVideoBitrateMbps = 20.0,
+        [int] $Route4KBucketMinHeight = 1800,
+        [double] $Route4KMaxVideoBitrateMbps = 35.0
+    )
+
+    if ($Route1080pBucketMaxHeight -le 0) { $Route1080pBucketMaxHeight = 1200 }
+    if ($Route4KBucketMinHeight -le 0) { $Route4KBucketMinHeight = 1800 }
+    if ($Route1080pBucketMaxHeight -ge $Route4KBucketMinHeight) {
+        $Route1080pBucketMaxHeight = 1200
+        $Route4KBucketMinHeight = 1800
+    }
+    if ($Route1080pMaxVideoBitrateMbps -le 0) { $Route1080pMaxVideoBitrateMbps = 20.0 }
+    if ($Route4KMaxVideoBitrateMbps -le 0) { $Route4KMaxVideoBitrateMbps = 35.0 }
+
+    if ($VideoHeight -le 0) {
+        $cap = Get-MediaRouteDefaultMaxBitrateMbps `
+            -IsTV:$IsTV `
+            -MovieRouteMaxVideoBitrateMbps $MovieRouteMaxVideoBitrateMbps `
+            -TVRouteMaxVideoBitrateMbps $TVRouteMaxVideoBitrateMbps
+        $fallback = if ($IsTV) { 'unknown_height_tv' } else { 'unknown_height_movie' }
+        return [pscustomobject]([ordered]@{
+            CapMbps                  = [double]$cap
+            Source                   = 'movie_tv_fallback'
+            Bucket                   = $fallback
+            Height                   = [int]$VideoHeight
+            Route1080pBucketMaxHeight = [int]$Route1080pBucketMaxHeight
+            Route4KBucketMinHeight   = [int]$Route4KBucketMinHeight
+        })
+    }
+
+    if ($VideoHeight -le $Route1080pBucketMaxHeight) {
+        return [pscustomobject]([ordered]@{
+            CapMbps                  = [double]$Route1080pMaxVideoBitrateMbps
+            Source                   = 'source_height_bucket'
+            Bucket                   = '1080ish'
+            Height                   = [int]$VideoHeight
+            Route1080pBucketMaxHeight = [int]$Route1080pBucketMaxHeight
+            Route4KBucketMinHeight   = [int]$Route4KBucketMinHeight
+        })
+    }
+
+    $bucket = if ($VideoHeight -ge $Route4KBucketMinHeight) { '4k' } else { 'between_1080ish_and_4k' }
+    return [pscustomobject]([ordered]@{
+        CapMbps                  = [double]$Route4KMaxVideoBitrateMbps
+        Source                   = 'source_height_bucket'
+        Bucket                   = $bucket
+        Height                   = [int]$VideoHeight
+        Route1080pBucketMaxHeight = [int]$Route1080pBucketMaxHeight
+        Route4KBucketMinHeight   = [int]$Route4KBucketMinHeight
+    })
 }
 
 function Resolve-MediaRouteRoutingProfileName {
@@ -589,7 +650,11 @@ function Resolve-MediaRouteBySize {
         [double] $H264RemuxMaxBitrateMbps = 35.0,
         [int] $H264RemuxMaxHeight = 1080,
         [double] $MovieRouteMaxVideoBitrateMbps = 35.0,
-        [double] $TVRouteMaxVideoBitrateMbps = 18.0
+        [double] $TVRouteMaxVideoBitrateMbps = 18.0,
+        [int] $Route1080pBucketMaxHeight = 1200,
+        [double] $Route1080pMaxVideoBitrateMbps = 20.0,
+        [int] $Route4KBucketMinHeight = 1800,
+        [double] $Route4KMaxVideoBitrateMbps = 35.0
     )
 
     $sizeGB = [double]$FileSizeBytes / 1GB
@@ -619,22 +684,38 @@ function Resolve-MediaRouteBySize {
     }
     $duration = [math]::Max(0.0, [double]$DurationSeconds)
     $estimatedBitrate = if ($duration -gt 0) { [math]::Round((([double]$FileSizeBytes * 8.0) / $duration) / 1000000.0, 3) } else { 0.0 }
-    $routeMaxBitrate = if ($null -ne $hints.max_video_bitrate_mbps) {
-        [double]$hints.max_video_bitrate_mbps
+    $bitrateSelection = if ($null -ne $hints.max_video_bitrate_mbps) {
+        [pscustomobject]([ordered]@{
+            CapMbps                  = [double]$hints.max_video_bitrate_mbps
+            Source                   = 'folder_policy'
+            Bucket                   = 'explicit_override'
+            Height                   = [int]$VideoHeight
+            Route1080pBucketMaxHeight = [int]$Route1080pBucketMaxHeight
+            Route4KBucketMinHeight   = [int]$Route4KBucketMinHeight
+        })
     } else {
-        Get-MediaRouteDefaultMaxBitrateMbps `
+        Resolve-MediaRouteResolutionBitrateSelection `
+            -VideoHeight $VideoHeight `
             -IsTV:$IsTV `
             -MovieRouteMaxVideoBitrateMbps $MovieRouteMaxVideoBitrateMbps `
-            -TVRouteMaxVideoBitrateMbps $TVRouteMaxVideoBitrateMbps
+            -TVRouteMaxVideoBitrateMbps $TVRouteMaxVideoBitrateMbps `
+            -Route1080pBucketMaxHeight $Route1080pBucketMaxHeight `
+            -Route1080pMaxVideoBitrateMbps $Route1080pMaxVideoBitrateMbps `
+            -Route4KBucketMinHeight $Route4KBucketMinHeight `
+            -Route4KMaxVideoBitrateMbps $Route4KMaxVideoBitrateMbps
     }
+    $routeMaxBitrate = [double]$bitrateSelection.CapMbps
     $maxBitrate = [double]$routeMaxBitrate
     $codec = Normalize-MediaRouteCodecName $VideoCodec
+    $h264BitrateCapApplied = $false
     if ($AllowH264RemuxIfPlexCompatible -and $H264RemuxMaxBitrateMbps -gt 0 -and $codec -in @('h264','avc')) {
+        $beforeH264Cap = [double]$maxBitrate
         $maxBitrate = [math]::Min([double]$maxBitrate, [double]$H264RemuxMaxBitrateMbps)
+        $h264BitrateCapApplied = ($maxBitrate -ne $beforeH264Cap)
     }
     $mediaType = if ($IsTV) { 'tv' } else { 'movie' }
     $trace = [System.Collections.Generic.List[object]]::new()
-    $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'routing_profile_selected' -Message ("routing profile {0}; route threshold mode {1}; size guard {2}" -f $routingProfileName, $routeThresholdModeName, $sizeGuardModeName) -Data @{ routing_profile = $routingProfileName; route_threshold_mode = $routeThresholdModeName; size_guard_mode = $sizeGuardModeName; route_max_bitrate_mbps = [double]$routeMaxBitrate; effective_max_bitrate_mbps = [double]$maxBitrate; h264_plex_remux_enabled = [bool]$AllowH264RemuxIfPlexCompatible; h264_max_bitrate_mbps = [double]$H264RemuxMaxBitrateMbps; h264_max_height = [int]$H264RemuxMaxHeight }))
+    $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'routing_profile_selected' -Message ("routing profile {0}; route threshold mode {1}; size guard {2}" -f $routingProfileName, $routeThresholdModeName, $sizeGuardModeName) -Data @{ routing_profile = $routingProfileName; route_threshold_mode = $routeThresholdModeName; size_guard_mode = $sizeGuardModeName; route_max_bitrate_mbps = [double]$routeMaxBitrate; effective_max_bitrate_mbps = [double]$maxBitrate; route_bitrate_source = [string]$bitrateSelection.Source; route_bitrate_bucket = [string]$bitrateSelection.Bucket; route_bitrate_bucket_height = [int]$bitrateSelection.Height; route_1080p_bucket_max_height = [int]$Route1080pBucketMaxHeight; route_1080p_max_video_bitrate_mbps = [double]$Route1080pMaxVideoBitrateMbps; route_4k_bucket_min_height = [int]$Route4KBucketMinHeight; route_4k_max_video_bitrate_mbps = [double]$Route4KMaxVideoBitrateMbps; h264_plex_remux_enabled = [bool]$AllowH264RemuxIfPlexCompatible; h264_max_bitrate_mbps = [double]$H264RemuxMaxBitrateMbps; h264_max_height = [int]$H264RemuxMaxHeight; h264_bitrate_cap_applied = [bool]$h264BitrateCapApplied }))
     $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'size_evaluated' -Message ("source size {0:N2} GB; threshold {1:N2} GB" -f $sizeGB, $threshold) -Data @{ size_gb = $sizeGB; threshold_gb = $threshold; media_type = $mediaType }))
     if ($duration -gt 0) {
         $trace.Add((New-MediaRouteDecisionTraceEntry -Code 'bitrate_estimated' -Message ("estimated source bitrate {0:N2} Mbps from duration {1:N1}s" -f $estimatedBitrate, $duration) -Data @{ bitrate_mbps = $estimatedBitrate; duration_seconds = $duration; max_bitrate_mbps = $maxBitrate }))
@@ -839,6 +920,10 @@ function Resolve-InitialMediaRoutePlan {
     $h264MaxHeight = if (Get-Variable -Name H264RemuxMaxHeight -Scope Script -ErrorAction SilentlyContinue) { [int]$script:H264RemuxMaxHeight } else { 1080 }
     $movieRouteMaxBitrate = if (Get-Variable -Name MovieRouteMaxVideoBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:MovieRouteMaxVideoBitrateMbps } else { 35.0 }
     $tvRouteMaxBitrate = if (Get-Variable -Name TVRouteMaxVideoBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVRouteMaxVideoBitrateMbps } else { 18.0 }
+    $route1080pBucketMaxHeight = if (Get-Variable -Name Route1080pBucketMaxHeight -Scope Script -ErrorAction SilentlyContinue) { [int]$script:Route1080pBucketMaxHeight } else { 1200 }
+    $route1080pMaxBitrate = if (Get-Variable -Name Route1080pMaxVideoBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:Route1080pMaxVideoBitrateMbps } else { 20.0 }
+    $route4kBucketMinHeight = if (Get-Variable -Name Route4KBucketMinHeight -Scope Script -ErrorAction SilentlyContinue) { [int]$script:Route4KBucketMinHeight } else { 1800 }
+    $route4kMaxBitrate = if (Get-Variable -Name Route4KMaxVideoBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:Route4KMaxVideoBitrateMbps } else { 35.0 }
     $routeThresholdMode = if (Get-Variable -Name RouteThresholdMode -Scope Script -ErrorAction SilentlyContinue) { [string]$script:RouteThresholdMode } else { 'compatibility_advisory' }
 
     return Resolve-MediaRouteBySize `
@@ -859,7 +944,11 @@ function Resolve-InitialMediaRoutePlan {
         -H264RemuxMaxBitrateMbps $h264MaxBitrate `
         -H264RemuxMaxHeight $h264MaxHeight `
         -MovieRouteMaxVideoBitrateMbps $movieRouteMaxBitrate `
-        -TVRouteMaxVideoBitrateMbps $tvRouteMaxBitrate
+        -TVRouteMaxVideoBitrateMbps $tvRouteMaxBitrate `
+        -Route1080pBucketMaxHeight $route1080pBucketMaxHeight `
+        -Route1080pMaxVideoBitrateMbps $route1080pMaxBitrate `
+        -Route4KBucketMinHeight $route4kBucketMinHeight `
+        -Route4KMaxVideoBitrateMbps $route4kMaxBitrate
 }
 
 function Test-IsRemuxSafeVideoCodec {
@@ -988,6 +1077,14 @@ function Get-ActiveMediaRoutePlanMetadata {
             enabled          = if (Get-Variable -Name AllowH264RemuxIfPlexCompatible -Scope Script -ErrorAction SilentlyContinue) { [bool]$script:AllowH264RemuxIfPlexCompatible } else { $true }
             max_bitrate_mbps = if (Get-Variable -Name H264RemuxMaxBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:H264RemuxMaxBitrateMbps } else { 35.0 }
             max_height       = if (Get-Variable -Name H264RemuxMaxHeight -Scope Script -ErrorAction SilentlyContinue) { [int]$script:H264RemuxMaxHeight } else { 1080 }
+        }
+        resolution_bitrate_policy = [ordered]@{
+            route_1080p_bucket_max_height     = if (Get-Variable -Name Route1080pBucketMaxHeight -Scope Script -ErrorAction SilentlyContinue) { [int]$script:Route1080pBucketMaxHeight } else { 1200 }
+            route_1080p_max_bitrate_mbps      = if (Get-Variable -Name Route1080pMaxVideoBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:Route1080pMaxVideoBitrateMbps } else { 20.0 }
+            route_4k_bucket_min_height        = if (Get-Variable -Name Route4KBucketMinHeight -Scope Script -ErrorAction SilentlyContinue) { [int]$script:Route4KBucketMinHeight } else { 1800 }
+            route_4k_max_bitrate_mbps         = if (Get-Variable -Name Route4KMaxVideoBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:Route4KMaxVideoBitrateMbps } else { 35.0 }
+            unknown_height_fallback_movie_mbps = if (Get-Variable -Name MovieRouteMaxVideoBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:MovieRouteMaxVideoBitrateMbps } else { 35.0 }
+            unknown_height_fallback_tv_mbps   = if (Get-Variable -Name TVRouteMaxVideoBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVRouteMaxVideoBitrateMbps } else { 18.0 }
         }
         source_codec           = [string]$plan.SourceCodec
         requires_codec_probe   = [bool]$plan.RequiresCodecProbe

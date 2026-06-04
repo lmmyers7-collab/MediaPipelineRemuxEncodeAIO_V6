@@ -29,6 +29,7 @@ GET_ROUTE_HANDLERS: dict[str, RouteHandlerSpec] = {
     "/api/publish-reconciliation": RouteHandlerSpec("_publish_reconciliation_payload", needs_query=True),
     "/api/maintenance": RouteHandlerSpec("_maintenance_payload"),
     "/api/maintenance/progress": RouteHandlerSpec("_maintenance_progress_payload"),
+    "/api/maintenance/change-ledger": RouteHandlerSpec("_maintenance_change_ledger_payload"),
     "/api/schedule": RouteHandlerSpec("_schedule_payload"),
     "/api/settings/workspace": RouteHandlerSpec("_settings_workspace_payload"),
     "/api/settings/wizard/status": RouteHandlerSpec("_settings_wizard_status_payload"),

@@ -21,6 +21,13 @@ class MaintenanceFacadePolicyTests(unittest.TestCase):
         required = maintenance_health_row(("PowerShell 7", True, "pwsh.exe"))
         optional = maintenance_health_row(("optional NVIDIA telemetry", False, "nvidia-smi missing"))
         missing = maintenance_health_row(("FFmpeg", False, "ffmpeg missing"))
+        active = maintenance_health_row(
+            (
+                "Process guard",
+                False,
+                "ActiveJobs record launch.json reports pipeline once as active and PID 123 is still running; Related MediaPipeline process PID(s) still running: 123",
+            )
+        )
 
         self.assertEqual(required["status"], "ok")
         self.assertFalse(required["optional"])
@@ -35,6 +42,10 @@ class MaintenanceFacadePolicyTests(unittest.TestCase):
         self.assertEqual(missing["tool_kind"], "ffmpeg")
         self.assertEqual(missing["tool_source"], "missing")
         self.assertIn("Remux/encode", missing["failure_scope"])
+        self.assertEqual(active["status"], "running")
+        self.assertEqual(active["operator_status"], "active")
+        self.assertEqual(active["tool_source"], "backend_evidence")
+        self.assertIn("expected while a pipeline run is in progress", active["operator_guidance"])
 
     def test_maintenance_health_rows_skip_malformed_items(self) -> None:
         rows = maintenance_health_rows(
@@ -64,6 +75,7 @@ class MaintenanceFacadePolicyTests(unittest.TestCase):
         rows = maintenance_health_rows(
             [
                 ("PowerShell (pwsh)", True, r"C:\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe"),
+                ("Process guard", False, "Related MediaPipeline process PID(s) still running: 123"),
                 ("ffmpeg", False, "Not found in bundled Tools or system PATH"),
                 ("ffprobe", True, r"C:\Pipeline\Tools\ffmpeg\bin\ffprobe.exe"),
                 ("nvidia-smi (optional)", False, "Not found - GPU encoder telemetry unavailable"),
@@ -77,8 +89,12 @@ class MaintenanceFacadePolicyTests(unittest.TestCase):
         self.assertTrue(evidence["read_only"])
         self.assertEqual(evidence["operator_status"], "blocked")
         self.assertEqual(evidence["required_missing_count"], 1)
+        self.assertEqual(evidence["active_count"], 1)
         self.assertEqual(evidence["optional_review_count"], 1)
         self.assertEqual(by_name["PowerShell (pwsh)"]["source"], "bundled")
+        self.assertEqual(by_name["Process guard"]["status"], "running")
+        self.assertEqual(by_name["Process guard"]["operator_status"], "active")
+        self.assertEqual(by_name["Process guard"]["source"], "backend_evidence")
         self.assertEqual(by_name["ffmpeg"]["operator_status"], "blocked")
         self.assertIn("media jobs may fail", by_name["ffmpeg"]["failure_scope"])
         self.assertEqual(by_name["nvidia-smi (optional)"]["operator_status"], "review")
@@ -114,6 +130,44 @@ class MaintenanceFacadePolicyTests(unittest.TestCase):
         self.assertEqual(steps["subtitle_bdpgs_ocr"]["status"], "blocked")
         self.assertIn("BDPGS OCR tool not found", steps["subtitle_bdpgs_ocr"]["detail"])
         self.assertEqual(steps["subtitle_vobsub_ocr"]["status"], "complete")
+
+    def test_expanded_health_rows_get_specific_tool_kinds_and_progress(self) -> None:
+        rows = maintenance_health_rows(
+            [
+                ("Config schema", True, r"C:\Pipeline\MediaPipeline_config.psd1; active config loaded and validated"),
+                ("Configured root: SourceMovies", True, r"C:\Media\Movies"),
+                ("Library output root: Movies", False, r"Directory not found: C:\Out\Movies"),
+                ("Runtime state files", True, "State root readable; parsed 2 existing state artifact(s)."),
+                ("SQLite mirror (optional)", True, "not present; JSON state remains authoritative."),
+                ("API contract", True, "42 route contract(s) available."),
+                ("Process guard", False, "Related MediaPipeline process PID(s) still running: 123"),
+                ("Bundle layout", True, "Canonical scripts present."),
+            ]
+        )
+        by_name = {row["name"]: row for row in rows}
+
+        self.assertEqual(by_name["Config schema"]["tool_kind"], "config_schema")
+        self.assertEqual(by_name["Configured root: SourceMovies"]["tool_kind"], "configured_root")
+        self.assertEqual(by_name["Library output root: Movies"]["tool_kind"], "library_output_root")
+        self.assertEqual(by_name["Runtime state files"]["tool_kind"], "runtime_state")
+        self.assertEqual(by_name["SQLite mirror (optional)"]["tool_kind"], "sqlite_mirror")
+        self.assertEqual(by_name["API contract"]["tool_kind"], "api_contract")
+        self.assertEqual(by_name["Process guard"]["tool_kind"], "process_guard")
+        self.assertEqual(by_name["Process guard"]["status"], "running")
+        self.assertEqual(by_name["Process guard"]["operator_status"], "active")
+        self.assertEqual(by_name["Bundle layout"]["tool_kind"], "bundle_layout")
+        self.assertEqual(by_name["Library output root: Movies"]["operator_status"], "blocked")
+        self.assertIn("Library-specific output", by_name["Library output root: Movies"]["failure_scope"])
+
+        progress = maintenance_health_progress(None, rows)
+        steps = {step["id"]: step for step in progress["steps"]}
+
+        self.assertEqual(steps["config_parse"]["status"], "complete")
+        self.assertEqual(steps["path_reachability"]["status"], "blocked")
+        self.assertEqual(steps["state_directory"]["status"], "complete")
+        self.assertEqual(steps["api_contract"]["status"], "complete")
+        self.assertEqual(steps["process_guard"]["status"], "active")
+        self.assertEqual(steps["bundle_layout"]["status"], "complete")
 
 
 if __name__ == "__main__":

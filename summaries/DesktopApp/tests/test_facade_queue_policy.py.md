@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_facade_queue_policy.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-05-31
-sha256: 88159fcf2f40074222b066066990acd18be2a417a82e4171d46bf848e5d98028
+sha256: 9db03a2cb9b0aebabd6a766ccc0ce35f3860f19229de939abe24d75451b802e3
 ---
 # `DesktopApp/tests/test_facade_queue_policy.py`
 

@@ -17,6 +17,7 @@ from app.queue.priority_markers import (
     priority_marker_destination,
     safe_mtime,
 )
+from app.queue.priority_manifest import get_manifest_level, read_priority_manifest, set_manifest_entry
 
 
 class QueuePriorityHelperTests(unittest.TestCase):
@@ -75,6 +76,47 @@ class QueuePriorityHelperTests(unittest.TestCase):
             self.assertTrue(is_priority)
             self.assertEqual(reasons, ["file", "folder:! Season 01"])
             self.assertEqual(rank, 200.0)
+
+    def test_manifest_normal_can_override_parent_priority(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest_path = root / "priority_manifest.json"
+            folder = root / "TV" / "Show"
+            media = folder / "S01E01.mkv"
+            sibling = folder / "S01E02.mkv"
+
+            set_manifest_entry(manifest_path, folder, "low", "folder low")
+            manifest = set_manifest_entry(manifest_path, media, "normal", "file normal")
+
+            self.assertEqual(get_manifest_level(manifest, media), "normal")
+            self.assertEqual(get_manifest_level(manifest, sibling), "low")
+            entries = read_priority_manifest(manifest_path)["entries"]
+            self.assertEqual(entries[str(media).replace("\\", "/").lower()]["level"], "normal")
+
+    def test_manifest_normal_without_parent_removes_exact_entry(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest_path = root / "priority_manifest.json"
+            media = root / "Movies" / "Movie.mkv"
+
+            set_manifest_entry(manifest_path, media, "high", "promote")
+            manifest = set_manifest_entry(manifest_path, media, "normal", "clear")
+
+            self.assertEqual(get_manifest_level(manifest, media), "normal")
+            self.assertEqual(read_priority_manifest(manifest_path)["entries"], {})
+
+    def test_manifest_new_priority_level_overwrites_exact_entry(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest_path = root / "priority_manifest.json"
+            media = root / "Movies" / "Movie.mkv"
+
+            set_manifest_entry(manifest_path, media, "low", "demote")
+            manifest = set_manifest_entry(manifest_path, media, "high", "promote")
+
+            key = str(media).replace("\\", "/").lower()
+            self.assertEqual(get_manifest_level(manifest, media), "high")
+            self.assertEqual(read_priority_manifest(manifest_path)["entries"][key]["level"], "high")
 
     def test_path_and_mtime_wrappers_remain_available_on_queue_service(self) -> None:
         with tempfile.TemporaryDirectory() as td:

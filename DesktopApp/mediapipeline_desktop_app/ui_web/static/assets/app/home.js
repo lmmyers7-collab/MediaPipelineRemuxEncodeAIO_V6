@@ -693,11 +693,6 @@
     const priority = queue.priority_count || rows.filter((r) => r?.is_priority).length || 0;
     const encodeRows = rows.filter((r) => String(r?.route_name || "").toLowerCase().includes("encode")).length;
     const remuxRows = rows.filter((r) => String(r?.route_name || "").toLowerCase().includes("remux")).length;
-    // Drive the dashboard "Queue" metric tile from the real snapshot data so
-    // it shows the actual queue size (runnable / total rows) rather than the
-    // active run's batch position (CurrentQueueIndex/Total), which was always
-    // 0/0 when the pipeline was idle.
-    setText("queue-count", `${runnable} / ${rows.length}`);
     const lines = [
       `Rows: ${rows.length} | Runnable: ${runnable} | Blocked: ${blocked}`,
       priority ? `Priority: ${priority}` : "",

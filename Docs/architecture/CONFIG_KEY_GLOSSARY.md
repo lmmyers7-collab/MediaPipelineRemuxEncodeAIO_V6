@@ -1,6 +1,6 @@
 # Config Key Glossary
 
-Last updated: 2026-05-30
+Last updated: 2026-06-03
 
 Operator-friendly glossary for major settings and config keys. Intended for operators who want to understand what a key does before editing it, and for documentation authors writing about config behavior.
 
@@ -56,14 +56,18 @@ Code constants live in `DesktopApp/mediapipeline_desktop_app/config_keys.py` and
 | `CompatibilityEncodeGrowthPercent` | Growth percent threshold used for compatibility-mode encode | Separate from MaxEncodeGrowthPercent to allow higher tolerance for compatibility encodes | Builder |
 | `EncodeThresholdGB` | Source file size above which the pipeline considers the file for size-guard checks in movie mode | Files smaller than this may bypass size-guard in some routing profiles | Builder |
 | `TVEncodeThresholdGB` | Same as EncodeThresholdGB but for TV episodes | Separate threshold for TV allows different policy by content type | Builder |
-| `MovieRouteMaxVideoBitrateMbps` | Maximum duration-derived movie bitrate allowed for remux/copy routing when bitrate routing is enabled | Sources above this bitrate are encoded only when `RouteThresholdMode` allows bitrate to act as a hard filter | Builder |
-| `TVRouteMaxVideoBitrateMbps` | Maximum duration-derived TV bitrate allowed for remux/copy routing when bitrate routing is enabled | Lets TV episodes use a lower bitrate ceiling than movies before encode is selected by bitrate-capable modes | Builder |
+| `MovieRouteMaxVideoBitrateMbps` | Fallback movie bitrate cap used when source height is unknown | Known source heights use the resolution-aware bucket caps instead; sources above the selected cap are encoded only when `RouteThresholdMode` allows bitrate to act as a hard filter | Builder |
+| `TVRouteMaxVideoBitrateMbps` | Fallback TV bitrate cap used when source height is unknown | Known source heights use the resolution-aware bucket caps instead; lets TV episodes keep a lower unknown-height fallback cap | Builder |
+| `Route1080pBucketMaxHeight` | Source-height maximum for the 1080-ish bitrate bucket | Height only selects which bitrate cap is evaluated; it does not force remux or encode by itself | Builder |
+| `Route1080pMaxVideoBitrateMbps` | Maximum duration-derived bitrate for sources in the 1080-ish bucket | Used for known-height sources at or below `Route1080pBucketMaxHeight` before bitrate-capable modes can force encode | Builder |
+| `Route4KBucketMinHeight` | Source-height minimum for the 4K bitrate bucket | Heights between the 1080-ish max and this value use the 4K cap by default | Builder |
+| `Route4KMaxVideoBitrateMbps` | Maximum duration-derived bitrate for the 4K and in-between buckets | Used for known-height sources above the 1080-ish bucket before bitrate-capable modes can force encode | Builder |
 | `AllowH264RemuxIfPlexCompatible` | Allow H.264 sources that pass Plex compatibility to be remuxed instead of encoded | Disabling forces encode of all H.264 regardless of compatibility | Builder |
 | `H264RemuxMaxBitrateMbps` | Maximum H.264 bitrate (Mbps) allowed for the Plex-compatible H.264 shortcut and effective H.264 copy scoring | Not a universal remux safety blocker; codec-safe fallback can still remux when hard routing does not force encode | Builder |
 | `H264RemuxMaxHeight` | Maximum video height allowed for the Plex-compatible H.264 shortcut | Not a universal remux safety blocker; taller H.264 can still remux later when codec-safe fallback allows it | Builder |
 | `RemuxSafeVideoCodecs` | List of video codecs the pipeline treats as remux-safe | Codecs not in this list are always encoded | Builder |
 
-Bitrate route decisions use bitrate estimated from `file_size_bytes` and `duration_seconds`. When duration is missing or zero, bitrate routing does not fall back to `source_media_profile.estimated_bitrate_mbps`; the route evidence reports zero estimated bitrate and the bitrate filter does not fire.
+Bitrate route decisions use bitrate estimated from `file_size_bytes` and `duration_seconds`. Source height selects the 1080-ish or 4K bitrate cap only when height is known; unknown height falls back to the movie/TV bitrate keys. When duration is missing or zero, bitrate routing does not fall back to `source_media_profile.estimated_bitrate_mbps`; the route evidence reports zero estimated bitrate and the bitrate filter does not fire.
 
 ---
 

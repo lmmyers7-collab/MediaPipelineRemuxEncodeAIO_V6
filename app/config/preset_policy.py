@@ -74,11 +74,28 @@ class DirectCopyMaxBitratePolicy(PresetPolicyModel):
     tv_mbps: float = Field(default=18.0, ge=0, alias="tvMbps")
 
 
+class ResolutionAwareBitratePolicy(PresetPolicyModel):
+    bucket_1080p_max_height: int = Field(default=1200, ge=1, le=4320, alias="bucket1080pMaxHeight")
+    bucket_1080p_max_bitrate_mbps: float = Field(default=20.0, gt=0, le=500, alias="bucket1080pMaxBitrateMbps")
+    bucket_4k_min_height: int = Field(default=1800, ge=1, le=4320, alias="bucket4kMinHeight")
+    bucket_4k_max_bitrate_mbps: float = Field(default=35.0, gt=0, le=500, alias="bucket4kMaxBitrateMbps")
+
+    @model_validator(mode="after")
+    def _validate_bucket_order(self) -> "ResolutionAwareBitratePolicy":
+        if self.bucket_1080p_max_height >= self.bucket_4k_min_height:
+            raise ValueError("bucket1080pMaxHeight must be lower than bucket4kMinHeight.")
+        return self
+
+
 class RoutingPolicy(PresetPolicyModel):
     enforcement_mode: RouteThresholdMode = Field(default="compatibility_advisory", alias="enforcementMode")
     direct_copy_max_bitrate: DirectCopyMaxBitratePolicy = Field(
         default_factory=DirectCopyMaxBitratePolicy,
         alias="directCopyMaxBitrate",
+    )
+    resolution_aware_bitrate: ResolutionAwareBitratePolicy = Field(
+        default_factory=ResolutionAwareBitratePolicy,
+        alias="resolutionAwareBitrate",
     )
     allow_h264_compatible_direct_copy: bool = Field(default=True, alias="allowH264CompatibleDirectCopy")
     h264_direct_copy_max_bitrate_mbps: float = Field(default=35.0, ge=0, alias="h264DirectCopyMaxBitrateMbps")
@@ -307,6 +324,7 @@ __all__ = [
     "PresetV2",
     "PresetValidationIssue",
     "PublishPolicy",
+    "ResolutionAwareBitratePolicy",
     "RoutingPolicy",
     "SizeGuardsPolicy",
     "OutputSizeCheckAction",

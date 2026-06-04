@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from app.queue.file_overrides import read_file_overrides
+from app.queue.priority_manifest import get_manifest_level, read_priority_manifest
 from app.queue.policy import (
     INVALID_QUEUE_SNAPSHOT_WARNING,
     NO_QUEUE_SNAPSHOT_WARNING,
@@ -38,6 +39,70 @@ from mediapipeline_desktop_app.models import QueueRecord, ResolvedPaths
 if TYPE_CHECKING:
     from mediapipeline_desktop_app.application.dto_commands import CommandResult
     from mediapipeline_desktop_app.application.dto_inventory import QueuePreviewDto
+
+
+def _queue_manifest_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value in (None, ""):
+        return False
+    return str(value).strip().casefold() in {"1", "true", "yes", "y", "on"}
+
+
+def _queue_manifest_media_kind(row: dict[str, object]) -> str:
+    media_kind = str(row.get("media_kind") or "").strip().casefold()
+    if media_kind in {"movie", "tv"}:
+        return media_kind
+    media_type = str(row.get("media_type") or "").strip().casefold()
+    if media_type == "tv" or _queue_manifest_bool(row.get("is_tv")):
+        return "tv"
+    return "movie"
+
+
+def _queue_phase_for_manifest_level(row: dict[str, object], level: str) -> str:
+    media_kind = _queue_manifest_media_kind(row)
+    if level == "hold":
+        return "hold"
+    if level == "low":
+        return "low"
+    if level == "high" or _queue_manifest_bool(row.get("is_priority")):
+        return "priority_tv" if media_kind == "tv" else "priority_movie"
+    return "tv" if media_kind == "tv" else "movie"
+
+
+def _queue_rows_with_priority_manifest(
+    raw_rows: object,
+    priority_manifest: dict[str, object],
+) -> list[object]:
+    if not isinstance(raw_rows, list):
+        return []
+    if not priority_manifest.get("entries"):
+        priority_manifest = {"version": 1, "entries": {}}
+
+    rows: list[object] = []
+    for raw_row in raw_rows:
+        if not isinstance(raw_row, dict):
+            rows.append(raw_row)
+            continue
+        source_path = str(raw_row.get("source_path") or "").strip()
+        if not source_path:
+            rows.append(raw_row)
+            continue
+        level = get_manifest_level(priority_manifest, source_path)
+        row = dict(raw_row)
+        row["manifest_priority_level"] = level
+        row["phase"] = _queue_phase_for_manifest_level(row, level)
+        rows.append(row)
+    return rows
+
+
+def _queue_priority_count_for_rows(rows: list[dict[str, object]]) -> int:
+    count = 0
+    for row in rows:
+        level = str(row.get("manifest_priority_level") or "normal").strip().casefold()
+        if level == "high" or (_queue_manifest_bool(row.get("is_priority")) and level == "normal"):
+            count += 1
+    return count
 
 
 def _queue_preview_dto(**fields: object) -> "QueuePreviewDto":
@@ -92,11 +157,19 @@ class QueueFacadeMixin:
                 queue_scan_status=queue_scan_status,
                 source_inventory=source_inventory,
             )
+        priority_manifest: dict[str, object] | None = None
+        if resolved.priority_manifest_path is not None:
+            priority_manifest = read_priority_manifest(resolved.priority_manifest_path)
         file_override_manifest = None
         if resolved.file_overrides_path is not None:
             file_override_manifest = read_file_overrides(resolved.file_overrides_path)
+        raw_rows = (
+            _queue_rows_with_priority_manifest(snapshot.get("rows") or [], priority_manifest)
+            if priority_manifest is not None
+            else snapshot.get("rows") or []
+        )
         rows = queue_preview_rows(
-            snapshot.get("rows") or [],
+            raw_rows,
             row_factory,
             file_override_manifest=file_override_manifest,
         )
@@ -114,8 +187,12 @@ class QueueFacadeMixin:
         warnings = queue_preview_warnings(rows)
         if runtime_outcome_warning:
             warnings.append(runtime_outcome_warning)
+        metadata_snapshot = dict(snapshot)
+        metadata_snapshot["rows"] = raw_rows
+        if priority_manifest is not None:
+            metadata_snapshot["priority_count"] = _queue_priority_count_for_rows(rows)
         metadata = queue_preview_metadata(
-            snapshot,
+            metadata_snapshot,
             rows,
             snapshot_path=snapshot_path,
             runtime_event_count=len(runtime_events),

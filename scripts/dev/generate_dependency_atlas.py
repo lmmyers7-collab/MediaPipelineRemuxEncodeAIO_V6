@@ -3,7 +3,7 @@
 The atlas intentionally avoids raw module-level output as the first view.
 It parses local imports with `ast`, groups modules into package/domain nodes,
 renders a major-edge overview with Graphviz, and writes drill-down diagrams
-plus CSV exports under `V6_dependency_atlas_assets/`.
+plus CSV exports under `V6_dependency_atlas/assets/`.
 """
 
 from __future__ import annotations
@@ -31,10 +31,13 @@ DEFAULT_PACKAGE_ROOTS = (
 )
 
 ROOT_OUTPUT_PREFIX = "V6_dependency_atlas"
-ROOT_HTML = REPO_ROOT / f"{ROOT_OUTPUT_PREFIX}.html"
-ROOT_PNG = REPO_ROOT / f"{ROOT_OUTPUT_PREFIX}.png"
-ROOT_SVG = REPO_ROOT / f"{ROOT_OUTPUT_PREFIX}.svg"
-ASSET_ROOT = REPO_ROOT / f"{ROOT_OUTPUT_PREFIX}_assets"
+OUTPUT_ROOT = REPO_ROOT / ROOT_OUTPUT_PREFIX
+ROOT_HTML = OUTPUT_ROOT / f"{ROOT_OUTPUT_PREFIX}.html"
+ROOT_PNG = OUTPUT_ROOT / f"{ROOT_OUTPUT_PREFIX}.png"
+ROOT_SVG = OUTPUT_ROOT / f"{ROOT_OUTPUT_PREFIX}.svg"
+ROOT_DOT = OUTPUT_ROOT / f"{ROOT_OUTPUT_PREFIX}.dot"
+ASSET_ROOT = OUTPUT_ROOT / "assets"
+LEGACY_ASSET_ROOT = REPO_ROOT / f"{ROOT_OUTPUT_PREFIX}_assets"
 
 SUMMARY_CSV = ASSET_ROOT / "dependency_summary.csv"
 DOMAIN_EDGE_CSV = ASSET_ROOT / "dependency_edges.csv"
@@ -131,7 +134,8 @@ def resolve_dot(explicit_path: Path | None) -> Path:
 
 
 def clean_outputs() -> None:
-    ASSET_ROOT.mkdir(exist_ok=True)
+    OUTPUT_ROOT.mkdir(exist_ok=True)
+    ASSET_ROOT.mkdir(parents=True, exist_ok=True)
     for pattern in (
         "V6_dependency_detail_*.dot",
         "V6_dependency_detail_*.png",
@@ -140,8 +144,20 @@ def clean_outputs() -> None:
     ):
         for path in ASSET_ROOT.glob(pattern):
             path.unlink()
-    for path in (ROOT_HTML, ROOT_PNG, ROOT_SVG, REPO_ROOT / f"{ROOT_OUTPUT_PREFIX}.dot"):
+    for path in (ROOT_HTML, ROOT_PNG, ROOT_SVG, ROOT_DOT):
         path.unlink(missing_ok=True)
+    for path in (
+        REPO_ROOT / f"{ROOT_OUTPUT_PREFIX}.html",
+        REPO_ROOT / f"{ROOT_OUTPUT_PREFIX}.png",
+        REPO_ROOT / f"{ROOT_OUTPUT_PREFIX}.svg",
+        REPO_ROOT / f"{ROOT_OUTPUT_PREFIX}.dot",
+    ):
+        path.unlink(missing_ok=True)
+    if LEGACY_ASSET_ROOT.exists() and LEGACY_ASSET_ROOT.is_dir():
+        legacy_asset_root = LEGACY_ASSET_ROOT.resolve()
+        if legacy_asset_root.parent != REPO_ROOT.resolve():
+            raise RuntimeError(f"Refusing to remove unexpected atlas asset path: {legacy_asset_root}")
+        shutil.rmtree(legacy_asset_root)
 
     # Remove earlier one-off dependency graph names from the manual setup pass.
     for stale in (
@@ -356,7 +372,7 @@ def render_overview_dot(data: AtlasData, min_edge_count: int, min_files: int) ->
 
 
 def write_overview_images(data: AtlasData, dot_path: Path, min_edge_count: int, min_files: int) -> None:
-    source_dot = REPO_ROOT / f"{ROOT_OUTPUT_PREFIX}.dot"
+    source_dot = ROOT_DOT
     source_dot.write_text(
         render_overview_dot(data, min_edge_count=min_edge_count, min_files=min_files),
         encoding="utf-8",
@@ -543,7 +559,7 @@ def write_detail_images(data: AtlasData, dot_path: Path) -> list[DetailRecord]:
 
 
 def html_link(path: Path) -> str:
-    return html.escape(display_path(path))
+    return html.escape(path.relative_to(ROOT_HTML.parent).as_posix())
 
 
 def render_html(
@@ -589,9 +605,9 @@ def render_html(
         '<p class="links">'
         '<a href="V6_dependency_atlas.png">Root PNG overview</a>'
         '<a href="V6_dependency_atlas.svg">Root SVG overview</a>'
-        '<a href="V6_dependency_atlas_assets/dependency_summary.csv">Summary CSV</a>'
-        '<a href="V6_dependency_atlas_assets/dependency_edges.csv">Domain edge CSV</a>'
-        '<a href="V6_dependency_atlas_assets/dependency_module_edges.csv">Module edge CSV</a>'
+        '<a href="assets/dependency_summary.csv">Summary CSV</a>'
+        '<a href="assets/dependency_edges.csv">Domain edge CSV</a>'
+        '<a href="assets/dependency_module_edges.csv">Module edge CSV</a>'
         "</p>",
         '<p class="legend">'
         '<span><i class="swatch" style="background:#dbeafe"></i>app domain</span>'
@@ -688,7 +704,7 @@ def validate_html_links() -> int:
     for link in links:
         if link.startswith(("http://", "https://", "#")):
             continue
-        path = REPO_ROOT / Path(link)
+        path = ROOT_HTML.parent / Path(link)
         if not path.exists():
             raise FileNotFoundError(f"Atlas link does not resolve: {link}")
     return len(links)

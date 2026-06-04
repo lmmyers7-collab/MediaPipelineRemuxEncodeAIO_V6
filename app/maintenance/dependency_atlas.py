@@ -34,10 +34,11 @@ class DependencyAtlasServiceMixin:
     ) -> dict[str, Any]:
         script = self.dependency_atlas_generator_path()
         python_path = self.dependency_atlas_python_path()
-        html_path = self.workspace_root / "V6_dependency_atlas.html"
-        png_path = self.workspace_root / "V6_dependency_atlas.png"
-        svg_path = self.workspace_root / "V6_dependency_atlas.svg"
-        assets_dir = self.workspace_root / "V6_dependency_atlas_assets"
+        output_dir = self.workspace_root / "V6_dependency_atlas"
+        html_path = output_dir / "V6_dependency_atlas.html"
+        png_path = output_dir / "V6_dependency_atlas.png"
+        svg_path = output_dir / "V6_dependency_atlas.svg"
+        assets_dir = output_dir / "assets"
         summary_csv = assets_dir / "dependency_summary.csv"
         domain_edges_csv = assets_dir / "dependency_edges.csv"
         module_edges_csv = assets_dir / "dependency_module_edges.csv"

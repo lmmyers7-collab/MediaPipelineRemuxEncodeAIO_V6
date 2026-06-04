@@ -3,9 +3,9 @@ file: app/maintenance/dependency_atlas.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-05-31
+last_modified: 2026-06-03
 last_reviewed: 2026-05-31
-sha256: 864488cb6de015c1b4f0aa6e6d9eefac04f9878d0e2279e65306a17de194044b
+sha256: 279f01ef574bf13d9a12373c5180c8d9b9f71b6e84f8e19ff72a258550637823
 ---
 # `app/maintenance/dependency_atlas.py`
 

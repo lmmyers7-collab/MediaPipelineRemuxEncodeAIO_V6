@@ -13,6 +13,13 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Added
 
+- Maintenance Change Ledger:
+  `GET /api/maintenance/change-ledger` now returns a read-only
+  `desktop_change_ledger.v1` payload built from existing change-control
+  packets, generated changelog/index source status, and root changelog
+  evidence. Maintenance renders the ledger with status/type/risk/search
+  filters, selected change detail, affected Python-script summaries, and
+  changelog hygiene guidance without running health probes or mutating files.
 - God-file split planning docs under `Docs/architecture/god-file-splits/`
   for the highest-priority Settings, Completed, Queue, file-overrides API,
   and network dispatcher split candidates.

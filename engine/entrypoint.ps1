@@ -383,6 +383,10 @@ function Assert-StagePayloadContract {
                     'tv_encode_threshold_gb',
                     'movie_route_max_video_bitrate_mbps',
                     'tv_route_max_video_bitrate_mbps',
+                    'route_1080p_bucket_max_height',
+                    'route_1080p_max_video_bitrate_mbps',
+                    'route_4k_bucket_min_height',
+                    'route_4k_max_video_bitrate_mbps',
                     'allow_h264_remux_if_plex_compatible',
                     'h264_remux_max_bitrate_mbps',
                     'h264_remux_max_height',
@@ -414,6 +418,18 @@ function Assert-StagePayloadContract {
             Assert-StageNumberField -Payload $Payload -Name 'tv_encode_threshold_gb' -Minimum 0 -ExclusiveMinimum
             Assert-StageNumberField -Payload $Payload -Name 'movie_route_max_video_bitrate_mbps' -Minimum 0 -Maximum 500 -ExclusiveMinimum
             Assert-StageNumberField -Payload $Payload -Name 'tv_route_max_video_bitrate_mbps' -Minimum 0 -Maximum 500 -ExclusiveMinimum
+            Assert-StageIntegerField -Payload $Payload -Name 'route_1080p_bucket_max_height' -Minimum 1 -Maximum 4320
+            Assert-StageNumberField -Payload $Payload -Name 'route_1080p_max_video_bitrate_mbps' -Minimum 0 -Maximum 500 -ExclusiveMinimum
+            Assert-StageIntegerField -Payload $Payload -Name 'route_4k_bucket_min_height' -Minimum 1 -Maximum 4320
+            Assert-StageNumberField -Payload $Payload -Name 'route_4k_max_video_bitrate_mbps' -Minimum 0 -Maximum 500 -ExclusiveMinimum
+            if ((Test-ObjectHasProperty -Object $Payload -Name 'route_1080p_bucket_max_height') -and
+                (Test-ObjectHasProperty -Object $Payload -Name 'route_4k_bucket_min_height')) {
+                $route1080pMaxHeight = [int](Get-ObjectValue -Object $Payload -Name 'route_1080p_bucket_max_height' -Default 1200)
+                $route4kMinHeight = [int](Get-ObjectValue -Object $Payload -Name 'route_4k_bucket_min_height' -Default 1800)
+                if ($route1080pMaxHeight -ge $route4kMinHeight) {
+                    throw "route_1080p_bucket_max_height must be lower than route_4k_bucket_min_height"
+                }
+            }
             Assert-StageBooleanField -Payload $Payload -Name 'allow_h264_remux_if_plex_compatible'
             Assert-StageNumberField -Payload $Payload -Name 'h264_remux_max_bitrate_mbps' -Minimum 0 -ExclusiveMinimum
             Assert-StageIntegerField -Payload $Payload -Name 'h264_remux_max_height' -Minimum 1 -Maximum 4320

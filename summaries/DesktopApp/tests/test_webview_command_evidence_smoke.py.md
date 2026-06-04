@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_webview_command_evidence_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-06-01
-sha256: 9fdd6f17b4d4b6e5d90a860c3e510d6e385f0f61d4517d0188e5e57957890a59
+sha256: 476f7589918280163601d9f1c3513798fd639b287609c8a754e0d5980407fb11
 ---
 # `DesktopApp/tests/test_webview_command_evidence_smoke.py`
 

@@ -1,6 +1,6 @@
 # Current Project State
 
-Last updated: 2026-05-30
+Last updated: 2026-06-04
 
 This is the fast entry point for future AI/code agents. Read this before older audits, Claude task files, or historical checklists.
 
@@ -37,6 +37,7 @@ V6 is where active WebView/Tauri refinement, documentation cleanup, tests, packa
 - 2026-05-28 handoff status was reconciled: representative real-media validation is complete by operator attestation; `Docs/RealMediaValidationRuns/README.md` is the non-sensitive evidence anchor.
 - 2026-05-30 active handoff docs were refreshed for the promoted V6 state: old root launcher shims are no longer documented as available, and default-launcher promotion is closed by operator confirmation.
 - 2026-05-30 WebView split/tooling work is present for continued plain-script cleanup: generated WebView split maps, split-candidate reports, public-contract baselines, DOM-ID gap reports, route-ownership guards, ESLint warning budgets, and guardrail/runbook docs now exist. This is frontend maintainability and drift-prevention work; it does not change backend media policy.
+- 2026-06-04 completed/superseded Markdown bodies were archived out of the active docs tree under `Docs/archive/docs-housekeeping/2026-06-04-completed-md-pass/`. The archived set covers historical audits, the completed dependency-refactor phase tracker, and the completed UX-001 through UX-017 remediation tracker. Redirect stubs remain where active notes still use the old audit or UX paths.
 
 ## Main Launchers
 
@@ -115,7 +116,7 @@ Default-launcher promotion is complete by operator confirmation on 2026-05-30. R
 
 - 2026-05-19 code-management cleanup completed the planned god-file split waves. The old god-file split plan and full executed plans were moved into the 2026-05-20 housekeeping quarantine under `Docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/`.
 - 2026-05-19 WebView flat-export cleanup removed broad direct `window.*` compatibility aliases while preserving canonical namespace objects and passing inventory, static, Local API, sample-validation, and browser smoke coverage.
-- 2026-05-20 Wave C code cleanup was closed as a finite checklist item. The old code-management planning material is no longer an active proposal file; member-level JSDoc and medium-confidence flat-export cleanup are now opportunistic per-module maintenance guardrails tracked through `Docs/audits/DEAD_EXPORT_AUDIT_2026-05-19.md`, `Docs/DOC_TOUCH_LOG.md`, and touched-module tests.
+- 2026-05-20 Wave C code cleanup was closed as a finite checklist item. The old code-management planning material is no longer an active proposal file; member-level JSDoc and medium-confidence flat-export cleanup are now opportunistic per-module maintenance guardrails tracked through `Docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md`, archived audit evidence under `Docs/archive/docs-housekeeping/2026-06-04-completed-md-pass/audits/`, `Docs/DOC_TOUCH_LOG.md`, and touched-module tests.
 - 2026-05-19 Pending Publish safety coverage added `Pipeline\Tests\Unit\Invoke-PendingPublishSafetyChecks.ps1` and fixed ordered pending-transaction property lookup plus sidecar rollback restore behavior.
 - 2026-05-19 Rename undo manifests now default under `State\RenameUndo` when service state or app root is available, including legacy app-root `app_state.json` startup.
 - 2026-05-19 repo hygiene removed rebuildable ignored `.pytest_cache` and Tauri Rust `src-tauri\target` build output after path-boundary verification.

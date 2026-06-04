@@ -737,6 +737,7 @@ function Filter-SubtitleStreams {
     $tx3gConvert = [System.Collections.Generic.List[hashtable]]::new()
     $bdpgsConvert = [System.Collections.Generic.List[hashtable]]::new()
     $vobSubConvert = [System.Collections.Generic.List[hashtable]]::new()
+    $burn        = [System.Collections.Generic.List[hashtable]]::new()
     $drop        = [System.Collections.Generic.List[hashtable]]::new()
     $decisions   = [System.Collections.Generic.List[object]]::new()
 
@@ -750,12 +751,12 @@ function Filter-SubtitleStreams {
         $reason = "${Context}Subtitle probe failed with exit $($r.ExitCode)"
         if ($r.Error) { $reason = "$reason`: $($r.Error)" }
         Write-Log $reason "ERROR"
-        return @{ Ok=$false; ProbeFailed=$true; ErrorCode='SUBTITLE_PROBE_FAILED'; Reason=$reason; Keep=@($keep); Convert=@($convert); Tx3gConvert=@($tx3gConvert); BdpgsConvert=@($bdpgsConvert); VobSubConvert=@($vobSubConvert); Drop=@($drop); Decisions=@($decisions) }
+        return @{ Ok=$false; ProbeFailed=$true; ErrorCode='SUBTITLE_PROBE_FAILED'; Reason=$reason; Keep=@($keep); Convert=@($convert); Tx3gConvert=@($tx3gConvert); BdpgsConvert=@($bdpgsConvert); VobSubConvert=@($vobSubConvert); Burn=@($burn); Drop=@($drop); Decisions=@($decisions) }
     }
     try { $probe = $r.Output | ConvertFrom-Json } catch {
         $reason = "${Context}Subtitle probe returned invalid JSON: $($_.Exception.Message)"
         Write-Log $reason "ERROR"
-        return @{ Ok=$false; ProbeFailed=$true; ErrorCode='SUBTITLE_PROBE_JSON_INVALID'; Reason=$reason; Keep=@($keep); Convert=@($convert); Tx3gConvert=@($tx3gConvert); BdpgsConvert=@($bdpgsConvert); VobSubConvert=@($vobSubConvert); Drop=@($drop); Decisions=@($decisions) }
+        return @{ Ok=$false; ProbeFailed=$true; ErrorCode='SUBTITLE_PROBE_JSON_INVALID'; Reason=$reason; Keep=@($keep); Convert=@($convert); Tx3gConvert=@($tx3gConvert); BdpgsConvert=@($bdpgsConvert); VobSubConvert=@($vobSubConvert); Burn=@($burn); Drop=@($drop); Decisions=@($decisions) }
     }
     if (-not $probe.streams -or $probe.streams.Count -eq 0) {
         $probe = [pscustomobject]@{ streams = @() }
@@ -766,10 +767,89 @@ function Filter-SubtitleStreams {
     if (Get-Command -Name Assert-FileOverrideExactTrackSelectorsResolvable -ErrorAction SilentlyContinue) {
         Assert-FileOverrideExactTrackSelectorsResolvable -TrackKind 'subtitle' -Tracks @($probe.streams) -OverrideSection $subtitleOverride
     }
+    $subtitleBurnTrack = if (Get-Command -Name Get-FileOverrideSubtitleBurnTrack -ErrorAction SilentlyContinue) {
+        Get-FileOverrideSubtitleBurnTrack -SubtitleOverride $subtitleOverride
+    } else {
+        $null
+    }
+    $subtitleBurnActive = ($null -ne $subtitleBurnTrack)
 
     $subtitleOrdinal = 0
+    $inputSubtitleOrdinal = 0
     foreach ($s in $probe.streams) {
+        $currentInputSubtitleOrdinal = $inputSubtitleOrdinal
+        $inputSubtitleOrdinal++
         $policy = Resolve-SubtitleStreamPolicy -Stream $s -SubtitleOrdinal $subtitleOrdinal
+        $sourceStreamIndex = if ($null -ne $s.PSObject.Properties['index']) { $s.index } else { $null }
+
+        if ($subtitleBurnActive) {
+            $isBurnedTrack = if (Get-Command -Name Test-SubtitleTrackBurnedByOverride -ErrorAction SilentlyContinue) {
+                Test-SubtitleTrackBurnedByOverride `
+                    -Language $policy.Lang `
+                    -IsForced:([bool]$policy.IsForced) `
+                    -Title $policy.RawTitle `
+                    -Codec $policy.Codec `
+                    -StreamIndex $sourceStreamIndex `
+                    -SubtitleOverride $subtitleOverride
+            } else {
+                $false
+            }
+            if ($isBurnedTrack) {
+                $entry = New-SubtitleFilterEntry -Policy $policy
+                $entry['SubtitleInputOrdinal'] = $currentInputSubtitleOrdinal
+                $entry['BurnEncodeProfile'] = 'current_encode_style'
+                $burn.Add($entry)
+                Write-Log "${Context}BURN subtitle stream $sourceStreamIndex ($($policy.Lang)) '$($policy.RawTitle)' into video; all selectable subtitle outputs will be dropped" "WARN"
+                $decisions.Add([pscustomobject]@{
+                    source_stream_index = $sourceStreamIndex
+                    source_kind         = 'embedded'
+                    subtitle_ordinal    = $currentInputSubtitleOrdinal
+                    subtitle_input_ordinal = $currentInputSubtitleOrdinal
+                    action              = 'burn'
+                    reason              = 'file_override_burn_track'
+                    language            = [string]$policy.Lang
+                    source_codec        = [string]$policy.Codec
+                    codec_tag_string    = [string]$policy.CodecTagString
+                    title               = [string]$policy.RawTitle
+                    raw_title           = [string]$policy.RawTitle
+                    is_default          = [bool]$policy.IsDefault
+                    source_is_default   = [bool]$policy.SourceIsDefault
+                    is_forced           = [bool]$policy.IsForced
+                    is_sdh              = [bool]$policy.IsSdh
+                    is_supplemental     = [bool]$policy.IsSupplemental
+                    is_tx3g             = [bool]$policy.IsTx3g
+                    is_bdpgs            = [bool]$policy.IsBdpgs
+                    is_vobsub           = [bool]$policy.IsVobSub
+                    is_ass              = ([string]$policy.Codec -in (Get-MediaSubtitleCodecAssNames))
+                    burn_encode_profile = 'current_encode_style'
+                }) | Out-Null
+                continue
+            }
+            $drop.Add(@{Stream=$s; Lang=$policy.Lang; Title=$policy.RawTitle})
+            $decisions.Add([pscustomobject]@{
+                source_stream_index = $sourceStreamIndex
+                subtitle_ordinal    = $currentInputSubtitleOrdinal
+                subtitle_input_ordinal = $currentInputSubtitleOrdinal
+                action              = 'drop'
+                reason              = 'file_override_burn_drops_selectable_subtitles'
+                language            = [string]$policy.Lang
+                source_codec        = [string]$policy.Codec
+                codec_tag_string    = [string]$policy.CodecTagString
+                title               = [string]$policy.RawTitle
+                raw_title           = [string]$policy.RawTitle
+                is_default          = [bool]$policy.IsDefault
+                source_is_default   = [bool]$policy.SourceIsDefault
+                is_forced           = [bool]$policy.IsForced
+                is_sdh              = [bool]$policy.IsSdh
+                is_supplemental     = [bool]$policy.IsSupplemental
+                is_tx3g             = [bool]$policy.IsTx3g
+                is_bdpgs            = [bool]$policy.IsBdpgs
+                is_vobsub           = [bool]$policy.IsVobSub
+                is_ass              = ([string]$policy.Codec -in (Get-MediaSubtitleCodecAssNames))
+            }) | Out-Null
+            continue
+        }
+
         if (-not $policy.Retain) {
             $drop.Add(@{Stream=$s; Lang=$policy.Lang; Title=$policy.RawTitle})
             $decisions.Add([pscustomobject]@{
@@ -796,7 +876,6 @@ function Filter-SubtitleStreams {
         }
 
         # Per-file override: subtitle track filter (runs only on tracks that passed language/title policy).
-        $sourceStreamIndex = if ($null -ne $s.PSObject.Properties['index']) { $s.index } else { $null }
         if (-not (Test-SubtitleTrackKeptByOverride `
                 -Language $policy.Lang `
                 -IsForced:([bool]$policy.IsForced) `
@@ -849,7 +928,7 @@ function Filter-SubtitleStreams {
 
     $sidecarSourcePath = if (-not [string]::IsNullOrWhiteSpace($OriginalSourcePath)) { $OriginalSourcePath } else { $FilePath }
     $scanVobSubSidecars = $true
-    if ($scanVobSubSidecars -and (Get-Command -Name Find-VobSubSidecarPairs -ErrorAction SilentlyContinue) -and (Get-Command -Name New-VobSubSidecarSubtitleEntry -ErrorAction SilentlyContinue)) {
+    if (-not $subtitleBurnActive -and $scanVobSubSidecars -and (Get-Command -Name Find-VobSubSidecarPairs -ErrorAction SilentlyContinue) -and (Get-Command -Name New-VobSubSidecarSubtitleEntry -ErrorAction SilentlyContinue)) {
         foreach ($pair in @(Find-VobSubSidecarPairs -MediaPath $sidecarSourcePath -Context $Context)) {
             $entry = New-VobSubSidecarSubtitleEntry -Pair $pair -SubtitleOrdinal $subtitleOrdinal
             if (-not [bool]$entry.Retain) {
@@ -928,7 +1007,7 @@ function Filter-SubtitleStreams {
         }
     }
 
-    Write-Log "${Context}Subtitles: $($keep.Count) keep-as-is, $($convert.Count) ASS->SRT, $($tx3gConvert.Count) TX3G->SRT, $($bdpgsConvert.Count) BDPGS->SRT, $($vobSubConvert.Count) VobSub->SRT, $($drop.Count) dropped"
+    Write-Log "${Context}Subtitles: $($keep.Count) keep-as-is, $($convert.Count) ASS->SRT, $($tx3gConvert.Count) TX3G->SRT, $($bdpgsConvert.Count) BDPGS->SRT, $($vobSubConvert.Count) VobSub->SRT, $($burn.Count) burn-in, $($drop.Count) dropped"
     Set-LastSubtitleDecisionRecords @($decisions)
-    return @{ Ok=$true; ProbeFailed=$false; ErrorCode=''; Reason=''; Keep=@($keep); Convert=@($convert); Tx3gConvert=@($tx3gConvert); BdpgsConvert=@($bdpgsConvert); VobSubConvert=@($vobSubConvert); Drop=@($drop); Decisions=@($decisions) }
+    return @{ Ok=$true; ProbeFailed=$false; ErrorCode=''; Reason=''; Keep=@($keep); Convert=@($convert); Tx3gConvert=@($tx3gConvert); BdpgsConvert=@($bdpgsConvert); VobSubConvert=@($vobSubConvert); Burn=@($burn); Drop=@($drop); Decisions=@($decisions) }
 }

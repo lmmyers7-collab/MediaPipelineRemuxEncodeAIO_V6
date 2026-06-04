@@ -337,6 +337,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("id=\\\"settings-effective-policy-detail\\\"", source)
         self.assertIn("id=\\\"settings-handbrake-preview-status\\\"", source)
         self.assertIn("id=\\\"settings-handbrake-decision\\\"", source)
+        self.assertIn("NOT EVALUATED", source)
         self.assertIn("id=\\\"settings-handbrake-active-preset\\\"", source)
         self.assertIn("id=\\\"settings-builder-routing-profile\\\"", source)
         self.assertIn("id=\\\"settings-builder-output-container\\\"", source)

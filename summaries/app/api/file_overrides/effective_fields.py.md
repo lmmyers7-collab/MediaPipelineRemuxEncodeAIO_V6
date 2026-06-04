@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: api
 last_modified: 2026-06-03
 last_reviewed: 2026-06-03
-sha256: cc50f5a0c2ea53aaafe4a6856224fae7b7fda11b96e38e79f7d2dc55a86700a5
+sha256: 77f547e8ea1db5b88df08851214ce63c04779097c2d55d56613d25aaca3da8a8
 ---
 # `app/api/file_overrides/effective_fields.py`
 

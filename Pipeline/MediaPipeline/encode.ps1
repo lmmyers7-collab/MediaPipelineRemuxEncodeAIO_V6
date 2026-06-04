@@ -170,6 +170,7 @@ function Do-Encode {
             -GlobalTitle $globalTitle `
             -AudioArgs $audioArgs `
             -SubtitleMapArgs $subResult.MapArgs `
+            -VideoFilterArgs $subResult.VideoFilterArgs `
             -OutputPath $tempOut `
             -VideoCodec $VideoCodec `
             -VideoPreset $VideoPreset `
@@ -220,6 +221,7 @@ function Do-Encode {
                     -GlobalTitle $globalTitle `
                     -AudioArgs $audioArgs `
                     -SubtitleMapArgs $subResult.MapArgs `
+                    -VideoFilterArgs $subResult.VideoFilterArgs `
                     -OutputPath $tempOut `
                     -VideoCodec $VideoCodec `
                     -VideoPreset $VideoPreset `
@@ -300,6 +302,7 @@ function Do-Encode {
                     -GlobalTitle $globalTitle `
                     -AudioArgs $audioArgs `
                     -SubtitleMapArgs $subResult.MapArgs `
+                    -VideoFilterArgs $subResult.VideoFilterArgs `
                     -OutputPath $tempOut `
                     -VideoCodec $VideoCodec `
                     -VideoPreset $VideoPreset `

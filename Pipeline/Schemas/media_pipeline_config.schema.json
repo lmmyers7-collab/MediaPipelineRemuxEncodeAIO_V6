@@ -69,6 +69,10 @@
                   "TVEncodeThresholdGB": {},
                   "MovieRouteMaxVideoBitrateMbps": {},
                   "TVRouteMaxVideoBitrateMbps": {},
+                  "Route1080pBucketMaxHeight": {},
+                  "Route1080pMaxVideoBitrateMbps": {},
+                  "Route4KBucketMinHeight": {},
+                  "Route4KMaxVideoBitrateMbps": {},
                   "MaxEncodeGrowthPercent": {},
                   "CompatibilityEncodeGrowthPercent": {}
                 }
@@ -162,6 +166,10 @@
               "TVEncodeThresholdGB": {},
               "MovieRouteMaxVideoBitrateMbps": {},
               "TVRouteMaxVideoBitrateMbps": {},
+              "Route1080pBucketMaxHeight": {},
+              "Route1080pMaxVideoBitrateMbps": {},
+              "Route4KBucketMinHeight": {},
+              "Route4KMaxVideoBitrateMbps": {},
               "MaxEncodeGrowthPercent": {},
               "CompatibilityEncodeGrowthPercent": {}
             }
@@ -243,6 +251,10 @@
     },
     "MovieRouteMaxVideoBitrateMbps": { "type": "integer", "minimum": 1, "maximum": 500 },
     "TVRouteMaxVideoBitrateMbps": { "type": "integer", "minimum": 1, "maximum": 500 },
+    "Route1080pBucketMaxHeight": { "type": "integer", "minimum": 1, "maximum": 4320 },
+    "Route1080pMaxVideoBitrateMbps": { "type": "integer", "minimum": 1, "maximum": 500 },
+    "Route4KBucketMinHeight": { "type": "integer", "minimum": 1, "maximum": 4320 },
+    "Route4KMaxVideoBitrateMbps": { "type": "integer", "minimum": 1, "maximum": 500 },
     "AllowH264RemuxIfPlexCompatible": { "type": "boolean" },
     "H264RemuxMaxBitrateMbps": { "type": "integer", "minimum": 1, "maximum": 500 },
     "H264RemuxMaxHeight": { "type": "integer", "minimum": 1, "maximum": 4320 },

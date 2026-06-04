@@ -69,6 +69,25 @@ LOCAL_API_FILE_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
     },
     {
         "method": "POST",
+        "path": "/api/queue/file-overrides/series-preview",
+        "auth_required": True,
+        "effect": "read-only-preview",
+        "request_keys": ["path", "proposed_override"],
+        "response_schema": "queue_file_override_series_preview.v1",
+        "purpose": "Preview applying the current per-file override drawer fields to matching current TV queue rows under configured source roots (SourceMovies, SourceTV, or enabled LibraryProfiles source roots). Detection is backend-owned from the current queue snapshot and does not write file_overrides.json, create folder/show future policies, enqueue work, process media, or mutate source files.",
+    },
+    {
+        "method": "POST",
+        "path": "/api/queue/file-overrides/series-apply",
+        "auth_required": True,
+        "effect": "queue-state-write",
+        "request_keys": ["path", "proposed_override", "confirm_apply", "preview_fingerprint"],
+        "response_schema": "desktop_command_result.v1",
+        "data_schema": "queue_file_overrides.v1",
+        "purpose": "After explicit confirmation and a matching preview fingerprint for a path under configured source roots (SourceMovies, SourceTV, or enabled LibraryProfiles source roots), write exact per-file overrides for eligible current TV queue rows in the detected series. Exact manual file overrides are protected, previous series batch overrides may be replaced, and no future folder/show rule is created. This does not process media or mutate source files.",
+    },
+    {
+        "method": "POST",
         "path": "/api/queue/file-overrides/folder-preview",
         "auth_required": True,
         "effect": "read-only-preview",
@@ -256,7 +275,7 @@ LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
             "min_overview_files": 2,
         },
         "response_schema": "desktop_command_result.v1",
-        "purpose": "Regenerate V6_dependency_atlas HTML, PNG/SVG diagrams, and CSV exports under the repository root through the backend tooling runner. It does not touch media, queue, settings, manifests, or pipeline state.",
+        "purpose": "Regenerate dependency-atlas HTML, PNG/SVG diagrams, and CSV exports under the repository-root V6_dependency_atlas folder through the backend tooling runner. It does not touch media, queue, settings, manifests, or pipeline state.",
     },
 )
 
@@ -583,7 +602,7 @@ LOCAL_API_PROCESS_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "effect": "audit-state-write",
         "request_keys": ["policy", "reset"],
         "response_schema": "desktop_command_result.v1",
-        "data_schema": "desktop_audit_score_policy_result.v1",
+        "data_schema": "desktop_audit_score_policy_result.v2",
         "purpose": "Save or reset backend-owned audit score weights used by future audit report generation without changing queue, settings, or media files.",
     },
     {

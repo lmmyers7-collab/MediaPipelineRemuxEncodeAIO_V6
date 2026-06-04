@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_app_config_contract.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-29
+last_modified: 2026-06-03
 last_reviewed: 2026-05-29
-sha256: 557fc37a78bfa36dec975da2e7190552c99223ec7ce6180444b5fdff596ee034
+sha256: 9e738ba639fb8a38733327bff4acce140ff3670e66283ab812bc84e06c4774c4
 ---
 # `DesktopApp/tests/test_app_config_contract.py`
 

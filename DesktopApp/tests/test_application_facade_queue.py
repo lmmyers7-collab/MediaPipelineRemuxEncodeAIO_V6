@@ -18,6 +18,7 @@ from app.queue.source_inventory import (
     queue_source_inventory_path,
     write_json_artifact,
 )
+from app.queue.priority_manifest import set_manifest_entry
 from DesktopApp.tests.test_application_facade import DummyWorkflowFacadeService, _resolved
 
 
@@ -286,6 +287,198 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
         self.assertEqual(preview["rows"][0]["last_write_utc"], "2026-05-07T21:00:00Z")
         self.assertEqual(preview["rows"][0]["queue_index"], 1)
         self.assertTrue(preview["rows"][0]["row_key"])
+
+    def test_queue_preview_overlays_current_manifest_on_stale_snapshot_priority(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            state_root = root / "State"
+            snapshot_path = state_root / "Progress" / "queue_snapshot.json"
+            snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+            source = root / "TV" / "Mob Psycho 100" / "S2" / "[Judas] Mob Psycho 100 - S02E05.mkv"
+            source.parent.mkdir(parents=True, exist_ok=True)
+            source.write_bytes(b"media")
+            snapshot_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "queue_plan_snapshot.v1",
+                        "produced_at": "2026-06-04T02:00:04+00:00",
+                        "config_path": str(root / "config.psd1"),
+                        "local_base": str(root),
+                        "source_movies": str(root / "Movies"),
+                        "source_tv": str(root / "TV"),
+                        "outsource": str(root / "Outsource"),
+                        "movie_count_total": 0,
+                        "tv_count_total": 1,
+                        "priority_count": 0,
+                        "runnable_count": 1,
+                        "rows": [
+                            {
+                                "global_order": 63,
+                                "phase": "low",
+                                "manifest_priority_level": "low",
+                                "media_kind": "tv",
+                                "queue_index": 1,
+                                "queue_total": 1,
+                                "is_priority": False,
+                                "source_path": str(source),
+                                "root_path": str(root / "TV"),
+                                "relative_path": r"Mob Psycho 100\S2\[Judas] Mob Psycho 100 - S02E05.mkv",
+                                "display_name": "[Judas] Mob Psycho 100 - S02E05",
+                                "size_gb": 1.25,
+                                "route": "remux",
+                                "route_reason_code": "copy_compatible",
+                                "route_reason": "already compatible",
+                                "blocked_reason": "",
+                                "last_write_utc": "2026-06-04T02:00:00Z",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            resolved = _resolved(root)
+            resolved.state_root = state_root
+            resolved.queue_snapshot_path = snapshot_path
+            resolved.priority_manifest_path = state_root / "priority_manifest.json"
+            set_manifest_entry(resolved.priority_manifest_path, source, "high", "old value")
+            set_manifest_entry(resolved.priority_manifest_path, source, "normal", "clear")
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+
+            preview = facade.get_queue_preview(resolved).to_mapping()
+
+        self.assertEqual(preview["priority_count"], 0)
+        self.assertEqual(preview["priority_visible_count"], 0)
+        self.assertEqual(preview["phase_counts"], {"TV": 1})
+        self.assertEqual(preview["rows"][0]["manifest_priority_level"], "normal")
+        self.assertEqual(preview["rows"][0]["phase"], "TV")
+
+    def test_queue_preview_explicit_normal_overrides_parent_folder_priority(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            state_root = root / "State"
+            snapshot_path = state_root / "Progress" / "queue_snapshot.json"
+            snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+            show_folder = root / "TV" / "Show"
+            source = show_folder / "Season 01" / "Show - S01E01.mkv"
+            source.parent.mkdir(parents=True, exist_ok=True)
+            source.write_bytes(b"media")
+            snapshot_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "queue_plan_snapshot.v1",
+                        "produced_at": "2026-06-04T02:00:04+00:00",
+                        "config_path": str(root / "config.psd1"),
+                        "local_base": str(root),
+                        "source_movies": str(root / "Movies"),
+                        "source_tv": str(root / "TV"),
+                        "outsource": str(root / "Outsource"),
+                        "movie_count_total": 0,
+                        "tv_count_total": 1,
+                        "priority_count": 0,
+                        "runnable_count": 1,
+                        "rows": [
+                            {
+                                "global_order": 1,
+                                "phase": "low",
+                                "manifest_priority_level": "low",
+                                "media_kind": "tv",
+                                "queue_index": 1,
+                                "queue_total": 1,
+                                "is_priority": False,
+                                "source_path": str(source),
+                                "root_path": str(root / "TV"),
+                                "relative_path": r"Show\Season 01\Show - S01E01.mkv",
+                                "display_name": "Show - S01E01",
+                                "size_gb": 1.25,
+                                "route": "remux",
+                                "route_reason_code": "copy_compatible",
+                                "route_reason": "already compatible",
+                                "blocked_reason": "",
+                                "last_write_utc": "2026-06-04T02:00:00Z",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            resolved = _resolved(root)
+            resolved.state_root = state_root
+            resolved.queue_snapshot_path = snapshot_path
+            resolved.priority_manifest_path = state_root / "priority_manifest.json"
+            set_manifest_entry(resolved.priority_manifest_path, show_folder, "low", "folder low")
+            set_manifest_entry(resolved.priority_manifest_path, source, "normal", "file normal")
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+
+            preview = facade.get_queue_preview(resolved).to_mapping()
+
+        self.assertEqual(preview["priority_visible_count"], 0)
+        self.assertEqual(preview["phase_counts"], {"TV": 1})
+        self.assertEqual(preview["rows"][0]["manifest_priority_level"], "normal")
+        self.assertEqual(preview["rows"][0]["phase"], "TV")
+
+    def test_queue_preview_preserves_filesystem_priority_as_normal_manifest_level(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            state_root = root / "State"
+            snapshot_path = state_root / "Progress" / "queue_snapshot.json"
+            snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+            source = root / "Movies" / "! Movie.mkv"
+            source.parent.mkdir(parents=True, exist_ok=True)
+            source.write_bytes(b"media")
+            snapshot_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "queue_plan_snapshot.v1",
+                        "produced_at": "2026-06-04T02:00:04+00:00",
+                        "config_path": str(root / "config.psd1"),
+                        "local_base": str(root),
+                        "source_movies": str(root / "Movies"),
+                        "source_tv": str(root / "TV"),
+                        "outsource": str(root / "Outsource"),
+                        "movie_count_total": 1,
+                        "tv_count_total": 0,
+                        "priority_count": 1,
+                        "runnable_count": 1,
+                        "rows": [
+                            {
+                                "global_order": 1,
+                                "phase": "priority_movie",
+                                "manifest_priority_level": "high",
+                                "media_kind": "movie",
+                                "queue_index": 1,
+                                "queue_total": 1,
+                                "is_priority": True,
+                                "priority_reasons": ["file"],
+                                "source_path": str(source),
+                                "root_path": str(root / "Movies"),
+                                "relative_path": "! Movie.mkv",
+                                "display_name": "Movie",
+                                "size_gb": 1.25,
+                                "route": "remux",
+                                "route_reason_code": "copy_compatible",
+                                "route_reason": "already compatible",
+                                "blocked_reason": "",
+                                "last_write_utc": "2026-06-04T02:00:00Z",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            resolved = _resolved(root)
+            resolved.state_root = state_root
+            resolved.queue_snapshot_path = snapshot_path
+            resolved.priority_manifest_path = state_root / "priority_manifest.json"
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+
+            preview = facade.get_queue_preview(resolved).to_mapping()
+
+        self.assertEqual(preview["priority_count"], 1)
+        self.assertEqual(preview["priority_visible_count"], 1)
+        self.assertEqual(preview["phase_counts"], {"PRIORITY": 1})
+        self.assertEqual(preview["rows"][0]["manifest_priority_level"], "normal")
+        self.assertEqual(preview["rows"][0]["phase"], "PRIORITY")
+        self.assertTrue(preview["rows"][0]["is_priority"])
 
     def test_queue_preview_loads_file_override_manifest_once_for_row_annotations(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

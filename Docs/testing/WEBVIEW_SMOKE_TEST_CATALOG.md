@@ -137,6 +137,13 @@ The Python browser-smoke modules share `DesktopApp\tests\webview_browser_smoke_s
 - **Verifies:** Maintenance readiness/real-media boundary text, release dry-run result rendering, completed-manifest backfill dry-run result rendering, dry-run command history, Reports failure/audit triage, failure-marker clear dry-run preview with backend-enumerated `all_markers` scope, failure and audit selected-row detail, Reports-to-Launch handoff text, read-only Launch/Diagnostics navigation, and no non-dry-run mutation POSTs.
 - **Does not:** Process media, launch pipeline commands, run audit, run CSV rerun, execute release packaging, rewrite completed manifests, publish, rename, save settings, mutate queue state, or post non-dry-run mutation routes. No Playwright or Puppeteer dependency.
 
+### `Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1`
+
+- **Unittest:** `DesktopApp.tests.test_webview_browser_maintenance_change_ledger_smoke`
+- **What it does:** Starts a temporary local API, opens the real backend-served WebView in Chrome/Edge headless, renders the Maintenance Change Ledger with a representative read-only ledger payload, selects rows, and exercises status/search filters plus the empty-state path.
+- **Verifies:** Ledger summary, table rows, selected detail, affected Python-script detail, changelog hygiene copy, `GET /api/maintenance/change-ledger` usage, and no media/queue/settings/pending-publish/rename mutation POSTs.
+- **Does not:** Edit change packets, regenerate changelog docs, run health probes, process media, launch pipeline commands, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths. No Playwright or Puppeteer dependency.
+
 ### `Test-WebViewBrowserSampleValidationSmoke.ps1`
 
 - **Unittest:** `DesktopApp.tests.test_webview_browser_sample_validation_smoke`
@@ -221,6 +228,7 @@ Browser-backed smokes (require Node + Chrome/Edge, skip cleanly if absent):
 .\SmokeTests\Test-WebViewBrowserCompletedPendingProofSmoke.ps1
 .\SmokeTests\Test-WebViewBrowserLargeTableSmoke.ps1
 .\SmokeTests\Test-WebViewBrowserMaintenanceReportsSmoke.ps1
+.\SmokeTests\Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1
 .\SmokeTests\Test-WebViewBrowserSampleValidationSmoke.ps1
 .\SmokeTests\Test-WebViewBrowserHomeLiveStateSmoke.ps1
 .\SmokeTests\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1

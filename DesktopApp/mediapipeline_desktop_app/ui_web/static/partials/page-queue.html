@@ -107,20 +107,26 @@
           <aside id="fo-drawer" class="fo-drawer" hidden role="dialog" aria-modal="true" aria-labelledby="fo-drawer-title" aria-describedby="fo-inherited-settings-status fo-drawer-status" tabindex="-1">
             <div class="fo-drawer-header">
               <div class="fo-drawer-title-group">
-                <h3 id="fo-drawer-title" class="fo-drawer-title">File Settings</h3>
+                <h3 id="fo-drawer-title" class="fo-drawer-title">File</h3>
                 <p id="fo-drawer-path" class="fo-drawer-path"></p>
               </div>
               <button type="button" id="fo-drawer-close" class="icon-button fo-close-btn" aria-label="Close settings">✕</button>
             </div>
             <div class="fo-drawer-body">
               <p id="fo-inherited-settings-status" class="fo-inherited-status" aria-live="polite"></p>
+              <section id="fo-source-info-section" class="fo-section fo-source-info-section" aria-labelledby="fo-source-info-title">
+                <h4 id="fo-source-info-title" class="fo-section-title">Detected file info</h4>
+                <p id="fo-source-info-status" class="fo-source-info-status" aria-live="polite">Source probe facts unavailable.</p>
+                <div id="fo-source-info-grid" class="fo-source-info-grid" aria-label="Detected file information"></div>
+                <div id="fo-source-info-missing" class="fo-source-info-missing" aria-live="polite"></div>
+              </section>
               <section class="fo-section">
                 <h4 class="fo-section-title">Audio Tracks</h4>
                 <div class="fo-label fo-field" data-fo-field="audioKeepLanguages">
                   <span class="fo-label-row">
                     <label class="fo-label-text" for="fo-audio-keep-langs">Keep only — languages (comma-separated ISO 639-2 codes)</label>
                     <span class="fo-overridden-badge" data-fo-overridden-badge hidden>Overridden</span>
-                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="audioKeepLanguages" aria-label="Use inherited value for audio keep languages" hidden>Use inherited</button>
+                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="audioKeepLanguages" aria-label="Use saved policy value for audio keep languages" hidden>Use saved policy</button>
                   </span>
                   <input type="text" id="fo-audio-keep-langs" class="fo-input" placeholder="e.g. eng, jpn — blank = no restriction" aria-describedby="fo-audio-keep-langs-inherited">
                   <span id="fo-audio-keep-langs-inherited" class="fo-inherited-hint"></span>
@@ -129,7 +135,7 @@
                   <span class="fo-label-row">
                     <label class="fo-label-text" for="fo-audio-drop-langs">Drop — languages (comma-separated)</label>
                     <span class="fo-overridden-badge" data-fo-overridden-badge hidden>Overridden</span>
-                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="audioDropLanguages" aria-label="Use inherited value for audio drop languages" hidden>Use inherited</button>
+                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="audioDropLanguages" aria-label="Use saved policy value for audio drop languages" hidden>Use saved policy</button>
                   </span>
                   <input type="text" id="fo-audio-drop-langs" class="fo-input" placeholder="e.g. spa, fre" aria-describedby="fo-audio-drop-langs-inherited">
                   <span id="fo-audio-drop-langs-inherited" class="fo-inherited-hint"></span>
@@ -138,7 +144,7 @@
                   <span class="fo-label-row">
                     <label class="fo-label-text" for="fo-audio-max-channels">Max channels</label>
                     <span class="fo-overridden-badge" data-fo-overridden-badge hidden>Overridden</span>
-                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="audioMaxChannels" aria-label="Use inherited value for audio max channels" hidden>Use inherited</button>
+                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="audioMaxChannels" aria-label="Use saved policy value for audio max channels" hidden>Use saved policy</button>
                   </span>
                   <select id="fo-audio-max-channels" class="fo-select" aria-describedby="fo-audio-max-channels-inherited">
                     <option value="">— no override —</option>
@@ -152,9 +158,9 @@
                   <span class="fo-label-row">
                     <label class="fo-label-text" for="fo-audio-prefer-default-language">Preferred default language</label>
                     <span class="fo-overridden-badge" data-fo-overridden-badge hidden>Overridden</span>
-                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="audioPreferDefaultLanguage" aria-label="Use inherited value for preferred default audio language" hidden>Use inherited</button>
+                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="audioPreferDefaultLanguage" aria-label="Use saved policy value for preferred default audio language" hidden>Use saved policy</button>
                   </span>
-                  <input type="text" id="fo-audio-prefer-default-language" class="fo-input" placeholder="e.g. eng — blank = inherit" aria-describedby="fo-audio-prefer-default-language-inherited">
+                  <input type="text" id="fo-audio-prefer-default-language" class="fo-input" placeholder="e.g. eng — blank = use saved policy" aria-describedby="fo-audio-prefer-default-language-inherited">
                   <span id="fo-audio-prefer-default-language-inherited" class="fo-inherited-hint"></span>
                 </div>
               </section>
@@ -167,7 +173,7 @@
                       <span class="fo-label-text">Strip all subtitle tracks from output</span>
                     </label>
                     <span class="fo-overridden-badge" data-fo-overridden-badge hidden>Overridden</span>
-                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="subtitleStripAll" aria-label="Use inherited value for subtitle strip all" hidden>Use inherited</button>
+                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="subtitleStripAll" aria-label="Use saved policy value for subtitle strip all" hidden>Use saved policy</button>
                   </span>
                   <span id="fo-sub-strip-all-inherited" class="fo-inherited-hint"></span>
                 </div>
@@ -176,7 +182,7 @@
                     <span class="fo-label-row">
                       <label class="fo-label-text" for="fo-sub-keep-langs">Keep only — languages (comma-separated)</label>
                       <span class="fo-overridden-badge" data-fo-overridden-badge hidden>Overridden</span>
-                      <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="subtitleKeepLanguages" aria-label="Use inherited value for subtitle keep languages" hidden>Use inherited</button>
+                      <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="subtitleKeepLanguages" aria-label="Use saved policy value for subtitle keep languages" hidden>Use saved policy</button>
                     </span>
                     <input type="text" id="fo-sub-keep-langs" class="fo-input" placeholder="e.g. eng — blank = no restriction" aria-describedby="fo-sub-keep-langs-inherited">
                     <span id="fo-sub-keep-langs-inherited" class="fo-inherited-hint"></span>
@@ -185,7 +191,7 @@
                     <span class="fo-label-row">
                       <label class="fo-label-text" for="fo-sub-drop-langs">Drop — languages (comma-separated)</label>
                       <span class="fo-overridden-badge" data-fo-overridden-badge hidden>Overridden</span>
-                      <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="subtitleDropLanguages" aria-label="Use inherited value for subtitle drop languages" hidden>Use inherited</button>
+                      <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="subtitleDropLanguages" aria-label="Use saved policy value for subtitle drop languages" hidden>Use saved policy</button>
                     </span>
                     <input type="text" id="fo-sub-drop-langs" class="fo-input" placeholder="e.g. chi, kor" aria-describedby="fo-sub-drop-langs-inherited">
                     <span id="fo-sub-drop-langs-inherited" class="fo-inherited-hint"></span>
@@ -220,10 +226,10 @@
                   <span class="fo-label-row">
                     <label class="fo-label-text" for="fo-route-profile">Routing profile</label>
                     <span class="fo-overridden-badge" data-fo-overridden-badge hidden>Overridden</span>
-                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="routeProfile" aria-label="Use inherited value for routing profile" hidden>Use inherited</button>
+                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="routeProfile" aria-label="Use saved policy value for routing profile" hidden>Use saved policy</button>
                   </span>
                   <select id="fo-route-profile" class="fo-select" data-fo-route-control="routeProfile" aria-describedby="fo-route-profile-inherited fo-processing-route-help">
-                    <option value="">Inherit</option>
+                    <option value="">Use saved policy</option>
                   </select>
                   <span id="fo-route-profile-inherited" class="fo-inherited-hint"></span>
                 </div>
@@ -231,10 +237,10 @@
                   <span class="fo-label-row">
                     <label class="fo-label-text" for="fo-video-container">Output container</label>
                     <span class="fo-overridden-badge" data-fo-overridden-badge hidden>Overridden</span>
-                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="videoContainer" aria-label="Use inherited value for output container" hidden>Use inherited</button>
+                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="videoContainer" aria-label="Use saved policy value for output container" hidden>Use saved policy</button>
                   </span>
                   <select id="fo-video-container" class="fo-select" data-fo-route-control="videoContainer" aria-describedby="fo-video-container-inherited fo-processing-route-help">
-                    <option value="">Inherit</option>
+                    <option value="">Use saved policy</option>
                   </select>
                   <span id="fo-video-container-inherited" class="fo-inherited-hint"></span>
                 </div>
@@ -242,10 +248,10 @@
                   <span class="fo-label-row">
                     <label class="fo-label-text" for="fo-video-codec">Video codec</label>
                     <span class="fo-overridden-badge" data-fo-overridden-badge hidden>Overridden</span>
-                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="videoCodec" aria-label="Use inherited value for video codec" hidden>Use inherited</button>
+                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="videoCodec" aria-label="Use saved policy value for video codec" hidden>Use saved policy</button>
                   </span>
                   <select id="fo-video-codec" class="fo-select" data-fo-route-control="videoCodec" aria-describedby="fo-video-codec-inherited fo-processing-route-help">
-                    <option value="">Inherit</option>
+                    <option value="">Use saved policy</option>
                   </select>
                   <span id="fo-video-codec-inherited" class="fo-inherited-hint"></span>
                 </div>
@@ -253,10 +259,10 @@
                   <span class="fo-label-row">
                     <label class="fo-label-text" for="fo-video-encode-preset">Encode preset</label>
                     <span class="fo-overridden-badge" data-fo-overridden-badge hidden>Overridden</span>
-                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="videoEncodePreset" aria-label="Use inherited value for encode preset" hidden>Use inherited</button>
+                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="videoEncodePreset" aria-label="Use saved policy value for encode preset" hidden>Use saved policy</button>
                   </span>
                   <select id="fo-video-encode-preset" class="fo-select" data-fo-route-control="videoEncodePreset" aria-describedby="fo-video-encode-preset-inherited fo-processing-route-help">
-                    <option value="">Inherit</option>
+                    <option value="">Use saved policy</option>
                   </select>
                   <span id="fo-video-encode-preset-inherited" class="fo-inherited-hint"></span>
                 </div>
@@ -264,10 +270,10 @@
                   <span class="fo-label-row">
                     <label class="fo-label-text" for="fo-video-encode-ladder">Encode ladder</label>
                     <span class="fo-overridden-badge" data-fo-overridden-badge hidden>Overridden</span>
-                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="videoEncodeLadder" aria-label="Use inherited value for encode ladder" hidden>Use inherited</button>
+                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="videoEncodeLadder" aria-label="Use saved policy value for encode ladder" hidden>Use saved policy</button>
                   </span>
                   <select id="fo-video-encode-ladder" class="fo-select" data-fo-route-control="videoEncodeLadder" aria-describedby="fo-video-encode-ladder-inherited fo-processing-route-help">
-                    <option value="">Inherit</option>
+                    <option value="">Use saved policy</option>
                   </select>
                   <span id="fo-video-encode-ladder-inherited" class="fo-inherited-hint"></span>
                 </div>
@@ -275,10 +281,10 @@
                   <span class="fo-label-row">
                     <label class="fo-label-text" for="fo-route-threshold-mode">Route threshold mode</label>
                     <span class="fo-overridden-badge" data-fo-overridden-badge hidden>Overridden</span>
-                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="routingRouteThresholdMode" aria-label="Use inherited value for route threshold mode" hidden>Use inherited</button>
+                    <button type="button" class="fo-use-inherited-button" data-fo-use-inherited="routingRouteThresholdMode" aria-label="Use saved policy value for route threshold mode" hidden>Use saved policy</button>
                   </span>
                   <select id="fo-route-threshold-mode" class="fo-select" data-fo-route-control="routingRouteThresholdMode" aria-describedby="fo-route-threshold-mode-inherited fo-processing-route-help">
-                    <option value="">Inherit</option>
+                    <option value="">Use saved policy</option>
                   </select>
                   <span id="fo-route-threshold-mode-inherited" class="fo-inherited-hint"></span>
                 </div>
@@ -288,93 +294,61 @@
                   <span>I understand this may force a full transcode for this file.</span>
                 </label>
               </section>
-              <div class="fo-drawer-actions">
-                <button type="button" id="fo-drawer-save" class="primary-button">Save Override</button>
-                <button type="button" id="fo-drawer-clear" class="secondary-button">Clear Override</button>
-                <button type="button" id="fo-folder-preview-open" class="secondary-button">Preview folder rule from this file...</button>
-                <button type="button" id="fo-folder-rules-open" class="secondary-button">Manage folder rules</button>
+              <div class="fo-drawer-footer" aria-label="File override actions">
+                <div class="fo-drawer-actions">
+                  <button type="button" id="fo-drawer-save" class="primary-button" disabled>Save Override</button>
+                  <button type="button" id="fo-series-preview-open" class="secondary-button">Apply to Series</button>
+                  <button type="button" id="fo-drawer-clear" class="secondary-button">Clear Override</button>
+                </div>
+                <label class="fo-series-toggle">
+                  <input type="checkbox" id="fo-series-auto-detect" checked>
+                  <span>Auto-detect series scope</span>
+                </label>
+                <p id="fo-drawer-status" class="fo-drawer-status" role="status" aria-live="polite" data-tone="info"></p>
               </div>
-              <section id="fo-folder-preview-panel" class="fo-section fo-folder-preview-section" aria-labelledby="fo-folder-preview-title" hidden>
-                <div class="fo-folder-preview-header">
-                  <h4 id="fo-folder-preview-title" class="fo-section-title">Folder rule impact</h4>
-                  <span class="fo-folder-preview-badges" aria-label="Folder preview status">
-                    <span class="fo-folder-preview-badge">Preview only</span>
-                    <span class="fo-folder-preview-badge">No changes saved</span>
-                  </span>
-                </div>
-                <p class="fo-section-help">Preview a folder-prefix track rule before saving it. The preview itself does not save a folder rule.</p>
-                <div class="fo-folder-preview-scope-control">
-                  <label class="fo-label-text" for="fo-folder-preview-scope-select">Folder scope</label>
-                  <select id="fo-folder-preview-scope-select" class="fo-select" aria-describedby="fo-folder-preview-scope-help"></select>
-                  <p id="fo-folder-preview-scope-help" class="fo-section-help">Library-root rules are not created here. Change library-wide defaults in Library settings instead.</p>
-                </div>
-                <dl class="fo-folder-preview-summary">
-                  <div>
-                    <dt>Selected folder</dt>
-                    <dd id="fo-folder-preview-path" class="fo-folder-preview-path"></dd>
-                  </div>
-                  <div>
-                    <dt>Scope</dt>
-                    <dd id="fo-folder-preview-scope"></dd>
-                  </div>
-                  <div>
-                    <dt>Impact</dt>
-                    <dd id="fo-folder-preview-counts"></dd>
-                  </div>
-                </dl>
-                <p id="fo-folder-preview-library-note" class="fo-folder-preview-library-note"></p>
-                <button type="button" id="fo-folder-preview-library-settings" class="fo-inline-link" hidden>Open Library settings</button>
-                <div class="fo-folder-preview-block">
-                  <h5>Proposed language/signature selectors</h5>
-                  <ul id="fo-folder-preview-selectors" class="fo-folder-preview-list"></ul>
-                </div>
-                <div class="fo-folder-preview-block">
-                  <h5>Exact file override conflicts</h5>
-                  <ul id="fo-folder-preview-conflicts" class="fo-folder-preview-list"></ul>
-                </div>
-                <div class="fo-folder-preview-block">
-                  <h5>Sampled warnings</h5>
-                  <ul id="fo-folder-preview-warnings" class="fo-folder-preview-list"></ul>
-                </div>
-                <div class="fo-folder-preview-block">
-                  <h5>Sampled files</h5>
-                  <ul id="fo-folder-preview-samples" class="fo-folder-preview-list"></ul>
-                </div>
-                <div id="fo-folder-preview-confirmations" class="fo-folder-preview-confirmations" aria-label="Folder rule confirmations">
-                  <label class="fo-folder-preview-confirmation">
-                    <input type="checkbox" id="fo-folder-confirm-future-files">
-                    <span>I understand this rule may affect future files added under this folder.</span>
-                  </label>
-                  <label class="fo-folder-preview-confirmation">
-                    <input type="checkbox" id="fo-folder-confirm-file-overrides">
-                    <span>I understand exact file overrides will still win over this folder rule.</span>
-                  </label>
-                  <label class="fo-folder-preview-confirmation">
-                    <input type="checkbox" id="fo-folder-confirm-no-stream-index">
-                    <span>I understand stream-index exact selectors are not allowed for folder rules.</span>
-                  </label>
-                </div>
-                <div class="fo-folder-preview-actions">
-                  <button type="button" id="fo-folder-preview-save" class="primary-button" disabled>Save folder rule</button>
-                </div>
-                <p id="fo-folder-preview-status" class="fo-folder-preview-status" aria-live="polite"></p>
-              </section>
-              <section id="fo-folder-rules-panel" class="fo-section fo-folder-rules-section" aria-labelledby="fo-folder-rules-title" hidden>
-                <div class="fo-folder-rules-header">
-                  <h4 id="fo-folder-rules-title" class="fo-section-title">Existing folder rules</h4>
-                  <button type="button" id="fo-folder-rules-refresh" class="secondary-button">Refresh</button>
-                </div>
-                <p class="fo-section-help">
-                  Review folder-prefix rules saved in file_overrides.json. Change broad stable defaults in
-                  <button type="button" id="fo-folder-rules-library-settings" class="fo-inline-link">Library settings</button>
-                  instead of keeping library-root-like folder rules.
-                </p>
-                <ul id="fo-folder-rules-list" class="fo-folder-rules-list"></ul>
-                <p id="fo-folder-rules-status" class="fo-folder-rules-status" aria-live="polite"></p>
-              </section>
-              <p id="fo-drawer-status" class="note" aria-live="polite"></p>
             </div>
           </aside>
+          <div id="fo-series-modal" class="fo-series-modal" role="dialog" aria-modal="true" aria-labelledby="fo-series-modal-title" hidden>
+            <div class="fo-series-dialog">
+              <div class="fo-series-header">
+                <div>
+                  <h3 id="fo-series-modal-title">Apply Override to Series</h3>
+                  <p id="fo-series-summary" class="fo-series-summary">Preview has not loaded.</p>
+                </div>
+                <button type="button" id="fo-series-modal-close" class="secondary-button" aria-label="Close series override preview">Close</button>
+              </div>
+              <div id="fo-series-detected" class="fo-series-detected"></div>
+              <div id="fo-series-fields" class="fo-series-fields"></div>
+              <div id="fo-series-counts" class="fo-series-counts" aria-live="polite"></div>
+              <div id="fo-series-issues" class="fo-series-issues" aria-live="polite"></div>
+              <div class="fo-series-filters" role="group" aria-label="Series preview file filters">
+                <button type="button" class="secondary-button" data-fo-series-filter="all">All</button>
+                <button type="button" class="secondary-button" data-fo-series-filter="will_update">Will update</button>
+                <button type="button" class="secondary-button" data-fo-series-filter="protected">Protected</button>
+                <button type="button" class="secondary-button" data-fo-series-filter="issues">Issues</button>
+              </div>
+              <div class="fo-series-table-wrap">
+                <table class="workflow-table fo-series-table">
+                  <thead>
+                    <tr>
+                      <th>Action</th>
+                      <th>File</th>
+                      <th>Episode</th>
+                      <th>Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody id="fo-series-rows">
+                    <tr><td colspan="4">No preview loaded.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="fo-series-actions">
+                <button type="button" id="fo-series-apply" class="primary-button" disabled>Apply to Series</button>
+                <button type="button" id="fo-series-cancel" class="secondary-button">Cancel</button>
+              </div>
+              <p id="fo-series-status" class="fo-drawer-status" role="status" aria-live="polite" data-tone="info"></p>
+            </div>
+          </div>
           <!-- End S80 Per-file settings drawer -->
         </section>
         <section class="panel" data-panel-type="evidence">

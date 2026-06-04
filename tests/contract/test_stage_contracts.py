@@ -43,6 +43,10 @@ VALID_PAYLOADS = {
         "route_threshold_mode": "compatibility_advisory",
         "movie_route_max_video_bitrate_mbps": 35,
         "tv_route_max_video_bitrate_mbps": 18,
+        "route_1080p_bucket_max_height": 1200,
+        "route_1080p_max_video_bitrate_mbps": 20,
+        "route_4k_bucket_min_height": 1800,
+        "route_4k_max_video_bitrate_mbps": 35,
     },
     StageName.transcode: {
         "scratch_path": r"D:\scratch\source.mkv",

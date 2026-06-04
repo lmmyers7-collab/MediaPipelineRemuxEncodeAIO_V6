@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import sys
 import datetime as dt
 from pathlib import Path
 from typing import Any
+
+import packet_coverage
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -208,7 +211,54 @@ def _validate_released_packet(path: Path, packet: dict[str, Any]) -> list[str]:
     return errors
 
 
-def main() -> int:
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Validate change-control packets and optional packet coverage."
+    )
+    parser.add_argument(
+        "--require-worktree-coverage",
+        action="store_true",
+        help="Require every Git worktree changed path to appear in files_touched of an unreleased packet.",
+    )
+    parser.add_argument(
+        "--require-staged-coverage",
+        action="store_true",
+        help="Require every staged changed path to appear in staged files_touched of an unreleased packet.",
+    )
+    parser.add_argument(
+        "--require-diff-coverage",
+        metavar="BASE_REF",
+        default="",
+        help="Require every path changed since BASE_REF...HEAD to appear in files_touched of an unreleased packet.",
+    )
+    return parser.parse_args(argv)
+
+
+def _coverage_errors(args: argparse.Namespace) -> list[str]:
+    errors: list[str] = []
+    if args.require_worktree_coverage:
+        errors.extend(
+            packet_coverage.coverage_failure_lines(
+                packet_coverage.coverage_for_worktree(REPO_ROOT, require_git=True)
+            )
+        )
+    if args.require_staged_coverage:
+        errors.extend(
+            packet_coverage.coverage_failure_lines(
+                packet_coverage.coverage_for_staged(REPO_ROOT)
+            )
+        )
+    if args.require_diff_coverage:
+        errors.extend(
+            packet_coverage.coverage_failure_lines(
+                packet_coverage.coverage_for_diff(REPO_ROOT, args.require_diff_coverage)
+            )
+        )
+    return errors
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = _parse_args(argv)
     packet_paths = _packet_paths()
     errors: list[str] = []
     warnings: list[str] = []
@@ -247,6 +297,8 @@ def main() -> int:
                 f"release history archive missing for {version}: "
                 f"{archive_dir.relative_to(REPO_ROOT).as_posix()}"
             )
+
+    errors.extend(_coverage_errors(args))
 
     if errors:
         print("Change validation failed:", file=sys.stderr)

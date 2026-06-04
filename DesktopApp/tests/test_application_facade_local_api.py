@@ -1654,6 +1654,10 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertFalse(no_override["inherited"]["audioDropLanguages"]["available"])
         self.assertEqual(no_override["sources"]["audio.maxChannels"], "library")
         self.assertEqual(no_override["sources"]["audio.preferDefaultLanguage"], "library")
+        self.assertIn("resolved_track_actions", no_override)
+        self.assertIn("audio", no_override["resolved_track_actions"])
+        self.assertIn("subtitles", no_override["resolved_track_actions"])
+        self.assertIn("track_selection_preview", no_override)
         no_override_prefer = no_override["expanded_effective_fields"]["audioPreferDefaultLanguage"]
         self.assertEqual(no_override_prefer["field_path"], "audio.preferDefaultLanguage")
         self.assertTrue(no_override_prefer["available"])
@@ -1690,6 +1694,102 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertEqual(folder_prefer["display"], "spa")
         self.assertEqual(folder_prefer["source"], "folder_override")
         self.assertFalse(folder_prefer["can_clear_file_field"])
+
+    def test_local_api_file_override_revalidates_merged_route_video_edits(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            source = root / "TV" / "Show" / "Show S01E01.mkv"
+            source.parent.mkdir(parents=True, exist_ok=True)
+            source.write_bytes(b"media")
+            resolved = _resolved(root)
+            resolved.state_root = root / "State"
+            resolved.source_movies = root / "Movies"
+            resolved.source_tv = root / "TV"
+            resolved.file_overrides_path = resolved.state_root / "file_overrides.json"
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v6-test")
+            server = LocalApiServer(
+                facade,
+                token="queue-merged-override-validation-token",
+                resolved_provider=lambda: resolved,
+                audit_root_provider=lambda: str(root),
+            )
+            try:
+                server.start()
+                video_status, video = self._post_json(
+                    f"{server.url}/api/queue/file-overrides",
+                    {
+                        "path": str(source),
+                        "video": {
+                            "codec": "h264_nvenc",
+                            "container": "mp4",
+                        },
+                    },
+                    token=server.token,
+                )
+                remux_status, remux = self._post_json(
+                    f"{server.url}/api/queue/file-overrides",
+                    {
+                        "path": str(source),
+                        "routing": {"profile": "remux"},
+                    },
+                    token=server.token,
+                )
+                read_after_reject_status, read_after_reject = self._get_json(
+                    f"{server.url}/api/queue/file-overrides?path={quote(str(source))}",
+                    token=server.token,
+                )
+                transcode_status, transcode = self._post_json(
+                    f"{server.url}/api/queue/file-overrides",
+                    {
+                        "path": str(source),
+                        "routing": {"profile": "transcode"},
+                    },
+                    token=server.token,
+                )
+                threshold_status, threshold = self._post_json(
+                    f"{server.url}/api/queue/file-overrides",
+                    {
+                        "path": str(source),
+                        "routing": {"routeThresholdMode": "bitrate"},
+                    },
+                    token=server.token,
+                )
+                audio_status, audio = self._post_json(
+                    f"{server.url}/api/queue/file-overrides",
+                    {
+                        "path": str(source),
+                        "audio": {"maxChannels": 6},
+                    },
+                    token=server.token,
+                )
+                read_after_valid_status, read_after_valid = self._get_json(
+                    f"{server.url}/api/queue/file-overrides?path={quote(str(source))}",
+                    token=server.token,
+                )
+            finally:
+                server.stop()
+
+        self.assertEqual(video_status, 200)
+        self.assertTrue(video["ok"])
+        self.assertEqual(remux_status, 200)
+        self.assertFalse(remux["ok"])
+        self.assertEqual(remux["message"], "Invalid file override payload.")
+        self.assertIn("cannot be combined", "\n".join(remux.get("errors", [])))
+        self.assertEqual(read_after_reject_status, 200)
+        rejected_entry = read_after_reject["entry"]
+        self.assertEqual(rejected_entry["video"], {"codec": "h264_nvenc", "container": "mp4"})
+        self.assertNotIn("routing", rejected_entry)
+        self.assertEqual(transcode_status, 200)
+        self.assertTrue(transcode["ok"])
+        self.assertEqual(threshold_status, 200)
+        self.assertTrue(threshold["ok"])
+        self.assertEqual(audio_status, 200)
+        self.assertTrue(audio["ok"])
+        self.assertEqual(read_after_valid_status, 200)
+        valid_entry = read_after_valid["entry"]
+        self.assertEqual(valid_entry["video"], {"codec": "h264_nvenc", "container": "mp4"})
+        self.assertEqual(valid_entry["routing"], {"profile": "transcode", "routeThresholdMode": "bitrate"})
+        self.assertEqual(valid_entry["audio"], {"maxChannels": 6})
 
     def test_local_api_file_override_route_preview_is_read_only_and_validates_proposals(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -1815,6 +1915,25 @@ class LocalApiServerTests(unittest.TestCase):
                     {"path": str(source), "proposed_override": {"video": {"codec": "h264_nvenc"}}},
                     token=server.token,
                 )
+                burn_status, burn = self._post_json(
+                    f"{server.url}/api/queue/file-overrides/route-preview",
+                    {
+                        "path": str(source),
+                        "proposed_override": {"subtitles": {"burnTrack": {"streamIndex": 3, "language": "eng"}}},
+                    },
+                    token=server.token,
+                )
+                burn_remux_status, burn_remux = self._post_json(
+                    f"{server.url}/api/queue/file-overrides/route-preview",
+                    {
+                        "path": str(source),
+                        "proposed_override": {
+                            "routing": {"forceRoute": "remux"},
+                            "subtitles": {"burnTrack": {"streamIndex": 3}},
+                        },
+                    },
+                    token=server.token,
+                )
                 missing_row_status, missing_row = self._post_json(
                     f"{server.url}/api/queue/file-overrides/route-preview",
                     {"path": str(missing_row_source)},
@@ -1868,6 +1987,18 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertEqual(video_only["proposed"]["source"], "proposed_file_override")
         self.assertEqual(video_only["proposed"]["decisionSource"], "proposed_file_override")
         self.assertTrue(video_only["impact"]["will_force_transcode"])
+        self.assertEqual(burn_status, 200)
+        self.assertTrue(burn["ok"])
+        self.assertEqual(burn["proposed"]["route"], "transcode")
+        self.assertTrue(burn["impact"]["will_force_transcode"])
+        self.assertTrue(burn["impact"]["will_prevent_remux"])
+        burn_warnings = "\n".join(item["message"] for item in burn.get("warnings", []))
+        self.assertIn("Subtitle burn-in forces ENCODE", burn_warnings)
+        self.assertIn("All selectable output subtitle streams will be dropped", burn_warnings)
+        self.assertIn("subtitle-burn encode profile", burn_warnings)
+        self.assertEqual(burn_remux_status, 200)
+        self.assertFalse(burn_remux["ok"])
+        self.assertIn("subtitles.burnTrack", "\n".join(burn_remux.get("errors", [])))
         self.assertEqual(missing_row_status, 200)
         self.assertFalse(missing_row["ok"])
         self.assertIn("queue snapshot row", "\n".join(missing_row.get("errors", [])).lower())
@@ -3333,6 +3464,12 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn('id="report-audit-ignore-selected-button"', html)
         self.assertIn('id="report-audit-export-rerun-csv-button"', html)
         self.assertIn('id="report-audit-export-detail"', html)
+        self.assertIn("Advanced score controls", html)
+        self.assertIn("Point issue", html)
+        self.assertIn("High issue-code marker", html)
+        self.assertIn("Medium issue-code marker", html)
+        self.assertNotIn("High issue: <code>ffprobe-open-failed</code>", html)
+        self.assertNotIn('data-audit-score-policy-mirror="high_issue"', html)
         self.assertIn("/assets/scheduleView.js", html)
         self.assertIn("/assets/maintenanceView.js", html)
         self.assertIn("/assets/telemetryView.js", html)
@@ -3831,6 +3968,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("audit-launch-log-detail", html)
         self.assertIn("audit-score-policy-save-button", html)
         self.assertIn("audit-score-policy-reset-button", html)
+        self.assertNotIn("High issue: <code>foreign-audio-no-text-subtitles</code>", html)
         self.assertIn("audit-ignore-selected-button", html)
         self.assertIn("audit-export-rerun-csv-button", html)
         self.assertIn("audit-start-button", html)
@@ -5944,6 +6082,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function toggleAuditRowSelection", reports_view_js)
         self.assertIn("function selectedAuditRowKeysList", reports_view_js)
         self.assertIn('apiPost("/api/audit/score-policy", request)', reports_view_js)
+        self.assertIn("policy.issue_code_weights = {};", reports_view_js)
+        self.assertIn("renderReportAuditIssueRows", reports_view_js)
         self.assertIn('apiPost("/api/audit/ignore", request)', reports_view_js)
         self.assertIn('apiPost("/api/audit/export-rerun-csv", request)', reports_view_js)
         self.assertIn("function renderAuditDetail", reports_view_js)
@@ -6414,6 +6554,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function startAuditFromForm", launch_view_js)
         self.assertIn("function renderLaunchAuditControls", launch_view_js)
         self.assertIn('apiPost("/api/audit/score-policy", request)', launch_view_js)
+        self.assertIn("policy.issue_code_weights = {};", launch_view_js)
+        self.assertIn("renderLaunchAuditIssueRows", launch_view_js)
         self.assertIn('apiPost("/api/audit/ignore", request)', launch_view_js)
         self.assertIn('apiPost("/api/audit/export-rerun-csv", request)', launch_view_js)
         self.assertIn("function renderLaunchAuditLog", launch_view_js)
@@ -6566,8 +6708,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function renderCompletedInventoryProgress", completed_view_js)
         self.assertIn("function completedInventoryProgressBars", completed_view_js)
         self.assertIn('renderProgressBarsInto("completed-inventory-progress-bars"', completed_view_js)
-        self.assertIn('"/api/completed?limit=all"', js)
-        self.assertIn('"/api/completed?limit=all&force_refresh=true"', js)
+        self.assertIn('"/api/completed?limit=100"', js)
+        self.assertIn('"/api/completed?limit=all&force_refresh=true&proof=live"', js)
         self.assertIn('const completedStatusFilter = byId("completed-status-filter")', js)
         self.assertIn('completedStatusFilter.addEventListener("change", () => window.mediaPipelineCompletedView?.renderCompletedRows?.())', js)
         self.assertIn('const completedInvestigationFilter = byId("completed-investigation-filter")', js)

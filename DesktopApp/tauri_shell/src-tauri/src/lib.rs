@@ -635,7 +635,7 @@ mod tests {
 </section>
 <section data-page-panel="settings">
   <strong id="settings-handbrake-preview-status">Predicted pending cutover</strong>
-  <strong id="settings-handbrake-decision">UNKNOWN</strong>
+  <strong id="settings-handbrake-decision">NOT EVALUATED</strong>
   <strong id="settings-handbrake-active-preset">Saved settings</strong>
   <dd id="settings-handbrake-output-video"></dd>
   <dd id="settings-handbrake-output-guards"></dd>
@@ -966,7 +966,7 @@ const pendingConfidenceModule = window.__pendingPublishConfidenceModule || {};"#
 </section>
 <section data-page-panel="settings">
   <strong id="settings-handbrake-preview-status">Predicted pending cutover</strong>
-  <strong id="settings-handbrake-decision">UNKNOWN</strong>
+  <strong id="settings-handbrake-decision">NOT EVALUATED</strong>
   <strong id="settings-handbrake-active-preset">Saved settings</strong>
   <dd id="settings-handbrake-output-video"></dd>
   <dd id="settings-handbrake-output-guards"></dd>

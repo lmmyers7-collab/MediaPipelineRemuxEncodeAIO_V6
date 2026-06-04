@@ -2,7 +2,7 @@
 
 Companion to `Docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`. This document separates every route into its mutation class, states whether the frontend can own the behavior, and notes the key restriction on each command route.
 
-Total routes: 83 (34 read, 49 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
+Total routes: 84 (35 read, 49 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
 
 ---
 
@@ -52,6 +52,7 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 |---|---|---|---|
 | `GET /api/maintenance` | `bounded-health-check` | No | Runs existing env/tool probes; does not repair, install, remove, or change anything |
 | `GET /api/maintenance/progress` | `read` | No | Reads latest maintenance health-progress state; does not run probes or repair |
+| `GET /api/maintenance/change-ledger` | `read` | No | Reads structured change-control packets, changelog source status, and hygiene; no probes, codegen, packet writes, or media/state mutation |
 | `GET /api/schedule` | `read` | No | Reads persisted schedule state; does not save or edit |
 | `GET /api/settings/workspace` | `read` | No | Read-only, redacted settings snapshot |
 | `GET /api/settings/wizard/status` | `read` | No | Reads wizard availability and first-run recommendation state only |
@@ -82,6 +83,7 @@ Writes backend-owned queue state manifests. These routes never rename, move, del
 | `POST /api/queue/priority` | `queue-state-write` | Frontend cannot write priority manifests directly | `path`/`items` must be absolute source-root-contained paths; `level` is limited to `high`, `normal`, `low`, or `hold`; `clear_all` clears priority manifest state only |
 | `POST /api/queue/strategy` | `queue-state-write` | Frontend cannot write queue strategy state directly | `strategy` must be one of the backend-declared valid strategy names |
 | `POST /api/queue/file-overrides` | `queue-state-write` | Frontend cannot write per-file media-policy override manifests directly | `path` must be source-root-contained unless `clear_all` is requested; writes non-destructive audio/subtitle/routing/video override metadata only |
+| `POST /api/queue/file-overrides/series-apply` | `queue-state-write` | Frontend cannot decide or write series batch override scope directly | Requires `confirm_apply: true` plus a matching backend preview fingerprint; writes exact overrides only for eligible current queue rows, protects exact manual rows, and creates no future show/folder policy |
 | `POST /api/queue/file-overrides/folder-rule` | `queue-state-write` | Frontend cannot write folder override manifests directly | `folder_path` must be under source roots but not a source/library root; raw FFmpeg map fields and file-only stream indexes are rejected; explicit confirmation evidence is required |
 
 ### read-only-preview (no output or state written)
@@ -91,6 +93,7 @@ Returns backend-authored previews. No files, manifests, config, or queue state a
 | Route | Mutation class | Frontend cannot own? | Key restriction |
 |---|---|---|---|
 | `POST /api/queue/file-overrides/route-preview` | `read-only-preview` | Frontend cannot decide media route impact | Backend uses a source-root-contained path plus proposed override; advisory only |
+| `POST /api/queue/file-overrides/series-preview` | `read-only-preview` | Frontend cannot infer or approve TV series batch scope independently | Backend uses the current queue snapshot, selected TV path, same source/show root detection, manual-protection evidence, and a preview fingerprint; no state write |
 | `POST /api/queue/file-overrides/folder-preview` | `read-only-preview` | Frontend cannot scan or approve folder rules independently | Backend uses bounded known-file/cached-track evidence only; no source folder scan or state write |
 
 ### failure-marker-write (medium risk, retry-blocker state)
@@ -205,7 +208,7 @@ Runs backend maintenance tooling. Dry runs write no release/backfill artifacts; 
 |---|---|---|---|
 | `POST /api/maintenance/release-dry-run` | `process-dry-run` | Frontend cannot invoke the release script directly | Runs release builder with dry-run semantics; no release folder or zip written |
 | `POST /api/maintenance/completed-backfill-dry-run` | `process-dry-run` | Frontend cannot invoke the backfill script directly | Runs backfill dry-run; no completed manifest written |
-| `POST /api/maintenance/dependency-atlas` | `tooling-artifact-write` | Frontend cannot regenerate tooling artifacts directly | Writes generated dependency-atlas artifacts only; no media, queue, settings, manifests, pending publish, or pipeline state touched |
+| `POST /api/maintenance/dependency-atlas` | `tooling-artifact-write` | Frontend cannot regenerate tooling artifacts directly | Writes generated dependency-atlas artifacts under `V6_dependency_atlas/` only; no media, queue, settings, manifests, pending publish, or pipeline state touched |
 | `POST /api/maintenance/release-build` | `deployment-write` | Frontend cannot create release packages directly | `confirm_create` required; backend checks active work, owns destination replacement, manifest creation, and optional zip creation |
 
 ### process-launch (high risk)

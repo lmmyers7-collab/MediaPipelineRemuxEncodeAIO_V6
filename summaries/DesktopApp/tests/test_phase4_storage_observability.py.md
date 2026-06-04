@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_phase4_storage_observability.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-06-02
-sha256: d3beae36bcf288839ecb77878eb51d8b331fcc85b4215ea132813ea9230f5a28
+sha256: 626d8f25e02dfc1e390f1628aeb16c58aeeadd26975461aed52b74d5a363508e
 ---
 # `DesktopApp/tests/test_phase4_storage_observability.py`
 

@@ -137,6 +137,14 @@ As of 2026-05-20, every fixture-backed browser smoke captures a SHA-256/size sna
 | **Does not** | Launch, process media, run audit, run CSV rerun, execute release packaging, rewrite completed manifests, publish, rename, save settings, mutate queue state, post non-dry-run backend mutation routes, or touch source/output/scratch paths. |
 | **Skip** | Exits 0 when Chrome/Edge not installed. |
 
+### Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1
+
+| | |
+|---|---|
+| **Exercises** | Renders the Maintenance Change Ledger summary, table, selected detail, changelog hygiene, affected Python-script detail, status/search filters, empty state, and read-only `GET /api/maintenance/change-ledger` usage. |
+| **Does not** | Edit change packets, regenerate changelog docs, run health probes, launch, process media, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, post media/queue/settings/pending-publish/rename mutation routes, or touch source/output/scratch paths. |
+| **Skip** | Exits 0 when Chrome/Edge not installed. |
+
 ### Test-WebViewBrowserSampleValidationSmoke.ps1
 
 | | |

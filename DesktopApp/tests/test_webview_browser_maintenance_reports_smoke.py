@@ -94,6 +94,18 @@ def _browser_maintenance_reports_runner_source() -> str:
                   },
                 };
               }
+              if (String(path || "").includes("/api/audit/score-policy")) {
+                return {
+                  command: "audit.score_policy",
+                  ok: true,
+                  severity: "info",
+                  message: "Audit score policy smoke payload captured.",
+                  data: {
+                    schema_version: "desktop_audit_score_policy_result.v2",
+                    policy: body?.reset ? {} : body?.policy || {},
+                  },
+                };
+              }
               return { ok: false, message: "maintenance/reports smoke blocks mutation posts" };
             };
             function byId(id) { return document.getElementById(id); }
@@ -279,12 +291,12 @@ def _browser_maintenance_reports_runner_source() -> str:
                 dry_run: false,
                 writes_dependency_atlas: true,
                 writes_media: false,
-                atlas_html: "C:/Repo/V6_dependency_atlas.html",
-                atlas_png: "C:/Repo/V6_dependency_atlas.png",
-                atlas_svg: "C:/Repo/V6_dependency_atlas.svg",
-                assets_dir: "C:/Repo/V6_dependency_atlas_assets",
-                summary_csv: "C:/Repo/V6_dependency_atlas_assets/dependency_summary.csv",
-                module_edges_csv: "C:/Repo/V6_dependency_atlas_assets/dependency_module_edges.csv",
+                atlas_html: "C:/Repo/V6_dependency_atlas/V6_dependency_atlas.html",
+                atlas_png: "C:/Repo/V6_dependency_atlas/V6_dependency_atlas.png",
+                atlas_svg: "C:/Repo/V6_dependency_atlas/V6_dependency_atlas.svg",
+                assets_dir: "C:/Repo/V6_dependency_atlas/assets",
+                summary_csv: "C:/Repo/V6_dependency_atlas/assets/dependency_summary.csv",
+                module_edges_csv: "C:/Repo/V6_dependency_atlas/assets/dependency_module_edges.csv",
                 modules: "377",
                 domain_edges: "34",
                 detail_diagrams: "18",
@@ -493,9 +505,85 @@ def _browser_maintenance_reports_runner_source() -> str:
               }],
             };
             window.mediaPipelineReportsView.renderAuditPreview(reportAuditPreview);
+            const highScoreMarkerCodes = [
+              "ffprobe-open-failed",
+              "missing-video-stream",
+              "missing-audio-stream",
+              "audio-multiple-defaults",
+              "audio-default-policy-mismatch",
+              "subtitle-multiple-defaults",
+              "audio-missing-explicit-default",
+              "commentary-default-audio",
+              "tx3g-extraction-failed",
+              "bdpgs-ocr-failed",
+              "vobsub-ocr-failed",
+              "foreign-audio-no-subtitles",
+              "foreign-audio-no-text-subtitles",
+            ];
+            const mediumScoreMarkerCodes = [
+              "multiple-video-streams",
+              "audio-track-titles-missing",
+              "subtitle-track-titles-missing",
+              "default-audio-language-unknown",
+              "default-subtitle-language-unknown",
+              "default-audio-may-transcode",
+              "default-ass-subtitle",
+              "ass-only-subtitles",
+              "tx3g-only-subtitles",
+              "tx3g-subtitles-extractable",
+              "bdpgs-only-subtitles",
+              "bdpgs-subtitles-ocr-candidate",
+              "vobsub-only-subtitles",
+              "vobsub-subtitles-ocr-candidate",
+              "default-image-subtitle",
+              "image-only-subtitles",
+              "audio-language-tags-unknown",
+              "subtitle-language-tags-unknown",
+              "ambiguous-tv-naming",
+            ];
+            const auditIssueWeights = {};
+            const auditDefaultIssueWeights = {};
+            const auditScoreMarkers = [
+              { type: "base", key: "redownload_bucket", label: "Redownload candidate bucket", applies_when: "Any effective issue has bucket REDOWNLOAD_CANDIDATE." },
+              { type: "group_default", key: "high_issue", group: "high", label: "High issue-code marker default", applies_when: "Default score for high issue-code markers." },
+            ];
+            highScoreMarkerCodes.forEach((code) => {
+              auditIssueWeights[code] = 90;
+              auditDefaultIssueWeights[code] = 90;
+              auditScoreMarkers.push({
+                type: "issue_code",
+                code,
+                group: "high",
+                label: "High issue: " + code,
+                applies_when: "High issue-code marker " + code,
+              });
+            });
+            auditScoreMarkers.push(
+              { type: "base", key: "rerun_bucket", label: "Rerun pipeline bucket", applies_when: "Any remaining effective issue has bucket RERUN_PIPELINE." },
+              { type: "group_default", key: "medium_issue", group: "medium", label: "Medium issue-code marker default", applies_when: "Default score for medium issue-code markers." }
+            );
+            mediumScoreMarkerCodes.forEach((code) => {
+              auditIssueWeights[code] = 40;
+              auditDefaultIssueWeights[code] = 40;
+              auditScoreMarkers.push({
+                type: "issue_code",
+                code,
+                group: "medium",
+                label: "Medium issue: " + code,
+                applies_when: "Medium issue-code marker " + code,
+              });
+            });
+            auditIssueWeights["ffprobe-open-failed"] = 95;
+            auditScoreMarkers.push(
+              { type: "base", key: "review_bucket", label: "Review bucket", applies_when: "Any remaining effective issue has bucket REVIEW." },
+              { type: "base", key: "fallback_issue", label: "Fallback issue marker", applies_when: "Any effective issue not matched by higher priority markers." },
+              { type: "base", key: "redownload_bonus", label: "Redownload candidate bonus", applies_when: "Added once when a redownload issue is present." },
+              { type: "base", key: "rerun_bonus", label: "Rerun pipeline bonus", applies_when: "Added once when a rerun issue is present." }
+            );
             window.mediaPipelineReportsView.renderAuditControls({
               schema_version: "desktop_audit_controls.v1",
               score_policy: {
+                schema_version: "desktop_audit_score_policy.v2",
                 persisted: false,
                 path: "C:/State/audit_score_policy.json",
                 policy: {
@@ -507,6 +595,7 @@ def _browser_maintenance_reports_runner_source() -> str:
                   fallback_issue: 10,
                   redownload_bonus: 100,
                   rerun_bonus: 40,
+                  issue_code_weights: auditIssueWeights,
                 },
                 defaults: {
                   redownload_bucket: 100,
@@ -517,7 +606,9 @@ def _browser_maintenance_reports_runner_source() -> str:
                   fallback_issue: 10,
                   redownload_bonus: 100,
                   rerun_bonus: 40,
+                  issue_code_weights: auditDefaultIssueWeights,
                 },
+                markers: auditScoreMarkers,
               },
               ignore_manifest: {
                 entry_count: 0,
@@ -802,8 +893,59 @@ def _browser_maintenance_reports_runner_source() -> str:
             requireText("report-audit-score-policy-summary", [
               "Score policy source: defaults",
               "Audit ignore entries: 0",
+              "Advanced score controls: enable Advanced mode",
               "Boundary: score and ignore controls affect audit reporting/export only",
             ]);
+            const scoreDisclosure = document.querySelector('#report-audit-score-redownload-bucket')?.closest('details');
+            if (!scoreDisclosure || !scoreDisclosure.hasAttribute("data-advanced")) {
+              throw new Error("Reports audit score controls are not behind the Advanced gate.");
+            }
+            if (window.getComputedStyle(scoreDisclosure).display !== "none") {
+              throw new Error("Reports audit score controls should be hidden before Advanced mode is enabled.");
+            }
+            if (!scoreDisclosure.textContent.includes("High issue-code marker") || !scoreDisclosure.textContent.includes("audio-default-policy-mismatch")) {
+              throw new Error("Reports audit score controls did not list high issue-code markers.");
+            }
+            if (!scoreDisclosure.textContent.includes("Medium issue-code marker") || !scoreDisclosure.textContent.includes("bdpgs-subtitles-ocr-candidate")) {
+              throw new Error("Reports audit score controls did not list medium issue-code markers.");
+            }
+            if (!scoreDisclosure.textContent.includes("High issue: ffprobe-open-failed") || !scoreDisclosure.textContent.includes("High issue: foreign-audio-no-text-subtitles")) {
+              throw new Error("Reports audit score controls did not list every high issue-code marker as a point issue.");
+            }
+            if (!scoreDisclosure.textContent.includes("Medium issue: multiple-video-streams") || !scoreDisclosure.textContent.includes("Medium issue: ambiguous-tv-naming")) {
+              throw new Error("Reports audit score controls did not list every medium issue-code marker as a point issue.");
+            }
+            if (scoreDisclosure.querySelector("[data-audit-score-policy-mirror]")) {
+              throw new Error("Reports audit score controls still rendered locked mirror rows.");
+            }
+            const highScoreInput = scoreDisclosure.querySelector('[data-audit-score-issue-code="audio-default-policy-mismatch"]');
+            const persistedHighScoreInput = scoreDisclosure.querySelector('[data-audit-score-issue-code="ffprobe-open-failed"]');
+            const mediumScoreInput = scoreDisclosure.querySelector('[data-audit-score-issue-code="bdpgs-subtitles-ocr-candidate"]');
+            if (!highScoreInput || highScoreInput.tagName !== "INPUT" || highScoreInput.type !== "number" || highScoreInput.value !== "90") {
+              throw new Error("Reports high issue marker row was not an editable numeric input.");
+            }
+            if (!persistedHighScoreInput || persistedHighScoreInput.value !== "95") {
+              throw new Error("Reports saved high issue-code override was not rendered as an editable numeric input.");
+            }
+            if (!mediumScoreInput || mediumScoreInput.tagName !== "INPUT" || mediumScoreInput.type !== "number" || mediumScoreInput.value !== "40") {
+              throw new Error("Reports medium issue marker row was not an editable numeric input.");
+            }
+            const highDefaultInput = byId("report-audit-score-high-issue");
+            highDefaultInput.value = "111";
+            highDefaultInput.dispatchEvent(new Event("input", { bubbles: true }));
+            if (highScoreInput.value !== "111") {
+              throw new Error("Reports high group default did not update untouched high issue-code rows.");
+            }
+            if (persistedHighScoreInput.value !== "95") {
+              throw new Error("Reports high group default overwrote a saved per-code override.");
+            }
+            highScoreInput.value = "222";
+            highScoreInput.dispatchEvent(new Event("input", { bubbles: true }));
+            highDefaultInput.value = "333";
+            highDefaultInput.dispatchEvent(new Event("input", { bubbles: true }));
+            if (highScoreInput.value !== "222") {
+              throw new Error("Reports manually edited high issue-code row did not stay independent.");
+            }
             [
               "report-audit-score-policy-save-button",
               "report-audit-score-policy-reset-button",
@@ -812,6 +954,18 @@ def _browser_maintenance_reports_runner_source() -> str:
             ].forEach((id) => {
               if (!byId(id)) throw new Error("missing Reports audit control " + id);
             });
+            const originalConfirm = window.confirm;
+            window.confirm = () => true;
+            byId("report-audit-score-policy-save-button").click();
+            await waitFor(() => posts.some((entry) => entry.path.includes("/api/audit/score-policy")), "audit score policy save");
+            window.confirm = originalConfirm;
+            const scorePolicyPost = posts.find((entry) => entry.path.includes("/api/audit/score-policy"));
+            if (scorePolicyPost.body?.policy?.issue_code_weights?.["audio-default-policy-mismatch"] !== 222) {
+              throw new Error("Reports audit score policy save did not include edited issue_code_weights.");
+            }
+            if (scorePolicyPost.body?.policy?.issue_code_weights?.["bdpgs-subtitles-ocr-candidate"] !== 40) {
+              throw new Error("Reports audit score policy save did not include medium issue_code_weights.");
+            }
             const auditCheckbox = document.querySelector('#audit-preview-rows input[type="checkbox"]');
             if (!auditCheckbox) throw new Error("Reports audit row multi-select checkbox missing");
             auditCheckbox.click();
@@ -990,7 +1144,8 @@ class WebViewBrowserMaintenanceReportsSmokeTests(unittest.TestCase):
 
         browser_result = result["result"]
         posts = browser_result["posts"]
-        self.assertEqual(len(posts), 3)
+        self.assertEqual(len(posts), 4)
+        score_policy_post = next(post for post in posts if post["path"] == "/api/audit/score-policy")
         latest_warning_clear = next(
             post
             for post in posts
@@ -1023,6 +1178,8 @@ class WebViewBrowserMaintenanceReportsSmokeTests(unittest.TestCase):
         self.assertTrue(bulk_preview["body"]["dry_run"])
         self.assertFalse(bulk_preview["body"]["confirm_clear"])
         self.assertNotIn("marker_paths", bulk_preview["body"])
+        self.assertEqual(score_policy_post["body"]["policy"]["issue_code_weights"]["audio-default-policy-mismatch"], 222)
+        self.assertEqual(score_policy_post["body"]["policy"]["issue_code_weights"]["bdpgs-subtitles-ocr-candidate"], 40)
         self.assertIn(browser_result["maintenanceStatus"], {"Ready", "Warnings", "Blocked"})
         self.assertEqual(browser_result["reportStatus"], "Action needed")
         self.assertEqual(browser_result["failureStatus"], "Action needed")

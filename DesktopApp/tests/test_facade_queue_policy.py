@@ -304,6 +304,7 @@ class QueueFacadePolicyTests(unittest.TestCase):
             "subtitles": {
                 "keepTracks": [{"language": "eng"}],
                 "dropTracks": [{"language": "und"}],
+                "burnTrack": {"streamIndex": 3, "language": "eng", "codec": "subrip", "forced": True},
                 "stripAll": False,
             },
         }
@@ -338,6 +339,13 @@ class QueueFacadePolicyTests(unittest.TestCase):
             ({"audio": {"keepTracks": [{"streamIndex": 1, "map": "0:a:0"}]}}, "Unsupported audio.keepTracks[0] field(s): map"),
             ({"audio": {"keepTracks": [{"streamIndex": 1, "channels": 0}]}}, "'audio.keepTracks[0].channels' must be greater than zero"),
             ({"subtitles": {"keepTracks": [{"streamIndex": 3, "forced": "true"}]}}, "'subtitles.keepTracks[0].forced' must be a boolean"),
+            ({"subtitles": {"burnTrack": [{"streamIndex": 3}]}}, "'subtitles.burnTrack' must be an object"),
+            ({"subtitles": {"burnTrack": {"language": "eng"}}}, "'subtitles.burnTrack.streamIndex' is required"),
+            ({"subtitles": {"burnTrack": {"streamIndex": "3"}}}, "'subtitles.burnTrack.streamIndex' must be an integer"),
+            (
+                {"routing": {"profile": "remux"}, "subtitles": {"burnTrack": {"streamIndex": 3}}},
+                "'routing.profile' remux cannot be combined with subtitles.burnTrack",
+            ),
             ({"audio": {"maxChannels": "6"}}, "'audio.maxChannels' must be an integer"),
             ({"audio": {"maxChannels": 0}}, "'audio.maxChannels' must be one of: 2, 6, 8"),
             ({"audio": {"preferDefaultLanguage": 5}}, "'audio.preferDefaultLanguage' must be a string"),
@@ -349,6 +357,32 @@ class QueueFacadePolicyTests(unittest.TestCase):
         for payload, expected in invalid_cases:
             with self.subTest(payload=payload):
                 self.assertIn(expected, "\n".join(validate_file_override_payload(payload)))
+
+    def test_subtitle_burn_save_clears_conflicting_subtitle_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            manifest_path = root / "State" / "file_overrides.json"
+            source = root / "Movie.mkv"
+            source.write_bytes(b"media")
+
+            manifest = set_file_override_entry(
+                manifest_path,
+                source,
+                {
+                    "subtitles": {
+                        "keepTracks": [{"language": "eng"}],
+                        "dropTracks": [{"language": "spa"}],
+                        "stripAll": True,
+                        "burnTrack": {"streamIndex": 3, "language": "eng", "codec": "subrip", "forced": False},
+                    }
+                },
+            )
+
+            entry = manifest["entries"][normalize_file_override_path(source)]
+            self.assertEqual(
+                entry["subtitles"],
+                {"burnTrack": {"streamIndex": 3, "language": "eng", "codec": "subrip", "forced": False}},
+            )
 
     def test_queue_preview_rows_surface_library_profile_evidence(self) -> None:
         def factory(_raw: dict[str, object]) -> object:

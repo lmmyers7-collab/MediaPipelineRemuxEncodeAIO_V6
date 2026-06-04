@@ -3,9 +3,9 @@ file: app/kernel/config_keys.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-06-02
-sha256: e40ac0a6b51e9e63be2d24ed908e4c5e799a6ffb5cfdab1d57e62a8b41323053
+sha256: 6dd762eadfb18bba28a70897a1da30848b080050537e72b30aa1e07220d2f490
 ---
 # `app/kernel/config_keys.py`
 

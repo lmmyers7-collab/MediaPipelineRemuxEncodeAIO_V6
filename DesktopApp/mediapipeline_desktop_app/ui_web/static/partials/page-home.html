@@ -5,10 +5,13 @@
         <div class="metric-grid">
           <section class="metric">
             <span class="metric-label">Pipeline</span>
-            <strong id="pipeline-state">...</strong>
+            <strong id="pipeline-state" class="pipeline-state-value" aria-label="Pipeline status loading">
+              <span class="pipeline-state-main">...</span>
+              <span class="pipeline-state-detail" hidden></span>
+            </strong>
           </section>
           <section class="metric">
-            <span class="metric-label">Queue</span>
+            <span class="metric-label">Current Item</span>
             <strong id="queue-count">0 / 0</strong>
           </section>
           <section class="metric">

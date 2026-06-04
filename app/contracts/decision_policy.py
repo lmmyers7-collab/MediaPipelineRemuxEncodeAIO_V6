@@ -54,6 +54,10 @@ class EffectiveDecisionPolicy(DecisionPolicyModel):
     tv_route_size_limit_gb: float = Field(default=3.0, ge=0)
     movie_direct_copy_max_bitrate_mbps: float = Field(default=35.0, ge=0)
     tv_direct_copy_max_bitrate_mbps: float = Field(default=18.0, ge=0)
+    route_1080p_bucket_max_height: int = Field(default=1200, ge=1, le=4320)
+    route_1080p_max_video_bitrate_mbps: float = Field(default=20.0, gt=0, le=500)
+    route_4k_bucket_min_height: int = Field(default=1800, ge=1, le=4320)
+    route_4k_max_video_bitrate_mbps: float = Field(default=35.0, gt=0, le=500)
     allow_h264_compatible_direct_copy: bool = True
     h264_direct_copy_max_bitrate_mbps: float = Field(default=35.0, ge=0)
     h264_direct_copy_max_height: int = Field(default=1080, ge=0)
@@ -101,6 +105,8 @@ class EffectiveDecisionPolicy(DecisionPolicyModel):
     def _default_output_size_check_action(self) -> "EffectiveDecisionPolicy":
         if self.output_size_check_action is None:
             self.output_size_check_action = output_size_check_action_from_settings(self.size_guard_mode)
+        if self.route_1080p_bucket_max_height >= self.route_4k_bucket_min_height:
+            raise ValueError("route_1080p_bucket_max_height must be lower than route_4k_bucket_min_height.")
         return self
 
 

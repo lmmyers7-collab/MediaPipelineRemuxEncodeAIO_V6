@@ -1,0 +1,59 @@
+{
+  "id": "MP-CHANGE-2026-0604-004",
+  "title": "Add Queue File Settings probe facts",
+  "version_target": "0.1.0-dev",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-04",
+  "date_completed": "2026-06-04",
+  "summary": "Add a read-only Detected file info panel to the Queue File Settings drawer using facts already returned by the file-overrides tracks probe.",
+  "reason": "Operators need source size, duration, bitrate, container, video basics, and probe gaps near per-file audio/subtitle/routing overrides so override decisions can be based on current probe evidence.",
+  "affected_areas": [
+    "local_api",
+    "webview",
+    "queue",
+    "file_overrides"
+  ],
+  "behavior_before": "The Queue File Settings drawer showed detected audio/subtitle tracks but did not surface source-level probe facts such as file size, duration, container, overall bitrate, estimated bitrate, or primary video basics.",
+  "behavior_after": "The existing additive file-overrides tracks payload includes source_info and audio stream bitrate displays, effective track metadata preserves source_info, and the drawer renders a compact read-only Detected file info panel with loading, unavailable, and partial-data states.",
+  "files_touched": [
+    "app/api/file_overrides/tracks.py",
+    "app/api/file_overrides/selectors.py",
+    "DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/page-queue.html",
+    "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.drawer.js",
+    "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/styles.queue.css",
+    "DesktopApp/tests/test_file_override_tracks.py",
+    "DesktopApp/tests/test_application_facade_web_static.py",
+    "changes/unreleased/MP-CHANGE-2026-0604-004.json",
+    "summaries/app/api/file_overrides/tracks.py.md",
+    "summaries/app/api/file_overrides/selectors.py.md",
+    "summaries/DesktopApp/mediapipeline_desktop_app/ui_web/static/partials/page-queue.html.md",
+    "summaries/DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.drawer.js.md",
+    "summaries/DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/styles.queue.css.md",
+    "summaries/DesktopApp/tests/test_file_override_tracks.py.md",
+    "summaries/DesktopApp/tests/test_application_facade_web_static.py.md",
+    "summaries/changes/unreleased/MP-CHANGE-2026-0604-004.json.md"
+  ],
+  "tests_added": [
+    "DesktopApp/tests/test_file_override_tracks.py source_info and audio bitrate assertions",
+    "DesktopApp/tests/test_application_facade_web_static.py Detected file info drawer assertions"
+  ],
+  "manual_validation": [
+    "node --check DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.drawer.js -- passed",
+    "DesktopApp/Runtime/Python/python.exe -m py_compile app/api/file_overrides/tracks.py app/api/file_overrides/selectors.py -- passed",
+    "DesktopApp/Runtime/Python/python.exe -m pytest DesktopApp/tests/test_application_facade_web_static.py -k file_settings_drawer -q -- passed, 11 passed and 27 deselected",
+    "DesktopApp/Runtime/Python/python.exe -m pytest DesktopApp/tests/test_file_override_tracks.py DesktopApp/tests/test_application_facade_web_static.py DesktopApp/tests/test_webview_frontend_mutation_boundary.py -- passed, 74 passed",
+    "npm run webview:check -- passed",
+    "DesktopApp/Runtime/Python/python.exe scripts/dev/refresh_summaries.py --paths <feature files> -- wrote 7 summaries and left 1 unchanged; a second focused refresh wrote the static-test summary",
+    "DesktopApp/Runtime/Python/python.exe scripts/dev/refresh_summaries.py --check --paths <feature files> -- passed",
+    "DesktopApp/Runtime/Python/python.exe scripts/change_control/validate_changes.py -- passed, 8 packet(s) valid",
+    "No File Settings drawer-specific SmokeTests wrapper was present; the closest Queue row-detail wrapper does not exercise this drawer panel."
+  ],
+  "rollback_plan": "Revert the source_info payload normalization, selector preservation, File Settings drawer markup/rendering/CSS, focused test updates, refreshed summaries, and this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0604-002",
+    "MP-CHANGE-2026-0604-003"
+  ],
+  "notes": "Read-only additive Local API/WebView feature. It keeps schema_version queue_file_override_tracks.v1, adds no POST route or frontend mutation path, and does not change FFmpeg command generation, route policy, subtitle policy, audio policy, queue mutation, pending publish drain, source/scratch/output movement, cleanup behavior, or source media files. Affected Python scripts: app/api/file_overrides/tracks.py, app/api/file_overrides/selectors.py, DesktopApp/tests/test_file_override_tracks.py, and DesktopApp/tests/test_application_facade_web_static.py."
+}

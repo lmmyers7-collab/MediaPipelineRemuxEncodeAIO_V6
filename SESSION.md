@@ -531,3 +531,113 @@ Operator validation REQUIRED before §7 sign-off (config/settings + FFmpeg/publi
 - A real remux that emits a mkvmerge exit-1 warning (confirms remux.ps1 warning
   tail logging; publish behaviour unchanged).
 - `python scripts/dev/ai_guardrail.py preflight` then `postflight` as a pair.
+
+## Backend WebView load performance 2026-06-03 (operator-approved this turn; new branch)
+
+Branch: `perf/backend-webview-load`, created off the `fix/mediapipeline-keystone-hardening`
+tip (5570524). Operator approved (AskUserQuestion, 2026-06-03): "New SESSION.md + new branch"
+and "keep the related uncommitted diff in place". There is no `main` branch; `master` (4a29caa)
+lacks `engine/config/runtime_config.ps1` (created by the keystone commits), and the pre-existing
+"related" working-tree diff modifies that file, so branching off `master` would strand it.
+Branching off the current tip is the only base that preserves the diff; backend-load therefore
+stacks on top of keystone + the related diff.
+
+Task: reduce first WebView refresh from ~30s toward 1.5-4s by bounding the completed-job read
+path. Read-path / performance only. Source brief: `Docs/implementation/backend-load-performance/`
+packets 01-05. No change to media policy, FFmpeg/subtitle/audio, publish/pending-publish
+park/drain, queue mutation, settings persistence, or decision routing.
+
+In-scope files (backend targets are clean; build ON TOP of the related diff, never overwrite its
+lines):
+- Packet 1 (completed proof budget): `app/completed/manifest.py`, `app/completed/policy.py`,
+  `app/completed/service.py`, plus `app/completed/facade.py` / `trust_fields.py` /
+  `validation_state.py` as needed; completed read route in
+  `DesktopApp/.../api/read_payloads*.py` / `routes_read.py`.
+- Packet 2 (SQLite mirror off GET): `app/completed/service.py`, `app/storage/db.py`.
+- Packet 3 (bounded global refresh): `DesktopApp/.../ui_web/static/assets/app.js` and
+  `assets/app/refresh.js`; completed-view JS only if required (`completedView.js` et al. are in
+  the pre-existing diff -- additive edits only).
+- Packet 4 (final-library dedupe): `app/final_library/service.py`,
+  `DesktopApp/.../api/read_payloads_inventory.py`; optional frontend lazy-load.
+- Tests: `DesktopApp/tests/` + `tests/` targeted completed / final_library / local-api-route /
+  webview-static; `summaries/` mirrors for changed files.
+
+Out of scope: every AGENTS.md §7 area except the read-path DTO surface. Proof-mode DTO fields are
+additive metadata only (do not silently flip "verified live" -> "assumed exists"); route/contract
+tests required where the DTO changes.
+
+Validation rung (AGENTS.md §5): targeted route + completed/final-library/storage unit tests via
+`DesktopApp\Runtime\Python\python.exe`, then affected WebView/local-API smokes. Capture
+before/after route timing for `/api/completed` and `/api/final-library-promotion/status` and the
+initial refresh set. No real-media rung needed unless a change crosses into media/publish/queue
+policy.
+
+Pre-existing working-tree diff (operator: "related", keep): ~50 files (config-keys /
+decision-routing / settings) across `app/config`, `app/contracts`, `app/decide`,
+`app/kernel/config_keys.py`, `engine/config`, `engine/decide`, `engine/paths`,
+`engine/entrypoint.ps1`, `Pipeline/` config+schema+tests, `schemas/`, ui_web settings+completed
+JS, `DesktopApp/tests` + `tests/`, and their summaries. Plus untracked `CON` (reserved Windows
+name; pre-existing, leave) and `Docs/implementation/` (the packets). Left untouched except where a
+backend-load packet must add to an already-modified completed-view JS.
+
+## Handoff 2026-06-03 -- backend WebView load performance (packets 1-4 complete)
+
+Branch `perf/backend-webview-load`. Read-path/performance only; no media policy, FFmpeg/
+subtitle/audio, publish/pending-publish, queue, or settings behaviour changed. Ollama: not used.
+
+Changed files (all mine; zero overlap with the pre-existing related diff):
+- `app/completed/manifest.py` -- proof-mode constants (summary/bounded/live) + `normalize_proof_mode`;
+  `read_completed_manifest_records(..., proof_mode, bounded_proof_limit)` annotates only in-budget
+  rows (live exists()) and stamps every record `_diagnostics_output_proof` live|deferred. (Packet 1)
+- `app/completed/policy.py` -- `completed_record_to_row`/`completed_row_consistency` honour the
+  per-record stamp: deferred rows emit `output_exists=None`, payload-only size, `output_proof`,
+  `sidecar_exists=None`, `consistency_status="Unverified"`, and do zero filesystem I/O; operator
+  guidance + `missing_output_count` switched from falsy to explicit `is False`. Added
+  `completed_size_reduction_text` (payload-size parity with the model property). (Packet 1)
+- `app/completed/service.py` -- `load_recent_completed_jobs(..., proof_mode)`, proof mode added to
+  the history cache key (so summary evidence is never served to a live caller); removed the GET-time
+  per-row SQLite mirror loop (read path no longer opens app.storage.db). (Packets 1-2)
+- `app/completed/facade.py` -- `get_completed_preview(..., proof_mode=live)` threaded to the loader.
+- `DesktopApp/.../api/read_payloads_inventory.py` -- broad completed route defaults to
+  `proof=bounded`, honours `?proof=live`. (Packet 1)
+- `ui_web/static/assets/app.js` -- broad `refreshAllNow` completed request `limit=all` -> `limit=100`;
+  removed the duplicate `/api/final-library-promotion/status` request and now renders the promotion
+  glance from `values.completed.final_library_promotion` (same builder, already attached). (Packets 3-4)
+- `ui_web/static/assets/app/refresh.js` -- explicit "Current Output Status" recheck keeps
+  `limit=all` and now adds `&proof=live` so it still proves every destination. (Packet 3)
+- Tests: NEW `DesktopApp/tests/test_completed_proof_budget.py` (8 tests: manifest budgeting,
+  deferred-DTO no-filesystem guarantee, proof-keyed cache, route default). Updated
+  `test_phase4_storage_observability.py` (read no longer writes the SQLite mirror),
+  `test_application_facade_local_api.py` (limit=100 / proof=live strings),
+  `test_final_library_promotion.py` (renderHomePromotionEntry arg).
+- `summaries/...` regenerated for the 11 changed source/test files.
+
+Validation (agent-side, bundled `DesktopApp\Runtime\Python\python.exe`):
+- New proof-budget tests 8/8; consolidated completed/final-library/storage/route/pending-publish
+  regression 81/81; py_compile clean on all changed sources.
+- Behaviour smokes `test_webview_browser_home_live_state_smoke` / `_large_table_smoke`
+  / `_completed_pending_proof_smoke` pass (they execute app.js, so they catch the Packet 3/4 JS edits).
+- Timing (synthetic, 3ms/op simulated SMB, 500-row manifest): live 2000 fs ops / 6.40s; bounded
+  400 fs ops / 1.32s; summary 0 fs ops / 0.04s. With Packet 3 the broad refresh loads+proves <=100
+  rows regardless of manifest size; Packet 2 removes the ~8s GET SQLite mirror; Packet 4 removes the
+  duplicate ~13s 500-row final-library load.
+
+Pre-existing red baseline (NOT mine; fails at HEAD, caused by the operator's uncommitted
+completedView.js/settings refactors vs stale static-assertion tests): the static-JS assertions
+`function finalLibraryPromotionActionState` / `function getLastCompletedPayload` in
+`test_final_library_promotion.py` and `test_application_facade_local_api.py`, plus the
+`test_queue_file_settings_drawer_*` settings assertions in `test_application_facade_web_static.py`.
+Proven absent in HEAD (0/0). My updated assertion in `test_final_library_promotion.py` line 1069
+passes (it executes before the failing line).
+
+Operator validation still recommended (AGENTS.md §5 Local API/contract rung): run the WebView/
+local-API smokes against a running backend (`SmokeTests\Test-LocalApi*`, `Test-WebView*`) and
+`python scripts\dev\ai_guardrail.py` preflight/postflight. No real-media rung required (no media/
+publish/queue/FFmpeg behaviour touched).
+
+Follow-ups intentionally out of scope: (a) an explicit "not checked" badge in the completed-view JS
+for `output_proof=="deferred"` rows (the backend already emits the data; existing JS treats
+`output_exists===null` safely as not-missing); (b) a "showing recent 100 of N" indicator + optional
+backend total-available count; (c) optional backend cache-key alignment so an on-demand
+final-library status reuses the completed cache. Packets 1-4 deliver the perceived-load win without
+these.

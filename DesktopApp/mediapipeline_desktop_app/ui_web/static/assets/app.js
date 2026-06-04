@@ -18,6 +18,82 @@ function renderBrandVersion(snapshot = {}) {
   setText("app-version", bootstrap.appVersion || snapshot.app_version || "V6");
 }
 
+const HOME_PIPELINE_STATE_LABELS = Object.freeze({
+  idle: { main: "Idle", detail: "" },
+  initializing: { main: "Initializing", detail: "" },
+  scanning_sources: { main: "Scanning Sources", detail: "" },
+  "scanning_sources_(dry_run)": { main: "Scanning Sources", detail: "(dry run)" },
+  processing: { main: "Processing", detail: "" },
+  processing_queue: { main: "Processing Queue", detail: "" },
+  encoding_movie: { main: "Encoding Movie", detail: "" },
+  encoding_tv: { main: "Encoding TV", detail: "" },
+  "encoding_movie_(cpu_fallback)": { main: "Encoding Movie", detail: "(cpu fallback)" },
+  "encoding_tv_(cpu_fallback)": { main: "Encoding TV", detail: "(cpu fallback)" },
+  waiting_for_cpu_encode_slot: { main: "Waiting For CPU Encode Slot", detail: "" },
+  remuxing_movie: { main: "Remuxing Movie", detail: "" },
+  remuxing_tv: { main: "Remuxing TV", detail: "" },
+  "waiting_for_cpu_slot_(audio_transcode)": { main: "Waiting For CPU Slot", detail: "(audio transcode)" },
+  publishing_parked_outputs: { main: "Publishing Parked Outputs", detail: "" },
+  retrying_pending_push: { main: "Retrying Pending Publish", detail: "" },
+  paused: { main: "Paused", detail: "" },
+  resumed: { main: "Resumed", detail: "" },
+  stopped: { main: "Stopped", detail: "" },
+  completed: { main: "Completed", detail: "" },
+  failed: { main: "Failed", detail: "" },
+  error: { main: "Error", detail: "" },
+  audit: { main: "Audit", detail: "" },
+});
+
+const HOME_PIPELINE_STATE_ACRONYMS = new Set(["api", "bdpgs", "cpu", "ffmpeg", "srt", "tv", "tx3g", "vobsub"]);
+
+const titleCaseHomePipelineState = function titleCaseHomePipelineState(value) {
+  return String(value || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => {
+      const normalized = word.toLowerCase();
+      if (HOME_PIPELINE_STATE_ACRONYMS.has(normalized)) return normalized.toUpperCase();
+      return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+    })
+    .join(" ");
+};
+
+const formatHomePipelineState = function formatHomePipelineState(value) {
+  const raw = String(value || "idle").trim() || "idle";
+  const key = raw.toLowerCase();
+  const known = HOME_PIPELINE_STATE_LABELS[key];
+  if (known) {
+    const label = known.detail ? `${known.main} ${known.detail}` : known.main;
+    return { main: known.main, detail: known.detail, label };
+  }
+  const readable = raw.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+  const parenthetical = readable.match(/^(.*?)\s*(\([^)]*\))\s*$/);
+  const mainText = parenthetical ? parenthetical[1] : readable;
+  const detailText = parenthetical ? parenthetical[2].toLowerCase() : "";
+  const main = titleCaseHomePipelineState(mainText || "idle");
+  const label = detailText ? `${main} ${detailText}` : main;
+  return { main, detail: detailText, label };
+};
+
+const renderHomePipelineState = function renderHomePipelineState(value) {
+  const node = byId("pipeline-state");
+  if (!node) return;
+  const formatted = formatHomePipelineState(value);
+  const mainNode = node.querySelector(".pipeline-state-main");
+  const detailNode = node.querySelector(".pipeline-state-detail");
+  if (!mainNode || !detailNode) {
+    node.textContent = formatted.label;
+  } else {
+    mainNode.textContent = formatted.main;
+    detailNode.textContent = formatted.detail;
+    detailNode.hidden = !formatted.detail;
+  }
+  node.setAttribute("aria-label", formatted.label);
+  node.setAttribute("title", formatted.label);
+};
+
 
 
 
@@ -90,7 +166,7 @@ function renderSnapshot(snapshot) {
   renderBrandVersion(snapshot);
   renderTopbarActivity(snapshot);
   renderTopbarEventTicker(snapshot);
-  setText("pipeline-state", state);
+  renderHomePipelineState(state);
   setText("status-summary", snapshot.status_summary || "No status summary.");
   const pill = byId("state-pill");
   if (pill) {
@@ -99,11 +175,9 @@ function renderSnapshot(snapshot) {
     pill.dataset.state = state;
   }
   const counts = snapshot.counts || {};
-  // queue-count is driven by renderHomeQueueSnapshot which runs later in the
-  // same poll cycle and uses the real queue snapshot data (runnable/total rows).
-  // Do not set it here — the snapshot counts reflect only the active run's
-  // batch position (CurrentQueueIndex/Total), which is 0/0 when idle and
-  // would mask the actual queue size the operator needs to see.
+  const queueIndex = Math.max(0, Math.trunc(Number(counts.queue_index) || 0));
+  const queueTotal = Math.max(0, Math.trunc(Number(counts.queue_total) || 0));
+  setText("queue-count", `${queueIndex} / ${queueTotal}`);
   setText("processed-count", String(counts.processed || 0));
   setText("failed-count", String(counts.failed || 0));
   setText("home-failed-count", String(counts.failed || 0));
@@ -631,8 +705,7 @@ async function refreshAllNow(options = {}) {
     ["diagnostics state summary", apiGet("/api/diagnostics/state-summary"), false],
     ["commands", apiGet("/api/commands?limit=20"), false],
     ["queue", apiGet("/api/queue"), false],
-    ["completed", apiGet("/api/completed?limit=all"), false],
-    ["final library promotion", apiGet("/api/final-library-promotion/status"), false],
+    ["completed", apiGet("/api/completed?limit=100"), false],
     ["failures", apiGet(failureQuery), false],
     ["audit results", apiGet(auditQuery), false],
     ["audit controls", apiGet("/api/audit-controls"), false],
@@ -682,8 +755,15 @@ async function refreshAllNow(options = {}) {
   if (values.queue) renderQueue(values.queue);
   renderHomeQueueSnapshot(values.queue || {});
   if (values.completed) renderCompleted(values.completed);
-  if (values["final library promotion"]) window.mediaPipelineCompletedView?.renderFinalLibraryPromotion?.(values["final library promotion"]);
-  renderHomePromotionEntry(values["final library promotion"] || {});
+  // Reuse the final-library promotion status attached to the completed payload:
+  // the completed read already computes it via the same builder
+  // (annotate_final_library_promotion_rows -> get_final_library_promotion_status),
+  // so the broad refresh no longer issues a second 500-row completed load via
+  // /api/final-library-promotion/status. Full status loads on demand from the
+  // Current Output Status action. (backend-load-performance Packet 4.)
+  const finalLibraryPromotion = values.completed?.final_library_promotion;
+  if (finalLibraryPromotion) window.mediaPipelineCompletedView?.renderFinalLibraryPromotion?.(finalLibraryPromotion);
+  renderHomePromotionEntry(finalLibraryPromotion || {});
   renderHomeRecentCompleted(values.completed || {});
   if (values.failures) window.mediaPipelineReportsView?.renderFailurePreview?.(values.failures);
   if (values["audit results"]) {
@@ -702,7 +782,7 @@ async function refreshAllNow(options = {}) {
   }
   if (values.settings) {
     renderSettings(values.settings);
-    window.mediaPipelineSettingsLibraries?.renderSettingsLibraries?.(values.settings);
+    window.mediaPipelineSettingsLibraries?.renderSettingsLibraries?.(values.settings, refreshOptions);
     window.mediaPipelineReportsView?.renderReports?.(lastSnapshot, getLastSettings());
     window.mediaPipelineLaunchView?.renderAllLaunchPreflights?.();
   }

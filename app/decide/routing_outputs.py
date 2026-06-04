@@ -48,6 +48,7 @@ def finalize_decision(
     actions: StreamActionSet,
     legacy_route: str,
     legacy_reason_code: str,
+    source_facts: dict[str, Any] | None = None,
 ) -> ProcessingDecision:
     summary = derive_route_summary(actions)
     if summary == "REJECT":
@@ -61,7 +62,7 @@ def finalize_decision(
         streamActions=actions,
         routeSummary=summary,
         routeReasons=reasons,
-        sourceFactsUsed=source_facts_for_output(source, policy),
+        sourceFactsUsed=source_facts_for_output(source, policy, source_facts),
         hardRulesTriggered=[reason for reason in reasons if reason.enforcement in {"hard_route", "hard_block"}],
         softTargetsExceeded=[reason for reason in reasons if reason.enforcement == "soft_target"],
         advisoryWarnings=[reason for reason in reasons if reason.enforcement == "advisory"],
@@ -77,9 +78,13 @@ def finalize_decision(
     )
 
 
-def source_facts_for_output(source: SourceMediaInfo, policy: EffectiveDecisionPolicy) -> dict[str, Any]:
+def source_facts_for_output(
+    source: SourceMediaInfo,
+    policy: EffectiveDecisionPolicy,
+    routing_facts: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     primary = source.video_streams[0] if source.video_streams else None
-    return {
+    facts: dict[str, Any] = {
         "media_type": source.container.media_type,
         "source_container": source.container.format_name,
         "source_size_bytes": source.container.file_size_bytes,
@@ -89,6 +94,13 @@ def source_facts_for_output(source: SourceMediaInfo, policy: EffectiveDecisionPo
         "estimated_video_bitrate_mbps": round(estimated_bitrate_mbps(source, primary), 3) if primary else 0.0,
         "output_container": policy.output_container,
     }
+    if routing_facts:
+        facts.update(routing_facts)
+        facts["source_container"] = source.container.format_name
+        facts["primary_video_codec"] = normalize_codec(primary.codec) if primary else ""
+        facts["primary_video_height"] = primary.height if primary else 0
+        facts["output_container"] = policy.output_container
+    return facts
 
 
 def planned_output_summary(

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: api
 last_modified: 2026-06-03
 last_reviewed: 2026-05-28
-sha256: b170b71fc61e40c2a1b1246dcd7568a2cd930bac055b80dd3e391487af22e2db
+sha256: f220297e306fbd3fe07b46d373c413fffc934b8a258e7840f685c98a960274df
 ---
 # `DesktopApp/mediapipeline_desktop_app/api/routes_read.py`
 

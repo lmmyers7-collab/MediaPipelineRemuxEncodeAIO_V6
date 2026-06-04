@@ -58,13 +58,13 @@
       ]
     },
     {
-      "route": "/api/completed?limit=all",
+      "route": "/api/completed?limit=100",
       "files": [
         "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
       ]
     },
     {
-      "route": "/api/completed?limit=all&force_refresh=true",
+      "route": "/api/completed?limit=all&force_refresh=true&proof=live",
       "files": [
         "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app/refresh.js"
       ]
@@ -126,7 +126,6 @@
     {
       "route": "/api/final-library-promotion/status",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js",
         "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app/refresh.js"
       ]
     },
@@ -138,6 +137,12 @@
     },
     {
       "route": "/api/maintenance",
+      "files": [
+        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/maintenanceView.js"
+      ]
+    },
+    {
+      "route": "/api/maintenance/change-ledger",
       "files": [
         "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/maintenanceView.js"
       ]

@@ -25,7 +25,7 @@
 
   const overrideLayouts = {
     editor: [
-      { type: "grid", fields: ["RoutingProfile", "SizeGuardMode", "RouteThresholdMode", "EncodeTuningPreset", "EncodeLadder", "VideoCodec", "OutputContainer", "MaxEncodeGrowthPercent", "CompatibilityEncodeGrowthPercent", "EncodeThresholdGB", "TVEncodeThresholdGB", "MovieRouteMaxVideoBitrateMbps", "TVRouteMaxVideoBitrateMbps"] },
+      { type: "grid", fields: ["RoutingProfile", "SizeGuardMode", "RouteThresholdMode", "EncodeTuningPreset", "EncodeLadder", "VideoCodec", "OutputContainer", "MaxEncodeGrowthPercent", "CompatibilityEncodeGrowthPercent", "EncodeThresholdGB", "TVEncodeThresholdGB", "MovieRouteMaxVideoBitrateMbps", "TVRouteMaxVideoBitrateMbps", "Route1080pBucketMaxHeight", "Route1080pMaxVideoBitrateMbps", "Route4KBucketMinHeight", "Route4KMaxVideoBitrateMbps"] },
       { type: "note", text: "Library editor overrides affect only content routed through this library. Backend preview/save remains authoritative before future runs use these values." },
     ],
     video: [
@@ -120,6 +120,28 @@
     return fallbackOverrideGroup(groupKey)?.fields || [];
   }
 
+  function fieldLibraryDesignations(field) {
+    const raw = field?.library_profile_designations;
+    if (!Array.isArray(raw)) return [];
+    return raw
+      .map((value) => String(value || "").trim().toLowerCase())
+      .filter((value) => designationValues.includes(value));
+  }
+
+  function fieldAppliesToProfile(profile, key) {
+    const field = fieldDefinition(key);
+    const designations = fieldLibraryDesignations(field);
+    if (!designations.length) return true;
+    const designation = normalizeDesignation(profile?.designation, "auto");
+    return designations.includes(designation);
+  }
+
+  function designationScopeText(field) {
+    const designations = fieldLibraryDesignations(field);
+    if (!designations.length) return "";
+    return designations.map((value) => choiceValueLabel(value)).join(" / ");
+  }
+
   function overrideGroupList() {
     return overrideGroupOrder.map((groupKey) => ({
       key: groupKey,
@@ -134,7 +156,7 @@
     return fallbackGroupByField.get(key) || fallbackGroup;
   }
 
-  function overrideStatus(groupKey, key) {
+  function overrideStatus(groupKey, key, profile = null) {
     const field = fieldDefinition(key);
     if (!hasBackendFieldDefinitions()) {
       const editable = Boolean(fallbackOverrideGroup(groupKey)?.fields.includes(key));
@@ -152,6 +174,9 @@
     }
     if (String(field.override_group || "") !== groupKey) {
       return { field, render: true, editable: false, reason: `belongs to ${field.override_group || "another"} overrides` };
+    }
+    if (profile && !fieldAppliesToProfile(profile, key)) {
+      return { field, render: false, editable: false, reason: `Only shown for ${designationScopeText(field)} libraries` };
     }
     return { field, render: true, editable: true, reason: "" };
   }
@@ -340,6 +365,37 @@
     mergeLegacyOverrides(overrides, raw?.editor_overrides, "editor");
     mergeLegacyOverrides(overrides, raw?.media_overrides, "subtitles");
     return overrides;
+  }
+
+  function inapplicableOverrideKeys(profile) {
+    const overrides = normalizeOverrides(profile || {});
+    const rows = [];
+    overrideGroupList().forEach((group) => {
+      Object.keys(overrides[group.key] || {}).forEach((key) => {
+        if (fieldAppliesToProfile(profile, key)) return;
+        rows.push({
+          group: group.key,
+          key,
+          label: choiceLabel(key),
+        });
+      });
+    });
+    return rows;
+  }
+
+  function prunedOverrideWarningLines() {
+    return profileCardsFromDom().flatMap((card) => {
+      let rows = [];
+      try {
+        rows = JSON.parse(card.dataset.libraryPrunedOverrides || "[]");
+      } catch (_error) {
+        rows = [];
+      }
+      if (!Array.isArray(rows) || !rows.length) return [];
+      const name = activeLibraryName(card);
+      const labels = rows.map((row) => row?.label || row?.key).filter(Boolean).join(", ");
+      return labels ? [`${name}: omitted designation-specific override(s) from staged LibraryProfiles: ${labels}.`] : [];
+    });
   }
 
   function normalizeProfile(raw, index) {
@@ -558,7 +614,7 @@
   }
 
   function renderOverrideField(profile, groupKey, fieldKey, variant = "grid") {
-    const status = overrideStatus(groupKey, fieldKey);
+    const status = overrideStatus(groupKey, fieldKey, profile);
     if (!status.render) return "";
     const field = status.field;
     const editable = status.editable;
@@ -623,12 +679,12 @@
     `;
   }
 
-  function fieldsForGroup(groupKey, fields) {
-    return fields.filter((fieldKey) => overrideStatus(groupKey, fieldKey).render);
+  function fieldsForGroup(profile, groupKey, fields) {
+    return fields.filter((fieldKey) => overrideStatus(groupKey, fieldKey, profile).render);
   }
 
   function renderFieldGrid(profile, groupKey, fields) {
-    const rows = fieldsForGroup(groupKey, fields).map((fieldKey) => {
+    const rows = fieldsForGroup(profile, groupKey, fields).map((fieldKey) => {
       const field = fieldDefinition(fieldKey);
       return renderOverrideField(profile, groupKey, fieldKey, field?.kind === "bool" ? "check-grid" : "grid");
     });
@@ -637,13 +693,13 @@
   }
 
   function renderOptionGrid(profile, groupKey, fields) {
-    const rows = fieldsForGroup(groupKey, fields).map((fieldKey) => renderOverrideField(profile, groupKey, fieldKey, "check"));
+    const rows = fieldsForGroup(profile, groupKey, fields).map((fieldKey) => renderOverrideField(profile, groupKey, fieldKey, "check"));
     if (!rows.length) return "";
     return `<div class="option-grid option-grid-compact">${rows.join("")}</div>`;
   }
 
   function renderFullFields(profile, groupKey, fields) {
-    return fieldsForGroup(groupKey, fields).map((fieldKey) => renderOverrideField(profile, groupKey, fieldKey, "full")).join("");
+    return fieldsForGroup(profile, groupKey, fields).map((fieldKey) => renderOverrideField(profile, groupKey, fieldKey, "full")).join("");
   }
 
   function renderNestedOptionPanel(profile, groupKey, block) {
@@ -713,6 +769,7 @@
     card.className = "settings-library-card";
     card.dataset.libraryId = profile.id;
     card.dataset.localInheritedFields = JSON.stringify(Array.from(inherited));
+    card.dataset.libraryPrunedOverrides = JSON.stringify(inapplicableOverrideKeys(profile));
     card.innerHTML = `
       <div class="settings-library-card-heading">
         <div>
@@ -769,8 +826,25 @@
     return card;
   }
 
-  function renderSettingsLibraries(settings) {
+  function libraryEditorHasActiveControl() {
+    const active = document.activeElement;
+    if (!(active instanceof Element) || active === document.body) return false;
+    const containers = [
+      byId("settings-library-profile-list"),
+      byId("settings-library-tab-bar"),
+      byId("settings-library-active-title")?.closest?.(".settings-library-actions-panel"),
+    ].filter(Boolean);
+    if (!containers.some((container) => container.contains(active))) return false;
+    return Boolean(active.closest?.("select, input, textarea"));
+  }
+
+  function shouldDeferAutomaticLibraryRender(options = {}) {
+    return Boolean(options?.automatic === true && profileCardsFromDom().length && libraryEditorHasActiveControl());
+  }
+
+  function renderSettingsLibraries(settings, options = {}) {
     const incomingProfiles = currentProfilesFromSettings(settings);
+    if (shouldDeferAutomaticLibraryRender(options)) return;
     if (libraryEditorDirty && profileCardsFromDom().length) {
       try {
         const stagedProfiles = collectProfilesFromDom();
@@ -916,6 +990,17 @@
     setText("settings-libraries-status", `${profiles.length} library profile(s) loaded`);
     activateLibraryTab(storedLibraryTabId(profiles.map((profile) => profile.id)));
     renderLibraryWarningSummary();
+  }
+
+  function rerenderLibraryCard(card) {
+    const pane = card?.closest?.("[data-library-profile-pane]");
+    if (!pane) return;
+    captureOpenOverrideSections();
+    const profile = normalizeProfile(profileFromCard(card, 1), 1);
+    pane.replaceChildren(renderCard(profile));
+    profiles = collectProfilesFromDom();
+    renderActiveLibraryCommandState();
+    if (typeof window.updatePagePanelEmptyStates === "function") window.updatePagePanelEmptyStates();
   }
 
   function readOverrideControlValue(control, key) {
@@ -1169,8 +1254,10 @@
   function renderLibraryPatchHandoff(message) {
     const patchStatus = byId("settings-patch-status")?.textContent || "No patch";
     const keys = currentSettingsPatchKeys();
+    const prunedWarnings = prunedOverrideWarningLines();
     const lines = [
       message,
+      ...prunedWarnings,
       `Shared settings patch status: ${patchStatus}`,
       `Staged keys: ${keys.length ? keys.join(", ") : "none"}`,
       "Save Library Profiles calls the backend settings save route, asks for confirmation, and creates the normal config backup before writing.",
@@ -1212,7 +1299,7 @@
   }
 
   function renderLibraryWarningSummary() {
-    setLibraryFeedback("");
+    setLibraryFeedback(prunedOverrideWarningLines().join("\n"));
   }
 
   function addLibraryCard() {
@@ -1377,6 +1464,16 @@
       });
       list.addEventListener("change", (event) => {
         const target = event.target;
+        const field = target instanceof Element ? target.getAttribute?.("data-library-field") : "";
+        if (field === "designation") {
+          const card = target.closest?.(".settings-library-card");
+          if (card) {
+            rerenderLibraryCard(card);
+            markLibraryEditorDirty();
+          }
+          renderLibraryWarningSummary();
+          return;
+        }
         if (target instanceof Element && target.matches?.("[data-library-override-control]")) {
           const row = target.closest("[data-library-override-row]");
           if (row) {

@@ -723,6 +723,41 @@ class LibraryProfileTests(unittest.TestCase):
         self.assertEqual(effective["audio"]["AudioTranscodeCodec"], "eac3")
         self.assertEqual(effective["video"]["VideoQuality"], 22)
 
+    def test_missing_global_keys_inherit_backend_metadata_defaults(self) -> None:
+        values = _base_config()
+        for key in (
+            "EncodeThresholdGB",
+            "TVEncodeThresholdGB",
+            "MovieRouteMaxVideoBitrateMbps",
+            "TVRouteMaxVideoBitrateMbps",
+            "Route1080pBucketMaxHeight",
+            "Route1080pMaxVideoBitrateMbps",
+            "Route4KBucketMinHeight",
+            "Route4KMaxVideoBitrateMbps",
+        ):
+            values.pop(key, None)
+        profile = {
+            "id": "tv",
+            "designation": "tv",
+            "source_path": r"C:\Incoming\TV",
+            "output_path": r"D:\Processed",
+        }
+
+        effective = resolve_effective_library_settings(values, profile)
+        state = _profile_state_by_id({**values, "LibraryProfiles": [profile]})["tv"]["setting_overrides"]["editor"]
+
+        self.assertEqual(effective["editor"]["EncodeThresholdGB"], 8)
+        self.assertEqual(effective["editor"]["TVEncodeThresholdGB"], 3)
+        self.assertEqual(effective["editor"]["MovieRouteMaxVideoBitrateMbps"], 35)
+        self.assertEqual(effective["editor"]["TVRouteMaxVideoBitrateMbps"], 18)
+        self.assertEqual(effective["editor"]["Route1080pBucketMaxHeight"], 1200)
+        self.assertEqual(effective["editor"]["Route1080pMaxVideoBitrateMbps"], 20)
+        self.assertEqual(effective["editor"]["Route4KBucketMinHeight"], 1800)
+        self.assertEqual(effective["editor"]["Route4KMaxVideoBitrateMbps"], 35)
+        self.assertEqual(state["Route1080pMaxVideoBitrateMbps"]["state"], "inherited")
+        self.assertEqual(state["Route1080pMaxVideoBitrateMbps"]["effective_value"], 20)
+        self.assertEqual(state["Route1080pMaxVideoBitrateMbps"]["inherited_value"], 20)
+
     def test_override_fields_beat_global_defaults(self) -> None:
         values = _base_config()
         profile = {"id": "movies", "overrides": {"video": {"VideoPreset": "p5"}}}
@@ -730,6 +765,49 @@ class LibraryProfileTests(unittest.TestCase):
         effective = resolve_effective_library_settings(values, profile)
 
         self.assertEqual(effective["video"]["VideoPreset"], "p5")
+
+    def test_resolution_bitrate_bucket_overrides_inherit_override_and_reset(self) -> None:
+        values = {
+            **_base_config(),
+            "Route1080pBucketMaxHeight": 1200,
+            "Route1080pMaxVideoBitrateMbps": 20,
+            "Route4KBucketMinHeight": 1800,
+            "Route4KMaxVideoBitrateMbps": 35,
+        }
+        profile = {
+            "id": "movies",
+            "designation": "movie",
+            "source_path": r"C:\Incoming\Movies",
+            "output_path": r"D:\Processed",
+            "overrides": {
+                "editor": {
+                    "Route1080pMaxVideoBitrateMbps": 24,
+                    "Route4KBucketMinHeight": 1700,
+                }
+            },
+        }
+
+        effective = resolve_effective_library_settings(values, profile)
+        state = _profile_state_by_id({**values, "LibraryProfiles": [profile]})["movies"]["setting_overrides"]["editor"]
+
+        self.assertEqual(effective["editor"]["Route1080pBucketMaxHeight"], 1200)
+        self.assertEqual(effective["editor"]["Route1080pMaxVideoBitrateMbps"], 24)
+        self.assertEqual(effective["editor"]["Route4KBucketMinHeight"], 1700)
+        self.assertEqual(effective["editor"]["Route4KMaxVideoBitrateMbps"], 35)
+        self.assertEqual(state["Route1080pBucketMaxHeight"]["state"], "inherited")
+        self.assertEqual(state["Route1080pMaxVideoBitrateMbps"]["state"], "explicit")
+
+        updated, errors = apply_library_profile_resets(
+            {**values, "LibraryProfiles": [profile]},
+            [{"library_id": "movies", "overrides": {"editor": ["Route1080pMaxVideoBitrateMbps"]}}],
+        )
+        movie = _profile_by_id(updated)["movies"]
+        reset_effective = resolve_effective_library_settings(values, movie)
+
+        self.assertEqual(errors, [])
+        self.assertNotIn("Route1080pMaxVideoBitrateMbps", movie["overrides"]["editor"])
+        self.assertEqual(movie["overrides"]["editor"]["Route4KBucketMinHeight"], 1700)
+        self.assertEqual(reset_effective["editor"]["Route1080pMaxVideoBitrateMbps"], 20)
 
     def test_global_changes_update_inherited_overrides_but_not_explicit_equal_to_old_global(self) -> None:
         values = _base_config()

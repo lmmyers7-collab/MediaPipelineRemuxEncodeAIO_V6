@@ -148,7 +148,7 @@ Risk: Low to medium - UI/control-state polish only; no Local API route, backend 
 ### Queue
 
 **Module**: `queueView.js`
-**API routes**: `GET /api/queue`, `GET/POST /api/queue/priority`, `GET/POST /api/queue/strategy`, `GET/POST /api/queue/file-overrides`, `POST /api/queue/open`
+**API routes**: `GET /api/queue`, `GET/POST /api/queue/priority`, `GET/POST /api/queue/strategy`, `GET/POST /api/queue/file-overrides`, `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/series-apply`, `POST /api/queue/open`
 
 | Coverage type | Files / Wrappers |
 |---|---|
@@ -281,15 +281,15 @@ Pending publish ownership is now represented in both `Docs/architecture/MODULE_M
 ### Maintenance
 
 **Module**: `maintenanceView.js`
-**API routes**: `GET /api/maintenance`, `POST /api/maintenance/release-dry-run`, `POST /api/maintenance/completed-backfill-dry-run`
+**API routes**: `GET /api/maintenance`, `GET /api/maintenance/change-ledger`, `POST /api/maintenance/release-dry-run`, `POST /api/maintenance/completed-backfill-dry-run`
 
 | Coverage type | Files / Wrappers |
 |---|---|
-| Python unit tests | `test_facade_maintenance_policy.py`, `test_facade_maintenance_command_policy.py`, `test_application_facade_maintenance.py` (facade Maintenance workspace environment-health rows, Release Package dry-run plan/progress behavior, and maintenance command-lock fail-closed behavior) |
+| Python unit tests | `test_facade_maintenance_policy.py`, `test_facade_maintenance_command_policy.py`, `test_application_facade_maintenance.py` (facade Maintenance workspace environment-health rows, Release Package dry-run plan/progress behavior, and maintenance command-lock fail-closed behavior); `test_maintenance_change_ledger.py` (packet parsing, invalid JSON/missing-field hygiene, counts, Python-impact grouping, route auth/contract/read-only metadata) |
 | Non-browser smokes | `Test-LocalApiMaintenanceDryRunContractSmoke.ps1` (executes backend-owned release/backfill dry-run POST routes against temporary state, verifies token enforcement, command history, no release manifest/zip, no completed-manifest rewrite, and unchanged temp source/output bytes) |
-| Browser-backed smokes | `Test-WebViewBrowserMaintenanceReportsSmoke.ps1` (Maintenance health/readiness, release dry-run result rendering, completed-manifest backfill dry-run result rendering, dry-run history, Reports failure-marker clear dry-run preview, no non-dry-run mutation posts) |
+| Browser-backed smokes | `Test-WebViewBrowserMaintenanceReportsSmoke.ps1` (Maintenance health/readiness, release dry-run result rendering, completed-manifest backfill dry-run result rendering, dry-run history, Reports failure-marker clear dry-run preview, no non-dry-run mutation posts); `Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1` (Change Ledger summary/table/detail/hygiene, filters, empty state, read-only `GET /api/maintenance/change-ledger`, no media/queue/settings/pending-publish/rename mutation posts) |
 
-**Gaps**: Browser smoke remains presentation-only for Maintenance POSTs by design; the browser-free Local API smoke now executes the backend dry-run command routes. No smoke executes real release packaging or real completed-manifest rewrite.
+**Gaps**: Browser smoke remains presentation-only for Maintenance POSTs by design; the browser-free Local API smoke now executes the backend dry-run command routes. The Change Ledger browser smoke uses a representative fixture payload for UI behavior while `test_maintenance_change_ledger.py` proves the real packet reader/route contract. No smoke executes real release packaging or real completed-manifest rewrite.
 
 ---
 

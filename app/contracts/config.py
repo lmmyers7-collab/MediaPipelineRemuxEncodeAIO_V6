@@ -54,6 +54,10 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "RouteThresholdMode",
     "MovieRouteMaxVideoBitrateMbps",
     "TVRouteMaxVideoBitrateMbps",
+    "Route1080pBucketMaxHeight",
+    "Route1080pMaxVideoBitrateMbps",
+    "Route4KBucketMinHeight",
+    "Route4KMaxVideoBitrateMbps",
     "AllowH264RemuxIfPlexCompatible",
     "H264RemuxMaxBitrateMbps",
     "H264RemuxMaxHeight",
@@ -206,6 +210,10 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "RouteThresholdMode",
     "MovieRouteMaxVideoBitrateMbps",
     "TVRouteMaxVideoBitrateMbps",
+    "Route1080pBucketMaxHeight",
+    "Route1080pMaxVideoBitrateMbps",
+    "Route4KBucketMinHeight",
+    "Route4KMaxVideoBitrateMbps",
     "AllowH264RemuxIfPlexCompatible",
     "H264RemuxMaxBitrateMbps",
     "H264RemuxMaxHeight",
@@ -325,6 +333,10 @@ NUMERIC_CONFIG_KEYS: tuple[str, ...] = (
     "TVEncodeThresholdGB",
     "MovieRouteMaxVideoBitrateMbps",
     "TVRouteMaxVideoBitrateMbps",
+    "Route1080pBucketMaxHeight",
+    "Route1080pMaxVideoBitrateMbps",
+    "Route4KBucketMinHeight",
+    "Route4KMaxVideoBitrateMbps",
     "H264RemuxMaxBitrateMbps",
     "H264RemuxMaxHeight",
     "MaxEncodeGrowthPercent",
@@ -377,6 +389,10 @@ LIBRARY_PROFILE_OVERRIDE_KEYS_BY_GROUP: dict[str, tuple[str, ...]] = {
         "TVEncodeThresholdGB",
         "MovieRouteMaxVideoBitrateMbps",
         "TVRouteMaxVideoBitrateMbps",
+        "Route1080pBucketMaxHeight",
+        "Route1080pMaxVideoBitrateMbps",
+        "Route4KBucketMinHeight",
+        "Route4KMaxVideoBitrateMbps",
         "MaxEncodeGrowthPercent",
         "CompatibilityEncodeGrowthPercent",
     ),
@@ -718,6 +734,10 @@ class Config(BaseModel):
     ] = "compatibility_advisory"
     MovieRouteMaxVideoBitrateMbps: int = Field(default=35, ge=1, le=500)
     TVRouteMaxVideoBitrateMbps: int = Field(default=18, ge=1, le=500)
+    Route1080pBucketMaxHeight: int = Field(default=1200, ge=1, le=4320)
+    Route1080pMaxVideoBitrateMbps: int = Field(default=20, ge=1, le=500)
+    Route4KBucketMinHeight: int = Field(default=1800, ge=1, le=4320)
+    Route4KMaxVideoBitrateMbps: int = Field(default=35, ge=1, le=500)
     AllowH264RemuxIfPlexCompatible: bool = True
     H264RemuxMaxBitrateMbps: int = Field(default=35, ge=1, le=500)
     H264RemuxMaxHeight: int = Field(default=1080, ge=1, le=4320)
@@ -1052,6 +1072,8 @@ class Config(BaseModel):
 
     @model_validator(mode="after")
     def _validate_cross_field_policy(self) -> Config:
+        if self.Route1080pBucketMaxHeight >= self.Route4KBucketMinHeight:
+            raise ValueError("Route1080pBucketMaxHeight must be lower than Route4KBucketMinHeight.")
         if not self.ConvertTx3gToSrt and self.DropTx3gAfterConversion:
             raise ValueError("DropTx3gAfterConversion requires ConvertTx3gToSrt.")
         if not self.ConvertTx3gToSrt and self.CreateExternalTx3gSrtSidecars:

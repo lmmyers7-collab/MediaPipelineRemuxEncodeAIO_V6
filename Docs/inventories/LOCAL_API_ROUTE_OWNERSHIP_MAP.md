@@ -2,7 +2,7 @@
 
 Documents all Local API routes, their mutation risk, auth requirements, backend owner confirmation, and primary frontend caller. Source of truth is `contract_read.py` and `contract_command.py`; handler dispatch is in `routes_read.py` and `routes_command.py`.
 
-Total routes: 83 (34 read, 49 command).
+Total routes: 86 (35 read, 51 command).
 
 All routes that mutate state are backend-owned. The WebView never resolves filesystem paths, selects output targets, chooses encode settings, or launches processes directly — it forwards requests with allowlisted parameters and the backend validates, plans, and executes.
 
@@ -54,6 +54,7 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 |---|---|---|---|---|---|
 | `GET /api/maintenance` | Yes | `bounded-health-check` | `desktop_maintenance_workspace.v1` | Maintenance | Runs existing env/tool probes; does not repair or change anything |
 | `GET /api/maintenance/progress` | Yes | `none` | `desktop_maintenance_health_progress.v1` | Maintenance | Reads latest maintenance progress; does not run probes |
+| `GET /api/maintenance/change-ledger` | Yes | `none` | `desktop_change_ledger.v1` | Maintenance | Reads structured change-control packets, changelog source status, and hygiene; does not run probes or regenerate files |
 | `GET /api/schedule` | Yes | `none` | `desktop_schedule_workspace.v1` | Schedule | Reads persisted schedule state; schedule saves use separate backend command routes |
 | `GET /api/settings/workspace` | Yes | `none` | `desktop_settings_workspace.v1` | Settings | Read-only, redacted settings snapshot |
 | `GET /api/settings/wizard/status` | Yes | `none` | `desktop_settings_wizard_status.v1` | Settings Wizard | Reads availability and first-run recommendation state only |
@@ -76,6 +77,8 @@ All POST routes require auth. The frontend passes allowlisted parameter keys; th
 | `POST /api/queue/scan` | `process-dry-run` | `mode`, `force`, `scope`, `reason` | `mode`: `inventory_then_curate`, `inventory_only`, `curate_only`; `scope`: `all`; duplicate scans observe the active backend scan | Queue |
 | `POST /api/queue/file-overrides` | `queue-state-write` | `path`, `audio`, `subtitles`, `routing`, `video`, `clear`, `clear_all`, `clear_fields` | Path writes must be under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots); `clear_all` clears manifest only | Queue |
 | `POST /api/queue/file-overrides/route-preview` | `read-only-preview` | `path`, `proposed_override` | Path must be under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots); previews route impact only | Queue |
+| `POST /api/queue/file-overrides/series-preview` | `read-only-preview` | `path`, `proposed_override` | Selected TV file path must be under configured source roots; previews current queue rows under the same detected source/show root only | Queue |
+| `POST /api/queue/file-overrides/series-apply` | `queue-state-write` | `path`, `proposed_override`, `confirm_apply`, `preview_fingerprint` | Requires `confirm_apply: true` and a matching preview fingerprint; writes exact current-row file overrides only, protects exact manual rows, and creates no future show/folder policy | Queue |
 | `POST /api/queue/file-overrides/folder-preview` | `read-only-preview` | `folder_path`, `proposed_override`, `options` | Folder must be under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots); previews bounded known-file impact only | Queue |
 | `POST /api/queue/file-overrides/folder-rule` | `queue-state-write` | `folder_path`, `override`, `confirmation`, `clear` | Folder must be under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots) but not equal a source/library root; stream indexes and raw map fields rejected; save requires future-file and exact-file precedence acknowledgement | Queue |
 
@@ -135,7 +138,7 @@ UI preference sync is backend-owned state persistence for browser-local customiz
 | `POST /api/maintenance/completed-backfill-dry-run` | `process-dry-run` | `timeout_seconds` | Maintenance |
 | `POST /api/maintenance/dependency-atlas` | `tooling-artifact-write` | `timeout_seconds`, `min_overview_edge_count`, `min_overview_files` | Maintenance |
 
-The dry-run routes run existing backend scripts with `-DryRun` and write no release folder, zip, manifest, or completed manifest. `dependency-atlas` writes generated dependency-atlas tooling artifacts under the repository root only and does not touch media, queue, settings, manifests, pending publish state, or pipeline state. `release-build` requires explicit `confirm_create`, is blocked during active work, runs under the backend maintenance command lock, and writes only release deployment artifacts through the backend release builder.
+The dry-run routes run existing backend scripts with `-DryRun` and write no release folder, zip, manifest, or completed manifest. `dependency-atlas` writes generated dependency-atlas tooling artifacts under `V6_dependency_atlas/` only and does not touch media, queue, settings, manifests, pending publish state, or pipeline state. `release-build` requires explicit `confirm_create`, is blocked during active work, runs under the backend maintenance command lock, and writes only release deployment artifacts through the backend release builder.
 
 ### Rename Commands
 
@@ -215,18 +218,18 @@ files.
 
 | Effect tag | Routes | Risk level |
 |---|---|---|
-| `none` | 46 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, Settings Wizard validation/preview routes, settings/reload, recovery-plan, sample-validation/preview, schedule/preview) | None |
+| `none` | 47 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, Settings Wizard validation/preview routes, settings/reload, recovery-plan, sample-validation/preview, schedule/preview) | None |
 | `bounded-health-check` | `GET /api/maintenance` | Read-only probes |
-| `read-only-preview` | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/folder-preview` | Advisory backend previews only |
+| `read-only-preview` | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/folder-preview` | Advisory backend previews only |
 | `shell-open` | `POST /api/queue/open`, `POST /api/completed/open`, `POST /api/pending-publish/open`, `POST /api/diagnostics/open` | OS open only; no file mutation |
 | `shell-dialog` | `POST /api/rename/browse`, `POST /api/settings/browse-path`, `POST /api/pipeline/browse-file` | Native Windows picker only; no file mutation |
 | `ui-state-write` | `POST /api/ui-preferences` | Allowlisted UI preference JSON only |
-| `queue-state-write` | `POST /api/queue/priority`, `POST /api/queue/strategy`, `POST /api/queue/file-overrides`, `POST /api/queue/file-overrides/folder-rule` | Non-destructive queue state JSON only |
+| `queue-state-write` | `POST /api/queue/priority`, `POST /api/queue/strategy`, `POST /api/queue/file-overrides`, `POST /api/queue/file-overrides/series-apply`, `POST /api/queue/file-overrides/folder-rule` | Non-destructive queue state JSON only |
 | `failure-marker-write` | `POST /api/failures/clear` | Moves retry-blocker marker JSON out of the active marker folder only |
 | `audit-state-write` | `POST /api/audit/score-policy`, `POST /api/audit/ignore` | Audit-only score/ignore state; no queue/media mutation |
 | `report-file-write` | `POST /api/audit/export-rerun-csv` | Writes a backend-owned report CSV artifact only |
 | `process-dry-run` | `POST /api/queue/scan`, `POST /api/maintenance/release-dry-run`, `POST /api/maintenance/completed-backfill-dry-run` | Backend dry-run/process evidence only; no media output written |
-| `tooling-artifact-write` | `POST /api/maintenance/dependency-atlas` | Generated repository tooling artifacts only |
+| `tooling-artifact-write` | `POST /api/maintenance/dependency-atlas` | Generated dependency-atlas tooling artifacts under `V6_dependency_atlas/` only |
 | `deployment-write` | `POST /api/maintenance/release-build` | Writes deployable release folder, manifest, and optional zip only |
 | `control-state-write` | `POST /api/final-library-promotion/pause`, `POST /api/final-library-promotion/resume` | Writes cooperative final-library promotion control state only |
 | `control-flag-write` | `POST /api/pipeline/control` | Pause/stop/rescan signal or backend-owned emergency kill cleanup only |

@@ -291,7 +291,7 @@
           <div class="settings-handbrake-decision-strip" aria-label="Backend planner preview status">
             <div>
               <span class="settings-mini-label">Decision</span>
-              <strong id="settings-handbrake-decision">UNKNOWN</strong>
+              <strong id="settings-handbrake-decision">NOT EVALUATED</strong>
             </div>
             <div>
               <span class="settings-mini-label">Active preset</span>
@@ -508,12 +508,28 @@
               <input id="settings-builder-tv-threshold" type="number" min="0" step="1">
             </label>
             <label>
-              Movie max bitrate for direct copy
+              Movie fallback max bitrate
               <input id="settings-builder-movie-route-bitrate" type="number" min="1" max="500" step="1">
             </label>
             <label>
-              TV max bitrate for direct copy
+              TV fallback max bitrate
               <input id="settings-builder-tv-route-bitrate" type="number" min="1" max="500" step="1">
+            </label>
+            <label>
+              1080-ish max height
+              <input id="settings-builder-1080p-bucket-height" type="number" min="1" max="4320" step="1">
+            </label>
+            <label>
+              1080-ish max bitrate
+              <input id="settings-builder-1080p-route-bitrate" type="number" min="1" max="500" step="1">
+            </label>
+            <label>
+              4K min height
+              <input id="settings-builder-4k-bucket-height" type="number" min="1" max="4320" step="1">
+            </label>
+            <label>
+              4K max bitrate
+              <input id="settings-builder-4k-route-bitrate" type="number" min="1" max="500" step="1">
             </label>
           </div>
           <div class="action-row action-row-left">

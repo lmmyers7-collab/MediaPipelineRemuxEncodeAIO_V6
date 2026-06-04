@@ -3,9 +3,9 @@ file: app/config/library_profiles.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-05-31
+last_modified: 2026-06-03
 last_reviewed: 2026-05-29
-sha256: 6081f9bd2b08855d8f541676594c309df368d99520951a05e8dc122b93f16064
+sha256: ed3500c2b78a063f659a8e35e87c70aaa53cd87e04a8358f1156a2d10c45cee6
 ---
 # `app/config/library_profiles.py`
 

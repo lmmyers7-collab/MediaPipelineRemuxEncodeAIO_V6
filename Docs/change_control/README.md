@@ -17,7 +17,31 @@ Run from the repository root:
 
 The script creates a new packet in `changes/unreleased/` with the next
 available `MP-CHANGE-YYYY-MMDD-###` identifier. Missing arguments use safe
-defaults.
+defaults. New packets include their own packet path in `files_touched` so
+coverage checks can see the packet file itself.
+
+## Record Touched Files
+
+Use the packet-update helper as work progresses. Add explicit paths when you
+know exactly what belongs to the change:
+
+```powershell
+.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\record_change_touch.py MP-CHANGE-YYYY-MMDD-### app/maintenance/change_ledger.py --area maintenance --note "Maintenance coverage warning added."
+```
+
+After staging the intended commit set, use staged coverage capture to avoid
+absorbing unrelated dirty files:
+
+```powershell
+.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\record_change_touch.py MP-CHANGE-YYYY-MMDD-### --from-staged --validation "targeted tests - passed" --status in_progress
+```
+
+Complete a packet only after validation evidence and rollback details are
+current:
+
+```powershell
+.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\record_change_touch.py MP-CHANGE-YYYY-MMDD-### --complete --validation "validate_changes.py --require-worktree-coverage - passed"
+```
 
 ## Validate Changes
 
@@ -29,6 +53,19 @@ Run from the repository root:
 
 Validation checks required fields, allowed `status`, `type`, and `risk_level`
 values, and complete-packet evidence fields.
+
+Strict coverage modes enforce that changed files are listed in
+`files_touched` of unreleased packets:
+
+```powershell
+.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\validate_changes.py --require-worktree-coverage
+.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\validate_changes.py --require-staged-coverage
+.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\validate_changes.py --require-diff-coverage origin/main
+```
+
+Released packets are historical and do not satisfy current worktree, staged, or
+branch-diff coverage. Coverage paths are exact repo-relative forward-slash paths
+from `files_touched`; no glob matching is used.
 
 ## Rebuild the Index
 
@@ -84,4 +121,6 @@ under `release/history/<version>/`. `list_releases.py` regenerates
 ## Rule
 
 Every meaningful code, config, UI, deployment, documentation, schema, test, or
-tooling change must have a change packet.
+tooling change must have an unreleased change packet with current
+`files_touched`, affected areas, validation evidence, rollback detail, status,
+and Python-impact notes where Python files are affected.

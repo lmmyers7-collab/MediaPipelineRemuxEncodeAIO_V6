@@ -182,7 +182,7 @@ function New-PipelinePlanExecutorSubtitleArgumentList {
         $actionName = ([string]$action.action).Trim().ToLowerInvariant()
         if ($actionName -eq 'drop') { continue }
         if ($actionName -eq 'burn') {
-            throw 'PipelinePlan validation failed: subtitle burn plans are recognized, but no existing PowerShell burn-in command builder is approved for Phase 07B.'
+            continue
         }
         if ($actionName -eq 'unknown') {
             throw "PipelinePlan validation failed: subtitle stream $sourceIndex action is unknown."
@@ -201,6 +201,52 @@ function New-PipelinePlanExecutorSubtitleArgumentList {
         $outOrdinal++
     }
     return @($args.ToArray())
+}
+
+function ConvertTo-PipelinePlanFfmpegSubtitleFilterPath {
+    param([Parameter(Mandatory)] [string] $Path)
+
+    $resolved = try { [System.IO.Path]::GetFullPath($Path) } catch { [string]$Path }
+    $text = $resolved.Replace('\', '/')
+    $text = $text.Replace(':', '\:')
+    $text = $text.Replace("'", "\'")
+    $text = $text.Replace(',', '\,')
+    $text = $text.Replace('[', '\[')
+    $text = $text.Replace(']', '\]')
+    return $text
+}
+
+function New-PipelinePlanExecutorSubtitleBurnVideoFilterArgs {
+    param(
+        [Parameter(Mandatory)] $Plan,
+        [Parameter(Mandatory)] [string] $InputPath
+    )
+
+    $burnActions = @(
+        Get-PipelinePlanStreamActions -Plan $Plan -StreamType 'subtitle' |
+            Where-Object { ([string]$_.action).Trim().ToLowerInvariant() -eq 'burn' }
+    )
+    if ($burnActions.Count -eq 0) { return @() }
+    if ($burnActions.Count -gt 1) {
+        throw 'PipelinePlan validation failed: subtitle burn plans must select exactly one subtitle stream.'
+    }
+
+    $action = $burnActions[0]
+    $sourceIndex = ConvertTo-PipelinePlanInt -Value $action.streamIndex -Default -1
+    if ($sourceIndex -lt 0) {
+        throw 'PipelinePlan validation failed: subtitle burn action requires a non-negative streamIndex.'
+    }
+    $codec = ([string]$action.inputCodec).Trim().ToLowerInvariant()
+    $imageCodecs = @(Get-MediaSubtitleCodecImageNames | ForEach-Object { ([string]$_).ToLowerInvariant() })
+    $textCodecs = @((Get-MediaSubtitleCodecTextNames) + (Get-MediaSubtitleCodecAssNames) | ForEach-Object { ([string]$_).ToLowerInvariant() } | Select-Object -Unique)
+    if ($codec -in $imageCodecs) {
+        return @('-filter_complex', "[0:v:0][0:$sourceIndex]overlay=eof_action=pass:repeatlast=0[vout]", '-map', '[vout]')
+    }
+    if ($codec -in $textCodecs -or [string]::IsNullOrWhiteSpace($codec)) {
+        $filterPath = ConvertTo-PipelinePlanFfmpegSubtitleFilterPath -Path $InputPath
+        return @('-filter_complex', "[0:v:0]subtitles=filename='$filterPath':si=$sourceIndex[vout]", '-map', '[vout]')
+    }
+    throw "PipelinePlan validation failed: subtitle burn codec '$codec' is not supported by the PowerShell encode command builder."
 }
 
 function New-PipelinePlanExecutorRemuxAvArgumentList {
@@ -282,6 +328,7 @@ function New-PipelinePlanExecutorEncodeCommand {
         -GlobalTitle (Get-PipelinePlanGlobalTitle -Plan $Plan) `
         -AudioArgs (New-PipelinePlanExecutorAudioArgumentList -Plan $Plan) `
         -SubtitleMapArgs (New-PipelinePlanExecutorSubtitleArgumentList -Plan $Plan) `
+        -VideoFilterArgs (New-PipelinePlanExecutorSubtitleBurnVideoFilterArgs -Plan $Plan -InputPath $InputPath) `
         -OutputPath $OutputPath `
         -VideoCodec $codec `
         -VideoPreset $preset `

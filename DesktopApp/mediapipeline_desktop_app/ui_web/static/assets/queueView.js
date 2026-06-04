@@ -737,6 +737,29 @@
     }
   }
 
+  function queueClampScrollOffset(value, maxValue) {
+    const numeric = Number(value);
+    const maximum = Math.max(0, Number(maxValue) || 0);
+    return Math.min(Math.max(0, Number.isFinite(numeric) ? numeric : 0), maximum);
+  }
+
+  function queueTableScrollSnapshot(tbody) {
+    const target = tbody?.closest?.(".queue-table-wrap") || tbody?.closest?.(".table-wrap") || null;
+    if (!target) return null;
+    return {
+      target,
+      top: target.scrollTop,
+      left: target.scrollLeft,
+    };
+  }
+
+  function restoreQueueTableScroll(snapshot) {
+    const target = snapshot?.target;
+    if (!target) return;
+    target.scrollTop = queueClampScrollOffset(snapshot.top, target.scrollHeight - target.clientHeight);
+    target.scrollLeft = queueClampScrollOffset(snapshot.left, target.scrollWidth - target.clientWidth);
+  }
+
   function renderQueueRows() {
     const filterText = byId("queue-filter")?.value || "";
     const statusFilter = byId("queue-status-filter")?.value || "all";
@@ -771,12 +794,14 @@
       }).join("\n"));
     }
     const tbody = byId("queue-rows");
+    const scrollSnapshot = queueTableScrollSnapshot(tbody);
     if (!rows.length) {
       clearRows(tbody, 9, lastQueueRows.length ? "No queue rows match the filter." : lastQueueEmptyMessage);
       updateTableStatusLegend("queue-table-legend", tbody, "Queue rows");
       if (getSelectedQueueRowKey()) renderQueueDetail(getSelectedQueueRow());
       renderQueueBackendLaunchScopePreview(lastQueuePayload, lastQueueRows, typeof getCommandHistory === "function" ? getCommandHistory() : []);
       renderQueueLaunchDecisionChecklist(lastQueuePayload, lastQueueRows, typeof getCommandHistory === "function" ? getCommandHistory() : []);
+      restoreQueueTableScroll(scrollSnapshot);
       return;
     }
     tbody.replaceChildren();
@@ -789,6 +814,7 @@
     if (getSelectedQueueRowKey()) renderQueueDetail(getSelectedQueueRow());
     renderQueueBackendLaunchScopePreview(lastQueuePayload, lastQueueRows, typeof getCommandHistory === "function" ? getCommandHistory() : []);
     renderQueueLaunchDecisionChecklist(lastQueuePayload, lastQueueRows, typeof getCommandHistory === "function" ? getCommandHistory() : []);
+    restoreQueueTableScroll(scrollSnapshot);
   }
 
   function resetQueueFilters() {
@@ -1054,6 +1080,84 @@
     return labels[level] || "";
   }
 
+  function queuePriorityPathKey(value) {
+    return String(value || "").trim().replace(/[\\/]+/g, "\\").toLowerCase();
+  }
+
+  function queuePriorityNormalizedLevel(level) {
+    const normalized = String(level || "normal").trim().toLowerCase();
+    return ["high", "low", "hold"].includes(normalized) ? normalized : "normal";
+  }
+
+  function queuePriorityRowMatchesPath(row, targetKey) {
+    if (!targetKey) return false;
+    return [row?.source_path, row?.relative_path].some((value) => queuePriorityPathKey(value) === targetKey);
+  }
+
+  function queuePriorityRowHasVisibleMarker(row) {
+    const manifestLevel = queuePriorityNormalizedLevel(row?.manifest_priority_level);
+    return Boolean(row?.is_priority) || manifestLevel === "high" || manifestLevel === "low" || manifestLevel === "hold";
+  }
+
+  function refreshDisplayedQueuePriorityRows() {
+    const previousPayload = lastQueuePayload && typeof lastQueuePayload === "object" ? lastQueuePayload : {};
+    const refreshMeta = previousPayload.__mediaPipelineRefreshMeta;
+    lastQueuePayload = {
+      ...previousPayload,
+      rows: lastQueueRows,
+      priority_visible_count: lastQueueRows.filter(queuePriorityRowHasVisibleMarker).length,
+    };
+    if (refreshMeta) {
+      try {
+        Object.defineProperty(lastQueuePayload, "__mediaPipelineRefreshMeta", {
+          value: refreshMeta,
+          enumerable: false,
+          configurable: true,
+        });
+      } catch (_) {}
+    }
+    syncSelectedQueueRows(lastQueueRows, lastQueueExcludedRows);
+    renderQueueSummary(lastQueuePayload, lastQueueRows);
+    renderQueueBreakdown(lastQueuePayload, lastQueueRows);
+    renderQueueRows();
+  }
+
+  function applyDisplayedQueuePriorityUpdates(items) {
+    const updates = Array.isArray(items) ? items : [];
+    const levelsByPath = new Map();
+    updates.forEach((item) => {
+      const pathKey = queuePriorityPathKey(item?.path);
+      if (pathKey) levelsByPath.set(pathKey, queuePriorityNormalizedLevel(item?.level));
+    });
+    if (!levelsByPath.size) return false;
+
+    let changed = false;
+    lastQueueRows = lastQueueRows.map((row) => {
+      let nextLevel = null;
+      levelsByPath.forEach((level, pathKey) => {
+        if (nextLevel === null && queuePriorityRowMatchesPath(row, pathKey)) nextLevel = level;
+      });
+      if (nextLevel === null) return row;
+      changed = true;
+      return { ...row, manifest_priority_level: nextLevel };
+    });
+    if (!changed) return false;
+    refreshDisplayedQueuePriorityRows();
+    return true;
+  }
+
+  function clearDisplayedQueuePriorityManifest() {
+    let changed = false;
+    lastQueueRows = lastQueueRows.map((row) => {
+      if (queuePriorityNormalizedLevel(row?.manifest_priority_level) === "normal") return row;
+      changed = true;
+      return { ...row, manifest_priority_level: "normal" };
+    });
+    if (!changed) return false;
+    refreshDisplayedQueuePriorityRows();
+    return true;
+  }
+
   async function sendQueuePriority(path, level, reason) {
     if (!path) {
       setText("queue-priority-status", "No row selected — select a queue row first.");
@@ -1065,6 +1169,7 @@
       const msg = result && result.message ? result.message : `Priority set to '${level}'.`;
       setText("queue-priority-status", msg);
       if (typeof appendCommandResult === "function") appendCommandResult({ command: "queue.priority", ok: Boolean(result && result.ok), severity: result && result.ok ? "ok" : "error", message: msg });
+      if (result && result.ok) applyDisplayedQueuePriorityUpdates([{ path, level }]);
       if (result && result.ok && typeof refreshAll === "function") await refreshAll();
     } catch (err) {
       setText("queue-priority-status", `Priority request failed: ${err}`);
@@ -1082,6 +1187,7 @@
       const msg = result && result.message ? result.message : description || "Bulk priority updated.";
       setText("queue-priority-status", msg);
       if (typeof appendCommandResult === "function") appendCommandResult({ command: "queue.priority", ok: Boolean(result && result.ok), severity: result && result.ok ? "ok" : "error", message: msg });
+      if (result && result.ok) applyDisplayedQueuePriorityUpdates(items);
       if (result && result.ok && typeof refreshAll === "function") await refreshAll();
     } catch (err) {
       setText("queue-priority-status", `Bulk priority request failed: ${err}`);
@@ -1095,6 +1201,7 @@
       const msg = result && result.message ? result.message : "All priority manifest entries cleared.";
       setText("queue-priority-status", msg);
       if (typeof appendCommandResult === "function") appendCommandResult({ command: "queue.priority", ok: Boolean(result && result.ok), severity: result && result.ok ? "ok" : "error", message: msg });
+      if (result && result.ok) clearDisplayedQueuePriorityManifest();
       if (result && result.ok && typeof refreshAll === "function") await refreshAll();
     } catch (err) {
       setText("queue-priority-status", `Priority manifest clear failed: ${err}`);

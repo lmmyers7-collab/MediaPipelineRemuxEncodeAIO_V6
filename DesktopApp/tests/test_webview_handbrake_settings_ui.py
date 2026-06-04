@@ -50,6 +50,10 @@ EDITOR_BUILDER_KEYS = {
     "TVEncodeThresholdGB",
     "MovieRouteMaxVideoBitrateMbps",
     "TVRouteMaxVideoBitrateMbps",
+    "Route1080pBucketMaxHeight",
+    "Route1080pMaxVideoBitrateMbps",
+    "Route4KBucketMinHeight",
+    "Route4KMaxVideoBitrateMbps",
 }
 VIDEO_DETAIL_BUILDER_KEYS = {
     "VideoPreset",
@@ -195,6 +199,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
         for token in (
             "Decision Preview",
+            "NOT EVALUATED",
             "Effective Intent Summary",
             "Predicted pending cutover",
             "Legacy path still executes",
@@ -321,8 +326,12 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "Video Encoder",
             "Movie target output size",
             "TV target output size",
-            "Movie max bitrate for direct copy",
-            "TV max bitrate for direct copy",
+            "Movie fallback max bitrate",
+            "TV fallback max bitrate",
+            "1080-ish max height",
+            "1080-ish max bitrate",
+            "4K min height",
+            "4K max bitrate",
             "Bitrate strict, size flexible",
             "Target size strict",
             "Direct-copy bitrate strict",
@@ -758,14 +767,19 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertEqual(backend["TVEncodeThresholdGB"]["unit"], "GB")
         self.assertIn("GB target output size", backend["TVEncodeThresholdGB"]["help_text"])
         self.assertIn("not the Mbps max bitrate for direct copy", backend["TVEncodeThresholdGB"]["help_text"])
-        self.assertEqual(backend["MovieRouteMaxVideoBitrateMbps"]["label"], "Movie max bitrate for direct copy")
+        self.assertEqual(backend["MovieRouteMaxVideoBitrateMbps"]["label"], "Movie fallback max bitrate")
         self.assertEqual(backend["MovieRouteMaxVideoBitrateMbps"]["unit"], "Mbps")
-        self.assertIn("Maximum movie video bitrate in Mbps", backend["MovieRouteMaxVideoBitrateMbps"]["help_text"])
-        self.assertIn("direct copy/remux remains eligible", backend["MovieRouteMaxVideoBitrateMbps"]["help_text"])
-        self.assertEqual(backend["TVRouteMaxVideoBitrateMbps"]["label"], "TV max bitrate for direct copy")
+        self.assertIn("Fallback movie bitrate cap", backend["MovieRouteMaxVideoBitrateMbps"]["help_text"])
+        self.assertIn("source height is unknown", backend["MovieRouteMaxVideoBitrateMbps"]["help_text"])
+        self.assertEqual(backend["TVRouteMaxVideoBitrateMbps"]["label"], "TV fallback max bitrate")
         self.assertEqual(backend["TVRouteMaxVideoBitrateMbps"]["unit"], "Mbps")
-        self.assertIn("Maximum TV video bitrate in Mbps", backend["TVRouteMaxVideoBitrateMbps"]["help_text"])
-        self.assertIn("direct copy/remux remains eligible", backend["TVRouteMaxVideoBitrateMbps"]["help_text"])
+        self.assertIn("Fallback TV bitrate cap", backend["TVRouteMaxVideoBitrateMbps"]["help_text"])
+        self.assertIn("source height is unknown", backend["TVRouteMaxVideoBitrateMbps"]["help_text"])
+        self.assertEqual(backend["Route1080pBucketMaxHeight"]["label"], "1080-ish direct-copy bucket max height")
+        self.assertIn("Height only selects the bitrate threshold", backend["Route1080pBucketMaxHeight"]["help_text"])
+        self.assertEqual(backend["Route1080pMaxVideoBitrateMbps"]["unit"], "Mbps")
+        self.assertEqual(backend["Route4KBucketMinHeight"]["unit"], "pixels")
+        self.assertEqual(backend["Route4KMaxVideoBitrateMbps"]["unit"], "Mbps")
 
     def test_phase3e_help_text_disambiguates_routing_encode_and_publish_copy(self) -> None:
         backend = _backend_metadata_by_key()

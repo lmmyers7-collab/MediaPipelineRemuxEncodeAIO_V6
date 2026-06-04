@@ -335,10 +335,14 @@ class Phase4StorageObservabilityTests(unittest.TestCase):
         self.assertTrue(legacy_snapshot_exists)
         self.assertEqual(queue_count, 1)
 
-    def test_completed_jobs_service_dual_writes_sqlite_mirror_without_changing_manifest_read(self) -> None:
+    def test_completed_jobs_service_read_does_not_write_sqlite_mirror(self) -> None:
+        # backend-load-performance Packet 2: the completed GET read path is
+        # read-oriented and no longer mirrors rows into the SQLite shadow table
+        # (the mirror has no reader, and the per-row commit dominated load time).
+        # The JSON manifest stays authoritative and the read still returns rows.
         class DummyCompletedService(CompletedJobsServiceMixin):
             def __init__(self) -> None:
-                self.logger = logging.getLogger("test.completed.dualwrite")
+                self.logger = logging.getLogger("test.completed.read")
                 self._completed_history_cache_key = None
                 self._completed_history_cached_at = 0.0
                 self._completed_history_manifest_mtime = 0.0
@@ -370,14 +374,12 @@ class Phase4StorageObservabilityTests(unittest.TestCase):
             )
 
             rows = DummyCompletedService().load_recent_completed_jobs(resolved, limit=10, force_refresh=True)
-            conn = sqlite3.connect(state_root / STATE_DB_FILENAME)
-            try:
-                completed_count = conn.execute("SELECT COUNT(*) FROM completed_jobs").fetchone()[0]
-            finally:
-                conn.close()
+            # The read path must not open or create the SQLite shadow DB at all.
+            state_db_written = (state_root / STATE_DB_FILENAME).exists()
 
         self.assertEqual(len(rows), 1)
-        self.assertEqual(completed_count, 1)
+        self.assertEqual(rows[0].output_path, output)
+        self.assertFalse(state_db_written)
 
     def test_boundary_validation_helpers_preserve_compatibility_and_reject_bad_stage_payloads(self) -> None:
         payload = validate_api_payload("/api/settings/reload", {"anything": "legacy-compatible"})

@@ -92,7 +92,14 @@
     }
 
     function payloadHasRouteVideoOverride(payload) {
-      return Boolean(payload && (safeIsPlainObject(payload.routing) || safeIsPlainObject(payload.video)));
+      return Boolean(
+        payload
+        && (
+          safeIsPlainObject(payload.routing)
+          || safeIsPlainObject(payload.video)
+          || safeIsPlainObject(payload.subtitles?.burnTrack)
+        )
+      );
     }
 
     function routePreviewProposalFromPayload(payload) {
@@ -114,6 +121,9 @@
       if (video.encodePreset) proposedVideo.encodePreset = video.encodePreset;
       if (video.encodeLadder) proposedVideo.encodeLadder = video.encodeLadder;
       if (Object.keys(proposedVideo).length) proposed.video = proposedVideo;
+      if (safeIsPlainObject(payload?.subtitles?.burnTrack)) {
+        proposed.subtitles = { burnTrack: payload.subtitles.burnTrack };
+      }
       return proposed;
     }
 
@@ -182,7 +192,8 @@
 
     function renderRoutePreviewFromEffectivePayload(payload) {
       const entry = safeIsPlainObject(payload?.file_override) ? payload.file_override : {};
-      if (!entry.routing && !entry.video) {
+      const hasBurn = safeIsPlainObject(entry.subtitles?.burnTrack);
+      if (!entry.routing && !entry.video && !hasBurn) {
         clearRoutePreviewStatus();
         return;
       }

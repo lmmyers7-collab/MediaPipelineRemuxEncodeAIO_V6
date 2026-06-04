@@ -97,45 +97,67 @@
             <strong id="report-audit-score-policy-status">Not loaded</strong>
           </div>
           <pre id="report-audit-score-policy-summary" class="prose-block">No audit score policy loaded.</pre>
-          <div class="option-grid option-grid-compact">
-            <label>
-              Redownload bucket
-              <input id="report-audit-score-redownload-bucket" type="number" min="0" max="1000" step="1">
-            </label>
-            <label>
-              High issue
-              <input id="report-audit-score-high-issue" type="number" min="0" max="1000" step="1">
-            </label>
-            <label>
-              Rerun bucket
-              <input id="report-audit-score-rerun-bucket" type="number" min="0" max="1000" step="1">
-            </label>
-            <label>
-              Medium issue
-              <input id="report-audit-score-medium-issue" type="number" min="0" max="1000" step="1">
-            </label>
-            <label>
-              Review bucket
-              <input id="report-audit-score-review-bucket" type="number" min="0" max="1000" step="1">
-            </label>
-            <label>
-              Fallback issue
-              <input id="report-audit-score-fallback-issue" type="number" min="0" max="1000" step="1">
-            </label>
-            <label>
-              Redownload bonus
-              <input id="report-audit-score-redownload-bonus" type="number" min="0" max="1000" step="1">
-            </label>
-            <label>
-              Rerun bonus
-              <input id="report-audit-score-rerun-bonus" type="number" min="0" max="1000" step="1">
-            </label>
-          </div>
-          <div class="action-row action-row-left wrap-actions">
-            <button type="button" id="report-audit-score-policy-save-button" class="secondary-button">Save Score Policy</button>
-            <button type="button" id="report-audit-score-policy-reset-button" class="secondary-button">Reset Score Defaults</button>
-          </div>
-          <pre id="report-audit-score-policy-detail" class="prose-block">Score policy changes apply to future backend audit report generation.</pre>
+          <details class="settings-advanced-disclosure" data-advanced>
+            <summary>Advanced score controls</summary>
+            <div class="table-wrap detail-table-wrap">
+              <table aria-label="Audit score point issues">
+                <thead>
+                  <tr>
+                    <th scope="col">Point issue</th>
+                    <th scope="col" class="num">Points</th>
+                    <th scope="col">Applies when</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><label for="report-audit-score-redownload-bucket">Redownload candidate bucket</label></td>
+                    <td class="num"><input id="report-audit-score-redownload-bucket" type="number" min="0" max="1000" step="1"></td>
+                    <td>Any effective issue has bucket REDOWNLOAD_CANDIDATE, including ffprobe-open-failed, missing-video-stream, or missing-audio-stream.</td>
+                  </tr>
+                  <tr>
+                    <td><label for="report-audit-score-high-issue">High issue-code marker</label></td>
+                    <td class="num"><input id="report-audit-score-high-issue" type="number" min="0" max="1000" step="1"></td>
+                    <td>Score applied to every high issue-code marker listed below after redownload candidate bucket markers are handled.</td>
+                  </tr>
+                  <tr>
+                    <td><label for="report-audit-score-rerun-bucket">Rerun pipeline bucket</label></td>
+                    <td class="num"><input id="report-audit-score-rerun-bucket" type="number" min="0" max="1000" step="1"></td>
+                    <td>Any remaining effective issue has bucket RERUN_PIPELINE and was not already matched by a higher-priority bucket or issue-code marker.</td>
+                  </tr>
+                  <tr>
+                    <td><label for="report-audit-score-medium-issue">Medium issue-code marker</label></td>
+                    <td class="num"><input id="report-audit-score-medium-issue" type="number" min="0" max="1000" step="1"></td>
+                    <td>Score applied to every medium issue-code marker listed below after redownload, high, and rerun bucket markers are handled.</td>
+                  </tr>
+                  <tr>
+                    <td><label for="report-audit-score-review-bucket">Review bucket</label></td>
+                    <td class="num"><input id="report-audit-score-review-bucket" type="number" min="0" max="1000" step="1"></td>
+                    <td>Any remaining effective issue has bucket REVIEW and was not already matched by a medium or high issue-code marker.</td>
+                  </tr>
+                  <tr>
+                    <td><label for="report-audit-score-fallback-issue">Fallback issue marker</label></td>
+                    <td class="num"><input id="report-audit-score-fallback-issue" type="number" min="0" max="1000" step="1"></td>
+                    <td>Any effective issue not matched by redownload, high, rerun, medium, or review markers.</td>
+                  </tr>
+                  <tr>
+                    <td><label for="report-audit-score-redownload-bonus">Redownload candidate bonus</label></td>
+                    <td class="num"><input id="report-audit-score-redownload-bonus" type="number" min="0" max="1000" step="1"></td>
+                    <td>Added once when at least one effective REDOWNLOAD_CANDIDATE issue is present.</td>
+                  </tr>
+                  <tr>
+                    <td><label for="report-audit-score-rerun-bonus">Rerun pipeline bonus</label></td>
+                    <td class="num"><input id="report-audit-score-rerun-bonus" type="number" min="0" max="1000" step="1"></td>
+                    <td>Added once when no redownload issue is present and at least one effective RERUN_PIPELINE issue is present.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="action-row action-row-left wrap-actions">
+              <button type="button" id="report-audit-score-policy-save-button" class="secondary-button">Save Score Policy</button>
+              <button type="button" id="report-audit-score-policy-reset-button" class="secondary-button">Reset Score Defaults</button>
+            </div>
+            <pre id="report-audit-score-policy-detail" class="prose-block">Score policy changes apply to future backend audit report generation.</pre>
+          </details>
         </section>
 
 <section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="interactive">

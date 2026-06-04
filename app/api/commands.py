@@ -21,6 +21,8 @@ COMMAND_ROUTE_METHODS: dict[str, str] = {
     "/api/queue/strategy": "_queue_strategy_payload",
     "/api/queue/file-overrides": "_file_overrides_payload",
     "/api/queue/file-overrides/route-preview": "_file_overrides_route_preview_payload",
+    "/api/queue/file-overrides/series-preview": "_file_overrides_series_preview_payload",
+    "/api/queue/file-overrides/series-apply": "_file_overrides_series_apply_payload",
     "/api/queue/file-overrides/folder-preview": "_file_overrides_folder_preview_payload",
     "/api/queue/file-overrides/folder-rule": "_file_overrides_folder_rule_payload",
     "/api/failures/clear": "_failures_clear_payload",

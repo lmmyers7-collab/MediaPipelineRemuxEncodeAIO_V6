@@ -51,6 +51,7 @@ LIBRARY_OVERRIDE_GROUP_BY_KEY: dict[str, str] = {
 _FIELD_METADATA_BY_KEY: dict[str, dict[str, Any]] = {
     str(field["key"]): field for field in CONFIG_FIELD_DEFINITIONS
 }
+_MISSING_DEFAULT = object()
 
 LIBRARY_PROFILE_TOP_LEVEL_KEYS: tuple[str, ...] = (
     "id",
@@ -74,6 +75,30 @@ def _jsonable(value: Any) -> Any:
     if isinstance(value, tuple | list | set):
         return [_jsonable(item) for item in value]
     return value
+
+
+def _metadata_default_for_key(key: str) -> Any:
+    metadata = _FIELD_METADATA_BY_KEY.get(str(key))
+    if not metadata:
+        return _MISSING_DEFAULT
+    if metadata.get("default_source") == "field_definition" and "default_value" in metadata:
+        return _jsonable(metadata.get("default_value"))
+    if "default" in metadata:
+        return _jsonable(metadata.get("default"))
+    return _MISSING_DEFAULT
+
+
+def _default_values_for_keys(config: Mapping[str, Any], keys: Iterable[str]) -> dict[str, Any]:
+    values: dict[str, Any] = {}
+    for key in keys:
+        key_text = str(key)
+        if key_text in config:
+            values[key_text] = _jsonable(config[key_text])
+            continue
+        default_value = _metadata_default_for_key(key_text)
+        if default_value is not _MISSING_DEFAULT:
+            values[key_text] = default_value
+    return values
 
 
 def _text(value: Any) -> str:
@@ -558,23 +583,23 @@ def apply_library_profile_resets(
 
 
 def default_editor_values(config: Mapping[str, Any]) -> dict[str, Any]:
-    return {key: _jsonable(config[key]) for key in DEFAULT_EDITOR_KEYS if key in config}
+    return _default_values_for_keys(config, DEFAULT_EDITOR_KEYS)
 
 
 def default_video_values(config: Mapping[str, Any]) -> dict[str, Any]:
-    return {key: _jsonable(config[key]) for key in DEFAULT_VIDEO_KEYS if key in config}
+    return _default_values_for_keys(config, DEFAULT_VIDEO_KEYS)
 
 
 def default_subtitle_values(config: Mapping[str, Any]) -> dict[str, Any]:
-    return {key: _jsonable(config[key]) for key in DEFAULT_SUBTITLE_KEYS if key in config}
+    return _default_values_for_keys(config, DEFAULT_SUBTITLE_KEYS)
 
 
 def default_audio_values(config: Mapping[str, Any]) -> dict[str, Any]:
-    return {key: _jsonable(config[key]) for key in DEFAULT_AUDIO_KEYS if key in config}
+    return _default_values_for_keys(config, DEFAULT_AUDIO_KEYS)
 
 
 def default_media_values(config: Mapping[str, Any]) -> dict[str, Any]:
-    return {key: _jsonable(config[key]) for key in DEFAULT_MEDIA_KEYS if key in config}
+    return _default_values_for_keys(config, DEFAULT_MEDIA_KEYS)
 
 
 def _deep_merge(base: Mapping[str, Any], overrides: Mapping[str, Any]) -> dict[str, Any]:

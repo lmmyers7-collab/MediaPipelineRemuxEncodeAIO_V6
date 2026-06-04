@@ -311,8 +311,130 @@ function Build-SubtitleTracksForMkvmerge {
     }
 }
 
+function ConvertTo-FfmpegSubtitleFilterPath {
+    param([Parameter(Mandatory)] [string] $Path)
+
+    $resolved = try { [System.IO.Path]::GetFullPath($Path) } catch { [string]$Path }
+    $text = $resolved.Replace('\', '/')
+    $text = $text.Replace('\', '\\')
+    $text = $text.Replace(':', '\:')
+    $text = $text.Replace("'", "\'")
+    $text = $text.Replace(',', '\,')
+    $text = $text.Replace('[', '\[')
+    $text = $text.Replace(']', '\]')
+    return $text
+}
+
+function New-SubtitleBurnFailureRecord {
+    param(
+        $Entry,
+        [Parameter(Mandatory)] [string] $Reason,
+        [string] $ErrorCode = 'SUBTITLE_BURN_UNSUPPORTED'
+    )
+
+    $streamIndex = -1
+    try {
+        if ($Entry -and $Entry.ContainsKey('Stream') -and $Entry.Stream -and $Entry.Stream.PSObject.Properties['index']) {
+            $streamIndex = [int]$Entry.Stream.index
+        }
+    } catch {}
+    [pscustomobject]@{
+        Reason     = $Reason
+        ErrorCode  = $ErrorCode
+        StreamIndex = $streamIndex
+        ReproPath  = ''
+        ErrorText  = ''
+    }
+}
+
+function New-SubtitleBurnVideoFilterArgsForFFmpeg {
+    param(
+        $FilterResult,
+        [Parameter(Mandatory)] [string] $SourceFile,
+        [string] $Context = ''
+    )
+
+    $burnEntries = @($FilterResult.Burn | Where-Object { $null -ne $_ })
+    if ($burnEntries.Count -eq 0) {
+        return @{ VideoFilterArgs=@(); Failures=@(); BurnTrack=$null }
+    }
+    if ($burnEntries.Count -ne 1) {
+        return @{
+            VideoFilterArgs = @()
+            Failures = @([pscustomobject]@{
+                Reason = "Subtitle burn-in requires exactly one selected subtitle track; found $($burnEntries.Count)."
+                ErrorCode = 'SUBTITLE_BURN_MULTIPLE_TRACKS'
+                StreamIndex = -1
+                ReproPath = ''
+                ErrorText = ''
+            })
+            BurnTrack = $null
+        }
+    }
+
+    $entry = $burnEntries[0]
+    $codec = ''
+    try { $codec = ([string]$entry.Codec).Trim().ToLowerInvariant() } catch {}
+    $streamIndex = -1
+    try {
+        if ($entry.ContainsKey('Stream') -and $entry.Stream -and $entry.Stream.PSObject.Properties['index']) {
+            $streamIndex = [int]$entry.Stream.index
+        }
+    } catch {}
+    $subtitleInputOrdinal = $null
+    try {
+        if ($entry.ContainsKey('SubtitleInputOrdinal')) { $subtitleInputOrdinal = [int]$entry.SubtitleInputOrdinal }
+        elseif ($entry.ContainsKey('SubtitleOrdinal')) { $subtitleInputOrdinal = [int]$entry.SubtitleOrdinal }
+    } catch {}
+    if ($null -eq $subtitleInputOrdinal -or $subtitleInputOrdinal -lt 0) {
+        return @{
+            VideoFilterArgs = @()
+            Failures = @((New-SubtitleBurnFailureRecord -Entry $entry -Reason "Subtitle burn-in could not resolve FFmpeg subtitle input ordinal for stream $streamIndex." -ErrorCode 'SUBTITLE_BURN_STREAM_UNRESOLVED'))
+            BurnTrack = $entry
+        }
+    }
+
+    $textCodecs = @(@(Get-MediaSubtitleCodecTextNames) + @(Get-MediaSubtitleCodecAssNames) | ForEach-Object { ([string]$_).ToLowerInvariant() } | Select-Object -Unique)
+    $imageCodecs = @(Get-MediaSubtitleCodecImageNames | ForEach-Object { ([string]$_).ToLowerInvariant() } | Select-Object -Unique)
+    if ($codec -in $textCodecs) {
+        $filterPath = ConvertTo-FfmpegSubtitleFilterPath -Path $SourceFile
+        $graph = "[0:v:0]subtitles=filename='$filterPath':si=$subtitleInputOrdinal[vout]"
+    } elseif ($codec -in $imageCodecs) {
+        $graph = "[0:v:0][0:s:$subtitleInputOrdinal]overlay=eof_action=pass:repeatlast=0[vout]"
+    } else {
+        return @{
+            VideoFilterArgs = @()
+            Failures = @((New-SubtitleBurnFailureRecord -Entry $entry -Reason "Subtitle burn-in does not support codec '$codec' for stream $streamIndex." -ErrorCode 'SUBTITLE_BURN_UNSUPPORTED_CODEC'))
+            BurnTrack = $entry
+        }
+    }
+
+    Write-Log "${Context}SUBTITLE BURN: stream $streamIndex codec=$codec subtitle_ordinal=$subtitleInputOrdinal via subtitle-burn encode profile current_encode_style" "WARN"
+    return @{
+        VideoFilterArgs = @('-filter_complex', $graph, '-map', '[vout]')
+        Failures = @()
+        BurnTrack = $entry
+    }
+}
+
 function Build-SubtitleArgsForFFmpeg {
     param($FilterResult, [string]$DefaultAudioLang, [string]$SourceFile, [string]$Context = "")
+
+    $burnGraph = New-SubtitleBurnVideoFilterArgsForFFmpeg -FilterResult $FilterResult -SourceFile $SourceFile -Context $Context
+    if (@($burnGraph.VideoFilterArgs).Count -gt 0 -or @($burnGraph.Failures).Count -gt 0) {
+        return @{
+            ExtraInputs = @()
+            MapArgs     = @()
+            VideoFilterArgs = @($burnGraph.VideoFilterArgs)
+            TempFiles   = @()
+            Tx3gTracks  = @()
+            BdpgsTracks = @()
+            VobSubTracks = @()
+            BurnTrack   = $burnGraph.BurnTrack
+            Failures    = @($burnGraph.Failures)
+            TrackCount  = 0
+        }
+    }
 
     $defaultState = New-SubtitleBuilderDefaultState
     $tempFiles  = [System.Collections.Generic.List[string]]::new()
@@ -636,6 +758,7 @@ function Build-SubtitleArgsForFFmpeg {
     return @{
         ExtraInputs = @($extraInputs)
         MapArgs     = @($mapArgs)
+        VideoFilterArgs = @()
         TempFiles   = @($tempFiles)
         Tx3gTracks  = @($tx3gTracks)
         BdpgsTracks = @($bdpgsTracks)

@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_webview_browser_large_table_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-05-29
-sha256: 8ef289be3214f2d3864ac4789d0458394d2d39fba36819ff6b1eafeabe35c095
+sha256: 9b759ac6001d82cbbd9ef76dcbf4be1f9fe2cd4b8e9e75a4754d901a95297824
 ---
 # `DesktopApp/tests/test_webview_browser_large_table_smoke.py`
 

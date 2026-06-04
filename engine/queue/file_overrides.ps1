@@ -153,7 +153,22 @@ function Get-MediaPipelineFileOverrideRouteVideoFieldPaths {
             }
         }
     }
+    $subtitles = Get-MediaPipelineFileOverrideProperty -Object $Override -Name 'subtitles'
+    if ($subtitles) {
+        if ($null -ne (Get-MediaPipelineFileOverrideProperty -Object $subtitles -Name 'burnTrack')) {
+            $paths.Add('subtitles.burnTrack')
+        }
+    }
     return @($paths.ToArray())
+}
+
+function Get-FileOverrideSubtitleBurnTrack {
+    param($SubtitleOverride)
+
+    if ($null -eq $SubtitleOverride) { return $null }
+    $burnTrack = Get-MediaPipelineFileOverrideProperty -Object $SubtitleOverride -Name 'burnTrack'
+    if ($null -eq $burnTrack) { return $null }
+    return $burnTrack
 }
 
 function Get-FileOverridesManifest {
@@ -383,6 +398,21 @@ function ConvertTo-MediaPipelineFileOverrideConfigMap {
             $configMap['RoutePolicyReason'] = 'file override video settings require transcode'
         }
     }
+
+    $subtitleOverride = Get-MediaPipelineFileOverrideProperty -Object $Override -Name 'subtitles'
+    $burnTrack = Get-FileOverrideSubtitleBurnTrack -SubtitleOverride $subtitleOverride
+    if ($null -ne $burnTrack) {
+        $burnStreamIndex = Get-MediaPipelineFileOverrideSelectorStreamIndex -Rule $burnTrack
+        if ($null -eq $burnStreamIndex) {
+            throw "Invalid file override combination: subtitles.burnTrack requires an exact streamIndex selector."
+        }
+        if ($configMap.Contains('RouteForce') -and [string]$configMap['RouteForce'] -eq 'remux') {
+            throw "Invalid file override combination: routing.profile=remux cannot be combined with subtitles.burnTrack because subtitle burn-in requires encode."
+        }
+        $configMap['RouteForce'] = 'encode'
+        $configMap['RoutePolicyReason'] = 'file override subtitles.burnTrack requires encode'
+        $configMap['SubtitleBurnEncodeProfile'] = 'current_encode_style'
+    }
     return $configMap
 }
 
@@ -551,11 +581,13 @@ function Assert-FileOverrideExactTrackSelectorsResolvable {
 
     if ($null -eq $OverrideSection) { return }
     $trackList = @($Tracks)
-    foreach ($fieldName in @('keepTracks','dropTracks')) {
+    foreach ($fieldName in @('keepTracks','dropTracks','burnTrack')) {
         $rules = $null
         try {
             $prop = $OverrideSection.PSObject.Properties[$fieldName]
-            if ($prop -and $prop.Value) { $rules = @($prop.Value) }
+            if ($prop -and $prop.Value) {
+                $rules = if ($fieldName -eq 'burnTrack') { @($prop.Value) } else { @($prop.Value) }
+            }
         } catch {}
         if ($null -eq $rules -or $rules.Count -eq 0) { continue }
         for ($i = 0; $i -lt $rules.Count; $i++) {
@@ -596,7 +628,7 @@ function Assert-FileOverrideExactTrackSelectorsResolvable {
             }
             if (-not $matched) {
                 $section = if ($TrackKind -eq 'audio') { 'audio' } else { 'subtitles' }
-                $fieldPath = '{0}.{1}[{2}]' -f $section, $fieldName, $i
+                $fieldPath = if ($fieldName -eq 'burnTrack') { '{0}.{1}' -f $section, $fieldName } else { '{0}.{1}[{2}]' -f $section, $fieldName, $i }
                 throw "FILE_OVERRIDE_EXACT_TRACK_UNAVAILABLE: $fieldPath streamIndex $exactIndex does not match any detected $TrackKind stream."
             }
         }
@@ -722,6 +754,10 @@ function Test-SubtitleTrackKeptByOverride {
 
     if ($null -eq $SubtitleOverride) { return $true }
 
+    if ($null -ne (Get-FileOverrideSubtitleBurnTrack -SubtitleOverride $SubtitleOverride)) {
+        return $false
+    }
+
     # stripAll shortcut
     $stripAll = $false
     try { $stripAll = [bool]$SubtitleOverride.stripAll } catch {}
@@ -767,6 +803,28 @@ function Test-SubtitleTrackKeptByOverride {
         if (-not $matched) { return $false }
     }
     return $true
+}
+
+function Test-SubtitleTrackBurnedByOverride {
+    param(
+        [string] $Language,
+        [bool]   $IsForced,
+        [string] $Title,
+        [string] $Codec = '',
+        $StreamIndex = $null,
+        $SubtitleOverride
+    )
+
+    $burnTrack = Get-FileOverrideSubtitleBurnTrack -SubtitleOverride $SubtitleOverride
+    if ($null -eq $burnTrack) { return $false }
+    return (Test-MediaPipelineFileOverrideRuleMatchesTrack `
+        -Kind 'subtitle' `
+        -Rule $burnTrack `
+        -Language $Language `
+        -Title $Title `
+        -Codec $Codec `
+        -IsForced:$IsForced `
+        -StreamIndex $StreamIndex)
 }
 
 function Get-AudioTrackTitleOverride {

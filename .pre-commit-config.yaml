@@ -28,6 +28,7 @@
 #   - Phase 3 generated stage-schema drift
 #   - Phase 4 architecture/type/PowerShell guardrails
 #   - Phase 5 naming lint and active-doc reference checks
+#   - Phase 6 change-packet coverage
 
 repos:
   - repo: local
@@ -92,6 +93,15 @@ repos:
       - id: mediapipeline-active-doc-references
         name: MediaPipeline active doc references
         entry: python scripts/dev/check_active_doc_references.py
+        language: system
+        pass_filenames: false
+
+      # ----------------------------------------------------------------
+      # Phase 6 change-packet coverage
+      # ----------------------------------------------------------------
+      - id: mediapipeline-change-packet-staged-coverage
+        name: MediaPipeline change packet staged coverage
+        entry: python scripts/change_control/validate_changes.py --require-staged-coverage
         language: system
         pass_filenames: false
 

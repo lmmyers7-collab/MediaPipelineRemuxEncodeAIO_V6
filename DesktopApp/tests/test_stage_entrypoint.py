@@ -150,7 +150,7 @@ class StageEntrypointTests(unittest.TestCase):
         data = DecideResult.model_validate(result.data)
         self.assertEqual(data.route, "remux")
         self.assertEqual(data.reason_code, "size_within_threshold")
-        self.assertEqual(data.bitrate_threshold_mbps, 35.0)
+        self.assertEqual(data.bitrate_threshold_mbps, 20.0)
         self.assertFalse(data.size_over_threshold)
         self.assertFalse(data.bitrate_over_threshold)
         self.assertGreaterEqual(len(data.decision_trace), 1)
@@ -176,23 +176,26 @@ class StageEntrypointTests(unittest.TestCase):
         movie_data = DecideResult.model_validate(StageResult.model_validate(json.loads(movie_over.stdout)).data)
         self.assertEqual(movie_data.route, "encode")
         self.assertEqual(movie_data.reason_code, "bitrate_over_threshold")
+        self.assertEqual(movie_data.bitrate_threshold_mbps, 20)
 
         tv_payload = json.loads(json.dumps(base_payload))
         tv_payload["payload"]["is_tv"] = True
+        tv_payload["payload"]["video_height"] = 0
         tv_payload["payload"]["tv_route_max_video_bitrate_mbps"] = 60
         tv_under = self.run_entrypoint("decide", tv_payload)
         self.assertEqual(tv_under.returncode, 0, tv_under.stderr)
         tv_data = DecideResult.model_validate(StageResult.model_validate(json.loads(tv_under.stdout)).data)
         self.assertEqual(tv_data.route, "remux")
+        self.assertEqual(tv_data.bitrate_threshold_mbps, 60)
 
         override_payload = json.loads(json.dumps(base_payload))
         override_payload["payload"]["movie_route_max_video_bitrate_mbps"] = 50
-        override_payload["payload"]["route_hints"] = {"max_video_bitrate_mbps": 30}
+        override_payload["payload"]["route_hints"] = {"max_video_bitrate_mbps": 60}
         override = self.run_entrypoint("decide", override_payload)
         self.assertEqual(override.returncode, 0, override.stderr)
         override_data = DecideResult.model_validate(StageResult.model_validate(json.loads(override.stdout)).data)
-        self.assertEqual(override_data.route, "encode")
-        self.assertEqual(override_data.reason_code, "bitrate_over_threshold")
+        self.assertEqual(override_data.route, "remux")
+        self.assertEqual(override_data.bitrate_threshold_mbps, 60)
 
     def test_decide_stage_route_threshold_mode_selects_size_bitrate_or_both(self) -> None:
         base_payload = {
@@ -217,7 +220,7 @@ class StageEntrypointTests(unittest.TestCase):
         self.assertEqual(advisory_data.reason_code, "plex_compatible_size_advisory")
         self.assertEqual(advisory_data.route_threshold_mode, "compatibility_advisory")
         self.assertEqual(advisory_data.threshold_gb, 8)
-        self.assertEqual(advisory_data.bitrate_threshold_mbps, 35)
+        self.assertEqual(advisory_data.bitrate_threshold_mbps, 20)
         self.assertTrue(advisory_data.size_over_threshold)
         self.assertFalse(advisory_data.bitrate_over_threshold)
 
@@ -278,7 +281,7 @@ class StageEntrypointTests(unittest.TestCase):
         self.assertEqual(data.route, "remux")
         self.assertEqual(data.reason_code, "size_within_threshold")
         self.assertEqual(data.route_threshold_mode, "size")
-        self.assertEqual(data.bitrate_threshold_mbps, 35)
+        self.assertEqual(data.bitrate_threshold_mbps, 20)
         self.assertTrue(data.bitrate_over_threshold)
 
     def test_decide_stage_missing_duration_does_not_fall_back_to_probe_estimated_bitrate(self) -> None:
@@ -305,7 +308,7 @@ class StageEntrypointTests(unittest.TestCase):
         self.assertEqual(data.route, "remux")
         self.assertEqual(data.reason_code, "size_within_threshold")
         self.assertEqual(data.estimated_bitrate_mbps, 0)
-        self.assertEqual(data.bitrate_threshold_mbps, 35)
+        self.assertEqual(data.bitrate_threshold_mbps, 20)
         self.assertFalse(data.bitrate_over_threshold)
         trace_codes = {str(item.get("code") or "") for item in data.decision_trace}
         self.assertNotIn("bitrate_over_threshold", trace_codes)

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-03
 last_reviewed: 2026-05-29
-sha256: 35b65dbd15b0f55061ff51ecc305507e110c10f63e6b517b46227cd21c476bc9
+sha256: 2a179c3619e670ab779169670929499a590beceb52c4b994aa06ac15ff709187
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app/refresh.js`
 

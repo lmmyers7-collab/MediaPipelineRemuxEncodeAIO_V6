@@ -40,6 +40,7 @@ function Get-MediaPipelineResolvedConfigDump {
         'ExcludeSubtitleStyles','IncludeSubtitleStyles','Tx3gExtractLanguages','BdpgsExtractLanguages','VobSubExtractLanguages',
         'PriorityMarkers','MixPriorityPhase','QueueOrderingStrategy','MaxParallelEncodes','ParallelEncodeMode',
         'PreferredDefaultAudioLanguages','EncodeTuningPreset','EncodeLadder','RoutingProfile','SizeGuardMode',
+        'Route1080pBucketMaxHeight','Route1080pMaxVideoBitrateMbps','Route4KBucketMinHeight','Route4KMaxVideoBitrateMbps',
         'AllowH264RemuxIfPlexCompatible','H264RemuxMaxBitrateMbps','H264RemuxMaxHeight','MaxEncodeGrowthPercent','CompatibilityEncodeGrowthPercent',
         'ExtraVideoFlags','AudioPassthroughProfile','CompatibleAudioCodecs','AudioTranscodeCodec','AudioTranscodeBitrate',
         'AudioDownmixMode','AudioMaxChannels','AllowNoAudio','AudioTranscodeAutoBitrateByChannels',
@@ -351,6 +352,15 @@ $script:SizeGuardMode = if ($config.ContainsKey('SizeGuardMode')) {
     Resolve-MediaPipelineSizeGuardMode -Mode ([string]$config['SizeGuardMode'])
 } else {
     Get-MediaPipelineSizeGuardModeDefault
+}
+$script:Route1080pBucketMaxHeight = Get-ConfigInt 'Route1080pBucketMaxHeight' 1200 1 4320
+$script:Route1080pMaxVideoBitrateMbps = Get-ConfigDouble 'Route1080pMaxVideoBitrateMbps' 20 1 500
+$script:Route4KBucketMinHeight = Get-ConfigInt 'Route4KBucketMinHeight' 1800 1 4320
+$script:Route4KMaxVideoBitrateMbps = Get-ConfigDouble 'Route4KMaxVideoBitrateMbps' 35 1 500
+if ($script:Route1080pBucketMaxHeight -ge $script:Route4KBucketMinHeight) {
+    Add-StartupWarning 'Route1080pBucketMaxHeight must be lower than Route4KBucketMinHeight; using default bucket boundaries 1200/1800.'
+    $script:Route1080pBucketMaxHeight = 1200
+    $script:Route4KBucketMinHeight = 1800
 }
 $script:AllowH264RemuxIfPlexCompatible = Get-ConfigBool 'AllowH264RemuxIfPlexCompatible' $true
 $script:H264RemuxMaxBitrateMbps = Get-ConfigDouble 'H264RemuxMaxBitrateMbps' 35 1 500

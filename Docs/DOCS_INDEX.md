@@ -1,6 +1,6 @@
 # MediaPipelineRemuxEncodeAIO V6 Documentation Index
 
-Last updated: 2026-05-28
+Last updated: 2026-06-04
 
 This is the active documentation map for the current promoted V6 tree. It reflects the quarantine move plus the operator's later manual deletion of several active doc folders. The legacy desktop shell is not part of this V6 folder, and WebView/Tauri is the promoted operator surface.
 
@@ -18,7 +18,8 @@ This is the active documentation map for the current promoted V6 tree. It reflec
 
 - Older root housekeeping reports were moved under `archive/docs-housekeeping/2026-05-20-review/archive-historical/` as superseded historical evidence.
 - `ARCHIVED_MD_INDEX.md`: current archive/quarantine index.
-- `archive/docs-housekeeping/2026-05-20-review/`: current quarantine root.
+- `archive/docs-housekeeping/2026-05-20-review/`: original housekeeping quarantine root.
+- `archive/docs-housekeeping/2026-06-04-completed-md-pass/`: completed/superseded Markdown archive pass.
 
 ## Active Root Docs
 
@@ -31,6 +32,18 @@ This is the active documentation map for the current promoted V6 tree. It reflec
 - `generated/PIPELINE_MAP.md`: generated stage contract map.
 - `generated/DEPENDENCY_GRAPH.md`: generated cross-domain dependency graph.
 - `generated/FILE_SUMMARIES.md`: summary-system guide.
+
+## Implementation Plans
+
+- `implementation/v6-release-foundation/README.md`: `V6.0.0` portable Tauri release-foundation planning pack.
+- `implementation/v6-release-foundation/PHASE_0_DOCS_ONLY_PLANNING.md`: docs-only planning and validation.
+- `implementation/v6-release-foundation/PHASE_1_RELEASE_IDENTITY.md`: `V6.0.0` release identity alignment plan.
+- `implementation/v6-release-foundation/PHASE_2_FILE_LAYOUT_CLEANUP.md`: file-layout cleanup and document-placement helper plan.
+- `implementation/v6-release-foundation/PHASE_3_DOCUMENTATION_CLEANUP.md`: active documentation cleanup plan.
+- `implementation/v6-release-foundation/PHASE_4_TAURI_RELEASE_CANDIDATE.md`: Tauri portable release candidate build plan.
+- `implementation/v6-release-foundation/PHASE_5_PACKAGE_OPEN_CLOSE_VALIDATION.md`: package/open/close validation plan.
+- `implementation/v6-release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`: repeatable real-media pilot plan.
+- `implementation/v6-release-foundation/PHASE_7_FINALIZATION.md`: change-control and release metadata finalization plan.
 
 ## Archived Compatibility Redirects
 
@@ -58,8 +71,9 @@ This is the active documentation map for the current promoted V6 tree. It reflec
 
 ## Audits
 
-- `audits/DEAD_EXPORT_AUDIT_2026-05-19.md`: post-split review queue for unused-looking WebView flat exports and public Python helpers.
-- `audits/CODE_REVIEW_V5_WEBVIEW_TAURI_AUDIT.md`: full repo code review report from the V5/WebView/Tauri audit pass, retained as audit evidence rather than a root entry point.
+- `audits/latest.md`: redirect to archived historical audit snapshot and current-state docs.
+- `audits/DEAD_EXPORT_AUDIT_2026-05-19.md`: redirect to archived dead-export audit evidence.
+- `audits/CODE_REVIEW_V5_WEBVIEW_TAURI_AUDIT.md`: redirect to archived V5/WebView/Tauri audit evidence.
 
 ## Inventories
 
@@ -128,7 +142,7 @@ Run-specific worksheets may remain local or excluded from release packaging when
 ## UI Planning
 
 - `ui/V6_TAB_WORKFLOW_REDESIGN_EXECUTION_PLAN.md`: active planning and execution tracker for the 13-tab WebView workflow redesign.
-- `ui/V6_OPERATOR_UX_REMEDIATION_REMAINING_TASKS.md`: remaining operator UX remediation tracker after the backend-authored status-state pass.
+- `ui/V6_OPERATOR_UX_REMEDIATION_REMAINING_TASKS.md`: redirect to the archived completed UX-001 through UX-017 remediation tracker.
 
 The old DesktopApp overview and feature comparison docs remain in `archive/docs-housekeeping/2026-05-20-review/consolidated-after-extraction/`; recover only specific paragraphs into current canonical docs.
 
@@ -152,5 +166,6 @@ These folders currently exist but contain no Markdown/text documentation files:
 - `archive/docs-housekeeping/2026-05-20-review/archive-historical/`: 65 completed or historical docs kept for rollback/reference only.
 - `archive/docs-housekeeping/2026-05-20-review/consolidated-after-extraction/`: 5 docs whose useful content should live in current canonical docs instead of remaining active.
 - `archive/docs-housekeeping/2026-05-20-review/delete-candidates/`: 19 quarantine-only delete candidates.
+- `archive/docs-housekeeping/2026-06-04-completed-md-pass/`: completed or superseded historical audits, dependency-refactor tracker docs, and UX remediation tracker docs moved out of active topic folders.
 
 Do not use quarantined docs as active guidance unless a current doc explicitly points to one for historical evidence. Use `ARCHIVED_MD_INDEX.md` for the archive inventory.

@@ -54,7 +54,7 @@
     if (button) button.disabled = true;
     setText("completed-current-status", "Refreshing");
     try {
-      const [completedRaw, promotionRaw] = await Promise.all([apiGet("/api/completed?limit=all&force_refresh=true", {
+      const [completedRaw, promotionRaw] = await Promise.all([apiGet("/api/completed?limit=all&force_refresh=true&proof=live", {
         timeoutMs: 30000
       }), apiGet("/api/final-library-promotion/status", {
         timeoutMs: 30000

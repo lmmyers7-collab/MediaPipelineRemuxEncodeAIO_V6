@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: api
 last_modified: 2026-06-03
 last_reviewed: 2026-05-28
-sha256: 2eaa7dbb6fb6891d115f1fda6097aa4942cb47c4920257ecb73ec2307c528e31
+sha256: afd7a8430a0dfcdde17025a91614d67762c842601eea3f208810c1478219ad20
 ---
 # `DesktopApp/mediapipeline_desktop_app/api/read_payloads_inventory.py`
 

@@ -2,8 +2,8 @@
 
 Maps every known `CONFIG_FIELD_DEFINITIONS` key to its WebView settings builder coverage, as of the current V6 state. This is a read-only audit document. It does not implement builder changes.
 
-Total backend metadata keys: 130 (from `CONFIG_FIELD_DEFINITIONS` and the config contract).
-Covered by structured WebView builder arrays: 118.
+Total backend metadata keys: 134 (from `CONFIG_FIELD_DEFINITIONS` and the config contract).
+Covered by structured WebView builder arrays: 122.
 Handled by the dedicated Library Profiles editor: 1 (`LibraryProfiles`).
 Known advanced/direct-config metadata without a routine structured builder: 9.
 Intentionally hidden auth secrets: 2.
@@ -14,7 +14,7 @@ Intentionally hidden auth secrets: 2.
 
 | Builder name | Fields covered | Purpose |
 |---|---|---|
-| Routing / Size | `RoutingProfile`, `RouteThresholdMode`, `SizeGuardMode`, `EncodeTuningPreset`, `EncodeLadder`, `VideoCodec`, `OutputContainer`, `MaxEncodeGrowthPercent`, `CompatibilityEncodeGrowthPercent`, `EncodeThresholdGB`, `TVEncodeThresholdGB`, `MovieRouteMaxVideoBitrateMbps`, `TVRouteMaxVideoBitrateMbps` | High-level route, threshold, bitrate, and size policy |
+| Routing / Size | `RoutingProfile`, `RouteThresholdMode`, `SizeGuardMode`, `EncodeTuningPreset`, `EncodeLadder`, `VideoCodec`, `OutputContainer`, `MaxEncodeGrowthPercent`, `CompatibilityEncodeGrowthPercent`, `EncodeThresholdGB`, `TVEncodeThresholdGB`, `MovieRouteMaxVideoBitrateMbps`, `TVRouteMaxVideoBitrateMbps`, `Route1080pBucketMaxHeight`, `Route1080pMaxVideoBitrateMbps`, `Route4KBucketMinHeight`, `Route4KMaxVideoBitrateMbps` | High-level route, threshold, resolution-selected bitrate, and size policy |
 | Video Detail | `VideoPreset`, `VideoQuality`, `AllowH264RemuxIfPlexCompatible`, `H264RemuxMaxBitrateMbps`, `H264RemuxMaxHeight`, `RemuxSafeVideoCodecs`, `FallbackCpuQuality`, `CpuEncodePreset`, `CpuEncodeProcessPriority`, `CpuEncodeMaxThreads`, `ExtraVideoFlags` | NVENC/CPU encoder precision and copy policy |
 | File Safety / Publish | `SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`, `MinFreeSpaceGB`, `OutsourceMinFreeSpaceGB`, `FileStabilityWait`, `CleanupStaleAgeHours`, `OutputSizeMultiplier`, `ValidExtensions`, `RobocopyFlags`, `DeferredPublish`, `AggressiveEpisodeParsing`, `SkipStabilityCheck`, `EnableIntegrityCheck`, `CreateTVSubfolder`, `CleanupRemoteStaging` | Source/output/scratch paths, stability, integrity, deferred publish |
 | Pending Publish / Recovery | `DeferredPublish`, `CleanupRemoteStaging`, `TransientFailureRetryLimit`, `CleanupStaleAgeHours`, `RobocopyTimeoutSeconds`, `RobocopyFlags`, `OutsourceMinFreeSpaceGB`, `OutputSizeMultiplier`, `EnableIntegrityCheck`, `SkipStabilityCheck` | Drain behavior and recovery tuning |

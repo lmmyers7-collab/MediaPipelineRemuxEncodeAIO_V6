@@ -28,6 +28,10 @@ def _numeric_baseline() -> dict:
         "TVEncodeThresholdGB": 4,
         "MovieRouteMaxVideoBitrateMbps": 35,
         "TVRouteMaxVideoBitrateMbps": 18,
+        "Route1080pBucketMaxHeight": 1200,
+        "Route1080pMaxVideoBitrateMbps": 20,
+        "Route4KBucketMinHeight": 1800,
+        "Route4KMaxVideoBitrateMbps": 35,
         "MinFreeSpaceGB": 20,
         "OutsourceMinFreeSpaceGB": 20,
         "VideoQuality": 22,
@@ -64,6 +68,10 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
             "TVEncodeThresholdGB": {"min": 1, "max": None, "step": 1, "unit": "GB"},
             "MovieRouteMaxVideoBitrateMbps": {"min": 1, "max": 500, "step": 1, "unit": "Mbps"},
             "TVRouteMaxVideoBitrateMbps": {"min": 1, "max": 500, "step": 1, "unit": "Mbps"},
+            "Route1080pBucketMaxHeight": {"min": 1, "max": 4320, "step": 1, "unit": "pixels"},
+            "Route1080pMaxVideoBitrateMbps": {"min": 1, "max": 500, "step": 1, "unit": "Mbps"},
+            "Route4KBucketMinHeight": {"min": 1, "max": 4320, "step": 1, "unit": "pixels"},
+            "Route4KMaxVideoBitrateMbps": {"min": 1, "max": 500, "step": 1, "unit": "Mbps"},
             "VideoQuality": {"min": 1, "max": 51, "step": 1, "unit": None},
             "AudioMaxChannels": {"min": 1, "max": 16, "step": 1, "unit": "channels"},
             "SubtitleExtractTimeoutSeconds": {"min": 30, "max": 3600, "step": 1, "unit": "seconds"},
@@ -109,6 +117,10 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
                 "OutputSizeMultiplier": 3.0,
                 "MovieRouteMaxVideoBitrateMbps": 0,
                 "TVRouteMaxVideoBitrateMbps": 501,
+                "Route1080pBucketMaxHeight": 1800,
+                "Route4KBucketMinHeight": 1800,
+                "Route1080pMaxVideoBitrateMbps": 0,
+                "Route4KMaxVideoBitrateMbps": 501,
             }
         )
         errors: list[str] = []
@@ -123,16 +135,21 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
         self.assertIn("OutputSizeMultiplier must be <= 2.0.", errors)
         self.assertIn("MovieRouteMaxVideoBitrateMbps must be >= 1.", errors)
         self.assertIn("TVRouteMaxVideoBitrateMbps must be <= 500.", errors)
+        self.assertIn("Route1080pBucketMaxHeight must be lower than Route4KBucketMinHeight.", errors)
+        self.assertIn("Route1080pMaxVideoBitrateMbps must be >= 1.", errors)
+        self.assertIn("Route4KMaxVideoBitrateMbps must be <= 500.", errors)
 
     def test_numeric_policy_rejects_boolean_values_as_numbers(self) -> None:
         values = _numeric_baseline()
         values["EncodeThresholdGB"] = True
+        values["Route1080pBucketMaxHeight"] = True
         values["OutputSizeMultiplier"] = True
         errors: list[str] = []
 
         validate_required_and_numeric_config(values, errors)
 
         self.assertIn("EncodeThresholdGB must be an integer.", errors)
+        self.assertIn("Route1080pBucketMaxHeight must be an integer.", errors)
         self.assertIn("OutputSizeMultiplier must be numeric.", errors)
 
     def test_numeric_policy_bounds_optional_cpu_fields_when_present(self) -> None:

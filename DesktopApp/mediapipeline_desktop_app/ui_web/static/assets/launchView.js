@@ -706,6 +706,7 @@
     redownload_bonus: "audit-score-redownload-bonus",
     rerun_bonus: "audit-score-rerun-bonus",
   };
+  const auditScoreGroupDefaultKeys = { high: "high_issue", medium: "medium_issue" };
 
   function auditRowKey(item) {
     return String(item?.row_key || launchAuditLogRowKey(item));
@@ -721,7 +722,107 @@
       const raw = Number(byId(id)?.value);
       policy[key] = Number.isFinite(raw) ? Math.max(0, Math.min(1000, Math.round(raw))) : 0;
     });
+    policy.issue_code_weights = {};
+    const details = byId("audit-score-redownload-bucket")?.closest("details");
+    const issueInputs = details ? Array.from(details.querySelectorAll("[data-audit-score-issue-code]")) : [];
+    issueInputs.forEach((input) => {
+      const code = String(input.dataset.auditScoreIssueCode || "").trim();
+      if (!code) return;
+      const raw = Number(input.value);
+      policy.issue_code_weights[code] = Number.isFinite(raw) ? Math.max(0, Math.min(1000, Math.round(raw))) : 0;
+    });
     return policy;
+  }
+
+  function auditScoreInputId(code) {
+    return `audit-score-issue-${String(code || "").replace(/[^A-Za-z0-9_-]/g, "-")}`;
+  }
+
+  function auditScoreValue(policy, defaults, key) {
+    return policy[key] ?? defaults[key] ?? 0;
+  }
+
+  function auditScoreIssueValue(policy, defaults, marker) {
+    const code = String(marker?.code || "");
+    const groupKey = auditScoreGroupDefaultKeys[String(marker?.group || "")] || "";
+    return policy.issue_code_weights?.[code]
+      ?? defaults.issue_code_weights?.[code]
+      ?? (groupKey ? auditScoreValue(policy, defaults, groupKey) : 0);
+  }
+
+  function syncAuditScoreIssueDefaults(group) {
+    const groupKey = auditScoreGroupDefaultKeys[group];
+    if (!groupKey) return;
+    const source = byId(auditScoreFieldIds[groupKey]);
+    if (!source) return;
+    const raw = Number(source.value);
+    const value = Number.isFinite(raw) ? Math.max(0, Math.min(1000, Math.round(raw))) : 0;
+    const details = byId("audit-score-redownload-bucket")?.closest("details");
+    if (!details) return;
+    details.querySelectorAll(`[data-audit-score-issue-group="${group}"]`).forEach((input) => {
+      if (input.dataset.auditScoreDirty === "true") return;
+      input.value = String(value);
+    });
+  }
+
+  function bindAuditScoreGroupInputs() {
+    Object.entries(auditScoreGroupDefaultKeys).forEach(([group, key]) => {
+      const input = byId(auditScoreFieldIds[key]);
+      if (!input || input.dataset.auditScoreGroupBound === "true") return;
+      input.dataset.auditScoreGroupBound = "true";
+      input.addEventListener("input", () => syncAuditScoreIssueDefaults(group));
+    });
+  }
+
+  function renderLaunchAuditIssueRows(score, group, beforeKey) {
+    const details = byId("audit-score-redownload-bucket")?.closest("details");
+    const anchor = byId(auditScoreFieldIds[beforeKey])?.closest("tr");
+    if (!details || !anchor || !anchor.parentNode) return;
+    details.querySelectorAll(`[data-audit-score-policy-dynamic-row="${group}"]`).forEach((row) => row.remove());
+    const policy = score.policy && typeof score.policy === "object" ? score.policy : {};
+    const defaults = score.defaults && typeof score.defaults === "object" ? score.defaults : {};
+    const markers = Array.isArray(score.markers) ? score.markers : [];
+    markers
+      .filter((marker) => marker?.type === "issue_code" && marker?.group === group)
+      .forEach((marker) => {
+        const code = String(marker.code || "");
+        if (!code) return;
+        const row = document.createElement("tr");
+        row.dataset.auditScorePolicyDynamicRow = group;
+
+        const issueCell = document.createElement("td");
+        const label = document.createElement("label");
+        label.setAttribute("for", auditScoreInputId(code));
+        label.append(`${group === "high" ? "High" : "Medium"} issue: `);
+        const codeNode = document.createElement("code");
+        codeNode.textContent = code;
+        label.appendChild(codeNode);
+        issueCell.appendChild(label);
+
+        const pointsCell = document.createElement("td");
+        pointsCell.className = "num";
+        const input = document.createElement("input");
+        input.id = auditScoreInputId(code);
+        input.type = "number";
+        input.min = "0";
+        input.max = "1000";
+        input.step = "1";
+        const issueValue = auditScoreIssueValue(policy, defaults, marker);
+        const groupKey = auditScoreGroupDefaultKeys[group] || "";
+        const groupValue = groupKey ? auditScoreValue(policy, defaults, groupKey) : issueValue;
+        input.value = String(issueValue);
+        input.dataset.auditScoreIssueCode = code;
+        input.dataset.auditScoreIssueGroup = group;
+        input.dataset.auditScoreDirty = issueValue === groupValue ? "false" : "true";
+        input.addEventListener("input", () => { input.dataset.auditScoreDirty = "true"; });
+        pointsCell.appendChild(input);
+
+        const appliesCell = document.createElement("td");
+        appliesCell.textContent = marker.applies_when || "";
+
+        row.append(issueCell, pointsCell, appliesCell);
+        anchor.parentNode.insertBefore(row, anchor);
+      });
   }
 
   function renderLaunchAuditControls(payload) {
@@ -737,12 +838,16 @@
       const value = policy[key] ?? defaults[key] ?? 0;
       input.value = String(value);
     });
+    bindAuditScoreGroupInputs();
+    renderLaunchAuditIssueRows(score, "high", "rerun_bucket");
+    renderLaunchAuditIssueRows(score, "medium", "review_bucket");
     const ignoredCount = Number(lastLaunchAuditControls.ignore_manifest?.entry_count || 0);
     setText("audit-score-policy-status", score.persisted ? "Saved" : "Defaults");
     setText("audit-score-policy-summary", [
       `Score policy source: ${score.persisted ? "saved state" : "defaults"}`,
       `Audit ignore entries: ${ignoredCount}`,
       `Policy path: ${score.path || "not configured"}`,
+      "Advanced score controls: enable Advanced mode, then open Advanced score controls to edit point issues.",
       "Boundary: score and ignore controls affect audit reporting/export only; they do not write queue priority, file overrides, settings, or media files.",
     ].join("\n"));
   }

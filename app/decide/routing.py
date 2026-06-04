@@ -98,7 +98,7 @@ def build_processing_decision(
     )
     legacy_route = "encode" if video_action.action == "encode" else "remux"
     legacy_reason = _legacy_reason_for_actions(actions, builder)
-    return finalize_decision(source, effective_policy, builder.reasons, actions, legacy_route, legacy_reason)
+    return finalize_decision(source, effective_policy, builder.reasons, actions, legacy_route, legacy_reason, facts)
 
 
 def _decide_video_action(
@@ -286,7 +286,7 @@ def _source_facts(
         conservative_media_type = "tv"
         builder.add(
             "MEDIA_TYPE_UNKNOWN_CONSERVATIVE_CAP",
-            "media type is unknown; using the most conservative movie/TV route caps",
+            "media type is unknown; using conservative size caps and unknown-height bitrate fallback when needed",
             enforcement="advisory",
             legacy_code="media_type_unknown_conservative_cap",
         )
@@ -297,16 +297,25 @@ def _source_facts(
     tv_bitrate = policy.tv_direct_copy_max_bitrate_mbps
     if media_type == "unknown":
         size_limit = min(value for value in (movie_size, tv_size) if value > 0) if any((movie_size, tv_size)) else 0.0
-        bitrate_cap = min(value for value in (movie_bitrate, tv_bitrate) if value > 0) if any((movie_bitrate, tv_bitrate)) else 0.0
     elif conservative_media_type == "tv":
         size_limit = tv_size
-        bitrate_cap = tv_bitrate
     else:
         size_limit = movie_size
-        bitrate_cap = movie_bitrate
+
+    bitrate_selection = _resolution_bitrate_selection(
+        height=video.height,
+        media_type=media_type,
+        movie_bitrate=movie_bitrate,
+        tv_bitrate=tv_bitrate,
+        policy=policy,
+    )
+    route_bitrate_cap = float(bitrate_selection["cap_mbps"])
+    bitrate_cap = route_bitrate_cap
+    h264_cap_applied = False
 
     if policy.allow_h264_compatible_direct_copy and normalize_codec(video.codec) in {"h264", "avc"}:
         bitrate_cap = _positive_min(bitrate_cap, policy.h264_direct_copy_max_bitrate_mbps)
+        h264_cap_applied = bool(bitrate_cap != route_bitrate_cap)
 
     estimated = estimated_bitrate_mbps(source, video)
     size_gb = source.container.file_size_bytes / (1024.0**3) if source.container.file_size_bytes > 0 else 0.0
@@ -323,10 +332,64 @@ def _source_facts(
         "route_size_limit_gb": size_limit,
         "estimated_video_bitrate_mbps": round(estimated, 3),
         "direct_copy_bitrate_cap_mbps": bitrate_cap,
+        "route_direct_copy_bitrate_cap_mbps": route_bitrate_cap,
+        "direct_copy_bitrate_cap_source": bitrate_selection["source"],
+        "direct_copy_bitrate_bucket": bitrate_selection["bucket"],
+        "direct_copy_bitrate_bucket_height": bitrate_selection["height"],
+        "route_1080p_bucket_max_height": policy.route_1080p_bucket_max_height,
+        "route_1080p_max_video_bitrate_mbps": policy.route_1080p_max_video_bitrate_mbps,
+        "route_4k_bucket_min_height": policy.route_4k_bucket_min_height,
+        "route_4k_max_video_bitrate_mbps": policy.route_4k_max_video_bitrate_mbps,
+        "unknown_height_fallback_movie_bitrate_mbps": movie_bitrate,
+        "unknown_height_fallback_tv_bitrate_mbps": tv_bitrate,
+        "h264_direct_copy_bitrate_cap_applied": h264_cap_applied,
+        "h264_direct_copy_max_bitrate_mbps": policy.h264_direct_copy_max_bitrate_mbps,
         "source_size_over_route_limit": size_over,
         "video_bitrate_over_direct_copy_cap": bitrate_over,
         "routing_profile": policy.routing_profile,
         "route_threshold_mode": policy.route_threshold_mode,
+    }
+
+
+def _resolution_bitrate_selection(
+    *,
+    height: int,
+    media_type: str,
+    movie_bitrate: float,
+    tv_bitrate: float,
+    policy: EffectiveDecisionPolicy,
+) -> dict[str, Any]:
+    if height <= 0:
+        if media_type == "unknown":
+            cap = min(value for value in (movie_bitrate, tv_bitrate) if value > 0) if any((movie_bitrate, tv_bitrate)) else 0.0
+            fallback = "conservative_movie_tv"
+        elif media_type == "tv":
+            cap = tv_bitrate
+            fallback = "tv"
+        else:
+            cap = movie_bitrate
+            fallback = "movie"
+        return {
+            "cap_mbps": float(cap),
+            "source": "movie_tv_fallback",
+            "bucket": f"unknown_height_{fallback}",
+            "height": int(height),
+        }
+
+    if height <= policy.route_1080p_bucket_max_height:
+        return {
+            "cap_mbps": float(policy.route_1080p_max_video_bitrate_mbps),
+            "source": "source_height_bucket",
+            "bucket": "1080ish",
+            "height": int(height),
+        }
+
+    bucket = "4k" if height >= policy.route_4k_bucket_min_height else "between_1080ish_and_4k"
+    return {
+        "cap_mbps": float(policy.route_4k_max_video_bitrate_mbps),
+        "source": "source_height_bucket",
+        "bucket": bucket,
+        "height": int(height),
     }
 
 

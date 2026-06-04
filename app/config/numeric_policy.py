@@ -28,6 +28,10 @@ from mediapipeline_desktop_app.config_keys import (
     KEY_OUTPUT_CONTAINER,
     KEY_OUTPUT_SIZE_MULTIPLIER,
     KEY_PROCESSED_INDEX_REFRESH_SECONDS,
+    KEY_ROUTE_1080P_BUCKET_MAX_HEIGHT,
+    KEY_ROUTE_1080P_MAX_VIDEO_BITRATE_MBPS,
+    KEY_ROUTE_4K_BUCKET_MIN_HEIGHT,
+    KEY_ROUTE_4K_MAX_VIDEO_BITRATE_MBPS,
     KEY_ROBOCOPY_TIMEOUT_SECONDS,
     KEY_SOURCE_MOVIES,
     KEY_SOURCE_SCAN_INTERVAL_SECONDS,
@@ -83,6 +87,52 @@ def validate_required_and_numeric_config(values: dict[str, Any], errors: list[st
             minimum=1,
             maximum=500,
         )
+    if KEY_ROUTE_1080P_BUCKET_MAX_HEIGHT in values:
+        validate_int(
+            values,
+            errors,
+            KEY_ROUTE_1080P_BUCKET_MAX_HEIGHT,
+            "Route1080pBucketMaxHeight",
+            minimum=1,
+            maximum=4320,
+        )
+    if KEY_ROUTE_1080P_MAX_VIDEO_BITRATE_MBPS in values:
+        validate_int(
+            values,
+            errors,
+            KEY_ROUTE_1080P_MAX_VIDEO_BITRATE_MBPS,
+            "Route1080pMaxVideoBitrateMbps",
+            minimum=1,
+            maximum=500,
+        )
+    if KEY_ROUTE_4K_BUCKET_MIN_HEIGHT in values:
+        validate_int(
+            values,
+            errors,
+            KEY_ROUTE_4K_BUCKET_MIN_HEIGHT,
+            "Route4KBucketMinHeight",
+            minimum=1,
+            maximum=4320,
+        )
+    if KEY_ROUTE_4K_MAX_VIDEO_BITRATE_MBPS in values:
+        validate_int(
+            values,
+            errors,
+            KEY_ROUTE_4K_MAX_VIDEO_BITRATE_MBPS,
+            "Route4KMaxVideoBitrateMbps",
+            minimum=1,
+            maximum=500,
+        )
+    route_1080p_height = values.get(KEY_ROUTE_1080P_BUCKET_MAX_HEIGHT)
+    route_4k_height = values.get(KEY_ROUTE_4K_BUCKET_MIN_HEIGHT)
+    if (
+        isinstance(route_1080p_height, int)
+        and not isinstance(route_1080p_height, bool)
+        and isinstance(route_4k_height, int)
+        and not isinstance(route_4k_height, bool)
+        and route_1080p_height >= route_4k_height
+    ):
+        errors.append("Route1080pBucketMaxHeight must be lower than Route4KBucketMinHeight.")
     if KEY_H264_REMUX_MAX_BITRATE_MBPS in values:
         validate_int(values, errors, KEY_H264_REMUX_MAX_BITRATE_MBPS, "H264RemuxMaxBitrateMbps", minimum=1, maximum=500)
     if KEY_H264_REMUX_MAX_HEIGHT in values:

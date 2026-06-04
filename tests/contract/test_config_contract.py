@@ -70,6 +70,10 @@ class ConfigContractTests(unittest.TestCase):
         self.assertEqual(config.RouteThresholdMode, "compatibility_advisory")
         self.assertEqual(config.MovieRouteMaxVideoBitrateMbps, 35)
         self.assertEqual(config.TVRouteMaxVideoBitrateMbps, 18)
+        self.assertEqual(config.Route1080pBucketMaxHeight, 1200)
+        self.assertEqual(config.Route1080pMaxVideoBitrateMbps, 20)
+        self.assertEqual(config.Route4KBucketMinHeight, 1800)
+        self.assertEqual(config.Route4KMaxVideoBitrateMbps, 35)
         self.assertEqual(config.ConsoleLogLevel, "DEBUG")
         self.assertEqual(data["OperatorLocalKey"], "preserve")
 
@@ -334,6 +338,10 @@ class ConfigContractTests(unittest.TestCase):
             ("MovieRouteMaxVideoBitrateMbps", 0),
             ("TVRouteMaxVideoBitrateMbps", -1),
             ("MovieRouteMaxVideoBitrateMbps", 501),
+            ("Route1080pBucketMaxHeight", 0),
+            ("Route1080pMaxVideoBitrateMbps", 0),
+            ("Route4KBucketMinHeight", 0),
+            ("Route4KMaxVideoBitrateMbps", 501),
             ("RouteThresholdMode", "unknown"),
             ("VideoCodec", "vp9"),
             ("VideoPreset", "p9"),
@@ -346,9 +354,13 @@ class ConfigContractTests(unittest.TestCase):
             with self.subTest(key=key, value=value), self.assertRaises(Exception):
                 Config.model_validate({key: value})
 
+        with self.assertRaises(Exception):
+            Config.model_validate({"Route1080pBucketMaxHeight": 1800, "Route4KBucketMinHeight": 1800})
+
     def test_boolean_numeric_config_values_are_rejected_before_coercion(self) -> None:
         for key in (
             "EncodeThresholdGB",
+            "Route1080pBucketMaxHeight",
             "OutputSizeMultiplier",
             "ConfigSchemaVersion",
         ):

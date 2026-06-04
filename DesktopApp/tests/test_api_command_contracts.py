@@ -87,6 +87,26 @@ class ApiCommandContractsTests(unittest.TestCase):
 
         self.assertEqual(validate_api_payload("/api/failures/clear", payload), payload)
 
+    def test_audit_score_policy_contract_accepts_v2_issue_code_weights(self) -> None:
+        payload = {
+            "policy": {
+                "high_issue": 90,
+                "medium_issue": 40,
+                "issue_code_weights": {
+                    "audio-default-policy-mismatch": 123,
+                    "bdpgs-subtitles-ocr-candidate": 44,
+                    "unknown-code": 999,
+                },
+            },
+            "reset": False,
+        }
+
+        self.assertEqual(validate_api_payload("/api/audit/score-policy", payload), payload)
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/audit/score-policy", {**payload, "path": r"C:\Media\Movie.mkv"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/audit/score-policy", {**payload, "reset": "false"})
+
     def test_unknown_routes_keep_generic_object_boundary_for_compatibility(self) -> None:
         payload = {"anything": {"nested": True}}
 
@@ -97,6 +117,13 @@ class ApiCommandContractsTests(unittest.TestCase):
             "/api/pipeline/start": {"mode": "once", "extra_args": "-NoDeleteSource"},
             "/api/pipeline/control": {"action": "pause", "extra": True},
             "/api/queue/scan": {"mode": "inventory_then_curate", "path": r"C:\Media\Movie.mkv"},
+            "/api/queue/file-overrides/series-apply": {
+                "path": r"C:\Media\TV\Show\S01E01.mkv",
+                "proposed_override": {"audio": {"maxChannels": 2}},
+                "confirm_apply": True,
+                "preview_fingerprint": "fp",
+                "row_keys": ["client-owned"],
+            },
             "/api/backend/shutdown": {"force_active_work_shutdown": True, "token": "client-owned"},
             "/api/rename/apply": {"paths": [], "selected_sources": [], "confirm_apply": True, "selected_ids": ["1"]},
             "/api/settings/preview-patch": {"changes": {}, "values": {}},
@@ -140,6 +167,23 @@ class ApiCommandContractsTests(unittest.TestCase):
                 "force": True,
                 "scope": "all",
                 "reason": "operator_requested_queue_scan",
+            },
+        )
+        self.assertEqual(
+            validate_api_payload(
+                "/api/queue/file-overrides/series-apply",
+                {
+                    "path": r"C:\Media\TV\Show\S01E01.mkv",
+                    "proposed_override": {"audio": {"maxChannels": 2}},
+                    "confirm_apply": True,
+                    "preview_fingerprint": "fp",
+                },
+            ),
+            {
+                "path": r"C:\Media\TV\Show\S01E01.mkv",
+                "proposed_override": {"audio": {"maxChannels": 2}},
+                "confirm_apply": True,
+                "preview_fingerprint": "fp",
             },
         )
         self.assertEqual(
@@ -241,7 +285,7 @@ class ApiCommandContractsTests(unittest.TestCase):
     def test_command_ownership_matrix_lists_every_post_command_route(self) -> None:
         matrix = (REPO_ROOT / "Docs" / "inventories" / "COMMAND_OWNERSHIP_MATRIX.md").read_text(encoding="utf-8")
 
-        self.assertIn("Total command routes: 49 POST routes across 9 contract groups.", matrix)
+        self.assertIn("Total command routes: 51 POST routes across 9 contract groups.", matrix)
         for route in COMMAND_ROUTE_METHODS:
             with self.subTest(route=route):
                 self.assertIn(f"`POST {route}`", matrix)

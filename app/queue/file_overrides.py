@@ -31,6 +31,7 @@ from __future__ import annotations
 #         "subtitles": {
 #           "keepTracks":           [{"language":"eng","forced":false}],
 #           "dropTracks":           [{"language":"und"}],
+#           "burnTrack":            {"streamIndex":4,"language":"eng","codec":"subrip","forced":false},
 #           "renameTracks":         [{"language":"eng","forced":false,"newTitle":"English"}],
 #           "correctLanguageTags":  {"und":"eng"},
 #           "stripAll":             false
@@ -63,6 +64,7 @@ from app.contracts.config import Config
 
 FILE_OVERRIDES_VERSION = 1
 _EMPTY: dict = {"version": FILE_OVERRIDES_VERSION, "entries": {}}
+FILE_OVERRIDE_BATCH_METADATA_KEY = "_batch"
 CLEARABLE_FILE_OVERRIDE_FIELDS: frozenset[str] = frozenset(
     {
         "audio.keepTracks",
@@ -71,6 +73,7 @@ CLEARABLE_FILE_OVERRIDE_FIELDS: frozenset[str] = frozenset(
         "audio.preferDefaultLanguage",
         "subtitles.keepTracks",
         "subtitles.dropTracks",
+        "subtitles.burnTrack",
         "subtitles.stripAll",
         "routing.profile",
         "routing.routeThresholdMode",
@@ -87,6 +90,7 @@ _CLEARABLE_FIELD_KEYS: dict[str, tuple[str, str]] = {
     "audio.preferDefaultLanguage": ("audio", "preferDefaultLanguage"),
     "subtitles.keepTracks": ("subtitles", "keepTracks"),
     "subtitles.dropTracks": ("subtitles", "dropTracks"),
+    "subtitles.burnTrack": ("subtitles", "burnTrack"),
     "subtitles.stripAll": ("subtitles", "stripAll"),
     "routing.profile": ("routing", "profile"),
     "routing.routeThresholdMode": ("routing", "routeThresholdMode"),
@@ -99,7 +103,9 @@ SUPPORTED_FILE_OVERRIDE_TOP_LEVEL_KEYS: frozenset[str] = frozenset({"audio", "su
 SUPPORTED_FILE_OVERRIDE_AUDIO_KEYS: frozenset[str] = frozenset(
     {"keepTracks", "dropTracks", "maxChannels", "preferDefaultLanguage"}
 )
-SUPPORTED_FILE_OVERRIDE_SUBTITLE_KEYS: frozenset[str] = frozenset({"keepTracks", "dropTracks", "stripAll"})
+SUPPORTED_FILE_OVERRIDE_SUBTITLE_KEYS: frozenset[str] = frozenset(
+    {"keepTracks", "dropTracks", "burnTrack", "stripAll"}
+)
 SUPPORTED_FILE_OVERRIDE_ROUTING_KEYS: frozenset[str] = frozenset({"profile", "routeThresholdMode"})
 SUPPORTED_FILE_OVERRIDE_VIDEO_KEYS: frozenset[str] = frozenset(
     {"codec", "container", "encodePreset", "encodeLadder"}
@@ -119,6 +125,14 @@ SUPPORTED_FILE_OVERRIDE_ROUTE_PROFILES: frozenset[str] = frozenset(
     }
 )
 SAFE_OVERRIDE_SCALAR_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+
+
+class FileOverrideValidationError(ValueError):
+    """Validation failure for a complete file override entry."""
+
+    def __init__(self, errors: list[str]) -> None:
+        self.errors = list(errors)
+        super().__init__("; ".join(self.errors))
 
 
 def _literal_choices(field_name: str) -> frozenset[str]:
@@ -247,6 +261,9 @@ def set_file_override_entry(
     manifest_path: Path,
     source_path: str | Path,
     override_data: dict,
+    *,
+    batch_metadata: dict[str, Any] | None = None,
+    replace_existing: bool = False,
 ) -> dict:
     """
     Atomically set or update the override for *source_path*.
@@ -263,8 +280,8 @@ def set_file_override_entry(
     else:
         errors = validate_file_override_payload(override_data)
         if errors:
-            raise ValueError("; ".join(errors))
-        existing = entries.get(norm, {})
+            raise FileOverrideValidationError(errors)
+        existing = {} if replace_existing else entries.get(norm, {})
         sanitized = _sanitise_override(override_data)
         # Existing audio/subtitle save semantics replace their section. New
         # route/video sections are sparse patches, so merge them by field.
@@ -278,7 +295,19 @@ def set_file_override_entry(
                 merged[key] = {**merged[key], **value}
             else:
                 merged[key] = value
+        merged_view = {
+            key: value
+            for key, value in merged.items()
+            if key in SUPPORTED_FILE_OVERRIDE_TOP_LEVEL_KEYS
+        }
+        merged_errors = validate_file_override_payload(merged_view)
+        if merged_errors:
+            raise FileOverrideValidationError(merged_errors)
         merged["set_at"] = datetime.now(timezone.utc).isoformat()
+        if batch_metadata is None:
+            merged.pop(FILE_OVERRIDE_BATCH_METADATA_KEY, None)
+        else:
+            merged[FILE_OVERRIDE_BATCH_METADATA_KEY] = _sanitise_batch_metadata(batch_metadata)
         entries[norm] = merged
 
     _write_atomic(manifest_path, manifest)
@@ -335,10 +364,16 @@ def validate_file_override_payload(data: dict) -> list[str]:
             _validate_language_scalar(errors, "audio.preferDefaultLanguage", audio.get("preferDefaultLanguage"))
 
     subtitles = data.get("subtitles") if isinstance(data.get("subtitles"), dict) else {}
+    burn_track_present = False
     if isinstance(subtitles, dict):
         for key in ("keepTracks", "dropTracks"):
             if key in subtitles:
                 _validate_track_selector_list(errors, f"subtitles.{key}", subtitles.get(key), kind="subtitle")
+        if "burnTrack" in subtitles:
+            burn_track_present = True
+            _validate_track_selector_object(errors, "subtitles.burnTrack", subtitles.get("burnTrack"), kind="subtitle")
+            if isinstance(subtitles.get("burnTrack"), dict) and "streamIndex" not in subtitles.get("burnTrack", {}):
+                errors.append("'subtitles.burnTrack.streamIndex' is required for subtitle burn-in.")
         if "stripAll" in subtitles and not isinstance(subtitles.get("stripAll"), bool):
             errors.append("'subtitles.stripAll' must be a boolean.")
 
@@ -396,6 +431,10 @@ def validate_file_override_payload(data: dict) -> list[str]:
             "'routing.profile' remux cannot be combined with video encode/container fields "
             "that require transcode."
         )
+    if route_profile == "remux" and burn_track_present:
+        errors.append(
+            "'routing.profile' remux cannot be combined with subtitles.burnTrack because subtitle burn-in requires encode."
+        )
 
     return errors
 
@@ -425,27 +464,32 @@ def _validate_track_selector_list(errors: list[str], field_path: str, value: Any
     supported = SUPPORTED_AUDIO_TRACK_SELECTOR_KEYS if kind == "audio" else SUPPORTED_SUBTITLE_TRACK_SELECTOR_KEYS
     for index, selector in enumerate(value):
         selector_path = f"{field_path}[{index}]"
-        if not isinstance(selector, dict):
-            errors.append(f"'{selector_path}' must be an object with supported track selector fields.")
-            continue
-        _append_unknown_key_errors(
-            errors,
-            path=selector_path,
-            keys=selector.keys(),
-            supported=supported,
-        )
-        if not any(key in selector for key in supported):
-            errors.append(f"'{selector_path}' must contain at least one supported track selector field.")
-            continue
-        _validate_optional_track_selector_string(errors, selector_path, selector, "language")
-        _validate_optional_track_selector_string(errors, selector_path, selector, "codec", scalar_safe=True)
-        _validate_optional_track_selector_string(errors, selector_path, selector, "title")
-        if "streamIndex" in selector:
-            _validate_stream_index(errors, f"{selector_path}.streamIndex", selector.get("streamIndex"))
-        if kind == "audio" and "channels" in selector:
-            _validate_selector_channels(errors, f"{selector_path}.channels", selector.get("channels"))
-        if kind == "subtitle" and "forced" in selector and not isinstance(selector.get("forced"), bool):
-            errors.append(f"'{selector_path}.forced' must be a boolean.")
+        _validate_track_selector_object(errors, selector_path, selector, kind=kind)
+
+
+def _validate_track_selector_object(errors: list[str], selector_path: str, selector: Any, *, kind: str) -> None:
+    supported = SUPPORTED_AUDIO_TRACK_SELECTOR_KEYS if kind == "audio" else SUPPORTED_SUBTITLE_TRACK_SELECTOR_KEYS
+    if not isinstance(selector, dict):
+        errors.append(f"'{selector_path}' must be an object with supported track selector fields.")
+        return
+    _append_unknown_key_errors(
+        errors,
+        path=selector_path,
+        keys=selector.keys(),
+        supported=supported,
+    )
+    if not any(key in selector for key in supported):
+        errors.append(f"'{selector_path}' must contain at least one supported track selector field.")
+        return
+    _validate_optional_track_selector_string(errors, selector_path, selector, "language")
+    _validate_optional_track_selector_string(errors, selector_path, selector, "codec", scalar_safe=True)
+    _validate_optional_track_selector_string(errors, selector_path, selector, "title")
+    if "streamIndex" in selector:
+        _validate_stream_index(errors, f"{selector_path}.streamIndex", selector.get("streamIndex"))
+    if kind == "audio" and "channels" in selector:
+        _validate_selector_channels(errors, f"{selector_path}.channels", selector.get("channels"))
+    if kind == "subtitle" and "forced" in selector and not isinstance(selector.get("forced"), bool):
+        errors.append(f"'{selector_path}.forced' must be a boolean.")
 
 
 def _validate_optional_track_selector_string(
@@ -537,6 +581,11 @@ def file_override_payload_warnings(data: dict) -> list[str]:
             warnings.append("video.container may force a full video transcode for MP4-family output.")
     if isinstance(video, dict) and any(key in video for key in ("codec", "encodePreset", "encodeLadder")):
         warnings.append("video encode settings may force a full video transcode for this file.")
+    subtitles = data.get("subtitles") if isinstance(data.get("subtitles"), dict) else {}
+    if isinstance(subtitles, dict) and isinstance(subtitles.get("burnTrack"), dict):
+        warnings.append("subtitles.burnTrack forces encode using the subtitle-burn encode profile.")
+        warnings.append("subtitles.burnTrack drops all selectable output subtitle streams for this file.")
+        warnings.append("subtitles.burnTrack is a destructive output change because the selected subtitle is rendered into video pixels.")
     _append_exact_selector_warnings(warnings, data)
     return warnings
 
@@ -559,6 +608,15 @@ def _append_exact_selector_warnings(warnings: list[str], data: dict) -> None:
                         f"{section_name}.{key}[{index}] uses streamIndex without signature fields; "
                         "track metadata should be rechecked before processing."
                     )
+        if section_name == "subtitles":
+            selector = section.get("burnTrack")
+            if not isinstance(selector, dict) or "streamIndex" not in selector:
+                continue
+            if not any(sig_key in selector for sig_key in ("language", "codec", "forced")):
+                warnings.append(
+                    "subtitles.burnTrack uses streamIndex without signature fields; "
+                    "track metadata should be rechecked before processing."
+                )
 
 
 def clear_file_override_fields(
@@ -596,7 +654,9 @@ def clear_file_override_fields(
     if not changed:
         return manifest
 
-    if not any(key != "set_at" for key in entry):
+    entry.pop(FILE_OVERRIDE_BATCH_METADATA_KEY, None)
+
+    if not any(key not in {"set_at", FILE_OVERRIDE_BATCH_METADATA_KEY} for key in entry):
         entries.pop(norm, None)
     else:
         entry["set_at"] = datetime.now(timezone.utc).isoformat()
@@ -617,7 +677,7 @@ def _source_path_looks_like_file(source_path: str | Path) -> bool:
 
 def _sanitise_override(data: dict) -> dict:
     """Remove top-level keys that are reserved / managed by the service."""
-    reserved = {"set_at", "version"}
+    reserved = {"set_at", "version", FILE_OVERRIDE_BATCH_METADATA_KEY}
     sanitized: dict = {}
     for key, value in data.items():
         if key in reserved:
@@ -632,7 +692,42 @@ def _sanitise_override(data: dict) -> dict:
             if video:
                 sanitized[key] = video
             continue
+        if key == "subtitles" and isinstance(value, dict):
+            subtitles = dict(value)
+            burn_track = subtitles.get("burnTrack")
+            if isinstance(burn_track, dict):
+                # Burning makes every selectable subtitle output disappear. Keep
+                # only the singular burn selector so prior keep/drop/strip
+                # values cannot accidentally leak into processing.
+                sanitized[key] = {"burnTrack": dict(burn_track)}
+            else:
+                sanitized[key] = value
+            continue
         sanitized[key] = value
+    return sanitized
+
+
+def _sanitise_batch_metadata(data: dict[str, Any]) -> dict[str, Any]:
+    allowed = {
+        "origin",
+        "batch_id",
+        "batch_label",
+        "batch_scope",
+        "batch_source_path",
+        "batch_detected_root",
+        "batch_detected_name",
+        "created_at",
+    }
+    sanitized: dict[str, Any] = {}
+    for key in allowed:
+        value = data.get(key)
+        if value in (None, ""):
+            continue
+        if isinstance(value, (str, int, float, bool)):
+            sanitized[key] = value
+        else:
+            sanitized[key] = str(value)
+    sanitized.setdefault("origin", "series_batch")
     return sanitized
 
 
@@ -692,6 +787,7 @@ def file_overrides_to_api_payload(manifest: dict, manifest_path: Path) -> dict:
                 "subtitles": v.get("subtitles"),
                 "routing":   v.get("routing"),
                 "video":     v.get("video"),
+                "_batch":    v.get(FILE_OVERRIDE_BATCH_METADATA_KEY),
             }
             for k, v in entries.items()
         },

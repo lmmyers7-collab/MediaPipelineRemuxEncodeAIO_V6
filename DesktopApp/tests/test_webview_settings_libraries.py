@@ -139,7 +139,10 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         for token in (
             "function overrideFieldsForGroup(groupKey)",
             "function overrideGroupList()",
-            "function overrideStatus(groupKey, key)",
+            "function overrideStatus(groupKey, key, profile = null)",
+            "function fieldLibraryDesignations(field)",
+            "function fieldAppliesToProfile(profile, key)",
+            "library_profile_designations",
             "field?.library_override_allowed === true",
             'String(field?.override_group || "") === groupKey',
             "field?.allowed_values",
@@ -153,10 +156,11 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             'data-library-section="${escapeHtml(section)}"',
             'data-library-advanced-visibility="${escapeHtml(advancedVisibility)}"',
             'data-library-unavailable-reason="${escapeHtml(unavailableReason)}"',
+            "Only shown for",
             "Global-only — unavailable",
             "Source/computed — read-only",
             "fieldIsAdvanced(fieldKey, field) ? \" data-advanced\" : \"\"",
-            "return fields.filter((fieldKey) => overrideStatus(groupKey, fieldKey).render);",
+            "return fields.filter((fieldKey) => overrideStatus(groupKey, fieldKey, profile).render);",
             "settingsAdvancedFallbackKeys",
             "function fieldIsAdvanced(key, field)",
             "metadataTags(field?.rule_taxonomy)",
@@ -193,6 +197,26 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
         self.assertIn("if (field?.label) return field.label;", js)
         self.assertIn("fieldHelpText(field)", js)
+
+    def test_library_designation_filtering_omits_inapplicable_override_rows(self) -> None:
+        metadata = _backend_field_metadata()
+        js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+
+        self.assertEqual(metadata["EncodeThresholdGB"]["library_profile_designations"], ("movie", "auto"))
+        self.assertEqual(metadata["MovieRouteMaxVideoBitrateMbps"]["library_profile_designations"], ("movie", "auto"))
+        self.assertEqual(metadata["TVEncodeThresholdGB"]["library_profile_designations"], ("tv", "auto"))
+        self.assertEqual(metadata["TVRouteMaxVideoBitrateMbps"]["library_profile_designations"], ("tv", "auto"))
+        self.assertNotIn("library_profile_designations", metadata["Route1080pMaxVideoBitrateMbps"])
+        for token in (
+            "fieldAppliesToProfile(profile, key)",
+            "inapplicableOverrideKeys(profile)",
+            "libraryPrunedOverrides",
+            "prunedOverrideWarningLines()",
+            "omitted designation-specific override(s) from staged LibraryProfiles",
+            "rerenderLibraryCard(card)",
+            'field === "designation"',
+        ):
+            self.assertIn(token, js)
 
     def test_phase3_label_only_keys_are_rendered_as_persisted_library_overrides(self) -> None:
         metadata = _backend_field_metadata()
@@ -255,7 +279,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             self.assertIn(token, settings_js)
 
         for token in (
-            "overrideStatus(groupKey, key)",
+            "overrideStatus(groupKey, key, profile = null)",
             "field?.library_override_allowed === true",
             'String(field?.override_group || "") === groupKey',
             'overrides[group][key] = readOverrideControlValue(control, key)',
@@ -480,9 +504,14 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
 
     def test_settings_libraries_asset_preserves_unsaved_cards_during_refresh(self) -> None:
         js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        app_js = (STATIC_ROOT / "assets" / "app.js").read_text(encoding="utf-8")
 
         for token in (
             "if (libraryEditorDirty && profileCardsFromDom().length)",
+            "function libraryEditorHasActiveControl()",
+            "function shouldDeferAutomaticLibraryRender(options = {})",
+            "options?.automatic === true && profileCardsFromDom().length && libraryEditorHasActiveControl()",
+            "if (shouldDeferAutomaticLibraryRender(options)) return;",
             "const stagedProfiles = collectProfilesFromDom();",
             "if (!profilesEquivalent(stagedProfiles, incomingProfiles))",
             "default_tracking: comparableTracking(profile)",
@@ -493,6 +522,10 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "Unsaved library edits were kept through refresh.",
         ):
             self.assertIn(token, js)
+        self.assertIn(
+            "window.mediaPipelineSettingsLibraries?.renderSettingsLibraries?.(values.settings, refreshOptions);",
+            app_js,
+        )
 
     def test_settings_libraries_asset_is_loaded_after_settings_view(self) -> None:
         html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")

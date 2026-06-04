@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: api
 last_modified: 2026-06-03
 last_reviewed: 2026-05-28
-sha256: 5f3864d0abc537add3a5965ffdbd90233ab6d5da1cc8606a99f553b17ab354fc
+sha256: 7a1f8b1b32bcf2aba9dd4ca73b9b13680148747f6cc069286ebb3921a09a2f9c
 ---
 # `app/api/commands_file_overrides.py`
 

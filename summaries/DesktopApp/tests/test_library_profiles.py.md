@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_library_profiles.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-05-31
+last_modified: 2026-06-03
 last_reviewed: 2026-05-29
-sha256: d5977cae065d07b39c5273935a814f0e5b7992ab6f508c94ae12b2049a73bd8c
+sha256: 833c754dbb240f5cee647698aa884c69234fedf9a37c77a83e7e337921b5fc09
 ---
 # `DesktopApp/tests/test_library_profiles.py`
 

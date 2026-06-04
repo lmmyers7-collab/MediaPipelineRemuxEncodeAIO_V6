@@ -52,7 +52,10 @@ Each packet must use this shape:
 - `affected_areas`: Stable area labels for grouping release impact.
 - `behavior_before`: Previous behavior or repository state.
 - `behavior_after`: New behavior or repository state.
-- `files_touched`: Files created or modified by the change.
+- `files_touched`: Exact repo-relative forward-slash paths for files created,
+  modified, renamed, or deleted by the change. This is the authoritative
+  machine-readable coverage field used by strict validation, pre-commit, CI,
+  and the Maintenance Change Ledger.
 - `tests_added`: Automated tests added by the change, if any.
 - `manual_validation`: Manual commands or checks run for the change.
 - `rollback_plan`: How to back out the change.
@@ -76,3 +79,18 @@ When `status` is `complete`, the packet must document `summary`, `reason`,
 `behavior_before`, `behavior_after`, `files_touched`, `manual_validation`, and
 `rollback_plan`. Complete changes without validation and rollback evidence
 should fail validation.
+
+## Coverage Rule
+
+Every meaningful worktree, staged, or branch-diff change must be covered by
+`files_touched` in an unreleased packet. Released packets are historical and do
+not satisfy current coverage. Generated docs, summaries, tests, scripts, UI
+files, config, and documentation are all coverable paths; only files Git already
+ignores are outside coverage.
+
+Use the helper to keep packet fields current without hand-editing JSON:
+
+```powershell
+.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\record_change_touch.py MP-CHANGE-YYYY-MMDD-### path/to/file.py
+.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\record_change_touch.py MP-CHANGE-YYYY-MMDD-### --from-staged --validation "unit tests - passed"
+```

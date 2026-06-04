@@ -183,6 +183,10 @@ function settingsActiveMediaPolicyRows() {
   const tvThreshold = settingsMediaPolicyNumber("settings-builder-tv-threshold", "TVEncodeThresholdGB", 3);
   const movieRouteMaxBitrate = settingsMediaPolicyNumber("settings-builder-movie-route-bitrate", "MovieRouteMaxVideoBitrateMbps", 35);
   const tvRouteMaxBitrate = settingsMediaPolicyNumber("settings-builder-tv-route-bitrate", "TVRouteMaxVideoBitrateMbps", 18);
+  const route1080pBucketMaxHeight = settingsMediaPolicyNumber("settings-builder-1080p-bucket-height", "Route1080pBucketMaxHeight", 1200);
+  const route1080pMaxBitrate = settingsMediaPolicyNumber("settings-builder-1080p-route-bitrate", "Route1080pMaxVideoBitrateMbps", 20);
+  const route4kBucketMinHeight = settingsMediaPolicyNumber("settings-builder-4k-bucket-height", "Route4KBucketMinHeight", 1800);
+  const route4kMaxBitrate = settingsMediaPolicyNumber("settings-builder-4k-route-bitrate", "Route4KMaxVideoBitrateMbps", 35);
   const allowH264Copy = settingsMediaPolicyBool("settings-video-h264-remux", "AllowH264RemuxIfPlexCompatible", true);
   const h264MaxBitrate = settingsMediaPolicyNumber("settings-video-h264-max-bitrate", "H264RemuxMaxBitrateMbps", 35);
   const h264MaxHeight = settingsMediaPolicyNumber("settings-video-h264-max-height", "H264RemuxMaxHeight", 1080);
@@ -206,8 +210,8 @@ function settingsActiveMediaPolicyRows() {
     {
       area: "Routing profile / Output Size Check",
       posture: ["off", "disabled"].includes(String(sizeGuard).toLowerCase()) ? "review" : "coherent",
-      evidence: `profile=${formatSettingsChoiceLabel(routingProfile)}; threshold=${formatSettingsChoiceLabel(routeThresholdMode)}; Output Size Check=${formatSettingsChoiceLabel(sizeGuard)}; normal growth=${maxGrowth}%; compatibility growth=${compatGrowth}%; movie>${movieThreshold}GB/${movieRouteMaxBitrate}Mbps; TV>${tvThreshold}GB/${tvRouteMaxBitrate}Mbps`,
-      handoff: "Launch should show these saved route/size values before Start. Strict mode can block growth; advisory mode should warn without changing policy by itself.",
+      evidence: `profile=${formatSettingsChoiceLabel(routingProfile)}; threshold=${formatSettingsChoiceLabel(routeThresholdMode)}; Output Size Check=${formatSettingsChoiceLabel(sizeGuard)}; normal growth=${maxGrowth}%; compatibility growth=${compatGrowth}%; movie>${movieThreshold}GB fallback ${movieRouteMaxBitrate}Mbps; TV>${tvThreshold}GB fallback ${tvRouteMaxBitrate}Mbps; <=${route1080pBucketMaxHeight}p uses ${route1080pMaxBitrate}Mbps; >=${route4kBucketMinHeight}p uses ${route4kMaxBitrate}Mbps`,
+      handoff: "Launch should show these saved route/size values before Start. Source height only selects the bitrate cap; strict/advisory size policy remains backend-owned.",
     },
     {
       area: "Video copy / encoder path",
@@ -876,6 +880,10 @@ function settingsPolicyDeltaRows(entries) {
     "TVEncodeThresholdGB",
     "MovieRouteMaxVideoBitrateMbps",
     "TVRouteMaxVideoBitrateMbps",
+    "Route1080pBucketMaxHeight",
+    "Route1080pMaxVideoBitrateMbps",
+    "Route4KBucketMinHeight",
+    "Route4KMaxVideoBitrateMbps",
     "MaxEncodeGrowthPercent",
     "CompatibilityEncodeGrowthPercent",
   ];
@@ -890,8 +898,8 @@ function settingsPolicyDeltaRows(entries) {
   rows.push({
     area: "Routing / Output Size Check",
     posture: ["off", "disabled"].includes(nextSizeGuard) || nextMaxGrowth > 15 || nextCompatGrowth > 30 ? "review" : (settingsPolicyDeltaChangedLabels(entries, routingKeys).length ? "preview required" : "unchanged"),
-    current: `profile=${formatSettingsChoiceLabel(settingsPatchCurrentText("RoutingProfile", "plex_direct_stream"))}; threshold=${formatSettingsChoiceLabel(currentRouteThresholdMode)}; guard=${formatSettingsChoiceLabel(currentSizeGuard)}; growth=${currentMaxGrowth}%/${currentCompatGrowth}%; movie>${settingsPatchCurrentNumber("EncodeThresholdGB", 8)}GB/${settingsPatchCurrentNumber("MovieRouteMaxVideoBitrateMbps", 35)}Mbps; TV>${settingsPatchCurrentNumber("TVEncodeThresholdGB", 3)}GB/${settingsPatchCurrentNumber("TVRouteMaxVideoBitrateMbps", 18)}Mbps`,
-    candidate: `profile=${formatSettingsChoiceLabel(settingsPatchCandidateText(entries, "RoutingProfile", "plex_direct_stream"))}; threshold=${formatSettingsChoiceLabel(nextRouteThresholdMode)}; guard=${formatSettingsChoiceLabel(nextSizeGuard)}; growth=${nextMaxGrowth}%/${nextCompatGrowth}%; movie>${settingsPatchCandidateNumber(entries, "EncodeThresholdGB", 8)}GB/${settingsPatchCandidateNumber(entries, "MovieRouteMaxVideoBitrateMbps", 35)}Mbps; TV>${settingsPatchCandidateNumber(entries, "TVEncodeThresholdGB", 3)}GB/${settingsPatchCandidateNumber(entries, "TVRouteMaxVideoBitrateMbps", 18)}Mbps`,
+    current: `profile=${formatSettingsChoiceLabel(settingsPatchCurrentText("RoutingProfile", "plex_direct_stream"))}; threshold=${formatSettingsChoiceLabel(currentRouteThresholdMode)}; guard=${formatSettingsChoiceLabel(currentSizeGuard)}; growth=${currentMaxGrowth}%/${currentCompatGrowth}%; fallback movie/TV=${settingsPatchCurrentNumber("MovieRouteMaxVideoBitrateMbps", 35)}/${settingsPatchCurrentNumber("TVRouteMaxVideoBitrateMbps", 18)}Mbps; buckets <=${settingsPatchCurrentNumber("Route1080pBucketMaxHeight", 1200)}p ${settingsPatchCurrentNumber("Route1080pMaxVideoBitrateMbps", 20)}Mbps, >=${settingsPatchCurrentNumber("Route4KBucketMinHeight", 1800)}p ${settingsPatchCurrentNumber("Route4KMaxVideoBitrateMbps", 35)}Mbps`,
+    candidate: `profile=${formatSettingsChoiceLabel(settingsPatchCandidateText(entries, "RoutingProfile", "plex_direct_stream"))}; threshold=${formatSettingsChoiceLabel(nextRouteThresholdMode)}; guard=${formatSettingsChoiceLabel(nextSizeGuard)}; growth=${nextMaxGrowth}%/${nextCompatGrowth}%; fallback movie/TV=${settingsPatchCandidateNumber(entries, "MovieRouteMaxVideoBitrateMbps", 35)}/${settingsPatchCandidateNumber(entries, "TVRouteMaxVideoBitrateMbps", 18)}Mbps; buckets <=${settingsPatchCandidateNumber(entries, "Route1080pBucketMaxHeight", 1200)}p ${settingsPatchCandidateNumber(entries, "Route1080pMaxVideoBitrateMbps", 20)}Mbps, >=${settingsPatchCandidateNumber(entries, "Route4KBucketMinHeight", 1800)}p ${settingsPatchCandidateNumber(entries, "Route4KMaxVideoBitrateMbps", 35)}Mbps`,
     check: `${settingsPolicyDeltaChangedText(entries, routingKeys)} Output Size Check and growth limits affect remux-vs-encode trust and oversized-output review.`,
   });
 

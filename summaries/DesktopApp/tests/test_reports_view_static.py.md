@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-03
 last_reviewed: 2026-06-02
-sha256: 66fa6be929959395a261f4c0fe2d84c9d922368ec9dbb7f37aa043b7e74e9f08
+sha256: dbcadeb0546861293ffbf5ba3f22f9663a417368aa86e5e54c07006a427e8276
 ---
 # `DesktopApp/tests/test_reports_view_static.py`
 

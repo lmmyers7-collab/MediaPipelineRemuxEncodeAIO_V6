@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_final_library_promotion.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-05-30
-sha256: 3f24b1e608170b5ada684b473e33df862584fd4057d615fc29ebb0f061ef0689
+sha256: db8ba49ede576529d329f35fc5456a369a9b49fe888cd82b49f741b19c70b513
 ---
 # `DesktopApp/tests/test_final_library_promotion.py`
 

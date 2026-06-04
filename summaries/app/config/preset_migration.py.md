@@ -3,9 +3,9 @@ file: app/config/preset_migration.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-05-31
+last_modified: 2026-06-03
 last_reviewed: 2026-05-30
-sha256: ae518826f8f804e6750f3ebcfe4a8238055c490317782e1a43b3d137dd8c9b0a
+sha256: a9fb64658b10fce6e7543ef2f35eda9b8dc6e4cc7ac98ea2c61e9a5501abdc99
 ---
 # `app/config/preset_migration.py`
 

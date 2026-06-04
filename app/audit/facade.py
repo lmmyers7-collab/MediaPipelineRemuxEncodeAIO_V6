@@ -143,7 +143,7 @@ class AuditFacadeMixin:
             message=message,
             refresh_hint="audit-controls",
             data={
-                "schema_version": "desktop_audit_score_policy_result.v1",
+                "schema_version": "desktop_audit_score_policy_result.v2",
                 "path": str(score_path),
                 "policy": policy,
                 "touches_media": False,

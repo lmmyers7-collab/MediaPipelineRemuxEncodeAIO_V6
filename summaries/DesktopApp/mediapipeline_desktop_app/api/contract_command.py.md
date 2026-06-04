@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: api
 last_modified: 2026-06-03
 last_reviewed: 2026-05-28
-sha256: f7a839a54804a05f3851f548ca791cba0d57a37d3d891dde3197d443dd913b1f
+sha256: 04502183986811610f042bab7dbadf40f38f9e598fb1d3dbe0758f2b718e35fe
 ---
 # `DesktopApp/mediapipeline_desktop_app/api/contract_command.py`
 

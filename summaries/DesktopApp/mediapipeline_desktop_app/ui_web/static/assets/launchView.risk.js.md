@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.risk.
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-05-29
-sha256: fb719baacea40276d02ad815baa4c63afec69153992dd1c3d9c9640016d1a08a
+sha256: 1a9176fe6813636743c9c0b094d91269b60dcf47ffe09b5b32ddc8dd64f7510e
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.risk.js`
 

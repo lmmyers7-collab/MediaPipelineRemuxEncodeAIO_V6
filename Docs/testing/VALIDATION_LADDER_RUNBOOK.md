@@ -67,6 +67,7 @@ $py = "DesktopApp\Runtime\Python\python.exe"
 .\SmokeTests\Test-WebViewBrowserCompletedPendingProofSmoke.ps1
 .\SmokeTests\Test-WebViewBrowserLargeTableSmoke.ps1
 .\SmokeTests\Test-WebViewBrowserMaintenanceReportsSmoke.ps1
+.\SmokeTests\Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1
 .\SmokeTests\Test-WebViewBrowserSampleValidationSmoke.ps1
 .\SmokeTests\Test-WebViewBrowserHomeLiveStateSmoke.ps1
 .\SmokeTests\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1

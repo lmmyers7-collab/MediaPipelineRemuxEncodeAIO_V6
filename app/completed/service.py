@@ -12,7 +12,11 @@ from app.completed.backfill import (
     completed_backfill_script_path,
     validate_completed_backfill_request,
 )
-from app.completed.manifest import read_completed_manifest_records
+from app.completed.manifest import (
+    DEFAULT_COMPLETED_PROOF_MODE,
+    normalize_proof_mode,
+    read_completed_manifest_records,
+)
 from mediapipeline_desktop_app.subprocess_runner import run_capture
 
 
@@ -30,6 +34,7 @@ class CompletedJobsServiceMixin:
         *,
         limit: int | None = COMPLETED_HISTORY_LIMIT,
         force_refresh: bool = False,
+        proof_mode: str = DEFAULT_COMPLETED_PROOF_MODE,
     ) -> list[CompletedJobRecord]:
         """Read completed jobs from the local append-only JSONL manifest.
 
@@ -44,12 +49,14 @@ class CompletedJobsServiceMixin:
         if not manifest_path:
             self._completed_history_cache_key = None
             self._completed_history_cache_limit_key = ""
+            self._completed_history_cache_proof_key = ""
             self._completed_history_cached_at = 0.0
             self._completed_history_records = []
             return []
 
         cache_key = str(manifest_path).casefold()
         cache_limit_key = "all" if limit is None else str(limit)
+        cache_proof_key = normalize_proof_mode(proof_mode)
         # Invalidate the cache if the manifest file has been rewritten
         # (e.g. by a backfill). mtime is cheap and avoids stale reads
         # after the user clicks Backfill.
@@ -62,6 +69,7 @@ class CompletedJobsServiceMixin:
             not force_refresh
             and cache_key == self._completed_history_cache_key
             and cache_limit_key == getattr(self, "_completed_history_cache_limit_key", "")
+            and cache_proof_key == getattr(self, "_completed_history_cache_proof_key", "")
             and manifest_mtime == getattr(self, "_completed_history_manifest_mtime", 0.0)
             and (now - self._completed_history_cached_at) < COMPLETED_HISTORY_CACHE_SECONDS
         ):
@@ -80,6 +88,7 @@ class CompletedJobsServiceMixin:
                     manifest_path,
                     limit=limit,
                     logger=self.logger,
+                    proof_mode=proof_mode,
                 )
             except OSError as exc:
                 # Persist the mtime sentinel even on a read failure so the
@@ -94,23 +103,20 @@ class CompletedJobsServiceMixin:
 
         self._completed_history_cache_key = cache_key
         self._completed_history_cache_limit_key = cache_limit_key
+        self._completed_history_cache_proof_key = cache_proof_key
         self._completed_history_cached_at = now
         self._completed_history_manifest_mtime = manifest_mtime
         self._completed_history_records = list(records)
         # Diagnostic counters used by the UI "No entries found" message.
         self._completed_scan_dirs_visited = -2  # sentinel: manifest mode
         self._completed_scan_sidecars_found = len(records)
-        if resolved.state_root is not None and records:
-            try:
-                from app.storage.db import open_state_db
-
-                db = open_state_db(resolved.state_root)
-                for record in records:
-                    payload = dict(record.payload)
-                    payload.setdefault("sidecar_path", str(record.sidecar_path))
-                    db.record_completed_job(payload)
-            except Exception as exc:
-                self.logger.warning("Could not mirror completed jobs to SQLite: %s", exc)
+        # The JSON manifest is the authoritative completed-job source. The GET
+        # read path no longer mirrors rows into the SQLite shadow table: that
+        # mirror has no reader, and the per-row commit dominated broad-refresh
+        # load time (~8s on the investigated state). The mirror stays available
+        # via app.storage.db.open_state_db().record_completed_job for an explicit
+        # maintenance/backfill or a future write-path sync.
+        # (backend-load-performance Packet 2.)
         return list(records)
 
     def backfill_completed_manifest(

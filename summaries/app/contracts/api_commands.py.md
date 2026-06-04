@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: contracts
 last_modified: 2026-06-03
 last_reviewed: 2026-05-28
-sha256: 4230a04973b62c23bbe9dd4ded6fcd60c163d000e662e9607b60941ae9283e0a
+sha256: 641a0c7ab6b8b2e4ec14fb45424bb1536e946e1698078e20288d9f9395bd03fe
 ---
 # `app/contracts/api_commands.py`
 

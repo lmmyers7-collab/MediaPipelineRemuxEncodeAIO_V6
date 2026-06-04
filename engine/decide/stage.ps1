@@ -43,7 +43,11 @@ function Invoke-DecideStage {
         -H264RemuxMaxBitrateMbps ([double](Get-ObjectValue -Object $Payload -Name 'h264_remux_max_bitrate_mbps' -Default 35.0)) `
         -H264RemuxMaxHeight ([int](Get-ObjectValue -Object $Payload -Name 'h264_remux_max_height' -Default 1080)) `
         -MovieRouteMaxVideoBitrateMbps ([double](Get-ObjectValue -Object $Payload -Name 'movie_route_max_video_bitrate_mbps' -Default 35.0)) `
-        -TVRouteMaxVideoBitrateMbps ([double](Get-ObjectValue -Object $Payload -Name 'tv_route_max_video_bitrate_mbps' -Default 18.0))
+        -TVRouteMaxVideoBitrateMbps ([double](Get-ObjectValue -Object $Payload -Name 'tv_route_max_video_bitrate_mbps' -Default 18.0)) `
+        -Route1080pBucketMaxHeight ([int](Get-ObjectValue -Object $Payload -Name 'route_1080p_bucket_max_height' -Default 1200)) `
+        -Route1080pMaxVideoBitrateMbps ([double](Get-ObjectValue -Object $Payload -Name 'route_1080p_max_video_bitrate_mbps' -Default 20.0)) `
+        -Route4KBucketMinHeight ([int](Get-ObjectValue -Object $Payload -Name 'route_4k_bucket_min_height' -Default 1800)) `
+        -Route4KMaxVideoBitrateMbps ([double](Get-ObjectValue -Object $Payload -Name 'route_4k_max_video_bitrate_mbps' -Default 35.0))
 
     return [ordered]@{
         route                       = [string]$plan.Route

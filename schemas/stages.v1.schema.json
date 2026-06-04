@@ -199,6 +199,34 @@
           "title": "Tv Route Max Video Bitrate Mbps",
           "type": "number"
         },
+        "route_1080p_bucket_max_height": {
+          "default": 1200,
+          "maximum": 4320,
+          "minimum": 1,
+          "title": "Route 1080P Bucket Max Height",
+          "type": "integer"
+        },
+        "route_1080p_max_video_bitrate_mbps": {
+          "default": 20.0,
+          "exclusiveMinimum": 0,
+          "maximum": 500,
+          "title": "Route 1080P Max Video Bitrate Mbps",
+          "type": "number"
+        },
+        "route_4k_bucket_min_height": {
+          "default": 1800,
+          "maximum": 4320,
+          "minimum": 1,
+          "title": "Route 4K Bucket Min Height",
+          "type": "integer"
+        },
+        "route_4k_max_video_bitrate_mbps": {
+          "default": 35.0,
+          "exclusiveMinimum": 0,
+          "maximum": 500,
+          "title": "Route 4K Max Video Bitrate Mbps",
+          "type": "number"
+        },
         "allow_h264_remux_if_plex_compatible": {
           "default": true,
           "title": "Allow H264 Remux If Plex Compatible",

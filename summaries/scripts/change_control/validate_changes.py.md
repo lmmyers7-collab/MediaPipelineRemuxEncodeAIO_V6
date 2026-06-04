@@ -3,9 +3,9 @@ file: scripts/change_control/validate_changes.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-01
+last_modified: 2026-06-03
 last_reviewed: 2026-06-01
-sha256: fb2b3af20163ef0e3db9e291007bf188d2a8b35526e810bda566ab2cf2cf75c6
+sha256: dc8ea724e50c2979d4e86467a3a9a4090b803aa4bd656750b3a8b70cee32e85f
 ---
 # `scripts/change_control/validate_changes.py`
 

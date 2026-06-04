@@ -65,8 +65,10 @@
 
     function completedRiskStatusLine(payload, rows) {
       const rowList = Array.isArray(rows) ? rows : [];
-      const missingCount = completedMissingRows(rowList).length;
-      const reviewCount = completedReviewCount(payload, completedCurrentRows(rowList));
+      const missingRows = completedMissingRows(rowList);
+      const currentRows = completedCurrentRows(rowList);
+      const missingCount = Array.isArray(missingRows) ? missingRows.length : 0;
+      const reviewCount = completedReviewCount(payload, Array.isArray(currentRows) ? currentRows : []);
       if (missingCount > 0) return `${missingCount} missing from expected destination`;
       if (reviewCount > 0) return `${reviewCount} current output${reviewCount === 1 ? "" : "s"} need review`;
       return "No current output blockers";
@@ -89,8 +91,10 @@
 
     function renderCompletedReconciliationHint(payload, rows) {
       const rowList = Array.isArray(rows) ? rows : [];
-      const missingCount = completedMissingRows(rowList).length;
-      const reviewCount = completedReviewCount(payload, completedCurrentRows(rowList));
+      const missingRows = completedMissingRows(rowList);
+      const currentRows = completedCurrentRows(rowList);
+      const missingCount = Array.isArray(missingRows) ? missingRows.length : 0;
+      const reviewCount = completedReviewCount(payload, Array.isArray(currentRows) ? currentRows : []);
       const loaded = completedPublishReconciliationLoaded();
       if ((missingCount > 0 || reviewCount > 0) && !loaded) {
         setText("completed-reconciliation-hint", [

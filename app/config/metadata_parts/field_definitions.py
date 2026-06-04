@@ -157,6 +157,7 @@ _PHASE3_DISPLAY_METADATA_BY_KEY: dict[str, dict[str, object]] = {
         "section": "Size / Bitrate Guards",
         "rule_taxonomy": ("size", "routing"),
         "strictness": "soft",
+        "library_profile_designations": ("movie", "auto"),
         "help_text": "GB target output size used as the movie size budget for route and size-policy checks; not the Mbps max bitrate for direct copy.",
     },
     "TVEncodeThresholdGB": {
@@ -165,23 +166,58 @@ _PHASE3_DISPLAY_METADATA_BY_KEY: dict[str, dict[str, object]] = {
         "section": "Size / Bitrate Guards",
         "rule_taxonomy": ("size", "routing"),
         "strictness": "soft",
+        "library_profile_designations": ("tv", "auto"),
         "help_text": "GB target output size used as the TV episode size budget for route and size-policy checks; not the Mbps max bitrate for direct copy.",
     },
     "MovieRouteMaxVideoBitrateMbps": {
-        "label": "Movie max bitrate for direct copy",
-        "short_label": "Movie Copy Max",
+        "label": "Movie fallback max bitrate",
+        "short_label": "Movie Fallback",
         "section": "Size / Bitrate Guards",
         "rule_taxonomy": ("bitrate", "routing"),
         "strictness": "hard",
-        "help_text": "Maximum movie video bitrate in Mbps used before processing to decide whether direct copy/remux remains eligible. Above this cap, routing may choose encode.",
+        "library_profile_designations": ("movie", "auto"),
+        "help_text": "Fallback movie bitrate cap in Mbps when source height is unknown. Known-height sources use the 1080-ish or 4K bucket cap instead.",
     },
     "TVRouteMaxVideoBitrateMbps": {
-        "label": "TV max bitrate for direct copy",
-        "short_label": "TV Copy Max",
+        "label": "TV fallback max bitrate",
+        "short_label": "TV Fallback",
         "section": "Size / Bitrate Guards",
         "rule_taxonomy": ("bitrate", "routing"),
         "strictness": "hard",
-        "help_text": "Maximum TV video bitrate in Mbps used before processing to decide whether direct copy/remux remains eligible. Above this cap, routing may choose encode.",
+        "library_profile_designations": ("tv", "auto"),
+        "help_text": "Fallback TV bitrate cap in Mbps when source height is unknown. Known-height sources use the 1080-ish or 4K bucket cap instead.",
+    },
+    "Route1080pBucketMaxHeight": {
+        "label": "1080-ish direct-copy bucket max height",
+        "short_label": "1080-ish Height",
+        "section": "Size / Bitrate Guards",
+        "rule_taxonomy": ("bitrate", "routing"),
+        "strictness": "hard",
+        "help_text": "Sources at or below this height use the 1080-ish bitrate cap. Height only selects the bitrate threshold; it does not force remux or encode.",
+    },
+    "Route1080pMaxVideoBitrateMbps": {
+        "label": "1080-ish max bitrate for direct copy",
+        "short_label": "1080-ish Mbps",
+        "section": "Size / Bitrate Guards",
+        "rule_taxonomy": ("bitrate", "routing"),
+        "strictness": "hard",
+        "help_text": "Direct-copy/remux bitrate cap in Mbps for sources in the 1080-ish height bucket.",
+    },
+    "Route4KBucketMinHeight": {
+        "label": "4K direct-copy bucket min height",
+        "short_label": "4K Height",
+        "section": "Size / Bitrate Guards",
+        "rule_taxonomy": ("bitrate", "routing"),
+        "strictness": "hard",
+        "help_text": "Sources at or above this height use the 4K bitrate cap. Heights between the 1080-ish max and this value also use the 4K cap by default.",
+    },
+    "Route4KMaxVideoBitrateMbps": {
+        "label": "4K max bitrate for direct copy",
+        "short_label": "4K Mbps",
+        "section": "Size / Bitrate Guards",
+        "rule_taxonomy": ("bitrate", "routing"),
+        "strictness": "hard",
+        "help_text": "Direct-copy/remux bitrate cap in Mbps for 4K and in-between source heights.",
     },
     "MaxEncodeGrowthPercent": {
         "label": "Quality-encode size tolerance",
@@ -534,6 +570,10 @@ _NUMERIC_LIMITS_BY_KEY = {
     "TVEncodeThresholdGB": {"min": 1, "step": 1, "unit": "GB"},
     "MovieRouteMaxVideoBitrateMbps": {"min": 1, "max": 500, "step": 1, "unit": "Mbps"},
     "TVRouteMaxVideoBitrateMbps": {"min": 1, "max": 500, "step": 1, "unit": "Mbps"},
+    "Route1080pBucketMaxHeight": {"min": 1, "max": 4320, "step": 1, "unit": "pixels"},
+    "Route1080pMaxVideoBitrateMbps": {"min": 1, "max": 500, "step": 1, "unit": "Mbps"},
+    "Route4KBucketMinHeight": {"min": 1, "max": 4320, "step": 1, "unit": "pixels"},
+    "Route4KMaxVideoBitrateMbps": {"min": 1, "max": 500, "step": 1, "unit": "Mbps"},
     "H264RemuxMaxBitrateMbps": {"min": 1, "max": 500, "step": 1, "unit": "Mbps"},
     "H264RemuxMaxHeight": {"min": 1, "max": 4320, "step": 1, "unit": "pixels"},
     "MaxEncodeGrowthPercent": {"min": 0, "max": 1000, "step": 1, "unit": "percent"},
@@ -591,6 +631,10 @@ METADATA_LIBRARY_OVERRIDE_KEYS_BY_GROUP = {
         "TVEncodeThresholdGB",
         "MovieRouteMaxVideoBitrateMbps",
         "TVRouteMaxVideoBitrateMbps",
+        "Route1080pBucketMaxHeight",
+        "Route1080pMaxVideoBitrateMbps",
+        "Route4KBucketMinHeight",
+        "Route4KMaxVideoBitrateMbps",
         "MaxEncodeGrowthPercent",
         "CompatibilityEncodeGrowthPercent",
     ),
@@ -746,6 +790,10 @@ def _enrich_field_definition(field: dict[str, object], override_groups: dict[str
             "migration_status": "stable_persisted_key",
         }
     )
+    if "library_profile_designations" in display_metadata:
+        enriched["library_profile_designations"] = tuple(
+            str(value) for value in display_metadata["library_profile_designations"]
+        )
     return enriched
 
 

@@ -1,10 +1,14 @@
 # Archived Markdown Index
 
-Last updated: 2026-05-20
+Last updated: 2026-06-04
 
 This index reflects the current archive/quarantine layout after the housekeeping move and the operator's later manual deletion of some active docs. The old `Docs/archive/admin-audits/`, `completed-audits/`, `completed-checklists/`, `historical-plans/`, `historical-reviews/`, `old-ai-directives/`, and `ui-impl-specs/` paths should no longer be treated as active archive roots. The preserved copies live under:
 
 `Docs/archive/docs-housekeeping/2026-05-20-review/`
+
+Completed Markdown archived on 2026-06-04 lives under:
+
+`Docs/archive/docs-housekeeping/2026-06-04-completed-md-pass/`
 
 ## Archive Root Summary
 
@@ -13,6 +17,7 @@ This index reflects the current archive/quarantine layout after the housekeeping
 | `archive-historical/` | 65 | Completed, superseded, or historical docs retained for reference. |
 | `consolidated-after-extraction/` | 5 | Docs whose active value should be merged into canonical docs, not restored as standalone guidance. |
 | `delete-candidates/` | 19 | Quarantine-only deletion candidates. Do not treat these as deleted unless a later review confirms removal. |
+| `../2026-06-04-completed-md-pass/` | 25 moved docs plus README | Completed/superseded historical audits, dependency-refactor tracker docs, and UX remediation tracker docs moved out of active topic folders. |
 
 ## Historical Archive Groups
 
@@ -66,6 +71,17 @@ Under `delete-candidates/Docs/archive/old-ai-directives/`:
 - `CLAUDE_HANDOFF_TRANSITION_SUPPORT_30_TASKS_ROUND3.md`
 - `CLAUDE_HANDOFF_TRANSITION_SUPPORT_30_TASKS_ROUND4.md`
 
+## Completed Markdown Pass - 2026-06-04
+
+Under `Docs/archive/docs-housekeeping/2026-06-04-completed-md-pass/`:
+
+- `audits/latest.md`
+- `audits/CODE_REVIEW_V5_WEBVIEW_TAURI_AUDIT.md`
+- `audits/DEAD_EXPORT_AUDIT_2026-05-19.md`
+- `dependency-refactor/CODEX_DEPENDENCY_REFACTOR_PLAN (1).md`
+- `dependency-refactor/dependency-refactor-phases/`: completed phase tracker files from `00_navigation_and_tracker.md` through `07_full_cleanup_review_and_done.md`.
+- `ui/V6_OPERATOR_UX_REMEDIATION_REMAINING_TASKS.md`
+
 ## Active Docs Not Archived
 
 Use `DOCS_INDEX.md` for the current active documentation map. Notable active docs include:
@@ -77,7 +93,7 @@ Use `DOCS_INDEX.md` for the current active documentation map. Notable active doc
 - `DOC_TOUCH_LOG.md`
 - `REMEDIATION_CHANGELOG.md`
 - `ACTIVE_FIX_CHECKLIST.md`
-- `audits/`
+- `audits/` redirect stubs
 - `architecture/`
 - `inventories/`
 - `operator/`

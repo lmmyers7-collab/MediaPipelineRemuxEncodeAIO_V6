@@ -63,6 +63,7 @@ From the repo root:
 .\SmokeTests\Test-WebViewBrowserCompletedPendingProofSmoke.ps1
 .\SmokeTests\Test-WebViewBrowserLargeTableSmoke.ps1
 .\SmokeTests\Test-WebViewBrowserMaintenanceReportsSmoke.ps1
+.\SmokeTests\Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1
 .\SmokeTests\Test-WebViewBrowserSampleValidationSmoke.ps1
 .\SmokeTests\Test-WebViewBrowserHomeLiveStateSmoke.ps1
 .\SmokeTests\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1
@@ -89,6 +90,7 @@ $python = "DesktopApp\Runtime\Python\python.exe"
 & $python -m unittest DesktopApp.tests.test_webview_browser_completed_pending_proof_smoke -q
 & $python -m unittest DesktopApp.tests.test_webview_browser_large_table_smoke -q
 & $python -m unittest DesktopApp.tests.test_webview_browser_maintenance_reports_smoke -q
+& $python -m unittest DesktopApp.tests.test_webview_browser_maintenance_change_ledger_smoke -q
 & $python -m unittest DesktopApp.tests.test_webview_browser_sample_validation_smoke -q
 & $python -m unittest DesktopApp.tests.test_webview_browser_home_live_state_smoke -q
 & $python -m unittest DesktopApp.tests.test_webview_browser_launch_queue_readiness_smoke -q
@@ -126,6 +128,7 @@ $python = "DesktopApp\Runtime\Python\python.exe"
 | `Test-WebViewBrowserCompletedPendingProofSmoke.ps1` | `test_webview_browser_completed_pending_proof_smoke` | Completed Real-Media Output Proof ladder detail, saved-policy reconciliation checkpoint, Completed-to-Pending proof board detail, backend publish reconciliation endpoint rendering, selected Pending row Completed Manifest correlation for exact output overlap, missing-output-without-proof blockers, same-leaf duplicate-title wording, and read-only mutation boundary |
 | `Test-WebViewBrowserLargeTableSmoke.ps1` | `test_webview_browser_large_table_smoke` | Queue, Completed, and Pending Publish 260-row payloads disclose the 250-row render cap, warn when filters hide blocked/warning rows, show Queue Launch Decision / Completed Output Acceptance / Pending Drain Decision daily-use handoff and filter-scope evidence, keep hidden selected-row detail visible, and post no mutation routes |
 | `Test-WebViewBrowserMaintenanceReportsSmoke.ps1` | `test_webview_browser_maintenance_reports_smoke` | Maintenance health/readiness, release dry-run result rendering, completed-manifest backfill dry-run result rendering, dry-run history, Reports failure/audit triage, selected-row details, failure-marker clear dry-run preview, read-only Launch/Diagnostics handoff navigation, and no non-dry-run mutation posts |
+| `Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1` | `test_webview_browser_maintenance_change_ledger_smoke` | Maintenance Change Ledger summary/table/detail/hygiene rendering, affected Python-script detail, status/search filters, empty state, read-only `GET /api/maintenance/change-ledger`, and no media/queue/settings/pending-publish/rename mutation posts |
 | `Test-WebViewBrowserSampleValidationSmoke.ps1` | `test_webview_browser_sample_validation_smoke` | Home Sample Validation pilot checkpoint/attention/readiness/reconciliation text, real-media validation audit and policy-alignment roll-ups, Completed saved-policy reconciliation handoff/detail, operator sample execution checklist detail, generated worksheet table and selected-sample match detail, Real-Media Validation Worksheet sample posture, preview-only current-evidence plus pilot evidence packet rendering, and no append or mutation posts |
 | `Test-WebViewBrowserHomeLiveStateSmoke.ps1` | `test_webview_browser_home_live_state_smoke` | Home Daily-Driver Checklist, Operator Readiness, Active Work, Command Results, Sample Validation posture, generated worksheet readback, Real-Media Validation Worksheet handoff, and no POST routes |
 | `Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1` | `test_webview_browser_launch_queue_readiness_smoke` | Launch readiness, Launch timing trust, Launch Scope Reconciliation, Launch Start Decision Summary, Launch generated-worksheet selected-sample match evidence, Launch Sample Validation record selected-sample match/reconciliation evidence, saved-policy-vs-Queue-route evidence, Launch Sample Execution Checklist, Launch Pilot Run Readiness, backend `GET /api/launch/preflight`, Queue Launch Decision, Schedule guidance/timing trust, close-readiness, launch command-review correlation, `pipeline.start` owner mapping, and no POST routes |

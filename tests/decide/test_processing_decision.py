@@ -20,6 +20,35 @@ def load_source(name: str) -> SourceMediaInfo:
     return source_media_from_ffprobe(raw)
 
 
+def load_source_variant(
+    name: str,
+    *,
+    height: int | None = None,
+    file_size_bytes: int | None = None,
+    duration_seconds: float | None = None,
+    media_type: str | None = None,
+) -> SourceMediaInfo:
+    raw = json.loads((FIXTURE_ROOT / name).read_text(encoding="utf-8"))
+    if file_size_bytes is not None:
+        raw.setdefault("source", {})["file_size_bytes"] = file_size_bytes
+    if media_type is not None:
+        raw.setdefault("source", {})["media_type"] = media_type
+    if duration_seconds is not None:
+        raw.setdefault("format", {})["duration"] = str(float(duration_seconds))
+    if height is not None:
+        for stream in raw.get("streams", []):
+            if stream.get("codec_type") == "video":
+                stream["height"] = height
+                if height >= 1800:
+                    stream["width"] = 3840
+                elif height > 0:
+                    stream["width"] = int(round(height * 16 / 9))
+                else:
+                    stream["width"] = 0
+                break
+    return source_media_from_ffprobe(raw)
+
+
 def reason_codes(decision) -> set[str]:
     return {reason.code for reason in decision.route_reasons}
 
@@ -71,11 +100,11 @@ class ProcessingDecisionTests(unittest.TestCase):
             ),
             (
                 "movie_h264_1080p_30mbps_mkv.json",
-                "REMUX",
-                "copy",
-                "remux",
-                "plex_compatible_h264_remux",
-                {"SOURCE_CODEC_COMPATIBLE", "VIDEO_BITRATE_UNDER_DIRECT_COPY_CAP"},
+                "ENCODE",
+                "encode",
+                "encode",
+                "bitrate_over_threshold",
+                {"VIDEO_BITRATE_EXCEEDS_DIRECT_COPY_CAP"},
             ),
             (
                 "movie_h264_1080p_45mbps_mkv.json",
@@ -114,6 +143,73 @@ class ProcessingDecisionTests(unittest.TestCase):
                 self.assertTrue(expected_reasons.issubset(reason_codes(decision)))
                 self.assertIn("CONTAINER_REMUX_ONLY", reason_codes(decision))
                 self.assertEqual(decision.effective_settings.routing_profile, "plex_direct_stream")
+
+    def test_resolution_aware_bitrate_buckets_select_thresholds(self) -> None:
+        four_k_under = load_source_variant(
+            "movie_hevc_4k_hdr_high_bitrate_mkv.json",
+            file_size_bytes=27_000_000_000,
+            duration_seconds=7200,
+        )
+        between_under = load_source_variant(
+            "movie_hevc_4k_hdr_high_bitrate_mkv.json",
+            height=1600,
+            file_size_bytes=27_000_000_000,
+            duration_seconds=7200,
+        )
+        policy = EffectiveDecisionPolicy(movie_route_size_limit_gb=80)
+
+        cases = [
+            ("1080p under 20", load_source("tv_h264_1080p_12mbps_mkv.json"), EffectiveDecisionPolicy(), "REMUX", 20.0, "1080ish"),
+            ("1080p over 20", load_source("tv_h264_1080p_24mbps_mkv.json"), EffectiveDecisionPolicy(), "ENCODE", 20.0, "1080ish"),
+            ("4k under 35", four_k_under, policy, "REMUX", 35.0, "4k"),
+            ("4k over 35", load_source("movie_hevc_4k_hdr_high_bitrate_mkv.json"), policy, "ENCODE", 35.0, "4k"),
+            ("in-between uses 4k cap", between_under, policy, "REMUX", 35.0, "between_1080ish_and_4k"),
+        ]
+
+        for label, source, case_policy, expected_summary, expected_cap, expected_bucket in cases:
+            with self.subTest(label=label):
+                decision = build_processing_decision(source, case_policy)
+
+                self.assertEqual(decision.route_summary, expected_summary)
+                self.assertEqual(decision.source_facts_used["direct_copy_bitrate_cap_mbps"], expected_cap)
+                self.assertEqual(decision.source_facts_used["route_direct_copy_bitrate_cap_mbps"], expected_cap)
+                self.assertEqual(decision.source_facts_used["direct_copy_bitrate_cap_source"], "source_height_bucket")
+                self.assertEqual(decision.source_facts_used["direct_copy_bitrate_bucket"], expected_bucket)
+
+    def test_unknown_height_falls_back_to_movie_tv_bitrate_keys(self) -> None:
+        unknown_height_movie = load_source_variant("movie_h264_1080p_30mbps_mkv.json", height=0)
+        unknown_height_tv = load_source_variant("tv_h264_1080p_24mbps_mkv.json", height=0)
+
+        movie_decision = build_processing_decision(unknown_height_movie)
+        tv_decision = build_processing_decision(unknown_height_tv)
+
+        self.assertEqual(movie_decision.route_summary, "REMUX")
+        self.assertEqual(movie_decision.source_facts_used["direct_copy_bitrate_cap_mbps"], 35.0)
+        self.assertEqual(movie_decision.source_facts_used["direct_copy_bitrate_bucket"], "unknown_height_movie")
+        self.assertEqual(tv_decision.route_summary, "ENCODE")
+        self.assertEqual(tv_decision.source_facts_used["direct_copy_bitrate_cap_mbps"], 18.0)
+        self.assertEqual(tv_decision.source_facts_used["direct_copy_bitrate_bucket"], "unknown_height_tv")
+
+    def test_h264_max_bitrate_is_additional_cap_on_selected_bucket(self) -> None:
+        relaxed_bucket_policy = EffectiveDecisionPolicy(
+            route_1080p_max_video_bitrate_mbps=30,
+            h264_direct_copy_max_bitrate_mbps=0,
+        )
+        stricter_h264_policy = EffectiveDecisionPolicy(
+            route_1080p_max_video_bitrate_mbps=30,
+            h264_direct_copy_max_bitrate_mbps=10,
+        )
+
+        without_h264_cap = build_processing_decision(load_source("tv_h264_1080p_24mbps_mkv.json"), relaxed_bucket_policy)
+        with_h264_cap = build_processing_decision(load_source("tv_h264_1080p_12mbps_mkv.json"), stricter_h264_policy)
+
+        self.assertEqual(without_h264_cap.route_summary, "REMUX")
+        self.assertEqual(without_h264_cap.source_facts_used["direct_copy_bitrate_cap_mbps"], 30.0)
+        self.assertFalse(without_h264_cap.source_facts_used["h264_direct_copy_bitrate_cap_applied"])
+        self.assertEqual(with_h264_cap.route_summary, "ENCODE")
+        self.assertEqual(with_h264_cap.source_facts_used["route_direct_copy_bitrate_cap_mbps"], 30.0)
+        self.assertEqual(with_h264_cap.source_facts_used["direct_copy_bitrate_cap_mbps"], 10.0)
+        self.assertTrue(with_h264_cap.source_facts_used["h264_direct_copy_bitrate_cap_applied"])
 
     def test_size_threshold_advisory_remains_distinct_from_hard_route(self) -> None:
         decision = build_processing_decision(load_source("multi_audio_tracks.json"))
@@ -188,24 +284,22 @@ class ProcessingDecisionTests(unittest.TestCase):
         self.assertIn("MISSING_BITRATE_METADATA", {reason.code for reason in decision.advisory_warnings})
         self.assertNotIn("VIDEO_BITRATE_EXCEEDS_DIRECT_COPY_CAP", reason_codes(decision))
 
-    def test_h264_bitrate_cap_zero_is_uncapped_without_crashing(self) -> None:
+    def test_h264_bitrate_cap_zero_leaves_selected_bucket_cap(self) -> None:
         policy = EffectiveDecisionPolicy(
-            movie_direct_copy_max_bitrate_mbps=0,
-            tv_direct_copy_max_bitrate_mbps=0,
+            route_1080p_max_video_bitrate_mbps=30,
             h264_direct_copy_max_bitrate_mbps=0,
         )
 
-        decision = build_processing_decision(load_source("tv_h264_1080p_12mbps_mkv.json"), policy)
+        decision = build_processing_decision(load_source("tv_h264_1080p_24mbps_mkv.json"), policy)
 
         self.assertEqual(decision.route_summary, "REMUX")
         self.assertEqual(decision.stream_actions.video.action, "copy")
         self.assertEqual(decision.legacy_reason_code, "plex_compatible_h264_remux")
-        self.assertEqual(decision.source_facts_used["estimated_video_bitrate_mbps"], 12.0)
+        self.assertEqual(decision.source_facts_used["direct_copy_bitrate_cap_mbps"], 30.0)
 
-    def test_h264_specific_bitrate_cap_applies_when_general_cap_is_disabled(self) -> None:
+    def test_h264_specific_bitrate_cap_applies_when_lower_than_selected_bucket(self) -> None:
         policy = EffectiveDecisionPolicy(
-            movie_direct_copy_max_bitrate_mbps=0,
-            tv_direct_copy_max_bitrate_mbps=0,
+            route_1080p_max_video_bitrate_mbps=30,
             h264_direct_copy_max_bitrate_mbps=10,
         )
 

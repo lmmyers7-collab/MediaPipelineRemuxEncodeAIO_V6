@@ -666,10 +666,15 @@
     let rows = Array.isArray(payload.rows) ? payload.rows : [];
     if (payload.final_library_promotion && typeof payload.final_library_promotion === "object") {
       lastFinalLibraryPromotionStatus = payload.final_library_promotion;
-      rows = mergeFinalLibraryPromotionRows(rows, payload.final_library_promotion);
+      const mergedRows = mergeFinalLibraryPromotionRows(rows, payload.final_library_promotion);
+      rows = Array.isArray(mergedRows) ? mergedRows : rows;
     }
-    const currentRows = completedCurrentRows(rows);
-    const metricCounts = completedMetricCounts(rows);
+    const currentRowsResult = completedCurrentRows(rows);
+    const currentRows = Array.isArray(currentRowsResult) ? currentRowsResult : [];
+    const metricCountsResult = completedMetricCounts(rows);
+    const metricCounts = metricCountsResult && typeof metricCountsResult === "object"
+      ? metricCountsResult
+      : { current: rows.length, encoded: 0, remuxed: 0, missing: 0 };
     const commandEntries = typeof getCommandHistory === "function" ? getCommandHistory() : [];
     lastCompletedPayload = payload;
     lastCompletedRows = rows;

@@ -119,11 +119,12 @@ def main() -> int:
     if packet_path.exists():
         raise SystemExit(f"Change packet already exists: {packet_path}")
 
+    relative_path = packet_path.relative_to(REPO_ROOT).as_posix()
+    packet["files_touched"] = [relative_path]
     packet_path.write_text(
         json.dumps(packet, indent=2, ensure_ascii=True) + "\n",
         encoding="utf-8",
     )
-    relative_path = packet_path.relative_to(REPO_ROOT).as_posix()
     print(f"Created {relative_path}")
     return 0
 

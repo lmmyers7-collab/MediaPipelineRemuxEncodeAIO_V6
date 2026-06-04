@@ -69,8 +69,12 @@ class PresetPolicyContractTests(unittest.TestCase):
             "CompatibilityEncodeGrowthPercent": "Compatibility-encode size tolerance",
             "EncodeThresholdGB": "Movie target output size",
             "TVEncodeThresholdGB": "TV target output size",
-            "MovieRouteMaxVideoBitrateMbps": "Movie max bitrate for direct copy",
-            "TVRouteMaxVideoBitrateMbps": "TV max bitrate for direct copy",
+            "MovieRouteMaxVideoBitrateMbps": "Movie fallback max bitrate",
+            "TVRouteMaxVideoBitrateMbps": "TV fallback max bitrate",
+            "Route1080pBucketMaxHeight": "1080-ish direct-copy bucket max height",
+            "Route1080pMaxVideoBitrateMbps": "1080-ish max bitrate for direct copy",
+            "Route4KBucketMinHeight": "4K direct-copy bucket min height",
+            "Route4KMaxVideoBitrateMbps": "4K max bitrate for direct copy",
             "VideoPreset": "Encoder Speed Preset",
             "ExtraVideoFlags": "Advanced Encoder Flags",
             "RemuxSafeVideoCodecs": "Direct Copy Video Codec Allowlist",
@@ -105,6 +109,10 @@ class PresetPolicyContractTests(unittest.TestCase):
             "TVEncodeThresholdGB": 4,
             "MovieRouteMaxVideoBitrateMbps": 40,
             "TVRouteMaxVideoBitrateMbps": 20,
+            "Route1080pBucketMaxHeight": 1180,
+            "Route1080pMaxVideoBitrateMbps": 22,
+            "Route4KBucketMinHeight": 1780,
+            "Route4KMaxVideoBitrateMbps": 36,
             "AllowH264RemuxIfPlexCompatible": True,
             "H264RemuxMaxBitrateMbps": 30,
             "H264RemuxMaxHeight": 720,
@@ -128,6 +136,10 @@ class PresetPolicyContractTests(unittest.TestCase):
                     "TVEncodeThresholdGB",
                     "MovieRouteMaxVideoBitrateMbps",
                     "TVRouteMaxVideoBitrateMbps",
+                    "Route1080pBucketMaxHeight",
+                    "Route1080pMaxVideoBitrateMbps",
+                    "Route4KBucketMinHeight",
+                    "Route4KMaxVideoBitrateMbps",
                     "AllowH264RemuxIfPlexCompatible",
                     "H264RemuxMaxBitrateMbps",
                     "H264RemuxMaxHeight",
@@ -142,6 +154,10 @@ class PresetPolicyContractTests(unittest.TestCase):
         self.assertEqual(preset.name, "Legacy compatibility view")
         self.assertEqual(preset.processing_strategy, "plex_direct_play")
         self.assertEqual(preset.routing.enforcement_mode, "bitrate")
+        self.assertEqual(preset.routing.resolution_aware_bitrate.bucket_1080p_max_height, 1180)
+        self.assertEqual(preset.routing.resolution_aware_bitrate.bucket_1080p_max_bitrate_mbps, 22)
+        self.assertEqual(preset.routing.resolution_aware_bitrate.bucket_4k_min_height, 1780)
+        self.assertEqual(preset.routing.resolution_aware_bitrate.bucket_4k_max_bitrate_mbps, 36)
         self.assertEqual(preset.guards.size.mode, "strict")
         self.assertEqual(preset.guards.size.on_exceeded, "fail_job")
         self.assertEqual(preset.container.format, "mp4")
@@ -327,6 +343,12 @@ class PresetPolicyContractTests(unittest.TestCase):
                 "routing": {
                     "enforcementMode": "bitrate",
                     "directCopyMaxBitrate": {"movieMbps": 40, "tvMbps": 20},
+                    "resolutionAwareBitrate": {
+                        "bucket1080pMaxHeight": 1180,
+                        "bucket1080pMaxBitrateMbps": 22,
+                        "bucket4kMinHeight": 1780,
+                        "bucket4kMaxBitrateMbps": 36,
+                    },
                     "directCopyVideoCodecAllowlist": ["hevc", "h264"],
                 },
                 "guards": {
@@ -360,6 +382,10 @@ class PresetPolicyContractTests(unittest.TestCase):
         self.assertEqual(patch["TVEncodeThresholdGB"], 4)
         self.assertEqual(patch["MovieRouteMaxVideoBitrateMbps"], 40)
         self.assertEqual(patch["TVRouteMaxVideoBitrateMbps"], 20)
+        self.assertEqual(patch["Route1080pBucketMaxHeight"], 1180)
+        self.assertEqual(patch["Route1080pMaxVideoBitrateMbps"], 22)
+        self.assertEqual(patch["Route4KBucketMinHeight"], 1780)
+        self.assertEqual(patch["Route4KMaxVideoBitrateMbps"], 36)
         self.assertEqual(patch["VideoPreset"], "p6")
         self.assertEqual(patch["OutputContainer"], "mp4")
         self.assertEqual(patch["RemuxSafeVideoCodecs"], ["hevc", "h264"])

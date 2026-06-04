@@ -3,9 +3,9 @@ file: app/contracts/decision_policy.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-05-31
+last_modified: 2026-06-03
 last_reviewed: 2026-05-31
-sha256: 222d839f3bbf30bd6bea17af668ab2049181ee791ececa850890503275d21db7
+sha256: 0ad6b397327cbb75dd54cff9866bc6f3cfbac6c699b5d7da3bc13d2972e27237
 ---
 # `app/contracts/decision_policy.py`
 

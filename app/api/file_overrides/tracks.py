@@ -5,7 +5,13 @@ from pathlib import Path
 import sys
 from typing import Any
 
-from app.contracts.source_media import SourceAudioStream, SourceSubtitleStream, source_media_from_probe_result
+from app.contracts.source_media import (
+    SourceAudioStream,
+    SourceMediaInfo,
+    SourceSubtitleStream,
+    SourceVideoStream,
+    source_media_from_probe_result,
+)
 from app.contracts.stages import ProbeResult
 from app.orchestration.runner import RunnerOptions, run_probe_stage as _default_run_probe_stage
 from app.queue.file_overrides import normalize_file_override_path
@@ -119,6 +125,157 @@ def _track_warning(message: str, *, field: str = "track_metadata") -> dict[str, 
     return {"field": field, "message": message}
 
 
+def _safe_int(value: Any) -> int:
+    try:
+        return max(0, int(value or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _safe_float(value: Any) -> float:
+    try:
+        return max(0.0, float(value or 0.0))
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _trimmed_decimal(value: float, *, places: int = 2) -> str:
+    return f"{value:.{places}f}".rstrip("0").rstrip(".")
+
+
+def _file_size_display(size_bytes: int) -> str:
+    size = _safe_int(size_bytes)
+    if size <= 0:
+        return ""
+    units = (
+        ("TB", 1024.0**4),
+        ("GB", 1024.0**3),
+        ("MB", 1024.0**2),
+        ("KB", 1024.0),
+    )
+    for suffix, factor in units:
+        if size >= factor:
+            return f"{_trimmed_decimal(size / factor)} {suffix}"
+    return f"{size} B"
+
+
+def _duration_display(seconds: float) -> str:
+    total = int(round(_safe_float(seconds)))
+    if total <= 0:
+        return ""
+    hours, remainder = divmod(total, 3600)
+    minutes, secs = divmod(remainder, 60)
+    parts: list[str] = []
+    if hours:
+        parts.append(f"{hours}h")
+    if minutes or hours:
+        parts.append(f"{minutes}m")
+    if secs or not parts:
+        parts.append(f"{secs}s")
+    return " ".join(parts)
+
+
+def _mbps_from_bps(bps: int) -> float:
+    bitrate = _safe_int(bps)
+    return round(bitrate / 1_000_000.0, 3) if bitrate > 0 else 0.0
+
+
+def _bitrate_display_from_mbps(mbps: float) -> str:
+    value = _safe_float(mbps)
+    return f"{_trimmed_decimal(value, places=3)} Mbps" if value > 0 else ""
+
+
+def _resolution_display(width: int, height: int) -> str:
+    safe_width = _safe_int(width)
+    safe_height = _safe_int(height)
+    if safe_width <= 0 or safe_height <= 0:
+        return ""
+    return f"{safe_width}x{safe_height}"
+
+
+def _estimated_bitrate(container_bitrate_bps: int, duration_seconds: float, file_size_bytes: int, primary: SourceVideoStream | None) -> tuple[float, str]:
+    if file_size_bytes > 0 and duration_seconds > 0:
+        return round((file_size_bytes * 8.0) / duration_seconds / 1_000_000.0, 3), "file_size_duration"
+    if primary and primary.bitrate_bps > 0:
+        return _mbps_from_bps(primary.bitrate_bps), "primary_video_reported"
+    if container_bitrate_bps > 0:
+        return _mbps_from_bps(container_bitrate_bps), "container_reported"
+    return 0.0, "unavailable"
+
+
+def _primary_video_payload(primary: SourceVideoStream | None) -> dict[str, Any]:
+    if primary is None:
+        return {"available": False}
+    video_bitrate_mbps = _mbps_from_bps(primary.bitrate_bps)
+    return {
+        "available":                True,
+        "stream_index":             int(primary.stream_index),
+        "codec":                    str(primary.codec or "unknown"),
+        "width":                    int(primary.width or 0),
+        "height":                   int(primary.height or 0),
+        "resolution_display":       _resolution_display(primary.width, primary.height),
+        "is_hdr":                   bool(primary.is_hdr),
+        "hdr_format":               str(primary.hdr_format or ""),
+        "bitrate_bps":              int(primary.bitrate_bps or 0),
+        "bitrate_mbps":             video_bitrate_mbps,
+        "bitrate_display":          _bitrate_display_from_mbps(video_bitrate_mbps),
+    }
+
+
+def _source_info_unavailable(*, source_path: str, probe_source: str) -> dict[str, Any]:
+    return {
+        "available":                 False,
+        "probe_source":              probe_source,
+        "path":                      source_path,
+        "file_size_bytes":           0,
+        "file_size_display":         "",
+        "duration_seconds":          0.0,
+        "duration_display":          "",
+        "container":                 "",
+        "overall_bitrate_bps":       0,
+        "overall_bitrate_mbps":      0.0,
+        "overall_bitrate_display":   "",
+        "estimated_bitrate_mbps":    0.0,
+        "estimated_bitrate_display": "",
+        "estimated_bitrate_basis":   "unavailable",
+        "primary_video":             {"available": False},
+        "missing_facts":             ["probe_unavailable"],
+    }
+
+
+def _source_info_payload(source_media: SourceMediaInfo, *, source_path: str, probe_source: str) -> dict[str, Any]:
+    container = source_media.container
+    primary = source_media.video_streams[0] if source_media.video_streams else None
+    size_bytes = int(container.file_size_bytes or 0)
+    duration_seconds = float(container.duration_seconds or 0.0)
+    overall_bitrate_bps = int(container.overall_bitrate_bps or 0)
+    overall_bitrate_mbps = _mbps_from_bps(overall_bitrate_bps)
+    estimated_mbps, estimated_basis = _estimated_bitrate(
+        overall_bitrate_bps,
+        duration_seconds,
+        size_bytes,
+        primary,
+    )
+    return {
+        "available":                 True,
+        "probe_source":              probe_source,
+        "path":                      source_path,
+        "file_size_bytes":           size_bytes,
+        "file_size_display":         _file_size_display(size_bytes),
+        "duration_seconds":          duration_seconds,
+        "duration_display":          _duration_display(duration_seconds),
+        "container":                 str(container.format_name or ""),
+        "overall_bitrate_bps":       overall_bitrate_bps,
+        "overall_bitrate_mbps":      overall_bitrate_mbps,
+        "overall_bitrate_display":   _bitrate_display_from_mbps(overall_bitrate_mbps),
+        "estimated_bitrate_mbps":    estimated_mbps,
+        "estimated_bitrate_display": _bitrate_display_from_mbps(estimated_mbps),
+        "estimated_bitrate_basis":   estimated_basis,
+        "primary_video":             _primary_video_payload(primary),
+        "missing_facts":             list(source_media.derived.unknown_metadata),
+    }
+
+
 def _file_override_tracks_unavailable(
     *,
     source_path: str,
@@ -135,6 +292,7 @@ def _file_override_tracks_unavailable(
         "normalized_path": normalize_file_override_path(source_path) if source_path else "",
         "probe_available": False,
         "probe_source":    probe_source,
+        "source_info":     _source_info_unavailable(source_path=source_path, probe_source=probe_source),
         "audio_tracks":    [],
         "subtitle_tracks": [],
         "warnings":        [_track_warning(message)],
@@ -233,6 +391,8 @@ def _subtitle_track_display(row: Mapping[str, Any]) -> str:
 
 
 def _audio_track_payload(track: SourceAudioStream, ordinal: int) -> dict[str, Any]:
+    bitrate_bps = int(track.bitrate_bps or 0)
+    bitrate_mbps = _mbps_from_bps(bitrate_bps)
     row: dict[str, Any] = {
         "stream_index":     int(track.stream_index),
         "language":         _track_language(track.language),
@@ -240,6 +400,8 @@ def _audio_track_payload(track: SourceAudioStream, ordinal: int) -> dict[str, An
         "codec":            str(track.codec or "").strip().lower(),
         "channels":         int(track.channels or 0),
         "channel_layout":   _audio_channel_layout(track),
+        "bitrate_bps":      bitrate_bps,
+        "bitrate_display":  _bitrate_display_from_mbps(bitrate_mbps),
         "default":          bool(track.default),
         "forced":           bool(track.forced),
         "commentary":       _is_commentary_audio_track(track),
@@ -289,6 +451,7 @@ def _file_override_tracks_payload_from_probe_result(
         "normalized_path": normalize_file_override_path(source_path),
         "probe_available": True,
         "probe_source":    probe_source,
+        "source_info":     _source_info_payload(source_media, source_path=source_path, probe_source=probe_source),
         "audio_tracks":    audio_tracks,
         "subtitle_tracks": subtitle_tracks,
         "warnings":        [],

@@ -1,0 +1,45 @@
+{
+  "id": "MP-CHANGE-2026-0604-015",
+  "title": "Classify active process guard health as running",
+  "version_target": "0.1.0-dev",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-04",
+  "date_completed": "2026-06-04",
+  "summary": "Maintenance health now classifies expected active Process guard evidence as a running state instead of a missing required dependency.",
+  "reason": "An in-progress pipeline run can legitimately produce ActiveJobs and related-process evidence. Rendering that expected state as missing/blocked made a healthy run look broken and painted the Maintenance health row red.",
+  "affected_areas": [
+    "maintenance",
+    "process_guard",
+    "webview"
+  ],
+  "behavior_before": "A running pipeline process caused the required Process guard health row to be reported as status missing, counted as required missing/blocking, and rendered as a blocked red Maintenance row.",
+  "behavior_after": "A running pipeline process is reported as status running/operator_status active, rendered with the active/running table state, and excluded from required-missing counts while still preserving close-readiness guidance.",
+  "files_touched": [
+    "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/maintenanceView.js",
+    "DesktopApp/tests/test_facade_maintenance_policy.py",
+    "DesktopApp/tests/test_webview_maintenance_change_ledger_static.py",
+    "app/maintenance/policy.py",
+    "changes/unreleased/MP-CHANGE-2026-0604-015.json",
+    "summaries/DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/maintenanceView.js.md",
+    "summaries/DesktopApp/tests/test_facade_maintenance_policy.py.md",
+    "summaries/DesktopApp/tests/test_webview_maintenance_change_ledger_static.py.md",
+    "summaries/app/maintenance/policy.py.md",
+    "summaries/changes/unreleased/MP-CHANGE-2026-0604-015.json.md"
+  ],
+  "tests_added": [
+    "DesktopApp/tests/test_facade_maintenance_policy.py",
+    "DesktopApp/tests/test_webview_maintenance_change_ledger_static.py"
+  ],
+  "manual_validation": [
+    "DesktopApp Runtime Python: refresh_summaries.py --paths touched files - passed",
+    "DesktopApp Runtime Python: unittest DesktopApp.tests.test_application_facade_local_api.LocalApiServerTests - failed unrelated Completed-view static export assertion",
+    "DesktopApp Runtime Python: unittest DesktopApp.tests.test_facade_maintenance_policy DesktopApp.tests.test_maintenance_health_expansion DesktopApp.tests.test_webview_maintenance_change_ledger_static - passed",
+    "node --check DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/maintenanceView.js - passed",
+    "validate_changes.py --require-worktree-coverage - failed: 233 unrelated dirty file(s) not covered by any unreleased packet"
+  ],
+  "rollback_plan": "Revert app/maintenance/policy.py and DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/maintenanceView.js to the prior missing/blocked classification for non-ok Process guard rows, then rerun the focused Maintenance policy/static tests.",
+  "related_changes": [],
+  "notes": "Classified expected active Process guard evidence as running/active instead of missing/blocked so an in-progress run no longer renders as red.\nDid not restart the live backend for browser verification because a media pipeline run was active."
+}

@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.detail
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-28
+last_modified: 2026-06-03
 last_reviewed: 2026-05-30
-sha256: 64954009efe83f2adacfa6ca28142fe8ae9f476e6059a1577bc18f1f56a775b5
+sha256: c5c4f83d3001419fa94c8cc7722337bafa65fc3ca7b742bba650d2897ecd2754
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.detail.js`
 

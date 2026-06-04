@@ -30,6 +30,20 @@ def maintenance_row_guidance(name: str, status: str, optional: bool) -> dict[str
                 {"kind": "open", "target": "run_logs", "label": "Open Run Logs"},
             ],
         }
+    if status == "running":
+        return {
+            "severity": "info",
+            "operator_status": "active",
+            "operator_guidance": f"{label} detected active backend work. This is expected while a pipeline run is in progress.",
+            "safe_next_action": "Let the active run finish, or inspect Home progress, Diagnostics ActiveJobs, and Run Logs before closing or starting maintenance dry-run work.",
+            "unsafe_if_ignored": "Treating active backend work as a missing dependency can make a normal run look broken; treating it as ready can hide close-readiness risk.",
+            "dry_run_impact": "active_run_in_progress",
+            "recommended_diagnostics_actions": [
+                {"kind": "open", "target": "active_jobs", "label": "Open ActiveJobs"},
+                {"kind": "open", "target": "run_logs", "label": "Open Run Logs"},
+                {"kind": "tail", "target": "last_stderr_log", "label": "Read Last Stderr"},
+            ],
+        }
     if optional:
         return {
             "severity": "warning",
@@ -62,6 +76,22 @@ def maintenance_row_guidance(name: str, status: str, optional: bool) -> dict[str
 
 def maintenance_tool_kind(name: str) -> str:
     text = str(name or "").casefold()
+    if "config schema" in text:
+        return "config_schema"
+    if "configured root" in text:
+        return "configured_root"
+    if "library output root" in text or "library promotion destination" in text or "final library destination" in text:
+        return "library_output_root"
+    if "runtime state" in text:
+        return "runtime_state"
+    if "sqlite mirror" in text:
+        return "sqlite_mirror"
+    if "api contract" in text:
+        return "api_contract"
+    if "process guard" in text:
+        return "process_guard"
+    if "bundle layout" in text:
+        return "bundle_layout"
     if "powershell" in text or "pwsh" in text:
         return "powershell_host"
     if "ffmpeg" in text:
@@ -89,6 +119,14 @@ def maintenance_tool_kind(name: str) -> str:
 
 def maintenance_tool_capability(tool_kind: str) -> str:
     return {
+        "config_schema": "Active configuration file parse and canonical schema validation.",
+        "configured_root": "Configured source, scratch, and output roots must exist before launch or package dry-run trust.",
+        "library_output_root": "Enabled Library Profile and final-library destination roots used for output placement and promotion.",
+        "runtime_state": "Runtime state files used by queue, diagnostics, launch guards, and operator trust surfaces.",
+        "sqlite_mirror": "Optional read-only SQLite mirror of JSON state evidence.",
+        "api_contract": "Backend route contract evidence for the WebView and Tauri shell.",
+        "process_guard": "ActiveJobs and related-process visibility used by launch and close-readiness safety guards.",
+        "bundle_layout": "Promoted V6 launcher, bundled runtime, and WebView asset layout.",
         "powershell_host": "PowerShell host for pipeline, audit, rerun, config parsing, and release tooling.",
         "ffmpeg": "FFmpeg execution for remux, encode, subtitle/audio muxing, thumbnails, and media output generation.",
         "ffprobe": "Media probing for route decisions, stream inventory, audit, validation, and sidecar evidence.",
@@ -107,6 +145,14 @@ def maintenance_tool_failure_scope(tool_kind: str, optional: bool) -> str:
     if optional:
         return "Optional visibility/capability may be reduced, but core media processing can still be evaluated if required tools are ready."
     return {
+        "config_schema": "Settings, queue planning, launch preflight, media policy, and release tooling can read stale or invalid configuration.",
+        "configured_root": "Launch, scan, scratch copy, publish, and state writes can fail or target the wrong place.",
+        "library_output_root": "Library-specific output or final-library promotion can fail after media processing appears successful.",
+        "runtime_state": "Queue, command history, diagnostics, close-readiness, and recovery surfaces can become misleading.",
+        "sqlite_mirror": "SQLite mirror diagnostics are unavailable or stale; JSON state remains authoritative.",
+        "api_contract": "WebView/Tauri route expectations can drift from backend route ownership.",
+        "process_guard": "The operator can launch or close while backend work is still active or unverifiable.",
+        "bundle_layout": "The promoted V6 operator surface can fail to launch, package, or preserve removed legacy-boundary guarantees.",
         "powershell_host": "Pipeline, audit, rerun, settings/config load, release, and maintenance subprocesses may not start or may use the wrong host.",
         "ffmpeg": "Remux/encode/output generation cannot be trusted; media jobs may fail after queue decisions look valid.",
         "ffprobe": "Route decisions, stream mapping, subtitle/audio inspection, audit, and validation can become stale or impossible.",
@@ -125,6 +171,8 @@ def maintenance_tool_source(detail: str, ok: bool) -> str:
     normalized = text.replace("\\", "/").casefold()
     if not ok:
         return "missing"
+    if any(token in normalized for token in ("config", "state", "route contract", "activejobs", "canonical", "webview")):
+        return "backend_evidence"
     if "/pipeline/tools/" in normalized or "/pipeline/powershell-" in normalized:
         return "bundled"
     if "/pipeline/" in normalized and ("ass_to_srt" in normalized or "pgstosrt" in normalized):
@@ -136,21 +184,54 @@ def maintenance_tool_source(detail: str, ok: bool) -> str:
     return "unknown"
 
 
+def maintenance_process_guard_is_running(detail: str) -> bool:
+    normalized = str(detail or "").casefold()
+    if "related mediapipeline process" in normalized and "still running" in normalized:
+        return True
+    if "activejobs record" not in normalized:
+        return False
+    active_record = " as active" in normalized or " as launching" in normalized
+    active_pid = "is still running" in normalized or "identity could not be verified" in normalized or "with no pid" in normalized
+    return active_record and active_pid
+
+
+def maintenance_status_for_row(name: str, ok: bool, detail: str, optional: bool) -> str:
+    if ok:
+        return "ok"
+    if optional:
+        return "warning"
+    if maintenance_tool_kind(name) == "process_guard" and maintenance_process_guard_is_running(detail):
+        return "running"
+    return "missing"
+
+
+def maintenance_source_for_row(detail: str, ok: bool, status: str) -> str:
+    if status == "running":
+        return "backend_evidence"
+    return maintenance_tool_source(detail, ok)
+
+
+def maintenance_row_blocks_required(status: str) -> bool:
+    return status not in {"ok", "running"}
+
+
 def maintenance_toolchain_row(row: dict[str, Any]) -> dict[str, Any]:
     name = str(row.get("name") or "")
     ok = bool(row.get("ok"))
     optional = bool(row.get("optional"))
     tool_kind = maintenance_tool_kind(name)
+    status = row.get("status") or maintenance_status_for_row(name, ok, str(row.get("detail") or ""), optional)
+    operator_status = row.get("operator_status") or ("ready" if status == "ok" else "active" if status == "running" else "review" if optional else "blocked")
     return {
         "row_key": row.get("row_key") or maintenance_row_key(name),
         "name": name,
         "tool_kind": tool_kind,
         "required": not optional,
         "optional": optional,
-        "status": row.get("status") or ("ok" if ok else "warning" if optional else "missing"),
-        "operator_status": row.get("operator_status") or ("ready" if ok else "review" if optional else "blocked"),
+        "status": status,
+        "operator_status": operator_status,
         "detail": str(row.get("detail") or ""),
-        "source": maintenance_tool_source(str(row.get("detail") or ""), ok),
+        "source": maintenance_source_for_row(str(row.get("detail") or ""), ok, str(status)),
         "capability": maintenance_tool_capability(tool_kind),
         "failure_scope": maintenance_tool_failure_scope(tool_kind, optional),
         "safe_next_action": row.get("safe_next_action") or "Rerun Environment Health before trusting dry-run output.",
@@ -160,17 +241,21 @@ def maintenance_toolchain_row(row: dict[str, Any]) -> dict[str, Any]:
 
 def maintenance_toolchain_evidence(rows: list[dict[str, Any]]) -> dict[str, Any]:
     tool_rows = [maintenance_toolchain_row(row) for row in rows]
-    required_missing = [row for row in tool_rows if row["required"] and row["status"] != "ok"]
+    required_missing = [row for row in tool_rows if row["required"] and maintenance_row_blocks_required(str(row["status"]))]
     optional_review = [row for row in tool_rows if row["optional"] and row["status"] != "ok"]
-    operator_status = "blocked" if required_missing else "review" if optional_review else "ready" if tool_rows else "unknown"
+    active_rows = [row for row in tool_rows if row["status"] == "running"]
+    operator_status = "blocked" if required_missing else "active" if active_rows else "review" if optional_review else "ready" if tool_rows else "unknown"
     summary_lines = [
         f"Toolchain readiness: {operator_status}",
         f"Required missing/blocking: {len(required_missing)}",
+        f"Active process guard rows: {len(active_rows)}",
         f"Optional warning/review: {len(optional_review)}",
         "Mutation guardrail: this evidence is read-only and comes from the backend maintenance health check; WebView does not resolve arbitrary tools, edit PATH, install dependencies, launch media jobs, or mutate files.",
     ]
     if required_missing:
         summary_lines.append("Blocking tools: " + ", ".join(row["name"] for row in required_missing[:6]))
+    if active_rows:
+        summary_lines.append("Active checks: " + ", ".join(row["name"] for row in active_rows[:6]))
     if optional_review:
         summary_lines.append("Optional review tools: " + ", ".join(row["name"] for row in optional_review[:6]))
     return {
@@ -178,6 +263,7 @@ def maintenance_toolchain_evidence(rows: list[dict[str, Any]]) -> dict[str, Any]
         "read_only": True,
         "operator_status": operator_status,
         "required_missing_count": len(required_missing),
+        "active_count": len(active_rows),
         "optional_review_count": len(optional_review),
         "tool_count": len(tool_rows),
         "rows": tool_rows,
@@ -191,14 +277,14 @@ def maintenance_health_row(raw_item: object) -> dict[str, Any] | None:
     except Exception:
         return None
     optional = "optional" in str(name).casefold()
-    status = "ok" if bool(ok) else "warning" if optional else "missing"
+    status = maintenance_status_for_row(str(name), bool(ok), str(detail), optional)
     guidance = maintenance_row_guidance(str(name), status, optional)
     return {
         "row_key": maintenance_row_key(str(name)),
         "name": str(name),
         "ok": bool(ok),
         "tool_kind": maintenance_tool_kind(str(name)),
-        "tool_source": maintenance_tool_source(str(detail), bool(ok)),
+        "tool_source": maintenance_source_for_row(str(detail), bool(ok), status),
         "capability": maintenance_tool_capability(maintenance_tool_kind(str(name))),
         "failure_scope": maintenance_tool_failure_scope(maintenance_tool_kind(str(name)), optional),
         "optional": optional,
@@ -230,6 +316,9 @@ MAINTENANCE_HEALTH_STEP_ORDER: tuple[tuple[str, str, bool], ...] = (
     ("config_parse", "Config parse", True),
     ("path_reachability", "Path reachability", True),
     ("state_directory", "State directory", True),
+    ("api_contract", "API contract", True),
+    ("process_guard", "Process guard", True),
+    ("bundle_layout", "Bundle layout", True),
     ("powershell", "PowerShell", True),
     ("ffmpeg", "FFmpeg", True),
     ("ffprobe", "ffprobe", True),
@@ -329,6 +418,18 @@ def maintenance_progress_path_steps(resolved: ResolvedPaths | None) -> dict[str,
 
 def maintenance_progress_tool_step_id(row: dict[str, Any]) -> str:
     tool_kind = str(row.get("tool_kind") or maintenance_tool_kind(str(row.get("name") or "")))
+    if tool_kind == "config_schema":
+        return "config_parse"
+    if tool_kind in {"configured_root", "library_output_root"}:
+        return "path_reachability"
+    if tool_kind in {"runtime_state", "sqlite_mirror"}:
+        return "state_directory"
+    if tool_kind == "api_contract":
+        return "api_contract"
+    if tool_kind == "process_guard":
+        return "process_guard"
+    if tool_kind == "bundle_layout":
+        return "bundle_layout"
     if tool_kind == "powershell_host":
         return "powershell"
     if tool_kind == "mkvtoolnix":
@@ -349,6 +450,8 @@ def maintenance_progress_tool_step_id(row: dict[str, Any]) -> str:
 def maintenance_progress_status_for_row(row: dict[str, Any]) -> str:
     if row.get("status") == "ok":
         return "complete"
+    if row.get("status") == "running":
+        return "active"
     if row.get("optional") is True:
         return "warning"
     return "blocked"
@@ -390,7 +493,7 @@ def maintenance_health_progress(
     path_steps = maintenance_progress_path_steps(resolved)
     steps: list[dict[str, Any]] = []
     for step_id, label, required in MAINTENANCE_HEALTH_STEP_ORDER:
-        data = path_steps.get(step_id) or row_steps.get(step_id) or {}
+        data = row_steps.get(step_id) or path_steps.get(step_id) or {}
         step_status = str(data.get("status") or "pending")
         if step_id == active_step_id and step_status in {"pending", "unknown"}:
             step_status = "active"
@@ -529,6 +632,10 @@ __all__ = [
     "maintenance_tool_capability",
     "maintenance_tool_failure_scope",
     "maintenance_tool_source",
+    "maintenance_process_guard_is_running",
+    "maintenance_status_for_row",
+    "maintenance_source_for_row",
+    "maintenance_row_blocks_required",
     "maintenance_toolchain_row",
     "maintenance_toolchain_evidence",
     "maintenance_health_row",

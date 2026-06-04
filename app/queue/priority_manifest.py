@@ -111,10 +111,16 @@ def get_manifest_level(manifest: dict, source_path: str | Path) -> str:
         level = str(entries[norm].get("level", DEFAULT_LEVEL)).lower()
         return level if level in VALID_LEVELS else DEFAULT_LEVEL
 
-    # 2. Folder match — collect all ancestor entries, pick deepest
+    return _get_parent_manifest_level(entries, norm)
+
+
+def _get_parent_manifest_level(entries: dict, norm: str) -> str:
+    # Folder match — collect all ancestor entries, pick deepest
     best_len = -1
     best_level = DEFAULT_LEVEL
     for key, entry in entries.items():
+        if key == norm:
+            continue
         # A folder entry's key should not end with "/" — _normalise strips that.
         # A source path *starts with* the folder key followed by "/"
         if norm.startswith(key + "/") and len(key) > best_len:
@@ -124,6 +130,14 @@ def get_manifest_level(manifest: dict, source_path: str | Path) -> str:
                 best_level = level
 
     return best_level
+
+
+def get_parent_manifest_level(manifest: dict, source_path: str | Path) -> str:
+    """Return the inherited parent-folder priority level for *source_path*."""
+    entries: dict = manifest.get("entries", {})
+    if not entries:
+        return DEFAULT_LEVEL
+    return _get_parent_manifest_level(entries, _normalise(source_path))
 
 
 def get_manifest_entry(manifest: dict, source_path: str | Path) -> dict | None:
@@ -168,8 +182,16 @@ def set_manifest_entry(
     norm = _normalise(source_path)
 
     if level == "normal":
-        # Remove the entry rather than storing a no-op marker
-        entries.pop(norm, None)
+        parent_level = get_parent_manifest_level(manifest, source_path)
+        if parent_level != DEFAULT_LEVEL:
+            entries[norm] = {
+                "level": level,
+                "reason": str(reason).strip(),
+                "set_at": datetime.now(timezone.utc).isoformat(),
+            }
+        else:
+            # Remove the entry rather than storing a no-op marker
+            entries.pop(norm, None)
     else:
         entries[norm] = {
             "level": level,
@@ -205,7 +227,15 @@ def set_manifest_entries_bulk(
         if not norm:
             continue
         if level == "normal":
-            entries.pop(norm, None)
+            parent_level = _get_parent_manifest_level(entries, norm)
+            if parent_level != DEFAULT_LEVEL:
+                entries[norm] = {
+                    "level": level,
+                    "reason": str(item.get("reason", "")).strip(),
+                    "set_at": now_iso,
+                }
+            else:
+                entries.pop(norm, None)
         else:
             entries[norm] = {
                 "level": level,

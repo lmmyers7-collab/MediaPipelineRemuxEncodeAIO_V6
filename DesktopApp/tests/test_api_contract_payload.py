@@ -133,6 +133,8 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             "/api/queue/priority",
             "/api/queue/file-overrides",
             "/api/queue/file-overrides/route-preview",
+            "/api/queue/file-overrides/series-preview",
+            "/api/queue/file-overrides/series-apply",
             "/api/queue/file-overrides/folder-preview",
             "/api/queue/file-overrides/folder-rule",
         ):
@@ -262,6 +264,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
                 expected_effect = {
                     "/api/queue/file-overrides/folder-preview": "read-only-preview",
                     "/api/queue/file-overrides/route-preview": "read-only-preview",
+                    "/api/queue/file-overrides/series-preview": "read-only-preview",
                     "/api/ui-preferences": "ui-state-write",
                 }.get(str(route["path"]), "none")
                 self.assertEqual(route["effect"], expected_effect, route["path"])
@@ -271,6 +274,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             [
                 "/api/queue/file-overrides/folder-preview",
                 "/api/queue/file-overrides/route-preview",
+                "/api/queue/file-overrides/series-preview",
                 "/api/rename/preview",
                 "/api/sample-validation/preview",
                 "/api/ui-preferences",

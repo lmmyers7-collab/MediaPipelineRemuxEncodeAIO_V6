@@ -30,7 +30,7 @@ function Get-PriorityLevelRank {
 }
 
 function Get-DefaultAuditScorePolicy {
-    return @{
+    $policy = @{
         redownload_bucket = 100
         high_issue        = 90
         rerun_bucket      = 60
@@ -40,6 +40,77 @@ function Get-DefaultAuditScorePolicy {
         redownload_bonus  = 100
         rerun_bonus       = 40
     }
+    $weights = @{}
+    foreach ($entry in (Get-AuditKnownIssueCodeGroups).GetEnumerator()) {
+        $weights[$entry.Key] = if ($entry.Value -eq 'high') { $policy.high_issue } else { $policy.medium_issue }
+    }
+    $policy['issue_code_weights'] = $weights
+    return $policy
+}
+
+function Get-AuditKnownIssueCodeGroups {
+    $groups = @{}
+    foreach ($code in @($script:HighPriorityIssueCodes)) {
+        $key = Convert-ToLowerInvariantSafe -Value $code
+        if ($key) { $groups[$key] = 'high' }
+    }
+    foreach ($code in @($script:MediumPriorityIssueCodes)) {
+        $key = Convert-ToLowerInvariantSafe -Value $code
+        if ($key) { $groups[$key] = 'medium' }
+    }
+    return $groups
+}
+
+function Get-AuditPolicyProperty {
+    param(
+        [object]$Policy,
+        [string]$Key
+    )
+
+    if ($Policy -is [hashtable] -and $Policy.ContainsKey($Key)) {
+        return $Policy[$Key]
+    }
+    if ($null -ne $Policy -and $Policy.PSObject.Properties.Name -contains $Key) {
+        return $Policy.PSObject.Properties[$Key].Value
+    }
+    return $null
+}
+
+function ConvertTo-AuditScoreValue {
+    param(
+        [object]$Value,
+        [int]$Default
+    )
+
+    $number = $Default
+    try {
+        if ($null -ne $Value) { $number = [int]$Value }
+    } catch {
+        $number = $Default
+    }
+    if ($number -lt 0) { $number = 0 }
+    if ($number -gt 1000) { $number = 1000 }
+    return $number
+}
+
+function ConvertTo-AuditIssueCodeWeightMap {
+    param([object]$Weights)
+
+    $map = @{}
+    if ($Weights -is [hashtable]) {
+        foreach ($key in $Weights.Keys) {
+            $normalizedKey = Convert-ToLowerInvariantSafe -Value $key
+            if ($normalizedKey) { $map[$normalizedKey] = $Weights[$key] }
+        }
+        return $map
+    }
+    if ($null -ne $Weights) {
+        foreach ($property in $Weights.PSObject.Properties) {
+            $normalizedKey = Convert-ToLowerInvariantSafe -Value $property.Name
+            if ($normalizedKey) { $map[$normalizedKey] = $property.Value }
+        }
+    }
+    return $map
 }
 
 function ConvertTo-AuditScorePolicy {
@@ -47,25 +118,18 @@ function ConvertTo-AuditScorePolicy {
 
     $defaults = Get-DefaultAuditScorePolicy
     $normalized = @{}
-    foreach ($key in $defaults.Keys) {
+    foreach ($key in @($defaults.Keys | Where-Object { $_ -ne 'issue_code_weights' })) {
         $value = $defaults[$key]
-        try {
-            $candidate = $null
-            if ($Policy -is [hashtable] -and $Policy.ContainsKey($key)) {
-                $candidate = $Policy[$key]
-            } elseif ($null -ne $Policy -and $Policy.PSObject.Properties.Name -contains $key) {
-                $candidate = $Policy.$key
-            }
-            if ($null -ne $candidate) {
-                $value = [int]$candidate
-            }
-        } catch {
-            $value = $defaults[$key]
-        }
-        if ($value -lt 0) { $value = 0 }
-        if ($value -gt 1000) { $value = 1000 }
-        $normalized[$key] = $value
+        $normalized[$key] = ConvertTo-AuditScoreValue -Value (Get-AuditPolicyProperty -Policy $Policy -Key $key) -Default $value
     }
+    $rawWeights = ConvertTo-AuditIssueCodeWeightMap -Weights (Get-AuditPolicyProperty -Policy $Policy -Key 'issue_code_weights')
+    $weights = @{}
+    foreach ($entry in (Get-AuditKnownIssueCodeGroups).GetEnumerator()) {
+        $default = if ($entry.Value -eq 'high') { $normalized['high_issue'] } else { $normalized['medium_issue'] }
+        $candidate = if ($rawWeights.ContainsKey($entry.Key)) { $rawWeights[$entry.Key] } else { $default }
+        $weights[$entry.Key] = ConvertTo-AuditScoreValue -Value $candidate -Default $default
+    }
+    $normalized['issue_code_weights'] = $weights
     return $normalized
 }
 
@@ -98,6 +162,28 @@ function Get-AuditScorePolicyValue {
         return [int]$script:AuditScorePolicy[$Key]
     }
     return $Default
+}
+
+function Get-AuditScorePolicyIssueCodeWeight {
+    param(
+        [string]$Code,
+        [string]$GroupDefaultKey,
+        [int]$Default
+    )
+
+    $groupDefault = Get-AuditScorePolicyValue -Key $GroupDefaultKey -Default $Default
+    if ($null -eq $script:AuditScorePolicy) { return $groupDefault }
+    if (-not $script:AuditScorePolicy.ContainsKey('issue_code_weights')) { return $groupDefault }
+
+    $weights = $script:AuditScorePolicy['issue_code_weights']
+    $key = Convert-ToLowerInvariantSafe -Value $Code
+    if ($weights -is [hashtable] -and $weights.ContainsKey($key)) {
+        return [int]$weights[$key]
+    }
+    if ($null -ne $weights -and $weights.PSObject.Properties.Name -contains $key) {
+        return [int]$weights.PSObject.Properties[$key].Value
+    }
+    return $groupDefault
 }
 
 function ConvertTo-AuditIgnoreKey {
@@ -205,9 +291,9 @@ function Get-IssuePriorityWeight {
 
     if ($null -eq $Issue) { return 0 }
     if ($Issue.Bucket -eq 'REDOWNLOAD_CANDIDATE') { return Get-AuditScorePolicyValue -Key 'redownload_bucket' -Default 100 }
-    if ($Issue.Code -in $script:HighPriorityIssueCodes) { return Get-AuditScorePolicyValue -Key 'high_issue' -Default 90 }
+    if ($Issue.Code -in $script:HighPriorityIssueCodes) { return Get-AuditScorePolicyIssueCodeWeight -Code $Issue.Code -GroupDefaultKey 'high_issue' -Default 90 }
     if ($Issue.Bucket -eq 'RERUN_PIPELINE') { return Get-AuditScorePolicyValue -Key 'rerun_bucket' -Default 60 }
-    if ($Issue.Code -in $script:MediumPriorityIssueCodes) { return Get-AuditScorePolicyValue -Key 'medium_issue' -Default 40 }
+    if ($Issue.Code -in $script:MediumPriorityIssueCodes) { return Get-AuditScorePolicyIssueCodeWeight -Code $Issue.Code -GroupDefaultKey 'medium_issue' -Default 40 }
     if ($Issue.Bucket -eq 'REVIEW') { return Get-AuditScorePolicyValue -Key 'review_bucket' -Default 20 }
     return Get-AuditScorePolicyValue -Key 'fallback_issue' -Default 10
 }

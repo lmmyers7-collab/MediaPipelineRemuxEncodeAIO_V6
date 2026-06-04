@@ -3,9 +3,9 @@ file: Pipeline/Tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-05-28
-sha256: 1b27898e1363bca006a5286ca6be760dc5bb9937e0d08051752b432d1cc8525f
+sha256: 53b17a08433f15fd5119993ff205912e2eacb4c61c07879db9b49b531f385d93
 ---
 # `Pipeline/Tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1`
 

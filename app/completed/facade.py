@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from app.completed.manifest import DEFAULT_COMPLETED_PROOF_MODE
 from app.completed.policy import (
     COMPLETED_RUNTIME_OUTCOME_EVENT_LIMIT,
     completed_history_read_error_result,
@@ -31,13 +32,19 @@ class CompletedFacadeMixin:
         limit: int | str | None = 100,
         *,
         force_refresh: bool = False,
+        proof_mode: str = DEFAULT_COMPLETED_PROOF_MODE,
     ) -> CompletedPreviewDto:
         loader = getattr(self.service, "load_recent_completed_jobs", None)
         if not callable(loader):
             return completed_history_service_unavailable_result()
         requested_limit = completed_preview_limit(limit)
         try:
-            records = loader(resolved, limit=requested_limit, force_refresh=force_refresh)
+            records = loader(
+                resolved,
+                limit=requested_limit,
+                force_refresh=force_refresh,
+                proof_mode=proof_mode,
+            )
         except Exception as exc:
             return completed_history_read_error_result(resolved.completed_manifest_path, exc)
         runtime_events: list[dict[str, object]] = []

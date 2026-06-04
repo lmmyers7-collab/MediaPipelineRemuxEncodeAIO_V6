@@ -622,6 +622,10 @@
       const tvTarget = formatSettingsSummaryValue("TVEncodeThresholdGB", "default");
       const movieBitrate = formatSettingsSummaryValue("MovieRouteMaxVideoBitrateMbps", "default");
       const tvBitrate = formatSettingsSummaryValue("TVRouteMaxVideoBitrateMbps", "default");
+      const route1080pHeight = formatSettingsSummaryValue("Route1080pBucketMaxHeight", "1200");
+      const route1080pBitrate = formatSettingsSummaryValue("Route1080pMaxVideoBitrateMbps", "20");
+      const route4kHeight = formatSettingsSummaryValue("Route4KBucketMinHeight", "1800");
+      const route4kBitrate = formatSettingsSummaryValue("Route4KMaxVideoBitrateMbps", "35");
       const maxGrowth = formatSettingsSummaryValue("MaxEncodeGrowthPercent", "backend default");
       const compatGrowth = formatSettingsSummaryValue("CompatibilityEncodeGrowthPercent", "backend default");
       const routeLine = routeSummary
@@ -640,7 +644,7 @@
       );
       setText(
         "settings-summary-size-bitrate-guards",
-        `Size guard ${formatSettingsOutputSizeCheckMode(sizeGuard)}; movie ${movieTarget} GB / TV ${tvTarget} GB targets; direct-copy caps movie ${movieBitrate} Mbps / TV ${tvBitrate} Mbps; growth ${maxGrowth}% normal / ${compatGrowth}% compatibility.`
+        `Size guard ${formatSettingsOutputSizeCheckMode(sizeGuard)}; movie ${movieTarget} GB / TV ${tvTarget} GB targets; <=${route1080pHeight}p uses ${route1080pBitrate} Mbps, >=${route4kHeight}p uses ${route4kBitrate} Mbps; unknown-height fallback movie ${movieBitrate} Mbps / TV ${tvBitrate} Mbps; growth ${maxGrowth}% normal / ${compatGrowth}% compatibility.`
       );
       setText(
         "settings-summary-evidence-scope",
@@ -671,10 +675,10 @@
       setText("settings-container-size-guard", `Output Size Check: ${formatSettingsOutputSizeCheckMode(sizeGuard)}; growth tolerances ${maxGrowth}% normal / ${compatGrowth}% compatibility.`);
       setText(
         "settings-container-size-bitrate",
-        `Movie ${formatSettingsSummaryValue("MovieRouteMaxVideoBitrateMbps", "default")} Mbps; TV ${formatSettingsSummaryValue("TVRouteMaxVideoBitrateMbps", "default")} Mbps.`
+        `Known-height caps: <=${formatSettingsSummaryValue("Route1080pBucketMaxHeight", "1200")}p ${formatSettingsSummaryValue("Route1080pMaxVideoBitrateMbps", "20")} Mbps; >=${formatSettingsSummaryValue("Route4KBucketMinHeight", "1800")}p ${formatSettingsSummaryValue("Route4KMaxVideoBitrateMbps", "35")} Mbps. Unknown-height fallback: movie ${formatSettingsSummaryValue("MovieRouteMaxVideoBitrateMbps", "default")} Mbps; TV ${formatSettingsSummaryValue("TVRouteMaxVideoBitrateMbps", "default")} Mbps.`
       );
       setText("settings-handbrake-preview-status", "Predicted pending cutover");
-      setText("settings-handbrake-decision", "UNKNOWN");
+      setText("settings-handbrake-decision", "NOT EVALUATED");
       setText("settings-handbrake-preview-detail", [
         "The WebView does not compute copy/remux/encode routing.",
         "Loaded saved output policy is shown for orientation only:",
@@ -729,6 +733,10 @@
       setSettingsBuilderControl("settings-builder-tv-threshold", settingsBuilderConfigValue("TVEncodeThresholdGB", 3));
       setSettingsBuilderControl("settings-builder-movie-route-bitrate", settingsBuilderConfigValue("MovieRouteMaxVideoBitrateMbps", 35));
       setSettingsBuilderControl("settings-builder-tv-route-bitrate", settingsBuilderConfigValue("TVRouteMaxVideoBitrateMbps", 18));
+      setSettingsBuilderControl("settings-builder-1080p-bucket-height", settingsBuilderConfigValue("Route1080pBucketMaxHeight", 1200));
+      setSettingsBuilderControl("settings-builder-1080p-route-bitrate", settingsBuilderConfigValue("Route1080pMaxVideoBitrateMbps", 20));
+      setSettingsBuilderControl("settings-builder-4k-bucket-height", settingsBuilderConfigValue("Route4KBucketMinHeight", 1800));
+      setSettingsBuilderControl("settings-builder-4k-route-bitrate", settingsBuilderConfigValue("Route4KMaxVideoBitrateMbps", 35));
       setSettingsBuilderState(true, false);
       setText("settings-builder-status", "Loaded current values");
       renderSettingsBuilderGuidance();
@@ -828,9 +836,16 @@
         CompatibilityEncodeGrowthPercent: readSettingsBuilderNumber("settings-builder-compat-growth", settingsDisplayLabel("CompatibilityEncodeGrowthPercent", "Compatibility growth percent")),
         EncodeThresholdGB: readSettingsBuilderNumber("settings-builder-movie-threshold", settingsDisplayLabel("EncodeThresholdGB", "Movie threshold GB")),
         TVEncodeThresholdGB: readSettingsBuilderNumber("settings-builder-tv-threshold", settingsDisplayLabel("TVEncodeThresholdGB", "TV threshold GB")),
-        MovieRouteMaxVideoBitrateMbps: readSettingsBuilderNumber("settings-builder-movie-route-bitrate", settingsDisplayLabel("MovieRouteMaxVideoBitrateMbps", "Movie route max video bitrate Mbps")),
-        TVRouteMaxVideoBitrateMbps: readSettingsBuilderNumber("settings-builder-tv-route-bitrate", settingsDisplayLabel("TVRouteMaxVideoBitrateMbps", "TV route max video bitrate Mbps")),
+        MovieRouteMaxVideoBitrateMbps: readSettingsBuilderNumber("settings-builder-movie-route-bitrate", settingsDisplayLabel("MovieRouteMaxVideoBitrateMbps", "Movie fallback bitrate Mbps")),
+        TVRouteMaxVideoBitrateMbps: readSettingsBuilderNumber("settings-builder-tv-route-bitrate", settingsDisplayLabel("TVRouteMaxVideoBitrateMbps", "TV fallback bitrate Mbps")),
+        Route1080pBucketMaxHeight: readSettingsBuilderNumber("settings-builder-1080p-bucket-height", settingsDisplayLabel("Route1080pBucketMaxHeight", "1080-ish bucket max height")),
+        Route1080pMaxVideoBitrateMbps: readSettingsBuilderNumber("settings-builder-1080p-route-bitrate", settingsDisplayLabel("Route1080pMaxVideoBitrateMbps", "1080-ish max video bitrate Mbps")),
+        Route4KBucketMinHeight: readSettingsBuilderNumber("settings-builder-4k-bucket-height", settingsDisplayLabel("Route4KBucketMinHeight", "4K bucket min height")),
+        Route4KMaxVideoBitrateMbps: readSettingsBuilderNumber("settings-builder-4k-route-bitrate", settingsDisplayLabel("Route4KMaxVideoBitrateMbps", "4K max video bitrate Mbps")),
       };
+      if (patch.Route1080pBucketMaxHeight >= patch.Route4KBucketMinHeight) {
+        throw new Error("1080-ish max height must be lower than 4K min height.");
+      }
       Object.entries(patch).forEach(([key, value]) => {
         if (typeof value === "string" && !value.trim()) {
           throw new Error(`${key} must be selected.`);

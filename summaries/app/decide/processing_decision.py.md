@@ -3,9 +3,9 @@ file: app/decide/processing_decision.py
 pipeline_stage: decide
 token_priority: high
 owner_domain: decide
-last_modified: 2026-05-31
+last_modified: 2026-06-03
 last_reviewed: 2026-05-30
-sha256: 1746ec22811144e937561f19bb3b736cd71d7ce73ec152f4c226422e72288c55
+sha256: 991476ed7e072dacab628da93168f5b203333e80257d60f725b1c35567522328
 ---
 # `app/decide/processing_decision.py`
 

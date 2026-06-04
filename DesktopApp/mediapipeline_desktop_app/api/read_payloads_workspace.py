@@ -31,6 +31,15 @@ class LocalApiWorkspaceReadPayloadMixin:
             return read_unavailable_payload("maintenance progress")
         return get_progress()
 
+    def _maintenance_change_ledger_payload(self) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return read_unavailable_payload("maintenance change ledger")
+        get_change_ledger = getattr(self.facade, "get_maintenance_change_ledger", None)
+        if not callable(get_change_ledger):
+            return read_unavailable_payload("maintenance change ledger")
+        return get_change_ledger(resolved)
+
     def _schedule_payload(self) -> dict[str, Any]:
         return self.facade.get_schedule_workspace().to_mapping()
 

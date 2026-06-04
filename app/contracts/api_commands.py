@@ -78,6 +78,18 @@ class QueueFileOverridesRoutePreviewCommandPayload(StrictApiCommandPayload):
     proposed_override: Any = None
 
 
+class QueueFileOverridesSeriesPreviewCommandPayload(StrictApiCommandPayload):
+    path: Any = None
+    proposed_override: Any = None
+
+
+class QueueFileOverridesSeriesApplyCommandPayload(StrictApiCommandPayload):
+    path: Any = None
+    proposed_override: Any = None
+    confirm_apply: StrictBool | None = None
+    preview_fingerprint: Any = None
+
+
 class QueueFileOverridesFolderPreviewCommandPayload(StrictApiCommandPayload):
     folder_path: Any = None
     proposed_override: Any = None
@@ -319,6 +331,8 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/queue/strategy": QueueStrategyCommandPayload,
     "/api/queue/file-overrides": QueueFileOverridesCommandPayload,
     "/api/queue/file-overrides/route-preview": QueueFileOverridesRoutePreviewCommandPayload,
+    "/api/queue/file-overrides/series-preview": QueueFileOverridesSeriesPreviewCommandPayload,
+    "/api/queue/file-overrides/series-apply": QueueFileOverridesSeriesApplyCommandPayload,
     "/api/queue/file-overrides/folder-preview": QueueFileOverridesFolderPreviewCommandPayload,
     "/api/queue/file-overrides/folder-rule": QueueFileOverridesFolderRuleCommandPayload,
     "/api/failures/clear": FailureCommandPayload,

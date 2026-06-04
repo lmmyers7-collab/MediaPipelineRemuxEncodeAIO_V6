@@ -57,6 +57,7 @@ class SettingsHelperFacadeMixin:
             "default_source",
             "default_value",
             "library_override_allowed",
+            "library_profile_designations",
             "advanced_visibility",
             "validation_owner",
             "runtime_consumer",

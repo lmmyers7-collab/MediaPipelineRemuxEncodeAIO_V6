@@ -1066,7 +1066,7 @@ class FinalLibraryPromotionWebViewSettingsTests(unittest.TestCase):
         self.assertIn("function renderHomePromotionEntry", home_js)
         self.assertIn("counts.eligible", home_js)
         self.assertIn("homePromotionRunActive", home_js)
-        self.assertIn('renderHomePromotionEntry(values["final library promotion"] || {})', app_js)
+        self.assertIn('renderHomePromotionEntry(finalLibraryPromotion || {})', app_js)
         self.assertIn("renderHomePromotionEntry?.(finalLibraryPromotion)", refresh_js)
 
         self.assertIn("data-completed-promote-selected disabled", completed_html)

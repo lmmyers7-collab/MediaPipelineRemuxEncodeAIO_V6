@@ -3,9 +3,9 @@ file: scripts/dev/generate_dependency_atlas.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-05-31
-sha256: 3acfa683a951b732e970420c99cb10817d1b73f94c1a0d119e43ca7817724272
+sha256: 44a298e7d2c6cec62227e9e5c9726e63cc5d66429057ffd6f81b2be91d38d5cc
 ---
 # `scripts/dev/generate_dependency_atlas.py`
 

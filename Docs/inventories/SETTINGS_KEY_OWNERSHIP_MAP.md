@@ -1,10 +1,10 @@
 # Settings Key Ownership Map
 
-Date: 2026-05-14
+Date: 2026-06-03
 
 Maps the highest-impact configuration keys to: builder page/group, mutation risk, Settings-to-Launch handoff visibility, and test coverage. Source: `config_schema.py`, `settings_risk_policy_rules.py`, `Docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`.
 
-130 backend metadata keys are present in `CONFIG_FIELD_DEFINITIONS`. 118 are covered by structured WebView builder arrays, `LibraryProfiles` is handled by the dedicated Library Profiles editor, 9 non-secret keys are known advanced/direct-config metadata without routine builders, and 2 intentionally hidden auth keys remain excluded. This document covers the highest-impact subset plus all hidden keys.
+134 backend metadata keys are present in `CONFIG_FIELD_DEFINITIONS`. 122 are covered by structured WebView builder arrays, `LibraryProfiles` is handled by the dedicated Library Profiles editor, 9 non-secret keys are known advanced/direct-config metadata without routine builders, and 2 intentionally hidden auth keys remain excluded. This document covers the highest-impact subset plus all hidden keys.
 
 ---
 
@@ -56,8 +56,12 @@ These keys have no structured WebView builder panel because they are auth secret
 | `OutputContainer` | **High** | `mkv` or `mp4`. Affects subtitle compatibility and muxing behavior. | Yes — container policy row | `test_service_config_validation.py` |
 | `EncodeThresholdGB` | **High** | Movie file size above which encode (rather than remux) is triggered. | Yes — route threshold row | `test_service_config_numeric_policy.py` |
 | `TVEncodeThresholdGB` | **High** | TV episode size above which encode is triggered. | Yes — route threshold row | `test_service_config_numeric_policy.py` |
-| `MovieRouteMaxVideoBitrateMbps` | **High** | Movie source bitrate above which encode is selected instead of remux/copy. | Yes — route bitrate row | `test_service_config_numeric_policy.py`, `test_stage_entrypoint.py` |
-| `TVRouteMaxVideoBitrateMbps` | **High** | TV source bitrate above which encode is selected instead of remux/copy. | Yes — route bitrate row | `test_service_config_numeric_policy.py`, `test_stage_entrypoint.py` |
+| `MovieRouteMaxVideoBitrateMbps` | **High** | Movie fallback bitrate cap when source height is unknown. Known-height sources use the resolution-aware bucket caps. | Yes — route bitrate row | `test_service_config_numeric_policy.py`, `test_stage_entrypoint.py` |
+| `TVRouteMaxVideoBitrateMbps` | **High** | TV fallback bitrate cap when source height is unknown. Known-height sources use the resolution-aware bucket caps. | Yes — route bitrate row | `test_service_config_numeric_policy.py`, `test_stage_entrypoint.py` |
+| `Route1080pBucketMaxHeight` | **High** | Source-height maximum for selecting the 1080-ish bitrate cap. Height selects the cap only; it does not force remux or encode. | Yes — route bitrate row | `test_service_config_numeric_policy.py`, `test_stage_entrypoint.py` |
+| `Route1080pMaxVideoBitrateMbps` | **High** | Bitrate cap used for known-height sources in the 1080-ish bucket. | Yes — route bitrate row | `test_service_config_numeric_policy.py`, `test_stage_entrypoint.py` |
+| `Route4KBucketMinHeight` | **High** | Source-height minimum for labeling the 4K bucket; heights between the two bucket boundaries use the 4K cap by default. | Yes — route bitrate row | `test_service_config_numeric_policy.py`, `test_stage_entrypoint.py` |
+| `Route4KMaxVideoBitrateMbps` | **High** | Bitrate cap used for known-height 4K and between-bucket sources. | Yes — route bitrate row | `test_service_config_numeric_policy.py`, `test_stage_entrypoint.py` |
 | `SizeGuardMode` | **High** | Post-encode size validation: `advisory` (warn), `strict` (fail if over), `off`. `strict` + aggressive growth settings blocks large encodes. | Yes — size guard posture row | `test_settings_risk_policy_rules.py` |
 | `MaxEncodeGrowthPercent` | Medium | Allowed output size growth % for normal encodes before size guard triggers. | Yes — growth limit row | `test_service_config_numeric_policy.py` |
 | `AllowH264RemuxIfPlexCompatible` | Medium | Allows H.264 sources to be remuxed (copy) rather than re-encoded when Plex-compatible. | Yes — H264 copy policy row | `test_service_config_option_policy.py` |
@@ -135,7 +139,7 @@ The Launch page reads these config values (via `GET /api/launch/preflight` and `
 
 | Handoff row | Key(s) driving it |
 |---|---|
-| Route policy | `RoutingProfile`, `RouteThresholdMode`, `EncodeThresholdGB`, `TVEncodeThresholdGB`, `MovieRouteMaxVideoBitrateMbps`, `TVRouteMaxVideoBitrateMbps` |
+| Route policy | `RoutingProfile`, `RouteThresholdMode`, `EncodeThresholdGB`, `TVEncodeThresholdGB`, `MovieRouteMaxVideoBitrateMbps`, `TVRouteMaxVideoBitrateMbps`, `Route1080pBucketMaxHeight`, `Route1080pMaxVideoBitrateMbps`, `Route4KBucketMinHeight`, `Route4KMaxVideoBitrateMbps` |
 | Video codec / preset | `VideoCodec`, `VideoPreset`, `VideoQuality` |
 | Audio policy | `AudioPassthroughProfile`, `AudioTranscodeCodec`, `AudioDownmixMode`, `AllowNoAudio` |
 | Subtitle policy | `SubKeepLanguages`, `ConvertTx3gToSrt`, `ConvertBdpgsToSrt` |

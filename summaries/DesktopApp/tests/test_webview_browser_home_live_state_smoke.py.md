@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_webview_browser_home_live_state_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-05-29
-sha256: 4a3d11a5f8f0c8a029b1def21ea1f39228c5073e9192873ca1f30c426042ec79
+sha256: 0e755c25f13afa53159d3547e567557d356f7a697c24da9d5cdf271a8a5696cf
 ---
 # `DesktopApp/tests/test_webview_browser_home_live_state_smoke.py`
 

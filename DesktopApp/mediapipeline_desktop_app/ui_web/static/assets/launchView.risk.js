@@ -345,6 +345,10 @@
     const tvThreshold = launchSettingsConfigValue(config, "TVEncodeThresholdGB") ?? "default";
     const movieRouteMaxBitrate = launchSettingsConfigValue(config, "MovieRouteMaxVideoBitrateMbps") ?? "35";
     const tvRouteMaxBitrate = launchSettingsConfigValue(config, "TVRouteMaxVideoBitrateMbps") ?? "18";
+    const route1080pBucketMaxHeight = launchSettingsConfigValue(config, "Route1080pBucketMaxHeight") ?? "1200";
+    const route1080pMaxBitrate = launchSettingsConfigValue(config, "Route1080pMaxVideoBitrateMbps") ?? "20";
+    const route4kBucketMinHeight = launchSettingsConfigValue(config, "Route4KBucketMinHeight") ?? "1800";
+    const route4kMaxBitrate = launchSettingsConfigValue(config, "Route4KMaxVideoBitrateMbps") ?? "35";
     const encodeTuning = launchSettingsConfigValue(config, "EncodeTuningPreset") || "default";
     const encodeLadder = launchSettingsConfigValue(config, "EncodeLadder") || "default";
     const videoCodec = launchSettingsConfigValue(config, "VideoCodec") || "default";
@@ -437,7 +441,7 @@
     add(
       "Remux / encode size posture",
       sizeGuard === "off" || sizeGuard === "disabled" || sizeGuard === "strict" || extraVideoFlags.length ? "review" : "ready",
-      `routing=${routingProfile}; Output Size Check=${sizeGuard}; normal growth=${maxGrowth}%; compatibility growth=${compatGrowth}%; movie>${movieThreshold}GB/${movieRouteMaxBitrate}Mbps; TV>${tvThreshold}GB/${tvRouteMaxBitrate}Mbps; codec=${videoCodec}; tuning=${encodeTuning}; ladder=${encodeLadder}; legacy flags=${extraVideoFlags.length}`,
+      `routing=${routingProfile}; Output Size Check=${sizeGuard}; normal growth=${maxGrowth}%; compatibility growth=${compatGrowth}%; movie>${movieThreshold}GB fallback ${movieRouteMaxBitrate}Mbps; TV>${tvThreshold}GB fallback ${tvRouteMaxBitrate}Mbps; <=${route1080pBucketMaxHeight}p ${route1080pMaxBitrate}Mbps; >=${route4kBucketMinHeight}p ${route4kMaxBitrate}Mbps; codec=${videoCodec}; tuning=${encodeTuning}; ladder=${encodeLadder}; legacy flags=${extraVideoFlags.length}`,
       sizeGuard === "off" || sizeGuard === "disabled"
         ? "Size-growth guard is not enforcing or warning normally; confirm this before testing low-bitrate sources that can balloon."
         : "Use Settings Preview before long runs if route, growth limits, encoder, or output container differs from the intended Plex direct/stream profile.",

@@ -570,6 +570,7 @@ foreach ($entry in @(
     @{ Label = 'SmokeTests WebView browser network smoke'; Path = (Join-Path $script:BundleRoot 'SmokeTests\Test-WebViewBrowserNetworkSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'SmokeTests WebView browser telemetry smoke'; Path = (Join-Path $script:BundleRoot 'SmokeTests\Test-WebViewBrowserTelemetrySmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'SmokeTests WebView browser Maintenance/Reports smoke'; Path = (Join-Path $script:BundleRoot 'SmokeTests\Test-WebViewBrowserMaintenanceReportsSmoke.ps1'); Type = 'Leaf' },
+    @{ Label = 'SmokeTests WebView browser Maintenance change-ledger smoke'; Path = (Join-Path $script:BundleRoot 'SmokeTests\Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'SmokeTests WebView browser Sample Validation smoke'; Path = (Join-Path $script:BundleRoot 'SmokeTests\Test-WebViewBrowserSampleValidationSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'SmokeTests WebView browser Home live-state smoke'; Path = (Join-Path $script:BundleRoot 'SmokeTests\Test-WebViewBrowserHomeLiveStateSmoke.ps1'); Type = 'Leaf' },
     @{ Label = 'SmokeTests WebView browser Launch/Queue readiness smoke'; Path = (Join-Path $script:BundleRoot 'SmokeTests\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1'); Type = 'Leaf' },

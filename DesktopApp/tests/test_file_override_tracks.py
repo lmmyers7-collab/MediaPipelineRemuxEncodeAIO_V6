@@ -20,6 +20,7 @@ from app.api.commands_file_overrides import (  # noqa: E402
     _file_override_tracks_payload_from_probe_result,
 )
 from app.contracts.stages import ProbeResult, make_stage_result  # noqa: E402
+from app.queue.file_overrides import FILE_OVERRIDE_BATCH_METADATA_KEY, FileOverrideValidationError  # noqa: E402
 from app.queue.file_overrides import normalize_file_override_path, read_file_overrides, resolve_file_override_match  # noqa: E402
 from app.queue.file_overrides import set_file_override_entry  # noqa: E402
 from mediapipeline_desktop_app.api.routes_read import GET_ROUTE_HANDLERS  # noqa: E402
@@ -69,12 +70,31 @@ def _probe_result() -> ProbeResult:
             "probe_error": "",
             "tool_path": r"C:\Tools\ffprobe.exe",
             "container": "matroska",
+            "duration_seconds": 5400.0,
+            "bitrate_bps": 17_200_000,
+            "video_codec": "hevc",
+            "width": 3840,
+            "height": 2160,
+            "is_hdr": True,
+            "color_transfer": "smpte2084",
+            "container_bitrate_mbps": 17.2,
+            "estimated_bitrate_mbps": 15.907,
+            "size_bytes": 10 * 1024 * 1024 * 1024,
             "streams": [
+                {
+                    "index": 0,
+                    "kind": "video",
+                    "codec": "hevc",
+                    "bitrate_bps": 18_000_000,
+                    "width": 3840,
+                    "height": 2160,
+                },
                 {
                     "index": 1,
                     "kind": "audio",
                     "codec": "ac3",
                     "language": "ENG",
+                    "bitrate_bps": 640_000,
                     "channels": 6,
                     "title": "English 5.1",
                     "default": True,
@@ -85,6 +105,7 @@ def _probe_result() -> ProbeResult:
                     "kind": "audio",
                     "codec": "truehd",
                     "language": "eng",
+                    "bitrate_bps": 3_200_000,
                     "channels": 8,
                     "title": "Director Commentary",
                     "default": False,
@@ -118,6 +139,36 @@ def _track_payload() -> dict:
         "ok": True,
         "probe_available": True,
         "probe_source": "cache",
+        "source_info": {
+            "available": True,
+            "probe_source": "cache",
+            "path": r"C:\Media\Movie.mkv",
+            "file_size_bytes": 10 * 1024 * 1024 * 1024,
+            "file_size_display": "10 GB",
+            "duration_seconds": 5400.0,
+            "duration_display": "1h 30m",
+            "container": "matroska",
+            "overall_bitrate_bps": 17_200_000,
+            "overall_bitrate_mbps": 17.2,
+            "overall_bitrate_display": "17.2 Mbps",
+            "estimated_bitrate_mbps": 15.907,
+            "estimated_bitrate_display": "15.907 Mbps",
+            "estimated_bitrate_basis": "file_size_duration",
+            "primary_video": {
+                "available": True,
+                "stream_index": 0,
+                "codec": "hevc",
+                "width": 3840,
+                "height": 2160,
+                "resolution_display": "3840x2160",
+                "is_hdr": True,
+                "hdr_format": "smpte2084",
+                "bitrate_bps": 18_000_000,
+                "bitrate_mbps": 18.0,
+                "bitrate_display": "18 Mbps",
+            },
+            "missing_facts": [],
+        },
         "audio_tracks": [
             {
                 "stream_index": 1,
@@ -206,19 +257,63 @@ def _snapshot_row(source_path: Path, *, audio_tracks: list[dict] | None = None, 
     }
 
 
+def _tv_snapshot_row(
+    tv_root: Path,
+    show_name: str,
+    season_folder: str,
+    file_name: str,
+    *,
+    season_number: int = 1,
+    episode_number: int = 1,
+    root_path: Path | None = None,
+    media_kind: str = "tv",
+) -> dict:
+    source_root = root_path or tv_root
+    source_path = source_root / show_name / season_folder / file_name
+    return {
+        "source_path": str(source_path),
+        "root_path": str(source_root),
+        "display_name": file_name,
+        "relative_path": str(Path(show_name) / season_folder / file_name),
+        "media_kind": media_kind,
+        "route": "Remux",
+        "season_number": season_number,
+        "episode_number": episode_number,
+    }
+
+
+def _series_action_by_file(payload: dict, file_name: str) -> str:
+    for row in payload.get("rows", []):
+        if str(row.get("display_name") or "") == file_name:
+            return str(row.get("action") or "")
+    raise AssertionError(f"Preview row not found for {file_name}")
+
+
 def _effective_payload(
     source_path: str,
     entry: dict,
     *,
+    config: dict | None = None,
+    manifest_entries: dict[str, dict] | None = None,
     track_payload: dict | None = None,
 ) -> dict:
+    entries = manifest_entries if manifest_entries is not None else {normalize_file_override_path(source_path): entry}
     return _file_override_effective_payload(
-        manifest={"version": 1, "entries": {normalize_file_override_path(source_path): entry}},
+        manifest={"version": 1, "entries": entries},
         manifest_path=Path("State/file_overrides.json"),
         source_path=source_path,
-        config={},
+        config=config or {},
         track_payload=track_payload if track_payload is not None else _track_payload(),
     )
+
+
+def _resolved_track(payload: dict, kind: str, stream_index: int) -> dict:
+    section_key = "audio" if kind == "audio" else "subtitles"
+    tracks = payload["resolved_track_actions"][section_key]["tracks"]
+    for track in tracks:
+        if track["stream_index"] == stream_index:
+            return track
+    raise AssertionError(f"resolved {kind} stream {stream_index} not found")
 
 
 class FileOverrideTrackMetadataTests(unittest.TestCase):
@@ -239,6 +334,160 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
             POST_ROUTE_HANDLERS["/api/queue/file-overrides/folder-rule"].method_name,
             "_file_overrides_folder_rule_payload",
         )
+
+    def test_series_preview_and_apply_routes_are_registered_as_post_only(self) -> None:
+        self.assertEqual(
+            POST_ROUTE_HANDLERS["/api/queue/file-overrides/series-preview"].method_name,
+            "_file_overrides_series_preview_payload",
+        )
+        self.assertEqual(
+            POST_ROUTE_HANDLERS["/api/queue/file-overrides/series-apply"].method_name,
+            "_file_overrides_series_apply_payload",
+        )
+
+    def test_series_preview_detects_show_root_protects_manual_and_apply_replaces_prior_batch(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            tv_root = resolved.source_tv  # type: ignore[assignment]
+            alt_tv_root = root / "AltTV"
+            rows = [
+                _tv_snapshot_row(tv_root, "Example Show", "Season 01", "Example.Show.S01E01.mkv", season_number=1, episode_number=1),
+                _tv_snapshot_row(tv_root, "Example Show", "Season 01", "Example.Show.S01E02.mkv", season_number=1, episode_number=2),
+                _tv_snapshot_row(tv_root, "Example Show", "Specials", "Example.Show.S00E01.mkv", season_number=0, episode_number=1),
+                _tv_snapshot_row(alt_tv_root, "Example Show", "Season 01", "Example.Show.S01E03.mkv", root_path=alt_tv_root, season_number=1, episode_number=3),
+                _tv_snapshot_row(tv_root, "Other Show", "Season 01", "Other.Show.S01E01.mkv", season_number=1, episode_number=1),
+            ]
+            _write_queue_snapshot(resolved, rows)
+            harness = _TrackMetadataHarness(resolved)
+            selected = Path(rows[0]["source_path"])
+            manual = Path(rows[1]["source_path"])
+            special = Path(rows[2]["source_path"])
+            show_folder = tv_root / "Example Show"
+
+            set_file_override_entry(
+                resolved.file_overrides_path,  # type: ignore[arg-type]
+                show_folder,
+                {"subtitles": {"keepTracks": [{"language": "eng"}]}},
+            )
+            set_file_override_entry(
+                resolved.file_overrides_path,  # type: ignore[arg-type]
+                manual,
+                {"audio": {"maxChannels": 6}},
+            )
+            set_file_override_entry(
+                resolved.file_overrides_path,  # type: ignore[arg-type]
+                special,
+                {"audio": {"maxChannels": 8}},
+                batch_metadata={"origin": "series_batch", "batch_id": "series-old"},
+                replace_existing=True,
+            )
+
+            preview = harness._file_overrides_series_preview_payload(
+                {
+                    "path": str(selected),
+                    "proposed_override": {"audio": {"maxChannels": 2}, "routing": {"profile": "remux"}},
+                }
+            )
+            applied = harness._file_overrides_series_apply_payload(
+                {
+                    "path": str(selected),
+                    "proposed_override": {"audio": {"maxChannels": 2}, "routing": {"profile": "remux"}},
+                    "confirm_apply": True,
+                    "preview_fingerprint": preview["preview_fingerprint"],
+                }
+            )
+            manifest = read_file_overrides(resolved.file_overrides_path)  # type: ignore[arg-type]
+            entries = manifest["entries"]
+
+        self.assertTrue(preview["ok"])
+        self.assertEqual(preview["schema_version"], "queue_file_override_series_preview.v1")
+        self.assertEqual(preview["detected"]["show_name"], "Example Show")
+        self.assertEqual(preview["counts"]["will_update"], 1)
+        self.assertEqual(preview["counts"]["replace_prior_batch"], 1)
+        self.assertEqual(preview["counts"]["protected_manual"], 1)
+        self.assertEqual(preview["counts"]["skipped"], 1)
+        self.assertEqual(_series_action_by_file(preview, "Example.Show.S01E01.mkv"), "will_update")
+        self.assertEqual(_series_action_by_file(preview, "Example.Show.S01E02.mkv"), "protected_manual")
+        self.assertEqual(_series_action_by_file(preview, "Example.Show.S00E01.mkv"), "replace_prior_batch")
+        self.assertEqual(_series_action_by_file(preview, "Example.Show.S01E03.mkv"), "skipped")
+        self.assertFalse(any(row.get("display_name") == "Other.Show.S01E01.mkv" for row in preview["rows"]))
+
+        self.assertTrue(applied["ok"])
+        self.assertEqual(applied["command"], "queue.file_overrides.series_apply")
+        selected_entry = entries[normalize_file_override_path(selected)]
+        manual_entry = entries[normalize_file_override_path(manual)]
+        special_entry = entries[normalize_file_override_path(special)]
+        self.assertEqual(selected_entry["audio"]["maxChannels"], 2)
+        self.assertEqual(special_entry["audio"]["maxChannels"], 2)
+        self.assertEqual(manual_entry["audio"]["maxChannels"], 6)
+        self.assertIn(FILE_OVERRIDE_BATCH_METADATA_KEY, selected_entry)
+        self.assertIn(FILE_OVERRIDE_BATCH_METADATA_KEY, special_entry)
+        self.assertNotIn(FILE_OVERRIDE_BATCH_METADATA_KEY, manual_entry)
+        self.assertNotEqual(special_entry[FILE_OVERRIDE_BATCH_METADATA_KEY]["batch_id"], "series-old")
+
+    def test_series_preview_apply_rejects_invalid_stale_non_tv_and_no_eligible_payloads(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            tv_root = resolved.source_tv  # type: ignore[assignment]
+            movie = resolved.source_movies / "Movie.mkv"  # type: ignore[operator]
+            rows = [
+                _tv_snapshot_row(tv_root, "Manual Show", "Season 01", "Manual.Show.S01E01.mkv"),
+                _tv_snapshot_row(tv_root, "Stale Show", "Season 01", "Stale.Show.S01E01.mkv"),
+                _tv_snapshot_row(tv_root, "Stale Show", "Season 01", "Stale.Show.S01E02.mkv", episode_number=2),
+                {
+                    **_snapshot_row(movie),
+                    "root_path": str(resolved.source_movies),
+                    "relative_path": "Movie.mkv",
+                    "media_kind": "movie",
+                },
+            ]
+            _write_queue_snapshot(resolved, rows)
+            harness = _TrackMetadataHarness(resolved)
+            selected = Path(rows[0]["source_path"])
+            stale_selected = Path(rows[1]["source_path"])
+            set_file_override_entry(
+                resolved.file_overrides_path,  # type: ignore[arg-type]
+                selected,
+                {"audio": {"maxChannels": 6}},
+            )
+
+            blocked_preview = harness._file_overrides_series_preview_payload(
+                {"path": str(selected), "proposed_override": {"audio": {"maxChannels": 2}}}
+            )
+            missing_confirm = harness._file_overrides_series_apply_payload(
+                {
+                    "path": str(selected),
+                    "proposed_override": {"audio": {"maxChannels": 2}},
+                    "preview_fingerprint": blocked_preview.get("preview_fingerprint", ""),
+                }
+            )
+            stale = harness._file_overrides_series_apply_payload(
+                {
+                    "path": str(stale_selected),
+                    "proposed_override": {"audio": {"maxChannels": 2}},
+                    "confirm_apply": True,
+                    "preview_fingerprint": "stale",
+                }
+            )
+            invalid = harness._file_overrides_series_preview_payload(
+                {"path": str(selected), "proposed_override": {"audio": {"maxChannels": "two"}}}
+            )
+            non_tv = harness._file_overrides_series_preview_payload(
+                {"path": str(movie), "proposed_override": {"audio": {"maxChannels": 2}}}
+            )
+
+        self.assertFalse(blocked_preview["ok"])
+        self.assertIn("No eligible current queue rows", "\n".join(item["message"] for item in blocked_preview["blockers"]))
+        self.assertFalse(missing_confirm["ok"])
+        self.assertIn("confirm_apply", "\n".join(missing_confirm["errors"]))
+        self.assertFalse(stale["ok"])
+        self.assertIn("stale", "\n".join(stale["errors"]).lower())
+        self.assertFalse(invalid["ok"])
+        self.assertIn("maxChannels", "\n".join(invalid["errors"]))
+        self.assertFalse(non_tv["ok"])
+        self.assertIn("only for TV", non_tv["message"])
 
     def test_folder_preview_reports_known_files_from_queue_snapshot_without_probe_or_write(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -329,6 +578,12 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
                     "proposed_override": {"subtitles": {"dropTracks": [{"language": "eng", "titleContains": "SDH"}]}},
                 }
             )
+            burn_payload = harness._file_overrides_folder_preview_payload(
+                {
+                    "folder_path": str(folder),
+                    "proposed_override": {"subtitles": {"burnTrack": {"streamIndex": 3, "language": "eng"}}},
+                }
+            )
 
             self.assertFalse(outside_payload["ok"])
             self.assertIn("outside configured", outside_payload["message"].lower())
@@ -340,6 +595,8 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
             self.assertIn("map", "\n".join(raw_map_payload["errors"]))
             self.assertFalse(title_contains_payload["ok"])
             self.assertIn("titleContains", "\n".join(title_contains_payload["errors"]))
+            self.assertFalse(burn_payload["ok"])
+            self.assertIn("burnTrack", "\n".join(burn_payload["errors"]))
 
     def test_folder_preview_reports_exact_and_deeper_folder_override_conflicts_without_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -461,6 +718,39 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
         self.assertEqual(nested_match["matched_path"], normalize_file_override_path(nested))
         self.assertEqual(nested_match["entry"]["audio"]["dropTracks"], [{"language": "jpn"}])
 
+    def test_folder_entry_revalidates_merged_route_video_edits(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            folder = resolved.source_movies / "Franchise"  # type: ignore[operator]
+            folder.mkdir(parents=True)
+
+            set_file_override_entry(
+                resolved.file_overrides_path,  # type: ignore[arg-type]
+                folder,
+                {
+                    "video": {
+                        "codec": "h264_nvenc",
+                        "container": "mp4",
+                    }
+                },
+            )
+            before = resolved.file_overrides_path.read_text(encoding="utf-8")  # type: ignore[union-attr]
+            with self.assertRaises(FileOverrideValidationError) as caught:
+                set_file_override_entry(
+                    resolved.file_overrides_path,  # type: ignore[arg-type]
+                    folder,
+                    {"routing": {"profile": "remux"}},
+                )
+            after = resolved.file_overrides_path.read_text(encoding="utf-8")  # type: ignore[union-attr]
+            manifest = read_file_overrides(resolved.file_overrides_path)  # type: ignore[arg-type]
+
+        self.assertIn("cannot be combined", "\n".join(caught.exception.errors))
+        self.assertEqual(after, before)
+        folder_entry = manifest["entries"][normalize_file_override_path(folder)]
+        self.assertEqual(folder_entry["video"], {"codec": "h264_nvenc", "container": "mp4"})
+        self.assertNotIn("routing", folder_entry)
+
     def test_folder_rule_rejects_unsafe_selectors_invalid_scope_and_missing_confirmation(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -495,6 +785,13 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
                     "confirmation": confirmation,
                 }
             )
+            burn_track = harness._file_overrides_folder_rule_payload(
+                {
+                    "folder_path": str(folder),
+                    "override": {"subtitles": {"burnTrack": {"streamIndex": 3, "language": "eng"}}},
+                    "confirmation": confirmation,
+                }
+            )
             invalid_path = harness._file_overrides_folder_rule_payload(
                 {
                     "folder_path": str(outside),
@@ -516,6 +813,8 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
         self.assertIn("streamIndex", "\n".join(stream_index["errors"]))
         self.assertFalse(raw_map["ok"])
         self.assertIn("map", "\n".join(raw_map["errors"]))
+        self.assertFalse(burn_track["ok"])
+        self.assertIn("burnTrack", "\n".join(burn_track["errors"]))
         self.assertFalse(invalid_path["ok"])
         self.assertIn("outside configured", invalid_path["message"].lower())
         self.assertFalse(library_root["ok"])
@@ -586,13 +885,28 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertTrue(payload["probe_available"])
         self.assertEqual(payload["probe_source"], "stage_probe")
+        self.assertTrue(payload["source_info"]["available"])
+        self.assertEqual(payload["source_info"]["file_size_bytes"], 10 * 1024 * 1024 * 1024)
+        self.assertEqual(payload["source_info"]["file_size_display"], "10 GB")
+        self.assertEqual(payload["source_info"]["duration_display"], "1h 30m")
+        self.assertEqual(payload["source_info"]["container"], "matroska")
+        self.assertEqual(payload["source_info"]["overall_bitrate_display"], "17.2 Mbps")
+        self.assertEqual(payload["source_info"]["estimated_bitrate_basis"], "file_size_duration")
+        self.assertEqual(payload["source_info"]["estimated_bitrate_display"], "15.907 Mbps")
+        self.assertEqual(payload["source_info"]["primary_video"]["codec"], "hevc")
+        self.assertEqual(payload["source_info"]["primary_video"]["resolution_display"], "3840x2160")
+        self.assertTrue(payload["source_info"]["primary_video"]["is_hdr"])
+        self.assertEqual(payload["source_info"]["primary_video"]["bitrate_display"], "18 Mbps")
         self.assertEqual(len(payload["audio_tracks"]), 2)
         self.assertEqual(payload["audio_tracks"][0]["stream_index"], 1)
         self.assertEqual(payload["audio_tracks"][0]["language"], "eng")
+        self.assertEqual(payload["audio_tracks"][0]["bitrate_bps"], 640_000)
+        self.assertEqual(payload["audio_tracks"][0]["bitrate_display"], "0.64 Mbps")
         self.assertTrue(payload["audio_tracks"][0]["default"])
         self.assertFalse(payload["audio_tracks"][0]["forced"])
         self.assertFalse(payload["audio_tracks"][0]["commentary"])
         self.assertEqual(payload["audio_tracks"][1]["language"], "eng")
+        self.assertEqual(payload["audio_tracks"][1]["bitrate_display"], "3.2 Mbps")
         self.assertTrue(payload["audio_tracks"][1]["commentary"])
         self.assertIn("Commentary", payload["audio_tracks"][1]["display"])
 
@@ -676,6 +990,7 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
 
             self.assertTrue(payload["ok"])
             self.assertFalse(payload["probe_available"])
+            self.assertFalse(payload["source_info"]["available"])
             self.assertEqual(payload["audio_tracks"], [])
             self.assertEqual(payload["subtitle_tracks"], [])
             self.assertTrue(payload["warnings"])
@@ -702,6 +1017,8 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
             self.assertTrue(payload["ok"])
             self.assertFalse(payload["probe_available"])
             self.assertEqual(payload["probe_source"], "stage_probe")
+            self.assertFalse(payload["source_info"]["available"])
+            self.assertEqual(payload["source_info"]["probe_source"], "stage_probe")
             self.assertIn("timeout", payload["warnings"][0]["message"].lower())
 
     def test_save_exact_track_selectors_validates_against_probe_metadata(self) -> None:
@@ -741,6 +1058,22 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
                 missing = harness._file_overrides_payload(
                     {"path": str(source), "subtitles": {"keepTracks": [{"streamIndex": 99}]}}
                 )
+                burn_saved = harness._file_overrides_payload(
+                    {
+                        "path": str(source),
+                        "subtitles": {
+                            "burnTrack": {
+                                "streamIndex": 4,
+                                "language": "eng",
+                                "codec": "hdmv_pgs_subtitle",
+                                "forced": False,
+                            }
+                        },
+                    }
+                )
+                burn_missing = harness._file_overrides_payload(
+                    {"path": str(source), "subtitles": {"burnTrack": {"streamIndex": 99}}}
+                )
                 signature_mismatch = harness._file_overrides_payload(
                     {
                         "path": str(source),
@@ -765,6 +1098,17 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
             self.assertIn("does not target an audio stream", "\n".join(wrong_type["errors"]))
             self.assertFalse(missing["ok"])
             self.assertIn("not available in detected subtitle streams", "\n".join(missing["errors"]))
+            self.assertTrue(burn_saved["ok"])
+            self.assertEqual(
+                burn_saved["entries"][normalize_file_override_path(source)]["subtitles"]["burnTrack"]["streamIndex"],
+                4,
+            )
+            self.assertIn("Subtitle burn-in selected for stream 4", burn_saved["message"])
+            self.assertEqual(burn_saved["confirmation"]["type"], "subtitle_burn_in")
+            self.assertEqual(burn_saved["confirmation"]["source_path"], str(source))
+            self.assertEqual(burn_saved["confirmation"]["streamIndex"], 4)
+            self.assertFalse(burn_missing["ok"])
+            self.assertIn("subtitles.burnTrack.streamIndex", "\n".join(burn_missing["errors"]))
             self.assertFalse(signature_mismatch["ok"])
             self.assertIn("does not match detected stream 1 language 'eng'", "\n".join(signature_mismatch["errors"]))
             self.assertFalse(raw_map["ok"])
@@ -805,6 +1149,8 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertTrue(payload["track_metadata"]["available"])
         self.assertEqual(payload["track_metadata"]["probe_source"], "cache")
+        self.assertEqual(payload["track_metadata"]["source_info"]["container"], "matroska")
+        self.assertEqual(payload["track_metadata"]["source_info"]["primary_video"]["resolution_display"], "3840x2160")
         self.assertEqual(len(payload["track_metadata"]["audio_tracks"]), 3)
         self.assertEqual(payload["effective_drawer_fields"]["audioKeepLanguages"]["source"], "file_override")
         self.assertEqual(payload["sources"]["audio.keepTracks"], "file_override")
@@ -820,6 +1166,37 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
         self.assertEqual(subtitle_preview["kept_stream_indexes"], [3, 4])
         self.assertEqual(subtitle_preview["dropped_stream_indexes"], [6])
         self.assertEqual(subtitle_preview["dropped_stream_sources"]["6"]["field"], "subtitles.dropTracks")
+        self.assertEqual(_resolved_track(payload, "audio", 1)["label"], "Resolved: keep by file override")
+        self.assertEqual(_resolved_track(payload, "audio", 5)["label"], "Resolved: drop by file override")
+        self.assertEqual(_resolved_track(payload, "subtitle", 6)["label"], "Resolved: drop by file override")
+        self.assertEqual(_resolved_track(payload, "subtitle", 3)["label"], "Resolved: keep by normal subtitle policy")
+
+    def test_effective_payload_burn_track_marks_one_subtitle_and_drops_others(self) -> None:
+        payload = _effective_payload(
+            r"C:\Media\Movie.mkv",
+            {
+                "subtitles": {
+                    "burnTrack": {
+                        "streamIndex": 4,
+                        "language": "eng",
+                        "codec": "hdmv_pgs_subtitle",
+                        "forced": False,
+                    }
+                }
+            },
+        )
+
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["sources"]["subtitles.burnTrack"], "file_override")
+        subtitle_preview = payload["track_selection_preview"]["subtitles"]
+        self.assertEqual(subtitle_preview["burned_stream_indexes"], [4])
+        self.assertEqual(subtitle_preview["dropped_stream_indexes"], [3, 6])
+        self.assertEqual(subtitle_preview["burned_stream_sources"]["4"]["field"], "subtitles.burnTrack")
+        self.assertEqual(_resolved_track(payload, "subtitle", 4)["action"], "burn")
+        self.assertEqual(_resolved_track(payload, "subtitle", 4)["label"], "Resolved: burn by file override")
+        self.assertEqual(_resolved_track(payload, "subtitle", 3)["action"], "drop")
+        self.assertTrue(payload["route_video_processing"]["subtitle_burn_in"])
+        self.assertTrue(payload["route_video_processing"]["drops_selectable_subtitles"])
 
     def test_effective_payload_normalizes_language_aliases_for_selection_preview(self) -> None:
         payload = _effective_payload(
@@ -892,9 +1269,13 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
         )
 
         self.assertFalse(payload["track_metadata"]["available"])
+        self.assertFalse(payload["track_metadata"]["source_info"]["available"])
         self.assertEqual(payload["track_metadata"]["audio_tracks"], [])
         self.assertFalse(payload["track_selection_preview"]["audio"]["available"])
         self.assertIn("not available", payload["track_selection_preview"]["audio"]["warnings"][0]["message"])
+        self.assertFalse(payload["resolved_track_actions"]["audio"]["available"])
+        self.assertFalse(payload["resolved_track_actions"]["subtitles"]["available"])
+        self.assertEqual(payload["resolved_track_actions"]["audio"]["tracks"], [])
 
     def test_effective_payload_warns_for_missing_languages_and_forced_rules(self) -> None:
         payload = _effective_payload(
@@ -935,6 +1316,51 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
         self.assertEqual(subtitle_preview["dropped_stream_indexes"], [4, 6])
         audio_warnings = "\n".join(item["message"] for item in audio_preview["warnings"])
         self.assertNotIn("multiple audio tracks", audio_warnings)
+        self.assertEqual(_resolved_track(payload, "audio", 2)["source"], "file_override")
+        self.assertEqual(_resolved_track(payload, "subtitle", 3)["source"], "file_override")
+
+    def test_effective_payload_resolved_actions_report_folder_override_source(self) -> None:
+        source_path = r"C:\Media\Folder\Movie.mkv"
+        folder_path = r"C:\Media\Folder"
+        payload = _effective_payload(
+            source_path,
+            {},
+            manifest_entries={
+                normalize_file_override_path(folder_path): {
+                    "audio": {"dropTracks": [{"streamIndex": 5, "language": "jpn"}]},
+                    "subtitles": {"keepTracks": [{"streamIndex": 3, "language": "eng", "forced": True}]},
+                }
+            },
+        )
+
+        audio = _resolved_track(payload, "audio", 5)
+        subtitle_kept = _resolved_track(payload, "subtitle", 3)
+        subtitle_dropped = _resolved_track(payload, "subtitle", 6)
+        self.assertEqual(audio["action"], "drop")
+        self.assertEqual(audio["source"], "folder_override")
+        self.assertEqual(audio["label"], "Resolved: drop by folder override")
+        self.assertEqual(subtitle_kept["source"], "folder_override")
+        self.assertEqual(subtitle_kept["label"], "Resolved: keep by folder override")
+        self.assertEqual(subtitle_dropped["source"], "folder_override")
+        self.assertEqual(subtitle_dropped["label"], "Resolved: drop by folder override")
+
+    def test_effective_payload_resolved_actions_report_subtitle_language_policy_drop(self) -> None:
+        payload = _effective_payload(
+            r"C:\Media\Movie.mkv",
+            {},
+            config={"SubKeepLanguages": ["eng"], "ConvertBdpgsToSrt": True},
+        )
+
+        spanish = _resolved_track(payload, "subtitle", 6)
+        english_pgs = _resolved_track(payload, "subtitle", 4)
+        self.assertEqual(spanish["action"], "drop")
+        self.assertEqual(spanish["source"], "global_default")
+        self.assertEqual(spanish["field"], "SubKeepLanguages")
+        self.assertEqual(spanish["label"], "Resolved: drop by normal subtitle policy")
+        self.assertIn("outside saved subtitle keep languages", spanish["reason"])
+        self.assertEqual(english_pgs["action"], "convert")
+        self.assertEqual(english_pgs["field"], "ConvertBdpgsToSrt")
+        self.assertEqual(english_pgs["label"], "Resolved: convert by normal subtitle policy")
 
 
 if __name__ == "__main__":

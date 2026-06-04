@@ -3,9 +3,9 @@ file: app/decide/routing.py
 pipeline_stage: decide
 token_priority: high
 owner_domain: decide
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-05-30
-sha256: fd795c5b3d89339322644e06d37b898b588d0ef16aa1c1d7b45a85fe99c37050
+sha256: 7fa2d23cafb40af517fda464ac337aa91e14ecfc24db7cce6da8d5f4bd904fa7
 ---
 # `app/decide/routing.py`
 

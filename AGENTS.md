@@ -219,6 +219,16 @@ If your change touches any of these, read
   the repo root.
 - **Commits**: do not commit without an explicit user instruction. Mark
   authorship as Codex unless otherwise specified.
+- **Change ledger**: every meaningful AI/code-agent change must create or
+  update a structured change packet under `changes/unreleased/` before or
+  during edits. Keep `files_touched`, affected areas, summary/reason,
+  validation evidence, rollback plan, status, and affected Python-script
+  details current as work progresses. Use `record_change_touch.py` with the
+  change ID plus explicit paths, or `--from-staged` for packet updates. Run
+  `validate_changes.py --require-worktree-coverage` before the final response
+  when feasible. The final response must report the change packet ID and the
+  strict coverage result, including any unrelated uncovered dirty files that
+  were not absorbed into the packet.
 - **Dates in saved notes**: convert relative dates to absolute
   (`2026-05-28` not "today").
 - **No emojis** in source, docs, or commit messages unless explicitly

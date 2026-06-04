@@ -122,6 +122,101 @@ def _browser_settings_launch_runner_source() -> str:
               }
               clickSettingsTab("status");
             }
+            function requireLibraryProfileDesignationFiltering() {
+              function libraryCard(id) {
+                const card = document.querySelector('[data-library-id="' + id + '"]');
+                if (!card) throw new Error("missing library card " + id);
+                return card;
+              }
+              function overrideRow(card, key) {
+                return card.querySelector('[data-library-override-key="' + key + '"]');
+              }
+              function requireRow(card, key) {
+                const row = overrideRow(card, key);
+                if (!row) throw new Error("missing override row " + key + " in " + (card.dataset.libraryId || "library"));
+                return row;
+              }
+              function setLibraryDesignation(card, value) {
+                const select = card.querySelector('[data-library-field="designation"]');
+                if (!select) throw new Error("missing designation select for " + (card.dataset.libraryId || "library"));
+                select.value = value;
+                select.dispatchEvent(new Event("change", { bubbles: true }));
+              }
+              function setOverrideValue(row, value) {
+                const control = row.querySelector("[data-library-override-control]");
+                if (!control) throw new Error("missing override control for " + row.getAttribute("data-library-override-key"));
+                control.value = value;
+                control.dispatchEvent(new Event("input", { bubbles: true }));
+                control.dispatchEvent(new Event("change", { bubbles: true }));
+              }
+              function requireFocusedLibrarySelectSurvivesAutomaticRefresh(card) {
+                const select = card.querySelector('[data-library-field="designation"]');
+                if (!select) throw new Error("missing designation select for refresh focus guard");
+                select.focus({ preventScroll: true });
+                if (document.activeElement !== select) throw new Error("designation select did not receive focus");
+                window.mediaPipelineSettingsLibraries.renderSettingsLibraries(payload.settings, { automatic: true });
+                const refreshedSelect = libraryCard(card.dataset.libraryId || "tv").querySelector('[data-library-field="designation"]');
+                if (refreshedSelect !== select) {
+                  throw new Error("automatic refresh replaced focused Library dropdown");
+                }
+                select.blur();
+                window.mediaPipelineSettingsLibraries.renderSettingsLibraries(payload.settings, { automatic: true });
+                const afterBlurSelect = libraryCard(card.dataset.libraryId || "tv").querySelector('[data-library-field="designation"]');
+                if (afterBlurSelect === select) {
+                  throw new Error("automatic Library refresh stayed deferred after dropdown blur");
+                }
+              }
+
+              window.showPage("libraries");
+              if (typeof window.mediaPipelineSettingsLibraries?.renderSettingsLibraries !== "function") {
+                throw new Error("missing Library Profiles renderer");
+              }
+              window.mediaPipelineSettingsLibraries.renderSettingsLibraries(payload.settings);
+              const movieCard = libraryCard("movies");
+              requireFocusedLibrarySelectSurvivesAutomaticRefresh(movieCard);
+              let tvCard = libraryCard("tv");
+              if (overrideRow(tvCard, "EncodeThresholdGB")) throw new Error("TV profile rendered Movie target output size");
+              if (overrideRow(tvCard, "MovieRouteMaxVideoBitrateMbps")) throw new Error("TV profile rendered Movie fallback max bitrate");
+              if (overrideRow(movieCard, "TVEncodeThresholdGB")) throw new Error("Movie profile rendered TV target output size");
+              if (overrideRow(movieCard, "TVRouteMaxVideoBitrateMbps")) throw new Error("Movie profile rendered TV fallback max bitrate");
+
+              const directCopyRow = requireRow(tvCard, "Route1080pMaxVideoBitrateMbps");
+              const directCopyControl = directCopyRow.querySelector("[data-library-override-control]");
+              if (!directCopyControl || String(directCopyControl.value || "").trim() === "") {
+                throw new Error("Inherited direct-copy value did not render for TV profile");
+              }
+              if (directCopyRow.dataset.libraryOverride !== "false") {
+                throw new Error("Inherited direct-copy value rendered as a library override");
+              }
+
+              setLibraryDesignation(tvCard, "auto");
+              tvCard = libraryCard("tv");
+              const autoMovieFallbackRow = requireRow(tvCard, "MovieRouteMaxVideoBitrateMbps");
+              requireRow(tvCard, "TVRouteMaxVideoBitrateMbps");
+              setOverrideValue(autoMovieFallbackRow, "25");
+              if (autoMovieFallbackRow.dataset.libraryOverride !== "true") {
+                throw new Error("Edited movie fallback did not become an explicit override while TV profile was Auto");
+              }
+
+              setLibraryDesignation(tvCard, "tv");
+              tvCard = libraryCard("tv");
+              if (overrideRow(tvCard, "MovieRouteMaxVideoBitrateMbps")) {
+                throw new Error("TV profile kept Movie fallback visible after switching back from Auto");
+              }
+              const patch = window.mediaPipelineSettingsLibraries.buildPatchFromLibraries();
+              const tvProfile = patch && Array.isArray(patch.LibraryProfiles)
+                ? patch.LibraryProfiles.find((profile) => profile.id === "tv")
+                : null;
+              const tvEditorOverrides = tvProfile && tvProfile.overrides ? tvProfile.overrides.editor || {} : {};
+              if (Object.prototype.hasOwnProperty.call(tvEditorOverrides, "MovieRouteMaxVideoBitrateMbps")) {
+                throw new Error("TV LibraryProfiles patch kept hidden Movie fallback override");
+              }
+              const warning = text("settings-library-warning-summary");
+              if (!warning.includes("omitted designation-specific override")) {
+                throw new Error("missing designation-prune warning after staging TV LibraryProfiles patch: " + warning);
+              }
+              window.showPage("settings");
+            }
             function historyHasPreview() {
               const entries = typeof window.getCommandHistory === "function" ? window.getCommandHistory() : [];
               return entries.some((entry) => {
@@ -177,6 +272,7 @@ def _browser_settings_launch_runner_source() -> str:
             window.renderSettings(payload.settings);
             window.showPage("settings");
             requireDefaultVisibleAssSsaCheckboxes();
+            requireLibraryProfileDesignationFiltering();
             requireText("settings-raw-action-plan-summary", [
               "Settings raw-key action plan:",
               "Purpose: separate schema drift, OCR path evidence, subtitle keyword builder coverage, intentionally excluded auth secrets",

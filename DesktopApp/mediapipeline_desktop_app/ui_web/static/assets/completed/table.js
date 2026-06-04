@@ -239,11 +239,13 @@
 
   function renderCompletedRowsImpl(ctx) {
     const lastCompletedRows = Array.isArray(ctx.state.lastCompletedRows) ? ctx.state.lastCompletedRows : [];
-    const currentRows = ctx.completedCurrentRows(lastCompletedRows);
+    const currentRowsResult = ctx.completedCurrentRows(lastCompletedRows);
+    const currentRows = Array.isArray(currentRowsResult) ? currentRowsResult : [];
     const filterText = ctx.byId("completed-filter")?.value || "";
     const statusFilter = ctx.byId("completed-status-filter")?.value || "all";
     const investigationFilter = ctx.byId("completed-investigation-filter")?.value || "all";
-    const rows = ctx.completedFilteredRows(currentRows, filterText, statusFilter, investigationFilter);
+    const filteredRows = ctx.completedFilteredRows(currentRows, filterText, statusFilter, investigationFilter);
+    const rows = Array.isArray(filteredRows) ? filteredRows : [];
     const renderLimit = 250;
     const renderedCount = Math.min(rows.length, renderLimit);
     const riskStatus = ctx.completedRiskStatusLine(ctx.state.lastCompletedPayload, lastCompletedRows);

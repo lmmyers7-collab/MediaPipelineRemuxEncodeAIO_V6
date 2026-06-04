@@ -232,6 +232,7 @@ $script:processingDir = Join-Path ([System.IO.Path]::GetTempPath()) ('mp-subtitl
 New-Item -ItemType Directory -Path $script:processingDir -Force | Out-Null
 
 try {
+    . (Join-Path $repoRoot 'engine\shared\media_constants.ps1')
     . (Join-Path $repoRoot 'engine\subtitles\builders.ps1')
 
     $filter = @{
@@ -433,6 +434,29 @@ try {
     $script:Tx3gConversionMode = 'success'
     $script:BdpgsConversionMode = 'success'
     $script:VobSubConversionMode = 'success'
+
+    $script:ConversionCalls.Clear()
+    $textBurnEntry = New-TestSubtitleEntry -Index 33 -Lang 'eng' -Title 'English SRT burn' -Codec 'subrip'
+    $textBurnEntry['SubtitleInputOrdinal'] = 1
+    $textBurnBuild = Build-SubtitleArgsForFFmpeg -FilterResult @{ Burn = @($textBurnEntry) } -DefaultAudioLang 'jpn' -SourceFile (Join-Path $script:processingDir 'source.mkv') -Context 'TEST: '
+    Assert-Equal $textBurnBuild.TrackCount 0 'Text subtitle burn should not emit selectable subtitle output tracks.'
+    Assert-Equal $textBurnBuild.MapArgs.Count 0 'Text subtitle burn should not map selectable subtitles.'
+    Assert-Equal $textBurnBuild.ExtraInputs.Count 0 'Text subtitle burn should not create generated subtitle inputs.'
+    Assert-Equal $script:ConversionCalls.Count 0 'Text subtitle burn should render directly instead of using OCR/conversion helpers.'
+    Assert-ContainsText ($textBurnBuild.VideoFilterArgs -join ' ') '-filter_complex' 'Text subtitle burn should emit a video filter graph.'
+    Assert-ContainsText ($textBurnBuild.VideoFilterArgs -join ' ') 'subtitles=filename=' 'Text subtitle burn should use the FFmpeg subtitles filter.'
+    Assert-ContainsText ($textBurnBuild.VideoFilterArgs -join ' ') ':si=1' 'Text subtitle burn should select the exact subtitle input ordinal.'
+    Assert-Equal $textBurnBuild.VideoFilterArgs[-2] '-map' 'Text subtitle burn should map the filtered video output.'
+    Assert-Equal $textBurnBuild.VideoFilterArgs[-1] '[vout]' 'Text subtitle burn should map only the burn-filtered video pad.'
+
+    $imageBurnEntry = New-TestSubtitleEntry -Index 34 -Lang 'eng' -Title 'English PGS burn' -Codec 'hdmv_pgs_subtitle' -Bdpgs
+    $imageBurnEntry['SubtitleInputOrdinal'] = 2
+    $imageBurnBuild = Build-SubtitleArgsForFFmpeg -FilterResult @{ Burn = @($imageBurnEntry) } -DefaultAudioLang 'jpn' -SourceFile (Join-Path $script:processingDir 'source.mkv') -Context 'TEST: '
+    Assert-Equal $imageBurnBuild.TrackCount 0 'Image subtitle burn should not emit selectable subtitle output tracks.'
+    Assert-Equal $imageBurnBuild.MapArgs.Count 0 'Image subtitle burn should not map selectable subtitles.'
+    Assert-Equal $imageBurnBuild.ExtraInputs.Count 0 'Image subtitle burn should not create generated subtitle inputs.'
+    Assert-ContainsText ($imageBurnBuild.VideoFilterArgs -join ' ') 'overlay=eof_action=pass:repeatlast=0' 'Image subtitle burn should overlay the exact bitmap subtitle ordinal.'
+    Assert-Equal ([int]$imageBurnBuild.BurnTrack.Stream.index) 34 'Image subtitle burn should keep evidence for the burned stream index.'
 
     . (Join-Path $repoRoot 'engine\subtitles\srt.ps1')
     $validSrtPath = Join-Path $script:processingDir 'valid.srt'

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-06-03
 last_reviewed: 2026-05-29
-sha256: b591340e4f969f3f84db08dfef7e1ec7aca6c65ce70a72af262dfd1273c2c740
+sha256: 588063df69cc9d664cafd1f0c34e609642fa435c5b7fc7a800baebd9c97131d1
 ---
 # `Docs/inventories/API_ROUTE_INVENTORY.md`
 

@@ -12,6 +12,7 @@ from app.maintenance.policy import (
     maintenance_toolchain_evidence,
     maintenance_workspace_counts,
 )
+from app.maintenance.change_ledger import change_ledger_payload
 from mediapipeline_desktop_app.models import ResolvedPaths
 
 if TYPE_CHECKING:
@@ -115,6 +116,9 @@ class MaintenanceFacadeMixin:
             missing_count=counts["missing_count"],
             warning_count=counts["warning_count"],
         )
+
+    def get_maintenance_change_ledger(self, resolved: ResolvedPaths) -> dict[str, Any]:
+        return change_ledger_payload(resolved.workspace_root)
 
 __all__ = [
     "MaintenanceFacadeMixin",

@@ -10,6 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.application import MediaPipelineApplicationFacade
+from app.audit.score_policy import normalize_audit_score_policy, read_audit_score_policy, write_audit_score_policy
 from DesktopApp.tests.test_application_facade import DummyFacadeService, _resolved
 
 
@@ -428,7 +429,18 @@ class ApplicationFacadeReportsTests(unittest.TestCase):
 
             score_result = facade.save_audit_score_policy(
                 resolved,
-                {"policy": {"high_issue": 123, "rerun_bonus": 7, "unknown": 999}},
+                {
+                    "policy": {
+                        "high_issue": 123,
+                        "rerun_bonus": 7,
+                        "issue_code_weights": {
+                            "audio-default-policy-mismatch": 321,
+                            "bdpgs-subtitles-ocr-candidate": 44,
+                            "unknown-code": 999,
+                        },
+                        "unknown": 999,
+                    }
+                },
             ).to_mapping()
             controls = facade.get_audit_controls(resolved)
             before_ignore = facade.get_audit_preview(resolved).to_mapping()
@@ -444,13 +456,72 @@ class ApplicationFacadeReportsTests(unittest.TestCase):
             preview = facade.get_audit_preview(resolved).to_mapping()
 
         self.assertTrue(score_result["ok"])
+        self.assertEqual(score_result["data"]["schema_version"], "desktop_audit_score_policy_result.v2")
         self.assertEqual(score_result["data"]["policy"]["high_issue"], 123)
         self.assertEqual(score_result["data"]["policy"]["rerun_bonus"], 7)
+        self.assertEqual(score_result["data"]["policy"]["issue_code_weights"]["audio-default-policy-mismatch"], 321)
+        self.assertEqual(score_result["data"]["policy"]["issue_code_weights"]["bdpgs-subtitles-ocr-candidate"], 44)
+        self.assertNotIn("unknown-code", score_result["data"]["policy"]["issue_code_weights"])
         self.assertEqual(controls["schema_version"], "desktop_audit_controls.v1")
+        self.assertEqual(controls["score_policy"]["schema_version"], "desktop_audit_score_policy.v2")
+        marker_codes = {
+            marker.get("code")
+            for marker in controls["score_policy"]["markers"]
+            if marker.get("type") == "issue_code"
+        }
+        self.assertIn("audio-default-policy-mismatch", marker_codes)
+        self.assertIn("bdpgs-subtitles-ocr-candidate", marker_codes)
         self.assertTrue(ignore_result["ok"])
         self.assertEqual(preview["ignored_count"], 1)
         self.assertEqual(preview["count"], 1)
         self.assertEqual(preview["rows"][0]["lookup_title"], "Keep")
+
+    def test_audit_score_policy_v2_normalizes_issue_code_weights(self) -> None:
+        policy = normalize_audit_score_policy(
+            {
+                "high_issue": 123,
+                "medium_issue": "41",
+                "issue_code_weights": {
+                    "audio-default-policy-mismatch": 321,
+                    "bdpgs-subtitles-ocr-candidate": -5,
+                    "unknown-code": 777,
+                },
+            }
+        )
+
+        self.assertEqual(policy["issue_code_weights"]["audio-default-policy-mismatch"], 321)
+        self.assertEqual(policy["issue_code_weights"]["bdpgs-subtitles-ocr-candidate"], 0)
+        self.assertEqual(policy["issue_code_weights"]["ffprobe-open-failed"], 123)
+        self.assertEqual(policy["issue_code_weights"]["ambiguous-tv-naming"], 41)
+        self.assertNotIn("unknown-code", policy["issue_code_weights"])
+
+    def test_audit_score_policy_v1_files_load_with_issue_code_defaults(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            path = Path(raw_root) / "audit_score_policy.json"
+            path.write_text(
+                json.dumps({"version": 1, "policy": {"high_issue": 17, "medium_issue": 23}}),
+                encoding="utf-8",
+            )
+
+            loaded = read_audit_score_policy(path)
+            saved = write_audit_score_policy(
+                path,
+                {
+                    "high_issue": 11,
+                    "issue_code_weights": {
+                        "audio-default-policy-mismatch": 12,
+                        "audio-track-titles-missing": 5000,
+                    },
+                },
+            )
+            persisted = json.loads(path.read_text(encoding="utf-8"))
+
+        self.assertEqual(loaded["issue_code_weights"]["audio-default-policy-mismatch"], 17)
+        self.assertEqual(loaded["issue_code_weights"]["audio-track-titles-missing"], 23)
+        self.assertEqual(saved["issue_code_weights"]["audio-default-policy-mismatch"], 12)
+        self.assertEqual(saved["issue_code_weights"]["audio-track-titles-missing"], 1000)
+        self.assertEqual(persisted["version"], 2)
+        self.assertIn("issue_code_weights", persisted["policy"])
 
     def test_audit_rerun_export_uses_selected_non_ignored_rows(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

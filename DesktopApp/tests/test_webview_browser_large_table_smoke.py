@@ -89,6 +89,18 @@ def _browser_large_table_runner_source() -> str:
               if (!row) throw new Error(selector + " missing row containing " + fragment);
               row.click();
             }
+            function requireQueueScrollPreservedOnSelection(fragment) {
+              const wrap = document.querySelector('[data-page-panel="queue"] .queue-table-wrap');
+              if (!wrap) throw new Error("missing queue table scroll wrapper");
+              wrap.scrollTop = wrap.scrollHeight;
+              const before = wrap.scrollTop;
+              if (before <= 0) throw new Error("queue table did not become scrollable");
+              clickRowContaining("#queue-rows tr[data-row-key]", fragment);
+              const after = wrap.scrollTop;
+              if (after < Math.max(1, before - 3)) {
+                throw new Error("queue table scroll reset after row selection: before=" + before + " after=" + after);
+              }
+            }
             function pad(index) { return String(index + 1).padStart(3, "0"); }
             [
               "renderQueue", "renderQueueRows", "selectQueueRow",
@@ -156,6 +168,10 @@ def _browser_large_table_runner_source() -> str:
             requireText("queue-filter-summary", ["Display cap: only the first 250 filtered rows are rendered", "filtering the Queue table does not change backend launch scope"]);
             requireText("queue-table-legend", ["Queue rows: 250 selectable rows"]);
             requireRenderedRows("#queue-rows tr[data-row-key]", 250);
+            if (!pressShortcut("2")) throw new Error("Queue page shortcut should be handled before scroll preservation check");
+            requireActivePage("queue");
+            requireQueueScrollPreservedOnSelection("Large Queue 240");
+            requireText("queue-detail", ["Queue selected-row detail:", "Large Queue 240", "Mutation guardrail"]);
             setValue("queue-filter", "Large Queue 001");
             window.mediaPipelineQueueView.renderQueueRows();
             requireText("queue-status", ["1 / 260 rows"]);

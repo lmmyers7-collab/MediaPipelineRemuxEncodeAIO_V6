@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-03
 last_reviewed: 2026-06-02
-sha256: b83ab19fea214dcf40df1cb0fb9442da5aaede78f9a5dc3e89c1f60a9afc3659
+sha256: b196982e7d3a9d1183dd3037a8f79c50cb73b941ccd8d652b1e2f5be7e5df764
 ---
 # `DesktopApp/tests/test_telemetry_service.py`
 

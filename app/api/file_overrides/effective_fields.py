@@ -34,7 +34,7 @@ from mediapipeline_desktop_app.config_keys import (
 )
 
 from .results import _mapping
-from .selectors import _effective_track_metadata, _track_selection_preview
+from .selectors import _effective_track_metadata, _resolved_track_actions, _track_selection_preview
 from .tracks import _probe_tracks_for_source_path
 
 
@@ -157,6 +157,7 @@ def _inherited_drawer_fields(settings: Mapping[str, Any], source: str) -> dict[s
         "audioMaxChannels":      (KEY_AUDIO_MAX_CHANNELS, "channel", "channels"),
         "subtitleKeepLanguages": (KEY_SUB_KEEP_LANGUAGES, "language", ""),
         "subtitleDropLanguages": ("", "", ""),
+        "subtitleBurnTrack":     ("", "", ""),
         "subtitleStripAll":      ("", "", ""),
     }
     inherited: dict[str, dict[str, Any]] = {}
@@ -222,6 +223,16 @@ def _override_drawer_fields(entry: Mapping[str, Any], source: str) -> dict[str, 
             "source":  source,
         }
 
+    burn_track = subtitles.get("burnTrack")
+    if isinstance(burn_track, Mapping):
+        stream_index = burn_track.get("streamIndex")
+        display = f"stream {stream_index}" if stream_index is not None else "selected subtitle"
+        fields["subtitleBurnTrack"] = {
+            "value":   dict(burn_track),
+            "display": display,
+            "source":  source,
+        }
+
     return fields
 
 
@@ -235,6 +246,7 @@ def _effective_drawer_fields(
         "audioMaxChannels":      "audio.maxChannels",
         "subtitleKeepLanguages": "subtitles.keepTracks",
         "subtitleDropLanguages": "subtitles.dropTracks",
+        "subtitleBurnTrack":     "subtitles.burnTrack",
         "subtitleStripAll":      "subtitles.stripAll",
     }
     effective: dict[str, dict[str, Any]] = {}
@@ -476,7 +488,10 @@ def _expanded_route_video_fields(
     return fields, sources
 
 
-def _route_video_processing_projection(route_video_fields: Mapping[str, Mapping[str, Any]]) -> dict[str, Any]:
+def _route_video_processing_projection(
+    route_video_fields: Mapping[str, Mapping[str, Any]],
+    entry: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
     def effective(field_name: str) -> dict[str, Any]:
         return _mapping(_mapping(route_video_fields.get(field_name)).get("effective"))
 
@@ -485,6 +500,8 @@ def _route_video_processing_projection(route_video_fields: Mapping[str, Mapping[
     video_codec = str(effective("videoCodec").get("value") or "").strip()
     encode_preset = str(effective("videoEncodePreset").get("value") or "").strip()
     encode_ladder = str(effective("videoEncodeLadder").get("value") or "").strip()
+    subtitles = _mapping(_mapping(entry or {}).get("subtitles"))
+    has_burn_track = isinstance(subtitles.get("burnTrack"), Mapping)
     def override_sourced(field_name: str) -> bool:
         return str(effective(field_name).get("source") or "") in {"file_override", "folder_override"}
 
@@ -498,7 +515,7 @@ def _route_video_processing_projection(route_video_fields: Mapping[str, Mapping[
         if override_sourced(field_name)
     ) or (override_sourced("videoContainer") and container in {"mp4", "m4v", "mov"})
 
-    if route_profile in {"encode", "transcode"} or video_requires_transcode:
+    if route_profile in {"encode", "transcode"} or video_requires_transcode or has_burn_track:
         route = "transcode"
     elif route_profile == "remux":
         route = "remux"
@@ -508,8 +525,12 @@ def _route_video_processing_projection(route_video_fields: Mapping[str, Mapping[
     warnings: list[str] = []
     if route == "transcode":
         warnings.append("Effective route/video override may force a full video transcode during processing.")
+    if has_burn_track:
+        warnings.append("Subtitle burn-in forces ENCODE, drops all selectable output subtitles, and uses the subtitle-burn encode profile.")
     if route_profile == "remux" and video_requires_transcode:
         warnings.append("routing.profile=remux is incompatible with video fields that require transcode.")
+    if route_profile == "remux" and has_burn_track:
+        warnings.append("routing.profile=remux is incompatible with subtitles.burnTrack.")
 
     return {
         "route":                  route,
@@ -518,6 +539,9 @@ def _route_video_processing_projection(route_video_fields: Mapping[str, Mapping[
         "encodePreset":           encode_preset,
         "encodeLadder":           encode_ladder,
         "will_force_transcode":   route == "transcode",
+        "subtitle_burn_in":       has_burn_track,
+        "drops_selectable_subtitles": has_burn_track,
+        "subtitle_burn_encode_profile": "current_encode_style" if has_burn_track else "",
         "source":                 "effective_route_video_fields",
         "warnings":               warnings,
         "processing_integration": "engine_active_overrides",
@@ -558,7 +582,7 @@ def _file_override_effective_payload(
         override_source=override_source,
         is_exact_file_override=scope == "file",
     )
-    route_video_processing = _route_video_processing_projection(route_video_fields)
+    route_video_processing = _route_video_processing_projection(route_video_fields, entry=entry)
     track_metadata = _effective_track_metadata(
         track_payload or _probe_tracks_for_source_path(source_path, state_db_root=state_db_root)
     )
@@ -567,6 +591,12 @@ def _file_override_effective_payload(
         entry=entry,
         override_source=override_source,
         has_override=has_override,
+    )
+    resolved_track_actions = _resolved_track_actions(
+        track_metadata=track_metadata,
+        track_selection=track_selection,
+        library_effective_settings=library_effective_settings,
+        inherited_source=inherited_source,
     )
     expanded_fields.update(route_video_fields)
     sources.update(expanded_sources)
@@ -593,5 +623,6 @@ def _file_override_effective_payload(
         "route_video_processing":      route_video_processing,
         "track_metadata":              track_metadata,
         "track_selection_preview":     track_selection,
+        "resolved_track_actions":      resolved_track_actions,
         "sources":                    sources,
     }

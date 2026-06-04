@@ -18,6 +18,23 @@
     return Math.max(0, Math.min(100, value));
   }
 
+  function formatProgressUpdatedAt(value) {
+    if (!value) return "";
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      const year = value.getFullYear();
+      const month = String(value.getMonth() + 1).padStart(2, "0");
+      const day = String(value.getDate()).padStart(2, "0");
+      const hours = String(value.getHours()).padStart(2, "0");
+      const minutes = String(value.getMinutes()).padStart(2, "0");
+      const seconds = String(value.getSeconds()).padStart(2, "0");
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+    }
+    const text = String(value).trim();
+    const match = text.match(/^(\d{4}-\d{2}-\d{2})[T\s]+(\d{2}:\d{2}(?::\d{2})?)(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?/i);
+    if (match) return `${match[1]} ${match[2]}`;
+    return text;
+  }
+
   function renderProgressBarsInto(containerOrId, bars = [], snapshot = null, emptyText = "") {
     const container = typeof containerOrId === "string" ? byId(containerOrId) : containerOrId;
     if (!container) return;
@@ -70,7 +87,7 @@
       const pieces = [
         bar.detail,
         bar.source ? `source: ${bar.source}` : "",
-        bar.updated_at ? `updated: ${bar.updated_at}` : "",
+        bar.updated_at ? `updated: ${formatProgressUpdatedAt(bar.updated_at)}` : "",
         bar.stale ? "stale/review" : "",
       ].filter(Boolean);
       detail.textContent = pieces.join(" · ") || "No progress detail reported.";
@@ -605,7 +622,7 @@
       detail: [
         activeWorkProgressLine(progress) || "No stage/file progress line available.",
         `Current file: ${formatProgressValue(progress.CurrentFileDisplay || progress.CurrentFile || progress.InputFile || "not reported")}`,
-        `Updated at: ${formatProgressValue(progress.UpdatedAt || progress.updated_at || "not reported")}`,
+        `Updated at: ${formatProgressUpdatedAt(progress.UpdatedAt || progress.updated_at) || "not reported"}`,
       ],
     });
 
@@ -1036,6 +1053,7 @@
    * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.
    */
   window.mediaPipelineProgressView = {
+    formatProgressUpdatedAt,
     renderProgressBarsInto,
     renderProgressBars,
     auditProgressBars,

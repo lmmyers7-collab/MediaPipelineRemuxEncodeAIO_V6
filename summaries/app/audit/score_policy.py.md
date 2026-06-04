@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: audit
 last_modified: 2026-06-03
 last_reviewed: 2026-06-03
-sha256: 21628ce2599bb0cb4181fe564bffa539f6f9011eadc8491bc3faa7b106f5eadb
+sha256: d4844a9b1bc92ebdf2d9677ad0fd89e651ddb6a0efe257355da2ef4f6f61e12c
 ---
 # `app/audit/score_policy.py`
 

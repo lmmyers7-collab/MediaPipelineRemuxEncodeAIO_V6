@@ -31,8 +31,8 @@
           "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 854,
-            "end": 1115,
+            "start": 934,
+            "end": 1195,
             "line_count": 262
           },
           "functions_to_move": [
@@ -160,9 +160,9 @@
           "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.refresh.js",
           "topic": "app-refresh",
           "line_range": {
-            "start": 582,
-            "end": 825,
-            "line_count": 244
+            "start": 656,
+            "end": 905,
+            "line_count": 250
           },
           "functions_to_move": [
             "refreshAll",
@@ -221,11 +221,10 @@
             "/api/audit-controls",
             "/api/backend/close-readiness",
             "/api/commands?limit=20",
-            "/api/completed?limit=all",
+            "/api/completed?limit=100",
             "/api/contract",
             "/api/diagnostics",
             "/api/diagnostics/state-summary",
-            "/api/final-library-promotion/status",
             "/api/health",
             "/api/network/workers",
             "/api/pending-publish",
@@ -284,11 +283,10 @@
               "/api/audit-controls",
               "/api/backend/close-readiness",
               "/api/commands?limit=20",
-              "/api/completed?limit=all",
+              "/api/completed?limit=100",
               "/api/contract",
               "/api/diagnostics",
               "/api/diagnostics/state-summary",
-              "/api/final-library-promotion/status",
               "/api/health",
               "/api/network/workers",
               "/api/pending-publish",
@@ -325,6 +323,7 @@
               "apiGet",
               "byId",
               "checked",
+              "final_library_promotion",
               "getLastMaintenance",
               "getLastSettings",
               "renderAllLaunchPreflights",
@@ -378,8 +377,8 @@
           "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 458,
-            "end": 580,
+            "start": 532,
+            "end": 654,
             "line_count": 123
           },
           "functions_to_move": [
@@ -460,9 +459,9 @@
           "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 83,
-            "end": 178,
-            "line_count": 96
+            "start": 159,
+            "end": 252,
+            "line_count": 94
           },
           "functions_to_move": [
             "renderTauriBackendLifecycleAlert",
@@ -481,6 +480,7 @@
             "renderBackendLifecycle",
             "renderBrandVersion",
             "renderControlReadiness",
+            "renderHomePipelineState",
             "renderSparkline",
             "renderTopbarActivity",
             "renderTopbarEventTicker"
@@ -517,6 +517,7 @@
               "renderBackendLifecycle",
               "renderBrandVersion",
               "renderControlReadiness",
+              "renderHomePipelineState",
               "renderSparkline",
               "renderTopbarActivity",
               "renderTopbarEventTicker"
@@ -534,6 +535,8 @@
             "browser_globals": [
               "Array",
               "Boolean",
+              "Math",
+              "Number",
               "String",
               "window"
             ],
@@ -556,6 +559,7 @@
             ],
             "movement_assessment": "needs_wrapper_or_context",
             "assessment_reasons": [
+              "depends on several parent/local helper functions",
               "uses unresolved ordered-script globals"
             ]
           },

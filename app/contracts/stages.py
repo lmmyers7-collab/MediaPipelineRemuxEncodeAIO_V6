@@ -135,11 +135,21 @@ class DecidePayload(StagePayload):
     tv_encode_threshold_gb: float = Field(default=3, gt=0)
     movie_route_max_video_bitrate_mbps: float = Field(default=35.0, gt=0, le=500)
     tv_route_max_video_bitrate_mbps: float = Field(default=18.0, gt=0, le=500)
+    route_1080p_bucket_max_height: int = Field(default=1200, ge=1, le=4320)
+    route_1080p_max_video_bitrate_mbps: float = Field(default=20.0, gt=0, le=500)
+    route_4k_bucket_min_height: int = Field(default=1800, ge=1, le=4320)
+    route_4k_max_video_bitrate_mbps: float = Field(default=35.0, gt=0, le=500)
     allow_h264_remux_if_plex_compatible: bool = True
     h264_remux_max_bitrate_mbps: float = Field(default=35.0, gt=0)
     h264_remux_max_height: int = Field(default=1080, ge=1, le=4320)
     route_hints: dict[str, Any] = Field(default_factory=dict)
     source_media_profile: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _validate_bucket_order(self) -> DecidePayload:
+        if self.route_1080p_bucket_max_height >= self.route_4k_bucket_min_height:
+            raise ValueError("route_1080p_bucket_max_height must be lower than route_4k_bucket_min_height.")
+        return self
 
 
 class DecideResult(StageData):

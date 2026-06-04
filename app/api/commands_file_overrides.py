@@ -16,6 +16,7 @@ from typing import Any
 from app.orchestration.runner import run_probe_stage  # legacy patch point for track-probe tests
 from app.queue.file_overrides import (
     CLEARABLE_FILE_OVERRIDE_FIELDS,
+    FileOverrideValidationError,
     _empty_manifest,
     _write_atomic,
     clear_file_override_entry,
@@ -67,6 +68,13 @@ from .file_overrides.route_preview import (
     _validate_route_preview_proposal,
 )
 from .file_overrides.selectors import _override_exact_selector_validation
+from .file_overrides.series import (
+    file_override_series_apply_payload,
+    file_override_series_preview_payload,
+    unsupported_series_apply_key_errors,
+    unsupported_series_preview_key_errors,
+    validate_series_override_payload,
+)
 from .file_overrides.tracks import (
     _file_override_tracks_payload_from_probe_result,
     _probe_tracks_for_source_path,
@@ -128,6 +136,8 @@ class LocalApiFileOverridesCommandPayloadMixin:
 
         try:
             manifest = set_file_override_entry(fo_path, folder_path or "", override_data)
+        except FileOverrideValidationError as exc:
+            return _folder_rule_validation_error(exc.errors)
         except Exception as exc:
             self.logger.exception("queue.file_overrides.folder_rule save failed: %s", exc)
             return _folder_rule_error(f"Failed to write folder override for '{folder_path}': {exc}")
@@ -198,6 +208,106 @@ class LocalApiFileOverridesCommandPayloadMixin:
         if payload.get("ok") and validation_warnings:
             payload["warnings"] = validation_warnings + list(payload.get("warnings") or [])
         return payload
+
+    def _file_overrides_series_preview_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        """POST /api/queue/file-overrides/series-preview — read-only current-series impact preview."""
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("queue.file_overrides.series_preview", "queue")
+
+        top_level_errors = unsupported_series_preview_key_errors(request)
+        if top_level_errors:
+            return {
+                "ok": False,
+                "command": "queue.file_overrides.series_preview",
+                "severity": "error",
+                "schema_version": "queue_file_override_series_preview.v1",
+                "message": "Invalid series preview payload.",
+                "errors": top_level_errors,
+                "blockers": [{"code": "blocked", "message": error} for error in top_level_errors],
+                "rows": [],
+                "counts": {},
+            }
+
+        path_raw = str(request.get("path", "")).strip()
+        source_path, error = validate_queue_source_path(resolved, path_raw)
+        if error:
+            return {
+                "ok": False,
+                "command": "queue.file_overrides.series_preview",
+                "severity": "error",
+                "schema_version": "queue_file_override_series_preview.v1",
+                "message": error if path_raw else "'path' is required.",
+                "errors": [error if path_raw else "'path' is required."],
+                "blockers": [{"code": "blocked", "message": error if path_raw else "'path' is required."}],
+                "rows": [],
+                "counts": {},
+            }
+
+        proposed_override, validation_errors, validation_warnings = validate_series_override_payload(
+            request.get("proposed_override")
+        )
+        if validation_errors:
+            return {
+                "ok": False,
+                "command": "queue.file_overrides.series_preview",
+                "severity": "error",
+                "schema_version": "queue_file_override_series_preview.v1",
+                "message": "Invalid series preview payload.",
+                "errors": validation_errors,
+                "blockers": [{"code": "blocked", "message": error} for error in validation_errors],
+                "warnings": [{"code": "warning", "message": warning} for warning in validation_warnings],
+                "rows": [],
+                "counts": {},
+            }
+
+        return file_override_series_preview_payload(
+            resolved=resolved,
+            source_path=source_path or "",
+            proposed_override=proposed_override,
+            validation_warnings=validation_warnings,
+        )
+
+    def _file_overrides_series_apply_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        """POST /api/queue/file-overrides/series-apply — confirmed current-series override write."""
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("queue.file_overrides.series_apply", "queue")
+
+        def series_apply_error(message: str, errors: list[str] | None = None) -> dict[str, Any]:
+            return _fo_command_result_payload({
+                "ok":       False,
+                "command":  "queue.file_overrides.series_apply",
+                "severity": "error",
+                "message":  message,
+                "errors":   errors or [message],
+            })
+
+        top_level_errors = unsupported_series_apply_key_errors(request)
+        if top_level_errors:
+            return series_apply_error("Invalid series apply payload.", top_level_errors)
+        if request.get("confirm_apply") is not True:
+            return series_apply_error("'confirm_apply' must be true before applying a series override.")
+
+        path_raw = str(request.get("path", "")).strip()
+        source_path, error = validate_queue_source_path(resolved, path_raw)
+        if error:
+            return series_apply_error(error if path_raw else "'path' is required.")
+
+        proposed_override, validation_errors, validation_warnings = validate_series_override_payload(
+            request.get("proposed_override")
+        )
+        if validation_errors:
+            return series_apply_error("Invalid series apply payload.", validation_errors)
+
+        payload = file_override_series_apply_payload(
+            resolved=resolved,
+            source_path=source_path or "",
+            proposed_override=proposed_override,
+            preview_fingerprint=str(request.get("preview_fingerprint") or "").strip(),
+            validation_warnings=validation_warnings,
+        )
+        return _fo_command_result_payload(payload)
 
     def _file_overrides_payload(self, request: dict[str, Any]) -> dict[str, Any]:
         """POST /api/queue/file-overrides — set / update / clear overrides."""
@@ -303,9 +413,13 @@ class LocalApiFileOverridesCommandPayloadMixin:
         if exact_errors:
             return _fo_validation_error(exact_errors)
         validation_warnings = file_override_payload_warnings(override_data) + exact_warnings
+        subtitles = override_data.get("subtitles") if isinstance(override_data.get("subtitles"), Mapping) else {}
+        burn_track = subtitles.get("burnTrack") if isinstance(subtitles, Mapping) else None
 
         try:
             manifest = set_file_override_entry(fo_path, source_path or "", override_data)
+        except FileOverrideValidationError as exc:
+            return _fo_validation_error(exc.errors)
         except Exception as exc:
             self.logger.exception("queue.file_overrides set failed: %s", exc)
             return _fo_error(f"Failed to write override for '{source_path}': {exc}")
@@ -314,6 +428,18 @@ class LocalApiFileOverridesCommandPayloadMixin:
         payload["command"]  = "queue.file_overrides"
         payload["severity"] = "ok"
         payload["message"]  = f"Override saved for: {source_path}"
+        if isinstance(burn_track, Mapping):
+            stream_index = burn_track.get("streamIndex", "?")
+            payload["message"] = (
+                f"Override saved for: {source_path}. "
+                f"Subtitle burn-in selected for stream {stream_index}; output subtitles will be dropped."
+            )
+            payload["confirmation"] = {
+                "type":         "subtitle_burn_in",
+                "source_path":  source_path,
+                "streamIndex":  stream_index,
+                "message":      f"Burn subtitle stream {stream_index} into video for {source_path}; selectable subtitles will be dropped.",
+            }
         if validation_warnings:
             payload["warnings"] = validation_warnings
         return _fo_command_result_payload(payload)

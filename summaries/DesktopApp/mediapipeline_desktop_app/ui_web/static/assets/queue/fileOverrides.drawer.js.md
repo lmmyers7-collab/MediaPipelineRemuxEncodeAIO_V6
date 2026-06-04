@@ -3,9 +3,9 @@ file: DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverri
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-03
+last_modified: 2026-06-04
 last_reviewed: 2026-06-03
-sha256: b1d8db78b1294a9d9dec27c459f1493a05b894e8dfa22d1a6581b3f6ac8be724
+sha256: 05c2ad12e3490b078a656d0f342d19c6b3819591480c77ab5af518990a1ee0fb
 ---
 # `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.drawer.js`
 

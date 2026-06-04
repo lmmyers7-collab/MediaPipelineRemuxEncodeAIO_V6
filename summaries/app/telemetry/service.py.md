@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: observability
 last_modified: 2026-06-03
 last_reviewed: 2026-05-28
-sha256: f83601c0b347ce7fda1a9ec240001a13ca26e4e6f410c645e5cfb6e8107ccf16
+sha256: 386cb79414bf40d7b4c7b3209ac75a91192f05fab5e68f2f528c41f0ababdba7
 ---
 # `app/telemetry/service.py`
 

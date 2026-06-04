@@ -66,7 +66,9 @@ ROUTE_PREVIEW_VIDEO_KEYS = frozenset(
         "outputContainer",
     }
 )
-ROUTE_PREVIEW_TOP_LEVEL_KEYS = frozenset({"routing", "video"})
+ROUTE_PREVIEW_SUBTITLE_KEYS = frozenset({"burnTrack"})
+ROUTE_PREVIEW_SUBTITLE_SELECTOR_KEYS = frozenset({"streamIndex", "language", "codec", "forced", "title"})
+ROUTE_PREVIEW_TOP_LEVEL_KEYS = frozenset({"routing", "video", "subtitles"})
 
 
 def _normalize_route_name(value: Any) -> str:
@@ -112,6 +114,15 @@ def _route_video_requires_transcode(video: Mapping[str, Any]) -> bool:
         return True
     container = str(video.get("container") or video.get("outputContainer") or "").strip().casefold()
     return container in {"mp4", "m4v", "mov"}
+
+
+def _subtitle_burn_track(subtitles: Mapping[str, Any]) -> Mapping[str, Any]:
+    burn_track = subtitles.get("burnTrack")
+    return _mapping(burn_track) if isinstance(burn_track, Mapping) else {}
+
+
+def _has_subtitle_burn_track(proposed_override: Mapping[str, Any]) -> bool:
+    return bool(_subtitle_burn_track(_mapping(proposed_override.get("subtitles"))))
 
 
 def _validate_route_preview_proposal(value: Any) -> tuple[dict[str, Any], list[str], list[dict[str, str]]]:
@@ -269,17 +280,77 @@ def _validate_route_preview_proposal(value: Any) -> tuple[dict[str, Any], list[s
             if normalized_video:
                 normalized["video"] = normalized_video
 
+    subtitles = proposed.get("subtitles")
+    if subtitles is not None:
+        if not isinstance(subtitles, Mapping):
+            errors.append("'proposed_override.subtitles' must be an object.")
+        else:
+            subtitle_map = _mapping(subtitles)
+            unknown = sorted(str(key) for key in subtitle_map.keys() if str(key) not in ROUTE_PREVIEW_SUBTITLE_KEYS)
+            if unknown:
+                errors.append(
+                    "Unsupported proposed_override.subtitles field(s): "
+                    f"{', '.join(unknown)}. Allowed fields: {', '.join(sorted(ROUTE_PREVIEW_SUBTITLE_KEYS))}."
+                )
+            normalized_subtitles: dict[str, Any] = {}
+            burn_track = subtitle_map.get("burnTrack")
+            if burn_track is not None:
+                if not isinstance(burn_track, Mapping):
+                    errors.append("'subtitles.burnTrack' must be an exact subtitle selector object.")
+                else:
+                    selector = _mapping(burn_track)
+                    selector_unknown = sorted(
+                        str(key) for key in selector.keys() if str(key) not in ROUTE_PREVIEW_SUBTITLE_SELECTOR_KEYS
+                    )
+                    if selector_unknown:
+                        errors.append(
+                            "Unsupported subtitles.burnTrack field(s): "
+                            f"{', '.join(selector_unknown)}. Allowed fields: {', '.join(sorted(ROUTE_PREVIEW_SUBTITLE_SELECTOR_KEYS))}."
+                        )
+                    if "streamIndex" not in selector:
+                        errors.append("'subtitles.burnTrack.streamIndex' is required for subtitle burn-in.")
+                    else:
+                        try:
+                            stream_index = int(selector.get("streamIndex"))
+                        except (TypeError, ValueError):
+                            errors.append("'subtitles.burnTrack.streamIndex' must be an integer.")
+                        else:
+                            if stream_index < 0:
+                                errors.append("'subtitles.burnTrack.streamIndex' must be zero or greater.")
+                            else:
+                                clean_selector: dict[str, Any] = {"streamIndex": stream_index}
+                                for key in ("language", "codec", "title"):
+                                    if key in selector and str(selector.get(key) or "").strip():
+                                        clean_selector[key] = str(selector.get(key)).strip()
+                                if "forced" in selector:
+                                    if not isinstance(selector.get("forced"), bool):
+                                        errors.append("'subtitles.burnTrack.forced' must be a boolean.")
+                                    else:
+                                        clean_selector["forced"] = bool(selector.get("forced"))
+                                normalized_subtitles["burnTrack"] = clean_selector
+            if normalized_subtitles:
+                normalized["subtitles"] = normalized_subtitles
+
     normalized_routing = _mapping(normalized.get("routing"))
     normalized_video = _mapping(normalized.get("video"))
+    normalized_subtitles = _mapping(normalized.get("subtitles"))
+    has_burn = bool(_subtitle_burn_track(normalized_subtitles))
     if normalized_routing.get("forceRoute") == "remux" and _route_video_requires_transcode(normalized_video):
         errors.append(
             "'routing.forceRoute' remux cannot be combined with video encode/container fields "
             "that require transcode."
         )
+    if normalized_routing.get("forceRoute") == "remux" and has_burn:
+        errors.append("'routing.forceRoute' remux cannot be combined with subtitles.burnTrack because subtitle burn-in requires encode.")
     if normalized.get("video") and not _mapping(normalized.get("routing")).get("forceRoute"):
         warnings.append({
             "field":   "video",
             "message": "Video encode/container settings may force transcode during processing.",
+        })
+    if has_burn:
+        warnings.append({
+            "field":   "subtitles.burnTrack",
+            "message": "Subtitle burn-in forces encode, drops selectable output subtitles, and uses the subtitle-burn encode profile.",
         })
     return normalized, errors, warnings
 
@@ -319,16 +390,17 @@ def _route_preview_proposed_payload(
     video = _mapping(proposed_override.get("video"))
     force_route = str(routing.get("forceRoute") or "").strip()
     video_requires_transcode = _route_video_requires_transcode(video)
+    has_burn = _has_subtitle_burn_track(proposed_override)
     if force_route and force_route != "auto":
         route = force_route
-    elif video_requires_transcode:
+    elif video_requires_transcode or has_burn:
         route = "transcode"
     else:
         route = str(current.get("route") or "unknown")
-    source = "proposed_file_override" if (force_route and force_route != "auto") or video_requires_transcode else str(current.get("source") or "queue_snapshot")
+    source = "proposed_file_override" if (force_route and force_route != "auto") or video_requires_transcode or has_burn else str(current.get("source") or "queue_snapshot")
     if force_route and force_route != "auto":
         decision_source = "forced_route_preview"
-    elif video_requires_transcode:
+    elif video_requires_transcode or has_burn:
         decision_source = "proposed_file_override"
     else:
         decision_source = "current_queue_snapshot"
@@ -357,8 +429,9 @@ def _route_preview_impact(
     video = _mapping(proposed_override.get("video"))
     force_route = str(routing.get("forceRoute") or "").strip()
     video_requires_transcode = _route_video_requires_transcode(video)
+    has_burn = _has_subtitle_burn_track(proposed_override)
 
-    will_force_transcode = force_route == "transcode" or video_requires_transcode or (current_route != "transcode" and proposed_route == "transcode")
+    will_force_transcode = force_route == "transcode" or video_requires_transcode or has_burn or (current_route != "transcode" and proposed_route == "transcode")
     will_prevent_remux = current_route == "remux" and proposed_route == "transcode"
     forced_remux_change = force_route == "remux" and current_route != "remux"
 
@@ -367,6 +440,21 @@ def _route_preview_impact(
             "field":   "video" if video_requires_transcode and force_route != "transcode" else "routing.forceRoute",
             "message": "This route preview would force a full video transcode for this file.",
         })
+    if has_burn:
+        warnings.extend([
+            {
+                "field":   "subtitles.burnTrack",
+                "message": "Subtitle burn-in forces ENCODE for this file.",
+            },
+            {
+                "field":   "subtitles.burnTrack",
+                "message": "All selectable output subtitle streams will be dropped; the selected subtitle is rendered into video pixels only.",
+            },
+            {
+                "field":   "subtitles.burnTrack",
+                "message": "Processing uses the dedicated subtitle-burn encode profile with the current encode style.",
+            },
+        ])
     if forced_remux_change:
         warnings.append({
             "field":   "routing.forceRoute",
@@ -390,7 +478,7 @@ def _route_preview_impact(
         risk = "high"
     elif force_route == "remux" and current_route == "remux" and not video:
         risk = "low"
-    elif force_route or video or non_force_routing:
+    elif force_route or video or non_force_routing or has_burn:
         risk = "medium"
     else:
         risk = "low"
@@ -451,6 +539,7 @@ def _file_override_route_preview_payload(
         "accepted_fields": {
             "routing": sorted(ROUTE_PREVIEW_ROUTING_KEYS),
             "video":   sorted(ROUTE_PREVIEW_VIDEO_KEYS),
+            "subtitles": sorted(ROUTE_PREVIEW_SUBTITLE_KEYS),
         },
     })
     return payload

@@ -14,6 +14,10 @@
     RouteThresholdMode = 'compatibility_advisory'
     MovieRouteMaxVideoBitrateMbps = 35
     TVRouteMaxVideoBitrateMbps = 18
+    Route1080pBucketMaxHeight = 1200
+    Route1080pMaxVideoBitrateMbps = 20
+    Route4KBucketMinHeight = 1800
+    Route4KMaxVideoBitrateMbps = 35
     AllowH264RemuxIfPlexCompatible = $true
     H264RemuxMaxBitrateMbps = 35
     H264RemuxMaxHeight = 1080

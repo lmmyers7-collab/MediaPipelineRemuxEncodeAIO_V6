@@ -51,6 +51,10 @@ function Get-MediaPipelineConfigLibraryOverrideKeysByGroup {
             'TVEncodeThresholdGB',
             'MovieRouteMaxVideoBitrateMbps',
             'TVRouteMaxVideoBitrateMbps',
+            'Route1080pBucketMaxHeight',
+            'Route1080pMaxVideoBitrateMbps',
+            'Route4KBucketMinHeight',
+            'Route4KMaxVideoBitrateMbps',
             'MaxEncodeGrowthPercent',
             'CompatibilityEncodeGrowthPercent'
         )
@@ -134,6 +138,7 @@ function Get-MediaPipelineConfigOrderedKeys {
         'SourceMovies','SourceTV','Outsource','LibraryProfiles','LocalBase',
         'EncodeThresholdGB','TVEncodeThresholdGB',
         'RoutingProfile','RouteThresholdMode','MovieRouteMaxVideoBitrateMbps','TVRouteMaxVideoBitrateMbps',
+        'Route1080pBucketMaxHeight','Route1080pMaxVideoBitrateMbps','Route4KBucketMinHeight','Route4KMaxVideoBitrateMbps',
         'AllowH264RemuxIfPlexCompatible','H264RemuxMaxBitrateMbps','H264RemuxMaxHeight',
         'SizeGuardMode','MaxEncodeGrowthPercent','CompatibilityEncodeGrowthPercent',
         'MinFreeSpaceGB','OutsourceMinFreeSpaceGB',
@@ -570,6 +575,10 @@ function Get-MediaPipelineConfigDefaultValues {
         RouteThresholdMode         = Get-MediaPipelineRouteThresholdModeDefault
         MovieRouteMaxVideoBitrateMbps = 35
         TVRouteMaxVideoBitrateMbps = 18
+        Route1080pBucketMaxHeight  = 1200
+        Route1080pMaxVideoBitrateMbps = 20
+        Route4KBucketMinHeight     = 1800
+        Route4KMaxVideoBitrateMbps = 35
         AllowH264RemuxIfPlexCompatible = $true
         H264RemuxMaxBitrateMbps    = 35
         H264RemuxMaxHeight         = 1080
@@ -1202,6 +1211,10 @@ function Test-MediaPipelineConfigEncodeAudioPolicy {
         @{ Kind = 'int'; Key = 'TVEncodeThresholdGB'; Label = 'TVEncodeThresholdGB'; Min = 1 },
         @{ Kind = 'int'; Key = 'MovieRouteMaxVideoBitrateMbps'; Label = 'MovieRouteMaxVideoBitrateMbps'; Min = 1; Max = 500 },
         @{ Kind = 'int'; Key = 'TVRouteMaxVideoBitrateMbps'; Label = 'TVRouteMaxVideoBitrateMbps'; Min = 1; Max = 500 },
+        @{ Kind = 'int'; Key = 'Route1080pBucketMaxHeight'; Label = 'Route1080pBucketMaxHeight'; Min = 1; Max = 4320 },
+        @{ Kind = 'int'; Key = 'Route1080pMaxVideoBitrateMbps'; Label = 'Route1080pMaxVideoBitrateMbps'; Min = 1; Max = 500 },
+        @{ Kind = 'int'; Key = 'Route4KBucketMinHeight'; Label = 'Route4KBucketMinHeight'; Min = 1; Max = 4320 },
+        @{ Kind = 'int'; Key = 'Route4KMaxVideoBitrateMbps'; Label = 'Route4KMaxVideoBitrateMbps'; Min = 1; Max = 500 },
         @{ Kind = 'int'; Key = 'H264RemuxMaxBitrateMbps'; Label = 'H264RemuxMaxBitrateMbps'; Min = 1; Max = 500 },
         @{ Kind = 'int'; Key = 'H264RemuxMaxHeight'; Label = 'H264RemuxMaxHeight'; Min = 1; Max = 4320 },
         @{ Kind = 'int'; Key = 'MaxEncodeGrowthPercent'; Label = 'MaxEncodeGrowthPercent'; Min = 0; Max = 1000 },
@@ -1241,6 +1254,19 @@ function Test-MediaPipelineConfigEncodeAudioPolicy {
             Test-MediaPipelineConfigNumberRange -Config $Config -Key ([string]$numericPolicy['Key']) -Label ([string]$numericPolicy['Label']) -Minimum $minimum -Maximum $maximum -Optional:$optional -Errors $Errors
         } else {
             Test-MediaPipelineConfigIntegerRange -Config $Config -Key ([string]$numericPolicy['Key']) -Label ([string]$numericPolicy['Label']) -Minimum $minimum -Maximum $maximum -Optional:$optional -Errors $Errors
+        }
+    }
+
+    if ((Test-MediaPipelineConfigHasKey -Config $Config -Key 'Route1080pBucketMaxHeight') -and
+        (Test-MediaPipelineConfigHasKey -Config $Config -Key 'Route4KBucketMinHeight')) {
+        try {
+            $route1080pMaxHeight = [int](Get-MediaPipelineConfigValue -Config $Config -Key 'Route1080pBucketMaxHeight')
+            $route4kMinHeight = [int](Get-MediaPipelineConfigValue -Config $Config -Key 'Route4KBucketMinHeight')
+            if ($route1080pMaxHeight -ge $route4kMinHeight) {
+                $Errors.Add('Route1080pBucketMaxHeight must be lower than Route4KBucketMinHeight.')
+            }
+        } catch {
+            # The numeric validator above reports malformed values.
         }
     }
 

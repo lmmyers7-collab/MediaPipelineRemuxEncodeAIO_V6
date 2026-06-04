@@ -325,6 +325,10 @@ foreach ($numericPolicy in @(
     @{ Key = 'TVEncodeThresholdGB'; Below = 0 },
     @{ Key = 'MovieRouteMaxVideoBitrateMbps'; Below = 0; Above = 501 },
     @{ Key = 'TVRouteMaxVideoBitrateMbps'; Below = 0; Above = 501 },
+    @{ Key = 'Route1080pBucketMaxHeight'; Below = 0; Above = 4321 },
+    @{ Key = 'Route1080pMaxVideoBitrateMbps'; Below = 0; Above = 501 },
+    @{ Key = 'Route4KBucketMinHeight'; Below = 0; Above = 4321 },
+    @{ Key = 'Route4KMaxVideoBitrateMbps'; Below = 0; Above = 501 },
     @{ Key = 'H264RemuxMaxBitrateMbps'; Below = 0; Above = 501 },
     @{ Key = 'H264RemuxMaxHeight'; Below = 0; Above = 4321 },
     @{ Key = 'MaxEncodeGrowthPercent'; Below = -1; Above = 1001 },
@@ -356,6 +360,15 @@ foreach ($numericPolicy in @(
             throw "PowerShell schema did not reject $($numericPolicy.Key) $side JSON/Python numeric range."
         }
     }
+}
+
+$badBucketBoundaryConfig = Get-MediaPipelineConfigDefaultValues
+$badBucketBoundaryConfig['Route1080pBucketMaxHeight'] = 1800
+$badBucketBoundaryConfig['Route4KBucketMinHeight'] = 1800
+$badBucketBoundaryResult = Test-MediaPipelineConfigSchema -Config $badBucketBoundaryConfig
+$badBucketBoundaryErrors = @($badBucketBoundaryResult.Errors) -join "`n"
+if ([bool]$badBucketBoundaryResult.Ok -or $badBucketBoundaryErrors -notmatch 'Route1080pBucketMaxHeight must be lower than Route4KBucketMinHeight') {
+    throw 'PowerShell schema must reject invalid resolution-aware bitrate bucket boundaries.'
 }
 
 $scanFiles = @(

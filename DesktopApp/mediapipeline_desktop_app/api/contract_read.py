@@ -275,6 +275,14 @@ LOCAL_API_WORKSPACE_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
     },
     {
         "method": "GET",
+        "path": "/api/maintenance/change-ledger",
+        "auth_required": True,
+        "effect": "none",
+        "response_schema": "desktop_change_ledger.v1",
+        "purpose": "Read backend-parsed change-control packets, generated changelog source status, and changelog hygiene evidence without running health probes, generating files, or mutating media/state.",
+    },
+    {
+        "method": "GET",
         "path": "/api/schedule",
         "auth_required": True,
         "effect": "none",

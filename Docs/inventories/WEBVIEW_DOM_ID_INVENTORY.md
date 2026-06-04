@@ -1,10 +1,10 @@
 # WebView DOM ID Inventory
 
-Date: 2026-06-02
+Date: 2026-06-03
 
 Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `DesktopApp/mediapipeline_desktop_app/ui_web/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 1311. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 1381. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -369,6 +369,20 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | ID | Element | Purpose |
 |---|---|---|
 | `maintenance-refresh-button` | `<button>` | Trigger `GET /api/maintenance` |
+| `maintenance-change-ledger-status` | `<strong>` | Change ledger load and hygiene status |
+| `maintenance-change-ledger-refresh-button` | `<button>` | Trigger `GET /api/maintenance/change-ledger` |
+| `maintenance-change-ledger-summary` | `<pre>` | Change ledger count and Python-impact summary |
+| `maintenance-change-ledger-table-status` | `<strong>` | Filtered ledger row count |
+| `maintenance-change-ledger-status-filter` | `<select>` | Change ledger status filter |
+| `maintenance-change-ledger-type-filter` | `<select>` | Change ledger type filter |
+| `maintenance-change-ledger-risk-filter` | `<select>` | Change ledger risk filter |
+| `maintenance-change-ledger-search` | `<input>` | Change ledger text search |
+| `maintenance-change-ledger-rows` | `<tbody>` | Change ledger table rows |
+| `maintenance-change-ledger-table-legend` | `<p>` | Change ledger table legend |
+| `maintenance-change-ledger-detail-status` | `<strong>` | Selected change detail status |
+| `maintenance-change-ledger-detail` | `<pre>` | Selected issue/feature, affected scripts, validation, rollback, and notes |
+| `maintenance-change-ledger-hygiene-status` | `<strong>` | Change-control hygiene status |
+| `maintenance-change-ledger-hygiene` | `<pre>` | Missing/stale/invalid packet and changelog evidence |
 | `release-dry-run-button` | `<button>` | Trigger `/api/maintenance/release-dry-run` |
 | `release-dry-run-detail` | `<div>` | Dry-run result detail |
 | `release-dry-run-status` | `<span>` | Dry-run status |
@@ -423,6 +437,7 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `failed-count` | `app.js` | Home |
 | `failure-*` | `reportsView.js` | Reports |
 | `home-readiness-*` | `crossPageContextView.js` | Home |
+| `maintenance-change-ledger-*` | `maintenanceView.js` | Maintenance |
 | `maintenance-refresh-*` | `maintenanceView.js` | Maintenance |
 | `pending-*` | `pendingPublishView.js` | Pending Publish |
 | `launch-real-media-proof-*` | `launchView.js` | Launch |
@@ -552,11 +567,11 @@ Risk: Low — additive only; new IDs for queue drawer UI
 
 ---
 
-## Machine-Generated Full DOM ID Manifest — 2026-06-02
+## Machine-Generated Full DOM ID Manifest — 2026-06-03
 
 This section is generated from `DesktopApp/mediapipeline_desktop_app/ui_web/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 1311
+Count: 1381
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
 active-job-detail
@@ -581,6 +596,9 @@ api-contract-scope
 api-contract-status
 api-contract-table-legend
 app-version
+audit-export-detail
+audit-export-rerun-csv-button
+audit-ignore-selected-button
 audit-launch-detail
 audit-launch-log-detail
 audit-launch-log-rows
@@ -602,6 +620,19 @@ audit-preview-summary
 audit-preview-table-legend
 audit-review-board
 audit-review-status
+audit-score-fallback-issue
+audit-score-high-issue
+audit-score-medium-issue
+audit-score-policy-detail
+audit-score-policy-reset-button
+audit-score-policy-save-button
+audit-score-policy-status
+audit-score-policy-summary
+audit-score-redownload-bonus
+audit-score-redownload-bucket
+audit-score-rerun-bonus
+audit-score-rerun-bucket
+audit-score-review-bucket
 audit-start-button
 audit-start-include-sidecars
 audit-start-library-root
@@ -709,6 +740,7 @@ completed-validation-status
 completed-workflow
 completed-workflow-status
 control-history
+control-latest
 control-readiness
 control-readiness-status
 control-status
@@ -1030,6 +1062,20 @@ layout-editor-reset-subtab
 layout-editor-status
 layout-editor-tree
 log-tail
+maintenance-change-ledger-detail
+maintenance-change-ledger-detail-status
+maintenance-change-ledger-hygiene
+maintenance-change-ledger-hygiene-status
+maintenance-change-ledger-refresh-button
+maintenance-change-ledger-risk-filter
+maintenance-change-ledger-rows
+maintenance-change-ledger-search
+maintenance-change-ledger-status
+maintenance-change-ledger-status-filter
+maintenance-change-ledger-summary
+maintenance-change-ledger-table-legend
+maintenance-change-ledger-table-status
+maintenance-change-ledger-type-filter
 maintenance-detail
 maintenance-detail-status
 maintenance-diagnostics-actions
@@ -1178,11 +1224,20 @@ pending-validation
 pending-validation-status
 pending-workflow
 pending-workflow-status
+pipeline-controller-backend-detail
+pipeline-controller-backend-status
+pipeline-controller-control-summary
+pipeline-controller-last-start-status
+pipeline-controller-last-start-summary
+pipeline-controller-pipeline-state
+pipeline-controller-stage-summary
 pipeline-event-rows
 pipeline-events-status
 pipeline-launch-detail
 pipeline-launch-preflight
 pipeline-launch-status
+pipeline-live-control-state
+pipeline-live-control-summary
 pipeline-single-file-browse-button
 pipeline-single-file-browse-status
 pipeline-single-file-clear-button
@@ -1262,6 +1317,7 @@ queue-runtime
 queue-runtime-status
 queue-selected-status
 queue-selected-summary
+queue-source-inventory
 queue-status
 queue-status-filter
 queue-strategy-apply-btn
@@ -1364,6 +1420,23 @@ rename-summary
 rename-table-legend
 rename-template-preset
 report-audit-csv-state
+report-audit-export-detail
+report-audit-export-rerun-csv-button
+report-audit-export-status
+report-audit-ignore-selected-button
+report-audit-score-fallback-issue
+report-audit-score-high-issue
+report-audit-score-medium-issue
+report-audit-score-policy-detail
+report-audit-score-policy-reset-button
+report-audit-score-policy-save-button
+report-audit-score-policy-status
+report-audit-score-policy-summary
+report-audit-score-redownload-bonus
+report-audit-score-redownload-bucket
+report-audit-score-rerun-bonus
+report-audit-score-rerun-bucket
+report-audit-score-review-bucket
 report-failure-json-state
 report-investigation-checklist
 report-investigation-status
@@ -1514,6 +1587,10 @@ settings-backend-result-legend
 settings-backend-result-rows
 settings-backend-result-status
 settings-backend-result-summary
+settings-builder-1080p-bucket-height
+settings-builder-1080p-route-bitrate
+settings-builder-4k-bucket-height
+settings-builder-4k-route-bitrate
 settings-builder-apply-button
 settings-builder-compat-growth
 settings-builder-encode-ladder
@@ -1588,10 +1665,6 @@ settings-handbrake-output-video
 settings-handbrake-preview-detail
 settings-handbrake-preview-status
 settings-handbrake-publish-requirements
-settings-handbrake-source-audio
-settings-handbrake-source-container
-settings-handbrake-source-subtitles
-settings-handbrake-source-video
 settings-launch-impact-legend
 settings-launch-impact-rows
 settings-launch-impact-status
@@ -1628,6 +1701,7 @@ settings-network-worker-name
 settings-network-worker-overrides
 settings-network-worker-poll
 settings-network-worker-url
+settings-open-wizard-button
 settings-overview-rows
 settings-overview-status
 settings-patch-detail
@@ -1657,7 +1731,6 @@ settings-policy-delta-rows
 settings-policy-delta-status
 settings-policy-delta-summary
 settings-preview-patch-button
-settings-preview-plan-button
 settings-profiles
 settings-queue-apply-button
 settings-queue-builder-status
@@ -1678,7 +1751,6 @@ settings-raw-triage-legend
 settings-raw-triage-rows
 settings-raw-triage-status
 settings-reload-button
-settings-rename-aggressive-match
 settings-rename-cleaning-filter-status
 settings-rename-cleaning-filter-summary
 settings-rename-cleaning-filters-reset-button
@@ -1689,15 +1761,11 @@ settings-rename-filter-file-size
 settings-rename-filter-release-groups
 settings-rename-filter-services-containers
 settings-rename-filter-video-source
+settings-rename-preview-button
 settings-rename-preview-input
 settings-rename-preview-output
+settings-rename-preview-status
 settings-rename-remove-terms
-settings-rename-sep-dashes
-settings-rename-sep-dots
-settings-rename-sep-none
-settings-rename-sep-underscores
-settings-rename-strip-trailing-year
-settings-rename-use-editable-cleaning-filters
 settings-rows
 settings-runtime-allow-system-tools
 settings-runtime-apply-button
@@ -1734,10 +1802,6 @@ settings-save-readiness-status
 settings-save-review-detail
 settings-save-review-legend
 settings-save-review-rows
-settings-source-facts-rows
-settings-source-media-json
-settings-source-media-json-detail
-settings-source-media-json-status
 settings-status
 settings-subtitle-apply-button
 settings-subtitle-ass-signs-forced
@@ -1790,9 +1854,12 @@ settings-summary-processing-strategy
 settings-summary-size-bitrate-guards
 settings-trust-status
 settings-trust-summary
+settings-tv-library-folder-evidence
+settings-tv-library-folder-status
 settings-validate-button
 settings-validation
 settings-video-apply-button
+settings-video-apply-hint
 settings-video-builder-status
 settings-video-cpu-preset
 settings-video-cpu-priority
@@ -1804,9 +1871,14 @@ settings-video-h264-max-bitrate
 settings-video-h264-max-height
 settings-video-h264-remux
 settings-video-preset
+settings-video-preset-help
+settings-video-preset-value
 settings-video-quality
+settings-video-quality-help
+settings-video-quality-value
 settings-video-remux-safe-codecs
 settings-video-reset-button
+settings-wizard-acknowledgement-list
 settings-wizard-add-library-button
 settings-wizard-back-button
 settings-wizard-copy-diagnostics-button
@@ -1814,8 +1886,21 @@ settings-wizard-detect-tools-button
 settings-wizard-hardware-result
 settings-wizard-library-list
 settings-wizard-next-button
+settings-wizard-path-rows
+settings-wizard-phase-0-status
+settings-wizard-phase-1-status
+settings-wizard-phase-2-status
+settings-wizard-phase-3-status
+settings-wizard-phase-4-status
 settings-wizard-preview-button
 settings-wizard-probe-hardware-button
+settings-wizard-readiness-blockers
+settings-wizard-readiness-changed
+settings-wizard-readiness-draft
+settings-wizard-readiness-preview
+settings-wizard-readiness-strip
+settings-wizard-readiness-validation
+settings-wizard-readiness-warnings
 settings-wizard-review-summary
 settings-wizard-save-button
 settings-wizard-save-result

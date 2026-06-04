@@ -588,6 +588,7 @@ Browser-backed smoke tests under `DesktopApp\tests\`. Require Chrome or Edge; sk
 | `test_webview_browser_pending_drain_guard_smoke.py` | Publish Button Guard refresh, blocked drain does not POST |
 | `test_webview_browser_completed_pending_proof_smoke.py` | Completed-to-Pending proof board, Completed Manifest correlation |
 | `test_webview_browser_large_table_smoke.py` | 260-row render-cap disclosure, filter warnings, hidden selected-row detail, no mutation posts |
+| `test_webview_browser_maintenance_change_ledger_smoke.py` | Maintenance Change Ledger summary/table/detail/hygiene, filters, empty state, and read-only GET usage |
 | `test_webview_browser_maintenance_reports_smoke.py` | Maintenance health/dry-run result rendering, Reports triage, tab placement, retry-state display, marker-clear payload guard |
 | `test_webview_browser_sample_validation_smoke.py` | Home sample-validation pilot/readiness/reconciliation, worksheet detail, preview-only backend route |
 | `test_webview_browser_home_live_state_smoke.py` | Home Daily-Driver, Operator Readiness, active work, command history, live progress evidence, page-switch viewport reset |

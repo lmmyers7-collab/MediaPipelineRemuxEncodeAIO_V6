@@ -1,0 +1,46 @@
+{
+  "id": "MP-CHANGE-2026-0604-014",
+  "title": "Hide file override drawer during series preview",
+  "version_target": "0.1.0-dev",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-04",
+  "date_completed": "2026-06-04",
+  "summary": "Hides the Queue file-override drawer while the Apply to Series preview modal is open.",
+  "reason": "The drawer and series preview modal overlapped, making the review step visually crowded and leaving two competing edit/review surfaces on screen.",
+  "affected_areas": [
+    "file_overrides",
+    "queue",
+    "webview"
+  ],
+  "behavior_before": "Opening Apply to Series left the right file-override drawer and its high-z-index backdrop visible behind the preview modal.",
+  "behavior_after": "Opening Apply to Series hides the drawer and drawer backdrop so the modal is the only active review surface. Cancel/close restores the drawer, while successful apply closes both the modal and drawer.",
+  "files_touched": [
+    "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.drawer.js",
+    "DesktopApp/tests/test_application_facade_web_static.py",
+    "DesktopApp/tests/test_webview_browser_queue_file_overrides_smoke.py",
+    "changes/unreleased/MP-CHANGE-2026-0604-014.json",
+    "summaries/DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.drawer.js.md",
+    "summaries/DesktopApp/tests/test_application_facade_web_static.py.md",
+    "summaries/DesktopApp/tests/test_webview_browser_queue_file_overrides_smoke.py.md",
+    "summaries/changes/unreleased/MP-CHANGE-2026-0604-014.json.md"
+  ],
+  "tests_added": [
+    "DesktopApp/tests/test_application_facade_web_static.py",
+    "DesktopApp/tests/test_webview_browser_queue_file_overrides_smoke.py",
+    "DesktopApp/tests/test_webview_frontend_mutation_boundary.py"
+  ],
+  "manual_validation": [
+    "DesktopApp\\\\Runtime\\\\Python\\\\python.exe -m py_compile DesktopApp\\\\tests\\\\test_webview_browser_queue_file_overrides_smoke.py DesktopApp\\\\tests\\\\test_application_facade_web_static.py - passed",
+    "DesktopApp\\\\Runtime\\\\Python\\\\python.exe -m unittest DesktopApp.tests.test_application_facade_web_static DesktopApp.tests.test_webview_frontend_mutation_boundary - passed",
+    "DesktopApp\\\\Runtime\\\\Python\\\\python.exe -m unittest DesktopApp.tests.test_webview_browser_queue_file_overrides_smoke - passed",
+    "DesktopApp\\\\Runtime\\\\Python\\\\python.exe scripts\\\\change_control\\\\validate_changes.py - passed: 23 packet(s) valid",
+    "DesktopApp\\\\Runtime\\\\Python\\\\python.exe scripts\\\\change_control\\\\validate_changes.py --require-worktree-coverage - failed: 237 changed files in the broader worktree are not listed in any unreleased change packet; this drawer/modal change packet paths are recorded.",
+    "DesktopApp\\\\Runtime\\\\Python\\\\python.exe scripts\\\\dev\\\\refresh_summaries.py --paths [drawer modal behavior touched paths] - passed",
+    "node --check DesktopApp\\\\mediapipeline_desktop_app\\\\ui_web\\\\static\\\\assets\\\\queue\\\\fileOverrides.drawer.js - passed"
+  ],
+  "rollback_plan": "Revert the drawer hide/restore helpers and restore the previous series modal close behavior in fileOverrides.drawer.js, then remove the related smoke/static assertions.",
+  "related_changes": [],
+  "notes": "Hide the file override drawer and drawer backdrop while the series preview modal is open; cancel restores the drawer and successful apply closes the edit surface.\nCompleted drawer/modal behavior update after targeted JS, static WebView, and browser Queue file-overrides smoke validation.\nStrict coverage failure is from unrelated pre-existing dirty/untracked files outside this drawer/modal behavior change."
+}

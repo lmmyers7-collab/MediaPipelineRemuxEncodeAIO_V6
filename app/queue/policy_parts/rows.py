@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Callable, Iterable, Mapping
 
 from app.observability.runtime_outcomes import runtime_outcome_index, source_identity_key
-from app.queue.file_overrides import resolve_file_override_match
+from app.queue.file_overrides import FILE_OVERRIDE_BATCH_METADATA_KEY, resolve_file_override_match
 from app.queue.policy_parts.rules import EMPTY_QUEUE_SNAPSHOT_WARNING
 from mediapipeline_desktop_app.models import QueueRecord
 
@@ -266,6 +266,12 @@ def _annotate_queue_file_override(
         return
     row["file_override_path"] = str(match.get("matched_path") or "")
     row["file_override_scope"] = str(match.get("scope") or "")
+    batch = entry.get(FILE_OVERRIDE_BATCH_METADATA_KEY) if isinstance(entry, Mapping) else None
+    if isinstance(batch, Mapping):
+        row["file_override_origin"] = str(batch.get("origin") or "")
+        row["file_override_batch_id"] = str(batch.get("batch_id") or "")
+        row["file_override_batch_label"] = str(batch.get("batch_label") or "")
+        row["file_override_batch_scope"] = str(batch.get("batch_scope") or "")
 
 
 def _optional_bool_value(value: Any) -> bool | None:

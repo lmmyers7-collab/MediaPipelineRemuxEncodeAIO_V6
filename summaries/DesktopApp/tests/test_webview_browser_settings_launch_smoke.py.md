@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_webview_browser_settings_launch_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-06-02
-sha256: c680c4ce6e531cda46bd73dccbe4dda1f725c7f4a2c407b4e85f6a5165ceebee
+sha256: be3744508f3d349c57529d47c41b065722225334ee1a470df9b9201d530162f3
 ---
 # `DesktopApp/tests/test_webview_browser_settings_launch_smoke.py`
 

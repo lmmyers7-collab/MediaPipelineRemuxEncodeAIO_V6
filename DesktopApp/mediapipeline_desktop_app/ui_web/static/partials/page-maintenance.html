@@ -13,11 +13,100 @@
             <span class="metric-label">Warnings</span>
             <strong id="maintenance-warning-count">0</strong>
           </section>
-          <section class="metric">
-            <span class="metric-label">Rows</span>
-            <strong id="maintenance-total-count">0</strong>
-          </section>
-        </div>
+        <section class="metric">
+          <span class="metric-label">Rows</span>
+          <strong id="maintenance-total-count">0</strong>
+        </section>
+      </div>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Change Ledger Summary</h2>
+            <strong id="maintenance-change-ledger-status">Not loaded</strong>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="maintenance-change-ledger-refresh-button" class="secondary-button">Refresh Ledger</button>
+          </div>
+          <pre id="maintenance-change-ledger-summary" class="prose-block">No change ledger loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Change Ledger</h2>
+            <strong id="maintenance-change-ledger-table-status">No rows</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label>
+              Status
+              <select id="maintenance-change-ledger-status-filter">
+                <option value="">All statuses</option>
+                <option value="planned">Planned</option>
+                <option value="in_progress">In progress</option>
+                <option value="complete">Complete</option>
+              </select>
+            </label>
+            <label>
+              Type
+              <select id="maintenance-change-ledger-type-filter">
+                <option value="">All types</option>
+                <option value="feature">Feature</option>
+                <option value="bugfix">Bug fix</option>
+                <option value="behavior_change">Behavior change</option>
+                <option value="refactor">Refactor</option>
+                <option value="config">Config</option>
+                <option value="schema">Schema</option>
+                <option value="docs">Docs</option>
+                <option value="test">Test</option>
+                <option value="release">Release</option>
+                <option value="tooling">Tooling</option>
+              </select>
+            </label>
+            <label>
+              Risk
+              <select id="maintenance-change-ledger-risk-filter">
+                <option value="">All risks</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </label>
+            <label>
+              Search
+              <input id="maintenance-change-ledger-search" type="search" autocomplete="off" placeholder="ID, title, area, file">
+            </label>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">ID</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Risk</th>
+                  <th scope="col">Title</th>
+                  <th scope="col">Python</th>
+                </tr>
+              </thead>
+              <tbody id="maintenance-change-ledger-rows">
+                <tr><td colspan="6">No change ledger loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p id="maintenance-change-ledger-table-legend" class="note table-legend">Change ledger rows: no selectable rows.</p>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Selected Change Detail</h2>
+            <strong id="maintenance-change-ledger-detail-status">No selection</strong>
+          </div>
+          <pre id="maintenance-change-ledger-detail" class="prose-block">No change selected. Select a ledger row to inspect summary, affected Python scripts, validation, rollback, and notes.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Changelog Hygiene</h2>
+            <strong id="maintenance-change-ledger-hygiene-status">Not loaded</strong>
+          </div>
+          <pre id="maintenance-change-ledger-hygiene" class="prose-block">No changelog hygiene evidence loaded.</pre>
+        </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>System Health</h2>
@@ -155,7 +244,7 @@
             <p class="note">No dependency atlas progress loaded.</p>
           </div>
           <pre id="dependency-atlas-detail" class="prose-block">No dependency atlas update has been executed from this shell.</pre>
-          <p class="note">Regenerates V6_dependency_atlas HTML, PNG/SVG diagrams, and CSV exports through backend tooling only. It does not touch media, queue, settings, manifests, or pipeline state.</p>
+          <p class="note">Regenerates HTML, PNG/SVG diagrams, and CSV exports under V6_dependency_atlas through backend tooling only. It does not touch media, queue, settings, manifests, or pipeline state.</p>
         </section>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">

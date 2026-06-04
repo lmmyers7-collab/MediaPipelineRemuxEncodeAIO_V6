@@ -8,6 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable
 
+from app.completed.manifest import OUTPUT_PROOF_DEFERRED, OUTPUT_PROOF_LIVE
 from app.completed.trust_fields import build_completed_row_trust_fields
 from app.completed.validation_state import validation_state_for_completed_row, validation_state_payload
 from app.observability.artifact_freshness import file_freshness_fields
@@ -156,8 +157,36 @@ def completed_subtitle_decision_preview(decisions: Iterable[dict[str, Any]], *, 
     return lines
 
 
+def _record_output_proof(record: CompletedJobRecord) -> str:
+    return str(record.payload.get("_diagnostics_output_proof") or "").strip().casefold()
+
+
+def _output_proof_deferred(record: CompletedJobRecord) -> bool:
+    return _record_output_proof(record) == OUTPUT_PROOF_DEFERRED
+
+
+def _payload_output_size(record: CompletedJobRecord) -> int | None:
+    raw = record.payload.get("output_size")
+    try:
+        return int(raw) if raw is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def completed_size_reduction_text(source_size: int | None, output_size: int | None) -> str:
+    if not source_size or not output_size or source_size <= 0:
+        return ""
+    pct = (1.0 - float(output_size) / float(source_size)) * 100.0
+    src_gb = float(source_size) / (1024 ** 3)
+    out_gb = float(output_size) / (1024 ** 3)
+    return f"{pct:+.1f}%  ({src_gb:.2f} → {out_gb:.2f} GB)"
+
+
 def completed_record_to_row(record: CompletedJobRecord) -> dict[str, Any]:
-    output_size = record.output_size_bytes
+    deferred = _output_proof_deferred(record)
+    # Deferred rows must not touch the filesystem: take output size from the
+    # manifest payload only (skip the stat() fallback in output_size_bytes).
+    output_size = _payload_output_size(record) if deferred else record.output_size_bytes
     source_size = record.source_size_bytes
     size_delta_percent = completed_size_delta_percent(source_size, output_size)
     size_policy_fields = completed_size_policy_fields(record.payload, size_delta_percent=size_delta_percent)
@@ -181,8 +210,9 @@ def completed_record_to_row(record: CompletedJobRecord) -> dict[str, Any]:
         "relative_path": record.relative_path,
         "output_file": record.output_file,
         "output_path": str(record.output_path),
-        "output_exists": bool(record.output_exists),
-        "output_health": record.output_health,
+        "output_exists": (None if deferred else bool(record.output_exists)),
+        "output_proof": (OUTPUT_PROOF_DEFERRED if deferred else OUTPUT_PROOF_LIVE),
+        "output_health": ("" if deferred else record.output_health),
         "source_path": record.source_path_text,
         "manifest_output_path": str(record.payload.get("output_path", "") or "").strip(),
         "manifest_output_file": str(record.payload.get("output_file", "") or "").strip(),
@@ -190,7 +220,7 @@ def completed_record_to_row(record: CompletedJobRecord) -> dict[str, Any]:
         "source_size_bytes": record.source_size_bytes,
         "output_size_bytes": output_size,
         "output_size_text": format_bytes_compact(output_size or 0),
-        "size_reduction_text": record.size_reduction_text,
+        "size_reduction_text": completed_size_reduction_text(source_size, output_size),
         "size_delta_percent": size_delta_percent,
         "size_delta_label": completed_size_delta_label(size_delta_percent),
         "size_growth_over_5": bool(size_delta_percent is not None and size_delta_percent > 5.0),
@@ -313,6 +343,39 @@ def completed_row_consistency(record: CompletedJobRecord, row: dict[str, Any]) -
     output_path = record.output_path
     expected_sidecar = output_path.with_suffix(".pipeline.json")
     sidecar_path = record.sidecar_path
+    if row.get("output_proof") == OUTPUT_PROOF_DEFERRED or _output_proof_deferred(record):
+        # Output/sidecar existence proof is deferred under the bounded/summary
+        # proof budget: do not stat the filesystem and do not claim
+        # missing_output. Report the row as unverified so the UI surfaces the
+        # deferred state explicitly (output_proof + validation_status_state).
+        issues: list[str] = []
+        severity = "ok"
+        if not str(row.get("manifest_output_path") or "").strip() and not str(
+            row.get("manifest_output_file") or ""
+        ).strip():
+            issues.append("manifest_missing_output_path")
+            severity = "warning"
+        if sidecar_path != expected_sidecar:
+            issues.append("output_sidecar_mismatch")
+            if severity != "error":
+                severity = "warning"
+        return {
+            "expected_sidecar_path": str(expected_sidecar),
+            "sidecar_exists": None,
+            "sidecar_matches_output": sidecar_path == expected_sidecar,
+            "output_mtime": None,
+            "sidecar_mtime": None,
+            "size_bucket": completed_size_bucket(row),
+            "consistency_status": "Unverified",
+            "consistency_severity": severity,
+            "consistency_issues": issues,
+            "consistency_guidance": (
+                "Output existence proof is deferred for this row. Open the row, request "
+                "live proof, or use Completed Manifest and Run Logs before treating it as "
+                "proof of output."
+            ),
+        }
+
     output_exists = bool(row.get("output_exists"))
     sidecar_exists = completed_path_exists(sidecar_path)
     manifest_output_path = str(row.get("manifest_output_path") or "").strip()
@@ -367,7 +430,6 @@ def completed_row_consistency(record: CompletedJobRecord, row: dict[str, Any]) -
 def completed_row_operator_guidance(row: dict[str, Any]) -> dict[str, Any]:
     flags: list[str] = []
     severity = "ok"
-    output_exists = bool(row.get("output_exists"))
     health = str(row.get("output_health") or "").strip().casefold()
     publish_state = str(row.get("publish_state") or "").strip().casefold()
     route = str(row.get("route") or "").strip().casefold()
@@ -404,7 +466,7 @@ def completed_row_operator_guidance(row: dict[str, Any]) -> dict[str, Any]:
         runtime_successful and runtime_error_code.casefold() in COMPLETED_BENIGN_RUNTIME_ERROR_CODES
     )
 
-    if not output_exists:
+    if row.get("output_exists") is False:
         flags.append("missing_output")
         severity = "error"
     if health and health not in {"ok", "present", "healthy"}:
@@ -766,7 +828,7 @@ def completed_preview_fields(
         "rows": rows,
         "source": source,
         "count": len(rows),
-        "missing_output_count": sum(1 for row in rows if not bool(row.get("output_exists"))),
+        "missing_output_count": sum(1 for row in rows if row.get("output_exists") is False),
         "encode_count": sum(1 for row in rows if str(row.get("route") or "").startswith("encode")),
         "remux_count": sum(1 for row in rows if str(row.get("route") or "") == "remux"),
         "route_counts": count_by_key(rows, "route"),

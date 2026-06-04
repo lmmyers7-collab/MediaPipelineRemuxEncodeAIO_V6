@@ -11,14 +11,21 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from mediapipeline_desktop_app.models import ResolvedPaths, TelemetrySnapshot
 from app.telemetry.health import (
+    api_contract_health_rows,
     ass_to_srt_exception_row,
     ass_to_srt_missing_row,
     ass_to_srt_result_row,
+    bundle_layout_health_rows,
     bundled_tool_health_rows,
+    config_schema_health_rows,
+    configured_root_health_rows,
     find_ass_to_srt_script,
     find_bundled_or_system_tool,
+    library_output_health_rows,
     nvidia_smi_health_row,
+    process_guard_health_rows,
     powershell_health_row,
+    runtime_state_health_rows,
     subtitle_tool_health_rows,
 )
 from app.telemetry.nvidia import (
@@ -245,6 +252,140 @@ class TelemetryServiceTests(unittest.TestCase):
             ("ass_to_srt (subtitle converter)", False, "boom"),
         )
 
+    def test_expanded_environment_health_helpers_cover_config_paths_state_contract_process_and_layout(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            app_root = root / "DesktopApp"
+            state_root = root / "LocalBase" / "State"
+            active_jobs = state_root / "ActiveJobs"
+            for path in (
+                app_root,
+                root / "Movies",
+                root / "TV",
+                root / "Out",
+                root / "LocalBase",
+                root / "LibraryOut",
+                root / "PromotionDest",
+                state_root,
+                active_jobs,
+            ):
+                path.mkdir(parents=True, exist_ok=True)
+            config_path = root / "Pipeline" / "MediaPipeline_config.psd1"
+            config_path.parent.mkdir(parents=True, exist_ok=True)
+            config_path.write_text("@{}\n", encoding="utf-8")
+            progress_file = state_root / "progress.json"
+            progress_file.write_text('{"CurrentStage":"idle"}\n', encoding="utf-8")
+
+            for rel in (
+                "scripts/dev/start-local-api.bat",
+                "scripts/dev/start-tauri-preview.bat",
+                "scripts/dev/start-api-and-browser.bat",
+                "scripts/dev/run.bat",
+                "scripts/verify-env.bat",
+                "scripts/verify-env.ps1",
+                "DesktopApp/Runtime/Python/python.exe",
+                "Pipeline/PowerShell-7.6.0-win-x64/pwsh.exe",
+                "DesktopApp/mediapipeline_desktop_app/ui_web/static/index.html",
+            ):
+                path = root / rel
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("", encoding="utf-8")
+
+            config = {
+                "SourceMovies": str(root / "Movies"),
+                "SourceTV": str(root / "TV"),
+                "Outsource": str(root / "Out"),
+                "LocalBase": str(root / "LocalBase"),
+                "VideoCodec": "hevc_nvenc",
+                "LibraryProfiles": [
+                    {
+                        "id": "custom",
+                        "name": "Custom",
+                        "enabled": True,
+                        "source_path": str(root / "Movies"),
+                        "output_path": str(root / "LibraryOut"),
+                        "promotion_enabled": True,
+                        "promotion_destination": str(root / "PromotionDest"),
+                    }
+                ],
+            }
+            resolved = ResolvedPaths(
+                app_root=app_root,
+                workspace_root=root,
+                pipeline_path=root / "Pipeline" / "MediaPipeline.ps1",
+                config_path=config_path,
+                audit_script_path=root / "audit.ps1",
+                rerun_script_path=root / "rerun.ps1",
+                powershell_host=str(root / "Pipeline" / "PowerShell-7.6.0-win-x64" / "pwsh.exe"),
+                local_base=root / "LocalBase",
+                state_root=state_root,
+                active_jobs_path=active_jobs,
+                progress_file=progress_file,
+                config_data=config,
+            )
+            service = DesktopAppService(app_root)
+
+            rows = (
+                config_schema_health_rows(resolved)
+                + configured_root_health_rows(resolved)
+                + library_output_health_rows(resolved)
+                + runtime_state_health_rows(resolved)
+                + api_contract_health_rows()
+                + process_guard_health_rows(resolved, service)
+                + bundle_layout_health_rows(root, app_root)
+            )
+
+            for handler in list(service.logger.handlers):
+                base_filename = getattr(handler, "baseFilename", "")
+                if base_filename and str(base_filename).startswith(str(app_root)):
+                    service.logger.removeHandler(handler)
+                    handler.close()
+
+        by_name = {row[0]: row for row in rows}
+        self.assertTrue(by_name["Config schema"][1])
+        self.assertTrue(by_name["Configured root: SourceMovies"][1])
+        self.assertTrue(by_name["Library output root: Custom"][1])
+        self.assertTrue(by_name["Library promotion destination: Custom"][1])
+        self.assertTrue(by_name["Runtime state files"][1])
+        self.assertTrue(by_name["SQLite mirror (optional)"][1])
+        self.assertTrue(by_name["API contract"][1])
+        self.assertTrue(by_name["Process guard"][1])
+        self.assertTrue(by_name["Bundle layout"][1])
+        self.assertIn("/api/status is not an active V6 route", by_name["API contract"][2])
+
+    def test_expanded_environment_health_helpers_report_invalid_state_and_layout(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            state_root = root / "LocalBase" / "State"
+            state_root.mkdir(parents=True)
+            bad_json = state_root / "progress.json"
+            bad_json.write_text("{not json", encoding="utf-8")
+            bad_sqlite = state_root / "mediapipeline_state.sqlite3"
+            bad_sqlite.write_text("not sqlite", encoding="utf-8")
+            resolved = ResolvedPaths(
+                app_root=root / "DesktopApp",
+                workspace_root=root,
+                pipeline_path=root / "Pipeline" / "MediaPipeline.ps1",
+                config_path=root / "missing.psd1",
+                audit_script_path=root / "audit.ps1",
+                rerun_script_path=root / "rerun.ps1",
+                powershell_host=None,
+                local_base=root / "LocalBase",
+                state_root=state_root,
+                progress_file=bad_json,
+                config_data={},
+            )
+
+            state_rows = runtime_state_health_rows(resolved)
+            layout_rows = bundle_layout_health_rows(root, root / "DesktopApp")
+
+        self.assertFalse({row[0]: row for row in state_rows}["Runtime state files"][1])
+        self.assertIn("progress.json parse failed", {row[0]: row for row in state_rows}["Runtime state files"][2])
+        self.assertFalse({row[0]: row for row in state_rows}["SQLite mirror (optional)"][1])
+        self.assertIn("read-only open failed", {row[0]: row for row in state_rows}["SQLite mirror (optional)"][2])
+        self.assertFalse(layout_rows[0][1])
+        self.assertIn("Missing expected V6 layout", layout_rows[0][2])
+
     def test_check_environment_health_uses_helper_rows_and_subprocess_probe(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -260,13 +401,26 @@ class TelemetryServiceTests(unittest.TestCase):
                 "Pipeline/Tools/SubtitleEditLegacy/SubtitleEdit.exe",
                 "Pipeline/Tools/SubtitleEditLegacy/Tesseract302/tesseract.exe",
                 "Pipeline/Tools/SubtitleEditLegacy/Tesseract302/tessdata/eng.traineddata",
+                "Pipeline/PowerShell-7.6.0-win-x64/pwsh.exe",
+                "scripts/dev/start-local-api.bat",
+                "scripts/dev/start-tauri-preview.bat",
+                "scripts/dev/start-api-and-browser.bat",
+                "scripts/dev/run.bat",
+                "scripts/verify-env.bat",
+                "scripts/verify-env.ps1",
+                "DesktopApp/Runtime/Python/python.exe",
+                "DesktopApp/mediapipeline_desktop_app/ui_web/static/index.html",
             ):
                 path = root / rel
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("", encoding="utf-8")
+            for directory in (root / "Movies", root / "TV", root / "Outsource", root / "LocalBase" / "State" / "ActiveJobs"):
+                directory.mkdir(parents=True, exist_ok=True)
             script = root / "Pipeline" / "ass_to_srt.py"
             script.parent.mkdir(parents=True, exist_ok=True)
             script.write_text("", encoding="utf-8")
+            config_path = root / "Pipeline" / "MediaPipeline_config.psd1"
+            config_path.write_text("@{}\n", encoding="utf-8")
             service = DesktopAppService(app_root)
             service._nvidia_smi_checked = True
             service._nvidia_smi_path = None
@@ -274,11 +428,19 @@ class TelemetryServiceTests(unittest.TestCase):
                 app_root=app_root,
                 workspace_root=root,
                 pipeline_path=root / "Pipeline" / "pipeline.ps1",
-                config_path=root / "config.psd1",
+                config_path=config_path,
                 audit_script_path=root / "audit.ps1",
                 rerun_script_path=root / "rerun.ps1",
-                powershell_host="pwsh.exe",
+                powershell_host=str(root / "Pipeline" / "PowerShell-7.6.0-win-x64" / "pwsh.exe"),
+                local_base=root / "LocalBase",
+                state_root=root / "LocalBase" / "State",
+                active_jobs_path=root / "LocalBase" / "State" / "ActiveJobs",
                 config_data={
+                    "SourceMovies": str(root / "Movies"),
+                    "SourceTV": str(root / "TV"),
+                    "Outsource": str(root / "Outsource"),
+                    "LocalBase": str(root / "LocalBase"),
+                    "VideoCodec": "hevc_nvenc",
                     "ConvertBdpgsToSrt": True,
                     "ConvertVobSubToSrt": True,
                     "BdpgsExtractLanguages": ["eng"],
@@ -286,8 +448,13 @@ class TelemetryServiceTests(unittest.TestCase):
                 },
             )
 
-            def fake_run(*_args, **_kwargs):
-                return CapturedCommandResult(args=[], returncode=2, stdout="", stderr="")
+            def fake_run(args, **_kwargs):
+                arg_text = " ".join(str(item) for item in args)
+                if "ass_to_srt.py" in arg_text:
+                    return CapturedCommandResult(args=list(args), returncode=2, stdout="", stderr="")
+                if "-encoders" in arg_text:
+                    return CapturedCommandResult(args=list(args), returncode=0, stdout=" V..... hevc_nvenc\n", stderr="")
+                return CapturedCommandResult(args=list(args), returncode=0, stdout="probe ok", stderr="")
 
             progress_events: list[dict[str, object]] = []
             with patch("app.telemetry.service.run_capture", fake_run):
@@ -300,7 +467,13 @@ class TelemetryServiceTests(unittest.TestCase):
                     handler.close()
 
         by_name = {row[0]: row for row in rows}
-        self.assertEqual(by_name["PowerShell (pwsh)"], ("PowerShell (pwsh)", True, "pwsh.exe"))
+        self.assertTrue(by_name["Config schema"][1])
+        self.assertTrue(by_name["Configured root: SourceMovies"][1])
+        self.assertTrue(by_name["Runtime state files"][1])
+        self.assertTrue(by_name["API contract"][1])
+        self.assertTrue(by_name["Process guard"][1])
+        self.assertTrue(by_name["Bundle layout"][1])
+        self.assertEqual(by_name["PowerShell (pwsh)"][1], True)
         self.assertEqual(by_name["ffmpeg"][1], True)
         self.assertEqual(by_name["ffprobe"][1], True)
         self.assertEqual(by_name["mkvmerge"][1], True)
@@ -314,6 +487,9 @@ class TelemetryServiceTests(unittest.TestCase):
         self.assertTrue(any(event["active_step_id"] == "subtitle_helper" for event in progress_events))
         self.assertTrue(any(event["active_step_id"] == "subtitle_bdpgs_ocr" for event in progress_events))
         self.assertTrue(any(event["active_step_id"] == "subtitle_vobsub_ocr" for event in progress_events))
+        self.assertTrue(any(event["active_step_id"] == "api_contract" for event in progress_events))
+        self.assertTrue(any(event["active_step_id"] == "process_guard" for event in progress_events))
+        self.assertTrue(any(event["active_step_id"] == "bundle_layout" for event in progress_events))
         self.assertTrue(any(event["active_step_id"] == "pending_publish_path" for event in progress_events))
         self.assertTrue(all(isinstance(event["rows"], list) for event in progress_events))
 

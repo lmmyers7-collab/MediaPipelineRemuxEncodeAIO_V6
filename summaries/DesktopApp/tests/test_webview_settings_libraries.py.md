@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-03
 last_reviewed: 2026-05-29
-sha256: 68dff799a8566d38e6c78d84ee6161782839aaaf850c4e66a36e79e2225ea3b7
+sha256: 1909851cd757bc482234c84ece17a89a7d6094821bafad4d8d939a632ecd586b
 ---
 # `DesktopApp/tests/test_webview_settings_libraries.py`
 

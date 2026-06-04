@@ -155,6 +155,31 @@ $highCustomResult = Convert-ResultForSerialization -Result (New-AuditResult -Pat
 $orderedRows = @(New-AuditCsvRows -Entries @($lowCustomResult, $highCustomResult))
 Assert-SequenceEqual @($orderedRows | ForEach-Object { $_.LookupTitle }) @('Medium Review', 'High Rerun') 'Custom score weights did not control priority CSV ordering.'
 
+$script:AuditScorePolicy = ConvertTo-AuditScorePolicy -Policy @{
+    high_issue         = 9
+    medium_issue       = 8
+    rerun_bonus        = 3
+    issue_code_weights = @{
+        'audio-default-policy-mismatch' = 19
+        'audio-track-titles-missing'    = 31
+        'unknown-code'                  = 999
+    }
+}
+Assert-Equal (Get-PriorityScore -Issues @($highRerunIssue)) 22 'Custom high per-code score was not applied before rerun bucket.'
+Assert-Equal (Get-PriorityScore -Issues @($mediumIssue)) 31 'Custom medium per-code score was not applied.'
+Assert-Equal (Get-PriorityScore -Issues @($fallbackIssue)) 10 'Custom per-code policy changed fallback score unexpectedly.'
+Assert-True (-not $script:AuditScorePolicy['issue_code_weights'].ContainsKey('unknown-code')) 'Unknown issue-code weight was not ignored.'
+
+$script:AuditScorePolicy = ConvertTo-AuditScorePolicy -Policy @{
+    redownload_bucket  = 11
+    redownload_bonus   = 5
+    issue_code_weights = @{
+        'audio-default-policy-mismatch' = 999
+    }
+}
+$redownloadHighIssue = New-AuditIssue -Bucket 'REDOWNLOAD_CANDIDATE' -Code 'audio-default-policy-mismatch'
+Assert-Equal (Get-PriorityScore -Issues @($redownloadHighIssue)) 16 'Redownload bucket-first precedence was not preserved over high per-code score.'
+
 $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('mediapipeline-audit-score-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
 try {
@@ -173,6 +198,26 @@ try {
     Assert-Equal $importedPolicy['fallback_issue'] 0 'Imported policy did not clamp low score weight.'
     Assert-Equal $importedPolicy['redownload_bonus'] 1000 'Imported policy did not clamp high score weight.'
     Assert-Equal $importedPolicy['rerun_bonus'] 40 'Imported policy did not preserve missing default score weight.'
+    Assert-Equal $importedPolicy['issue_code_weights']['audio-default-policy-mismatch'] 17 'Imported v1 policy did not default high issue-code weights from saved high_issue.'
+    Assert-Equal $importedPolicy['issue_code_weights']['audio-track-titles-missing'] 40 'Imported v1 policy did not preserve missing medium issue-code defaults.'
+
+    @{
+        version = 2
+        policy = @{
+            high_issue         = 12
+            medium_issue       = 34
+            issue_code_weights = @{
+                'audio-default-policy-mismatch' = 77
+                'audio-track-titles-missing'    = 5000
+                'unknown-code'                  = 99
+            }
+        }
+    } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $policyPath -Encoding UTF8
+
+    $importedPolicy = Import-AuditScorePolicy -Path $policyPath
+    Assert-Equal $importedPolicy['issue_code_weights']['audio-default-policy-mismatch'] 77 'Imported v2 policy did not use saved high issue-code weight.'
+    Assert-Equal $importedPolicy['issue_code_weights']['audio-track-titles-missing'] 1000 'Imported v2 policy did not clamp medium issue-code weight.'
+    Assert-True (-not $importedPolicy['issue_code_weights'].ContainsKey('unknown-code')) 'Imported v2 policy did not ignore unknown issue-code weight.'
 } finally {
     if (Test-Path -LiteralPath $tempRoot) {
         Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue

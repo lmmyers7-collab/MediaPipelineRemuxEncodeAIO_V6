@@ -20,6 +20,13 @@
   let foExactTrackOverrideEntry = null;
   let foExactTrackWarnings = [];
   let foUnmatchedExactSelectors = emptyExactSelectorState();
+  let foCommandInFlight = false;
+  let foDrawerBaselineSignature = "";
+  let foDrawerDirty = false;
+  let foSeriesPreviewPayload = null;
+  let foSeriesFilter = "all";
+  let foSeriesModalTrigger = null;
+  let foDrawerHiddenForSeriesModal = false;
 
   const DRAWER_FIELD_HINT_IDS = {
     audioKeepLanguages: "fo-audio-keep-langs-inherited",
@@ -43,6 +50,7 @@
     audioPreferDefaultLanguage: "audio.preferDefaultLanguage",
     subtitleKeepLanguages: "subtitles.keepTracks",
     subtitleDropLanguages: "subtitles.dropTracks",
+    subtitleBurnTrack: "subtitles.burnTrack",
     subtitleStripAll: "subtitles.stripAll",
     routeProfile: "routing.profile",
     routingRouteThresholdMode: "routing.routeThresholdMode",
@@ -58,6 +66,7 @@
     audioPreferDefaultLanguage: { settingKey: "PreferredDefaultAudioLanguages", groups: ["audio", "effective_audio"], scalarLanguage: true },
     subtitleKeepLanguages: { settingKey: "SubKeepLanguages", groups: ["subtitles", "effective_subtitles"] },
     subtitleDropLanguages: {},
+    subtitleBurnTrack: {},
     subtitleStripAll: {},
     routeProfile: { settingKey: "RoutingProfile", groups: ["editor", "effective_editor"] },
     routingRouteThresholdMode: { settingKey: "RouteThresholdMode", groups: ["editor", "effective_editor"] },
@@ -78,8 +87,14 @@
   const ROUTE_FORCE_VALUES = new Set(["auto", "encode", "remux", "transcode"]);
   const TRACK_ACTION_FIELD_PATHS = {
     audio: { keep: "audio.keepTracks", drop: "audio.dropTracks" },
-    subtitle: { keep: "subtitles.keepTracks", drop: "subtitles.dropTracks" },
+    subtitle: { keep: "subtitles.keepTracks", drop: "subtitles.dropTracks", burn: "subtitles.burnTrack" },
   };
+  const SOURCE_INFO_BASIS_LABELS = Object.freeze({
+    file_size_duration: "from size and duration",
+    primary_video_reported: "reported video stream",
+    container_reported: "reported container",
+    unavailable: "",
+  });
   const DRAWER_FOCUSABLE_SELECTOR = [
     "a[href]",
     "button",
@@ -128,9 +143,25 @@
   }
 
   function byId(id) { return document.getElementById(id); }
-  function setStatus(msg) {
+  function statusToneForMessage(msg) {
+    const text = String(msg || "").trim().toLowerCase();
+    if (!text) return "info";
+    if (text.startsWith("error") || text.includes(" cannot ") || text.includes("could not")) return "error";
+    if (text.includes("saved") || text.includes("loaded") || text.includes("cleared")) return "success";
+    if (text.includes("unsaved") || text.includes("cancelled") || text.includes("nothing to save")) return "warning";
+    if (text.includes("saving") || text.includes("clearing") || text.includes("loading")) return "working";
+    return "info";
+  }
+
+  function setStatus(msg, tone = "") {
     const el = byId("fo-drawer-status");
-    if (el) el.textContent = msg;
+    if (!el) return;
+    const text = String(msg || "");
+    const resolvedTone = tone || statusToneForMessage(text);
+    el.textContent = text;
+    el.dataset.tone = resolvedTone;
+    el.setAttribute("role", resolvedTone === "error" ? "alert" : "status");
+    el.setAttribute("aria-live", resolvedTone === "error" ? "assertive" : "polite");
   }
 
   function isPlainObject(value) {
@@ -143,6 +174,7 @@
       audioDrop: [],
       subtitleKeep: [],
       subtitleDrop: [],
+      subtitleBurn: [],
     };
   }
 
@@ -196,7 +228,7 @@
     select.replaceChildren();
     const inherit = document.createElement("option");
     inherit.value = "";
-    inherit.textContent = "Inherit";
+    inherit.textContent = savedPolicyOptionText(select.dataset.foRouteControl || "");
     select.appendChild(inherit);
     choices.forEach((choice) => {
       const option = document.createElement("option");
@@ -239,45 +271,6 @@
     routeControlElement = function () { return null; },
     scheduleRoutePreviewFromCurrentForm = function () {},
   } = _fileOverridesRoutePreview;
-
-  const __fileOverridesFolderPreviewMod = window.__queueFileOverridesFolderPreviewModule || {};
-  delete window.__queueFileOverridesFolderPreviewModule;
-  const _fileOverridesFolderPreview = typeof __fileOverridesFolderPreviewMod.createFileOverridesFolderPreviewModule === "function"
-    ? __fileOverridesFolderPreviewMod.createFileOverridesFolderPreviewModule({
-      apiGet: typeof apiGet === "function" ? apiGet : window.apiGet,
-      apiPost: typeof apiPost === "function" ? apiPost : window.apiPost,
-      appendCommandResult: typeof appendCommandResult === "function" ? appendCommandResult : window.appendCommandResult,
-      backendErrorMessage,
-      byId,
-      clearElementChildren,
-      closeFileSettingsDrawer: () => closeFileSettingsDrawer(),
-      currentItem: () => foCurrentItem,
-      currentPath: () => foCurrentPath,
-      documentRef: document,
-      exactSelectorForTrack,
-      fileOverridesRoute: FILE_OVERRIDES_ROUTE,
-      hasOwnValue,
-      isPlainObject,
-      langCodesToRules,
-      loadFileOverrideEffectiveForPath: (path, item) => loadFileOverrideEffectiveForPath(path, item),
-      parseLangList,
-      refreshAll: typeof refreshAll === "function" ? refreshAll : window.refreshAll,
-      setStatus,
-      setTrackText,
-    })
-    : {};
-  const {
-    clearFolderRuleManagementPanel = function () {},
-    clearFolderRulePreviewPanel = function () {},
-    handleFolderPreviewScopeChange = function () {},
-    handleFolderRuleManagementClick = function () {},
-    invalidateFolderPreviewAfterRuleChange = function () {},
-    loadFolderRulesForDrawer = async function () {},
-    openFolderRulePreviewPanel = async function () {},
-    openLibrarySettingsFromFolderHandoff = function () {},
-    saveFolderRuleForPreview = async function () {},
-    syncFolderPreviewSaveState = function () {},
-  } = _fileOverridesFolderPreview;
 
   function firstSettingValue(source, key, groups = []) {
     const candidates = [source];
@@ -363,8 +356,57 @@
     if (source === "folder_override") return "folder override";
     if (source === "library") return "Library";
     if (source === "global_default") return "Global";
+    if (source === "pipeline_policy" || source === "default") return "normal pipeline policy";
     if (source === "unavailable") return "unavailable";
     return "";
+  }
+
+  function savedPolicySourceLabel(source) {
+    if (source === "library") return "library";
+    if (source === "global_default") return "global";
+    if (source === "pipeline_policy" || source === "default") return "pipeline policy";
+    return "";
+  }
+
+  function savedPolicyFieldInfo(fieldKey, payload = foLastEffectivePayload) {
+    const inherited = isPlainObject(payload?.inherited) ? payload.inherited : {};
+    const expanded = {
+      ...(isPlainObject(payload?.expanded_effective_fields) ? payload.expanded_effective_fields : {}),
+      ...(isPlainObject(payload?.route_video_effective_fields) ? payload.route_video_effective_fields : {}),
+    };
+    const expandedField = isPlainObject(expanded[fieldKey]) ? expanded[fieldKey] : {};
+    const inheritedField = isPlainObject(expandedField.inherited)
+      ? expandedField.inherited
+      : (isPlainObject(inherited[fieldKey]) ? inherited[fieldKey] : {});
+    const effectiveField = isPlainObject(expandedField.effective) ? expandedField.effective : {};
+    const field = inheritedField.available ? inheritedField : effectiveField;
+    const source = String(field.source || "").trim();
+    const display = String(field.display || effectiveInheritedHintValue(fieldKey, field) || "").trim();
+    return {
+      source,
+      sourceLabel: savedPolicySourceLabel(source),
+      display,
+    };
+  }
+
+  function savedPolicyButtonText(fieldKey) {
+    const info = savedPolicyFieldInfo(fieldKey);
+    return info.sourceLabel ? `Use ${info.sourceLabel} setting` : "Use saved policy";
+  }
+
+  function savedPolicyOptionText(fieldKey) {
+    const info = savedPolicyFieldInfo(fieldKey);
+    if (info.sourceLabel && info.display) return `Use ${info.sourceLabel} setting: ${info.display}`;
+    if (info.sourceLabel) return `Use ${info.sourceLabel} setting`;
+    return "Use saved policy";
+  }
+
+  function updateRouteBlankOptions() {
+    ROUTE_FIELD_KEYS.forEach((fieldKey) => {
+      const control = routeControlElement(fieldKey);
+      const option = control?.querySelector('option[value=""]');
+      if (option) option.textContent = savedPolicyOptionText(fieldKey);
+    });
   }
 
   function setInheritedHint(fieldKey, inheritedValue, defaultsAvailable) {
@@ -376,7 +418,7 @@
     const effectiveSourceLabel = fileOverrideEffectiveSourceLabel(inheritedValue?.effectiveSource || "");
     const effectiveValue = String(inheritedValue?.effectiveValue || "").trim();
     const inheritedSourceLabel = fileOverrideEffectiveSourceLabel(inheritedValue?.source || "");
-    const inheritedPrefix = inheritedSourceLabel === "Global" ? "Global default" : "Library default";
+    const inheritedPrefix = inheritedSourceLabel === "Global" ? "Global setting" : "Library setting";
     if (inheritedValue?.effectiveAvailable && effectiveSourceLabel && effectiveValue) {
       const inheritedText = inheritedValue?.available ? formatInheritedValue(inheritedValue) : "unavailable";
       el.textContent = `Effective: ${formatInheritedValue({ value: effectiveValue, unit: inheritedValue?.unit || "" })} (${effectiveSourceLabel}). ${inheritedPrefix}: ${inheritedText}`;
@@ -387,7 +429,7 @@
       el.textContent = `${inheritedPrefix}: ${formatInheritedValue(inheritedValue)}`;
       el.dataset.available = "true";
     } else {
-      el.textContent = "Library default: unavailable";
+      el.textContent = "Saved policy value: unavailable";
       el.dataset.available = "false";
     }
   }
@@ -401,14 +443,14 @@
     if (!status) return;
     status.dataset.available = available ? "true" : "false";
     if (!available) {
-      status.textContent = "Library defaults unavailable for this queue row.";
+      status.textContent = "Saved policy values unavailable for this queue row.";
       return;
     }
     const fieldValues = Object.values(defaults.fields || {}).filter((field) => field?.available);
     if (fieldValues.length) {
-      status.textContent = `Inherited defaults shown from ${defaults.sourceLabel}. Unavailable field hints were not reported on the queue row.`;
+      status.textContent = `Saved policy values shown from ${defaults.sourceLabel}. Unavailable field hints were not reported on the queue row.`;
     } else {
-      status.textContent = `Library defaults unavailable for these drawer fields; the row only reported ${defaults.sourceLabel}.`;
+      status.textContent = `Saved policy values unavailable for these drawer fields; the row only reported ${defaults.sourceLabel}.`;
     }
   }
 
@@ -417,7 +459,7 @@
     const name = String(library.name || library.id || "").trim();
     if (library.available) return name ? `Library ${name}` : "Library";
     const inherited = isPlainObject(payload?.inherited) ? Object.values(payload.inherited) : [];
-    if (inherited.some((field) => field?.source === "global_default")) return "Global defaults";
+    if (inherited.some((field) => field?.source === "global_default")) return "Global settings";
     return drawerLibrarySourceLabel(item, "");
   }
 
@@ -469,6 +511,7 @@
       ? payload.file_override
       : null;
     renderProcessingRouteControls(payload);
+    updateRouteBlankOptions();
     renderDrawerInheritedDefaults(drawerDefaultsFromEffectivePayload(payload, item));
     if (isPlainObject(payload.file_override)) {
       populateDrawerForm(payload.file_override);
@@ -478,6 +521,7 @@
     renderDrawerTrackMetadata(payload);
     renderDrawerUseInheritedButtons(payload);
     renderRoutePreviewFromEffectivePayload(payload);
+    markDrawerClean();
     return true;
   }
 
@@ -485,12 +529,16 @@
     document.querySelectorAll("[data-fo-use-inherited]").forEach((button) => {
       button.hidden = true;
       button.disabled = true;
+      button.textContent = "Use saved policy";
     });
   }
 
   function setDrawerUseInheritedAvailable(fieldKey, isAvailable) {
     const button = document.querySelector(`[data-fo-use-inherited="${fieldKey}"]`);
     if (!button) return;
+    const text = savedPolicyButtonText(fieldKey);
+    button.textContent = text;
+    button.setAttribute("aria-label", `${text} for ${fieldKey.replace(/([A-Z])/g, " $1").toLowerCase()}`);
     button.hidden = !isAvailable;
     button.disabled = !isAvailable;
   }
@@ -505,6 +553,80 @@
       const isExactFileOverride = sources[fieldPath] === "file_override";
       setDrawerUseInheritedAvailable(fieldKey, Boolean(state[fieldKey] && isExactFileOverride));
     });
+  }
+
+  function setDrawerCommandButtonsDisabled(disabled) {
+    const saveButton = byId("fo-drawer-save");
+    const clearButton = byId("fo-drawer-clear");
+    const seriesButton = byId("fo-series-preview-open");
+    const seriesApplyButton = byId("fo-series-apply");
+    const commandDisabled = Boolean(disabled);
+    if (saveButton) saveButton.disabled = commandDisabled || !foDrawerDirty;
+    if (clearButton) clearButton.disabled = Boolean(disabled);
+    if (seriesButton) seriesButton.disabled = commandDisabled || !foCurrentPath;
+    if (seriesApplyButton && commandDisabled) seriesApplyButton.disabled = true;
+  }
+
+  function normalizeForSignature(value) {
+    if (Array.isArray(value)) return value.map(normalizeForSignature);
+    if (isPlainObject(value)) {
+      const normalized = {};
+      Object.keys(value).sort().forEach((key) => {
+        if (key === "path") return;
+        normalized[key] = normalizeForSignature(value[key]);
+      });
+      return normalized;
+    }
+    return value === undefined ? null : value;
+  }
+
+  function drawerFormSignature() {
+    const payload = buildOverridePayload();
+    return JSON.stringify(normalizeForSignature({
+      clear_fields: collectFileOverrideFieldsToClearOnSave(),
+      payload: payload || {},
+    }));
+  }
+
+  function syncDrawerDirtyState() {
+    const signature = drawerFormSignature();
+    foDrawerDirty = Boolean(foDrawerBaselineSignature && signature !== foDrawerBaselineSignature);
+    const drawer = byId("fo-drawer");
+    if (drawer) drawer.dataset.dirty = foDrawerDirty ? "true" : "false";
+    setDrawerCommandButtonsDisabled(foCommandInFlight);
+    return foDrawerDirty;
+  }
+
+  function markDrawerClean() {
+    foDrawerBaselineSignature = drawerFormSignature();
+    foDrawerDirty = false;
+    const drawer = byId("fo-drawer");
+    if (drawer) drawer.dataset.dirty = "false";
+    setDrawerCommandButtonsDisabled(foCommandInFlight);
+  }
+
+  function handleDrawerFormChanged() {
+    const wasDirty = foDrawerDirty;
+    const isDirty = syncDrawerDirtyState();
+    if (!wasDirty && isDirty) {
+      setStatus("Unsaved changes. Save Override to store them or close to discard.", "warning");
+    }
+  }
+
+  function confirmDiscardDrawerChanges(actionLabel = "close this drawer") {
+    if (!foDrawerDirty) return true;
+    if (foCommandInFlight) {
+      setStatus("Wait for the current file override command to finish before closing.", "warning");
+      return false;
+    }
+    const ok = window.confirm(
+      `Discard unsaved file override changes and ${actionLabel}?`
+    );
+    if (!ok) {
+      setStatus("Unsaved changes kept.", "warning");
+      return false;
+    }
+    return true;
   }
 
   function clearDrawerOverrideMarkers() {
@@ -548,6 +670,7 @@
       audioPreferDefaultLanguage: hasOwnValue(audio, "preferDefaultLanguage") && String(audio.preferDefaultLanguage || "").trim() !== "",
       subtitleKeepLanguages: ruleListHasValues(subs.keepTracks),
       subtitleDropLanguages: ruleListHasValues(subs.dropTracks),
+      subtitleBurnTrack: isPlainObject(subs.burnTrack),
       subtitleStripAll: hasOwnValue(subs, "stripAll"),
       routeProfile: hasOwnValue(routing, "profile") && String(routing.profile || "").trim() !== "",
       routingRouteThresholdMode: hasOwnValue(routing, "routeThresholdMode") && String(routing.routeThresholdMode || "").trim() !== "",
@@ -624,8 +747,18 @@
 
   function handleFileSettingsDrawerKeydown(event) {
     if (!isFileSettingsDrawerOpen()) return;
+    if (isSeriesModalOpen()) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeSeriesModal();
+        return;
+      }
+      if (event.key === "Tab") handleSeriesModalTab(event);
+      return;
+    }
     if (event.key === "Escape") {
-      closeFileSettingsDrawer();
+      event.preventDefault();
+      requestCloseFileSettingsDrawer();
       return;
     }
     if (event.key !== "Tab") return;
@@ -667,18 +800,19 @@
     foCurrentPath = path;
     foCurrentItem = queueItem;
     foLastEffectivePayload = null;
+    resetSeriesPreviewState();
 
     const titleEl = byId("fo-drawer-title");
     const pathEl  = byId("fo-drawer-path");
     const name    = queueItem.display_name || queueItem.relative_path || path || "Unknown";
-    if (titleEl) titleEl.textContent = "File Settings — " + (name.length > 40 ? "…" + name.slice(-40) : name);
+    if (titleEl) titleEl.textContent = "File — " + (name.length > 40 ? name.slice(0, 40) + "…" : name);
     if (pathEl) pathEl.textContent = path;
 
     clearDrawerForm();
-    clearFolderRulePreviewPanel();
-    clearFolderRuleManagementPanel();
+    showDrawerTrackMetadataLoadingState();
     renderDrawerInheritedDefaults(getDrawerLibraryDefaults(queueItem));
     setStatus("Loading current override…");
+    markDrawerClean();
     loadFileOverrideForPath(path);
     loadFileOverrideEffectiveForPath(path, queueItem);
 
@@ -690,21 +824,27 @@
     setTimeout(focusInitialFileSettingsDrawerControl, 50);
   }
 
+  function requestCloseFileSettingsDrawer() {
+    if (confirmDiscardDrawerChanges("close this drawer")) closeFileSettingsDrawer();
+  }
+
   function closeFileSettingsDrawer() {
     const overlay = byId("fo-overlay");
     const drawer  = byId("fo-drawer");
+    closeSeriesModal({ restoreFocus: false, restoreDrawer: false });
+    resetSeriesPreviewState();
     if (overlay) { overlay.hidden = true; overlay.setAttribute("aria-hidden", "true"); }
     if (drawer)  { drawer.hidden  = true; }
     clearDrawerOverrideMarkers();
     clearDrawerUseInheritedButtons();
     clearDrawerTrackMetadata();
     clearProcessingRouteControls();
-    clearFolderRulePreviewPanel();
-    clearFolderRuleManagementPanel();
     foLastEffectivePayload = null;
     foExactTrackOverrideEntry = null;
     foExactTrackWarnings = [];
     foUnmatchedExactSelectors = emptyExactSelectorState();
+    foDrawerBaselineSignature = "";
+    foDrawerDirty = false;
     foCurrentPath = "";
     foCurrentItem = null;
     restoreFileSettingsDrawerFocus();
@@ -743,24 +883,43 @@
     if (resetRouteControls) clearProcessingRouteControls();
     else clearRoutePreviewStatus();
     syncSubFilterFields();
+    syncDrawerDirtyState();
+  }
+
+  function selectedSubtitleBurnControls() {
+    return Array.from(document.querySelectorAll('[data-fo-track-action][data-fo-track-kind="subtitle"]'))
+      .filter((control) => String(control.value || "") === "burn");
   }
 
   function syncSubFilterFields() {
     const stripAll = byId("fo-sub-strip-all");
     const fields   = byId("fo-sub-filter-fields");
     const stripAllChecked = Boolean(stripAll && stripAll.checked);
+    const burnControls = selectedSubtitleBurnControls();
+    const burnSelected = burnControls.length > 0;
+    const burnedControl = burnControls[0] || null;
+    if (burnControls.length > 1) {
+      burnControls.slice(1).forEach((control) => { control.value = ""; });
+    }
     if (!fields) return;
-    if (stripAllChecked) {
+    if (stripAllChecked || burnSelected) {
       fields.style.opacity = "0.4";
       fields.style.pointerEvents = "none";
     } else {
       fields.style.opacity = "";
       fields.style.pointerEvents = "";
     }
+    if (stripAll) {
+      stripAll.disabled = burnSelected;
+      if (burnSelected) stripAll.checked = false;
+    }
     document.querySelectorAll('[data-fo-track-action][data-fo-track-kind="subtitle"]').forEach((control) => {
       const hasIndex = control.dataset.foTrackIndexAvailable !== "false";
-      control.disabled = stripAllChecked || !hasIndex;
+      control.disabled = stripAllChecked || !hasIndex || (burnSelected && control !== burnedControl);
       if (stripAllChecked) control.value = "";
+      if (burnSelected && control !== burnedControl) control.title = "Only one subtitle stream can be burned; clear the burned row to edit other subtitle actions.";
+      else if (!hasIndex) control.title = "Track stream index unavailable; exact-track override cannot be saved for this row.";
+      else control.title = "";
     });
   }
 
@@ -805,6 +964,7 @@
     if (videoEncodeLadder) videoEncodeLadder.value = String(video.encodeLadder || "");
     renderDrawerOverrideMarkers(entry);
     syncSubFilterFields();
+    syncDrawerDirtyState();
   }
 
   function buildOverridePayload() {
@@ -832,8 +992,11 @@
     if (preferDefaultLanguage) audio.preferDefaultLanguage = preferDefaultLanguage;
 
     const subtitles = {};
-    if (stripAll) subtitles.stripAll = true;
-    if (!stripAll) {
+    if (exactTrackSelectors.subtitleBurn.length) {
+      subtitles.burnTrack = exactTrackSelectors.subtitleBurn[0];
+    } else if (stripAll) {
+      subtitles.stripAll = true;
+    } else {
       appendSelectorRules(subtitles, "keepTracks", langCodesToRules(subKeepList));
       appendSelectorRules(subtitles, "keepTracks", exactTrackSelectors.subtitleKeep);
       appendSelectorRules(subtitles, "dropTracks", langCodesToRules(subDropList));
@@ -864,18 +1027,469 @@
     return payload;
   }
 
+  function buildSeriesProposedOverridePayload() {
+    const payload = buildOverridePayload();
+    if (!payload) return null;
+    const proposed = { ...payload };
+    delete proposed.path;
+    return proposed;
+  }
+
+  function setSeriesStatus(message, tone = "") {
+    const el = byId("fo-series-status");
+    if (!el) return;
+    const text = String(message || "");
+    const resolvedTone = tone || statusToneForMessage(text);
+    el.textContent = text;
+    el.dataset.tone = resolvedTone;
+    el.setAttribute("role", resolvedTone === "error" ? "alert" : "status");
+    el.setAttribute("aria-live", resolvedTone === "error" ? "assertive" : "polite");
+  }
+
+  function isSeriesModalOpen() {
+    const modal = byId("fo-series-modal");
+    return Boolean(modal && !modal.hidden);
+  }
+
+  function openSeriesModal(trigger) {
+    const modal = byId("fo-series-modal");
+    if (!modal) return;
+    foSeriesModalTrigger = trigger || document.activeElement;
+    hideDrawerForSeriesModal();
+    modal.hidden = false;
+    modal.removeAttribute("aria-hidden");
+    const focusTarget = byId("fo-series-apply") || byId("fo-series-modal-close") || modal;
+    setTimeout(() => {
+      if (focusTarget && typeof focusTarget.focus === "function") focusTarget.focus();
+    }, 0);
+  }
+
+  function closeSeriesModal({ restoreFocus = true, restoreDrawer = true } = {}) {
+    const modal = byId("fo-series-modal");
+    if (modal) {
+      modal.hidden = true;
+      modal.setAttribute("aria-hidden", "true");
+    }
+    setSeriesStatus("");
+    if (restoreDrawer) {
+      restoreDrawerAfterSeriesModal();
+    } else {
+      foDrawerHiddenForSeriesModal = false;
+    }
+    if (restoreFocus) {
+      const trigger = foSeriesModalTrigger;
+      if (trigger && trigger.isConnected && typeof trigger.focus === "function" && !trigger.disabled) {
+        trigger.focus();
+      }
+    }
+    foSeriesModalTrigger = null;
+  }
+
+  function hideDrawerForSeriesModal() {
+    const overlay = byId("fo-overlay");
+    const drawer = byId("fo-drawer");
+    if (!drawer || drawer.hidden) return;
+    foDrawerHiddenForSeriesModal = true;
+    if (overlay) {
+      overlay.hidden = true;
+      overlay.setAttribute("aria-hidden", "true");
+    }
+    drawer.hidden = true;
+    drawer.setAttribute("aria-hidden", "true");
+  }
+
+  function restoreDrawerAfterSeriesModal() {
+    if (!foDrawerHiddenForSeriesModal) return;
+    const overlay = byId("fo-overlay");
+    const drawer = byId("fo-drawer");
+    if (overlay) {
+      overlay.hidden = false;
+      overlay.removeAttribute("aria-hidden");
+    }
+    if (drawer) {
+      drawer.hidden = false;
+      drawer.removeAttribute("aria-hidden");
+    }
+    foDrawerHiddenForSeriesModal = false;
+  }
+
+  function getSeriesModalFocusableElements() {
+    const modal = byId("fo-series-modal");
+    if (!modal || modal.hidden || typeof modal.querySelectorAll !== "function") return [];
+    return Array.from(modal.querySelectorAll(DRAWER_FOCUSABLE_SELECTOR)).filter((element) => {
+      if (!isHTMLElement(element)) return false;
+      if (element.disabled) return false;
+      if (element.getAttribute("aria-hidden") === "true") return false;
+      return !fileSettingsElementIsHidden(element);
+    });
+  }
+
+  function handleSeriesModalTab(event) {
+    const focusable = getSeriesModalFocusableElements();
+    const modal = byId("fo-series-modal");
+    if (!focusable.length) {
+      event.preventDefault();
+      if (modal && typeof modal.focus === "function") modal.focus();
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const active = document.activeElement;
+    if (event.shiftKey && active === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  function resetSeriesPreviewState() {
+    foSeriesPreviewPayload = null;
+    foSeriesFilter = "all";
+    document.querySelectorAll("[data-fo-series-filter]").forEach((button) => {
+      button.setAttribute("aria-pressed", button.dataset.foSeriesFilter === "all" ? "true" : "false");
+    });
+    const summary = byId("fo-series-summary");
+    const detected = byId("fo-series-detected");
+    const fields = byId("fo-series-fields");
+    const counts = byId("fo-series-counts");
+    const issues = byId("fo-series-issues");
+    const rows = byId("fo-series-rows");
+    const applyButton = byId("fo-series-apply");
+    if (summary) summary.textContent = "Preview has not loaded.";
+    [detected, fields, counts, issues].forEach((el) => { if (el) el.replaceChildren(); });
+    if (rows) {
+      rows.replaceChildren();
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 4;
+      cell.textContent = "No preview loaded.";
+      row.appendChild(cell);
+      rows.appendChild(row);
+    }
+    if (applyButton) applyButton.disabled = true;
+  }
+
+  function fieldPathLabel(path) {
+    const labels = {
+      "routing.profile": "Route profile",
+      "routing.routeThresholdMode": "Route threshold mode",
+      "video.codec": "Video codec",
+      "video.container": "Output container",
+      "video.encodePreset": "Encode preset",
+      "video.encodeLadder": "Encode ladder",
+      "audio.keepTracks": "Audio keep tracks",
+      "audio.dropTracks": "Audio drop tracks",
+      "audio.maxChannels": "Audio max channels",
+      "audio.preferDefaultLanguage": "Audio preferred default language",
+      "subtitles.keepTracks": "Subtitle keep tracks",
+      "subtitles.dropTracks": "Subtitle drop tracks",
+      "subtitles.burnTrack": "Subtitle burn track",
+      "subtitles.stripAll": "Subtitle strip all",
+    };
+    const text = String(path || "").trim();
+    return labels[text] || text.replace(/[._-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  function appendSeriesChip(container, label, tone = "") {
+    if (!container) return;
+    const chip = document.createElement("span");
+    chip.textContent = label;
+    if (tone) chip.dataset.tone = tone;
+    container.appendChild(chip);
+  }
+
+  function seriesActionLabel(action) {
+    const labels = {
+      will_update: "Will update",
+      replace_prior_batch: "Replace batch",
+      protected_manual: "Protected",
+      skipped: "Skipped",
+      issue: "Issue",
+    };
+    return labels[String(action || "")] || String(action || "Unknown");
+  }
+
+  function seriesActionTone(action) {
+    if (action === "protected_manual") return "warning";
+    if (action === "issue") return "error";
+    if (action === "skipped") return "warning";
+    return "success";
+  }
+
+  function seriesEpisodeText(row) {
+    const season = Number(row?.season_number || 0);
+    const episode = Number(row?.episode_number || 0);
+    if (season || episode) return `S${String(season).padStart(2, "0")}E${String(episode).padStart(2, "0")}`;
+    return "";
+  }
+
+  function seriesRowVisible(row) {
+    const action = String(row?.action || "");
+    if (foSeriesFilter === "all") return true;
+    if (foSeriesFilter === "will_update") return action === "will_update" || action === "replace_prior_batch";
+    if (foSeriesFilter === "protected") return action === "protected_manual";
+    if (foSeriesFilter === "issues") return action === "issue";
+    return true;
+  }
+
+  function renderSeriesRows(rows) {
+    const body = byId("fo-series-rows");
+    if (!body) return;
+    body.replaceChildren();
+    const visibleRows = (Array.isArray(rows) ? rows : []).filter(seriesRowVisible);
+    if (!visibleRows.length) {
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 4;
+      cell.textContent = "No rows match this filter.";
+      row.appendChild(cell);
+      body.appendChild(row);
+      return;
+    }
+    visibleRows.forEach((previewRow) => {
+      const row = document.createElement("tr");
+      row.dataset.action = String(previewRow.action || "");
+
+      const actionCell = document.createElement("td");
+      const badge = document.createElement("span");
+      badge.className = "fo-track-badge";
+      badge.textContent = seriesActionLabel(previewRow.action);
+      badge.dataset.tone = seriesActionTone(previewRow.action);
+      actionCell.appendChild(badge);
+
+      const fileCell = document.createElement("td");
+      const displayName = String(previewRow.display_name || "").trim();
+      const relativePath = String(previewRow.relative_path || "").trim();
+      const sourcePath = String(previewRow.source_path || "").trim();
+      fileCell.textContent = displayName || relativePath || sourcePath || "Unknown file";
+      if (relativePath && relativePath !== fileCell.textContent) {
+        const detail = document.createElement("small");
+        detail.textContent = relativePath;
+        fileCell.appendChild(document.createElement("br"));
+        fileCell.appendChild(detail);
+      }
+
+      const episodeCell = document.createElement("td");
+      episodeCell.textContent = seriesEpisodeText(previewRow);
+
+      const reasonCell = document.createElement("td");
+      reasonCell.textContent = String(previewRow.reason || "");
+
+      row.append(actionCell, fileCell, episodeCell, reasonCell);
+      body.appendChild(row);
+    });
+  }
+
+  function renderSeriesPreview(payload) {
+    const summary = byId("fo-series-summary");
+    const detectedEl = byId("fo-series-detected");
+    const fieldsEl = byId("fo-series-fields");
+    const countsEl = byId("fo-series-counts");
+    const issuesEl = byId("fo-series-issues");
+    const applyButton = byId("fo-series-apply");
+    const data = isPlainObject(payload) ? payload : {};
+    const counts = isPlainObject(data.counts) ? data.counts : {};
+    const detected = isPlainObject(data.detected) ? data.detected : {};
+
+    if (summary) summary.textContent = String(data.message || "Series preview loaded.");
+    [detectedEl, fieldsEl, countsEl, issuesEl].forEach((el) => { if (el) el.replaceChildren(); });
+
+    appendSeriesChip(detectedEl, `Show: ${detected.show_name || "Unknown"}`);
+    appendSeriesChip(detectedEl, `Root: ${detected.show_root || "Unknown"}`);
+    appendSeriesChip(detectedEl, `Confidence: ${detected.confidence || "unknown"}`);
+
+    const proposedFields = Array.isArray(data.proposed_fields) ? data.proposed_fields : [];
+    if (proposedFields.length) {
+      proposedFields.forEach((field) => appendSeriesChip(fieldsEl, fieldPathLabel(field)));
+    } else {
+      appendSeriesChip(fieldsEl, "No proposed fields", "warning");
+    }
+
+    appendSeriesChip(countsEl, `Will update: ${counts.will_update || 0}`);
+    appendSeriesChip(countsEl, `Replace batch: ${counts.replace_prior_batch || 0}`);
+    appendSeriesChip(countsEl, `Protected: ${counts.protected_manual || 0}`, counts.protected_manual ? "warning" : "");
+    appendSeriesChip(countsEl, `Skipped: ${counts.skipped || 0}`, counts.skipped ? "warning" : "");
+    appendSeriesChip(countsEl, `Issues: ${counts.issue || 0}`, counts.issue ? "error" : "");
+
+    const blockers = Array.isArray(data.blockers) ? data.blockers : [];
+    const warnings = Array.isArray(data.warnings) ? data.warnings : [];
+    blockers.forEach((blocker) => appendSeriesChip(issuesEl, String(blocker?.message || blocker || ""), "error"));
+    warnings.forEach((warning) => appendSeriesChip(issuesEl, String(warning?.message || warning || ""), "warning"));
+    if (!blockers.length && !warnings.length) appendSeriesChip(issuesEl, "No blockers reported.");
+
+    renderSeriesRows(data.rows);
+    if (applyButton) {
+      applyButton.disabled = foCommandInFlight || !data.ok || blockers.length > 0 || !String(data.preview_fingerprint || "").trim();
+    }
+    setSeriesStatus(data.ok ? "Review the affected rows before applying." : "Preview has blockers.", data.ok ? "info" : "error");
+  }
+
+  async function requestSeriesPreview() {
+    if (foCommandInFlight) { setStatus("File override command already in progress."); return; }
+    if (!foCurrentPath) { setStatus("No file selected."); return; }
+    if (!byId("fo-series-auto-detect")?.checked) {
+      setStatus("Enable Auto-detect series scope before previewing a series batch.", "warning");
+      return;
+    }
+    const proposed = buildSeriesProposedOverridePayload();
+    if (!proposed) {
+      setStatus("Set at least one override field before applying to a series.", "warning");
+      return;
+    }
+    if (!validateExactTrackSelectionsBeforeSave()) return;
+
+    resetSeriesPreviewState();
+    foCommandInFlight = true;
+    setDrawerCommandButtonsDisabled(true);
+    setStatus("Previewing series override...");
+    try {
+      const result = await apiPost("/api/queue/file-overrides/series-preview", {
+        path: foCurrentPath,
+        proposed_override: proposed,
+      });
+      foSeriesPreviewPayload = result;
+      renderSeriesPreview(result);
+      openSeriesModal(byId("fo-series-preview-open"));
+      if (result && result.ok) {
+        setStatus("Series override preview loaded.");
+      } else {
+        setStatus("Error: " + backendErrorMessage(result, "Series preview failed."), "error");
+      }
+    } catch (err) {
+      setStatus("Error previewing series override: " + (err.message || err), "error");
+      setSeriesStatus("Error previewing series override: " + (err.message || err), "error");
+    } finally {
+      foCommandInFlight = false;
+      setDrawerCommandButtonsDisabled(false);
+      if (foSeriesPreviewPayload) renderSeriesPreview(foSeriesPreviewPayload);
+    }
+  }
+
+  async function applySeriesPreview() {
+    if (foCommandInFlight) { setSeriesStatus("File override command already in progress.", "warning"); return; }
+    if (!foCurrentPath) { setSeriesStatus("No file selected.", "error"); return; }
+    if (!foSeriesPreviewPayload || !foSeriesPreviewPayload.ok) {
+      setSeriesStatus("Preview the series before applying.", "warning");
+      return;
+    }
+    const fingerprint = String(foSeriesPreviewPayload.preview_fingerprint || "").trim();
+    if (!fingerprint) {
+      setSeriesStatus("Preview fingerprint is missing; preview again.", "error");
+      return;
+    }
+    const proposed = buildSeriesProposedOverridePayload();
+    if (!proposed) {
+      setSeriesStatus("Set at least one override field before applying to a series.", "warning");
+      return;
+    }
+    if (!validateExactTrackSelectionsBeforeSave()) return;
+
+    foCommandInFlight = true;
+    setDrawerCommandButtonsDisabled(true);
+    setSeriesStatus("Applying series override...");
+    setStatus("Applying series override...");
+    try {
+      const result = await apiPost("/api/queue/file-overrides/series-apply", {
+        path: foCurrentPath,
+        proposed_override: proposed,
+        confirm_apply: true,
+        preview_fingerprint: fingerprint,
+      });
+      if (!(result && result.ok)) {
+        setSeriesStatus("Error: " + backendErrorMessage(result, "Series apply failed."), "error");
+        setStatus("Error: " + backendErrorMessage(result, "Series apply failed."), "error");
+        return;
+      }
+      if (typeof appendCommandResult === "function") appendCommandResult(result);
+      if (typeof refreshAll === "function") await refreshAll();
+      await loadFileOverrideEffectiveForPath(foCurrentPath, foCurrentItem);
+      markDrawerClean();
+      setStatus(result.message || "Series override applied.");
+      closeSeriesModal({ restoreFocus: false, restoreDrawer: false });
+      closeFileSettingsDrawer();
+    } catch (err) {
+      setSeriesStatus("Error applying series override: " + (err.message || err), "error");
+      setStatus("Error applying series override: " + (err.message || err), "error");
+    } finally {
+      foCommandInFlight = false;
+      setDrawerCommandButtonsDisabled(false);
+    }
+  }
+
+  function drawerFieldHasExactTrackSelectors(fieldKey, exactTrackSelectors) {
+    if (fieldKey === "audioKeepLanguages") return exactTrackSelectors.audioKeep.length > 0;
+    if (fieldKey === "audioDropLanguages") return exactTrackSelectors.audioDrop.length > 0;
+    if (fieldKey === "subtitleKeepLanguages") return exactTrackSelectors.subtitleKeep.length > 0;
+    if (fieldKey === "subtitleDropLanguages") return exactTrackSelectors.subtitleDrop.length > 0;
+    if (fieldKey === "subtitleBurnTrack") return exactTrackSelectors.subtitleBurn.length > 0;
+    return false;
+  }
+
+  function drawerFieldIsNeutral(fieldKey) {
+    const exactTrackSelectors = collectExactTrackSelectorsFromControls();
+    if (drawerFieldHasExactTrackSelectors(fieldKey, exactTrackSelectors)) return false;
+    if (fieldKey === "audioKeepLanguages") return parseLangList(byId("fo-audio-keep-langs")?.value).length === 0;
+    if (fieldKey === "audioDropLanguages") return parseLangList(byId("fo-audio-drop-langs")?.value).length === 0;
+    if (fieldKey === "audioMaxChannels") return String(byId("fo-audio-max-channels")?.value || "").trim() === "";
+    if (fieldKey === "audioPreferDefaultLanguage") return String(byId("fo-audio-prefer-default-language")?.value || "").trim() === "";
+    if (fieldKey === "subtitleKeepLanguages") return parseLangList(byId("fo-sub-keep-langs")?.value).length === 0;
+    if (fieldKey === "subtitleDropLanguages") return parseLangList(byId("fo-sub-drop-langs")?.value).length === 0;
+    if (fieldKey === "subtitleBurnTrack") return exactTrackSelectors.subtitleBurn.length === 0;
+    if (fieldKey === "subtitleStripAll") return !byId("fo-sub-strip-all")?.checked;
+    if (ROUTE_FIELD_KEYS.includes(fieldKey)) {
+      const controlId = ROUTE_FIELD_CONFIG[fieldKey]?.controlId;
+      const control = controlId ? byId(controlId) : null;
+      return String(control?.value || "").trim() === "";
+    }
+    return false;
+  }
+
+  function collectFileOverrideFieldsToClearOnSave() {
+    const sources = isPlainObject(foLastEffectivePayload?.sources) ? foLastEffectivePayload.sources : {};
+    return Object.keys(DRAWER_FIELD_PATHS)
+      .filter((fieldKey) => {
+        const fieldPath = DRAWER_FIELD_PATHS[fieldKey];
+        return (
+          fieldPath
+          && sources[fieldPath] === "file_override"
+          && drawerFieldIsNeutral(fieldKey)
+        );
+      })
+      .map((fieldKey) => DRAWER_FIELD_PATHS[fieldKey]);
+  }
+
+  function collectRouteVideoFieldsToClearOnSave() {
+    return collectFileOverrideFieldsToClearOnSave().filter((fieldPath) => (
+      String(fieldPath || "").startsWith("routing.")
+      || String(fieldPath || "").startsWith("video.")
+    ));
+  }
+
+  function fieldPathsIncludeRouteVideo(fieldPaths) {
+    return Array.isArray(fieldPaths) && fieldPaths.some((fieldPath) => (
+      String(fieldPath || "").startsWith("routing.")
+      || String(fieldPath || "").startsWith("video.")
+    ));
+  }
+
   function trackActionBucket(kind, action) {
     if (kind === "audio" && action === "keep") return "audioKeep";
     if (kind === "audio" && action === "drop") return "audioDrop";
     if (kind === "subtitle" && action === "keep") return "subtitleKeep";
     if (kind === "subtitle" && action === "drop") return "subtitleDrop";
+    if (kind === "subtitle" && action === "burn") return "subtitleBurn";
     return "";
   }
 
   function exactSelectorRules(entry, kind, action) {
     const sectionKey = kind === "audio" ? "audio" : "subtitles";
-    const fieldKey = action === "keep" ? "keepTracks" : "dropTracks";
     const section = isPlainObject(entry?.[sectionKey]) ? entry[sectionKey] : {};
+    if (kind === "subtitle" && action === "burn") {
+      return isPlainObject(section.burnTrack) && isExactTrackSelector(section.burnTrack) ? [section.burnTrack] : [];
+    }
+    const fieldKey = action === "keep" ? "keepTracks" : "dropTracks";
     const rules = Array.isArray(section[fieldKey]) ? section[fieldKey] : [];
     return rules.filter((rule) => isPlainObject(rule) && isExactTrackSelector(rule));
   }
@@ -941,8 +1555,11 @@
     if (!isPlainObject(entry)) return "";
     const keepRules = exactSelectorRules(entry, kind, "keep");
     const dropRules = exactSelectorRules(entry, kind, "drop");
+    const burnRules = exactSelectorRules(entry, kind, "burn");
     const matchesKeep = keepRules.some((rule) => exactSelectorMatchesTrack(rule, track, kind));
     const matchesDrop = dropRules.some((rule) => exactSelectorMatchesTrack(rule, track, kind));
+    const matchesBurn = burnRules.some((rule) => exactSelectorMatchesTrack(rule, track, kind));
+    if (matchesBurn) return "burn";
     if (matchesDrop) return "drop";
     if (matchesKeep) return "keep";
     return "";
@@ -962,6 +1579,7 @@
       { kind: "audio", action: "drop", tracks: Array.isArray(metadata.audio_tracks) ? metadata.audio_tracks : [] },
       { kind: "subtitle", action: "keep", tracks: Array.isArray(metadata.subtitle_tracks) ? metadata.subtitle_tracks : [] },
       { kind: "subtitle", action: "drop", tracks: Array.isArray(metadata.subtitle_tracks) ? metadata.subtitle_tracks : [] },
+      { kind: "subtitle", action: "burn", tracks: Array.isArray(metadata.subtitle_tracks) ? metadata.subtitle_tracks : [] },
     ];
     groups.forEach(({ kind, action, tracks }) => {
       exactSelectorRules(entry, kind, action).forEach((selector) => {
@@ -986,8 +1604,9 @@
         seen.add(key);
         const matchesKeep = exactSelectorRules(entry, kind, "keep").some((rule) => exactSelectorMatchesTrack(rule, track, kind));
         const matchesDrop = exactSelectorRules(entry, kind, "drop").some((rule) => exactSelectorMatchesTrack(rule, track, kind));
-        if (matchesKeep && matchesDrop) {
-          warnings.push(`Stream ${streamIndex} is saved as both Keep and Drop; Drop wins during processing.`);
+        const matchesBurn = exactSelectorRules(entry, kind, "burn").some((rule) => exactSelectorMatchesTrack(rule, track, kind));
+        if ((matchesKeep && matchesDrop) || (matchesBurn && (matchesKeep || matchesDrop))) {
+          warnings.push(`Stream ${streamIndex} has conflicting saved exact-track actions; destructive burn/drop actions win during processing.`);
         }
       });
     });
@@ -1001,8 +1620,8 @@
   }
 
   function resetExactTrackActionsForField(fieldKey) {
-    const targetPath = DRAWER_FIELD_PATHS[fieldKey];
-    if (!targetPath) return;
+      const targetPath = DRAWER_FIELD_PATHS[fieldKey];
+      if (!targetPath) return;
     document.querySelectorAll("[data-fo-track-action]").forEach((control) => {
       const kind = control.dataset.foTrackKind || "";
       const action = control.dataset.foTrackActionKind || "";
@@ -1010,7 +1629,7 @@
     });
     const bucket = trackActionBucket(
       targetPath.startsWith("audio.") ? "audio" : "subtitle",
-      targetPath.endsWith(".keepTracks") ? "keep" : "drop",
+      targetPath.endsWith(".keepTracks") ? "keep" : targetPath.endsWith(".burnTrack") ? "burn" : "drop",
     );
     if (bucket) foUnmatchedExactSelectors[bucket] = [];
     foExactTrackWarnings = foExactTrackWarnings.filter((message) => !String(message || "").includes(targetPath));
@@ -1022,7 +1641,7 @@
     document.querySelectorAll("[data-fo-track-action]").forEach((control) => {
       if (control.disabled) return;
       const action = String(control.value || "");
-      if (action !== "keep" && action !== "drop") return;
+      if (action !== "keep" && action !== "drop" && action !== "burn") return;
       const kind = control.dataset.foTrackKind || "";
       const trackData = control.dataset.foTrackJson || "";
       let track = null;
@@ -1044,20 +1663,20 @@
 
   function validateExactTrackSelectionsBeforeSave() {
     const selectedExactControl = Array.from(document.querySelectorAll("[data-fo-track-action]"))
-      .some((control) => ["keep", "drop"].includes(String(control.value || "")));
+      .some((control) => ["keep", "drop", "burn"].includes(String(control.value || "")));
     if (selectedExactControl && !currentFileOverridePathLooksFileLike()) {
       setStatus("Exact stream selectors can only be saved for a file path, not a folder or library scope.");
       return false;
     }
     if (foExactTrackWarnings.some((message) => message.includes("Saved exact-track override"))) {
-      setStatus("Saved exact-track override cannot be safely resaved. Use inherited for the affected field before saving.");
+      setStatus("Saved exact-track override cannot be safely resaved. Use saved policy for the affected field before saving.");
       return false;
     }
     const selected = new Map();
     let conflict = "";
     document.querySelectorAll("[data-fo-track-action]").forEach((control) => {
       const action = String(control.value || "");
-      if (action !== "keep" && action !== "drop") return;
+      if (action !== "keep" && action !== "drop" && action !== "burn") return;
       const kind = control.dataset.foTrackKind || "";
       const streamIndex = Number(control.dataset.foTrackStreamIndex);
       if (!kind || !Number.isInteger(streamIndex)) return;
@@ -1070,6 +1689,29 @@
       setStatus(`Choose either Keep or Drop for ${conflict}, not both.`);
       return false;
     }
+    const burnCount = Array.from(document.querySelectorAll('[data-fo-track-action][data-fo-track-kind="subtitle"]'))
+      .filter((control) => String(control.value || "") === "burn").length;
+    if (burnCount > 1) {
+      setStatus("Choose only one subtitle stream to burn into the video.");
+      return false;
+    }
+    return true;
+  }
+
+  function confirmSubtitleBurnBeforeSave(payload) {
+    const burnTrack = isPlainObject(payload?.subtitles?.burnTrack) ? payload.subtitles.burnTrack : null;
+    if (!burnTrack) return true;
+    const streamIndex = burnTrack.streamIndex ?? "?";
+    const fileName = String(foCurrentPath || "").split(/[\\/]/).pop() || foCurrentPath || "selected file";
+    const confirmed = window.confirm(
+      `Burn subtitle stream ${streamIndex} into video for ${fileName}?\n\nThis forces encode and drops all selectable output subtitle tracks for this file.`,
+    );
+    if (!confirmed) {
+      setStatus("Subtitle burn-in save cancelled.", "warning");
+      return false;
+    }
+    const routeConfirm = byId("fo-route-risk-confirm");
+    if (routeConfirm) routeConfirm.checked = true;
     return true;
   }
 
@@ -1094,10 +1736,52 @@
     if (el) el.replaceChildren();
   }
 
+  function setSourceInfoLoadingState(isLoading) {
+    const section = byId("fo-source-info-section");
+    if (!section) return;
+    if (isLoading) section.dataset.loading = "true";
+    else delete section.dataset.loading;
+  }
+
+  function clearDrawerSourceInfo(message = "File info unavailable for this file.") {
+    setSourceInfoLoadingState(false);
+    ["fo-source-info-grid", "fo-source-info-missing"].forEach(clearElementChildren);
+    setTrackText("fo-source-info-status", message);
+  }
+
+  function showDrawerSourceInfoLoadingState(message = "Probing source for file info...") {
+    setSourceInfoLoadingState(true);
+    ["fo-source-info-grid", "fo-source-info-missing"].forEach(clearElementChildren);
+    setTrackText("fo-source-info-status", message);
+  }
+
+  function setTrackGroupLoadingState(isLoading) {
+    ["fo-audio-track-group", "fo-subtitle-track-group"].forEach((id) => {
+      const group = byId(id);
+      if (!group) return;
+      if (isLoading) group.dataset.loading = "true";
+      else delete group.dataset.loading;
+    });
+  }
+
   function clearDrawerTrackMetadata(message = "Track metadata unavailable for this file.") {
+    setTrackGroupLoadingState(false);
+    clearDrawerSourceInfo();
     ["fo-audio-track-list", "fo-subtitle-track-list", "fo-track-warning-list"].forEach(clearElementChildren);
     setTrackText("fo-audio-track-count", "Unavailable");
     setTrackText("fo-subtitle-track-count", "Unavailable");
+    setTrackText("fo-audio-track-status", message);
+    setTrackText("fo-subtitle-track-status", message);
+    foExactTrackWarnings = [];
+    foUnmatchedExactSelectors = emptyExactSelectorState();
+  }
+
+  function showDrawerTrackMetadataLoadingState(message = "Probing source for track metadata...") {
+    setTrackGroupLoadingState(true);
+    showDrawerSourceInfoLoadingState();
+    ["fo-audio-track-list", "fo-subtitle-track-list", "fo-track-warning-list"].forEach(clearElementChildren);
+    setTrackText("fo-audio-track-count", "Loading...");
+    setTrackText("fo-subtitle-track-count", "Loading...");
     setTrackText("fo-audio-track-status", message);
     setTrackText("fo-subtitle-track-status", message);
     foExactTrackWarnings = [];
@@ -1119,6 +1803,70 @@
     container.appendChild(detail);
   }
 
+  function appendSourceInfoFact(container, label, value) {
+    const fact = document.createElement("div");
+    fact.className = "fo-source-info-fact";
+    const labelEl = document.createElement("span");
+    labelEl.className = "fo-source-info-label";
+    labelEl.textContent = label;
+    const valueEl = document.createElement("strong");
+    valueEl.className = "fo-source-info-value";
+    valueEl.textContent = trackTextValue(value);
+    fact.append(labelEl, valueEl);
+    container.appendChild(fact);
+  }
+
+  function sourceInfoEstimatedBitrateText(sourceInfo) {
+    const display = String(sourceInfo?.estimated_bitrate_display || "").trim();
+    if (!display) return "";
+    const basis = String(sourceInfo?.estimated_bitrate_basis || "").trim();
+    const basisLabel = SOURCE_INFO_BASIS_LABELS[basis] || "";
+    return basisLabel ? `${display} (${basisLabel})` : display;
+  }
+
+  function renderDrawerSourceInfo(sourceInfo) {
+    setSourceInfoLoadingState(false);
+    const info = isPlainObject(sourceInfo) ? sourceInfo : {};
+    const grid = byId("fo-source-info-grid");
+    const missingEl = byId("fo-source-info-missing");
+    if (grid) grid.replaceChildren();
+    if (missingEl) missingEl.replaceChildren();
+    if (!info.available) {
+      clearDrawerSourceInfo("File info unavailable for this file.");
+      return;
+    }
+
+    const primary = isPlainObject(info.primary_video) ? info.primary_video : {};
+    const facts = [
+      ["Size", info.file_size_display],
+      ["Duration", info.duration_display],
+      ["Container", info.container],
+      ["Estimated bitrate", sourceInfoEstimatedBitrateText(info)],
+      ["Reported bitrate", info.overall_bitrate_display],
+      ["Video codec", primary.available ? primary.codec : ""],
+      ["Resolution", primary.available ? primary.resolution_display : ""],
+      ["HDR", primary.available ? (primary.is_hdr ? trackTextValue(primary.hdr_format, "HDR") : "No") : ""],
+      ["Video bitrate", primary.available ? primary.bitrate_display : ""],
+    ];
+    if (grid) facts.forEach(([label, value]) => appendSourceInfoFact(grid, label, value));
+
+    const missingFacts = Array.isArray(info.missing_facts)
+      ? info.missing_facts.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+    const source = trackTextValue(info.probe_source, "probe").replace(/[_-]+/g, " ");
+    setTrackText(
+      "fo-source-info-status",
+      missingFacts.length ? `Partial file info loaded from ${source}.` : `File info loaded from ${source}.`,
+    );
+    if (missingEl && missingFacts.length) {
+      const heading = document.createElement("strong");
+      heading.textContent = "Missing facts";
+      const body = document.createElement("span");
+      body.textContent = missingFacts.join(", ");
+      missingEl.append(heading, body);
+    }
+  }
+
   function trackSelectionMarkerLabel(marker) {
     if (!isPlainObject(marker)) return "";
     const sourceLabel = fileOverrideEffectiveSourceLabel(marker.source || "") || String(marker.source || "").trim();
@@ -1131,7 +1879,15 @@
     if (!isPlainObject(preview) || streamIndex === null) return null;
     const kept = Array.isArray(preview.kept_stream_indexes) ? preview.kept_stream_indexes.map(Number) : [];
     const dropped = Array.isArray(preview.dropped_stream_indexes) ? preview.dropped_stream_indexes.map(Number) : [];
+    const burned = Array.isArray(preview.burned_stream_indexes) ? preview.burned_stream_indexes.map(Number) : [];
     const indexKey = String(streamIndex);
+    if (burned.includes(streamIndex)) {
+      return {
+        label: "Burned into video",
+        tone: "warning",
+        marker: isPlainObject(preview.burned_stream_sources) ? preview.burned_stream_sources[indexKey] : null,
+      };
+    }
     if (dropped.includes(streamIndex)) {
       return {
         label: "Dropped",
@@ -1149,21 +1905,69 @@
     return null;
   }
 
-  function appendTrackFlags(container, track, kind, previewState) {
-    if (previewState) {
+  function resolvedActionsByStream(section) {
+    const rows = Array.isArray(section?.tracks) ? section.tracks : [];
+    const map = new Map();
+    rows.forEach((row) => {
+      if (!isPlainObject(row)) return;
+      const index = Number(row.stream_index);
+      if (Number.isInteger(index)) map.set(index, row);
+    });
+    return map;
+  }
+
+  function resolvedActionForTrack(resolvedActions, track) {
+    const streamIndex = trackStreamIndex(track);
+    if (streamIndex === null || !(resolvedActions instanceof Map)) return null;
+    return resolvedActions.get(streamIndex) || null;
+  }
+
+  function resolvedTrackActionTone(action) {
+    const value = String(action || "").trim();
+    if (value === "drop" || value === "burn" || value === "review") return "warning";
+    return "";
+  }
+
+  function trackPipelineOptionText(resolvedAction) {
+    if (!isPlainObject(resolvedAction)) return "Use pipeline policy";
+    const source = String(resolvedAction.source || "");
+    if (source === "file_override" || source === "folder_override") return "Use pipeline policy";
+    const action = String(resolvedAction.action || "").trim();
+    return action ? `Use pipeline policy: resolved ${action}` : "Use pipeline policy";
+  }
+
+  function appendTrackFlags(container, track, kind, previewState, resolvedAction) {
+    if (isPlainObject(resolvedAction)) {
+      const label = String(resolvedAction.label || "").trim() || "Resolved by backend policy";
+      const badge = createTrackBadge(label, resolvedTrackActionTone(resolvedAction.action));
+      const reason = String(resolvedAction.reason || "").trim();
+      if (reason) badge.title = reason;
+      container.appendChild(badge);
+    } else if (previewState) {
       const markerLabel = trackSelectionMarkerLabel(previewState.marker);
       const label = markerLabel ? `${previewState.label} by ${markerLabel}` : previewState.label;
       container.appendChild(createTrackBadge(label, previewState.tone));
     }
-    if (track.default) container.appendChild(createTrackBadge("Default"));
+    if (track.default) container.appendChild(createTrackBadge("Source default track"));
     if (track.forced) container.appendChild(createTrackBadge("Forced", "warning"));
     if (kind === "audio" && track.commentary) container.appendChild(createTrackBadge("Commentary", "warning"));
     if (track.hearing_impaired) container.appendChild(createTrackBadge("SDH"));
     if (kind === "subtitle" && track.image_based) container.appendChild(createTrackBadge("Image subtitle", "warning"));
     if (kind === "subtitle" && track.text_based) container.appendChild(createTrackBadge("Text subtitle"));
+    if (
+      kind === "subtitle"
+      && (
+        String(resolvedAction?.action || "") === "burn"
+        || String(previewState?.marker?.field || "") === "subtitles.burnTrack"
+      )
+    ) {
+      container.appendChild(createTrackBadge("Forces encode", "warning"));
+      container.appendChild(createTrackBadge("Drops selectable subtitles", "warning"));
+      container.appendChild(createTrackBadge("Destructive output change", "warning"));
+    }
   }
 
-  function createTrackActionControl(track, kind) {
+  function createTrackActionControl(track, kind, resolvedAction) {
     const streamIndex = trackStreamIndex(track);
     const wrapper = document.createElement("label");
     wrapper.className = "fo-track-action";
@@ -1179,11 +1983,15 @@
     select.dataset.foTrackIndexAvailable = streamIndex === null ? "false" : "true";
     select.dataset.foTrackJson = JSON.stringify(track);
     select.setAttribute("aria-label", `Override action for ${kind === "audio" ? "audio" : "subtitle"} stream ${streamIndex ?? "unknown"}`);
-    [
-      ["", "Inherit"],
+    const options = [
+      ["", trackPipelineOptionText(resolvedAction)],
       ["keep", kind === "audio" ? "Keep this audio track" : "Keep this subtitle track"],
       ["drop", kind === "audio" ? "Drop this audio track" : "Drop this subtitle track"],
-    ].forEach(([value, text]) => {
+    ];
+    if (kind === "subtitle") {
+      options.push(["burn", "Burn into video"]);
+    }
+    options.forEach(([value, text]) => {
       const option = document.createElement("option");
       option.value = value;
       option.textContent = text;
@@ -1198,13 +2006,14 @@
     return wrapper;
   }
 
-  function createTrackRow(track, kind, preview) {
+  function createTrackRow(track, kind, preview, resolvedActions) {
     const row = document.createElement("div");
     row.className = "fo-track-row";
     row.dataset.trackKind = kind;
 
     const streamIndex = trackStreamIndex(track);
     const previewState = trackPreviewState(preview, streamIndex);
+    const resolvedAction = resolvedActionForTrack(resolvedActions, track);
 
     const summary = document.createElement("div");
     summary.className = "fo-track-summary";
@@ -1224,18 +2033,19 @@
     if (kind === "audio") {
       appendTrackDetail(details, "Channels", track.channels);
       appendTrackDetail(details, "Layout", track.channel_layout);
+      if (String(track.bitrate_display || "").trim()) appendTrackDetail(details, "Bitrate", track.bitrate_display);
     }
     row.appendChild(details);
 
     const badges = document.createElement("div");
     badges.className = "fo-track-badges";
-    appendTrackFlags(badges, track, kind, previewState);
+    appendTrackFlags(badges, track, kind, previewState, resolvedAction);
     row.appendChild(badges);
-    row.appendChild(createTrackActionControl(track, kind));
+    row.appendChild(createTrackActionControl(track, kind, resolvedAction));
     return row;
   }
 
-  function renderTrackGroup({ kind, tracks, preview, listId, countId, statusId }) {
+  function renderTrackGroup({ kind, tracks, preview, resolvedActions, listId, countId, statusId }) {
     const list = byId(listId);
     if (list) list.replaceChildren();
     const count = tracks.length;
@@ -1247,7 +2057,7 @@
     setTrackText(statusId, "");
     if (!list) return;
     tracks.forEach((track) => {
-      if (isPlainObject(track)) list.appendChild(createTrackRow(track, kind, preview));
+      if (isPlainObject(track)) list.appendChild(createTrackRow(track, kind, preview, resolvedActions));
     });
   }
 
@@ -1305,9 +2115,12 @@
   }
 
   function renderDrawerTrackMetadata(payload) {
+    setTrackGroupLoadingState(false);
     const metadata = isPlainObject(payload?.track_metadata) ? payload.track_metadata : {};
     const preview = isPlainObject(payload?.track_selection_preview) ? payload.track_selection_preview : {};
+    const resolved = isPlainObject(payload?.resolved_track_actions) ? payload.resolved_track_actions : {};
     const available = Boolean(metadata.available || metadata.probe_available);
+    renderDrawerSourceInfo(metadata.source_info);
     foExactTrackWarnings = computeExactTrackWarningsForMetadata(metadata);
     if (!available) {
       const message = trackWarningMessage((Array.isArray(metadata.warnings) ? metadata.warnings : [])[0])
@@ -1323,6 +2136,7 @@
       kind: "audio",
       tracks: audioTracks,
       preview: isPlainObject(preview.audio) ? preview.audio : {},
+      resolvedActions: resolvedActionsByStream(isPlainObject(resolved.audio) ? resolved.audio : {}),
       listId: "fo-audio-track-list",
       countId: "fo-audio-track-count",
       statusId: "fo-audio-track-status",
@@ -1331,6 +2145,7 @@
       kind: "subtitle",
       tracks: subtitleTracks,
       preview: isPlainObject(preview.subtitles) ? preview.subtitles : {},
+      resolvedActions: resolvedActionsByStream(isPlainObject(resolved.subtitles) ? resolved.subtitles : {}),
       listId: "fo-subtitle-track-list",
       countId: "fo-subtitle-track-count",
       statusId: "fo-subtitle-track-status",
@@ -1341,10 +2156,14 @@
 
   function trackMetadataFromTracksPayload(payload) {
     const available = Boolean(payload?.probe_available);
+    const probeSource = String(payload?.probe_source || (available ? "tracks_endpoint" : "unavailable"));
     return {
       available,
       probe_available: available,
-      probe_source: String(payload?.probe_source || (available ? "tracks_endpoint" : "unavailable")),
+      probe_source: probeSource,
+      source_info: isPlainObject(payload?.source_info)
+        ? payload.source_info
+        : { available: false, probe_source: probeSource },
       audio_tracks: available && Array.isArray(payload?.audio_tracks) ? payload.audio_tracks : [],
       subtitle_tracks: available && Array.isArray(payload?.subtitle_tracks) ? payload.subtitle_tracks : [],
       warnings: Array.isArray(payload?.warnings) ? payload.warnings : [],
@@ -1364,12 +2183,14 @@
       if (data && data.entry) {
         populateDrawerForm(data.entry);
         setStatus("Override loaded.");
+        markDrawerClean();
       } else {
         clearDrawerForm({
           resetRouteControls: !foLastEffectivePayload,
-          resetTrackMetadata: !foLastEffectivePayload,
+          resetTrackMetadata: false,
         });
         setStatus("No override set for this file.");
+        markDrawerClean();
       }
     } catch (err) {
       setStatus("Error loading override: " + (err.message || err));
@@ -1392,56 +2213,99 @@
 
   async function loadFileOverrideTracksForPath(path) {
     if (!path) return false;
+    showDrawerTrackMetadataLoadingState();
     try {
       const url = FILE_OVERRIDES_TRACKS_ROUTE + "?path=" + encodeURIComponent(path);
       const data = await apiGet(url);
+      if (path !== foCurrentPath) return false;
       renderDrawerTrackMetadata({
         track_metadata: trackMetadataFromTracksPayload(data),
         track_selection_preview: {},
       });
       return true;
     } catch (_err) {
+      if (path === foCurrentPath) clearDrawerTrackMetadata("Track metadata could not be loaded.");
       return false;
     }
   }
 
   async function saveFileOverrideForPath() {
+    if (foCommandInFlight) { setStatus("File override command already in progress."); return; }
     if (!foCurrentPath) { setStatus("No file selected."); return; }
+    if (!foDrawerDirty) { setStatus("No unsaved changes to save.", "warning"); return; }
     const payload = buildOverridePayload();
-    if (!payload) { setStatus("No overrides specified — nothing to save."); return; }
-    if (!validateExactTrackSelectionsBeforeSave()) return;
+    const clearFields = collectFileOverrideFieldsToClearOnSave();
+    if (!payload && !clearFields.length) { setStatus("No overrides specified — nothing to save."); return; }
+    if (payload && !validateExactTrackSelectionsBeforeSave()) return;
+    if (payload && !confirmSubtitleBurnBeforeSave(payload)) return;
     const hasRouteVideoOverride = payloadHasRouteVideoOverride(payload);
+    const clearsRouteVideoOverride = fieldPathsIncludeRouteVideo(clearFields);
 
-    if (!(await ensureRoutePreviewAllowsSave(payload))) return;
-
-    setStatus("Saving…");
+    foCommandInFlight = true;
+    setDrawerCommandButtonsDisabled(true);
     try {
-      const result = await apiPost("/api/queue/file-overrides", payload);
-      if (result && result.ok) {
+      if (payload && !(await ensureRoutePreviewAllowsSave(payload))) return;
+      setStatus("Saving…");
+      let clearResult = null;
+      if (clearFields.length) {
+        clearResult = await apiPost("/api/queue/file-overrides", {
+          path: foCurrentPath,
+          clear_fields: clearFields,
+        });
+        if (!(clearResult && clearResult.ok)) {
+          setStatus("Error: " + backendErrorMessage(clearResult));
+          return;
+        }
+        clearFields.forEach((fieldPath) => {
+          const fieldKey = Object.keys(DRAWER_FIELD_PATHS).find((key) => DRAWER_FIELD_PATHS[key] === fieldPath);
+          if (fieldKey) resetExactTrackActionsForField(fieldKey);
+        });
+      }
+
+      let result = clearResult;
+      if (payload) {
+        result = await apiPost("/api/queue/file-overrides", payload);
+        if (!(result && result.ok)) {
+          setStatus("Error: " + backendErrorMessage(result));
+          return;
+        }
         populateDrawerForm({
           audio: payload.audio || {},
           subtitles: payload.subtitles || {},
           routing: payload.routing || {},
           video: payload.video || {},
         });
-        await loadFileOverrideEffectiveForPath(foCurrentPath, foCurrentItem);
-        if (hasRouteVideoOverride) await loadRoutePreviewForPayload(payload);
-        setStatus("Override saved. Takes effect on next pipeline round.");
+      }
+
+      const reloaded = await loadFileOverrideEffectiveForPath(foCurrentPath, foCurrentItem);
+      if (payload && hasRouteVideoOverride) await loadRoutePreviewForPayload(payload);
+      else if (clearsRouteVideoOverride) await refreshRoutePreviewFromCurrentForm();
+      if (result && result.ok) {
+        const savedMessage = payload
+          ? "Override saved. Takes effect on next pipeline round."
+          : "Override field cleared. Saved policy value will be used.";
+        setStatus(reloaded ? savedMessage : `${savedMessage} Effective settings could not be reloaded.`);
+        markDrawerClean();
+        if (clearResult && clearResult !== result && typeof appendCommandResult === "function") appendCommandResult(clearResult);
         if (typeof appendCommandResult === "function") appendCommandResult(result);
         if (typeof refreshAll === "function") await refreshAll();
-      } else {
-        setStatus("Error: " + backendErrorMessage(result));
       }
     } catch (err) {
       setStatus("Error saving override: " + (err.message || err));
+    } finally {
+      foCommandInFlight = false;
+      setDrawerCommandButtonsDisabled(false);
     }
   }
 
   async function clearFileOverrideField(fieldKey) {
+    if (foCommandInFlight) { setStatus("File override command already in progress."); return; }
     const fieldPath = DRAWER_FIELD_PATHS[fieldKey];
     if (!foCurrentPath) { setStatus("No file selected."); return; }
     if (!fieldPath) { setStatus("Cannot clear this override field."); return; }
 
+    foCommandInFlight = true;
+    setDrawerCommandButtonsDisabled(true);
     const button = document.querySelector(`[data-fo-use-inherited="${fieldKey}"]`);
     if (button) button.disabled = true;
     setStatus("Clearing field override…");
@@ -1454,21 +2318,33 @@
         resetExactTrackActionsForField(fieldKey);
         const reloaded = await loadFileOverrideEffectiveForPath(foCurrentPath, foCurrentItem);
         if (ROUTE_FIELD_KEYS.includes(fieldKey)) await refreshRoutePreviewFromCurrentForm();
-        setStatus(reloaded ? "Override field cleared. Inherited value will be used." : "Override field cleared, but effective settings could not be reloaded.");
+        setStatus(reloaded ? "Override field cleared. Saved policy value will be used." : "Override field cleared, but effective settings could not be reloaded.");
+        markDrawerClean();
         if (typeof appendCommandResult === "function") appendCommandResult(result);
         if (typeof refreshAll === "function") await refreshAll();
       } else {
-        if (button) button.disabled = false;
         setStatus("Error: " + backendErrorMessage(result));
       }
     } catch (err) {
-      if (button) button.disabled = false;
       setStatus("Error clearing override field: " + (err.message || err));
+    } finally {
+      foCommandInFlight = false;
+      setDrawerCommandButtonsDisabled(false);
+      if (button && !button.hidden) button.disabled = false;
     }
   }
 
   async function clearFileOverrideForPath() {
+    if (foCommandInFlight) { setStatus("File override command already in progress."); return; }
     if (!foCurrentPath) { setStatus("No file selected."); return; }
+    if (!confirmDiscardDrawerChanges("clear the saved override")) return;
+    const confirmed = window.confirm("Clear all saved file override fields for this file and use saved policy values?");
+    if (!confirmed) {
+      setStatus("Clear Override cancelled.", "warning");
+      return;
+    }
+    foCommandInFlight = true;
+    setDrawerCommandButtonsDisabled(true);
     setStatus("Clearing…");
     try {
       const result = await apiPost("/api/queue/file-overrides", { path: foCurrentPath, clear: true });
@@ -1476,6 +2352,7 @@
         clearDrawerForm();
         await loadFileOverrideEffectiveForPath(foCurrentPath, foCurrentItem);
         setStatus("Override cleared.");
+        markDrawerClean();
         if (typeof appendCommandResult === "function") appendCommandResult(result);
         if (typeof refreshAll === "function") await refreshAll();
       } else {
@@ -1483,6 +2360,9 @@
       }
     } catch (err) {
       setStatus("Error clearing override: " + (err.message || err));
+    } finally {
+      foCommandInFlight = false;
+      setDrawerCommandButtonsDisabled(false);
     }
   }
 
@@ -1495,49 +2375,40 @@
     const closeBtn = byId("fo-drawer-close");
     const saveBtn  = byId("fo-drawer-save");
     const clearBtn = byId("fo-drawer-clear");
-    const folderPreviewBtn = byId("fo-folder-preview-open");
-    const folderPreviewSaveBtn = byId("fo-folder-preview-save");
-    const folderPreviewScopeSelect = byId("fo-folder-preview-scope-select");
-    const folderPreviewLibraryBtn = byId("fo-folder-preview-library-settings");
-    const folderRulesBtn = byId("fo-folder-rules-open");
-    const folderRulesRefreshBtn = byId("fo-folder-rules-refresh");
-    const folderRulesLibraryBtn = byId("fo-folder-rules-library-settings");
-    const folderRulesList = byId("fo-folder-rules-list");
+    const seriesBtn = byId("fo-series-preview-open");
+    const seriesApplyBtn = byId("fo-series-apply");
+    const seriesCloseBtn = byId("fo-series-modal-close");
+    const seriesCancelBtn = byId("fo-series-cancel");
+    const seriesModal = byId("fo-series-modal");
     const stripAll = byId("fo-sub-strip-all");
 
-    if (overlay)  overlay.addEventListener("click", closeFileSettingsDrawer);
-    if (closeBtn) closeBtn.addEventListener("click", closeFileSettingsDrawer);
+    if (overlay)  overlay.addEventListener("click", requestCloseFileSettingsDrawer);
+    if (closeBtn) closeBtn.addEventListener("click", requestCloseFileSettingsDrawer);
     if (saveBtn)  saveBtn.addEventListener("click",  saveFileOverrideForPath);
     if (clearBtn) clearBtn.addEventListener("click", clearFileOverrideForPath);
-    if (folderPreviewBtn) folderPreviewBtn.addEventListener("click", openFolderRulePreviewPanel);
-    if (folderPreviewSaveBtn) folderPreviewSaveBtn.addEventListener("click", saveFolderRuleForPreview);
-    if (folderPreviewScopeSelect) folderPreviewScopeSelect.addEventListener("change", handleFolderPreviewScopeChange);
-    if (folderPreviewLibraryBtn) folderPreviewLibraryBtn.addEventListener("click", openLibrarySettingsFromFolderHandoff);
-    if (folderRulesBtn) folderRulesBtn.addEventListener("click", loadFolderRulesForDrawer);
-    if (folderRulesRefreshBtn) folderRulesRefreshBtn.addEventListener("click", loadFolderRulesForDrawer);
-    if (folderRulesLibraryBtn) folderRulesLibraryBtn.addEventListener("click", openLibrarySettingsFromFolderHandoff);
-    if (folderRulesList) folderRulesList.addEventListener("click", handleFolderRuleManagementClick);
-    if (stripAll) stripAll.addEventListener("change", syncSubFilterFields);
-    [
-      "fo-folder-confirm-future-files",
-      "fo-folder-confirm-file-overrides",
-      "fo-folder-confirm-no-stream-index",
-    ].forEach((id) => {
-      const checkbox = byId(id);
-      if (checkbox) checkbox.addEventListener("change", syncFolderPreviewSaveState);
+    if (seriesBtn) seriesBtn.addEventListener("click", requestSeriesPreview);
+    if (seriesApplyBtn) seriesApplyBtn.addEventListener("click", applySeriesPreview);
+    if (seriesCloseBtn) seriesCloseBtn.addEventListener("click", () => closeSeriesModal());
+    if (seriesCancelBtn) seriesCancelBtn.addEventListener("click", () => closeSeriesModal());
+    if (seriesModal) {
+      seriesModal.addEventListener("click", (event) => {
+        if (event.target === seriesModal) closeSeriesModal();
+      });
+    }
+    document.querySelectorAll("[data-fo-series-filter]").forEach((button) => {
+      button.addEventListener("click", () => {
+        foSeriesFilter = button.dataset.foSeriesFilter || "all";
+        document.querySelectorAll("[data-fo-series-filter]").forEach((filterButton) => {
+          filterButton.setAttribute("aria-pressed", filterButton === button ? "true" : "false");
+        });
+        renderSeriesRows(foSeriesPreviewPayload?.rows);
+      });
     });
-    [
-      "fo-audio-keep-langs",
-      "fo-audio-drop-langs",
-      "fo-sub-keep-langs",
-      "fo-sub-drop-langs",
-      "fo-sub-strip-all",
-    ].forEach((id) => {
-      const control = byId(id);
-      if (control) {
-        control.addEventListener("change", invalidateFolderPreviewAfterRuleChange);
-        control.addEventListener("input", invalidateFolderPreviewAfterRuleChange);
-      }
+    if (stripAll) stripAll.addEventListener("change", syncSubFilterFields);
+    if (stripAll) stripAll.addEventListener("change", scheduleRoutePreviewFromCurrentForm);
+    document.querySelectorAll("[data-fo-field] input, [data-fo-field] select").forEach((control) => {
+      control.addEventListener("input", handleDrawerFormChanged);
+      control.addEventListener("change", handleDrawerFormChanged);
     });
     document.querySelectorAll("[data-fo-use-inherited]").forEach((button) => {
       button.addEventListener("click", () => clearFileOverrideField(button.dataset.foUseInherited || ""));
@@ -1546,7 +2417,11 @@
       control.addEventListener("change", scheduleRoutePreviewFromCurrentForm);
     });
     document.addEventListener("change", (event) => {
-      if (event.target?.matches?.("[data-fo-track-action]")) invalidateFolderPreviewAfterRuleChange();
+      if (event.target?.matches?.("[data-fo-track-action]")) {
+        syncSubFilterFields();
+        handleDrawerFormChanged();
+        scheduleRoutePreviewFromCurrentForm();
+      }
     });
 
     document.addEventListener("keydown", handleFileSettingsDrawerKeydown);

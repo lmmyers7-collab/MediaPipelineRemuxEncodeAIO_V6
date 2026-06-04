@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_application_facade_settings_workspace.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-02
+last_modified: 2026-06-03
 last_reviewed: 2026-05-29
-sha256: eaff2c05f9aa1499231ac7f8bb5b6d3105170e6a1ec32c601a41a46755e20a5e
+sha256: 4be58c2695fa63dd8f04104b836a714a48db76cb0e52629b5e73c23b1ed67dbc
 ---
 # `DesktopApp/tests/test_application_facade_settings_workspace.py`
 

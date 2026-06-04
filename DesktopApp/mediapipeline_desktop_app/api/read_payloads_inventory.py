@@ -23,6 +23,7 @@ class LocalApiInventoryReadPayloadMixin:
             resolved,
             limit=query_value(query, "limit", "100"),
             force_refresh=query_bool(query, "force_refresh", False),
+            proof_mode=query_value(query, "proof", "bounded"),
         ).to_mapping()
         try:
             pending_payload = self.facade.get_pending_publish_preview(resolved).to_mapping()

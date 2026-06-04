@@ -3,9 +3,9 @@ file: DesktopApp/tests/test_application_facade_web_static.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-03
+last_modified: 2026-06-04
 last_reviewed: 2026-05-29
-sha256: 96a528c2813f5de3e02ac169297f313bce881bc388f0c80d58822cd7f9c05e19
+sha256: ba6a76aa3e8e823750b0503b3352aae19938f5d938ede5d8e5e25707b2af8be2
 ---
 # `DesktopApp/tests/test_application_facade_web_static.py`
 

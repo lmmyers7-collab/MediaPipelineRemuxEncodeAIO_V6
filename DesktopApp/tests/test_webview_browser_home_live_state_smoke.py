@@ -124,6 +124,8 @@ def _browser_home_live_state_runner_source() -> str:
                 "atAGlanceCurrent=" + text("home-at-a-glance-current"),
                 "atAGlanceDetail=" + text("home-at-a-glance-detail"),
                 "atAGlanceQueue=" + text("home-at-a-glance-up-next"),
+                "queueCount=" + text("queue-count"),
+                "queueSnapshot=" + text("home-queue-snapshot"),
                 "dailyDriver=" + text("daily-driver-summary"),
                 "externalDependencies=" + text("home-external-dependencies-summary"),
                 "activeWork=" + text("home-active-work-summary"),
@@ -499,13 +501,11 @@ def _browser_home_live_state_runner_source() -> str:
             requireText("home-output-storage-detail", [
               "free / 1 GB reserve",
             ]);
-            if (posts.length) throw new Error("Home live-state render posted unexpected routes: " + JSON.stringify(posts));
-            window.apiPost = originalApiPost;
-            return {
-              ok: true,
-              posts,
+            const preservedHomeLiveState = {
               statePill: text("state-pill"),
               readiness: text("home-readiness-summary"),
+              queueCount: text("queue-count"),
+              queueSnapshot: text("home-queue-snapshot"),
               atAGlanceCurrent: text("home-at-a-glance-current"),
               atAGlanceDetail: text("home-at-a-glance-detail"),
               scratchStorage: text("home-scratch-storage-status") + " " + text("home-scratch-storage-detail"),
@@ -521,6 +521,37 @@ def _browser_home_live_state_runner_source() -> str:
               diagnosticsProgress: text("diagnostics-progress-detail"),
               commandSummary: text("command-summary"),
               worksheet: text("cross-page-real-media-summary"),
+            };
+            if (typeof window.renderSnapshot !== "function") {
+              throw new Error("renderSnapshot is not available for Home pipeline state formatting.");
+            }
+            window.renderSnapshot({
+              app_version: "v5-test",
+              pipeline_state: "encoding_tv_(cpu_fallback)",
+              status_summary: "Status OK",
+              current_work: { phase_label: "Encoding" },
+              counts: { queue_index: 2, queue_total: 5, processed: 0, failed: 0 },
+              progress: {},
+              progress_bars: [],
+              recent_events: [],
+            });
+            requireText("pipeline-state", [
+              "Encoding TV",
+              "(cpu fallback)",
+            ]);
+            if (text("pipeline-state").includes("_")) {
+              throw new Error("Home pipeline state still contains underscores: " + text("pipeline-state"));
+            }
+            if (posts.length) throw new Error("Home live-state render posted unexpected routes: " + JSON.stringify(posts));
+            window.apiPost = originalApiPost;
+            return {
+              ok: true,
+              posts,
+              pipelineState: text("pipeline-state"),
+              pipelineStateMain: byId("pipeline-state")?.querySelector(".pipeline-state-main")?.textContent || "",
+              pipelineStateDetail: byId("pipeline-state")?.querySelector(".pipeline-state-detail")?.textContent || "",
+              pipelineStateLabel: byId("pipeline-state")?.getAttribute("aria-label") || "",
+              ...preservedHomeLiveState,
             };
           })()
           `;
@@ -744,6 +775,13 @@ class WebViewBrowserHomeLiveStateSmokeTests(unittest.TestCase):
             self.assertTrue(result["ok"])
             browser_result = result["result"]
             self.assertEqual(browser_result["posts"], [])
+            self.assertEqual(browser_result["queueCount"], "2 / 5")
+            self.assertIn("Rows:", browser_result["queueSnapshot"])
+            self.assertIn("Runnable:", browser_result["queueSnapshot"])
+            self.assertEqual(browser_result["pipelineStateMain"], "Encoding TV")
+            self.assertEqual(browser_result["pipelineStateDetail"], "(cpu fallback)")
+            self.assertEqual(browser_result["pipelineStateLabel"], "Encoding TV (cpu fallback)")
+            self.assertNotIn("_", browser_result["pipelineState"])
             self.assertIn("Encoding", browser_result["statePill"])
             self.assertIn("Current Fixture", browser_result["atAGlanceCurrent"])
             self.assertNotIn("Current Fixture.mkv", browser_result["atAGlanceCurrent"])

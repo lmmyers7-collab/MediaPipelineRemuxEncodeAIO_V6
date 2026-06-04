@@ -84,13 +84,13 @@ class HandBrakeRemuxRegressionMatrixTests(unittest.TestCase):
                 "required_steps": {"encode_video"},
             },
             {
-                "name": "Movie under bitrate cap",
+                "name": "Movie 1080p over bucket bitrate cap",
                 "source": lambda: source_from_fixture("movie_h264_1080p_30mbps_mkv.json"),
                 "policy": EffectiveDecisionPolicy(),
-                "route": {"COPY", "REMUX"},
-                "video": "copy",
-                "reasons": {"VIDEO_BITRATE_UNDER_DIRECT_COPY_CAP", "SOURCE_CODEC_COMPATIBLE"},
-                "forbidden_steps": {"encode_video"},
+                "route": {"ENCODE"},
+                "video": "encode",
+                "reasons": {"VIDEO_BITRATE_EXCEEDS_DIRECT_COPY_CAP"},
+                "required_steps": {"encode_video"},
             },
             {
                 "name": "Movie over bitrate cap",
@@ -264,6 +264,10 @@ class HandBrakeRemuxRegressionMatrixTests(unittest.TestCase):
             "AudioMaxChannels": 6,
             "MovieRouteMaxVideoBitrateMbps": 35,
             "TVRouteMaxVideoBitrateMbps": 18,
+            "Route1080pBucketMaxHeight": 1200,
+            "Route1080pMaxVideoBitrateMbps": 20,
+            "Route4KBucketMinHeight": 1800,
+            "Route4KMaxVideoBitrateMbps": 35,
         }
         preset = preset_v2_from_legacy_config(legacy_config, name="Matrix legacy parity")
         legacy_decision = build_processing_decision(source, effective_decision_policy_from_legacy_or_preset(legacy_config))

@@ -3,9 +3,9 @@ file: schemas/stages.v1.schema.json
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-05-30
+last_modified: 2026-06-03
 last_reviewed: 2026-06-02
-sha256: 58e2ce8f6380b441be068107ade8b38c19f3159779b43ff84664195fa362a1dc
+sha256: 47016e3adfb13785590569fb29fe5baaf89490062a5bea452d898a59e126ceb0
 ---
 # `schemas/stages.v1.schema.json`
 

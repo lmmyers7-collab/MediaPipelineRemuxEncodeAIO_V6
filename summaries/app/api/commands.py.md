@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: api
 last_modified: 2026-06-03
 last_reviewed: 2026-05-28
-sha256: 916241854b28f73348b827e193fb64cef594a8ba5ae8ee1803a105da92ff10cd
+sha256: b57d3f743ebbde2426441dce161d34432a7af65f9f4f4bd7c622a353b3ea6909
 ---
 # `app/api/commands.py`
 

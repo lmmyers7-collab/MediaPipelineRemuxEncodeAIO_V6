@@ -265,16 +265,23 @@ function New-EncodeFfmpegArgumentList {
         [array] $ExtraInputs = @(),
         [Parameter(Mandatory)] [string] $GlobalTitle,
         [Parameter(Mandatory)] [array] $VideoFlags,
+        [array] $VideoFilterArgs = @(),
         [array] $AudioArgs = @(),
         [array] $SubtitleMapArgs = @(),
         [Parameter(Mandatory)] [string] $OutputPath
     )
 
     $muxerName = Get-MediaEncodeOutputMuxerName -OutputPath $OutputPath
-    return @('-i', $InputPath) + @($ExtraInputs) + @(
-        # 0:V maps only non-attached-picture video streams. Lowercase 0:v
-        # would include embedded cover art and can fail encoders.
-        '-map', '0:V',
+    $videoMapArgs = if (@($VideoFilterArgs).Count -gt 0) {
+        @($VideoFilterArgs)
+    } else {
+        @(
+            # 0:V maps only non-attached-picture video streams. Lowercase 0:v
+            # would include embedded cover art and can fail encoders.
+            '-map', '0:V'
+        )
+    }
+    return @('-i', $InputPath) + @($ExtraInputs) + @($videoMapArgs) + @(
         '-map', '0:t?',
         '-map_chapters', '0',
         '-map_metadata', '0',
@@ -334,6 +341,7 @@ function New-EncodeAttemptPlan {
         [Parameter(Mandatory)] [string] $GlobalTitle,
         [array] $AudioArgs = @(),
         [array] $SubtitleMapArgs = @(),
+        [array] $VideoFilterArgs = @(),
         [Parameter(Mandatory)] [string] $OutputPath,
         [Parameter(Mandatory)] [string] $VideoCodec,
         [Parameter(Mandatory)] [string] $VideoPreset,
@@ -374,6 +382,7 @@ function New-EncodeAttemptPlan {
         -ExtraInputs $ExtraInputs `
         -GlobalTitle $GlobalTitle `
         -VideoFlags $videoFlags `
+        -VideoFilterArgs $VideoFilterArgs `
         -AudioArgs $AudioArgs `
         -SubtitleMapArgs $SubtitleMapArgs `
         -OutputPath $OutputPath

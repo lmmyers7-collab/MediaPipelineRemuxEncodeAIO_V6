@@ -282,7 +282,8 @@ class DummyFacadeService(AppStateScheduleServiceMixin):
 
     def generate_dependency_atlas(self, **kwargs: object) -> dict[str, object]:
         self.dependency_atlas_calls.append(dict(kwargs))
-        assets_dir = self.workspace_root / "V6_dependency_atlas_assets"
+        atlas_dir = self.workspace_root / "V6_dependency_atlas"
+        assets_dir = atlas_dir / "assets"
         return {
             "success": True,
             "timed_out": False,
@@ -297,14 +298,14 @@ class DummyFacadeService(AppStateScheduleServiceMixin):
                     "Domain edges: 170",
                     "Detail diagrams: 46",
                     "HTML local links checked: 144",
-                    f"Open: {self.workspace_root / 'V6_dependency_atlas.html'}",
+                    f"Open: {atlas_dir / 'V6_dependency_atlas.html'}",
                 ]
             ),
             "stderr": "",
             "elapsed_seconds": 2.5,
-            "atlas_html": str(self.workspace_root / "V6_dependency_atlas.html"),
-            "atlas_png": str(self.workspace_root / "V6_dependency_atlas.png"),
-            "atlas_svg": str(self.workspace_root / "V6_dependency_atlas.svg"),
+            "atlas_html": str(atlas_dir / "V6_dependency_atlas.html"),
+            "atlas_png": str(atlas_dir / "V6_dependency_atlas.png"),
+            "atlas_svg": str(atlas_dir / "V6_dependency_atlas.svg"),
             "assets_dir": str(assets_dir),
             "summary_csv": str(assets_dir / "dependency_summary.csv"),
             "domain_edges_csv": str(assets_dir / "dependency_edges.csv"),
