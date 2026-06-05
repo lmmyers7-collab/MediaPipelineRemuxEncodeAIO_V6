@@ -21,7 +21,7 @@ Copy this template after any `Test-WebView*.ps1` run and fill in the fields. Do 
 | Field | Value |
 |---|---|
 | OS | Windows |
-| Bundled Python path | `DesktopApp\Runtime\Python\python.exe` (default) or: |
+| Bundled Python path | `apps\desktop\runtime\Python\python.exe` (default) or: |
 | Node.js version (`node --version`) | |
 | Chrome available | Yes / No |
 | Edge available | Yes / No |
@@ -110,9 +110,9 @@ This section is required for every run. It confirms the smoke stayed within its 
 | Non-browser JS/Node (no Chrome/Edge needed) | `Test-WebViewCommandEvidenceSmoke.ps1`, `Test-WebViewRowDetailSmoke.ps1`, `Test-WebViewScheduleSmoke.ps1`, `Test-WebViewRenameReadinessSmoke.ps1`, `Test-WebViewSettingsLaunchPolicySmoke.ps1`, `Test-WebViewSettingsLaunchLiveConfigSmoke.ps1`, `Test-WebViewSettingsPatchEvidenceSmoke.ps1` |
 | Browser-backed (Chrome or Edge required, skips cleanly if absent) | `Test-WebViewBrowserHighRiskSmoke.ps1`, `Test-WebViewBrowserScheduleSmoke.ps1`, `Test-WebViewBrowserLifecycleSmoke.ps1`, `Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1`, `Test-WebViewBrowserPendingDrainGuardSmoke.ps1`, `Test-WebViewBrowserCompletedPendingProofSmoke.ps1`, `Test-WebViewBrowserLargeTableSmoke.ps1`, `Test-WebViewBrowserMaintenanceReportsSmoke.ps1`, `Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1`, `Test-WebViewBrowserRenameSmoke.ps1`, `Test-WebViewBrowserNetworkSmoke.ps1`, `Test-WebViewBrowserTelemetrySmoke.ps1`, `Test-WebViewBrowserSettingsLaunchSmoke.ps1` |
 | Real-media fixture evidence | `Test-WebViewRealMediaEvidenceSmoke.ps1` |
-| Release / package self-test | `scripts\release\test.ps1` |
+| Release / package self-test | `ops\scripts\release\test.ps1` |
 
-For the full catalog with scope and limitation notes see `Docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`.
+For the full catalog with scope and limitation notes see `docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`.
 
 ---
 
@@ -128,4 +128,6 @@ Regardless of pass or skip status, any WebView smoke run does not prove:
 - Real-media route decisions or size-guard behavior
 - Plex direct-play or streaming compatibility
 
-For real-media validation follow `Docs/sample-validation/V5_REAL_MEDIA_VALIDATION_PLAYBOOK.md` and record evidence in `Docs/sample-validation/REAL_MEDIA_VALIDATION_EVIDENCE_TEMPLATE.md`.
+For real-media validation follow `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md` and record evidence in `docs/sample-validation/REAL_MEDIA_VALIDATION_EVIDENCE_TEMPLATE.md`.
+
+

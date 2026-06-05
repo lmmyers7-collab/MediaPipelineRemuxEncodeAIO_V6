@@ -1,6 +1,6 @@
 # Settings Builder Coverage Matrix
 
-Maps every known `CONFIG_FIELD_DEFINITIONS` key to its WebView settings builder coverage, as of the current V6 state. This is a read-only audit document. It does not implement builder changes.
+Maps every known `CONFIG_FIELD_DEFINITIONS` key to its WebView settings builder coverage, as of the current state. This is a read-only audit document. It does not implement builder changes.
 
 Total backend metadata keys: 134 (from `CONFIG_FIELD_DEFINITIONS` and the config contract).
 Covered by structured WebView builder arrays: 122.
@@ -98,10 +98,11 @@ No builder coverage gaps introduced. `BdpgsOcrToolPath` / `BdpgsOcrTessdataPath`
 
 ```
 Task ID: CLN3-025
-Files inspected: Docs\inventories\SETTINGS_BUILDER_COVERAGE_MATRIX.md, Docs\inventories\SETTINGS_KEY_OWNERSHIP_MAP.md (reference), Docs\architecture\SETTINGS_RAW_KEY_TRIAGE.md (reference)
-Files changed: Docs\inventories\SETTINGS_BUILDER_COVERAGE_MATRIX.md (CLN3-025 freshness note added)
-Validation: Select-String -Path Docs\inventories\SETTINGS_BUILDER_COVERAGE_MATRIX.md,Docs\inventories\SETTINGS_KEY_OWNERSHIP_MAP.md,Docs\architecture\SETTINGS_RAW_KEY_TRIAGE.md -Pattern "audio|subtitle|pending|raw-only|builder"
+Files inspected: docs\inventories\SETTINGS_BUILDER_COVERAGE_MATRIX.md, docs\inventories\SETTINGS_KEY_OWNERSHIP_MAP.md (reference), docs\architecture\SETTINGS_RAW_KEY_TRIAGE.md (reference)
+Files changed: docs\inventories\SETTINGS_BUILDER_COVERAGE_MATRIX.md (CLN3-025 freshness note added)
+Validation: Select-String -Path docs\inventories\SETTINGS_BUILDER_COVERAGE_MATRIX.md,docs\inventories\SETTINGS_KEY_OWNERSHIP_MAP.md,docs\architecture\SETTINGS_RAW_KEY_TRIAGE.md -Pattern "audio|subtitle|pending|raw-only|builder"
 Findings: All builder groups current. No new fields added or dropped.
 Open questions: None.
 Risk: Low — documentation only.
 ```
+

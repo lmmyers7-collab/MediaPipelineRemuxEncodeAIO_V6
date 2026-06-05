@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0604-006",
+  "title": "Clarify Queue File Settings resolved override labels",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-04",
+  "date_completed": "2026-06-04",
+  "summary": "Add backend-authored resolved track action labels to the file override effective payload and use them in the Queue File Settings drawer.",
+  "reason": "The drawer could show metadata-derived badges such as Kept by default while a stream would actually inherit normal subtitle policy and be dropped, which made the operator-facing file override state misleading.",
+  "affected_areas": [
+    "local_api",
+    "webview",
+    "queue",
+    "file_overrides"
+  ],
+  "behavior_before": "Track rows rendered selection-preview badges such as Kept by default, exact-track blank options said Inherit, and clear controls/status used generic inherited wording that did not explain the effective saved policy value.",
+  "behavior_after": "The effective file override payload includes resolved_track_actions, track rows render one backend-authored resolved action badge before metadata badges, source-default metadata is labeled Source default track, exact-track blank options say Use pipeline policy, and route/video/clear controls use saved-policy or value-aware source wording.",
+  "files_touched": [
+    "app/api/file_overrides/selectors.py",
+    "app/api/file_overrides/effective_fields.py",
+    "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.js",
+    "apps/desktop/webview/static/partials/page-queue.html",
+    "tests/python/desktop/test_file_override_tracks.py",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-006.json"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_file_override_tracks.py resolved_track_actions assertions for file override keep/drop, folder override keep/drop, unavailable probe metadata, subtitle language-policy drop, and subtitle conversion labels",
+    "tests/python/desktop/test_application_facade_local_api.py /api/queue/file-overrides/effective payload shape assertion for resolved_track_actions",
+    "tests/python/desktop/test_application_facade_web_static.py Queue drawer copy and resolved-action rendering assertions"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_file_override_tracks.py tests/python/desktop/test_application_facade_local_api.py tests/python/desktop/test_application_facade_web_static.py -q -- failed in unrelated Completed-view assertion LocalApiServerTests.test_local_api_serves_read_only_web_prototype expecting function getLastCompletedPayload in completedView.js",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_file_override_tracks.py tests/python/desktop/test_application_facade_local_api.py::LocalApiServerTests::test_local_api_file_override_effective_read_reports_match_sources_and_library_defaults tests/python/desktop/test_application_facade_web_static.py -q -- passed, 64 passed and 6 subtests passed",
+    "npm run webview:check -- passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/refresh_summaries.py -- passed, 7 written and 95 unchanged",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/validate_changes.py -- passed, 10 packet(s) valid"
+  ],
+  "rollback_plan": "Remove the resolved_track_actions projection and payload field, restore Queue File Settings drawer fallback labels/buttons/options/status to the previous wording, revert the focused test updates, and remove this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0604-004"
+  ],
+  "notes": "Read-only API/UI correctness change only. It does not change FFmpeg command generation, route policy, subtitle policy, audio policy, queue mutation, pending publish drain, source/scratch/output movement, cleanup behavior, or source media files. Affected Python scripts: app/api/file_overrides/selectors.py, app/api/file_overrides/effective_fields.py, tests/python/desktop/test_file_override_tracks.py, tests/python/desktop/test_application_facade_local_api.py, and tests/python/desktop/test_application_facade_web_static.py."
+}
+

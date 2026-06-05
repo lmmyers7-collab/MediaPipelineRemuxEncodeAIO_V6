@@ -2,17 +2,17 @@
 
 This is the canonical entry point for AI coding agents (Claude Code, Codex,
 etc.) working in this repository. It supersedes the archived
-`Docs/archive/ai/AI_AGENT_START_HERE.md`, `Docs/archive/ai/AI_DIRECTIVE.md`,
+`docs/archive/ai/AI_AGENT_START_HERE.md`, `docs/archive/ai/AI_DIRECTIVE.md`,
 and `AI_HANDOFF.md`.
 
 If you are a human, you probably want `README.md` and
-`Docs/CURRENT_PROJECT_STATE.md`.
+`docs/CURRENT_PROJECT_STATE.md`.
 
 ---
 
 ## 1. What this project is (60-second version)
 
-MediaPipelineRemuxEncodeAIO V6 is a Windows-first, single-operator media
+MediaPipelineRemuxEncodeAIO is a Windows-first, single-operator media
 pipeline for a Plex-style library. It discovers source media, copies
 sources to scratch, decides remux vs encode, runs FFmpeg/ffprobe plus
 helper tools, handles subtitles and audio, writes sidecars/manifests,
@@ -24,16 +24,22 @@ Components:
 
 | Path                                                 | Purpose                                           |
 | ---------------------------------------------------- | ------------------------------------------------- |
-| `app/`                                              | Domain-organized Python contracts, services, facades, orchestration, storage, validation |
-| `engine/`                                           | Domain-organized PowerShell implementation for media policy, FFmpeg, queue, probe, audit |
-| `Pipeline/`                                         | Root engine entry scripts, config/profiles, schemas, bundled tools, helper scripts, tests |
-| `DesktopApp/mediapipeline_desktop_app/` (Python)    | Local API host, compatibility package, backend-served WebView integration |
-| `DesktopApp/mediapipeline_desktop_app/ui_web/static/`| Vanilla-JS WebView SPA and split asset folders    |
-| `DesktopApp/tauri_shell/`                           | Tauri/WebView2 desktop shell                      |
-| `Docs/`, `Docs/generated/`, `summaries/`            | Operator/engineering docs, generated maps, AI navigation summaries |
+| `src/mediapipeline/core/`                            | Backend domain services, policies, orchestration, storage, config, queue, rename, publish |
+| `src/mediapipeline/contracts/`                       | Python contracts and generated JSON schemas       |
+| `src/mediapipeline/desktop/`                         | Local API host and desktop-facing adapters        |
+| `src/mediapipeline/pipeline/`                        | Python pipeline helpers, including ASS-to-SRT CLI |
+| `src/mediapipeline/tools/`                           | Python developer/release/change-control tooling   |
+| `ops/pipeline/entrypoints/`                          | Stable PowerShell entry scripts                   |
+| `ops/pipeline/engine/`                               | Domain-organized PowerShell implementation        |
+| `ops/pipeline/config/`                               | Pipeline templates, profiles, schemas, local PSD1s|
+| `apps/desktop/webview/static/`                       | Vanilla-JS WebView SPA and split asset folders    |
+| `apps/desktop/tauri/`                                | Tauri/WebView2 desktop shell                      |
+| `apps/desktop/launchers/`                            | Desktop launcher wrappers                         |
+| `ops/scripts/` and `ops/release/`                    | Dev/operator/release/smoke scripts and release packets |
+| `docs/`, `docs/generated/`, `docs/generated/summaries/`            | Operator/engineering docs, generated maps, AI navigation summaries |
 | `LocalBase/` (gitignored)                           | Runtime state, JSON files, SQLite mirror          |
 
-V6 is the active promoted workspace for operator and AI/code-agent work.
+This is the active promoted workspace for operator and AI/code-agent work.
 The structural cleanup and default-launcher promotion are complete by
 operator confirmation on 2026-05-30.
 
@@ -42,35 +48,37 @@ operator confirmation on 2026-05-30.
 ## 2. Repository structure (read before editing structure)
 
 Current execution status lives in
-`CHANGELOG.md`, `Docs/CURRENT_PROJECT_STATE.md`, and
-`OPEN_WORK_CHECKLIST.md`. The legacy-surface removal and package/default
+`CHANGELOG.md`, `docs/CURRENT_PROJECT_STATE.md`, and
+`docs/OPEN_WORK_CHECKLIST.md`. The legacy-surface removal and package/default
 launcher promotion work are complete; remaining work should build on the
 current domain layout.
 Highlights you must respect:
 
 - **Do not create new `facade_*.py`, `service_*.py`, or
   `command_payloads_*.py` files at the existing flat paths.** The target
-  layout is `app/<domain>/<role>.py`. Add new code under `app/` when
-  possible, not under `DesktopApp/mediapipeline_desktop_app/`.
+  layout is `src/mediapipeline/core/<domain>/<role>.py`, with
+  desktop-only adapters under `src/mediapipeline/desktop/`.
+- **Do not create new loose Python modules at repository root.** Python
+  implementation belongs under `src/mediapipeline/`.
 - **Do not create new PowerShell files in `Pipeline/Modules/` with
-  dotted suffixes.** The target is `engine/<domain>/<role>.ps1`.
+  dotted suffixes.** The target is `ops/pipeline/engine/<domain>/<role>.ps1`.
 - **Do not create new top-level Markdown status files**
   (`*_REPORT.md`, `*_FIXES.md`, `*_CHECKLIST.md`). PR descriptions belong
   in the commit/PR, not the repo. Doc updates go in `CHANGELOG.md` and the
-  relevant `Docs/`.
+  relevant `docs/`.
 - **Do not invent new "single source of truth" documents.** The canonical
   set is:
   - `README.md`
   - `CHANGELOG.md`
   - `AGENTS.md` (this file)
-  - `Docs/CURRENT_PROJECT_STATE.md`
-  - `OPEN_WORK_CHECKLIST.md`
+  - `docs/CURRENT_PROJECT_STATE.md`
+  - `docs/OPEN_WORK_CHECKLIST.md`
 
 ---
 
 ## 3. Hard rules (project-specific, do not violate)
 
-These come from `Docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md` and the
+These come from `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md` and the
 current-state doc. Internalize them.
 
 1. **Source mutation is forbidden by default.** The pipeline copies
@@ -108,10 +116,10 @@ many tokens.
 
 1. **Start each session by reading**, in order:
    - This file (`AGENTS.md`)
-   - `Docs/CURRENT_PROJECT_STATE.md`
-   - `OPEN_WORK_CHECKLIST.md`
-   - `Docs/generated/PROJECT_INDEX.md` (once it exists)
-2. **Before opening any source file**, check `summaries/<path>.md` first.
+   - `docs/CURRENT_PROJECT_STATE.md`
+   - `docs/OPEN_WORK_CHECKLIST.md`
+   - `docs/generated/PROJECT_INDEX.md` (once it exists)
+2. **Before opening any source file**, check `docs/generated/summaries/<path>.md` first.
    Open the full source only when the summary marks it
    `token_priority: high` *or* the change requires a function the summary
    did not list.
@@ -123,7 +131,8 @@ many tokens.
 5. **Maintain a context budget** of roughly 80 KB of summaries plus 50 KB
    of full sources per task. If you exceed it, the task is too big —
    split.
-6. **After editing**, run `python scripts/dev/refresh_summaries.py`
+6. **After editing**, run
+   `.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.dev.refresh_summaries`
    (or let the pre-commit hook do it).
 7. **Do not duplicate long code blocks into summaries.** Summaries name
    symbols and intent; source files contain code.
@@ -135,7 +144,7 @@ many tokens.
 | Change                                                | Rung                                                       |
 | ----------------------------------------------------- | ---------------------------------------------------------- |
 | Docs only                                             | Link/file-existence checks if links changed                |
-| WebView static JS/HTML/CSS                            | Targeted Python/Node smokes plus `SmokeTests/Test-WebView*`|
+| WebView static JS/HTML/CSS                            | Targeted Python/Node smokes plus `ops/scripts/smoke/Test-WebView*`|
 | Local API / contract changes                          | Targeted route tests plus `Test-LocalApi*`                 |
 | Settings, queue, rename, pending publish, diagnostics | Targeted unit tests plus affected smokes                   |
 | Tauri files                                           | Tauri shell checks                                         |
@@ -143,7 +152,7 @@ many tokens.
 
 For broad structural, packaging, launcher, or operator-surface changes,
 agents must also prove the operator surface still opens: start the local API
-from the `DesktopApp` working directory, confirm it reaches the
+with `apps/desktop` as the app root, confirm it reaches the
 bootstrap/listening state, and run the app-opening smoke appropriate to the
 changed surface (`start-api-and-browser` or Tauri preview/check-only). If a
 GUI/browser open cannot be performed in the current environment, report the
@@ -151,29 +160,29 @@ exact substitute command and evidence.
 
 References:
 
-- `Docs/testing/VALIDATION_LADDER_RUNBOOK.md`
-- `Docs/testing/TEST_COVERAGE_MATRIX.md`
-- `Docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`
-- `Docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md`
+- `docs/testing/VALIDATION_LADDER_RUNBOOK.md`
+- `docs/testing/TEST_COVERAGE_MATRIX.md`
+- `docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`
+- `docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md`
 
 ---
 
 ## 6. Launchers
 
-From the V6 repository root (Windows). Canonical paths under `scripts\`:
+From the repository root (Windows). Canonical paths under `ops\scripts\`:
 
 ```powershell
-.\scripts\dev\start-local-api.bat
-.\scripts\dev\start-tauri-preview.bat -CheckOnly
-.\scripts\dev\start-tauri-preview.bat
-.\scripts\dev\start-api-and-browser.bat
-.\scripts\dev\run.bat
-.\scripts\dev\setup.bat
-.\scripts\verify-env.bat
-.\scripts\verify-env.ps1
-.\scripts\release\build.ps1
-.\scripts\release\test.ps1
-.\scripts\operator\New-RealMediaValidationWorksheet.ps1
+.\ops\scripts\dev\start-local-api.bat
+.\ops\scripts\dev\start-tauri-preview.bat -CheckOnly
+.\ops\scripts\dev\start-tauri-preview.bat
+.\ops\scripts\dev\start-api-and-browser.bat
+.\ops\scripts\dev\run.bat
+.\ops\scripts\dev\setup.bat
+.\ops\scripts\dev\verify-env.bat
+.\ops\scripts\dev\verify-env.ps1
+.\ops\scripts\release\build.ps1
+.\ops\scripts\release\test.ps1
+.\ops\scripts\operator\New-RealMediaValidationWorksheet.ps1
 ```
 
 The legacy root launcher paths
@@ -185,10 +194,10 @@ The legacy root launcher paths
 `.\Test-MediaPipelineRemuxEncodeAIO-Release.ps1`,
 `.\New-RealMediaValidationWorksheet.ps1`) were removed during the legacy
 surface cleanup. **Do not reintroduce root launcher callers.** Use the canonical
-`scripts\` paths only.
+`ops\scripts\` paths only.
 
 Python validation uses the bundled interpreter at
-`DesktopApp\Runtime\Python\python.exe`. System Python may lack `pytest`
+`apps\desktop\runtime\Python\python.exe`. System Python may lack `pytest`
 and is not the canonical portable-bundle test environment.
 
 ---
@@ -207,7 +216,7 @@ and is not the canonical portable-bundle test environment.
 - Tauri backend lifecycle ownership.
 
 If your change touches any of these, read
-`Docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md` first.
+`docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md` first.
 
 ---
 
@@ -215,17 +224,18 @@ If your change touches any of these, read
 
 - **Search**: use `.rgignore` for routine searches. Use `rg -u` only for
   intentional audits of runtime, vendor, generated, or archived trees.
-- **Smoke wrappers**: put new smoke wrappers in `SmokeTests/`, never at
+- **Smoke wrappers**: put new smoke wrappers in `ops/scripts/smoke/`, never at
   the repo root.
 - **Commits**: do not commit without an explicit user instruction. Mark
   authorship as Codex unless otherwise specified.
 - **Change ledger**: every meaningful AI/code-agent change must create or
-  update a structured change packet under `changes/unreleased/` before or
+  update a structured change packet under `ops/release/changes/unreleased/` before or
   during edits. Keep `files_touched`, affected areas, summary/reason,
   validation evidence, rollback plan, status, and affected Python-script
-  details current as work progresses. Use `record_change_touch.py` with the
-  change ID plus explicit paths, or `--from-staged` for packet updates. Run
-  `validate_changes.py --require-worktree-coverage` before the final response
+   details current as work progresses. Use
+   `.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.record_change_touch`
+   with the change ID plus explicit paths, or `--from-staged` for packet updates. Run
+   `.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage` before the final response
   when feasible. The final response must report the change packet ID and the
   strict coverage result, including any unrelated uncovered dirty files that
   were not absorbed into the packet.
@@ -241,18 +251,18 @@ If your change touches any of these, read
 Do not treat the following as active guidance:
 
 - Old Claude or Codex handoff files (`AI_HANDOFF.md`,
-  `Docs/archive/ai/AI_DIRECTIVE.md`,
-  `Docs/archive/ai/AI_AGENT_START_HERE.md`) — superseded by this file.
+  `docs/archive/ai/AI_DIRECTIVE.md`,
+  `docs/archive/ai/AI_AGENT_START_HERE.md`) — superseded by this file.
 - `MONOLITH_SPLIT_PLAN.md` — the split campaign is complete; archived.
 - `md_documentation_audit*` — one-shot audit.
 - `*_REPORT.md`, `*_FIXES.md` at the repo root — PR descriptions, not
   docs.
-- Completed UI/control/checklist archives in `Docs/archive/` — historical
+- Completed UI/control/checklist archives in `docs/archive/` — historical
   only.
-- V3/V4 historical docs — context only.
+- older historical docs — context only.
 - `node_modules` Markdown — vendor material.
 - Historical text that says Tauri/WebView2 is pre-promotion or not yet the
-  default launcher is superseded by the 2026-05-30 operator-confirmed V6
+  default launcher is superseded by the 2026-05-30 operator-confirmed
   promotion. Representative real-media validation still becomes stale after
   future media behavior changes.
 
@@ -260,12 +270,13 @@ Do not treat the following as active guidance:
 
 ## 10. Where to look next
 
-- Current state: `Docs/CURRENT_PROJECT_STATE.md`
-- Backlog: `OPEN_WORK_CHECKLIST.md`
+- Current state: `docs/CURRENT_PROJECT_STATE.md`
+- Backlog: `docs/OPEN_WORK_CHECKLIST.md`
 - ADRs: `docs/adr/` (once seeded)
-- Boundaries: `Docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`
-- Architecture: `Docs/architecture/`
-- Generated maps: `Docs/generated/`
-- Smoke catalogs: `Docs/testing/`
-- File summaries: `summaries/` (once generated by
-  `scripts/dev/refresh_summaries.py`)
+- Boundaries: `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`
+- Architecture: `docs/architecture/`
+- Generated maps: `docs/generated/`
+- Smoke catalogs: `docs/testing/`
+- File summaries: `docs/generated/summaries/` (once generated by
+  `.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.dev.refresh_summaries`)
+

@@ -4,11 +4,11 @@ Last updated: 2026-06-03
 
 Operator-friendly glossary for major settings and config keys. Intended for operators who want to understand what a key does before editing it, and for documentation authors writing about config behavior.
 
-Sources: `Docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`, `Pipeline/MediaPipeline_config_template.psd1`, WebView Settings builder labels.
+Sources: `docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`, `ops/pipeline/config/MediaPipeline_config_template.psd1`, WebView Settings builder labels.
 
-This document does not invent defaults — all values noted here are from the current codebase. For the full list of keys and their WebView builder coverage status, see `Docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`.
+This document does not invent defaults — all values noted here are from the current codebase. For the full list of keys and their WebView builder coverage status, see `docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`.
 
-Code constants live in `DesktopApp/mediapipeline_desktop_app/config_keys.py` and `engine/config/config_keys.ps1`. Drift is guarded by `DesktopApp/tests/test_config_keys.py` and `Pipeline/Tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1`.
+Code constants live in `src/mediapipeline/desktop/config_keys.py` and `ops/pipeline/engine/config/config_keys.ps1`. Drift is guarded by `tests/python/desktop/test_config_keys.py` and `ops/pipeline/tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1`.
 
 ---
 
@@ -207,7 +207,7 @@ The WebView Settings page includes a read-only Raw-Key Action Plan. It does not 
 
 ## See Also
 
-- Full coverage matrix: `Docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`
-- Raw-key priority ranking: `Docs/architecture/SETTINGS_RAW_KEY_TRIAGE.md`
+- Full coverage matrix: `docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`
+- Raw-key priority ranking: `docs/architecture/SETTINGS_RAW_KEY_TRIAGE.md`
 - Settings builder WebView page: `GET /api/settings/workspace`
-- Hidden auth-key fields: `Docs/inventories/SETTINGS_KEY_OWNERSHIP_MAP.md`
+- Hidden auth-key fields: `docs/inventories/SETTINGS_KEY_OWNERSHIP_MAP.md`

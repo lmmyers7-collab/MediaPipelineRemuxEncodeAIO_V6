@@ -98,7 +98,7 @@ Append writes the normalized record only when preview is `ok`. Its command resul
 | `summary` | Decision/proof/category/check/evidence counts and latest-record summary |
 | `readiness` | Required evidence availability across Queue, Completed, Diagnostics, Pending Publish, Settings, and validation history |
 | `reconciliation` | Recent records compared against current backend artifacts, with current/review/stale status |
-| `worksheet_runs` | Bounded generated Markdown worksheet evidence under `Docs\RealMediaValidationRuns` |
+| `worksheet_runs` | Bounded generated Markdown worksheet evidence under `docs\RealMediaValidationRuns` |
 | `pilot_plan` | Read-only real-media pilot checkpoints plus `execution_checklist` rows |
 | `cutover_gate` | Conservative WebView trial evidence posture, not a production cutover switch |
 | `sample_set_guide` | Representative category coverage; current accepted records are required for ready category proof |
@@ -136,8 +136,9 @@ All Sample Validation routes are read-only except `POST /api/sample-validation/a
 
 ## See Also
 
-- Operator guide: `Docs/sample-validation/SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md`
-- Artifact design: `Docs/sample-validation/V5_SAMPLE_VALIDATION_ARTIFACT_DESIGN.md`
-- Real-media playbook: `Docs/sample-validation/V5_REAL_MEDIA_VALIDATION_PLAYBOOK.md`
-- Evidence anchor: `Docs/RealMediaValidationRuns/README.md`
+- Operator guide: `docs/sample-validation/SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md`
+- Operator guide: `docs/sample-validation/SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md`
+- Real-media pilot: `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`
+- Evidence anchor: `docs/RealMediaValidationRuns/README.md`
 - Source: `app/sample_validation/policy.py`
+

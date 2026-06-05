@@ -1,0 +1,38 @@
+{
+  "id": "MP-CHANGE-2026-0604-038",
+  "title": "Preserve diagnostics handoff scroll during refresh",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-04",
+  "date_completed": "2026-06-04",
+  "summary": "Make shared WebView text rendering idempotent for unchanged diagnostic callout/detail text and extend the DOM helper smoke to verify refresh does not replace a scrollable callout body or reset its scroll offset.",
+  "reason": "Diagnostics owner-row handoff detail blocks are refreshed while the operator is reading them. Rewriting identical text rebuilds the scrollable detail DOM and snaps the box back to the top.",
+  "affected_areas": [
+    "diagnostics",
+    "webview"
+  ],
+  "behavior_before": "Refreshing a selected Diagnostics handoff detail could rewrite the same text and rebuild the diagnostic callout, resetting the scrollable detail region to the top.",
+  "behavior_after": "Refreshing with unchanged text leaves the existing detail DOM in place, preserving the operator's scroll position while still rendering changed text normally.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/domHelpers.js",
+    "tests/python/desktop/test_webview_dom_helpers_smoke.py",
+    "ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-038.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/domHelpers.js.md",
+    "docs/generated/summaries/tests/python/desktop/test_webview_dom_helpers_smoke.py.md",
+    "docs/generated/summaries/ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-038.json.md"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_webview_dom_helpers_smoke.py"
+  ],
+  "manual_validation": [
+    "DesktopApp\\\\Runtime\\\\Python\\\\python.exe -m unittest DesktopApp.tests.test_webview_dom_helpers_smoke -q - passed",
+    "DesktopApp\\\\Runtime\\\\Python\\\\python.exe scripts\\\\change_control\\\\validate_changes.py --require-worktree-coverage - failed: uncovered unrelated dirty paths CON; apps/desktop/webview/static/assets/settingsView.builders.video.js; app/config/metadata_parts/video_fields.py; ops/pipeline/engine/process/file_processor.ps1; ops/pipeline/engine/process/worker_result.ps1; docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.builders.video.js.md; docs/generated/summaries/app/config/metadata_parts/video_fields.py.md",
+    "node --check DesktopApp\\\\mediapipeline.desktop\\\\ui_web\\\\static\\\\assets\\\\domHelpers.js - passed"
+  ],
+  "rollback_plan": "Revert the domHelpers.js idempotent setText check and the matching DOM helper smoke assertion; no backend state, media files, or persisted settings are affected.",
+  "related_changes": [],
+  "notes": "Diagnostics owner-handoff smoke was attempted but blocked before this code path by unrelated null-byte apps/desktop/webview/static/assets/completed/table.js in the dirty worktree.\nRefreshed summaries for touched WebView helper, DOM helper smoke, and change packet.\nStrict coverage failure is from unrelated uncovered dirty/untracked files outside this packet; MP-CHANGE-2026-0604-038 files are listed."
+}
+

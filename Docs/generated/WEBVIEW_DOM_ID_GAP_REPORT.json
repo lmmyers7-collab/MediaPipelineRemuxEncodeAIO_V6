@@ -1,7 +1,7 @@
 {
   "schema_version": "webview_dom_id_gap_report.v1",
-  "generated_by": "scripts/dev/check-webview-dom-id-gaps.mjs",
-  "source_index": "DesktopApp/mediapipeline_desktop_app/ui_web/static/index.html",
+  "generated_by": "ops/scripts/dev/check-webview-dom-id-gaps.mjs",
+  "source_index": "apps/desktop/webview/static/index.html",
   "included_partials": [
     "partials/app-shell-start.html",
     "partials/page-home.html",
@@ -22,9 +22,9 @@
   ],
   "report_note": "Pre-split report only. IDs are collected from index.html with mp-include partials expanded. Missing IDs can be legitimate when markup is generated at runtime, but every future split should keep this report stable or deliberately update it.",
   "counts": {
-    "html_ids": 1381,
-    "js_touched_ids": 410,
-    "ids_present_in_index": 385,
+    "html_ids": 1407,
+    "js_touched_ids": 418,
+    "ids_present_in_index": 393,
     "ids_missing_from_index": 25,
     "likely_dynamic_missing_ids": 0,
     "review_missing_ids": 25
@@ -137,24 +137,27 @@
     "fo-drawer-save",
     "fo-drawer-status",
     "fo-drawer-title",
-    "fo-folder-preview-conflicts",
-    "fo-folder-preview-library-settings",
-    "fo-folder-preview-open",
-    "fo-folder-preview-panel",
-    "fo-folder-preview-samples",
-    "fo-folder-preview-save",
-    "fo-folder-preview-scope-select",
-    "fo-folder-preview-selectors",
-    "fo-folder-preview-warnings",
-    "fo-folder-rules-library-settings",
-    "fo-folder-rules-list",
-    "fo-folder-rules-open",
-    "fo-folder-rules-panel",
-    "fo-folder-rules-refresh",
     "fo-inherited-settings-status",
     "fo-overlay",
     "fo-route-profile",
+    "fo-route-risk-confirm",
     "fo-route-threshold-mode",
+    "fo-series-apply",
+    "fo-series-auto-detect",
+    "fo-series-cancel",
+    "fo-series-counts",
+    "fo-series-detected",
+    "fo-series-fields",
+    "fo-series-issues",
+    "fo-series-modal",
+    "fo-series-modal-close",
+    "fo-series-preview-open",
+    "fo-series-rows",
+    "fo-series-status",
+    "fo-series-summary",
+    "fo-source-info-grid",
+    "fo-source-info-missing",
+    "fo-source-info-section",
     "fo-sub-drop-langs",
     "fo-sub-filter-fields",
     "fo-sub-keep-langs",
@@ -165,7 +168,8 @@
     "fo-video-encode-ladder",
     "fo-video-encode-preset",
     "gpu-rows",
-    "home-at-a-glance-up-next",
+    "home-next-queue-list",
+    "home-next-queue-status",
     "home-queue-snapshot",
     "home-queue-snapshot-status",
     "home-recent-completed-status",
@@ -249,6 +253,7 @@
     "pipeline-start-single-file",
     "pipeline-start-sleep",
     "pipeline-state",
+    "progress-bar-list",
     "progress-detail-rows",
     "progress-evidence-rows",
     "publish-reconciliation-refresh-button",
@@ -262,6 +267,7 @@
     "queue-investigation-filter",
     "queue-launch-decision-rows",
     "queue-launch-decision-status",
+    "queue-manual-order-status",
     "queue-review-rows",
     "queue-rows",
     "queue-selected-status",
@@ -269,6 +275,7 @@
     "queue-strategy-apply-btn",
     "queue-strategy-select",
     "queue-strategy-status",
+    "queue-table-legend",
     "refresh-button",
     "refresh-health",
     "release-build-button",
@@ -365,6 +372,7 @@
     "settings-final-library-verification-mode",
     "settings-handbrake-active-preset",
     "settings-launch-impact-rows",
+    "settings-library-active-title",
     "settings-library-add-button",
     "settings-library-build-patch-button",
     "settings-library-defaults-button",
@@ -474,28 +482,59 @@
   "scripts": [
     {
       "src": "/assets/apiClient.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/apiClient.js",
+      "path": "apps/desktop/webview/static/assets/apiClient.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/dom/query.js",
+      "path": "apps/desktop/webview/static/assets/dom/query.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/dom/text.js",
+      "path": "apps/desktop/webview/static/assets/dom/text.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/dom/status.js",
+      "path": "apps/desktop/webview/static/assets/dom/status.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/dom/filtering.js",
+      "path": "apps/desktop/webview/static/assets/dom/filtering.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/dom/table.js",
+      "path": "apps/desktop/webview/static/assets/dom/table.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/domHelpers.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/domHelpers.js",
+      "path": "apps/desktop/webview/static/assets/domHelpers.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/formatters.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/formatters.js",
+      "path": "apps/desktop/webview/static/assets/formatters.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/progressView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/progressView.js",
+      "path": "apps/desktop/webview/static/assets/progressView.js",
       "dom_ids_touched": [
         "diagnostics-progress-rows",
         "pipeline-event-rows",
+        "progress-bar-list",
         "progress-detail-rows",
         "progress-evidence-rows"
       ],
@@ -503,19 +542,19 @@
     },
     {
       "src": "/assets/commandHistory/formatters.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/commandHistory/formatters.js",
+      "path": "apps/desktop/webview/static/assets/commandHistory/formatters.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/commandHistory/diagnostics.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/commandHistory/diagnostics.js",
+      "path": "apps/desktop/webview/static/assets/commandHistory/diagnostics.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/commandHistory.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/commandHistory.js",
+      "path": "apps/desktop/webview/static/assets/commandHistory.js",
       "dom_ids_touched": [
         "command-diagnostics-actions",
         "command-rows",
@@ -530,21 +569,46 @@
     },
     {
       "src": "/assets/diagnosticsBridge.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/diagnosticsBridge.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsBridge.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/evidence/commands.js",
+      "path": "apps/desktop/webview/static/assets/completed/evidence/commands.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/evidence/filterScope.js",
+      "path": "apps/desktop/webview/static/assets/completed/evidence/filterScope.js",
+      "dom_ids_touched": [
+        "completed-filter",
+        "completed-investigation-filter",
+        "completed-status-filter"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/evidence/acceptance.js",
+      "path": "apps/desktop/webview/static/assets/completed/evidence/acceptance.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/evidence/routeAgreement.js",
+      "path": "apps/desktop/webview/static/assets/completed/evidence/routeAgreement.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/completedView.evidence.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.evidence.js",
+      "path": "apps/desktop/webview/static/assets/completedView.evidence.js",
       "dom_ids_touched": [
-        "completed-filter",
-        "completed-investigation-filter",
         "completed-output-acceptance-rows",
         "completed-pending-proof-rows",
         "completed-route-agreement-rows",
         "completed-route-agreement-status",
-        "completed-status-filter",
         "publish-reconciliation-refresh-button",
         "publish-reconciliation-rows"
       ],
@@ -552,7 +616,7 @@
     },
     {
       "src": "/assets/completedView.proof.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.proof.js",
+      "path": "apps/desktop/webview/static/assets/completedView.proof.js",
       "dom_ids_touched": [
         "completed-final-trust-rows",
         "completed-pilot-evidence-rows",
@@ -561,16 +625,47 @@
       "missing_from_index": []
     },
     {
-      "src": "/assets/completedView.review.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.review.js",
+      "src": "/assets/completed/review/integrity.js",
+      "path": "apps/desktop/webview/static/assets/completed/review/integrity.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/review/sizeReview.js",
+      "path": "apps/desktop/webview/static/assets/completed/review/sizeReview.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/review/healthSignals.js",
+      "path": "apps/desktop/webview/static/assets/completed/review/healthSignals.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/review/reviewRows.js",
+      "path": "apps/desktop/webview/static/assets/completed/review/reviewRows.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/review/investigationFilters.js",
+      "path": "apps/desktop/webview/static/assets/completed/review/investigationFilters.js",
       "dom_ids_touched": [
         "completed-filter",
         "completed-investigation-filter",
+        "completed-status-filter"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completedView.review.js",
+      "path": "apps/desktop/webview/static/assets/completedView.review.js",
+      "dom_ids_touched": [
         "completed-review-rows",
         "completed-selected-status",
         "completed-size-evidence-rows",
-        "completed-size-review-rows",
-        "completed-status-filter"
+        "completed-size-review-rows"
       ],
       "missing_from_index": [
         "completed-review-rows",
@@ -579,7 +674,7 @@
     },
     {
       "src": "/assets/completedView.diagnostics.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.diagnostics.js",
+      "path": "apps/desktop/webview/static/assets/completedView.diagnostics.js",
       "dom_ids_touched": [
         "completed-diagnostics-actions"
       ],
@@ -587,13 +682,13 @@
     },
     {
       "src": "/assets/completed/statusBoards.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/statusBoards.js",
+      "path": "apps/desktop/webview/static/assets/completed/statusBoards.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/completed/promotionCommands.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/promotionCommands.js",
+      "path": "apps/desktop/webview/static/assets/completed/promotionCommands.js",
       "dom_ids_touched": [
         "final-library-pause-button",
         "final-library-promote-button",
@@ -604,19 +699,19 @@
     },
     {
       "src": "/assets/completed/openActions.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/openActions.js",
+      "path": "apps/desktop/webview/static/assets/completed/openActions.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/completed/selection.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/selection.js",
+      "path": "apps/desktop/webview/static/assets/completed/selection.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/completed/filters.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/filters.js",
+      "path": "apps/desktop/webview/static/assets/completed/filters.js",
       "dom_ids_touched": [
         "completed-filter",
         "completed-history-filter",
@@ -629,7 +724,7 @@
     },
     {
       "src": "/assets/completed/table.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/table.js",
+      "path": "apps/desktop/webview/static/assets/completed/table.js",
       "dom_ids_touched": [
         "completed-filter",
         "completed-history-filter",
@@ -642,7 +737,7 @@
     },
     {
       "src": "/assets/completedView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.js",
+      "path": "apps/desktop/webview/static/assets/completedView.js",
       "dom_ids_touched": [
         "completed-pilot-evidence-markdown"
       ],
@@ -650,13 +745,13 @@
     },
     {
       "src": "/assets/queueView.summary.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.summary.js",
+      "path": "apps/desktop/webview/static/assets/queueView.summary.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/queueView.review.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.review.js",
+      "path": "apps/desktop/webview/static/assets/queueView.review.js",
       "dom_ids_touched": [
         "queue-filter",
         "queue-investigation-filter",
@@ -668,7 +763,7 @@
     },
     {
       "src": "/assets/queueView.detail.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.detail.js",
+      "path": "apps/desktop/webview/static/assets/queueView.detail.js",
       "dom_ids_touched": [
         "queue-diagnostics-actions"
       ],
@@ -676,7 +771,7 @@
     },
     {
       "src": "/assets/queueView.launch.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.launch.js",
+      "path": "apps/desktop/webview/static/assets/queueView.launch.js",
       "dom_ids_touched": [
         "queue-backend-scope-rows",
         "queue-backend-scope-status",
@@ -690,68 +785,48 @@
     },
     {
       "src": "/assets/queue/selection.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/selection.js",
+      "path": "apps/desktop/webview/static/assets/queue/selection.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/queue/openActions.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/openActions.js",
+      "path": "apps/desktop/webview/static/assets/queue/openActions.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/queue/table.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/table.js",
+      "path": "apps/desktop/webview/static/assets/queue/table.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/queueView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.js",
+      "path": "apps/desktop/webview/static/assets/queueView.js",
       "dom_ids_touched": [
         "queue-excluded-rows",
         "queue-filter",
         "queue-investigation-filter",
+        "queue-manual-order-status",
         "queue-rows",
         "queue-status-filter",
         "queue-strategy-apply-btn",
         "queue-strategy-select",
-        "queue-strategy-status"
+        "queue-strategy-status",
+        "queue-table-legend"
       ],
       "missing_from_index": []
     },
     {
       "src": "/assets/queue/fileOverrides.routePreview.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.routePreview.js",
+      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.routePreview.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
-      "src": "/assets/queue/fileOverrides.folderPreview.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.folderPreview.js",
-      "dom_ids_touched": [
-        "fo-audio-drop-langs",
-        "fo-audio-keep-langs",
-        "fo-folder-preview-conflicts",
-        "fo-folder-preview-library-settings",
-        "fo-folder-preview-panel",
-        "fo-folder-preview-samples",
-        "fo-folder-preview-save",
-        "fo-folder-preview-scope-select",
-        "fo-folder-preview-selectors",
-        "fo-folder-preview-warnings",
-        "fo-folder-rules-list",
-        "fo-folder-rules-panel",
-        "fo-sub-drop-langs",
-        "fo-sub-keep-langs",
-        "fo-sub-strip-all"
-      ],
-      "missing_from_index": []
-    },
-    {
       "src": "/assets/queue/fileOverrides.drawer.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.drawer.js",
+      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.js",
       "dom_ids_touched": [
         "fo-audio-drop-langs",
         "fo-audio-keep-langs",
@@ -764,18 +839,27 @@
         "fo-drawer-save",
         "fo-drawer-status",
         "fo-drawer-title",
-        "fo-folder-preview-library-settings",
-        "fo-folder-preview-open",
-        "fo-folder-preview-save",
-        "fo-folder-preview-scope-select",
-        "fo-folder-rules-library-settings",
-        "fo-folder-rules-list",
-        "fo-folder-rules-open",
-        "fo-folder-rules-refresh",
         "fo-inherited-settings-status",
         "fo-overlay",
         "fo-route-profile",
+        "fo-route-risk-confirm",
         "fo-route-threshold-mode",
+        "fo-series-apply",
+        "fo-series-auto-detect",
+        "fo-series-cancel",
+        "fo-series-counts",
+        "fo-series-detected",
+        "fo-series-fields",
+        "fo-series-issues",
+        "fo-series-modal",
+        "fo-series-modal-close",
+        "fo-series-preview-open",
+        "fo-series-rows",
+        "fo-series-status",
+        "fo-series-summary",
+        "fo-source-info-grid",
+        "fo-source-info-missing",
+        "fo-source-info-section",
         "fo-sub-drop-langs",
         "fo-sub-filter-fields",
         "fo-sub-keep-langs",
@@ -790,7 +874,7 @@
     },
     {
       "src": "/assets/pendingPublishView.recovery.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/pendingPublishView.recovery.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.recovery.js",
       "dom_ids_touched": [
         "pending-recovery-plan-rows"
       ],
@@ -798,7 +882,7 @@
     },
     {
       "src": "/assets/pendingPublishView.diagnostics.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/pendingPublishView.diagnostics.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.diagnostics.js",
       "dom_ids_touched": [
         "pending-diagnostics-actions"
       ],
@@ -806,7 +890,7 @@
     },
     {
       "src": "/assets/pendingPublishView.drain.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/pendingPublishView.drain.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.drain.js",
       "dom_ids_touched": [
         "pending-backend-scope-rows",
         "pending-backend-scope-status",
@@ -819,7 +903,7 @@
     },
     {
       "src": "/assets/pendingPublishView.confidence.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/pendingPublishView.confidence.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.confidence.js",
       "dom_ids_touched": [
         "pending-drain-button",
         "pending-drain-confidence-rows",
@@ -833,7 +917,7 @@
     },
     {
       "src": "/assets/pendingPublish/summary.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/pendingPublish/summary.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublish/summary.js",
       "dom_ids_touched": [
         "pending-review-rows"
       ],
@@ -841,7 +925,7 @@
     },
     {
       "src": "/assets/pendingPublish/filters.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/pendingPublish/filters.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublish/filters.js",
       "dom_ids_touched": [
         "pending-filter",
         "pending-investigation-filter",
@@ -851,7 +935,7 @@
     },
     {
       "src": "/assets/pendingPublish/details.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/pendingPublish/details.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublish/details.js",
       "dom_ids_touched": [
         "pending-selected-status"
       ],
@@ -859,7 +943,7 @@
     },
     {
       "src": "/assets/pendingPublishView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/pendingPublishView.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.js",
       "dom_ids_touched": [
         "pending-file-inventory-rows",
         "pending-filter",
@@ -871,7 +955,7 @@
     },
     {
       "src": "/assets/crossPageContextView.conflict.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/crossPageContextView.conflict.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.conflict.js",
       "dom_ids_touched": [
         "cross-page-conflict-rows"
       ],
@@ -879,7 +963,7 @@
     },
     {
       "src": "/assets/crossPageContextView.sample.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/crossPageContextView.sample.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sample.js",
       "dom_ids_touched": [
         "cross-page-sample-rows"
       ],
@@ -887,13 +971,13 @@
     },
     {
       "src": "/assets/crossPageContextView.settings.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/crossPageContextView.settings.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.settings.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/crossPageContextView.sampleValidation.worksheet.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/crossPageContextView.sampleValidation.worksheet.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.worksheet.js",
       "dom_ids_touched": [
         "cross-page-real-media-rows",
         "sample-validation-category",
@@ -905,7 +989,7 @@
     },
     {
       "src": "/assets/crossPageContextView.sampleValidation.runbook.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/crossPageContextView.sampleValidation.runbook.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.runbook.js",
       "dom_ids_touched": [
         "sample-validation-cutover-rows",
         "sample-validation-execution-rows",
@@ -916,7 +1000,7 @@
     },
     {
       "src": "/assets/crossPageContextView.sampleValidation.records.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/crossPageContextView.sampleValidation.records.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.records.js",
       "dom_ids_touched": [
         "sample-validation-acceptance-gate-rows",
         "sample-validation-completed-packet-rows",
@@ -927,7 +1011,7 @@
     },
     {
       "src": "/assets/crossPageContextView.sampleValidation.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/crossPageContextView.sampleValidation.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.js",
       "dom_ids_touched": [
         "sample-validation-append-button",
         "sample-validation-category",
@@ -941,31 +1025,31 @@
     },
     {
       "src": "/assets/crossPageContextView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/crossPageContextView.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/renameLabels.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/renameLabels.js",
+      "path": "apps/desktop/webview/static/assets/renameLabels.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/renameHistoryView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/renameHistoryView.js",
+      "path": "apps/desktop/webview/static/assets/renameHistoryView.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/rename/preview.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/rename/preview.js",
+      "path": "apps/desktop/webview/static/assets/rename/preview.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/rename/applyReadiness.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/rename/applyReadiness.js",
+      "path": "apps/desktop/webview/static/assets/rename/applyReadiness.js",
       "dom_ids_touched": [
         "rename-apply-readiness-rows"
       ],
@@ -973,7 +1057,7 @@
     },
     {
       "src": "/assets/rename/applyResult.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/rename/applyResult.js",
+      "path": "apps/desktop/webview/static/assets/rename/applyResult.js",
       "dom_ids_touched": [
         "rename-apply-outcome-rows",
         "rename-apply-outcome-status"
@@ -982,7 +1066,7 @@
     },
     {
       "src": "/assets/renameView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/renameView.js",
+      "path": "apps/desktop/webview/static/assets/renameView.js",
       "dom_ids_touched": [
         "rename-add-path-button",
         "rename-add-path-input",
@@ -1050,7 +1134,7 @@
     },
     {
       "src": "/assets/settingsOverview.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsOverview.js",
+      "path": "apps/desktop/webview/static/assets/settingsOverview.js",
       "dom_ids_touched": [
         "settings-overview-rows"
       ],
@@ -1058,31 +1142,31 @@
     },
     {
       "src": "/assets/settingsCommandHistory.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsCommandHistory.js",
+      "path": "apps/desktop/webview/static/assets/settingsCommandHistory.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/settingsMetadata.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsMetadata.js",
+      "path": "apps/desktop/webview/static/assets/settingsMetadata.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/settings/metadataFields.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settings/metadataFields.js",
+      "path": "apps/desktop/webview/static/assets/settings/metadataFields.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/settings/builderControls.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settings/builderControls.js",
+      "path": "apps/desktop/webview/static/assets/settings/builderControls.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/settingsView.builders.audio.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.builders.audio.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.audio.js",
       "dom_ids_touched": [
         "settings-audio-auto-bitrate",
         "settings-audio-preferred-languages"
@@ -1091,13 +1175,13 @@
     },
     {
       "src": "/assets/settingsView.builders.video.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.builders.video.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.video.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/settingsView.builders.subtitle.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.builders.subtitle.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.subtitle.js",
       "dom_ids_touched": [
         "settings-subtitle-bdpgs-path-status",
         "settings-subtitle-convert-bdpgs",
@@ -1114,25 +1198,25 @@
     },
     {
       "src": "/assets/settingsView.builders.queue.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.builders.queue.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.queue.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/settingsView.builders.runtime.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.builders.runtime.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.runtime.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/settingsView.builders.file_safety.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.builders.file_safety.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.file_safety.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/settingsView.builders.pending.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.builders.pending.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.pending.js",
       "dom_ids_touched": [
         "settings-pending-cleanup-remote",
         "settings-pending-deferred-publish",
@@ -1144,13 +1228,13 @@
     },
     {
       "src": "/assets/settingsView.builders.network.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.builders.network.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.network.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/settingsView.rawTriage.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.rawTriage.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.rawTriage.js",
       "dom_ids_touched": [
         "settings-filter",
         "settings-raw-action-plan-rows",
@@ -1161,7 +1245,7 @@
     },
     {
       "src": "/assets/settingsView.safetyLocks.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.safetyLocks.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.safetyLocks.js",
       "dom_ids_touched": [
         "settings-safety-lock-rows"
       ],
@@ -1169,7 +1253,7 @@
     },
     {
       "src": "/assets/settings/backendResult.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settings/backendResult.js",
+      "path": "apps/desktop/webview/static/assets/settings/backendResult.js",
       "dom_ids_touched": [
         "settings-backend-result-rows"
       ],
@@ -1177,7 +1261,7 @@
     },
     {
       "src": "/assets/settings/patchReview.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settings/patchReview.js",
+      "path": "apps/desktop/webview/static/assets/settings/patchReview.js",
       "dom_ids_touched": [
         "audit-start-library-root",
         "settings-filter",
@@ -1195,7 +1279,7 @@
     },
     {
       "src": "/assets/settings/policyImpact.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settings/policyImpact.js",
+      "path": "apps/desktop/webview/static/assets/settings/policyImpact.js",
       "dom_ids_touched": [
         "settings-active-media-policy-rows",
         "settings-backend-media-policy-rows",
@@ -1208,7 +1292,7 @@
     },
     {
       "src": "/assets/settingsView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.js",
       "dom_ids_touched": [
         "settings-handbrake-active-preset",
         "settings-patch-json",
@@ -1224,8 +1308,9 @@
     },
     {
       "src": "/assets/settingsLibraries.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsLibraries.js",
+      "path": "apps/desktop/webview/static/assets/settingsLibraries.js",
       "dom_ids_touched": [
+        "settings-library-active-title",
         "settings-library-add-button",
         "settings-library-build-patch-button",
         "settings-library-defaults-button",
@@ -1243,13 +1328,13 @@
     },
     {
       "src": "/assets/settingsWizard.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsWizard.js",
+      "path": "apps/desktop/webview/static/assets/settingsWizard.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/networkView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/networkView.js",
+      "path": "apps/desktop/webview/static/assets/networkView.js",
       "dom_ids_touched": [
         "network-evidence-rows",
         "network-lifecycle-rows",
@@ -1267,7 +1352,7 @@
     },
     {
       "src": "/assets/diagnosticsTailView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/diagnosticsTailView.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsTailView.js",
       "dom_ids_touched": [
         "diagnostics-tail-max-bytes",
         "diagnostics-tail-refresh-button",
@@ -1277,7 +1362,7 @@
     },
     {
       "src": "/assets/diagnosticsStateSummaryView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/diagnosticsStateSummaryView.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsStateSummaryView.js",
       "dom_ids_touched": [
         "diagnostics-state-summary-actions",
         "diagnostics-state-summary-rows",
@@ -1288,7 +1373,7 @@
     },
     {
       "src": "/assets/diagnosticsView.activejobs.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/diagnosticsView.activejobs.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.activejobs.js",
       "dom_ids_touched": [
         "active-job-detail-rows",
         "active-job-diagnostics-actions"
@@ -1297,7 +1382,7 @@
     },
     {
       "src": "/assets/diagnosticsView.log.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/diagnosticsView.log.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.log.js",
       "dom_ids_touched": [
         "diagnostics-log-actions",
         "diagnostics-log-filter",
@@ -1308,7 +1393,7 @@
     },
     {
       "src": "/assets/diagnosticsView.investigation.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/diagnosticsView.investigation.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.investigation.js",
       "dom_ids_touched": [
         "diagnostics-owner-handoff-actions",
         "diagnostics-owner-handoff-rows"
@@ -1317,7 +1402,7 @@
     },
     {
       "src": "/assets/diagnosticsView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/diagnosticsView.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.js",
       "dom_ids_touched": [
         "diagnostics-drilldown-actions",
         "diagnostics-first-response-rows",
@@ -1333,7 +1418,7 @@
     },
     {
       "src": "/assets/reportsView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/reportsView.js",
+      "path": "apps/desktop/webview/static/assets/reportsView.js",
       "dom_ids_touched": [
         "audit-preview-filter",
         "audit-preview-rows",
@@ -1355,7 +1440,7 @@
     },
     {
       "src": "/assets/scheduleView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/scheduleView.js",
+      "path": "apps/desktop/webview/static/assets/scheduleView.js",
       "dom_ids_touched": [
         "pipeline-start-mode",
         "pipeline-start-schedule-override",
@@ -1373,7 +1458,7 @@
     },
     {
       "src": "/assets/maintenanceView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/maintenanceView.js",
+      "path": "apps/desktop/webview/static/assets/maintenanceView.js",
       "dom_ids_touched": [
         "maintenance-change-ledger-refresh-button",
         "maintenance-change-ledger-rows",
@@ -1394,7 +1479,7 @@
     },
     {
       "src": "/assets/telemetryView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/telemetryView.js",
+      "path": "apps/desktop/webview/static/assets/telemetryView.js",
       "dom_ids_touched": [
         "gpu-rows"
       ],
@@ -1402,13 +1487,13 @@
     },
     {
       "src": "/assets/tauriLifecycleBridge.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/tauriLifecycleBridge.js",
+      "path": "apps/desktop/webview/static/assets/tauriLifecycleBridge.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
     {
       "src": "/assets/launchReadinessView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchReadinessView.js",
+      "path": "apps/desktop/webview/static/assets/launchReadinessView.js",
       "dom_ids_touched": [
         "pipeline-start-mode",
         "pipeline-start-schedule-override"
@@ -1417,7 +1502,7 @@
     },
     {
       "src": "/assets/launchHistoryView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchHistoryView.js",
+      "path": "apps/desktop/webview/static/assets/launchHistoryView.js",
       "dom_ids_touched": [
         "launch-command-diagnostics-actions",
         "launch-command-review-rows"
@@ -1425,8 +1510,38 @@
       "missing_from_index": []
     },
     {
+      "src": "/assets/launch/risk/settingsAccess.js",
+      "path": "apps/desktop/webview/static/assets/launch/risk/settingsAccess.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/risk/mediaPolicyValues.js",
+      "path": "apps/desktop/webview/static/assets/launch/risk/mediaPolicyValues.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/risk/riskRows.js",
+      "path": "apps/desktop/webview/static/assets/launch/risk/riskRows.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/risk/policyPatch.js",
+      "path": "apps/desktop/webview/static/assets/launch/risk/policyPatch.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/risk/policyBoundary.js",
+      "path": "apps/desktop/webview/static/assets/launch/risk/policyBoundary.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
       "src": "/assets/launchView.risk.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.risk.js",
+      "path": "apps/desktop/webview/static/assets/launchView.risk.js",
       "dom_ids_touched": [
         "launch-policy-boundary-rows",
         "launch-settings-intent-rows",
@@ -1437,7 +1552,7 @@
     },
     {
       "src": "/assets/launchView.scope.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.scope.js",
+      "path": "apps/desktop/webview/static/assets/launchView.scope.js",
       "dom_ids_touched": [
         "launch-scope-reconciliation-rows",
         "launch-scope-reconciliation-status",
@@ -1448,7 +1563,7 @@
     },
     {
       "src": "/assets/launchView.realmedia.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.realmedia.js",
+      "path": "apps/desktop/webview/static/assets/launchView.realmedia.js",
       "dom_ids_touched": [
         "launch-real-media-proof-rows",
         "launch-real-media-proof-status",
@@ -1459,7 +1574,7 @@
     },
     {
       "src": "/assets/launchView.preflight.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.preflight.js",
+      "path": "apps/desktop/webview/static/assets/launchView.preflight.js",
       "dom_ids_touched": [
         "launch-backend-preflight-rows",
         "launch-backend-preflight-status",
@@ -1469,25 +1584,27 @@
       "missing_from_index": []
     },
     {
-      "src": "/assets/launchView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.js",
+      "src": "/assets/launch/controllerState.js",
+      "path": "apps/desktop/webview/static/assets/launch/controllerState.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/statusRender.js",
+      "path": "apps/desktop/webview/static/assets/launch/statusRender.js",
       "dom_ids_touched": [
-        "audit-export-rerun-csv-button",
-        "audit-ignore-selected-button",
-        "audit-launch-log-rows",
-        "audit-score-policy-reset-button",
-        "audit-score-policy-save-button",
-        "audit-score-redownload-bucket",
+        "control-readiness-status",
+        "pipeline-launch-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/startRequest.js",
+      "path": "apps/desktop/webview/static/assets/launch/startRequest.js",
+      "dom_ids_touched": [
         "audit-start-include-sidecars",
         "audit-start-library-root",
         "audit-start-show-console",
-        "control-readiness-status",
-        "launch-backend-preflight-refresh-button",
-        "pipeline-launch-status",
-        "pipeline-single-file-browse-button",
-        "pipeline-single-file-browse-status",
-        "pipeline-single-file-clear-button",
-        "pipeline-start-button",
         "pipeline-start-mode",
         "pipeline-start-schedule-override",
         "pipeline-start-show-config",
@@ -1500,8 +1617,47 @@
       "missing_from_index": []
     },
     {
+      "src": "/assets/launch/scopeControls.js",
+      "path": "apps/desktop/webview/static/assets/launch/scopeControls.js",
+      "dom_ids_touched": [
+        "pipeline-single-file-browse-status",
+        "pipeline-start-button",
+        "pipeline-start-mode",
+        "pipeline-start-single-file"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/commandButtons.js",
+      "path": "apps/desktop/webview/static/assets/launch/commandButtons.js",
+      "dom_ids_touched": [
+        "pipeline-single-file-browse-button",
+        "pipeline-single-file-clear-button",
+        "pipeline-start-single-file"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launchView.js",
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "dom_ids_touched": [
+        "audit-export-rerun-csv-button",
+        "audit-ignore-selected-button",
+        "audit-launch-log-rows",
+        "audit-score-policy-reset-button",
+        "audit-score-policy-save-button",
+        "audit-score-redownload-bucket",
+        "launch-backend-preflight-refresh-button",
+        "pipeline-single-file-browse-button",
+        "pipeline-single-file-clear-button",
+        "pipeline-start-button",
+        "pipeline-start-single-file"
+      ],
+      "missing_from_index": []
+    },
+    {
       "src": "/assets/contractView.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/contractView.js",
+      "path": "apps/desktop/webview/static/assets/contractView.js",
       "dom_ids_touched": [
         "api-contract-filter",
         "api-contract-method",
@@ -1513,7 +1669,7 @@
     },
     {
       "src": "/assets/app/lifecycle.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app/lifecycle.js",
+      "path": "apps/desktop/webview/static/assets/app/lifecycle.js",
       "dom_ids_touched": [
         "activity",
         "advanced-toggle",
@@ -1532,8 +1688,28 @@
       "missing_from_index": []
     },
     {
+      "src": "/assets/app/topbar.js",
+      "path": "apps/desktop/webview/static/assets/app/topbar.js",
+      "dom_ids_touched": [
+        "pipeline-state"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/app/closeReadiness.js",
+      "path": "apps/desktop/webview/static/assets/app/closeReadiness.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/app/tauriLifecycle.js",
+      "path": "apps/desktop/webview/static/assets/app/tauriLifecycle.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
       "src": "/assets/app/refresh.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app/refresh.js",
+      "path": "apps/desktop/webview/static/assets/app/refresh.js",
       "dom_ids_touched": [
         "completed-refresh-current-output-button",
         "refresh-button",
@@ -1544,10 +1720,11 @@
     },
     {
       "src": "/assets/app/home.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app/home.js",
+      "path": "apps/desktop/webview/static/assets/app/home.js",
       "dom_ids_touched": [
         "daily-driver-rows",
-        "home-at-a-glance-up-next",
+        "home-next-queue-list",
+        "home-next-queue-status",
         "home-queue-snapshot",
         "home-queue-snapshot-status",
         "home-recent-completed-status",
@@ -1556,8 +1733,20 @@
       "missing_from_index": []
     },
     {
+      "src": "/assets/app/homeReadiness.js",
+      "path": "apps/desktop/webview/static/assets/app/homeReadiness.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/app/rowOpenActions.js",
+      "path": "apps/desktop/webview/static/assets/app/rowOpenActions.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
       "src": "/assets/app/layoutManager.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app/layoutManager.js",
+      "path": "apps/desktop/webview/static/assets/app/layoutManager.js",
       "dom_ids_touched": [
         "customize-layout-btn",
         "layout-editor-done",
@@ -1576,7 +1765,7 @@
     },
     {
       "src": "/assets/app.js",
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js",
+      "path": "apps/desktop/webview/static/assets/app.js",
       "dom_ids_touched": [
         "advanced-toggle",
         "audit-preview-filter",
@@ -1612,7 +1801,6 @@
         "pending-recovery-plan-selected-button",
         "pending-status-filter",
         "pipeline-start-button",
-        "pipeline-state",
         "publish-reconciliation-refresh-button",
         "queue-clear-filters-button",
         "queue-filter",

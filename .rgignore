@@ -1,25 +1,25 @@
 # Generated, bundled, runtime, and local-output paths that should not be
 # searched during normal source/docs/test maintenance.
 
-DesktopApp/Runtime/
-DesktopApp/RunLogs/
-DesktopApp/tauri_shell/node_modules/
-DesktopApp/tauri_shell/src-tauri/target/
-DesktopApp/tauri_shell/src-tauri/gen/
+apps/desktop/runtime/
+apps/desktop/runlogs/
+apps/desktop/tauri/node_modules/
+apps/desktop/tauri/src-tauri/target/
+apps/desktop/tauri/src-tauri/gen/
 
-Pipeline/Tools/
-Pipeline/PowerShell-7.6.0-win-x64/
-Pipeline/Incoming/
-Pipeline/Processing/
-Pipeline/Encoded/
-Pipeline/Failed/
-Pipeline/AuditReports/
-Pipeline/PendingServerPush/
-Pipeline/Completed/
-Pipeline/RemuxTemp/
-Pipeline/Scratch/
-Pipeline/.mediapipeline-staging/
-Pipeline/ConfigBackups/archive/
+ops/pipeline/tools/
+ops/pipeline/runtime/PowerShell-7.6.0-win-x64/
+ops/pipeline/Incoming/
+ops/pipeline/Processing/
+ops/pipeline/Encoded/
+ops/pipeline/Failed/
+ops/pipeline/AuditReports/
+ops/pipeline/PendingServerPush/
+ops/pipeline/Completed/
+ops/pipeline/RemuxTemp/
+ops/pipeline/Scratch/
+ops/pipeline/.mediapipeline-staging/
+ops/pipeline/config/backups/
 
 **/__pycache__/
 **/*.pyc

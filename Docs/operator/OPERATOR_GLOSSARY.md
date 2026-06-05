@@ -1,6 +1,6 @@
 # Operator Glossary
 
-Plain-language definitions of recurring terms in the MediaPipelineRemuxEncodeAIO V6 operator interface, documentation, and Diagnostics output.
+Plain-language definitions of recurring terms in the MediaPipelineRemuxEncodeAIO operator interface, documentation, and Diagnostics output.
 
 ---
 
@@ -61,7 +61,7 @@ A backend-owned monitor that tracks whether a continuous pipeline run should sto
 When `DeferredPublish` is enabled and the output destination is not available (e.g., network share is down), the pipeline parks the finished output locally under `State\PendingServerPush\` instead of failing. The output is safe locally; it has not reached its final destination yet. See also: **Pending Publish**, **Drain**.
 
 ### Diagnostics Target
-An allowlisted key name accepted by `POST /api/diagnostics/open` and `GET /api/diagnostics/tail`. The backend resolves the real filesystem path from the key; the WebView never passes raw paths. Examples: `last_stderr_log`, `queue_snapshot`, `active_jobs`. Full list in `Docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`.
+An allowlisted key name accepted by `POST /api/diagnostics/open` and `GET /api/diagnostics/tail`. The backend resolves the real filesystem path from the key; the WebView never passes raw paths. Examples: `last_stderr_log`, `queue_snapshot`, `active_jobs`. Full list in `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`.
 
 ### Direct Play
 Plex terminology for a file the Plex Media Server can stream to a client without transcoding. H.264 video with compatible audio and subtitle tracks is typically Direct Play capable. The pipeline's remux path targets this. Files that require encoding may or may not be Direct Play after encode depending on the selected profile.
@@ -171,17 +171,17 @@ Runtime files (queue snapshot, progress JSON, ActiveJobs, completed manifest) th
 ## T
 
 ### Tauri / WebView2 Shell
-The native V6 shell that wraps the Python backend in a Tauri/WebView2 window. The WebView remains a control and evidence surface; backend routes retain authority for filesystem mutation, settings save, launch, stop, rename apply, and pending-publish drain.
+The native current shell that wraps the Python backend in a Tauri/WebView2 window. The WebView remains a control and evidence surface; backend routes retain authority for filesystem mutation, settings save, launch, stop, rename apply, and pending-publish drain.
 
-### V5 External Fallback
-The separate V5 workspace retained outside this V6 folder for rollback if a V6 operator flow has not passed validation. V6 no longer carries the removed legacy desktop shell.
+### External Rollback Workspace
+The separate external rollback workspace retained outside this current folder for rollback if a current operator flow has not passed validation. This workspace no longer carries the removed legacy desktop shell.
 
 ---
 
 ## V
 
 ### Validation Ladder
-The ordered set of checks from quick syntax/unit tests up through real-media validation. Each rung proves a different layer: docs-only changes need only the release self-test; WebView JS changes need smoke tests; real-media routing changes need a sample run with route/output/sidecar evidence. See `Docs/testing/VALIDATION_LADDER_RUNBOOK.md`.
+The ordered set of checks from quick syntax/unit tests up through real-media validation. Each rung proves a different layer: docs-only changes need only the release self-test; WebView JS changes need smoke tests; real-media routing changes need a sample run with route/output/sidecar evidence. See `docs/testing/VALIDATION_LADDER_RUNBOOK.md`.
 
 ---
 
@@ -212,9 +212,9 @@ Added scope-related terms: **Backend Scope**, **Backend-Owned Command**, **Displ
 
 ```
 Task ID: CLN4-026
-Files inspected: Docs\operator\OPERATOR_GLOSSARY.md, Docs\operator\WEBVIEW_SCOPE_PREVIEW_OPERATOR_GUIDE.md
-Files changed: Docs\operator\OPERATOR_GLOSSARY.md (6 new scope terms added)
-Validation: Select-String -Path Docs\operator\OPERATOR_GLOSSARY.md -Pattern "Backend Scope|Display Filter|Render Cap|Selected Row|Evidence-Only Panel"
+Files inspected: docs\operator\OPERATOR_GLOSSARY.md, docs\operator\WEBVIEW_SCOPE_PREVIEW_OPERATOR_GUIDE.md
+Files changed: docs\operator\OPERATOR_GLOSSARY.md (6 new scope terms added)
+Validation: Select-String -Path docs\operator\OPERATOR_GLOSSARY.md -Pattern "Backend Scope|Display Filter|Render Cap|Selected Row|Evidence-Only Panel"
 Findings: All 6 terms were absent; each is now defined with cross-references.
 Open questions: None.
 Risk: Low — documentation only.
@@ -230,13 +230,13 @@ A specific state that blocks a planned action: e.g., the Publish Button Guard's 
 
 ## See Also
 
-- Operator copy vocabulary: `Docs/operator/TERMINOLOGY_CONSISTENCY_GUIDE.md`
-- Diagnostics targets: `Docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`
-- Runtime artifact paths: `Docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md`
-- API route mutation risk: `Docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md`
-- No-touch boundaries: `Docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`
-- Evidence packet field reference: `Docs/sample-validation/SAMPLE_VALIDATION_PAYLOAD_SCHEMA_REFERENCE.md`
-- Operator record guide: `Docs/sample-validation/SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md`
+- Operator copy vocabulary: `docs/operator/TERMINOLOGY_CONSISTENCY_GUIDE.md`
+- Diagnostics targets: `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`
+- Runtime artifact paths: `docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md`
+- API route mutation risk: `docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md`
+- No-touch boundaries: `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`
+- Evidence packet field reference: `docs/sample-validation/SAMPLE_VALIDATION_PAYLOAD_SCHEMA_REFERENCE.md`
+- Operator record guide: `docs/sample-validation/SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md`
 
 ---
 
@@ -251,7 +251,8 @@ Added:
 
 ```
 Task IDs: CLN3-020, CLN3-021
-Files changed: Docs\operator\OPERATOR_GLOSSARY.md (Queue route proof, Real-Media Proof Chain, Safe Next Action, Stop Condition entries added; Browser-Backed Smoke count corrected)
-Validation: Select-String -Path Docs\operator\OPERATOR_GLOSSARY.md -Pattern "Queue route proof|Completed output|Pending Publish posture|stop condition"
+Files changed: docs\operator\OPERATOR_GLOSSARY.md (Queue route proof, Real-Media Proof Chain, Safe Next Action, Stop Condition entries added; Browser-Backed Smoke count corrected)
+Validation: Select-String -Path docs\operator\OPERATOR_GLOSSARY.md -Pattern "Queue route proof|Completed output|Pending Publish posture|stop condition"
 Risk: Low — documentation only.
 ```
+

@@ -2,7 +2,7 @@
 
 Date: 2026-05-20
 
-This is the source-of-truth design contract for future WebView/Tauri Network lifecycle commands. It does not authorize implementation by itself. V6 currently has no Network start, stop, retry, reclaim, release, abort, or worker-polling POST routes and no WebView lifecycle buttons.
+This is the source-of-truth design contract for future WebView/Tauri Network lifecycle commands. It does not authorize implementation by itself. The current workspace has no Network start, stop, retry, reclaim, release, abort, or worker-polling POST routes and no WebView lifecycle buttons.
 
 The WebView may display these boundaries from `/api/contract`, but it must not infer lifecycle safety, start or stop coordinator/worker runtime, author queue state, release claims, send done reports, write Network state files, launch media work, or touch source/scratch/output/pending-publish files.
 
@@ -25,7 +25,7 @@ Any future Network lifecycle capability must ship in this order:
 1. Backend dry-run route with `effect=none`.
 2. Backend tests proving the dry-run returns `dry_run_only=true`, role/config/token/path-map precondition results, active-work evidence, duplicate-command guards, and `would_not_touch` source/scratch/output/queue/pending-publish evidence.
 3. Backend mutation route only after process cleanup, dispatcher rollback, state preservation, command journaling, close-readiness integration, and timeout handling are tested.
-4. WebView control only after route inventory, command ownership, browser no-mutation/static coverage, operator-visible command-result evidence, and `DOC_TOUCH_LOG.md` updates exist.
+4. WebView control only after route inventory, command ownership, browser no-mutation/static coverage, operator-visible command-result evidence, and change-control evidence exist.
 
 The frontend must never construct filesystem paths, synthesize worker state, expose tokens, or author coordinator/worker safety decisions. All role, readiness, state-file, claim, active-work, and cleanup posture must come from backend state.
 
@@ -66,9 +66,10 @@ The required dry-run result fields are:
 
 Current static gates:
 
-- `DesktopApp/tests/test_api_contract_payload.py` verifies the design-only contract payload, dry-run schema fields, rollback journal fields, source-file policy, route exposure gates, and deep-copy behavior.
-- `DesktopApp/tests/test_application_facade_local_api.py` verifies the live Local API contract exposes the same design-only lifecycle fields.
-- `DesktopApp/tests/test_webview_network_read_only_boundary.py` keeps the Network page diagnostics-open-only and verifies no Network lifecycle/mutation route is callable from WebView assets.
-- `DesktopApp/tests/test_application_facade_network.py` verifies `GET /api/network/workers` remains read-only persisted evidence and now proves heartbeat age is backend-authored from persisted worker timestamps.
+- `tests/python/desktop/test_api_contract_payload.py` verifies the design-only contract payload, dry-run schema fields, rollback journal fields, source-file policy, route exposure gates, and deep-copy behavior.
+- `tests/python/desktop/test_application_facade_local_api.py` verifies the live Local API contract exposes the same design-only lifecycle fields.
+- `tests/python/desktop/test_webview_network_read_only_boundary.py` keeps the Network page diagnostics-open-only and verifies no Network lifecycle/mutation route is callable from WebView assets.
+- `tests/python/desktop/test_application_facade_network.py` verifies `GET /api/network/workers` remains read-only persisted evidence and now proves heartbeat age is backend-authored from persisted worker timestamps.
 
 Future implementation must add route-level negative tests, duplicate-start/stop tests, active-work rejection tests, command-journal tests, process cleanup/orphan tests, browser no-mutation tests, and source/scratch/output/pending-publish hash checks before any control is considered daily-driver safe.
+

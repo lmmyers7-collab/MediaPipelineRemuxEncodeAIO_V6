@@ -139,10 +139,10 @@ Both panels are evidence-only reads — they issue no routes, change no state, a
 
 ## See Also
 
-- Scope preview operator guide: `Docs/operator/WEBVIEW_SCOPE_PREVIEW_OPERATOR_GUIDE.md`
-- Completed/Pending failure playbook: `Docs/operator/COMPLETED_PENDING_FAILURE_PLAYBOOK.md`
-- Diagnostics target allowlist audit: `Docs/archive/completed-audits/DIAGNOSTICS_TARGET_ALLOWLIST_AUDIT.md`
-- Log artifact catalog: `Docs/inventories/LOG_ARTIFACT_CATALOG.md`
+- Scope preview operator guide: `docs/operator/WEBVIEW_SCOPE_PREVIEW_OPERATOR_GUIDE.md`
+- Completed/Pending failure playbook: `docs/operator/COMPLETED_PENDING_FAILURE_PLAYBOOK.md`
+- Diagnostics target allowlist audit: `docs/archive/completed-audits/DIAGNOSTICS_TARGET_ALLOWLIST_AUDIT.md`
+- Log artifact catalog: `docs/inventories/LOG_ARTIFACT_CATALOG.md`
 
 ---
 
@@ -152,9 +152,9 @@ Added **Scope Preview Panels as Pre-Investigation Context** section recommending
 
 ```
 Task ID: CLN4-025
-Files inspected: Docs\operator\DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md (all 20 targets, operator sequences, integration section)
-Files changed: Docs\operator\DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md (scope preview pre-investigation context section added; See Also section added)
-Validation: Select-String -Path Docs\operator\DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md -Pattern "Backend Launch Scope Preview|Backend Drain Scope Preview"
+Files inspected: docs\operator\DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md (all 20 targets, operator sequences, integration section)
+Files changed: docs\operator\DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md (scope preview pre-investigation context section added; See Also section added)
+Validation: Select-String -Path docs\operator\DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md -Pattern "Backend Launch Scope Preview|Backend Drain Scope Preview"
 Findings: No prior scope preview reference; both panels added to Integration section as pre-investigation context.
 Open questions: None.
 Risk: Low — documentation only.

@@ -4,14 +4,14 @@ Date: 2026-06-04
 
 Documents every POST command route in the Local API: command type, backend
 contract group, primary frontend owner, mutation class, and key restrictions.
-Source: `DesktopApp/mediapipeline_desktop_app/api/contract_command.py`,
+Source: `src/mediapipeline/desktop/api/contract_command.py`,
 `app/api/commands.py`, and the WebView `apiPost` call inventory.
 
 Total command routes: 51 POST routes across 9 contract groups.
 
 Network lifecycle and repair/reconcile mutation controls remain design-only.
 `/api/contract` publishes future contract gates for those areas, but no Network
-start/stop/reclaim/release/worker-polling POST route and no repair/reconcile
+start/stop/reclaim/ops/release/metadata/worker-polling POST route and no repair/reconcile
 POST route is authorized until the matching architecture contract is satisfied.
 
 ---
@@ -93,7 +93,7 @@ destinations, eligibility, cleanup behavior, or media policy.
 | `POST /api/maintenance/release-dry-run` | Maintenance | `maintenanceView.js` | `process-dry-run` | Runs release builder with `-DryRun`; no release package is written |
 | `POST /api/maintenance/release-build` | Maintenance | `maintenanceView.js` | `deployment-write` | `confirm_create: true` required; writes release deployment artifacts through backend builder |
 | `POST /api/maintenance/completed-backfill-dry-run` | Maintenance | `maintenanceView.js` | `process-dry-run` | Runs backfill script with `-DryRun`; no completed manifest is written |
-| `POST /api/maintenance/dependency-atlas` | Maintenance | `maintenanceView.js` | `tooling-artifact-write` | Writes generated dependency-atlas artifacts under `V6_dependency_atlas/` only |
+| `POST /api/maintenance/dependency-atlas` | Maintenance | `maintenanceView.js` | `tooling-artifact-write` | Writes generated dependency-atlas artifacts under `docs/generated/dependency-atlas/` only |
 
 ### Diagnostics Open
 
@@ -249,7 +249,7 @@ operator evidence only:
 - All `*/preview`, `*/validate`, and `settings/reload` routes
 - `settings/pipeline-plan-preview`
 - `pending-publish/recovery-plan`
-- release/backfill dry-run routes
+- ops/release/metadata/backfill dry-run routes
 
 Network-page Worker Mode Settings preview/save is config-only through the existing Settings routes above. It is not a Network lifecycle command surface and does not authorize coordinator/worker start, stop, retry, reclaim, release, abort, or worker-polling controls.
 
@@ -282,12 +282,12 @@ Settings Wizard, pipeline-plan preview, UI preferences, and final-library
 pause/resume routes, and records `folder_files` rename browse mode plus the
 `kill` pipeline control action.
 
-Validation anchor: `DesktopApp/tests/test_api_command_contracts.py` now checks
+Validation anchor: `tests/python/desktop/test_api_command_contracts.py` now checks
 that this matrix lists every route in `COMMAND_ROUTE_METHODS`.
 
 ## See Also
 
-- Route details with auth: `Docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`
-- Full route inventory: `Docs/inventories/API_ROUTE_INVENTORY.md`
-- Mutation matrix: `Docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md`
-- Diagnostics allowlist: `Docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`
+- Route details with auth: `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`
+- Full route inventory: `docs/inventories/API_ROUTE_INVENTORY.md`
+- Mutation matrix: `docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md`
+- Diagnostics allowlist: `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`

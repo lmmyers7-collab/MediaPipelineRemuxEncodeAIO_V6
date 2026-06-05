@@ -1,0 +1,18 @@
+---
+file: src/mediapipeline/tools/dev/generate_project_index.py
+pipeline_stage: n/a
+token_priority: medium
+owner_domain: scripts
+last_modified: 2026-06-04
+last_reviewed: 2026-06-04
+sha256: 3aef3051487c9c75caf5fd1653133cdf48df9edee742064b4ea145f93285e007
+---
+# `src/mediapipeline/tools/dev/generate_project_index.py`
+
+**Purpose:** Generate docs/generated/PROJECT_INDEX.md and docs/generated/DEPENDENCY_GRAPH.md from docs/generated/summaries/.
+
+**Classes:** `OrphanSummaryFinding`
+**Public functions:** `check_file()`, `expected_summary_path_for_file()`, `iter_summaries()`, `main()`, `orphan_summary_findings()`, `parse_first()`, `parse_frontmatter()`, `render_graph()`, `render_index()`, `render_orphan_summary_findings()`, `short_purpose()`
+**In-repo imports:** `mediapipeline.tools.paths`
+
+_Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/tools/dev/generate_project_index.py`._

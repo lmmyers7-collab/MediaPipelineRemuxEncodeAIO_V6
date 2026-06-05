@@ -45,7 +45,7 @@ The UI wording is therefore misleading:
 
 Queue button wiring lives in:
 
-- `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.js`
+- `apps/desktop/webview/static/assets/queueView.js`
 
 The current Queue refresh button calls global refresh:
 
@@ -55,8 +55,8 @@ refreshAll({ queueRefresh: true })
 
 Global refresh lives in:
 
-- `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js`
-- `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app/refresh.js`
+- `apps/desktop/webview/static/assets/app.js`
+- `apps/desktop/webview/static/assets/app/refresh.js`
 
 That refresh fetches `GET /api/queue` along with many other read routes.
 
@@ -64,7 +64,7 @@ That refresh fetches `GET /api/queue` along with many other read routes.
 
 Read route registration:
 
-- `DesktopApp/mediapipeline_desktop_app/api/routes_read.py`
+- `src/mediapipeline/desktop/api/routes_read.py`
 
 Relevant route:
 
@@ -74,7 +74,7 @@ GET /api/queue -> _queue_payload
 
 Payload implementation:
 
-- `DesktopApp/mediapipeline_desktop_app/api/read_payloads_inventory.py`
+- `src/mediapipeline/desktop/api/read_payloads_inventory.py`
 
 Relevant behavior:
 
@@ -105,8 +105,8 @@ The backend already has a queue-plan emission path:
 - `app/queue/preview_builder.py`
 - `app/queue/dry_run.py`
 - `app/queue/dry_run_runner.py`
-- `Pipeline/MediaPipeline.ps1`
-- `engine/queue/pipeline_engine.ps1`
+- `ops/pipeline/entrypoints/MediaPipeline.ps1`
+- `ops/pipeline/engine/queue/pipeline_engine.ps1`
 
 The command builder in `app/queue/dry_run.py` produces:
 
@@ -117,10 +117,10 @@ pwsh -NoProfile -NonInteractive -File MediaPipeline.ps1
   -ConfigPath <config path>
 ```
 
-`Pipeline/MediaPipeline.ps1` handles `-EmitQueuePlan` by calling
+`ops/pipeline/entrypoints/MediaPipeline.ps1` handles `-EmitQueuePlan` by calling
 `Invoke-MediaPipelineEmitQueuePlan`.
 
-`engine/queue/pipeline_engine.ps1` implements `Invoke-MediaPipelineEmitQueuePlan`
+`ops/pipeline/engine/queue/pipeline_engine.ps1` implements `Invoke-MediaPipelineEmitQueuePlan`
 as a single scan/filter/snapshot pass:
 
 ```text
@@ -357,8 +357,8 @@ Files likely involved:
 
 - `app/api/commands.py`
 - `app/contracts/api_commands.py`
-- `DesktopApp/mediapipeline_desktop_app/api/contract_command.py`
-- `DesktopApp/mediapipeline_desktop_app/api/routes_command.py`
+- `src/mediapipeline/desktop/api/contract_command.py`
+- `src/mediapipeline/desktop/api/routes_command.py`
 - `app/api/commands_queue_scan.py` (new, under `app/api/`, not a flat desktop
   app file)
 
@@ -560,11 +560,11 @@ Do not call snapshot reload "scanning".
 
 Update route inventories/contracts as needed:
 
-- `DesktopApp/mediapipeline_desktop_app/api/contract_command.py`
-- `DesktopApp/mediapipeline_desktop_app/api/contract_payload.py`
-- `Docs/inventories/API_ROUTE_INVENTORY.md`
-- `Docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`
-- `Docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md`
+- `src/mediapipeline/desktop/api/contract_command.py`
+- `src/mediapipeline/desktop/api/contract_payload.py`
+- `docs/inventories/API_ROUTE_INVENTORY.md`
+- `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`
+- `docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md`
 
 Route contract should make clear:
 
@@ -598,21 +598,21 @@ Add tests for:
 
 Likely test files:
 
-- `DesktopApp/tests/test_api_command_contracts.py`
-- `DesktopApp/tests/test_application_facade_local_api.py`
-- `DesktopApp/tests/test_application_facade_queue.py`
-- `DesktopApp/tests/test_service_queue_dry_run_runner.py`
+- `tests/python/desktop/test_api_command_contracts.py`
+- `tests/python/desktop/test_application_facade_local_api.py`
+- `tests/python/desktop/test_application_facade_queue.py`
+- `tests/python/desktop/test_service_queue_dry_run_runner.py`
 - New focused tests if needed:
-  - `DesktopApp/tests/test_queue_scan_service.py`
-  - `DesktopApp/tests/test_queue_source_inventory.py`
+  - `tests/python/desktop/test_queue_scan_service.py`
+  - `tests/python/desktop/test_queue_source_inventory.py`
 
 ### WebView Static Tests
 
 Update tests that currently assert Queue refresh behavior:
 
-- `DesktopApp/tests/test_application_facade_web_static.py`
-- `DesktopApp/tests/test_application_facade_local_api.py`
-- `DesktopApp/tests/test_webview_frontend_mutation_boundary.py`
+- `tests/python/desktop/test_application_facade_web_static.py`
+- `tests/python/desktop/test_application_facade_local_api.py`
+- `tests/python/desktop/test_webview_frontend_mutation_boundary.py`
 
 Assert:
 
@@ -626,7 +626,7 @@ Assert:
 
 Update or add browser smoke:
 
-- `DesktopApp/tests/test_webview_browser_launch_queue_readiness_smoke.py`
+- `tests/python/desktop/test_webview_browser_launch_queue_readiness_smoke.py`
 
 Smoke scenario:
 
@@ -654,7 +654,7 @@ After implementation, run a live validation with real filesystem roots:
 
 Because this touches queue launch scope and source discovery, rerun applicable
 queue and launch smokes. If media-policy behavior changes, escalate to the
-release/real-media validation ladder.
+ops/release/metadata/real-media validation ladder.
 
 ## Implementation Order
 
@@ -740,8 +740,8 @@ For the next implementation agent:
 1. Read this file.
 2. Read `app/queue/facade.py`, `app/queue/service.py`,
    `app/queue/dry_run_runner.py`, and `app/queue/dry_run.py`.
-3. Read `DesktopApp/mediapipeline_desktop_app/api/routes_read.py`,
-   `DesktopApp/mediapipeline_desktop_app/api/routes_command.py`, and
+3. Read `src/mediapipeline/desktop/api/routes_read.py`,
+   `src/mediapipeline/desktop/api/routes_command.py`, and
    `app/api/commands.py`.
 4. Add the route and duplicate-guarded scan service first.
 5. Do not start with the fast inventory UI. Prove a true scan route can refresh

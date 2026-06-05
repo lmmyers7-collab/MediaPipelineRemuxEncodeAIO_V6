@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0604-037",
+  "title": "Preserve WebView panel scroll during refresh",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-04",
+  "date_completed": "2026-06-04",
+  "summary": "Preserve scroll positions for WebView scrollable panels, tables, detail blocks, and document scroll across refresh-driven re-renders.",
+  "reason": "Automatic refresh can rebuild table/detail DOM while the operator is reading a scrolled panel, causing the visible panel to snap back to the top.",
+  "affected_areas": [
+    "refresh",
+    "scroll-state",
+    "webview"
+  ],
+  "behavior_before": "Refresh-driven renders could replace or rewrite scrollable DOM contents without restoring the operator's scroll position.",
+  "behavior_after": "Full refresh and Completed current-output refresh capture scroll positions immediately before render and restore them after the render settles, including replaced nodes with stable IDs.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/app/refresh.js",
+    "apps/desktop/webview/static/assets/domHelpers.js",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/python/desktop/test_webview_dom_helpers_smoke.py",
+    "ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-037.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/refresh.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/domHelpers.js.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_webview_dom_helpers_smoke.py.md",
+    "docs/generated/summaries/ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-037.json.md"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_webview_dom_helpers_smoke.py"
+  ],
+  "manual_validation": [
+    "DesktopApp\\\\Runtime\\\\Python\\\\python.exe -m unittest DesktopApp.tests.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_web_tables_share_accessible_selection_helpers - blocked by unrelated NUL-filled completed/table.js bundle content",
+    "DesktopApp\\\\Runtime\\\\Python\\\\python.exe -m unittest DesktopApp.tests.test_webview_dom_helpers_smoke -q - passed",
+    "DesktopApp\\\\Runtime\\\\Python\\\\python.exe scripts\\\\change_control\\\\validate_changes.py --require-worktree-coverage - failed with 5 unrelated uncovered paths: CON; apps/desktop/webview/static/assets/settingsView.builders.video.js; app/config/metadata_parts/video_fields.py; docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.builders.video.js.md; docs/generated/summaries/app/config/metadata_parts/video_fields.py.md",
+    "DesktopApp\\\\Runtime\\\\Python\\\\python.exe scripts\\\\change_control\\\\validate_changes.py --require-worktree-coverage - failed with latest observed 9 unrelated uncovered paths: CON; apps/desktop/webview/static/assets/settingsView.builders.video.js; app/config/metadata_parts/video_fields.py; ops/pipeline/engine/subtitles/failure_records.ps1; ops/pipeline/engine/subtitles/filtering.ps1; ops/pipeline/engine/subtitles/language_policy.ps1; ops/pipeline/engine/subtitles/routing_decisions.ps1; docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.builders.video.js.md; docs/generated/summaries/app/config/metadata_parts/video_fields.py.md",
+    "node --check domHelpers.js/app.js/app/refresh.js - passed",
+    "node ops/scripts/dev/smoke-webview-script-order.mjs - blocked by unrelated NUL-filled apps/desktop/webview/static/assets/completed/table.js"
+  ],
+  "rollback_plan": "Remove the refresh scroll capture/restore calls from app.js and app/refresh.js, remove the scroll snapshot helpers from domHelpers.js, and remove the added regression assertions.",
+  "related_changes": [],
+  "notes": "Full WebView script-order/static validation is blocked by apps/desktop/webview/static/assets/completed/table.js being NUL-filled before/aside from this packet. The file is covered by other local change state and was not restored from HEAD to avoid discarding unrelated edits."
+}
+

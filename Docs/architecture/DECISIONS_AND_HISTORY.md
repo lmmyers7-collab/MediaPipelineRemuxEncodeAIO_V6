@@ -6,9 +6,9 @@ This document preserves durable decisions and historical context without requiri
 
 ## Current Direction
 
-- V6 is the active promoted WebView/Tauri workspace.
-- V5 remains the external rollback/fallback workspace and should not be modified from V6 work.
-- The legacy desktop shell and removed root launcher shims are not active V6 surfaces; do not treat old desktop-shell fallback or root-launcher instructions as active V6 guidance.
+- This is the active promoted WebView/Tauri workspace.
+- The external rollback workspace remains the rollback/fallback workspace and should not be modified from current-workspace work.
+- The legacy desktop shell and removed root launcher shims are not active current surfaces; do not treat old desktop-shell fallback or root-launcher instructions as active guidance.
 - Tauri/WebView2 is the preferred long-term shell direction over PySide6/Qt for this project because it gives a modern operator interface, stronger table/layout ergonomics, and a clearer backend/frontend boundary while keeping the existing Python/PowerShell backend alive.
 - Migration must stay adapter-based and incremental. Do not move backend-owned mutation authority into the frontend.
 
@@ -66,17 +66,17 @@ This document preserves durable decisions and historical context without requiri
 ## Documentation Decisions
 
 - `CURRENT_PROJECT_STATE.md` is the first current-state read.
-- `OPEN_WORK_CHECKLIST.md` is the active unresolved backlog.
+- `docs/OPEN_WORK_CHECKLIST.md` is the active unresolved backlog.
 - `DECISIONS_AND_HISTORY.md` preserves decision rationale from older long-form docs.
 - `ARCHIVED_MD_INDEX.md` indexes old AI directives, completed checklists, and superseded reviews.
-- `Docs/DOCS_INDEX.md` is the active documentation map. The 2026-05-20 quarantine root is `Docs/archive/docs-housekeeping/2026-05-20-review/`.
+- `docs/DOCS_INDEX.md` is the active documentation map. The 2026-05-20 quarantine root is `docs/archive/docs-housekeeping/2026-05-20-review/`.
 - Old Claude handoff files are not active direction unless explicitly reopened.
 - Completed UI/control cleanup checklists are archive material.
 - Large historical docs should be retained but not used as primary onboarding.
 
 ## Important Historical Milestones
 
-- V5 was copied from working V4 so V4 could remain stable while V5 absorbed remediation and WebView/Tauri work; V6 was later split from V5 as the WebView-first workspace with the legacy desktop shell removed.
+- The current WebView-first workspace was split from the previous remediation workspace after it absorbed WebView/Tauri work, while older fallback evidence remained stable.
 - Services were split incrementally from oversized Python modules while preserving existing behavior.
 - Rename tool moved toward standalone movie/TV batch editing with backend-owned apply.
 - Remux/encode routing gained more explicit size policy, profile, and settings visibility.
@@ -88,12 +88,12 @@ This document preserves durable decisions and historical context without requiri
 
 ## Historical Docs Worth Preserving
 
-- `Docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/Docs/archive/historical-reviews/GUI_FRAMEWORK_DECISION_AND_MIGRATION_PLAN.md`: archived detailed framework comparison and migration direction.
-- `Docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/Docs/archive/historical-reviews/TAURI_WEBVIEW2_TRANSITION_GROUNDWORK.md`: archived original transition groundwork.
-- `Docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/Docs/archive/historical-plans/V5_TAURI_TRANSITION_CURRENT_PLAN_20260520_ARCHIVED.md`: historical long-form transition log and plan; current state is in `Docs/CURRENT_PROJECT_STATE.md`.
+- `docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/docs/archive/historical-reviews/GUI_FRAMEWORK_DECISION_AND_MIGRATION_PLAN.md`: archived detailed framework comparison and migration direction.
+- `docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/docs/archive/historical-reviews/TAURI_WEBVIEW2_TRANSITION_GROUNDWORK.md`: archived original transition groundwork.
+- Archived historical transition plan: historical long-form transition log and plan; current state is in `docs/CURRENT_PROJECT_STATE.md`.
 - `REMEDIATION_CHANGELOG.md`: detailed chronological remediation history.
-- `Docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/Docs/archive/completed-audits/V5_MODULE_OWNERSHIP_REVIEW_ADDENDUM.md`: module ownership and fragmentation concerns.
-- `Docs/archive/docs-housekeeping/2026-05-20-review/delete-candidates/Docs/archive/admin-audits/MD_CLEANUP_AUDIT_REPORT.md`: old Markdown classification evidence retained as a quarantine-only delete candidate.
+- Archived module ownership addendum: module ownership and fragmentation concerns.
+- `docs/archive/docs-housekeeping/2026-05-20-review/delete-candidates/docs/archive/admin-audits/MD_CLEANUP_AUDIT_REPORT.md`: old Markdown classification evidence retained as a quarantine-only delete candidate.
 
 ## Decisions That Are Not Final
 
@@ -103,3 +103,4 @@ This document preserves durable decisions and historical context without requiri
 - Whether `node_modules` should remain in this working tree.
 - Which raw settings keys deserve structured builder controls versus intentional advanced/raw handling.
 - Whether old Claude transition handoffs still contain work not reflected in active docs.
+

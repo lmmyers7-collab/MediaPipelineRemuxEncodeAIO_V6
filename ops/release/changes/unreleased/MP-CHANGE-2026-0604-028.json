@@ -1,0 +1,63 @@
+{
+  "id": "MP-CHANGE-2026-0604-028",
+  "title": "Global runnable queue current item count",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "high",
+  "date_started": "2026-06-04",
+  "date_completed": "2026-06-04",
+  "summary": "Changed live queue progress metadata so Current Item can show global runnable queue position across priority, movie, TV, and low-priority phases while preserving bucket-local queue fields for Queue table evidence.",
+  "reason": "The operator needs the Home Current Item card to show progress through the full runnable pipeline plan, not just the active phase bucket.",
+  "affected_areas": [
+    "progress",
+    "queue",
+    "webview"
+  ],
+  "behavior_before": "CurrentQueueIndex and CurrentQueueTotal were populated from each phase bucket, so the Home Current Item metric reset when processing moved from high priority to normal movie, TV, or low-priority phases.",
+  "behavior_after": "Queue snapshot construction annotates runnable entries with RunQueueIndex and RunQueueTotal after exclusion checks; serial and local-worker progress use those run-level values while bucket QueueIndex and QueueTotal remain available for table/context evidence.",
+  "files_touched": [
+    "tests/python/desktop/test_application_facade_snapshot.py",
+    "tests/python/desktop/test_status_service.py",
+    "tests/python/desktop/test_webview_browser_home_live_state_smoke.py",
+    "ops/pipeline/config/src/mediapipeline/contracts/schemas/media_pipeline_queue_plan_snapshot.schema.json",
+    "ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1",
+    "ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-028.json",
+    "ops/pipeline/engine/queue/local_worker_slots.ps1",
+    "ops/pipeline/engine/queue/pipeline_engine.ps1",
+    "ops/pipeline/engine/queue/queue_plan.ps1",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_snapshot.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_status_service.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_webview_browser_home_live_state_smoke.py.md",
+    "docs/generated/summaries/ops/pipeline/config/src/mediapipeline/contracts/schemas/media_pipeline_queue_plan_snapshot.schema.json.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1.md",
+    "docs/generated/summaries/ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-028.json.md",
+    "docs/generated/summaries/ops/pipeline/engine/queue/local_worker_slots.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/queue/pipeline_engine.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/queue/queue_plan.ps1.md"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_snapshot.py",
+    "tests/python/desktop/test_status_service.py",
+    "tests/python/desktop/test_webview_browser_home_live_state_smoke.py",
+    "ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_application_facade_snapshot.py tests/python/desktop/test_status_service.py -q - passed, 16 tests",
+    "apps/desktop/runtime/Python/python.exe -m unittest DesktopApp.tests.test_webview_browser_home_live_state_smoke -q - passed",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/validate_changes.py - passed, 39 packets valid",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/validate_changes.py - passed, 39 packets valid after packet updates",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/validate_changes.py --require-worktree-coverage - failed: 9 unrelated uncovered dirty paths remain (CON; apps/desktop/webview/static/assets/app/lifecycle.js; apps/desktop/webview/static/assets/settingsView.builders.video.js; docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md; ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1; app/config/metadata_parts/video_fields.py; ops/scripts/ops/release/metadata/release_policy.ps1; docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.builders.video.js.md; docs/generated/summaries/app/config/metadata_parts/video_fields.py.md)",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/validate_changes.py --require-worktree-coverage - failed: uncovered pre-existing dirty paths plus docs/generated/summaries/ops/pipeline/engine/queue/local_worker_slots.ps1.md and docs/generated/summaries/ops/pipeline/engine/queue/pipeline_engine.ps1.md before packet update",
+    "Final apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/validate_changes.py - passed, 39 packets valid",
+    "Final apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/validate_changes.py --require-worktree-coverage - failed: 10 unrelated uncovered dirty paths remain (CON; apps/desktop/webview/static/assets/app/lifecycle.js; apps/desktop/webview/static/assets/settingsView.builders.video.js; tests/python/desktop/test_webview_css_design_tokens.py; docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md; ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1; app/config/metadata_parts/video_fields.py; ops/scripts/ops/release/metadata/release_policy.ps1; docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.builders.video.js.md; docs/generated/summaries/app/config/metadata_parts/video_fields.py.md)",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1 - passed",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1 - passed",
+    "ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1 - failed before queue-specific wrapper completion on pre-existing rename apply safety assertion",
+    "ops/scripts/smoke/Test-WebViewBrowserHomeLiveStateSmoke.ps1 - failed before injected 3/17 renderSnapshot assertion; final state still showed original backend fixture queueCount=2/5"
+  ],
+  "rollback_plan": "Revert the RunQueueIndex/RunQueueTotal helper and snapshot annotations, restore serial/local-worker progress to QueueIndex/QueueTotal, remove the optional schema fields and focused test fixture updates, refresh summaries, and delete this change packet. No source/output/scratch media files, publish manifests, FFmpeg arguments, subtitle policy, or audio policy are involved.",
+  "related_changes": [],
+  "notes": "High-risk classification is because queue launch/progress metadata is release-sensitive. This change is intentionally limited to queue progress metadata and tests: it does not change queue ordering, queue mutation routes, media routing, FFmpeg command generation, source/scratch/output movement, pending publish drain behavior, subtitle handling, or audio policy.\nPre-existing dirty work was present in many files, including queue_plan.ps1 and related tests. This packet records only the global runnable queue count implementation and generated summary paths for this task."
+}
+

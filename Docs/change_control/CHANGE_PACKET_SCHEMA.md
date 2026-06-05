@@ -1,7 +1,7 @@
 # Change Packet Schema
 
-Change packets are JSON files stored under `changes/unreleased/` or
-`changes/released/<version>/`. JSON is used so the tooling has no external YAML
+Change packets are JSON files stored under `ops/release/changes/unreleased/` or
+`ops/release/changes/released/<version>/`. JSON is used so the tooling has no external YAML
 dependency.
 
 Each packet must use this shape:
@@ -71,7 +71,7 @@ Each packet must use this shape:
 - `high`: FFmpeg command generation, subtitle/audio policy, publish/drain,
   source/scratch/output movement, queue launch, or settings persistence.
 - `critical`: Changes that could cause source mutation, silent bad publish,
-  data loss, unsafe cleanup, or broad release/package failure.
+  data loss, unsafe cleanup, or broad ops/release/metadata/package failure.
 
 ## Completion Rule
 
@@ -85,12 +85,12 @@ should fail validation.
 Every meaningful worktree, staged, or branch-diff change must be covered by
 `files_touched` in an unreleased packet. Released packets are historical and do
 not satisfy current coverage. Generated docs, summaries, tests, scripts, UI
-files, config, and documentation are all coverable paths; only files Git already
-ignores are outside coverage.
+files, config, documentation, and explicit directory subtrees are all coverable
+paths; only files Git already ignores are outside coverage.
 
 Use the helper to keep packet fields current without hand-editing JSON:
 
 ```powershell
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\record_change_touch.py MP-CHANGE-YYYY-MMDD-### path/to/file.py
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\record_change_touch.py MP-CHANGE-YYYY-MMDD-### --from-staged --validation "unit tests - passed"
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.record_change_touch MP-CHANGE-YYYY-MMDD-### path/to/file.py
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.record_change_touch MP-CHANGE-YYYY-MMDD-### --from-staged --validation "unit tests - passed"
 ```

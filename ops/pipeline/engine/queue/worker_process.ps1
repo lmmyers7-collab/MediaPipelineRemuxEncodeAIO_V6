@@ -1,0 +1,99 @@
+# ==============================================================================
+# ops\pipeline\engine\queue\worker_process.ps1
+# ==============================================================================
+# Extracted from ops\pipeline\engine\queue\local_worker_slots.ps1. Keep function names
+# stable; local_worker_slots.ps1 dot-sources this file for compatibility.
+# ==============================================================================
+
+function Test-MediaPipelineProcessAlive {
+    param([object] $ProcessId)
+
+    try {
+        $pidValue = [int]$ProcessId
+        if ($pidValue -le 0) { return $false }
+        $proc = Get-Process -Id $pidValue -ErrorAction SilentlyContinue
+        return ($null -ne $proc -and -not $proc.HasExited)
+    } catch {
+        return $false
+    }
+}
+
+function Join-MediaPipelineProcessArgument {
+    param([string] $Value)
+
+    if ($null -eq $Value) { return '""' }
+    $text = [string]$Value
+    if ($text -notmatch '[\s"]') { return $text }
+    return '"' + ($text -replace '\\(?=")', '\\' -replace '"', '\"') + '"'
+}
+
+function Start-MediaPipelineLocalWorkerChild {
+    param(
+        [Parameter(Mandatory)] $Entry,
+        [Parameter(Mandatory)] $Claim,
+        [Parameter(Mandatory)] $SlotLayout,
+        [Parameter(Mandatory)] [string] $ScriptPath,
+        [Parameter(Mandatory)] [string] $ConfigPath,
+        [Parameter(Mandatory)] [string] $PowerShellPath,
+        [Parameter(Mandatory)] [string] $OwnerRunId
+    )
+
+    Initialize-MediaPipelineWorkerSlotLayout -SlotLayout $SlotLayout | Out-Null
+    foreach ($path in @($SlotLayout.ResultFile, $SlotLayout.StdoutLog, $SlotLayout.StderrLog)) {
+        Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
+    }
+    $metadata = [ordered]@{
+        schema_version = 'local_worker_metadata.v1'
+        slot_id        = [int]$SlotLayout.SlotId
+        claim_id       = [string]$Claim.claim_id
+        source_path    = [string]$Claim.source_path
+        owner_run_id   = [string]$OwnerRunId
+        created_at     = Get-MediaPipelineLocalWorkerTimestamp
+    }
+    Write-MediaPipelineJsonAtomic -Path $SlotLayout.MetadataFile -InputObject $metadata -Depth 5 | Out-Null
+
+    $arguments = @(
+        '-NoLogo',
+        '-NoProfile',
+        '-ExecutionPolicy', 'Bypass',
+        '-File', $ScriptPath,
+        '-ConfigPath', $ConfigPath,
+        '-SingleFile', ([string]$Claim.source_path),
+        '-WorkerChild',
+        '-WorkerSlotId', ([string]$SlotLayout.SlotId),
+        '-WorkerRunId', $OwnerRunId,
+        '-WorkerClaimId', ([string]$Claim.claim_id),
+        '-WorkerResultPath', ([string]$SlotLayout.ResultFile)
+    )
+    $argumentLine = ($arguments | ForEach-Object { Join-MediaPipelineProcessArgument -Value ([string]$_) }) -join ' '
+    $process = Start-Process -FilePath $PowerShellPath `
+        -ArgumentList $argumentLine `
+        -WorkingDirectory (Split-Path -Parent $ScriptPath) `
+        -RedirectStandardOutput $SlotLayout.StdoutLog `
+        -RedirectStandardError $SlotLayout.StderrLog `
+        -WindowStyle Hidden `
+        -PassThru
+    return $process
+}
+
+function Stop-MediaPipelineLocalWorkerProcess {
+    param(
+        [Parameter(Mandatory)] $Job,
+        [int] $GraceMilliseconds = 2500
+    )
+
+    try {
+        if (-not $Job.Process -or $Job.Process.HasExited) { return }
+        try { $Job.Process.CloseMainWindow() | Out-Null } catch {}
+        $exited = $Job.Process.WaitForExit($GraceMilliseconds)
+        if (-not $exited -and -not $Job.Process.HasExited) {
+            $Job.Process.Kill($true)
+            $Job.Process.WaitForExit(5000) | Out-Null
+        }
+    } catch {
+        if (Get-Command Write-Log -ErrorAction SilentlyContinue) {
+            Write-Log "Failed to stop local worker slot $($Job.SlotLayout.SlotId): $_" 'WARN'
+        }
+    }
+}
+

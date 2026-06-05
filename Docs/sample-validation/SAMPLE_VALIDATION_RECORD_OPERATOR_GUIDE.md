@@ -2,7 +2,7 @@
 
 Date: 2026-05-15
 
-Short operator guide for Sample Validation records in the V5 WebView/Tauri preview. References `V5_SAMPLE_VALIDATION_ARTIFACT_DESIGN.md` and `V5_REAL_MEDIA_VALIDATION_PLAYBOOK.md`.
+Short operator guide for Sample Validation records in the promoted current WebView/Tauri surface.
 
 ---
 
@@ -48,7 +48,7 @@ These statuses appear on the Home page for recent historical records and indicat
 |---|---|---|
 | **current** | The source/output paths in the record still match a Completed row and the current Queue/Completed/Pending/Diagnostics proof agrees with the recorded decision. | Use the record as historical evidence for this file. |
 | **stale** | Backend artifacts have changed since the record was written — the file was re-queued, re-encoded, the Completed row changed, or the pending-publish posture changed. The old record describes a different backend state. | Do not treat this record as proof for the current run. Re-inspect evidence and record a new note if the new run is complete. |
-| **review** | The operator chose `hold_review` at append time, or the reconciliation backend found a mismatch that requires attention. The record is not automatically disqualifying, but the operator flagged it as needing follow-up. | Read the reconciliation detail and decide whether to accept, rerun, or fall back to the external V5 rollback workspace. |
+| **review** | The operator chose `hold_review` at append time, or the reconciliation backend found a mismatch that requires attention. The record is not automatically disqualifying, but the operator flagged it as needing follow-up. | Read the reconciliation detail and decide whether to accept, rerun, or fall back to the external rollback workspace. |
 
 ---
 
@@ -114,9 +114,9 @@ The frontend **never** receives an output path for the log, cannot choose a writ
 
 ## See Also
 
-- Design rationale: `Docs/sample-validation/V5_SAMPLE_VALIDATION_ARTIFACT_DESIGN.md`
-- End-to-end real-media playbook: `Docs/sample-validation/V5_REAL_MEDIA_VALIDATION_PLAYBOOK.md`
-- Payload schema reference: `Docs/sample-validation/SAMPLE_VALIDATION_PAYLOAD_SCHEMA_REFERENCE.md`
+- Payload schema reference: `docs/sample-validation/SAMPLE_VALIDATION_PAYLOAD_SCHEMA_REFERENCE.md`
+- End-to-end real-media pilot: `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`
+- Payload schema reference: `docs/sample-validation/SAMPLE_VALIDATION_PAYLOAD_SCHEMA_REFERENCE.md`
 
 ---
 
@@ -124,10 +124,11 @@ The frontend **never** receives an output path for the log, cannot choose a writ
 
 ```
 Task ID: CLN3-002
-Files inspected: Docs\sample-validation\V5_SAMPLE_VALIDATION_ARTIFACT_DESIGN.md, Docs\sample-validation\V5_REAL_MEDIA_VALIDATION_PLAYBOOK.md, app\sample_validation\policy.py
-Files changed: Docs\sample-validation\SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md (created)
-Validation: Test-Path Docs\sample-validation\SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md; Select-String -Path Docs\sample-validation\SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md -Pattern "does not accept|does not launch|read-only|operator evidence"
+Files inspected: retired sample-validation design/playbook notes, src\mediapipeline\core\sample_validation\policy.py
+Files changed: docs\sample-validation\SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md (created)
+Validation: Test-Path docs\sample-validation\SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md; Select-String -Path docs\sample-validation\SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md -Pattern "does not accept|does not launch|read-only|operator evidence"
 Findings: Guide created with purpose, when to record, stale/current/review meaning, safe next action, and mutation boundary sections.
 Open questions: None.
 Risk: Low — documentation only.
 ```
+

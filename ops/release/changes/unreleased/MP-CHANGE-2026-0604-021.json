@@ -1,0 +1,52 @@
+{
+  "id": "MP-CHANGE-2026-0604-021",
+  "title": "Allow multi-row queue priority selection",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-04",
+  "date_completed": "2026-06-04",
+  "summary": "Queue rows now support a separate multi-row priority selection set while preserving the existing active selected row for detail panels, Launch handoffs, and open-command context.",
+  "reason": "The Queue priority toolbar could only apply High, Normal, Low, or Hold to the single active Queue row. Operators need to select several explicit rows and apply one priority change through the existing backend-owned Queue priority route.",
+  "affected_areas": [
+    "queue",
+    "webview",
+    "validation"
+  ],
+  "behavior_before": "Clicking a Queue row replaced the single selected row. The High, Normal, Low, and Hold toolbar buttons posted one path from that row, while bulk behavior was limited to the all-Movie and all-TV shortcuts.",
+  "behavior_after": "Clicking a Queue row still updates the active selected-row detail. Ctrl/Cmd-click and Space toggle rows into the priority selection set, Shift-click adds a visible range, the Queue legend reports total and visible priority selection counts, and the priority toolbar sends selected rows through the existing bulk /api/queue/priority items payload.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/domHelpers.js",
+    "apps/desktop/webview/static/assets/queue/selection.js",
+    "apps/desktop/webview/static/assets/queue/table.js",
+    "apps/desktop/webview/static/assets/queueView.js",
+    "apps/desktop/webview/static/partials/page-queue.html",
+    "tests/python/desktop/test_webview_row_detail_smoke.py",
+    "ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-021.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/domHelpers.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/queue/selection.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/queue/table.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/queueView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-queue.html.md",
+    "docs/generated/summaries/tests/python/desktop/test_webview_row_detail_smoke.py.md",
+    "docs/generated/summaries/ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-021.json.md"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_webview_row_detail_smoke.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest DesktopApp.tests.test_webview_row_detail_smoke - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest DesktopApp.tests.test_webview_frontend_mutation_boundary DesktopApp.tests.test_api_static_files_policy - passed",
+    "npm run webview:check - passed",
+    "npm run webview:script-order:smoke - passed",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewRowDetailSmoke.ps1 - passed",
+    "npm run webview:contract:check - failed due whole-surface docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json drift that also includes unrelated pre-existing WebView changes; generated baseline edits were not kept in this packet",
+    "npm run webview:routes:check - failed due whole-surface docs/generated/WEBVIEW_ROUTE_OWNERSHIP_GUARD.json drift that also includes unrelated pre-existing WebView changes; generated baseline edits were not kept in this packet",
+    "In-app Browser at http://127.0.0.1:18296/ with temporary no-token Local API: nav Queue selected, first row clicked, second row Ctrl/Cmd-clicked, legend reported 2 selected rows and Priority selection: 2 total, 2 visible; no priority mutation button was pressed"
+  ],
+  "rollback_plan": "Revert the Queue WebView asset edits, page-queue copy, row-detail smoke change, generated WebView guard JSON files, generated summaries, and this change packet. This restores single-row Queue priority selection without touching backend media policy, source files, queue processing, pending publish, FFmpeg, subtitle, or audio behavior.",
+  "related_changes": [],
+  "notes": ""
+}
+

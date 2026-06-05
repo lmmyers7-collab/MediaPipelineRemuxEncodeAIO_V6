@@ -1,21 +1,21 @@
 # WebView God-File Split Guardrails
 
-This is a companion to `Docs/testing/WEBVIEW_GODFILE_SPLIT_RUNBOOK.md`.
+This is a companion to `docs/testing/WEBVIEW_GODFILE_SPLIT_RUNBOOK.md`.
 It exists to keep future `app.js` and `settingsView.js` slice passes
 conservative, reviewable, and reversible. It does not replace `AGENTS.md`,
-`Docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`, or the generated WebView
-baselines under `Docs/generated/`.
+`docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`, or the generated WebView
+baselines under `docs/generated/`.
 
 ## Existing Guardrails Checked First
 
 Before this file was added, the repo already had these related safeguards:
 
-- `scripts/dev/ai_guardrail.py`: generic AI preflight/postflight checks.
-- `scripts/dev/check_architecture_guardrails.py`: architecture layout checks.
-- `Docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`: media and mutation safety
+- `ops/scripts/dev/ai_guardrail.py`: generic AI preflight/postflight checks.
+- `ops/scripts/dev/check_architecture_guardrails.py`: architecture layout checks.
+- `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`: media and mutation safety
   boundaries.
-- `Docs/testing/WEBVIEW_GODFILE_SPLIT_RUNBOOK.md`: WebView split procedure.
-- `Docs/generated/WEBVIEW_ROUTE_OWNERSHIP_GUARD.json`: settings route ownership
+- `docs/testing/WEBVIEW_GODFILE_SPLIT_RUNBOOK.md`: WebView split procedure.
+- `docs/generated/WEBVIEW_ROUTE_OWNERSHIP_GUARD.json`: settings route ownership
   and confirmation-gate baseline.
 
 No dedicated WebView god-file split guardrail file existed.
@@ -38,9 +38,9 @@ No dedicated WebView god-file split guardrail file existed.
 Future slices should use folders under the current WebView asset root instead
 of adding more root-level dotted files.
 
-- `app.js` children: `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app/`
+- `app.js` children: `apps/desktop/webview/static/assets/app/`
 - `settingsView.js` children:
-  `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settings/`
+  `apps/desktop/webview/static/assets/settings/`
 
 Prefer cohesive names such as `lifecycle.js`, `refresh.js`, `home.js`,
 `layoutManager.js`, `backendResult.js`, `patchReview.js`, and
@@ -58,7 +58,7 @@ npm run webview:prework:check
 If that fails, stop and fix the baseline/tooling issue before moving code.
 Do not begin a split from a failing prework gate.
 
-Use `Docs/generated/WEBVIEW_SPLIT_CANDIDATES.json` to choose the next slice.
+Use `docs/generated/WEBVIEW_SPLIT_CANDIDATES.json` to choose the next slice.
 Prefer candidates marked `safe_to_move_now` with small parent-state reads, no
 parent-state writes, few outside-local references, and no settings route
 ownership warnings.
@@ -107,7 +107,7 @@ npm run webview:prework:check
 ```
 
 Then run the focused Python and browser smoke tests named in
-`Docs/testing/WEBVIEW_GODFILE_SPLIT_RUNBOOK.md` for the surface being split.
+`docs/testing/WEBVIEW_GODFILE_SPLIT_RUNBOOK.md` for the surface being split.
 
 ## Review Checklist
 

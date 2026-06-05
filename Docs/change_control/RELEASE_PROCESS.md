@@ -5,16 +5,16 @@ documentation, finalize complete unreleased changes, and archive release
 artifacts. Phase 3 finalization moves only complete unreleased packets and
 should always be previewed with `--dry-run` first.
 
-1. Create or complete change packets in `changes/unreleased/`.
+1. Create or complete change packets in `ops/release/changes/unreleased/`.
 2. Keep packet coverage current with
-   `.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\record_change_touch.py MP-CHANGE-YYYY-MMDD-### --from-staged`.
-3. Run `.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\validate_changes.py`.
-4. Run `.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\validate_changes.py --require-worktree-coverage`.
-5. Run `.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\build_change_index.py`.
-6. Run `.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\build_changelog.py`.
-7. Run `.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\build_release_manifest.py`.
-8. Run `.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\prepare_release.py --version 0.1.0-dev --channel dev` when ready.
-9. Review `release/RELEASE_MANIFEST.json` and `Docs/change_control/CHANGELOG.md`.
+   `.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.record_change_touch MP-CHANGE-YYYY-MMDD-### --from-staged`.
+3. Run `.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.validate_changes`.
+4. Run `.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage`.
+5. Run `.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.build_change_index`.
+6. Run `.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.build_changelog`.
+7. Run `.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.build_release_manifest`.
+8. Run `.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.prepare_release --version 2026.06.04.001 --channel local` when ready.
+9. Review `ops/release/metadata/RELEASE_MANIFEST.json` and `docs/change_control/CHANGELOG.md`.
 
 ## Phase 3 Finalization
 
@@ -30,12 +30,12 @@ should always be previewed with `--dry-run` first.
 Example commands:
 
 ```powershell
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\validate_changes.py
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\validate_changes.py --require-worktree-coverage
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\prepare_release.py --version 0.1.0-dev --channel dev --dry-run
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\finalize_release.py --version 0.1.0-dev --channel dev --dry-run
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\finalize_release.py --version 0.1.0-dev --channel dev
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\list_releases.py
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.validate_changes
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.prepare_release --version 2026.06.04.001 --channel local --dry-run
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.finalize_release --version 2026.06.04.001 --channel local --dry-run
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.finalize_release --version 2026.06.04.001 --channel local
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.list_releases
 ```
 
 Complete changes must include enough validation and rollback detail for a
@@ -43,3 +43,4 @@ future release reviewer to understand what changed and how to back it out.
 Before merging a pull request, CI runs
 `validate_changes.py --require-diff-coverage origin/<base-branch>` so branch
 changes cannot ship without unreleased packet coverage.
+

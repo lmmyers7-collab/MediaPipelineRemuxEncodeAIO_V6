@@ -2,7 +2,7 @@
 
 Date: 2026-06-02
 
-Defines preferred vocabulary for MediaPipelineRemuxEncodeAIO V6 documentation, WebView operator-facing copy, and API contract descriptions. Use this guide when writing or reviewing docs to prevent vocabulary drift.
+Defines preferred vocabulary for MediaPipelineRemuxEncodeAIO documentation, WebView operator-facing copy, and API contract descriptions. Use this guide when writing or reviewing docs to prevent vocabulary drift.
 
 ---
 
@@ -247,7 +247,8 @@ Do not paraphrase or shorten this phrase in operator-facing copy.
 
 ## See Also
 
-- Operator glossary: `Docs/operator/OPERATOR_GLOSSARY.md`
-- API evidence/mutation matrix: `Docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md`
-- Historical WebView operator copy audit: `Docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/Docs/archive/admin-audits/WEBVIEW_OPERATOR_COPY_AUDIT.md`
-- Historical mutation boundary review: `Docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/Docs/archive/completed-audits/WEBVIEW_APIPOST_MUTATION_REVIEW.md`
+- Operator glossary: `docs/operator/OPERATOR_GLOSSARY.md`
+- API evidence/mutation matrix: `docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md`
+- Historical WebView operator copy audit: `docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/docs/archive/admin-audits/WEBVIEW_OPERATOR_COPY_AUDIT.md`
+- Historical mutation boundary review: `docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/docs/archive/completed-audits/WEBVIEW_APIPOST_MUTATION_REVIEW.md`
+

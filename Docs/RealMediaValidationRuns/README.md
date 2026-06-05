@@ -16,7 +16,7 @@ release packaging can exclude run-specific files from this folder.
 ## Post-module-move status
 
 - Status: closed local evidence as of 2026-05-29.
-- Full source/dev release self-test passed after the `engine\` migration.
+- Full source/dev release self-test passed after the `ops\pipeline\engine\` migration.
 - A copied release package with the Tauri executable included launched and
   closed in package mode on this machine.
 - Runtime Completed evidence from 2026-05-29 proves real remux/immediate
@@ -25,9 +25,9 @@ release packaging can exclude run-specific files from this folder.
 - Scratch-only post-move validation covers forced encode/size policy, subtitle
   conversion, audio evidence, deferred pending publish, drain, and rename-output
   safety without processing the original real source directly.
-- The legacy-removal gate is closed in `OPEN_WORK_CHECKLIST.md`: `Pipeline\Modules`
+- The legacy-removal gate is closed in `docs/OPEN_WORK_CHECKLIST.md`: `Pipeline\Modules`
   is no longer an active module surface, and active PowerShell implementations
-  live under `engine\<domain>`.
+  live under `ops\pipeline\engine\<domain>`.
 
 See `post-module-move-evidence-2026-05-29.md` for the non-sensitive local
 evidence summary.

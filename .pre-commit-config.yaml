@@ -2,7 +2,7 @@
 #
 # Catches cheap, non-controversial regressions on every commit. Does NOT
 # reformat or lint code — those are intentionally separate concerns (see
-# Docs/proposals/CODE_MANAGEMENT_CLEANUP_PLAN.md §3.8 for lint, §5.1 for
+# docs/proposals/CODE_MANAGEMENT_CLEANUP_PLAN.md §3.8 for lint, §5.1 for
 # the deliberate exclusion of mass autoformat).
 #
 # To enable on a developer machine:
@@ -38,61 +38,61 @@ repos:
       # ----------------------------------------------------------------
       - id: mediapipeline-summary-drift
         name: MediaPipeline summary drift
-        entry: python scripts/dev/refresh_summaries.py --check
+        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check
         language: system
         pass_filenames: false
 
       - id: mediapipeline-project-index-drift
         name: MediaPipeline project index drift
-        entry: python scripts/dev/generate_project_index.py --check
+        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_project_index --check
         language: system
         pass_filenames: false
 
       - id: mediapipeline-pipeline-map-drift
         name: MediaPipeline pipeline map drift
-        entry: python scripts/dev/generate_pipeline_map.py --check
+        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_pipeline_map --check
         language: system
         pass_filenames: false
 
       - id: mediapipeline-lifecycle-map-drift
         name: MediaPipeline lifecycle map drift
-        entry: python scripts/dev/generate_lifecycle_map.py --check
+        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_lifecycle_map --check
         language: system
         pass_filenames: false
 
       - id: mediapipeline-config-schema-drift
         name: MediaPipeline config schema drift
-        entry: python scripts/dev/generate_config_schema.py --check
+        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_config_schema --check
         language: system
         pass_filenames: false
 
       - id: mediapipeline-stage-schema-drift
         name: MediaPipeline stage schema drift
-        entry: python scripts/dev/generate_stage_schema.py --check
+        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_stage_schema --check
         language: system
         pass_filenames: false
 
       - id: mediapipeline-risky-file-registry
         name: MediaPipeline risky file registry
-        entry: python scripts/dev/check_risky_file_registry.py
+        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_risky_file_registry
         language: system
         pass_filenames: false
 
       - id: mediapipeline-architecture-guardrails
         name: MediaPipeline architecture guardrails
-        entry: python scripts/dev/check_architecture_guardrails.py --staged
+        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_architecture_guardrails --staged
         language: system
         pass_filenames: false
 
       - id: mediapipeline-naming-lint
         name: MediaPipeline naming lint
-        entry: python scripts/lint-naming.py --staged
+        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.lint_naming --staged
         language: system
         pass_filenames: false
 
       - id: mediapipeline-active-doc-references
         name: MediaPipeline active doc references
-        entry: python scripts/dev/check_active_doc_references.py
+        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_active_doc_references
         language: system
         pass_filenames: false
 
@@ -101,19 +101,19 @@ repos:
       # ----------------------------------------------------------------
       - id: mediapipeline-change-packet-staged-coverage
         name: MediaPipeline change packet staged coverage
-        entry: python scripts/change_control/validate_changes.py --require-staged-coverage
+        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-staged-coverage
         language: system
         pass_filenames: false
 
       - id: mediapipeline-python-typing
         name: MediaPipeline Python typing
-        entry: python scripts/dev/check_python_typing.py
+        entry: python ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_python_typing
         language: system
         pass_filenames: false
 
       - id: mediapipeline-powershell-analysis
         name: MediaPipeline PowerShell analysis
-        entry: pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/dev/check_powershell_analysis.ps1
+        entry: pwsh -NoProfile -ExecutionPolicy Bypass -File ops/scripts/dev/check_powershell_analysis.ps1
         language: system
         pass_filenames: false
 
@@ -172,4 +172,4 @@ repos:
 #   *.psd1  — PowerShell data files; checked by parser smoke in chunks
 #   *.ps1   — PowerShell scripts; same as above
 #   *.jsonl — append-only log files; per-line parse not done here
-#   Docs/archive/**  — historical content, treated as immutable
+#   docs/archive/**  — historical content, treated as immutable

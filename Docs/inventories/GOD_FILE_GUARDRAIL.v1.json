@@ -9,11 +9,11 @@
       "scripts/*.py",
       "scripts/**/*.py",
       "Pipeline/**/*.ps1",
-      "engine/**/*.ps1",
-      "SmokeTests/**/*.ps1",
-      "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/*.js",
-      "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/**/*.js",
-      "DesktopApp/tauri_shell/src-tauri/src/**/*.rs"
+      "ops/pipeline/engine/**/*.ps1",
+      "ops/scripts/smoke/**/*.ps1",
+      "apps/desktop/webview/static/assets/*.js",
+      "apps/desktop/webview/static/assets/**/*.js",
+      "apps/desktop/tauri/src-tauri/src/**/*.rs"
     ],
     "exclude_globs": [
       "**/node_modules/**",
@@ -21,7 +21,7 @@
       "**/.pytest_cache/**",
       "**/Runtime/**",
       "**/target/**",
-      "Docs/archive/**",
+      "docs/archive/**",
       "LocalBase/**"
     ],
     "warn_lines": 500,
@@ -46,7 +46,7 @@
       "id": "python-tests",
       "path_globs": [
         "tests/**/*.py",
-        "DesktopApp/tests/**/*.py"
+        "tests/python/desktop/**/*.py"
       ],
       "warn_lines": 500,
       "max_lines": 900,
@@ -56,8 +56,8 @@
     {
       "id": "webview-js",
       "path_globs": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/*.js",
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/**/*.js"
+        "apps/desktop/webview/static/assets/*.js",
+        "apps/desktop/webview/static/assets/**/*.js"
       ],
       "warn_lines": 500,
       "max_lines": 900,
@@ -68,8 +68,8 @@
       "id": "powershell-engine",
       "path_globs": [
         "Pipeline/**/*.ps1",
-        "engine/**/*.ps1",
-        "SmokeTests/**/*.ps1"
+        "ops/pipeline/engine/**/*.ps1",
+        "ops/scripts/smoke/**/*.ps1"
       ],
       "warn_lines": 450,
       "max_lines": 800,
@@ -79,7 +79,7 @@
     {
       "id": "rust-tauri",
       "path_globs": [
-        "DesktopApp/tauri_shell/src-tauri/src/**/*.rs"
+        "apps/desktop/tauri/src-tauri/src/**/*.rs"
       ],
       "warn_lines": 450,
       "max_lines": 800,
@@ -91,7 +91,7 @@
     {
       "id": "webview-app-known-godfile",
       "path_globs": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+        "apps/desktop/webview/static/assets/app.js"
       ],
       "warn_lines": 1500,
       "max_lines": 4600,
@@ -103,7 +103,7 @@
     {
       "id": "webview-settings-known-godfile",
       "path_globs": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js"
+        "apps/desktop/webview/static/assets/settingsView.js"
       ],
       "warn_lines": 1500,
       "max_lines": 4600,

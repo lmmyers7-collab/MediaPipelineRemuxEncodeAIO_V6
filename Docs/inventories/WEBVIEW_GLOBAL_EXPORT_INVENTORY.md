@@ -2,7 +2,7 @@
 
 Date: 2026-06-03
 
-Inventories all `window.*` assignments in `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/*.js`. Source: generated scan of `window.{name} =` assignments across all 69 JS files.
+Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.js`. Source: generated scan of `window.{name} =` assignments across all 69 JS files.
 
 ---
 
@@ -215,8 +215,8 @@ All 30 files were re-checked. No files were added or removed. The two-layer name
 ```
 Task ID: CLN-012
 Files inspected: All 30 assets/*.js files (grep window.* = assignments)
-Files changed: Docs\inventories\WEBVIEW_GLOBAL_EXPORT_INVENTORY.md (created)
-Validation: Test-Path Docs\inventories\WEBVIEW_GLOBAL_EXPORT_INVENTORY.md
+Files changed: docs\inventories\WEBVIEW_GLOBAL_EXPORT_INVENTORY.md (created)
+Validation: Test-Path docs\inventories\WEBVIEW_GLOBAL_EXPORT_INVENTORY.md
 Findings: 29 namespace objects + 959 flat exports across 28 files. app.js is orchestrator-only (0 exports). settingsMetadata.js has namespace object only. MEDIA_PIPELINE_BOOTSTRAP is the only backend-injected global.
 Open questions: None.
 Risk: Low — documentation only.
@@ -228,7 +228,7 @@ Risk: Low — documentation only.
 
 ## Machine-Generated Flat Export Manifest — 2026-06-02
 
-Generated from `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/*.js` by scanning `window.* =` assignments. Namespace objects are listed separately from flat exports.
+Generated from `apps/desktop/webview/static/assets/*.js` by scanning `window.* =` assignments. Namespace objects are listed separately from flat exports.
 
 Flat export total: 795
 

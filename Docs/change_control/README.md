@@ -12,10 +12,10 @@ not alter runtime media-processing behavior.
 Run from the repository root:
 
 ```powershell
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\new_change.py --title "Short change title" --type tooling --risk low --version-target 0.1.0-dev
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.new_change --title "Short change title" --type tooling --risk low --version-target 2026.06.04.001
 ```
 
-The script creates a new packet in `changes/unreleased/` with the next
+The script creates a new packet in `ops/release/changes/unreleased/` with the next
 available `MP-CHANGE-YYYY-MMDD-###` identifier. Missing arguments use safe
 defaults. New packets include their own packet path in `files_touched` so
 coverage checks can see the packet file itself.
@@ -26,21 +26,21 @@ Use the packet-update helper as work progresses. Add explicit paths when you
 know exactly what belongs to the change:
 
 ```powershell
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\record_change_touch.py MP-CHANGE-YYYY-MMDD-### app/maintenance/change_ledger.py --area maintenance --note "Maintenance coverage warning added."
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.record_change_touch MP-CHANGE-YYYY-MMDD-### src/mediapipeline/core/maintenance/change_ledger.py --area maintenance --note "Maintenance coverage warning added."
 ```
 
 After staging the intended commit set, use staged coverage capture to avoid
 absorbing unrelated dirty files:
 
 ```powershell
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\record_change_touch.py MP-CHANGE-YYYY-MMDD-### --from-staged --validation "targeted tests - passed" --status in_progress
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.record_change_touch MP-CHANGE-YYYY-MMDD-### --from-staged --validation "targeted tests - passed" --status in_progress
 ```
 
 Complete a packet only after validation evidence and rollback details are
 current:
 
 ```powershell
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\record_change_touch.py MP-CHANGE-YYYY-MMDD-### --complete --validation "validate_changes.py --require-worktree-coverage - passed"
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.record_change_touch MP-CHANGE-YYYY-MMDD-### --complete --validation "validate_changes.py --require-worktree-coverage - passed"
 ```
 
 ## Validate Changes
@@ -48,7 +48,7 @@ current:
 Run from the repository root:
 
 ```powershell
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\validate_changes.py
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.validate_changes
 ```
 
 Validation checks required fields, allowed `status`, `type`, and `risk_level`
@@ -58,24 +58,25 @@ Strict coverage modes enforce that changed files are listed in
 `files_touched` of unreleased packets:
 
 ```powershell
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\validate_changes.py --require-worktree-coverage
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\validate_changes.py --require-staged-coverage
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\validate_changes.py --require-diff-coverage origin/main
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-staged-coverage
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-diff-coverage origin/main
 ```
 
 Released packets are historical and do not satisfy current worktree, staged, or
-branch-diff coverage. Coverage paths are exact repo-relative forward-slash paths
-from `files_touched`; no glob matching is used.
+branch-diff coverage. Coverage paths are repo-relative forward-slash paths from
+`files_touched`; a file path covers only itself, while a directory path covers
+descendant files. No wildcard/glob matching is used.
 
 ## Rebuild the Index
 
 Run from the repository root:
 
 ```powershell
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\build_change_index.py
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.build_change_index
 ```
 
-This regenerates `Docs/change_control/CHANGE_INDEX.md` from all unreleased and
+This regenerates `docs/change_control/CHANGE_INDEX.md` from all unreleased and
 released change packets.
 
 ## Phase 2 Commands
@@ -83,15 +84,15 @@ released change packets.
 Run from the repository root:
 
 ```powershell
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\validate_changes.py
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\build_change_index.py
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\build_changelog.py
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\build_release_manifest.py
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\prepare_release.py --version 0.1.0-dev --channel dev
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.validate_changes
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.build_change_index
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.build_changelog
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.build_release_manifest
+.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\run-python-tool.py mediapipeline.tools.change_control.prepare_release --version 2026.06.04.001 --channel local
 ```
 
-`build_changelog.py` regenerates `Docs/change_control/CHANGELOG.md`.
-`build_release_manifest.py` regenerates `release/RELEASE_MANIFEST.json`.
+`build_changelog.py` regenerates `docs/change_control/CHANGELOG.md`.
+`build_release_manifest.py` regenerates `ops/release/metadata/RELEASE_MANIFEST.json`.
 `prepare_release.py` updates release metadata, rebuilds generated outputs, and
 prints a release-preparation summary. Use `--dry-run` to skip version-file and
 change-packet updates.
@@ -101,22 +102,22 @@ change-packet updates.
 Run a dry-run finalization before moving any change packets:
 
 ```powershell
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\prepare_release.py --version 0.1.0-dev --channel dev --dry-run
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\finalize_release.py --version 0.1.0-dev --channel dev --dry-run
+.\apps\desktop\runtime\Python\python.exe -m mediapipeline.tools.change_control.prepare_release --version 2026.06.04.001 --channel local --dry-run
+.\apps\desktop\runtime\Python\python.exe -m mediapipeline.tools.change_control.finalize_release --version 2026.06.04.001 --channel local --dry-run
 ```
 
 When the planned moves and archive output are correct, finalize and rebuild the
 release history:
 
 ```powershell
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\finalize_release.py --version 0.1.0-dev --channel dev
-.\DesktopApp\Runtime\Python\python.exe .\scripts\change_control\list_releases.py
+.\apps\desktop\runtime\Python\python.exe -m mediapipeline.tools.change_control.finalize_release --version 2026.06.04.001 --channel local
+.\apps\desktop\runtime\Python\python.exe -m mediapipeline.tools.change_control.list_releases
 ```
 
 `finalize_release.py` moves complete unreleased packets into
-`changes/released/<version>/`, regenerates release artifacts, and archives them
-under `release/history/<version>/`. `list_releases.py` regenerates
-`Docs/change_control/RELEASE_HISTORY.md`.
+`ops/release/changes/released/<version>/`, regenerates release artifacts, and archives them
+under `ops/release/metadata/history/<version>/`. `list_releases.py` regenerates
+`docs/change_control/RELEASE_HISTORY.md`.
 
 ## Rule
 
@@ -124,3 +125,4 @@ Every meaningful code, config, UI, deployment, documentation, schema, test, or
 tooling change must have an unreleased change packet with current
 `files_touched`, affected areas, validation evidence, rollback detail, status,
 and Python-impact notes where Python files are affected.
+

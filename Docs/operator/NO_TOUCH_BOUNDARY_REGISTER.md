@@ -6,29 +6,28 @@ This register applies to all admin, documentation, and WebView frontend tasks. E
 
 ---
 
-## V4
+## Historical Fallback Workspace
 
-**What**: The `MediaPipelineRemuxEncodeAIO_V4` workspace or any file path under it.
+**What**: The older historical fallback workspace or any file path under it.
 
-**Why**: V4 is historical fallback evidence and must remain untouched. V5 is the external rollback workspace for this V6 folder. Any change to V4 destroys the older safety reference.
+**Why**: The older historical fallback evidence must remain untouched. The external rollback workspace is the fallback for this current folder. Any change to older fallback evidence destroys the safety reference.
 
-**Safe alternative**: Do active work in V6. If a V4 reference doc needs updating, copy the relevant context into current V6 documentation instead of editing V4.
+**Safe alternative**: Do active work in this current workspace. If an older reference doc needs updating, copy the relevant context into current documentation instead of editing that fallback.
 
-**Gate before touching**: None acceptable — V4 must remain untouched.
+**Gate before touching**: None acceptable. Historical fallback evidence must remain untouched.
 
 ---
 
-## External Rollback Workspace (V5)
+## External Rollback Workspace
 
-**What**: The external `MediaPipelineRemuxEncodeAIO_V5` rollback/fallback workspace
-or any file path under it.
+**What**: The external rollback/fallback workspace or any file path under it.
 
-**Why**: V5 is the active rollback safety net for this promoted V6 workspace.
-Changing it during V6 work can destroy the operator's known fallback evidence and
+**Why**: The external rollback workspace is the active rollback safety net for this promoted current workspace.
+Changing it during current-workspace work can destroy the operator's known fallback evidence and
 make rollback behavior ambiguous.
 
-**Safe alternative**: Do active work in V6. If a V5 behavior or note is needed,
-copy the relevant context into current V6 documentation instead of editing V5.
+**Safe alternative**: Do active work in this current workspace. If an external rollback behavior or note is needed,
+copy the relevant context into current documentation instead of editing the external rollback workspace.
 
 **Gate before touching**: Explicit operator approval, a real-media validation
 plan, and an operator rollback decision.
@@ -37,23 +36,23 @@ plan, and an operator rollback decision.
 
 ## Removed Legacy Desktop-Shell Surface
 
-**What**: removed legacy desktop-shell launchers, controllers, views, runtime package files, and any attempt to reintroduce them into this V6 folder.
+**What**: removed legacy desktop-shell launchers, controllers, views, runtime package files, and any attempt to reintroduce them into this current folder.
 
-**Why**: V6 intentionally removed the legacy desktop-shell surface. V5 remains the external rollback/fallback workspace. Reintroducing partial legacy shell files into V6 would create a misleading launcher path and split operator authority.
+**Why**: This workspace intentionally removed the legacy desktop-shell surface. The external rollback workspace remains the rollback/fallback workspace. Reintroducing partial legacy shell files into this workspace would create a misleading launcher path and split operator authority.
 
-**Safe alternative**: Keep fallback work in the external V5 folder. In V6, validate WebView/Tauri behavior through the local API, smoke wrappers, validation ladder, and real-media pilot evidence.
+**Safe alternative**: Keep fallback work in the external rollback folder. In this workspace, validate WebView/Tauri behavior through the local API, smoke wrappers, validation ladder, and real-media pilot evidence.
 
-**Gate before touching**: Explicit operator approval to restore a legacy desktop-shell surface to V6, plus a new architecture decision explaining why the V6 split direction changed.
+**Gate before touching**: Explicit operator approval to restore a legacy desktop-shell surface to this workspace, plus a new architecture decision explaining why the WebView-first split direction changed.
 
 ---
 
 ## Media Policy (FFmpeg Command Generation)
 
-**What**: `engine\*.ps1` code that generates FFmpeg arguments — video codec selection, quality/preset settings, container selection, stream copy/encode decisions. Do not recreate legacy `Pipeline\Modules\*.ps1` shim paths; active PowerShell implementation belongs under `engine\<domain>\`.
+**What**: `ops\pipeline\engine\*.ps1` code that generates FFmpeg arguments — video codec selection, quality/preset settings, container selection, stream copy/encode decisions. Do not recreate legacy `Pipeline\Modules\*.ps1` shim paths; active PowerShell implementation belongs under `ops\pipeline\engine\<domain>\`.
 
 **Why**: FFmpeg arguments directly determine output quality, compatibility, and encode safety. A one-character typo can produce silent bitrate misconfiguration or stream corruption.
 
-**Safe alternative**: Document the current behavior in `Docs\`. Propose changes via a separate PR with a real-media test plan.
+**Safe alternative**: Document the current behavior in `docs\`. Propose changes via a separate PR with a real-media test plan.
 
 **Gate before touching**: PowerShell unit tests + reliability regression + tool integration checks + real-media validation on at least one encode and one remux sample.
 
@@ -85,7 +84,7 @@ plan, and an operator rollback decision.
 
 ## Pending Publish Mutation Path
 
-**What**: The drain execution path in `Pipeline\MediaPipeline.ps1` that moves parked outputs to their final destination via Robocopy, updates manifests, and writes the drain summary.
+**What**: The drain execution path in `ops\pipeline\entrypoints\MediaPipeline.ps1` that moves parked outputs to their final destination via Robocopy, updates manifests, and writes the drain summary.
 
 **Why**: Drain moves files. A bug here can result in files moved to wrong destinations, partial copies, or manifest corruption that blocks future drain operations.
 
@@ -103,7 +102,7 @@ plan, and an operator rollback decision.
 
 **Safe alternative**: Document the current no-delete invariant. Source cleanup (if ever needed) must be a separate, explicitly gated command.
 
-**Gate before touching**: Full review by operator; explicit acceptance in V5_REAL_MEDIA_VALIDATION_PLAYBOOK; separate test plan.
+**Gate before touching**: Full review by operator; explicit real-media pilot evidence per `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`; separate test plan.
 
 ---
 
@@ -113,7 +112,7 @@ plan, and an operator rollback decision.
 
 **Why**: Scratch isolation prevents source corruption if encoding fails mid-stream. Breaking scratch invariants can expose source files to partial writes.
 
-**Safe alternative**: Document the scratch path in `Docs\inventories\RUNTIME_ARTIFACT_INVENTORY.md`. Adjust scratch path only via config.
+**Safe alternative**: Document the scratch path in `docs\inventories\RUNTIME_ARTIFACT_INVENTORY.md`. Adjust scratch path only via config.
 
 **Gate before touching**: Pipeline unit tests + reliability regression + real-media validation.
 
@@ -121,7 +120,7 @@ plan, and an operator rollback decision.
 
 ## Command Journal
 
-**What**: The backend-owned bounded FIFO command journal in the local API (`DesktopApp\mediapipeline_desktop_app\api\command_journal.py` and `command_journal_policy.py`). Normal Local API launch also persists bounded summaries to `DesktopApp\RunLogs\local_api_command_history.json` and mirrors entries to SQLite when a state root is available.
+**What**: The backend-owned bounded FIFO command journal in the local API (`src\mediapipeline\desktop\api\command_journal.py` and `command_journal_policy.py`). Normal Local API launch also persists bounded summaries to `apps\desktop\runlogs\local_api_command_history.json` and mirrors entries to SQLite when a state root is available.
 
 **Why**: The command journal is the source of truth for WebView Command History and Diagnostics. Deduplication behavior, success-status-only recording, and bounded FIFO are deliberate design choices. Changing them silently changes what the operator sees.
 
@@ -169,11 +168,11 @@ plan, and an operator rollback decision.
 
 ## Release Gates
 
-**What**: `scripts\release\test.ps1` assertions that a clean release does not include live config, run logs, state files, or optional tool bulk.
+**What**: `ops\scripts\release\test.ps1` assertions that a clean release does not include live config, run logs, state files, or optional tool bulk.
 
 **Why**: If personal config ships in a release package, the recipient gets the operator's private UNC paths, credentials, and source/output locations.
 
-**Safe alternative**: Use `scripts\release\build.ps1` with default flags (strips live config, excludes logs/state). Use `-KeepPersonalConfig` only for private machine-to-machine mirror.
+**Safe alternative**: Use `ops\scripts\release\build.ps1` with default flags (strips live config, excludes logs/state). Use `-KeepPersonalConfig` only for private machine-to-machine mirror.
 
 **Gate before touching**: Full release self-test with `-Verify -IncludeTests`.
 
@@ -195,7 +194,7 @@ plan, and an operator rollback decision.
 
 | Boundary | Why critical | Safe admin alternative | Gate |
 |---|---|---|---|
-| V4 | Historical fallback evidence | Work only in V6 current docs/code | None — never touch |
+| Older fallback evidence | Historical fallback evidence | Work only in current docs/code | None: never touch |
 | External rollback workspace | Production operator safety net | Document WebView parity gaps | Real-media validation + operator decision |
 | FFmpeg command generation | Encode correctness | Settings builder / config | PS unit + reliability + real-media |
 | Subtitle conversion | Format-specific, silent errors | Settings builder | Unit + real-media with subtitle samples |
@@ -216,6 +215,8 @@ plan, and an operator rollback decision.
 
 - Global rules reference: `..\..\AGENTS.md`; older AI directive redirects are archived under `..\archive\ai\`.
 - Archived AI handoff inventory: `..\ARCHIVED_MD_INDEX.md`
-- Migration risk register: `Docs/architecture/V5_MIGRATION_RISK_REGISTER.md`
-- Validation ladder: `Docs/testing/VALIDATION_LADDER_RUNBOOK.md`
-- Lifecycle boundary: `Docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`
+- Current safety status: `docs/CURRENT_PROJECT_STATE.md`
+- Validation ladder: `docs/testing/VALIDATION_LADDER_RUNBOOK.md`
+- Lifecycle boundary: `docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`
+
+

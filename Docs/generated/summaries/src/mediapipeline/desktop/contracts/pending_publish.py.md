@@ -1,0 +1,16 @@
+---
+file: src/mediapipeline/desktop/contracts/pending_publish.py
+pipeline_stage: publish
+token_priority: medium
+owner_domain: contracts
+last_modified: 2026-06-04
+last_reviewed: 2026-06-04
+sha256: e339a59a32a1681dd5fa513dc21102913f599d87bd4e87b85399e7f744794705
+---
+# `src/mediapipeline/desktop/contracts/pending_publish.py`
+
+**Purpose:** Compatibility shim. Moved to `mediapipeline.core.kernel.contracts.pending_publish` by ADR-0013 (Wave 5).
+
+**In-repo imports:** `mediapipeline.core.kernel.contracts`
+
+_Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/desktop/contracts/pending_publish.py`._

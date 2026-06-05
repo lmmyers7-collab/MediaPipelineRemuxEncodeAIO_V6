@@ -1,0 +1,256 @@
+      <section class="page" data-page-panel="maintenance">
+        <h1 class="visually-hidden">Maintenance Tools</h1>
+        <div class="metric-grid">
+          <section class="metric">
+            <span class="metric-label">OK</span>
+            <strong id="maintenance-ok-count">0</strong>
+          </section>
+          <section class="metric">
+            <span class="metric-label">Missing</span>
+            <strong id="maintenance-missing-count">0</strong>
+          </section>
+          <section class="metric">
+            <span class="metric-label">Warnings</span>
+            <strong id="maintenance-warning-count">0</strong>
+          </section>
+        <section class="metric">
+          <span class="metric-label">Rows</span>
+          <strong id="maintenance-total-count">0</strong>
+        </section>
+      </div>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Change Ledger Summary</h2>
+            <strong id="maintenance-change-ledger-status">Not loaded</strong>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="maintenance-change-ledger-refresh-button" class="secondary-button">Refresh Ledger</button>
+          </div>
+          <pre id="maintenance-change-ledger-summary" class="prose-block">No change ledger loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Change Ledger</h2>
+            <strong id="maintenance-change-ledger-table-status">No rows</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label>
+              Status
+              <select id="maintenance-change-ledger-status-filter">
+                <option value="">All statuses</option>
+                <option value="planned">Planned</option>
+                <option value="in_progress">In progress</option>
+                <option value="complete">Complete</option>
+              </select>
+            </label>
+            <label>
+              Type
+              <select id="maintenance-change-ledger-type-filter">
+                <option value="">All types</option>
+                <option value="feature">Feature</option>
+                <option value="bugfix">Bug fix</option>
+                <option value="behavior_change">Behavior change</option>
+                <option value="refactor">Refactor</option>
+                <option value="config">Config</option>
+                <option value="schema">Schema</option>
+                <option value="docs">Docs</option>
+                <option value="test">Test</option>
+                <option value="release">Release</option>
+                <option value="tooling">Tooling</option>
+              </select>
+            </label>
+            <label>
+              Risk
+              <select id="maintenance-change-ledger-risk-filter">
+                <option value="">All risks</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            </label>
+            <label>
+              Search
+              <input id="maintenance-change-ledger-search" type="search" autocomplete="off" placeholder="ID, title, area, file">
+            </label>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">ID</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Type</th>
+                  <th scope="col">Risk</th>
+                  <th scope="col">Title</th>
+                  <th scope="col">Python</th>
+                </tr>
+              </thead>
+              <tbody id="maintenance-change-ledger-rows">
+                <tr><td colspan="6">No change ledger loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p id="maintenance-change-ledger-table-legend" class="note table-legend">Change ledger rows: no selectable rows.</p>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Selected Change Detail</h2>
+            <strong id="maintenance-change-ledger-detail-status">No selection</strong>
+          </div>
+          <pre id="maintenance-change-ledger-detail" class="prose-block">No change selected. Select a ledger row to inspect summary, affected Python scripts, validation, rollback, and notes.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Changelog Hygiene</h2>
+            <strong id="maintenance-change-ledger-hygiene-status">Not loaded</strong>
+          </div>
+          <pre id="maintenance-change-ledger-hygiene" class="prose-block">No changelog hygiene evidence loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>System Health</h2>
+            <strong id="maintenance-status">No rows</strong>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="maintenance-refresh-button" class="secondary-button">Run Health Check</button>
+          </div>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Health Progress</h2>
+            <strong id="maintenance-progress-status">Not loaded</strong>
+          </div>
+          <div id="maintenance-progress-bars" class="progress-bar-list" aria-live="polite">
+            <p class="note">No maintenance health progress loaded.</p>
+          </div>
+          <pre id="maintenance-progress-steps" class="prose-block">No maintenance health progress loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Readiness</h2>
+            <strong id="maintenance-readiness-status">Not loaded</strong>
+          </div>
+          <pre id="maintenance-readiness" class="prose-block">No maintenance readiness loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Tool Status</h2>
+            <strong id="maintenance-toolchain-status">Not loaded</strong>
+          </div>
+          <pre id="maintenance-toolchain" class="prose-block">No maintenance toolchain evidence loaded.</pre>
+          <pre id="maintenance-warnings" class="prose-block">No maintenance warnings.</pre>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Health Checks</h2>
+            <strong>Backend dry run</strong>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Status</th>
+                  <th scope="col">Check</th>
+                  <th scope="col">Detail</th>
+                </tr>
+              </thead>
+              <tbody id="maintenance-rows">
+                <tr><td colspan="3">No maintenance checks loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Health not run</span>
+            <span class="empty-state-hint">Click Run Health Check to populate system health checks here.</span>
+          </div>
+          </div>
+          <p id="maintenance-table-legend" class="note table-legend">Maintenance rows: no selectable rows.</p>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Check Detail</h2>
+            <strong id="maintenance-detail-status">No selection</strong>
+          </div>
+          <pre id="maintenance-detail" class="prose-block">No maintenance row selected. Select a health row to inspect dry-run impact, operator guidance, and diagnostics handoff.</pre>
+          <div id="maintenance-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
+          <p id="maintenance-diagnostics-status" class="note">No maintenance diagnostics action selected.</p>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Dry Run Status</h2>
+            <strong id="maintenance-dry-run-confidence-status">Not loaded</strong>
+          </div>
+          <pre id="maintenance-dry-run-confidence" class="prose-block">No maintenance dry-run confidence summary loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Deployment Package</h2>
+            <strong id="release-dry-run-status">Idle</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label>
+              Destination
+              <input id="release-dry-run-destination" type="text" autocomplete="off" placeholder="Blank uses timestamped default">
+            </label>
+            <label class="check-row launch-check-row"><input id="release-dry-run-zip" type="checkbox" checked> Plan zip</label>
+            <label class="check-row launch-check-row"><input id="release-dry-run-verify" type="checkbox" checked> Plan verify</label>
+            <label class="check-row launch-check-row"><input id="release-dry-run-tests" type="checkbox"> Include tests</label>
+            <label class="check-row launch-check-row"><input id="release-dry-run-dev-docs" type="checkbox"> Include dev docs</label>
+            <label class="check-row launch-check-row"><input id="release-dry-run-optional-tools" type="checkbox"> Include optional tools</label>
+            <label class="check-row launch-check-row"><input id="release-dry-run-tool-docs" type="checkbox"> Include tool docs</label>
+            <label class="check-row launch-check-row"><input id="release-dry-run-keep-config" type="checkbox"> Keep personal config</label>
+            <label class="check-row launch-check-row"><input id="release-build-force" type="checkbox"> Replace existing destination</label>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" id="release-dry-run-button" class="secondary-button">Plan Deployment</button>
+            <button type="button" id="release-build-button" class="primary-button">Create Deployment</button>
+          </div>
+          <div id="release-dry-run-progress-bars" class="progress-bar-list" aria-live="polite">
+            <p class="note">No release package progress loaded.</p>
+          </div>
+          <pre id="release-dry-run-detail" class="prose-block">No release dry run has been executed from this shell.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Create Deployment</h3>
+            <strong id="release-build-status">Idle</strong>
+          </div>
+          <div id="release-build-progress-bars" class="progress-bar-list" aria-live="polite">
+            <p class="note">No deployment package progress loaded.</p>
+          </div>
+          <pre id="release-build-detail" class="prose-block">No deployment package has been created from this shell.</pre>
+          <p class="note">Plan Deployment runs the same release builder with DryRun. Create Deployment writes a deployable folder, manifest, and optional zip through the backend release builder after confirmation.</p>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Manifest Backfill</h2>
+            <strong id="backfill-dry-run-status">Idle</strong>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="backfill-dry-run-button" class="secondary-button">Run Backfill Dry Run</button>
+          </div>
+          <div id="backfill-dry-run-progress-bars" class="progress-bar-list" aria-live="polite">
+            <p class="note">No maintenance backfill progress loaded.</p>
+          </div>
+          <pre id="backfill-dry-run-detail" class="prose-block">No completed-manifest backfill dry run has been executed from this shell.</pre>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Dependency Atlas</h2>
+            <strong id="dependency-atlas-status">Idle</strong>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="dependency-atlas-button" class="secondary-button">Update Atlas</button>
+          </div>
+          <div id="dependency-atlas-progress-bars" class="progress-bar-list" aria-live="polite">
+            <p class="note">No dependency atlas progress loaded.</p>
+          </div>
+          <pre id="dependency-atlas-detail" class="prose-block">No dependency atlas update has been executed from this shell.</pre>
+          <p class="note">Regenerates HTML, PNG/SVG diagrams, and CSV exports under docs/generated/dependency-atlas through backend tooling only. It does not touch media, queue, settings, manifests, or pipeline state.</p>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>History</h2>
+            <strong id="maintenance-dry-run-history-status">No runs</strong>
+          </div>
+          <pre id="maintenance-dry-run-history" class="prose-block">No maintenance dry-run command history loaded.</pre>
+        </section>
+      </section>

@@ -1,10 +1,10 @@
 # WebView DOM ID Inventory
 
-Date: 2026-06-03
+Date: 2026-06-04
 
-Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `DesktopApp/mediapipeline_desktop_app/ui_web/static/index.html` and `assets/*.js`.
+Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `apps/desktop/webview/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 1381. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 1407. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -20,7 +20,7 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 
 | ID | Element | Purpose |
 |---|---|---|
-| `app-version` | `<div>` | Version badge ("V5") in sidebar brand |
+| `app-version` | `<div>` | Calendar build badge in sidebar brand |
 | `state-pill` | `<div>` | Pipeline state pill in topbar |
 | `activity` | `<h1>` | Activity status heading |
 | `refresh-health` | `<span>` | Auto-refresh health indicator |
@@ -474,9 +474,9 @@ From `archive/admin-audits/WEBVIEW_DOM_ID_NAMESPACE_AUDIT.md`:
 
 ## See Also
 
-- DOM ID namespace audit: `Docs/archive/admin-audits/WEBVIEW_DOM_ID_NAMESPACE_AUDIT.md`
-- Frontend module sizes: `Docs/archive/completed-audits/FRONTEND_MODULE_SIZE_COHESION_REPORT.md`
-- Mutation boundary review: `Docs/archive/completed-audits/WEBVIEW_APIPOST_MUTATION_REVIEW.md`
+- DOM ID namespace audit: `docs/archive/admin-audits/WEBVIEW_DOM_ID_NAMESPACE_AUDIT.md`
+- Frontend module sizes: `docs/archive/completed-audits/FRONTEND_MODULE_SIZE_COHESION_REPORT.md`
+- Mutation boundary review: `docs/archive/completed-audits/WEBVIEW_APIPOST_MUTATION_REVIEW.md`
 
 ---
 
@@ -493,9 +493,9 @@ Both panels are read-only from the frontend perspective — `launchView.js` rend
 
 ```
 Task ID: CLN3-005
-Files inspected: Docs\inventories\WEBVIEW_DOM_ID_INVENTORY.md, DesktopApp\mediapipeline_desktop_app\ui_web\static\index.html (lines 1509–1550)
-Files changed: Docs\inventories\WEBVIEW_DOM_ID_INVENTORY.md (10 ID rows added to Launch Page table; 2 summary rows added to ID Ownership Summary)
-Validation: Select-String -Path Docs\inventories\WEBVIEW_DOM_ID_INVENTORY.md -Pattern "launch-real-media-proof|launch-scope-reconciliation"
+Files inspected: docs\inventories\WEBVIEW_DOM_ID_INVENTORY.md, apps\desktop\webview\static\index.html (lines 1509–1550)
+Files changed: docs\inventories\WEBVIEW_DOM_ID_INVENTORY.md (10 ID rows added to Launch Page table; 2 summary rows added to ID Ownership Summary)
+Validation: Select-String -Path docs\inventories\WEBVIEW_DOM_ID_INVENTORY.md -Pattern "launch-real-media-proof|launch-scope-reconciliation"
 Findings: 10 missing IDs identified and added. No phantom references — all 10 IDs exist in index.html.
 Open questions: None.
 Risk: Low — documentation only.
@@ -503,7 +503,7 @@ Risk: Low — documentation only.
 
 ---
 
-## Delta Review — 2026-05-16 (V5 UI Stage 12)
+## Delta Review — 2026-05-16 (UI Stage 12)
 
 Home page rebuilt as a daily-driver dashboard (Stage 12). The old home panels (lines 51–716) were replaced with a minimalist status strip + run controls + quick actions + recently completed structure. All existing panels are still present inside `<div data-advanced>`. Seventeen new IDs were added to the daily-driver section.
 
@@ -516,9 +516,9 @@ Home page rebuilt as a daily-driver dashboard (Stage 12). The old home panels (l
 **New unique ID count: 972** (was 956 after Advanced Gate; +16 daily-driver IDs, +1 pre-existing gap closed for `home-runtime-open-status` now properly counted).
 
 ```
-Task: V5 UI Stage 12
-Files inspected: DesktopApp\mediapipeline_desktop_app\ui_web\static\index.html (lines 51–716 replaced)
-Files changed: Docs\inventories\WEBVIEW_DOM_ID_INVENTORY.md (16 new ID rows added to Home Page table; Delta Review section appended)
+Task: UI Stage 12
+Files inspected: apps\desktop\webview\static\index.html (lines 51–716 replaced)
+Files changed: docs\inventories\WEBVIEW_DOM_ID_INVENTORY.md (16 new ID rows added to Home Page table; Delta Review section appended)
 Validation: (grep -o 'id="[^"]*"' index.html | sort | uniq | wc -l) → 972
 Findings: 15 new home daily-driver IDs identified; 1 pre-existing gap (home-runtime-open-status) closed.
 Open questions: None.
@@ -539,8 +539,8 @@ The Dashboard quick start, publish-drain, and schedule-toggle command IDs were r
 
 ```
 Task: Dashboard command-surface cleanup
-Files inspected: DesktopApp\mediapipeline_desktop_app\ui_web\static\index.html
-Files changed: Docs\inventories\WEBVIEW_DOM_ID_INVENTORY.md
+Files inspected: apps\desktop\webview\static\index.html
+Files changed: docs\inventories\WEBVIEW_DOM_ID_INVENTORY.md
 Validation: Python id scan over index.html -> 1011 unique IDs
 Risk: Low — inventory update for visible command-surface relocation
 ```
@@ -561,17 +561,17 @@ Added 15 new `fo-*` IDs to `index.html` for the per-file override settings drawe
 
 ```
 Task: Phase 3 per-file settings drawer
-Files changed: DesktopApp\mediapipeline_desktop_app\ui_web\static\index.html, Docs\inventories\WEBVIEW_DOM_ID_INVENTORY.md
+Files changed: apps\desktop\webview\static\index.html, docs\inventories\WEBVIEW_DOM_ID_INVENTORY.md
 Risk: Low — additive only; new IDs for queue drawer UI
 ```
 
 ---
 
-## Machine-Generated Full DOM ID Manifest — 2026-06-03
+## Machine-Generated Full DOM ID Manifest — 2026-06-04
 
-This section is generated from `DesktopApp/mediapipeline_desktop_app/ui_web/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
+This section is generated from `apps/desktop/webview/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 1381
+Count: 1407
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
 active-job-detail
@@ -895,33 +895,6 @@ fo-drawer-path
 fo-drawer-save
 fo-drawer-status
 fo-drawer-title
-fo-folder-confirm-file-overrides
-fo-folder-confirm-future-files
-fo-folder-confirm-no-stream-index
-fo-folder-preview-confirmations
-fo-folder-preview-conflicts
-fo-folder-preview-counts
-fo-folder-preview-library-note
-fo-folder-preview-library-settings
-fo-folder-preview-open
-fo-folder-preview-panel
-fo-folder-preview-path
-fo-folder-preview-samples
-fo-folder-preview-save
-fo-folder-preview-scope
-fo-folder-preview-scope-help
-fo-folder-preview-scope-select
-fo-folder-preview-selectors
-fo-folder-preview-status
-fo-folder-preview-title
-fo-folder-preview-warnings
-fo-folder-rules-library-settings
-fo-folder-rules-list
-fo-folder-rules-open
-fo-folder-rules-panel
-fo-folder-rules-refresh
-fo-folder-rules-status
-fo-folder-rules-title
 fo-inherited-settings-status
 fo-overlay
 fo-processing-route-help
@@ -933,6 +906,25 @@ fo-route-risk-confirm
 fo-route-risk-confirmation
 fo-route-threshold-mode
 fo-route-threshold-mode-inherited
+fo-series-apply
+fo-series-auto-detect
+fo-series-cancel
+fo-series-counts
+fo-series-detected
+fo-series-fields
+fo-series-issues
+fo-series-modal
+fo-series-modal-close
+fo-series-modal-title
+fo-series-preview-open
+fo-series-rows
+fo-series-status
+fo-series-summary
+fo-source-info-grid
+fo-source-info-missing
+fo-source-info-section
+fo-source-info-status
+fo-source-info-title
 fo-sub-drop-langs
 fo-sub-drop-langs-inherited
 fo-sub-filter-fields
@@ -963,16 +955,13 @@ gpu-rows
 gpu-value
 home-active-work-status
 home-active-work-summary
-home-at-a-glance-current
-home-at-a-glance-detail
-home-at-a-glance-progress-bars
-home-at-a-glance-status
-home-at-a-glance-up-next
 home-control-message
 home-control-readiness-status
 home-external-dependencies-status
 home-external-dependencies-summary
 home-failed-count
+home-next-queue-list
+home-next-queue-status
 home-output-storage-detail
 home-output-storage-status
 home-pending-count
@@ -1293,6 +1282,12 @@ queue-launch-decision-legend
 queue-launch-decision-rows
 queue-launch-decision-status
 queue-launch-decision-summary
+queue-manual-move-bottom-btn
+queue-manual-move-down-btn
+queue-manual-move-top-btn
+queue-manual-move-up-btn
+queue-manual-order-status
+queue-manual-save-order-btn
 queue-open-history
 queue-open-status
 queue-priority-clear-all-btn
@@ -1565,6 +1560,7 @@ settings-active-media-policy-legend
 settings-active-media-policy-rows
 settings-active-media-policy-status
 settings-active-media-policy-summary
+settings-advanced-routing-summary
 settings-audio-allow-no-audio
 settings-audio-apply-button
 settings-audio-auto-bitrate
@@ -1587,9 +1583,22 @@ settings-backend-result-legend
 settings-backend-result-rows
 settings-backend-result-status
 settings-backend-result-summary
+settings-boundary-1080p-end
+settings-boundary-1440p-end
+settings-boundary-1440p-start
+settings-boundary-4k-start
 settings-builder-1080p-bucket-height
 settings-builder-1080p-route-bitrate
+settings-builder-1080p-upper-tolerance
+settings-builder-1080p-upper-tolerance-readout
+settings-builder-1440p-lower-tolerance
+settings-builder-1440p-lower-tolerance-readout
+settings-builder-1440p-route-bitrate
+settings-builder-1440p-upper-tolerance
+settings-builder-1440p-upper-tolerance-readout
 settings-builder-4k-bucket-height
+settings-builder-4k-lower-tolerance
+settings-builder-4k-lower-tolerance-readout
 settings-builder-4k-route-bitrate
 settings-builder-apply-button
 settings-builder-compat-growth
@@ -1597,14 +1606,21 @@ settings-builder-encode-ladder
 settings-builder-encode-tuning
 settings-builder-guidance
 settings-builder-max-growth
+settings-builder-movie-1080p-target
+settings-builder-movie-1440p-target
+settings-builder-movie-4k-target
 settings-builder-movie-route-bitrate
 settings-builder-movie-threshold
 settings-builder-output-container
 settings-builder-reset-button
 settings-builder-route-threshold-mode
 settings-builder-routing-profile
+settings-builder-routing-profile-key-readout
 settings-builder-size-guard
 settings-builder-status
+settings-builder-tv-1080p-target
+settings-builder-tv-1440p-target
+settings-builder-tv-4k-target
 settings-builder-tv-route-bitrate
 settings-builder-tv-threshold
 settings-builder-video-codec
@@ -1665,6 +1681,10 @@ settings-handbrake-output-video
 settings-handbrake-preview-detail
 settings-handbrake-preview-status
 settings-handbrake-publish-requirements
+settings-height-1080p-range
+settings-height-1440p-range
+settings-height-4k-range
+settings-height-pixel-summary
 settings-launch-impact-legend
 settings-launch-impact-rows
 settings-launch-impact-status
@@ -1766,6 +1786,12 @@ settings-rename-preview-input
 settings-rename-preview-output
 settings-rename-preview-status
 settings-rename-remove-terms
+settings-route-consequence-summary
+settings-route-trigger-summary
+settings-routing-output-container-readout
+settings-routing-video-codec-readout
+settings-routing-video-preset-readout
+settings-routing-video-quality-readout
 settings-rows
 settings-runtime-allow-system-tools
 settings-runtime-apply-button
@@ -1956,3 +1982,4 @@ wizard-video-preset
 wizard-video-quality
 wizard-video-strategy
 <!-- END GENERATED DOM ID MANIFEST -->
+

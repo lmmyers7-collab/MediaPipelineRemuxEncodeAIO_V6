@@ -1,8 +1,8 @@
 # Local API Evidence vs Mutation Matrix
 
-Companion to `Docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`. This document separates every route into its mutation class, states whether the frontend can own the behavior, and notes the key restriction on each command route.
+Companion to `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`. This document separates every route into its mutation class, states whether the frontend can own the behavior, and notes the key restriction on each command route.
 
-Total routes: 84 (35 read, 49 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
+Total routes: 86 (35 read, 51 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
 
 ---
 
@@ -113,7 +113,7 @@ Opens a file or folder in the OS shell. Backend resolves the path from its own s
 | `POST /api/queue/open` | `shell-open` | Frontend cannot select the path directly | Allowed targets: `source_file`, `source_folder`, `source_root` |
 | `POST /api/completed/open` | `shell-open` | Frontend cannot select the path directly | Allowed targets: `output_file`, `output_folder`, `sidecar`, `source_folder` |
 | `POST /api/pending-publish/open` | `shell-open` | Frontend cannot select the path directly | Allowed targets: `local_file`, `manifest`, `destination_folder`, `source_folder` |
-| `POST /api/diagnostics/open` | `shell-open` | Frontend cannot select arbitrary files | `target` must be one of the diagnostics allowlist keys; see `Docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md` |
+| `POST /api/diagnostics/open` | `shell-open` | Frontend cannot select arbitrary files | `target` must be one of the diagnostics allowlist keys; see `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md` |
 
 ### shell-dialog (no media mutation)
 
@@ -202,13 +202,13 @@ Performs backend-owned filesystem mutation after explicit confirmation. The fron
 
 ### process-dry-run / tooling-artifact-write / deployment-write
 
-Runs backend maintenance tooling. Dry runs write no release/backfill artifacts; write routes are bounded to development/deployment artifacts and do not touch media or queue state.
+Runs backend maintenance tooling. Dry runs write no ops/release/metadata/backfill artifacts; write routes are bounded to development/deployment artifacts and do not touch media or queue state.
 
 | Route | Mutation class | Frontend cannot own? | Key restriction |
 |---|---|---|---|
 | `POST /api/maintenance/release-dry-run` | `process-dry-run` | Frontend cannot invoke the release script directly | Runs release builder with dry-run semantics; no release folder or zip written |
 | `POST /api/maintenance/completed-backfill-dry-run` | `process-dry-run` | Frontend cannot invoke the backfill script directly | Runs backfill dry-run; no completed manifest written |
-| `POST /api/maintenance/dependency-atlas` | `tooling-artifact-write` | Frontend cannot regenerate tooling artifacts directly | Writes generated dependency-atlas artifacts under `V6_dependency_atlas/` only; no media, queue, settings, manifests, pending publish, or pipeline state touched |
+| `POST /api/maintenance/dependency-atlas` | `tooling-artifact-write` | Frontend cannot regenerate tooling artifacts directly | Writes generated dependency-atlas artifacts under `docs/generated/dependency-atlas/` only; no media, queue, settings, manifests, pending publish, or pipeline state touched |
 | `POST /api/maintenance/release-build` | `deployment-write` | Frontend cannot create release packages directly | `confirm_create` required; backend checks active work, owns destination replacement, manifest creation, and optional zip creation |
 
 ### process-launch (high risk)
@@ -239,15 +239,15 @@ Required before any future implementation:
 
 - A backend dry-run route with `effect=none`, `dry_run_only=true`, exact backend-selected scope, precondition results, diff summary, and `would_not_touch` evidence for source media, scratch media, parked payloads, destination output, and unrelated state.
 - A mutation route only after backup/rollback semantics, command journal fields, atomic write or verified-move rules, and failure rollback tests exist.
-- Route inventory, command ownership, WebView mutation-boundary tests, browser no-mutation evidence, and `DOC_TOUCH_LOG.md` updates before any WebView control is exposed.
+- Route inventory, command ownership, WebView mutation-boundary tests, browser no-mutation evidence, and change-control evidence before any WebView control is exposed.
 
-The current source-of-truth details are in `Docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md`.
+The current source-of-truth details are in `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md`.
 
 ---
 
 ## Network Lifecycle Boundary
 
-Network lifecycle controls remain design-only. `/api/contract` publishes future dry-run, cleanup/rollback, source-file, and route-exposure gates, but there are no Network start/stop/reclaim/release/worker-polling POST routes. No WebView control may call one until `Docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` is satisfied.
+Network lifecycle controls remain design-only. `/api/contract` publishes future dry-run, cleanup/rollback, source-file, and route-exposure gates, but there are no Network start/stop/reclaim/ops/release/metadata/worker-polling POST routes. No WebView control may call one until `docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` is satisfied.
 
 ---
 
@@ -269,9 +269,9 @@ These restrictions are enforced by the backend at the API layer, not only by fro
 
 ## See Also
 
-- Full route detail: `Docs/inventories/API_ROUTE_INVENTORY.md`
-- Route ownership map: `Docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`
-- Command ownership: `Docs/inventories/COMMAND_OWNERSHIP_MATRIX.md`
-- Diagnostics target allowlist: `Docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`
-- No-touch boundaries: `Docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`
-- Lifecycle boundary: `Docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`
+- Full route detail: `docs/inventories/API_ROUTE_INVENTORY.md`
+- Route ownership map: `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`
+- Command ownership: `docs/inventories/COMMAND_OWNERSHIP_MATRIX.md`
+- Diagnostics target allowlist: `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`
+- No-touch boundaries: `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`
+- Lifecycle boundary: `docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`

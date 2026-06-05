@@ -1,11 +1,11 @@
 # Test Suite Subsystem Inventory
 
-Purpose: map the `DesktopApp\tests\` test suite by subsystem so contributors can choose targeted tests for a given change. All counts are approximate; the suite grows over time.
+Purpose: map the `tests\python\desktop\` test suite by subsystem so contributors can choose targeted tests for a given change. All counts are approximate; the suite grows over time.
 
 Validation command:
 
 ```powershell
-Get-ChildItem DesktopApp\tests -Filter test_*.py | Measure-Object
+Get-ChildItem tests\python\desktop -Filter test_*.py | Measure-Object
 ```
 
 ---
@@ -15,40 +15,40 @@ Get-ChildItem DesktopApp\tests -Filter test_*.py | Measure-Object
 All tests use the bundled Python:
 
 ```powershell
-$py = "DesktopApp\Runtime\Python\python.exe"
+$py = "apps\desktop\runtime\Python\python.exe"
 & $py -m unittest <module.path> -q
 ```
 
 Run a full subsystem via discovery:
 
 ```powershell
-& $py -m unittest discover -s DesktopApp\tests -p "<pattern>" -q
+& $py -m unittest discover -s tests\python\desktop -p "<pattern>" -q
 ```
 
 ---
 
 ## PowerShell Guard Checks
 
-These focused PowerShell checks sit outside `DesktopApp\tests` and guard cross-cutting repo hygiene or pipeline contracts:
+These focused PowerShell checks sit outside `tests\python\desktop` and guard cross-cutting repo hygiene or pipeline contracts:
 
 ```powershell
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-ActiveDocsReferenceChecks.ps1
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-RepoHygieneChecks.ps1
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-RuntimeStateHygieneChecks.ps1
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-PortablePathChecks.ps1
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-PendingPublishOwnershipChecks.ps1
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-PendingPublishSafetyChecks.ps1
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-ContractSchemaChecks.ps1
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-ConfigKeyRegistryChecks.ps1
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-FailureCodeRegistryChecks.ps1
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-NamingSupportChecks.ps1
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-PipelineQueueEngineChecks.ps1
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-RerunSourceIdentityChecks.ps1
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-ReleasePackagePolicyChecks.ps1
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Invoke-AdversarialForceKillEncodeChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-ActiveDocsReferenceChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RepoHygieneChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RuntimeStateHygieneChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-PortablePathChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-PendingPublishOwnershipChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-PendingPublishSafetyChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-ContractSchemaChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-ConfigKeyRegistryChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-FailureCodeRegistryChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-NamingSupportChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-PipelineQueueEngineChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RerunSourceIdentityChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-ReleasePackagePolicyChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Invoke-AdversarialForceKillEncodeChecks.ps1
 ```
 
-`Invoke-ActiveDocsReferenceChecks.ps1` guards post-reorg active-doc links for moved source-of-truth docs, blocks root-level references to superseded housekeeping report names unless they point at `Docs/archive/admin-audits`, and prevents high-level status/checklist docs from embedding absolute local current-handoff paths. Historical archive files and the forensic changelog are intentionally excluded so old evidence can remain unchanged.
+`Invoke-ActiveDocsReferenceChecks.ps1` guards post-reorg active-doc links for moved source-of-truth docs, blocks root-level references to superseded housekeeping report names unless they point at `docs/archive/admin-audits`, and prevents high-level status/checklist docs from embedding absolute local current-handoff paths. Historical archive files and the forensic changelog are intentionally excluded so old evidence can remain unchanged.
 
 `Invoke-RepoHygieneChecks.ps1` guards root generated log/jsonl captures, DesktopApp root API validation captures, rebuildable pytest/Tauri artifacts, and the ignore entries that keep those artifacts out of source review.
 
@@ -62,7 +62,7 @@ These focused PowerShell checks sit outside `DesktopApp\tests` and guard cross-c
 
 `Invoke-FailureCodeRegistryChecks.ps1` guards the `FailureCodes.ps1` registry: every classifier return code must be known, every registry row must include family/stage/when-fires/retryability/operator severity/handler/operator-action metadata, representative high-risk metadata rows must stay accurate, broader pipeline outcome/error codes emitted by PowerShell surfaces must be known, and unknown-code metadata lookup must fail closed.
 
-`Invoke-ConfigKeyRegistryChecks.ps1` guards `ConfigKeys.ps1`: the PowerShell config-key registry must stay in the same order as `ConfigSchema.ps1`, template/live PSD1 files may not contain unknown keys, helper lookups must fail closed, and literal PowerShell `$config[...]`, `$config.ContainsKey(...)`, and `Get-Config*` call sites may not reference unknown config keys. `test_config_keys.py` also guards Python-side Network runtime and settings/media-policy raw registered-key lookups, plus a package-wide registered-key raw-lookup scan across `mediapipeline_desktop_app`.
+`Invoke-ConfigKeyRegistryChecks.ps1` guards `ConfigKeys.ps1`: the PowerShell config-key registry must stay in the same order as `ConfigSchema.ps1`, template/live PSD1 files may not contain unknown keys, helper lookups must fail closed, and literal PowerShell `$config[...]`, `$config.ContainsKey(...)`, and `Get-Config*` call sites may not reference unknown config keys. `test_config_keys.py` also guards Python-side Network runtime and settings/media-policy raw registered-key lookups, plus a package-wide registered-key raw-lookup scan across `mediapipeline.desktop`.
 
 `Invoke-PipelineQueueEngineChecks.ps1` guards queue-engine dispatch mode selection: one local worker slot stays serial, multi-slot `local_worker_slots` dispatches through the worker scheduler with the expected script/config/PowerShell context, missing worker context fails closed without falling back to serial dispatch, and worker-child result writing remains versioned.
 
@@ -74,7 +74,7 @@ These focused PowerShell checks sit outside `DesktopApp\tests` and guard cross-c
 
 ## Python Tooling Guard Checks
 
-These repository-level Python tests sit outside `DesktopApp\tests` and guard generated maps, AI pre/postflight tooling, naming/layout rules, change-control metadata, and documentation-reference scanners:
+These repository-level Python tests sit outside `tests\python\desktop` and guard generated maps, AI pre/postflight tooling, naming/layout rules, change-control metadata, and documentation-reference scanners:
 
 ```powershell
 & $py -m unittest discover -s tests\tooling -p "test_*.py" -q
@@ -84,7 +84,7 @@ These repository-level Python tests sit outside `DesktopApp\tests` and guard gen
 |---|---|
 | `tests/tooling/test_active_doc_references.py` | Active-doc moved-path, removed-shell-wording, absolute handoff-path, archive-exclusion, and required-doc checks |
 | `tests/tooling/test_ai_guardrail.py` | AI guardrail preflight/postflight plan contents and git-status rename/untracked path parsing |
-| `tests/tooling/test_change_control.py` | Change-control release manifest placeholder behavior, version-label validation, and missing `release/VERSION` error reporting |
+| `tests/tooling/test_change_control.py` | Change-control release manifest placeholder behavior, version-label validation, and missing `ops/release/metadata/VERSION` error reporting |
 | `tests/tooling/test_dependency_boundaries.py` | App import-edge collection, module/package cycle detection, hard-boundary violations, allowlist staleness, and current-repo dependency check |
 | `tests/tooling/test_godfile_guard.py` | God-file policy validation, allowlisted thresholds, new/existing oversized file warnings, growth warnings, and git-status rename parsing |
 | `tests/tooling/test_lifecycle_map.py` | Lifecycle state/transition integrity and generated lifecycle-map rendering |
@@ -108,7 +108,7 @@ Tests for config loading, PSD1 parsing, key resolution, profile validation, and 
 | `test_service_config_value_checks.py` | Value validation rules |
 | `test_service_config_validation.py` | Cross-field config validation, path overlap warnings, and BDPGS OCR enabled-without-tool-path warning |
 | `test_config_keys.py` | Config-key registry alignment across Python settings schema, network defaults, PowerShell ordered pipeline config keys, Network runtime raw-lookup drift, settings/media-policy raw-lookup drift, and package-wide registered-key lookup drift |
-| `Pipeline/Tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1` | PowerShell config-key registry alignment, PSD1 known-key coverage, and literal PowerShell config-reference drift |
+| `ops/pipeline/tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1` | PowerShell config-key registry alignment, PSD1 known-key coverage, and literal PowerShell config-reference drift |
 | `test_service_config_path_warnings.py` | Path key warning logic |
 | `test_service_config_numeric_policy.py` | Numeric range and policy checks |
 | `test_service_config_document_runner.py` | Config document runner, subprocess capture handoff, and Protocol-typed config service boundary |
@@ -117,7 +117,7 @@ Tests for config loading, PSD1 parsing, key resolution, profile validation, and 
 Targeted command:
 
 ```powershell
-& $py -m unittest discover -s DesktopApp\tests -p "test*config*.py" -q
+& $py -m unittest discover -s tests\python\desktop -p "test*config*.py" -q
 ```
 
 Coverage gap: live-config write integration test against a real PSD1 file.
@@ -148,8 +148,8 @@ Tests for pipeline state, progress tracking, event reading, snapshot assembly, a
 Targeted command:
 
 ```powershell
-& $py -m unittest discover -s DesktopApp\tests -p "test*status*.py" -q
-& $py -m unittest DesktopApp.tests.test_telemetry_service -q
+& $py -m unittest discover -s tests\python\desktop -p "test*status*.py" -q
+& $py -m unittest tests.python.desktop.test_telemetry_service -q
 ```
 
 ---
@@ -170,7 +170,7 @@ Tests for queue priority marking, snapshot reading, dry-run planning, preview bu
 Targeted command:
 
 ```powershell
-& $py -m unittest discover -s DesktopApp\tests -p "test*queue*.py" -q
+& $py -m unittest discover -s tests\python\desktop -p "test*queue*.py" -q
 ```
 
 Coverage gap: end-to-end queue → launch → completed flow; adversarial blocked/excluded row coverage beyond what fixture data provides.
@@ -210,13 +210,13 @@ Tests for launch environment setup, launch plans, spawn, kill, readiness checks,
 Targeted command:
 
 ```powershell
-& $py -m unittest discover -s DesktopApp\tests -p "test*process*.py" -q
-& $py -m unittest discover -s DesktopApp\tests -p "test_facade_process*.py" -q
+& $py -m unittest discover -s tests\python\desktop -p "test*process*.py" -q
+& $py -m unittest discover -s tests\python\desktop -p "test_facade_process*.py" -q
 ```
 
 Closed coverage gap: `test_application_facade_process_launch.py` now starts one pipeline, reports the first bundle-owned child process as still running, and confirms a second pipeline launch is rejected before the service launcher is called again.
 
-Closed runtime safety gap: `Pipeline\Tests\Invoke-AdversarialForceKillEncodeChecks.ps1` force-kills a real backend encode process tree and confirms the byte-bearing temp output is not accepted as complete, no completed/pending-publish state is written, the source hash remains unchanged, and the source remains backend-queued after restart planning.
+Closed runtime safety gap: `ops\pipeline\tests\Invoke-AdversarialForceKillEncodeChecks.ps1` force-kills a real backend encode process tree and confirms the byte-bearing temp output is not accepted as complete, no completed/pending-publish state is written, the source hash remains unchanged, and the source remains backend-queued after restart planning.
 
 ---
 
@@ -235,7 +235,7 @@ Tests for completed manifest reading, consistency checks, and backfill.
 Targeted command:
 
 ```powershell
-& $py -m unittest discover -s DesktopApp\tests -p "test*completed*.py" -q
+& $py -m unittest discover -s tests\python\desktop -p "test*completed*.py" -q
 ```
 
 ---
@@ -264,11 +264,11 @@ Tests for TV and movie name parsing, rename planning, discovery, apply, preview,
 Targeted command:
 
 ```powershell
-& $py -m unittest discover -s DesktopApp\tests -p "test*rename*.py" -q
-& $py -m unittest DesktopApp.tests.test_api_path_dialogs -q
+& $py -m unittest discover -s tests\python\desktop -p "test*rename*.py" -q
+& $py -m unittest tests.python.desktop.test_api_path_dialogs -q
 ```
 
-Coverage gap noted in `Docs/inventories/RENAME_SAFETY_TEST_INVENTORY.md`: native dialog display in real interactive Windows shell, undo manifest verification, and network path-rewrite behavior.
+Coverage gap noted in `docs/inventories/RENAME_SAFETY_TEST_INVENTORY.md`: native dialog display in real interactive Windows shell, undo manifest verification, and network path-rewrite behavior.
 
 ---
 
@@ -288,14 +288,14 @@ Tests for manifest parsing, path resolution, manifest row validation, and genera
 Targeted command:
 
 ```powershell
-& $py -m unittest discover -s DesktopApp\tests -p "test*pending_publish*.py" -q
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-PendingPublishOwnershipChecks.ps1
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-PendingPublishSafetyChecks.ps1
+& $py -m unittest discover -s tests\python\desktop -p "test*pending_publish*.py" -q
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-PendingPublishOwnershipChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-PendingPublishSafetyChecks.ps1
 ```
 
-Remaining gaps noted in `Docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md`: recovery-plan action coverage, completed-manifest/drain-summary cross-check depth, and coordinator-mode pending-publish handoff.
+Remaining gaps noted in `docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md`: recovery-plan action coverage, completed-manifest/drain-summary cross-check depth, and coordinator-mode pending-publish handoff.
 
-PowerShell ownership coverage now includes `Pipeline\Tests\Unit\Invoke-PendingPublishOwnershipChecks.ps1`, which parses the publish/pending modules and guards the documented parked-output-as-media-plus-sidecars ownership boundary.
+PowerShell ownership coverage now includes `ops\pipeline\tests\Unit\Invoke-PendingPublishOwnershipChecks.ps1`, which parses the publish/pending modules and guards the documented parked-output-as-media-plus-sidecars ownership boundary.
 
 ---
 
@@ -315,15 +315,15 @@ Tests for audit record reading, CSV handling, I/O, metadata, and export.
 | `test_facade_audit_policy.py` | Facade: audit policy |
 | `test_facade_failures_policy.py` | Facade: failures policy and retry-state child payload |
 | `test_application_facade_reports.py` | Application-facade read-only failure JSON/marker preview, retry-state payload, and audit CSV preview behavior |
-| `Pipeline/Tests/Unit/Invoke-PortablePathChecks.ps1` | PowerShell audit/legacy GUI parser and portable audit-root default guard |
+| `ops/pipeline/tests/Unit/Invoke-PortablePathChecks.ps1` | PowerShell audit/legacy GUI parser and portable audit-root default guard |
 
 Targeted command:
 
 ```powershell
-& $py -m unittest discover -s DesktopApp\tests -p "test*audit*.py" -q
-& $py -m unittest DesktopApp.tests.test_service_failure_markers -q
-& $py -m unittest DesktopApp.tests.test_service_failure_retry_state -q
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Unit\Invoke-PortablePathChecks.ps1
+& $py -m unittest discover -s tests\python\desktop -p "test*audit*.py" -q
+& $py -m unittest tests.python.desktop.test_service_failure_markers -q
+& $py -m unittest tests.python.desktop.test_service_failure_retry_state -q
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-PortablePathChecks.ps1
 ```
 
 ---
@@ -346,7 +346,7 @@ Tests for settings validation, patch preview, save, and facade policies.
 Targeted command:
 
 ```powershell
-& $py -m unittest discover -s DesktopApp\tests -p "test_facade_settings*.py" -q
+& $py -m unittest discover -s tests\python\desktop -p "test_facade_settings*.py" -q
 ```
 
 ---
@@ -364,7 +364,7 @@ Tests for folder validation contracts, probing, and I/O.
 Targeted command:
 
 ```powershell
-& $py -m unittest discover -s DesktopApp\tests -p "test*folder_policy*.py" -q
+& $py -m unittest discover -s tests\python\desktop -p "test*folder_policy*.py" -q
 ```
 
 ---
@@ -387,7 +387,7 @@ Tests for path normalization, layout, state migration, defaults, and resolution 
 Targeted command:
 
 ```powershell
-& $py -m unittest discover -s DesktopApp\tests -p "test*path*.py" -q
+& $py -m unittest discover -s tests\python\desktop -p "test*path*.py" -q
 ```
 
 ---
@@ -420,8 +420,8 @@ Tests for coordinator/worker state, persistence, auth, source policy, mDNS, loca
 Targeted command:
 
 ```powershell
-& $py -m unittest discover -s DesktopApp\tests -p "test_network*.py" -q
-& $py -m unittest DesktopApp.tests.test_api_contract_payload DesktopApp.tests.test_application_facade_network DesktopApp.tests.test_webview_network_read_only_boundary -q
+& $py -m unittest discover -s tests\python\desktop -p "test_network*.py" -q
+& $py -m unittest tests.python.desktop.test_api_contract_payload tests.python.desktop.test_application_facade_network tests.webview.test_webview_network_read_only_boundary -q
 ```
 
 ---
@@ -446,8 +446,8 @@ Tests for API route payloads, command payloads, handler dispatch, command journa
 Targeted command:
 
 ```powershell
-& $py -m unittest discover -s DesktopApp\tests -p "test_api*.py" -q
-& $py -m unittest DesktopApp.tests.test_backend_bootstrap -q
+& $py -m unittest discover -s tests\python\desktop -p "test_api*.py" -q
+& $py -m unittest tests.python.desktop.test_backend_bootstrap -q
 ```
 
 ---
@@ -488,7 +488,7 @@ Tests for historical legacy desktop-shell controller boundaries, controller-owne
 Targeted command:
 
 ```powershell
-& $py -m unittest discover -s DesktopApp\tests -p "test_controllers*.py" -q
+& $py -m unittest discover -s tests\python\desktop -p "test_controllers*.py" -q
 ```
 
 ---
@@ -536,14 +536,14 @@ Tests for release plan construction, result validation, change-control metadata,
 | `test_service_release_plan.py` | Release plan logic |
 | `test_service_release_result.py` | Release result validation |
 | `tests/tooling/test_change_control.py` | Change-control release-manifest preview behavior, safe version labels, and missing-version diagnostics |
-| `scripts/release/test.ps1` | Bundle layout, release-manifest hygiene, WebView include/asset checks, API browser token posture, parser/syntax checks, desktop unit discovery, environment verifier, Tauri prereqs, and V6 regression wrapper execution |
+| `ops/scripts/ops/release/metadata/test.ps1` | Bundle layout, release-manifest hygiene, WebView include/asset checks, API browser token posture, parser/syntax checks, desktop unit discovery, environment verifier, Tauri prereqs, and current regression wrapper execution |
 
 Targeted command:
 
 ```powershell
-& $py -m unittest discover -s DesktopApp\tests -p "test*release*.py" -q
+& $py -m unittest discover -s tests\python\desktop -p "test*release*.py" -q
 & $py -m unittest tests.tooling.test_change_control -q
-.\scripts\release\test.ps1 -SkipToolIntegration -SkipEndToEndSmoke
+.\ops\scripts\release\test.ps1 -SkipToolIntegration -SkipEndToEndSmoke
 ```
 
 ---
@@ -564,20 +564,20 @@ Static and scaffold tests for Tauri shell setup and WebView JS assets.
 Targeted command:
 
 ```powershell
-$py = "DesktopApp\Runtime\Python\python.exe"
-& $py -m unittest DesktopApp.tests.test_tauri_shell_scaffold -q
-& $py -m unittest DesktopApp.tests.test_webview_css_design_tokens -q
-& $py -m unittest DesktopApp.tests.test_webview_inventory_docs -q
-& $py -m unittest DesktopApp.tests.test_webview_navigation_static -q
-& $py -m unittest DesktopApp.tests.test_webview_frontend_mutation_boundary -q
-powershell -NoProfile -ExecutionPolicy Bypass -File DesktopApp\tauri_shell\Test-TauriShell-ProductionSurface.ps1
+$py = "apps\desktop\runtime\Python\python.exe"
+& $py -m unittest tests.python.desktop.test_tauri_shell_scaffold -q
+& $py -m unittest tests.webview.test_webview_css_design_tokens -q
+& $py -m unittest tests.webview.test_webview_inventory_docs -q
+& $py -m unittest tests.webview.test_webview_navigation_static -q
+& $py -m unittest tests.webview.test_webview_frontend_mutation_boundary -q
+powershell -NoProfile -ExecutionPolicy Bypass -File apps\desktop\tauri\Test-TauriShell-ProductionSurface.ps1
 ```
 
 ---
 
 ### WebView Browser-Backed Smokes
 
-Browser-backed smoke tests under `DesktopApp\tests\`. Require Chrome or Edge; skip cleanly if absent.
+Browser-backed smoke tests under `tests\python\desktop\`. Require Chrome or Edge; skip cleanly if absent.
 
 | Test file | What it covers |
 |---|---|
@@ -602,10 +602,10 @@ Browser-backed smoke tests under `DesktopApp\tests\`. Require Chrome or Edge; sk
 Run all via:
 
 ```powershell
-& $py -m unittest discover -s DesktopApp\tests -p "test_webview_browser_*.py" -q
+& $py -m unittest discover -s tests\python\desktop -p "test_webview_browser_*.py" -q
 ```
 
-Use `SmokeTests/` wrappers for the operator-friendly path: `.\SmokeTests\Test-WebViewBrowser*.ps1`.
+Use `ops/scripts/smoke/` wrappers for the operator-friendly path: `.\ops/scripts/smoke\Test-WebViewBrowser*.ps1`.
 
 ---
 
@@ -620,7 +620,7 @@ Node.js-backed smoke tests that evaluate WebView JS with mocked DOM state.
 | `test_webview_rename_readiness_smoke.py` | Apply Readiness for ready and blocked duplicate-target scopes |
 | `test_webview_real_media_smoke.py` | Fixture-backed backend API + WebView asset agreement for one TV sample |
 
-Run via `SmokeTests/` wrappers: `.\SmokeTests\Test-WebViewCommandEvidenceSmoke.ps1`, `.\SmokeTests\Test-WebViewRowDetailSmoke.ps1`, etc.
+Run via `ops/scripts/smoke/` wrappers: `.\ops/scripts/smoke\Test-WebViewCommandEvidenceSmoke.ps1`, `.\ops/scripts/smoke\Test-WebViewRowDetailSmoke.ps1`, etc.
 
 ---
 
@@ -640,8 +640,10 @@ Coverage gaps are tracked as documentation observations. They do not require imm
 
 ## See Also
 
-- Rename safety inventory: `Docs/inventories/RENAME_SAFETY_TEST_INVENTORY.md`
-- Pending publish fixture inventory: `Docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md`
-- Validation ladder: `Docs/testing/VALIDATION_LADDER_RUNBOOK.md`
-- Browser smoke runbook: `Docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md`
+- Rename safety inventory: `docs/inventories/RENAME_SAFETY_TEST_INVENTORY.md`
+- Pending publish fixture inventory: `docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md`
+- Validation ladder: `docs/testing/VALIDATION_LADDER_RUNBOOK.md`
+- Browser smoke runbook: `docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md`
+
+
 

@@ -2,7 +2,7 @@
 
 Date: 2026-06-03
 
-Maps the highest-impact configuration keys to: builder page/group, mutation risk, Settings-to-Launch handoff visibility, and test coverage. Source: `config_schema.py`, `settings_risk_policy_rules.py`, `Docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`.
+Maps the highest-impact configuration keys to: builder page/group, mutation risk, Settings-to-Launch handoff visibility, and test coverage. Source: `config_schema.py`, `settings_risk_policy_rules.py`, `docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`.
 
 134 backend metadata keys are present in `CONFIG_FIELD_DEFINITIONS`. 122 are covered by structured WebView builder arrays, `LibraryProfiles` is handled by the dedicated Library Profiles editor, 9 non-secret keys are known advanced/direct-config metadata without routine builders, and 2 intentionally hidden auth keys remain excluded. This document covers the highest-impact subset plus all hidden keys.
 
@@ -155,7 +155,7 @@ All handoff rows are read-only. The Launch page cannot modify settings — chang
 
 ## See Also
 
-- Settings builder coverage: `Docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`
-- Risk policy rules: `DesktopApp/tests/test_settings_risk_policy_rules.py`
-- Network mode documentation: `Docs/architecture/NETWORK_MODE_READ_ONLY_DOCUMENTATION.md`
-- API route inventory: `Docs/inventories/API_ROUTE_INVENTORY.md`
+- Settings builder coverage: `docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`
+- Risk policy rules: `tests/python/desktop/test_settings_risk_policy_rules.py`
+- Network mode documentation: `docs/architecture/NETWORK_MODE_READ_ONLY_DOCUMENTATION.md`
+- API route inventory: `docs/inventories/API_ROUTE_INVENTORY.md`

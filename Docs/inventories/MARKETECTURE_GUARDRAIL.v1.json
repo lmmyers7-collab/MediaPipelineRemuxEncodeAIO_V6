@@ -17,12 +17,12 @@
     "**/.pytest_cache/**",
     "**/Runtime/**",
     "**/target/**",
-    "Docs/archive/**",
+    "docs/archive/**",
     "LocalBase/**",
-    "V5/**",
-    "Docs/inventories/MARKETECTURE_GUARDRAIL.v1.json",
-    "scripts/dev/check_marketecture.py",
-    "DesktopApp/tests/test_marketecture_guard.py"
+    "external-rollback/**",
+    "docs/inventories/MARKETECTURE_GUARDRAIL.v1.json",
+    "ops/scripts/dev/check_marketecture.py",
+    "tests/python/desktop/test_marketecture_guard.py"
   ],
   "terms": [
     "world-class",
@@ -58,3 +58,4 @@
     "web-scale"
   ]
 }
+

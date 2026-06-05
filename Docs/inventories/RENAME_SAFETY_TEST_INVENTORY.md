@@ -134,6 +134,6 @@ All CI-safe tests use temporary directories with minimal files. No test exercise
 ## See Also
 
 - Rename command route: `LOCAL_API_ROUTE_OWNERSHIP_MAP.md` (`POST /api/rename/browse`, `POST /api/rename/preview`, `POST /api/rename/apply`)
-- Rename apply route contract: `DesktopApp/mediapipeline_desktop_app/api/contract_command.py` (`LOCAL_API_RENAME_COMMAND_ROUTE_CONTRACT`)
+- Rename apply route contract: `src/mediapipeline/desktop/api/contract_command.py` (`LOCAL_API_RENAME_COMMAND_ROUTE_CONTRACT`)
 - WebView smoke catalog: `WEBVIEW_SMOKE_TEST_CATALOG.md`
 - Browser smoke runbook: `BROWSER_SMOKE_TEST_RUNBOOK.md`

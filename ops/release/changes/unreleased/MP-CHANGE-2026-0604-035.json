@@ -1,0 +1,68 @@
+{
+  "id": "MP-CHANGE-2026-0604-035",
+  "title": "Publish progress ETA and steps",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-04",
+  "date_completed": "2026-06-04",
+  "summary": "Show publish copy as a timed transfer and expose publish output as discrete copy, sidecar, reveal, and finalize steps instead of a proxy percent.",
+  "reason": "The previous publish bar could sit near 94 percent during final file copy, which hid the more useful transfer ETA from the operator.",
+  "affected_areas": [
+    "progress",
+    "publish",
+    "webview"
+  ],
+  "behavior_before": "During publish copy, the main publish stage could remain near 94 percent while a separate Push file bar showed byte progress without ETA context.",
+  "behavior_after": "During publish copy, the dashboard can prioritize the Push file transfer with ETA evidence while the publish stage reports copy, sidecar, reveal, and finalize steps.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/progressView.js",
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "tests/python/desktop/test_application_facade_snapshot.py",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/python/desktop/test_service_status_eta.py",
+    "tests/python/desktop/test_webview_browser_home_live_state_smoke.py",
+    "ops/pipeline/config/src/mediapipeline/contracts/schemas/media_pipeline_progress.schema.json",
+    "ops/pipeline/config/setup/Validation.ps1",
+    "app/diagnostics/facade.py",
+    "app/observability/status_policy.py",
+    "app/processes/control_facade.py",
+    "app/status/eta.py",
+    "app/status/facade.py",
+    "ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-035.json",
+    "ops/pipeline/engine/status/progress_state.ps1",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/progressView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.components.css.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_snapshot.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_status_eta.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_webview_browser_home_live_state_smoke.py.md",
+    "docs/generated/summaries/ops/pipeline/config/src/mediapipeline/contracts/schemas/media_pipeline_progress.schema.json.md",
+    "docs/generated/summaries/ops/pipeline/config/setup/Validation.ps1.md",
+    "docs/generated/summaries/app/diagnostics/facade.py.md",
+    "docs/generated/summaries/app/observability/status_policy.py.md",
+    "docs/generated/summaries/app/processes/control_facade.py.md",
+    "docs/generated/summaries/app/status/eta.py.md",
+    "docs/generated/summaries/app/status/facade.py.md",
+    "docs/generated/summaries/ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-035.json.md",
+    "docs/generated/summaries/ops/pipeline/engine/status/progress_state.ps1.md"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_snapshot.py",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/python/desktop/test_service_status_eta.py",
+    "tests/python/desktop/test_webview_browser_home_live_state_smoke.py"
+  ],
+  "manual_validation": [
+    "DesktopApp\\\\Runtime\\\\Python\\\\python.exe -m pytest DesktopApp\\\\tests\\\\test_contracts.py - 21 passed",
+    "DesktopApp\\\\Runtime\\\\Python\\\\python.exe -m pytest DesktopApp\\\\tests\\\\test_facade_process_guard_policy.py DesktopApp\\\\tests\\\\test_process_service.py DesktopApp\\\\tests\\\\test_service_process_runtime_runner.py - 22 passed",
+    "DesktopApp\\\\Runtime\\\\Python\\\\python.exe -m pytest DesktopApp\\\\tests\\\\test_service_status_eta.py DesktopApp\\\\tests\\\\test_application_facade_snapshot.py DesktopApp\\\\tests\\\\test_application_facade_web_static.py - 49 passed",
+    "DesktopApp\\\\Runtime\\\\Python\\\\python.exe -m pytest DesktopApp\\\\tests\\\\test_webview_browser_home_live_state_smoke.py - 1 passed",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File Pipeline\\\\Tests\\\\Unit\\\\Invoke-ContractSchemaChecks.ps1 - passed"
+  ],
+  "rollback_plan": "Revert the progress copy timestamp, ETA row, stepped publish progress metadata, and WebView rendering changes. The underlying publish/copy policy remains unchanged.",
+  "related_changes": [],
+  "notes": "Backend publish-copy telemetry now carries a start timestamp; ETA and progress-bar payloads expose publish copy timing plus publish steps.\nWebView progress bars render publish steps and attach ETA/rate/remaining metadata to the active Push file bar.\nTargeted tests cover ETA math, stepped publish payloads, static WebView rendering, and the Home live-state smoke.\nImplemented and validated on 2026-06-04 with focused ETA, snapshot, WebView static, Home browser, process-control, and schema checks."
+}
+

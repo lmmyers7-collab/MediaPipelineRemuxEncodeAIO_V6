@@ -1,0 +1,49 @@
+{
+  "id": "MP-CHANGE-2026-0604-025",
+  "title": "Execute 2026.06.04.001 file layout cleanup validation",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "low",
+  "date_started": "2026-06-04",
+  "date_completed": "2026-06-04",
+  "summary": "Executed the 2026.06.04.001 release-foundation Phase 2 file-layout cleanup gate without adding or moving layout files.",
+  "reason": "Phase 2 requires verifying predictable release-related file placement, confirming the document placement helper exists and runs, and checking architecture/naming/doc-reference guardrails before later release-candidate work.",
+  "affected_areas": [
+    "change_control",
+    "layout_guardrails",
+    "release_foundation",
+    "summaries",
+    "validation"
+  ],
+  "behavior_before": "Phase 2 execution had not been recorded separately from the planning pack and helper creation packets.",
+  "behavior_after": "Phase 2 records that no new docs, scripts, root launchers, Pipeline/Modules implementations, runtime state, media files, manifests, scratch files, outputs, or sidecars were moved or created for this phase; validation is limited to helper and layout guard checks.",
+  "files_touched": [
+    "docs/change_control/CHANGELOG.md",
+    "docs/change_control/CHANGE_INDEX.md",
+    "ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-025.json",
+    "ops/release/metadata/RELEASE_MANIFEST.json",
+    "docs/generated/summaries/docs/change_control/CHANGELOG.md.md",
+    "docs/generated/summaries/docs/change_control/CHANGE_INDEX.md.md",
+    "docs/generated/summaries/ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-025.json.md",
+    "docs/generated/summaries/ops/release/metadata/RELEASE_MANIFEST.json.md"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/build_change_index.py - passed",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/build_changelog.py - passed",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/build_release_manifest.py --version 2026.06.04.001 --channel local --source auto - passed",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/validate_changes.py --require-worktree-coverage - failed due unrelated MP-CHANGE-2026-0604-018 missing high-risk notes/rollback, unrelated MP-CHANGE-2026-0604-024 invalid type fix, and 9 unrelated uncovered dirty paths: CON, src/mediapipeline/desktop/network/standalone.py, apps/desktop/webview/static/assets/settingsView.builders.video.js, apps/desktop/webview/static/assets/styles.pages.css, ops/pipeline/entrypoints/MediaPipeline.ps1, app/api/commands_queue_priority.py, app/config/metadata_parts/video_fields.py, app/contracts/height_tolerance.py, ops/pipeline/engine/queue/queue_plan.ps1",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/validate_changes.py --require-worktree-coverage - final run failed due unrelated MP-CHANGE-2026-0604-018 missing high/critical notes or rollback detail and 10 unrelated uncovered dirty paths: CON, src/mediapipeline/desktop/network/standalone.py, apps/desktop/webview/static/assets/settingsView.builders.video.js, apps/desktop/webview/static/assets/styles.pages.css, ops/pipeline/entrypoints/MediaPipeline.ps1, ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1, app/api/commands_queue_priority.py, app/config/metadata_parts/video_fields.py, app/contracts/height_tolerance.py, ops/pipeline/engine/queue/queue_plan.ps1",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/validate_changes.py --require-worktree-coverage - final run failed due unrelated MP-CHANGE-2026-0604-018 missing high/critical notes or rollback detail and 9 unrelated uncovered dirty paths: CON, src/mediapipeline/desktop/network/standalone.py, apps/desktop/webview/static/assets/settingsView.builders.video.js, apps/desktop/webview/static/assets/styles.pages.css, ops/pipeline/entrypoints/MediaPipeline.ps1, app/api/commands_queue_priority.py, app/config/metadata_parts/video_fields.py, app/contracts/height_tolerance.py, ops/pipeline/engine/queue/queue_plan.ps1",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/validate_changes.py --require-worktree-coverage - latest run failed due unrelated MP-CHANGE-2026-0604-018 missing high/critical notes or rollback detail and 7 unrelated uncovered dirty paths: CON, src/mediapipeline/desktop/network/standalone.py, apps/desktop/webview/static/assets/settingsView.builders.video.js, apps/desktop/webview/static/assets/styles.pages.css, ops/pipeline/entrypoints/MediaPipeline.ps1, app/config/metadata_parts/video_fields.py, app/contracts/height_tolerance.py",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/check_active_doc_references.py - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/check_architecture_guardrails.py - passed; checked 31 creation candidates",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/suggest_doc_location.py --title 'Release foundation phase plan' --kind implementation - passed; recommendation docs/implementation, confidence high",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/lint_naming.py - passed; checked 31 creation candidates"
+  ],
+  "rollback_plan": "Remove this Phase 2 validation packet and its generated summary if the execution record is not wanted. No file-layout moves, runtime state, media files, manifests, source/output/scratch files, sidecars, package behavior, launchers, or media policy were changed by this phase.",
+  "related_changes": [],
+  "notes": "Proposed file inventory: none. The only new file for this phase is this change packet. The document placement helper already exists at ops/scripts/dev/suggest_doc_location.py.\nNo docs, scripts, root launchers, Pipeline/Modules files, runtime state, media, manifests, scratch, output, or sidecar files were proposed or moved for Phase 2."
+}
+

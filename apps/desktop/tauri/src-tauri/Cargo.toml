@@ -1,0 +1,21 @@
+[package]
+name = "mediapipeline-tauri-shell"
+version = "0.0.0+2026.06.04.001.g103b74414ba7.dirty"
+description = "MediaPipelineRemuxEncodeAIO Tauri/WebView2 shell"
+authors = ["MediaPipeline"]
+edition = "2021"
+rust-version = "1.77"
+
+[lib]
+name = "mediapipeline_tauri_shell_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = [] }
+url = "2"
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Security", "Win32_System_Threading", "Win32_UI_WindowsAndMessaging"] }

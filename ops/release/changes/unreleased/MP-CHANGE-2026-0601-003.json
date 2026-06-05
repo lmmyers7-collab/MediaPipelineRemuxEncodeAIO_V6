@@ -1,0 +1,62 @@
+{
+  "id": "MP-CHANGE-2026-0601-003",
+  "title": "Add Phase 3 release finalization and archive workflow",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "low",
+  "date_started": "2026-06-01",
+  "date_completed": "2026-06-01",
+  "summary": "Add dry-run-first release finalization, released-packet history generation, archive workflow documentation, and safer manifest generation for unreleased or finalized release sources.",
+  "reason": "Phase 3 gives the project a controlled path to finalize completed change packets into versioned release folders and archive generated release artifacts without adding runtime audit or media-processing behavior.",
+  "affected_areas": [
+    "change_control",
+    "release_finalization",
+    "release_archive",
+    "release_history",
+    "release_manifest"
+  ],
+  "behavior_before": "Change packets could generate indexes, changelogs, and manifests, but there was no safe finalization script, released-version archive workflow, or generated release history.",
+  "behavior_after": "Release finalization can be previewed with a dry run, completed packets can be moved into versioned release folders when explicitly finalized, release artifacts can be archived, and release history can be regenerated from released packets.",
+  "files_touched": [
+    "docs/change_control/README.md",
+    "docs/change_control/CURRENT_VERSION.md",
+    "docs/change_control/CHANGE_INDEX.md",
+    "docs/change_control/CHANGELOG.md",
+    "docs/change_control/RELEASE_PROCESS.md",
+    "docs/change_control/RELEASE_HISTORY.md",
+    "ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0601-003.json",
+    "src/mediapipeline/tools/change_control/build_change_index.py",
+    "src/mediapipeline/tools/change_control/build_changelog.py",
+    "src/mediapipeline/tools/change_control/build_release_manifest.py",
+    "src/mediapipeline/tools/change_control/finalize_release.py",
+    "src/mediapipeline/tools/change_control/list_releases.py",
+    "src/mediapipeline/tools/change_control/prepare_release.py",
+    "src/mediapipeline/tools/change_control/validate_changes.py",
+    "ops/release/metadata/RELEASE_MANIFEST.json",
+    "docs/generated/summaries/src/mediapipeline/tools/change_control/validate_changes.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/change_control/build_change_index.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/change_control/build_changelog.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/change_control/build_release_manifest.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/change_control/prepare_release.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/change_control/finalize_release.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/change_control/list_releases.py.md"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Ran validate_changes.py successfully.",
+    "Ran build_change_index.py successfully.",
+    "Ran build_changelog.py successfully.",
+    "Ran build_release_manifest.py successfully.",
+    "Ran finalize_release.py with --dry-run successfully.",
+    "Ran list_releases.py successfully.",
+    "Ran refresh_summaries.py for src/mediapipeline/tools/change_control paths successfully."
+  ],
+  "rollback_plan": "Remove Phase 3 finalization scripts and archive/history docs. Keep Phase 1 and Phase 2 change packet, validation, changelog, and manifest generation.",
+  "related_changes": [
+    "MP-CHANGE-2026-0601-001",
+    "MP-CHANGE-2026-0601-002"
+  ],
+  "notes": "Phase 3 intentionally does not finalize or move current unreleased packets during implementation validation."
+}
+

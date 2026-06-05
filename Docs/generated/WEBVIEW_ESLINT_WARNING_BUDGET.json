@@ -1,7 +1,7 @@
 {
   "schema_version": "webview_eslint_warning_budget.v1",
-  "generated_by": "scripts/dev/check-webview-lint-budget.mjs",
-  "target": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/**/*.js",
+  "generated_by": "ops/scripts/dev/check-webview-lint-budget.mjs",
+  "target": "apps/desktop/webview/static/assets/**/*.js",
   "budget_policy": "Future checks fail on any ESLint error or on warning counts above this baseline by total or rule.",
   "total_warnings": 655,
   "total_errors": 0,
@@ -33,7 +33,7 @@
   },
   "files": [
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js",
+      "path": "apps/desktop/webview/static/assets/app.js",
       "warnings": 77,
       "errors": 0,
       "rules": {
@@ -42,7 +42,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app/home.js",
+      "path": "apps/desktop/webview/static/assets/app/home.js",
       "warnings": 4,
       "errors": 0,
       "rules": {
@@ -51,7 +51,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/commandHistory.js",
+      "path": "apps/desktop/webview/static/assets/commandHistory.js",
       "warnings": 44,
       "errors": 0,
       "rules": {
@@ -60,7 +60,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/commandHistory/diagnostics.js",
+      "path": "apps/desktop/webview/static/assets/commandHistory/diagnostics.js",
       "warnings": 2,
       "errors": 0,
       "rules": {
@@ -69,7 +69,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/commandHistory/formatters.js",
+      "path": "apps/desktop/webview/static/assets/commandHistory/formatters.js",
       "warnings": 9,
       "errors": 0,
       "rules": {
@@ -78,7 +78,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/promotionCommands.js",
+      "path": "apps/desktop/webview/static/assets/completed/promotionCommands.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
@@ -86,7 +86,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/selection.js",
+      "path": "apps/desktop/webview/static/assets/completed/selection.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
@@ -94,7 +94,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.evidence.js",
+      "path": "apps/desktop/webview/static/assets/completedView.evidence.js",
       "warnings": 15,
       "errors": 0,
       "rules": {
@@ -104,7 +104,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.js",
+      "path": "apps/desktop/webview/static/assets/completedView.js",
       "warnings": 36,
       "errors": 0,
       "rules": {
@@ -114,7 +114,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.proof.js",
+      "path": "apps/desktop/webview/static/assets/completedView.proof.js",
       "warnings": 13,
       "errors": 0,
       "rules": {
@@ -124,7 +124,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.review.js",
+      "path": "apps/desktop/webview/static/assets/completedView.review.js",
       "warnings": 11,
       "errors": 0,
       "rules": {
@@ -135,7 +135,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/crossPageContextView.conflict.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.conflict.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
@@ -143,7 +143,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/crossPageContextView.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.js",
       "warnings": 58,
       "errors": 0,
       "rules": {
@@ -153,7 +153,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/crossPageContextView.sample.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sample.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
@@ -161,7 +161,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/crossPageContextView.sampleValidation.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.js",
       "warnings": 3,
       "errors": 0,
       "rules": {
@@ -170,7 +170,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/crossPageContextView.sampleValidation.records.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.records.js",
       "warnings": 3,
       "errors": 0,
       "rules": {
@@ -179,7 +179,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/crossPageContextView.sampleValidation.runbook.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.runbook.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
@@ -187,7 +187,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/crossPageContextView.sampleValidation.worksheet.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.worksheet.js",
       "warnings": 3,
       "errors": 0,
       "rules": {
@@ -196,7 +196,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/diagnosticsStateSummaryView.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsStateSummaryView.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
@@ -204,7 +204,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/diagnosticsTailView.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsTailView.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
@@ -212,7 +212,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/diagnosticsView.activejobs.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.activejobs.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
@@ -220,7 +220,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/diagnosticsView.investigation.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.investigation.js",
       "warnings": 4,
       "errors": 0,
       "rules": {
@@ -230,7 +230,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/diagnosticsView.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.js",
       "warnings": 7,
       "errors": 0,
       "rules": {
@@ -239,7 +239,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/diagnosticsView.log.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.log.js",
       "warnings": 3,
       "errors": 0,
       "rules": {
@@ -248,7 +248,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/domHelpers.js",
+      "path": "apps/desktop/webview/static/assets/domHelpers.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
@@ -256,7 +256,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchHistoryView.js",
+      "path": "apps/desktop/webview/static/assets/launchHistoryView.js",
       "warnings": 21,
       "errors": 0,
       "rules": {
@@ -264,7 +264,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchReadinessView.js",
+      "path": "apps/desktop/webview/static/assets/launchReadinessView.js",
       "warnings": 13,
       "errors": 0,
       "rules": {
@@ -273,7 +273,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.js",
+      "path": "apps/desktop/webview/static/assets/launchView.js",
       "warnings": 77,
       "errors": 0,
       "rules": {
@@ -283,7 +283,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.preflight.js",
+      "path": "apps/desktop/webview/static/assets/launchView.preflight.js",
       "warnings": 5,
       "errors": 0,
       "rules": {
@@ -293,7 +293,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.realmedia.js",
+      "path": "apps/desktop/webview/static/assets/launchView.realmedia.js",
       "warnings": 3,
       "errors": 0,
       "rules": {
@@ -302,7 +302,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.risk.js",
+      "path": "apps/desktop/webview/static/assets/launchView.risk.js",
       "warnings": 4,
       "errors": 0,
       "rules": {
@@ -311,7 +311,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.scope.js",
+      "path": "apps/desktop/webview/static/assets/launchView.scope.js",
       "warnings": 4,
       "errors": 0,
       "rules": {
@@ -320,7 +320,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/maintenanceView.js",
+      "path": "apps/desktop/webview/static/assets/maintenanceView.js",
       "warnings": 12,
       "errors": 0,
       "rules": {
@@ -330,7 +330,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/networkView.js",
+      "path": "apps/desktop/webview/static/assets/networkView.js",
       "warnings": 6,
       "errors": 0,
       "rules": {
@@ -339,7 +339,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/pendingPublish/details.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublish/details.js",
       "warnings": 3,
       "errors": 0,
       "rules": {
@@ -348,7 +348,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/pendingPublish/summary.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublish/summary.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
@@ -356,7 +356,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/pendingPublishView.confidence.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.confidence.js",
       "warnings": 5,
       "errors": 0,
       "rules": {
@@ -365,7 +365,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/pendingPublishView.diagnostics.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.diagnostics.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
@@ -373,7 +373,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/pendingPublishView.drain.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.drain.js",
       "warnings": 3,
       "errors": 0,
       "rules": {
@@ -382,7 +382,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/pendingPublishView.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.js",
       "warnings": 44,
       "errors": 0,
       "rules": {
@@ -392,7 +392,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/pendingPublishView.recovery.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.recovery.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
@@ -400,7 +400,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/progressView.js",
+      "path": "apps/desktop/webview/static/assets/progressView.js",
       "warnings": 2,
       "errors": 0,
       "rules": {
@@ -408,7 +408,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.drawer.js",
+      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.js",
       "warnings": 5,
       "errors": 0,
       "rules": {
@@ -417,7 +417,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.detail.js",
+      "path": "apps/desktop/webview/static/assets/queueView.detail.js",
       "warnings": 6,
       "errors": 0,
       "rules": {
@@ -427,7 +427,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.js",
+      "path": "apps/desktop/webview/static/assets/queueView.js",
       "warnings": 46,
       "errors": 0,
       "rules": {
@@ -437,7 +437,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.launch.js",
+      "path": "apps/desktop/webview/static/assets/queueView.launch.js",
       "warnings": 11,
       "errors": 0,
       "rules": {
@@ -447,7 +447,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.review.js",
+      "path": "apps/desktop/webview/static/assets/queueView.review.js",
       "warnings": 7,
       "errors": 0,
       "rules": {
@@ -457,7 +457,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.summary.js",
+      "path": "apps/desktop/webview/static/assets/queueView.summary.js",
       "warnings": 2,
       "errors": 0,
       "rules": {
@@ -466,7 +466,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/rename/applyReadiness.js",
+      "path": "apps/desktop/webview/static/assets/rename/applyReadiness.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
@@ -474,7 +474,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/rename/applyResult.js",
+      "path": "apps/desktop/webview/static/assets/rename/applyResult.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
@@ -482,7 +482,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/renameHistoryView.js",
+      "path": "apps/desktop/webview/static/assets/renameHistoryView.js",
       "warnings": 2,
       "errors": 0,
       "rules": {
@@ -490,7 +490,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/renameView.js",
+      "path": "apps/desktop/webview/static/assets/renameView.js",
       "warnings": 2,
       "errors": 0,
       "rules": {
@@ -499,7 +499,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/reportsView.js",
+      "path": "apps/desktop/webview/static/assets/reportsView.js",
       "warnings": 17,
       "errors": 0,
       "rules": {
@@ -509,7 +509,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/scheduleView.js",
+      "path": "apps/desktop/webview/static/assets/scheduleView.js",
       "warnings": 2,
       "errors": 0,
       "rules": {
@@ -518,7 +518,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settings/backendResult.js",
+      "path": "apps/desktop/webview/static/assets/settings/backendResult.js",
       "warnings": 3,
       "errors": 0,
       "rules": {
@@ -527,7 +527,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settings/patchReview.js",
+      "path": "apps/desktop/webview/static/assets/settings/patchReview.js",
       "warnings": 4,
       "errors": 0,
       "rules": {
@@ -536,7 +536,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settings/policyImpact.js",
+      "path": "apps/desktop/webview/static/assets/settings/policyImpact.js",
       "warnings": 5,
       "errors": 0,
       "rules": {
@@ -545,7 +545,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsCommandHistory.js",
+      "path": "apps/desktop/webview/static/assets/settingsCommandHistory.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
@@ -553,7 +553,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsLibraries.js",
+      "path": "apps/desktop/webview/static/assets/settingsLibraries.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
@@ -561,7 +561,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.builders.audio.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.audio.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
@@ -569,7 +569,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.builders.file_safety.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.file_safety.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
@@ -577,7 +577,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.builders.subtitle.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.subtitle.js",
       "warnings": 2,
       "errors": 0,
       "rules": {
@@ -586,7 +586,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.js",
       "warnings": 27,
       "errors": 0,
       "rules": {
@@ -596,7 +596,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.rawTriage.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.rawTriage.js",
       "warnings": 1,
       "errors": 0,
       "rules": {
@@ -604,7 +604,7 @@
       }
     },
     {
-      "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/telemetryView.js",
+      "path": "apps/desktop/webview/static/assets/telemetryView.js",
       "warnings": 1,
       "errors": 0,
       "rules": {

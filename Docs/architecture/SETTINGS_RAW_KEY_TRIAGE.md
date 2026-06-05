@@ -2,7 +2,7 @@
 
 Date: 2026-05-14
 
-Identifies config keys that still rely on raw JSON editing in WebView Settings, classifies them by operator impact, and separates intentionally hidden dangerous keys from missing structured builders. Source: `Docs\inventories\SETTINGS_BUILDER_COVERAGE_MATRIX.md`.
+Identifies config keys that still rely on raw JSON editing in WebView Settings, classifies them by operator impact, and separates intentionally hidden dangerous keys from missing structured builders. Source: `docs\inventories\SETTINGS_BUILDER_COVERAGE_MATRIX.md`.
 
 This document does not change settings behavior. Changes to builder coverage require deliberate implementation work.
 
@@ -26,7 +26,7 @@ This document does not change settings behavior. Changes to builder coverage req
 
 **Update (2026-05-19):** `SubSDHTitleKeywords` and `SubSupplementalKeywords` are now covered by structured Subtitle builder list fields. The WebView only stages list text; backend Preview/Save and backend subtitle classification remain authoritative.
 
-**Update (2026-05-31):** The settings/library rewrite makes backend field metadata canonical for visible labels, help text, allowed values, defaults, advanced/display taxonomy, and library override eligibility. This raw-key triage remains an operator visibility note, not a metadata source of truth. The WebView remains staging/display only, Preview/Save remains backend-owned, and persisted V6 keys/groups were not renamed.
+**Update (2026-05-31):** The settings/library rewrite makes backend field metadata canonical for visible labels, help text, allowed values, defaults, advanced/display taxonomy, and library override eligibility. This raw-key triage remains an operator visibility note, not a metadata source of truth. The WebView remains staging/display only, Preview/Save remains backend-owned, and persisted current persisted keys/groups were not renamed.
 
 **Update (2026-06-02, MDS-049):** `MixPriorityPhase`, `QueueOrderingStrategy`, and `ShowOverrides` now have backend field metadata so Settings Preview/Save and the Raw-Key Action Plan treat them as known advanced/direct-config keys instead of schema drift.
 
@@ -103,8 +103,8 @@ These are not raw-only, but their builders include risk warnings and/or local sa
 
 ## See Also
 
-- `Docs\inventories\SETTINGS_BUILDER_COVERAGE_MATRIX.md` — full key-to-builder mapping
-- `Docs\inventories\SETTINGS_KEY_OWNERSHIP_MAP.md` — risk tiers, Launch handoff visibility, test coverage per key
+- `docs\inventories\SETTINGS_BUILDER_COVERAGE_MATRIX.md` — full key-to-builder mapping
+- `docs\inventories\SETTINGS_KEY_OWNERSHIP_MAP.md` — risk tiers, Launch handoff visibility, test coverage per key
 
 ---
 
@@ -140,7 +140,7 @@ This closes the operator-visibility gap for the remaining raw-key categories wit
 
 The same action-plan posture is also surfaced in Home's External Dependency Digest and Diagnostics First Response after the Settings workspace is loaded. This gives operators a path back to Settings when schema drift, high-review raw keys, OCR path evidence, or secret-boundary concerns matter during run-failure triage. Home and Diagnostics remain read-only and cannot save settings, edit secrets, add path pickers, run OCR/FFmpeg, launch, publish/drain, rename, rewrite manifests/sidecars, or touch media.
 
-The Settings and Library Profiles pages now consume backend metadata for labels, help, value choices, defaults, advanced status, and library override eligibility where available. HandBrake-style section names are display metadata only. Patch preview and save still show persisted V6 keys and persisted Library Profiles groups, and backend validation remains the save gate.
+The Settings and Library Profiles pages now consume backend metadata for labels, help, value choices, defaults, advanced status, and library override eligibility where available. HandBrake-style section names are display metadata only. Patch preview and save still show persisted current persisted keys and persisted Library Profiles groups, and backend validation remains the save gate.
 
 ---
 
@@ -148,10 +148,11 @@ The Settings and Library Profiles pages now consume backend metadata for labels,
 
 ```
 Task ID: CLN-015
-Files inspected: Docs\inventories\SETTINGS_BUILDER_COVERAGE_MATRIX.md, Docs\inventories\SETTINGS_KEY_OWNERSHIP_MAP.md
-Files changed: Docs\architecture\SETTINGS_RAW_KEY_TRIAGE.md (created)
+Files inspected: docs\inventories\SETTINGS_BUILDER_COVERAGE_MATRIX.md, docs\inventories\SETTINGS_KEY_OWNERSHIP_MAP.md
+Files changed: docs\architecture\SETTINGS_RAW_KEY_TRIAGE.md (created)
 Validation: Cross-referenced raw-only key list from SETTINGS_BUILDER_COVERAGE_MATRIX.md.
 Findings: 2 intentionally hidden auth token keys remain. BdpgsOcrToolPath and BdpgsOcrTessdataPath are covered by the Subtitle builder while backend path evidence remains authoritative. SubSDHTitleKeywords and SubSupplementalKeywords are covered by the Subtitle builder while backend subtitle classification remains authoritative.
 Open questions: None.
 Risk: Low — documentation only.
 ```
+

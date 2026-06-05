@@ -69,14 +69,14 @@ The same tab also contains Worker Mode Settings controls for non-secret network 
 
 | Operation | Where to perform |
 |---|---|
-| Launch the coordinator | `scripts\dev\start-api-and-browser.bat` or `scripts\dev\start-local-api.bat` on the coordinator machine, with `NetworkRole=coordinator` in config |
+| Launch the coordinator | `ops\scripts\dev\start-api-and-browser.bat` or `ops\scripts\dev\start-local-api.bat` on the coordinator machine, with `NetworkRole=coordinator` in config |
 | Launch a worker | Same start command on the worker machine, with `NetworkRole=worker` and `WorkerCoordinatorUrl` set |
 | Set coordinator/worker auth token | Direct PSD1 edit or a future backend-owned secret workflow |
 | Diagnose cluster log | Diagnostics page → `cluster_log` target (tail) or open |
 | Inspect active job assignment | Diagnostics → `active_jobs` target |
 | Rotate network auth secrets | Direct config edit or a future backend-owned secret workflow that does not expose token values to WebView |
 
-Future WebView lifecycle buttons require `Docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md`: backend dry-run routes, duplicate-command guards, close-readiness integration, process cleanup/rollback, command journaling, state preservation, browser no-mutation coverage, and inventory/doc-touch updates.
+Future WebView lifecycle buttons require `docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md`: backend dry-run routes, duplicate-command guards, close-readiness integration, process cleanup/rollback, command journaling, state preservation, browser no-mutation coverage, and inventory/doc-touch updates.
 
 ---
 
@@ -155,7 +155,7 @@ The Network worker/lifecycle evidence panels do not perform any of those mutatio
 
 ## See Also
 
-- Settings key ownership map: `Docs/inventories/SETTINGS_KEY_OWNERSHIP_MAP.md`
-- Network UX improvements doc: `Docs/ui/NETWORK_UX_IMPROVEMENTS.md`
+- Settings key ownership map: `docs/inventories/SETTINGS_KEY_OWNERSHIP_MAP.md`
+- Network UX improvements doc: `docs/ui/NETWORK_UX_IMPROVEMENTS.md`
 - Browser network smoke: `Test-WebViewBrowserNetworkSmoke.ps1`
-- API route inventory: `Docs/inventories/API_ROUTE_INVENTORY.md`
+- API route inventory: `docs/inventories/API_ROUTE_INVENTORY.md`

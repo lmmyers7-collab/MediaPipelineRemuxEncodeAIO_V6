@@ -10,24 +10,27 @@ __pycache__/
 /CodexVerification/
 
 # Bundled runtimes/tools; keep out of source history unless intentionally packaging them
-/DesktopApp/Runtime/
-/Pipeline/Runtime/
-/Pipeline/Tools/
-/Pipeline/PowerShell-*-win-x64/
+/apps/desktop/runtime/
+/ops/pipeline/runtime/
+/ops/pipeline/tools/
 
 # Tauri/WebView2 shell build artifacts
 node_modules/
-DesktopApp/tauri_shell/node_modules/
-DesktopApp/tauri_shell/src-tauri/target/
-DesktopApp/tauri_shell/src-tauri/gen/
+apps/desktop/tauri/node_modules/
+apps/desktop/tauri/src-tauri/target/
+apps/desktop/tauri/src-tauri/gen/
 
 # Desktop app runtime output
-DesktopApp/*.log
-DesktopApp/*.state.json
-/DesktopApp/encode_speed_history.json
-DesktopApp/RunLogs/
-DesktopApp/mediapipeline_desktop_app/*.log
-DesktopApp/mediapipeline_desktop_app/*.state.json
+apps/desktop/*.log
+apps/desktop/*.state.json
+apps/desktop/encode_speed_history.json
+apps/desktop/runlogs/
+src/*.log
+src/mediapipeline/desktop/*.log
+src/mediapipeline/desktop/*.state.json
+
+# Python packaging metadata from editable installs
+src/*.egg-info/
 
 # Root/local API captures from smoke checks and assistant validation runs
 /RunLogs/
@@ -46,30 +49,31 @@ DesktopApp/mediapipeline_desktop_app/*.state.json
 .claude/settings.local.json
 
 # Pipeline runtime output/state
-Pipeline/*.log
-Pipeline/*.tmp
-Pipeline/*.bak
-Pipeline/*_progress.json
-Pipeline/pipeline_progress.json
-Pipeline/audit_progress.json
-Pipeline/.single_instance*
-Pipeline/MediaPipeline_config.psd1
-Pipeline/MediaPipeline_config.backup_*.psd1
+ops/pipeline/*.log
+ops/pipeline/*.tmp
+ops/pipeline/*.bak
+ops/pipeline/*_progress.json
+ops/pipeline/pipeline_progress.json
+ops/pipeline/audit_progress.json
+ops/pipeline/.single_instance*
+ops/pipeline/config/MediaPipeline_config.psd1
+ops/pipeline/config/MediaPipeline_config.backup_*.psd1
 # Legacy operator config name (pre-V7 rename); kept until migration is complete.
-Pipeline/MediaPipeline_config_chatgpt.psd1
-Pipeline/MediaPipeline_config_chatgpt.backup_*.psd1
+ops/pipeline/config/MediaPipeline_config_chatgpt.psd1
+ops/pipeline/config/MediaPipeline_config_chatgpt.backup_*.psd1
+ops/pipeline/config/backups/
 
 # Local media-processing workspaces if created inside the bundle
-Pipeline/Incoming/
-Pipeline/Processing/
-Pipeline/Encoded/
-Pipeline/Failed/
-Pipeline/AuditReports/
-Pipeline/PendingServerPush/
-Pipeline/Completed/
-Pipeline/RemuxTemp/
-Pipeline/Scratch/
-Pipeline/.mediapipeline-staging/
+ops/pipeline/Incoming/
+ops/pipeline/Processing/
+ops/pipeline/Encoded/
+ops/pipeline/Failed/
+ops/pipeline/AuditReports/
+ops/pipeline/PendingServerPush/
+ops/pipeline/Completed/
+ops/pipeline/RemuxTemp/
+ops/pipeline/Scratch/
+ops/pipeline/.mediapipeline-staging/
 
 # Generated reports/cache directories
 **/AuditReports/
@@ -104,5 +108,5 @@ vlc-help.txt
 # The release builder excludes LocalBase\State\ by default, but no prior .gitignore entry
 # covered these specifically. Do not commit them to shared or public repositories.
 **/State/Validation/sample_validation_log.jsonl
-Docs/RealMediaValidationRuns/*.md
-!Docs/RealMediaValidationRuns/README.md
+docs/RealMediaValidationRuns/*.md
+!docs/RealMediaValidationRuns/README.md

@@ -23,57 +23,57 @@ jobs:
           python-version: "3.11"
 
       - name: Install contract dependencies
-        run: python -m pip install -r requirements-dev.txt
+        run: python -m pip install -r requirements/dev.txt -e .
 
       - name: Check summary freshness
-        run: python scripts/dev/refresh_summaries.py --check
+        run: python -m mediapipeline.tools.dev.refresh_summaries --check
 
       - name: Check project index and dependency graph
-        run: python scripts/dev/generate_project_index.py --check
+        run: python -m mediapipeline.tools.dev.generate_project_index --check
 
       - name: Check pipeline map
-        run: python scripts/dev/generate_pipeline_map.py --check
+        run: python -m mediapipeline.tools.dev.generate_pipeline_map --check
 
       - name: Check lifecycle map
-        run: python scripts/dev/generate_lifecycle_map.py --check
+        run: python -m mediapipeline.tools.dev.generate_lifecycle_map --check
 
       - name: Check config schema
-        run: python scripts/dev/generate_config_schema.py --check
+        run: python -m mediapipeline.tools.dev.generate_config_schema --check
 
       - name: Check stage schema
-        run: python scripts/dev/generate_stage_schema.py --check
+        run: python -m mediapipeline.tools.dev.generate_stage_schema --check
 
       - name: Check risky file registry
-        run: python scripts/dev/check_risky_file_registry.py
+        run: python -m mediapipeline.tools.dev.check_risky_file_registry
 
       - name: Check architecture guardrails
-        run: python scripts/dev/check_architecture_guardrails.py
+        run: python -m mediapipeline.tools.dev.check_architecture_guardrails
 
       - name: Check naming lint
         shell: pwsh
         run: |
           if ("${{ github.event_name }}" -eq "pull_request") {
             git fetch origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}" --depth=1
-            python scripts/lint-naming.py --git-diff "origin/${{ github.base_ref }}"
+            python -m mediapipeline.tools.lint_naming --git-diff "origin/${{ github.base_ref }}"
           } else {
-            python scripts/lint-naming.py
+            python -m mediapipeline.tools.lint_naming
           }
 
       - name: Check active doc references
-        run: python scripts/dev/check_active_doc_references.py
+        run: python -m mediapipeline.tools.dev.check_active_doc_references
 
       - name: Check change packet coverage
         shell: pwsh
         run: |
           if ("${{ github.event_name }}" -eq "pull_request") {
             git fetch origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}" --depth=1
-            python scripts/change_control/validate_changes.py --require-diff-coverage "origin/${{ github.base_ref }}"
+            python -m mediapipeline.tools.change_control.validate_changes --require-diff-coverage "origin/${{ github.base_ref }}"
           } else {
-            python scripts/change_control/validate_changes.py
+            python -m mediapipeline.tools.change_control.validate_changes
           }
 
       - name: Check Python typing
-        run: python scripts/dev/check_python_typing.py
+        run: python -m mediapipeline.tools.dev.check_python_typing
 
       - name: Install PSScriptAnalyzer
         shell: pwsh
@@ -81,4 +81,4 @@ jobs:
 
       - name: Check engine PowerShell analysis
         shell: pwsh
-        run: .\scripts\dev\check_powershell_analysis.ps1
+        run: .\ops\scripts\dev\check_powershell_analysis.ps1

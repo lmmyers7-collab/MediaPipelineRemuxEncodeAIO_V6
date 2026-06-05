@@ -97,10 +97,10 @@ The drain authority remains: `POST /api/pipeline/start` with `mode: drain_pendin
 
 ## See Also
 
-- Queue page scope behavior: `Docs\TLDR.md` (Queue section)
-- Pending Publish drain ownership: `Docs\archive\admin-audits\PENDING_PUBLISH_DOCS_FRESHNESS_REVIEW.md`
-- Full command route classification: `Docs\archive\completed-audits\WEBVIEW_APIPOST_MUTATION_REVIEW.md`
-- Browser smoke boundary: `Docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md`
+- Queue page scope behavior: `docs\TLDR.md` (Queue section)
+- Pending Publish drain ownership: `docs\archive\admin-audits\PENDING_PUBLISH_DOCS_FRESHNESS_REVIEW.md`
+- Full command route classification: `docs\archive\completed-audits\WEBVIEW_APIPOST_MUTATION_REVIEW.md`
+- Browser smoke boundary: `docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md`
 
 ---
 
@@ -108,9 +108,9 @@ The drain authority remains: `POST /api/pipeline/start` with `mode: drain_pendin
 
 ```
 Task ID: CLN4-003
-Files inspected: Docs\TLDR.md, Docs\archive\completed-audits\WEBVIEW_APIPOST_MUTATION_REVIEW.md, Docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md, DesktopApp\mediapipeline_desktop_app\ui_web\static\assets\queueView.js, DesktopApp\mediapipeline_desktop_app\ui_web\static\assets\pendingPublishView.js
-Files changed: Docs\operator\WEBVIEW_SCOPE_PREVIEW_OPERATOR_GUIDE.md (created)
-Validation: Test-Path Docs\operator\WEBVIEW_SCOPE_PREVIEW_OPERATOR_GUIDE.md; Select-String -Path Docs\operator\WEBVIEW_SCOPE_PREVIEW_OPERATOR_GUIDE.md -Pattern "selected row|filters|backend-owned|Mutation guardrail"
+Files inspected: docs\TLDR.md, docs\archive\completed-audits\WEBVIEW_APIPOST_MUTATION_REVIEW.md, docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md, apps\desktop\webview\static\assets\queueView.js, apps\desktop\webview\static\assets\pendingPublishView.js
+Files changed: docs\operator\WEBVIEW_SCOPE_PREVIEW_OPERATOR_GUIDE.md (created)
+Validation: Test-Path docs\operator\WEBVIEW_SCOPE_PREVIEW_OPERATOR_GUIDE.md; Select-String -Path docs\operator\WEBVIEW_SCOPE_PREVIEW_OPERATOR_GUIDE.md -Pattern "selected row|filters|backend-owned|Mutation guardrail"
 Findings: New operator guide created covering Queue Backend Launch Scope Preview, Pending Backend Drain Scope Preview, filter/selected-row/render-cap interpretation, safe next actions, and mutation guardrail.
 Open questions: None.
 Risk: Low — documentation only.

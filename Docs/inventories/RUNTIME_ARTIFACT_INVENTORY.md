@@ -51,7 +51,7 @@ The SQLite mirror is additive diagnostic evidence only. Do not use it as the sou
 | Completed manifest | `State\Completed\completed_jobs.jsonl` | Pipeline (PS) | Successful job completion | Desktop app, local API, WebView Completed | No — only safe to rebuild via `Backfill-CompletedManifest` | `completed_manifest` |
 | Desktop app state | `State\App\MediaPipelineRemuxEncodeAIO_DesktopApp.state.json` | Desktop app (Python) | Settings, schedule, and workspace state updates | Local API, WebView Settings/Schedule/Network | No — app owns lifecycle and legacy migration | N/A |
 
-Legacy `DesktopApp\encode_speed_history.json` and `DesktopApp\MediaPipelineRemuxEncodeAIO_DesktopApp.state.json` are app-root runtime state from older builds. Current V6 app state belongs under `LocalBase\State\App`; active workspaces should not keep or recreate app-root runtime state files.
+Legacy `DesktopApp\encode_speed_history.json` and `DesktopApp\MediaPipelineRemuxEncodeAIO_DesktopApp.state.json` are app-root runtime state from older builds. Current app state belongs under `LocalBase\State\App`; active workspaces should not keep or recreate app-root runtime state files.
 
 ---
 
@@ -127,9 +127,9 @@ Legacy `DesktopApp\encode_speed_history.json` and `DesktopApp\MediaPipelineRemux
 
 | Artifact | Relative path | Owner | Produced by | Consumed by | Safe to delete manually | Diagnostics target key |
 |---|---|---|---|---|---|---|
-| Live config | `Pipeline\MediaPipeline_config_chatgpt.psd1` | Operator / Setup wizard | Setup wizard, `POST /api/settings/save-patch` | Pipeline, all services | No — back up before editing | `config` |
+| Live config | `ops\pipeline\config\MediaPipeline_config_chatgpt.psd1` | Operator / Setup wizard | Setup wizard, `POST /api/settings/save-patch` | Pipeline, all services | No — back up before editing | `config` |
 | Config folder | `Pipeline\` | — | — | — | No | `config_folder` |
-| Config backups | `Pipeline\MediaPipeline_config_chatgpt.backup_*.psd1` | Desktop app (Python) | `POST /api/settings/save-patch` (auto-backup) | Recovery only | Yes — after verifying live config is correct | `config_folder` |
+| Config backups | `ops\pipeline\config\backups\MediaPipeline_config*.backup_*.psd1` | Desktop app (Python) | `POST /api/settings/save-patch` (auto-backup) | Recovery only | Yes — after verifying live config is correct | `config_folder` |
 | Schedule state | Config-specified path | Desktop app (Python) | Schedule UI or setup | `GET /api/schedule`, Launch page | No | (via `state`) |
 
 ---
@@ -140,13 +140,14 @@ The following `POST /api/diagnostics/open` allowlisted target keys map to the ar
 
 `run_logs`, `cluster_log`, `config`, `config_folder`, `workspace`, `state`, `pending_publish`, `failed_reports`, `failed_markers`, `audit_reports`, `queue_snapshot`, `active_jobs`, `completed_manifest`, `latest_failure_report`, `latest_failure_json`, `latest_audit_csv`, `latest_priority_csv`, `last_stdout_log`, `last_stderr_log`, `sample_validation_log`
 
-Full allowlist with mutation-safety notes: `Docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`.
+Full allowlist with mutation-safety notes: `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`.
 
 ---
 
 ## See Also
 
-- State layout summary: `Docs/TLDR.md` (Runtime State section)
-- Diagnostics target runbook: `Docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`
-- Failure triage: `Docs/operator/FAILURE_TRIAGE_WORKSHEET.md`
-- Route and mutation ownership: `Docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`
+- State layout summary: `docs/TLDR.md` (Runtime State section)
+- Diagnostics target runbook: `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`
+- Failure triage: `docs/operator/FAILURE_TRIAGE_WORKSHEET.md`
+- Route and mutation ownership: `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`
+

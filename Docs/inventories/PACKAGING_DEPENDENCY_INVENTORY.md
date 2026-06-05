@@ -2,7 +2,7 @@
 
 Documents bundled and external dependencies relevant to packaging, validation, and admin work. Use this when setting up a new machine, troubleshooting missing tools, or verifying a release package.
 
-This document does not install or verify tools. To check tool availability, run `scripts\verify-env.bat`.
+This document does not install or verify tools. To check tool availability, run `ops\scripts\dev\verify-env.bat`.
 
 ---
 
@@ -16,12 +16,12 @@ These are shipped with the package and do not require a separate install.
 |---|---|
 | Role | Primary runtime for all pipeline, test, and build scripts |
 | Status | Bundled |
-| Expected path | `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe` |
-| Checked by | `scripts\verify-env.bat`, release self-test |
+| Expected path | `ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe` |
+| Checked by | `ops\scripts\dev\verify-env.bat`, release self-test |
 | Failure symptom | Scripts fall back to system `pwsh`; if system `pwsh` is also absent, scripts throw with a human-readable error |
 | Notes | Scripts that detect PS5 re-invoke under `pwsh`; batch wrappers resolve `pwsh.exe` with bundled-first, cmd-native discovery and do not execute through `powershell.exe` |
 
-See `Docs/operator/POWERSHELL_HOST_EXPECTATIONS.md` for full resolution order and prohibited patterns.
+See `docs/operator/POWERSHELL_HOST_EXPECTATIONS.md` for full resolution order and prohibited patterns.
 
 ### Bundled Python (DesktopApp Runtime)
 
@@ -29,8 +29,8 @@ See `Docs/operator/POWERSHELL_HOST_EXPECTATIONS.md` for full resolution order an
 |---|---|
 | Role | Local API runtime, backend-served WebView runner, WebView smoke test runner |
 | Status | Bundled |
-| Expected paths | `DesktopApp\Runtime\Python\python.exe`, `DesktopApp\Runtime\Python\pythonw.exe` |
-| Checked by | `scripts\verify-env.bat`, release self-test |
+| Expected paths | `apps\desktop\runtime\Python\python.exe`, `apps\desktop\runtime\Python\pythonw.exe` |
+| Checked by | `ops\scripts\dev\verify-env.bat`, release self-test |
 | Failure symptom | Local API/WebView fails to launch; smoke wrappers fail to find Python; all Python tests unavailable |
 | Required packages | `psutil`, `pysubs2`, `packaging`, `darkdetect` |
 
@@ -40,8 +40,8 @@ See `Docs/operator/POWERSHELL_HOST_EXPECTATIONS.md` for full resolution order an
 |---|---|
 | Role | Video/audio remux and encode, subtitle probing |
 | Status | Bundled |
-| Expected path | `Pipeline\Tools\ffmpeg\bin\ffmpeg.exe`, `ffprobe.exe` |
-| Checked by | `scripts\verify-env.bat`, `Invoke-ToolIntegrationChecks.ps1` |
+| Expected path | `ops\pipeline\tools\ffmpeg\bin\ffmpeg.exe`, `ffprobe.exe` |
+| Checked by | `ops\scripts\dev\verify-env.bat`, `Invoke-ToolIntegrationChecks.ps1` |
 | Failure symptom | Pipeline cannot process media; all encodes and remuxes fail |
 | Optional | `ffplay.exe` excluded from default release (include with `-IncludeOptionalTools`) |
 
@@ -51,8 +51,8 @@ See `Docs/operator/POWERSHELL_HOST_EXPECTATIONS.md` for full resolution order an
 |---|---|
 | Role | MKV container inspection and subtitle extraction (`mkvmerge`) |
 | Status | Bundled (core tool) |
-| Expected path | `Pipeline\Tools\MKVToolNix\mkvmerge.exe` |
-| Checked by | `scripts\verify-env.bat`, `Invoke-ToolIntegrationChecks.ps1` |
+| Expected path | `ops\pipeline\tools\MKVToolNix\mkvmerge.exe` |
+| Checked by | `ops\scripts\dev\verify-env.bat`, `Invoke-ToolIntegrationChecks.ps1` |
 | Failure symptom | MKV subtitle extraction fails; pipeline falls back or errors |
 | Optional | GUI, `mkvextract`, `mkvinfo`, `mkvpropedit`, GUI assets excluded from default release |
 
@@ -62,8 +62,8 @@ See `Docs/operator/POWERSHELL_HOST_EXPECTATIONS.md` for full resolution order an
 |---|---|
 | Role | BDPGS subtitle OCR conversion (PGS → SRT) |
 | Status | Bundled (optional capability — only active if `ConvertBdpgsToSrt` is enabled in config) |
-| Expected path | `Pipeline\Tools\PgsToSrt\PgsToSrt.exe` (or similar), `Pipeline\Tools\PgsToSrt\tessdata\eng.traineddata` |
-| Checked by | `scripts\verify-env.bat` (when OCR enabled in config) |
+| Expected path | `ops\pipeline\tools\PgsToSrt\PgsToSrt.exe` (or similar), `ops\pipeline\tools\PgsToSrt\tessdata\eng.traineddata` |
+| Checked by | `ops\scripts\dev\verify-env.bat` (when OCR enabled in config) |
 | Failure symptom | BDPGS OCR silently skipped or errors; SRT not produced for Blu-ray PGS subtitles |
 | Config keys | `BdpgsOcrToolPath`, `BdpgsOcrTessdataPath` (raw/advanced keys — must match actual paths) |
 
@@ -97,11 +97,11 @@ These must be installed separately and are not included in the release package.
 | Failure symptom | Smoke exits with `SkipTest: Chrome or Edge is required` (exit 0, not failure) |
 | Notes | No Playwright or Puppeteer install needed; smokes use CDP directly |
 
-See `Docs/testing/BROWSER_SMOKE_PREREQUISITES_CHECKLIST.md` for full browser discovery diagnostics.
+See `docs/testing/BROWSER_SMOKE_PREREQUISITES_CHECKLIST.md` for full browser discovery diagnostics.
 
 ### Tauri Prerequisites (for Tauri shell build)
 
-These are only needed when building the Tauri/WebView2 shell (`DesktopApp\tauri_shell\`) from source. Operators who use pre-built shells do not need these.
+These are only needed when building the Tauri/WebView2 shell (`apps\desktop\tauri\`) from source. Operators who use pre-built shells do not need these.
 
 | Dependency | Role | Check |
 |---|---|---|
@@ -113,14 +113,14 @@ These are only needed when building the Tauri/WebView2 shell (`DesktopApp\tauri_
 Check Tauri prereqs without building:
 
 ```powershell
-.\scripts\dev\start-tauri-preview.bat -CheckOnly
+.\ops\scripts\dev\start-tauri-preview.bat -CheckOnly
 ```
 
 The release self-test verifies Tauri prerequisite availability:
 
 ```powershell
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass `
-  -File .\scripts\release\test.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\ops\scripts\release\test.ps1
 ```
 
 ---
@@ -140,7 +140,7 @@ Non-browser WebView smokes (`Test-WebViewRealMediaEvidenceSmoke.ps1`, `Test-WebV
 To verify all bundled dependencies:
 
 ```powershell
-.\scripts\verify-env.bat
+.\ops\scripts\dev\verify-env.bat
 ```
 
 To see tool versions in the release manifest after building a package:
@@ -169,7 +169,8 @@ Get-Content release_manifest.json | ConvertFrom-Json | Select-Object bundled_too
 
 ## See Also
 
-- PowerShell host expectations: `Docs/operator/POWERSHELL_HOST_EXPECTATIONS.md`
-- Browser smoke prerequisites: `Docs/testing/BROWSER_SMOKE_PREREQUISITES_CHECKLIST.md`
-- Release package inventory: `Docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`
-- Environment verification script: `scripts\verify-env.bat`
+- PowerShell host expectations: `docs/operator/POWERSHELL_HOST_EXPECTATIONS.md`
+- Browser smoke prerequisites: `docs/testing/BROWSER_SMOKE_PREREQUISITES_CHECKLIST.md`
+- Release package inventory: `docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`
+- Environment verification script: `ops\scripts\dev\verify-env.bat`
+

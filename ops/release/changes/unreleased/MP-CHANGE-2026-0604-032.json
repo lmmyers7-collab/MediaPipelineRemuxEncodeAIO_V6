@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0604-032",
+  "title": "Refine Settings Routing operator UI",
+  "version_target": "0.1.0-dev",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-04",
+  "date_completed": "2026-06-04",
+  "summary": "Refine the visible Settings Routing page so height bucket edits use pixel boundary controls and routing consequences are easier to scan.",
+  "reason": "The previous hierarchy improved grouping, but percent tolerance inputs and mixed target/copy columns still required too much operator interpretation.",
+  "affected_areas": [
+    "settings",
+    "ux",
+    "webview"
+  ],
+  "behavior_before": "The Routing builder exposed height tolerance as percent inputs in the target table and mixed target output sizes with direct-copy bitrate limits in adjacent columns.",
+  "behavior_after": "The Routing builder presents boundary-height inputs as the primary height editor, visually separates encoded target sizes from direct-copy limits, and shows a routing consequence summary.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settings/patchReview.js",
+    "apps/desktop/webview/static/assets/styles.pages.css",
+    "apps/desktop/webview/static/partials/page-settings.html",
+    "tests/python/desktop/test_webview_handbrake_settings_ui.py",
+    "ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-032.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settings/patchReview.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.pages.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-settings.html.md",
+    "docs/generated/summaries/tests/python/desktop/test_webview_handbrake_settings_ui.py.md",
+    "docs/generated/summaries/ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-032.json.md"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_webview_handbrake_settings_ui.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_webview_browser_settings_launch_smoke.py - 1 passed",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_webview_handbrake_settings_ui.py - 27 passed",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/validate_changes.py - passed; 44 packets valid",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/validate_changes.py --require-worktree-coverage - failed on 9 uncovered unrelated dirty paths: CON; apps/desktop/webview/static/assets/settingsView.builders.video.js; app/config/metadata_parts/video_fields.py; docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.builders.video.js.md; docs/generated/summaries/app/config/metadata_parts/video_fields.py.md; docs/generated/summaries/app/diagnostics/facade.py.md; docs/generated/summaries/app/observability/status_policy.py.md; docs/generated/summaries/app/status/eta.py.md; docs/generated/summaries/ops/pipeline/engine/status/progress_state.ps1.md",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/refresh_summaries.py --paths [routing UI files] - passed; 4 written, 1 unchanged",
+    "node --check apps/desktop/webview/static/assets/settings/patchReview.js - passed"
+  ],
+  "rollback_plan": "Revert the Settings Routing markup, patch-review boundary input helpers, CSS refinements, and WebView static tests. The persisted routing keys and backend policy remain unchanged.",
+  "related_changes": [
+    "MP-CHANGE-2026-0604-018"
+  ],
+  "notes": "This is a UI-only refinement over the previously implemented persisted routing policy.\nBrowser plugin automation was not exposed in this thread; used targeted WebView static/browser-smoke validation instead."
+}

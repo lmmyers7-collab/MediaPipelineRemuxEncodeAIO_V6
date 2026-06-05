@@ -2,7 +2,7 @@
 
 Date: 2026-06-02
 
-Schema-level documentation for runtime state contracts in MediaPipelineRemuxEncodeAIO V6. Each section gives the schema version, field names with types/defaults, valid enum values, and the artifact that holds the data. Primary dataclass contracts live under `DesktopApp/mediapipeline_desktop_app/contracts/`; focused helper contracts are called out by file.
+Schema-level documentation for runtime state contracts in MediaPipelineRemuxEncodeAIO. Each section gives the schema version, field names with types/defaults, valid enum values, and the artifact that holds the data. Primary dataclass contracts live under `src/mediapipeline/desktop/contracts/`; focused helper contracts are called out by file.
 
 Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Schema versions are validated at deserialization where the contract exposes a typed loader; helper-owned state files document their validation notes in their section.
 
@@ -10,7 +10,7 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 
 ## CompletedJob
 
-**Contract file**: `DesktopApp/mediapipeline_desktop_app/contracts/completed_job.py`
+**Contract file**: `src/mediapipeline/desktop/contracts/completed_job.py`
 **Artifact**: `State\Completed\completed_jobs.jsonl` — one JSON object per line, appended per completed job
 **Supported schema versions**: `completed_job.v1`, `pipeline_sidecar.v1`
 **Also written to**: `.pipeline.json` sidecar (same schema, `pipeline_sidecar.v1`)
@@ -43,7 +43,7 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 
 ## PendingPushManifest
 
-**Contract file**: `DesktopApp/mediapipeline_desktop_app/contracts/pending_publish.py`
+**Contract file**: `src/mediapipeline/desktop/contracts/pending_publish.py`
 **Artifact**: `State\PendingServerPush\*.manifest.json` — one JSON object per parked output
 **Schema version**: `pending_push_manifest.v1`
 
@@ -114,7 +114,7 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 
 ## ActiveJobRecord
 
-**Contract file**: `DesktopApp/mediapipeline_desktop_app/contracts/active_job.py`
+**Contract file**: `src/mediapipeline/desktop/contracts/active_job.py`
 **Artifact**: Active jobs state folder — one JSON file per in-progress job
 **Schema version**: `desktop_active_job.v1`
 
@@ -190,7 +190,7 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 
 ## QueuePlanSnapshot
 
-**Contract file**: `DesktopApp/mediapipeline_desktop_app/contracts/queue_snapshot.py`
+**Contract file**: `src/mediapipeline/desktop/contracts/queue_snapshot.py`
 **Artifact**: `State\Progress\queue_snapshot.json` — rewritten each time the queue is evaluated
 **Schema version**: `queue_plan_snapshot.v1`
 
@@ -273,7 +273,7 @@ The snapshot contains a container record and two row lists: queue display rows a
 
 ## ProgressState
 
-**Contract file**: `DesktopApp/mediapipeline_desktop_app/contracts/progress.py`
+**Contract file**: `src/mediapipeline/desktop/contracts/progress.py`
 **Artifact**: `State\Progress\pipeline_progress.json`, polled via `GET /api/snapshot` and surfaced in the Live/Progress page
 **Schema**: Not versioned as a standalone file; embedded in snapshot payload
 
@@ -320,7 +320,7 @@ The snapshot contains a container record and two row lists: queue display rows a
 
 ## PipelineEvent
 
-**Contract file**: `DesktopApp/mediapipeline_desktop_app/contracts/pipeline_events.py`
+**Contract file**: `src/mediapipeline/desktop/contracts/pipeline_events.py`
 **Artifact**: `State\Progress\pipeline_events.jsonl` — events written by pipeline services, surfaced via `GET /api/diagnostics` recent-events endpoint
 **Schema version**: `pipeline_event.v1`
 
@@ -396,7 +396,8 @@ All contracts are validated at read time by `test_contracts.py`. Schema version 
 
 ## See Also
 
-- Completed/Pending failure playbook: `Docs/operator/COMPLETED_PENDING_FAILURE_PLAYBOOK.md`
-- Diagnostics targets (for file access): `Docs/archive/completed-audits/DIAGNOSTICS_TARGET_ALLOWLIST_AUDIT.md`
-- API route inventory: `Docs/inventories/API_ROUTE_INVENTORY.md`
-- Log artifact catalog: `Docs/inventories/LOG_ARTIFACT_CATALOG.md`
+- Completed/Pending failure playbook: `docs/operator/COMPLETED_PENDING_FAILURE_PLAYBOOK.md`
+- Diagnostics targets (for file access): `docs/archive/completed-audits/DIAGNOSTICS_TARGET_ALLOWLIST_AUDIT.md`
+- API route inventory: `docs/inventories/API_ROUTE_INVENTORY.md`
+- Log artifact catalog: `docs/inventories/LOG_ARTIFACT_CATALOG.md`
+

@@ -1,0 +1,699 @@
+# ==============================================================================
+# ops\pipeline\engine\naming\tv_parsing.ps1
+# ==============================================================================
+# Extracted from ops\pipeline\engine\naming\naming.ps1. Keep function names stable;
+# naming.ps1 dot-sources this file as the public compatibility surface.
+# ==============================================================================
+
+function Normalize-TVShowFolderName {
+    param([string]$Name)
+
+    if ([string]::IsNullOrWhiteSpace($Name)) { return "" }
+
+    $show = Remove-PriorityMarkersFromName $Name
+    $show = $show -replace '\s*\((?:Season\s*)?S?\d{1,2}\)\s*$', ''   # trailing (Season 2) / (S02)
+    $show = $show -replace '(?i)\s+Season\s*\d{1,2}\s*$', ''           # trailing "Season 2"
+    $show = $show -replace '\s+S\d{1,2}\s*$', ''                       # trailing bare "S02"
+    $show = $show -replace '_TV_| TV', ''
+    $show = $show -replace '[\._]', ' '
+    $show = $show -replace '\s+', ' '
+    return $show.Trim()
+}
+
+function Get-TVEpisodeFromFilename {
+    param([string]$FileName)
+
+    $base = Remove-PriorityMarkersFromName ([System.IO.Path]::GetFileNameWithoutExtension($FileName))
+    foreach ($pattern in @(
+            '(?i)\bEpisode[\s._-]*(\d{1,3})\b',
+            '(?i)\bEp[\s._-]*(\d{1,3})\b',
+            '(?i)(?<![A-Za-z0-9])E(\d{1,3})(?![A-Za-z0-9])'
+        )) {
+        if ($base -match $pattern) {
+            return [int]$Matches[1]
+        }
+    }
+    return $null
+}
+
+function Resolve-OrdinalSeason {
+    # Returns the numeric season from strings containing an ordinal or word-form
+    # season marker: "3rd Season" → 3, "Season Three" → 3, "2nd Cour" → 2.
+    # Returns $null when no recognised pattern is found.
+    param([string]$Text)
+    $wordOrdinals = [ordered]@{
+        'first'=1; 'second'=2; 'third'=3; 'fourth'=4; 'fifth'=5
+        'sixth'=6; 'seventh'=7; 'eighth'=8; 'ninth'=9; 'tenth'=10
+    }
+    # Numeric ordinal suffix: "3rd Season", "2nd Cour"
+    if ($Text -match '(?i)\b(\d+)(?:st|nd|rd|th)\s+(?:Season|Cour)\b') {
+        return [int]$Matches[1]
+    }
+    $wordPat = ($wordOrdinals.Keys -join '|')
+    # "Season Three" / "Cour Two"
+    if ($Text -match "(?i)\b(?:Season|Cour)\s+($wordPat)\b") {
+        return [int]$wordOrdinals[$Matches[1].ToLower()]
+    }
+    # "Third Season" / "Third Cour"
+    if ($Text -match "(?i)\b($wordPat)\s+(?:Season|Cour)\b") {
+        return [int]$wordOrdinals[$Matches[1].ToLower()]
+    }
+    return $null
+}
+
+function Test-TVSpecialSeasonFolderName {
+    param([string]$Name)
+
+    if ([string]::IsNullOrWhiteSpace($Name)) { return $false }
+    return ($Name -match '^(?i)\s*(?:specials?|ovas?|oads?|oavs?|onas?|extras?|bonus|featurettes?|behind[\s._-]*(?:the[\s._-]*)?scenes|deleted[\s._-]*scenes|interviews?|shorts?|trailers?|clips?|promos?|samples?|bts)\s*$')
+}
+
+function Get-TVFolderSeasonInfo {
+    param([string]$DirectoryPath)
+
+    $current = $DirectoryPath
+    for ($depth = 0; $depth -lt 4 -and $current; $depth++) {
+        $leaf = Remove-PriorityMarkersFromName (Split-Path $current -Leaf)
+        if (-not $leaf) { break }
+        $flexibleLeaf = $leaf
+        for ($fpass = 0; $fpass -lt 5; $fpass++) {
+            $beforeFlexible = $flexibleLeaf
+            $flexibleLeaf = $flexibleLeaf -replace '\[[^\[\]]*\]', ' '
+            $flexibleLeaf = $flexibleLeaf -replace '\{[^{}]*\}', ' '
+            $flexibleLeaf = $flexibleLeaf -replace '(?i)\([^)]*(?:2160p|1080p|720p|480p|uhd|hdr|hevc|h264|h265|x264|x265|av1|bd|blu[\s._-]*ray|web[\s._-]*dl|webdl|webrip|subs?|dual[\s._-]*audio)[^)]*\)', ' '
+            if ($flexibleLeaf -eq $beforeFlexible) { break }
+        }
+        $flexibleLeaf = $flexibleLeaf -replace '[._]+', ' '
+        $flexibleLeaf = (($flexibleLeaf -replace '\s+', ' ').Trim(' .-_'))
+
+        if (Test-TVSpecialSeasonFolderName $leaf) {
+            $parentLeaf = Split-Path (Split-Path $current -Parent) -Leaf
+            return @{
+                Season   = 0
+                ShowName = (Normalize-TVShowFolderName $parentLeaf)
+                Source   = 'specials-folder'
+            }
+        }
+        if ($flexibleLeaf -match '^(?i)\s*Season[\s._-]*(\d{1,2})\s*$') {
+            $parentLeaf = Split-Path (Split-Path $current -Parent) -Leaf
+            return @{
+                Season   = [int]$Matches[1]
+                ShowName = (Normalize-TVShowFolderName $parentLeaf)
+                Source   = 'season-folder'
+            }
+        }
+        if ($flexibleLeaf -match '^(?i)\s*S[\s._-]*(\d{1,2})\s*$') {
+            $parentLeaf = Split-Path (Split-Path $current -Parent) -Leaf
+            return @{
+                Season   = [int]$Matches[1]
+                ShowName = (Normalize-TVShowFolderName $parentLeaf)
+                Source   = 's-folder'
+            }
+        }
+        if ($leaf -match '^(?i)(?<show>.+?)\s*\((?:Season\s*)?S?(?<season>\d{1,2})\)\s*$') {
+            return @{
+                Season   = [int]$Matches['season']
+                ShowName = (Normalize-TVShowFolderName $Matches['show'])
+                Source   = 'show-folder-suffix'
+            }
+        }
+        if ($flexibleLeaf -match '^(?i)(?<show>.+?)\s+S(?<season>\d{1,2})\s*$') {
+            return @{
+                Season   = [int]$Matches['season']
+                ShowName = (Normalize-TVShowFolderName $Matches['show'])
+                Source   = 'show-s-folder'
+            }
+        }
+        if ($flexibleLeaf -match '^(?i)(?<show>.+?)\s*(?:[-–]\s*)?(?:Season|S)[\s._-]*(?<season>\d{1,2})(?!\d)(?:\s+.*)?$') {
+            return @{
+                Season   = [int]$Matches['season']
+                ShowName = (Normalize-TVShowFolderName $Matches['show'])
+                Source   = 'show-season-folder'
+            }
+        }
+        # Standalone ordinal season folder: "3rd Season/", "Second Season/"
+        # The entire leaf resolves to an ordinal+Season token with no show prefix.
+        if ($leaf -match '^(?i)(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|\d+(?:st|nd|rd|th))\s+(?:Season|Cour)\s*$') {
+            $ordSeason = Resolve-OrdinalSeason $leaf
+            if ($null -ne $ordSeason) {
+                $parentLeaf = Split-Path (Split-Path $current -Parent) -Leaf
+                return @{
+                    Season   = $ordSeason
+                    ShowName = (Normalize-TVShowFolderName $parentLeaf)
+                    Source   = 'ordinal-season-folder'
+                }
+            }
+        }
+        # Combined show+ordinal folder: "That Time I Got Reincarnated 3rd Season/"
+        # The leaf ends with "<ordinal> Season" and the prefix is the show name.
+        if ($flexibleLeaf -match '^(?i)(?<show>.+?)\s*(?:[-–]\s*)?(?:first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|\d+(?:st|nd|rd|th))\s+(?:Season|Cour)(?:\s*(?:complete)\s*)?$') {
+            $ordSeason = Resolve-OrdinalSeason $flexibleLeaf
+            if ($null -ne $ordSeason) {
+                return @{
+                    Season   = $ordSeason
+                    ShowName = (Normalize-TVShowFolderName $Matches['show'])
+                    Source   = 'show-ordinal-season-folder'
+                }
+            }
+        }
+
+        $current = Split-Path $current -Parent
+    }
+
+    return $null
+}
+
+function Get-TVEpisodeFromStrippedName {
+    # Fallback episode extractor for filenames whose episode number is a bare
+    # trailing integer after a separator, e.g.:
+    #   "[Group] Show 3rd Season - 12 (BD 1080p x265 FLAC)" → 12
+    # Strips all bracket groups and common quality/codec tags first, then looks
+    # for <separator><1–3 digits><end>. Only fires after stronger patterns fail.
+    param([string]$BaseName)
+    $s = $BaseName
+    for ($i = 0; $i -lt 5; $i++) {
+        $before = $s
+        $s = $s -replace '\([^()]*\)', ''
+        $s = $s -replace '\[[^\[\]]*\]', ''
+        $s = $s -replace '\{[^{}]*\}', ''
+        if ($s -eq $before) { break }
+    }
+    # Strip unbracketed quality/codec tokens that could trail after episode number.
+    $s = $s -replace '\b(?:2160p|1080p|720p|480p|uhd|hdr|hdr10|hevc|h264|h265|x264|x265|av1|bluray|blu-ray|webrip|web-dl|webdl|remux|bd|dvd|proper|repack|flac|aac|opus|ac3|dts|truehd|eac3|ddp)\b', ' '
+    $s = ($s -replace '\s+', ' ').Trim()
+    if ($s -match '[\s._-]+(\d{1,3})\s*$') {
+        $ep = [int]$Matches[1]
+        if ($ep -ge 1 -and $ep -le 500) { return $ep }
+    }
+    return $null
+}
+
+function Get-TVLooseParseText {
+    param([string]$Text)
+
+    if ([string]::IsNullOrWhiteSpace($Text)) { return "" }
+    $s = Remove-PriorityMarkersFromName $Text
+    for ($i = 0; $i -lt 5; $i++) {
+        $before = $s
+        $s = $s -replace '\([^()]*\)', ' '
+        $s = $s -replace '\[[^\[\]]*\]', ' '
+        $s = $s -replace '\{[^{}]*\}', ' '
+        if ($s -eq $before) { break }
+    }
+    $s = $s -replace '[{}\[\]()]', ' '
+    $s = $s -replace '(?i)\b(?:2160p|1080p|720p|480p|uhd|hdr|hdr10|hevc|h264|h265|x264|x265|av1|bluray|blu-ray|webrip|web-dl|webdl|remux|bd|bdrip|dvd|proper|repack|flac|aac|opus|ac3|dts|truehd|eac3|ddp|10bit|8bit)\b', ' '
+    $s = $s -replace '[._]+', ' '
+    $s = $s -replace '\s*[-]+\s*', ' '
+    return (($s -replace '\s+', ' ').Trim())
+}
+
+function Get-TVLooseSeasonEpisodeFromName {
+    param([string]$BaseName)
+
+    $s = Get-TVLooseParseText $BaseName
+    if ([string]::IsNullOrWhiteSpace($s)) { return $null }
+
+    foreach ($pattern in @(
+        '(?i)\bS(?<season>\d{1,2})\s+(?:(?:Episode|Ep|E)\s*)?(?<episode>\d{1,3})\b',
+        '(?i)\bSeason\s*(?<season>\d{1,2})\s+(?:(?:Episode|Ep|E)\s*)?(?<episode>\d{1,3})\b'
+    )) {
+        $m = [regex]::Match($s, $pattern)
+        if (-not $m.Success) { continue }
+        try {
+            $season = [int]$m.Groups['season'].Value
+            $episode = [int]$m.Groups['episode'].Value
+            if ($season -ge 0 -and $season -le 99 -and $episode -ge 1 -and $episode -le 500) {
+                return [pscustomobject]@{
+                    Season  = $season
+                    Episode = $episode
+                    Mode    = 'loose-season-episode'
+                    Text    = $s
+                }
+            }
+        } catch {}
+    }
+
+    return $null
+}
+
+function Get-TVLooseBareEpisodeNumber {
+    param([string]$BaseName)
+
+    $s = Get-TVLooseParseText $BaseName
+    if ([string]::IsNullOrWhiteSpace($s)) { return $null }
+    $s = $s -replace '(?i)\b(?:Season|S)\s*\d{1,2}\b', ' '
+    # Strip currency amounts (e.g. "$60,000,000,000") and large comma-grouped
+    # numbers before scanning for candidates. Without this, a title like
+    # "The $60,000,000,000 Man" produces two candidates (1 and 60), breaking
+    # the single-unique-number heuristic that identifies the episode number.
+    $s = $s -replace '[$£€¥]\s*\d[\d,.]*', ' '
+    $s = $s -replace '\b\d{1,3}(?:,\d{3})+\b', ' '
+    $s = ($s -replace '\s+', ' ').Trim()
+    $matches = [regex]::Matches($s, '(?<!\d)(\d{1,3})(?!\d)')
+    $candidates = [System.Collections.Generic.List[int]]::new()
+    foreach ($m in $matches) {
+        try {
+            $n = [int]$m.Groups[1].Value
+            if ($n -ge 1 -and $n -le 500) {
+                [void]$candidates.Add($n)
+            }
+        } catch {}
+    }
+
+    $unique = @($candidates | Select-Object -Unique)
+    if ($unique.Count -eq 1) {
+        return [pscustomobject]@{
+            Episode = [int]$unique[0]
+            Mode    = 'loose-single-number'
+            Text    = $s
+        }
+    }
+    return $null
+}
+
+function Get-TVShowNameBeforeExplicitEpisodeToken {
+    param([string]$BaseName)
+
+    if ([string]::IsNullOrWhiteSpace($BaseName)) { return "" }
+    $base = Remove-PriorityMarkersFromName ([System.IO.Path]::GetFileNameWithoutExtension($BaseName))
+    $match = [regex]::Match($base, '(?i)^(?<show>.+?)(?<![A-Za-z0-9])(?:Episode|Ep|E)[\s._-]*\d{1,3}(?![A-Za-z0-9])')
+    if (-not $match.Success) { return "" }
+    $show = Get-CleanTVOutputNamePart $match.Groups['show'].Value
+    if ([string]::IsNullOrWhiteSpace($show)) { return "" }
+    return $show
+}
+
+function Get-TVShowNameBeforeSeasonEpisodeTokens {
+    param([string]$BaseName)
+
+    if ([string]::IsNullOrWhiteSpace($BaseName)) { return "" }
+    $base = Remove-PriorityMarkersFromName ([System.IO.Path]::GetFileNameWithoutExtension($BaseName))
+    $match = [regex]::Match($base, '(?i)^(?<show>.+?)(?<![A-Za-z0-9])(?:Season|S)[\s._-]*\d{1,2}[\s._-]+(?:(?:Episode|Ep|E)[\s._-]*)?\d{1,3}(?![A-Za-z0-9])')
+    if (-not $match.Success) { return "" }
+    $show = Get-CleanTVOutputNamePart $match.Groups['show'].Value
+    if ([string]::IsNullOrWhiteSpace($show)) { return "" }
+    return $show
+}
+
+function Test-TVFolderEpisodeSequenceSupportsCandidate {
+    param(
+        $File,
+        [int]$Episode
+    )
+
+    if ($null -eq $File -or $Episode -lt 1 -or [string]::IsNullOrWhiteSpace($File.DirectoryName)) {
+        return $false
+    }
+
+    $valid = if ($script:ValidExtensions) { @($script:ValidExtensions) } else { @('.mkv','.mp4','.avi','.mov','.m4v','.ts','.m2ts') }
+    $siblings = @(Get-ChildItem -LiteralPath $File.DirectoryName -File -ErrorAction SilentlyContinue |
+        Where-Object { $valid -icontains $_.Extension })
+    if ($siblings.Count -lt 2) { return $false }
+
+    $numbers = foreach ($sib in $siblings) {
+        $n = Get-TVEpisodeFromStrippedName $sib.BaseName
+        if ($null -eq $n) {
+            $bare = Get-TVLooseBareEpisodeNumber $sib.BaseName
+            if ($bare) { $n = [int]$bare.Episode }
+        }
+        if ($null -ne $n -and [int]$n -ge 1 -and [int]$n -le 500) { [int]$n }
+    }
+    $distinct = @($numbers | Sort-Object -Unique)
+    if ($distinct.Count -lt 2 -or ($distinct -notcontains $Episode)) { return $false }
+
+    $max = [int](($distinct | Measure-Object -Maximum).Maximum)
+    return ($max -eq $siblings.Count -or [math]::Abs($max - $siblings.Count) -le 1)
+}
+
+function Get-TVAggressiveEpisodeFromName {
+    param(
+        [string]$BaseName,
+        $File = $null
+    )
+
+    $episode = Get-TVEpisodeFromFilename $BaseName
+    if ($null -ne $episode) {
+        return [pscustomobject]@{ Episode = [int]$episode; Mode = 'aggressive-explicit-token' }
+    }
+
+    $episode = Get-TVEpisodeFromStrippedName $BaseName
+    if ($null -ne $episode) {
+        return [pscustomobject]@{ Episode = [int]$episode; Mode = 'aggressive-trailing-number' }
+    }
+
+    $bare = Get-TVLooseBareEpisodeNumber $BaseName
+    if ($bare) {
+        return [pscustomobject]@{ Episode = [int]$bare.Episode; Mode = [string]$bare.Mode }
+    }
+
+    return $null
+}
+
+function Get-TVInfoFromFile {
+    param($file)
+    $name     = Remove-PriorityMarkersFromName $file.Name
+    $baseName = [System.IO.Path]::GetFileNameWithoutExtension($name)
+    $folderSeasonInfo = Get-TVFolderSeasonInfo $file.DirectoryName
+    # When the immediate folder is a known extras/featurettes container, look
+    # one level higher for the show name so we get "Reservation Dogs" instead
+    # of "Featurettes" as the show title.
+    $extrasContainers = @(
+        'Featurettes','Extras','Specials','Bonus','Behind the Scenes',
+        'Deleted Scenes','Interviews','Shorts','Trailers','Behind-the-Scenes',
+        'BTS','Clips','Promos','Samples','Featurette'
+    )
+    $immediateLeaf = Split-Path $file.DirectoryName -Leaf
+    $showFolder = if ($extrasContainers -icontains $immediateLeaf) {
+        Split-Path $file.DirectoryName -Parent
+    } else {
+        $file.DirectoryName
+    }
+    $fallbackShow = if ($folderSeasonInfo -and $folderSeasonInfo.ShowName) {
+        [string]$folderSeasonInfo.ShowName
+    } else {
+        Normalize-TVShowFolderName (Split-Path $showFolder -Leaf)
+    }
+    if (-not $fallbackShow) { $fallbackShow = "Unknown Show" }
+    $info = @{
+        ShowName     = $fallbackShow
+        Season       = 0
+        Episode      = 0
+        EpisodeEnd   = $null   # set for multi-episode files (S01E01E02 / S01E01-E02)
+        OriginalName = $name
+        IsReliable   = $false
+        ParseError   = $null
+        ParseMode    = "ambiguous"
+    }
+    if ($name -match '[Ss](\d{1,2})[Ee](\d{1,2})') {
+        $info.Season  = [int]$Matches[1]; $info.Episode = [int]$Matches[2]
+        # Multi-episode: S01E01E02 or S01E01-E02 or S01E01_E02
+        if ($name -match '[Ss]\d{1,2}[Ee]\d{1,2}[-_]?[Ee](\d{1,2})') {
+            $epEnd = [int]$Matches[1]
+            if ($epEnd -gt $info.Episode) { $info.EpisodeEnd = $epEnd }
+        }
+        # Extract show name from the portion before the SxxExx marker.
+        # ② Preserve 4-digit years like "(2024)" — save before stripping all brackets.
+        $showRaw = ($name -replace '[Ss]\d{1,2}[Ee]\d{1,2}.*$','') -replace '[\._]',' '
+        $yearTag = if ($showRaw -match '\((\d{4})\)') { " ($($Matches[1]))" } else { '' }
+        $show = ($showRaw -replace '\[.*?\]|\(.*?\)','') -replace '\s+',' '
+        $show = ($show -replace '[\s\-–_]+$','').Trim()   # ① strip trailing separators
+        if ($yearTag) { $show = $show + $yearTag }
+        if ($show) {
+            $info.ShowName = $show
+        } elseif ($folderSeasonInfo -and $folderSeasonInfo.ShowName) {
+            $info.ShowName = [string]$folderSeasonInfo.ShowName
+        }
+        $info.IsReliable = $true
+        $info.ParseMode  = if ($info.EpisodeEnd) { "sxxexx-multi" } else { "sxxexx" }
+        return $info
+    }
+    if ($name -match '(?i)(?<!\d)(\d{1,2})x(\d{1,3})(?!\d)') {
+        $info.Season  = [int]$Matches[1]; $info.Episode = [int]$Matches[2]
+        # ② Preserve year + ① strip trailing separators (same treatment as SxxExx path)
+        $showRaw = ($name -replace '(?i)(?<!\d)\d{1,2}x\d{1,3}(?!\d).*$','') -replace '[\._]',' '
+        $yearTag = if ($showRaw -match '\((\d{4})\)') { " ($($Matches[1]))" } else { '' }
+        $show = ($showRaw -replace '\[.*?\]|\(.*?\)','') -replace '\s+',' '
+        $show = ($show -replace '[\s\-–_]+$','').Trim()
+        if ($yearTag) { $show = $show + $yearTag }
+        if ($show) {
+            $info.ShowName = $show
+        } elseif ($folderSeasonInfo -and $folderSeasonInfo.ShowName) {
+            $info.ShowName = [string]$folderSeasonInfo.ShowName
+        }
+        $info.IsReliable = $true
+        $info.ParseMode  = "nxm"
+        return $info
+    }
+
+    $filenameSeasonEpisode = Get-TVLooseSeasonEpisodeFromName $baseName
+    if ($filenameSeasonEpisode) {
+        $info.Season     = [int]$filenameSeasonEpisode.Season
+        $info.Episode    = [int]$filenameSeasonEpisode.Episode
+        $explicitShow = Get-TVShowNameBeforeSeasonEpisodeTokens $baseName
+        if (-not [string]::IsNullOrWhiteSpace($explicitShow)) {
+            $info.ShowName = $explicitShow
+        } elseif ($folderSeasonInfo -and $folderSeasonInfo.ShowName) {
+            $info.ShowName = [string]$folderSeasonInfo.ShowName
+        } else {
+            $info.ShowName = $fallbackShow
+        }
+        $info.IsReliable = $true
+        $info.ParseMode  = "filename-$($filenameSeasonEpisode.Mode)"
+        return $info
+    }
+
+    if ($folderSeasonInfo) {
+        $info.Season = [int]$folderSeasonInfo.Season
+        if ($folderSeasonInfo.ShowName) { $info.ShowName = [string]$folderSeasonInfo.ShowName }
+
+        # ① Try strong episode token first (Episode N / Ep N / E01), then fall
+        #   back to Get-TVEpisodeFromStrippedName which catches bare trailing
+        #   numbers like "Show 3rd Season - 12 (BD 1080p x265 FLAC)".
+        $episode = Get-TVEpisodeFromFilename $name
+        $epMode  = 'folder-season+episode-token'
+        if ($null -eq $episode) {
+            $episode = Get-TVEpisodeFromStrippedName $baseName
+            $epMode  = 'folder-season+episode-stripped'
+        }
+        if ($null -ne $episode) {
+            $info.Episode    = [int]$episode
+            $explicitShow = Get-TVShowNameBeforeExplicitEpisodeToken $baseName
+            if (-not [string]::IsNullOrWhiteSpace($explicitShow)) {
+                $info.ShowName = $explicitShow
+            }
+            $info.IsReliable = $true
+            $info.ParseMode  = $epMode
+            return $info
+        }
+
+        if ($script:AggressiveEpisodeParsing) {
+            $looseSeasonEpisode = Get-TVLooseSeasonEpisodeFromName $baseName
+            if ($looseSeasonEpisode) {
+                $info.Episode    = [int]$looseSeasonEpisode.Episode
+                $info.IsReliable = $true
+                $info.ParseMode  = "aggressive-folder-season+$($looseSeasonEpisode.Mode)"
+                return $info
+            }
+
+            $looseEpisode = Get-TVAggressiveEpisodeFromName -BaseName $baseName -File $file
+            if ($looseEpisode) {
+                $info.Episode    = [int]$looseEpisode.Episode
+                $info.IsReliable = $true
+                $info.ParseMode  = "aggressive-folder-season+$($looseEpisode.Mode)"
+                return $info
+            }
+        }
+
+        $info.ParseError = "Ambiguous TV filename '$name'. With folder-derived season fallback, rename it to include a strong episode token like Episode 1, Ep 1, or E01."
+        return $info
+    }
+
+    # ③ Filename begins with "Season N – …", common for featurettes/extras that
+    #   lack a season subfolder but embed the season in the name.
+    #   "Season 2 - Deleted Scene - Season 2, Episode 3 - Spirit Graffiti" → S02E03
+    #   For files with no explicit episode token, use alphabetical position within
+    #   the same season's files in the folder as a stable episode number.
+    if ($baseName -match '(?i)^Season\s+(\d{1,2})\s*[-–]') {
+        $seasonFromPrefix = [int]$Matches[1]
+        $episode = Get-TVEpisodeFromFilename $name
+        if ($null -eq $episode) { $episode = Get-TVEpisodeFromStrippedName $baseName }
+        if ($null -eq $episode) {
+            # No explicit episode number — assign alphabetical position within
+            # the same season's files in this folder for a deterministic number.
+            $sibPattern = "(?i)^Season\s+$seasonFromPrefix\b"
+            $sibs = @(Get-ChildItem -LiteralPath $file.DirectoryName -File -ErrorAction SilentlyContinue |
+                      Where-Object { $_.Extension -match '\.(mkv|mp4|avi|m4v|ts|mov)$' -and
+                                     $_.Name -match $sibPattern } |
+                      Sort-Object Name)
+            $pos = 1
+            for ($si = 0; $si -lt $sibs.Count; $si++) {
+                if ($sibs[$si].FullName -eq $file.FullName) { $pos = $si + 1; break }
+            }
+            $episode = $pos
+        }
+        $info.Season     = $seasonFromPrefix
+        $info.Episode    = [int]$episode
+        $info.ShowName   = $fallbackShow
+        $info.IsReliable = $true
+        $info.ParseMode  = 'filename-season-prefix'
+        return $info
+    }
+
+    # ② Ordinal season embedded in filename with no season folder above,
+    #   e.g. fansub files not placed under a "Season N" or "S0N" subfolder.
+    #   Requires an explicit episode token (stripped or strong) to be reliable.
+    $ordinalSeason = Resolve-OrdinalSeason $baseName
+    if ($null -ne $ordinalSeason) {
+        $episode = Get-TVEpisodeFromFilename $name
+        if ($null -eq $episode) { $episode = Get-TVEpisodeFromStrippedName $baseName }
+        if ($null -ne $episode) {
+            $info.Season     = $ordinalSeason
+            $info.Episode    = [int]$episode
+            $info.IsReliable = $true
+            $info.ParseMode  = 'ordinal-season'
+            return $info
+        }
+        # Season resolved but episode unknown — record season so the error
+        # message can give a targeted hint.
+        $info.Season     = $ordinalSeason
+        $info.ParseError = "Ordinal season ($ordinalSeason) found in '$name' but no episode number could be extracted. Add an Episode N, Ep N, E01, or bare trailing number (e.g. '- 03') to the filename."
+        return $info
+    }
+
+    if ($script:AggressiveEpisodeParsing) {
+        $looseSeasonEpisode = Get-TVLooseSeasonEpisodeFromName $baseName
+        if ($looseSeasonEpisode) {
+            $info.Season     = [int]$looseSeasonEpisode.Season
+            $info.Episode    = [int]$looseSeasonEpisode.Episode
+            $info.ShowName   = $fallbackShow
+            $info.IsReliable = $true
+            $info.ParseMode  = "aggressive-$($looseSeasonEpisode.Mode)"
+            return $info
+        }
+
+        $looseEpisode = Get-TVAggressiveEpisodeFromName -BaseName $baseName -File $file
+        $baseLoose = Get-TVLooseParseText $baseName
+        $showLoose = Get-TVLooseParseText $fallbackShow
+        $looksLikeShowTitleOnly = (
+            -not [string]::IsNullOrWhiteSpace($baseLoose) -and
+            -not [string]::IsNullOrWhiteSpace($showLoose) -and
+            $baseLoose.Equals($showLoose, [System.StringComparison]::OrdinalIgnoreCase)
+        )
+        if ($looseEpisode -and -not $looksLikeShowTitleOnly) {
+            $info.Season     = 1
+            $info.Episode    = [int]$looseEpisode.Episode
+            $explicitShow = Get-TVShowNameBeforeExplicitEpisodeToken $baseName
+            if (-not [string]::IsNullOrWhiteSpace($explicitShow)) {
+                $info.ShowName = $explicitShow
+            } else {
+                $info.ShowName = $fallbackShow
+            }
+            $info.IsReliable = $true
+            $info.ParseMode  = "aggressive-default-season+$($looseEpisode.Mode)"
+            return $info
+        }
+    }
+
+    $info.ShowName = $fallbackShow
+    $info.ParseError = "Ambiguous TV filename '$name'. Rename it to include SxxEyy, NxM, or pair a folder season like 'Season 01' / '(S01)' with a filename token like Episode 1, Ep 1, or E01."
+    return $info
+}
+
+function Get-EpisodeTitle {
+    param([string]$name)
+    $name = Remove-PriorityMarkersFromName $name
+    # ⑤ Fansub-style: "[Group] Show - Episode Title - S01E01 [tags]"
+    #    Title sits BEFORE the SxxExx marker, not after it.
+    if ($name -match '(?i)-\s+(.+?)\s+-\s+[Ss]\d{1,2}[Ee]\d{1,2}') {
+        $candidate = $Matches[1].Trim()
+        # Guard: reject if it looks like a raw tag block or is suspiciously long
+        if ($candidate -notmatch '^\[' -and $candidate.Length -le 80) {
+            return $candidate
+        }
+    }
+    # Standard post-SxxExx title patterns
+    if ($name -match '[Ss]\d{1,2}[Ee]\d{1,2}\s*[-]\s*(.+?)(?:\s*[\[\(]|\s*\.\w+$)') { return $Matches[1].Trim() }
+    if ($name -match '\d{1,2}x\d{1,2}\s*[-]\s*(.+?)(?:\s*[\[\(]|\s*\.\w+$)')         { return $Matches[1].Trim() }
+    if ($name -match 'E\d{2}\s*[-]\s*(.+?)(?:\s*[\[\(]|\s*\.\w+$)')                   { return $Matches[1].Trim() }
+    if ($name -match '(?i)Episode\s*\d{1,3}\s*[-]\s*(.+?)(?:\s*[\[\(]|\s*\.\w+$)')   { return $Matches[1].Trim() }
+    if ($name -match '(?i)Ep\s*\d{1,3}\s*[-]\s*(.+?)(?:\s*[\[\(]|\s*\.\w+$)')         { return $Matches[1].Trim() }
+    $explicitTitle = [regex]::Match($name, '(?i)(?<![A-Za-z0-9])(?:Episode|Ep|E)[\s._-]*\d{1,3}(?![A-Za-z0-9])[\s._-]+(?<title>.+)$')
+    if ($explicitTitle.Success) {
+        $candidate = $explicitTitle.Groups['title'].Value
+        $sourceTag = [regex]::Match($candidate, '(?i)\b(?:2160p|1080p|720p|480p|uhd|hdr10\+?|hdr|dv|dolby[\s._-]*vision|hevc|h\.?264|h\.?265|x264|x265|av1|10\s*bit|8\s*bit|bd|bdrip|blu[\s._-]*ray|bluray|web[\s._-]*dl|webdl|webrip|web|hdtv|dvd|dvdrip|remux|proper|repack|rerip|dual[\s._-]*audio|multi[\s._-]*audio|eng[\s._-]*subs?|multi[\s._-]*subs?|subs?|subbed|dubbed|flac|aac|opus|ac3|eac3|ddp\d*|ddp|dts|truehd|atmos|mkv|mp4)\b')
+        if ($sourceTag.Success) {
+            $candidate = $candidate.Substring(0, $sourceTag.Index)
+        }
+        $candidate = $candidate -replace '(?i)\b(?:v\d+|proper|repack|rerip)\b.*$', ' '
+        $candidate = ($candidate -replace '\s+', ' ').Trim(' .-_')
+        if (-not [string]::IsNullOrWhiteSpace($candidate) -and $candidate.Length -le 80) {
+            return $candidate
+        }
+    }
+    return ""
+}
+
+function Get-CleanTVOutputNamePart {
+    param([string]$Text)
+
+    if ([string]::IsNullOrWhiteSpace($Text)) { return "" }
+
+    $clean = Remove-PriorityMarkersFromName ([System.IO.Path]::GetFileNameWithoutExtension($Text))
+    $yearToken = 'PLEXYEARTOKEN'
+    $yearValue = $null
+    if ($clean -match '\((?<year>(?:18|19|20|21)\d{2})\)') {
+        $yearValue = $Matches['year']
+        $clean = $clean -replace '\((?:18|19|20|21)\d{2}\)', " $yearToken "
+    }
+    for ($pass = 0; $pass -lt 5; $pass++) {
+        $before = $clean
+        $clean = $clean -replace '\[[^\[\]]*\]', ' '
+        $clean = $clean -replace '\{[^{}]*\}', ' '
+        $clean = $clean -replace '(?i)\([^)]*(?:season|specials?|cour|uncensored|censored|2160p|1080p|720p|480p|uhd|hdr|hevc|h264|h265|x264|x265|av1|bd|blu-ray|bluray|web-dl|webdl|webrip|remux|dual\s*audio|multi\s*audio|eng\s*subs?|subs?)[^)]*\)', ' '
+        if ($clean -eq $before) { break }
+    }
+
+    $clean = $clean -replace '(?i)\bS\d{1,2}E\d{1,3}(?:[-_]?E\d{1,3})?\b', ' '
+    $clean = $clean -replace '(?i)\b\d{1,2}x\d{1,3}\b', ' '
+    $clean = $clean -replace '(?i)\b(?:season|s)\s*\d{1,2}\s*(?:\+\s*specials?)?\b', ' '
+    $clean = $clean -replace '(?i)\b(?:specials?|ova|oav|ona|cour)\b', ' '
+    $clean = $clean -replace '(?i)\b(?:uncensored|censored|2160p|1080p|720p|480p|uhd|hdr10\+?|hdr|dv|dolby\s*vision|hevc|h264|h265|x264|x265|av1|10bit|8bit|bd|bdrip|blu-ray|bluray|web-dl|webdl|webrip|web|remux|dvd|proper|repack|dual[-\s]*audio|multi[-\s]*audio|eng[-\s]*subs?|multi[-\s]*subs?|subs?|subbed|dubbed|flac|aac|opus|ac3|eac3|ddp\d*|ddp|dts|truehd|atmos|mkv|mp4)\b', ' '
+    $clean = $clean -replace '(?i)\b(?:1\.0|2\.0|5\.1|7\.1|6\s*ch|8\s*ch|6ch|8ch)\b', ' '
+    $clean = $clean -replace '(?i)(?:[\s._-]+(?:chotab|subsplease|erai[\s._-]*raws?|judas|ember|bonkai|neohevc|animetime|lostyears|nai|asw|sam|tnp|dedsec|mtbb|smugcat|commie|horriblesubs|kametsu|db|kawaiika|tlacatlc6))+$', ' '
+    $clean = $clean -replace '[\[\]{}()]', ' '
+    $clean = $clean -replace '[<>:"/\\|?*]', ''
+    $clean = $clean -replace '[._]+', ' '
+    if ($yearValue) {
+        $clean = $clean -replace $yearToken, "($yearValue)"
+    }
+    $clean = $clean -replace '\s*-\s*$', ''
+    $clean = $clean -replace '^\s*-\s*', ''
+    return (($clean -replace '\s+', ' ').Trim())
+}
+
+function Get-CleanTVEpisodeTitle {
+    param([string]$Title)
+
+    $clean = Get-CleanTVOutputNamePart $Title
+    if ([string]::IsNullOrWhiteSpace($clean)) { return "" }
+    if ($clean.Length -gt 80) { return "" }
+    if ($clean -match '(?i)^E\d{1,3}$') { return "" }
+    if ($clean -match '(?i)^(?:audio|subs?|subtitles?|dubbed|subbed|english|japanese|bd|hevc|x264|x265)(?:\s+.*)?$') {
+        return ""
+    }
+    return $clean
+}
+
+function Get-TVInfoField {
+    param(
+        $TvInfo,
+        [Parameter(Mandatory)] [string]$Name,
+        $Default = $null
+    )
+
+    if ($null -eq $TvInfo) { return $Default }
+    if ($TvInfo -is [System.Collections.IDictionary] -and $TvInfo.Contains($Name)) {
+        return $TvInfo[$Name]
+    }
+
+    $prop = $TvInfo.PSObject.Properties[$Name]
+    if ($prop) { return $prop.Value }
+    return $Default
+}
+
+function Get-CleanTVFilename {
+    param($tvInfo, [string]$origName)
+    return (New-PlexTVDestinationPlan -TvInfo $tvInfo -OriginalName $origName).FileBaseName
+}
+
+function Get-TVParseRenameSuggestion {
+    param($File, $TvInfo)
+
+    $ext = [System.IO.Path]::GetExtension($File.Name)
+    if ($TvInfo -and $null -ne $TvInfo.Season -and [int]$TvInfo.Season -ge 0 -and $TvInfo.ShowName) {
+        $show = Get-CleanTVOutputNamePart ([string](Get-TVInfoField -TvInfo $TvInfo -Name 'ShowName' -Default ''))
+        if ([string]::IsNullOrWhiteSpace($show)) { $show = ([string]$TvInfo.ShowName -replace '[<>:"/\\|?*]', '').Trim() }
+        return ("{0} - S{1}E##{2}" -f $show, ([int]$TvInfo.Season).ToString('00'), $ext)
+    }
+    return "Show Name - S01E01$ext"
+}

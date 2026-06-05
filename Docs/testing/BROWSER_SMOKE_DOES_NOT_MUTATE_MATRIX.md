@@ -270,22 +270,22 @@ A skip exit code of 0 must not be treated as a pass. The smoke did not execute a
 - That rename produces correct final file names on disk
 - That the backend produces the correct config after a real save
 
-For real-media proof, see `Docs/sample-validation/V5_REAL_MEDIA_VALIDATION_PLAYBOOK.md`.
+For real-media proof, see `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`.
 
 ---
 
 ## See Also
 
-- Smoke test catalog: `Docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`
-- Browser prerequisites: `Docs/testing/BROWSER_SMOKE_PREREQUISITES_CHECKLIST.md`
-- Browser runbook: `Docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md`
-- Smoke result template: `Docs/testing/WEBVIEW_SMOKE_RESULT_TEMPLATE.md`
+- Smoke test catalog: `docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`
+- Browser prerequisites: `docs/testing/BROWSER_SMOKE_PREREQUISITES_CHECKLIST.md`
+- Browser runbook: `docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md`
+- Smoke result template: `docs/testing/WEBVIEW_SMOKE_RESULT_TEMPLATE.md`
 
 ---
 
 ## Freshness Review — 2026-05-15 (CLN3-013)
 
-Recounted all `Test-WebViewBrowser*.ps1` `SmokeTests/` wrappers. Count is 15 (was "13" in original header — two wrappers added since original write: `Test-WebViewBrowserPendingDrainGuardSmoke.ps1` and `Test-WebViewBrowserCompletedPendingProofSmoke.ps1`). Header updated to 15.
+Recounted all `Test-WebViewBrowser*.ps1` `ops/scripts/smoke/` wrappers. Count is 15 (was "13" in original header — two wrappers added since original write: `Test-WebViewBrowserPendingDrainGuardSmoke.ps1` and `Test-WebViewBrowserCompletedPendingProofSmoke.ps1`). Header updated to 15.
 
 Matrix now covers all 15 browser-backed wrappers including:
 - `Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1`: explicitly does not send POST routes during Launch readiness/worksheet/record/scope-reconciliation rendering.
@@ -298,9 +298,9 @@ Consolidated mutation guarantee table and "Does not prove" section remain accura
 
 ```
 Task ID: CLN3-013
-Files inspected: Docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md, SmokeTests/Test-WebViewBrowser*.ps1 (count check)
-Files changed: Docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md (header corrected: 13→15; freshness note added)
-Validation: Get-ChildItem -File -Filter "Test-WebViewBrowser*.ps1" | Select-Object Name; Select-String -Path Docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md -Pattern "Does not|POST|mutation"
+Files inspected: docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md, ops/scripts/smoke/Test-WebViewBrowser*.ps1 (count check)
+Files changed: docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md (header corrected: 13→15; freshness note added)
+Validation: Get-ChildItem -File -Filter "Test-WebViewBrowser*.ps1" | Select-Object Name; Select-String -Path docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md -Pattern "Does not|POST|mutation"
 Findings: Header was stale (13); corrected to 15. All 15 browser smoke entries present and accurate.
 Open questions: None.
 Risk: Low — documentation only.
@@ -318,9 +318,9 @@ No changes required to matrix content.
 
 ```
 Task ID: CLN4-008
-Files inspected: Docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md (LargeTable entry, Consolidated Mutation Guarantee table)
-Files changed: Docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md (CLN4-008 freshness note added)
-Validation: Select-String -Path Docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md -Pattern "Backend Launch Scope Preview|Backend Drain Scope Preview"
+Files inspected: docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md (LargeTable entry, Consolidated Mutation Guarantee table)
+Files changed: docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md (CLN4-008 freshness note added)
+Validation: Select-String -Path docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md -Pattern "Backend Launch Scope Preview|Backend Drain Scope Preview"
 Findings: Both scope preview panels already named in LargeTable smoke entry. Matrix is accurate and complete.
 Open questions: None.
 Risk: Low — documentation only.
@@ -333,10 +333,10 @@ Risk: Low — documentation only.
 All 16 fixture-backed browser smoke Python implementations now call `capture_media_no_mutation_snapshot(root)` after temporary fixture setup and `assert_media_no_mutation(self, media_snapshot)` before the temp root is removed. The shared helper watches media extensions, subtitle sidecars, `.pipeline.json`, `.manifest.json`, and `.jsonl` evidence/manifest files by size and SHA-256.
 
 ```
-Task ID: V5 transition checklist chunk 9
-Files inspected: DesktopApp/tests/test_webview_browser_*.py, DesktopApp/tests/webview_browser_smoke_support.py
-Files changed: Docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md
-Validation: DesktopApp\Runtime\Python\python.exe -m unittest discover -s DesktopApp\tests -p "test_webview_browser_*.py" -q
+Task ID: transition checklist chunk 9
+Files inspected: tests/python/desktop/test_webview_browser_*.py, tests/python/desktop/webview_browser_smoke_support.py
+Files changed: docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md
+Validation: apps\desktop\runtime\Python\python.exe -m unittest discover -s tests\python\desktop -p "test_webview_browser_*.py" -q
 Findings: 20 browser smoke tests passed with media/sidecar/manifest hash no-mutation assertions active.
 Open questions: None.
 Risk: Low — tests/docs only; fixture roots are temporary.
@@ -350,10 +350,12 @@ Added `Test-WebViewBrowserLayoutManagerSmoke.ps1` and `test_webview_browser_layo
 
 ```
 Task ID: Layout manager movable tab/subtab boxes
-Files inspected: DesktopApp/tests/test_webview_browser_layout_manager_smoke.py, SmokeTests/Test-WebViewBrowserLayoutManagerSmoke.ps1, DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js
-Files changed: Docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md
-Validation: DesktopApp\Runtime\Python\python.exe -m unittest DesktopApp.tests.test_webview_browser_layout_manager_smoke -q
+Files inspected: tests/python/desktop/test_webview_browser_layout_manager_smoke.py, ops/scripts/smoke/Test-WebViewBrowserLayoutManagerSmoke.ps1, apps/desktop/webview/static/assets/app.js
+Files changed: docs/testing/BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md
+Validation: apps\desktop\runtime\Python\python.exe -m unittest tests.webview.test_webview_browser_layout_manager_smoke -q
 Findings: Layout-manager smoke uses the shared Chrome/Edge CDP runner and media/sidecar/manifest hash guard; no POST routes or source/output/scratch mutations are expected.
 Open questions: None.
 Risk: Low - WebView layout personalization only.
 ```
+
+

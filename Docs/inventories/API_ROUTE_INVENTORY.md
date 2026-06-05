@@ -54,9 +54,9 @@ Query params: `/api/diagnostics/tail` accepts `target` (allowlisted key) and `ma
 
 `/api/publish-reconciliation` performs a read-only correlation of Completed rows, current Pending Publish rows, and the latest durable pending drain summary. No repair, drain, or publish action is triggered.
 
-Repair/reconcile mutation remains design-only. `/api/contract` publishes the future dry-run, rollback, source-file, and route-exposure gates, but there are no repair/reconcile POST routes in this inventory and no WebView controls may call one until `Docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md` is satisfied.
+Repair/reconcile mutation remains design-only. `/api/contract` publishes the future dry-run, rollback, source-file, and route-exposure gates, but there are no repair/reconcile POST routes in this inventory and no WebView controls may call one until `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md` is satisfied.
 
-Network lifecycle mutation remains design-only. `/api/contract` publishes the future dry-run, process cleanup/rollback, source-file, and route-exposure gates for coordinator/worker lifecycle commands, but there are no Network start/stop/reclaim/release/worker-polling POST routes in this inventory and no WebView controls may call one until `Docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` is satisfied.
+Network lifecycle mutation remains design-only. `/api/contract` publishes the future dry-run, process cleanup/rollback, source-file, and route-exposure gates for coordinator/worker lifecycle commands, but there are no Network start/stop/reclaim/ops/release/metadata/worker-polling POST routes in this inventory and no WebView controls may call one until `docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` is satisfied.
 
 ### Workspace Group (9 routes)
 
@@ -133,7 +133,7 @@ Final-library promotion is backend-owned. The frontend can request the run, paus
 
 Allowlisted targets (20): `run_logs`, `cluster_log`, `config`, `config_folder`, `workspace`, `state`, `pending_publish`, `failed_reports`, `failed_markers`, `audit_reports`, `queue_snapshot`, `active_jobs`, `completed_manifest`, `latest_failure_report`, `latest_failure_json`, `latest_audit_csv`, `latest_priority_csv`, `last_stdout_log`, `last_stderr_log`, `sample_validation_log`.
 
-Full target catalog: `Docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`.
+Full target catalog: `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`.
 
 ### UI Preference Commands (1 route)
 
@@ -150,9 +150,9 @@ Full target catalog: `Docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`.
 | `POST /api/maintenance/release-dry-run` | `process-dry-run` | `destination_root`, `zip_package`, `verify`, `include_tests` | Maintenance | None — `-DryRun` only | `test_facade_maintenance_command_policy.py`, `test_application_facade_maintenance.py` |
 | `POST /api/maintenance/release-build` | `deployment-write` | `destination_root`, `zip_package`, `verify`, `include_tests`, `force`, `confirm_create` | Maintenance | Medium — creates deployable release folder, manifest, and optional zip through the backend release builder; `force` may replace the destination | `test_facade_maintenance_command_policy.py`, `test_application_facade_maintenance.py` |
 | `POST /api/maintenance/completed-backfill-dry-run` | `process-dry-run` | `timeout_seconds` | Maintenance | None — `-DryRun` only | `test_facade_maintenance_command_policy.py`, `test_application_facade_maintenance.py` |
-| `POST /api/maintenance/dependency-atlas` | `tooling-artifact-write` | `timeout_seconds`, `min_overview_edge_count`, `min_overview_files` | Maintenance | Low — regenerates dependency atlas HTML, PNG/SVG, and CSV tooling artifacts under `V6_dependency_atlas/` only | `test_application_facade_maintenance.py`, `test_application_facade_local_api.py` |
+| `POST /api/maintenance/dependency-atlas` | `tooling-artifact-write` | `timeout_seconds`, `min_overview_edge_count`, `min_overview_files` | Maintenance | Low — regenerates dependency atlas HTML, PNG/SVG, and CSV tooling artifacts under `docs/generated/dependency-atlas/` only | `test_application_facade_maintenance.py`, `test_application_facade_local_api.py` |
 
-The dry-run routes do not write a release folder, zip, manifest, or completed manifest. `dependency-atlas` writes generated tooling artifacts under `V6_dependency_atlas/` only; it does not touch media, queue, settings, manifests, pending publish state, or pipeline state. `release-build` requires `confirm_create: true`, is blocked while active work is present, and writes deployment artifacts only through the backend release builder.
+The dry-run routes do not write a release folder, zip, manifest, or completed manifest. `dependency-atlas` writes generated tooling artifacts under `docs/generated/dependency-atlas/` only; it does not touch media, queue, settings, manifests, pending publish state, or pipeline state. `release-build` requires `confirm_create: true`, is blocked while active work is present, and writes deployment artifacts only through the backend release builder.
 
 ### Rename Commands (3 routes)
 
@@ -271,7 +271,7 @@ media files.
 | Domain service tests | Underlying service behavior exercised by route handlers |
 | WebView smokes (21 PS1 wrappers) | Integration rendering and mutation-boundary verification |
 | `Test-LocalApiLifecycleContractSmoke.ps1` | Browser-free lifecycle route contract smoke for close-readiness/shutdown safe and watcher-blocked payloads |
-| `Test-LocalApiMaintenanceDryRunContractSmoke.ps1` | Browser-free Maintenance route contract smoke for dry-run-only release/backfill POSTs, token enforcement, command history, and unchanged temp source/output bytes |
+| `Test-LocalApiMaintenanceDryRunContractSmoke.ps1` | Browser-free Maintenance route contract smoke for dry-run-only ops/release/metadata/backfill POSTs, token enforcement, command history, and unchanged temp source/output bytes |
 | `Test-LocalApiSampleValidationContractSmoke.ps1` | Browser-free sample-validation route contract smoke for preview/append/read/tail, token enforcement, current-backend-evidence preview, command history, and temp-only validation-log writes |
 
 Routes with no dedicated smoke coverage: `GET /api/telemetry` is covered by `Test-WebViewBrowserTelemetrySmoke.ps1` through the Live page rather than by a route-only smoke. `GET /api/failures` and `GET /api/audit-results` are covered through the browser-backed Maintenance/Reports smoke. `GET /api/maintenance/change-ledger` is covered by route/unit tests plus the browser-backed Maintenance Change Ledger smoke.
@@ -280,8 +280,8 @@ Routes with no dedicated smoke coverage: `GET /api/telemetry` is covered by `Tes
 
 ## See Also
 
-- Route ownership map: `Docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`
-- Command matrix: `Docs/inventories/COMMAND_OWNERSHIP_MATRIX.md`
-- Mutation boundary matrix: `Docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md`
-- Diagnostics target allowlist: `Docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`
-- Test coverage matrix: `Docs/testing/TEST_COVERAGE_MATRIX.md`
+- Route ownership map: `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`
+- Command matrix: `docs/inventories/COMMAND_OWNERSHIP_MATRIX.md`
+- Mutation boundary matrix: `docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md`
+- Diagnostics target allowlist: `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`
+- Test coverage matrix: `docs/testing/TEST_COVERAGE_MATRIX.md`

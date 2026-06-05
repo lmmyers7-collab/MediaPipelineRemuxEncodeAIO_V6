@@ -6,66 +6,68 @@ This is the fast entry point for future AI/code agents. Read this before older a
 
 ## What This Project Is
 
-MediaPipelineRemuxEncodeAIO V6 is the active promoted WebView/Tauri workspace. It is a Windows-first, one-operator media pipeline for a Plex-style library. It discovers source media, copies sources to scratch, decides remux versus encode, runs FFmpeg/ffprobe and helper tools, handles subtitles/audio, writes sidecars/manifests, publishes completed outputs, parks pending publishes when final output is unsafe, and exposes operator controls through a local Python API plus WebView/Tauri shell.
+MediaPipelineRemuxEncodeAIO is the active promoted WebView/Tauri workspace. It is a Windows-first, one-operator media pipeline for a Plex-style library. It discovers source media, copies sources to scratch, decides remux versus encode, runs FFmpeg/ffprobe and helper tools, handles subtitles/audio, writes sidecars/manifests, publishes completed outputs, parks pending publishes when final output is unsafe, and exposes operator controls through a local Python API plus WebView/Tauri shell.
 
-V6 is where active WebView/Tauri refinement, documentation cleanup, tests, packaging, and operator workflow refinement continue.
+Active WebView/Tauri refinement, documentation cleanup, tests, packaging, and operator workflow refinement continue in this promoted workspace.
 
 ## Current UI Reality
 
-- **Tauri/WebView2 shell** is the promoted V6 desktop shell path.
+- **Tauri/WebView2 shell** is the promoted desktop shell path.
 - **Local Python backend API** is the intended long-term boundary between UI and pipeline behavior.
 - The frontend must not own filesystem mutation, media policy, settings persistence, queue mutation, pending-publish drain, rename apply, or process lifecycle decisions.
-- As of the 2026-05-20 V6 split, the legacy desktop-shell files and runtime package were removed from this V6 folder. See `Docs/archive/v6-split-notes-2026-05-20.md` for archived split evidence and ADR-0011 for the durable decision record.
+- As of the 2026-05-20 WebView-first split, the legacy desktop-shell files and runtime package were removed from this current folder. See `docs/archive/v6-split-notes-2026-05-20.md` for archived split evidence and ADR-0011 for the durable decision record.
 - As of the 2026-05-18 transition-review remediation pass, source/dev bundle validation was green: full unskipped release self-test, bundled `unittest`/`pytest`, browser no-mutation smokes, and Tauri `-CheckOnly`/build gates passed. Representative real-media validation was later closed by operator attestation on 2026-05-28, and default-launcher/package-mode promotion was closed by operator confirmation on 2026-05-30.
 - A fresh current-handoff package was built on 2026-05-18; copied-bundle package-mode Tauri launch/close passed locally. This remains historical transfer-readiness evidence. Do not treat the original local build path as a current target; copy/build the candidate appropriate for the validation machine.
-- Python validation should use the bundled interpreter at `DesktopApp\Runtime\Python\python.exe`. System Python may not have `pytest` and is not the canonical portable-bundle test environment.
-- 2026-05-19 cleanup work completed the planned god-file split waves, reduced WebView compatibility flat exports to namespace-first access, added pending-publish safety guardrail coverage, and cleaned/guarded rebuildable generated artifacts and root log captures. These maintainability/safety improvements support the current promoted V6 surface.
+- Python validation should use the bundled interpreter at `apps\desktop\runtime\Python\python.exe`. System Python may not have `pytest` and is not the canonical portable-bundle test environment.
+- 2026-05-19 cleanup work completed the planned god-file split waves, reduced WebView compatibility flat exports to namespace-first access, added pending-publish safety guardrail coverage, and cleaned/guarded rebuildable generated artifacts and root log captures. These maintainability/safety improvements support the current promoted current surface.
 - 2026-05-19 Tauri preview-shell lifecycle hardening added backend health/crash lifecycle events, a read-only WebView recovery banner, a per-user Windows single-instance guard, and a production-surface audit for devtools/token posture. This closes the preview-shell hardening backlog item; representative real-media validation was later closed by operator attestation on 2026-05-28, and default-launcher promotion was closed by operator confirmation on 2026-05-30.
-- 2026-05-20 Network lifecycle remains read-only in WebView, but `/api/contract` now publishes design-only Network lifecycle contracts and `Docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` documents the dry-run, cleanup/rollback, command-journal, source-file policy, and route-exposure gates required before any coordinator/worker start/stop controls can exist.
+- 2026-05-20 Network lifecycle remains read-only in WebView, but `/api/contract` now publishes design-only Network lifecycle contracts and `docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` documents the dry-run, cleanup/rollback, command-journal, source-file policy, and route-exposure gates required before any coordinator/worker start/stop controls can exist.
 - 2026-05-20 Wave C code cleanup was reconciled as a closed finite checklist item. Namespace object boundary comments are guarded, high-confidence dead-export removals are complete, completed split tests have focused ownership, and remaining member JSDoc/export decisions are maintenance guardrails per touched module.
-- 2026-05-20 active documentation was consolidated: this file is the single current-state source, root `OPEN_WORK_CHECKLIST.md` is the single active checklist, and the older active-fix/transition-plan/status-board/fix-checklist bodies are quarantined under `Docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/Docs/archive/historical-plans/` with compatibility redirect stubs left at the old paths.
+- 2026-05-20 active documentation was consolidated: this file is the single current-state source, root `docs/OPEN_WORK_CHECKLIST.md` is the single active checklist, and the older active-fix/transition-plan/status-board/fix-checklist bodies are quarantined under `docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/docs/archive/historical-plans/` with compatibility redirect stubs left at the old paths.
 - 2026-05-20 layout-manager edge cases were closed. Stored page order now resets to the authored default order when a page's panel-key set changes, while hidden/advanced panel state is preserved; dragging an advanced-gated panel now shows a transient local hint instead of silently behaving like an always-visible panel. This is WebView layout-state behavior only and does not change Local API routes, backend media policy, launch scope, publish/drain, rename, settings save, or source/scratch/output file handling.
-- 2026-05-20 the deferred UI improvement backlog was closed for its active 23-item scope. Launch command buttons are state-aware from backend snapshot/close-readiness, Force Stop is a hidden-until-active emergency topbar control, long operations have clearer progress/status, legacy dialog-error callers route through structured `show_error`, WebView Launch failures show sanitized root-cause next steps, telemetry render failures become local diagnostics instead of refresh crashes, and status/tooltips/accessibility/layout decisions are preserved in `Docs/DOC_TOUCH_LOG.md` and `Docs/REMEDIATION_CHANGELOG.md`; no active standalone UI-improvement checklist remains in `Docs/ui/`.
+- 2026-05-20 the deferred UI improvement backlog was closed for its active 23-item scope. Launch command buttons are state-aware from backend snapshot/close-readiness, Force Stop is a hidden-until-active emergency topbar control, long operations have clearer progress/status, legacy dialog-error callers route through structured `show_error`, WebView Launch failures show sanitized root-cause next steps, telemetry render failures become local diagnostics instead of refresh crashes, and status/tooltips/accessibility/layout decisions are preserved in archived reconciliation evidence and `docs/REMEDIATION_CHANGELOG.md`; no active standalone UI-improvement checklist remains in `docs/ui/`.
 - 2026-05-20 Tauri/WebView security-surface hardening added a non-null Tauri CSP and Local API response security headers (`Content-Security-Policy`, `X-Content-Type-Options`, and `Referrer-Policy`). The policy preserves current bootstrap/debug automation compatibility and does not change backend command authority, media mutation, launch, publish, rename, settings, or filesystem behavior.
 - 2026-05-20 stale-gate review reconciled the then-remaining blockers as external/human validation rather than stale local protected gates. Representative real-media validation was closed by operator attestation on 2026-05-28, and default-launcher/package-mode promotion was closed by operator confirmation on 2026-05-30.
 - 2026-05-20 Local API and network coordinator request-handler threads are no longer daemonized, so normal shutdown waits for in-flight command/claim/done/log cleanup instead of abandoning handler work. Listener threads themselves remain daemonized.
-- 2026-05-20 `Docs\architecture\LOCAL_API_SECURITY_SURFACE.md` now records the current localhost API/token/bootstrap/security-header boundary for future WebView/Tauri work.
-- 2026-05-28 Phase 3 stage-boundary foundation is additive: `app/contracts/stages.py` is now Pydantic-backed, `schemas/stages.v1.schema.json` is generated, `app/orchestration/runner.py` owns the new Python subprocess boundary, and `engine/entrypoint.ps1` currently enables the read-only `probe` and `decide` stages by wrapping existing PowerShell probe/routing behavior. Mutation-capable stages are modeled with explicit intent/confirmation fields but remain disabled in the dispatcher until safety coverage exists.
+- 2026-05-20 `docs\architecture\LOCAL_API_SECURITY_SURFACE.md` now records the current localhost API/token/bootstrap/security-header boundary for future WebView/Tauri work.
+- 2026-05-28 Phase 3 stage-boundary foundation is additive: `app/contracts/stages.py` is now Pydantic-backed, `src/mediapipeline/contracts/schemas/stages.v1.schema.json` is generated, `app/orchestration/runner.py` owns the new Python subprocess boundary, and `ops/pipeline/engine/entrypoint.ps1` currently enables the read-only `probe` and `decide` stages by wrapping existing PowerShell probe/routing behavior. Mutation-capable stages are modeled with explicit intent/confirmation fields but remain disabled in the dispatcher until safety coverage exists.
 - 2026-05-28 Phase 4 tooling/state foundation is additive and shadow-only: command journal entries, stage events, queue dry-run snapshots, and completed-job manifest rows now mirror into `LocalBase\State\mediapipeline_state.sqlite3` when a state root is available, but the existing JSON/state files remain authoritative. New JSON-line logging and boundary-validation helpers exist under `app/observability/` and `app/validation/`; Phase 4 typing, architecture, schema, and engine-analysis checks are wired into the development safety net.
-- 2026-05-28 Phase 5 drift-prevention foundation is enforcement-only: `scripts/lint-naming.py` blocks new legacy-pattern filenames, `scripts/dev/check_active_doc_references.py` checks active docs for stale moved paths and removed shell wording, and `tests/contract/` now carries behavior-organized config/stage contract tests while legacy test entrypoints remain available.
-- 2026-05-29 legacy surface cleanup is locally complete: `scripts/dev/check_legacy_removal_readiness.py` reports config-schema compatibility files, former command-payload adapters, flat Python facades/services, root launcher shims, `Pipeline` root launcher shims, and `Pipeline\Modules` as removed or empty. The remaining active PowerShell implementations live under `engine\<domain>`, `Pipeline\Modules` has no files, post-move real-media evidence covers remux, encode/size, subtitles, audio, deferred pending publish, drain, and rename-output safety, and post-deletion source release plus copied package-mode Tauri validation passed locally.
-- 2026-05-28 handoff status was reconciled: representative real-media validation is complete by operator attestation; `Docs/RealMediaValidationRuns/README.md` is the non-sensitive evidence anchor.
-- 2026-05-30 active handoff docs were refreshed for the promoted V6 state: old root launcher shims are no longer documented as available, and default-launcher promotion is closed by operator confirmation.
+- 2026-05-28 Phase 5 drift-prevention foundation is enforcement-only: `src/mediapipeline/tools/lint_naming.py` blocks new legacy-pattern filenames, `ops/scripts/dev/check_active_doc_references.py` checks active docs for stale moved paths and removed shell wording, and `tests/contract/` now carries behavior-organized config/stage contract tests while legacy test entrypoints remain available.
+- 2026-05-29 legacy surface cleanup is locally complete: `ops/scripts/dev/check_legacy_removal_readiness.py` reports config-schema compatibility files, former command-payload adapters, flat Python facades/services, root launcher shims, `Pipeline` root launcher shims, and `Pipeline\Modules` as removed or empty. The remaining active PowerShell implementations live under `ops\pipeline\engine\<domain>`, `Pipeline\Modules` has no files, post-move real-media evidence covers remux, encode/size, subtitles, audio, deferred pending publish, drain, and rename-output safety, and post-deletion source release plus copied package-mode Tauri validation passed locally.
+- 2026-05-28 handoff status was reconciled: representative real-media validation is complete by operator attestation; `docs/RealMediaValidationRuns/README.md` is the non-sensitive evidence anchor.
+- 2026-05-30 active handoff docs were refreshed for the promoted state: old root launcher shims are no longer documented as available, and default-launcher promotion is closed by operator confirmation.
 - 2026-05-30 WebView split/tooling work is present for continued plain-script cleanup: generated WebView split maps, split-candidate reports, public-contract baselines, DOM-ID gap reports, route-ownership guards, ESLint warning budgets, and guardrail/runbook docs now exist. This is frontend maintainability and drift-prevention work; it does not change backend media policy.
-- 2026-06-04 completed/superseded Markdown bodies were archived out of the active docs tree under `Docs/archive/docs-housekeeping/2026-06-04-completed-md-pass/`. The archived set covers historical audits, the completed dependency-refactor phase tracker, and the completed UX-001 through UX-017 remediation tracker. Redirect stubs remain where active notes still use the old audit or UX paths.
+- 2026-06-04 completed/superseded Markdown bodies were archived out of the active docs tree under `docs/archive/docs-housekeeping/2026-06-04-completed-md-pass/`. The archived set covers historical audits, the completed dependency-refactor phase tracker, and the completed UX-001 through UX-017 remediation tracker. Redirect stubs remain where active notes still use the old audit or UX paths.
+- 2026-06-04 repository layout migration moved loose backend Python into the installable `mediapipeline` namespace under `src/`, grouped desktop/web assets under `apps/desktop/`, grouped PowerShell engine, runtime, scripts, and release metadata under `ops/`, and moved generated/runtime output out of the repository root. The root is now a small project shell: VCS/tool manifests, package manifests, root onboarding docs, and the five responsibility folders `src/`, `apps/`, `ops/`, `tests/`, and `docs/`.
 
 ## Main Launchers
 
-Run from the V6 repository root:
+Run from the repository root:
 
 ```powershell
-.\scripts\dev\start-local-api.bat
-.\scripts\dev\start-tauri-preview.bat -CheckOnly
-.\scripts\dev\start-tauri-preview.bat
-.\scripts\dev\start-api-and-browser.bat
-.\scripts\verify-env.bat
-.\scripts\release\test.ps1
-.\scripts\operator\New-RealMediaValidationWorksheet.ps1
+.\ops\scripts\dev\start-local-api.bat
+.\ops\scripts\dev\start-tauri-preview.bat -CheckOnly
+.\ops\scripts\dev\start-tauri-preview.bat
+.\ops\scripts\dev\start-api-and-browser.bat
+.\ops\scripts\dev\verify-env.bat
+.\ops\scripts\release\test.ps1
+.\ops\scripts\operator\New-RealMediaValidationWorksheet.ps1
 ```
 
 Default-launcher promotion is complete by operator confirmation on 2026-05-30. Representative real-media validation is operator-attested complete as of 2026-05-28, but rerun it after high-risk media behavior changes.
 
 ## Current Architecture
 
-- `app/`: domain-organized Python contracts/config/orchestration/storage/validation/services/facade adapters. Current active contracts include generated config and stage schemas; the stage runner boundary is present and the read-only `probe` and `decide` stages are enabled through `engine/entrypoint.ps1`. SQLite storage is a mirror only; JSON state files remain authoritative.
-- `engine/`: active domain-organized PowerShell implementation for FFmpeg/ffprobe orchestration, remux/encode routing, subtitle/audio modules, publishing, queue planning, audit, config schema, and state handling.
-- `Pipeline/`: root engine entry scripts, config/profiles, schemas, bundled tools, setup/audit helpers, and PowerShell tests. `Pipeline\Modules` is no longer an active module surface.
-- `DesktopApp/mediapipeline_desktop_app/`: Python local API/WebView backend package. It owns local API routes, command contracts, compatibility imports, backend bootstrap, and backend-served WebView integration.
-- `DesktopApp/mediapipeline_desktop_app/ui_web/static/`: WebView frontend assets. These render state, submit backend-owned commands, and provide operator guidance. They must not implement filesystem mutation or media policy independently.
-- `DesktopApp/tauri_shell/`: Tauri/WebView2 preview shell and shell validation scripts.
-- `tests/`: behavior/domain test layout. Currently seeded with contract and tooling checks; existing `DesktopApp/tests` and PowerShell smoke wrappers remain compatibility entrypoints for one release.
-- `Docs/`: operator docs, engineering docs, safety runbooks, and consolidated current-state docs. Organized into topic subfolders: `inventories/` (route maps, schemas, inventories), `testing/` (smoke runbooks, coverage matrices), `operator/` (playbooks, glossaries, boundary registers), `architecture/` (decisions, risk register, lifecycle boundaries), `sample-validation/` (real-media playbooks and templates), and `ui/` (active UI planning). `Docs/active-plans/` now contains compatibility redirects only; completed/historical plan bodies moved during the 2026-05-20 cleanup live under `Docs/archive/docs-housekeeping/2026-05-20-review/`.
-- `SmokeTests/Test-WebView*.ps1` and `SmokeTests/Test-LocalApi*.ps1`: WebView/local API smoke wrappers.
+- `src/mediapipeline/core/`: domain-organized backend Python for config, orchestration, storage, validation, services, and facade adapters.
+- `src/mediapipeline/contracts/`: Pydantic contracts and generated config/stage schemas. The stage runner boundary is present and the read-only `probe` and `decide` stages are enabled through `ops/pipeline/engine/entrypoint.ps1`. SQLite storage is a mirror only; JSON state files remain authoritative.
+- `ops/pipeline/engine/`: active domain-organized PowerShell implementation for FFmpeg/ffprobe orchestration, remux/encode routing, subtitle/audio modules, publishing, queue planning, audit, config schema, and state handling.
+- `ops/pipeline/entrypoints/`, `ops/pipeline/config/`, `ops/pipeline/runtime/`, `ops/pipeline/tools/`, and `ops/pipeline/tests/`: PowerShell entrypoints, PSD1/config assets, portable runtime placeholders, bundled tool placeholders, and PowerShell tests. `Pipeline\Modules` is no longer an active module surface.
+- `src/mediapipeline/desktop/`: Python local API/WebView backend package. It owns local API routes, command contracts, compatibility imports, backend bootstrap, and backend-served WebView integration.
+- `apps/desktop/webview/static/`: WebView frontend assets. These render state, submit backend-owned commands, and provide operator guidance. They must not implement filesystem mutation or media policy independently.
+- `apps/desktop/tauri/`: Tauri/WebView2 preview shell and shell validation scripts.
+- `tests/`: behavior/domain test layout. Currently seeded with contract and tooling checks; existing `tests/python/desktop` and PowerShell smoke wrappers remain compatibility entrypoints for one release.
+- `docs/`: operator docs, engineering docs, safety runbooks, and consolidated current-state docs. Organized into topic subfolders: `inventories/` (route maps, schemas, inventories), `testing/` (smoke runbooks, coverage matrices), `operator/` (playbooks, glossaries, boundary registers), `architecture/` (decisions, risk register, lifecycle boundaries), `sample-validation/` (real-media playbooks and templates), and `ui/` (active UI planning). `docs/active-plans/` now contains compatibility redirects only; completed/historical plan bodies moved during the 2026-05-20 cleanup live under `docs/archive/docs-housekeeping/2026-05-20-review/`.
+- `ops/scripts/smoke/Test-WebView*.ps1` and `ops/scripts/smoke/Test-LocalApi*.ps1`: WebView/local API smoke wrappers.
 
 ## Known-Good Behavior To Preserve
 
@@ -78,7 +80,7 @@ Default-launcher promotion is complete by operator confirmation on 2026-05-30. R
 - FFmpeg/media policy changes require high validation, including real-media samples where practical.
 - Command journal, strict JSON route handling, duplicate-command guards, close-readiness checks, and backend safety mechanisms are release-critical.
 
-## Current V6 Operating State
+## Current Operating State
 
 - The WebView/Tauri foundation is the promoted default operator surface.
 - The planned god-file split campaign is complete through Wave 6. Production UI/code ownership is now split across focused Python, PowerShell, Rust, HTML partial, CSS, and WebView JS child modules; command-adjacent Queue priority/strategy/file-overrides behavior intentionally remains in `queueView.js`.
@@ -88,7 +90,7 @@ Default-launcher promotion is complete by operator confirmation on 2026-05-30. R
 - Queue/Completed/Pending Publish tables carry local filter-scope warnings and backend-scope reminders.
 - Queue Launch Decision, Completed Output Acceptance, and Pending Publish Drain Decision summaries now start with a daily-use handoff, operator outcome, and scope boundary so display filters, selected rows, proof boards, recovery dry-runs, and row caps are not mistaken for backend processing scope.
 - Settings has structured builders for high-impact file safety, publish/recovery, remux/encode/video, audio, subtitle, and policy-trust surfaces.
-- The 2026-05-31 settings/library rewrite is complete through the cleanup/test-hardening phase. Backend field metadata is the canonical source for settings labels, help, choices, defaults, advanced/display taxonomy, and Library Profiles override eligibility. The WebView uses that metadata for display and staging only; backend Preview/Save remains authoritative, persisted V6 config keys and override groups remain unchanged, and HandBrake-style sections are display-only.
+- The 2026-05-31 settings/library rewrite is complete through the cleanup/test-hardening phase. Backend field metadata is the canonical source for settings labels, help, choices, defaults, advanced/display taxonomy, and Library Profiles override eligibility. The WebView uses that metadata for display and staging only; backend Preview/Save remains authoritative, persisted config keys and override groups remain unchanged, and HandBrake-style sections are display-only.
 - Library Profiles inheritance and override state are backend-owned. Missing override keys inherit global settings, present override keys remain explicit even when equal to the global value, reset-to-global removes override keys, custom missing/blank output paths inherit `Outsource`, promotion destinations remain explicit, and legacy `SourceMovies`, `SourceTV`, `Outsource`, `LibraryProfiles`, `FinalLibraryPromotionRules`, `editor_overrides`, and `media_overrides` compatibility remains supported.
 - Runtime evidence is diagnostic-only. `library_effective_settings` means global defaults plus library overrides only; it does not include show, folder, per-file, probe, verification, or publish layers. `runtime_effective_settings`, where surfaced, is separate final-runtime diagnostic evidence and is not persisted config or a decision input.
 - Promotion diagnostics now treat normalized profile-derived rules as authoritative for covered roots. Legacy `FinalLibraryPromotionRules` remain compatibility fallback for uncovered roots only; stale fallback rules must not override current profile source/output/destination/library identity evidence.
@@ -114,20 +116,20 @@ Default-launcher promotion is complete by operator confirmation on 2026-05-30. R
 
 ## Recent Important Completion Notes
 
-- 2026-05-19 code-management cleanup completed the planned god-file split waves. The old god-file split plan and full executed plans were moved into the 2026-05-20 housekeeping quarantine under `Docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/`.
+- 2026-05-19 code-management cleanup completed the planned god-file split waves. The old god-file split plan and full executed plans were moved into the 2026-05-20 housekeeping quarantine under `docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/`.
 - 2026-05-19 WebView flat-export cleanup removed broad direct `window.*` compatibility aliases while preserving canonical namespace objects and passing inventory, static, Local API, sample-validation, and browser smoke coverage.
-- 2026-05-20 Wave C code cleanup was closed as a finite checklist item. The old code-management planning material is no longer an active proposal file; member-level JSDoc and medium-confidence flat-export cleanup are now opportunistic per-module maintenance guardrails tracked through `Docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md`, archived audit evidence under `Docs/archive/docs-housekeeping/2026-06-04-completed-md-pass/audits/`, `Docs/DOC_TOUCH_LOG.md`, and touched-module tests.
-- 2026-05-19 Pending Publish safety coverage added `Pipeline\Tests\Unit\Invoke-PendingPublishSafetyChecks.ps1` and fixed ordered pending-transaction property lookup plus sidecar rollback restore behavior.
+- 2026-05-20 Wave C code cleanup was closed as a finite checklist item. The old code-management planning material is no longer an active proposal file; member-level JSDoc and medium-confidence flat-export cleanup are now opportunistic per-module maintenance guardrails tracked through `docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md`, archived audit and reconciliation evidence, and touched-module tests.
+- 2026-05-19 Pending Publish safety coverage added `ops\pipeline\tests\Unit\Invoke-PendingPublishSafetyChecks.ps1` and fixed ordered pending-transaction property lookup plus sidecar rollback restore behavior.
 - 2026-05-19 Rename undo manifests now default under `State\RenameUndo` when service state or app root is available, including legacy app-root `app_state.json` startup.
 - 2026-05-19 repo hygiene removed rebuildable ignored `.pytest_cache` and Tauri Rust `src-tauri\target` build output after path-boundary verification.
 - 2026-05-19 portable-path cleanup removed local operator UNC audit-root defaults from active audit/legacy GUI scripts. `Audit-MediaLibrary.ps1` now derives the default library root from config `SourceMovies`/`SourceTV` shared parent when `-LibraryRoot` is omitted, and a focused PowerShell guard covers the regression.
 - 2026-05-19 frontend media-policy risk helpers were labelled and tested as advisory-only. Backend Preview/Save and Launch validation remain authoritative for settings validation, source-deletion acceptance, queue scope, route safety, publish/drain safety, and PSD1 writes.
-- 2026-05-19 pending-publish ownership is now explicit in `Docs/architecture/MODULE_MAP.md` and guarded by `Pipeline\Tests\Unit\Invoke-PendingPublishOwnershipChecks.ps1`: parked output is media plus sidecars, drain safety remains backend-owned, and WebView/Tauri must not infer or mutate parked payloads.
-- 2026-05-20 sidecar overwrite fallback is locally guarded against the old delete gap. `Pipeline\Tests\Unit\Invoke-SidecarWriteSafetyChecks.ps1` and the V6 reliability gate verify the fallback uses overwrite move and does not explicitly delete the current sidecar before replacement; real Windows/UNC storage stress testing is still external validation.
+- 2026-05-19 pending-publish ownership is now explicit in `docs/architecture/MODULE_MAP.md` and guarded by `ops\pipeline\tests\Unit\Invoke-PendingPublishOwnershipChecks.ps1`: parked output is media plus sidecars, drain safety remains backend-owned, and WebView/Tauri must not infer or mutate parked payloads.
+- 2026-05-20 sidecar overwrite fallback is locally guarded against the old delete gap. `ops\pipeline\tests\Unit\Invoke-SidecarWriteSafetyChecks.ps1` and the current reliability gate verify the fallback uses overwrite move and does not explicitly delete the current sidecar before replacement; real Windows/UNC storage stress testing is still external validation.
 - 2026-05-19 encode-speed analytics state is now documented and guarded as `LocalBase\State\App\encode_speed_history.json`; the stale `DesktopApp\encode_speed_history.json` copy was archived under ignored RunLogs, `.gitignore` blocks its return, and `Invoke-RuntimeStateHygieneChecks.ps1` guards the regression.
-- 2026-05-19 active non-archive docs were path-map cleaned for the post-reorg source-of-truth locations, superseded root housekeeping reports were archived under `Docs\archive\admin-audits`, and `Pipeline\Tests\Unit\Invoke-ActiveDocsReferenceChecks.ps1` now blocks stale root references to moved docs plus root-level references to archived housekeeping report names.
+- 2026-05-19 active non-archive docs were path-map cleaned for the post-reorg source-of-truth locations, superseded root housekeeping reports were archived under `docs\archive\admin-audits`, and `ops\pipeline\tests\Unit\Invoke-ActiveDocsReferenceChecks.ps1` now blocks stale root references to moved docs plus root-level references to archived housekeeping report names.
 - 2026-05-19 high-level status/checklist docs stopped embedding the absolute local handoff path. They now name package evidence generically; `Invoke-ActiveDocsReferenceChecks.ps1` guards the high-level path drift.
-- 2026-05-28 Phase 2 config cleanup foundation landed: `app/contracts/config.py` is the Pydantic v2 config source of truth, `app/config/load.py` owns PSD1 import/serialization helpers, `schemas/config.v1.schema.json` is generated from the model, and pre-commit/CI check schema drift.
+- 2026-05-28 Phase 2 config cleanup foundation landed: `app/contracts/config.py` is the Pydantic v2 config source of truth, `app/config/load.py` owns PSD1 import/serialization helpers, `src/mediapipeline/contracts/schemas/config.v1.schema.json` is generated from the model, and pre-commit/CI check schema drift.
 - Selected-row render scrolling was fixed so Home, Completed, and Launch no longer snap to the bottom during refresh.
 - WebView Settings gained effective-policy trust and structured high-impact controls.
 - Diagnostics gained bounded backend-owned tail/open flows for allowlisted targets.
@@ -164,31 +166,31 @@ Default-launcher promotion is complete by operator confirmation on 2026-05-30. R
 - Browser and non-browser smoke suites have broad no-mutation coverage.
 - 2026-05-18 source/dev promotion-gate validation passed: contract schema checks, full unskipped release self-test, bundled Python `unittest`/`pytest`, browser no-mutation smokes, Tauri `-CheckOnly`, and Tauri build gate.
 - Deployability checklist was refreshed on 2026-05-18 for source/dev evidence. Representative real-media validation was later closed by operator attestation on 2026-05-28, and default-launcher/package-mode promotion was closed by operator confirmation on 2026-05-30.
-- Product-version labels are aligned to V6 as of 2026-05-20: central `Versioning.ps1`, audit defaults, contract fixtures, Tauri metadata, and Local API health report `v6.000`/V6 correctly.
-- `Docs/RealMediaValidationRuns/README.md` records the non-sensitive operator-attested representative real-media validation status. Detailed worksheets may remain local or excluded from release packaging when they contain personal source/output paths.
+- Product-version labels use the calendar build identity as of 2026-06-04: central `Versioning.ps1`, audit defaults, contract fixtures, Tauri metadata, and Local API health report `2026.06.04.001` correctly.
+- `docs/RealMediaValidationRuns/README.md` records the non-sensitive operator-attested representative real-media validation status. Detailed worksheets may remain local or excluded from release packaging when they contain personal source/output paths.
 - A fresh current-handoff package was built with `-IncludeTauriPreviewBinary -Verify`; copied-bundle package-mode launch/close passed locally with shell PID `34800` and backend PID `29804`, and the local boundary report had `Bundle layout mismatches: 0` plus `Developer tools detected outside bundle: 8`. The package name is historical transfer evidence, not a hardcoded path for future validation.
 - Default-launcher/package-mode promotion is closed by 2026-05-30 operator confirmation.
 - Targeted Launch/Queue pilot-readiness validation passed with static facade coverage, real-media smoke coverage, browser-backed Launch/Queue readiness smoke, and Tauri build/asset gate checks. The panel remains evidence-only; representative real-media validation is now operator-attested complete, and future media behavior changes require revalidation.
 - Targeted Launch/Queue policy-vs-route validation now covers the saved policy alignment row in Launch proof/readiness surfaces and verifies it remains no-POST/no-mutation while warning when Queue route text cannot prove every required policy category before Start.
 - Targeted Home/Sample Validation validation now covers the Completed saved-policy reconciliation handoff at the Preview/Append decision point while preserving no-append/no-mutation browser-smoke boundaries.
 - Targeted Diagnostics validation now covers saved-policy reconciliation handoff from Diagnostics First Response and Completed owner-row detail while preserving no backend mutation posts.
-- Housekeeping archive pass completed: completed/archive-classified docs moved under `Docs/archive/docs-housekeeping/2026-05-20-review/`, old RunLogs/config backups archived, and project cache artifacts pruned outside bundled/runtime/vendor trees.
-- Root onboarding now starts with `README.md` for operators and `AGENTS.md` for AI/code agents. The old `AI_AGENT_START_HERE.md` and `AI_DIRECTIVE.md` redirects are archived under `Docs/archive/ai/`.
-- The old DesktopApp feature-outline and comparison source material was quarantined under `Docs/archive/docs-housekeeping/2026-05-20-review/consolidated-after-extraction/` and should not be treated as active V6 guidance.
-- V5 UI Stage 14 completed (2026-05-17): Diagnostics page tab navigation — panel sections reorganised into tabbed sub-pages; `app.js` tab-switching wired; `index.html` groupings updated.
-- V5 UI Stage 15 completed (2026-05-17): Light mode toggle + colour system — `body.light-mode` CSS overrides in `styles.css`; `initThemeToggle()` in `app.js` persists choice via `localStorage`; top-bar toggle in `index.html`; `telemetryView.js` canvas renderer respects the active theme class.
-- V5 UI Stage 16 completed (2026-05-17): UI design reference audit — 7 spec gaps closed in `styles.css` and `index.html`: disabled-button opacity removed (colour change used instead per Section 9); panel heading size/case/letter-spacing corrected; row-background status colours added (schedule-scoped); `.num` tabular-numeral class added to numeric `<th>` headers; form label weight corrected; input inset shadow added; `.note` max-width capped at `65ch`. Tracking evidence is historical and now lives under the 2026-05-20 housekeeping quarantine.
-- Docs folder restructure completed (2026-05-17): 60+ Markdown files sorted into topic subfolders under `Docs/`; `DOCS_INDEX.md` was rewritten again on 2026-05-20 after the quarantine move so active navigation no longer points at completed audit/checklist folders as current guidance.
-- Production-readiness recheck completed (2026-05-17): the stale WebView navigation static test expectation for `Completed`/`Pending` was corrected to the intended concise labels `Output`/`Publish`; the targeted navigation static suite passed; and full unskipped `scripts\release\test.ps1` passed with bundled tool integration and temp end-to-end media smoke checks included. The only release-self-test warning was the expected missing `release_manifest.json` in a source/dev folder.
+- Housekeeping archive pass completed: completed/archive-classified docs moved under `docs/archive/docs-housekeeping/2026-05-20-review/`, old RunLogs/config backups archived, and project cache artifacts pruned outside bundled/runtime/vendor trees.
+- Root onboarding now starts with `README.md` for operators and `AGENTS.md` for AI/code agents. The old `AI_AGENT_START_HERE.md` and `AI_DIRECTIVE.md` redirects are archived under `docs/archive/ai/`.
+- The old DesktopApp feature-outline and comparison source material was quarantined under `docs/archive/docs-housekeeping/2026-05-20-review/consolidated-after-extraction/` and should not be treated as active guidance.
+- UI Stage 14 completed (2026-05-17): Diagnostics page tab navigation — panel sections reorganised into tabbed sub-pages; `app.js` tab-switching wired; `index.html` groupings updated.
+- UI Stage 15 completed (2026-05-17): Light mode toggle + colour system — `body.light-mode` CSS overrides in `styles.css`; `initThemeToggle()` in `app.js` persists choice via `localStorage`; top-bar toggle in `index.html`; `telemetryView.js` canvas renderer respects the active theme class.
+- UI Stage 16 completed (2026-05-17): UI design reference audit — 7 spec gaps closed in `styles.css` and `index.html`: disabled-button opacity removed (colour change used instead per Section 9); panel heading size/case/letter-spacing corrected; row-background status colours added (schedule-scoped); `.num` tabular-numeral class added to numeric `<th>` headers; form label weight corrected; input inset shadow added; `.note` max-width capped at `65ch`. Tracking evidence is historical and now lives under the 2026-05-20 housekeeping quarantine.
+- Docs folder restructure completed (2026-05-17): 60+ Markdown files sorted into topic subfolders under `docs/`; `DOCS_INDEX.md` was rewritten again on 2026-05-20 after the quarantine move so active navigation no longer points at completed audit/checklist folders as current guidance.
+- Production-readiness recheck completed (2026-05-17): the stale WebView navigation static test expectation for `Completed`/`Pending` was corrected to the intended concise labels `Output`/`Publish`; the targeted navigation static suite passed; and full unskipped `ops\scripts\release\test.ps1` passed with bundled tool integration and temp end-to-end media smoke checks included. The only release-self-test warning was the expected missing `release_manifest.json` in a source/dev folder.
 
 ## Active Gaps
 
-Read root `OPEN_WORK_CHECKLIST.md` for the current backlog. The high-level gaps are:
+Read root `docs/OPEN_WORK_CHECKLIST.md` for the current backlog. The high-level gaps are:
 
 - Representative real-media validation is complete by operator attestation as of 2026-05-28 across remux, subtitle, audio, encode/size, and publish cases. Rerun it after high-risk media behavior changes.
 - Default-launcher promotion is complete by operator confirmation on 2026-05-30; future launcher, package, Tauri, or Local API changes still require package/open/close validation.
-- Network mode lifecycle controls remain intentionally absent from WebView. Design-only dry-run, cleanup/rollback, source-file, and route-exposure contracts now exist in `/api/contract` and `Docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md`; backend dry-run routes still need implementation before any mutation route or WebView control.
-- Completed/Pending Publish repair/reconcile mutation controls remain absent. Design-only dry-run, rollback, source-file, and route-exposure contracts now exist in `/api/contract` and `Docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md`; backend dry-run routes still need implementation before any mutation route or WebView control.
+- Network mode lifecycle controls remain intentionally absent from WebView. Design-only dry-run, cleanup/rollback, source-file, and route-exposure contracts now exist in `/api/contract` and `docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md`; backend dry-run routes still need implementation before any mutation route or WebView control.
+- Completed/Pending Publish repair/reconcile mutation controls remain absent. Design-only dry-run, rollback, source-file, and route-exposure contracts now exist in `/api/contract` and `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md`; backend dry-run routes still need implementation before any mutation route or WebView control.
 - Layout manager customization and the 2026-05-20 UI improvement backlog are closed. Future UI polish should be opened as a scoped checklist item rather than reviving archived/completed backlog rows.
 - The giant `REMEDIATION_CHANGELOG.md` remains useful forensic history but too large for onboarding; use consolidated docs first.
 
@@ -197,20 +199,20 @@ Read root `OPEN_WORK_CHECKLIST.md` for the current backlog. The high-level gaps 
 Use the smallest safe validation rung that matches the change:
 
 - Docs only: inspect rendered Markdown and run link/file existence checks if links changed.
-- WebView static JS/HTML/CSS: run targeted Python/Node smoke tests plus relevant `SmokeTests/Test-WebView*.ps1` wrapper.
+- WebView static JS/HTML/CSS: run targeted Python/Node smoke tests plus relevant `ops/scripts/smoke/Test-WebView*.ps1` wrapper.
 - Local API/contract changes: run targeted route tests and relevant `Test-LocalApi*.ps1` wrappers.
-- Architecture/drift prevention changes: run `python scripts/lint-naming.py`, `python scripts/dev/check_active_doc_references.py`, generated-artifact `--check` commands, and the affected `tests/` or `DesktopApp/tests` suites.
+- Architecture/drift prevention changes: run `python -m mediapipeline.tools.lint_naming`, `python -m mediapipeline.tools.dev.check_active_doc_references`, generated-artifact `--check` commands, and the affected `tests/` or `tests/python/desktop` suites.
 - Settings, queue, rename, pending publish, diagnostics, or safety logic: run targeted unit tests and affected smokes.
 - Tauri files: run Tauri shell checks.
 - Media policy/FFmpeg/subtitle/audio/publish behavior: run release gate and real-media validation as appropriate.
 
 Core references:
 
-- `Docs/testing/VALIDATION_LADDER_RUNBOOK.md`
-- `Docs/testing/TEST_COVERAGE_MATRIX.md`
-- `Docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md`
-- `Docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`
-- `Docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md`
+- `docs/testing/VALIDATION_LADDER_RUNBOOK.md`
+- `docs/testing/TEST_COVERAGE_MATRIX.md`
+- `docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md`
+- `docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`
+- `docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md`
 
 ## High-Risk Areas
 
@@ -231,15 +233,17 @@ Do not casually change these without reading `operator/NO_TOUCH_BOUNDARY_REGISTE
 
 - Old Claude handoff files are not authoritative unless explicitly reopened.
 - Completed UI/control/checklist archives should not be used as active backlog.
-- V3/V4 historical docs are context only unless current V6 docs explicitly reference them.
+- older historical docs are context only unless current docs explicitly reference them.
 - `node_modules` Markdown is vendor material, not project documentation.
 - Do not treat the Tauri/WebView2 preview as a production replacement because an old plan says migration is desired.
 
 ## Best First Reads
 
-1. `Docs/CURRENT_PROJECT_STATE.md`
-2. `OPEN_WORK_CHECKLIST.md`
-3. `Docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`
-4. `Docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`
-5. `Docs/testing/VALIDATION_LADDER_RUNBOOK.md`
-6. `Docs/DOCS_INDEX.md`
+1. `docs/CURRENT_PROJECT_STATE.md`
+2. `docs/OPEN_WORK_CHECKLIST.md`
+3. `docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`
+4. `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`
+5. `docs/testing/VALIDATION_LADDER_RUNBOOK.md`
+6. `docs/DOCS_INDEX.md`
+
+

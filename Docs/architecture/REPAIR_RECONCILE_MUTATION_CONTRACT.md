@@ -2,7 +2,7 @@
 
 Date: 2026-05-19
 
-This is the source-of-truth design contract for future Completed and Pending Publish repair/reconcile commands. It does not authorize implementation by itself. V6 currently has no repair/reconcile mutation routes and no WebView repair/reconcile buttons.
+This is the source-of-truth design contract for future Completed and Pending Publish repair/reconcile commands. It does not authorize implementation by itself. The current workspace has no repair/reconcile mutation routes and no WebView repair/reconcile buttons.
 
 The WebView may display these boundaries from `/api/contract`, but it must not infer or perform repair, reconcile, manifest rewrite, payload move/delete, output acceptance, drain, publish, rerun, or source-file actions.
 
@@ -66,8 +66,9 @@ The required dry-run result fields are:
 
 Current static gates:
 
-- `DesktopApp/tests/test_api_contract_payload.py` verifies the design-only contract payload, dry-run schema fields, rollback journal fields, source-file policy, route exposure gates, and deep-copy behavior.
-- `DesktopApp/tests/test_webview_frontend_mutation_boundary.py` rejects repair/reconcile POST route exposure, repair/reconcile `apiPost(...)` calls, and missing Contract page guardrail text.
-- `DesktopApp/tests/test_application_facade_local_api.py` verifies the live Local API contract exposes the same design-only dry-run/rollback/source-policy fields.
+- `tests/python/desktop/test_api_contract_payload.py` verifies the design-only contract payload, dry-run schema fields, rollback journal fields, source-file policy, route exposure gates, and deep-copy behavior.
+- `tests/python/desktop/test_webview_frontend_mutation_boundary.py` rejects repair/reconcile POST route exposure, repair/reconcile `apiPost(...)` calls, and missing Contract page guardrail text.
+- `tests/python/desktop/test_application_facade_local_api.py` verifies the live Local API contract exposes the same design-only dry-run/rollback/source-policy fields.
 
 Future implementation must add route-level negative tests, command-journal tests, rollback failure tests, browser no-mutation tests, and source/payload/output hash checks before any control is considered daily-driver safe.
+

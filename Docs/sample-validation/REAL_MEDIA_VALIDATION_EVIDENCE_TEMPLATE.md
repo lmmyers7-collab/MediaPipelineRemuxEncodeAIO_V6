@@ -4,7 +4,7 @@ Copy this template when running a real sample batch through the pipeline to docu
 
 This is operator evidence. It does not automatically accept, clear failures, drain pending publish, rewrite manifests, or mark jobs complete. All pipeline decisions remain backend-owned.
 
-For the full validation procedure and sample selection guidance, see `Docs/sample-validation/V5_REAL_MEDIA_VALIDATION_PLAYBOOK.md`.
+For the full validation procedure and sample selection guidance, see `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`.
 
 ---
 
@@ -15,7 +15,7 @@ For the full validation procedure and sample selection guidance, see `Docs/sampl
 | Date / Time | |
 | Operator | |
 | Machine | |
-| V6 workspace path | |
+| Workspace path | |
 | Launch surface | ApiAndBrowser / Tauri WebView2 shell |
 | Bundled Python version | |
 | Bundled PowerShell version | |
@@ -28,7 +28,7 @@ Complete before starting the pipeline.
 
 | Check | Status | Notes |
 |---|---|---|
-| V5 external fallback identified if needed | [ ] | |
+| External rollback workspace identified if needed | [ ] | |
 | WebView backend refresh shows no payload failures | [ ] | |
 | Close readiness understood | [ ] | |
 | Saved settings posture visible in Settings / Home | [ ] | |
@@ -247,7 +247,8 @@ A new validation run is warranted after any change to FFmpeg arguments, routing 
 
 ## See Also
 
-- Full validation procedure: `Docs/sample-validation/V5_REAL_MEDIA_VALIDATION_PLAYBOOK.md`
+- Full validation procedure: `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`
 - Sample validation record flow: WebView Home → Validation Log
-- Runtime artifact paths: `Docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md`
-- Failure triage: `Docs/operator/FAILURE_TRIAGE_WORKSHEET.md`
+- Runtime artifact paths: `docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md`
+- Failure triage: `docs/operator/FAILURE_TRIAGE_WORKSHEET.md`
+

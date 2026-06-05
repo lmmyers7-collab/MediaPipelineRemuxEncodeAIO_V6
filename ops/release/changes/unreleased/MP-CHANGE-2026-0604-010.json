@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0604-010",
+  "title": "Clarify Settings decision preview fallback wording",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-04",
+  "date_completed": "2026-06-04",
+  "summary": "Change the Settings Decision Preview fallback label from UNKNOWN to NOT EVALUATED.",
+  "reason": "The Settings surface does not evaluate source-specific copy/remux/encode routing, so UNKNOWN looked like an error instead of a deliberate no-source-preview state.",
+  "affected_areas": [
+    "webview",
+    "settings",
+    "tauri_shell"
+  ],
+  "behavior_before": "Settings Decision Preview displayed UNKNOWN before any source-specific backend pipeline-plan preview was available.",
+  "behavior_after": "Settings Decision Preview displays NOT EVALUATED for the same read-only, no-source-specific-preview state.",
+  "files_touched": [
+    "apps/desktop/webview/static/partials/page-settings.html",
+    "apps/desktop/webview/static/assets/settings/patchReview.js",
+    "apps/desktop/tauri/src-tauri/src/lib.rs",
+    "tests/python/desktop/test_webview_handbrake_settings_ui.py",
+    "tests/python/desktop/test_tauri_shell_scaffold.py",
+    "ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-010.json",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-settings.html.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settings/patchReview.js.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/lib.rs.md",
+    "docs/generated/summaries/tests/python/desktop/test_webview_handbrake_settings_ui.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_tauri_shell_scaffold.py.md",
+    "docs/generated/summaries/ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-010.json.md"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_webview_handbrake_settings_ui.py assertion for NOT EVALUATED fallback wording",
+    "tests/python/desktop/test_tauri_shell_scaffold.py assertion for NOT EVALUATED shell scaffold wording"
+  ],
+  "manual_validation": [
+    "rg -n 'settings-handbrake-decision.*UNKNOWN|setText\\(\"settings-handbrake-decision\", \"UNKNOWN\"|id=\"settings-handbrake-decision\">UNKNOWN' DesktopApp app tests ops/scripts/smoke -- no matches",
+    "node --check apps/desktop/webview/static/assets/settings/patchReview.js -- passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest DesktopApp.tests.test_webview_handbrake_settings_ui -q -- passed, 27 tests",
+    "apps/desktop/runtime/Python/python.exe -m unittest DesktopApp.tests.test_tauri_shell_scaffold.TauriShellScaffoldTests.test_tauri_shell_validates_backend_served_webview_before_opening_window -q -- passed, 1 test",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/refresh_summaries.py --paths <touched files> -- passed, 6 written"
+  ],
+  "rollback_plan": "Revert the Settings fallback wording in the WebView partial, patch-review reset path, Tauri shell scaffold snippets, focused static assertion, summaries, and this packet.",
+  "related_changes": [],
+  "notes": "UI wording only. This does not change backend settings persistence, queue mutation, routing policy, FFmpeg/subtitle/audio behavior, pending publish drain, source/scratch/output movement, cleanup behavior, or source media files. A broader DesktopApp.tests.test_tauri_shell_scaffold run was attempted and failed on unrelated pre-existing route-contract and Maintenance/Reports smoke wording expectations."
+}
+

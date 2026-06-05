@@ -2,7 +2,7 @@
 
 Date: 2026-05-14
 
-Documents every log file, state file, and runtime artifact produced by MediaPipelineRemuxEncodeAIO V5: path pattern, producer service, WebView reader (if any), safe interpretation notes, and staleness behavior. Source: `contracts/`, `services/service_process_*.py`, `services/service_path_*.py`, `services/service_status_*.py`.
+Documents every log file, state file, and runtime artifact produced by MediaPipelineRemuxEncodeAIO: path pattern, producer service, WebView reader (if any), safe interpretation notes, and staleness behavior. Source: `contracts/`, `services/service_process_*.py`, `services/service_path_*.py`, `services/service_status_*.py`.
 
 Path notation: `{local_base}` is the configured LocalBase (scratch root). `{state_root}` = `{local_base}/State`. `{app_root}` is the DesktopApp installation directory.
 
@@ -246,7 +246,8 @@ Path notation: `{local_base}` is the configured LocalBase (scratch root). `{stat
 
 ## See Also
 
-- State schema reference: `Docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md`
-- Diagnostics target allowlist: `Docs/archive/completed-audits/DIAGNOSTICS_TARGET_ALLOWLIST_AUDIT.md`
-- Operator failure triage: `Docs/operator/FAILURE_TRIAGE_WORKSHEET.md`
-- Completed/Pending failure playbook: `Docs/operator/COMPLETED_PENDING_FAILURE_PLAYBOOK.md`
+- State schema reference: `docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md`
+- Diagnostics target allowlist: `docs/archive/completed-audits/DIAGNOSTICS_TARGET_ALLOWLIST_AUDIT.md`
+- Operator failure triage: `docs/operator/FAILURE_TRIAGE_WORKSHEET.md`
+- Completed/Pending failure playbook: `docs/operator/COMPLETED_PENDING_FAILURE_PLAYBOOK.md`
+

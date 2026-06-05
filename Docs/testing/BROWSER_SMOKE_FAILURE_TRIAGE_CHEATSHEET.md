@@ -2,7 +2,7 @@
 
 Date: 2026-05-14
 
-Quick reference for interpreting browser-backed WebView smoke failures. For the full runbook, see `Docs\testing\BROWSER_SMOKE_TEST_RUNBOOK.md`.
+Quick reference for interpreting browser-backed WebView smoke failures. For the full runbook, see `docs\testing\BROWSER_SMOKE_TEST_RUNBOOK.md`.
 
 ---
 
@@ -75,14 +75,14 @@ Test-Path "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 
 **Check**:
 ```powershell
-$python = "DesktopApp\Runtime\Python\python.exe"
-& $python -c "import mediapipeline_desktop_app; print('ok')"
+$python = "apps\desktop\runtime\Python\python.exe"
+& $python -c "import mediapipeline.desktop; print('ok')"
 ```
 
 **Sub-causes**:
-- Bundled Python not resolved correctly (check wrapper uses `DesktopApp\Runtime\Python\python.exe`)
+- Bundled Python not resolved correctly (check wrapper uses `apps\desktop\runtime\Python\python.exe`)
 - Another process using the same port range (smokes allocate a free port; port conflicts are rare but possible)
-- Backend module import error (run `python -m mediapipeline_desktop_app.local_api_main --help`)
+- Backend module import error (run `python -m mediapipeline.desktop.local_api_main --help`)
 
 ---
 
@@ -206,7 +206,7 @@ A browser smoke failure means the WebView UI assertion failed — it does not me
 - Live telemetry (fixture payloads only)
 - Network lifecycle control (coordinator/worker start/stop)
 
-For real-media behavior, use `V5_REAL_MEDIA_VALIDATION_PLAYBOOK.md`.
+For real-media behavior, use `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`.
 
 ---
 
@@ -257,9 +257,9 @@ Added triage entries for three newer browser smokes (`SampleValidation`, `HomeLi
 
 ```
 Task ID: CLN3-027
-Files inspected: Docs\testing\BROWSER_SMOKE_FAILURE_TRIAGE_CHEATSHEET.md, Docs\testing\BROWSER_SMOKE_TEST_RUNBOOK.md, DesktopApp\tests\test_webview_browser_launch_queue_readiness_smoke.py (reference)
-Files changed: Docs\testing\BROWSER_SMOKE_FAILURE_TRIAGE_CHEATSHEET.md (3 smoke entries added to "Which Smoke Covers What"; Launch/Queue readiness detail section added)
-Validation: Select-String -Path Docs\testing\BROWSER_SMOKE_FAILURE_TRIAGE_CHEATSHEET.md -Pattern "LaunchQueue|Launch/Queue|validation record|worksheet"
+Files inspected: docs\testing\BROWSER_SMOKE_FAILURE_TRIAGE_CHEATSHEET.md, docs\testing\BROWSER_SMOKE_TEST_RUNBOOK.md, tests\python\desktop\test_webview_browser_launch_queue_readiness_smoke.py (reference)
+Files changed: docs\testing\BROWSER_SMOKE_FAILURE_TRIAGE_CHEATSHEET.md (3 smoke entries added to "Which Smoke Covers What"; Launch/Queue readiness detail section added)
+Validation: Select-String -Path docs\testing\BROWSER_SMOKE_FAILURE_TRIAGE_CHEATSHEET.md -Pattern "LaunchQueue|Launch/Queue|validation record|worksheet"
 Findings: Cheatsheet was missing entries for 3 newer smokes. Added triage guidance. No generic failure categories changed.
 Open questions: None.
 Risk: Low — documentation only.
@@ -269,9 +269,9 @@ Risk: Low — documentation only.
 
 ## See Also
 
-- `Docs\testing\BROWSER_SMOKE_TEST_RUNBOOK.md` — full prerequisites, invocation, and interpretation
-- `Docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md` — explicit mutation boundary guarantees
-- `Docs\inventories\WEBVIEW_DOM_ID_INVENTORY.md` — DOM ID to JS file mapping for selector debugging
+- `docs\testing\BROWSER_SMOKE_TEST_RUNBOOK.md` — full prerequisites, invocation, and interpretation
+- `docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md` — explicit mutation boundary guarantees
+- `docs\inventories\WEBVIEW_DOM_ID_INVENTORY.md` — DOM ID to JS file mapping for selector debugging
 
 ---
 
@@ -279,10 +279,11 @@ Risk: Low — documentation only.
 
 ```
 Task ID: CLN-025
-Files inspected: Docs\testing\BROWSER_SMOKE_TEST_RUNBOOK.md, Docs\testing\WEBVIEW_SMOKE_TEST_CATALOG.md
-Files changed: Docs\testing\BROWSER_SMOKE_FAILURE_TRIAGE_CHEATSHEET.md (created)
+Files inspected: docs\testing\BROWSER_SMOKE_TEST_RUNBOOK.md, docs\testing\WEBVIEW_SMOKE_TEST_CATALOG.md
+Files changed: docs\testing\BROWSER_SMOKE_FAILURE_TRIAGE_CHEATSHEET.md (created)
 Validation: Cross-referenced with BROWSER_SMOKE_TEST_RUNBOOK.md failure interpretation section.
 Findings: All failure categories from the runbook are represented. Skip vs fail distinction documented. Per-smoke first-check column added.
 Open questions: None.
 Risk: Low — documentation only.
 ```
+

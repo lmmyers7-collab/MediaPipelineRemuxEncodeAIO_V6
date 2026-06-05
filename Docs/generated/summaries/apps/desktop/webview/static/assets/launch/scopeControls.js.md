@@ -1,0 +1,14 @@
+---
+file: apps/desktop/webview/static/assets/launch/scopeControls.js
+pipeline_stage: n/a
+token_priority: medium
+owner_domain: webview
+last_modified: 2026-06-04
+last_reviewed: 2026-06-04
+sha256: 7fcacd5ed6f644774c193653386002eca6255eeb1f79f2cc58a0ee39e933dfb7
+---
+# `apps/desktop/webview/static/assets/launch/scopeControls.js`
+
+**Purpose:** (unparsed)
+
+_Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/launch/scopeControls.js`._

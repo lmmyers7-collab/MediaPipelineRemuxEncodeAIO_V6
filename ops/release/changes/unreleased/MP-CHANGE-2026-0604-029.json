@@ -1,0 +1,60 @@
+{
+  "id": "MP-CHANGE-2026-0604-029",
+  "title": "Home dashboard next queue panels",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "medium",
+  "date_started": "2026-06-04",
+  "date_completed": "2026-06-04",
+  "summary": "Redesign the Home daily-use panels by replacing At A Glance with Next 5 Videos, making Run Progress visible, and keeping Recently Completed directly below progress.",
+  "reason": "The old At A Glance queue preview could surface recently completed or non-runnable rows beside current progress, which was confusing for operator triage.",
+  "affected_areas": [
+    "WebView Home dashboard",
+    "WebView Home tests",
+    "WebView static assets"
+  ],
+  "behavior_before": "Home showed an At A Glance panel combining current item progress with a raw up-next slice, while Run Progress, Queue Snapshot, and Current Run were grouped behind the Advanced gate.",
+  "behavior_after": "Home shows Next 5 Videos from queue.rows filtered to operator_status Ready or Priority ready, preserves backend queue order, caps the list at five, displays Run Progress immediately after it, and leaves Queue Snapshot plus Current Run behind Advanced.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/app/home.js",
+    "apps/desktop/webview/static/assets/app/lifecycle.js",
+    "apps/desktop/webview/static/assets/styles.pages.css",
+    "apps/desktop/webview/static/partials/page-home.html",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/python/desktop/test_webview_browser_home_live_state_smoke.py",
+    "tests/python/desktop/test_webview_css_design_tokens.py",
+    "ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-029.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/home.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/lifecycle.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.pages.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-home.html.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_local_api.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_webview_browser_home_live_state_smoke.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_webview_css_design_tokens.py.md",
+    "docs/generated/summaries/ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-029.json.md"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_web_static.py::ApplicationFacadeWebStaticTests::test_home_next_queue_shows_first_five_runnable_rows_only"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_application_facade_local_api.py::LocalApiServerTests::test_local_api_serves_read_only_web_prototype -q - failed on unrelated completedView.js assertion: missing function getLastCompletedPayload",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_application_facade_web_static.py -k \"home_recent_completed or home_next_queue or dashboard_quick_controls or webview_panel_types_and_evidence_panels_are_read_only or static_page_scoped_ids\" -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_application_facade_web_static.py::ApplicationFacadeWebStaticTests::test_home_next_queue_shows_first_five_runnable_rows_only -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_webview_browser_home_live_state_smoke.py -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_webview_css_design_tokens.py -q - failed on unrelated existing CSS token issues: styles.pages.css --surface-subtle, styles.queue.css --shadow-lg, styles.queue.css raw opacity",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_webview_css_design_tokens.py::WebViewCssDesignTokenTests::test_styles_parent_imports_split_assets_first tests/python/desktop/test_webview_css_design_tokens.py::WebViewCssDesignTokenTests::test_webview_shell_has_narrow_viewport_layout -q - passed",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/validate_changes.py --require-worktree-coverage - failed: unrelated MP-CHANGE-2026-0604-032 invalid type ui_change and 10 unrelated uncovered dirty paths",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/validate_changes.py --require-worktree-coverage - final result failed: 11 unrelated uncovered dirty paths (CON; settingsView.builders.video.js; video_fields.py; and related summaries including process/control and setup validation summaries)",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/refresh_summaries.py --paths <Home touched files> - passed: 10 summaries written; packet summary refreshed after packet touch",
+    "In-app Browser against local API http://127.0.0.1:8765/ - passed: no At A Glance DOM, Home panel order Next 5 Videos > Run Progress > Recently Completed, Next 5 status 5 ready with live runnable queue rows"
+  ],
+  "rollback_plan": "Restore page-home.html At A Glance markup and the previous homeAtAGlance renderer/export wrappers, then revert the Home-specific test expectations.",
+  "related_changes": [],
+  "notes": "No backend media policy, API contract, queue generation, completed manifest, launch, publish, or filesystem mutation behavior was changed. styles.pages.css had pre-existing unrelated Settings CSS edits; this packet only uses that shared file for Home selector replacement."
+}
+

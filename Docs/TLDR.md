@@ -1,10 +1,10 @@
-# MediaPipelineRemuxEncodeAIO V6 TLDR
+# MediaPipelineRemuxEncodeAIO TLDR
 
-For code/AI work, read `CURRENT_PROJECT_STATE.md`, `..\V6_SPLIT_NOTES.md`, and `..\OPEN_WORK_CHECKLIST.md` before old audits, handoff files, or historical checklists. For documentation cleanup context, see `..\DOCS_HOUSEKEEPING_AUDIT.md`, `..\DOCS_HOUSEKEEPING_CHECKLIST.md`, and `ARCHIVED_MD_INDEX.md`.
+For code/AI work, read `CURRENT_PROJECT_STATE.md`, the archived WebView-first split notes, and `..\docs/OPEN_WORK_CHECKLIST.md` before old audits, handoff files, or historical checklists. For documentation cleanup context, see archived housekeeping notes and `ARCHIVED_MD_INDEX.md`.
 
 ## What This Is
 
-MediaPipelineRemuxEncodeAIO V6 is the active WebView-first split from the V5 transition workspace. It remains a portable Windows-first operator console for a personal Plex-style media library. It routes files through remux or encode, cleans up subtitles, normalizes incompatible audio, audits the library, manages queue priority, schedules runs, parks completed outputs when publishing is not safe, and drains parked outputs later.
+MediaPipelineRemuxEncodeAIO is the active WebView-first split from the prior transition workspace. It remains a portable Windows-first operator console for a personal Plex-style media library. It routes files through remux or encode, cleans up subtitles, normalizes incompatible audio, audits the library, manages queue priority, schedules runs, parks completed outputs when publishing is not safe, and drains parked outputs later.
 
 It is not a cloud service, metadata scraper, acquisition tool, or multi-user commercial platform.
 
@@ -12,34 +12,34 @@ It is not a cloud service, metadata scraper, acquisition tool, or multi-user com
 
 From the bundle root:
 
-1. Run `scripts\dev\start-api-and-browser.bat` for the backend-served WebView.
-2. Use `scripts\dev\start-tauri-preview.bat` when validating the native WebView2 shell.
+1. Run `ops\scripts\dev\start-api-and-browser.bat` for the backend-served WebView.
+2. Use `ops\scripts\dev\start-tauri-preview.bat` when validating the native WebView2 shell.
 3. Use the WebView for Start Continuous, Run Once, Pause, Stop, Kill + Quit, Refresh Queue, Audit, CSV Rerun, Reports Clear Retry Blockers, and Publish Parked Outputs after the relevant validation gates pass.
 4. Use **Maintenance -> Pending Publish** to inspect parked outputs, sidecars, manifest state, missing payloads, and orphan payload files before draining.
 5. Use the standalone **Rename** tab for pre/post file renaming. TV mode supports selected-order season numbering; Movie mode shows scrubbed/pipeline predictions, per-row final names, forced pipeline-name sidecars, selectable built-in scrub filters, custom negative terms, an Apply Readiness ledger, explicit large-batch render-cap wording before backend-owned apply, and an Apply Outcome Review after backend results are available.
-6. Use **Settings** sections such as **Routing**, **Video**, **Audio**, **Subtitles**, **Container**, and **Size / Bitrate Guards** to adjust processing strategy, output size checks, encode presets, audio passthrough/transcode policy, and subtitle conversion behavior. These section names are display-only; Preview Patch and Save Patch still use persisted V6 keys.
-7. Use `scripts\dev\setup.bat` when changing config paths or major settings.
-8. Use `scripts\verify-env.bat` when moving machines or troubleshooting missing tools.
+6. Use **Settings** sections such as **Routing**, **Video**, **Audio**, **Subtitles**, **Container**, and **Size / Bitrate Guards** to adjust processing strategy, output size checks, encode presets, audio passthrough/transcode policy, and subtitle conversion behavior. These section names are display-only; Preview Patch and Save Patch still use persisted current persisted keys.
+7. Use `ops\scripts\dev\setup.bat` when changing config paths or major settings.
+8. Use `ops\scripts\dev\verify-env.bat` when moving machines or troubleshooting missing tools.
 
 ## Tauri/WebView2 Shell
 
-The V6 folder no longer carries the removed desktop shell. The local API/WebView path is active here, with V5 retained externally as the rollback/fallback workspace until V6 package-mode and real-media validation are complete.
+The current folder no longer carries the removed desktop shell. The local API/WebView path is active here, with an external rollback workspace retained until package-mode and real-media validation are complete.
 
 From the bundle root:
 
 ```powershell
-.\scripts\dev\start-tauri-preview.bat -CheckOnly
-.\scripts\dev\start-tauri-preview.bat
+.\ops\scripts\dev\start-tauri-preview.bat -CheckOnly
+.\ops\scripts\dev\start-tauri-preview.bat
 ```
 
 Use `-InstallNodePackages` the first time the preview dependencies need to be installed.
 
-Preview/build/release checks prove shell and package readiness only. Before treating WebView as a daily-driver path, run the observational checklist in `sample-validation/V5_REAL_MEDIA_VALIDATION_PLAYBOOK.md` against a small known media batch and compare Queue, Completed, Diagnostics, and Pending Publish evidence.
+Preview/build/release checks prove shell and package readiness only. Before treating WebView as a daily-driver path, run the real-media pilot in `implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md` against a small known media batch and compare Queue, Completed, Diagnostics, and Pending Publish evidence.
 
 To create a timestamped run worksheet before a sample batch:
 
 ```powershell
-.\scripts\operator\New-RealMediaValidationWorksheet.ps1 `
+.\ops\scripts\operator\New-RealMediaValidationWorksheet.ps1 `
   -SamplePath "D:\Samples\Movie.mkv" "\\SERVER\TV\Show\S01E01.mkv" `
   -SampleCategory "h264-remux-safe,subtitle-bearing" `
   -ExpectedRoute "remux,remux-plus-srt" `
@@ -47,9 +47,9 @@ To create a timestamped run worksheet before a sample batch:
   -Shell "WebView preview"
 ```
 
-The worksheet helper writes Markdown evidence only under `Docs\RealMediaValidationRuns` by default. It can prefill sample category, expected route, and Queue Evidence rows from an existing queue snapshot, and includes a WebView pilot-evidence-packet capture table. It does not launch the app, process media, save settings, rename files, publish outputs, drain pending publish, mutate queue state, or touch source/output/scratch paths.
+The worksheet helper writes Markdown evidence only under `docs\RealMediaValidationRuns` by default. It can prefill sample category, expected route, and Queue Evidence rows from an existing queue snapshot, and includes a WebView pilot-evidence-packet capture table. It does not launch the app, process media, save settings, rename files, publish outputs, drain pending publish, mutate queue state, or touch source/output/scratch paths.
 
-The WebView Home Cross-Page Context panel includes a backend-owned Sample Validation Record flow. It shows backend-authored readiness guidance, stale-evidence reconciliation, a read-only real-media pilot plan, a real-media validation audit roll-up, a real-media policy-alignment roll-up, an operator sample execution checklist, generated pilot worksheet evidence from `Docs\RealMediaValidationRuns`, preview-time pilot evidence packet, preview-time append-readiness/manual-check gaps, and a manual Acceptance Checklist before append. The generated worksheet panel lists bounded Markdown worksheet rows, sample rows, pilot packet rows, and whether the currently selected sample appears in a generated worksheet. The validation audit condenses readiness, reconciliation, worksheets, category coverage, policy alignment, evidence gaps, pilot runbook, and cutover posture into one conservative status. Policy alignment maps saved Settings media-policy readiness to the H.264 remux, subtitle-to-SRT, audio routing, encode/size, and deferred-publish pilot categories before any pilot evidence is trusted. The execution checklist separates before-launch sample/policy checks, the backend-owned Launch boundary, post-run Completed/Diagnostics/Pending Publish proof, and evidence-record steps. The pilot evidence packet summarizes the proposed sample's Queue route proof, Completed output/sidecar proof, Diagnostics/run-log proof, Pending Publish posture, playback/subtitle/audio/size proof, stop conditions, and safe next action before an evidence note is recorded. The Home Real-Media Validation Worksheet now also carries Sample Validation posture beside Queue, Completed, Pending Publish, Diagnostics, and Settings evidence. Launch mirrors that worksheet in a read-only Real-Media Sample Proof Handoff, includes generated-worksheet and Sample Validation record checkpoints showing whether the selected sample has matching worksheet/record evidence, mirrors saved policy alignment against the selected/representative Queue route, and also mirrors the sample execution checklist at the start surface, so the operator sees both the post-run proof chain and the specific before/during/after sample-run checklist before starting a small sample. These panels can append evidence-only JSONL notes under `State\Validation`, but they do not mark anything accepted, clear failures, publish files, rewrite manifests/sidecars, launch work, scan arbitrary media folders, or touch media.
+The WebView Home Cross-Page Context panel includes a backend-owned Sample Validation Record flow. It shows backend-authored readiness guidance, stale-evidence reconciliation, a read-only real-media pilot plan, a real-media validation audit roll-up, a real-media policy-alignment roll-up, an operator sample execution checklist, generated pilot worksheet evidence from `docs\RealMediaValidationRuns`, preview-time pilot evidence packet, preview-time append-readiness/manual-check gaps, and a manual Acceptance Checklist before append. The generated worksheet panel lists bounded Markdown worksheet rows, sample rows, pilot packet rows, and whether the currently selected sample appears in a generated worksheet. The validation audit condenses readiness, reconciliation, worksheets, category coverage, policy alignment, evidence gaps, pilot runbook, and cutover posture into one conservative status. Policy alignment maps saved Settings media-policy readiness to the H.264 remux, subtitle-to-SRT, audio routing, encode/size, and deferred-publish pilot categories before any pilot evidence is trusted. The execution checklist separates before-launch sample/policy checks, the backend-owned Launch boundary, post-run Completed/Diagnostics/Pending Publish proof, and evidence-record steps. The pilot evidence packet summarizes the proposed sample's Queue route proof, Completed output/sidecar proof, Diagnostics/run-log proof, Pending Publish posture, playback/subtitle/audio/size proof, stop conditions, and safe next action before an evidence note is recorded. The Home Real-Media Validation Worksheet now also carries Sample Validation posture beside Queue, Completed, Pending Publish, Diagnostics, and Settings evidence. Launch mirrors that worksheet in a read-only Real-Media Sample Proof Handoff, includes generated-worksheet and Sample Validation record checkpoints showing whether the selected sample has matching worksheet/record evidence, mirrors saved policy alignment against the selected/representative Queue route, and also mirrors the sample execution checklist at the start surface, so the operator sees both the post-run proof chain and the specific before/during/after sample-run checklist before starting a small sample. These panels can append evidence-only JSONL notes under `State\Validation`, but they do not mark anything accepted, clear failures, publish files, rewrite manifests/sidecars, launch work, scan arbitrary media folders, or touch media.
 
 The WebView Launch page also includes a compact `Start Decision Summary` directly above the Pipeline Start controls. It rolls up Launch readiness, timing/schedule posture, backend preflight, Queue Launch Decision, Settings/policy state, Launch Scope Reconciliation, real-media proof, sample execution checklist, and recent Launch command evidence before the operator presses Start. It is read-only and cannot launch, save settings, drain, publish, rename, rewrite queue state, or touch media; backend start routes remain final authority.
 
@@ -97,14 +97,14 @@ The browser-backed WebView smoke tests share common Chrome/Edge discovery, gener
 
 ## New User / Deployable Package
 
-Keep your normal V6 folder personal while V5 remains the known-good external fallback. V6 can keep your live config at:
+Keep your normal current folder personal while the external rollback workspace remains the known-good fallback. The current workspace can keep your live config at:
 
-- `Pipeline\MediaPipeline_config_chatgpt.psd1`
+- `ops\pipeline\config\MediaPipeline_config_chatgpt.psd1`
 
 When you want a clean new-user package, run:
 
 ```powershell
-.\scripts\release\build.ps1 -Zip
+.\ops\scripts\release\build.ps1 -Zip
 ```
 
 The WebView Maintenance surface exposes the same release builder under **Maintenance -> Release Package**. Use **Plan Only** for a dry run; use **Build Package** after confirming destination/options.
@@ -112,13 +112,13 @@ The WebView Maintenance surface exposes the same release builder under **Mainten
 For a verified engineering handoff package:
 
 ```powershell
-.\scripts\release\build.ps1 -Zip -Verify -IncludeTests
+.\ops\scripts\release\build.ps1 -Zip -Verify -IncludeTests
 ```
 
 Default release behavior:
 
-- strips `Pipeline\MediaPipeline_config.psd1` and the legacy `Pipeline\MediaPipeline_config_chatgpt.psd1`
-- includes `Pipeline\MediaPipeline_config_template.psd1`
+- strips `ops\pipeline\config\MediaPipeline_config.psd1` and the legacy `ops\pipeline\config\MediaPipeline_config_chatgpt.psd1`
+- includes `ops\pipeline\config\MediaPipeline_config_template.psd1`
 - includes the release builder and release self-test scripts
 - excludes logs, app state, run logs, config backups, Python bytecode, assistant metadata, and dev-only checklist docs
 - excludes local Tauri/WebView2 build artifacts such as `node_modules`, `src-tauri\gen`, and Rust `target`
@@ -130,17 +130,17 @@ Use `-IncludeOptionalTools` or `-IncludeToolDocs` only for a fuller maintenance 
 
 ## Important Paths
 
-- Local API/WebView app: `DesktopApp\mediapipeline_desktop_app`
-- Backend pipeline: `Pipeline\MediaPipeline.ps1`
-- Config wizard: `Pipeline\Setup-MediaPipeline.ps1`
-- Live config: `Pipeline\MediaPipeline_config_chatgpt.psd1`
-- New-user template: `Pipeline\MediaPipeline_config_template.psd1`
-- PowerShell engine implementations: `engine\<domain>`
+- Local API/WebView app: `src\mediapipeline\desktop`
+- Backend pipeline: `ops\pipeline\entrypoints\MediaPipeline.ps1`
+- Config wizard: `ops\pipeline\config\setup.ps1`
+- Live config: `ops\pipeline\config\MediaPipeline_config_chatgpt.psd1`
+- New-user template: `ops\pipeline\config\MediaPipeline_config_template.psd1`
+- PowerShell engine implementations: `ops\pipeline\engine\<domain>`
 - Removed legacy shim surface: `Pipeline\Modules`
-- Tests: `Pipeline\Tests`
-- Bundled PowerShell: `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe`
-- Bundled Python: `DesktopApp\Runtime\Python\python.exe`
-- Bundled tools: `Pipeline\Tools`
+- Tests: `ops\pipeline\tests`
+- Bundled PowerShell: `ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe`
+- Bundled Python: `apps\desktop\runtime\Python\python.exe`
+- Bundled tools: `ops\pipeline\tools`
 
 ## Runtime State
 
@@ -169,34 +169,34 @@ The desktop **Maintenance -> Pending Publish** tab is the quickest way to inspec
 - Output destination low-space parking is not counted as a real processing failure.
 - BDPGS OCR is optional and depends on PgsToSrt plus tessdata.
 - Audio policy supports named passthrough profiles, transcode codec/bitrate, downmix mode, max channels, default language preferences, and explicit no-audio opt-in.
-- The V6 WebView Settings workspace exposes backend-authored media-policy readiness rows for saved route/size, subtitle, audio, pending publish, and source-preservation posture; this is read-only and does not replace backend Preview/Save or Launch validation.
-- The V6 WebView Settings patch editor shows a Staged Media Policy Delta comparing current saved values against the local Changes JSON candidate across routing, video, subtitles, audio, publish safety, runtime, and network posture before backend Preview/Save; Launch unsaved-settings warnings echo that status while still using saved backend settings only.
-- The V6 WebView Settings patch editor shows a Backend Preview / Save Result handoff with selectable row details, so operators can inspect whether backend preview/save evidence matches the current staged Changes JSON, including warnings, errors, redacted diff, risk summary, backup path, and reload proof before trusting a config edit.
-- The V6 WebView Completed page has a manual Backend Publish Reconciliation panel. It asks the backend to correlate Completed Manifest rows with current Pending Publish rows and the latest durable drain summary, but it remains read-only and cannot mark done, repair, drain, publish, rewrite manifests, or touch media.
+- The current WebView Settings workspace exposes backend-authored media-policy readiness rows for saved route/size, subtitle, audio, pending publish, and source-preservation posture; this is read-only and does not replace backend Preview/Save or Launch validation.
+- The current WebView Settings patch editor shows a Staged Media Policy Delta comparing current saved values against the local Changes JSON candidate across routing, video, subtitles, audio, publish safety, runtime, and network posture before backend Preview/Save; Launch unsaved-settings warnings echo that status while still using saved backend settings only.
+- The current WebView Settings patch editor shows a Backend Preview / Save Result handoff with selectable row details, so operators can inspect whether backend preview/save evidence matches the current staged Changes JSON, including warnings, errors, redacted diff, risk summary, backup path, and reload proof before trusting a config edit.
+- The current WebView Completed page has a manual Backend Publish Reconciliation panel. It asks the backend to correlate Completed Manifest rows with current Pending Publish rows and the latest durable drain summary, but it remains read-only and cannot mark done, repair, drain, publish, rewrite manifests, or touch media.
 - Reports Clear Retry Blockers is constrained to backend failure markers, writes a clear manifest, and moves marker JSON out of the active marker folder so the next queue build can retry those sources.
 - Kill + Quit verifies process-tree termination and clears known runtime control/progress artifacts.
 
 ## Fast Checks
 
 ```powershell
-.\scripts\verify-env.bat
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\release\test.ps1
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Invoke-ReliabilityRegressionChecks.ps1
-.\Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\Pipeline\Tests\Invoke-ToolIntegrationChecks.ps1
+.\ops\scripts\dev\verify-env.bat
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\scripts\release\test.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Invoke-ReliabilityRegressionChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Invoke-ToolIntegrationChecks.ps1
 ```
 
-`Invoke-ReliabilityRegressionChecks.ps1` is the active V6 compatibility wrapper: it runs WebView/backend checks by default and only runs archived legacy desktop-shell checks when explicitly invoked with `-RunLegacyDesktopChecks`.
+`Invoke-ReliabilityRegressionChecks.ps1` is the active compatibility wrapper: it runs WebView/backend checks by default and only runs archived legacy desktop-shell checks when explicitly invoked with `-RunLegacyDesktopChecks`.
 
-Use `scripts\dev\start-local-api.bat` or `scripts\dev\start-api-and-browser.bat` when the WebView will not open and you need backend import/startup errors to stay visible.
+Use `ops\scripts\dev\start-local-api.bat` or `ops\scripts\dev\start-api-and-browser.bat` when the WebView will not open and you need backend import/startup errors to stay visible.
 
-For operator terminology, see `Docs/operator/OPERATOR_GLOSSARY.md`. For the ordered validation ladder (what to run before treating WebView as a production path), see `Docs/testing/VALIDATION_LADDER_RUNBOOK.md`. When investigating a pipeline failure, start with `Docs/operator/FAILURE_TRIAGE_WORKSHEET.md` to capture evidence before taking recovery actions.
+For operator terminology, see `docs/operator/OPERATOR_GLOSSARY.md`. For the ordered validation ladder (what to run before treating WebView as a production path), see `docs/testing/VALIDATION_LADDER_RUNBOOK.md`. When investigating a pipeline failure, start with `docs/operator/FAILURE_TRIAGE_WORKSHEET.md` to capture evidence before taking recovery actions.
 
-For browser/Tauri backend work, use `scripts\dev\start-local-api.bat`. It starts the token-protected localhost API without opening the browser or native shell.
+For browser/Tauri backend work, use `ops\scripts\dev\start-local-api.bat`. It starts the token-protected localhost API without opening the browser or native shell.
 
 For the WebView command-evidence runtime smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewCommandEvidenceSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewCommandEvidenceSmoke.ps1
 ```
 
 This starts a temporary local API, evaluates backend-served WebView JavaScript with mocked DOM state, and verifies shared command owner/issue evidence across daily-use panels. It also verifies selected-command owner live-state handoff against cached Queue/Completed/Pending Publish evidence and Pending Publish drain guard state before retry guidance. It does not launch, process media, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths.
@@ -204,7 +204,7 @@ This starts a temporary local API, evaluates backend-served WebView JavaScript w
 For the WebView rename readiness smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewRenameReadinessSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewRenameReadinessSmoke.ps1
 ```
 
 This evaluates the Rename WebView assets in Node with mocked DOM state and verifies Apply Readiness for a ready single-row scope, 260-row render-cap disclosure, and a blocked duplicate-target scope. It does not call `rename.apply`, rename files, save settings, process media, mutate queue state, or touch source/output/scratch paths.
@@ -212,7 +212,7 @@ This evaluates the Rename WebView assets in Node with mocked DOM state and verif
 For the browser-backed Rename smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewBrowserRenameSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserRenameSmoke.ps1
 ```
 
 This starts a temporary local API, opens the real backend-served WebView page in installed Chrome/Edge headless, clicks Rename preview rows and Check Applicable Rows, verifies Apply Readiness, verifies 260-row render-cap disclosure, and verifies duplicate-target apply blocking does not call `rename.apply`. It skips cleanly if Chrome/Edge is unavailable and does not process media, launch pipeline commands, publish, save settings, mutate queue state, or touch source/output/scratch paths.
@@ -220,7 +220,7 @@ This starts a temporary local API, opens the real backend-served WebView page in
 For the WebView selected-row detail runtime smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewRowDetailSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewRowDetailSmoke.ps1
 ```
 
 This starts a temporary local API, evaluates backend-served WebView JavaScript with mocked DOM selected-row state, and verifies Queue, Completed, and Pending Publish row detail plus diagnostics handoff text, including adversarial blocked/missing/do-not-drain rows. It does not launch, process media, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths.
@@ -228,7 +228,7 @@ This starts a temporary local API, evaluates backend-served WebView JavaScript w
 For the WebView schedule smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewScheduleSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewScheduleSmoke.ps1
 ```
 
 This evaluates Schedule WebView assets in Node with mocked DOM state and verifies Schedule Coverage Review, selected day detail, weekly status legend, the backend-owned Schedule Editor, staged clear behavior, preview/save command routing, and app-state-write result copy. It does not start pipeline commands, override schedule gates, mutate queue state, touch media files, or write app state from the frontend; schedule saves remain backend-owned and confirmed.
@@ -236,7 +236,7 @@ This evaluates Schedule WebView assets in Node with mocked DOM state and verifie
 For the browser-backed Schedule editor smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewBrowserScheduleSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserScheduleSmoke.ps1
 ```
 
 This starts a temporary local API, opens the real backend-served WebView in installed Chrome/Edge headless, drives Schedule Editor preview/save controls, verifies the confirmed backend app-state write is limited to schedule keys, verifies command-history ownership, and verifies Launch timing trust refreshes from the saved schedule payload. It skips cleanly if Chrome/Edge is unavailable and does not process media, launch pipeline commands, publish, rename files, save settings, mutate queue state, or touch source/output/scratch paths.
@@ -244,7 +244,7 @@ This starts a temporary local API, opens the real backend-served WebView in inst
 For the browser-backed backend lifecycle smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewBrowserLifecycleSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserLifecycleSmoke.ps1
 ```
 
 This starts temporary local API instances, opens the real backend-served WebView in installed Chrome/Edge headless, verifies watcher-armed close-readiness disables backend shutdown without confirmation/backend POST, verifies terminal stop-requested watcher evidence stays visible without blocking safe close, and verifies safe close-readiness posts the backend-owned shutdown request only after confirmation. It skips cleanly if Chrome/Edge is unavailable and does not process media, launch pipeline commands, publish, rename files, save settings, mutate queue state, drain pending publish, or touch source/output/scratch paths.
@@ -252,7 +252,7 @@ This starts temporary local API instances, opens the real backend-served WebView
 For the browser-free local API lifecycle contract smoke, run:
 
 ```powershell
-.\SmokeTests\Test-LocalApiLifecycleContractSmoke.ps1
+.\ops/scripts/smoke\Test-LocalApiLifecycleContractSmoke.ps1
 ```
 
 This starts temporary token-protected local API instances and validates close-readiness plus backend-shutdown route contracts for safe and watcher-blocked states. The safe state can request shutdown; the watcher-blocked state must return a backend-authored failure instead of scheduling shutdown. It does not open a browser, process media, launch pipeline commands, publish, rename files, save settings, mutate queue state, drain pending publish, or touch source/output/scratch paths.
@@ -260,15 +260,15 @@ This starts temporary token-protected local API instances and validates close-re
 For the browser-free local API Maintenance dry-run contract smoke, run:
 
 ```powershell
-.\SmokeTests\Test-LocalApiMaintenanceDryRunContractSmoke.ps1
+.\ops/scripts/smoke\Test-LocalApiMaintenanceDryRunContractSmoke.ps1
 ```
 
-This starts a temporary token-protected local API and executes only the backend-owned Maintenance release/backfill dry-run POST routes. It validates token enforcement, command history, no release manifest/zip output, no completed-manifest rewrite, and unchanged temp source/output bytes.
+This starts a temporary token-protected local API and executes only the backend-owned Maintenance ops/release/metadata/backfill dry-run POST routes. It validates token enforcement, command history, no release manifest/zip output, no completed-manifest rewrite, and unchanged temp source/output bytes.
 
 For the browser-free local API Sample Validation contract smoke, run:
 
 ```powershell
-.\SmokeTests\Test-LocalApiSampleValidationContractSmoke.ps1
+.\ops/scripts/smoke\Test-LocalApiSampleValidationContractSmoke.ps1
 ```
 
 This starts a temporary token-protected local API and exercises only the sample-validation preview/append/read routes plus the allowlisted diagnostics tail for the validation log. It validates strict JSON handling, token enforcement, current-backend-evidence preview, command history, and temp-only validation-log writes without accepting outputs, clearing failures, publishing, launching, probing media, or touching source/output/scratch paths.
@@ -276,7 +276,7 @@ This starts a temporary token-protected local API and exercises only the sample-
 For the browser-backed high-risk row smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewBrowserHighRiskSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserHighRiskSmoke.ps1
 ```
 
 This starts a temporary local API, opens the real backend-served WebView page in installed Chrome/Edge headless, and validates injected plus backend-produced blocked Queue, broken Completed, and do-not-drain Pending Publish selected-row guidance. It skips cleanly if Chrome/Edge is unavailable and does not launch, process media, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths.
@@ -284,7 +284,7 @@ This starts a temporary local API, opens the real backend-served WebView page in
 For the browser-backed diagnostics handoff smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1
 ```
 
 This starts a temporary local API, opens the real backend-served WebView page in installed Chrome/Edge headless, clicks actual Queue/Completed/Pending table rows, verifies selected-row investigation signals/current-filter visibility, verifies text/status/investigation table filters warn when blocked/warning rows are hidden, verifies local clear-filter buttons restore selected-row visibility, clicks read-only diagnostics bridge, bounded tail, and allowlisted open controls, validates Diagnostics ActiveJobs active/malformed row detail plus stale runtime-progress guidance, validates Diagnostics State Artifact Summary read-order/artifact detail, validates selected-row detail plus diagnostics.open command-result feedback, verifies Diagnostics `Go To Owner Row` handoff navigation for Queue, Completed, and Pending Publish without backend commands, and verifies the API Contract Safety Review summary/detail from `/api/contract`. It skips cleanly if Chrome/Edge is unavailable and does not launch, process media, publish, rename, save settings, mutate queue state, post command routes from the contract safety panel, or touch source/output/scratch paths.
@@ -292,7 +292,7 @@ This starts a temporary local API, opens the real backend-served WebView page in
 For the browser-backed Pending Publish drain guard smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewBrowserPendingDrainGuardSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserPendingDrainGuardSmoke.ps1
 ```
 
 This starts a temporary local API, opens the real backend-served WebView page in installed Chrome/Edge headless, injects a backend-shaped blocked recovery dry-run result, verifies the final Publish Button Guard refreshes immediately, clicks `Publish Parked Outputs`, and proves the blocked click records local `frontend_guard` evidence without posting `/api/pipeline/start` or asking for confirmation. It skips cleanly if Chrome/Edge is unavailable and does not launch, process media, drain pending publish, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths.
@@ -300,7 +300,7 @@ This starts a temporary local API, opens the real backend-served WebView page in
 For the browser-backed Completed/Pending proof smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewBrowserCompletedPendingProofSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserCompletedPendingProofSmoke.ps1
 ```
 
 This starts a temporary local API, opens the real backend-served WebView page in installed Chrome/Edge headless, verifies Completed-to-Pending proof detail for exact completed-output to pending-destination overlap, verifies selected Pending row Completed Manifest correlation, verifies the Completed saved-policy reconciliation and Sample Validation handoff checkpoints, verifies missing-output-without-proof blocker detail, and confirms same-leaf proof remains duplicate-title guidance rather than publish proof. It skips cleanly if Chrome/Edge is unavailable and does not append validation records, launch, process media, drain pending publish, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths.
@@ -308,7 +308,7 @@ This starts a temporary local API, opens the real backend-served WebView page in
 For the browser-backed large daily-table smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewBrowserLargeTableSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserLargeTableSmoke.ps1
 ```
 
 This starts a temporary local API, opens the real backend-served WebView page in installed Chrome/Edge headless, injects 260-row Queue, Completed, and Pending Publish payloads, verifies the 250-row render cap, verifies filter warnings when blocked/warning rows are hidden, verifies Queue Launch Decision, Completed Output Acceptance, and Pending Publish Drain Decision daily-use handoff wording plus scope boundaries, verifies hidden selected-row detail and Selected Row At A Glance strips remain visible, and proves no mutation routes are posted. It skips cleanly if Chrome/Edge is unavailable and does not launch, process media, drain pending publish, publish, rerun, rename, save settings, mutate queue state, or touch source/output/scratch paths.
@@ -320,7 +320,7 @@ Selected-row details also show whether the active text/status/investigation filt
 For the browser-backed Maintenance/Reports smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewBrowserMaintenanceReportsSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserMaintenanceReportsSmoke.ps1
 ```
 
 This starts a temporary local API, opens the real backend-served WebView page in installed Chrome/Edge headless, verifies Maintenance health/readiness, release dry-run result rendering, completed-manifest backfill dry-run result rendering, dry-run history, Reports failure/audit triage, selected-row details, and read-only Launch/Diagnostics handoff navigation. It skips cleanly if Chrome/Edge is unavailable and does not launch, process media, run audit, run CSV rerun, execute release packaging, rewrite completed manifests, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths.
@@ -328,7 +328,7 @@ This starts a temporary local API, opens the real backend-served WebView page in
 For the browser-backed Sample Validation smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewBrowserSampleValidationSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserSampleValidationSmoke.ps1
 ```
 
 This starts a temporary local API, opens the real backend-served WebView page in installed Chrome/Edge headless, verifies Home Sample Validation pilot checkpoint/attention/readiness/reconciliation text plus the real-media validation audit and policy-alignment roll-ups, verifies the Completed saved-policy reconciliation handoff before Preview/Append, fills manual acceptance-checklist items, executes only the backend-owned Preview Record route, verifies current-evidence plus append-readiness/manual-check gap rendering, and confirms no append or mutation routes are posted. It skips cleanly if Chrome/Edge is unavailable and does not append validation records, accept outputs, clear failures, launch, process media, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths.
@@ -336,7 +336,7 @@ This starts a temporary local API, opens the real backend-served WebView page in
 For the browser-backed Home live-state smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewBrowserHomeLiveStateSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserHomeLiveStateSmoke.ps1
 ```
 
 This starts a temporary local API with generated temporary media state, generated active-progress state, a generated ActiveJobs record, and a generated command journal, opens the real backend-served WebView page in installed Chrome/Edge headless, verifies Daily-Driver Checklist, Operator Readiness, Active Work, Live Progress Details/Evidence, Diagnostics runtime progress, Command Results, Sample Validation posture, and the Real-Media Validation Worksheet handoff, and confirms rendering sends no POST routes. It skips cleanly if Chrome/Edge is unavailable and does not append validation records, accept outputs, clear failures, launch, process media, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths.
@@ -344,7 +344,7 @@ This starts a temporary local API with generated temporary media state, generate
 For the browser-backed Launch/Queue readiness smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1
 ```
 
 This starts a temporary local API with generated temporary media state and generated launch command history, opens the real backend-served WebView page in installed Chrome/Edge headless, verifies Launch preflight, Launch Scope Reconciliation, Launch Real-Media Sample Proof Handoff, Queue Launch Decision, Schedule guidance/timing trust, close-readiness, launch command-review correlation, and confirms no POST routes are sent. It skips cleanly if Chrome/Edge is unavailable and does not launch, process media, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths.
@@ -352,7 +352,7 @@ This starts a temporary local API with generated temporary media state and gener
 For the browser-backed layout-manager smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewBrowserLayoutManagerSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserLayoutManagerSmoke.ps1
 ```
 
 This starts a temporary local API with generated temporary media state, opens the real backend-served WebView page in installed Chrome/Edge headless, opens the Layout Editor drawer, and verifies representative Queue, Completed, Settings, Diagnostics, Launch, and Reports tab/subtab/subsection boxes are listed, locally reorderable, previewable, hideable/gateable, and scoped-resettable without exposing inactive subtabs inline. It skips cleanly if Chrome/Edge is unavailable and does not launch, process media, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, post mutation routes, or touch source/output/scratch paths.
@@ -360,7 +360,7 @@ This starts a temporary local API with generated temporary media state, opens th
 For the browser-backed Network smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewBrowserNetworkSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserNetworkSmoke.ps1
 ```
 
 This starts a temporary local API, opens the real backend-served WebView page in installed Chrome/Edge headless, verifies read-only Network readiness, renders backend-authored runtime state-file evidence, renders persisted worker rows, selects state-file and worker detail, and verifies local worker filters warn when active/problem rows are hidden. It skips cleanly if Chrome/Edge is unavailable and does not start/stop coordinator or workers, process media, launch pipeline commands, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths.
@@ -368,7 +368,7 @@ This starts a temporary local API, opens the real backend-served WebView page in
 For the browser-backed Live telemetry smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewBrowserTelemetrySmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserTelemetrySmoke.ps1
 ```
 
 This starts a temporary local API, opens the real backend-served WebView page in installed Chrome/Edge headless, verifies zero-percent NVENC remains visible without duplicate idle wording, verifies top-level GPU telemetry can synthesize a GPU detail row, and verifies CPU/RAM-only fallback wording. It uses fixture telemetry; it does not sample the local GPU, process media, launch pipeline commands, publish, rename, save settings, mutate queue state, or touch source/output/scratch paths.
@@ -376,7 +376,7 @@ This starts a temporary local API, opens the real backend-served WebView page in
 For the WebView Settings/Launch media-policy handoff smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewSettingsLaunchPolicySmoke.ps1
+.\ops/scripts/smoke\Test-WebViewSettingsLaunchPolicySmoke.ps1
 ```
 
 This uses generated temporary state and validates read-only WebView visibility only. It does not launch pipeline work, process media, publish, rename, save settings, or mutate source/output/scratch paths.
@@ -384,7 +384,7 @@ This uses generated temporary state and validates read-only WebView visibility o
 For the same WebView Settings/Launch handoff against the current saved config, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewSettingsLaunchLiveConfigSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewSettingsLaunchLiveConfigSmoke.ps1
 ```
 
 This starts a temporary local API, reads the current config, and reports backend media-policy readiness. It is still read-only and does not launch work, save settings, publish, rename, or process media.
@@ -392,7 +392,7 @@ This starts a temporary local API, reads the current config, and reports backend
 For the WebView Settings Preview/Save evidence smoke against a generated temporary config, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewSettingsPatchEvidenceSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewSettingsPatchEvidenceSmoke.ps1
 ```
 
 This proves backend Preview Patch, denied Save Patch, confirmed Save Patch, reload evidence, and command history without touching the current saved config or media.
@@ -400,9 +400,11 @@ This proves backend Preview Patch, denied Save Patch, confirmed Save Patch, relo
 For the browser-backed Settings-to-Launch smoke, run:
 
 ```powershell
-.\SmokeTests\Test-WebViewBrowserSettingsLaunchSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserSettingsLaunchSmoke.ps1
 ```
 
 This starts a temporary local API, opens the real backend-served WebView in installed Chrome/Edge headless, drives Settings and Launch controls, verifies staged settings patch handoff and Settings-to-Launch intent, verifies selectable Launch Risk Handoff proof-chain detail, verifies Launch intent exposes Queue display-scope evidence when filters hide blocked rows, verifies Preview Patch is called, cancels Save Patch, confirms the cancellation is visible, and verifies Save Patch is not posted. It skips cleanly if Chrome/Edge is unavailable and does not save settings, process media, launch pipeline commands, publish, rename files, mutate queue state, or touch source/output/scratch paths.
 
-For a full catalog of smoke wrappers, scope limits, and what smokes do not prove, see `Docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`.
+For a full catalog of smoke wrappers, scope limits, and what smokes do not prove, see `docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`.
+
+

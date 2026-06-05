@@ -2,7 +2,7 @@
 
 Date: 2026-05-14
 
-Documents the expected rename output for Movie and TV rename modes, covering normal cases, edge cases, confidence levels, sidecar behavior, and blocking conditions. Source: `app/rename/movie.py`, `app/rename/tv.py`, `app/rename/tv_folder.py`, `app/rename/planner.py`, `app/rename/preview.py`, `app/rename/apply.py`, and `engine/naming/naming.ps1`.
+Documents the expected rename output for Movie and TV rename modes, covering normal cases, edge cases, confidence levels, sidecar behavior, and blocking conditions. Source: `app/rename/movie.py`, `app/rename/tv.py`, `app/rename/tv_folder.py`, `app/rename/planner.py`, `app/rename/preview.py`, `app/rename/apply.py`, and `ops/pipeline/engine/naming/naming.ps1`.
 
 ---
 
@@ -22,7 +22,7 @@ Season and episode are zero-padded to 2 digits (e.g., S01E05). Episode title is 
 {Title} ({Year}).{ext}
 ```
 
-Year is omitted if no year can be extracted from the filename. Title is cleaned of all release/source/audio/service/group tags and title-cased.
+Year is omitted if no year can be extracted from the filename. Title is cleaned of all ops/release/metadata/source/audio/service/group tags and title-cased.
 
 ---
 
@@ -256,7 +256,7 @@ The Rename table renders up to 250 rows of preview results. If the backend retur
 
 ## See Also
 
-- Rename command matrix: `Docs/inventories/COMMAND_OWNERSHIP_MATRIX.md`
+- Rename command matrix: `docs/inventories/COMMAND_OWNERSHIP_MATRIX.md`
 - Rename readiness smoke: `Test-WebViewRenameReadinessSmoke.ps1`
 - Browser rename smoke: `Test-WebViewBrowserRenameSmoke.ps1`
-- Test coverage: `Docs/testing/TEST_COVERAGE_MATRIX.md`
+- Test coverage: `docs/testing/TEST_COVERAGE_MATRIX.md`

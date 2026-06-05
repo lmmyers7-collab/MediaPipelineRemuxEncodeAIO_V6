@@ -1,0 +1,57 @@
+{
+  "id": "MP-CHANGE-2026-0604-008",
+  "title": "Improve Queue File Settings drawer action feedback",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-04",
+  "date_completed": "2026-06-04",
+  "summary": "Implement the Queue file-overrides UI/UX review quick wins for action feedback, dirty-state guarding, and saved-policy clearing semantics.",
+  "reason": "The File Settings drawer placed save/clear feedback below a long scroll, allowed silent discard of typed changes, and could make neutral saved-policy selections look like a no-op instead of a field clear.",
+  "affected_areas": [
+    "webview",
+    "queue",
+    "file_overrides"
+  ],
+  "behavior_before": "Save/Clear status rendered as an uncolored note below the folder-rule panels, Escape/overlay/close discarded unsaved edits without warning, Save stayed enabled when no form changes existed, and neutral saved fields could fall into a no-op path.",
+  "behavior_after": "The drawer has a sticky action/status footer with role-aware success/error/warning/working tones, Save enables only for dirty forms, Escape/overlay/close and full Clear guard unsaved edits, and saved file-override fields that are returned to neutral send clear_fields on Save.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.js",
+    "apps/desktop/webview/static/assets/styles.queue.css",
+    "apps/desktop/webview/static/partials/page-queue.html",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/python/desktop/test_webview_browser_queue_file_overrides_smoke.py",
+    "ops/scripts/smoke/Test-WebViewBrowserQueueFileOverridesSmoke.ps1",
+    "ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-008.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/queue/fileOverrides.drawer.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.queue.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-queue.html.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_webview_browser_queue_file_overrides_smoke.py.md",
+    "docs/generated/summaries/ops/scripts/smoke/Test-WebViewBrowserQueueFileOverridesSmoke.ps1.md",
+    "docs/generated/summaries/ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-008.json.md"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_web_static.py assertions for sticky drawer action footer, semantic status tones, dirty-state helpers, discard guard, and clear-on-save helper selection",
+    "tests/python/desktop/test_webview_browser_queue_file_overrides_smoke.py",
+    "ops/scripts/smoke/Test-WebViewBrowserQueueFileOverridesSmoke.ps1"
+  ],
+  "manual_validation": [
+    "node --check apps/desktop/webview/static/assets/queue/fileOverrides.drawer.js -- passed",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_application_facade_web_static.py -q -- passed, 38 passed and 6 subtests passed",
+    "npm run webview:check -- passed",
+    "apps/desktop/runtime/Python/python.exe -m py_compile tests/python/desktop/test_webview_browser_queue_file_overrides_smoke.py -- passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest DesktopApp.tests.test_webview_browser_queue_file_overrides_smoke -q -- passed, 1 test passed",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewBrowserQueueFileOverridesSmoke.ps1 -- passed, 1 test passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/refresh_summaries.py --paths <queue drawer files, browser smoke, wrapper, packet> -- passed, 6 written and 1 unchanged",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/refresh_summaries.py --paths ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-008.json -- passed, 1 written",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/validate_changes.py -- passed, 12 packet(s) valid"
+  ],
+  "rollback_plan": "Revert the drawer footer markup/styles, status/dirty-state JavaScript helpers, browser smoke, static test assertions, and this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0604-006"
+  ],
+  "notes": "WebView-only Queue drawer interaction change. It uses the existing backend clear_fields command and does not change FFmpeg command generation, route policy, subtitle policy, audio policy, queue launch, pending publish drain, source/scratch/output movement, cleanup behavior, or source media files. Affected Python scripts: tests/python/desktop/test_application_facade_web_static.py and tests/python/desktop/test_webview_browser_queue_file_overrides_smoke.py."
+}
+

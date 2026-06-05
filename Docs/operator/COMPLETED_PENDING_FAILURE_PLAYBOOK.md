@@ -59,7 +59,7 @@ Operator guidance for diagnosing and resolving failure states in the Completed a
 
 **Safe next actions**:
 - Sidecar missing after a confirmed encode: the output is still valid; the sidecar gap is a metadata issue. Document the gap in the sample validation log via `POST /api/sample-validation/append`.
-- Sidecar schema version mismatch (older version): acceptable if the sidecar fields needed for downstream use are present. Consult `Docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md`.
+- Sidecar schema version mismatch (older version): acceptable if the sidecar fields needed for downstream use are present. Consult `docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md`.
 
 ---
 
@@ -256,8 +256,8 @@ Never skip the dry-run step before a rerun. Always confirm the destination is wr
 
 ## See Also
 
-- Diagnostics targets runbook: `Docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`
-- State schema reference: `Docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md`
-- Log artifact catalog: `Docs/inventories/LOG_ARTIFACT_CATALOG.md`
-- Failure triage worksheet: `Docs/operator/FAILURE_TRIAGE_WORKSHEET.md`
-- Manual operator test script: `Docs/operator/WEBVIEW_MANUAL_OPERATOR_TEST_SCRIPT.md`
+- Diagnostics targets runbook: `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`
+- State schema reference: `docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md`
+- Log artifact catalog: `docs/inventories/LOG_ARTIFACT_CATALOG.md`
+- Failure triage worksheet: `docs/operator/FAILURE_TRIAGE_WORKSHEET.md`
+- Manual operator test script: `docs/operator/WEBVIEW_MANUAL_OPERATOR_TEST_SCRIPT.md`

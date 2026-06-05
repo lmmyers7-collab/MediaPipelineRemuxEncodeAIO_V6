@@ -20,11 +20,11 @@ intent is worth keeping, it goes here and/or in an ADR.
   evidence. Maintenance renders the ledger with status/type/risk/search
   filters, selected change detail, affected Python-script summaries, and
   changelog hygiene guidance without running health probes or mutating files.
-- God-file split planning docs under `Docs/architecture/god-file-splits/`
-  for the highest-priority Settings, Completed, Queue, file-overrides API,
-  and network dispatcher split candidates.
+- God-file split planning docs under `docs/architecture/god-file-splits/`
+  for current high-strain backend, WebView, Tauri, CSS/partial, and
+  docs-supporting code split candidates.
 - Active naming support unit gate:
-  `Pipeline\Tests\Unit\Invoke-NamingSupportChecks.ps1` now verifies shared
+  `ops\pipeline\tests\Unit\Invoke-NamingSupportChecks.ps1` now verifies shared
   Plex movie/TV destination planning, forced rename sidecar sanitization and
   evidence, TV identity keys used by the processed-library index, and source
   identity v2 path-independence/sample-byte sensitivity.
@@ -44,13 +44,13 @@ intent is worth keeping, it goes here and/or in an ADR.
 - Phase 2 config cleanup foundation:
   `app/contracts/config.py` is now the Pydantic v2 config contract,
   `app/config/load.py` owns PSD1 import plus PSD1 serialization helpers,
-  `schemas/config.v1.schema.json` is generated from the contract, and
-  `scripts/dev/generate_config_schema.py --check` enforces schema drift.
+  `src/mediapipeline/contracts/schemas/config.v1.schema.json` is generated from the contract, and
+  `ops/scripts/dev/generate_config_schema.py --check` enforces schema drift.
 - Phase 3 stage-boundary foundation:
   `app/contracts/stages.py` is now the Pydantic v2 source for stage
   request/result contracts, `app/orchestration/runner.py` is the single
-  new Python subprocess boundary, `engine/entrypoint.ps1` accepts
-  `-Stage` plus `-PayloadJson`, and `schemas/stages.v1.schema.json` is
+  new Python subprocess boundary, `ops/pipeline/engine/entrypoint.ps1` accepts
+  `-Stage` plus `-PayloadJson`, and `src/mediapipeline/contracts/schemas/stages.v1.schema.json` is
   generated from the contract. Only the read-only `decide` stage is
   enabled in the PowerShell dispatcher in this additive slice.
 - Phase 4 tooling/state foundation:
@@ -60,16 +60,16 @@ intent is worth keeping, it goes here and/or in an ADR.
   envelopes through the generated contracts. Existing JSON state files
   and route payloads remain authoritative.
 - Phase 4 check entrypoints:
-  `scripts/dev/check_python_typing.py` runs the initial app-layer mypy
-  scope, `scripts/dev/check_powershell_analysis.ps1` runs engine-only
+  `ops/scripts/dev/check_python_typing.py` runs the initial app-layer mypy
+  scope, `ops/scripts/dev/check_powershell_analysis.ps1` runs engine-only
   PSScriptAnalyzer when installed, and the existing architecture
   guardrail script is wired into the development safety net.
 - Phase 5 drift-prevention foundation:
-  `scripts/lint-naming.py` blocks new flat facade/service/payload
+  `src/mediapipeline/tools/lint_naming.py` blocks new flat facade/service/payload
   modules, dotted `Pipeline/Modules` growth, deprecated suffixes, new
   root callers, and new top-level report/checklist Markdown. The new
   `tests/contract/` tree mirrors config/stage contract checks while the
-  legacy `DesktopApp/tests` entrypoints remain callable.
+  legacy `tests/python/desktop` entrypoints remain callable.
 - Phase 6 legacy-removal completion:
   root launcher shims, flat Python facade/service compatibility paths,
   old command-payload adapters, and `Pipeline/Modules` are no longer active
@@ -78,7 +78,7 @@ intent is worth keeping, it goes here and/or in an ADR.
   `Pipeline/Modules` files.
 - Phase 7 handoff documentation foundation:
   root `README.md` now exists as the operator entry point,
-  `Docs/DOCS_INDEX.md` points agents to `AGENTS.md` instead of old
+  `docs/DOCS_INDEX.md` points agents to `AGENTS.md` instead of old
   redirect files, and active-doc checks now fail if the canonical
   handoff docs disappear.
 - WebView split tooling and generated baselines:
@@ -92,36 +92,36 @@ intent is worth keeping, it goes here and/or in an ADR.
   final-library promotion service/WebView settings tests, and settings-libraries
   static coverage are present in the active test tree.
 - Promotion-state documentation refresh:
-  `AGENTS.md`, `README.md`, `Docs/CURRENT_PROJECT_STATE.md`,
-  `OPEN_WORK_CHECKLIST.md`, and `Docs/DOCS_INDEX.md` now treat V6
+  `AGENTS.md`, `README.md`, `docs/CURRENT_PROJECT_STATE.md`,
+  `docs/OPEN_WORK_CHECKLIST.md`, and `docs/DOCS_INDEX.md` now treat V6
   default-launcher/package-mode promotion as closed by 2026-05-30 operator
   confirmation while preserving media-policy and revalidation safety rules.
-- `Docs/RealMediaValidationRuns/README.md` records the non-sensitive
+- `docs/RealMediaValidationRuns/README.md` records the non-sensitive
   operator-attested representative real-media validation status for
   2026-05-28.
-- `scripts/dev/check_active_doc_references.py` adds a Python active-doc
+- `ops/scripts/dev/check_active_doc_references.py` adds a Python active-doc
   reference check for moved docs, archived housekeeping references,
   absolute local handoff paths, and removed legacy desktop-shell wording.
 - `CHANGELOG.md` (this file) as the single canonical changelog (ADR-0009).
-- `Docs/architecture/ARCHITECTURE.md` — short, human-maintained
+- `docs/architecture/ARCHITECTURE.md` — short, human-maintained
   architecture summary that cites the ADRs and current architecture docs.
-- `Docs/generated/PIPELINE_MAP.md` — auto-generatable index of the
+- `docs/generated/PIPELINE_MAP.md` — auto-generatable index of the
   nine canonical stages and their payload/result types from
   `app/contracts/stages.py`.
-- `Docs/generated/FILE_SUMMARIES.md` — pointer to the `summaries/`
+- `docs/generated/FILE_SUMMARIES.md` — pointer to the `docs/generated/summaries/`
   directory, the per-source-file summary scheme, and the SHA-256 drift
   rule.
-- `Docs/archive/sessions/SESSION.md` — archived session scope notes from
+- `docs/archive/sessions/docs/SESSION.md` — archived session scope notes from
   the structural cleanup workspace; current startup guidance lives in
   `AGENTS.md`.
-- `Docs/adr/` seeded with `README.md`, `0000-template.md`, and
+- `docs/adr/` seeded with `README.md`, `0000-template.md`, and
   ADRs `0001`–`0011`. ADR-0011 (V5 → V6 split) was written from the
   surviving `V6_SPLIT_NOTES.md` at the repo root; the source notes were
-  moved to `Docs/archive/v6-split-notes-2026-05-20.md` in the same
+  moved to `docs/archive/v6-split-notes-2026-05-20.md` in the same
   change so the validation evidence and live-API proof survive.
-- `Docs/audits/latest.md` capturing current known issues distilled from
+- `docs/audits/latest.md` capturing current known issues distilled from
   active architecture and status docs.
-- `scripts/release/Backup-PreOverhaul.ps1` — operator-run script that
+- `ops/scripts/ops/release/metadata/Backup-PreOverhaul.ps1` — operator-run script that
   produces a tagged source archive, a release-package copy, and a
   `LocalBase/State/` snapshot under an external `-Destination`, with
   manifest + SHA-256 evidence.
@@ -132,12 +132,12 @@ intent is worth keeping, it goes here and/or in an ADR.
 ### Changed
 
 - Architecture/operator documentation now resolves moved doc paths under
-  `Docs/architecture/` and `Docs/operator/`, removes active references to
+  `docs/architecture/` and `docs/operator/`, removes active references to
   deleted `Pipeline\Modules` compatibility surfaces, records the enabled
   read-only `probe` and `decide` stage dispatcher state, and labels the
   stale 2026-05-28 audit snapshot as historical.
 - Change-control release preview tooling now validates release version labels
-  before they are used as release/archive folder names, includes completed
+  before they are used as ops/release/metadata/archive folder names, includes completed
   `*-dev` placeholder packets in concrete-version dry-run manifests, and keeps
   the change-control runbook on the bundled Python command path.
 - Network validation inventory references now point to the active
@@ -166,25 +166,25 @@ intent is worth keeping, it goes here and/or in an ADR.
   and row data attributes, while inherited/default versus explicit override
   state is shown with simple text color across all library override subtabs.
 - `V6_SPLIT_NOTES.md` moved from repo root to
-  `Docs/archive/v6-split-notes-2026-05-20.md` (git history preserved
+  `docs/archive/v6-split-notes-2026-05-20.md` (git history preserved
   via `git mv`). ADR-0011 is the durable architectural summary.
 - Root launchers relocated under `scripts/`, and the one-release root shim
   phase is now complete. The old root `.bat`/`.ps1` launcher paths are removed
   from the active workspace; `AGENTS.md §6`, `README.md`, and active checklist
   docs point to the canonical `scripts\` paths.
 - Phase 1 generated-context checks are now enforceable:
-  `scripts/dev/generate_project_index.py --check` verifies
-  `Docs/generated/PROJECT_INDEX.md` and
-  `Docs/generated/DEPENDENCY_GRAPH.md`,
-  `scripts/dev/generate_pipeline_map.py --check` verifies
-  `Docs/generated/PIPELINE_MAP.md`, and `refresh_summaries.py --check`
+  `ops/scripts/dev/generate_project_index.py --check` verifies
+  `docs/generated/PROJECT_INDEX.md` and
+  `docs/generated/DEPENDENCY_GRAPH.md`,
+  `ops/scripts/dev/generate_pipeline_map.py --check` verifies
+  `docs/generated/PIPELINE_MAP.md`, and `refresh_summaries.py --check`
   covers the active canonical script and source paths.
 - `.pre-commit-config.yaml` now runs summary, project-index, and
   pipeline-map drift hooks plus the Phase 2 config schema drift hook, and
   `.github/workflows/phase1-drift.yml` runs the same generated-artifact
   checks in CI.
 - `.pre-commit-config.yaml` and `.github/workflows/phase1-drift.yml` now
-  run `scripts/dev/generate_stage_schema.py --check` for Phase 3 stage
+  run `ops/scripts/dev/generate_stage_schema.py --check` for Phase 3 stage
   schema drift.
 - Command journal entries, stage runner events, queue dry-run snapshots,
   and completed-job manifest reads now dual-write to the Phase 4 SQLite
@@ -202,34 +202,34 @@ intent is worth keeping, it goes here and/or in an ADR.
   complete. Default-launcher/package-mode promotion is now closed by
   2026-05-30 operator confirmation, while future media-behavior changes still
   require revalidation.
-- `Docs/generated/PIPELINE_MAP.md` is generated from
+- `docs/generated/PIPELINE_MAP.md` is generated from
   `app/contracts/stages.py` instead of hand-synced. The stale summary baseline
-  was refreshed from the current source tree; `Docs/generated/PROJECT_INDEX.md`
+  was refreshed from the current source tree; `docs/generated/PROJECT_INDEX.md`
   now indexes 604 source files.
 
   | Old root path                                                     | New canonical path                                       |
   | ----------------------------------------------------------------- | -------------------------------------------------------- |
-  | `Build-MediaPipelineRemuxEncodeAIO-Release.ps1`                   | `scripts/release/build.ps1`                              |
-  | `Test-MediaPipelineRemuxEncodeAIO-Release.ps1`                    | `scripts/release/test.ps1`                               |
-  | `Verify-MediaPipelineRemuxEncodeAIO-Environment.ps1`              | `scripts/verify-env.ps1`                                 |
-  | `Verify-MediaPipelineRemuxEncodeAIO-Environment.bat`              | `scripts/verify-env.bat`                                 |
-  | `Run-MediaPipelineRemuxEncodeAIO.bat`                             | `scripts/dev/run.bat`                                    |
-  | `Setup-MediaPipelineRemuxEncodeAIO.bat`                           | `scripts/dev/setup.bat`                                  |
-  | `Start-MediaPipelineRemuxEncodeAIO-LocalApi.bat`                  | `scripts/dev/start-local-api.bat`                        |
-  | `Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat`              | `scripts/dev/start-tauri-preview.bat`                    |
-  | `Start-MediaPipelineRemuxEncodeAIO-ApiAndBrowser.bat`             | `scripts/dev/start-api-and-browser.bat`                  |
-  | `New-RealMediaValidationWorksheet.ps1`                            | `scripts/operator/New-RealMediaValidationWorksheet.ps1`  |
+  | `Build-MediaPipelineRemuxEncodeAIO-Release.ps1`                   | `ops/scripts/ops/release/metadata/build.ps1`                              |
+  | `Test-MediaPipelineRemuxEncodeAIO-Release.ps1`                    | `ops/scripts/ops/release/metadata/test.ps1`                               |
+  | `Verify-MediaPipelineRemuxEncodeAIO-Environment.ps1`              | `ops/scripts/dev/verify-env.ps1`                                 |
+  | `Verify-MediaPipelineRemuxEncodeAIO-Environment.bat`              | `ops/scripts/dev/verify-env.bat`                                 |
+  | `Run-MediaPipelineRemuxEncodeAIO.bat`                             | `ops/scripts/dev/run.bat`                                    |
+  | `Setup-MediaPipelineRemuxEncodeAIO.bat`                           | `ops/scripts/dev/setup.bat`                                  |
+  | `Start-MediaPipelineRemuxEncodeAIO-LocalApi.bat`                  | `ops/scripts/dev/start-local-api.bat`                        |
+  | `Start-MediaPipelineRemuxEncodeAIO-TauriPreview.bat`              | `ops/scripts/dev/start-tauri-preview.bat`                    |
+  | `Start-MediaPipelineRemuxEncodeAIO-ApiAndBrowser.bat`             | `ops/scripts/dev/start-api-and-browser.bat`                  |
+  | `New-RealMediaValidationWorksheet.ps1`                            | `ops/scripts/operator/New-RealMediaValidationWorksheet.ps1`  |
 
   `$PSScriptRoot` resolution in the four moved `.ps1` files was patched
   to step up from their new subfolders so they continue to anchor on the
   repo root. `%~dp0`-relative paths in the moved `.bat` files were
   patched to step up from their new subfolders.
-  `scripts/release/Backup-PreOverhaul.ps1`
-  calls `scripts/release/build.ps1` through the canonical script layout.
+  `ops/scripts/ops/release/metadata/Backup-PreOverhaul.ps1`
+  calls `ops/scripts/ops/release/metadata/build.ps1` through the canonical script layout.
   Release build verification and release self-test layout checks now use the
   canonical `scripts\` paths without requiring root shims.
 
-  `Docs/CURRENT_PROJECT_STATE.md` and `OPEN_WORK_CHECKLIST.md` were
+  `docs/CURRENT_PROJECT_STATE.md` and `docs/OPEN_WORK_CHECKLIST.md` were
   updated for the canonical launcher and worksheet paths.
 
   Default-launcher/package-mode promotion is closed by 2026-05-30 operator
@@ -319,14 +319,14 @@ intent is worth keeping, it goes here and/or in an ADR.
   populated with `config.py` (mirrors PSD1) and `stages.py` (nine
   canonical stages, payload + result per stage,
   `STAGE_SCHEMA_VERSION = "v1"`).
-- `scripts/dev/refresh_summaries.py` — Python + PowerShell summary
+- `ops/scripts/dev/refresh_summaries.py` — Python + PowerShell summary
   generator with SHA-256 drift detection.
-- `scripts/dev/generate_project_index.py` — renders
-  `Docs/generated/PROJECT_INDEX.md` and
-  `Docs/generated/DEPENDENCY_GRAPH.md` from summaries.
-- `summaries/` — 540 per-source-file summaries (~2.0 MB total versus
+- `ops/scripts/dev/generate_project_index.py` — renders
+  `docs/generated/PROJECT_INDEX.md` and
+  `docs/generated/DEPENDENCY_GRAPH.md` from summaries.
+- `docs/generated/summaries/` — 540 per-source-file summaries (~2.0 MB total versus
   ~30 MB of source).
-- `Docs/generated/PROJECT_INDEX.md`, `Docs/generated/DEPENDENCY_GRAPH.md`.
+- `docs/generated/PROJECT_INDEX.md`, `docs/generated/DEPENDENCY_GRAPH.md`.
 - Tag `v6-pre-overhaul` on commit `8d6d9f6` as the deep rollback
   target.
 
@@ -349,8 +349,8 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ## [2026-04-20] — Initial V6 baseline
 
-- First V6 baseline (`da13cd2`). See `Docs/CURRENT_PROJECT_STATE.md` and
-  `Docs/architecture/` for the inherited shape.
+- First V6 baseline (`da13cd2`). See `docs/CURRENT_PROJECT_STATE.md` and
+  `docs/architecture/` for the inherited shape.
 
 ---
 

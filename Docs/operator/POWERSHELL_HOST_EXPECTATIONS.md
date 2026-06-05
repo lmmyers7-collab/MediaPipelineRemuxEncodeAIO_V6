@@ -17,7 +17,7 @@ The minimum tested version is **PowerShell 7.6.0**, which is the version bundled
 The package includes a complete, portable PowerShell 7.6.0 distribution:
 
 ```
-Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe
+ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe
 ```
 
 This directory is the **preferred runtime** for all scripted operations. The bundled runtime:
@@ -31,16 +31,16 @@ This directory is the **preferred runtime** for all scripted operations. The bun
 
 Every script that needs `pwsh` follows the same resolution order:
 
-1. Check `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe` relative to the bundle root
+1. Check `ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe` relative to the bundle root
 2. If bundled is absent, call `Get-Command pwsh` (or `Get-Command pwsh.exe`) against system PATH
 3. If neither is found, throw with an explicit message that PowerShell 7 is required
 
 This pattern is implemented in:
-- `scripts\release\build.ps1` (`Resolve-ReleasePowerShell`)
-- `scripts\release\test.ps1` (`Resolve-ReleasePowerShell`)
-- `scripts\verify-env.ps1` (`Resolve-CommandPath` with `-RelativePreferred`)
-- `Pipeline\Setup-MediaPipeline.ps1` (`Resolve-PwshPath`)
-- `scripts\dev\start-tauri-preview.bat` (inline check before script invocation)
+- `ops\scripts\release\build.ps1` (`Resolve-ReleasePowerShell`)
+- `ops\scripts\release\test.ps1` (`Resolve-ReleasePowerShell`)
+- `ops\scripts\dev\verify-env.ps1` (`Resolve-CommandPath` with `-RelativePreferred`)
+- `ops\pipeline\config\setup.ps1` (`Resolve-PwshPath`)
+- `ops\scripts\dev\start-tauri-preview.bat` (inline check before script invocation)
 
 ---
 
@@ -50,10 +50,10 @@ This pattern is implemented in:
 
 | Entry point | Shell chain | PowerShell used |
 |---|---|---|
-| `scripts\dev\setup.bat` | `.bat` → `pwsh.exe -File ...` | Bundled `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe` (system fallback if absent; explicit failure if no PS7 host exists) |
-| `scripts\dev\run.bat` | `.bat` → `pwsh.exe -File ...` | Bundled `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe` (system fallback if absent; explicit failure if no PS7 host exists) |
-| `scripts\dev\start-tauri-preview.bat` | `.bat` → `pwsh.exe -File ...` | Bundled `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe` (system fallback if absent) |
-| `scripts\dev\start-local-api.bat` | `.bat` → `DesktopApp\Launch-*.bat` → Python | No PowerShell in this chain |
+| `ops\scripts\dev\setup.bat` | `.bat` → `pwsh.exe -File ...` | Bundled `ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe` (system fallback if absent; explicit failure if no PS7 host exists) |
+| `ops\scripts\dev\run.bat` | `.bat` → `pwsh.exe -File ...` | Bundled `ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe` (system fallback if absent; explicit failure if no PS7 host exists) |
+| `ops\scripts\dev\start-tauri-preview.bat` | `.bat` → `pwsh.exe -File ...` | Bundled `ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe` (system fallback if absent) |
+| `ops\scripts\dev\start-local-api.bat` | `.bat` → Python module launcher | No PowerShell in this chain |
 
 ### Root PowerShell Wrappers (`.ps1`)
 
@@ -62,27 +62,27 @@ These wrappers are invoked by the operator from a terminal. They invoke Python (
 | Wrapper | Shell | What it invokes |
 |---|---|---|
 | `Test-WebView*.ps1` | Whatever the operator's `pwsh` is | `python -m unittest` via bundled Python |
-| `scripts\release\test.ps1` | Requires `pwsh` 7 | Various Python checks and bundled `pwsh` for pipeline tests |
-| `scripts\release\build.ps1` | Requires `pwsh` 7 | Builder and packager |
+| `ops\scripts\release\test.ps1` | Requires `pwsh` 7 | Various Python checks and bundled `pwsh` for pipeline tests |
+| `ops\scripts\release\build.ps1` | Requires `pwsh` 7 | Builder and packager |
 
-The operator wrapper scripts, including the `SmokeTests/` wrappers, do not check `$PSVersionTable` themselves; they are written in PS7 syntax and will fail at parse time on PS5 if PS5 is used. Run them with `pwsh` or the bundled runtime.
+The operator wrapper scripts, including the `ops/scripts/smoke/` wrappers, do not check `$PSVersionTable` themselves; they are written in PS7 syntax and will fail at parse time on PS5 if PS5 is used. Run them with `pwsh` or the bundled runtime.
 
 ### Pipeline Test Scripts
 
 | Script | Host requirement | Enforcement |
 |---|---|---|
-| `Pipeline\Tests\Invoke-ReliabilityRegressionChecks.ps1` | PS7 | Checks `$PSVersionTable.PSVersion.Major -lt 7`, re-invokes under system `pwsh` if needed, and runs the active V6 WebView/backend reliability wrapper by default |
-| `Pipeline\Tests\Invoke-ToolIntegrationChecks.ps1` | PS7 | Run by release self-test via bundled pwsh |
-| `Pipeline\Tests\Invoke-UnitChecks.ps1` | PS7 | Run by release self-test via bundled pwsh |
+| `ops\pipeline\tests\Invoke-ReliabilityRegressionChecks.ps1` | PS7 | Checks `$PSVersionTable.PSVersion.Major -lt 7`, re-invokes under system `pwsh` if needed, and runs the active current WebView/backend reliability wrapper by default |
+| `ops\pipeline\tests\Invoke-ToolIntegrationChecks.ps1` | PS7 | Run by release self-test via bundled pwsh |
+| `ops\pipeline\tests\Invoke-UnitChecks.ps1` | PS7 | Run by release self-test via bundled pwsh |
 
 ### Python Service Layer (subprocess invocation)
 
-The Python backend process helper (`app/processes/launch_env.py`) prepends the following directories to `PATH` before spawning any subprocess:
+The Python backend process helper (`src/mediapipeline/core/processes/launch_env.py`) prepends the following directories to `PATH` before spawning any subprocess:
 
-1. `DesktopApp\Runtime\Python` — bundled Python
-2. `Pipeline\Tools\ffmpeg\bin` — FFmpeg
-3. `Pipeline\Tools\MKVToolNix` — MKVToolNix
-4. **`Pipeline\PowerShell-7.6.0-win-x64`** — bundled pwsh
+1. `apps\desktop\runtime\Python` — bundled Python
+2. `ops\pipeline\tools\ffmpeg\bin` — FFmpeg
+3. `ops\pipeline\tools\MKVToolNix` — MKVToolNix
+4. **`ops\pipeline\runtime\PowerShell-7.6.0-win-x64`** — bundled pwsh
 
 This ensures that any Python subprocess that calls `pwsh` or runs a `.ps1` file will find the bundled PS7 first, without relying on the operator's system PATH.
 
@@ -132,14 +132,14 @@ Scripts must not hard-code `C:\Program Files\PowerShell\7\pwsh.exe` or similar a
 
 ## What Happens When The Bundled Runtime Is Absent
 
-If `Pipeline\PowerShell-7.6.0-win-x64\pwsh.exe` is missing (e.g., a partial release package):
+If `ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe` is missing (e.g., a partial release package):
 
 - **Batch wrappers**: fall back to system `pwsh`; if system `pwsh` is also absent, the `.bat` exits nonzero with an explicit PowerShell 7 missing message.
 - **Build/test resolvers**: fall back to system `pwsh`; if absent, throw an explicit error naming the missing runtime.
 - **Python service layer**: the bundled pwsh directory is simply not prepended; system `pwsh` becomes the PATH-resolved host for subprocesses.
 - **Reliability regression checks**: `$PSVersionTable` guard fires and attempts to find system `pwsh`; fails with a human-readable error if not found.
 
-The `scripts\verify-env.ps1` script (invoked by the release self-test) explicitly probes for the bundled pwsh and reports its presence as a named health check row.
+The `ops\scripts\dev\verify-env.ps1` script (invoked by the release self-test) explicitly probes for the bundled pwsh and reports its presence as a named health check row.
 
 ---
 
@@ -149,13 +149,15 @@ The `scripts\verify-env.ps1` script (invoked by the release self-test) explicitl
 2. If the script may be run directly by an operator who might use PS5: add the `$PSVersionTable.PSVersion.Major -lt 7` re-invocation guard at the top.
 3. Do not use `Invoke-Expression`.
 4. Do not hard-code paths to `pwsh.exe`.
-5. If the script is an operator wrapper, including a `SmokeTests/` wrapper invoked from a PowerShell prompt: write it in PS7 syntax only. It will parse-fail on PS5, which is an acceptable failure mode for operator-facing scripts that have the bundled runtime available.
+5. If the script is an operator wrapper, including a `ops/scripts/smoke/` wrapper invoked from a PowerShell prompt: write it in PS7 syntax only. It will parse-fail on PS5, which is an acceptable failure mode for operator-facing scripts that have the bundled runtime available.
 
 ---
 
 ## See Also
 
 - Bundled Python resolution: root WebView wrapper scripts (`Test-WebView*.ps1`) use the same resolver pattern for Python as this doc describes for pwsh
-- Python service layer PATH setup: `app/processes/launch_env.py`
-- Environment verification: `scripts\verify-env.ps1`
-- Deployment requirements: `Pipeline/README_MediaPipelineRemuxEncodeAIO_Deployment.md`
+- Python service layer PATH setup: `src/mediapipeline/core/processes/launch_env.py`
+- Environment verification: `ops\scripts\dev\verify-env.ps1`
+- Deployment requirements: `docs/README_MediaPipelineRemuxEncodeAIO.md`
+
+

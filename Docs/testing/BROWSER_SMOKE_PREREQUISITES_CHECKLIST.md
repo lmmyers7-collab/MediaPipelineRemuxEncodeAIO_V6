@@ -4,7 +4,7 @@ Status: operator/testing reference only. This is not an implementation backlog o
 
 Use this checklist when browser-backed smokes skip unexpectedly, fail with connection errors, or produce misleading results. Work through the sections in order.
 
-For full coverage and failure interpretation, see `Docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md`.
+For full coverage and failure interpretation, see `docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md`.
 
 ---
 
@@ -57,17 +57,17 @@ If none return `True`:
 
 ## Checklist 3: Bundled Python
 
-The `SmokeTests/` wrapper scripts use the bundled Python automatically. If running `python -m unittest` directly, confirm the bundled runtime path:
+The `ops/scripts/smoke/` wrapper scripts use the bundled Python automatically. If running `python -m unittest` directly, confirm the bundled runtime path:
 
 ```powershell
-$py = "DesktopApp\Runtime\Python\python.exe"
+$py = "apps\desktop\runtime\Python\python.exe"
 Test-Path $py
 & $py --version
 ```
 
 Expected: `Python 3.x.x`. If the bundled Python is missing:
 - Check whether the DesktopApp Runtime folder exists.
-- If the workspace is a partial clone or missing the bundled runtime, run `scripts\verify-env.bat` to identify what is missing.
+- If the workspace is a partial clone or missing the bundled runtime, run `ops\scripts\dev\verify-env.bat` to identify what is missing.
 
 ---
 
@@ -78,12 +78,12 @@ Browser smokes start a temporary local API process. If the API fails to start, t
 To diagnose manually:
 
 ```powershell
-$py = "DesktopApp\Runtime\Python\python.exe"
-& $py -m mediapipeline_desktop_app.local_api_main --help
+$py = "apps\desktop\runtime\Python\python.exe"
+& $py -m mediapipeline.desktop.local_api_main --help
 ```
 
 If this fails with `ModuleNotFoundError`:
-- Confirm `DesktopApp\mediapipeline_desktop_app\` exists and contains `__init__.py`.
+- Confirm `src\mediapipeline\desktop\` exists and contains `__init__.py`.
 - Confirm the working directory is the bundle root when running the command.
 
 If the local API starts but the smoke fails with `ConnectionRefusedError`:
@@ -119,7 +119,7 @@ The browser smoke launches Chrome/Edge with `--remote-debugging-port` and connec
 | Nonzero with `FAIL` | Test failure | An assertion failed — read the traceback |
 | Nonzero with `ERROR` | Runtime error | The smoke crashed before assertions — read the traceback |
 
-Skips are not failures. A skip means the environment prerequisites were not met and the test exited cleanly without testing anything. Record skips in your smoke result log (`Docs/testing/WEBVIEW_SMOKE_RESULT_TEMPLATE.md`).
+Skips are not failures. A skip means the environment prerequisites were not met and the test exited cleanly without testing anything. Record skips in your smoke result log (`docs/testing/WEBVIEW_SMOKE_RESULT_TEMPLATE.md`).
 
 ---
 
@@ -132,14 +132,14 @@ After a pass or skip, confirm the smoke did not mutate state:
 - No files were renamed (check source folder modified time if concerned).
 - No pending publish was drained (no new drain summary or manifest changes).
 
-If unexpected state changes appear after a smoke run, check the smoke's known mutation boundary in `Docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md` and compare against what you observed.
+If unexpected state changes appear after a smoke run, check the smoke's known mutation boundary in `docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md` and compare against what you observed.
 
 ---
 
 ## Checklist 9: Console Error Capture
 
 The browser-backed smokes capture browser console errors and include them in failure output. If a smoke passes but you see unexpected console errors in the output:
-- Copy the errors to your smoke result log (`Docs/testing/WEBVIEW_SMOKE_RESULT_TEMPLATE.md`).
+- Copy the errors to your smoke result log (`docs/testing/WEBVIEW_SMOKE_RESULT_TEMPLATE.md`).
 - Check whether the errors relate to a resource that failed to load (JS asset, API endpoint, CORS).
 - A pass with console errors may indicate a non-critical warning in the JS that did not break the tested assertion, but is worth reviewing.
 
@@ -155,26 +155,26 @@ node --version
 Test-Path "C:\Program Files\Google\Chrome\Application\chrome.exe"
 
 # 3. Bundled Python available?
-Test-Path "DesktopApp\Runtime\Python\python.exe"
+Test-Path "apps\desktop\runtime\Python\python.exe"
 
 # 4. Local API importable?
-$py = "DesktopApp\Runtime\Python\python.exe"
-& $py -m mediapipeline_desktop_app.local_api_main --help
+$py = "apps\desktop\runtime\Python\python.exe"
+& $py -m mediapipeline.desktop.local_api_main --help
 
 # 5. Run one non-browser smoke first to confirm JS eval works
-.\SmokeTests\Test-WebViewRowDetailSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewRowDetailSmoke.ps1
 
 # 6. Run one browser smoke
-.\SmokeTests\Test-WebViewBrowserHighRiskSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserHighRiskSmoke.ps1
 ```
 
 ---
 
 ## See Also
 
-- Full browser smoke runbook: `Docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md`
-- Smoke catalog: `Docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`
-- Smoke result template: `Docs/testing/WEBVIEW_SMOKE_RESULT_TEMPLATE.md`
-- Validation ladder: `Docs/testing/VALIDATION_LADDER_RUNBOOK.md`
-- PowerShell host expectations: `Docs/operator/POWERSHELL_HOST_EXPECTATIONS.md`
+- Full browser smoke runbook: `docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md`
+- Smoke catalog: `docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`
+- Smoke result template: `docs/testing/WEBVIEW_SMOKE_RESULT_TEMPLATE.md`
+- Validation ladder: `docs/testing/VALIDATION_LADDER_RUNBOOK.md`
+- PowerShell host expectations: `docs/operator/POWERSHELL_HOST_EXPECTATIONS.md`
 

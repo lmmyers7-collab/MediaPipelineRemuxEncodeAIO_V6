@@ -22,7 +22,7 @@ The browser smokes use the Chrome DevTools Protocol (CDP) via headless Chrome or
 
 Required: an installed Google Chrome or Microsoft Edge. The smoke finds it by checking common install paths on Windows. If neither is found, the test raises `unittest.SkipTest` and exits with code 0 (skip, not failure).
 
-The Python smoke modules share `DesktopApp\tests\webview_browser_smoke_support.py` for browser discovery, free-port allocation, bounded stdout/stderr failure output, timeout reporting, JSON result parsing, subprocess-result assertions, and the generated Node/CDP runner prelude. If a browser runner fails, the assertion should include the runner return code plus bounded stdout/stderr before the Python traceback. The shared Node/CDP prelude launches Chrome/Edge with browser stdout/stderr ignored instead of undrained pipes, and uses a bounded browser termination helper so a pre-exited browser cannot hang the smoke runner. On Windows, the shared runner retries exactly once when the Node/CDP runner exits with the known no-output native crash return code `3221226505` / `-1073740791` or a no-output CDP WebSocket open transient (`[object ErrorEvent]` / `CDP websocket error while opening`). Actionable failures with meaningful stdout/stderr are not retried.
+The Python smoke modules share `tests\python\desktop\webview_browser_smoke_support.py` for browser discovery, free-port allocation, bounded stdout/stderr failure output, timeout reporting, JSON result parsing, subprocess-result assertions, and the generated Node/CDP runner prelude. If a browser runner fails, the assertion should include the runner return code plus bounded stdout/stderr before the Python traceback. The shared Node/CDP prelude launches Chrome/Edge with browser stdout/stderr ignored instead of undrained pipes, and uses a bounded browser termination helper so a pre-exited browser cannot hang the smoke runner. On Windows, the shared runner retries exactly once when the Node/CDP runner exits with the known no-output native crash return code `3221226505` / `-1073740791` or a no-output CDP WebSocket open transient (`[object ErrorEvent]` / `CDP websocket error while opening`). Actionable failures with meaningful stdout/stderr are not retried.
 
 To check whether the smoke will find a browser:
 
@@ -41,10 +41,10 @@ Test-Path "C:\Program Files\Microsoft\Edge\Application\msedge.exe"
 The smoke tests run through the standard Python unittest runner. Use the bundled runtime when available:
 
 ```
-DesktopApp\Runtime\Python\python.exe
+apps\desktop\runtime\Python\python.exe
 ```
 
-The `SmokeTests/` wrapper scripts resolve this automatically.
+The `ops/scripts/smoke/` wrapper scripts resolve this automatically.
 
 ---
 
@@ -55,23 +55,23 @@ The `SmokeTests/` wrapper scripts resolve this automatically.
 From the repo root:
 
 ```powershell
-.\SmokeTests\Test-WebViewBrowserHighRiskSmoke.ps1
-.\SmokeTests\Test-WebViewBrowserScheduleSmoke.ps1
-.\SmokeTests\Test-WebViewBrowserLifecycleSmoke.ps1
-.\SmokeTests\Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1
-.\SmokeTests\Test-WebViewBrowserPendingDrainGuardSmoke.ps1
-.\SmokeTests\Test-WebViewBrowserCompletedPendingProofSmoke.ps1
-.\SmokeTests\Test-WebViewBrowserLargeTableSmoke.ps1
-.\SmokeTests\Test-WebViewBrowserMaintenanceReportsSmoke.ps1
-.\SmokeTests\Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1
-.\SmokeTests\Test-WebViewBrowserSampleValidationSmoke.ps1
-.\SmokeTests\Test-WebViewBrowserHomeLiveStateSmoke.ps1
-.\SmokeTests\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1
-.\SmokeTests\Test-WebViewBrowserLayoutManagerSmoke.ps1
-.\SmokeTests\Test-WebViewBrowserRenameSmoke.ps1
-.\SmokeTests\Test-WebViewBrowserNetworkSmoke.ps1
-.\SmokeTests\Test-WebViewBrowserTelemetrySmoke.ps1
-.\SmokeTests\Test-WebViewBrowserSettingsLaunchSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserHighRiskSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserScheduleSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserLifecycleSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserPendingDrainGuardSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserCompletedPendingProofSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserLargeTableSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserMaintenanceReportsSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserSampleValidationSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserHomeLiveStateSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserLayoutManagerSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserRenameSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserNetworkSmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserTelemetrySmoke.ps1
+.\ops/scripts/smoke\Test-WebViewBrowserSettingsLaunchSmoke.ps1
 ```
 
 Each wrapper resolves Python, sets `PYTHONDONTWRITEBYTECODE=1`, prints boundary text, and exits nonzero if the test fails.
@@ -81,37 +81,37 @@ Each wrapper resolves Python, sets `PYTHONDONTWRITEBYTECODE=1`, prints boundary 
 From the repo root with the bundled Python:
 
 ```powershell
-$python = "DesktopApp\Runtime\Python\python.exe"
-& $python -m unittest DesktopApp.tests.test_webview_browser_high_risk_smoke -q
-& $python -m unittest DesktopApp.tests.test_webview_browser_schedule_smoke -q
-& $python -m unittest DesktopApp.tests.test_webview_browser_lifecycle_smoke -q
-& $python -m unittest DesktopApp.tests.test_webview_browser_diagnostics_handoff_smoke -q
-& $python -m unittest DesktopApp.tests.test_webview_browser_pending_drain_guard_smoke -q
-& $python -m unittest DesktopApp.tests.test_webview_browser_completed_pending_proof_smoke -q
-& $python -m unittest DesktopApp.tests.test_webview_browser_large_table_smoke -q
-& $python -m unittest DesktopApp.tests.test_webview_browser_maintenance_reports_smoke -q
-& $python -m unittest DesktopApp.tests.test_webview_browser_maintenance_change_ledger_smoke -q
-& $python -m unittest DesktopApp.tests.test_webview_browser_sample_validation_smoke -q
-& $python -m unittest DesktopApp.tests.test_webview_browser_home_live_state_smoke -q
-& $python -m unittest DesktopApp.tests.test_webview_browser_launch_queue_readiness_smoke -q
-& $python -m unittest DesktopApp.tests.test_webview_browser_rename_smoke -q
-& $python -m unittest DesktopApp.tests.test_webview_browser_network_smoke -q
-& $python -m unittest DesktopApp.tests.test_webview_browser_telemetry_smoke -q
-& $python -m unittest DesktopApp.tests.test_webview_browser_settings_launch_smoke -q
+$python = "apps\desktop\runtime\Python\python.exe"
+& $python -m unittest tests.webview.test_webview_browser_high_risk_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_schedule_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_lifecycle_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_diagnostics_handoff_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_pending_drain_guard_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_completed_pending_proof_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_large_table_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_maintenance_reports_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_maintenance_change_ledger_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_sample_validation_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_home_live_state_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_launch_queue_readiness_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_rename_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_network_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_telemetry_smoke -q
+& $python -m unittest tests.webview.test_webview_browser_settings_launch_smoke -q
 ```
 
 ### Running all smokes via discovery
 
 ```powershell
-$python = "DesktopApp\Runtime\Python\python.exe"
-& $python -m unittest discover -s DesktopApp\tests -p "test_webview_browser_*.py" -q
+$python = "apps\desktop\runtime\Python\python.exe"
+& $python -m unittest discover -s tests\python\desktop -p "test_webview_browser_*.py" -q
 ```
 
 ### Running an individual test case
 
 ```powershell
-$python = "DesktopApp\Runtime\Python\python.exe"
-& $python -m unittest DesktopApp.tests.test_webview_browser_rename_smoke.WebViewBrowserRenameSmokeTests.test_real_browser_renders_rename_readiness_and_blocks_duplicate_apply -q
+$python = "apps\desktop\runtime\Python\python.exe"
+& $python -m unittest tests.webview.test_webview_browser_rename_smoke.WebViewBrowserRenameops/scripts/smoke.test_real_browser_renders_rename_readiness_and_blocks_duplicate_apply -q
 ```
 
 ---
@@ -166,7 +166,7 @@ The local API server did not start or the browser CDP port did not open in time.
 
 - Whether the bundled Python resolved correctly.
 - Whether another process is using the same port range.
-- Whether the backend local API module can be imported: `python -m mediapipeline_desktop_app.local_api_main --help`.
+- Whether the backend local API module can be imported: `python -m mediapipeline.desktop.local_api_main --help`.
 
 ### `Return code: 124` with `Timed out after Ns.` in STDERR
 
@@ -207,7 +207,7 @@ Browser smokes prove that the WebView JavaScript renders expected UI state and r
 - **Live telemetry collection**: telemetry smoke uses fixture payloads; it does not sample the local GPU or prove NVENC load under a real encode.
 - **Completed manifest correctness**: fixture data is used; no real encode output is written.
 
-For real-media validation, follow the observational checklist in `V5_REAL_MEDIA_VALIDATION_PLAYBOOK.md` against a small known batch.
+For real-media validation, follow the real-media pilot checklist in `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md` against a small known batch.
 
 ---
 
@@ -215,5 +215,7 @@ For real-media validation, follow the observational checklist in `V5_REAL_MEDIA_
 
 - Browser smokes skip cleanly when Chrome/Edge is absent (exit 0). This is intentional — they are environment-dependent and should not block CI pipelines that run on headless agents without a browser install.
 - Non-browser smokes (`Test-WebViewCommandEvidenceSmoke.ps1`, `Test-WebViewRowDetailSmoke.ps1`, `Test-WebViewRenameReadinessSmoke.ps1`, `Test-WebViewSettingsLaunchPolicySmoke.ps1`) require only Python and Node and are suitable for lightweight automated checks.
-- The release self-test layout gate (`scripts\release\test.ps1`) checks that all wrapper files exist. It does not run the smokes automatically.
+- The release self-test layout gate (`ops\scripts\release\test.ps1`) checks that all wrapper files exist. It does not run the smokes automatically.
+
+
 

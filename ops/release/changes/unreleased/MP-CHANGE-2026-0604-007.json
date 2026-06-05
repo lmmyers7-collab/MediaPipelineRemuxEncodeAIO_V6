@@ -1,0 +1,58 @@
+{
+  "id": "MP-CHANGE-2026-0604-007",
+  "title": "Filter Library Profile overrides by designation",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-04",
+  "date_completed": "2026-06-04",
+  "summary": "Filter Movie-only and TV-only Library Profile override controls by profile designation while preserving inherited direct-copy defaults as displayed non-overrides.",
+  "reason": "TV Library Profiles showed Movie target/fallback controls, and inherited direct-copy bucket controls could appear blank when the active config omitted keys that have backend defaults.",
+  "affected_areas": [
+    "config",
+    "webview",
+    "settings"
+  ],
+  "behavior_before": "Library Profiles rendered Movie and TV route-size/fallback controls together regardless of designation. Missing global direct-copy keys could leave inherited Library Profile controls blank even though backend metadata had defaults.",
+  "behavior_after": "Backend field metadata marks Movie-only and TV-only controls with additive library_profile_designations metadata. The WebView hides and omits inapplicable controls for Movie/TV profiles, keeps both for Auto profiles, warns when designation-specific overrides are pruned from a staged LibraryProfiles patch, and inherited direct-copy controls display effective backend defaults without becoming overrides.",
+  "files_touched": [
+    "app/config/metadata_parts/field_definitions.py",
+    "app/config/settings_helpers_facade.py",
+    "app/config/library_profiles.py",
+    "apps/desktop/webview/static/assets/settingsLibraries.js",
+    "tests/python/desktop/test_metadata_contract.py",
+    "tests/python/desktop/test_application_facade_settings_workspace.py",
+    "tests/python/desktop/test_library_profiles.py",
+    "tests/python/desktop/test_webview_settings_libraries.py",
+    "tests/python/desktop/test_webview_browser_settings_launch_smoke.py",
+    "ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-007.json",
+    "docs/generated/summaries/app/config/metadata_parts/field_definitions.py.md",
+    "docs/generated/summaries/app/config/settings_helpers_facade.py.md",
+    "docs/generated/summaries/app/config/library_profiles.py.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsLibraries.js.md",
+    "docs/generated/summaries/tests/python/desktop/test_metadata_contract.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_settings_workspace.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_library_profiles.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_webview_settings_libraries.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_webview_browser_settings_launch_smoke.py.md",
+    "docs/generated/summaries/ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-007.json.md"
+  ],
+  "tests_added": [
+    "Backend metadata tests assert Movie-only/TV-only library_profile_designations and direct-copy bucket fields remain all-designation.",
+    "Library profile tests assert missing global direct-copy/route-size keys inherit backend metadata defaults.",
+    "WebView static tests assert designation filtering, warning, pruning, and re-render wiring.",
+    "Browser settings/launch smoke asserts actual Library Profile DOM filtering, inherited direct-copy display, Auto designation visibility, and TV patch pruning."
+  ],
+  "manual_validation": [
+    "node --check apps/desktop/webview/static/assets/settingsLibraries.js -- passed",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_metadata_contract.py tests/python/desktop/test_application_facade_settings_workspace.py tests/python/desktop/test_library_profiles.py tests/python/desktop/test_webview_settings_libraries.py -q -- passed, 104 passed, 780 subtests passed",
+    "ops/scripts/smoke/Test-WebViewBrowserSettingsLaunchSmoke.ps1 -- passed, Ran 1 test OK",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/refresh_summaries.py --paths <feature files> -- wrote 9 summaries and left 1 unchanged; focused packet-summary refresh wrote 1 summary; final settingsLibraries.js summary refresh wrote 1 summary",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/validate_changes.py -- passed, 11 packet(s) valid"
+  ],
+  "rollback_plan": "Revert the additive field metadata/default fallback changes, revert the Library Profiles designation filtering/pruning UI, remove the focused test additions, remove refreshed summaries for those files, and remove this change packet.",
+  "related_changes": [],
+  "notes": "Settings/WebView display and staging fix only. It does not change persisted config key names, LibraryProfiles override groups, Local API route authority, media policy, FFmpeg/subtitle/audio behavior, publish/drain, source/scratch/output movement, cleanup behavior, or source media files. Affected Python scripts: app/config/metadata_parts/field_definitions.py, app/config/settings_helpers_facade.py, app/config/library_profiles.py, tests/python/desktop/test_metadata_contract.py, tests/python/desktop/test_application_facade_settings_workspace.py, tests/python/desktop/test_library_profiles.py, tests/python/desktop/test_webview_settings_libraries.py, and tests/python/desktop/test_webview_browser_settings_launch_smoke.py."
+}
+

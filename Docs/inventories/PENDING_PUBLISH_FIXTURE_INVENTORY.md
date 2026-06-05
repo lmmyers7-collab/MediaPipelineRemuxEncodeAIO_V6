@@ -2,7 +2,7 @@
 
 Purpose: inventory all pending-publish test files, describe what each covers and does not cover, document the fixture data patterns used, and note safety-property gaps. This is an observational document.
 
-Total pending-publish test files: 6 dedicated + 10 files with incidental pending-publish coverage, plus PowerShell transaction coverage in `Pipeline/Tests`.
+Total pending-publish test files: 6 dedicated + 10 files with incidental pending-publish coverage, plus PowerShell transaction coverage in `ops/pipeline/tests`.
 No dedicated fixture JSON/JSONL files exist — all fixture data is generated dynamically in temporary directories or hardcoded as inline Python dicts.
 
 ---
@@ -13,13 +13,13 @@ Pending publish is a backend-owned media safety path. Future work should keep me
 
 | Module | Owns | Must not own |
 |---|---|---|
-| `engine/publish/publish_completion.ps1` | Immediate publish flow, low-space/unknown-space deferred parking decision, calls into pending park helpers when verified output must be parked. | Pending drain loop, manifest row presentation, WebView readiness decisions. |
-| `engine/publish/publish_partial.ps1` | Partial media reveal and sidecar backup/restore primitives shared by immediate and pending drain publish. | Publish policy, source identity validation, manifest indexing. |
-| `engine/publish/publish_sidecars.ps1` | Sidecar publish helper mechanics shared by immediate and pending paths. | Deciding whether a parked output is safe to discard or drain. |
-| `engine/publish/pending_manifest_store.ps1` | Pending manifest read/write/round-trip validation and retry-state serialization. | Moving media, copying sidecars, or publishing final output. |
-| `engine/publish/pending_transactions.ps1` | Durable media-plus-sidecar park transaction, drain transaction, server-copy validation, sidecar rollback, and `pending_move` crash recovery. | Public operator command routing, UI row formatting, or frontend policy. |
-| `engine/publish/pending_push.ps1` | Public PowerShell facade for park and retry/drain commands, drain summary, event/log emission, and index refresh calls. | Low-level copy/reveal rollback details already owned by `PendingTransactions.ps1`. |
-| `engine/publish/pending_publish_index.ps1` | Read-only in-memory index and health rows for parked manifests and missing payloads. | Moving, deleting, draining, or repairing payloads. |
+| `ops/pipeline/engine/publish/publish_completion.ps1` | Immediate publish flow, low-space/unknown-space deferred parking decision, calls into pending park helpers when verified output must be parked. | Pending drain loop, manifest row presentation, WebView readiness decisions. |
+| `ops/pipeline/engine/publish/publish_partial.ps1` | Partial media reveal and sidecar backup/restore primitives shared by immediate and pending drain publish. | Publish policy, source identity validation, manifest indexing. |
+| `ops/pipeline/engine/publish/publish_sidecars.ps1` | Sidecar publish helper mechanics shared by immediate and pending paths. | Deciding whether a parked output is safe to discard or drain. |
+| `ops/pipeline/engine/publish/pending_manifest_store.ps1` | Pending manifest read/write/round-trip validation and retry-state serialization. | Moving media, copying sidecars, or publishing final output. |
+| `ops/pipeline/engine/publish/pending_transactions.ps1` | Durable media-plus-sidecar park transaction, drain transaction, server-copy validation, sidecar rollback, and `pending_move` crash recovery. | Public operator command routing, UI row formatting, or frontend policy. |
+| `ops/pipeline/engine/publish/pending_push.ps1` | Public PowerShell facade for park and retry/drain commands, drain summary, event/log emission, and index refresh calls. | Low-level copy/reveal rollback details already owned by `PendingTransactions.ps1`. |
+| `ops/pipeline/engine/publish/pending_publish_index.ps1` | Read-only in-memory index and health rows for parked manifests and missing payloads. | Moving, deleting, draining, or repairing payloads. |
 | `app/publish/pending_*.py` | Read-only desktop scan, row shaping, open-target support, and API DTO normalization. | Media copy/reveal policy, discard decisions, manifest repair side effects. |
 
 ---
@@ -70,8 +70,8 @@ Pending publish is a backend-owned media safety path. Future work should keep me
 
 | Test file | What it tests for pending-publish |
 |---|---|
-| `Pipeline/Tests/Invoke-ReliabilityRegressionChecks.ps1` | Legacy pending manifests, transactional park, parked tx3g SRT sidecars, missing sidecar retry state, network-copy retry preservation, media reveal failure rollback, drain summary readback, and retry success cleanup |
-| `Pipeline/Tests/Invoke-EndToEndSmokeChecks.ps1` | Real deferred-publish processing followed by `-DrainPendingPushes`; verifies pending manifests drain away and generated media reaches output destinations |
+| `ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1` | Legacy pending manifests, transactional park, parked tx3g SRT sidecars, missing sidecar retry state, network-copy retry preservation, media reveal failure rollback, drain summary readback, and retry success cleanup |
+| `ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1` | Real deferred-publish processing followed by `-DrainPendingPushes`; verifies pending manifests drain away and generated media reaches output destinations |
 
 ---
 
@@ -133,10 +133,10 @@ Service-layer tests hardcode rows directly in test methods:
 | Duplicate manifest targets detected | `test_pending_publish_service.py` | Covered |
 | Drain does not run from WebView directly | Route contract + `test_webview_row_detail_smoke.py` (mutation guardrail filter confirms no backend drain called) | Covered — no drain route exists in command contract |
 | Parked media plus tx3g SRT sidecars are visible as one media-plus-sidecars unit before drain | `test_pending_publish_service.py` | Covered at service scan/row layer |
-| Parked media plus tx3g SRT sidecars drain together | `Pipeline/Tests/Invoke-ReliabilityRegressionChecks.ps1` | Covered at PowerShell transaction layer |
-| Drain summary records media-plus-sidecar success and retryable failures | `Pipeline/Tests/Invoke-ReliabilityRegressionChecks.ps1` | Covered at PowerShell transaction layer |
-| Failed media reveal preserves parked media, parked sidecar, and manifest while removing partial/server-side artifacts | `Pipeline/Tests/Invoke-ReliabilityRegressionChecks.ps1` | Covered at PowerShell transaction layer |
-| Real deferred-publish drain command moves generated media out of pending state | `Pipeline/Tests/Invoke-EndToEndSmokeChecks.ps1` | Covered by generated-media smoke |
+| Parked media plus tx3g SRT sidecars drain together | `ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1` | Covered at PowerShell transaction layer |
+| Drain summary records media-plus-sidecar success and retryable failures | `ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1` | Covered at PowerShell transaction layer |
+| Failed media reveal preserves parked media, parked sidecar, and manifest while removing partial/server-side artifacts | `ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1` | Covered at PowerShell transaction layer |
+| Real deferred-publish drain command moves generated media out of pending state | `ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1` | Covered by generated-media smoke |
 | Recovery plan is dry-run only (no files moved) | Route contract (`effect: "none"`) + `app/api/commands_files.py` (`recovery_plan_dry_run` command name) | Contract-level only |
 | Open targets are allowlisted | `test_facade_diagnostics_open_policy.py` | Covered |
 
@@ -170,4 +170,5 @@ When a worker finishes encoding, it parks the output for the coordinator to publ
 
 - Pending-publish command routes: `LOCAL_API_ROUTE_OWNERSHIP_MAP.md` (`POST /api/pending-publish/open`, `POST /api/pending-publish/recovery-plan`, `GET /api/pending-publish`)
 - Pending-publish diagnostics targets: `DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md` (`pending_publish`, `last_stderr_log`, `latest_failure_json`)
-- Real-media validation for drain proof: `V5_REAL_MEDIA_VALIDATION_PLAYBOOK.md` (Pending Publish Proof section)
+- Real-media validation for drain proof: `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`
+

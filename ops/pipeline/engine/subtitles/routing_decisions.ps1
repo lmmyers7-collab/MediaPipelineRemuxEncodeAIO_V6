@@ -1,0 +1,249 @@
+# ==============================================================================
+# ops\pipeline\engine\subtitles\routing_decisions.ps1
+# ==============================================================================
+# Extracted from ops\pipeline\engine\subtitles\common.ps1. Keep function names stable;
+# common.ps1 dot-sources this file as part of the subtitle policy surface.
+# ==============================================================================
+
+function Get-SubtitleSupplementalForcedSwitchName {
+    param(
+        [string]$Codec,
+        [bool]$IsTx3g = $false,
+        [bool]$IsBdpgs = $false,
+        [bool]$IsVobSub = $false
+    )
+
+    if ($IsTx3g) { return 'TreatTx3gSignsSongsAsForced' }
+    if ($IsBdpgs) { return 'TreatBdpgsSignsSongsAsForced' }
+    if ($IsVobSub) { return 'TreatVobSubSignsSongsAsForced' }
+    if ($Codec -in (Get-MediaSubtitleCodecAssNames)) { return 'TreatAssSignsSongsAsForced' }
+    return ''
+}
+
+function New-SubtitleEnrichedTitle {
+    param(
+        [string]$Language,
+        [string]$RawTitle,
+        [string]$TitleLower,
+        [bool]$IsSdh,
+        [bool]$IsForced,
+        [bool]$IsSupplemental
+    )
+
+    $displayMap = Get-SubtitleLanguageDisplayMap
+    $langDisp = if ($displayMap.ContainsKey($Language)) { $displayMap[$Language] } else {
+        if ($Language) { $Language.ToUpperInvariant() } else { 'Undefined' }
+    }
+
+    $title = if ([string]::IsNullOrWhiteSpace($RawTitle)) { $langDisp } else { $RawTitle }
+    if ($IsSdh -and $TitleLower -notmatch '(?i)sdh|hearing') { $title += " [SDH]" }
+    if ($IsForced -and $TitleLower -notmatch '(?i)forced') { $title += " [Forced]" }
+    if ($IsSupplemental -and $TitleLower -notmatch '(?i)sign|song|karaoke') {
+        $title += " [Signs & Songs]"
+    }
+    return $title
+}
+
+function Resolve-SubtitleStreamPolicy {
+    param(
+        [Parameter(Mandatory)] $Stream,
+        [int]$SubtitleOrdinal
+    )
+
+    $codec       = if ($Stream.codec_name)        { ([string]$Stream.codec_name).ToLowerInvariant() } else { "unknown" }
+    $codecTag    = if ($Stream.codec_tag_string)  { ([string]$Stream.codec_tag_string).ToLowerInvariant() } else { "" }
+    $isTx3g      = Test-IsTx3gSubtitleStream -Stream $Stream
+    $isBdpgs     = Test-IsBdpgsSubtitleStream -Stream $Stream
+    $isVobSub    = Test-IsVobSubSubtitleStream -Stream $Stream
+    $rawLang     = if ($Stream.tags.language)     { ([string]$Stream.tags.language).ToLowerInvariant() } else { "" }
+    $lang        = if ($isTx3g -or $isBdpgs -or $isVobSub) { Get-NormalizedSubtitleLanguage $rawLang } else { $rawLang }
+    $titleLower  = if ($Stream.tags.title)        { ([string]$Stream.tags.title).ToLowerInvariant() } else { "" }
+    $rawTitle    = if ($Stream.tags.title)        { [string]$Stream.tags.title } else { "" }
+    $isForced    = ($Stream.disposition.forced -eq 1)
+    $isDefault   = ($Stream.disposition.default -eq 1)
+
+    $isSdh = Test-SubtitleTitleMatchesAnyKeyword -TitleLower $titleLower -Keywords $SubSDHTitleKeywords
+    $isSupplemental = Test-SubtitleTitleMatchesAnyKeyword -TitleLower $titleLower -Keywords $SubSupplementalKeywords
+    $treatSupplementalAsForced = $false
+    if ($isSupplemental) {
+        $switchName = Get-SubtitleSupplementalForcedSwitchName -Codec $codec -IsTx3g:$isTx3g -IsBdpgs:$isBdpgs -IsVobSub:$isVobSub
+        if ($switchName) {
+            $treatSupplementalAsForced = Get-EffectiveSubtitleSwitch -Name $switchName -Default $false
+            if ($treatSupplementalAsForced) { $isForced = $true }
+        }
+    }
+
+    $languagePolicy = Get-SubtitleLanguagePolicy -IsTx3g:$isTx3g -IsBdpgs:$isBdpgs -IsVobSub:$isVobSub -IsAss:($codec -in (Get-MediaSubtitleCodecAssNames))
+    $langOk = ($languagePolicy -contains $lang)
+    if ($isSdh -and -not $langOk) { $langOk = $true }
+    if ($isForced -and -not $langOk) { $langOk = $true }
+
+    $enrichedTitle = New-SubtitleEnrichedTitle -Language $lang -RawTitle $rawTitle -TitleLower $titleLower -IsSdh:$isSdh -IsForced:$isForced -IsSupplemental:$isSupplemental
+    return [pscustomobject]@{
+        Retain             = [bool]$langOk
+        Stream             = $Stream
+        Lang               = $lang
+        Title              = $enrichedTitle
+        RawTitle           = $rawTitle
+        Codec              = $codec
+        CodecTagString     = $codecTag
+        SubtitleOrdinal    = $SubtitleOrdinal
+        IsDefault          = $isDefault
+        SourceIsDefault    = $isDefault
+        IsForced           = $isForced
+        IsSdh              = $isSdh
+        IsSupplemental     = $isSupplemental
+        SupplementalForced = $treatSupplementalAsForced
+        IsTx3g             = $isTx3g
+        IsBdpgs            = $isBdpgs
+        IsVobSub           = $isVobSub
+    }
+}
+
+function New-SubtitleRoutingDecision {
+    param(
+        [Parameter(Mandatory)] [ValidateSet('Keep','ConvertAss','ConvertTx3g','ConvertBdpgs','ConvertVobSub','Drop')] [string] $Action,
+        [Parameter(Mandatory)] [string] $Message,
+        [ValidateSet('DEBUG','WARN')] [string] $Level = 'DEBUG'
+    )
+
+    [pscustomobject]@{
+        Action  = $Action
+        Message = $Message
+        Level   = $Level
+    }
+}
+
+function Set-LastSubtitleDecisionRecords {
+    param([array] $Records = @())
+    $script:LastSubtitleDecisionRecords = @($Records | Where-Object { $null -ne $_ })
+}
+
+function Get-LastSubtitleDecisionRecords {
+    return @($script:LastSubtitleDecisionRecords)
+}
+
+function New-SubtitleDecisionRecord {
+    param(
+        [Parameter(Mandatory)] $Entry,
+        [Parameter(Mandatory)] $Decision
+    )
+
+    $stream = $Entry.Stream
+    [pscustomobject]@{
+        source_stream_index = if ($stream -and $null -ne $stream.PSObject.Properties['index']) { $stream.index } else { $null }
+        source_kind         = if ($Entry.ContainsKey('SourceKind')) { [string]$Entry.SourceKind } else { 'embedded' }
+        subtitle_ordinal    = if ($Entry.ContainsKey('SubtitleOrdinal')) { $Entry.SubtitleOrdinal } else { $null }
+        action              = ([string]$Decision.Action).ToLowerInvariant()
+        reason              = [string]$Decision.Message
+        language            = [string]$Entry.Lang
+        source_codec        = [string]$Entry.Codec
+        codec_tag_string    = [string]$Entry.CodecTagString
+        title               = [string]$Entry.Title
+        raw_title           = [string]$Entry.RawTitle
+        is_default          = [bool]$Entry.IsDefault
+        source_is_default   = [bool]$Entry.SourceIsDefault
+        is_forced           = [bool]$Entry.IsForced
+        is_sdh              = [bool]$Entry.IsSdh
+        is_supplemental     = [bool]$Entry.IsSupplemental
+        is_tx3g             = [bool]$Entry.IsTx3g
+        is_bdpgs            = [bool]$Entry.IsBdpgs
+        is_vobsub           = [bool]$Entry.IsVobSub
+        is_ass              = ([string]$Entry.Codec -in (Get-MediaSubtitleCodecAssNames))
+    }
+}
+
+function Get-SubtitleRoutingPolicyChain {
+    return @(
+        {
+            param($Entry)
+            if ($Entry.Codec -in (Get-MediaSubtitleCodecSrtNames)) {
+                return New-SubtitleRoutingDecision -Action 'Keep' -Message "KEEP SRT stream $($Entry.Stream.index) ($($Entry.Lang)) '$($Entry.Title)'"
+            }
+            return $null
+        },
+        {
+            param($Entry)
+            if ($Entry.Codec -notin (Get-MediaSubtitleCodecAssNames)) { return $null }
+            $effectiveKeepSaS = Get-EffectiveSubtitleSwitch -Name 'KeepSignsAndSongs' -Default $true
+            if ([bool]$Entry.IsSupplemental -and $effectiveKeepSaS) {
+                return New-SubtitleRoutingDecision -Action 'Keep' -Message "KEEP ASS (supplemental) stream $($Entry.Stream.index) ($($Entry.Lang)) '$($Entry.Title)'"
+            }
+            if (-not (Get-EffectiveSubtitleSwitch -Name 'ConvertAssToSrt' -Default $true)) {
+                return New-SubtitleRoutingDecision -Action 'Keep' -Message "KEEP ASS stream $($Entry.Stream.index) ($($Entry.Lang)) '$($Entry.Title)': ConvertAssToSrt disabled"
+            }
+            return New-SubtitleRoutingDecision -Action 'ConvertAss' -Message "CONVERT ASS stream $($Entry.Stream.index) ($($Entry.Lang)) '$($Entry.Title)'"
+        },
+        {
+            param($Entry)
+            if (-not [bool]$Entry.IsTx3g) { return $null }
+            if (Get-EffectiveSubtitleSwitch -Name 'ConvertTx3gToSrt' -Default ([bool]$script:ConvertTx3gToSrt)) {
+                return New-SubtitleRoutingDecision -Action 'ConvertTx3g' -Message "CONVERT TX3G stream $($Entry.Stream.index) ($($Entry.Lang)) '$($Entry.Title)'"
+            }
+            if (Get-EffectiveSubtitleSwitch -Name 'DropTx3gAfterConversion' -Default $false) {
+                return New-SubtitleRoutingDecision -Action 'Drop' -Message "DROP TX3G stream $($Entry.Stream.index): ConvertTx3gToSrt disabled and DropTx3gAfterConversion enabled" -Level 'WARN'
+            }
+            return New-SubtitleRoutingDecision -Action 'Keep' -Message "KEEP TX3G stream $($Entry.Stream.index) ($($Entry.Lang)) '$($Entry.Title)': ConvertTx3gToSrt disabled"
+        },
+        {
+            param($Entry)
+            if (-not [bool]$Entry.IsBdpgs) { return $null }
+            if (Get-EffectiveSubtitleSwitch -Name 'ConvertBdpgsToSrt' -Default ([bool]$script:ConvertBdpgsToSrt)) {
+                return New-SubtitleRoutingDecision -Action 'ConvertBdpgs' -Message "CONVERT BDPGS stream $($Entry.Stream.index) ($($Entry.Lang)) '$($Entry.Title)' via OCR"
+            }
+            return New-SubtitleRoutingDecision -Action 'Keep' -Message "KEEP BDPGS stream $($Entry.Stream.index) ($($Entry.Lang)) '$($Entry.Title)'"
+        },
+        {
+            param($Entry)
+            if (-not [bool]$Entry.IsVobSub) { return $null }
+            $sourceText = if ($Entry.ContainsKey('SourceKind') -and [string]$Entry.SourceKind -eq 'sidecar') { "sidecar $([System.IO.Path]::GetFileName([string]$Entry.IdxPath))" } else { "stream $($Entry.Stream.index)" }
+            if (Get-EffectiveSubtitleSwitch -Name 'ConvertVobSubToSrt' -Default ([bool]$script:ConvertVobSubToSrt)) {
+                return New-SubtitleRoutingDecision -Action 'ConvertVobSub' -Message "CONVERT VobSub $sourceText ($($Entry.Lang)) '$($Entry.Title)' via OCR"
+            }
+            if ($Entry.ContainsKey('SourceKind') -and [string]$Entry.SourceKind -eq 'sidecar') {
+                return New-SubtitleRoutingDecision -Action 'Keep' -Message "REVIEW VobSub $sourceText ($($Entry.Lang)) '$($Entry.Title)': ConvertVobSubToSrt disabled and external IDX/SUB sidecars are not copied into output" -Level 'WARN'
+            }
+            return New-SubtitleRoutingDecision -Action 'Keep' -Message "KEEP VobSub $sourceText ($($Entry.Lang)) '$($Entry.Title)'"
+        },
+        {
+            param($Entry)
+            return New-SubtitleRoutingDecision -Action 'Drop' -Message "DROP stream $($Entry.Stream.index): unsupported codec '$($Entry.Codec)'" -Level 'WARN'
+        }
+    )
+}
+
+function Resolve-SubtitleRoutingDecision {
+    param([Parameter(Mandatory)] $Entry)
+
+    foreach ($rule in @(Get-SubtitleRoutingPolicyChain)) {
+        $decision = & $rule $Entry
+        if ($decision) { return $decision }
+    }
+
+    return New-SubtitleRoutingDecision -Action 'Drop' -Message "DROP stream $($Entry.Stream.index): unsupported codec '$($Entry.Codec)'" -Level 'WARN'
+}
+
+function Add-SubtitleRoutingDecision {
+    param(
+        [Parameter(Mandatory)] $Entry,
+        [Parameter(Mandatory)] $Decision,
+        [Parameter(Mandatory)] $Keep,
+        [Parameter(Mandatory)] $Convert,
+        [Parameter(Mandatory)] $Tx3gConvert,
+        [Parameter(Mandatory)] $BdpgsConvert,
+        [Parameter(Mandatory)] $VobSubConvert,
+        [Parameter(Mandatory)] $Drop,
+        [string] $Context = ''
+    )
+
+    Write-Log "${Context}$($Decision.Message)" ([string]$Decision.Level)
+    switch ([string]$Decision.Action) {
+        'Keep'        { $Keep.Add($Entry); break }
+        'ConvertAss'  { $Convert.Add($Entry); break }
+        'ConvertTx3g' { $Tx3gConvert.Add($Entry); break }
+        'ConvertBdpgs' { $BdpgsConvert.Add($Entry); break }
+        'ConvertVobSub' { $VobSubConvert.Add($Entry); break }
+        default       { $Drop.Add($Entry); break }
+    }
+}
+

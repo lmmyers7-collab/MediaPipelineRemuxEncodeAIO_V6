@@ -29,7 +29,7 @@ underlying WebView contract intentionally changed.
 
 ## Candidate Selection
 
-Use `Docs/generated/WEBVIEW_SPLIT_CANDIDATES.json` as the first decision point.
+Use `docs/generated/WEBVIEW_SPLIT_CANDIDATES.json` as the first decision point.
 Prefer candidates with:
 
 - `movement_assessment` set to `safe_to_move_now`

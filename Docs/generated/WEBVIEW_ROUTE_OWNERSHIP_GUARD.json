@@ -1,7 +1,7 @@
 {
   "schema_version": "webview_route_ownership_guard.v1",
-  "generated_by": "scripts/dev/check-webview-route-ownership.mjs",
-  "source_index": "DesktopApp/mediapipeline_desktop_app/ui_web/static/index.html",
+  "generated_by": "ops/scripts/dev/check-webview-route-ownership.mjs",
+  "source_index": "apps/desktop/webview/static/index.html",
   "guard_note": "Pre-split guard. Settings routes must remain settings-owned, and listed mutation routes must keep explicit backend confirmation.",
   "ok": true,
   "violations": [],
@@ -9,388 +9,388 @@
     {
       "route": "/api/audit-controls",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
       "route": "/api/audit/export-rerun-csv",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.js",
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/reportsView.js"
+        "apps/desktop/webview/static/assets/launchView.js",
+        "apps/desktop/webview/static/assets/reportsView.js"
       ]
     },
     {
       "route": "/api/audit/ignore",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.js",
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/reportsView.js"
+        "apps/desktop/webview/static/assets/launchView.js",
+        "apps/desktop/webview/static/assets/reportsView.js"
       ]
     },
     {
       "route": "/api/audit/score-policy",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.js",
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/reportsView.js"
+        "apps/desktop/webview/static/assets/launchView.js",
+        "apps/desktop/webview/static/assets/reportsView.js"
       ]
     },
     {
       "route": "/api/audit/start",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.js"
+        "apps/desktop/webview/static/assets/launchView.js"
       ]
     },
     {
       "route": "/api/backend/close-readiness",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
       "route": "/api/backend/shutdown",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
       "route": "/api/commands?limit=20",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
       "route": "/api/completed?limit=100",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
       "route": "/api/completed?limit=all&force_refresh=true&proof=live",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app/refresh.js"
+        "apps/desktop/webview/static/assets/app/refresh.js"
       ]
     },
     {
       "route": "/api/completed/open",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/openActions.js"
+        "apps/desktop/webview/static/assets/completed/openActions.js"
       ]
     },
     {
       "route": "/api/contract",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
       "route": "/api/diagnostics",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
       "route": "/api/diagnostics/open",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/diagnosticsView.js"
+        "apps/desktop/webview/static/assets/diagnosticsView.js"
       ]
     },
     {
       "route": "/api/diagnostics/state-summary",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
       "route": "/api/failures/clear",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/reportsView.js"
+        "apps/desktop/webview/static/assets/reportsView.js"
       ]
     },
     {
       "route": "/api/final-library-promotion/pause",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/promotionCommands.js"
+        "apps/desktop/webview/static/assets/completed/promotionCommands.js"
       ]
     },
     {
       "route": "/api/final-library-promotion/promote-queue",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/promotionCommands.js"
+        "apps/desktop/webview/static/assets/completed/promotionCommands.js"
       ]
     },
     {
       "route": "/api/final-library-promotion/resume",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/promotionCommands.js"
+        "apps/desktop/webview/static/assets/completed/promotionCommands.js"
       ]
     },
     {
       "route": "/api/final-library-promotion/status",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app/refresh.js"
+        "apps/desktop/webview/static/assets/app/refresh.js"
       ]
     },
     {
       "route": "/api/health",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
       "route": "/api/maintenance",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/maintenanceView.js"
+        "apps/desktop/webview/static/assets/maintenanceView.js"
       ]
     },
     {
       "route": "/api/maintenance/change-ledger",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/maintenanceView.js"
+        "apps/desktop/webview/static/assets/maintenanceView.js"
       ]
     },
     {
       "route": "/api/maintenance/completed-backfill-dry-run",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/maintenanceView.js"
+        "apps/desktop/webview/static/assets/maintenanceView.js"
       ]
     },
     {
       "route": "/api/maintenance/dependency-atlas",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/maintenanceView.js"
+        "apps/desktop/webview/static/assets/maintenanceView.js"
       ]
     },
     {
       "route": "/api/maintenance/progress",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/maintenanceView.js"
+        "apps/desktop/webview/static/assets/maintenanceView.js"
       ]
     },
     {
       "route": "/api/maintenance/release-build",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/maintenanceView.js"
+        "apps/desktop/webview/static/assets/maintenanceView.js"
       ]
     },
     {
       "route": "/api/maintenance/release-dry-run",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/maintenanceView.js"
+        "apps/desktop/webview/static/assets/maintenanceView.js"
       ]
     },
     {
       "route": "/api/network/workers",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
       "route": "/api/pending-publish",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
       "route": "/api/pending-publish/open",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/pendingPublishView.diagnostics.js"
+        "apps/desktop/webview/static/assets/pendingPublishView.diagnostics.js"
       ]
     },
     {
       "route": "/api/pending-publish/recovery-plan",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/pendingPublishView.recovery.js"
+        "apps/desktop/webview/static/assets/pendingPublishView.recovery.js"
       ]
     },
     {
       "route": "/api/pipeline/browse-file",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.js"
+        "apps/desktop/webview/static/assets/launchView.js"
       ]
     },
     {
       "route": "/api/pipeline/control",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.js"
+        "apps/desktop/webview/static/assets/launchView.js"
       ]
     },
     {
       "route": "/api/pipeline/start",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.js"
+        "apps/desktop/webview/static/assets/launchView.js"
       ]
     },
     {
       "route": "/api/publish-reconciliation?limit=250",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completedView.evidence.js"
+        "apps/desktop/webview/static/assets/completedView.evidence.js"
       ]
     },
     {
       "route": "/api/queue",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
       "route": "/api/queue/file-overrides",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.drawer.js"
-      ]
-    },
-    {
-      "route": "/api/queue/file-overrides/folder-preview",
-      "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.folderPreview.js"
-      ]
-    },
-    {
-      "route": "/api/queue/file-overrides/folder-rule",
-      "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.folderPreview.js"
+        "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.js"
       ]
     },
     {
       "route": "/api/queue/file-overrides/route-preview",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/fileOverrides.routePreview.js"
+        "apps/desktop/webview/static/assets/queue/fileOverrides.routePreview.js"
+      ]
+    },
+    {
+      "route": "/api/queue/file-overrides/series-apply",
+      "files": [
+        "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.js"
+      ]
+    },
+    {
+      "route": "/api/queue/file-overrides/series-preview",
+      "files": [
+        "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.js"
       ]
     },
     {
       "route": "/api/queue/open",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queue/openActions.js"
+        "apps/desktop/webview/static/assets/queue/openActions.js"
       ]
     },
     {
       "route": "/api/queue/priority",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.js"
+        "apps/desktop/webview/static/assets/queueView.js"
       ]
     },
     {
       "route": "/api/queue/scan",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.js"
+        "apps/desktop/webview/static/assets/queueView.js"
       ]
     },
     {
       "route": "/api/queue/strategy",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/queueView.js"
+        "apps/desktop/webview/static/assets/queueView.js"
       ]
     },
     {
       "route": "/api/rename/apply",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/renameView.js"
+        "apps/desktop/webview/static/assets/renameView.js"
       ]
     },
     {
       "route": "/api/rename/browse",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/renameView.js"
+        "apps/desktop/webview/static/assets/renameView.js"
       ]
     },
     {
       "route": "/api/rename/preview",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/renameView.js"
+        "apps/desktop/webview/static/assets/renameView.js"
       ]
     },
     {
       "route": "/api/rerun/start",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/launchView.js"
+        "apps/desktop/webview/static/assets/launchView.js"
       ]
     },
     {
       "route": "/api/sample-validation?limit=10",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
       "route": "/api/sample-validation/append",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/crossPageContextView.sampleValidation.js"
+        "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.js"
       ]
     },
     {
       "route": "/api/sample-validation/preview",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/crossPageContextView.sampleValidation.js"
+        "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.js"
       ]
     },
     {
       "route": "/api/schedule",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
       "route": "/api/schedule/preview",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/scheduleView.js"
+        "apps/desktop/webview/static/assets/scheduleView.js"
       ]
     },
     {
       "route": "/api/schedule/save",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/scheduleView.js"
+        "apps/desktop/webview/static/assets/scheduleView.js"
       ]
     },
     {
       "route": "/api/settings/browse-path",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js"
+        "apps/desktop/webview/static/assets/settingsView.js"
       ]
     },
     {
       "route": "/api/settings/preview-patch",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js"
+        "apps/desktop/webview/static/assets/settingsView.js"
       ]
     },
     {
       "route": "/api/settings/reload",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js"
+        "apps/desktop/webview/static/assets/settingsView.js"
       ]
     },
     {
       "route": "/api/settings/save-patch",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js"
+        "apps/desktop/webview/static/assets/settingsView.js"
       ]
     },
     {
       "route": "/api/settings/validate",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js"
+        "apps/desktop/webview/static/assets/settingsView.js"
       ]
     },
     {
       "route": "/api/settings/workspace",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
       "route": "/api/snapshot",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
       "route": "/api/telemetry",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
       "route": "/api/ui-preferences",
       "files": [
-        "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js"
+        "apps/desktop/webview/static/assets/app.js"
       ]
     }
   ],
@@ -402,7 +402,11 @@
       "note": "Settings persistence must remain explicitly backend-confirmed.",
       "files": [
         {
-          "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js",
+          "path": "apps/desktop/webview/static/assets/renameView.js",
+          "has_confirmation": true
+        },
+        {
+          "path": "apps/desktop/webview/static/assets/settingsView.js",
           "has_confirmation": true
         }
       ],
@@ -415,7 +419,7 @@
       "note": "Schedule persistence must remain explicitly backend-confirmed.",
       "files": [
         {
-          "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/scheduleView.js",
+          "path": "apps/desktop/webview/static/assets/scheduleView.js",
           "has_confirmation": true
         }
       ],
@@ -428,7 +432,7 @@
       "note": "Failure clear is destructive state mutation and must remain confirmed.",
       "files": [
         {
-          "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/reportsView.js",
+          "path": "apps/desktop/webview/static/assets/reportsView.js",
           "has_confirmation": true
         }
       ],
@@ -441,7 +445,7 @@
       "note": "Final-library promotion must remain explicitly backend-confirmed.",
       "files": [
         {
-          "path": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/completed/promotionCommands.js",
+          "path": "apps/desktop/webview/static/assets/completed/promotionCommands.js",
           "has_confirmation": true
         }
       ],

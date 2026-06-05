@@ -1,0 +1,58 @@
+"""Desktop settings metadata compatibility facade.
+
+`mediapipeline.contracts.config.Config` owns the value schema. Focused child modules
+own the static operator-facing labels, choices, grouping, and WebView
+metadata while this module preserves the public import path.
+"""
+
+from __future__ import annotations
+
+from mediapipeline.contracts.config import CONFIG_SCHEMA_VERSION
+
+from .metadata_choices import CONFIG_LIST_CHOICES
+from .metadata_layout import CONFIG_SECTION_ORDER, SETTING_PAGE_ORDER
+from .metadata_network import (
+    KEY_COORDINATOR_ALSO_ENCODE_LOCALLY,
+    KEY_COORDINATOR_AUTH_TOKEN,
+    KEY_COORDINATOR_BIND_ADDRESS,
+    KEY_COORDINATOR_HEARTBEAT_TIMEOUT_MINS,
+    KEY_COORDINATOR_PORT,
+    KEY_NETWORK_ROLE,
+    KEY_WORKER_AUTH_TOKEN,
+    KEY_WORKER_CONFIG_OVERRIDES,
+    KEY_WORKER_COORDINATOR_URL,
+    KEY_WORKER_NAME,
+    KEY_WORKER_POLL_INTERVAL_SECS,
+    KEY_WORKER_SOURCE_PATH_MAP,
+    NETWORK_CONFIG_DEFAULTS,
+    NETWORK_ROLE_CHOICES,
+)
+from .metadata_parts.field_definitions import (
+    CONFIG_FIELD_DEFINITIONS,
+    CONFIG_MANAGED_KEYS,
+)
+from .metadata_parts.policy import (
+    AUDIO_PASSTHROUGH_PROFILE_DEFAULT,
+    AUDIO_PASSTHROUGH_PROFILE_DESCRIPTIONS,
+    AUDIO_PASSTHROUGH_PROFILE_NAMES,
+    LOG_LEVEL_VALUES,
+    ROUTE_THRESHOLD_MODE_DEFAULT,
+    ROUTE_THRESHOLD_MODE_DESCRIPTIONS,
+    ROUTE_THRESHOLD_MODE_NAMES,
+    ROUTING_PROFILE_DEFAULT,
+    ROUTING_PROFILE_DESCRIPTIONS,
+    ROUTING_PROFILE_NAMES,
+    SIZE_GUARD_MODE_DEFAULT,
+    SIZE_GUARD_MODE_DESCRIPTIONS,
+    SIZE_GUARD_MODE_NAMES,
+)
+from .metadata_support import (
+    AUDIO_DOWNMIX_MODE_DESCRIPTIONS,
+    AUDIO_MAX_CHANNEL_DESCRIPTIONS,
+    AUDIO_TRANSCODE_CODEC_DESCRIPTIONS,
+    AUDIT_TREE_COLUMNS,
+    ENCODE_LADDER_DESCRIPTIONS,
+    ENCODE_TUNING_PRESET_DESCRIPTIONS,
+    FAILURE_TREE_COLUMNS,
+    QUEUE_TREE_COLUMNS,
+)

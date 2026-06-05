@@ -1,19 +1,33 @@
-import js from "@eslint/js";
-import globals from "globals";
+import { createRequire } from "node:module";
+
+const requireFromRoot = createRequire(import.meta.url);
+const requireFromOps = createRequire(new URL("./ops/scripts/dev/webview-tooling-common.mjs", import.meta.url));
+
+function requirePackage(name) {
+  try {
+    return requireFromRoot(name);
+  } catch (error) {
+    if (error?.code !== "MODULE_NOT_FOUND") throw error;
+    return requireFromOps(name);
+  }
+}
+
+const js = requirePackage("@eslint/js");
+const globals = requirePackage("globals");
 
 export default [
   {
     ignores: [
       "node_modules/**",
-      "DesktopApp/tauri_shell/**",
-      "DesktopApp/Runtime/**",
+      "apps/desktop/tauri/**",
+      "apps/desktop/runtime/**",
       "LocalBase/**",
       "RunLogs/**",
     ],
   },
   js.configs.recommended,
   {
-    files: ["DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/**/*.js"],
+    files: ["apps/desktop/webview/static/assets/**/*.js"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "script",

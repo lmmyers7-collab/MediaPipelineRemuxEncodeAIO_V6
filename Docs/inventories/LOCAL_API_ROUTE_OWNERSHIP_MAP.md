@@ -60,7 +60,7 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 | `GET /api/settings/wizard/status` | Yes | `none` | `desktop_settings_wizard_status.v1` | Settings Wizard | Reads availability and first-run recommendation state only |
 | `GET /api/settings/wizard/defaults` | Yes | `none` | `desktop_settings_wizard.v1` | Settings Wizard | Reads wizard defaults and tool candidates only |
 | `GET /api/network/workers` | Yes | `none` | `desktop_network_workers.v1` | Network | Coordinator/worker runtime state; no lifecycle controls |
-| `GET /api/sample-validation` | Yes | `none` | `desktop_sample_validation_log.v1` + summary + readiness + reconciliation + worksheet runs + pilot plan/checklist + sample set + evidence gaps + pilot runbook + policy alignment + validation audit | Home (Validation Log) | Recent validation records plus backend-authored read-only validation readiness, stale-evidence reconciliation, pilot plan, operator sample-execution checklist, generated worksheet evidence from `Docs\RealMediaValidationRuns`, representative category coverage, evidence gaps, pilot runbook, saved-policy alignment, and conservative validation audit; query param: `limit` |
+| `GET /api/sample-validation` | Yes | `none` | `desktop_sample_validation_log.v1` + summary + readiness + reconciliation + worksheet runs + pilot plan/checklist + sample set + evidence gaps + pilot runbook + policy alignment + validation audit | Home (Validation Log) | Recent validation records plus backend-authored read-only validation readiness, stale-evidence reconciliation, pilot plan, operator sample-execution checklist, generated worksheet evidence from `docs\RealMediaValidationRuns`, representative category coverage, evidence gaps, pilot runbook, saved-policy alignment, and conservative validation audit; query param: `limit` |
 
 ---
 
@@ -138,7 +138,7 @@ UI preference sync is backend-owned state persistence for browser-local customiz
 | `POST /api/maintenance/completed-backfill-dry-run` | `process-dry-run` | `timeout_seconds` | Maintenance |
 | `POST /api/maintenance/dependency-atlas` | `tooling-artifact-write` | `timeout_seconds`, `min_overview_edge_count`, `min_overview_files` | Maintenance |
 
-The dry-run routes run existing backend scripts with `-DryRun` and write no release folder, zip, manifest, or completed manifest. `dependency-atlas` writes generated dependency-atlas tooling artifacts under `V6_dependency_atlas/` only and does not touch media, queue, settings, manifests, pending publish state, or pipeline state. `release-build` requires explicit `confirm_create`, is blocked during active work, runs under the backend maintenance command lock, and writes only release deployment artifacts through the backend release builder.
+The dry-run routes run existing backend scripts with `-DryRun` and write no release folder, zip, manifest, or completed manifest. `dependency-atlas` writes generated dependency-atlas tooling artifacts under `docs/generated/dependency-atlas/` only and does not touch media, queue, settings, manifests, pending publish state, or pipeline state. `release-build` requires explicit `confirm_create`, is blocked during active work, runs under the backend maintenance command lock, and writes only release deployment artifacts through the backend release builder.
 
 ### Rename Commands
 
@@ -229,7 +229,7 @@ files.
 | `audit-state-write` | `POST /api/audit/score-policy`, `POST /api/audit/ignore` | Audit-only score/ignore state; no queue/media mutation |
 | `report-file-write` | `POST /api/audit/export-rerun-csv` | Writes a backend-owned report CSV artifact only |
 | `process-dry-run` | `POST /api/queue/scan`, `POST /api/maintenance/release-dry-run`, `POST /api/maintenance/completed-backfill-dry-run` | Backend dry-run/process evidence only; no media output written |
-| `tooling-artifact-write` | `POST /api/maintenance/dependency-atlas` | Generated dependency-atlas tooling artifacts under `V6_dependency_atlas/` only |
+| `tooling-artifact-write` | `POST /api/maintenance/dependency-atlas` | Generated dependency-atlas tooling artifacts under `docs/generated/dependency-atlas/` only |
 | `deployment-write` | `POST /api/maintenance/release-build` | Writes deployable release folder, manifest, and optional zip only |
 | `control-state-write` | `POST /api/final-library-promotion/pause`, `POST /api/final-library-promotion/resume` | Writes cooperative final-library promotion control state only |
 | `control-flag-write` | `POST /api/pipeline/control` | Pause/stop/rescan signal or backend-owned emergency kill cleanup only |
@@ -270,8 +270,8 @@ Every mutation route enforces backend ownership:
 
 ## See Also
 
-- Route handler dispatch: `DesktopApp/mediapipeline_desktop_app/api/routes_read.py`, `routes_command.py`
-- Contract source: `DesktopApp/mediapipeline_desktop_app/api/contract_read.py`, `contract_command.py`
-- Diagnostics target allowlist: `Docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`
-- Lifecycle boundary: `Docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`
-- Settings coverage: `Docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`
+- Route handler dispatch: `src/mediapipeline/desktop/api/routes_read.py`, `routes_command.py`
+- Contract source: `src/mediapipeline/desktop/api/contract_read.py`, `contract_command.py`
+- Diagnostics target allowlist: `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`
+- Lifecycle boundary: `docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`
+- Settings coverage: `docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`

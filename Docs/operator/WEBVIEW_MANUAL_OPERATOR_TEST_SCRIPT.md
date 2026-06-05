@@ -12,11 +12,11 @@ Before starting:
 
 1. Start the local API:
    ```
-   .\scripts\dev\start-local-api.bat
+   .\ops\scripts\dev\start-local-api.bat
    ```
 2. Start the Tauri/WebView2 preview:
    ```
-   .\scripts\dev\start-tauri-preview.bat
+   .\ops\scripts\dev\start-tauri-preview.bat
    ```
 3. Confirm the top bar shows a green/active state pill (not "Connecting" or "Error").
 4. Open browser DevTools → Network tab. Filter by XHR/Fetch. You will use this to confirm which routes are called during each page browse.
@@ -286,7 +286,7 @@ Before moving to each page, verify:
 
 ### Freshness Note — 2026-05-15 (CLN3-014)
 
-Added Launch Scope Reconciliation, Launch Real-Media Sample Proof Handoff, Launch Sample Execution Checklist, and Launch Start Decision Summary verification steps to Page 7: Launch. These panels were added during the V5 real-media proof handoff work and were absent from the original manual script.
+Added Launch Scope Reconciliation, Launch Real-Media Sample Proof Handoff, Launch Sample Execution Checklist, and Launch Start Decision Summary verification steps to Page 7: Launch. These panels were added during the real-media proof handoff work and were absent from the original manual script.
 
 ---
 
@@ -441,7 +441,7 @@ After completing all 13 pages:
    - `/api/rename/apply` (unless you intentionally tested Apply)
    - `/api/pipeline/start` with mode `continuous` (unless intentionally testing)
    - `/api/pending-publish/open` with a raw path (target must be an allowlisted key)
-   - Any route not listed by the active `/api/contract` response or `Docs/inventories/API_ROUTE_INVENTORY.md`
+   - Any route not listed by the active `/api/contract` response or `docs/inventories/API_ROUTE_INVENTORY.md`
 
 5. Verify that no JavaScript errors appear in the browser console related to unhandled rejections or missing backend responses.
 
@@ -469,14 +469,15 @@ This script is for human observation. Automated equivalents:
 | Schedule | `Test-WebViewScheduleSmoke.ps1` |
 | Real-media evidence | `Test-WebViewRealMediaEvidenceSmoke.ps1` |
 
-See `Docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md` for the full catalog.
+See `docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md` for the full catalog.
 
 ---
 
 ## See Also
 
-- Mutation boundary: `Docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md`
-- Historical mutation review: `Docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/Docs/archive/completed-audits/WEBVIEW_APIPOST_MUTATION_REVIEW.md`
-- No-touch boundaries: `Docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`
-- Smoke test catalog: `Docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`
-- Failure triage: `Docs/operator/FAILURE_TRIAGE_WORKSHEET.md`
+- Mutation boundary: `docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md`
+- Historical mutation review: `docs/archive/docs-housekeeping/2026-05-20-review/archive-historical/docs/archive/completed-audits/WEBVIEW_APIPOST_MUTATION_REVIEW.md`
+- No-touch boundaries: `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`
+- Smoke test catalog: `docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`
+- Failure triage: `docs/operator/FAILURE_TRIAGE_WORKSHEET.md`
+

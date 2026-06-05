@@ -1,0 +1,52 @@
+{
+  "id": "MP-CHANGE-2026-0604-020",
+  "title": "Harden independent release foundation phase plans",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-04",
+  "date_completed": "2026-06-04",
+  "summary": "Hardened the 2026.06.04.001 release-foundation planning pack so each phase can be assigned independently with explicit prerequisites, stop conditions, validation evidence, rollback notes, change-ledger expectations, and review-corrected version/package validation gates.",
+  "reason": "The phase plans were reviewed as independent implementation handoffs. Package build, package/open/close validation, real-media pilot, finalization, and release-identity phases needed stronger same-candidate gates, source-safety evidence, runtime-state checks, and product-version compatibility guidance before they were safe to hand to separate agents.",
+  "affected_areas": [
+    "docs",
+    "release",
+    "validation"
+  ],
+  "behavior_before": "The planning pack described sequential release phases but left some prerequisites implicit, deferred package/open/close validation from the candidate-build phase, and did not fully spell out pre-launch source-safety, scratch-copy, subtitle/OCR, or post-finalization validation expectations.",
+  "behavior_after": "The planning pack now states that phases are independently assignable, requires agents to stop on missing or stale prerequisite evidence, preserves backend 2026.06.04.001 product-version contracts while using 2026.06.04.001 for release labels, marks Phase 4 as build-only until Phase 5 passes for the same candidate, requires Tauri build-check evidence before packaging, moves strict coverage back to the source checkout for package validation, requires Phase 5 runtime-state externalization evidence, requires Phase 6 same-candidate package/runtime evidence plus source-safety and subtitle proof, and requires Phase 7 post-finalization validation with an explicit rebuild rule if finalized metadata must ship in the package.",
+  "files_touched": [
+    "docs/implementation/release-foundation/PHASE_0_DOCS_ONLY_PLANNING.md",
+    "docs/implementation/release-foundation/PHASE_1_RELEASE_IDENTITY.md",
+    "docs/implementation/release-foundation/PHASE_2_FILE_LAYOUT_CLEANUP.md",
+    "docs/implementation/release-foundation/PHASE_3_DOCUMENTATION_CLEANUP.md",
+    "docs/implementation/release-foundation/PHASE_4_TAURI_RELEASE_CANDIDATE.md",
+    "docs/implementation/release-foundation/PHASE_5_PACKAGE_OPEN_CLOSE_VALIDATION.md",
+    "docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md",
+    "docs/implementation/release-foundation/PHASE_7_FINALIZATION.md",
+    "docs/implementation/release-foundation/README.md",
+    "ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-020.json",
+    "docs/generated/summaries/docs/implementation/release-foundation/PHASE_0_DOCS_ONLY_PLANNING.md.md",
+    "docs/generated/summaries/docs/implementation/release-foundation/PHASE_1_RELEASE_IDENTITY.md.md",
+    "docs/generated/summaries/docs/implementation/release-foundation/PHASE_2_FILE_LAYOUT_CLEANUP.md.md",
+    "docs/generated/summaries/docs/implementation/release-foundation/PHASE_3_DOCUMENTATION_CLEANUP.md.md",
+    "docs/generated/summaries/docs/implementation/release-foundation/PHASE_4_TAURI_RELEASE_CANDIDATE.md.md",
+    "docs/generated/summaries/docs/implementation/release-foundation/PHASE_5_PACKAGE_OPEN_CLOSE_VALIDATION.md.md",
+    "docs/generated/summaries/docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md.md",
+    "docs/generated/summaries/docs/implementation/release-foundation/PHASE_7_FINALIZATION.md.md",
+    "docs/generated/summaries/docs/implementation/release-foundation/README.md.md",
+    "docs/generated/summaries/ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-020.json.md"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/check_active_doc_references.py - passed",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/validate_changes.py - failed due unrelated ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-018.json high/critical packet metadata requiring notes or rollback detail",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/validate_changes.py --require-worktree-coverage - failed due unrelated ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-018.json packet metadata and 7 uncovered pre-existing dirty paths: CON, src/mediapipeline/desktop/network/standalone.py, apps/desktop/webview/static/assets/settingsView.builders.video.js, apps/desktop/webview/static/assets/styles.pages.css, ops/pipeline/entrypoints/MediaPipeline.ps1, app/config/metadata_parts/video_fields.py, app/contracts/height_tolerance.py",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/scripts/ops/release/metadata/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke - failed due unrelated dirty settings-label and rename reliability test failures"
+  ],
+  "rollback_plan": "Revert the edited files under docs/implementation/release-foundation/ plus their generated summaries and remove this change packet if the planning hardening is not wanted. No code, launcher, package behavior, media policy, runtime state, or media files were changed.",
+  "related_changes": [],
+  "notes": ""
+}
+

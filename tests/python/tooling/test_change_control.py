@@ -1,0 +1,554 @@
+from __future__ import annotations
+
+import contextlib
+import io
+import json
+import shutil
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+from mediapipeline.tools.paths import find_repo_root
+from mediapipeline.tools.change_control import (
+    build_change_index,
+    build_changelog,
+    build_release_manifest,
+    finalize_release,
+    packet_coverage,
+    prepare_release,
+    record_change_touch,
+    validate_changes,
+)
+from typing import Any
+
+
+REPO_ROOT = find_repo_root(Path(__file__))
+CHANGE_CONTROL_DIR = REPO_ROOT / "src" / "mediapipeline" / "tools" / "change_control"
+
+
+def _packet(change_id: str, version_target: str) -> dict[str, Any]:
+    return {
+        "id": change_id,
+        "title": "Test change",
+        "version_target": version_target,
+        "status": "complete",
+        "type": "tooling",
+        "risk_level": "low",
+        "date_started": "2026-06-02",
+        "date_completed": "2026-06-02",
+        "summary": "Test summary.",
+        "reason": "Test reason.",
+        "affected_areas": ["change_control"],
+        "behavior_before": "Before.",
+        "behavior_after": "After.",
+        "files_touched": ["src/mediapipeline/tools/change_control/build_release_manifest.py"],
+        "tests_added": ["tests/python/tooling/test_change_control.py"],
+        "manual_validation": ["unit test"],
+        "rollback_plan": "Revert the test change.",
+        "related_changes": [],
+        "notes": "",
+    }
+
+
+def _write_packet(root: Path, relative: str, packet: dict[str, Any]) -> Path:
+    path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(packet, indent=2) + "\n", encoding="utf-8")
+    return path
+
+
+def _run_git(root: Path, *args: str) -> str:
+    if not shutil.which("git"):
+        raise unittest.SkipTest("git is required for staged/diff change-control coverage tests.")
+    result = subprocess.run(
+        ["git", *args],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise AssertionError(result.stderr.strip() or result.stdout.strip() or f"git {' '.join(args)} failed")
+    return result.stdout
+
+
+def _init_git(root: Path) -> None:
+    _run_git(root, "init")
+    _run_git(root, "config", "user.email", "change-control-tests@example.invalid")
+    _run_git(root, "config", "user.name", "Change Control Tests")
+
+
+class _PatchedChangeControl:
+    def __init__(self, module: Any, root: Path) -> None:
+        self.module = module
+        self.root = root
+        self.old_values: dict[str, Any] = {}
+
+    def __enter__(self) -> None:
+        self.old_values = {
+            "REPO_ROOT": self.module.REPO_ROOT,
+            "UNRELEASED_DIR": self.module.UNRELEASED_DIR,
+        }
+        self.module.REPO_ROOT = self.root
+        self.module.UNRELEASED_DIR = self.root / "ops" / "release" / "changes" / "unreleased"
+        if hasattr(self.module, "RELEASED_DIR"):
+            self.old_values["RELEASED_DIR"] = self.module.RELEASED_DIR
+            self.module.RELEASED_DIR = self.root / "ops" / "release" / "changes" / "released"
+        if hasattr(self.module, "VERSION_FILE"):
+            self.old_values["VERSION_FILE"] = self.module.VERSION_FILE
+            self.module.VERSION_FILE = self.root / "ops" / "release" / "metadata" / "VERSION"
+        if hasattr(self.module, "RELEASE_HISTORY_DIR"):
+            self.old_values["RELEASE_HISTORY_DIR"] = self.module.RELEASE_HISTORY_DIR
+            self.module.RELEASE_HISTORY_DIR = self.root / "ops" / "release" / "metadata" / "history"
+
+    def __exit__(self, *_exc: object) -> None:
+        for name, value in self.old_values.items():
+            setattr(self.module, name, value)
+
+
+class ChangePacketCoverageTests(unittest.TestCase):
+    def test_worktree_paths_covered_by_unreleased_packet_pass(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            packet = _packet("MP-CHANGE-2026-0604-001", "0.1.0-dev")
+            packet["files_touched"] = ["src/mediapipeline/core/maintenance/change_ledger.py"]
+            _write_packet(root, "ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json", packet)
+
+            result = packet_coverage.coverage_for_paths(
+                root=root,
+                scope="test",
+                changed_files=["src\\mediapipeline\\core\\maintenance\\change_ledger.py"],
+            )
+
+        self.assertEqual(result.covered_files, ("src/mediapipeline/core/maintenance/change_ledger.py",))
+        self.assertEqual(result.uncovered_files, ())
+
+    def test_missing_changed_file_reports_exact_uncovered_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            packet = _packet("MP-CHANGE-2026-0604-001", "0.1.0-dev")
+            packet["files_touched"] = ["README.md"]
+            _write_packet(root, "ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json", packet)
+
+            result = packet_coverage.coverage_for_paths(
+                root=root,
+                scope="test",
+                changed_files=["src/mediapipeline/tools/change_control/validate_changes.py"],
+            )
+
+        self.assertEqual(result.uncovered_files, ("src/mediapipeline/tools/change_control/validate_changes.py",))
+
+    def test_directory_entries_cover_descendant_changed_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            packet = _packet("MP-CHANGE-2026-0604-001", "0.1.0-dev")
+            packet["files_touched"] = ["src/mediapipeline", "DesktopApp"]
+            _write_packet(root, "ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json", packet)
+
+            result = packet_coverage.coverage_for_paths(
+                root=root,
+                scope="test",
+                changed_files=[
+                    "src/mediapipeline/tools/change_control/validate_changes.py",
+                    "DesktopApp/old_module.py",
+                    "src/other.py",
+                ],
+            )
+
+        self.assertEqual(
+            result.covered_files,
+            (
+                "DesktopApp/old_module.py",
+                "src/mediapipeline/tools/change_control/validate_changes.py",
+            ),
+        )
+        self.assertEqual(result.uncovered_files, ("src/other.py",))
+
+    def test_released_packets_do_not_satisfy_current_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            released_packet = _packet("MP-CHANGE-2026-0601-001", "1.0.0")
+            released_packet["files_touched"] = ["src/mediapipeline/core/released.py"]
+            _write_packet(root, "ops/release/changes/released/1.0.0/MP-CHANGE-2026-0601-001.json", released_packet)
+
+            result = packet_coverage.coverage_for_paths(
+                root=root,
+                scope="test",
+                changed_files=["src/mediapipeline/core/released.py"],
+            )
+
+        self.assertEqual(result.covered_files, ())
+        self.assertEqual(result.uncovered_files, ("src/mediapipeline/core/released.py",))
+
+    def test_status_parser_includes_untracked_deleted_and_renamed_paths(self) -> None:
+        parsed = packet_coverage.parse_git_status_short(
+            "?? scratch/new.py\n"
+            " D old/deleted.py\n"
+            "R  old/name.py -> new/name.py\n"
+        )
+
+        self.assertEqual(parsed, ["new/name.py", "old/deleted.py", "scratch/new.py"])
+
+    def test_name_status_parser_normalizes_deleted_and_renamed_paths(self) -> None:
+        parsed = packet_coverage.parse_git_name_status(
+            "D\told/deleted.py\n"
+            "R100\told/name.py\tnew/name.py\n"
+        )
+
+        self.assertEqual(parsed, ["new/name.py", "old/deleted.py"])
+
+    def test_staged_mode_reads_staged_packet_json_not_unstaged_edits(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            _init_git(root)
+            packet = _packet("MP-CHANGE-2026-0604-001", "0.1.0-dev")
+            packet["files_touched"] = ["ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json"]
+            packet_path = _write_packet(root, "ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json", packet)
+            _run_git(root, "add", "ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json")
+            staged_file = root / "src" / "mediapipeline" / "core" / "maintenance" / "change_ledger.py"
+            staged_file.parent.mkdir(parents=True)
+            staged_file.write_text("print('ledger')\n", encoding="utf-8")
+            _run_git(root, "add", "src/mediapipeline/core/maintenance/change_ledger.py")
+
+            packet["files_touched"].append("src/mediapipeline/core/maintenance/change_ledger.py")
+            packet_path.write_text(json.dumps(packet, indent=2) + "\n", encoding="utf-8")
+
+            result = packet_coverage.coverage_for_staged(root)
+
+        self.assertIn("src/mediapipeline/core/maintenance/change_ledger.py", result.uncovered_files)
+
+    def test_diff_mode_checks_files_changed_since_base_ref(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            _init_git(root)
+            (root / "ops" / "release" / "metadata").mkdir(parents=True)
+            (root / "ops" / "release" / "metadata" / "VERSION").write_text("0.1.0-dev\n", encoding="utf-8")
+            _write_packet(root, "ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json", _packet("MP-CHANGE-2026-0604-001", "0.1.0-dev"))
+            _run_git(root, "add", ".")
+            _run_git(root, "commit", "-m", "baseline")
+
+            packet = _packet("MP-CHANGE-2026-0604-002", "0.1.0-dev")
+            packet["files_touched"] = [
+                "src/mediapipeline/core/maintenance/change_ledger.py",
+                "ops/release/changes/unreleased/MP-CHANGE-2026-0604-002.json",
+            ]
+            _write_packet(root, "ops/release/changes/unreleased/MP-CHANGE-2026-0604-002.json", packet)
+            changed = root / "src" / "mediapipeline" / "core" / "maintenance" / "change_ledger.py"
+            changed.parent.mkdir(parents=True, exist_ok=True)
+            changed.write_text("print('ledger')\n", encoding="utf-8")
+            _run_git(root, "add", ".")
+            _run_git(root, "commit", "-m", "covered change")
+
+            result = packet_coverage.coverage_for_diff(root, "HEAD~1")
+
+        self.assertEqual(result.uncovered_files, ())
+        self.assertIn("src/mediapipeline/core/maintenance/change_ledger.py", result.covered_files)
+
+
+class ValidateChangesCoverageTests(unittest.TestCase):
+    def test_default_validation_does_not_require_worktree_coverage(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "ops" / "release" / "metadata").mkdir(parents=True)
+            (root / "ops" / "release" / "metadata" / "VERSION").write_text("0.1.0-dev\n", encoding="utf-8")
+            _write_packet(root, "ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json", _packet("MP-CHANGE-2026-0604-001", "0.1.0-dev"))
+
+            with _PatchedChangeControl(validate_changes, root):
+                result = validate_changes.main([])
+
+        self.assertEqual(result, 0)
+
+    def test_worktree_strict_coverage_failure_includes_path_and_helper_hint(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            _init_git(root)
+            (root / "ops" / "release" / "metadata").mkdir(parents=True)
+            (root / "ops" / "release" / "metadata" / "VERSION").write_text("0.1.0-dev\n", encoding="utf-8")
+            packet = _packet("MP-CHANGE-2026-0604-001", "0.1.0-dev")
+            packet["files_touched"] = ["ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json"]
+            _write_packet(root, "ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json", packet)
+            missing = root / "src" / "mediapipeline" / "tools" / "change_control" / "validate_changes.py"
+            missing.parent.mkdir(parents=True)
+            missing.write_text("# changed\n", encoding="utf-8")
+
+            stderr = io.StringIO()
+            with _PatchedChangeControl(validate_changes, root), contextlib.redirect_stderr(stderr):
+                result = validate_changes.main(["--require-worktree-coverage"])
+
+        self.assertEqual(result, 1)
+        output = stderr.getvalue()
+        self.assertIn("src/mediapipeline/tools/change_control/validate_changes.py", output)
+        self.assertIn("ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.record_change_touch MP-CHANGE-YYYY-MMDD-### <path>", output)
+
+    def test_git_unavailable_strict_mode_fails_actionably(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "ops" / "release" / "metadata").mkdir(parents=True)
+            (root / "ops" / "release" / "metadata" / "VERSION").write_text("0.1.0-dev\n", encoding="utf-8")
+            _write_packet(root, "ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json", _packet("MP-CHANGE-2026-0604-001", "0.1.0-dev"))
+
+            stderr = io.StringIO()
+            with _PatchedChangeControl(validate_changes, root), contextlib.redirect_stderr(stderr):
+                result = validate_changes.main(["--require-worktree-coverage"])
+
+        self.assertEqual(result, 1)
+        self.assertIn("Git metadata is unavailable", stderr.getvalue())
+        self.assertIn("Run strict coverage from a Git checkout", stderr.getvalue())
+
+
+class RecordChangeTouchTests(unittest.TestCase):
+    def test_helper_adds_paths_evidence_notes_and_completion(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            change_id = "MP-CHANGE-2026-0604-001"
+            _write_packet(root, f"ops/release/changes/unreleased/{change_id}.json", _packet(change_id, "0.1.0-dev"))
+
+            with _PatchedChangeControl(record_change_touch, root):
+                result = record_change_touch.main(
+                    [
+                        change_id,
+                        "src\\mediapipeline\\core\\maintenance\\change_ledger.py",
+                        "--area",
+                        "maintenance",
+                        "--test",
+                        "tests/python/desktop/test_maintenance_change_ledger.py",
+                        "--validation",
+                        "unit tests - passed",
+                        "--note",
+                        "Python impact captured in files_touched.",
+                        "--complete",
+                    ]
+                )
+
+            packet = json.loads((root / f"ops/release/changes/unreleased/{change_id}.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(result, 0)
+        self.assertEqual(packet["status"], "complete")
+        self.assertRegex(packet["date_completed"], r"^\d{4}-\d{2}-\d{2}$")
+        self.assertIn("src/mediapipeline/core/maintenance/change_ledger.py", packet["files_touched"])
+        self.assertIn(f"ops/release/changes/unreleased/{change_id}.json", packet["files_touched"])
+        self.assertIn("maintenance", packet["affected_areas"])
+        self.assertIn("tests/python/desktop/test_maintenance_change_ledger.py", packet["tests_added"])
+        self.assertIn("unit tests - passed", packet["manual_validation"])
+        self.assertIn("Python impact captured", packet["notes"])
+
+    def test_helper_rejects_invalid_change_id_without_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            change_id = "MP-CHANGE-2026-0604-001"
+            packet_path = _write_packet(root, f"ops/release/changes/unreleased/{change_id}.json", _packet(change_id, "0.1.0-dev"))
+            before = packet_path.read_text(encoding="utf-8")
+
+            with _PatchedChangeControl(record_change_touch, root):
+                with self.assertRaises(SystemExit):
+                    record_change_touch.main(["bad-id", "README.md"])
+
+            after = packet_path.read_text(encoding="utf-8")
+
+        self.assertEqual(after, before)
+
+    def test_helper_from_staged_adds_only_staged_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            _init_git(root)
+            change_id = "MP-CHANGE-2026-0604-001"
+            _write_packet(root, f"ops/release/changes/unreleased/{change_id}.json", _packet(change_id, "0.1.0-dev"))
+            staged = root / "staged.py"
+            unstaged = root / "unstaged.py"
+            staged.write_text("print('staged')\n", encoding="utf-8")
+            unstaged.write_text("print('unstaged')\n", encoding="utf-8")
+            _run_git(root, "add", "staged.py")
+
+            with _PatchedChangeControl(record_change_touch, root):
+                record_change_touch.main([change_id, "--from-staged"])
+
+            packet = json.loads((root / f"ops/release/changes/unreleased/{change_id}.json").read_text(encoding="utf-8"))
+
+        self.assertIn("staged.py", packet["files_touched"])
+        self.assertNotIn("unstaged.py", packet["files_touched"])
+
+
+class ChangeControlWorkflowStaticTests(unittest.TestCase):
+    def test_pre_commit_includes_staged_change_packet_coverage_hook(self) -> None:
+        text = (REPO_ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8")
+
+        self.assertIn("mediapipeline-change-packet-staged-coverage", text)
+        self.assertIn("mediapipeline.tools.change_control.validate_changes --require-staged-coverage", text)
+
+    def test_github_workflow_includes_pr_diff_change_packet_coverage(self) -> None:
+        text = (REPO_ROOT / ".github" / "workflows" / "phase1-drift.yml").read_text(encoding="utf-8")
+
+        self.assertIn("Check change packet coverage", text)
+        self.assertIn('mediapipeline.tools.change_control.validate_changes --require-diff-coverage "origin/${{ github.base_ref }}"', text)
+        self.assertIn("python -m mediapipeline.tools.change_control.validate_changes", text)
+
+
+class ChangeControlToolingTests(unittest.TestCase):
+    def test_generated_change_outputs_normalize_legacy_packet_paths(self) -> None:
+        legacy_packet = "ops/ops/release/metadata/changes/unreleased/MP-CHANGE-2026-0604-001.json"
+        legacy_summary = (
+            "docs/generated/summaries/ops/ops/release/metadata/changes/unreleased/"
+            "MP-CHANGE-2026-0604-001.json.md"
+        )
+
+        index_text = build_change_index._list_text([legacy_packet, legacy_summary])
+        changelog_lines = "\n".join(build_changelog._list_lines("Files touched", [legacy_packet, legacy_summary]))
+        manifest_values = build_release_manifest._list_values(
+            [{"files_touched": [legacy_packet, legacy_summary]}],
+            "files_touched",
+            normalize_paths=True,
+        )
+
+        for text in (index_text, changelog_lines, "\n".join(manifest_values)):
+            self.assertIn("ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json", text)
+            self.assertIn(
+                "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json.md",
+                text,
+            )
+            self.assertNotIn("ops/ops/release/metadata/changes", text)
+
+    def test_local_channel_supported_for_portable_release_metadata(self) -> None:
+        self.assertIn("local", build_release_manifest.CHANNELS)
+        self.assertIn("local", prepare_release.CHANNELS)
+        self.assertIn("local", finalize_release.CHANNELS)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            unreleased = root / "ops" / "release" / "changes" / "unreleased"
+            released = root / "ops" / "release" / "changes" / "released"
+            version_file = root / "ops" / "release" / "metadata" / "VERSION"
+            manifest_path = root / "ops" / "release" / "metadata" / "RELEASE_MANIFEST.json"
+            unreleased.mkdir(parents=True)
+            version_file.parent.mkdir(parents=True)
+            version_file.write_text("2026.06.04.001\n", encoding="utf-8")
+            packet_path = unreleased / "MP-CHANGE-2026-0604-001.json"
+            packet_path.write_text(
+                json.dumps(_packet(packet_path.stem, "2026.06.04.001"), indent=2) + "\n",
+                encoding="utf-8",
+            )
+
+            old_values = (
+                build_release_manifest.REPO_ROOT,
+                build_release_manifest.UNRELEASED_DIR,
+                build_release_manifest.RELEASED_DIR,
+                build_release_manifest.VERSION_FILE,
+                build_release_manifest.DEFAULT_MANIFEST_PATH,
+            )
+            try:
+                build_release_manifest.REPO_ROOT = root
+                build_release_manifest.UNRELEASED_DIR = unreleased
+                build_release_manifest.RELEASED_DIR = released
+                build_release_manifest.VERSION_FILE = version_file
+                build_release_manifest.DEFAULT_MANIFEST_PATH = manifest_path
+
+                manifest = build_release_manifest.build_manifest(
+                    version="2026.06.04.001",
+                    channel="local",
+                    output_path=manifest_path,
+                )
+            finally:
+                (
+                    build_release_manifest.REPO_ROOT,
+                    build_release_manifest.UNRELEASED_DIR,
+                    build_release_manifest.RELEASED_DIR,
+                    build_release_manifest.VERSION_FILE,
+                    build_release_manifest.DEFAULT_MANIFEST_PATH,
+                ) = old_values
+
+        self.assertEqual(manifest["version"], "2026.06.04.001")
+        self.assertEqual(manifest["version_scheme"], "calendar-build")
+        self.assertEqual(manifest["build_id"], "2026.06.04.001")
+        self.assertIn("source_revision", manifest)
+        self.assertIn("source_dirty", manifest)
+        self.assertIn("tool_semver", manifest)
+        self.assertEqual(manifest["release_channel"], "local")
+        self.assertEqual(manifest["included_changes"], [packet_path.stem])
+
+    def test_manifest_can_preview_dev_placeholder_packets_for_target_version(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            unreleased = root / "ops" / "release" / "changes" / "unreleased"
+            released = root / "ops" / "release" / "changes" / "released"
+            version_file = root / "ops" / "release" / "metadata" / "VERSION"
+            manifest_path = root / "ops" / "release" / "metadata" / "RELEASE_MANIFEST.json"
+            unreleased.mkdir(parents=True)
+            version_file.parent.mkdir(parents=True)
+            version_file.write_text("0.1.0-dev\n", encoding="utf-8")
+            packet_path = unreleased / "MP-CHANGE-2026-0602-001.json"
+            packet_path.write_text(
+                json.dumps(_packet(packet_path.stem, "0.1.0-dev"), indent=2) + "\n",
+                encoding="utf-8",
+            )
+
+            old_values = (
+                build_release_manifest.REPO_ROOT,
+                build_release_manifest.UNRELEASED_DIR,
+                build_release_manifest.RELEASED_DIR,
+                build_release_manifest.VERSION_FILE,
+                build_release_manifest.DEFAULT_MANIFEST_PATH,
+            )
+            try:
+                build_release_manifest.REPO_ROOT = root
+                build_release_manifest.UNRELEASED_DIR = unreleased
+                build_release_manifest.RELEASED_DIR = released
+                build_release_manifest.VERSION_FILE = version_file
+                build_release_manifest.DEFAULT_MANIFEST_PATH = manifest_path
+
+                without_placeholder = build_release_manifest.build_manifest(
+                    version="1.0.0",
+                    output_path=manifest_path,
+                )
+                with_placeholder = build_release_manifest.build_manifest(
+                    version="1.0.0",
+                    output_path=manifest_path,
+                    include_dev_placeholders=True,
+                )
+            finally:
+                (
+                    build_release_manifest.REPO_ROOT,
+                    build_release_manifest.UNRELEASED_DIR,
+                    build_release_manifest.RELEASED_DIR,
+                    build_release_manifest.VERSION_FILE,
+                    build_release_manifest.DEFAULT_MANIFEST_PATH,
+                ) = old_values
+
+        self.assertEqual(without_placeholder["included_changes"], [])
+        self.assertEqual(with_placeholder["included_changes"], [packet_path.stem])
+        self.assertEqual(with_placeholder["change_source"], "unreleased")
+
+    def test_release_version_rejects_path_like_values(self) -> None:
+        for value in ["../outside", "1.0.0/evil", "1.0.0 evil", "C:bad"]:
+            with self.subTest(value=value):
+                with self.assertRaises(SystemExit):
+                    build_release_manifest.validate_version_label(value)
+
+    def test_missing_version_file_has_actionable_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            old_values = (
+                build_release_manifest.REPO_ROOT,
+                build_release_manifest.UNRELEASED_DIR,
+                build_release_manifest.RELEASED_DIR,
+                build_release_manifest.VERSION_FILE,
+            )
+            try:
+                build_release_manifest.REPO_ROOT = root
+                build_release_manifest.UNRELEASED_DIR = root / "ops" / "release" / "changes" / "unreleased"
+                build_release_manifest.RELEASED_DIR = root / "ops" / "release" / "changes" / "released"
+                build_release_manifest.VERSION_FILE = root / "ops" / "release" / "metadata" / "VERSION"
+
+                with self.assertRaisesRegex(SystemExit, "ops/release/metadata/VERSION is missing"):
+                    build_release_manifest.build_manifest()
+            finally:
+                (
+                    build_release_manifest.REPO_ROOT,
+                    build_release_manifest.UNRELEASED_DIR,
+                    build_release_manifest.RELEASED_DIR,
+                    build_release_manifest.VERSION_FILE,
+                ) = old_values
+
+
+if __name__ == "__main__":
+    unittest.main()
+

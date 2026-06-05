@@ -1,0 +1,1241 @@
+from __future__ import annotations
+
+import json
+import sys
+import tempfile
+import threading
+import unittest
+from pathlib import Path
+
+from mediapipeline.tools.paths import find_repo_root
+from types import SimpleNamespace
+from unittest.mock import patch
+
+sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
+
+from mediapipeline.desktop.network.cluster_log import format_cluster_log_line
+from mediapipeline.desktop.network.coordinator import CoordinatorDispatcher, _CoordHandler
+from mediapipeline.desktop.network.coordinator_policy import compute_retry_after_seconds
+from mediapipeline.desktop.network.protocol import ClaimResponse, DoneRequest, LogEntryRequest
+from mediapipeline.desktop.network.registry import InFlightRegistry
+from mediapipeline.desktop.network.poll_policy import resolve_worker_wait_seconds
+from mediapipeline.desktop.network.worker import WorkerDispatcher
+
+
+class WorkflowEnhancementTests(unittest.TestCase):
+    """Coverage for the W1/W2/W3/W5/W6/W7 workflow improvements."""
+
+    # ------------------------------------------------------------------
+    # W1 — mark_done() forwards parameters into _emit_done_outcome
+    # ------------------------------------------------------------------
+    def test_local_claim_survives_inflight_save_failure(self) -> None:
+        reg = InFlightRegistry()
+
+        def _save_denied(_path: Path) -> None:
+            raise RuntimeError("save denied")
+
+        reg.save = _save_denied  # type: ignore[method-assign]
+        record = SimpleNamespace(source_path=r"C:\Media\movie.mkv", priority=True)
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._registry = reg
+        dispatcher._claim_lock = threading.Lock()
+        dispatcher._app = SimpleNamespace(_machine_id="coord-pc")
+        dispatcher._config = lambda: {"CoordinatorAlsoEncodeLocally": True}  # type: ignore[assignment]
+        dispatcher._scan_for_next_record = lambda _worker_name: (record, {"Codec": "copy"})  # type: ignore[assignment]
+        dispatcher._inflight_state_path = lambda: Path(tempfile.gettempdir()) / "ignored.json"  # type: ignore[assignment]
+        events: list[dict] = []
+        dispatcher.log_cluster_event = lambda **kwargs: events.append(kwargs)  # type: ignore[assignment]
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+            job = CoordinatorDispatcher.claim_next(dispatcher)
+
+        self.assertIsNotNone(job)
+        self.assertEqual(job.record, record)
+        self.assertEqual(job.encode_config, {"Codec": "copy"})
+        self.assertTrue(reg.is_in_flight(r"C:\Media\movie.mkv"))
+        self.assertIn("Failed to save inflight state after local claim", "\n".join(logs.output))
+        self.assertEqual(events[0]["event"], "inflight_save_failed")
+        self.assertIn("after local claim: save denied", events[0]["message"])
+        self.assertEqual(events[0]["source_path"], r"C:\Media\movie.mkv")
+
+    def test_local_release_survives_inflight_save_failure(self) -> None:
+        reg = InFlightRegistry()
+        reg.claim(
+            job_id="local-1",
+            worker_id="coord-pc",
+            worker_name="coordinator",
+            source_path=r"C:\Media\movie.mkv",
+            encode_config={},
+        )
+
+        def _save_denied(_path: Path) -> None:
+            raise RuntimeError("save denied")
+
+        reg.save = _save_denied  # type: ignore[method-assign]
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._registry = reg
+        dispatcher._inflight_state_path = lambda: Path(tempfile.gettempdir()) / "ignored.json"  # type: ignore[assignment]
+        events: list[dict] = []
+        dispatcher.log_cluster_event = lambda **kwargs: events.append(kwargs)  # type: ignore[assignment]
+        job = SimpleNamespace(job_id="local-1", worker_id="coord-pc")
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+            CoordinatorDispatcher.release(dispatcher, job)
+
+        self.assertEqual(reg.active_count, 0)
+        self.assertIn("Failed to save inflight state after local release local-1", "\n".join(logs.output))
+        self.assertEqual(events[0]["event"], "inflight_save_failed")
+        self.assertIn("after local release: save denied", events[0]["message"])
+        self.assertEqual(events[0]["job_id"], "local-1")
+
+    def test_local_heartbeat_survives_malformed_progress(self) -> None:
+        reg = InFlightRegistry()
+        reg.claim(
+            job_id="local-1",
+            worker_id="coord-pc",
+            worker_name="coordinator",
+            source_path=r"C:\Media\movie.mkv",
+            encode_config={},
+        )
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._registry = reg
+        job = SimpleNamespace(job_id="local-1", worker_id="coord-pc")
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+            keep_alive = CoordinatorDispatcher.heartbeat(
+                dispatcher,
+                job,
+                progress=float("nan"),
+                stage="encoding",
+            )
+
+        self.assertTrue(keep_alive)
+        self.assertEqual(reg.active_count, 1)
+        self.assertIn("Local coordinator heartbeat failed for job local-1; keeping job active", "\n".join(logs.output))
+
+    def test_mark_done_forwards_parameters_into_cluster_log(self) -> None:
+        """Local-encode mark_done() must produce the same cluster.log
+        entries as the HTTP /api/done handler — previously they were
+        silently dropped."""
+        reg = InFlightRegistry()
+        reg.claim(
+            job_id="local-1", worker_id="coord-pc", worker_name="coordinator",
+            source_path=r"\\share\movie.mkv", encode_config={},
+        )
+
+        events: list[dict] = []
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._registry = reg
+        dispatcher._app = SimpleNamespace(
+            root=SimpleNamespace(after=lambda _delay, _fn=None: None),
+            queue_records=[],
+        )
+        dispatcher.log_cluster_event = lambda **kwargs: events.append(kwargs)  # type: ignore[assignment]
+        # Stub registry.save and queue removal — we only care about the log.
+        dispatcher._inflight_state_path = lambda: Path(tempfile.gettempdir()) / "ignored.json"
+        dispatcher._remove_from_queue = lambda _sp: None  # type: ignore[assignment]
+
+        job = SimpleNamespace(job_id="local-1", worker_id="coord-pc")
+        CoordinatorDispatcher.mark_done(
+            dispatcher,
+            job,
+            success=True,
+            elapsed_seconds=12.5,
+            output_size_bytes=4 * 1024 * 1024,
+            completion_status="processed",
+            publish_state="pending",
+            publish_mode="parked",
+        )
+        # An entry must have been emitted, and it must reflect the
+        # publish_state we passed (the previous mark_done dropped it).
+        self.assertTrue(events, "mark_done must emit a cluster_log event for local encodes")
+        self.assertEqual(events[0]["event"], "job_completed_pending_publish")
+        self.assertIn("pending/parked", events[0]["message"])
+
+    def test_http_done_outcome_cluster_log_failure_does_not_block_response_or_save(self) -> None:
+        class Root:
+            def after(self, _delay: int, callback: object) -> None:
+                callback()
+
+        cases = (
+            (
+                "job-success",
+                DoneRequest(job_id="job-success", worker_id="worker-1", success=True),
+                "job-completed",
+            ),
+            (
+                "job-failed",
+                DoneRequest(
+                    job_id="job-failed",
+                    worker_id="worker-1",
+                    success=False,
+                    error_message="encode failed",
+                    queue_terminal=True,
+                ),
+                "job-terminal-failed",
+            ),
+        )
+
+        for job_id, request, context in cases:
+            with self.subTest(context=context):
+                registry = InFlightRegistry()
+                source = rf"C:\Media\{job_id}.mkv"
+                registry.claim(
+                    job_id=job_id,
+                    worker_id="worker-1",
+                    worker_name="Worker",
+                    source_path=source,
+                    encode_config={},
+                )
+                saved: list[Path] = []
+                registry.save = lambda path: saved.append(path)  # type: ignore[method-assign]
+                removed: list[str] = []
+                state_path = Path(tempfile.gettempdir()) / f"{job_id}.json"
+                dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+                dispatcher._registry = registry
+                dispatcher._app = SimpleNamespace(root=Root(), queue_records=[])
+                dispatcher._remove_from_queue = lambda source_path: removed.append(source_path)  # type: ignore[assignment]
+                dispatcher._inflight_state_path = lambda: state_path
+                dispatcher.log_cluster_event = lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("cluster blocked"))  # type: ignore[assignment]
+                sent: list[tuple[dict, int]] = []
+                handler = SimpleNamespace(_send_json=lambda payload, status=200: sent.append((payload, status)))
+
+                with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+                    CoordinatorDispatcher._http_done(
+                        dispatcher,
+                        handler,  # type: ignore[arg-type]
+                        json.dumps(request.to_dict()).encode("utf-8"),
+                    )
+
+                self.assertEqual(sent, [({"status": "ok"}, 200)])
+                self.assertEqual(saved, [state_path])
+                self.assertEqual(removed, [source])
+                self.assertEqual(registry.active_count, 0)
+                output = "\n".join(logs.output)
+                self.assertIn(f"Failed to emit {context} cluster event for job {job_id[:8]}", output)
+                self.assertIn("cluster blocked", output)
+
+    def test_mark_done_handles_reclaimed_job_without_logging(self) -> None:
+        """If the job was reclaimed by the reaper before mark_done lands,
+        the helper must not crash and must not produce a misleading
+        cluster_log entry pointing at a nonexistent job."""
+        reg = InFlightRegistry()
+        events: list[dict] = []
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._registry = reg
+        dispatcher._app = SimpleNamespace(root=None, queue_records=[])
+        dispatcher.log_cluster_event = lambda **kwargs: events.append(kwargs)  # type: ignore[assignment]
+        dispatcher._inflight_state_path = lambda: Path(tempfile.gettempdir()) / "ignored.json"
+
+        job = SimpleNamespace(job_id="ghost", worker_id="coord-pc")
+        # Should not raise, should not emit a cluster log entry.
+        CoordinatorDispatcher.mark_done(dispatcher, job, success=True, elapsed_seconds=0.0)
+        self.assertEqual(events, [])
+
+    def test_missing_local_completion_save_failure_emits_diagnostic_event(self) -> None:
+        class SaveFailingRegistry(InFlightRegistry):
+            def save(self, _path: Path) -> None:
+                raise RuntimeError("save denied")
+
+        events: list[dict] = []
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._registry = SaveFailingRegistry()
+        dispatcher._app = SimpleNamespace(root=None, queue_records=[])
+        dispatcher.log_cluster_event = lambda **kwargs: events.append(kwargs)  # type: ignore[assignment]
+        dispatcher._inflight_state_path = lambda: Path(tempfile.gettempdir()) / "ignored.json"
+        job = SimpleNamespace(
+            job_id="ghost",
+            worker_id="coord-pc",
+            record=SimpleNamespace(source_path=r"C:\Media\ghost.mkv"),
+        )
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+            CoordinatorDispatcher.mark_done(dispatcher, job, success=True, elapsed_seconds=0.0)
+
+        self.assertEqual(events[0]["event"], "inflight_save_failed")
+        self.assertIn("after missing local completion: save denied", events[0]["message"])
+        self.assertEqual(events[0]["job_id"], "ghost")
+        self.assertEqual(events[0]["source_path"], r"C:\Media\ghost.mkv")
+        self.assertIn("Failed to save inflight state after missing local completion", "\n".join(logs.output))
+
+    def test_terminal_done_queue_removal_schedule_failure_warns_queue_may_remain(self) -> None:
+        class BadRoot:
+            def after(self, _delay: int, _callback: object) -> None:
+                raise RuntimeError("tk offline")
+
+        saves: list[Path] = []
+        events: list[dict] = []
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._app = SimpleNamespace(root=BadRoot(), queue_records=[])
+        dispatcher._registry = SimpleNamespace(save=lambda path: saves.append(path))
+        dispatcher._inflight_state_path = lambda: Path(tempfile.gettempdir()) / "ignored.json"
+        dispatcher.log_cluster_event = lambda **kwargs: events.append(kwargs)  # type: ignore[assignment]
+        job = SimpleNamespace(job_id="job-1", source_path=r"C:\Media\movie.mkv", worker_name="Worker")
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+            CoordinatorDispatcher._emit_done_outcome(
+                dispatcher,
+                job=job,
+                success=False,
+                worker_id="worker-1",
+                elapsed_seconds=0.0,
+                output_size_bytes=0,
+                completion_status="failed",
+                publish_state="",
+                publish_mode="",
+                error_message="encode failed",
+                queue_terminal=True,
+                retry_on_failure=True,
+            )
+
+        text = "\n".join(logs.output)
+        self.assertIn("Failed to schedule queue removal after done report for movie.mkv", text)
+        self.assertIn("queue record may remain claimable until manually removed", text)
+        self.assertIn("tk offline", text)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(len(saves), 1)
+
+    def test_terminal_done_queue_removal_success_logs_scheduled_not_removed(self) -> None:
+        class GoodRoot:
+            def __init__(self) -> None:
+                self.calls: list[tuple[int, object]] = []
+
+            def after(self, delay: int, callback: object) -> None:
+                self.calls.append((delay, callback))
+
+        root = GoodRoot()
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._app = SimpleNamespace(root=root, queue_records=[])
+        dispatcher._registry = SimpleNamespace(save=lambda _path: None)
+        dispatcher._inflight_state_path = lambda: Path(tempfile.gettempdir()) / "ignored.json"
+        dispatcher.log_cluster_event = lambda **_kwargs: None  # type: ignore[assignment]
+        job = SimpleNamespace(job_id="job-1", source_path=r"C:\Media\movie.mkv", worker_name="Worker")
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="INFO") as logs:
+            CoordinatorDispatcher._emit_done_outcome(
+                dispatcher,
+                job=job,
+                success=False,
+                worker_id="worker-1",
+                elapsed_seconds=0.0,
+                output_size_bytes=0,
+                completion_status="failed",
+                publish_state="",
+                publish_mode="",
+                error_message="encode failed",
+                queue_terminal=True,
+                retry_on_failure=True,
+            )
+
+        text = "\n".join(logs.output)
+        self.assertIn("Retry policy: scheduled queue removal for movie.mkv", text)
+        self.assertNotIn("Retry policy: removed movie.mkv from queue", text)
+        self.assertEqual(len(root.calls), 1)
+        self.assertEqual(root.calls[0][0], 0)
+
+    # ------------------------------------------------------------------
+    # W2 — reaper interval scales with heartbeat timeout
+    # ------------------------------------------------------------------
+    def test_reaper_interval_scales_with_heartbeat_timeout(self) -> None:
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+
+        # 1 min timeout → 30 s interval (clamp floor: 15 s).
+        dispatcher._heartbeat_timeout_mins = lambda: 1.0  # type: ignore[assignment]
+        self.assertEqual(dispatcher._reaper_interval_seconds(), 30.0)
+
+        # 30 s timeout → 15 s clamp floor.
+        dispatcher._heartbeat_timeout_mins = lambda: 0.5  # type: ignore[assignment]
+        self.assertEqual(dispatcher._reaper_interval_seconds(), 15.0)
+
+        # 10 min timeout → 60 s clamp ceiling.
+        dispatcher._heartbeat_timeout_mins = lambda: 10.0  # type: ignore[assignment]
+        self.assertEqual(dispatcher._reaper_interval_seconds(), 60.0)
+
+        # Default fallback when config raises.
+        def _boom() -> float:
+            raise RuntimeError("no config yet")
+        dispatcher._heartbeat_timeout_mins = _boom  # type: ignore[assignment]
+        self.assertEqual(dispatcher._reaper_interval_seconds(), 60.0)
+
+    def test_reaper_save_failure_emits_cluster_diagnostic(self) -> None:
+        class OneShotStop:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def wait(self, _seconds: float) -> bool:
+                self.calls += 1
+                return self.calls > 1
+
+        class BadRegistry:
+            active_count = 1
+
+            def reclaim_stale(self, _timeout: float) -> list:
+                return []
+
+            def save(self, _path: Path) -> None:
+                raise RuntimeError("save denied")
+
+        events: list[dict] = []
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._reaper_stop = OneShotStop()
+        dispatcher._reaper_interval_seconds = lambda: 0.0  # type: ignore[assignment]
+        dispatcher._heartbeat_timeout_mins = lambda: 5.0  # type: ignore[assignment]
+        dispatcher._registry = BadRegistry()
+        dispatcher._inflight_state_path = lambda: Path(tempfile.gettempdir()) / "ignored.json"
+        dispatcher.log_cluster_event = lambda **kwargs: events.append(kwargs)  # type: ignore[assignment]
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+            CoordinatorDispatcher._reaper_loop(dispatcher)
+
+        self.assertEqual(events[0]["event"], "inflight_save_failed")
+        self.assertIn("during stale-job reaper: save denied", events[0]["message"])
+        self.assertIn("Coordinator in-flight registry save failed during stale-job reaper", "\n".join(logs.output))
+
+    def test_reaper_reclaimed_stale_cluster_log_failure_does_not_skip_save(self) -> None:
+        class OneShotStop:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def wait(self, _seconds: float) -> bool:
+                self.calls += 1
+                return self.calls > 1
+
+        class Registry:
+            active_count = 0
+
+            def __init__(self) -> None:
+                self.saved: list[Path] = []
+
+            def reclaim_stale(self, _timeout: float) -> list:
+                return [
+                    SimpleNamespace(
+                        job_id="job-stale",
+                        worker_id="worker-1",
+                        worker_name="Worker",
+                        source_path=r"C:\Media\stale.mkv",
+                    )
+                ]
+
+            def save(self, path: Path) -> None:
+                self.saved.append(path)
+
+        registry = Registry()
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._reaper_stop = OneShotStop()
+        dispatcher._reaper_interval_seconds = lambda: 0.0  # type: ignore[assignment]
+        dispatcher._heartbeat_timeout_mins = lambda: 5.0  # type: ignore[assignment]
+        dispatcher._registry = registry
+        dispatcher._inflight_state_path = lambda: Path(tempfile.gettempdir()) / "ignored.json"
+        dispatcher.log_cluster_event = lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("cluster blocked"))  # type: ignore[assignment]
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+            CoordinatorDispatcher._reaper_loop(dispatcher)
+
+        self.assertEqual(registry.saved, [Path(tempfile.gettempdir()) / "ignored.json"])
+        output = "\n".join(logs.output)
+        self.assertIn("Failed to emit reclaimed-stale cluster event for job job-stal", output)
+        self.assertIn("Reclaimed stale job job-stal", output)
+
+    # ------------------------------------------------------------------
+    # W3 — protocol version + accepting_claims surfaced in /api/health
+    # ------------------------------------------------------------------
+    def test_health_payload_includes_protocol_and_drain_signal(self) -> None:
+        from mediapipeline.desktop.network.coordinator import (
+            _COORDINATOR_PROTOCOL_VERSION,
+        )
+        # Protocol version must be a positive int.
+        self.assertIsInstance(_COORDINATOR_PROTOCOL_VERSION, int)
+        self.assertGreaterEqual(_COORDINATOR_PROTOCOL_VERSION, 1)
+
+    def test_shutdown_flips_accepting_claims(self) -> None:
+        """shutdown() must mark the coordinator as not accepting claims
+        before tearing down the HTTP server, so a worker hitting
+        /api/health during the teardown window learns to back off."""
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._accepting_claims = True
+        dispatcher._registry = InFlightRegistry()
+        dispatcher._reaper_stop = threading.Event()
+        dispatcher._reaper_thread = None
+        dispatcher._http_server = None
+        dispatcher._mdns = None
+        dispatcher._inflight_state_path = lambda: Path(tempfile.gettempdir()) / "ignored.json"
+        dispatcher.log_cluster_event = lambda **_kwargs: None  # type: ignore[assignment]
+        CoordinatorDispatcher.shutdown(dispatcher)
+        self.assertFalse(dispatcher._accepting_claims)
+
+    def test_shutdown_active_count_failure_does_not_block_teardown(self) -> None:
+        class BadRegistry:
+            saved = False
+
+            @property
+            def active_count(self) -> int:
+                raise RuntimeError("registry count denied")
+
+            def save(self, _path: Path) -> None:
+                self.saved = True
+
+        events: list[dict] = []
+        registry = BadRegistry()
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._accepting_claims = True
+        dispatcher._registry = registry
+        dispatcher._reaper_stop = threading.Event()
+        dispatcher._reaper_thread = None
+        dispatcher._http_server = None
+        dispatcher._mdns = None
+        dispatcher._inflight_state_path = lambda: Path(tempfile.gettempdir()) / "ignored.json"
+        dispatcher.log_cluster_event = lambda **kwargs: events.append(kwargs)  # type: ignore[assignment]
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+            CoordinatorDispatcher.shutdown(dispatcher)
+
+        self.assertFalse(dispatcher._accepting_claims)
+        self.assertTrue(registry.saved)
+        self.assertEqual(events[0]["event"], "coordinator_stopped")
+        self.assertIn("active=unknown", events[0]["message"])
+        self.assertIn("Coordinator active-count lookup failed during shutdown", "\n".join(logs.output))
+
+    def test_shutdown_cluster_log_failure_does_not_block_teardown(self) -> None:
+        class Server:
+            def __init__(self) -> None:
+                self.shutdown_called = False
+                self.close_called = False
+
+            def shutdown(self) -> None:
+                self.shutdown_called = True
+
+            def server_close(self) -> None:
+                self.close_called = True
+
+        class Mdns:
+            def __init__(self) -> None:
+                self.stopped = False
+
+            def stop(self) -> None:
+                self.stopped = True
+
+        class Registry:
+            active_count = 1
+
+            def __init__(self) -> None:
+                self.saved: list[Path] = []
+
+            def save(self, path: Path) -> None:
+                self.saved.append(path)
+
+        server = Server()
+        mdns = Mdns()
+        registry = Registry()
+        state_path = Path(tempfile.gettempdir()) / "ignored.json"
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._accepting_claims = True
+        dispatcher._registry = registry
+        dispatcher._reaper_stop = threading.Event()
+        dispatcher._reaper_thread = None
+        dispatcher._http_server = server
+        dispatcher._mdns = mdns
+        dispatcher._inflight_state_path = lambda: state_path
+        dispatcher.log_cluster_event = lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("cluster blocked"))  # type: ignore[assignment]
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+            CoordinatorDispatcher.shutdown(dispatcher)
+
+        self.assertFalse(dispatcher._accepting_claims)
+        self.assertTrue(dispatcher._reaper_stop.is_set())
+        self.assertTrue(server.shutdown_called)
+        self.assertTrue(server.close_called)
+        self.assertTrue(mdns.stopped)
+        self.assertIsNone(dispatcher._http_server)
+        self.assertIsNone(dispatcher._mdns)
+        self.assertEqual(registry.saved, [state_path])
+        self.assertIn("Failed to emit coordinator-stopped cluster event", "\n".join(logs.output))
+
+    def test_shutdown_logs_teardown_failures_and_stuck_reaper(self) -> None:
+        class BadServer:
+            def shutdown(self) -> None:
+                raise RuntimeError("shutdown denied")
+
+            def server_close(self) -> None:
+                raise RuntimeError("close denied")
+
+        class BadMdns:
+            def stop(self) -> None:
+                raise RuntimeError("mdns denied")
+
+        class StuckReaper:
+            def __init__(self) -> None:
+                self.timeout: float | None = None
+
+            def join(self, timeout: float) -> None:
+                self.timeout = timeout
+
+            def is_alive(self) -> bool:
+                return True
+
+        class BadRegistry:
+            active_count = 1
+
+            def save(self, _path: Path) -> None:
+                raise RuntimeError("save denied")
+
+        reaper = StuckReaper()
+        events: list[dict] = []
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._accepting_claims = True
+        dispatcher._registry = BadRegistry()
+        dispatcher._reaper_stop = threading.Event()
+        dispatcher._reaper_thread = reaper
+        dispatcher._http_server = BadServer()
+        dispatcher._mdns = BadMdns()
+        dispatcher._inflight_state_path = lambda: Path(tempfile.gettempdir()) / "ignored.json"
+        dispatcher.log_cluster_event = lambda **kwargs: events.append(kwargs)  # type: ignore[assignment]
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+            CoordinatorDispatcher.shutdown(dispatcher)
+
+        text = "\n".join(logs.output)
+        self.assertIn("Coordinator HTTP server shutdown failed: shutdown denied", text)
+        self.assertIn("Coordinator HTTP server close failed: close denied", text)
+        self.assertIn("Coordinator mDNS advertiser stop failed: mdns denied", text)
+        self.assertIn("Coordinator stale-job reaper did not stop within 2.0 seconds.", text)
+        self.assertIn("Coordinator in-flight registry save failed during shutdown: save denied", text)
+        self.assertEqual(reaper.timeout, 2.0)
+        self.assertFalse(dispatcher._accepting_claims)
+        self.assertIsNone(dispatcher._http_server)
+        self.assertIsNone(dispatcher._mdns)
+        self.assertEqual(events[0]["event"], "coordinator_stopped")
+        self.assertEqual(events[1]["event"], "inflight_save_failed")
+        self.assertIn("during coordinator shutdown: save denied", events[1]["message"])
+
+    def test_claim_returns_empty_while_coordinator_is_draining(self) -> None:
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._accepting_claims = False
+        dispatcher._compute_retry_after_seconds = lambda: 5  # type: ignore[assignment]
+        dispatcher._scan_for_next_record = lambda _worker_name: self.fail("draining claim should not scan")
+
+        sent: list[tuple[dict, int]] = []
+        handler = SimpleNamespace(_send_json=lambda payload, status=200: sent.append((payload, status)))
+
+        CoordinatorDispatcher._http_claim(
+            dispatcher,
+            handler,  # type: ignore[arg-type]
+            {"worker_id": "worker-1", "worker_name": "worker-box"},
+        )
+
+        self.assertEqual(sent[0][1], 200)
+        self.assertEqual(sent[0][0]["status"], "empty")
+        self.assertEqual(sent[0][0]["retry_after_seconds"], 5)
+
+    def test_claim_rejection_logs_missing_and_invalid_worker_id(self) -> None:
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        sent: list[tuple[dict, int]] = []
+        handler = SimpleNamespace(_send_json=lambda payload, status=200: sent.append((payload, status)))
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+            CoordinatorDispatcher._http_claim(dispatcher, handler, {})  # type: ignore[arg-type]
+            CoordinatorDispatcher._http_claim(dispatcher, handler, {"worker_id": "bad worker"})  # type: ignore[arg-type]
+
+        self.assertEqual(sent[0][1], 400)
+        self.assertEqual(sent[0][0]["error"], "worker_id query parameter is required")
+        self.assertEqual(sent[1][1], 400)
+        self.assertIn("worker_id must be 1..64 chars", sent[1][0]["error"])
+        text = "\n".join(logs.output)
+        self.assertIn("Rejected /api/claim with missing worker_id", text)
+        self.assertIn("Rejected /api/claim with invalid worker_id='bad worker'", text)
+
+    def test_http_claim_registry_failure_returns_logged_500(self) -> None:
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._accepting_claims = True
+        dispatcher._claim_lock = threading.Lock()
+        dispatcher._scan_for_next_record = lambda _worker_name: (  # type: ignore[assignment]
+            SimpleNamespace(source_path=str(Path.cwd() / "movie.mkv"), priority=False),
+            {},
+        )
+        dispatcher._registry = SimpleNamespace(
+            claim=lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("claim exploded"))
+        )
+        sent: list[tuple[dict, int]] = []
+        handler = SimpleNamespace(_send_json=lambda payload, status=200: sent.append((payload, status)))
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="ERROR") as logs:
+            CoordinatorDispatcher._http_claim(
+                dispatcher,
+                handler,  # type: ignore[arg-type]
+                {"worker_id": "worker-1", "worker_name": "worker-box"},
+            )
+
+        self.assertEqual(sent, [({"error": "claim unavailable"}, 500)])
+        self.assertIn("Failed to process /api/claim for worker worker-1", "\n".join(logs.output))
+
+    def test_coordinator_inflight_save_failures_emit_cluster_diagnostics(self) -> None:
+        events: list[dict] = []
+
+        def make_dispatcher(registry: InFlightRegistry) -> CoordinatorDispatcher:
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._registry = registry
+            dispatcher._inflight_state_path = lambda: Path("coordinator_inflight.json")  # type: ignore[assignment]
+            dispatcher.log_cluster_event = lambda **kwargs: events.append(kwargs)  # type: ignore[assignment]
+            return dispatcher
+
+        claim_registry = InFlightRegistry()
+        claim_dispatcher = make_dispatcher(claim_registry)
+        claim_dispatcher._accepting_claims = True
+        claim_dispatcher._claim_lock = threading.Lock()
+        claim_dispatcher._scan_for_next_record = lambda _worker_name: (  # type: ignore[assignment]
+            SimpleNamespace(source_path=r"C:\Media\claim.mkv", priority=False),
+            {},
+        )
+        claim_dispatcher._source_has_prior_failure = lambda _source_path: False  # type: ignore[assignment]
+        claim_handler = SimpleNamespace(_send_json=lambda _payload, status=200: None)
+
+        with (
+            patch.object(claim_registry, "save", side_effect=OSError("claim save denied")),
+            self.assertLogs("mediapipeline.desktop.network.coordinator", level="ERROR") as claim_logs,
+        ):
+            CoordinatorDispatcher._http_claim(
+                claim_dispatcher,
+                claim_handler,  # type: ignore[arg-type]
+                {"worker_id": "worker-1", "worker_name": "Worker"},
+            )
+
+        release_registry = InFlightRegistry()
+        release_registry.claim(
+            job_id="job-release",
+            worker_id="worker-1",
+            worker_name="Worker",
+            source_path=r"C:\Media\release.mkv",
+            encode_config={},
+        )
+        release_dispatcher = make_dispatcher(release_registry)
+        release_handler = SimpleNamespace(_send_json=lambda _payload, status=200: None)
+        release_body = json.dumps(
+            DoneRequest(job_id="job-release", worker_id="worker-1", released=True).to_dict()
+        ).encode("utf-8")
+
+        with (
+            patch.object(release_registry, "save", side_effect=OSError("release save denied")),
+            self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as release_logs,
+        ):
+            CoordinatorDispatcher._http_done(release_dispatcher, release_handler, release_body)  # type: ignore[arg-type]
+
+        done_registry = InFlightRegistry()
+        done_registry.claim(
+            job_id="job-done",
+            worker_id="worker-1",
+            worker_name="Worker",
+            source_path=r"C:\Media\done.mkv",
+            encode_config={},
+        )
+        done_dispatcher = make_dispatcher(done_registry)
+        done_handler = SimpleNamespace(_send_json=lambda _payload, status=200: None)
+        done_body = json.dumps(
+            DoneRequest(job_id="job-done", worker_id="worker-1", success=False).to_dict()
+        ).encode("utf-8")
+
+        with (
+            patch.object(done_registry, "save", side_effect=OSError("done save denied")),
+            self.assertLogs("mediapipeline.desktop.network.coordinator", level="ERROR") as done_logs,
+        ):
+            CoordinatorDispatcher._http_done(done_dispatcher, done_handler, done_body)  # type: ignore[arg-type]
+
+        save_events = [event for event in events if event.get("event") == "inflight_save_failed"]
+        self.assertEqual(len(save_events), 3)
+        self.assertIn("after claim: claim save denied", save_events[0]["message"])
+        self.assertEqual(save_events[0]["source_path"], r"C:\Media\claim.mkv")
+        self.assertIn("after worker release: release save denied", save_events[1]["message"])
+        self.assertEqual(save_events[1]["job_id"], "job-release")
+        self.assertIn("after done report: done save denied", save_events[2]["message"])
+        self.assertEqual(save_events[2]["job_id"], "job-done")
+        self.assertIn("Failed to save registry after claim", "\n".join(claim_logs.output))
+        self.assertIn("Failed to save inflight state after worker release", "\n".join(release_logs.output))
+        self.assertIn("Failed to save registry after done report", "\n".join(done_logs.output))
+
+    def test_http_claim_cluster_log_failure_does_not_block_claim_response(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            source = r"C:\Media\claim.mkv"
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._accepting_claims = True
+            dispatcher._claim_lock = threading.Lock()
+            dispatcher._registry = InFlightRegistry()
+            dispatcher._scan_for_next_record = lambda _worker_name: (  # type: ignore[assignment]
+                SimpleNamespace(source_path=source, priority=True, estimated_size_gb=1.5),
+                {"preset": "fast"},
+            )
+            dispatcher._source_has_prior_failure = lambda _source_path: False  # type: ignore[assignment]
+            dispatcher._inflight_state_path = lambda: Path(td) / "inflight_registry.json"  # type: ignore[assignment]
+            dispatcher.log_cluster_event = lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("cluster blocked"))  # type: ignore[assignment]
+            sent: list[tuple[dict, int]] = []
+            handler = SimpleNamespace(_send_json=lambda payload, status=200: sent.append((payload, status)))
+
+            with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+                CoordinatorDispatcher._http_claim(
+                    dispatcher,
+                    handler,  # type: ignore[arg-type]
+                    {"worker_id": "worker-1", "worker_name": "Worker"},
+                )
+
+            self.assertEqual(sent[0][1], 200)
+            self.assertEqual(sent[0][0]["status"], "ok")
+            self.assertEqual(sent[0][0]["source_path"], source)
+            self.assertTrue(dispatcher._registry.is_in_flight(source))
+            self.assertIn("Failed to emit claim-handed cluster event for job ", "\n".join(logs.output))
+            self.assertIn("cluster blocked", "\n".join(logs.output))
+
+    def test_http_claim_releases_claim_when_retry_policy_fails(self) -> None:
+        class FakeRegistry:
+            def __init__(self) -> None:
+                self.claims: list[dict[str, object]] = []
+                self.releases: list[tuple[str, str]] = []
+
+            def claim(self, **kwargs) -> bool:
+                self.claims.append(kwargs)
+                return True
+
+            def unclaim(self, job_id: str, worker_id: str):
+                self.releases.append((job_id, worker_id))
+                return SimpleNamespace(job_id=job_id)
+
+        registry = FakeRegistry()
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._accepting_claims = True
+        dispatcher._claim_lock = threading.Lock()
+        dispatcher._scan_for_next_record = lambda _worker_name: (  # type: ignore[assignment]
+            SimpleNamespace(source_path=str(Path.cwd() / "movie.mkv"), priority=False),
+            {},
+        )
+        dispatcher._registry = registry
+        dispatcher._source_has_prior_failure = lambda _source_path: (_ for _ in ()).throw(RuntimeError("failure records unreadable"))  # type: ignore[assignment]
+        sent: list[tuple[dict, int]] = []
+        handler = SimpleNamespace(_send_json=lambda payload, status=200: sent.append((payload, status)))
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="ERROR") as logs:
+            CoordinatorDispatcher._http_claim(
+                dispatcher,
+                handler,  # type: ignore[arg-type]
+                {"worker_id": "worker-1", "worker_name": "worker-box"},
+            )
+
+        self.assertEqual(sent, [({"error": "claim unavailable"}, 500)])
+        self.assertEqual(len(registry.claims), 1)
+        self.assertEqual(registry.releases, [(str(registry.claims[0]["job_id"]), "worker-1")])
+        output = "\n".join(logs.output)
+        self.assertIn("Failed to evaluate retry policy after claim", output)
+        self.assertIn("failure records unreadable", output)
+
+    def test_done_report_for_unknown_job_is_logged_to_cluster(self) -> None:
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._registry = InFlightRegistry()
+        events: list[dict] = []
+        dispatcher.log_cluster_event = lambda **kwargs: events.append(kwargs)  # type: ignore[assignment]
+        sent: list[tuple[dict, int]] = []
+        handler = SimpleNamespace(_send_json=lambda payload, status=200: sent.append((payload, status)))
+        body = json.dumps(
+            DoneRequest(job_id="job-missing", worker_id="worker-1", success=True).to_dict()
+        ).encode("utf-8")
+
+        CoordinatorDispatcher._http_done(dispatcher, handler, body)  # type: ignore[arg-type]
+
+        self.assertEqual(sent, [({"status": "not_found", "job_id": "job-missing"}, 404)])
+        self.assertEqual(events[0]["event"], "done_not_found")
+        self.assertEqual(events[0]["worker_id"], "worker-1")
+        self.assertEqual(events[0]["job_id"], "job-missing")
+
+    def test_release_report_for_unknown_job_is_logged_to_cluster(self) -> None:
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._registry = InFlightRegistry()
+        events: list[dict] = []
+        dispatcher.log_cluster_event = lambda **kwargs: events.append(kwargs)  # type: ignore[assignment]
+        sent: list[tuple[dict, int]] = []
+        handler = SimpleNamespace(_send_json=lambda payload, status=200: sent.append((payload, status)))
+        body = json.dumps(
+            DoneRequest(job_id="job-missing", worker_id="worker-1", released=True).to_dict()
+        ).encode("utf-8")
+
+        CoordinatorDispatcher._http_done(dispatcher, handler, body)  # type: ignore[arg-type]
+
+        self.assertEqual(sent, [({"status": "not_found", "job_id": "job-missing"}, 404)])
+        self.assertEqual(events[0]["event"], "release_not_found")
+        self.assertEqual(events[0]["worker_id"], "worker-1")
+        self.assertEqual(events[0]["job_id"], "job-missing")
+
+    def test_done_report_cluster_log_failures_do_not_block_http_response(self) -> None:
+        cases = (
+            (
+                "done-not-found",
+                InFlightRegistry(),
+                DoneRequest(job_id="job-missing", worker_id="worker-1", success=True),
+                {"status": "not_found", "job_id": "job-missing"},
+                404,
+                "Failed to emit done-not-found cluster event for job job-miss",
+            ),
+            (
+                "release-not-found",
+                InFlightRegistry(),
+                DoneRequest(job_id="job-missing", worker_id="worker-1", released=True),
+                {"status": "not_found", "job_id": "job-missing"},
+                404,
+                "Failed to emit release-not-found cluster event for job job-miss",
+            ),
+        )
+
+        for name, registry, request, expected_payload, expected_status, expected_log in cases:
+            with self.subTest(name=name):
+                dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+                dispatcher._registry = registry
+                dispatcher.log_cluster_event = lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("cluster blocked"))  # type: ignore[assignment]
+                sent: list[tuple[dict, int]] = []
+                handler = SimpleNamespace(_send_json=lambda payload, status=200: sent.append((payload, status)))
+
+                with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+                    CoordinatorDispatcher._http_done(
+                        dispatcher,
+                        handler,  # type: ignore[arg-type]
+                        json.dumps(request.to_dict()).encode("utf-8"),
+                    )
+
+                self.assertEqual(sent, [(expected_payload, expected_status)])
+                self.assertIn(expected_log, "\n".join(logs.output))
+
+        registry = InFlightRegistry()
+        registry.claim(
+            job_id="job-owned",
+            worker_id="owner-1",
+            worker_name="Owner",
+            source_path=r"C:\Media\owned.mkv",
+            encode_config={},
+        )
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._registry = registry
+        dispatcher.log_cluster_event = lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("cluster blocked"))  # type: ignore[assignment]
+        sent: list[tuple[dict, int]] = []
+        handler = SimpleNamespace(_send_json=lambda payload, status=200: sent.append((payload, status)))
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+            CoordinatorDispatcher._http_done(
+                dispatcher,
+                handler,  # type: ignore[arg-type]
+                json.dumps(
+                    DoneRequest(job_id="job-owned", worker_id="other-1", success=True).to_dict()
+                ).encode("utf-8"),
+            )
+
+        self.assertEqual(sent[0][1], 403)
+        self.assertEqual(sent[0][0]["status"], "forbidden")
+        self.assertIn("Failed to emit done-owner-mismatch cluster event for job job-owne", "\n".join(logs.output))
+
+    # ------------------------------------------------------------------
+    # W6 — /api/workers includes coordinator wall clock
+    # ------------------------------------------------------------------
+    def test_workers_response_carries_coordinator_now(self) -> None:
+        from mediapipeline.desktop.network.protocol import WorkersResponse
+        resp = WorkersResponse(coordinator_now="2026-05-08T12:34:56-04:00")
+        self.assertEqual(
+            resp.to_dict()["coordinator_now"],
+            "2026-05-08T12:34:56-04:00",
+        )
+        # Default (omitted) coerces to empty string, not missing key.
+        self.assertEqual(WorkersResponse().to_dict()["coordinator_now"], "")
+
+    def test_workers_response_snapshot_failure_returns_logged_500(self) -> None:
+        class BadRegistry:
+            def snapshot(self) -> list[object]:
+                raise RuntimeError("snapshot denied")
+
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._registry = BadRegistry()
+        dispatcher._app = SimpleNamespace(queue_records=[1, 2, 3])
+        sent: list[tuple[dict, int]] = []
+        handler = SimpleNamespace(_send_json=lambda payload, status=200: sent.append((payload, status)))
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="ERROR") as logs:
+            CoordinatorDispatcher._http_workers(dispatcher, handler, {})  # type: ignore[arg-type]
+
+        self.assertEqual(sent, [({"error": "worker snapshot unavailable"}, 500)])
+        self.assertIn("Failed to build /api/workers response: snapshot denied", "\n".join(logs.output))
+
+    # ------------------------------------------------------------------
+    # W7 — cluster log is keyed off coordinator receive time, with the
+    # worker-supplied timestamp preserved as a forensic tag.
+    # ------------------------------------------------------------------
+    def test_cluster_log_renders_worker_timestamp_when_skewed(self) -> None:
+        from mediapipeline.desktop.network.protocol import LogEntryRequest
+
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        entry = LogEntryRequest(
+            timestamp="2026-05-08T12:00:00-04:00",       # coordinator-stamped
+            worker_id="w1",
+            worker_name="worker-pc",
+            role="worker",
+            level="INFO",
+            event="job_completed",
+            message="ok",
+        )
+        # Worker reported a timestamp 10 minutes off from coordinator.
+        entry._worker_ts = "2026-05-08T11:50:00-04:00"  # type: ignore[attr-defined]
+        line = CoordinatorDispatcher._format_cluster_log_line(dispatcher, entry)
+        direct_line = format_cluster_log_line(entry)
+        # Coordinator timestamp leads the line.
+        self.assertTrue(line.startswith("2026-05-08T12:00:00-04:00"))
+        # Worker timestamp is preserved as a tag.
+        self.assertIn("worker_ts=2026-05-08T11:50:00-04:00", line)
+        self.assertEqual(direct_line, line)
+
+    def test_cluster_log_rotation_failure_is_logged_without_blocking_append(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            log_path = Path(tmp) / "cluster.log"
+            log_path.write_text("existing\n", encoding="utf-8")
+            # Force the backup path to fail `unlink()` on all platforms.
+            (Path(tmp) / "cluster.log.1").mkdir()
+
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._cluster_log_lock = threading.Lock()
+            dispatcher._cluster_log_max_bytes = 1
+            dispatcher.cluster_log_path = lambda: log_path  # type: ignore[method-assign]
+
+            entry = LogEntryRequest(
+                timestamp="2026-05-08T12:00:00-04:00",
+                worker_id="w1",
+                worker_name="worker-pc",
+                role="worker",
+                level="INFO",
+                event="rotation_test",
+                message="append should continue",
+            )
+
+            with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+                CoordinatorDispatcher._append_cluster_log(dispatcher, entry)
+
+            output = "\n".join(logs.output)
+            self.assertIn("Failed to rotate cluster log", output)
+            self.assertIn("cluster.log", output)
+            self.assertIn("rotation_test", log_path.read_text(encoding="utf-8"))
+
+    def test_cluster_log_size_inspection_failure_is_logged_without_blocking_append(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            log_path = Path(tmp) / "cluster.log"
+            log_path.write_text("existing\n", encoding="utf-8")
+
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._cluster_log_lock = threading.Lock()
+            dispatcher._cluster_log_max_bytes = 1
+            dispatcher.cluster_log_path = lambda: log_path  # type: ignore[method-assign]
+
+            entry = LogEntryRequest(
+                timestamp="2026-05-08T12:00:00-04:00",
+                worker_id="w1",
+                worker_name="worker-pc",
+                role="worker",
+                level="INFO",
+                event="stat_test",
+                message="append should continue",
+            )
+
+            original_stat = Path.stat
+
+            def fake_stat(path: Path, *args, **kwargs):
+                if path == log_path:
+                    raise OSError("stat denied")
+                return original_stat(path, *args, **kwargs)
+
+            with patch.object(Path, "stat", fake_stat):
+                with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+                    CoordinatorDispatcher._append_cluster_log(dispatcher, entry)
+
+            output = "\n".join(logs.output)
+            self.assertIn("Failed to inspect cluster log size", output)
+            self.assertIn("stat denied", output)
+            self.assertIn("stat_test", log_path.read_text(encoding="utf-8"))
+
+    def test_cluster_log_path_resolution_failure_is_logged_without_raising(self) -> None:
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher.cluster_log_path = lambda: (_ for _ in ()).throw(RuntimeError("state path unavailable"))  # type: ignore[method-assign]
+        entry = LogEntryRequest(
+            timestamp="2026-05-08T12:00:00-04:00",
+            worker_id="w1",
+            worker_name="worker-pc",
+            role="worker",
+            level="INFO",
+            event="path_resolution_test",
+            message="path lookup should not escape",
+        )
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="ERROR") as logs:
+            CoordinatorDispatcher._append_cluster_log(dispatcher, entry)
+
+        output = "\n".join(logs.output)
+        self.assertIn("Failed to resolve cluster log path", output)
+        self.assertIn("state path unavailable", output)
+
+    def test_cluster_log_format_failure_is_logged_without_raising(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            log_path = Path(tmp) / "cluster.log"
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._cluster_log_lock = threading.Lock()
+            dispatcher._cluster_log_max_bytes = 1
+            dispatcher.cluster_log_path = lambda: log_path  # type: ignore[method-assign]
+            dispatcher._format_cluster_log_line = lambda _entry: (_ for _ in ()).throw(RuntimeError("format blocked"))  # type: ignore[method-assign]
+            entry = LogEntryRequest(
+                timestamp="2026-05-08T12:00:00-04:00",
+                worker_id="w1",
+                worker_name="worker-pc",
+                role="worker",
+                level="INFO",
+                event="format_test",
+                message="format should not escape",
+            )
+
+            with self.assertLogs("mediapipeline.desktop.network.coordinator", level="ERROR") as logs:
+                CoordinatorDispatcher._append_cluster_log(dispatcher, entry)
+
+            output = "\n".join(logs.output)
+            self.assertIn("Failed to prepare or append cluster log", output)
+            self.assertIn("format blocked", output)
+            self.assertFalse(log_path.exists())
+
+    # ------------------------------------------------------------------
+    # W4 — empty ClaimResponse carries a backoff hint, worker honours it
+    # while clamping to its configured poll interval ceiling.
+    # ------------------------------------------------------------------
+    def test_claim_response_retry_after_seconds_round_trips(self) -> None:
+        from mediapipeline.desktop.network.protocol import ClaimResponse
+        wire = ClaimResponse.empty(retry_after_seconds=7).to_dict()
+        self.assertEqual(wire["status"], "empty")
+        self.assertEqual(wire["retry_after_seconds"], 7)
+        # Round-trip back into a dataclass instance preserves the value.
+        rebuilt = ClaimResponse.from_dict(wire)
+        self.assertEqual(rebuilt.retry_after_seconds, 7)
+
+    def test_claim_response_missing_retry_after_seconds_defaults_to_zero(self) -> None:
+        """Old coordinators that don't advertise the field must still
+        deserialise cleanly into a ClaimResponse with a 0 hint, which
+        the worker treats as 'use my configured interval'."""
+        from mediapipeline.desktop.network.protocol import ClaimResponse
+        legacy_wire = {
+            "status": "empty",
+            "job_id": "",
+            "source_path": "",
+            "priority": False,
+            "estimated_size_gb": 0.0,
+            "encode_config": {},
+            "retry_on_failure": True,
+        }
+        rebuilt = ClaimResponse.from_dict(legacy_wire)
+        self.assertEqual(rebuilt.retry_after_seconds, 0)
+
+    def test_compute_retry_after_seconds_reflects_registry_activity(self) -> None:
+        from mediapipeline.desktop.network.coordinator_policy import (
+            RETRY_AFTER_ACTIVE_SECONDS, RETRY_AFTER_IDLE_SECONDS,
+        )
+        # Idle cluster → long backoff.
+        idle_dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        idle_dispatcher._registry = InFlightRegistry()
+        self.assertEqual(
+            CoordinatorDispatcher._compute_retry_after_seconds(idle_dispatcher),
+            RETRY_AFTER_IDLE_SECONDS,
+        )
+
+        # Active cluster → short backoff.
+        active_dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        active_dispatcher._registry = InFlightRegistry()
+        active_dispatcher._registry.claim(
+            job_id="active-1", worker_id="alice", worker_name="alice-pc",
+            source_path=r"\\share\foo.mkv", encode_config={},
+        )
+        self.assertEqual(
+            CoordinatorDispatcher._compute_retry_after_seconds(active_dispatcher),
+            RETRY_AFTER_ACTIVE_SECONDS,
+        )
+        # Active hint must be strictly shorter than idle hint.
+        self.assertLess(RETRY_AFTER_ACTIVE_SECONDS, RETRY_AFTER_IDLE_SECONDS)
+
+    def test_compute_retry_after_seconds_logs_registry_count_failure(self) -> None:
+        from mediapipeline.desktop.network.coordinator_policy import RETRY_AFTER_IDLE_SECONDS
+
+        class BadRegistry:
+            @property
+            def active_count(self) -> int:
+                raise RuntimeError("registry offline")
+
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._registry = BadRegistry()
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+            retry_after = CoordinatorDispatcher._compute_retry_after_seconds(dispatcher)
+
+        self.assertEqual(retry_after, RETRY_AFTER_IDLE_SECONDS)
+        self.assertIn(
+            "Could not read active in-flight job count; using idle retry hint: registry offline",
+            "\n".join(logs.output),
+        )
+
+    def test_http_claim_tolerates_invalid_queue_record_estimated_size(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            source = r"C:\Media\movie.mkv"
+            record = SimpleNamespace(source_path=source, priority=False, estimated_size_gb="not-a-number")
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._accepting_claims = True
+            dispatcher._claim_lock = threading.Lock()
+            dispatcher._registry = InFlightRegistry()
+            dispatcher._scan_for_next_record = lambda _worker_name: (record, {})  # type: ignore[assignment]
+            dispatcher._source_has_prior_failure = lambda _source_path: False  # type: ignore[assignment]
+            dispatcher._inflight_state_path = lambda: Path(td) / "inflight_registry.json"  # type: ignore[assignment]
+            dispatcher.log_cluster_event = lambda **_kwargs: None  # type: ignore[assignment]
+            sent: list[tuple[dict[str, object], int]] = []
+            handler = SimpleNamespace(_send_json=lambda payload, status=200: sent.append((payload, status)))
+
+            with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+                CoordinatorDispatcher._http_claim(
+                    dispatcher,
+                    handler,  # type: ignore[arg-type]
+                    {"worker_id": "worker-1", "worker_name": "Worker"},
+                )
+
+        self.assertEqual(sent[0][1], 200)
+        self.assertEqual(sent[0][0]["status"], "ok")
+        self.assertEqual(sent[0][0]["estimated_size_gb"], 0.0)
+        self.assertIn("Invalid estimated_size_gb for queue record", "\n".join(logs.output))
+
+    def test_worker_resolve_wait_seconds_clamps_server_hint(self) -> None:
+        worker = WorkerDispatcher.__new__(WorkerDispatcher)
+        worker._poll_interval = 30  # type: ignore[attr-defined]
+
+        # No hint → fall back to the configured interval.
+        self.assertEqual(WorkerDispatcher._resolve_wait_seconds(worker, 0), 30.0)
+        self.assertEqual(WorkerDispatcher._resolve_wait_seconds(worker, -5), 30.0)
+
+        # Reasonable hint shorter than ceiling → honour it.
+        self.assertEqual(WorkerDispatcher._resolve_wait_seconds(worker, 5), 5.0)
+
+        # Hint longer than ceiling → clamped down so the operator's
+        # configured cadence is the upper bound. A buggy coordinator
+        # cannot make this worker poll less often than configured.
+        self.assertEqual(WorkerDispatcher._resolve_wait_seconds(worker, 600), 30.0)
+
+        # Sub-second hint → clamped up to 1 s so the worker can't be
+        # induced into a tight poll loop.
+        worker._poll_interval = 30  # type: ignore[attr-defined]
+        # Note: server_hint_seconds is typed as int on the wire, but
+        # _resolve_wait_seconds tolerates any positive int.
+        self.assertEqual(WorkerDispatcher._resolve_wait_seconds(worker, 1), 1.0)
+
+    def test_cluster_log_omits_worker_timestamp_when_aligned(self) -> None:
+        from mediapipeline.desktop.network.protocol import LogEntryRequest
+
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        entry = LogEntryRequest(
+            timestamp="2026-05-08T12:00:00-04:00",
+            worker_id="w1",
+            worker_name="worker-pc",
+            role="coordinator",
+            level="INFO",
+            event="coordinator_started",
+            message="boot",
+        )
+        entry._worker_ts = "2026-05-08T12:00:00-04:00"  # type: ignore[attr-defined]
+        line = CoordinatorDispatcher._format_cluster_log_line(dispatcher, entry)
+        # Coordinator-emitted entries shouldn't trail with a redundant tag.
+        self.assertNotIn("worker_ts=", line)
+
+
+if __name__ == '__main__':
+    unittest.main()

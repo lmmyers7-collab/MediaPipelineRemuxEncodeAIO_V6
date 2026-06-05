@@ -1,7 +1,7 @@
 {
   "schema_version": "webview_split_candidates.v1",
-  "generated_by": "scripts/dev/webview-split-candidates.mjs",
-  "source_analyzer": "scripts/dev/analyze-webview-godfiles.mjs",
+  "generated_by": "ops/scripts/dev/webview-split-candidates.mjs",
+  "source_analyzer": "ops/scripts/dev/analyze-webview-godfiles.mjs",
   "no_slicing_note": "This manifest is prework only. It identifies future split candidates but does not create, delete, or rewrite WebView assets.",
   "split_rules": [
     "Keep the plain ordered <script> runtime model.",
@@ -11,7 +11,7 @@
   ],
   "sources": [
     {
-      "source_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js",
+      "source_file": "apps/desktop/webview/static/assets/app.js",
       "globals_to_preserve": [
         "externalDependencyEvidenceText",
         "externalDependencyOverallStatus",
@@ -27,12 +27,12 @@
       "candidate_count": 4,
       "candidates": [
         {
-          "source_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js",
-          "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.core.js",
+          "source_file": "apps/desktop/webview/static/assets/app.js",
+          "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 934,
-            "end": 1195,
+            "start": 787,
+            "end": 1048,
             "line_count": 262
           },
           "functions_to_move": [
@@ -150,19 +150,19 @@
           },
           "route_ownership_notes": [],
           "tests_affected": [
-            "DesktopApp.tests.test_application_facade_web_static",
-            "DesktopApp.tests.test_webview_frontend_mutation_boundary",
-            "DesktopApp.tests.test_webview_inventory_docs"
+            "tests.python.desktop.test_application_facade_web_static",
+            "tests.webview.test_webview_frontend_mutation_boundary",
+            "tests.webview.test_webview_inventory_docs"
           ]
         },
         {
-          "source_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js",
-          "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.refresh.js",
+          "source_file": "apps/desktop/webview/static/assets/app.js",
+          "proposed_child_file": "apps/desktop/webview/static/assets/app.refresh.js",
           "topic": "app-refresh",
           "line_range": {
-            "start": 656,
-            "end": 905,
-            "line_count": 250
+            "start": 504,
+            "end": 758,
+            "line_count": 255
           },
           "functions_to_move": [
             "refreshAll",
@@ -193,7 +193,7 @@
             "renderCloseReadiness",
             "renderDailyDriverReadiness",
             "renderExternalDependencyDigest",
-            "renderHomeAtAGlance",
+            "renderHomeNextQueue",
             "renderHomePendingCount",
             "renderHomePromotionEntry",
             "renderHomeQueueSnapshot",
@@ -261,7 +261,7 @@
               "renderCloseReadiness",
               "renderDailyDriverReadiness",
               "renderExternalDependencyDigest",
-              "renderHomeAtAGlance",
+              "renderHomeNextQueue",
               "renderHomePendingCount",
               "renderHomePromotionEntry",
               "renderHomeQueueSnapshot",
@@ -304,6 +304,7 @@
               "window.mediaPipelineContractView",
               "window.mediaPipelineDiagnosticsStateSummaryView",
               "window.mediaPipelineDiagnosticsView",
+              "window.mediaPipelineDom",
               "window.mediaPipelineLaunchView",
               "window.mediaPipelineNetworkView",
               "window.mediaPipelineProgressView",
@@ -322,6 +323,7 @@
             "unresolved_global_dependencies": [
               "apiGet",
               "byId",
+              "captureScrollablePositions",
               "checked",
               "final_library_promotion",
               "getLastMaintenance",
@@ -354,6 +356,7 @@
               "renderSchedule",
               "renderSettings",
               "renderSettingsLibraries",
+              "restoreScrollablePositions",
               "startup_progress"
             ],
             "movement_assessment": "needs_wrapper_or_context",
@@ -366,25 +369,24 @@
           },
           "route_ownership_notes": [],
           "tests_affected": [
-            "DesktopApp.tests.test_application_facade_web_static",
-            "DesktopApp.tests.test_webview_browser_layout_manager_smoke",
-            "DesktopApp.tests.test_webview_frontend_mutation_boundary",
-            "DesktopApp.tests.test_webview_inventory_docs"
+            "tests.python.desktop.test_application_facade_web_static",
+            "tests.webview.test_webview_browser_layout_manager_smoke",
+            "tests.webview.test_webview_frontend_mutation_boundary",
+            "tests.webview.test_webview_inventory_docs"
           ]
         },
         {
-          "source_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js",
-          "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.core.js",
+          "source_file": "apps/desktop/webview/static/assets/app.js",
+          "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 532,
-            "end": 654,
-            "line_count": 123
+            "start": 384,
+            "end": 502,
+            "line_count": 119
           },
           "functions_to_move": [
             "renderExternalDependencyDigest",
-            "renderHomeAtAGlanceQueue",
-            "renderHomeAtAGlance",
+            "renderHomeNextQueue",
             "renderDailyDriverReadiness",
             "recordLocalUiDiagnostic",
             "renderTelemetrySafely",
@@ -397,8 +399,6 @@
           ],
           "parent_wrappers_required": [
             "renderExternalDependencyDigest",
-            "renderHomeAtAGlanceQueue",
-            "renderHomeAtAGlance",
             "renderDailyDriverReadiness",
             "showPage"
           ],
@@ -425,7 +425,7 @@
             "dom_dependencies": [],
             "api_dependencies": [],
             "window_dependencies": [
-              "window.mediaPipelineAppHome",
+              "window.mediaPipelineAppHomeReadiness",
               "window.mediaPipelineAppLifecycle",
               "window.mediaPipelineTelemetryView"
             ],
@@ -449,18 +449,18 @@
           },
           "route_ownership_notes": [],
           "tests_affected": [
-            "DesktopApp.tests.test_application_facade_web_static",
-            "DesktopApp.tests.test_webview_frontend_mutation_boundary",
-            "DesktopApp.tests.test_webview_inventory_docs"
+            "tests.python.desktop.test_application_facade_web_static",
+            "tests.webview.test_webview_frontend_mutation_boundary",
+            "tests.webview.test_webview_inventory_docs"
           ]
         },
         {
-          "source_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.js",
-          "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/app.core.js",
+          "source_file": "apps/desktop/webview/static/assets/app.js",
+          "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 159,
-            "end": 252,
+            "start": 87,
+            "end": 180,
             "line_count": 94
           },
           "functions_to_move": [
@@ -528,7 +528,7 @@
             ],
             "api_dependencies": [],
             "window_dependencies": [
-              "window.mediaPipelineAppLifecycle",
+              "window.mediaPipelineAppTauriLifecycle",
               "window.mediaPipelineProgressView",
               "window.mediaPipelineReportsView"
             ],
@@ -565,15 +565,15 @@
           },
           "route_ownership_notes": [],
           "tests_affected": [
-            "DesktopApp.tests.test_application_facade_web_static",
-            "DesktopApp.tests.test_webview_frontend_mutation_boundary",
-            "DesktopApp.tests.test_webview_inventory_docs"
+            "tests.python.desktop.test_application_facade_web_static",
+            "tests.webview.test_webview_frontend_mutation_boundary",
+            "tests.webview.test_webview_inventory_docs"
           ]
         }
       ]
     },
     {
-      "source_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js",
+      "source_file": "apps/desktop/webview/static/assets/settingsView.js",
       "globals_to_preserve": [
         "applyAudioSettingsBuilderToPatch",
         "applyFileSafetySettingsBuilderToPatch",
@@ -672,8 +672,8 @@
       "candidate_count": 5,
       "candidates": [
         {
-          "source_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js",
-          "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js",
+          "source_file": "apps/desktop/webview/static/assets/settingsView.js",
+          "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
             "start": 1205,
@@ -950,16 +950,16 @@
             "/api/settings/validate must remain settings-owned and backend-confirmed where applicable."
           ],
           "tests_affected": [
-            "DesktopApp.tests.test_application_facade_settings_workspace",
-            "DesktopApp.tests.test_webview_frontend_mutation_boundary",
-            "DesktopApp.tests.test_webview_inventory_docs",
-            "DesktopApp.tests.test_webview_settings_libraries",
-            "DesktopApp.tests.test_webview_settings_patch_smoke"
+            "tests.python.desktop.test_application_facade_settings_workspace",
+            "tests.webview.test_webview_frontend_mutation_boundary",
+            "tests.webview.test_webview_inventory_docs",
+            "tests.webview.test_webview_settings_libraries",
+            "tests.webview.test_webview_settings_patch_smoke"
           ]
         },
         {
-          "source_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js",
-          "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.policyImpact.js",
+          "source_file": "apps/desktop/webview/static/assets/settingsView.js",
+          "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.policyImpact.js",
           "topic": "settings-final-library",
           "line_range": {
             "start": 656,
@@ -1148,16 +1148,16 @@
             "/api/settings/save-patch must remain settings-owned and backend-confirmed where applicable."
           ],
           "tests_affected": [
-            "DesktopApp.tests.test_application_facade_settings_workspace",
-            "DesktopApp.tests.test_webview_frontend_mutation_boundary",
-            "DesktopApp.tests.test_webview_inventory_docs",
-            "DesktopApp.tests.test_webview_settings_libraries",
-            "DesktopApp.tests.test_webview_settings_patch_smoke"
+            "tests.python.desktop.test_application_facade_settings_workspace",
+            "tests.webview.test_webview_frontend_mutation_boundary",
+            "tests.webview.test_webview_inventory_docs",
+            "tests.webview.test_webview_settings_libraries",
+            "tests.webview.test_webview_settings_patch_smoke"
           ]
         },
         {
-          "source_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js",
-          "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js",
+          "source_file": "apps/desktop/webview/static/assets/settingsView.js",
+          "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
             "start": 350,
@@ -1406,16 +1406,16 @@
           },
           "route_ownership_notes": [],
           "tests_affected": [
-            "DesktopApp.tests.test_application_facade_settings_workspace",
-            "DesktopApp.tests.test_webview_frontend_mutation_boundary",
-            "DesktopApp.tests.test_webview_inventory_docs",
-            "DesktopApp.tests.test_webview_settings_libraries",
-            "DesktopApp.tests.test_webview_settings_patch_smoke"
+            "tests.python.desktop.test_application_facade_settings_workspace",
+            "tests.webview.test_webview_frontend_mutation_boundary",
+            "tests.webview.test_webview_inventory_docs",
+            "tests.webview.test_webview_settings_libraries",
+            "tests.webview.test_webview_settings_patch_smoke"
           ]
         },
         {
-          "source_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js",
-          "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js",
+          "source_file": "apps/desktop/webview/static/assets/settingsView.js",
+          "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
             "start": 59,
@@ -1585,16 +1585,16 @@
           },
           "route_ownership_notes": [],
           "tests_affected": [
-            "DesktopApp.tests.test_application_facade_settings_workspace",
-            "DesktopApp.tests.test_webview_frontend_mutation_boundary",
-            "DesktopApp.tests.test_webview_inventory_docs",
-            "DesktopApp.tests.test_webview_settings_libraries",
-            "DesktopApp.tests.test_webview_settings_patch_smoke"
+            "tests.python.desktop.test_application_facade_settings_workspace",
+            "tests.webview.test_webview_frontend_mutation_boundary",
+            "tests.webview.test_webview_inventory_docs",
+            "tests.webview.test_webview_settings_libraries",
+            "tests.webview.test_webview_settings_patch_smoke"
           ]
         },
         {
-          "source_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.js",
-          "proposed_child_file": "DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/settingsView.core.js",
+          "source_file": "apps/desktop/webview/static/assets/settingsView.js",
+          "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
             "start": 252,
@@ -1795,11 +1795,11 @@
           },
           "route_ownership_notes": [],
           "tests_affected": [
-            "DesktopApp.tests.test_application_facade_settings_workspace",
-            "DesktopApp.tests.test_webview_frontend_mutation_boundary",
-            "DesktopApp.tests.test_webview_inventory_docs",
-            "DesktopApp.tests.test_webview_settings_libraries",
-            "DesktopApp.tests.test_webview_settings_patch_smoke"
+            "tests.python.desktop.test_application_facade_settings_workspace",
+            "tests.webview.test_webview_frontend_mutation_boundary",
+            "tests.webview.test_webview_inventory_docs",
+            "tests.webview.test_webview_settings_libraries",
+            "tests.webview.test_webview_settings_patch_smoke"
           ]
         }
       ]

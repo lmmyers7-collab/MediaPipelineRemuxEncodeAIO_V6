@@ -2,17 +2,17 @@
 
 Purpose: document the intended lifecycle boundary between the Tauri/WebView2 shell and the Python backend so that future changes do not accidentally cross it.
 
-This is the lifecycle boundary document for the promoted V6 Tauri/WebView2
+This is the lifecycle boundary document for the promoted Tauri/WebView2
 shell and the validation gates required for future lifecycle or packaging
 changes.
 
 ---
 
-## Current Boundary (Promoted V6 Shell)
+## Current Boundary
 
-The Tauri shell (`DesktopApp/tauri_shell/src-tauri/src/lib.rs`) owns:
+The Tauri shell (`apps/desktop/tauri/src-tauri/src/lib.rs`) owns:
 
-- Spawning the Python backend process (`python -m mediapipeline_desktop_app.local_api_main`)
+- Spawning the Python backend process (`python -m mediapipeline.desktop.local_api_main`)
 - Resolving the Python runtime path from bundled or development locations
 - Reading the bootstrap payload from backend stdout (token + URL, `desktop_local_api_bootstrap.v1` schema)
 - Validating backend health via `GET /api/health` before opening WebView2
@@ -65,7 +65,7 @@ The pipeline may spawn or coordinate worker processes. If the shell kills the ba
 
 ## Production Lifecycle Guardrails
 
-The current promoted V6 lifecycle has production-hardening guardrails for shell
+The current promoted lifecycle has production-hardening guardrails for shell
 startup, backend health/crash visibility, and token/devtools static posture.
 Default-launcher/package-mode promotion is closed by operator confirmation on
 2026-05-30, and representative real-media validation is closed by operator
@@ -96,7 +96,7 @@ behavior changes still require representative real-media revalidation.
 
 ### 5. Multiple window safety
 
-- Implemented on 2026-05-19 and updated for V6: the Tauri shell opens one dynamic `main` WebView2 window and acquires `Local\MediaPipelineRemuxEncodeAIO_V6_TauriShell` before backend startup. A second shell instance fails before spawning another backend and reports an explicit operator error: use the existing window or close it before launching another preview shell.
+- Implemented on 2026-05-19 and updated for the current shell: the Tauri shell opens one dynamic `main` WebView2 window and acquires `Local\MediaPipelineRemuxEncodeAIO_TauriShell` before backend startup. A second shell instance fails before spawning another backend and reports an explicit operator error: use the existing window or close it before launching another preview shell.
 
 ### 6. Token rotation
 
@@ -137,10 +137,10 @@ behavior changes still require representative real-media revalidation.
 
 ## Reference To Existing Implementation
 
-- Tauri shell Rust source: `DesktopApp/tauri_shell/src-tauri/src/lib.rs`
-- Single-instance guard: `DesktopApp/tauri_shell/src-tauri/src/single_instance_guard.rs`
-- Tauri lifecycle WebView bridge: `DesktopApp/mediapipeline_desktop_app/ui_web/static/assets/tauriLifecycleBridge.js`
-- Production surface audit: `DesktopApp/tauri_shell/Test-TauriShell-ProductionSurface.ps1`
+- Tauri shell Rust source: `apps/desktop/tauri/src-tauri/src/lib.rs`
+- Single-instance guard: `apps/desktop/tauri/src-tauri/src/single_instance_guard.rs`
+- Tauri lifecycle WebView bridge: `apps/desktop/webview/static/assets/tauriLifecycleBridge.js`
+- Production surface audit: `apps/desktop/tauri/Test-TauriShell-ProductionSurface.ps1`
 - Backend lifecycle constants: `MAX_BOOTSTRAP_STDOUT_LINES`, `MAX_BOOTSTRAP_STDOUT_CHARS`, `MAX_BACKEND_RESPONSE_BYTES`, `MAX_CLOSE_READINESS_WARNINGS`, `BACKEND_HEALTH_MONITOR_INTERVAL`, `BACKEND_HEALTH_FAILURE_THRESHOLD`
 - Bootstrap schema: `desktop_local_api_bootstrap.v1`
 - Health schema: `desktop_backend_health.v1`
@@ -148,4 +148,5 @@ behavior changes still require representative real-media revalidation.
 - Close readiness: `GET /api/backend/close-readiness`, `desktop_close_readiness.v1`
 - Shutdown: `POST /api/backend/shutdown`
 
-See also `../CURRENT_PROJECT_STATE.md`, `../../V6_SPLIT_NOTES.md`, and `../testing/VALIDATION_LADDER_RUNBOOK.md` for the current lifecycle, split, and promotion status. Older transition/parity documents were quarantined under `../archive/docs-housekeeping/2026-05-20-review/`.
+See also `../CURRENT_PROJECT_STATE.md`, the archived WebView-first split notes, and `../testing/VALIDATION_LADDER_RUNBOOK.md` for the current lifecycle, split, and promotion status. Older transition/parity documents were quarantined under `../archive/docs-housekeeping/2026-05-20-review/`.
+
