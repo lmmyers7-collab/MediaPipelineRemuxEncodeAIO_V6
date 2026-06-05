@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0605-010",
+  "title": "MediaPipeline.ps1 entrypoint-slice refactor (phases 1-4)",
+  "version_target": "2026.06.05.001",
+  "status": "in_progress",
+  "type": "refactor",
+  "risk_level": "medium",
+  "date_started": "2026-06-05",
+  "summary": "Code-locality refactor of the keystone entrypoint ops/pipeline/entrypoints/MediaPipeline.ps1: trim the historical comment header; extract the session-state initializer and the startup-config logger into their engine domains; and move the engine module manifest/loader, the derived runtime paths + state layout, the startup filesystem prep, and the startup path validation into dot-sourced slices. Pure relocation; no behaviour change. 1112 -> 597 lines.",
+  "reason": "MediaPipeline.ps1 had grown to 1112 lines mixing a 181-line historical changelog, session-state setup, a 75-line startup log dump, a 100-line module-loading block, derived-path resolution, and startup validation into the orchestrator, obscuring the actual startup sequence and run-mode dispatch.",
+  "affected_areas": [
+    "pipeline_entrypoint",
+    "engine_module_loading",
+    "observability_logging",
+    "progress_state"
+  ],
+  "behavior_before": "MediaPipeline.ps1 (1112 lines) inlined the historical [FIX#N] changelog header, the $script: session-state/progress-counter initialization, the resolved-config startup log + NVENC probe, the $engineModulePaths manifest with its ordered dot-source loop, the derived runtime paths + state layout + worker-child override, the startup filesystem prep, and the startup path validation.",
+  "behavior_after": "MediaPipeline.ps1 is 597 lines. The header is a concise comment-based-help block (history preserved in git/CHANGELOG.md). Session-state init is Initialize-MediaPipelineSessionState (engine/status/progress_state.ps1); the startup config log + NVENC probe is Write-MediaPipelineStartupConfigLog (engine/observability/logging.ps1). Four procedural slices under ops/pipeline/entrypoints/MediaPipeline/ are dot-sourced at the entrypoint top level (preserving $script:/plain-local scope): module_loader.ps1 (manifest + ordered loader), runtime_paths.ps1 (derived paths + state layout + worker-child override), startup_filesystem.ps1 (dirs/rotation/claims), startup_path_validation.ps1 (reachability probes). The resolved-config dump (-DumpEffectiveConfigPath) and -ValidateOnly startup log are canonically/byte identical before and after every cut.",
+  "files_touched": [
+    "ops/pipeline/entrypoints/MediaPipeline.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/module_loader.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/runtime_paths.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/startup_filesystem.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/startup_path_validation.ps1",
+    "ops/pipeline/engine/status/progress_state.ps1",
+    "ops/pipeline/engine/observability/logging.ps1",
+    "docs/SESSION.md"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PowerShell parser ParseFile on all touched/created .ps1 files -- 0 parse errors after every cut",
+    "Parity oracle: pwsh -File MediaPipeline.ps1 -ConfigPath <per-user psd1> -DumpEffectiveConfigPath -- canonical (deep key-sorted) JSON IDENTICAL to the pre-refactor baseline after phases 1, 2, 3, and 4",
+    "Startup-log diff: pwsh -File MediaPipeline.ps1 -ValidateOnly -- timestamp-stripped log byte-identical to baseline (72 lines, 0 diffs) after phases 1, 2, 3, and 4",
+    "ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1 -- exit 0 (End-to-end smoke checks passed) after phases 1, 2, 3, and 4"
+  ],
+  "rollback_plan": "Revert the touched source files (MediaPipeline.ps1, progress_state.ps1, logging.ps1) and delete the four new slices under ops/pipeline/entrypoints/MediaPipeline/. Pure relocation, no companion data/state changes; pre-refactor MediaPipeline.ps1 is recoverable from git history.",
+  "related_changes": [],
+  "notes": "Phases 1-4 of a planned campaign (operator-approved 2026-06-05; see docs/SESSION.md), all agent-validatable cuts complete. STOPPED before the AGENTS.md section-7 phases (dependency validation, instance lock, config boot, run-mode dispatch) because the agent-side harness CANNOT exercise them: the single-instance/worker mutex is skipped in -ValidateOnly/-DumpEffectiveConfigPath, and Drain/SingleFile/EmitQueuePlan/continuous Run execute after those modes exit -- so the parity oracle + fixture smoke have blind spots there. Those phases require operator validation (real -Once/continuous pass + queue/pending-publish/local-API smokes + a real mkvmerge exit-1 remux + ai_guardrail preflight/postflight) and are NOT self-certified. The PS7-relaunch block is intentionally LEFT INLINE (depends on the entrypoint's own $MyInvocation/$PSScriptRoot/$PSBoundParameters; only fires under Windows PowerShell 5.x, unvalidatable agent-side). Module-manifest contract test deferred (tests/Unit path conventions mid-reorg). No media policy, FFmpeg/subtitle/audio, publish/pending-publish, queue, or settings behaviour changed."
+}

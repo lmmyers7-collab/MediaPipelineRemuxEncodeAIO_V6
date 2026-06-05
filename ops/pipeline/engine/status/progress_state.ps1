@@ -639,3 +639,87 @@ Cumulative       : processed=$($cumulative.TotalProcessed), movies=$($cumulative
 ========================================
 "@
 }
+
+function Initialize-MediaPipelineSessionState {
+$Global:ffmpegProcess = $null
+$script:FFmpegProgressWriteStepPercent = 5
+
+$script:ProgressVersion = 2
+$script:totalProcessed  = 0
+$script:totalEncoded    = 0
+$script:totalRemuxed    = 0
+$script:totalFailed     = 0
+$script:totalMovies     = 0
+$script:totalTVEpisodes = 0
+$script:SessionStartedAt = Get-Date
+$script:currentFile     = "None"
+$script:currentFileDisplay = $null
+$script:currentFilePath = $null
+$script:currentMediaType = $null
+$script:currentQueuePhase = $null
+$script:currentQueueIndex = 0
+$script:currentQueueTotal = 0
+$script:currentRoute = $null
+$script:currentStage = 'initializing'
+$script:currentStagePercent = $null
+$script:currentItemStartedAt = $null
+$script:currentStageStartedAt = Get-Date
+$script:currentCopyState = $null
+$script:currentPushState = $null
+$script:currentSidecarState = $null
+$script:pipelineStatus  = "Initializing"
+$script:StopRequested   = $false
+$script:LastPauseRequestId = $null
+$script:LastPauseRequestCreatedAt = $null
+$script:LastPauseRequestObservedAt = $null
+$script:LastStopRequestId = $null
+$script:LastStopRequestCreatedAt = $null
+$script:LastStopRequestObservedAt = $null
+$script:LastRescanRequestId = $null
+$script:LastRescanRequestCreatedAt = $null
+$script:LastRescanRequestObservedAt = $null
+$script:SessionBaseline = $null
+$script:RoundBaseline   = $null
+$script:SessionSkipStats = @{}
+$script:RoundSkipStats   = @{}
+$script:SessionRetryCount = 0
+$script:RoundRetryCount   = 0
+$script:RoundMovieFilesFound = 0
+$script:RoundTVFilesFound    = 0
+$script:RoundFailureRecords  = [System.Collections.Generic.List[psobject]]::new()
+$script:ProcessedIndexCache  = $null
+$script:ProcessedIndexCacheAt = $null
+$script:MovieScanCache       = @()
+$script:MovieScanCacheAt     = $null
+$script:TVScanCache          = @()
+$script:TVScanCacheAt        = $null
+$script:ForceProcessedIndexRefresh = $false
+
+$progressReadPath = if (Test-Path -LiteralPath $ProgressFile) {
+    $ProgressFile
+} elseif (Test-Path -LiteralPath $script:LocalStateLayout.LegacyPaths.ProgressFile) {
+    $script:LocalStateLayout.LegacyPaths.ProgressFile
+} else {
+    $null
+}
+if ($progressReadPath) {
+    try {
+        $saved = Get-Content -LiteralPath $progressReadPath -Raw | ConvertFrom-Json
+        # Coerce each counter defensively: a partially written / truncated
+        # progress file can still parse yet be missing fields, which would
+        # otherwise leave the counters $null and corrupt later arithmetic
+        # and status text. [int]$null and a missing property both yield 0.
+        $script:totalProcessed  = [int]($saved.TotalProcessed)
+        $script:totalEncoded    = [int]($saved.Encoded)
+        $script:totalRemuxed    = [int]($saved.Remuxed)
+        $script:totalFailed     = [int]($saved.Failed)
+        $script:totalMovies     = [int]($saved.Movies)
+        $script:totalTVEpisodes = [int]($saved.TVEpisodes)
+        Write-Log "Loaded previous progress: $($script:totalProcessed) files processed"
+    } catch { Write-Log "Could not load progress file" "WARN" }
+}
+
+$script:SessionBaseline = Get-StatsSnapshot
+$script:SessionSkipStats = New-SkipStats
+Reset-RoundTracking
+}

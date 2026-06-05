@@ -302,3 +302,83 @@ function Write-StartupEnvironmentSummary {
     Write-Log "  fail reports : $LocalFailureReports"
     Write-Log "  rescan flag  : $RescanFlag"
 }
+
+function Write-MediaPipelineStartupConfigLog {
+Write-Log "===== PIPELINE START $($script:ProductVersion) (pipeline $($script:PipelineVersion)) ====="
+$runMode = if ($ValidateOnly) { 'validate-only' } elseif ($WorkerChild) { 'local-worker-child' } elseif ($DrainPendingPushes) { 'drain-pending-pushes' } elseif ($Once) { 'single-pass' } else { 'continuous' }
+Write-PipelineEvent -EventType 'pipeline_started' -Stage 'startup' -Status 'started' -Data @{
+    run_mode    = $runMode
+    config_path = $configPath
+    local_base  = $LocalBase
+} | Out-Null
+Write-Log "Run mode      : $runMode"
+Write-Log "Config file   : $configPath"
+Write-Log "PowerShell    : $($PSVersionTable.PSVersion)"
+Write-Log "SleepSeconds  : $SleepSeconds"
+$workerSlotLog = if ($WorkerChild) { " worker_slot=$WorkerSlotId" } else { "" }
+Write-Log "Parallel encodes: max=$script:MaxParallelEncodes mode=$script:ParallelEncodeMode$workerSlotLog"
+Write-Log "Scan refresh  : source $($script:SourceScanIntervalSeconds)s | index $($script:ProcessedIndexRefreshSeconds)s"
+Write-Log "Unknown height size: movie $EncodeThresholdGB GB | TV $TVEncodeThresholdGB GB"
+Write-Log "Route size targets: 1080p movie $($script:MovieRoute1080pTargetSizeGB) GB / TV $($script:TVRoute1080pTargetSizeGB) GB | 1440p movie $($script:MovieRoute1440pTargetSizeGB) GB / TV $($script:TVRoute1440pTargetSizeGB) GB | 4K movie $($script:MovieRoute4KTargetSizeGB) GB / TV $($script:TVRoute4KTargetSizeGB) GB"
+Write-Log "Codec         : $VideoCodec preset $VideoPreset CQ $VideoQuality"
+Write-Log "Encode tuning : $script:EncodeTuningPreset flags=$($script:ExtraVideoFlags -join ' ')"
+Write-Log "Encode ladder : $script:EncodeLadder"
+Write-Log "Routing profile: $script:RoutingProfile"
+Write-Log "Route buckets : 1080p <=$($script:Route1080pBucketMaxHeight)p $($script:Route1080pMaxVideoBitrateMbps) Mbps | 1440p $($script:Route1080pBucketMaxHeight + 1)-$($script:Route4KBucketMinHeight - 1)p $($script:Route1440pMaxVideoBitrateMbps) Mbps | 4K >=$($script:Route4KBucketMinHeight)p $($script:Route4KMaxVideoBitrateMbps) Mbps"
+Write-Log "H.264 copy    : $script:AllowH264RemuxIfPlexCompatible (<= $($script:H264RemuxMaxBitrateMbps) Mbps, <= $($script:H264RemuxMaxHeight)p)"
+Write-Log "Size guard    : $script:SizeGuardMode (default +$($script:MaxEncodeGrowthPercent)%; compatibility +$($script:CompatibilityEncodeGrowthPercent)%)"
+Write-Log "Remux-safe    : $($RemuxSafeVideoCodecs -join ', ')"
+Write-Log "Audio profile : $script:AudioPassthroughProfile"
+Write-Log "Audio compat  : $($script:CompatibleAudioCodecs -join ', ')"
+Write-Log "Audio policy  : transcode=$script:AudioTranscodeCodec $script:AudioTranscodeBitrate downmix=$script:AudioDownmixMode max_ch=$script:AudioMaxChannels allow_no_audio=$script:AllowNoAudio"
+Write-Log "Drop ASS      : $DropAssAfterConversion"
+$tx3gLanguageText = ($script:Tx3gExtractLanguages -join ', ')
+$bdpgsLanguageText = ($script:BdpgsExtractLanguages -join ', ')
+$vobSubLanguageText = ($script:VobSubExtractLanguages -join ', ')
+$bdpgsOcrToolText = if ($script:BdpgsOcrToolPath) { $script:BdpgsOcrToolPath } else { '(not configured)' }
+$vobSubOcrToolText = if ($script:VobSubOcrToolPath) { $script:VobSubOcrToolPath } else { '(not configured)' }
+Write-Log ("Convert TX3G  : {0} (languages: {1}; drop original: {2}; external sidecars: {3}; preserve existing SRT: {4})" -f $script:ConvertTx3gToSrt, $tx3gLanguageText, $script:DropTx3gAfterConversion, $script:CreateExternalTx3gSrtSidecars, $script:Tx3gPreserveExistingSrt)
+Write-Log ("Convert BDPGS : {0} (languages: {1}; drop original: {2}; OCR tool: {3})" -f $script:ConvertBdpgsToSrt, $bdpgsLanguageText, $script:DropBdpgsAfterConversion, $bdpgsOcrToolText)
+Write-Log ("Convert VobSub: {0} (languages: {1}; drop original: {2}; OCR tool: {3})" -f $script:ConvertVobSubToSrt, $vobSubLanguageText, $script:DropVobSubAfterConversion, $vobSubOcrToolText)
+Write-Log "Signs/Songs   : keep ASS=$($script:KeepSignsAndSongs) | ASS forced=$($script:TreatAssSignsSongsAsForced) | TX3G forced=$($script:TreatTx3gSignsSongsAsForced) | BDPGS forced=$($script:TreatBdpgsSignsSongsAsForced) | VobSub forced=$($script:TreatVobSubSignsSongsAsForced)"
+Write-Log "Merge adjacent: $($script:MergeAdjacent) (threshold: $($script:MergeThresholdMs)ms)"
+Write-Log "Remove karaoke: $($script:RemoveKaraoke)"
+if ($script:ExcludeSubtitleStyles.Count -gt 0) {
+    Write-Log "Exclude styles: $($script:ExcludeSubtitleStyles -join ', ')"
+} else {
+    Write-Log "Exclude styles: (using Python defaults)"
+}
+Write-Log "Log retention : $($script:LogRetentionDays) days"
+Write-Log "Log levels    : console=$($script:ConsoleLogLevel) | file=$($script:FileLogLevel)"
+Write-Log "Product ver   : $($script:ProductVersion)"
+Write-Log "Pipeline ver  : $($script:PipelineVersion) (min for reprocess: $($script:MinPipelineVersion))"
+Write-Log "ReprocessAll  : $($script:ReprocessAll)"
+Write-Log "Deferred publish : $($script:DeferredPublish)"
+Write-Log "Aggressive TV parse : $($script:AggressiveEpisodeParsing)"
+Write-Log ("CPU fallback  : {0} CRF {1} preset {2} threads={3} (process priority: {4})" -f (Get-MediaVideoCodecLibx265Name), $script:FallbackCpuQuality, $script:CpuEncodePreset, $(if ($script:CpuEncodeMaxThreads -gt 0) { [string]$script:CpuEncodeMaxThreads } else { 'auto' }), $script:CpuEncodeProcessPriority)
+Write-Log "FFmpeg timeouts: encode $($script:FFmpegEncodeTimeoutSeconds)s | encode-cpu $($script:FFmpegCpuEncodeTimeoutSeconds)s | remux $($script:FFmpegRemuxTimeoutSeconds)s | mkvmerge $($script:MkvmergeRemuxTimeoutSeconds)s | subtitle extract $($script:SubtitleExtractTimeoutSeconds)s | subtitle probe $($script:SubtitleProbeTimeoutSeconds)s | BDPGS OCR $($script:BdpgsOcrTimeoutSeconds)s | VobSub OCR $($script:VobSubOcrTimeoutSeconds)s"
+
+# F-new-2 — probe NVENC availability once at startup and cache. The
+# probe binds to the configured VideoCodec when it's an nvenc encoder so
+# we test the same codec the pipeline will try first per file.
+$nvencTestEncoder = if ($VideoCodec -match 'nvenc') { $VideoCodec } else { 'hevc_nvenc' }
+$nvencProbe = Test-NvencAvailable -TestEncoder $nvencTestEncoder
+$script:NvencAvailableProbe = $nvencProbe
+if ($nvencProbe.Available) {
+    Write-Log "NVENC probe   : OK ($nvencTestEncoder usable on this host)"
+} else {
+    $reasonText = if ($nvencProbe.Reason) { $nvencProbe.Reason } else { 'unknown' }
+    Write-Log "NVENC probe   : NOT AVAILABLE ($reasonText) — primary encode will fall back to libx265 (CPU) for every file" "WARN"
+    Write-Log "                CPU encode preset=$script:CpuEncodePreset CRF=$script:FallbackCpuQuality timeout=$($script:FFmpegCpuEncodeTimeoutSeconds)s — expect multi-hour runs per file" "WARN"
+    Write-PipelineEvent -EventType 'gpu_unavailable' -Stage 'startup' -Status 'warn' -Data @{
+        encoder         = $nvencTestEncoder
+        reason          = [string]$nvencProbe.Reason
+        encoder_listed  = [bool]$nvencProbe.EncoderListMatch
+        runtime_probed  = [bool]$nvencProbe.Probed
+    } | Out-Null
+}
+Write-Log "Copy/scan timeouts: robocopy $($script:RobocopyTimeoutSeconds)s | source scan $($script:SourceScanTimeoutSeconds)s | index scan $($script:IndexScanTimeoutSeconds)s"
+Write-Log "Output size mult: $($script:OutputSizeMultiplier)x (for pre-encode disk check)"
+Write-Log "Priority tags : $(if ($script:PriorityMarkers.Count -gt 0) { $script:PriorityMarkers -join ', ' } else { '(none)' })"
+Write-StartupEnvironmentSummary
+}

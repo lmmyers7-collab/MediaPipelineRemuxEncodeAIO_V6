@@ -1,184 +1,34 @@
 # ==============================================================================
-# MEDIA PIPELINE v1.0
+# MEDIA PIPELINE — entrypoint / composition root
 # ==============================================================================
-# Release 1.0 — consolidated stability, operator-control, and observability improvements
-# (All tagged [FIX#N] reference the consolidated code-review findings.)
-#
-#  [FIX#1]  Ensure-ScratchCopy no longer reuses scratch files by filename
-#           alone. A `.srcinfo` fingerprint sidecar (source full path +
-#           size + last-write time) is written next to every scratch copy
-#           and verified on reuse. Different source files that sanitise
-#           to the same safe-name (e.g. "Episode 01.mkv" from two shows)
-#           are now copied independently and never cross-contaminate.
-#
-#  [FIX#2]  Disk-space checks now work on UNC paths. Test-DiskSpace and
-#           Get-FreeSpaceGB were silently returning "enough space" for
-#           anything starting with \\server\share, allowing the outsource
-#           to fill up and corrupt mid-copy. Replaced with a P/Invoke
-#           wrapper around kernel32!GetDiskFreeSpaceExW which works for
-#           drive letters AND UNC paths. Also added a pre-push disk-
-#           space probe on the outsource share.
-#
-#  [FIX#5]  Auto-disable of ReprocessAll after one complete pass. Leaving
-#           ReprocessAll=$true in config used to re-encode the whole
-#           library every 30 s forever. The pipeline now flips the flag
-#           off in-memory after one full round and logs a loud warning
-#           telling the operator to disable it in config.
-#
-#  [FIX#6]  Robocopy now copies to <dest>.mp-partial and atomically
-#           renames on success. Mid-copy failures no longer leave a
-#           truncated MKV at the final path that future runs "find"
-#           and skip. Any orphan .mp-partial files from previous failed
-#           runs are cleaned at startup.
-#
-#  [FIX#8]  Normalize-MovieName is now a thin wrapper around
-#           Get-CleanMovieName. The divergent cleaning rules that caused
-#           Build-ProcessedIndex keys to never match the output folder
-#           names are gone. Already-Processed also has a direct
-#           Test-Path fallback for movies, so even when the index is
-#           stale or empty the reprocess-check still works.
-#
-#  [FIX#9]  Outsource index scan no longer has a 120 s hard timeout
-#           that would silently return an empty index on large libraries
-#           (causing all reprocessing to be skipped). New optional
-#           config key IndexScanTimeoutSeconds; default 1800s.
-#
-#  [FIX#10] Successful encodes are no longer deleted by the finally
-#           block when the server push fails. The output is preserved
-#           in LocalBase\PendingServerPush\ with a timestamp, and is
-#           pushed to the outsource at the start of the next run.
-#           Hours of encode time on a flaky network are no longer lost.
-#
-#  [FIX#11] Write-Sidecar now retries up to 3x and returns $true/$false.
-#           Callers treat a persistent sidecar write failure as a real
-#           failure — the outsource file is removed so next run
-#           regenerates it cleanly instead of looping re-encode forever.
-#
-#  [FIX#13] ConvertTo-Milliseconds accepts 1-3 digit millisecond fields.
-#           "00:00:12,1" and "00:00:12,01" now parse correctly instead
-#           of silently returning 0 (which caused spurious merges).
-#
-#  [NEW]    PendingServerPush\ scan at startup. Any .mkv found there
-#           is pushed to the outsource before normal processing
-#           resumes, so a network hiccup on one run gets fixed on
-#           the next run with zero operator intervention.
-#
-#  [NEW]    Config key IncludeSubtitleStyles — a whitelist of ASS
-#           style-name glob patterns that are ALWAYS kept, even if they
-#           also match ExcludeSubtitleStyles. Defends against fansubs
-#           that mislabel dialogue with a "Sign" or "Caption" style.
-#
-# ==============================================================================
-# MEDIA PIPELINE consolidated pipeline changes
-# ==============================================================================
-# Changes from previous consolidated pass:
-#
-#  [NEW]  Plex-style movie folders. Every movie output now goes into its
-#         own folder named "Title (Year)", matching the movie file itself:
-#             Outsource\Avatar (2009)\Avatar (2009).mkv
-#             Outsource\Avatar (2009)\Avatar (2009).pipeline.json
-#         This is Plex's preferred layout (one folder per movie entry)
-#         and keeps sidecars, subtitle files, posters, etc. grouped with
-#         the movie they belong to.
-#
-#         TV files are unaffected — they continue to use
-#         TV\<Show>\Season NN\<Show> - SxxEyy.mkv.
-#
-#         Title parsing strips bracketed text ({}, [], ()) and common
-#         release tags (UHD, HDR, 1080p, etc.). Prefers bracketed years
-#         over unbracketed ones to avoid misparsing titles like
-#         "Blade Runner 2049 (2017)". See Get-CleanMovieName docstring.
-#
-#  [FIX]  Case-insensitive variable collision in Build-AudioArgs. The
-#         loop-local $langDisplay was rebinding the outer $LangDisplay
-#         hashtable, causing the second audio track to fail with "String
-#         does not contain a method named ContainsKey". Renamed to
-#         $langDisp. Same defensive fix in Filter-SubtitleStreams.
-#
-# ==============================================================================
-# MEDIA PIPELINE previous consolidated pass
-# ==============================================================================
-# Changes from prior pass:
-#
-#  [NEW]  Per-show configuration overrides. Config key `ShowOverrides` is a
-#         hashtable keyed by glob pattern (case-insensitive). When a TV
-#         show matches, the override's keys replace the global defaults for
-#         that file. Supported overrides: DropAssAfterConversion,
-#         DropTx3gAfterConversion, DropBdpgsAfterConversion,
-#         CompatibleAudioCodecs, RemoveKaraoke,
-#         KeepSignsAndSongs, TreatAssSignsSongsAsForced,
-#         TreatTx3gSignsSongsAsForced, TreatBdpgsSignsSongsAsForced,
-#         ExcludeSubtitleStyles, FlacAsCompatible. Applied at the start of
-#         Process-File for TV content.
-#
-#  [NEW]  Reprocess-on-version tracking. Each successful output writes a
-#         `.pipeline.json` sidecar with pipeline version, timestamp, and
-#         a quick summary. On the next run, any file whose sidecar version
-#         is older than `MinPipelineVersion` (config) is reprocessed even
-#         if its filename already exists on the outsource. Also added
-#         `ReprocessAll` config toggle — when true, ignores all sidecars
-#         for one run (good for testing changes).
-#
-#  [NEW]  Global title metadata. Output MKVs now include a global `title`
-#         tag "Encoded by MediaPipeline vX.Y.Z" for long-term traceability.
-#
-#  [NEW]  Output summary log line after every successful encode/remux.
-#         One line lists size, video codec+resolution, audio tracks
-#         (lang/channels/codec/default), and subtitle tracks (lang/codec/
-#         default/forced). Makes log review dramatically easier.
-#
-#  [NEW]  Pre-encode disk space check. Estimates output size at
-#         sourceSize * OutputSizeMultiplier (default 0.7) and skips
-#         with a clear "insufficient space for estimated output" log
-#         instead of failing mid-encode.
-#
-#  [NEW]  Post-encode duration sanity check. Compares source and output
-#         durations; if they differ by more than 1 second the output is
-#         treated as corrupt (moved to Failed/). Catches silent truncations
-#         where ffmpeg exits 0 but produced a short file.
-#
-#  [NEW]  NVENC fallback to libx265. When an encode fails with symptoms
-#         of NVENC session/driver trouble (session init failure, OOM,
-#         driver error), the pipeline automatically retries once with
-#         CPU libx265. CQ value configurable via `FallbackCpuQuality`
-#         (default 20). Encoded file is marked `[CPU]` in the summary.
-#
-#  [DOC]  Subtitle forced-track disposition was already being written
-#         correctly in both mkvmerge (--forced-track) and ffmpeg
-#         (-disposition:s:N default+forced) paths already; this
-#         changelog entry documents it for clarity. No code change.
-#
-#  [NEW]  Explicit audio channel layout tagging on copy operations.
-#         Emits `-channel_layout:a:N <layout>` based on source channel
-#         count to prevent ambiguous 5.1 vs 5.1(side) metadata that
-#         confuses some receivers.
-#
-#  [NEW]  TV filename sanitization improvements:
-#         ①  Trailing separator cleanup — show names extracted via SxxExx /
-#             NxM no longer carry a trailing " - " or "_" when the filename
-#             format is "Show Name - S01E01 - Title".
-#         ②  Year token preservation — "(2024)" and "(2005)" are saved and
-#             re-appended after bracket-stripping so remakes/reboots keep
-#             their year in the output name (e.g. "Shogun (2024)").
-#         ③  ShowName key in ShowOverrides — config entries can now include
-#             ShowName = "Canonical Title" to canonicalize alternate-title or
-#             fansub-named shows. Applied before Already-Processed so the
-#             index key and output path are consistent from the first run.
-#         ④  Multi-episode support — SxxExx files with two-part notation
-#             (S01E01E02 / S01E01-E02 / S01E01_E02) produce a ranged output
-#             filename "Show - S01E01-E02 - Title.mkv". The processed index
-#             keys every episode in the span so neither half is reprocessed.
-#         ⑤  Fansub pre-SxxExx episode title extraction — Get-EpisodeTitle
-#             now detects titles that appear BEFORE the SxxExx marker
-#             ("[Group] Show - Title - S01E01 [tags]") in addition to the
-#             standard post-marker layout.
-#         ⑥  Get-QueueEpisodeNumber extended — sort key for fansub files that
-#             use "Episode N", "Ep N", or a bare trailing number is now
-#             populated, so they queue in episode order instead of filename
-#             alphabetical order.
-#         ⑦  Normalize-TVShowFolderName strips bare trailing "S02" season
-#             markers in addition to the existing "(Season 2)" / "(S02)" forms.
-# ==============================================================================
+<#
+.SYNOPSIS
+    Entry script for the remux/encode/publish media pipeline.
+
+.DESCRIPTION
+    Thin orchestrator. Resolves the config, dot-sources the engine modules
+    (ops/pipeline/engine/<domain>/*.ps1) and the entrypoint slices (./MediaPipeline/*.ps1)
+    into this script scope so they share $script: state, validates dependencies and
+    startup paths, then dispatches exactly one run mode. All media/domain behaviour lives
+    in the engine modules and slices; this file only sequences startup and selects a mode.
+
+    Run modes (parameters):
+      (default)                         continuous scan loop
+      -Once                             one scan pass then exit
+      -DrainPendingPushes               publish parked outputs only, no scan
+      -SingleFile <path>                worker dispatch: process exactly one file
+      -EmitQueuePlan                    write the queue snapshot and exit (dry run)
+      -ValidateOnly                     dependency + startup checks then exit
+      -ShowConfig                       print the resolved effective config
+      -DumpEffectiveConfigPath <path>   write the resolved-config JSON oracle and exit
+
+.NOTES
+    Platform: Windows, PowerShell 7+ (auto-relaunches if started under 5.x).
+    High-risk areas (FFmpeg, subtitles, audio, publish/pending-publish, queue, settings)
+    are governed by AGENTS.md section 7 and docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md.
+    The historical [FIX#N] change notes that used to fill this header were removed on
+    2026-06-05; that detail remains in git history and CHANGELOG.md.
+#>
 
 [CmdletBinding()]
 param(
@@ -294,106 +144,17 @@ $ProgressPreference    = 'SilentlyContinue'
 
 # ==============================================================================
 # MODULE LOADING (dot-source)
-# ------------------------------------------------------------------------------
-# Pure-function and shared-state helpers live in ops\pipeline\engine\<domain>\*.ps1 and are
-# dot-sourced through compatibility loaders so they share this script's scope.
-# This keeps `$script:*` semantics intact —
-# extraction is purely a code-locality change with no behavioural impact.
-#
-# Order matters slightly:
-#   - Logging.ps1 defines Add-StartupWarning (called by the config-loader
-#     helpers below), so it must be sourced first.
-#   - PathHelpers.ps1 must come before Native.ps1 (Save-ReproCommand and
-#     Invoke-RecursivePathScan reference Format-NativeCommandLine and
-#     Test-IsUncPath at definition time? No — at call time. Listed first
-#     anyway for readability of the dependency chain.)
-#   - MediaConstants.ps1 owns shared route/codec/container names used by
-#     routing, encode policy, probes, audio, subtitle, and failure helpers.
-#   - FailureCodes.ps1, ConfigSchema.ps1, Routing.ps1, and EncodePolicy.ps1
-#     are pure and mostly order-independent after constants are loaded.
-#   - Native.ps1 references Write-Log/DebugLog (Logging) and
-#     Format-NativeCommandLine/Test-IsUncPath (PathHelpers) at CALL time, so
-#     it just needs both loaded before the main loop runs.
-#   - NativeProcessContracts.ps1 loads before Native.ps1 and
-#     FfmpegProgress.ps1 so all native runners share result metadata,
-#     callback-safe stream draining, and timeout policy.
-#   - Disk.ps1 loads after Native.ps1 because the robocopy helper uses the
-#     bounded native-command runner and stop-aware sleep helper.
-#   - ProgressState.ps1 loads before PendingPush.ps1 so pending-push retry
-#     helpers can report progress.
-#   - FfmpegProgress.ps1 loads after ProgressState.ps1 because the progress-aware
-#     ffmpeg runner updates stage progress while it runs.
-#   - PendingManifestStore.ps1 loads before PendingTransactions.ps1 and
-#     PendingPush.ps1 so manifest read, write, validation, and retry-state
-#     persistence stay isolated from the park/drain state machine.
-#   - PendingTransactions.ps1 loads before PendingPush.ps1 so durable
-#     pending-push park transactions stay isolated from operator-facing
-#     logging, event emission, and drain/retry orchestration.
-#   - PendingPublishIndex.ps1 loads after PendingPush.ps1 so index refresh can
-#     call the existing pending_move repair helper without changing recovery
-#     semantics.
-#   - PublishCompletion.ps1 loads after PendingPush.ps1 because completed
-#     output publish orchestration parks retry/deferred outputs.
 # ==============================================================================
 $pipelineRoot = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
 $repoRootForModules = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $pipelineRoot))
 $moduleRoot = Join-Path $pipelineRoot 'Modules'
-$engineModulePaths = @{
-    'Audio.ps1'                 = Join-Path $repoRootForModules 'ops\pipeline\engine\audio\audio.ps1'
-    'Logging.ps1'               = Join-Path $repoRootForModules 'ops\pipeline\engine\observability\logging.ps1'
-    'ConfigGetters.ps1'          = Join-Path $repoRootForModules 'ops\pipeline\engine\config\getters.ps1'
-    'RuntimeConfig.ps1'          = Join-Path $repoRootForModules 'ops\pipeline\engine\config\runtime_config.ps1'
-    'ConfigKeys.ps1'             = Join-Path $repoRootForModules 'ops\pipeline\engine\config\config_keys.ps1'
-    'ConfigSchema.ps1'           = Join-Path $repoRootForModules 'ops\pipeline\engine\config\config_schema.ps1'
-    'Disk.ps1'                   = Join-Path $repoRootForModules 'ops\pipeline\engine\storage\disk.ps1'
-    'EncodePolicy.ps1'           = Join-Path $repoRootForModules 'ops\pipeline\engine\decide\encode_policy.ps1'
-    'ExecutableResolution.ps1'   = Join-Path $repoRootForModules 'ops\pipeline\engine\shared\executable_resolution.ps1'
-    'FailureCodes.ps1'           = Join-Path $repoRootForModules 'ops\pipeline\engine\shared\failure_codes.ps1'
-    'FailureState.ps1'           = Join-Path $repoRootForModules 'ops\pipeline\engine\failures\failure_state.ps1'
-    'FfmpegProgress.ps1'         = Join-Path $repoRootForModules 'ops\pipeline\engine\process\ffmpeg_progress.ps1'
-    'FileOverrides.ps1'          = Join-Path $repoRootForModules 'ops\pipeline\engine\queue\file_overrides.ps1'
-    'FolderPolicy.ps1'           = Join-Path $repoRootForModules 'ops\pipeline\engine\policy\folder_policy.ps1'
-    'LibraryIndex.ps1'           = Join-Path $repoRootForModules 'ops\pipeline\engine\library\library_index.ps1'
-    'LocalWorkerSlots.ps1'       = Join-Path $repoRootForModules 'ops\pipeline\engine\queue\local_worker_slots.ps1'
-    'MediaConstants.ps1'         = Join-Path $repoRootForModules 'ops\pipeline\engine\shared\media_constants.ps1'
-    'MediaProbe.ps1'             = Join-Path $repoRootForModules 'ops\pipeline\engine\probe\media_probe.ps1'
-    'Naming.ps1'                 = Join-Path $repoRootForModules 'ops\pipeline\engine\naming\naming.ps1'
-    'Native.ps1'                 = Join-Path $repoRootForModules 'ops\pipeline\engine\shared\native.ps1'
-    'NativeProcessContracts.ps1' = Join-Path $repoRootForModules 'ops\pipeline\engine\shared\native_process_contracts.ps1'
-    'OutputPathPlanning.ps1'     = Join-Path $repoRootForModules 'ops\pipeline\engine\paths\output_path_planning.ps1'
-    'PathHelpers.ps1'            = Join-Path $repoRootForModules 'ops\pipeline\engine\shared\path_helpers.ps1'
-    'PendingManifestStore.ps1'   = Join-Path $repoRootForModules 'ops\pipeline\engine\publish\pending_manifest_store.ps1'
-    'PendingPublishIndex.ps1'    = Join-Path $repoRootForModules 'ops\pipeline\engine\publish\pending_publish_index.ps1'
-    'PendingPush.ps1'            = Join-Path $repoRootForModules 'ops\pipeline\engine\publish\pending_push.ps1'
-    'PendingTransactions.ps1'    = Join-Path $repoRootForModules 'ops\pipeline\engine\publish\pending_transactions.ps1'
-    'PipelineEngine.ps1'         = Join-Path $repoRootForModules 'ops\pipeline\engine\queue\pipeline_engine.ps1'
-    'PipelineProcessing.ps1'     = Join-Path $repoRootForModules 'ops\pipeline\engine\process\pipeline_processing.ps1'
-    'FileProcessor.ps1'          = Join-Path $repoRootForModules 'ops\pipeline\engine\process\file_processor.ps1'
-    'WorkerResult.ps1'           = Join-Path $repoRootForModules 'ops\pipeline\engine\process\worker_result.ps1'
-    'ProgressState.ps1'          = Join-Path $repoRootForModules 'ops\pipeline\engine\status\progress_state.ps1'
-    'Publish.Partial.ps1'        = Join-Path $repoRootForModules 'ops\pipeline\engine\publish\publish_partial.ps1'
-    'Publish.Result.ps1'         = Join-Path $repoRootForModules 'ops\pipeline\engine\publish\publish_result.ps1'
-    'Publish.Sidecars.ps1'       = Join-Path $repoRootForModules 'ops\pipeline\engine\publish\publish_sidecars.ps1'
-    'PublishCompletion.ps1'      = Join-Path $repoRootForModules 'ops\pipeline\engine\publish\publish_completion.ps1'
-    'QueuePlan.ps1'              = Join-Path $repoRootForModules 'ops\pipeline\engine\queue\queue_plan.ps1'
-    'Routing.ps1'                = Join-Path $repoRootForModules 'ops\pipeline\engine\decide\routing.ps1'
-    'ScratchCopy.ps1'            = Join-Path $repoRootForModules 'ops\pipeline\engine\storage\scratch_copy.ps1'
-    'ShowOverrides.ps1'          = Join-Path $repoRootForModules 'ops\pipeline\engine\decide\show_overrides.ps1'
-    'Sidecar.ps1'                = Join-Path $repoRootForModules 'ops\pipeline\engine\publish\sidecar.ps1'
-    'SourceIdentity.ps1'         = Join-Path $repoRootForModules 'ops\pipeline\engine\shared\source_identity.ps1'
-    'StateStore.ps1'             = Join-Path $repoRootForModules 'ops\pipeline\engine\storage\state_store.ps1'
-    'Subtitles.ps1'              = Join-Path $repoRootForModules 'ops\pipeline\engine\subtitles\subtitles.ps1'
-    'TempCleanup.ps1'            = Join-Path $repoRootForModules 'ops\pipeline\engine\shared\temp_cleanup.ps1'
-    'Versioning.ps1'             = Join-Path $repoRootForModules 'ops\pipeline\engine\shared\versioning.ps1'
+# Engine module manifest + ordered dot-source loader (see MediaPipeline/module_loader.ps1).
+$moduleLoaderSlice = Join-Path $pipelineRoot 'MediaPipeline\module_loader.ps1'
+if (-not (Test-Path -LiteralPath $moduleLoaderSlice)) {
+    Write-Host "FATAL: required loader not found: $moduleLoaderSlice" -ForegroundColor Red
+    exit 1
 }
-foreach ($module in @('Logging.ps1', 'ConfigGetters.ps1', 'RuntimeConfig.ps1', 'ConfigKeys.ps1', 'ExecutableResolution.ps1', 'TempCleanup.ps1', 'PathHelpers.ps1', 'MediaConstants.ps1', 'ShowOverrides.ps1', 'Versioning.ps1', 'FailureCodes.ps1', 'ConfigSchema.ps1', 'StateStore.ps1', 'Routing.ps1', 'EncodePolicy.ps1', 'NativeProcessContracts.ps1', 'Native.ps1', 'Disk.ps1', 'MediaProbe.ps1', 'FolderPolicy.ps1', 'FileOverrides.ps1', 'Audio.ps1', 'Subtitles.ps1', 'ProgressState.ps1', 'FfmpegProgress.ps1', 'QueuePlan.ps1', 'Naming.ps1', 'OutputPathPlanning.ps1', 'SourceIdentity.ps1', 'ScratchCopy.ps1', 'LocalWorkerSlots.ps1', 'FailureState.ps1', 'Sidecar.ps1', 'Publish.Result.ps1', 'Publish.Partial.ps1', 'Publish.Sidecars.ps1', 'PendingManifestStore.ps1', 'PendingTransactions.ps1', 'PendingPush.ps1', 'PendingPublishIndex.ps1', 'PublishCompletion.ps1', 'LibraryIndex.ps1', 'PipelineProcessing.ps1', 'FileProcessor.ps1', 'WorkerResult.ps1', 'PipelineEngine.ps1')) {
-    $modulePath = if ($engineModulePaths.ContainsKey($module)) { $engineModulePaths[$module] } else { Join-Path $moduleRoot $module }
-    if (-not (Test-Path -LiteralPath $modulePath)) {
-        Write-Host "FATAL: required module not found: $modulePath" -ForegroundColor Red
-        exit 1
-    }
-    . $modulePath
-}
+. $moduleLoaderSlice
 
 # ==============================================================================
 # CONFIGURATION
@@ -442,79 +203,10 @@ Initialize-MediaPipelineRuntimeConfig -Config $config -SchemaResult $configSchem
 # prevents a config key from clobbering them).
 $ErrorActionPreference = 'Stop'
 $ProgressPreference    = 'SilentlyContinue'
-# Derived paths
-$LocalIncoming        = Join-Path $LocalBase "Incoming"
-$LocalEncoded         = Join-Path $LocalBase "Encoded"
-$script:LocalStateLayout = New-MediaPipelineStateLayout -LocalBase $LocalBase
-$LocalState           = $script:LocalStateLayout.Root
-$LocalFailed          = $script:LocalStateLayout.Failures
-$LocalFailureArtifacts = $script:LocalStateLayout.FailureArtifacts
-$LocalFailureMarkers   = $script:LocalStateLayout.FailureMarkers
-$LocalFailureReports   = $script:LocalStateLayout.FailureReports
-# Completed-jobs manifest: an append-only JSONL log of every successful
-# publish. Written locally (NOT on the outsource share) so the desktop
-# app's Completed tab can list results without walking the SMB tree —
-# which proved to be unacceptably slow/unreliable in the desktop UI.
-# The canonical source of truth remains the .pipeline.json sidecar next
-# to the output file; this manifest is a read-optimized mirror.
-$LocalCompleted        = $script:LocalStateLayout.Completed
-$CompletedJobsManifest = $script:LocalStateLayout.Paths.CompletedJobsManifest
-$LocalRemuxTemp       = Join-Path $LocalBase "RemuxTemp"
-# FIX#10: outputs whose server push failed are parked here instead of
-# being deleted. The main loop retries them at the start of every round
-# until they successfully land on the outsource.
-$LocalPendingPush     = $script:LocalStateLayout.PendingPush
-$RescanFlag           = $script:LocalStateLayout.Paths.RescanFlag
-$LogFile              = Join-Path $LocalBase "pipeline_debug.log"
-$PauseFlag            = $script:LocalStateLayout.Paths.PauseFlag
-$StopFlag             = $script:LocalStateLayout.Paths.StopFlag
-$ProgressFile         = $script:LocalStateLayout.Paths.ProgressFile
-$PipelineEventLogFile = $script:LocalStateLayout.Paths.PipelineEventLogFile
-$script:PipelineEventLogFile = $PipelineEventLogFile
-$script:PipelineRunId = [guid]::NewGuid().ToString("N")
-if ($WorkerChild -and -not [string]::IsNullOrWhiteSpace($WorkerRunId)) {
-    $script:PipelineRunId = $WorkerRunId
-}
-$script:WorkerClaimId = if ($WorkerChild) { [string]$WorkerClaimId } else { '' }
-$script:ProgressWriteFailures = 0
-$script:ProgressPersistenceHealthy = $true
-$LockFile             = Join-Path $LocalBase "pipeline.lock"
-$script:processingDir = Join-Path $LocalIncoming "Processing"
-$script:PendingPublishIndex = @{
-    Count                 = 0
-    BySourceIdentity      = @{}
-    BySourceIdentityV2    = @{}
-    ByServerOut           = @{}
-    HasSourceIdentityV2   = $false
-}
-$script:FailureMarkerIndex = $null
-
-if ($WorkerChild) {
-    if ($WorkerSlotId -lt 1 -or $WorkerSlotId -gt 2) {
-        Write-Host "FATAL: -WorkerChild requires -WorkerSlotId 1 or 2." -ForegroundColor Red
-        exit 74
-    }
-    if ([string]::IsNullOrWhiteSpace($SingleFile)) {
-        Write-Host "FATAL: -WorkerChild requires -SingleFile." -ForegroundColor Red
-        exit 74
-    }
-    if ([string]::IsNullOrWhiteSpace($WorkerResultPath)) {
-        Write-Host "FATAL: -WorkerChild requires -WorkerResultPath." -ForegroundColor Red
-        exit 74
-    }
-    $script:WorkerSlotLayout = Initialize-MediaPipelineWorkerSlotLayout -SlotLayout (New-MediaPipelineWorkerSlotLayout -StateLayout $script:LocalStateLayout -SlotId $WorkerSlotId)
-    $LocalIncoming        = $script:WorkerSlotLayout.Incoming
-    $LocalEncoded         = $script:WorkerSlotLayout.Encoded
-    $LocalRemuxTemp       = $script:WorkerSlotLayout.RemuxTemp
-    $LocalFailed          = $script:WorkerSlotLayout.Failures
-    $LogFile              = $script:WorkerSlotLayout.LogFile
-    $ProgressFile         = $script:WorkerSlotLayout.ProgressFile
-    $PipelineEventLogFile = $script:WorkerSlotLayout.EventLogFile
-    $script:PipelineEventLogFile = $PipelineEventLogFile
-    $LocalFailureArtifacts = $script:WorkerSlotLayout.FailureArtifacts
-    $LocalFailureReports   = $script:WorkerSlotLayout.FailureReports
-    $script:processingDir  = $script:WorkerSlotLayout.Processing
-}
+# Derived runtime paths + state layout (+ worker-child slot override). See MediaPipeline/runtime_paths.ps1.
+$bootSlice = Join-Path $pipelineRoot 'MediaPipeline\runtime_paths.ps1'
+if (-not (Test-Path -LiteralPath $bootSlice)) { Write-Host "FATAL: required slice not found: $bootSlice" -ForegroundColor Red; exit 1 }
+. $bootSlice
 
 # ==============================================================================
 # SINGLE INSTANCE LOCK — named OS Mutex (eliminates TOCTOU race from file+PID)
@@ -647,20 +339,9 @@ $logLock = [System.Threading.Mutex]::new($false, $logMutexName)
 # ==============================================================================
 # STARTUP — directories first, then clean temp files
 # ==============================================================================
-Initialize-MediaPipelineStateLayout -Layout $script:LocalStateLayout -MigrateLegacy | Out-Null
-foreach ($dir in @($LocalIncoming, $LocalEncoded, $LocalRemuxTemp, $script:processingDir)) {
-    if (-not (Test-Path -LiteralPath $dir)) {
-        [System.IO.Directory]::CreateDirectory($dir) | Out-Null
-        Write-Host "Created directory: $dir"
-    }
-}
-
-Invoke-LogRotation
-if (-not $WorkerChild -and -not $ValidateOnly) {
-    Repair-MediaPipelineLocalWorkerClaims -ClaimStorePath $script:LocalStateLayout.Paths.LocalWorkerClaims -CurrentRunId $script:PipelineRunId | Out-Null
-    Write-MediaPipelineLocalWorkerActiveJobs -ActiveJobsPath $script:LocalStateLayout.Paths.LocalWorkerActiveJobs -CompatibilityProgressPath $ProgressFile -ActiveJobs @() -WriteCompatibilityProgress | Out-Null
-}
-Write-StartupWarnings
+$bootSlice = Join-Path $pipelineRoot 'MediaPipeline\startup_filesystem.ps1'
+if (-not (Test-Path -LiteralPath $bootSlice)) { Write-Host "FATAL: required slice not found: $bootSlice" -ForegroundColor Red; exit 1 }
+. $bootSlice
 
 # ==============================================================================
 # PIPELINE SIDECAR — versioning and reprocess detection
@@ -674,89 +355,9 @@ if (-not (Test-PipelineVersionString $script:MinPipelineVersion)) {
 }
 
 # ==============================================================================
-# FFMPEG PROGRESS MONITOR
+# SESSION STATE / PROGRESS COUNTERS (Initialize-MediaPipelineSessionState)
 # ==============================================================================
-$Global:ffmpegProcess = $null
-$script:FFmpegProgressWriteStepPercent = 5
-
-$script:ProgressVersion = 2
-$script:totalProcessed  = 0
-$script:totalEncoded    = 0
-$script:totalRemuxed    = 0
-$script:totalFailed     = 0
-$script:totalMovies     = 0
-$script:totalTVEpisodes = 0
-$script:SessionStartedAt = Get-Date
-$script:currentFile     = "None"
-$script:currentFileDisplay = $null
-$script:currentFilePath = $null
-$script:currentMediaType = $null
-$script:currentQueuePhase = $null
-$script:currentQueueIndex = 0
-$script:currentQueueTotal = 0
-$script:currentRoute = $null
-$script:currentStage = 'initializing'
-$script:currentStagePercent = $null
-$script:currentItemStartedAt = $null
-$script:currentStageStartedAt = Get-Date
-$script:currentCopyState = $null
-$script:currentPushState = $null
-$script:currentSidecarState = $null
-$script:pipelineStatus  = "Initializing"
-$script:StopRequested   = $false
-$script:LastPauseRequestId = $null
-$script:LastPauseRequestCreatedAt = $null
-$script:LastPauseRequestObservedAt = $null
-$script:LastStopRequestId = $null
-$script:LastStopRequestCreatedAt = $null
-$script:LastStopRequestObservedAt = $null
-$script:LastRescanRequestId = $null
-$script:LastRescanRequestCreatedAt = $null
-$script:LastRescanRequestObservedAt = $null
-$script:SessionBaseline = $null
-$script:RoundBaseline   = $null
-$script:SessionSkipStats = @{}
-$script:RoundSkipStats   = @{}
-$script:SessionRetryCount = 0
-$script:RoundRetryCount   = 0
-$script:RoundMovieFilesFound = 0
-$script:RoundTVFilesFound    = 0
-$script:RoundFailureRecords  = [System.Collections.Generic.List[psobject]]::new()
-$script:ProcessedIndexCache  = $null
-$script:ProcessedIndexCacheAt = $null
-$script:MovieScanCache       = @()
-$script:MovieScanCacheAt     = $null
-$script:TVScanCache          = @()
-$script:TVScanCacheAt        = $null
-$script:ForceProcessedIndexRefresh = $false
-
-$progressReadPath = if (Test-Path -LiteralPath $ProgressFile) {
-    $ProgressFile
-} elseif (Test-Path -LiteralPath $script:LocalStateLayout.LegacyPaths.ProgressFile) {
-    $script:LocalStateLayout.LegacyPaths.ProgressFile
-} else {
-    $null
-}
-if ($progressReadPath) {
-    try {
-        $saved = Get-Content -LiteralPath $progressReadPath -Raw | ConvertFrom-Json
-        # Coerce each counter defensively: a partially written / truncated
-        # progress file can still parse yet be missing fields, which would
-        # otherwise leave the counters $null and corrupt later arithmetic
-        # and status text. [int]$null and a missing property both yield 0.
-        $script:totalProcessed  = [int]($saved.TotalProcessed)
-        $script:totalEncoded    = [int]($saved.Encoded)
-        $script:totalRemuxed    = [int]($saved.Remuxed)
-        $script:totalFailed     = [int]($saved.Failed)
-        $script:totalMovies     = [int]($saved.Movies)
-        $script:totalTVEpisodes = [int]($saved.TVEpisodes)
-        Write-Log "Loaded previous progress: $($script:totalProcessed) files processed"
-    } catch { Write-Log "Could not load progress file" "WARN" }
-}
-
-$script:SessionBaseline = Get-StatsSnapshot
-$script:SessionSkipStats = New-SkipStats
-Reset-RoundTracking
+Initialize-MediaPipelineSessionState
 
 # ==============================================================================
 # MEDIA PIPELINE ENTRYPOINT SLICES
@@ -799,131 +400,15 @@ if (-not $ValidateOnly) {
     }
 }
 
-Write-Log "===== PIPELINE START $($script:ProductVersion) (pipeline $($script:PipelineVersion)) ====="
-$runMode = if ($ValidateOnly) { 'validate-only' } elseif ($WorkerChild) { 'local-worker-child' } elseif ($DrainPendingPushes) { 'drain-pending-pushes' } elseif ($Once) { 'single-pass' } else { 'continuous' }
-Write-PipelineEvent -EventType 'pipeline_started' -Stage 'startup' -Status 'started' -Data @{
-    run_mode    = $runMode
-    config_path = $configPath
-    local_base  = $LocalBase
-} | Out-Null
-Write-Log "Run mode      : $runMode"
-Write-Log "Config file   : $configPath"
-Write-Log "PowerShell    : $($PSVersionTable.PSVersion)"
-Write-Log "SleepSeconds  : $SleepSeconds"
-$workerSlotLog = if ($WorkerChild) { " worker_slot=$WorkerSlotId" } else { "" }
-Write-Log "Parallel encodes: max=$script:MaxParallelEncodes mode=$script:ParallelEncodeMode$workerSlotLog"
-Write-Log "Scan refresh  : source $($script:SourceScanIntervalSeconds)s | index $($script:ProcessedIndexRefreshSeconds)s"
-Write-Log "Unknown height size: movie $EncodeThresholdGB GB | TV $TVEncodeThresholdGB GB"
-Write-Log "Route size targets: 1080p movie $($script:MovieRoute1080pTargetSizeGB) GB / TV $($script:TVRoute1080pTargetSizeGB) GB | 1440p movie $($script:MovieRoute1440pTargetSizeGB) GB / TV $($script:TVRoute1440pTargetSizeGB) GB | 4K movie $($script:MovieRoute4KTargetSizeGB) GB / TV $($script:TVRoute4KTargetSizeGB) GB"
-Write-Log "Codec         : $VideoCodec preset $VideoPreset CQ $VideoQuality"
-Write-Log "Encode tuning : $script:EncodeTuningPreset flags=$($script:ExtraVideoFlags -join ' ')"
-Write-Log "Encode ladder : $script:EncodeLadder"
-Write-Log "Routing profile: $script:RoutingProfile"
-Write-Log "Route buckets : 1080p <=$($script:Route1080pBucketMaxHeight)p $($script:Route1080pMaxVideoBitrateMbps) Mbps | 1440p $($script:Route1080pBucketMaxHeight + 1)-$($script:Route4KBucketMinHeight - 1)p $($script:Route1440pMaxVideoBitrateMbps) Mbps | 4K >=$($script:Route4KBucketMinHeight)p $($script:Route4KMaxVideoBitrateMbps) Mbps"
-Write-Log "H.264 copy    : $script:AllowH264RemuxIfPlexCompatible (<= $($script:H264RemuxMaxBitrateMbps) Mbps, <= $($script:H264RemuxMaxHeight)p)"
-Write-Log "Size guard    : $script:SizeGuardMode (default +$($script:MaxEncodeGrowthPercent)%; compatibility +$($script:CompatibilityEncodeGrowthPercent)%)"
-Write-Log "Remux-safe    : $($RemuxSafeVideoCodecs -join ', ')"
-Write-Log "Audio profile : $script:AudioPassthroughProfile"
-Write-Log "Audio compat  : $($script:CompatibleAudioCodecs -join ', ')"
-Write-Log "Audio policy  : transcode=$script:AudioTranscodeCodec $script:AudioTranscodeBitrate downmix=$script:AudioDownmixMode max_ch=$script:AudioMaxChannels allow_no_audio=$script:AllowNoAudio"
-Write-Log "Drop ASS      : $DropAssAfterConversion"
-$tx3gLanguageText = ($script:Tx3gExtractLanguages -join ', ')
-$bdpgsLanguageText = ($script:BdpgsExtractLanguages -join ', ')
-$vobSubLanguageText = ($script:VobSubExtractLanguages -join ', ')
-$bdpgsOcrToolText = if ($script:BdpgsOcrToolPath) { $script:BdpgsOcrToolPath } else { '(not configured)' }
-$vobSubOcrToolText = if ($script:VobSubOcrToolPath) { $script:VobSubOcrToolPath } else { '(not configured)' }
-Write-Log ("Convert TX3G  : {0} (languages: {1}; drop original: {2}; external sidecars: {3}; preserve existing SRT: {4})" -f $script:ConvertTx3gToSrt, $tx3gLanguageText, $script:DropTx3gAfterConversion, $script:CreateExternalTx3gSrtSidecars, $script:Tx3gPreserveExistingSrt)
-Write-Log ("Convert BDPGS : {0} (languages: {1}; drop original: {2}; OCR tool: {3})" -f $script:ConvertBdpgsToSrt, $bdpgsLanguageText, $script:DropBdpgsAfterConversion, $bdpgsOcrToolText)
-Write-Log ("Convert VobSub: {0} (languages: {1}; drop original: {2}; OCR tool: {3})" -f $script:ConvertVobSubToSrt, $vobSubLanguageText, $script:DropVobSubAfterConversion, $vobSubOcrToolText)
-Write-Log "Signs/Songs   : keep ASS=$($script:KeepSignsAndSongs) | ASS forced=$($script:TreatAssSignsSongsAsForced) | TX3G forced=$($script:TreatTx3gSignsSongsAsForced) | BDPGS forced=$($script:TreatBdpgsSignsSongsAsForced) | VobSub forced=$($script:TreatVobSubSignsSongsAsForced)"
-Write-Log "Merge adjacent: $($script:MergeAdjacent) (threshold: $($script:MergeThresholdMs)ms)"
-Write-Log "Remove karaoke: $($script:RemoveKaraoke)"
-if ($script:ExcludeSubtitleStyles.Count -gt 0) {
-    Write-Log "Exclude styles: $($script:ExcludeSubtitleStyles -join ', ')"
-} else {
-    Write-Log "Exclude styles: (using Python defaults)"
-}
-Write-Log "Log retention : $($script:LogRetentionDays) days"
-Write-Log "Log levels    : console=$($script:ConsoleLogLevel) | file=$($script:FileLogLevel)"
-Write-Log "Product ver   : $($script:ProductVersion)"
-Write-Log "Pipeline ver  : $($script:PipelineVersion) (min for reprocess: $($script:MinPipelineVersion))"
-Write-Log "ReprocessAll  : $($script:ReprocessAll)"
-Write-Log "Deferred publish : $($script:DeferredPublish)"
-Write-Log "Aggressive TV parse : $($script:AggressiveEpisodeParsing)"
-Write-Log ("CPU fallback  : {0} CRF {1} preset {2} threads={3} (process priority: {4})" -f (Get-MediaVideoCodecLibx265Name), $script:FallbackCpuQuality, $script:CpuEncodePreset, $(if ($script:CpuEncodeMaxThreads -gt 0) { [string]$script:CpuEncodeMaxThreads } else { 'auto' }), $script:CpuEncodeProcessPriority)
-Write-Log "FFmpeg timeouts: encode $($script:FFmpegEncodeTimeoutSeconds)s | encode-cpu $($script:FFmpegCpuEncodeTimeoutSeconds)s | remux $($script:FFmpegRemuxTimeoutSeconds)s | mkvmerge $($script:MkvmergeRemuxTimeoutSeconds)s | subtitle extract $($script:SubtitleExtractTimeoutSeconds)s | subtitle probe $($script:SubtitleProbeTimeoutSeconds)s | BDPGS OCR $($script:BdpgsOcrTimeoutSeconds)s | VobSub OCR $($script:VobSubOcrTimeoutSeconds)s"
-
-# F-new-2 — probe NVENC availability once at startup and cache. The
-# probe binds to the configured VideoCodec when it's an nvenc encoder so
-# we test the same codec the pipeline will try first per file.
-$nvencTestEncoder = if ($VideoCodec -match 'nvenc') { $VideoCodec } else { 'hevc_nvenc' }
-$nvencProbe = Test-NvencAvailable -TestEncoder $nvencTestEncoder
-$script:NvencAvailableProbe = $nvencProbe
-if ($nvencProbe.Available) {
-    Write-Log "NVENC probe   : OK ($nvencTestEncoder usable on this host)"
-} else {
-    $reasonText = if ($nvencProbe.Reason) { $nvencProbe.Reason } else { 'unknown' }
-    Write-Log "NVENC probe   : NOT AVAILABLE ($reasonText) — primary encode will fall back to libx265 (CPU) for every file" "WARN"
-    Write-Log "                CPU encode preset=$script:CpuEncodePreset CRF=$script:FallbackCpuQuality timeout=$($script:FFmpegCpuEncodeTimeoutSeconds)s — expect multi-hour runs per file" "WARN"
-    Write-PipelineEvent -EventType 'gpu_unavailable' -Stage 'startup' -Status 'warn' -Data @{
-        encoder         = $nvencTestEncoder
-        reason          = [string]$nvencProbe.Reason
-        encoder_listed  = [bool]$nvencProbe.EncoderListMatch
-        runtime_probed  = [bool]$nvencProbe.Probed
-    } | Out-Null
-}
-Write-Log "Copy/scan timeouts: robocopy $($script:RobocopyTimeoutSeconds)s | source scan $($script:SourceScanTimeoutSeconds)s | index scan $($script:IndexScanTimeoutSeconds)s"
-Write-Log "Output size mult: $($script:OutputSizeMultiplier)x (for pre-encode disk check)"
-Write-Log "Priority tags : $(if ($script:PriorityMarkers.Count -gt 0) { $script:PriorityMarkers -join ', ' } else { '(none)' })"
-Write-StartupEnvironmentSummary
+# Log the resolved run mode + effective config, then probe NVENC.
+Write-MediaPipelineStartupConfigLog
 
 # ==============================================================================
-# STARTUP PATH VALIDATION
-# ------------------------------------------------------------------------------
-# Validate critical paths before entering the scan loop. A typo or a
-# permanently missing path otherwise causes silent skip-all behaviour: the
-# pipeline runs normally, logs "0 files found", and the user never knows
-# something is wrong.
-#
-#  LocalBase     — hard fail: without it we can't write logs, progress, or
-#                  scratch files; there is nothing useful we can do.
-#  Source shares — soft warn: they may be temporarily offline (NAS reboot,
-#                  VPN drop). The pipeline will loop and retry each scan.
-#  Outsource     — soft warn: same rationale; temporary outages are normal.
-#  Drain mode    — skips source/output probes because it only retries parked
-#                  manifest payloads and each copy validates its destination.
+# STARTUP PATH VALIDATION  (see MediaPipeline/startup_path_validation.ps1)
 # ==============================================================================
-$localBaseReachable = Test-PathAccessibleBounded -Path $LocalBase -TimeoutSeconds 10
-if ($localBaseReachable -ne $true) {
-    $reachability = if ($null -eq $localBaseReachable) { 'timed out while checking' } else { 'does not exist or is not accessible' }
-    Write-Log "FATAL: LocalBase does not exist or is not accessible: $LocalBase" "ERROR"
-    Write-Log "       Path check result: $reachability" "ERROR"
-    Write-Log "       Check the LocalBase setting in your config file." "ERROR"
-    Write-Log "PIPELINE ABORTED"
-    exit 2
-}
-if ($DrainPendingPushes) {
-    Write-Log "DRAIN PENDING PUSHES: publish-only mode skips SourceMovies/SourceTV/Outsource startup reachability probes; pending manifest copy attempts validate their destinations."
-} else {
-    foreach ($pair in @(
-        @{ Label = 'SourceMovies'; Path = $SourceMovies },
-        @{ Label = 'SourceTV';     Path = $SourceTV },
-        @{ Label = 'Outsource';    Path = $Outsource }
-    )) {
-        if (Test-IsUncPath ([string]$pair.Path)) {
-            Write-Log "STARTUP WARNING: $($pair.Label) is a network path; startup reachability probe skipped: $($pair.Path)" "WARN"
-            Write-Log "                 Scan/copy phases remain bounded by SourceScanTimeoutSeconds/IndexScanTimeoutSeconds and will report unreachable shares during real work." "WARN"
-            continue
-        }
-        $reachable = Test-PathAccessibleBounded -Path ([string]$pair.Path) -TimeoutSeconds 10
-        if ($reachable -ne $true) {
-            $reachability = if ($null -eq $reachable) { 'check timed out' } else { 'path is not accessible' }
-            Write-Log "STARTUP WARNING: $($pair.Label) is not accessible: $($pair.Path)" "WARN"
-            Write-Log "                 Path check result: $reachability." "WARN"
-            Write-Log "                 Scans for this location will return 0 files until it is reachable." "WARN"
-        }
-    }
-}
+$bootSlice = Join-Path $pipelineRoot 'MediaPipeline\startup_path_validation.ps1'
+if (-not (Test-Path -LiteralPath $bootSlice)) { Write-Host "FATAL: required slice not found: $bootSlice" -ForegroundColor Red; exit 1 }
+. $bootSlice
 
 if (-not (Test-ProgressPersistence)) {
     $script:ProgressWriteFailures = 3
