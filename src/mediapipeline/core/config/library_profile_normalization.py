@@ -6,7 +6,7 @@ import re
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from mediapipeline.desktop.config_keys import (
+from mediapipeline.core.kernel.config_keys import (
     KEY_LIBRARY_PROFILES,
     KEY_OUTSOURCE,
     KEY_SOURCE_MOVIES,

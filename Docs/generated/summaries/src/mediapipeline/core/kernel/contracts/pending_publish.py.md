@@ -3,9 +3,9 @@ file: src/mediapipeline/core/kernel/contracts/pending_publish.py
 pipeline_stage: publish
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-02
+last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: 34b1f5bbdf2a51da81c538ae5f1922fd5e77462ca967d781d521b6b2f8c39d4c
+sha256: 8ff8816bc0cf78da61717ac6775677eccf9280b4deeb181b6c0ed373d159acea
 ---
 # `src/mediapipeline/core/kernel/contracts/pending_publish.py`
 

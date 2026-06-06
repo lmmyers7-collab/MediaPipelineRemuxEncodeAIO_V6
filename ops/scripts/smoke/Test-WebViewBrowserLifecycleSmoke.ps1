@@ -29,6 +29,7 @@ function Resolve-WebViewBrowserLifecycleSmokePython {
 
 $projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..\..')).Path
 $python = Resolve-WebViewBrowserLifecycleSmokePython -ProjectRoot $projectRoot
+$srcRoot = Join-Path $projectRoot 'src'
 
 Write-Host 'WebView browser backend lifecycle smoke'
 Write-Host 'Boundary: starts temporary local API instances against generated temporary state.'
@@ -42,13 +43,21 @@ Write-Host "Python: $python"
 
 Push-Location -LiteralPath $projectRoot
 try {
+    $oldPythonPath = $env:PYTHONPATH
     $env:PYTHONDONTWRITEBYTECODE = '1'
+    if ([string]::IsNullOrWhiteSpace($oldPythonPath)) {
+        $env:PYTHONPATH = $srcRoot
+    }
+    else {
+        $env:PYTHONPATH = "$srcRoot;$oldPythonPath"
+    }
     & $python -m unittest tests.webview.test_webview_browser_lifecycle_smoke -q
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }
 }
 finally {
+    $env:PYTHONPATH = $oldPythonPath
     Pop-Location
 }
 

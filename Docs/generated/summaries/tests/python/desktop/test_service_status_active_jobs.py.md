@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_status_active_jobs.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 515b1fc414536bc83bbc0db12c62b38d88787a8a4189a69c9023c645c31c0b0c
+sha256: 75dd7596b39f244c428ae5434b0537685f31c4e6b8f1e9540bd80af24b3da821
 ---
 # `tests/python/desktop/test_service_status_active_jobs.py`
 

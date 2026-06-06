@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 import uuid
 
+from .command_journal_policy import COMMAND_RESULT_SCHEMA_VERSION
 from .http_helpers import LOCAL_API_CONTENT_SECURITY_POLICY
 
 LOCAL_API_SECURITY_RESPONSE_HEADERS = [
@@ -51,6 +52,22 @@ def route_exception_payload(route: str, exc: Exception) -> dict[str, Any]:
 
 def route_validation_error_payload(route: str, exc: Exception) -> dict[str, Any]:
     return {"error": bounded_error_text(exc), "path": route}
+
+
+def route_validation_journal_payload(route: str, exc: Exception) -> dict[str, Any]:
+    error = bounded_error_text(exc)
+    return {
+        "schema_version": COMMAND_RESULT_SCHEMA_VERSION,
+        "command": "local_api.validation_failed",
+        "ok": False,
+        "severity": "error",
+        "message": f"Rejected invalid command payload for {route}.",
+        "errors": [error],
+        "data": {
+            "path": route,
+            "status": 400,
+        },
+    }
 
 
 def should_record_command_payload(status: int) -> bool:

@@ -236,24 +236,18 @@
                   "EncodeLadder": {},
                   "VideoCodec": {},
                   "OutputContainer": {},
-                  "EncodeThresholdGB": {},
-                  "TVEncodeThresholdGB": {},
                   "MovieRoute1080pTargetSizeGB": {},
                   "MovieRoute1440pTargetSizeGB": {},
                   "MovieRoute4KTargetSizeGB": {},
                   "TVRoute1080pTargetSizeGB": {},
                   "TVRoute1440pTargetSizeGB": {},
                   "TVRoute4KTargetSizeGB": {},
-                  "MovieRouteMaxVideoBitrateMbps": {},
-                  "TVRouteMaxVideoBitrateMbps": {},
-                  "Route1080pBucketMaxHeight": {},
                   "Route1080pUpperHeightTolerancePercent": {},
                   "Route1080pMaxVideoBitrateMbps": {},
                   "Route1440pLowerHeightTolerancePercent": {},
                   "Route1440pUpperHeightTolerancePercent": {},
                   "Route1440pMaxVideoBitrateMbps": {},
                   "Route4KLowerHeightTolerancePercent": {},
-                  "Route4KBucketMinHeight": {},
                   "Route4KMaxVideoBitrateMbps": {},
                   "MaxEncodeGrowthPercent": {},
                   "CompatibilityEncodeGrowthPercent": {}
@@ -345,24 +339,18 @@
               "EncodeLadder": {},
               "VideoCodec": {},
               "OutputContainer": {},
-              "EncodeThresholdGB": {},
-              "TVEncodeThresholdGB": {},
               "MovieRoute1080pTargetSizeGB": {},
               "MovieRoute1440pTargetSizeGB": {},
               "MovieRoute4KTargetSizeGB": {},
               "TVRoute1080pTargetSizeGB": {},
               "TVRoute1440pTargetSizeGB": {},
               "TVRoute4KTargetSizeGB": {},
-              "MovieRouteMaxVideoBitrateMbps": {},
-              "TVRouteMaxVideoBitrateMbps": {},
-              "Route1080pBucketMaxHeight": {},
               "Route1080pUpperHeightTolerancePercent": {},
               "Route1080pMaxVideoBitrateMbps": {},
               "Route1440pLowerHeightTolerancePercent": {},
               "Route1440pUpperHeightTolerancePercent": {},
               "Route1440pMaxVideoBitrateMbps": {},
               "Route4KLowerHeightTolerancePercent": {},
-              "Route4KBucketMinHeight": {},
               "Route4KMaxVideoBitrateMbps": {},
               "MaxEncodeGrowthPercent": {},
               "CompatibilityEncodeGrowthPercent": {}
@@ -445,18 +433,6 @@
       "title": "Localbase",
       "type": "string"
     },
-    "EncodeThresholdGB": {
-      "default": 8,
-      "minimum": 1,
-      "title": "Encodethresholdgb",
-      "type": "integer"
-    },
-    "TVEncodeThresholdGB": {
-      "default": 3,
-      "minimum": 1,
-      "title": "Tvencodethresholdgb",
-      "type": "integer"
-    },
     "MovieRoute1080pTargetSizeGB": {
       "default": 8,
       "minimum": 1,
@@ -516,27 +492,6 @@
       "title": "Routethresholdmode",
       "type": "string"
     },
-    "MovieRouteMaxVideoBitrateMbps": {
-      "default": 35,
-      "maximum": 500,
-      "minimum": 1,
-      "title": "Movieroutemaxvideobitratembps",
-      "type": "integer"
-    },
-    "TVRouteMaxVideoBitrateMbps": {
-      "default": 18,
-      "maximum": 500,
-      "minimum": 1,
-      "title": "Tvroutemaxvideobitratembps",
-      "type": "integer"
-    },
-    "Route1080pBucketMaxHeight": {
-      "default": 1200,
-      "maximum": 4320,
-      "minimum": 1,
-      "title": "Route1080Pbucketmaxheight",
-      "type": "integer"
-    },
     "Route1080pUpperHeightTolerancePercent": {
       "default": 11.111111,
       "maximum": 100,
@@ -579,13 +534,6 @@
       "title": "Route4Klowerheighttolerancepercent",
       "type": "number"
     },
-    "Route4KBucketMinHeight": {
-      "default": 1800,
-      "maximum": 4320,
-      "minimum": 1,
-      "title": "Route4Kbucketminheight",
-      "type": "integer"
-    },
     "Route4KMaxVideoBitrateMbps": {
       "default": 35,
       "maximum": 500,
@@ -617,6 +565,7 @@
       "enum": [
         "advisory",
         "strict",
+        "fallback_remux",
         "off"
       ],
       "title": "Sizeguardmode",
@@ -910,12 +859,12 @@
       "type": "array"
     },
     "BdpgsOcrToolPath": {
-      "default": "Tools\\PgsToSrt\\PgsToSrt.exe",
+      "default": "tools\\PgsToSrt\\PgsToSrt.exe",
       "title": "Bdpgsocrtoolpath",
       "type": "string"
     },
     "BdpgsOcrTessdataPath": {
-      "default": "Tools\\PgsToSrt\\tessdata",
+      "default": "tools\\PgsToSrt\\tessdata",
       "title": "Bdpgsocrtessdatapath",
       "type": "string"
     },
@@ -937,7 +886,7 @@
       "type": "array"
     },
     "VobSubOcrToolPath": {
-      "default": "Tools\\SubtitleEditLegacy\\SubtitleEdit.exe",
+      "default": "tools\\SubtitleEditLegacy\\SubtitleEdit.exe",
       "title": "Vobsubocrtoolpath",
       "type": "string"
     },
@@ -1460,8 +1409,6 @@
     "SourceTV",
     "Outsource",
     "LocalBase",
-    "EncodeThresholdGB",
-    "TVEncodeThresholdGB",
     "MinFreeSpaceGB",
     "VideoCodec",
     "VideoPreset",

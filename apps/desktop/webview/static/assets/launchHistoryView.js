@@ -184,8 +184,8 @@
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return [launchCommandCorrelationRow(
-        "Queue checklist",
-        "Queue checklist helper failed",
+        "Queue-to-Launch handoff",
+        "Queue-to-Launch handoff helper failed",
         "unknown",
         message,
         "Use Queue and Diagnostics before retrying.",
@@ -199,19 +199,19 @@
     });
     if (!nonReady.length) {
       return [launchCommandCorrelationRow(
-        "Queue checklist",
-        "Queue launch decision",
+        "Queue-to-Launch handoff",
+        "Queue-to-Launch handoff",
         "ready",
-        "No non-ready Queue Launch Decision rows are visible in the current snapshot.",
+        "No non-ready Queue-to-Launch Handoff rows are visible in the current snapshot.",
         "If the command failed, refresh Queue and Diagnostics; cached queue evidence did not predict the block.",
       )];
     }
     return nonReady.slice(0, 5).map((row) => launchCommandCorrelationRow(
-      "Queue checklist",
+      "Queue-to-Launch handoff",
       row.checkpoint || row.key || "Queue check",
       row.posture || "unknown",
       row.evidence || "",
-      row.action || "Review Queue launch decision before retry.",
+      row.action || "Review Queue-to-Launch Handoff before retry.",
       row.detail,
     ));
   }
@@ -412,7 +412,7 @@
     if (!item) {
       return [
         "Launch command review detail:",
-        "Select a launch command row to compare command result against cached Backend Preflight, Launch intent, and Queue checklist evidence.",
+        "Select a launch command row to compare command result against cached Backend Preflight, Launch intent, and Queue-to-Launch handoff evidence.",
         "Guardrail: this panel is read-only and cannot retry or launch work.",
       ];
     }

@@ -375,24 +375,18 @@ function Test-MediaPipelineConfigEncodeAudioPolicy {
     }
 
     foreach ($numericPolicy in @(
-        @{ Kind = 'int'; Key = 'EncodeThresholdGB'; Label = 'EncodeThresholdGB'; Min = 1 },
-        @{ Kind = 'int'; Key = 'TVEncodeThresholdGB'; Label = 'TVEncodeThresholdGB'; Min = 1 },
         @{ Kind = 'int'; Key = 'MovieRoute1080pTargetSizeGB'; Label = 'MovieRoute1080pTargetSizeGB'; Min = 1 },
         @{ Kind = 'int'; Key = 'MovieRoute1440pTargetSizeGB'; Label = 'MovieRoute1440pTargetSizeGB'; Min = 1 },
         @{ Kind = 'int'; Key = 'MovieRoute4KTargetSizeGB'; Label = 'MovieRoute4KTargetSizeGB'; Min = 1 },
         @{ Kind = 'int'; Key = 'TVRoute1080pTargetSizeGB'; Label = 'TVRoute1080pTargetSizeGB'; Min = 1 },
         @{ Kind = 'int'; Key = 'TVRoute1440pTargetSizeGB'; Label = 'TVRoute1440pTargetSizeGB'; Min = 1 },
         @{ Kind = 'int'; Key = 'TVRoute4KTargetSizeGB'; Label = 'TVRoute4KTargetSizeGB'; Min = 1 },
-        @{ Kind = 'int'; Key = 'MovieRouteMaxVideoBitrateMbps'; Label = 'MovieRouteMaxVideoBitrateMbps'; Min = 1; Max = 500 },
-        @{ Kind = 'int'; Key = 'TVRouteMaxVideoBitrateMbps'; Label = 'TVRouteMaxVideoBitrateMbps'; Min = 1; Max = 500 },
-        @{ Kind = 'int'; Key = 'Route1080pBucketMaxHeight'; Label = 'Route1080pBucketMaxHeight'; Min = 1; Max = 4320 },
         @{ Kind = 'number'; Key = 'Route1080pUpperHeightTolerancePercent'; Label = 'Route1080pUpperHeightTolerancePercent'; Min = 0; Max = 100 },
         @{ Kind = 'int'; Key = 'Route1080pMaxVideoBitrateMbps'; Label = 'Route1080pMaxVideoBitrateMbps'; Min = 1; Max = 500 },
         @{ Kind = 'number'; Key = 'Route1440pLowerHeightTolerancePercent'; Label = 'Route1440pLowerHeightTolerancePercent'; Min = 0; Max = 100 },
         @{ Kind = 'number'; Key = 'Route1440pUpperHeightTolerancePercent'; Label = 'Route1440pUpperHeightTolerancePercent'; Min = 0; Max = 100 },
         @{ Kind = 'int'; Key = 'Route1440pMaxVideoBitrateMbps'; Label = 'Route1440pMaxVideoBitrateMbps'; Min = 1; Max = 500 },
         @{ Kind = 'number'; Key = 'Route4KLowerHeightTolerancePercent'; Label = 'Route4KLowerHeightTolerancePercent'; Min = 0; Max = 100 },
-        @{ Kind = 'int'; Key = 'Route4KBucketMinHeight'; Label = 'Route4KBucketMinHeight'; Min = 1; Max = 4320 },
         @{ Kind = 'int'; Key = 'Route4KMaxVideoBitrateMbps'; Label = 'Route4KMaxVideoBitrateMbps'; Min = 1; Max = 500 },
         @{ Kind = 'int'; Key = 'H264RemuxMaxBitrateMbps'; Label = 'H264RemuxMaxBitrateMbps'; Min = 1; Max = 500 },
         @{ Kind = 'int'; Key = 'H264RemuxMaxHeight'; Label = 'H264RemuxMaxHeight'; Min = 1; Max = 4320 },
@@ -463,17 +457,6 @@ function Test-MediaPipelineConfigEncodeAudioPolicy {
                 -Route4KLowerHeightTolerancePercent $route4kLowerPct
             if (-not $boundaries.IsContiguous) {
                 $Errors.Add("Route height tolerance percents must create contiguous buckets: 1080p <= $($boundaries.Route1080pMaxHeight), 1440p $($boundaries.Route1440pMinHeight)-$($boundaries.Route1440pMaxHeight), 4K >= $($boundaries.Route4KMinHeight).")
-            }
-        } catch {
-            # The numeric validator above reports malformed values.
-        }
-    } elseif ((Test-MediaPipelineConfigHasKey -Config $Config -Key 'Route1080pBucketMaxHeight') -and
-        (Test-MediaPipelineConfigHasKey -Config $Config -Key 'Route4KBucketMinHeight')) {
-        try {
-            $route1080pMaxHeight = [int](Get-MediaPipelineConfigValue -Config $Config -Key 'Route1080pBucketMaxHeight')
-            $route4kMinHeight = [int](Get-MediaPipelineConfigValue -Config $Config -Key 'Route4KBucketMinHeight')
-            if ($route1080pMaxHeight -ge $route4kMinHeight) {
-                $Errors.Add('Route1080pBucketMaxHeight must be lower than Route4KBucketMinHeight.')
             }
         } catch {
             # The numeric validator above reports malformed values.

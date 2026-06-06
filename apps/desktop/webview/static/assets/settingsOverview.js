@@ -44,26 +44,6 @@
   }
 
   function settingsOverviewRouteHeightBoundaries(config) {
-    const percentKeys = [
-      "Route1080pUpperHeightTolerancePercent",
-      "Route1440pLowerHeightTolerancePercent",
-      "Route1440pUpperHeightTolerancePercent",
-      "Route4KLowerHeightTolerancePercent",
-    ];
-    const hasPercentKeys = percentKeys.some((key) => {
-      const value = rawConfigValue(config, key, undefined);
-      return value !== undefined && value !== null && String(value).trim() !== "";
-    });
-    if (!hasPercentKeys) {
-      const route1080pMaxHeight = Math.round(settingsOverviewNumber(config, "Route1080pBucketMaxHeight", 1200));
-      const route4kMinHeight = Math.round(settingsOverviewNumber(config, "Route4KBucketMinHeight", 1800));
-      return {
-        route1080pMaxHeight,
-        route1440pMinHeight: route1080pMaxHeight + 1,
-        route1440pMaxHeight: route4kMinHeight - 1,
-        route4kMinHeight,
-      };
-    }
     return {
       route1080pMaxHeight: settingsOverviewRouteMaxHeightFromUpperTolerance(
         1080,
@@ -161,8 +141,8 @@
       "",
       "Remux/encode routing:",
       `- Library goal: ${trustConfigValue(config, "RoutingProfile", "default")}; if encoded output is too large=${trustConfigValue(config, "SizeGuardMode", "default")}; output container=${trustConfigValue(config, "OutputContainer", "default")}.`,
-      `- Target output sizes: 1080p movie=${trustConfigValue(config, "MovieRoute1080pTargetSizeGB", trustConfigValue(config, "EncodeThresholdGB", "8"))} GB / TV=${trustConfigValue(config, "TVRoute1080pTargetSizeGB", trustConfigValue(config, "TVEncodeThresholdGB", "3"))} GB; 1440p movie=${trustConfigValue(config, "MovieRoute1440pTargetSizeGB", trustConfigValue(config, "EncodeThresholdGB", "8"))} GB / TV=${trustConfigValue(config, "TVRoute1440pTargetSizeGB", trustConfigValue(config, "TVEncodeThresholdGB", "3"))} GB; 4K movie=${trustConfigValue(config, "MovieRoute4KTargetSizeGB", trustConfigValue(config, "EncodeThresholdGB", "8"))} GB / TV=${trustConfigValue(config, "TVRoute4KTargetSizeGB", trustConfigValue(config, "TVEncodeThresholdGB", "3"))} GB; unknown-height fallback movie=${trustConfigValue(config, "EncodeThresholdGB", "8")} GB / TV=${trustConfigValue(config, "TVEncodeThresholdGB", "3")} GB.`,
-      `- Remux/copy bitrate ceilings: 1080p <=${routeBoundaries.route1080pMaxHeight}p uses ${trustConfigValue(config, "Route1080pMaxVideoBitrateMbps", "20")} Mbps; 1440p ${routeBoundaries.route1440pMinHeight}-${routeBoundaries.route1440pMaxHeight}p uses ${trustConfigValue(config, "Route1440pMaxVideoBitrateMbps", "35")} Mbps; 4K >=${routeBoundaries.route4kMinHeight}p uses ${trustConfigValue(config, "Route4KMaxVideoBitrateMbps", "35")} Mbps; unknown-height fallback movie=${trustConfigValue(config, "MovieRouteMaxVideoBitrateMbps", "35")} Mbps / TV=${trustConfigValue(config, "TVRouteMaxVideoBitrateMbps", "18")} Mbps.`,
+      `- Target output sizes: 1080p movie=${trustConfigValue(config, "MovieRoute1080pTargetSizeGB", "8")} GB / TV=${trustConfigValue(config, "TVRoute1080pTargetSizeGB", "3")} GB; 1440p movie=${trustConfigValue(config, "MovieRoute1440pTargetSizeGB", "8")} GB / TV=${trustConfigValue(config, "TVRoute1440pTargetSizeGB", "3")} GB; 4K movie=${trustConfigValue(config, "MovieRoute4KTargetSizeGB", "8")} GB / TV=${trustConfigValue(config, "TVRoute4KTargetSizeGB", "3")} GB; unknown height uses the 1080p movie/TV targets.`,
+      `- Remux/copy bitrate ceilings: 1080p <=${routeBoundaries.route1080pMaxHeight}p uses ${trustConfigValue(config, "Route1080pMaxVideoBitrateMbps", "20")} Mbps; 1440p ${routeBoundaries.route1440pMinHeight}-${routeBoundaries.route1440pMaxHeight}p uses ${trustConfigValue(config, "Route1440pMaxVideoBitrateMbps", "35")} Mbps; 4K >=${routeBoundaries.route4kMinHeight}p uses ${trustConfigValue(config, "Route4KMaxVideoBitrateMbps", "35")} Mbps; unknown height uses the 1080p cap.`,
       `- Encode growth limits: default=${trustConfigValue(config, "MaxEncodeGrowthPercent", "default")}; compatibility=${trustConfigValue(config, "CompatibilityEncodeGrowthPercent", "default")}.`,
       `- H.264 remux when Plex-compatible: ${settingsTrustBool(config, "AllowH264RemuxIfPlexCompatible")}; max bitrate=${trustConfigValue(config, "H264RemuxMaxBitrateMbps", "default")} Mbps; max height=${trustConfigValue(config, "H264RemuxMaxHeight", "default")}.`,
       "",
@@ -247,24 +227,18 @@
       ["AllowH264RemuxIfPlexCompatible", "H.264 remux when Plex-compatible"],
       ["H264RemuxMaxBitrateMbps", "H.264 remux max bitrate Mbps"],
       ["H264RemuxMaxHeight", "H.264 remux max height"],
-      ["EncodeThresholdGB", "Movie encode threshold GB"],
-      ["TVEncodeThresholdGB", "TV encode threshold GB"],
       ["MovieRoute1080pTargetSizeGB", "Movie 1080p target size GB"],
       ["MovieRoute1440pTargetSizeGB", "Movie 1440p target size GB"],
       ["MovieRoute4KTargetSizeGB", "Movie 4K target size GB"],
       ["TVRoute1080pTargetSizeGB", "TV 1080p target size GB"],
       ["TVRoute1440pTargetSizeGB", "TV 1440p target size GB"],
       ["TVRoute4KTargetSizeGB", "TV 4K target size GB"],
-      ["MovieRouteMaxVideoBitrateMbps", "Movie fallback max bitrate Mbps"],
-      ["TVRouteMaxVideoBitrateMbps", "TV fallback max bitrate Mbps"],
-      ["Route1080pBucketMaxHeight", "Legacy 1080p bucket max height"],
       ["Route1080pUpperHeightTolerancePercent", "1080p upper height tolerance %"],
       ["Route1080pMaxVideoBitrateMbps", "1080p max bitrate Mbps"],
       ["Route1440pLowerHeightTolerancePercent", "1440p lower height tolerance %"],
       ["Route1440pUpperHeightTolerancePercent", "1440p upper height tolerance %"],
       ["Route1440pMaxVideoBitrateMbps", "1440p max bitrate Mbps"],
       ["Route4KLowerHeightTolerancePercent", "4K lower height tolerance %"],
-      ["Route4KBucketMinHeight", "Legacy 4K bucket min height"],
       ["Route4KMaxVideoBitrateMbps", "4K max bitrate Mbps"],
       ["MaxEncodeGrowthPercent", "Default encode growth limit %"],
       ["CompatibilityEncodeGrowthPercent", "Compatibility encode growth limit %"],

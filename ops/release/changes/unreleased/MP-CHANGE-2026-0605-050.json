@@ -1,0 +1,43 @@
+{
+  "id": "MP-CHANGE-2026-0605-050",
+  "title": "Learned per-run publish-push throughput for write speed and ETA",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-05",
+  "date_completed": "2026-06-05",
+  "summary": "Compute the dashboard 'Push file' write speed and ETA from a per-run weighted average of completed server-push throughput instead of the in-progress file's lifetime partial average, which read far below the real transfer rate early in a file.",
+  "reason": "The displayed write speed used total-bytes-copied / total-elapsed for the in-progress file. Early in a multi-GB push the slow ramp-up dominates that average, so the operator saw ~13.5 MB/s while the link was actually moving ~50 MB/s. A completed file's full-transfer average is a far better predictor, so each finished server push now refines a session average that drives the speed and ETA for subsequent files.",
+  "affected_areas": [
+    "progress",
+    "diagnostics",
+    "tests"
+  ],
+  "behavior_before": "The 'Push file' card showed write speed and ETA derived from the in-progress file's cumulative bytes/elapsed, which understated the rate (and overstated the ETA) while the transfer was still ramping up.",
+  "behavior_after": "The copy-telemetry writer accumulates a per-run weighted average (sum bytes / sum seconds) of completed server pushes and emits CopySessionBytesPerSecond / CopySessionFilesCompleted. Once at least one file in the run has finished, eta.py uses that learned average for the current push's write speed and ETA; the first file of a run still falls back to its own partial measurement. The local source->scratch copy is excluded (it uses CopyState, not PushState), so fast local copies never pollute the network average. No copy, publish, queue, or media behavior changed.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/engine/status/progress_state.ps1.md",
+    "docs/generated/summaries/src/mediapipeline/core/status/eta.py.md",
+    "ops/pipeline/config/schemas/media_pipeline_progress.schema.json",
+    "ops/pipeline/engine/status/progress_state.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0605-050.json",
+    "src/mediapipeline/core/status/eta.py",
+    "tests/python/desktop/test_service_status_eta.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_service_status_eta.py::test_eta_payload_prefers_session_average_throughput_once_files_complete",
+    "tests/python/desktop/test_service_status_eta.py::test_eta_payload_session_average_estimates_before_current_file_has_elapsed",
+    "tests/python/desktop/test_service_status_eta.py::test_eta_payload_ignores_session_average_for_first_file_of_run"
+  ],
+  "manual_validation": [
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_service_status_eta -> passed; 8 tests OK (5 existing + 3 new).",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest test_application_facade_snapshot test_service_status_readers test_service_status_summary test_contracts -> passed; 42 tests OK (progress fixtures still resolve with the additive fields).",
+    "PowerShell parse-check of progress_state.ps1 via [Parser]::ParseFile -> PARSE_OK. Functional dot-source harness: Get-PushAverageBytesPerSecond returns 50000000 for 1e9 bytes/20s/2 files and null for 0 files / 0 seconds; a copying->copied_pending_reveal transition folds exactly one sample, the following 'complete' does not double-count, and a second file increments the count to 2.",
+    "ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1 -> PENDING (recorded after packet write).",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> PENDING (recorded after packet write); the unreleased dir has many pre-existing untracked packets from concurrent activity that are unrelated to this change."
+  ],
+  "rollback_plan": "Revert eta.py to use only the per-file cumulative rate, drop the CopySessionBytesPerSecond/CopySessionFilesCompleted emission and the Get-PushAverageBytesPerSecond/Add-PushThroughputSample helpers plus the PushState transition hook in progress_state.ps1, remove the two schema properties, and delete the three added eta tests.",
+  "related_changes": [],
+  "notes": "Read-only telemetry/diagnostics accuracy change. eta.py is declared read-only telemetry; the progress_state.ps1 change is additive (new $script: accumulators that reset naturally per process launch, a guarded sample fold on the existing PushState success transition, two new emitted fields). publish_completion.ps1 and the robocopy copy path (disk.ps1) were intentionally NOT edited. No media policy, FFmpeg/subtitle/audio, publish/pending-publish, queue, settings-schema, or source/scratch/output movement behavior is changed. Operator validation still required: a real -Once run with at least two server pushes to confirm CopySessionBytesPerSecond populates after file 1 and the dashboard write/ETA track Task Manager. Generated summaries for eta.py and progress_state.ps1 were not regenerated this session (deferred, consistent with prior handoffs)."
+}

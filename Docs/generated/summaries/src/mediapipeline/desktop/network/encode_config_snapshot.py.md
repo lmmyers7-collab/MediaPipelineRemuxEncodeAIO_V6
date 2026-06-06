@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/encode_config_snapshot.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-06-02
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 0de9028a8279f26a2eaf01800eb987d74a6013766406268f094935540623f4f7
+sha256: a60b5ee89f82a434e8dae585adee1c1644edbcceccf385b6832561b363e82140
 ---
 # `src/mediapipeline/desktop/network/encode_config_snapshot.py`
 

@@ -274,16 +274,16 @@ Coverage gap noted in `docs/inventories/RENAME_SAFETY_TEST_INVENTORY.md`: native
 
 ### Pending Publish
 
-Tests for manifest parsing, path resolution, manifest row validation, and general service behavior.
+Tests for manifest parsing, path resolution, manifest row validation, strict manifest proof, drain/repair trust gates, and general service behavior.
 
 | Test file | What it covers |
 |---|---|
 | `test_service_pending_publish_format.py` | Manifest format and parsing |
 | `test_service_pending_publish_paths.py` | Path resolution from manifests |
-| `test_service_pending_publish_manifest.py` | Manifest state validation |
-| `test_service_pending_publish_manifest_rows.py` | Per-row manifest validation |
-| `test_pending_publish_service.py` | General pending publish service |
-| `test_application_facade_pending_publish.py` | Application-facade pending-publish preview classification, durable drain-summary evidence, publish reconciliation, row-key open allowlists, scan-failure surfacing, and recovery dry-run planning |
+| `test_service_pending_publish_manifest.py` | Manifest state validation, legacy no-drain visibility, and current-manifest missing proof rejection |
+| `test_service_pending_publish_manifest_rows.py` | Per-row manifest validation, legacy non-drainable rows, and unsupported current states |
+| `test_pending_publish_service.py` | General pending publish service, parked payload evidence, and legacy scan-visible/do-not-drain behavior |
+| `test_application_facade_pending_publish.py` | Application-facade pending-publish preview classification, durable drain-summary evidence, publish reconciliation, final-proof path normalization, same-leaf weak evidence, row-key open allowlists, scan-failure surfacing, and recovery dry-run planning |
 
 Targeted command:
 
@@ -295,7 +295,9 @@ Targeted command:
 
 Remaining gaps noted in `docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md`: recovery-plan action coverage, completed-manifest/drain-summary cross-check depth, and coordinator-mode pending-publish handoff.
 
-PowerShell ownership coverage now includes `ops\pipeline\tests\Unit\Invoke-PendingPublishOwnershipChecks.ps1`, which parses the publish/pending modules and guards the documented parked-output-as-media-plus-sidecars ownership boundary.
+PowerShell safety coverage now includes strict root detection and manifest trust cases in `ops\pipeline\tests\Unit\Invoke-PendingPublishSafetyChecks.ps1`: legacy no-drain/no-mutation, forged parked payload and destination rejection, unsafe crash-recovery original refusal, sidecar carry-forward boundary rejection, mixed-slash safe paths, and cleanup refusal outside `PendingServerPush`.
+
+PowerShell ownership coverage includes `ops\pipeline\tests\Unit\Invoke-PendingPublishOwnershipChecks.ps1`, which parses the publish/pending modules and guards the documented parked-output-as-media-plus-sidecars ownership boundary.
 
 ---
 

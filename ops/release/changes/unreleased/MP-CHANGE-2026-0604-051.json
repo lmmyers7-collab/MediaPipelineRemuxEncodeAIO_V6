@@ -1,0 +1,60 @@
+{
+  "id": "MP-CHANGE-2026-0604-051",
+  "title": "Fail closed on unsafe config saves",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-04",
+  "date_completed": "2026-06-05",
+  "summary": "Move unsafe settings save enforcement into backend save paths and keep WebView/static tests aligned with backend-owned config policy.",
+  "reason": "Settings Wizard and Save Patch could preview risks without consistently failing closed before config writes, and WebView POST scanning did not include apiPostLocal wrapper calls.",
+  "affected_areas": [
+    "config",
+    "desktop-webview",
+    "safety",
+    "smoke"
+  ],
+  "behavior_before": "Dangerous wizard toggles could rely on preview warnings, settings patch could stage new unknown keys, and lifecycle smoke wrappers depended on an external PYTHONPATH.",
+  "behavior_after": "Wizard save blocks unacknowledged dangerous toggles, settings patch rejects new unknown keys and source-mutation-looking changes while preserving loaded unknown keys, apiPostLocal routes are scanned, and lifecycle smoke wrapper sets PYTHONPATH.",
+  "files_touched": [
+    "docs/generated/summaries/ops/scripts/smoke/Test-WebViewBrowserLifecycleSmoke.ps1.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/settings_patch_candidate_facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/settings_patch_policy.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/settings_wizard.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/webview_settings_patch_smoke.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_settings_patch.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_settings_wizard_policy.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_frontend_mutation_boundary.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0604-051.json",
+    "ops/scripts/smoke/Test-WebViewBrowserLifecycleSmoke.ps1",
+    "src/mediapipeline/core/config/settings_helpers_facade.py",
+    "src/mediapipeline/core/config/settings_patch_candidate_facade.py",
+    "src/mediapipeline/core/config/settings_patch_policy.py",
+    "src/mediapipeline/core/config/settings_wizard.py",
+    "src/mediapipeline/core/config/validation.py",
+    "src/mediapipeline/core/orchestration/settings_patch_facade.py",
+    "src/mediapipeline/desktop/webview_settings_patch_smoke.py",
+    "tests/python/desktop/test_application_facade_settings_patch.py",
+    "tests/python/desktop/test_config_keys.py",
+    "tests/python/desktop/test_settings_wizard_policy.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "tests_added": [
+    "Core config-key import-boundary static test",
+    "Settings patch unknown-key/source-mutation/preserve-unknown tests",
+    "WebView apiPostLocal mutation-boundary scanner coverage",
+    "Wizard save danger-ack fail-closed tests"
+  ],
+  "manual_validation": [
+    "PYTHONPATH=src; python -B -m unittest tests.python.desktop.test_settings_wizard_policy tests.python.desktop.test_application_facade_settings_patch tests.webview.test_webview_frontend_mutation_boundary tests.python.desktop.test_config_keys => 58 tests OK",
+    "apps/desktop/tauri/Test-TauriShell-ProductionSurface.ps1 => passed",
+    "mediapipeline.tools.change_control.validate_changes --require-worktree-coverage => passed (73 packet(s) valid)",
+    "mediapipeline.tools.dev.refresh_summaries => 2 written, 159 unchanged",
+    "ops/scripts/smoke/Test-WebViewBrowserLifecycleSmoke.ps1 => passed after wrapper PYTHONPATH fix",
+    "ops/scripts/smoke/Test-WebViewSettingsPatchEvidenceSmoke.ps1 => passed"
+  ],
+  "rollback_plan": "Revert the touched config save-path, WebView mutation-boundary test, smoke wrapper, and generated-summary changes in this packet; rerun the focused unittest group and WebView/Tauri smokes after rollback.",
+  "related_changes": [],
+  "notes": "Plan implementation started: fail-closed settings wizard/save-patch safety gates and WebView POST boundary coverage.\nImplemented fail-closed settings wizard/save-patch config validation, WebView POST route scanning, config-key import boundary tests, and smoke wrapper PYTHONPATH fix.\nValidation complete except final change-control coverage check.\nFinal strict change-control coverage passed."
+}

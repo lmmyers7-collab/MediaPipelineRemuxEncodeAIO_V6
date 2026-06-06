@@ -20,11 +20,57 @@ from mediapipeline.core.queue.source_inventory import (
     queue_source_inventory_path,
     write_json_artifact,
 )
+from mediapipeline.core.queue.policy_parts.operator_guidance import queue_row_operator_guidance
 from mediapipeline.core.queue.priority_manifest import set_manifest_entry
 from tests.python.desktop.test_application_facade import DummyWorkflowFacadeService, _resolved
 
 
 class ApplicationFacadeQueueTests(unittest.TestCase):
+    def test_queue_guidance_treats_stop_requested_runtime_as_actionable_hold(self) -> None:
+        row = {
+            "status": "queued",
+            "source_path": r"C:\Media\Movie.mkv",
+            "route_name": "remux",
+            "route_reason": "already compatible",
+            "runtime_outcome_status": "stopped",
+            "runtime_outcome_success": False,
+            "runtime_outcome_freshness_status": "fresh",
+            "runtime_outcome_error_code": "STOP_REQUESTED",
+            "runtime_outcome_reason": "Processing stopped by operator",
+        }
+
+        guidance = queue_row_operator_guidance(row)
+
+        self.assertEqual(guidance["operator_status"], "Check publish state")
+        self.assertEqual(guidance["operator_status_state"], "warning")
+        self.assertEqual(guidance["operator_trust_state"], "review-before-launch")
+        self.assertIn("Stop After Current", guidance["operator_guidance"])
+        self.assertIn("Completed and Pending Publish", guidance["operator_guidance"])
+        self.assertIn("runtime_outcome:stopped", guidance["review_flags"])
+        self.assertNotEqual(guidance["primary_concern"], "fresh runtime failure")
+
+    def test_queue_guidance_treats_stop_requested_pending_publish_as_waiting_for_push(self) -> None:
+        row = {
+            "status": "queued",
+            "source_path": r"C:\Media\Movie.mkv",
+            "route_name": "remux",
+            "route_reason": "already compatible",
+            "runtime_outcome_status": "stopped",
+            "runtime_outcome_success": False,
+            "runtime_outcome_freshness_status": "fresh",
+            "runtime_outcome_error_code": "STOP_REQUESTED",
+            "runtime_outcome_reason": "Processing stopped by operator",
+            "runtime_outcome_publish_state": "parked",
+            "runtime_outcome_publish_mode": "deferred",
+        }
+
+        guidance = queue_row_operator_guidance(row)
+
+        self.assertEqual(guidance["operator_status"], "Waiting for push")
+        self.assertEqual(guidance["operator_status_state"], "warning")
+        self.assertEqual(guidance["operator_trust_state"], "pending-publish")
+        self.assertIn("Drain Pending Publish", guidance["operator_guidance"])
+
     def test_queue_preview_includes_scan_status_and_source_inventory_without_snapshot(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

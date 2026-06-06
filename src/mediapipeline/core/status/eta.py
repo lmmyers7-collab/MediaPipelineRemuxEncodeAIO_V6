@@ -147,6 +147,18 @@ def _copy_eta_row(progress: Mapping[str, Any], *, now: datetime | None = None) -
     total = _finite_int(progress.get("CopyTotalBytes"))
     percent = _finite_float(progress.get("CopyPercent"))
     elapsed_seconds = _elapsed_seconds(progress.get("CopyStartedAt"), progress.get("CopyUpdatedAt"), now=now)
+    # Prefer this run's learned publish-push throughput (weighted average of
+    # completed server pushes) once at least one file has finished. The first
+    # file of a run has no learned rate yet and falls back to its own partial
+    # bytes/elapsed measurement below.
+    session_rate = _finite_float(progress.get("CopySessionBytesPerSecond"))
+    session_files = _finite_int(progress.get("CopySessionFilesCompleted"))
+    use_session_rate = (
+        session_rate is not None
+        and session_rate > 0
+        and session_files is not None
+        and session_files >= 1
+    )
     eta_seconds: int | None = None
     bytes_per_second: int | None = None
     bytes_remaining: int | None = None
@@ -166,6 +178,14 @@ def _copy_eta_row(progress: Mapping[str, Any], *, now: datetime | None = None) -
             eta_seconds = 0
             bytes_per_second = None
             basis = "Publish copy telemetry reports the file copy is complete."
+        elif use_session_rate:
+            bytes_per_second = int(round(session_rate))
+            eta_seconds = int(round(bytes_remaining / session_rate))
+            files_label = "file" if session_files == 1 else "files"
+            basis = (
+                "Projection from this run's average publish-copy throughput "
+                f"({session_files} completed {files_label})."
+            )
         elif safe_copied <= 0:
             unavailable_reason = "Publish copy has not written enough bytes for a stable ETA."
         elif elapsed_seconds is None:

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/completed/open_policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: completed
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 75e14a99e92f54086e64ea35cd1b50cbed836457356df2189d4bab0339c7a63b
+sha256: d4e914b2d25845cc3b82fb2cf4d37f606c3988a74a2ee85b2db22b77ede11528
 ---
 # `src/mediapipeline/core/completed/open_policy.py`
 

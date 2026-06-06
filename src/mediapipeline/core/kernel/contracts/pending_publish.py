@@ -20,6 +20,58 @@ PENDING_PUSH_MANIFEST_STATES = {
     "complete",
     "published",
 }
+PENDING_PUSH_MANIFEST_DRAINABLE_STATES = {
+    "parked",
+    "parked_recovered",
+    "missing_payload",
+    "retry_copy_failed",
+    "retry_reveal_failed",
+    "retry_sidecar_file_failed",
+    "retry_sidecar_failed",
+}
+PENDING_PUSH_MANIFEST_REQUIRED_TEXT_FIELDS = (
+    "pipeline_version",
+    "publish_transaction_id",
+    "manifest_state",
+    "local_file",
+    "server_out",
+    "route",
+    "source_identity_v2",
+    "source_identity_v2_algorithm",
+    "source_path",
+)
+PENDING_PUSH_MANIFEST_REQUIRED_ARRAY_FIELDS = (
+    "sidecar_files",
+    "tx3g_srt_tracks",
+    "tx3g_srt_failures",
+    "bdpgs_srt_failures",
+    "vobsub_srt_failures",
+    "tx3g_embedded_srt_tracks",
+    "bdpgs_embedded_srt_tracks",
+    "vobsub_embedded_srt_tracks",
+)
+
+
+def _required_text_field(payload: Mapping[str, Any], key: str) -> str:
+    value = text_field(payload, key).strip()
+    if not value:
+        raise ContractError(f"{key} is required and cannot be blank")
+    return value
+
+
+def _required_int_field(payload: Mapping[str, Any], key: str, *, minimum: int = 0) -> int:
+    if key not in payload or payload.get(key) in (None, ""):
+        raise ContractError(f"{key} is required")
+    value = int_field(payload, key)
+    if value < minimum:
+        raise ContractError(f"{key} must be >= {minimum}")
+    return value
+
+
+def _required_list_field(payload: Mapping[str, Any], key: str) -> list[Any]:
+    if key not in payload:
+        raise ContractError(f"{key} is required")
+    return list_field(payload, key)
 
 
 @dataclass(frozen=True)
@@ -67,40 +119,45 @@ class PendingPushManifest:
     def from_mapping(cls, payload: Mapping[str, Any] | Any) -> "PendingPushManifest":
         data = require_mapping(payload, "pending push manifest")
         schema_version = require_schema_version(data, PENDING_PUSH_MANIFEST_SCHEMA_VERSION)
-        manifest_state = text_field(data, "manifest_state")
-        if manifest_state and manifest_state not in PENDING_PUSH_MANIFEST_STATES:
+        for field_name in PENDING_PUSH_MANIFEST_REQUIRED_TEXT_FIELDS:
+            _required_text_field(data, field_name)
+        manifest_state = _required_text_field(data, "manifest_state")
+        if manifest_state not in PENDING_PUSH_MANIFEST_STATES:
             raise ContractError(f"manifest_state must be a known pending-publish state; got {manifest_state}")
+        for field_name in PENDING_PUSH_MANIFEST_REQUIRED_ARRAY_FIELDS:
+            _required_list_field(data, field_name)
+        output_size = _required_int_field(data, "output_size")
         return cls(
             schema_version=schema_version,
             parked_at=text_field(data, "parked_at"),
             product_version=text_field(data, "product_version"),
-            pipeline_version=text_field(data, "pipeline_version"),
-            publish_transaction_id=text_field(data, "publish_transaction_id"),
+            pipeline_version=_required_text_field(data, "pipeline_version"),
+            publish_transaction_id=_required_text_field(data, "publish_transaction_id"),
             manifest_state=manifest_state,
-            local_file=text_field(data, "local_file"),
+            local_file=_required_text_field(data, "local_file"),
             original_local_file=text_field(data, "original_local_file"),
             parked_file=text_field(data, "parked_file"),
-            server_out=text_field(data, "server_out"),
-            route=text_field(data, "route"),
+            server_out=_required_text_field(data, "server_out"),
+            route=_required_text_field(data, "route"),
             route_reason_code=text_field(data, "route_reason_code"),
             route_reason=text_field(data, "route_reason"),
             media_type=text_field(data, "media_type"),
             source_identity=text_field(data, "source_identity"),
-            source_identity_v2=text_field(data, "source_identity_v2"),
-            source_identity_v2_algorithm=text_field(data, "source_identity_v2_algorithm"),
-            source_path=text_field(data, "source_path"),
+            source_identity_v2=_required_text_field(data, "source_identity_v2"),
+            source_identity_v2_algorithm=_required_text_field(data, "source_identity_v2_algorithm"),
+            source_path=_required_text_field(data, "source_path"),
             source_size=int_field(data, "source_size"),
             source_mtime_utc=text_field(data, "source_mtime_utc"),
-            output_size=int_field(data, "output_size"),
+            output_size=output_size,
             publish_mode=text_field(data, "publish_mode"),
-            sidecar_files=list_field(data, "sidecar_files"),
-            tx3g_srt_tracks=list_field(data, "tx3g_srt_tracks"),
-            tx3g_srt_failures=list_field(data, "tx3g_srt_failures"),
-            bdpgs_srt_failures=list_field(data, "bdpgs_srt_failures"),
-            vobsub_srt_failures=list_field(data, "vobsub_srt_failures"),
-            tx3g_embedded_srt_tracks=list_field(data, "tx3g_embedded_srt_tracks"),
-            bdpgs_embedded_srt_tracks=list_field(data, "bdpgs_embedded_srt_tracks"),
-            vobsub_embedded_srt_tracks=list_field(data, "vobsub_embedded_srt_tracks"),
+            sidecar_files=_required_list_field(data, "sidecar_files"),
+            tx3g_srt_tracks=_required_list_field(data, "tx3g_srt_tracks"),
+            tx3g_srt_failures=_required_list_field(data, "tx3g_srt_failures"),
+            bdpgs_srt_failures=_required_list_field(data, "bdpgs_srt_failures"),
+            vobsub_srt_failures=_required_list_field(data, "vobsub_srt_failures"),
+            tx3g_embedded_srt_tracks=_required_list_field(data, "tx3g_embedded_srt_tracks"),
+            bdpgs_embedded_srt_tracks=_required_list_field(data, "bdpgs_embedded_srt_tracks"),
+            vobsub_embedded_srt_tracks=_required_list_field(data, "vobsub_embedded_srt_tracks"),
             tx3g_srt_conversion_enabled=bool_field(data, "tx3g_srt_conversion_enabled"),
             tx3g_external_srt_sidecars_enabled=bool_field(data, "tx3g_external_srt_sidecars_enabled"),
             drop_tx3g_after_conversion=bool_field(data, "drop_tx3g_after_conversion"),

@@ -61,7 +61,9 @@ pub(crate) fn resolve_desktop_root() -> ShellResult<PathBuf> {
         .parent()
         .and_then(Path::parent)
         .map(Path::to_path_buf)
-        .ok_or_else(|| shell_error("Could not resolve apps/desktop root from CARGO_MANIFEST_DIR."))?;
+        .ok_or_else(|| {
+            shell_error("Could not resolve apps/desktop root from CARGO_MANIFEST_DIR.")
+        })?;
     let exe = std::env::current_exe().map_err(|error| {
         shell_error(format!(
             "Could not resolve current executable path: {error}"

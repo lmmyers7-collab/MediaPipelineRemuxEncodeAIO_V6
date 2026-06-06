@@ -15,7 +15,13 @@ $ErrorActionPreference = 'Stop'
 
 $testsRoot = Split-Path -Parent $PSCommandPath
 $pipelineRoot = Split-Path -Parent (Split-Path -Parent $testsRoot)
-$repoRoot = Split-Path -Parent $pipelineRoot
+$repoRoot = Split-Path -Parent (Split-Path -Parent $pipelineRoot)
+if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'AGENTS.md') -PathType Leaf)) {
+    throw "Unable to resolve repository root from $PSCommandPath."
+}
+if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine') -PathType Container)) {
+    throw "Resolved repository root is missing ops\pipeline\engine: $repoRoot"
+}
 $sidecarModule = Join-Path $repoRoot 'ops\pipeline\engine\publish\sidecar.ps1'
 $publishPartialModule = Join-Path $repoRoot 'ops\pipeline\engine\publish\publish_partial.ps1'
 $publishSidecarsModule = Join-Path $repoRoot 'ops\pipeline\engine\publish\publish_sidecars.ps1'

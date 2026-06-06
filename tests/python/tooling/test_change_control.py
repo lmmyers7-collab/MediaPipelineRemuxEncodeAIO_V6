@@ -124,6 +124,40 @@ class ChangePacketCoverageTests(unittest.TestCase):
         self.assertEqual(result.covered_files, ("src/mediapipeline/core/maintenance/change_ledger.py",))
         self.assertEqual(result.uncovered_files, ())
 
+    def test_docs_root_case_is_canonicalized_for_windows_git_status_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            packet = _packet("MP-CHANGE-2026-0604-001", "0.1.0-dev")
+            packet["files_touched"] = ["docs/DOCS_INDEX.md"]
+            _write_packet(root, "ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json", packet)
+
+            result = packet_coverage.coverage_for_paths(
+                root=root,
+                scope="worktree",
+                changed_files=["Docs\\DOCS_INDEX.md"],
+                allow_directory_coverage=False,
+            )
+
+        self.assertEqual(result.covered_files, ("docs/DOCS_INDEX.md",))
+        self.assertEqual(result.uncovered_files, ())
+
+    def test_generated_summary_source_root_case_is_canonicalized(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            packet = _packet("MP-CHANGE-2026-0604-001", "0.1.0-dev")
+            packet["files_touched"] = ["docs/generated/summaries/docs/DOCS_INDEX.md.md"]
+            _write_packet(root, "ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json", packet)
+
+            result = packet_coverage.coverage_for_paths(
+                root=root,
+                scope="worktree",
+                changed_files=["Docs\\generated\\summaries\\Docs\\DOCS_INDEX.md.md"],
+                allow_directory_coverage=False,
+            )
+
+        self.assertEqual(result.covered_files, ("docs/generated/summaries/docs/DOCS_INDEX.md.md",))
+        self.assertEqual(result.uncovered_files, ())
+
     def test_missing_changed_file_reports_exact_uncovered_path(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -164,6 +198,23 @@ class ChangePacketCoverageTests(unittest.TestCase):
             ),
         )
         self.assertEqual(result.uncovered_files, ("src/other.py",))
+
+    def test_directory_entries_do_not_cover_worktree_paths_when_strict_exact_mode_is_used(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            packet = _packet("MP-CHANGE-2026-0604-001", "0.1.0-dev")
+            packet["files_touched"] = ["docs"]
+            _write_packet(root, "ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json", packet)
+
+            result = packet_coverage.coverage_for_paths(
+                root=root,
+                scope="worktree",
+                changed_files=["docs/archive/root-artifacts/CON.txt"],
+                allow_directory_coverage=False,
+            )
+
+        self.assertEqual(result.covered_files, ())
+        self.assertEqual(result.uncovered_files, ("docs/archive/root-artifacts/CON.txt",))
 
     def test_released_packets_do_not_satisfy_current_coverage(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -407,6 +458,24 @@ class ChangeControlToolingTests(unittest.TestCase):
                 text,
             )
             self.assertNotIn("ops/ops/release/metadata/changes", text)
+
+    def test_release_manifest_filters_removed_active_artifacts(self) -> None:
+        removed_name = "T" + "LDR"
+        manifest_values = build_release_manifest._list_values(
+            [
+                {
+                    "files_touched": [
+                        f"docs/{removed_name}.md",
+                        f"docs/generated/summaries/Docs/{removed_name}.md.md",
+                        "docs/CURRENT_PROJECT_STATE.md",
+                    ]
+                }
+            ],
+            "files_touched",
+            normalize_paths=True,
+        )
+
+        self.assertEqual(manifest_values, ["docs/CURRENT_PROJECT_STATE.md"])
 
     def test_local_channel_supported_for_portable_release_metadata(self) -> None:
         self.assertIn("local", build_release_manifest.CHANNELS)

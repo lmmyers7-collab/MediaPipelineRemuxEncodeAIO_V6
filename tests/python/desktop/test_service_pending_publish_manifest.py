@@ -54,6 +54,48 @@ class ServicePendingPublishManifestTests(unittest.TestCase):
         self.assertEqual(row["output_size"], len("payload"))
         self.assertEqual(row["missing_sidecar_count"], 1)
         self.assertIn("sidecar", row["error"])
+        self.assertIn("Legacy pending manifest", row["error"])
+
+    def test_current_manifest_missing_required_proof_is_invalid_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            payload = root / "payload.mkv"
+            payload.write_text("payload", encoding="utf-8")
+            manifest_path = root / "payload.mkv.manifest.json"
+            manifest_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "pending_push_manifest.v1",
+                        "pipeline_version": "1.0",
+                        "publish_transaction_id": "tx",
+                        "manifest_state": "parked",
+                        "local_file": str(payload),
+                        "server_out": str(root / "server.mkv"),
+                        "route": "encode",
+                        "source_identity_v2": "",
+                        "source_identity_v2_algorithm": "fixture-v2",
+                        "source_path": str(root / "source.mkv"),
+                        "output_size": payload.stat().st_size,
+                        "sidecar_files": [],
+                        "tx3g_srt_tracks": [],
+                        "tx3g_srt_failures": [],
+                        "bdpgs_srt_failures": [],
+                        "vobsub_srt_failures": [],
+                        "tx3g_embedded_srt_tracks": [],
+                        "bdpgs_embedded_srt_tracks": [],
+                        "vobsub_embedded_srt_tracks": [],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            row = pending_manifest_row(manifest_path)
+            dto_row = pending_publish_rows([row])[0]
+
+        self.assertEqual(row["state"], "invalid_contract")
+        self.assertEqual(dto_row["diagnostic_status"], "invalid_manifest")
+        self.assertFalse(dto_row["ready_to_drain"])
+        self.assertIn("source_identity_v2", row["error"])
 
     def test_manifest_missing_destination_is_not_ready_for_drain(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -78,7 +120,7 @@ class ServicePendingPublishManifestTests(unittest.TestCase):
 
         self.assertIn("server_out destination is missing", row["error"])
         self.assertFalse(dto_row["ready_to_drain"])
-        self.assertEqual(dto_row["diagnostic_status"], "row_error")
+        self.assertEqual(dto_row["diagnostic_status"], "invalid_manifest")
         self.assertEqual(dto_row["drain_recommendation"], "do_not_drain")
 
     def test_legacy_manifest_unknown_state_is_not_ready_for_drain(self) -> None:
@@ -105,7 +147,7 @@ class ServicePendingPublishManifestTests(unittest.TestCase):
 
         self.assertIn("Manifest state 'mystery_state' is not recognized", row["error"])
         self.assertFalse(dto_row["ready_to_drain"])
-        self.assertEqual(dto_row["diagnostic_status"], "row_error")
+        self.assertEqual(dto_row["diagnostic_status"], "invalid_manifest")
         self.assertEqual(dto_row["drain_recommendation"], "do_not_drain")
 
 

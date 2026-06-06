@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: observability
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: 23ab7181b30f07783c73d5a693b9ac49e25254d77ff1069cc74733875fb0fea2
+sha256: b0f0d7e6d248107f4100b5b9753ac81c6c784dd4022400e8323b409bc7c3cf73
 ---
 # `src/mediapipeline/core/telemetry/nvidia.py`
 

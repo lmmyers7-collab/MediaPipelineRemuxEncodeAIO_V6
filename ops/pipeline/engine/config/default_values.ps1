@@ -212,8 +212,6 @@ function Get-MediaPipelineConfigDefaultValues {
             }
         )
         LocalBase                  = Join-Path -Path $videosRoot -ChildPath 'Scratch'
-        EncodeThresholdGB          = 8
-        TVEncodeThresholdGB        = 3
         MovieRoute1080pTargetSizeGB = 8
         MovieRoute1440pTargetSizeGB = 8
         MovieRoute4KTargetSizeGB   = 8
@@ -222,16 +220,12 @@ function Get-MediaPipelineConfigDefaultValues {
         TVRoute4KTargetSizeGB      = 3
         RoutingProfile             = Get-MediaPipelineRoutingProfileDefault
         RouteThresholdMode         = Get-MediaPipelineRouteThresholdModeDefault
-        MovieRouteMaxVideoBitrateMbps = 35
-        TVRouteMaxVideoBitrateMbps = 18
-        Route1080pBucketMaxHeight  = 1200
         Route1080pUpperHeightTolerancePercent = 11.111111
         Route1080pMaxVideoBitrateMbps = 20
         Route1440pLowerHeightTolerancePercent = 16.597222
         Route1440pUpperHeightTolerancePercent = 24.930556
         Route1440pMaxVideoBitrateMbps = 35
         Route4KLowerHeightTolerancePercent = 16.666667
-        Route4KBucketMinHeight     = 1800
         Route4KMaxVideoBitrateMbps = 35
         AllowH264RemuxIfPlexCompatible = $true
         H264RemuxMaxBitrateMbps    = 35
@@ -273,12 +267,12 @@ function Get-MediaPipelineConfigDefaultValues {
         ConvertBdpgsToSrt          = $false
         DropBdpgsAfterConversion   = $false
         BdpgsExtractLanguages      = @('eng','en','und')
-        BdpgsOcrToolPath           = 'Tools\PgsToSrt\PgsToSrt.exe'
-        BdpgsOcrTessdataPath       = 'Tools\PgsToSrt\tessdata'
+        BdpgsOcrToolPath           = 'tools\PgsToSrt\PgsToSrt.exe'
+        BdpgsOcrTessdataPath       = 'tools\PgsToSrt\tessdata'
         ConvertVobSubToSrt         = $false
         DropVobSubAfterConversion  = $false
         VobSubExtractLanguages     = @('eng','en','und')
-        VobSubOcrToolPath          = 'Tools\SubtitleEditLegacy\SubtitleEdit.exe'
+        VobSubOcrToolPath          = 'tools\SubtitleEditLegacy\SubtitleEdit.exe'
         SubSDHTitleKeywords        = @('sdh','hearing impaired','hearing-impaired','cc','closed caption','closedcaption')
         SubSupplementalKeywords    = @('sign','song','karaoke','chapter','opening','ending')
         DropAssAfterConversion     = $false

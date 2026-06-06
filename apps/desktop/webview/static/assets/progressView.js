@@ -71,6 +71,7 @@
     const id = progressBarId(bar);
     const source = String(bar?.source || "").toLowerCase();
     const label = String(bar?.label || "").toLowerCase();
+    if (id === "operator_stop") return "primary";
     if (id === "current_stage" || id === "run_total") return "primary";
     if (id === "publish_copy" && progressBarStatus(bar) === "active") return "primary";
     if (id === "publish_output" || id === "publish_copy") return "publish";
@@ -93,6 +94,7 @@
 
   function progressTimelineSortRank(bar) {
     const id = progressBarId(bar);
+    if (id === "operator_stop") return 0;
     if (id === "publish_copy" && progressBarStatus(bar) === "active") return 0;
     if (id === "current_stage") return 10;
     if (id === "run_total") return 20;
@@ -277,7 +279,7 @@
   function renderHomeProgressTimeline(bars = [], snapshot = null) {
     const container = byId("progress-bar-list");
     if (!container) return;
-    const items = Array.isArray(bars) ? bars.filter(Boolean) : [];
+    const items = progressBarsWithOperatorStop(bars, snapshot);
     container.classList.add("progress-timeline-list");
     container.replaceChildren();
     if (!items.length) {
@@ -451,6 +453,102 @@
     return Number.isFinite(number) ? number : fallback;
   }
 
+  function progressBooleanValue(value) {
+    if (typeof value === "boolean") return value;
+    const text = String(value || "").trim().toLowerCase();
+    return ["1", "true", "yes", "y"].includes(text);
+  }
+
+  function progressStoppedByRequest(payload) {
+    const errorCode = String(payload?.ErrorCode || payload?.error_code || "").trim().toLowerCase();
+    const reason = String(payload?.Reason || payload?.reason || "").trim().toLowerCase();
+    const text = [
+      payload?.Status,
+      payload?.status,
+      payload?.CurrentStage,
+    ].filter(Boolean).join(" ").toLowerCase();
+    return progressBooleanValue(payload?.StopRequested)
+      || progressBooleanValue(payload?.stop_requested)
+      || errorCode === "stop_requested"
+      || (/\bstopped\b/.test(text) && reason.includes("stop") && reason.includes("operator"));
+  }
+
+  function progressEventData(event) {
+    return event?.data && typeof event.data === "object" ? event.data : {};
+  }
+
+  function progressEventStoppedByRequest(event) {
+    const data = progressEventData(event);
+    const status = String(data.completion_status || event?.status || "").trim().toLowerCase();
+    const errorCode = String(data.error_code || data.ErrorCode || "").trim().toLowerCase();
+    const reason = String(data.reason || data.suggested_action || "").trim().toLowerCase();
+    return status === "stopped" && (errorCode === "stop_requested" || (reason.includes("stop") && reason.includes("operator")));
+  }
+
+  function progressEventIsFailure(event) {
+    const data = progressEventData(event);
+    const status = String(data.completion_status || event?.status || data.classification || "").trim().toLowerCase();
+    const errorCode = String(data.error_code || data.ErrorCode || "").trim().toLowerCase();
+    return ["failed", "failure", "error", "blocked"].includes(status)
+      || String(event?.event_type || "").toLowerCase() === "failure_recorded"
+      || Boolean(errorCode && errorCode !== "stop_requested");
+  }
+
+  function progressLatestStopEvent(snapshot = {}) {
+    const events = Array.isArray(snapshot?.recent_events) ? snapshot.recent_events : [];
+    for (let index = events.length - 1; index >= 0; index -= 1) {
+      const event = events[index];
+      if (progressEventStoppedByRequest(event)) return event;
+      if (progressEventIsFailure(event)) return null;
+    }
+    return null;
+  }
+
+  function progressSnapshotStoppedByRequest(snapshot = {}) {
+    return Boolean(progressLatestStopEvent(snapshot) || progressStoppedByRequest(snapshot?.progress || {}));
+  }
+
+  function progressStopNextAction(snapshot = {}) {
+    const stopEvent = progressLatestStopEvent(snapshot);
+    const data = progressEventData(stopEvent);
+    const publishState = String(data.publish_state || snapshot?.progress?.PublishState || "").trim().toLowerCase();
+    const completionStatus = String(data.completion_status || "").trim().toLowerCase();
+    const success = progressBooleanValue(data.success);
+    if (["parked", "parked_recovered", "pending_move", "deferred"].includes(publishState) || publishState.includes("retry")) {
+      return "Stop After Current was requested; output is waiting in Pending Publish. Drain when the final output root is safe.";
+    }
+    if (["published", "already_published", "succeeded"].includes(publishState)) {
+      return "Stop After Current was requested; the current file completed and published. Launch when ready to continue.";
+    }
+    if (success || completionStatus === "processed") {
+      return "Stop After Current was requested; the current file completed. Check Completed and Pending Publish, then Launch when ready.";
+    }
+    return "Stop After Current was requested. Check Completed and Pending Publish for the last item, then Launch when ready.";
+  }
+
+  function progressOperatorStopBar(snapshot = {}) {
+    if (!progressSnapshotStoppedByRequest(snapshot)) return null;
+    const stopEvent = progressLatestStopEvent(snapshot);
+    const progress = snapshot?.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
+    return {
+      id: "operator_stop",
+      label: "Stopped after current",
+      status: "warning",
+      mode: "determinate",
+      percent: 100,
+      detail: progressStopNextAction(snapshot),
+      source: stopEvent ? "pipeline_events.json" : "pipeline_progress.json",
+      updated_at: stopEvent?.timestamp || stopEvent?.created_at || progress.LastUpdate || progress.UpdatedAt || "",
+    };
+  }
+
+  function progressBarsWithOperatorStop(bars = [], snapshot = null) {
+    const items = Array.isArray(bars) ? bars.filter(Boolean) : [];
+    const stopBar = progressOperatorStopBar(snapshot || {});
+    if (!stopBar || items.some((bar) => progressBarId(bar) === "operator_stop")) return items;
+    return [stopBar, ...items];
+  }
+
   function progressIsEmptyText(value) {
     const text = String(value || "").trim().toLowerCase();
     return !text || text === "none" || text === "idle" || text === "unknown";
@@ -524,6 +622,8 @@
     const remuxed = progressNumericValue(payload.Remuxed);
     const encoded = progressNumericValue(payload.Encoded);
     const failed = progressNumericValue(payload.Failed);
+    const stopped = failed > 0 && progressStoppedByRequest(payload);
+    const visibleFailed = stopped ? Math.max(0, failed - 1) : failed;
     const items = [];
     items.push(progressLibraryItem(payload));
     items.push(
@@ -549,9 +649,9 @@
       },
       {
         label: "Issues",
-        value: String(failed),
-        hint: failed ? "Failures need review" : "No failures reported",
-        status: failed ? "blocked" : "ok",
+        value: String(visibleFailed),
+        hint: visibleFailed ? "Failures need review" : stopped ? "Stop After Current is tracked in the progress bar." : "No failures reported",
+        status: visibleFailed ? "blocked" : "ok",
       }
     );
     return items;

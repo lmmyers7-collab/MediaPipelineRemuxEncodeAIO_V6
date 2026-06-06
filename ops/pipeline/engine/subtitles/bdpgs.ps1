@@ -68,17 +68,7 @@ function Resolve-BdpgsOcrToolInvocation {
         return [pscustomobject]@{ Ok = $false; FilePath = ''; PrefixArgs = @(); Reason = 'BdpgsOcrToolPath is not configured' }
     }
 
-    $resolved = $toolPath
-    if (-not [System.IO.Path]::IsPathRooted($resolved)) {
-        $baseDir = if ($scriptDir) { $scriptDir } elseif ($PSScriptRoot) { Split-Path -Parent $PSScriptRoot } else { (Get-Location).Path }
-        $candidate = Join-Path $baseDir $resolved
-        if (Test-Path -LiteralPath $candidate -ErrorAction SilentlyContinue) {
-            $resolved = (Resolve-Path -LiteralPath $candidate).Path
-        } elseif ($script:AllowSystemTools) {
-            $cmd = Get-Command $resolved -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($cmd -and $cmd.Source) { $resolved = $cmd.Source }
-        }
-    }
+    $resolved = Resolve-SubtitleConfiguredPath -PathValue $toolPath -AllowCommandLookup
 
     if (-not (Test-Path -LiteralPath $resolved -ErrorAction SilentlyContinue) -and -not (Get-Command $resolved -ErrorAction SilentlyContinue)) {
         return [pscustomobject]@{ Ok = $false; FilePath = ''; PrefixArgs = @(); Reason = "BDPGS OCR tool not found: $toolPath" }

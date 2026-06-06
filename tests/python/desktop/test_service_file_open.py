@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -39,6 +40,20 @@ class FileOpenServiceTests(unittest.TestCase):
         self.assertEqual(launch_path, r"C:\Media\Long\Movie.mkv")
         self.assertEqual(calls[0]["kwargs"]["timeout"], MKLINK_JUNCTION_TIMEOUT_SECONDS)
         self.assertTrue(calls[0]["kwargs"]["check"])
+
+    def test_default_app_open_bypasses_vlc_media_opener(self) -> None:
+        service = DummyFileOpenService()
+        with tempfile.TemporaryDirectory() as raw_root:
+            media = Path(raw_root) / "Movie.mkv"
+            media.write_bytes(b"media")
+            opened: list[Path] = []
+
+            with patch("mediapipeline.core.files.opening.os.name", "nt"):
+                with patch.object(service, "_open_media_with_vlc", side_effect=AssertionError("VLC should not be used")):
+                    with patch.object(service, "_open_windows_path_with_shell", side_effect=lambda path: opened.append(path)):
+                        service.open_path_with_default_app(media)
+
+        self.assertEqual(opened, [media])
 
 
 if __name__ == "__main__":

@@ -133,9 +133,19 @@ LOCAL_API_FILE_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "auth_required": True,
         "effect": "shell-open",
         "request_keys": ["row_key", "target"],
-        "allowed_targets": ["output_file", "output_folder", "sidecar", "source_folder"],
+        "allowed_targets": ["play_output_file", "output_file", "output_folder", "sidecar", "source_folder"],
         "response_schema": "desktop_command_result.v1",
-        "purpose": "Open a path selected by the backend from a completed-jobs manifest row; arbitrary frontend paths are not accepted.",
+        "purpose": "Open or play a path selected by the backend from a completed-jobs manifest row; arbitrary frontend paths are not accepted.",
+    },
+    {
+        "method": "POST",
+        "path": "/api/subtitle-qa/preview",
+        "auth_required": True,
+        "effect": "read-only-preview",
+        "request_keys": ["id", "row_key", "path", "source_path", "output_path", "scope", "limit"],
+        "response_schema": "subtitle_qa_preview.v1",
+        "data_schema": "subtitle_qa_result.v1",
+        "purpose": "Preview one already-loaded Queue or Completed row's backend-authored subtitle QA evidence without probing files, running OCR/conversion/sync tools, repairing, rerunning, rewriting sidecars, publishing, draining, or touching media files.",
     },
     {
         "method": "POST",
@@ -143,9 +153,9 @@ LOCAL_API_FILE_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "auth_required": True,
         "effect": "shell-open",
         "request_keys": ["row_key", "target"],
-        "allowed_targets": ["local_file", "manifest", "destination_folder", "source_folder"],
+        "allowed_targets": ["play_local_file", "local_file", "manifest", "destination_folder", "source_folder"],
         "response_schema": "desktop_command_result.v1",
-        "purpose": "Open a path selected by the backend from the current pending-publish scan; arbitrary frontend paths are not accepted.",
+        "purpose": "Open or play a path selected by the backend from the current pending-publish scan; arbitrary frontend paths are not accepted.",
     },
     {
         "method": "POST",
@@ -276,6 +286,32 @@ LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         },
         "response_schema": "desktop_command_result.v1",
         "purpose": "Regenerate dependency-atlas HTML, PNG/SVG diagrams, and CSV exports under the repository-root docs/generated/dependency-atlas folder through the backend tooling runner. It does not touch media, queue, settings, manifests, or pipeline state.",
+    },
+)
+
+LOCAL_API_METRICS_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
+    {
+        "method": "POST",
+        "path": "/api/metrics/sources",
+        "auth_required": True,
+        "effect": "metrics-state-write",
+        "request_keys": ["action", "path", "source_id", "label", "enabled"],
+        "allowed_actions": ["add", "remove", "enable", "disable"],
+        "response_schema": "desktop_command_result.v1",
+        "data_schema": "desktop_metrics_sources.v1",
+        "purpose": "Add, remove, enable, or disable backend-owned Metrics sidecar source roots. Paths are stored under State\\Metrics only; this does not scan folders, process media, rewrite sidecars, mutate queue state, launch work, or touch source/output files.",
+    },
+    {
+        "method": "POST",
+        "path": "/api/metrics/backfill",
+        "auth_required": True,
+        "effect": "metrics-backfill-state-write",
+        "request_keys": ["scope", "source_id", "path", "max_sidecars"],
+        "allowed_scopes": ["enabled", "all"],
+        "safe_defaults": {"scope": "enabled"},
+        "response_schema": "desktop_command_result.v1",
+        "data_schema": "desktop_metrics_backfill.v1",
+        "purpose": "Recursively read *.pipeline.json sidecars under configured Metrics source roots and refresh the backend Metrics cache under State\\Metrics. The scanner skips symlinked folders, reads sidecar JSON only, and does not rewrite sidecars, process media, mutate queue state, launch work, drain, publish, rename, or touch source/output files.",
     },
 )
 
@@ -652,6 +688,7 @@ LOCAL_API_PROCESS_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
 LOCAL_API_COMMAND_ROUTE_CONTRACT = (
     LOCAL_API_FILE_COMMAND_ROUTE_CONTRACT
     + LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT
+    + LOCAL_API_METRICS_COMMAND_ROUTE_CONTRACT
     + LOCAL_API_DIAGNOSTICS_COMMAND_ROUTE_CONTRACT
     + LOCAL_API_RENAME_COMMAND_ROUTE_CONTRACT
     + LOCAL_API_SETTINGS_COMMAND_ROUTE_CONTRACT
@@ -667,6 +704,7 @@ __all__ = [
     "LOCAL_API_DIAGNOSTICS_COMMAND_ROUTE_CONTRACT",
     "LOCAL_API_FILE_COMMAND_ROUTE_CONTRACT",
     "LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT",
+    "LOCAL_API_METRICS_COMMAND_ROUTE_CONTRACT",
     "LOCAL_API_PROCESS_COMMAND_ROUTE_CONTRACT",
     "LOCAL_API_RENAME_COMMAND_ROUTE_CONTRACT",
     "LOCAL_API_SCHEDULE_COMMAND_ROUTE_CONTRACT",

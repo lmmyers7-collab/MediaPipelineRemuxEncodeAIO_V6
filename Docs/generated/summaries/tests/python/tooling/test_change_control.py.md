@@ -3,9 +3,9 @@ file: tests/python/tooling/test_change_control.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: f62a2b3f564923b3dc2088054ad6097817f3b0edf81788772c7f53bd90dd3693
+sha256: 2898ad2e9b976d779f5274534c88af8ef948697c5f8d095cc897ab3fe8f4cab2
 ---
 # `tests/python/tooling/test_change_control.py`
 

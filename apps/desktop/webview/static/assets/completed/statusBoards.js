@@ -49,6 +49,80 @@
       return (Array.isArray(rows) ? rows : []).filter((row) => row?.output_exists === false && !row?.promoted_cleaned);
     }
 
+    function completedProofNormalizePath(value) {
+      return String(value || "").replace(/\\/g, "/").replace(/\/+/g, "/").trim().toLowerCase();
+    }
+
+    function completedProofRowKey(row) {
+      return String(row?.row_key || row?.completed_row_key || row?.manifest_key || "").trim().toLowerCase();
+    }
+
+    function completedProofOutputPath(row) {
+      return row?.output_path || row?.manifest_output_path || row?.runtime_outcome_output_path || row?.final_library_source_path || row?.completed_output || row?.completed_output_path || "";
+    }
+
+    function completedProofSourcePath(row) {
+      return row?.source_path || row?.input_path || row?.original_source_path || row?.completed_source || row?.completed_source_path || "";
+    }
+
+    function completedProofRowsForItem(item, proofRows = ctx.state.lastCompletedPendingProofRows) {
+      if (!item) return [];
+      const itemKey = completedProofRowKey(item);
+      const itemOutput = completedProofNormalizePath(completedProofOutputPath(item));
+      const itemSource = completedProofNormalizePath(completedProofSourcePath(item));
+      return (Array.isArray(proofRows) ? proofRows : []).filter((proof) => {
+        const candidates = [proof?.completed, proof?.completed_row, proof].filter((candidate) => candidate && typeof candidate === "object");
+        return candidates.some((completed) => {
+          const completedKey = completedProofRowKey(completed);
+          const completedOutput = completedProofNormalizePath(completedProofOutputPath(completed));
+          const completedSource = completedProofNormalizePath(completedProofSourcePath(completed));
+          return (
+            (itemKey && completedKey && itemKey === completedKey) ||
+            (itemOutput && completedOutput && itemOutput === completedOutput) ||
+            (itemSource && completedSource && itemSource === completedSource)
+          );
+        });
+      });
+    }
+
+    function completedOutputPlacement(item, proofRows = ctx.state.lastCompletedPendingProofRows) {
+      const outputHealth = String(item?.output_health || "").toLowerCase();
+      const missing = item?.output_exists === false
+        || item?.missing_output === true
+        || ["missing", "not_found", "not found", "deleted", "unavailable"].some((token) => outputHealth.includes(token));
+      if (!missing) return { label: "Current", state: "ok", key: "current" };
+      const matches = completedProofRowsForItem(item, proofRows);
+      const signals = matches.map((row) => String(row?.signal || "").toLowerCase());
+      const hasDrainProof = signals.some((signal) => (
+        signal === "completed-missing-output-with-drain-proof"
+        || signal === "missing_output_with_drain_proof"
+        || signal === "drain-summary-output-proof"
+        || signal === "drain-summary-source-proof"
+        || signal === "drain_summary_output_proof"
+        || signal === "drain_summary_source_proof"
+      ));
+      const hasPendingProof = signals.some((signal) => (
+        signal === "completed-missing-output-still-pending"
+        || signal === "missing_output_still_pending"
+        || signal === "pending-destination-overlap"
+        || signal === "completed-source-still-pending"
+        || signal === "pending_destination_overlap"
+        || signal === "completed_source_still_pending"
+      ));
+      if (hasDrainProof) return { label: "Missing: drain proof", state: "changed", key: "missing_drain_proof" };
+      if (hasPendingProof) return { label: "Missing: pending proof", state: "warning", key: "missing_pending_proof" };
+      if (completedProofOutputPath(item) || completedProofSourcePath(item)) return { label: "Missing: no proof", state: "blocked", key: "missing_no_proof" };
+      return { label: "Moved/offline unknown", state: "warning", key: "moved_offline_unknown" };
+    }
+
+    function completedPlacementCounts(rows = ctx.state.lastCompletedRows, proofRows = ctx.state.lastCompletedPendingProofRows) {
+      return (Array.isArray(rows) ? rows : []).reduce((counts, row) => {
+        const placement = completedOutputPlacement(row, proofRows);
+        counts[placement.key] = (counts[placement.key] || 0) + 1;
+        return counts;
+      }, {});
+    }
+
     function completedMetricCounts(rows = ctx.state.lastCompletedRows) {
       const currentRows = completedCurrentRows(rows);
       return {
@@ -119,6 +193,9 @@
       completedCurrentOutputIdentity,
       completedCurrentRows,
       completedMissingRows,
+      completedProofRowsForItem,
+      completedOutputPlacement,
+      completedPlacementCounts,
       completedMetricCounts,
       completedInventoryProgressBars,
       renderCompletedInventoryProgress,

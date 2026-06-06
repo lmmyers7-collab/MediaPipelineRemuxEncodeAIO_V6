@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 import time
@@ -153,6 +154,22 @@ class QueuePriorityHelperTests(unittest.TestCase):
             self.assertEqual(entry["level"], "high")
             self.assertEqual(entry["reason"], "keep reason")
             self.assertEqual(entry["position"], 7.0)
+
+    def test_malformed_manifest_falls_back_and_next_write_recreates_valid_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest_path = root / "priority_manifest.json"
+            media = root / "Movies" / "Movie.mkv"
+            manifest_path.write_text("{not-json", encoding="utf-8")
+
+            self.assertEqual(read_priority_manifest(manifest_path)["entries"], {})
+            manifest = set_manifest_entry(manifest_path, media, "hold", "operator hold")
+            written = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+        key = str(media).replace("\\", "/").lower()
+        self.assertEqual(manifest["entries"][key]["level"], "hold")
+        self.assertEqual(written["version"], 1)
+        self.assertEqual(written["entries"][key]["reason"], "operator hold")
 
     def test_path_and_mtime_wrappers_remain_available_on_queue_service(self) -> None:
         with tempfile.TemporaryDirectory() as td:

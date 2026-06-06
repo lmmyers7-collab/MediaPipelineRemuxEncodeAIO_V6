@@ -1,13 +1,13 @@
 # Command Ownership Matrix
 
-Date: 2026-06-04
+Date: 2026-06-05
 
 Documents every POST command route in the Local API: command type, backend
 contract group, primary frontend owner, mutation class, and key restrictions.
 Source: `src/mediapipeline/desktop/api/contract_command.py`,
 `app/api/commands.py`, and the WebView `apiPost` call inventory.
 
-Total command routes: 51 POST routes across 9 contract groups.
+Total command routes: 53 POST routes across 10 contract groups.
 
 Network lifecycle and repair/reconcile mutation controls remain design-only.
 `/api/contract` publishes future contract gates for those areas, but no Network
@@ -22,6 +22,7 @@ POST route is authorized until the matching architecture contract is satisfied.
 |---|---|
 | `LOCAL_API_FILE_COMMAND_ROUTE_CONTRACT` | queue/scan, queue/priority, queue/strategy, queue/file-overrides, queue/file-overrides/route-preview, queue/file-overrides/series-preview, queue/file-overrides/series-apply, queue/file-overrides/folder-preview, queue/file-overrides/folder-rule, failures/clear, queue/open, completed/open, pending-publish/open, pending-publish/recovery-plan, final-library-promotion/promote-queue, final-library-promotion/pause, final-library-promotion/resume |
 | `LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT` | maintenance/release-dry-run, maintenance/release-build, maintenance/completed-backfill-dry-run, maintenance/dependency-atlas |
+| `LOCAL_API_METRICS_COMMAND_ROUTE_CONTRACT` | metrics/sources, metrics/backfill |
 | `LOCAL_API_DIAGNOSTICS_COMMAND_ROUTE_CONTRACT` | diagnostics/open |
 | `LOCAL_API_RENAME_COMMAND_ROUTE_CONTRACT` | rename/preview, rename/browse, rename/apply |
 | `LOCAL_API_SETTINGS_COMMAND_ROUTE_CONTRACT` | settings/validate, settings/browse-path, settings/preview-patch, settings/pipeline-plan-preview, settings/save-patch, settings/wizard/validate-paths, settings/wizard/validate-tools, settings/wizard/probe-hardware, settings/wizard/validate-workers, settings/wizard/preview, settings/wizard/save, settings/reload |
@@ -68,7 +69,7 @@ completed manifests, pending-publish files, or source/output paths.
 | Route | Owner page | Owner JS | Mutation class | Key restriction |
 |---|---|---|---|---|
 | `POST /api/queue/open` | Queue | `queueView.js` | `shell-open` | `row_key` plus `target`; allowed targets: `source_file`, `source_folder`, `source_root` |
-| `POST /api/completed/open` | Completed | `completedView.js` | `shell-open` | `row_key` plus `target`; allowed targets: `output_file`, `output_folder`, `sidecar`, `source_folder` |
+| `POST /api/completed/open` | Completed | `completedView.js` | `shell-open` | `row_key` plus `target`; allowed targets: `output_file`, `play_output_file`, `output_folder`, `sidecar`, `source_folder` |
 | `POST /api/pending-publish/open` | Pending Publish | `pendingPublishView.diagnostics.js` | `shell-open` | `row_key` plus `target`; allowed targets: `local_file`, `manifest`, `destination_folder`, `source_folder` |
 | `POST /api/pending-publish/recovery-plan` | Pending Publish | `pendingPublishView.recovery.js` | `none` | `scope`: `all` or `selected`; backend-authored dry-run only |
 
@@ -94,6 +95,13 @@ destinations, eligibility, cleanup behavior, or media policy.
 | `POST /api/maintenance/release-build` | Maintenance | `maintenanceView.js` | `deployment-write` | `confirm_create: true` required; writes release deployment artifacts through backend builder |
 | `POST /api/maintenance/completed-backfill-dry-run` | Maintenance | `maintenanceView.js` | `process-dry-run` | Runs backfill script with `-DryRun`; no completed manifest is written |
 | `POST /api/maintenance/dependency-atlas` | Maintenance | `maintenanceView.js` | `tooling-artifact-write` | Writes generated dependency-atlas artifacts under `docs/generated/dependency-atlas/` only |
+
+### Metrics Commands
+
+| Route | Owner page | Owner JS | Mutation class | Key restriction |
+|---|---|---|---|---|
+| `POST /api/metrics/sources` | Metrics | `metricsView.js` | `metrics-state-write` | Adds/removes/enables/disables Metrics source roots in `State\Metrics`; does not scan or touch media |
+| `POST /api/metrics/backfill` | Metrics | `metricsView.js` | `metrics-backfill-state-write` | Recursively reads configured `*.pipeline.json` sidecars and refreshes Metrics cache/status under `State\Metrics`; skips symlinked folders and does not rewrite sidecars or media |
 
 ### Diagnostics Open
 
@@ -191,6 +199,8 @@ write file overrides, launch rerun work, save settings, or touch media files.
 | `report-file-write` | 1 | audit/export-rerun-csv |
 | `validation-log-write` | 1 | sample-validation/append |
 | `ui-state-write` | 1 | ui-preferences |
+| `metrics-state-write` | 1 | metrics/sources |
+| `metrics-backfill-state-write` | 1 | metrics/backfill |
 | `app-state-write` | 1 | schedule/save |
 | `config-write` | 2 | settings/save-patch, settings/wizard/save |
 | `filesystem-mutation` | 2 | rename/apply, final-library-promotion/promote-queue |
@@ -233,6 +243,7 @@ deployment artifacts:
 - `final-library-promotion/pause`, `final-library-promotion/resume`
 - `audit/score-policy`, `audit/ignore`, `audit/export-rerun-csv`
 - `maintenance/dependency-atlas`
+- `metrics/sources`, `metrics/backfill`
 
 **Low** - opens shell dialogs/locations, writes UI preferences, or appends
 operator evidence only:
@@ -271,16 +282,17 @@ These are backend/API contract requirements, not frontend conventions.
 
 ---
 
-## Freshness Review - 2026-06-04 (MDS-005)
+## Freshness Review - 2026-06-05 (MDS-005)
 
 Re-checked `COMMAND_ROUTE_METHODS`, `LOCAL_API_COMMAND_ROUTE_CONTRACT`, and
-`COMMAND_ROUTE_PAYLOAD_MODELS`; all three contain the same 51 POST routes,
+`COMMAND_ROUTE_PAYLOAD_MODELS`; all three contain the same 53 POST routes,
 including the backend-owned queue source scan route and audit control routes.
 This review refreshed the matrix for the queue source scan, route-preview,
 series-preview, series-apply, folder-preview, folder-rule, audit controls,
 Settings Wizard, pipeline-plan preview, UI preferences, and final-library
 pause/resume routes, and records `folder_files` rename browse mode plus the
-`kill` pipeline control action.
+`kill` pipeline control action. The 2026-06-05 update adds Metrics source
+registry and sidecar backfill command routes.
 
 Validation anchor: `tests/python/desktop/test_api_command_contracts.py` now checks
 that this matrix lists every route in `COMMAND_ROUTE_METHODS`.

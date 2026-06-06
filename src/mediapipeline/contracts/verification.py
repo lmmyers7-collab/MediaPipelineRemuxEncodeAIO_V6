@@ -10,7 +10,7 @@ VERIFICATION_RESULT_SCHEMA_VERSION: Literal["verification_result.v1"] = "verific
 
 GuardStage = Literal["PRE_ROUTE", "PLAN", "POST_PROCESS", "PRE_PUBLISH"]
 GuardEnforcement = Literal["HARD_ROUTE", "HARD_BLOCK", "SOFT_TARGET", "ADVISORY"]
-OutputSizeCheckAction = Literal["disabled", "warn_only", "block_publish", "fail_job"]
+OutputSizeCheckAction = Literal["disabled", "warn_only", "block_publish", "fail_job", "fallback_remux"]
 OutputSizeCheckStatus = Literal["disabled", "planned", "passed", "warning", "blocked", "failed"]
 
 
@@ -72,12 +72,16 @@ def output_size_check_action_from_settings(
         return "block_publish"
     if action in {"fail", "fail_job", "error", "strict_fail"}:
         return "fail_job"
+    if action in {"fallback_remux", "fallback_to_remux", "remux_fallback", "try_remux"}:
+        return "fallback_remux"
 
     legacy_mode = str(mode or "").strip().lower()
     if legacy_mode == "off":
         return "disabled"
     if legacy_mode == "strict":
         return "fail_job"
+    if legacy_mode in {"fallback_remux", "fallback_to_remux", "remux_fallback", "try_remux"}:
+        return "fallback_remux"
     return "warn_only"
 
 
@@ -221,6 +225,8 @@ def _output_size_on_fail(action: OutputSizeCheckAction) -> str:
         return "park_pending_publish"
     if action == "fail_job":
         return "fail_job"
+    if action == "fallback_remux":
+        return "try_remux_then_record_warning"
     if action == "warn_only":
         return "record_advisory_warning"
     return "continue"

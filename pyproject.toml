@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mediapipeline"
-version = "0.0.0+2026.06.04.001.g103b74414ba7.dirty"
+version = "0.0.0"
 description = "MediaPipelineRemuxEncodeAIO backend, desktop API, pipeline helpers, and tooling."
 requires-python = ">=3.11"
 dependencies = [

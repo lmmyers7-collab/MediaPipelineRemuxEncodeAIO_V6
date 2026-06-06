@@ -80,6 +80,7 @@ class SettingsRiskPolicyRulesTests(unittest.TestCase):
 
     def test_changed_key_risk_item_classifies_medium_risk_settings(self) -> None:
         self.assertEqual(changed_key_risk_item("SizeGuardMode", "strict")["code"], "strict_size_guard")
+        self.assertEqual(changed_key_risk_item("SizeGuardMode", "fallback_remux")["code"], "fallback_remux_size_guard")
         self.assertEqual(changed_key_risk_item("DropAssAfterConversion", True)["code"], "drops_original_subtitle")
         self.assertEqual(changed_key_risk_item("OutputContainer", "mp4")["code"], "mp4_container_limits")
         self.assertEqual(changed_key_risk_item("LocalBase", r"D:\scratch")["code"], "path_root_changed")
@@ -142,10 +143,15 @@ class SettingsRiskPolicyRulesTests(unittest.TestCase):
             "SizeGuardMode": "off",
             "MaxEncodeGrowthPercent": 5,
             "CompatibilityEncodeGrowthPercent": 15,
-            "EncodeThresholdGB": 8,
-            "TVEncodeThresholdGB": 3,
-            "MovieRouteMaxVideoBitrateMbps": 35,
-            "TVRouteMaxVideoBitrateMbps": 18,
+            "MovieRoute1080pTargetSizeGB": 8,
+            "MovieRoute1440pTargetSizeGB": 8,
+            "MovieRoute4KTargetSizeGB": 8,
+            "TVRoute1080pTargetSizeGB": 3,
+            "TVRoute1440pTargetSizeGB": 3,
+            "TVRoute4KTargetSizeGB": 3,
+            "Route1080pMaxVideoBitrateMbps": 20,
+            "Route1440pMaxVideoBitrateMbps": 35,
+            "Route4KMaxVideoBitrateMbps": 35,
             "VideoCodec": "hevc_nvenc",
             "EncodeTuningPreset": "balanced_nvenc",
             "EncodeLadder": "auto",
@@ -184,7 +190,10 @@ class SettingsRiskPolicyRulesTests(unittest.TestCase):
         rows = {row["area"]: row for row in handoff["rows"]}
         self.assertEqual(rows["Backend settings risk"]["impact"], "blocked")
         self.assertEqual(rows["Publish / pending-drain posture"]["evidence"], "deferred publish=enabled; launch mode={launch_mode}")
-        self.assertIn("movie>8GB/35Mbps", rows["Remux / encode size posture"]["evidence"])
+        self.assertIn(
+            "unknown-height uses 1080p targets movie=8GB, TV=3GB, cap=20Mbps",
+            rows["Remux / encode size posture"]["evidence"],
+        )
         self.assertIn("legacy flags=1", rows["Remux / encode size posture"]["evidence"])
         self.assertEqual(rows["Subtitle SRT routing"]["impact"], "blocked")
         self.assertEqual(rows["Audio predictability"]["impact"], "blocked")

@@ -27,6 +27,11 @@ RELEASE_PROGRESS_STEPS = [
 ]
 
 
+def request_bool_option(request: dict[str, Any], key: str, default: bool) -> bool:
+    value = request.get(key, default)
+    return value if isinstance(value, bool) else default
+
+
 def _command_result(**fields: Any) -> "CommandResult":
     from mediapipeline.desktop.application.dto_commands import CommandResult
 
@@ -63,14 +68,14 @@ def release_stdout_value(stdout: str, label: str) -> str:
 def release_dry_run_builder_kwargs(request: dict[str, Any], timeout_seconds: int) -> dict[str, Any]:
     return {
         "destination_root": str(request.get("destination_root") or "").strip(),
-        "zip_package": bool(request.get("zip_package", True)),
-        "verify": bool(request.get("verify", True)),
-        "include_tests": bool(request.get("include_tests", False)),
-        "include_dev_docs": bool(request.get("include_dev_docs", False)),
-        "include_optional_tools": bool(request.get("include_optional_tools", False)),
-        "include_tool_docs": bool(request.get("include_tool_docs", False)),
-        "keep_personal_config": bool(request.get("keep_personal_config", False)),
-        "force": bool(request.get("force", False)),
+        "zip_package": request_bool_option(request, "zip_package", True),
+        "verify": request_bool_option(request, "verify", True),
+        "include_tests": request_bool_option(request, "include_tests", False),
+        "include_dev_docs": request_bool_option(request, "include_dev_docs", False),
+        "include_optional_tools": request_bool_option(request, "include_optional_tools", False),
+        "include_tool_docs": request_bool_option(request, "include_tool_docs", False),
+        "keep_personal_config": request_bool_option(request, "keep_personal_config", False),
+        "force": request_bool_option(request, "force", False),
         "dry_run": True,
         "timeout_seconds": timeout_seconds,
     }
@@ -109,7 +114,7 @@ def release_build_evidence_errors(result: dict[str, Any], request: dict[str, Any
     manifest_path = str(result.get("manifest_path") or "release_manifest.json")
     if not bool(result.get("manifest_exists", False)):
         errors.append(f"Release manifest was not found after deployment build: {manifest_path}")
-    zip_requested = bool(request.get("zip_package", True))
+    zip_requested = request_bool_option(request, "zip_package", True)
     if zip_requested and not bool(result.get("zip_exists", False)):
         zip_path = str(result.get("zip_path") or "release zip")
         errors.append(f"Release zip was requested but not found after deployment build: {zip_path}")
@@ -173,7 +178,7 @@ def release_dry_run_progress_payload(result: dict[str, Any], request: dict[str, 
     stdout = str(result.get("stdout") or "")
     copy_files = release_stdout_value(stdout, "Copy files")
     excluded = release_stdout_value(stdout, "Exclude")
-    verify_requested = bool(request.get("verify", True))
+    verify_requested = request_bool_option(request, "verify", True)
     dry_run = bool(result.get("dry_run", True))
     status = "complete" if success else "blocked" if timed_out or evidence_errors else "error"
     detail = (
@@ -271,8 +276,8 @@ def release_build_progress_payload(result: dict[str, Any], request: dict[str, An
     stdout = str(result.get("stdout") or "")
     copy_files = release_stdout_value(stdout, "Copy files")
     excluded = release_stdout_value(stdout, "Exclude")
-    verify_requested = bool(request.get("verify", True))
-    zip_requested = bool(request.get("zip_package", True))
+    verify_requested = request_bool_option(request, "verify", True)
+    zip_requested = request_bool_option(request, "zip_package", True)
     manifest_exists = bool(result.get("manifest_exists", False))
     zip_exists = bool(result.get("zip_exists", False))
     status = "complete" if success else "blocked" if timed_out or evidence_errors else "error"
@@ -638,13 +643,13 @@ def release_dry_run_result(result: dict[str, Any], request: dict[str, Any]) -> C
                 "process_success": process_success,
                 "artifact_verification_errors": evidence_errors,
                 "options": {
-                    "zip_package": bool(request.get("zip_package", True)),
-                    "verify": bool(request.get("verify", True)),
-                    "include_tests": bool(request.get("include_tests", False)),
-                    "include_dev_docs": bool(request.get("include_dev_docs", False)),
-                    "include_optional_tools": bool(request.get("include_optional_tools", False)),
-                    "include_tool_docs": bool(request.get("include_tool_docs", False)),
-                    "keep_personal_config": bool(request.get("keep_personal_config", False)),
+                    "zip_package": request_bool_option(request, "zip_package", True),
+                    "verify": request_bool_option(request, "verify", True),
+                    "include_tests": request_bool_option(request, "include_tests", False),
+                    "include_dev_docs": request_bool_option(request, "include_dev_docs", False),
+                    "include_optional_tools": request_bool_option(request, "include_optional_tools", False),
+                    "include_tool_docs": request_bool_option(request, "include_tool_docs", False),
+                    "keep_personal_config": request_bool_option(request, "keep_personal_config", False),
                 },
                 "release_progress": progress,
                 "progress_bars": progress["progress_bars"],
@@ -697,14 +702,14 @@ def release_build_result(result: dict[str, Any], request: dict[str, Any]) -> Com
                 "process_success": process_success,
                 "artifact_verification_errors": evidence_errors,
                 "options": {
-                    "zip_package": bool(request.get("zip_package", True)),
-                    "verify": bool(request.get("verify", True)),
-                    "include_tests": bool(request.get("include_tests", False)),
-                    "include_dev_docs": bool(request.get("include_dev_docs", False)),
-                    "include_optional_tools": bool(request.get("include_optional_tools", False)),
-                    "include_tool_docs": bool(request.get("include_tool_docs", False)),
-                    "keep_personal_config": bool(request.get("keep_personal_config", False)),
-                    "force": bool(request.get("force", False)),
+                    "zip_package": request_bool_option(request, "zip_package", True),
+                    "verify": request_bool_option(request, "verify", True),
+                    "include_tests": request_bool_option(request, "include_tests", False),
+                    "include_dev_docs": request_bool_option(request, "include_dev_docs", False),
+                    "include_optional_tools": request_bool_option(request, "include_optional_tools", False),
+                    "include_tool_docs": request_bool_option(request, "include_tool_docs", False),
+                    "keep_personal_config": request_bool_option(request, "keep_personal_config", False),
+                    "force": request_bool_option(request, "force", False),
                 },
                 "release_progress": progress,
                 "progress_bars": progress["progress_bars"],

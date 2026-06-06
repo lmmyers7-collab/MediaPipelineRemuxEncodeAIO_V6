@@ -116,7 +116,7 @@ class CompletedFacadePolicyTests(unittest.TestCase):
         self.assertIsNone(row["validation_hash_ok"])
         self.assertTrue(row["validation_playback_required"])
         self.assertIn("ffprobe output proof not reported", row["validation_unavailable_reasons"])
-        self.assertEqual(row["available_open_targets"], ["output_file", "output_folder", "sidecar", "source_folder"])
+        self.assertEqual(row["available_open_targets"], ["play_output_file", "output_file", "output_folder", "sidecar", "source_folder"])
 
     def test_completed_row_marks_sidecar_only_inconsistency_for_operator_review(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -277,7 +277,7 @@ class CompletedFacadePolicyTests(unittest.TestCase):
         self.assertEqual(fields["validation_state"]["playback_required_count"], 2)
         self.assertEqual(
             fields["available_open_target_counts"],
-            {"output_file": 2, "output_folder": 3, "sidecar": 3, "source_folder": 3},
+            {"output_file": 2, "output_folder": 3, "play_output_file": 2, "sidecar": 3, "source_folder": 3},
         )
         self.assertEqual(fields["warnings"], [])
 

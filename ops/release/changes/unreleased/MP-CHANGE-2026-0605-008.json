@@ -1,0 +1,42 @@
+{
+  "id": "MP-CHANGE-2026-0605-008",
+  "title": "Convert route targets to bucket editor",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-05",
+  "date_completed": "2026-06-05",
+  "summary": "Replace the Settings TV/Movie route target table with a compact bucket editor and derived height-range rail while preserving existing control IDs and backend-owned behavior.",
+  "reason": "The route target settings are three editable buckets, not a large data set. A bucket editor makes the derived ranges and per-bucket controls easier to scan than a wide five-column table.",
+  "affected_areas": [
+    "generated_summaries",
+    "settings",
+    "webview"
+  ],
+  "behavior_before": "The Settings route target section presented three route buckets as a wide editable table with repeated column headers and weaker emphasis on the derived height ranges.",
+  "behavior_after": "The Settings route target section presents a horizontal height-range rail followed by three bucket cards that group encoded target size, direct-copy limits, height tolerance, and derived range for each bucket.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/styles.pages.css",
+    "apps/desktop/webview/static/partials/page-settings.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.pages.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-settings.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0605-008.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_handbrake_settings_ui.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0605-008.json",
+    "tests/webview/test_webview_handbrake_settings_ui.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_css_design_tokens tests.webview.test_webview_handbrake_settings_ui -q -> passed; 38 tests OK.",
+    "PYTHONPATH=src powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewSettingsLaunchPolicySmoke.ps1 -> passed; 1 test OK.",
+    "Browser-backed Settings route target visual check via the repository CDP harness -> passed at a 1434x1100 viewport; rendered 3 range segments and 3 bucket cards, no old route table or wrapper, viewportOverflow=0, editorOverflow=0, overlaps=[], visibleNumberInputs=13; screenshot captured at C:\\Users\\lmmye\\AppData\\Local\\Temp\\mediapipeline-settings-route-target-bucket-editor.png.",
+    "PYTHONPATH=src powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewBrowserSettingsLaunchSmoke.ps1 -> failed before save/preview completion because backend validation returned 'ConvertBdpgsToSrt requires BdpgsOcrToolPath'; this is outside the presentation-only route target change.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> passed; 73 packet(s) valid."
+  ],
+  "rollback_plan": "Revert the Settings partial, Settings page CSS, and focused static test changes for the route target bucket editor, refresh generated summaries, and rerun targeted WebView settings tests.",
+  "related_changes": [
+    "MP-CHANGE-2026-0605-006"
+  ],
+  "notes": "Presentation-only WebView change. Existing input/output IDs remain intact; backend Preview/Save remains authoritative. No media policy, settings persistence, queue, pending-publish, rename, source/scratch/output movement, cleanup, or filesystem mutation behavior is changed.\nConverted the Settings route targets from the wide table to a derived range rail and three bucket editor cards while preserving existing control IDs.\nRefreshed generated summaries for the route target bucket editor change."
+}

@@ -69,14 +69,14 @@ Operator guidance for diagnosing and resolving failure states in the Completed a
 
 **Likely causes**:
 - Settings changed after the job ran (the route reflects settings at run time, not current settings)
-- The source file size was under/over the encode threshold at run time
+- The source file size was under/over the active per-height route target at run time
 - `AllowH264RemuxIfPlexCompatible` or another policy overrode the expected route
 
 **Investigation sequence**:
 1. Select the Completed row → check `route_reason` in the row detail.
 2. Tail `completed_manifest` to read the raw `route`, `route_reason_code`, and `route_reason` fields.
 3. Tail `last_stderr_log` for the FFmpeg command that was used (remux vs. encode command).
-4. Open Settings → check current `RoutingProfile`, `EncodeThresholdGB`, `TVEncodeThresholdGB`.
+4. Open Settings → check current `RoutingProfile`, `RouteThresholdMode`, and the per-height Movie/TV target sizes.
 
 **Safe next actions**:
 - Route disagreement is often expected when settings changed between runs. No immediate action needed.
@@ -91,7 +91,7 @@ Operator guidance for diagnosing and resolving failure states in the Completed a
 
 **Likely causes**:
 - Source file has complex video content that the encoder cannot shrink efficiently
-- `EncodeThresholdGB` threshold was too low — source should have been remuxed
+- The selected per-height target size was too low — source should have been remuxed
 - `MaxEncodeGrowthPercent` was set too aggressively low for this content type
 
 **Investigation sequence**:
@@ -101,9 +101,9 @@ Operator guidance for diagnosing and resolving failure states in the Completed a
 4. Open Settings → check `SizeGuardMode`, `MaxEncodeGrowthPercent`, `CompatibilityEncodeGrowthPercent`.
 
 **Safe next actions**:
-- If `SizeGuardMode: strict` triggered: the output was not finalized. Use `POST /api/rerun/start` with adjusted settings after reviewing `EncodeThresholdGB`.
+- If `SizeGuardMode: strict` triggered: the output was not finalized. Use `POST /api/rerun/start` with adjusted settings after reviewing the selected per-height target size and growth tolerance.
 - If growth is within acceptable range but above the configured limit: adjust `MaxEncodeGrowthPercent` and rerun.
-- If the source should have been remuxed: consider adjusting `EncodeThresholdGB` or `AllowH264RemuxIfPlexCompatible`.
+- If the source should have been remuxed: consider adjusting the selected per-height target size, route bitrate cap, or `AllowH264RemuxIfPlexCompatible`.
 
 ---
 

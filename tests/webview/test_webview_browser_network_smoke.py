@@ -76,6 +76,14 @@ def _browser_network_runner_source() -> str:
               if (!node) throw new Error("missing " + label + " selector " + selector);
               node.click();
             }
+            function requireVisible(id) {
+              const node = byId(id);
+              if (!node) throw new Error("missing visible node " + id);
+              const style = window.getComputedStyle(node);
+              if (style.display === "none" || style.visibility === "hidden") {
+                throw new Error(id + " is not visible");
+              }
+            }
             [
               "showPage",
               "renderNetworkView",
@@ -97,7 +105,19 @@ def _browser_network_runner_source() -> str:
             window.showPage("network");
             window.mediaPipelineNetworkView.renderNetworkView(payload);
             requireText("network-status", ["Read-only"]);
+            requireText("network-mode-model", ["Standalone:", "Coordinator:", "Worker:", "Runtime authority:"]);
             requireText("network-readiness-summary", ["Lifecycle owner: backend Network diagnostics / Python dispatcher.", "WebView status: read-only"]);
+            requireVisible("network-lifecycle-boundary-summary");
+            requireText("network-lifecycle-boundary-summary", [
+              "Lifecycle owner: backend Network diagnostics / Python dispatcher.",
+              "Lifecycle mutation routes: absent",
+              "runtime command controls stay outside this tab",
+            ]);
+            requireText("network-route-summary", [
+              "GET /api/network/workers available with effect=none",
+              "design-only lifecycle contracts only",
+              "Deep API contract detail remains in Advanced",
+            ]);
             requireText("network-lifecycle-summary", [
               "Network lifecycle handoff:",
               "Decision rule: WebView Network can be trusted for read-only evidence only",
@@ -105,8 +125,8 @@ def _browser_network_runner_source() -> str:
             ]);
             requireText("network-evidence-summary", ["Network evidence checklist:", "persisted worker state is visible through /api/network/workers"]);
             requireText("network-state-files-summary", ["Network runtime state file evidence:", "Files: 3; present=2; missing=1; unreadable=0", "Read order: Cluster log -> Coordinator in-flight registry -> Local worker state"]);
-            requireText("network-worker-summary", ["Lifecycle controls remain backend-owned", "Warning(s):", "coordinator persisted state may be stale"]);
-            requireText("network-worker-progress-summary", ["Worker progress:", "Active worker bars:", "Mutation guardrail: this panel does not start/stop workers"]);
+            requireText("network-worker-summary", ["Persisted worker state: loaded", "State source: runtime_state_files", "Lifecycle controls remain backend-owned", "Warning(s):", "coordinator persisted state may be stale"]);
+            requireText("network-worker-progress-summary", ["Last reported worker progress:", "Active worker bars:", "Mutation guardrail: this panel does not start/stop workers"]);
             requireText("network-worker-progress-bars", ["worker-active", "42%", "worker-failed"]);
             requireText("network-worker-filter-summary", ["Showing 3/3 persisted worker rows", "No active/problem worker rows are hidden", "Mutation guardrail"]);
 
@@ -275,7 +295,20 @@ def _network_payload(root: Path) -> dict[str, object]:
             "auth": {"public_routes": ["/api/health"]},
             "routes": [
                 {"path": "/api/network/workers", "method": "GET", "effect": "none", "auth_required": True},
+                {"path": "/api/network/status", "method": "GET", "effect": "none", "auth_required": True},
                 {"path": "/api/diagnostics/open", "method": "POST", "effect": "open-path", "auth_required": True},
+            ],
+            "network_lifecycle_summary": {
+                "schema_version": "desktop_network_lifecycle_contracts.v1",
+                "status": "design_only_no_lifecycle_routes",
+                "mutation_enabled": False,
+                "frontend_allowed": False,
+                "safe_next_step": "keep lifecycle controls out of WebView until backend routes, preconditions, command history, and tests exist",
+            },
+            "network_lifecycle_contracts": [
+                {"command": "coordinator.start", "status": "design_only"},
+                {"command": "coordinator.stop", "status": "design_only"},
+                {"command": "worker.polling_lifecycle", "status": "design_only"},
             ],
         },
         "closeReadiness": {"safe_to_close": True, "reason": "idle"},
@@ -339,13 +372,13 @@ def _network_payload(root: Path) -> dict[str, object]:
                 "warning_count": 0,
                 "bar_count": 3,
                 "summary_lines": [
-                    "Worker progress: blocked",
-                    "Role: coordinator",
+                    "Last reported worker progress: blocked",
+                    "Runtime evidence role: coordinator",
                     "Progress bars: 3",
                     "Active worker bars: 1",
                     "Blocked/stale worker bars: 1",
                     "Warning worker bars: 0",
-                    "Mutation guardrail: Network progress is read-only persisted runtime evidence; WebView does not start/stop workers, reclaim jobs, release claims, send done reports, mutate queue state, or touch media files.",
+                    "Mutation guardrail: Last reported network progress is read-only persisted runtime evidence; WebView does not start/stop workers, reclaim jobs, release claims, send done reports, mutate queue state, or touch media files.",
                 ],
                 "progress_bars": [
                     {

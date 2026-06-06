@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from mediapipeline.desktop.config_keys import KEY_LOCAL_BASE, KEY_PRIORITY_MARKERS, KEY_SOURCE_MOVIES, KEY_SOURCE_TV
+from mediapipeline.core.kernel.config_keys import KEY_LOCAL_BASE, KEY_PRIORITY_MARKERS, KEY_SOURCE_MOVIES, KEY_SOURCE_TV
 from mediapipeline.desktop.models import ResolvedPaths
 from mediapipeline.core.config.identity import build_config_identity, write_last_good_config_snapshot
 from mediapipeline.core.paths.contracts import PathResolutionServiceProtocol

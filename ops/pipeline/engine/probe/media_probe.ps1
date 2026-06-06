@@ -619,9 +619,9 @@ function Get-PrimaryAVEndTime {
 # Post-encode duration sanity check. Catches silent truncations where ffmpeg
 # exits 0 but the output is shorter than the source.
 #
-# Source-probe-failure policy: returns $true (don't reject the output just
-# because we couldn't measure the source). Output-probe-failure policy:
-# returns $false (the output is unreadable — treat as corrupt).
+# Source-probe-failure policy: returns $false. Publish verification cannot
+# accept an output when the source duration cannot be measured. Output-probe-
+# failure policy: returns $false (the output is unreadable — treat as corrupt).
 #
 # -AllowAVFallback (used by encode/remux paths but not by integrity checks):
 # when the container durations disagree by more than -ToleranceSeconds, fall
@@ -640,8 +640,8 @@ function Test-DurationMatch {
     $srcDur = Get-MediaDuration $SourcePath
     $outDur = Get-MediaDuration $OutputPath
     if ($srcDur -le 0) {
-        Write-Log "${Label}: cannot verify duration (source probe failed)" "WARN"
-        return $true  # don't fail on probe failure — risk of false-positive
+        Write-Log "${Label}: source duration probe failed - treating verification as failed" "ERROR"
+        return $false
     }
     if ($outDur -le 0) {
         Write-Log "${Label}: output duration probe failed — treating as corrupt" "ERROR"

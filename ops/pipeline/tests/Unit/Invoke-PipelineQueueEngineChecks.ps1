@@ -15,7 +15,13 @@ $ErrorActionPreference = 'Stop'
 
 $testsRoot = Split-Path -Parent $PSCommandPath
 $pipelineRoot = Split-Path -Parent (Split-Path -Parent $testsRoot)
-$repoRoot = Split-Path -Parent $pipelineRoot
+$repoRoot = Split-Path -Parent (Split-Path -Parent $pipelineRoot)
+if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'AGENTS.md') -PathType Leaf)) {
+    throw "Unable to resolve repository root from $PSCommandPath."
+}
+if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine') -PathType Container)) {
+    throw "Resolved repository root is missing ops\pipeline\engine: $repoRoot"
+}
 
 . (Join-Path $repoRoot 'ops\pipeline\engine\queue\queue_plan.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\queue\pipeline_engine.ps1')
@@ -481,7 +487,7 @@ Assert-True $missingContextFailed 'Worker-slot mode should fail fast when the pi
 Assert-Equal $script:SerialDispatchCount 0 'Missing worker context should not fall back to serial dispatch.'
 Assert-Equal $script:WorkerDispatchCount 0 'Missing worker context should not call the worker scheduler.'
 
-$mainScriptText = Get-Content -LiteralPath (Join-Path $pipelineRoot 'MediaPipeline.ps1') -Raw
+$mainScriptText = Get-Content -LiteralPath (Join-Path $pipelineRoot 'entrypoints\MediaPipeline.ps1') -Raw
 $workerResultText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\process\worker_result.ps1') -Raw
 Assert-True ($mainScriptText -match 'if \(\$WorkerChild\)[\s\S]{0,1200}\$WorkerResultPath') 'Worker-child startup should require WorkerResultPath.'
 Assert-True ($mainScriptText -match 'WorkerResult\.ps1') 'Main script should load the worker-child result writer module.'

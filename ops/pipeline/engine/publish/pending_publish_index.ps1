@@ -65,7 +65,28 @@ function Refresh-PendingPublishIndex {
     foreach ($manifestFile in $manifests) {
         try {
             $manifest = Read-PendingManifestFile -Path $manifestFile.FullName
+            $preRepairState = [string]$manifest.manifest_state
+            if ($preRepairState -eq 'pending_move') {
+                $repairTrust = Test-PendingManifestTrustedForRepair -ManifestFile $manifestFile -Manifest $manifest
+                if (-not $repairTrust.Ok) {
+                    $index.UnreadableManifestCount++
+                    Add-PendingPublishHealthRow -Index $index -Code $repairTrust.Status -Severity 'error' -ManifestPath $manifestFile.FullName -LocalFile $repairTrust.LocalFile -ServerOut $repairTrust.ServerOut -SourcePath $repairTrust.SourcePath -Message $repairTrust.Reason
+                    Write-Log "Pending publish index: refusing repair/index for untrusted manifest $($manifestFile.Name): $($repairTrust.Reason)" "ERROR"
+                    continue
+                }
+            }
             $manifest = Repair-PendingManifestState -ManifestFile $manifestFile -Manifest $manifest
+            $drainTrust = Test-PendingManifestTrustedForDrain -ManifestFile $manifestFile -Manifest $manifest
+            if (-not $drainTrust.Ok) {
+                if ($drainTrust.Status -eq 'missing_payload') {
+                    $index.MissingPayloadCount++
+                } else {
+                    $index.UnreadableManifestCount++
+                }
+                Add-PendingPublishHealthRow -Index $index -Code $drainTrust.Status -Severity 'error' -ManifestPath $manifestFile.FullName -LocalFile $drainTrust.LocalFile -ServerOut $drainTrust.ServerOut -SourcePath $drainTrust.SourcePath -Message $drainTrust.Reason
+                Write-Log "Pending publish index: refusing index for untrusted manifest $($manifestFile.Name): $($drainTrust.Reason)" "ERROR"
+                continue
+            }
             $localFile = [string]$manifest.local_file
             $serverOut = [string]$manifest.server_out
             $sourceIdentity = [string]$manifest.source_identity

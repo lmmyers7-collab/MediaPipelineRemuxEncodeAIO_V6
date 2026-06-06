@@ -1,0 +1,52 @@
+{
+  "id": "MP-CHANGE-2026-0605-116",
+  "title": "Show queue loading screen during source scan",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-05",
+  "date_completed": "2026-06-05",
+  "summary": "Make the WebView Queue page hide the currently rendered queue rows behind a loading screen while Scan Sources is submitting and refreshing the backend queue snapshot.",
+  "reason": "The previous queue table stayed visible during a dry-run source scan, so the operator could miss that the displayed rows were stale until the refreshed queue arrived.",
+  "affected_areas": [
+    "generated_summaries",
+    "queue",
+    "webview"
+  ],
+  "behavior_before": "Clicking Scan Sources updated the button, topbar, and inventory status but left the previous queue table visible until the refreshed backend payload rendered.",
+  "behavior_after": "Clicking Scan Sources immediately replaces the queue table area with a loading screen and clears stale table status until renderQueue receives and displays the refreshed backend queue payload.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app/refresh.js",
+    "apps/desktop/webview/static/assets/queueView.js",
+    "apps/desktop/webview/static/assets/styles.queue.css",
+    "apps/desktop/webview/static/partials/page-queue.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/refresh.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/queueView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.queue.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-queue.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0605-116.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_launch_queue_readiness_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0605-116.json",
+    "tests/webview/test_webview_browser_launch_queue_readiness_smoke.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_launch_queue_readiness_smoke.py"
+  ],
+  "manual_validation": [
+    "Browser in-app MCP navigation to local static WebView -> blocked: Playwright MCP Bridge extension connection timeout; substituted project Chrome browser smoke wrapper above.",
+    "Final packet_coverage.coverage_for_paths for MP-CHANGE-2026-0605-116 touched paths -> passed; 8 changed paths covered, 0 uncovered",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q -> passed",
+    "PYTHONPATH=src powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1 -> passed",
+    "Post failure-path fix rerun: node --check queueView.js and app/refresh.js -> passed; LocalApiServerTests.test_local_api_serves_read_only_web_prototype -> passed; Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1 -> passed",
+    "apps/desktop/runtime/Python/python.exe -m py_compile tests/webview/test_webview_browser_launch_queue_readiness_smoke.py -> passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> failed before coverage on unrelated ops/release/changes/unreleased/MP-CHANGE-2026-0605-010.json missing required field date_completed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths <touched files> -> passed; 6 summaries written, then packet summary refreshed",
+    "node --check apps/desktop/webview/static/assets/app/refresh.js -> passed",
+    "node --check apps/desktop/webview/static/assets/queueView.js -> passed",
+    "packet_coverage.coverage_for_paths for MP-CHANGE-2026-0605-116 touched paths -> passed; 7 changed paths covered, 0 uncovered"
+  ],
+  "rollback_plan": "Revert the Queue WebView loading-state markup, CSS, JavaScript helper, targeted smoke assertion, refreshed summaries, and this change packet. This restores the previous Scan Sources rendering behavior without changing backend queue scan, media policy, source/scratch/output movement, or filesystem mutation behavior.",
+  "related_changes": [],
+  "notes": "Presentation-only WebView change. Backend queue scan, queue curation, launch scope, media policy, source files, scratch/output files, pending publish, FFmpeg, subtitle, and audio behavior remain unchanged.\nAdded Queue dry-run scan loading screen state, markup, CSS, and targeted browser-smoke assertions.\nValidation confirmed the Scan Sources click path enters queue loading state immediately and clears it after refreshed queue render.\nRefreshed generated summaries for the Queue loading-screen files and change packet.\nStrict validator did not reach unrelated dirty-file coverage because an unrelated existing packet is schema-invalid; this packet's explicit touched-path coverage is clean.\nFailure path now clears the Queue loading screen and restores rendered rows if scan submission or refresh throws.\nFinal explicit coverage count includes the packet summary artifact generated after completion."
+}

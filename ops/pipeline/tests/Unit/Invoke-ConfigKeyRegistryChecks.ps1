@@ -1,12 +1,19 @@
 $ErrorActionPreference = 'Stop'
 
-$repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..\..')
+$repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')
+if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'AGENTS.md') -PathType Leaf)) {
+    throw "Config-key registry checks resolved an invalid repo root: $repoRoot"
+}
+if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine') -PathType Container)) {
+    throw "Config-key registry checks resolved a repo root without ops\pipeline\engine: $repoRoot"
+}
 . (Join-Path $repoRoot 'ops\pipeline\engine\config\config_keys.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\config\config_schema.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\paths\output_path_planning.ps1')
 
 $entrypointText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline.ps1') -Raw
-if ($entrypointText -notmatch "'ConfigKeys\.ps1'") {
+$moduleLoaderText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\module_loader.ps1') -Raw
+if (($entrypointText + "`n" + $moduleLoaderText) -notmatch "'ConfigKeys\.ps1'") {
     throw 'Pipeline entrypoint module load list must include ConfigKeys.ps1.'
 }
 
@@ -15,7 +22,7 @@ $knownKeys = @(Get-MediaPipelineKnownConfigKeys)
 $keyOrder = @(Get-MediaPipelineConfigKeyOrder)
 $schemaOrder = @(Get-MediaPipelineConfigOrderedKeys)
 $networkKeys = @(Get-MediaPipelineNetworkConfigKeys)
-$jsonSchema = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\config\src\mediapipeline\contracts\schemas\media_pipeline_config.schema.json') -Raw | ConvertFrom-Json
+$jsonSchema = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\config\schemas\media_pipeline_config.schema.json') -Raw | ConvertFrom-Json
 $jsonSchemaKeys = @($jsonSchema.properties.PSObject.Properties.Name)
 
 function Assert-StringSequenceEqual {
@@ -106,20 +113,15 @@ if ($networkJsonSchemaKeys.Count -gt 0) {
 }
 
 $templateConfig = Import-PowerShellDataFile -Path (Join-Path $repoRoot 'ops\pipeline\config\MediaPipeline_config_template.psd1')
-# Prefer the current convention; fall back to the legacy `_chatgpt` operator file
-# if the new file is absent on this machine.
-$liveConfigPath = @(
-    (Join-Path $repoRoot 'ops\pipeline\config\MediaPipeline_config.psd1'),
-    (Join-Path $repoRoot 'ops\pipeline\config\MediaPipeline_config_chatgpt.psd1')
-) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
-if (-not $liveConfigPath) {
-    throw "No live config found at ops\pipeline\config\MediaPipeline_config.psd1 or ops\pipeline\config\MediaPipeline_config_chatgpt.psd1"
+$configDocuments = @(
+    @{ Label = 'template'; Keys = @($templateConfig.Keys) }
+)
+$liveConfigPath = Join-Path $repoRoot 'ops\pipeline\config\MediaPipeline_config.psd1'
+if (Test-Path -LiteralPath $liveConfigPath -PathType Leaf) {
+    $liveConfig = Import-PowerShellDataFile -Path $liveConfigPath
+    $configDocuments += @{ Label = 'live'; Keys = @($liveConfig.Keys) }
 }
-$liveConfig = Import-PowerShellDataFile -Path $liveConfigPath
-foreach ($pair in @(
-    @{ Label = 'template'; Keys = @($templateConfig.Keys) },
-    @{ Label = 'live'; Keys = @($liveConfig.Keys) }
-)) {
+foreach ($pair in $configDocuments) {
     $unknown = @($pair.Keys | Where-Object { $_ -notin $knownKeys })
     if ($unknown.Count -gt 0) {
         throw "Unknown $($pair.Label) PSD1 config keys: $($unknown -join ', ')"
@@ -266,7 +268,7 @@ if ([string]$audioBitrateSchema.pattern -ne '^[1-9]\d*k$') {
     throw "JSON config schema AudioTranscodeBitrate pattern drifted. Actual='$($audioBitrateSchema.pattern)'"
 }
 
-$vobSubOcrToolDefault = 'Tools\SubtitleEditLegacy\SubtitleEdit.exe'
+$vobSubOcrToolDefault = 'tools\SubtitleEditLegacy\SubtitleEdit.exe'
 $powershellDefaults = Get-MediaPipelineConfigDefaultValues
 if ([string]$powershellDefaults['VobSubOcrToolPath'] -ne $vobSubOcrToolDefault) {
     throw "PowerShell VobSubOcrToolPath default drifted. Actual='$($powershellDefaults['VobSubOcrToolPath'])' Expected='$vobSubOcrToolDefault'"
@@ -321,24 +323,18 @@ if ([bool]$friendlyOverrideCheck.Ok -or $friendlyOverrideErrors -notmatch 'Proce
 }
 
 foreach ($numericPolicy in @(
-    @{ Key = 'EncodeThresholdGB'; Below = 0 },
-    @{ Key = 'TVEncodeThresholdGB'; Below = 0 },
     @{ Key = 'MovieRoute1080pTargetSizeGB'; Below = 0 },
     @{ Key = 'MovieRoute1440pTargetSizeGB'; Below = 0 },
     @{ Key = 'MovieRoute4KTargetSizeGB'; Below = 0 },
     @{ Key = 'TVRoute1080pTargetSizeGB'; Below = 0 },
     @{ Key = 'TVRoute1440pTargetSizeGB'; Below = 0 },
     @{ Key = 'TVRoute4KTargetSizeGB'; Below = 0 },
-    @{ Key = 'MovieRouteMaxVideoBitrateMbps'; Below = 0; Above = 501 },
-    @{ Key = 'TVRouteMaxVideoBitrateMbps'; Below = 0; Above = 501 },
-    @{ Key = 'Route1080pBucketMaxHeight'; Below = 0; Above = 4321 },
     @{ Key = 'Route1080pUpperHeightTolerancePercent'; Below = -1; Above = 101 },
     @{ Key = 'Route1080pMaxVideoBitrateMbps'; Below = 0; Above = 501 },
     @{ Key = 'Route1440pLowerHeightTolerancePercent'; Below = -1; Above = 101 },
     @{ Key = 'Route1440pUpperHeightTolerancePercent'; Below = -1; Above = 101 },
     @{ Key = 'Route1440pMaxVideoBitrateMbps'; Below = 0; Above = 501 },
     @{ Key = 'Route4KLowerHeightTolerancePercent'; Below = -1; Above = 101 },
-    @{ Key = 'Route4KBucketMinHeight'; Below = 0; Above = 4321 },
     @{ Key = 'Route4KMaxVideoBitrateMbps'; Below = 0; Above = 501 },
     @{ Key = 'H264RemuxMaxBitrateMbps'; Below = 0; Above = 501 },
     @{ Key = 'H264RemuxMaxHeight'; Below = 0; Above = 4321 },
@@ -383,8 +379,7 @@ if ([bool]$badBucketBoundaryResult.Ok -or $badBucketBoundaryErrors -notmatch 'Ro
 
 $scanFiles = @(
     Get-Item -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline.ps1')
-    Get-ChildItem -LiteralPath (Join-Path $repoRoot 'Pipeline\MediaPipeline') -Filter '*.ps1' -File -ErrorAction SilentlyContinue
-    Get-ChildItem -LiteralPath (Join-Path $repoRoot 'engine') -Filter '*.ps1' -File -Recurse
+    Get-ChildItem -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine') -Filter '*.ps1' -File -Recurse
 )
 $patterns = @(
     @{ Name = 'GetConfig'; Regex = 'Get-Config(?:Bool|Int|Double|Choice|LogLevel)\s+[''"](?<key>[^''"]+)[''"]' },

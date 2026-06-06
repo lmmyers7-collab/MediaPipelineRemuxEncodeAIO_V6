@@ -84,6 +84,8 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedSampleValidationComparisonLines",
               "completedPolicyAlignmentOutputEvidence",
               "completedPolicyOutputCategorySignal",
+              "completedOutputPlacement",
+              "renderCompletedTrustDecision",
               "pendingSampleValidationComparisonLines",
               "copyCompletedEvidencePacket"
             ].forEach(requireFunction);
@@ -106,6 +108,20 @@ def _browser_completed_pending_proof_runner_source() -> str:
             requireText("completed-missing-count", [String((payload.completed.rows || []).filter((row) => row.output_exists === false).length)]);
             if (!document.getElementById("completed-history-rows")) throw new Error("expected Completed History table");
             if (!document.getElementById("completed-refresh-current-output-button")) throw new Error("expected Refresh Current Output Status button");
+            requireText("completed-trust-decision-summary", [
+              "Output trust decision:",
+              "Operator outcome:",
+              "Placement evidence:",
+              "Pending/drain proof:",
+              "Backend publish reconciliation:",
+              "Mutation guardrail",
+            ]);
+            requireText("completed-trust-decision-chips", [
+              "Trust ready",
+              "Review first",
+              "Investigate",
+              "Evidence incomplete",
+            ]);
             requireText("completed-reconciliation-hint", [
               "Backend publish reconciliation: not loaded.",
               "Advanced -> Refresh Backend Reconciliation",
@@ -349,12 +365,16 @@ def _browser_completed_pending_proof_runner_source() -> str:
             };
             window.renderCompleted(missingDrainedCompleted);
             window.renderCompletedPendingProof(missingDrainedCompleted, missingDrainedCompleted.rows, missingDrainedPending);
+            window.renderCompleted(missingDrainedCompleted);
             requireText("completed-pending-proof-status", ["Review final placement"]);
             requireText("completed-pending-proof-summary", [
               "Missing completed output with drain proof: 2",
               "final-placement conflict",
               "Mutation guardrail",
             ]);
+            const drainedPlacementLabels = (missingDrainedCompleted.rows || []).map((row) => window.completedOutputPlacement(row, window.getLastCompletedPendingProofRows ? window.getLastCompletedPendingProofRows() : []).label);
+            if (!drainedPlacementLabels.includes("Missing: drain proof")) throw new Error("expected a missing-output row with drain proof placement");
+            requireText("completed-history-rows", ["Missing: drain proof"]);
             const finalPlacementRows = Array.from(document.querySelectorAll("#completed-pending-proof-rows tr[data-row-key]"));
             const finalPlacementRow = finalPlacementRows.find((row) => row.textContent.includes("Missing output with drain proof"));
             if (!finalPlacementRow) throw new Error("expected missing-output-with-drain-proof row");
@@ -382,6 +402,10 @@ def _browser_completed_pending_proof_runner_source() -> str:
             brokenCompleted.count = 1;
             window.renderCompleted(brokenCompleted);
             window.renderCompletedPendingProof(brokenCompleted, brokenCompleted.rows, { rows: [], count: 0 });
+            window.renderCompleted(brokenCompleted);
+            const noProofPlacementLabels = (brokenCompleted.rows || []).map((row) => window.completedOutputPlacement(row, window.getLastCompletedPendingProofRows ? window.getLastCompletedPendingProofRows() : []).label);
+            if (!noProofPlacementLabels.includes("Missing: no proof")) throw new Error("expected a missing-output row with no-proof placement");
+            requireText("completed-history-rows", ["Missing: no proof"]);
             window.renderCompletedRealMediaProof(brokenCompleted, brokenCompleted.rows, window.getLastCompletedPendingProofRows ? window.getLastCompletedPendingProofRows() : [], { rows: [], count: 0 });
             window.mediaPipelineCompletedView.renderCompletedFinalTrust(brokenCompleted, brokenCompleted.rows, window.getLastCompletedPendingProofRows ? window.getLastCompletedPendingProofRows() : [], { rows: [], count: 0 });
             requireText("completed-real-media-proof-status", ["Blocked proof"]);

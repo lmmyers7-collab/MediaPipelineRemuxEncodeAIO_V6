@@ -52,7 +52,7 @@
 <polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1141.34,-926.73 1147.77,-924.26 1141.21,-922.18 1141.34,-926.73"/>
 </g>
 <!-- external_core_paths -->
-<g id="node29" class="node">
+<g id="node30" class="node">
 <title>external_core_paths</title>
 <path fill="#f8fafc" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M1012.26,-475C1012.26,-475 967.8,-475 967.8,-475 961.8,-475 955.8,-469 955.8,-463 955.8,-463 955.8,-451 955.8,-451 955.8,-445 961.8,-439 967.8,-439 967.8,-439 1012.26,-439 1012.26,-439 1018.26,-439 1024.26,-445 1024.26,-451 1024.26,-451 1024.26,-463 1024.26,-463 1024.26,-469 1018.26,-475 1012.26,-475"/>
 <text xml:space="preserve" text-anchor="middle" x="990.03" y="-454.23" font-family="Segoe UI" font-size="12.00" fill="#111827">core/paths</text>
@@ -95,7 +95,7 @@
 <polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="580.16,-1081.33 587.03,-1081.91 582.02,-1077.18 580.16,-1081.33"/>
 </g>
 <!-- external_desktop_application -->
-<g id="node32" class="node">
+<g id="node33" class="node">
 <title>external_desktop_application</title>
 <path fill="#f0fdf4" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M289.92,-475C289.92,-475 198.21,-475 198.21,-475 192.21,-475 186.21,-469 186.21,-463 186.21,-463 186.21,-451 186.21,-451 186.21,-445 192.21,-439 198.21,-439 198.21,-439 289.92,-439 289.92,-439 295.92,-439 301.92,-445 301.92,-451 301.92,-451 301.92,-463 301.92,-463 301.92,-469 295.92,-475 289.92,-475"/>
 <text xml:space="preserve" text-anchor="middle" x="244.07" y="-454.23" font-family="Segoe UI" font-size="12.00" fill="#111827">desktop/application</text>
@@ -155,17 +155,17 @@
 <path fill="none" stroke="#2563eb" stroke-width="1.05" d="M739.85,-581.6C797.66,-590.51 876.38,-602.64 929.76,-610.87"/>
 <polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="929.1,-613.07 935.87,-611.81 929.8,-608.57 929.1,-613.07"/>
 </g>
-<!-- external_desktop_config_keys -->
-<g id="node33" class="node">
-<title>external_desktop_config_keys</title>
-<path fill="#f0fdf4" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M1037.76,-351C1037.76,-351 942.3,-351 942.3,-351 936.3,-351 930.3,-345 930.3,-339 930.3,-339 930.3,-327 930.3,-327 930.3,-321 936.3,-315 942.3,-315 942.3,-315 1037.76,-315 1037.76,-315 1043.76,-315 1049.76,-321 1049.76,-327 1049.76,-327 1049.76,-339 1049.76,-339 1049.76,-345 1043.76,-351 1037.76,-351"/>
-<text xml:space="preserve" text-anchor="middle" x="990.03" y="-330.23" font-family="Segoe UI" font-size="12.00" fill="#111827">desktop/config_keys</text>
+<!-- external_core_kernel -->
+<g id="node29" class="node">
+<title>external_core_kernel</title>
+<path fill="#f8fafc" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M1014.13,-351C1014.13,-351 965.92,-351 965.92,-351 959.92,-351 953.92,-345 953.92,-339 953.92,-339 953.92,-327 953.92,-327 953.92,-321 959.92,-315 965.92,-315 965.92,-315 1014.13,-315 1014.13,-315 1020.13,-315 1026.13,-321 1026.13,-327 1026.13,-327 1026.13,-339 1026.13,-339 1026.13,-345 1020.13,-351 1014.13,-351"/>
+<text xml:space="preserve" text-anchor="middle" x="990.03" y="-330.23" font-family="Segoe UI" font-size="12.00" fill="#111827">core/kernel</text>
 </g>
-<!-- mediapipeline_core_rename_cleaning_policy&#45;&gt;external_desktop_config_keys -->
+<!-- mediapipeline_core_rename_cleaning_policy&#45;&gt;external_core_kernel -->
 <g id="edge42" class="edge">
-<title>mediapipeline_core_rename_cleaning_policy&#45;&gt;external_desktop_config_keys</title>
-<path fill="none" stroke="#9333ea" stroke-width="1.05" d="M726.41,-551.67C731.66,-548.39 736.51,-544.53 740.59,-540 771.68,-505.46 735.03,-471.4 768.59,-439.25 808.69,-400.84 844.46,-442.35 890.3,-411 908.51,-398.54 901.81,-384.66 918.3,-370 924.48,-364.5 931.63,-359.55 938.96,-355.2"/>
-<polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="939.8,-357.34 944.33,-352.15 937.55,-353.38 939.8,-357.34"/>
+<title>mediapipeline_core_rename_cleaning_policy&#45;&gt;external_core_kernel</title>
+<path fill="none" stroke="#9333ea" stroke-width="1.05" d="M726.41,-551.67C731.66,-548.39 736.51,-544.53 740.59,-540 771.68,-505.46 735.03,-471.4 768.59,-439.25 808.69,-400.84 844.46,-442.35 890.3,-411 908.51,-398.54 901.81,-384.66 918.3,-370 926.55,-362.66 936.52,-356.31 946.33,-351.04"/>
+<polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="947.27,-353.12 952.01,-348.12 945.19,-349.07 947.27,-353.12"/>
 <text xml:space="preserve" text-anchor="middle" x="829.45" y="-443.45" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">1</text>
 </g>
 <!-- external_desktop_subprocess_runner -->
@@ -274,19 +274,19 @@
 <path fill="none" stroke="#2563eb" stroke-width="1.05" d="M1025.55,-638.35C1046.36,-650.14 1072.89,-666.49 1094.26,-684 1127.47,-711.21 1160.45,-748.46 1180.55,-772.62"/>
 <polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1178.72,-773.98 1184.61,-777.55 1182.23,-771.08 1178.72,-773.98"/>
 </g>
-<!-- mediapipeline_core_rename_path_authority&#45;&gt;external_core_paths -->
+<!-- mediapipeline_core_rename_path_authority&#45;&gt;external_core_kernel -->
 <g id="edge47" class="edge">
+<title>mediapipeline_core_rename_path_authority&#45;&gt;external_core_kernel</title>
+<path fill="none" stroke="#9333ea" stroke-width="1.05" d="M725.78,-490.66C731.22,-487.37 736.29,-483.52 740.59,-479 767.35,-450.87 740.5,-423.05 768.59,-396.25 816.89,-350.16 896.48,-337.31 945.66,-333.93"/>
+<polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="945.64,-336.21 951.99,-333.55 945.36,-331.67 945.64,-336.21"/>
+<text xml:space="preserve" text-anchor="middle" x="829.45" y="-400.45" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">1</text>
+</g>
+<!-- mediapipeline_core_rename_path_authority&#45;&gt;external_core_paths -->
+<g id="edge48" class="edge">
 <title>mediapipeline_core_rename_path_authority&#45;&gt;external_core_paths</title>
 <path fill="none" stroke="#9333ea" stroke-width="1.05" d="M737.82,-497.27C802.7,-486.87 895.1,-472.06 947.86,-463.6"/>
 <polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="948.04,-465.87 954.1,-462.6 947.32,-461.38 948.04,-465.87"/>
 <text xml:space="preserve" text-anchor="middle" x="829.45" y="-496.38" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">1</text>
-</g>
-<!-- mediapipeline_core_rename_path_authority&#45;&gt;external_desktop_config_keys -->
-<g id="edge48" class="edge">
-<title>mediapipeline_core_rename_path_authority&#45;&gt;external_desktop_config_keys</title>
-<path fill="none" stroke="#9333ea" stroke-width="1.05" d="M725.78,-490.66C731.22,-487.37 736.29,-483.52 740.59,-479 767.35,-450.87 740.5,-423.05 768.59,-396.25 809.79,-356.93 873.77,-341.81 922.21,-336.11"/>
-<polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="922.35,-338.39 928.57,-335.42 921.86,-333.86 922.35,-338.39"/>
-<text xml:space="preserve" text-anchor="middle" x="829.45" y="-400.45" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">1</text>
 </g>
 <!-- mediapipeline_core_rename_plan_policy -->
 <g id="node14" class="node">
@@ -602,7 +602,7 @@
 <text xml:space="preserve" text-anchor="middle" x="155.96" y="-369.45" font-family="Segoe UI" font-size="9.00" fill="#475569">1</text>
 </g>
 <!-- external_core_status -->
-<g id="node30" class="node">
+<g id="node31" class="node">
 <title>external_core_status</title>
 <path fill="#f8fafc" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M94.21,-353C94.21,-353 47.5,-353 47.5,-353 41.5,-353 35.5,-347 35.5,-341 35.5,-341 35.5,-329 35.5,-329 35.5,-323 41.5,-317 47.5,-317 47.5,-317 94.21,-317 94.21,-317 100.21,-317 106.21,-323 106.21,-329 106.21,-329 106.21,-341 106.21,-341 106.21,-347 100.21,-353 94.21,-353"/>
 <text xml:space="preserve" text-anchor="middle" x="70.86" y="-332.23" font-family="Segoe UI" font-size="12.00" fill="#111827">core/status</text>
@@ -629,7 +629,7 @@
 <text xml:space="preserve" text-anchor="middle" x="332.17" y="-366.34" font-family="Segoe UI" font-size="9.00" fill="#475569">1</text>
 </g>
 <!-- external_desktop_api -->
-<g id="node31" class="node">
+<g id="node32" class="node">
 <title>external_desktop_api</title>
 <path fill="#f0fdf4" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M96.09,-475C96.09,-475 45.63,-475 45.63,-475 39.63,-475 33.63,-469 33.63,-463 33.63,-463 33.63,-451 33.63,-451 33.63,-445 39.63,-439 45.63,-439 45.63,-439 96.09,-439 96.09,-439 102.09,-439 108.09,-445 108.09,-451 108.09,-451 108.09,-463 108.09,-463 108.09,-469 102.09,-475 96.09,-475"/>
 <text xml:space="preserve" text-anchor="middle" x="70.86" y="-454.23" font-family="Segoe UI" font-size="12.00" fill="#111827">desktop/api</text>

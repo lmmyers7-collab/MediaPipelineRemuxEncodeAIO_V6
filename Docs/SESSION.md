@@ -44,7 +44,7 @@ Operator validation REQUIRED before §7 sign-off:
 - `ops/scripts/smoke\Test-WebViewBrowserPendingDrainGuardSmoke.ps1` and
   `ops/scripts/smoke\Test-LocalApiLifecycleContractSmoke.ps1` (confirm no regression;
   this change does not touch publish/queue).
-- `python ops\scripts\dev\ai_guardrail.py`.
+- `python -m mediapipeline.tools.dev.ai_guardrail`.
 
 ## Red-baseline cleanup 2026-06-03 (operator-approved; separate from kernel migration)
 
@@ -289,9 +289,9 @@ Validation performed (agent-side):
 
 Operator validation still required (AGENTS.md §7, not self-certified):
 - Queue/settings targeted smokes for `QueueRecord` relocation.
-- `ops/scripts/dev/ai_guardrail.py` (godfile/drift) to confirm the change
+- `python -m mediapipeline.tools.dev.ai_guardrail` (godfile/drift) to confirm the change
   reduces the `models` godfile and trips no guard.
-- `python ops/scripts/dev/refresh_summaries.py` — summaries still sit at the old
+- `python -m mediapipeline.tools.dev.refresh_summaries` — summaries still sit at the old
   `docs/generated/summaries/DesktopApp/.../models*.py.md` paths; regen to mirror
   `app/kernel/`. Not run this session to avoid a broad out-of-scope diff.
 
@@ -323,7 +323,7 @@ Validation performed (agent-side):
 
 Operator validation still required (AGENTS.md §7, not self-certified):
 - Settings schema/persistence smokes (config_keys underpins settings keys).
-- `ops/scripts/dev/ai_guardrail.py`; `python ops/scripts/dev/refresh_summaries.py`.
+- `python -m mediapipeline.tools.dev.ai_guardrail`; `python -m mediapipeline.tools.dev.refresh_summaries`.
 
 ## Handoff 2026-06-02 (Wave 3)
 
@@ -356,8 +356,8 @@ Validation performed (agent-side):
 - Full suite `pytest tests/python/desktop`: 1631 passed, 1 skipped, 1235
   subtests passed, exit 0 (152s).
 
-Operator validation still recommended: `ops/scripts/dev/ai_guardrail.py`;
-`python ops/scripts/dev/refresh_summaries.py` (summaries still at old paths for
+Operator validation still recommended: `python -m mediapipeline.tools.dev.ai_guardrail`;
+`python -m mediapipeline.tools.dev.refresh_summaries` (summaries still at old paths for
 all moved modules across Waves 1-3).
 
 ## Handoff 2026-06-02 (Wave 4)
@@ -380,8 +380,8 @@ Validation performed (agent-side):
 - Full suite `pytest tests/python/desktop`: 1631 passed, 1 skipped, 1235
   subtests passed, exit 0 (146s).
 
-Operator validation still recommended: `ops/scripts/dev/ai_guardrail.py`;
-`python ops/scripts/dev/refresh_summaries.py` (summaries still at old paths for
+Operator validation still recommended: `python -m mediapipeline.tools.dev.ai_guardrail`;
+`python -m mediapipeline.tools.dev.refresh_summaries` (summaries still at old paths for
 all moved modules, Waves 1-4).
 
 ## Handoff 2026-06-02 (Wave 5) -- AGENTS.md §7, NOT self-certified
@@ -412,14 +412,14 @@ Operator validation REQUIRED before Wave 5 is "done" (AGENTS.md §5/§7):
 - `ops/scripts/smoke\Test-WebViewBrowserPendingDrainGuardSmoke.ps1`
 - `ops/scripts/smoke\Test-WebViewBrowserCompletedPendingProofSmoke.ps1`
 - `ops/scripts/smoke\Test-LocalApiLifecycleContractSmoke.ps1`
-- `python ops\scripts\dev\ai_guardrail.py` (godfile/drift; expect `models`/
+- `python -m mediapipeline.tools.dev.ai_guardrail` (godfile/drift; expect `models`/
   contracts godfile pressure reduced, no new guard trips)
 - Representative real-media validation per
   `ops\scripts\operator\New-RealMediaValidationWorksheet.ps1` only if any
   publish/drain behaviour is suspected to change. This wave is a pure
   contract-type relocation; no behaviour change is intended.
 
-Also recommended (all waves): `python ops\scripts\dev\refresh_summaries.py`
+Also recommended (all waves): `python -m mediapipeline.tools.dev.refresh_summaries`
 (summaries still at old paths for every moved module, Waves 1-5).
 
 Next step (new session): Wave 6 cleanup -- rewrite importers to the
@@ -474,7 +474,7 @@ operator validation still required before declaring §7-safe:
   confirm the new warning-tail logging (remux.ps1) and that publish behaviour
   is unchanged.
 - A real continuous/`-Once` run (this session only ran `-ValidateOnly`).
-- `python ops/scripts/dev/ai_guardrail.py` and, per AGENTS.md §5 media row,
+- `python -m mediapipeline.tools.dev.ai_guardrail` and, per AGENTS.md §5 media row,
   the release gate / real-media validation worksheet.
 
 Not mine / left untouched: stray untracked `CON` file at repo root (pre-existing;
@@ -520,8 +520,8 @@ NOT mine / pre-existing (operator follow-up; do not attribute to this branch):
 - guardrail `summary-freshness`/`--check` also lists `network/coordinator.py`,
   `ops/pipeline/engine/subtitles/srt.ps1`, `ops/pipeline/tests/Unit/Invoke-SrtValidationChecks.ps1`
   as stale/missing -- none touched here.
-- guardrail `project-index` FAIL: `ops/scripts/dev/refresh_index.py` does not exist
-  (missing infra); PROJECT_INDEX regen left to operator.
+- guardrail `project-index` FAIL: the legacy `ops/scripts/dev/refresh_index.py` path does not
+  exist; regenerate PROJECT_INDEX via `python -m mediapipeline.tools.dev.generate_project_index`.
 - The guardrail postflight baseline is stale (indexed 1077 vs 1117); run a
   clean preflight/postflight pair for an accurate read.
 
@@ -530,7 +530,7 @@ Operator validation REQUIRED before §7 sign-off (config/settings + FFmpeg/publi
   -DumpEffectiveConfigPath).
 - A real remux that emits a mkvmerge exit-1 warning (confirms remux.ps1 warning
   tail logging; publish behaviour unchanged).
-- `python ops/scripts/dev/ai_guardrail.py preflight` then `postflight` as a pair.
+- `python -m mediapipeline.tools.dev.ai_guardrail preflight` then `postflight` as a pair.
 
 ## Backend WebView load performance 2026-06-03 (operator-approved this turn; new branch)
 
@@ -632,7 +632,7 @@ passes (it executes before the failing line).
 
 Operator validation still recommended (AGENTS.md §5 Local API/contract rung): run the WebView/
 local-API smokes against a running backend (`ops/scripts/smoke\Test-LocalApi*`, `Test-WebView*`) and
-`python ops\scripts\dev\ai_guardrail.py` preflight/postflight. No real-media rung required (no media/
+`python -m mediapipeline.tools.dev.ai_guardrail` preflight/postflight. No real-media rung required (no media/
 publish/queue/FFmpeg behaviour touched).
 
 Follow-ups intentionally out of scope: (a) an explicit "not checked" badge in the completed-view JS
@@ -641,5 +641,303 @@ for `output_proof=="deferred"` rows (the backend already emits the data; existin
 backend total-available count; (c) optional backend cache-key alignment so an on-demand
 final-library status reuses the completed cache. Packets 1-4 deliver the perceived-load win without
 these.
+
+## Copy-rate telemetry accuracy 2026-06-05 (operator-approved in chat; separate from backend-webview-load)
+
+Operator observation: the dashboard "Push file" card shows write speed and ETA far below the real
+transfer rate (e.g. write 13.5 MB/s while the Wi-Fi adapter sends ~53 MB/s). Root cause: the rate is
+a lifetime average (total bytes copied / total elapsed since copy start) computed in
+`src/mediapipeline/core/status/eta.py` `_copy_eta_row`, so it lags whenever the transfer ramps up or
+is bursty.
+
+Task: replace the displayed rate (and the ETA derived from it) with a trailing-window rate produced
+by the copy-telemetry writer, falling back to the cumulative average until the window populates.
+Read-only display/telemetry accuracy only. No change to the robocopy copy itself, stage-percent
+sync, the save/atomic-replace flow, queue, publish/pending-publish, settings schema, FFmpeg/
+subtitle/audio, or media policy.
+
+Branch: `perf/backend-webview-load` (unchanged; operator has not asked to branch). These edits layer
+on top of the existing uncommitted reorg/related diff. The four target files are clean in the
+working tree (no pre-existing uncommitted changes).
+
+In-scope files:
+- `ops/pipeline/engine/status/progress_state.ps1` -- `Set-ProgressCopyTelemetry`: maintain a trailing
+  (timestamp,bytes) sample buffer; extract a pure `Get-CopyRollingBytesPerSecond` helper
+  (samples + now -> bytes/sec) for unit testing; emit a new `CopyBytesPerSecond` (int|null) field;
+  reset the buffer in `Reset-ProgressCopyTelemetry` and on `CopyAttempt` change. `SyncStagePercent`,
+  `Convert-CopyPercentToStagePercent`, and `Save-Progress` semantics UNCHANGED.
+- `src/mediapipeline/core/status/eta.py` -- `_copy_eta_row`: prefer `CopyBytesPerSecond` when present
+  and > 0 (derive `eta_seconds` from it; update `basis` text); fall back to existing
+  `safe_copied/elapsed_seconds` otherwise.
+- `ops/pipeline/config/schemas/media_pipeline_progress.schema.json` -- document `CopyBytesPerSecond`
+  (additive; schema is already `additionalProperties: true`).
+- `tests/python/desktop/test_service_status_eta.py` -- NEW test for the windowed path; existing
+  cumulative test (`bytes_per_second == 8947849`) left UNCHANGED.
+- `docs/generated/summaries/` mirrors for the changed `eta.py` / `progress_state.ps1`.
+- `ops/release/changes/unreleased/MP-CHANGE-2026-0605-009.json` (change packet).
+
+Out of scope: the robocopy copy path (`ops/pipeline/engine/storage/disk.ps1`) and every AGENTS.md §7
+area. No new top-level files. `progressView.js` unchanged (it already renders
+`row.bytes_per_second` / `row.eta_seconds`; the value just becomes accurate).
+
+Tunables (defaults): trailing window = 15 s (~15 samples at the 1 s poll cadence); no relabeling of
+the existing "write" token.
+
+Validation rung (AGENTS.md §5 -- diagnostics/telemetry):
+- Agent-side: Python eta unit tests (new + existing) via `apps\desktop\runtime\Python\python.exe`;
+  PS parse-check + a focused unit test of `Get-CopyRollingBytesPerSecond`; the progress-schema
+  contract check (`ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1`);
+  `mediapipeline.tools.change_control.validate_changes --require-worktree-coverage`.
+- Operator-side: a real `-Once` copy over SMB to confirm `CopyBytesPerSecond` populates and the
+  dashboard "write" figure tracks Task Manager. (Agent cannot run a real multi-GB SMB copy.)
+
+Not §7: `eta.py` is declared read-only telemetry; the `progress_state.ps1` change is additive
+telemetry only and does not alter file movement, stage percent, or save behavior.
+
+### Approach revised + Handoff 2026-06-05
+
+Approach changed during planning (operator-chosen): instead of a trailing-window rate, learn a
+per-run WEIGHTED-AVERAGE server-push throughput from COMPLETED files and use it for the current
+push's write speed + ETA. The first file of a run is the guinea pig (falls back to its own partial
+measurement); each completed push refines the average. Local source->scratch copies are excluded
+(they use CopyState, not PushState), so they never pollute the network average. The trailing-window
+plan above is SUPERSEDED. Change packet: `MP-CHANGE-2026-0605-050` (the earlier `-009` id was taken
+by a concurrent session, so a free id in the 050 gap was used).
+
+Implemented (status complete, agent-side validated):
+- `ops/pipeline/engine/status/progress_state.ps1` -- session accumulators
+  (`$script:SessionPushBytesTotal`/`SecondsTotal`/`FilesCompleted`, reset naturally per process
+  launch); pure helper `Get-PushAverageBytesPerSecond`; guarded `Add-PushThroughputSample`; one-shot
+  sample fold on the existing PushState `copying`->`copied_pending_reveal`/`complete` transition
+  inside `Set-ProgressStage`; emit `CopySessionBytesPerSecond` + `CopySessionFilesCompleted` in
+  Save-Progress; push-sample state reset in `Reset-ProgressCopyTelemetry`. `publish_completion.ps1`
+  and `disk.ps1` NOT edited (no §7 / movement files touched).
+- `src/mediapipeline/core/status/eta.py` -- `_copy_eta_row` prefers `CopySessionBytesPerSecond` once
+  `CopySessionFilesCompleted >= 1`; per-file cumulative remains the file-1 fallback.
+- `ops/pipeline/config/schemas/media_pipeline_progress.schema.json` -- two additive nullable fields.
+- `tests/python/desktop/test_service_status_eta.py` -- 3 new tests (session preferred; estimates
+  before current file has elapsed; ignored for first file). Existing cumulative test unchanged.
+
+Validation (agent-side):
+- ETA unit tests 8/8 OK; related status/contract suite (snapshot, status_readers, status_summary,
+  contracts) 42/42 OK.
+- `progress_state.ps1` `[Parser]::ParseFile` PARSE_OK; dot-source functional harness: helper math
+  correct, sample folds exactly once per file, no double-count on `complete`, second file increments.
+- `Invoke-ContractSchemaChecks.ps1` -> "OK: contract schema checks passed."
+- `validate_changes --require-worktree-coverage`: packet `MP-CHANGE-2026-0605-050` valid and all of
+  this change's files covered. Exit 1 comes ONLY from concurrent/unrelated churn --
+  `MP-CHANGE-2026-0605-010.json` (another session's packet) missing `date_completed`, and uncovered
+  `tests/webview/test_webview_browser_large_table_smoke.py(.md)` (another session's webview work).
+- `refresh_summaries --paths` for the two changed sources -> 0 written, 2 unchanged.
+
+Operator validation REQUIRED before sign-off:
+- A real `-Once`/continuous run with >= 2 server pushes: confirm `CopySessionBytesPerSecond` is null
+  during file 1, populates after file 1 completes, and the file-2+ dashboard write/ETA track Task
+  Manager. (Agent cannot run a real multi-GB SMB push.)
+
+Concurrency note: `docs/SESSION.md` and `ops/release/changes/unreleased/` are being actively modified
+by other sessions during this work (new 0605 packets appeared mid-task; another session appended the
+entrypoint-slice block below). My edits are limited to the files listed above.
+
+
+## MediaPipeline.ps1 entrypoint-slice refactor 2026-06-05 (operator-approved in chat; separate from telemetry/backend-load)
+
+Operator approved (chat, 2026-06-05) a code-locality refactor of the keystone entrypoint
+`ops/pipeline/entrypoints/MediaPipeline.ps1` after a written plan: style = hybrid
+(procedural dot-sourced slices for scope-sensitive blocks; functions only where state is
+purely `$script:` or returned), scope = full campaign (phases 1-6). This is NOT the kernel
+migration, NOT backend-webview-load, NOT copy-rate telemetry.
+
+Objective: reduce the 1112-line orchestrator to a ~220-line composition root that dot-sources
+named single-purpose slices. Pure code-locality move; ZERO behaviour change, proven per cut by
+the `-DumpEffectiveConfigPath` parity oracle (byte-identical dump) + a startup-log diff
+(`-ValidateOnly`/`-ShowConfig`) + the end-to-end smoke.
+
+In-scope files:
+- EDIT `ops/pipeline/entrypoints/MediaPipeline.ps1` -- shrink to orchestrator; replace extracted
+  blocks with dot-source/function calls.
+- NEW slices under `ops/pipeline/entrypoints/MediaPipeline/` (allowed pattern; siblings of the
+  existing tx3g/remux/encode slices): `bootstrap_pwsh7.ps1`, `module_loader.ps1`,
+  `runtime_config_boot.ps1`, `runtime_paths.ps1`, `instance_lock.ps1`, `dependencies.ps1`,
+  `startup_filesystem.ps1`, `modes.ps1`.
+- NEW functions into existing engine domains:
+  `Initialize-MediaPipelineSessionState` -> `ops/pipeline/engine/status/progress_state.ps1`;
+  `Write-MediaPipelineStartupConfigLog` (+ NVENC probe) -> `ops/pipeline/engine/observability/logging.ps1`;
+  `Test-MediaPipelineStartupPaths` -> `ops/pipeline/engine/paths/` (or new `engine/startup/`).
+- NEW module-manifest contract test under `ops/pipeline/tests/Unit/` (every dot-sourced engine
+  file exists; no duplicate keys; documented load order preserved).
+- `docs/generated/summaries/` mirrors for changed/added in-scope files.
+- Change packet under `ops/release/changes/unreleased/` (AGENTS.md §8).
+
+Out of scope: behaviour of any engine module; the dirty `MediaPipeline/encode.ps1` and
+`MediaPipeline/remux.ps1` (already modified in the working tree by unrelated reorg/telemetry work
+-- do NOT touch their lines); every AGENTS.md §7 behaviour. The slice tx3g/remux/encode LOADER is
+in scope (its loop), but the slice file contents are not.
+
+Hard constraints (the reasons this is delicate):
+1. Scope semantics: dot-sourced slices run in caller scope (plain locals + `$script:` persist).
+   Function-wrap ONLY blocks that touch purely `$script:` or return a result object; never
+   function-localize a plain entrypoint local that engine code reads by ambient name.
+2. Ambient-variable contract: dot-sourced engine functions read entrypoint-scope names by
+   canonical name (this is what broke prior "Cut 7": `$configPath` read by
+   `Build-QueuePlanSnapshotRows`/`Get-EffectiveConfigSummary`). NO rename, NO rescope, NO
+   function-localization of any ambient-read name. Audit recorded in handoff below.
+3. Load order at MediaPipeline.ps1:389 is a documented topological order; the manifest extraction
+   must preserve it exactly (locked by the new contract test).
+4. `$Script:ExitCleanup` closure captures `$logLock`/`$workerSlotMutex`/`$instanceMutex` by
+   reference -- keep the closure and those declarations in the same `instance_lock.ps1` slice.
+
+Phases (one isolated edit + validation per cut; safest first):
+- P0 ambient audit + golden baselines (no code moves).
+- P1 historical-comment trim (lines 1-182; comments only).
+- P2 `Initialize-MediaPipelineSessionState` + `Write-MediaPipelineStartupConfigLog` (`$script:`/log only).
+- P3 `bootstrap_pwsh7.ps1` + `module_loader.ps1` (non-§7 bootstrap).
+- P4 `runtime_paths.ps1` + `startup_filesystem.ps1` + `Test-MediaPipelineStartupPaths`.
+- P5 (§7) `dependencies.ps1` + `instance_lock.ps1` + `runtime_config_boot.ps1`.
+- P6 (§7) `modes.ps1` (ValidateOnly/Drain/SingleFile/EmitQueuePlan/Run dispatch).
+
+Validation rung (AGENTS.md §5):
+- Agent-side (P1-P4): PS parse-check after every edit; `-DumpEffectiveConfigPath` byte-parity
+  before/after; `-ValidateOnly` startup-log diff; `ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1`
+  green after each cut; new manifest contract test.
+- Operator-side, REQUIRED before §7 sign-off (P5-P6; config/settings + FFmpeg/publish + queue
+  launch scope): a real `-Once`/continuous run, queue/pending-publish/local-API smokes, a real
+  remux emitting a mkvmerge exit-1 warning, and `python -m mediapipeline.tools.dev.ai_guardrail`
+  preflight/postflight pair. NOT self-certified.
+
+Git handling: working tree has ~712 unrelated dirty files (operator reorg/telemetry; keep in
+place) + `encode.ps1`/`remux.ps1` already modified. Per CLAUDE.md no-commit rule and to avoid
+entangling that diff, this refactor stays UNCOMMITTED in the working tree; a precise file
+manifest + commit recipe (intended branch `refactor/mediapipeline-entrypoint-slice` off the
+current tip) is handed to the operator. No branch switch performed.
+
+## Handoff 2026-06-05 -- MediaPipeline.ps1 slice refactor (phases 0-4 complete, agent-validated)
+
+Change packet: `ops/release/changes/unreleased/MP-CHANGE-2026-0605-010.json` (status in_progress).
+Ollama: not used. No commit/branch performed (working tree left dirty per above).
+
+Validation harness established (reusable for the remaining phases):
+- Parity oracle: `pwsh -File MediaPipeline.ps1 -ConfigPath %LOCALAPPDATA%\MediaPipelineRemuxEncodeAIO\MediaPipeline_config.psd1 -DumpEffectiveConfigPath <out>`.
+  NOTE the dump is NON-deterministic (two nested hashtable fields -- RenameMovieFilterOptions /
+  RenameMovieFilterTerms -- serialize in random key order), so raw sha is useless. Compare with
+  the deep key-sorted canonicalizer at `%TEMP%\mp_refactor_baseline\Compare-Dump.ps1`.
+  Golden baseline: `%TEMP%\mp_refactor_baseline\dump_before.json`.
+- Startup-log diff: `-ValidateOnly` output, timestamps stripped (`^\d{4}-..-.. ..:..:.. `),
+  Compare-Object vs `%TEMP%\mp_refactor_baseline\validateonly_before.log` (72 lines).
+- Smoke: `ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1` (~39s).
+After EVERY cut so far: canonical dump IDENTICAL, log 0 diffs, smoke exit 0.
+
+Ambient-variable contract (audited; the reason this is delicate): 116 references across 20
+engine files read entrypoint-scope names by canonical name. Rule honoured: NOTHING renamed or
+rescoped; blocks were either moved verbatim (procedural) or wrapped as dot-sourced functions
+that only WRITE `$script:`/`$Global:` (reads resolve via the dot-source scope chain at call
+time). Watch-list to never touch: `$configPath`, `$SourceMovies`, `$SourceTV`, `$Outsource`,
+`$LocalBase`, `$ProgressFile`, `$LogFile`, `$ffmpegPath`, `$ffprobePath`, `$mkvmergePath`,
+`$mkvextractPath`, `$pythonPath`, `$assToSrtScript`, the mutex vars, and the `$script:*` family.
+
+Changed files (phases 1-4):
+- `ops/pipeline/entrypoints/MediaPipeline.ps1` -- 1112 -> 597 lines. P1: 181-line historical
+  [FIX#N] header -> concise comment-based-help block (adds .SYNOPSIS; history kept in git).
+  P2: session-state block + startup-config-log block replaced by single calls. P3: module
+  manifest + load loop replaced by a guarded dot-source of the loader slice. P4: derived paths +
+  worker override, startup filesystem prep, and startup path validation replaced by three guarded
+  dot-sources. `$pipelineRoot`/`$repoRootForModules`/`$moduleRoot` deliberately kept inline (used
+  later + to locate the slices).
+- `ops/pipeline/entrypoints/MediaPipeline/module_loader.ps1` (NEW, 99 lines) -- load-order doc +
+  `$engineModulePaths` (46 entries) + ordered dot-source loop; reads `$repoRootForModules`/
+  `$moduleRoot` ambiently; dot-sources engine modules into the entrypoint scope.
+- `ops/pipeline/entrypoints/MediaPipeline/runtime_paths.ps1` (NEW, 81 lines) -- procedural slice:
+  derived paths + `New-MediaPipelineStateLayout` + worker-child slot override. Sets ~18 plain
+  entrypoint locals + `$script:*`; MUST stay procedural (a function would trap the plain locals).
+- `ops/pipeline/entrypoints/MediaPipeline/startup_filesystem.ps1` (NEW, 21 lines) -- procedural
+  slice: dir creation, `Initialize-MediaPipelineStateLayout`, log rotation, worker-claim repair,
+  `Write-StartupWarnings`.
+- `ops/pipeline/entrypoints/MediaPipeline/startup_path_validation.ps1` (NEW, 38 lines) --
+  procedural slice: LocalBase hard-fail (exit 2) + source/outsource soft-warn reachability probes.
+- `ops/pipeline/engine/status/progress_state.ps1` -- +`Initialize-MediaPipelineSessionState`
+  (the $script:/$Global: session + progress-counter init + progress-file reload + baseline).
+- `ops/pipeline/engine/observability/logging.ps1` -- +`Write-MediaPipelineStartupConfigLog`
+  (run-mode log + full resolved-config Write-Log dump + NVENC probe + pipeline_started/
+  gpu_unavailable events + Write-StartupEnvironmentSummary).
+
+Design correction discovered this session: the PS7-relaunch block is NOT extractable -- it relies
+on the entrypoint's own `$MyInvocation.MyCommand.Path`/`$PSScriptRoot`/`$PSBoundParameters` (a
+dot-sourced slice would see the slice's own values and relaunch the wrong file) and only fires
+under Windows PowerShell 5.x, which is unvalidatable agent-side. LEFT INLINE; `bootstrap_pwsh7.ps1`
+dropped from the plan.
+
+Remaining work:
+- P4 DONE (2026-06-05): runtime_paths.ps1, startup_filesystem.ps1, startup_path_validation.ps1
+  (all procedural slices; Test-MediaPipelineStartupPaths was reclassified as a procedural slice,
+  not a function, per the hybrid rule -- it returns nothing and writes no $script:).
+- P5-P6 (AGENTS.md section 7, NOT self-certifiable -- AND the agent harness has BLIND SPOTS here:
+  the single-instance/worker mutex is skipped in -ValidateOnly/-DumpEffectiveConfigPath, and the
+  Drain/SingleFile/EmitQueuePlan/continuous Run modes execute only after those modes exit, so the
+  parity oracle + fixture smoke cannot prove a lock or mode-dispatch extraction neutral. Do NOT
+  extract these without the operator running the real validation rung after each cut):
+  `dependencies.ps1`, `instance_lock.ps1`
+  (+ExitCleanup closure capture -- keep declarations in-slice), `runtime_config_boot.ps1`, and
+  `modes.ps1` (ValidateOnly/Drain/SingleFile/EmitQueuePlan/Run dispatch). Operator must run a
+  real -Once/continuous pass + queue/pending-publish/local-API smokes + a real mkvmerge exit-1
+  remux + `python -m mediapipeline.tools.dev.ai_guardrail` preflight/postflight before section-7
+  sign-off.
+- Deferred: module-manifest contract test (tests/Unit path conventions are mid-reorg).
+
+Commit recipe (operator, when ready; keeps the unrelated reorg diff out):
+`git switch -c refactor/mediapipeline-entrypoint-slice` then
+`git add ops/pipeline/entrypoints/MediaPipeline.ps1 ops/pipeline/entrypoints/MediaPipeline/module_loader.ps1 ops/pipeline/entrypoints/MediaPipeline/runtime_paths.ps1 ops/pipeline/entrypoints/MediaPipeline/startup_filesystem.ps1 ops/pipeline/entrypoints/MediaPipeline/startup_path_validation.ps1 ops/pipeline/engine/status/progress_state.ps1 ops/pipeline/engine/observability/logging.ps1 ops/release/changes/unreleased/MP-CHANGE-2026-0605-010.json docs/SESSION.md`
+then commit. Do NOT `git add -A` (would sweep the ~712 unrelated dirty files).
+
+
+## Handoff 2026-06-05 -- Home "Next 5 Videos" panel fix (operator-approved in chat; separate from entrypoint-slice refactor)
+
+Operator request: the Home "Next 5 Videos" panel showed already-processed items and
+file-name-looking strings; wanted live "next" items with normalized names
+("Show - S01E01 - Title" / "Movie Title (Year)"), with proof.
+
+Root causes (confirmed against live state E:\Videos\Scratch\State\Progress\):
+- Wrong items: `homeNextQueueRows` took the first 5 runnable rows of the STATIC queue
+  plan (`/api/queue`) and ignored live progress, so it always showed plan rows 1-5.
+  The aligned live position is `snapshot.counts.queue_index` (== progress
+  `CurrentQueueIndex`, global) vs each row's `global_order` (NOT per-phase `queue_index`).
+- "File-name" look: clean `display_name` was passed through `shortenPath`, which (no path
+  separators) prepended a bogus ".../" prefix. TV `display_name` is already normalized;
+  movie `display_name` (SortName) still carried release tags.
+
+Change (single file, read-only display only; no contract/queue-behaviour change):
+- `apps/desktop/webview/static/assets/app/home.js`:
+  - `homeNextQueueRows(queue, currentOrder)` now returns runnable rows with
+    `global_order > currentOrder` (sorted), falling back to the first-5 runnable when
+    nothing is upcoming or no global_order is present (keeps unit/smoke fixtures green).
+  - `renderHomeNextQueue` passes `homeCurrentQueueOrder(context, queue.rows)`. The cutoff
+    is the literal current position: first anchor to the file being processed
+    (`progress.CurrentFilePath` -> matching row's `global_order`), else
+    `max(counts.queue_index, counts.processed)`. The `max` is durable: `CurrentQueueIndex`
+    resets to 0 between items while `TotalProcessed` (`counts.processed`,
+    status_policy.snapshot_counts) does not, so the panel never reverts to finished items
+    in the gap. This yields the literal next 5 in execution order (crosses show/season/phase
+    boundaries; not "the next bucket").
+  - Title renders the verbatim normalized name (CSS ellipsis clips overflow) instead of
+    `shortenPath`. New `homeMovieTitleYear`/`homeNormalizeQueueTitle` collapse release-style
+    movie names to "Title (Year)"; TV names pass through unchanged.
+  - New helpers exported on `window.mediaPipelineAppHome`.
+
+Validation (agent-side):
+- `node --check` clean. Node VM harness (mirrors the web-static test technique) against the
+  REAL live queue_snapshot.json + pipeline_progress.json (CurrentQueueIndex=27/62): OLD
+  showed Snow White S01E01-05 (already done); NEW shows global_order 28-32 with clean names;
+  movie normalizer correct on all 16 live movie names.
+- Real unittest `test_home_next_queue_shows_first_five_runnable_rows_only`: OK.
+- `test_real_browser_renders_home_live_state_without_mutation_posts` (real headless browser): OK.
+- Pre-existing UNRELATED reds confirmed at HEAD without this change (route-inventory
+  `/api/subtitle-qa/*`, rename/command-feedback, `report-warnings` markup) -- not caused here.
+
+Ollama: not used. No commit/branch performed.
+
+Follow-ups (optional, out of scope): movie normalizer does not apply the operator's custom
+movie-cleaning policy (remove_terms/filters) -- for full parity, add a normalized title to
+the Python queue preview via `current_work_item_label`; that touches the queue DTO/contract
+and needs a separate plan. Movies without a year token in the filename fall back to the
+space-normalized name.
 
 

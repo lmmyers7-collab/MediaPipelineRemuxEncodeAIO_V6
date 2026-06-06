@@ -3,9 +3,9 @@ file: ops/scripts/smoke/Test-WebViewRowDetailSmoke.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 95e666ee759726827662f68fe64a9e4825b50b0e9aa9aad399a96afe800b740d
+sha256: 257fd19eeba659c065b1048b752ac0c4f4ee6abcd9e849c362b40fc9266d7dc0
 ---
 # `ops/scripts/smoke/Test-WebViewRowDetailSmoke.ps1`
 

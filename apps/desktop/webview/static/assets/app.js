@@ -107,8 +107,7 @@ function renderSnapshot(snapshot) {
   const queueTotal = Math.max(0, Math.trunc(Number(counts.queue_total) || 0));
   setText("queue-count", `${queueIndex} / ${queueTotal}`);
   setText("processed-count", String(counts.processed || 0));
-  setText("failed-count", String(counts.failed || 0));
-  setText("home-failed-count", String(counts.failed || 0));
+  renderDashboardIssueMetric(snapshot, dashboardCount(counts.failed));
   if (typeof renderProgressBars === "function") {
     renderProgressBars(Array.isArray(snapshot.progress_bars) ? snapshot.progress_bars : [], snapshot);
   }
@@ -127,6 +126,161 @@ function renderSnapshot(snapshot) {
     renderLaunchReadiness({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, schedule: lastSchedule, settings: getLastSettings() });
   }
   renderBackendLifecycle(lastCloseReadiness, lastSnapshot);
+}
+
+function dashboardText(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function dashboardCount(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.trunc(number)) : 0;
+}
+
+function dashboardBoolean(value) {
+  if (typeof value === "boolean") return value;
+  const text = dashboardText(value);
+  if (["1", "true", "yes", "y"].includes(text)) return true;
+  if (["0", "false", "no", "n"].includes(text)) return false;
+  return false;
+}
+
+function dashboardEventData(event) {
+  return event?.data && typeof event.data === "object" ? event.data : {};
+}
+
+function dashboardEventIsStopRequested(event) {
+  const data = dashboardEventData(event);
+  const status = dashboardText(data.completion_status || event?.status || "");
+  const errorCode = dashboardText(data.error_code || data.ErrorCode || "");
+  const reason = dashboardText(data.reason || data.suggested_action || "");
+  return status === "stopped" && (errorCode === "stop_requested" || (reason.includes("stop") && reason.includes("operator")));
+}
+
+function dashboardEventIsFailure(event) {
+  const data = dashboardEventData(event);
+  const status = dashboardText(data.completion_status || event?.status || data.classification || "");
+  const errorCode = dashboardText(data.error_code || data.ErrorCode || "");
+  return ["failed", "failure", "error", "blocked"].includes(status)
+    || String(event?.event_type || "").toLowerCase() === "failure_recorded"
+    || Boolean(errorCode && errorCode !== "stop_requested");
+}
+
+function dashboardProgressHasStopRequested(progress = {}) {
+  const payload = progress && typeof progress === "object" ? progress : {};
+  if (dashboardBoolean(payload.StopRequested) || dashboardBoolean(payload.stop_requested)) return true;
+  const errorCode = dashboardText(payload.ErrorCode || payload.error_code || "");
+  const reason = dashboardText(payload.Reason || payload.reason || "");
+  if (errorCode === "stop_requested") return true;
+  if (reason.includes("stop") && reason.includes("operator")) return true;
+  const text = dashboardText([
+    payload.CurrentStage,
+    payload.Status,
+    payload.status,
+    payload.CurrentStatus,
+  ].filter(Boolean).join(" "));
+  return /\bstopped\b/.test(text) && (errorCode === "stop_requested" || (reason.includes("stop") && reason.includes("operator")));
+}
+
+function dashboardLatestStopRequestedOutcome(snapshot = {}) {
+  const events = Array.isArray(snapshot?.recent_events) ? snapshot.recent_events : [];
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index];
+    if (dashboardEventIsStopRequested(event)) return true;
+    if (dashboardEventIsFailure(event)) return false;
+  }
+  return dashboardProgressHasStopRequested(snapshot?.progress || {});
+}
+
+function renderDashboardIssueMetric(snapshot = {}, failedCount = 0) {
+  const stoppedByRequest = failedCount > 0 && dashboardLatestStopRequestedOutcome(snapshot);
+  const visibleFailedCount = stoppedByRequest ? Math.max(0, failedCount - 1) : failedCount;
+  const label = "Failed";
+  const title = stoppedByRequest
+    ? visibleFailedCount
+      ? "Stop After Current is shown in progress; this remaining count still needs Diagnostics or run-log review."
+      : "Stop After Current is shown in progress; this marker is not counted as a failed media output."
+    : visibleFailedCount
+      ? "Failed items need Diagnostics or run-log review."
+      : "No failed items reported.";
+  setText("failed-count", String(visibleFailedCount));
+  setText("home-failed-count", String(visibleFailedCount));
+  setText("failed-label", label);
+  setText("home-failed-label", label);
+  ["failed-count", "home-failed-count", "failed-label", "home-failed-label"].forEach((id) => {
+    const node = byId(id);
+    if (node) {
+      node.title = title;
+      node.dataset.state = visibleFailedCount ? "blocked" : "ok";
+    }
+  });
+}
+
+function dashboardHasOwn(source, key) {
+  return Boolean(source && typeof source === "object" && Object.prototype.hasOwnProperty.call(source, key));
+}
+
+function dashboardPipelineStateAllowsEmptyScan(snapshot = lastSnapshot) {
+  const state = dashboardText(snapshot?.pipeline_state || "");
+  return !state || ["idle", "complete", "completed", "sleeping"].includes(state);
+}
+
+function dashboardQueueScanStatus(queue = {}) {
+  const status = queue?.queue_scan_status;
+  return status && typeof status === "object" ? status : {};
+}
+
+function dashboardQueueProgress(queue = {}) {
+  const progress = queue?.queue_progress;
+  return progress && typeof progress === "object" ? progress : {};
+}
+
+function dashboardQueueScanRunning(queue = {}) {
+  const status = dashboardQueueScanStatus(queue);
+  return Boolean(status.running) || dashboardText(status.status) === "running";
+}
+
+function dashboardQueueStale(queue = {}) {
+  const progress = dashboardQueueProgress(queue);
+  return Boolean(progress.stale)
+    || dashboardText(queue.snapshot_file_freshness_status) === "stale"
+    || dashboardText(queue.produced_freshness_status) === "stale";
+}
+
+function dashboardQueueBlockingWarnings(queue = {}) {
+  const warnings = Array.isArray(queue.warnings) ? queue.warnings : [];
+  return warnings.some((warning) => dashboardText(warning) !== "queue snapshot contains no runnable rows.");
+}
+
+function dashboardQueueRunnableCount(queue = {}) {
+  if (dashboardHasOwn(queue, "runnable_count")) return dashboardCount(queue.runnable_count);
+  if (Array.isArray(queue.rows)) return queue.rows.length;
+  return null;
+}
+
+function dashboardQueueHasFreshEmptyProof(queue = {}) {
+  const status = dashboardQueueScanStatus(queue);
+  const scanStatus = dashboardText(status.status);
+  if (scanStatus === "completed" && dashboardHasOwn(status, "curated_row_count")) {
+    return dashboardCount(status.curated_row_count) === 0;
+  }
+
+  const runnableCount = dashboardQueueRunnableCount(queue);
+  if (runnableCount !== 0) return false;
+
+  const progress = dashboardQueueProgress(queue);
+  const progressStatus = dashboardText(progress.status);
+  const hasFreshnessEvidence = Boolean(queue.snapshot_file_freshness_status || queue.produced_freshness_status);
+  return progressStatus === "complete" || hasFreshnessEvidence;
+}
+
+function renderHomePipelineQueueOutcome(snapshot = lastSnapshot, queue = {}) {
+  if (!dashboardPipelineStateAllowsEmptyScan(snapshot)) return false;
+  if (!queue || typeof queue !== "object" || !queue.schema_version || queue.error) return false;
+  if (dashboardQueueScanRunning(queue) || dashboardQueueStale(queue) || dashboardQueueBlockingWarnings(queue)) return false;
+  if (!dashboardQueueHasFreshEmptyProof(queue)) return false;
+  renderHomePipelineState("no_new_sources");
+  return true;
 }
 
 function renderCloseReadiness(closeReadiness) {
@@ -432,11 +586,11 @@ function recordLocalUiDiagnostic(command, message, severity = "warning") {
   return result;
 }
 
-function renderTelemetrySafely(telemetry) {
+function renderTelemetrySafely(telemetry, options = {}) {
   const renderTelemetryFn = window.mediaPipelineTelemetryView?.renderTelemetry;
   if (typeof renderTelemetryFn !== "function") return null;
   try {
-    renderTelemetryFn(telemetry);
+    renderTelemetryFn(telemetry, options);
     return null;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -552,6 +706,7 @@ async function refreshAllNow(options = {}) {
     ["diagnostics", apiGet("/api/diagnostics"), false],
     ["diagnostics state summary", apiGet("/api/diagnostics/state-summary"), false],
     ["commands", apiGet("/api/commands?limit=20"), false],
+    ["metrics", apiGet("/api/metrics"), false],
     ["queue", apiGet("/api/queue"), false],
     ["completed", apiGet("/api/completed?limit=100"), false],
     ["failures", apiGet(failureQuery), false],
@@ -594,7 +749,7 @@ async function refreshAllNow(options = {}) {
     lastStartupProgress = values.health.startup_progress;
   }
   if (values["close readiness"]) renderCloseReadiness(values["close readiness"]);
-  const telemetryRenderFailure = values.telemetry ? renderTelemetrySafely(values.telemetry) : null;
+  const telemetryRenderFailure = values.telemetry ? renderTelemetrySafely(values.telemetry, { snapshot: values.snapshot || lastSnapshot }) : null;
   if (telemetryRenderFailure) failures.push(telemetryRenderFailure);
   if (values.diagnostics) renderDiagnostics(values.diagnostics);
   const renderDiagnosticsStateSummaryFn = window.mediaPipelineDiagnosticsStateSummaryView?.renderDiagnosticsStateSummary;
@@ -602,8 +757,10 @@ async function refreshAllNow(options = {}) {
     renderDiagnosticsStateSummaryFn(values["diagnostics state summary"]);
   }
   if (values.commands) window.mediaPipelineCommandHistory?.renderCommandHistoryPayload?.(values.commands);
+  if (values.metrics) window.mediaPipelineMetricsView?.renderMetrics?.(values.metrics);
   if (values.queue) renderQueue(values.queue);
   renderHomeQueueSnapshot(values.queue || {});
+  renderHomePipelineQueueOutcome(values.snapshot || lastSnapshot, values.queue || {});
   if (values.completed) renderCompleted(values.completed);
   // Reuse the final-library promotion status attached to the completed payload:
   // the completed read already computes it via the same builder
@@ -1396,6 +1553,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     rejectSettingsCommandWhileBusy: window.mediaPipelineSettingsView?.rejectSettingsCommandWhileBusy,
   });
   initLaunchViewEvents();
+  window.mediaPipelineMetricsView?.initMetricsViewEvents?.();
   if (typeof initReportsViewEvents === "function") initReportsViewEvents();
   if (typeof initScheduleViewEvents === "function") initScheduleViewEvents();
   initDiagnosticsViewEvents();

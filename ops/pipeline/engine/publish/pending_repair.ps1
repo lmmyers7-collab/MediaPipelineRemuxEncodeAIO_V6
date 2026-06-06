@@ -22,6 +22,13 @@ function Repair-PendingSidecarArtifacts {
             -not (Test-Path -LiteralPath $originalFile -ErrorAction SilentlyContinue)) {
             continue
         }
+        if (Get-Command -Name Test-PendingSidecarTrustedForPublish -ErrorAction SilentlyContinue) {
+            $sidecarTrust = Test-PendingSidecarTrustedForPublish -Manifest $Manifest -Sidecar $sidecar -ManifestPath $ManifestFile.FullName -AllowMissingLocal
+            if (-not $sidecarTrust.Ok) {
+                Write-Log "Pending publish index: refusing sidecar recovery for untrusted manifest $($ManifestFile.Name): $($sidecarTrust.Reason)" "ERROR"
+                continue
+            }
+        }
 
         try {
             $localDir = Split-Path $localFile -Parent
@@ -43,25 +50,33 @@ function Repair-PendingManifestState {
         [Parameter(Mandatory)] $Manifest
     )
 
-    $Manifest = Repair-PendingSidecarArtifacts -ManifestFile $ManifestFile -Manifest $Manifest
-    $localFile = [string]$Manifest.local_file
-    if (-not [string]::IsNullOrWhiteSpace($localFile) -and (Test-Path -LiteralPath $localFile -ErrorAction SilentlyContinue)) {
-        return $Manifest
+    $state = [string]$Manifest.manifest_state
+    if ($state -eq 'pending_move' -and (Get-Command -Name Test-PendingManifestTrustedForRepair -ErrorAction SilentlyContinue)) {
+        $repairTrust = Test-PendingManifestTrustedForRepair -ManifestFile $ManifestFile -Manifest $Manifest
+        if (-not $repairTrust.Ok) {
+            Write-Log "Pending publish index: refusing pending_move recovery for untrusted manifest $($ManifestFile.Name): $($repairTrust.Reason)" "ERROR"
+            return $Manifest
+        }
     }
 
-    $state = [string]$Manifest.manifest_state
+    $Manifest = Repair-PendingSidecarArtifacts -ManifestFile $ManifestFile -Manifest $Manifest
+    $localFile = [string]$Manifest.local_file
     $original = [string]$Manifest.original_local_file
-    if ($state -ne 'pending_move' -or [string]::IsNullOrWhiteSpace($original) -or
-        [string]::IsNullOrWhiteSpace($localFile) -or -not (Test-Path -LiteralPath $original -ErrorAction SilentlyContinue)) {
+    if ($state -ne 'pending_move' -or [string]::IsNullOrWhiteSpace($localFile)) {
         return $Manifest
     }
 
     try {
-        $localDir = Split-Path $localFile -Parent
-        if ($localDir -and -not (Test-Path -LiteralPath $localDir)) {
-            [System.IO.Directory]::CreateDirectory($localDir) | Out-Null
+        if (-not (Test-Path -LiteralPath $localFile -ErrorAction SilentlyContinue)) {
+            if ([string]::IsNullOrWhiteSpace($original) -or -not (Test-Path -LiteralPath $original -ErrorAction SilentlyContinue)) {
+                return $Manifest
+            }
+            $localDir = Split-Path $localFile -Parent
+            if ($localDir -and -not (Test-Path -LiteralPath $localDir)) {
+                [System.IO.Directory]::CreateDirectory($localDir) | Out-Null
+            }
+            [System.IO.File]::Move($original, $localFile, $true)
         }
-        [System.IO.File]::Move($original, $localFile, $true)
         $map = ConvertTo-PendingManifestMap $Manifest
         $map['manifest_state'] = 'parked_recovered'
         $map['recovered_at'] = (Get-Date -Format 'o')

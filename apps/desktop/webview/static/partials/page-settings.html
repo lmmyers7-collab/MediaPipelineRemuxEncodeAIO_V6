@@ -1,20 +1,15 @@
       <section class="page" data-page-panel="settings">
         <h1 class="visually-hidden">Pipeline Settings</h1>
-        <div class="settings-tab-bar" role="tablist" aria-label="HandBrake-style settings sections">
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="status" aria-selected="true">Summary / Effective Decision</button>
+        <div class="settings-tab-bar" role="tablist" aria-label="Operator settings sections">
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="status" aria-selected="true">Status</button>
           <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="guided-setup" aria-selected="false">Guided Setup</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="editor" aria-selected="false">Routing</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="dimensions" aria-selected="false">Dimensions</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="filters" aria-selected="false">Filters</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="video" aria-selected="false">Video</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="audio" aria-selected="false">Audio</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="subtitles" aria-selected="false">Subtitles</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="container" aria-selected="false">Container</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="size-bitrate" aria-selected="false">Size / Bitrate Guards</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="paths" aria-selected="false">Verification / Publish</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="presets" aria-selected="false">Presets</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="rename" aria-selected="false">Rename</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="advanced" aria-selected="false">Advanced</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="paths-safety" aria-selected="false">Paths &amp; Safety</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="routing-size" aria-selected="false">Routing &amp; Size</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="media-output" aria-selected="false">Media Output</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="publish-recovery" aria-selected="false">Publish &amp; Recovery</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="naming" aria-selected="false">Naming</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="queue-runtime" aria-selected="false">Queue &amp; Runtime</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="advanced-evidence" aria-selected="false">Advanced Evidence</button>
         </div>
 
         <!-- SAVE HEADER: visible across all settings subtabs -->
@@ -271,7 +266,7 @@
         </div>
 
         <!-- TAB: PRESETS -->
-        <div class="settings-tab-pane" data-settings-tab="presets">
+        <div class="settings-tab-pane" data-settings-tab="status">
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Preset Orientation</h2>
@@ -419,7 +414,7 @@
         </section>
         </div>
         <!-- TAB: ROUTING -->
-        <div class="settings-tab-pane" data-settings-tab="editor">
+        <div class="settings-tab-pane" data-settings-tab="routing-size">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Routing <span class="impact-chip" data-impact="medium" title="Routing / size policy — used before processing to decide copy/remux versus encode">Medium Impact</span></h2>
@@ -440,6 +435,22 @@
                   </select>
                 </label>
               </div>
+              <div class="settings-size-guard-help" aria-label="Oversize result descriptions">
+                <dl>
+                  <div>
+                    <dt>Try remux fallback</dt>
+                    <dd>If an override-forced encode grows past the buffer, try remux/direct copy. If remux is blocked, keep the oversized encode with warning evidence.</dd>
+                  </div>
+                  <div>
+                    <dt>Block publish</dt>
+                    <dd>Stop an oversized encode before publish so it can be reviewed instead of reaching the final library.</dd>
+                  </div>
+                  <div>
+                    <dt>Warn only</dt>
+                    <dd>Record the size overage and continue when the rest of output verification passes.</dd>
+                  </div>
+                </dl>
+              </div>
             </section>
             <section class="settings-builder-subsection">
               <h3>What forces an encode?</h3>
@@ -459,82 +470,144 @@
             <section class="settings-builder-subsection">
               <h3>TV / Movie targets by height</h3>
               <p class="note settings-route-legend">Target GB is the encoded output budget. Mbps is the source direct-copy/remux cap. Height chooses the bucket.</p>
-              <div class="table-wrap detail-table-wrap settings-route-target-wrap">
-                <table class="settings-route-target-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Bucket</th>
-                      <th scope="col">Encoded target size</th>
-                      <th scope="col">Direct-copy limits</th>
-                      <th scope="col">Height boundary</th>
-                      <th scope="col">Derived height range</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <th scope="row">1080p</th>
-                      <td>
-                        <div class="settings-route-target-stack">
-                          <label class="settings-inline-field">Movie GB <input id="settings-builder-movie-1080p-target" type="number" min="1" step="1" aria-label="Movie 1080p target output size"></label>
-                          <label class="settings-inline-field">TV GB <input id="settings-builder-tv-1080p-target" type="number" min="1" step="1" aria-label="TV 1080p target output size"></label>
-                        </div>
-                      </td>
-                      <td>
+              <div id="settings-route-height-slider" class="settings-route-range-rail" aria-label="Editable route height slider by bucket">
+                <div class="settings-route-slider-labels">
+                  <span class="settings-route-slider-bucket" data-route-bucket="1080p">
+                    <span class="settings-route-range-label">1080p</span>
+                    <output id="settings-height-1080p-range" class="visually-hidden">&lt;=1200p</output>
+                  </span>
+                  <span class="settings-route-slider-bucket" data-route-bucket="1440p">
+                    <span class="settings-route-range-label">1440p</span>
+                    <output id="settings-height-1440p-range" class="visually-hidden">1201-1799p</output>
+                  </span>
+                  <span class="settings-route-slider-bucket" data-route-bucket="4k">
+                    <span class="settings-route-range-label">4K</span>
+                    <output id="settings-height-4k-range" class="visually-hidden">&gt;=1800p</output>
+                  </span>
+                </div>
+                <div class="settings-route-slider" aria-label="Drag route height boundaries">
+                  <div class="settings-route-slider-hit" data-route-drag-boundary="middle" aria-hidden="true"></div>
+                  <div class="settings-route-slider-track" aria-hidden="true">
+                    <span class="settings-route-slider-fill settings-route-slider-fill-1080p"></span>
+                    <span class="settings-route-slider-fill settings-route-slider-fill-1440p"></span>
+                    <span class="settings-route-slider-fill settings-route-slider-fill-4k"></span>
+                  </div>
+                  <label class="settings-route-range-control settings-route-slider-thumb settings-route-slider-thumb-first" data-route-boundary-control="first" data-route-drag-boundary="first">
+                    <span class="settings-route-slider-handle" aria-hidden="true"></span>
+                    <span>&lt;=</span>
+                    <input id="settings-route-boundary-1080p-end-input" type="number" min="1080" max="1439" step="1" value="1200" aria-label="1080p upper route height boundary">
+                    <span>p</span>
+                  </label>
+                  <label class="settings-route-range-control settings-route-slider-thumb settings-route-slider-thumb-second" data-route-boundary-control="second" data-route-drag-boundary="second">
+                    <span class="settings-route-slider-handle" aria-hidden="true"></span>
+                    <span>&gt;=</span>
+                    <input id="settings-route-boundary-4k-start-input" type="number" min="1441" max="2160" step="1" value="1800" aria-label="4K lower route height boundary">
+                    <span>p</span>
+                  </label>
+                </div>
+              </div>
+              <div class="settings-route-target-editor" aria-label="TV and movie route target bucket editor">
+                <article class="settings-route-bucket-card" data-route-bucket="1080p">
+                  <header class="settings-route-bucket-header">
+                    <div>
+                      <h4>1080p</h4>
+                      <p>Derived height range</p>
+                    </div>
+                    <span id="settings-route-card-range-1080p" class="settings-route-range-ref" aria-hidden="true">uses &lt;=1200p</span>
+                  </header>
+                  <div class="settings-route-bucket-grid">
+                    <section class="settings-route-bucket-group">
+                      <h5>Encoded output size (GB)</h5>
+                      <div class="settings-route-target-stack">
+                        <label class="settings-inline-field">Movie <span class="settings-input-with-unit"><input id="settings-builder-movie-1080p-target" type="number" min="1" step="1" aria-label="Movie 1080p encoded output size in GB"><span aria-hidden="true">GB</span></span></label>
+                        <label class="settings-inline-field">TV <span class="settings-input-with-unit"><input id="settings-builder-tv-1080p-target" type="number" min="1" step="1" aria-label="TV 1080p encoded output size in GB"><span aria-hidden="true">GB</span></span></label>
+                      </div>
+                    </section>
+                    <section class="settings-route-bucket-group">
+                      <h5>Direct-copy limits</h5>
+                      <div class="settings-route-target-stack">
                         <label class="settings-inline-field">Max Mbps <input id="settings-builder-1080p-route-bitrate" type="number" min="1" max="500" step="1" aria-label="1080p max bitrate for direct copy"></label>
-                      </td>
-                      <td>
-                        <div class="settings-boundary-editor">
-                          <label class="settings-boundary-field">1080p ends at <input id="settings-boundary-1080p-end" type="number" min="1080" max="1439" step="1" aria-label="1080p bucket end height"> p</label>
-                          <input id="settings-builder-1080p-upper-tolerance" type="hidden" min="0" max="100" step="0.000001">
-                          <span class="settings-percent-readout">Upper tolerance <output id="settings-builder-1080p-upper-tolerance-readout">11.111111%</output></span>
-                        </div>
-                      </td>
-                      <td><output id="settings-height-1080p-range">0-1200p</output></td>
-                    </tr>
-                    <tr>
-                      <th scope="row">1440p</th>
-                      <td>
-                        <div class="settings-route-target-stack">
-                          <label class="settings-inline-field">Movie GB <input id="settings-builder-movie-1440p-target" type="number" min="1" step="1" aria-label="Movie 1440p target output size"></label>
-                          <label class="settings-inline-field">TV GB <input id="settings-builder-tv-1440p-target" type="number" min="1" step="1" aria-label="TV 1440p target output size"></label>
-                        </div>
-                      </td>
-                      <td>
+                        <span class="settings-percent-readout" id="settings-bitrate-estimate-1080p">If constant: 30m TV ~4.5 GB; 2h movie ~18 GB</span>
+                      </div>
+                    </section>
+                    <section class="settings-route-bucket-group settings-route-evidence-group">
+                      <h5>Height range</h5>
+                      <div class="settings-boundary-editor">
+                        <input id="settings-builder-1080p-upper-tolerance" type="hidden" min="0" max="33.240741" step="1" aria-label="1080p upper height tolerance percent" data-settings-preserve-input-type="true">
+                        <input id="settings-boundary-1080p-end" type="hidden" min="1080" max="1439" step="1" aria-label="1080p bucket end height">
+                        <span class="settings-percent-readout">Derived <output id="settings-builder-1080p-upper-tolerance-readout">11%</output> tolerance; ends at <output id="settings-boundary-1080p-end-readout">1200p</output></span>
+                      </div>
+                    </section>
+                  </div>
+                </article>
+                <article class="settings-route-bucket-card" data-route-bucket="1440p">
+                  <header class="settings-route-bucket-header">
+                    <div>
+                      <h4>1440p</h4>
+                      <p>Derived height range</p>
+                    </div>
+                    <span id="settings-route-card-range-1440p" class="settings-route-range-ref" aria-hidden="true">uses 1201-1799p</span>
+                  </header>
+                  <div class="settings-route-bucket-grid">
+                    <section class="settings-route-bucket-group">
+                      <h5>Encoded output size (GB)</h5>
+                      <div class="settings-route-target-stack">
+                        <label class="settings-inline-field">Movie <span class="settings-input-with-unit"><input id="settings-builder-movie-1440p-target" type="number" min="1" step="1" aria-label="Movie 1440p encoded output size in GB"><span aria-hidden="true">GB</span></span></label>
+                        <label class="settings-inline-field">TV <span class="settings-input-with-unit"><input id="settings-builder-tv-1440p-target" type="number" min="1" step="1" aria-label="TV 1440p encoded output size in GB"><span aria-hidden="true">GB</span></span></label>
+                      </div>
+                    </section>
+                    <section class="settings-route-bucket-group">
+                      <h5>Direct-copy limits</h5>
+                      <div class="settings-route-target-stack">
                         <label class="settings-inline-field">Max Mbps <input id="settings-builder-1440p-route-bitrate" type="number" min="1" max="500" step="1" aria-label="1440p max bitrate for direct copy"></label>
-                      </td>
-                      <td>
-                        <div class="settings-boundary-editor">
-                          <label class="settings-boundary-field">1440p starts at <input id="settings-boundary-1440p-start" type="number" min="1081" max="1440" step="1" aria-label="1440p bucket start height"> p</label>
-                          <label class="settings-boundary-field">1440p ends at <input id="settings-boundary-1440p-end" type="number" min="1440" max="2159" step="1" aria-label="1440p bucket end height"> p</label>
-                          <input id="settings-builder-1440p-lower-tolerance" type="hidden" min="0" max="100" step="0.000001">
-                          <input id="settings-builder-1440p-upper-tolerance" type="hidden" min="0" max="100" step="0.000001">
-                          <span class="settings-percent-readout">Lower <output id="settings-builder-1440p-lower-tolerance-readout">16.597222%</output>; upper <output id="settings-builder-1440p-upper-tolerance-readout">24.930556%</output></span>
-                        </div>
-                      </td>
-                      <td><output id="settings-height-1440p-range">1201-1799p</output></td>
-                    </tr>
-                    <tr>
-                      <th scope="row">4K</th>
-                      <td>
-                        <div class="settings-route-target-stack">
-                          <label class="settings-inline-field">Movie GB <input id="settings-builder-movie-4k-target" type="number" min="1" step="1" aria-label="Movie 4K target output size"></label>
-                          <label class="settings-inline-field">TV GB <input id="settings-builder-tv-4k-target" type="number" min="1" step="1" aria-label="TV 4K target output size"></label>
-                        </div>
-                      </td>
-                      <td>
+                        <span class="settings-percent-readout" id="settings-bitrate-estimate-1440p">If constant: 30m TV ~7.9 GB; 2h movie ~31.5 GB</span>
+                      </div>
+                    </section>
+                    <section class="settings-route-bucket-group settings-route-evidence-group">
+                      <h5>Height range</h5>
+                      <div class="settings-boundary-editor">
+                        <input id="settings-boundary-1440p-start" type="hidden" min="1081" max="1440" step="1" aria-label="1440p bucket start height">
+                        <input id="settings-boundary-1440p-end" type="hidden" min="1440" max="2159" step="1" aria-label="1440p bucket end height">
+                        <input id="settings-builder-1440p-lower-tolerance" type="hidden" min="0" max="100" step="0.000001" data-settings-preserve-input-type="true">
+                        <input id="settings-builder-1440p-upper-tolerance" type="hidden" min="0" max="100" step="0.000001" data-settings-preserve-input-type="true">
+                        <span class="settings-percent-readout">Derived lower <output id="settings-builder-1440p-lower-tolerance-readout">17%</output>; upper <output id="settings-builder-1440p-upper-tolerance-readout">25%</output></span>
+                      </div>
+                    </section>
+                  </div>
+                </article>
+                <article class="settings-route-bucket-card" data-route-bucket="4k">
+                  <header class="settings-route-bucket-header">
+                    <div>
+                      <h4>4K</h4>
+                      <p>Derived height range</p>
+                    </div>
+                    <span id="settings-route-card-range-4k" class="settings-route-range-ref" aria-hidden="true">uses &gt;=1800p</span>
+                  </header>
+                  <div class="settings-route-bucket-grid">
+                    <section class="settings-route-bucket-group">
+                      <h5>Encoded output size (GB)</h5>
+                      <div class="settings-route-target-stack">
+                        <label class="settings-inline-field">Movie <span class="settings-input-with-unit"><input id="settings-builder-movie-4k-target" type="number" min="1" step="1" aria-label="Movie 4K encoded output size in GB"><span aria-hidden="true">GB</span></span></label>
+                        <label class="settings-inline-field">TV <span class="settings-input-with-unit"><input id="settings-builder-tv-4k-target" type="number" min="1" step="1" aria-label="TV 4K encoded output size in GB"><span aria-hidden="true">GB</span></span></label>
+                      </div>
+                    </section>
+                    <section class="settings-route-bucket-group">
+                      <h5>Direct-copy limits</h5>
+                      <div class="settings-route-target-stack">
                         <label class="settings-inline-field">Max Mbps <input id="settings-builder-4k-route-bitrate" type="number" min="1" max="500" step="1" aria-label="4K max bitrate for direct copy"></label>
-                      </td>
-                      <td>
-                        <div class="settings-boundary-editor">
-                          <label class="settings-boundary-field">4K starts at <input id="settings-boundary-4k-start" type="number" min="1441" max="2160" step="1" aria-label="4K bucket start height"> p</label>
-                          <input id="settings-builder-4k-lower-tolerance" type="hidden" min="0" max="100" step="0.000001">
-                          <span class="settings-percent-readout">Lower tolerance <output id="settings-builder-4k-lower-tolerance-readout">16.666667%</output></span>
-                        </div>
-                      </td>
-                      <td><output id="settings-height-4k-range">1800p+</output></td>
-                    </tr>
-                  </tbody>
-                </table>
+                        <span class="settings-percent-readout" id="settings-bitrate-estimate-4k">If constant: 30m TV ~7.9 GB; 2h movie ~31.5 GB</span>
+                      </div>
+                    </section>
+                    <section class="settings-route-bucket-group settings-route-evidence-group">
+                      <h5>Height range</h5>
+                      <div class="settings-boundary-editor">
+                        <input id="settings-builder-4k-lower-tolerance" type="hidden" min="0" max="33.287037" step="1" aria-label="4K lower height tolerance percent" data-settings-preserve-input-type="true">
+                        <input id="settings-boundary-4k-start" type="hidden" min="1441" max="2160" step="1" aria-label="4K bucket start height">
+                        <span class="settings-percent-readout">Derived <output id="settings-builder-4k-lower-tolerance-readout">17%</output> tolerance; starts at <output id="settings-boundary-4k-start-readout">1800p</output></span>
+                      </div>
+                    </section>
+                  </div>
+                </article>
               </div>
               <p id="settings-height-pixel-summary" class="note">Pixel ranges assume 16:9 horizontal video. Boundary values route to the higher bucket.</p>
               <p id="settings-route-consequence-summary" class="note">A 1440p Movie uses the 1440p Movie target and 1440p direct-copy cap. Height 1800p routes as 4K.</p>
@@ -547,96 +620,28 @@
                   <select id="settings-builder-size-guard">
                     <option value="advisory">Warn only</option>
                     <option value="strict">Block publish</option>
+                    <option value="fallback_remux">Try remux fallback</option>
                     <option value="off">Disabled</option>
                   </select>
                 </label>
+                <label>
+                  Quality encode growth limit
+                  <span class="settings-input-with-unit"><input id="settings-builder-max-growth" type="number" min="0" step="1"><span aria-hidden="true">%</span></span>
+                </label>
+                <label>
+                  Compatibility encode growth limit
+                  <span class="settings-input-with-unit"><input id="settings-builder-compat-growth" type="number" min="0" step="1"><span aria-hidden="true">%</span></span>
+                </label>
               </div>
             </section>
-            <section class="settings-builder-subsection">
-              <h3>Video encoding</h3>
-              <div class="settings-routing-readout-grid">
-                <div><span>If encode is needed</span><strong id="settings-routing-video-codec-readout">HEVC NVENC</strong></div>
-                <div><span>Speed / quality</span><strong><output id="settings-routing-video-preset-readout">P5 - balanced</output>; quality <output id="settings-routing-video-quality-readout">22 - balanced default</output></strong></div>
-                <div><span>Output container</span><strong id="settings-routing-output-container-readout">MKV</strong></div>
-              </div>
-              <p class="note">Change speed and quality in Video. Codec and container stay under Advanced Routing Details for raw patch control.</p>
-            </section>
-          </div>
-          <details class="settings-advanced-disclosure">
-            <summary>Advanced Routing Details <span id="settings-advanced-routing-summary" class="settings-advanced-summary">Unknown-height fallback not loaded.</span></summary>
-            <div class="form-grid launch-form-grid">
-              <label>
-                Raw routing profile key
-                <input id="settings-builder-routing-profile-key-readout" type="text" readonly>
-              </label>
-              <label>
-                How encode targets are calculated
-                <select id="settings-builder-encode-ladder">
-                  <option value="auto">Auto</option>
-                  <option value="tv_balanced">TV balanced</option>
-                  <option value="tv_space_saver">TV space saver</option>
-                  <option value="movie_balanced">Movie balanced</option>
-                  <option value="movie_archive">Movie archive</option>
-                  <option value="plex_compat">Plex compatibility</option>
-                </select>
-              </label>
-              <label>
-                Video encoder
-                <select id="settings-builder-video-codec">
-                  <option value="hevc_nvenc">HEVC NVENC</option>
-                  <option value="h264_nvenc">H.264 NVENC</option>
-                  <option value="libx265">x265 CPU</option>
-                  <option value="libx264">x264 CPU</option>
-                  <option value="av1_nvenc">AV1 NVENC</option>
-                </select>
-              </label>
-              <label>
-                Output container
-                <select id="settings-builder-output-container">
-                  <option value="mkv">MKV</option>
-                  <option value="mp4">MP4</option>
-                </select>
-              </label>
-              <label>
-                Unknown-height movie size fallback
-                <input id="settings-builder-movie-threshold" type="number" min="1" step="1">
-              </label>
-              <label>
-                Unknown-height TV size fallback
-                <input id="settings-builder-tv-threshold" type="number" min="1" step="1">
-              </label>
-              <label>
-                Unknown-height movie bitrate fallback
-                <input id="settings-builder-movie-route-bitrate" type="number" min="1" max="500" step="1">
-              </label>
-              <label>
-                Unknown-height TV bitrate fallback
-                <input id="settings-builder-tv-route-bitrate" type="number" min="1" max="500" step="1">
-              </label>
-              <label>
-                Quality-encode size tolerance
-                <input id="settings-builder-max-growth" type="number" min="0" step="1">
-              </label>
-              <label>
-                Compatibility-encode size tolerance
-                <input id="settings-builder-compat-growth" type="number" min="0" step="1">
-              </label>
-              <label>
-                Legacy 1080p bucket max height
-                <input id="settings-builder-1080p-bucket-height" type="number" min="1" max="4320" step="1" readonly>
-              </label>
-              <label>
-                Legacy 4K bucket min height
-                <input id="settings-builder-4k-bucket-height" type="number" min="1" max="4320" step="1" readonly>
-              </label>
-            </div>
+            <input id="settings-builder-routing-profile-key-readout" type="hidden" readonly>
             <div class="action-row action-row-left">
               <button type="button" id="settings-builder-apply-button" class="secondary-button">Apply To Patch JSON</button>
               <button type="button" id="settings-builder-reset-button" class="secondary-button">Reset From Current</button>
             </div>
             <pre id="settings-builder-guidance" class="prose-block">No builder guidance loaded.</pre>
             <p class="note">Builder controls only update the JSON below. Preview and save still go through backend validation.</p>
-          </details>
+          </div>
         </section>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
@@ -853,7 +858,7 @@
         </div>
 
         <!-- TAB: DIMENSIONS -->
-        <div class="settings-tab-pane" data-settings-tab="dimensions">
+        <div class="settings-tab-pane" data-settings-tab="media-output">
         <section class="panel" data-panel-type="evidence" data-handbrake-section="dimensions">
           <div class="panel-heading">
             <h2>Dimensions</h2>
@@ -869,7 +874,7 @@
         </div>
 
         <!-- TAB: FILTERS -->
-        <div class="settings-tab-pane" data-settings-tab="filters">
+        <div class="settings-tab-pane" data-settings-tab="media-output">
         <section class="panel" data-panel-type="evidence" data-handbrake-section="filters">
           <div class="panel-heading">
             <h2>Filters</h2>
@@ -885,38 +890,22 @@
         </div>
 
         <!-- TAB: CONTAINER -->
-        <div class="settings-tab-pane" data-settings-tab="container">
+        <div class="settings-tab-pane" data-settings-tab="media-output">
         <section class="panel" data-panel-type="evidence" data-handbrake-section="container">
           <div class="panel-heading">
             <h2>Container</h2>
             <strong>Linked to Routing</strong>
           </div>
-          <p class="note">Editable container policy currently lives in Routing so route consequences are visible before Changes JSON is staged. This section is display-only orientation from saved settings.</p>
+          <p class="note">Editable container policy lives in Video with codec and encode target controls. This section is display-only orientation from saved settings.</p>
           <div class="settings-section-map">
             <div><strong>Container</strong><span id="settings-container-size-container">Output container is loaded from saved settings.</span></div>
           </div>
-          <p class="note">Use the Routing tab to change OutputContainer. Backend Preview Patch remains the source of truth before save.</p>
-        </section>
-        </div>
-
-        <!-- TAB: SIZE / BITRATE GUARDS -->
-        <div class="settings-tab-pane" data-settings-tab="size-bitrate">
-        <section class="panel" data-panel-type="evidence" data-handbrake-section="size-bitrate-guards">
-          <div class="panel-heading">
-            <h2>Size / Bitrate Guards</h2>
-            <strong>Linked to Routing</strong>
-          </div>
-          <p class="note">Editable source-size route gates, direct-copy bitrate caps, and growth tolerances live in Routing so route consequences are visible before Changes JSON is staged.</p>
-          <div class="settings-section-map">
-            <div><strong>If encoded output is too large</strong><span id="settings-container-size-guard">Guard mode and growth tolerances are loaded from saved settings.</span></div>
-            <div><strong>Bitrate gates</strong><span id="settings-container-size-bitrate">Movie and TV copy bitrate caps are loaded from saved settings.</span></div>
-          </div>
-          <p class="note">Use the Routing tab to change these values. Backend Preview Patch remains the source of truth before save.</p>
+          <p class="note">Use the Video panel to change OutputContainer. Backend Preview Patch remains the source of truth before save.</p>
         </section>
         </div>
 
         <!-- TAB: VERIFICATION / PUBLISH -->
-        <div class="settings-tab-pane" data-settings-tab="paths">
+        <div class="settings-tab-pane" data-settings-tab="publish-recovery">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Final Library Promotion <span class="impact-chip" data-impact="high" title="Final library promotion — destination rules, verification, overwrite, and cleanup">High Impact</span></h2>
@@ -972,7 +961,7 @@
         </div>
 
         <!-- TAB: VIDEO -->
-        <div class="settings-tab-pane" data-settings-tab="video">
+        <div class="settings-tab-pane" data-settings-tab="media-output">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Video <span class="impact-chip" data-impact="medium" title="Encoder / GPU — speed preset, quality, codec, and container selection">Medium Impact</span></h2>
@@ -1020,6 +1009,34 @@
               <span id="settings-video-quality-help" class="settings-slider-help">Lower targets keep more detail and create larger files; higher targets save space with more visible softness.</span>
             </label>
             <label>
+              Encode target calculation
+              <select id="settings-builder-encode-ladder">
+                <option value="auto">Auto</option>
+                <option value="tv_balanced">TV balanced</option>
+                <option value="tv_space_saver">TV space saver</option>
+                <option value="movie_balanced">Movie balanced</option>
+                <option value="movie_archive">Movie archive</option>
+                <option value="plex_compat">Plex compatibility</option>
+              </select>
+            </label>
+            <label>
+              Video encoder
+              <select id="settings-builder-video-codec">
+                <option value="hevc_nvenc">HEVC NVENC</option>
+                <option value="h264_nvenc">H.264 NVENC</option>
+                <option value="libx265">x265 CPU</option>
+                <option value="libx264">x264 CPU</option>
+                <option value="av1_nvenc">AV1 NVENC</option>
+              </select>
+            </label>
+            <label>
+              Output container
+              <select id="settings-builder-output-container">
+                <option value="mkv">MKV</option>
+                <option value="mp4">MP4</option>
+              </select>
+            </label>
+            <label>
               H.264 copy max Mbps
               <input id="settings-video-h264-max-bitrate" type="number" min="1" step="1">
             </label>
@@ -1031,6 +1048,11 @@
                 <option value="2160">2160p</option>
               </select>
             </label>
+          </div>
+          <div class="settings-routing-readout-grid">
+            <div><span>If encode is needed</span><strong id="settings-routing-video-codec-readout">HEVC NVENC</strong></div>
+            <div><span>Speed / quality</span><strong><output id="settings-routing-video-preset-readout">P5 - balanced</output>; quality <output id="settings-routing-video-quality-readout">22 - balanced default</output></strong></div>
+            <div><span>Output container</span><strong id="settings-routing-output-container-readout">MKV</strong></div>
           </div>
           <div class="option-grid option-grid-compact">
             <label class="check-row"><input id="settings-video-h264-remux" type="checkbox"> Copy Plex-compatible H.264</label>
@@ -1109,7 +1131,7 @@
         </div>
 
         <!-- TAB: VERIFICATION / PUBLISH CONTINUED -->
-        <div class="settings-tab-pane" data-settings-tab="paths">
+        <div class="settings-tab-pane" data-settings-tab="paths-safety">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>File Safety Settings <span class="impact-chip" data-impact="high" title="Paths / file safety — verify source, output, and scratch roots before running unattended jobs">High Impact</span></h2>
@@ -1200,6 +1222,8 @@
           </div>
           <p class="note">This panel stages only the existing TV parsing and folder-layout keys. Backend preview/save remains authoritative before future TV outputs use them.</p>
         </section>
+        </div>
+        <div class="settings-tab-pane" data-settings-tab="publish-recovery">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Recovery Settings <span class="impact-chip" data-impact="medium" title="Pending publish — deferred-publish, retry, cleanup, and copy safety keys">Medium Impact</span></h2>
@@ -1253,7 +1277,7 @@
         </div>
 
         <!-- TAB: SUBTITLES -->
-        <div class="settings-tab-pane" data-settings-tab="subtitles">
+        <div class="settings-tab-pane" data-settings-tab="media-output">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Subtitles <span class="impact-chip" data-impact="medium" title="Subtitles — language tracks, TX3G, BDPGS, merge windows, and extract timeouts">Medium Impact</span></h2>
@@ -1341,11 +1365,11 @@
             <div class="form-grid launch-form-grid">
               <label>
                 OCR tool path
-                <input id="settings-subtitle-bdpgs-ocr-tool-path" type="text" autocomplete="off" spellcheck="false" placeholder="Tools\PgsToSrt\PgsToSrt.exe">
+                <input id="settings-subtitle-bdpgs-ocr-tool-path" type="text" autocomplete="off" spellcheck="false" placeholder="tools\PgsToSrt\PgsToSrt.exe">
               </label>
               <label>
                 Tessdata path
-                <input id="settings-subtitle-bdpgs-ocr-tessdata-path" type="text" autocomplete="off" spellcheck="false" placeholder="Tools\PgsToSrt\tessdata">
+                <input id="settings-subtitle-bdpgs-ocr-tessdata-path" type="text" autocomplete="off" spellcheck="false" placeholder="tools\PgsToSrt\tessdata">
               </label>
             </div>
             <pre id="settings-subtitle-bdpgs-path-evidence" class="prose-block">No BDPGS OCR path evidence loaded.</pre>
@@ -1364,7 +1388,7 @@
             <div class="form-grid launch-form-grid">
               <label>
                 OCR tool path
-                <input id="settings-subtitle-vobsub-ocr-tool-path" type="text" autocomplete="off" spellcheck="false" placeholder="Tools\SubtitleEditLegacy\SubtitleEdit.exe">
+                <input id="settings-subtitle-vobsub-ocr-tool-path" type="text" autocomplete="off" spellcheck="false" placeholder="tools\SubtitleEditLegacy\SubtitleEdit.exe">
               </label>
             </div>
             <pre id="settings-subtitle-vobsub-path-evidence" class="prose-block">No VobSub OCR path evidence loaded.</pre>
@@ -1393,7 +1417,7 @@
         </div>
 
         <!-- TAB: AUDIO -->
-        <div class="settings-tab-pane" data-settings-tab="audio">
+        <div class="settings-tab-pane" data-settings-tab="media-output">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Audio <span class="impact-chip" data-impact="medium" title="Audio — channel layout, codec selection, normalization, and passthrough policy">Medium Impact</span></h2>
@@ -1501,7 +1525,7 @@
         </div>
 
         <!-- TAB: RENAME FILTERS -->
-        <div class="settings-tab-pane" data-settings-tab="rename">
+        <div class="settings-tab-pane" data-settings-tab="naming">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Rename Movie Cleaning Filters</h2>
@@ -1567,7 +1591,7 @@
         </div>
 
         <!-- TAB: ADVANCED / SYSTEM -->
-        <div class="settings-tab-pane" data-settings-tab="advanced">
+        <div class="settings-tab-pane" data-settings-tab="queue-runtime">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Worker Mode Settings</h2>
@@ -1694,7 +1718,7 @@
         </div>
 
         <!-- TAB: ADVANCED -->
-        <div class="settings-tab-pane" data-settings-tab="advanced">
+        <div class="settings-tab-pane" data-settings-tab="advanced-evidence">
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Safety Locks</h2>

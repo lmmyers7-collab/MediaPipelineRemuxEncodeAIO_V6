@@ -209,6 +209,8 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "launchScopeReconciliationRows",
               "renderLaunchStartDecisionSummary",
               "launchStartDecisionRows",
+              "launchCompactGateRows",
+              "renderLaunchCompactGate",
               "launchWorksheetEvidence",
               "launchSampleValidationRecordEvidence",
               "launchPolicyAlignmentQueueIntentEvidence",
@@ -228,12 +230,49 @@ def _browser_launch_queue_readiness_runner_source() -> str:
 
             window.showPage("launch");
             if (typeof window.mediaPipelineLaunchView?.activateLaunchTab !== "function") throw new Error("missing mediaPipelineLaunchView.activateLaunchTab");
+            const launchTabLabels = Array.from(document.querySelectorAll('[data-page-panel="launch"] .settings-tab-btn[data-launch-tab]'))
+              .map((button) => button.textContent.trim());
+            const expectedLaunchTabs = ["Pipeline Processor", "Audit", "CSV Rerun", "History", "Readiness"];
+            if (JSON.stringify(launchTabLabels) !== JSON.stringify(expectedLaunchTabs)) {
+              throw new Error("unexpected Launch tab order: " + JSON.stringify(launchTabLabels));
+            }
+            const launchPanelOrder = Array.from(document.querySelectorAll('[data-page-panel="launch"] > .launch-tab-panel[data-launch-tab-panel]'))
+              .map((panel) => panel.dataset.launchTabPanel)
+              .filter((tabId, index, all) => all.indexOf(tabId) === index);
+            const expectedPanelOrder = ["pipeline", "audit", "rerun", "history", "readiness"];
+            if (JSON.stringify(launchPanelOrder) !== JSON.stringify(expectedPanelOrder)) {
+              throw new Error("unexpected Launch panel DOM order: " + JSON.stringify(launchPanelOrder));
+            }
             requireLaunchTab("pipeline");
             clickLaunchTab("pipeline");
             setInput("pipeline-start-mode", "continuous");
             setInput("pipeline-start-single-file", "E:\\\\Videos\\\\Scratch\\\\Encoded\\\\TV\\\\Sample Pilot.mkv");
             setInput("pipeline-start-schedule-override", "");
             window.mediaPipelineLaunchView.renderAllLaunchPreflights();
+            const compactGateStrip = byId("pipeline-compact-gate-strip");
+            const startButton = byId("pipeline-start-button");
+            if (!compactGateStrip || !startButton || (compactGateStrip.compareDocumentPosition(startButton) & Node.DOCUMENT_POSITION_PRECEDING)) {
+              throw new Error("compact gate strip must render before Start Pipeline");
+            }
+            window.mediaPipelineLaunchView.renderLaunchCompactGate();
+            [
+              "pipeline-gate-backend",
+              "pipeline-gate-queue",
+              "pipeline-gate-settings",
+              "pipeline-gate-schedule",
+              "pipeline-gate-active",
+              "pipeline-gate-last",
+            ].forEach((id) => {
+              const gate = byId(id);
+              if (!gate) throw new Error("missing compact gate " + id);
+              if (gate.tagName !== "BUTTON") throw new Error(id + " is not a button");
+              const ariaLabel = gate.getAttribute("aria-label") || "";
+              if (!ariaLabel.includes("gate:") || !/(OK|Review|Blocked|Active)/.test(gate.textContent || "")) {
+                throw new Error(id + " missing visible/audible state; aria=" + ariaLabel + "; text=" + gate.textContent);
+              }
+            });
+            byId("pipeline-gate-backend").click();
+            requireText("pipeline-compact-gate-detail", ["Backend:", "Backend start remains authoritative."]);
             clickLaunchTab("readiness");
             const singleFileRequest = window.mediaPipelineLaunchView.collectPipelineStartRequest();
             if (singleFileRequest.single_file !== "E:\\\\Videos\\\\Scratch\\\\Encoded\\\\TV\\\\Sample Pilot.mkv") {
@@ -253,7 +292,9 @@ def _browser_launch_queue_readiness_runner_source() -> str:
                 && text("launch-pilot-readiness-summary").includes("Launch pilot run readiness:")
                 && text("launch-backend-preflight-summary").includes("Backend launch preflight:")
                 && !text("launch-backend-preflight-status").includes("Loading")
-                && text("queue-launch-decision-summary").includes("Queue launch decision checklist:")
+                && text("queue-decision-summary").includes("Queue decision header:")
+                && text("queue-attention-summary").includes("Attention required:")
+                && text("queue-launch-decision-summary").includes("Queue-to-Launch handoff:")
                 && text("launch-command-review-summary").includes("Launch command review:")
                 && text("schedule-guidance").includes("Backend launch gating remains the source of truth."),
               "Launch/Queue/Schedule readiness panels",
@@ -290,7 +331,8 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             requireTableText("launch-scope-reconciliation-rows", [
               "Backend authority",
               "Queue payload",
-              "Queue display filter scope",
+              "Queue tab display state",
+              "Queue-to-Launch Handoff",
               "Backend Launch Preflight",
               "Recent Launch command",
             ]);
@@ -309,7 +351,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             requireTableText("launch-start-decision-rows", [
               "Launch readiness",
               "Backend preflight",
-              "Queue launch decision",
+              "Queue-to-Launch handoff",
               "Settings / policy",
               "Real-media proof",
               "Pilot category coverage",
@@ -572,6 +614,9 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             if (!validateStartButton.disabled || !validateStartButton.title.includes("Refresh Backend Preflight")) {
               throw new Error("Run Once should require backend preflight before start; disabled=" + validateStartButton.disabled + "; title=" + validateStartButton.title);
             }
+            requireText("pipeline-start-disabled-reason", ["Refresh Backend Preflight"]);
+            window.mediaPipelineLaunchView.renderLaunchCompactGate();
+            requireText("pipeline-compact-gate-detail", ["Backend", "Refresh Backend Preflight"]);
             setInput("pipeline-start-mode", "continuous");
             const blockedPipelinePreflight = {
               ...originalPipelinePreflight,
@@ -593,6 +638,9 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             ];
             window.mediaPipelineLaunchView.renderLaunchBackendPreflight(blockedPreflightPayloads);
             window.mediaPipelineLaunchView.updateLaunchCommandButtonStates(idleSnapshot, idleCloseReadiness);
+            window.mediaPipelineLaunchView.renderLaunchCompactGate();
+            requireText("pipeline-gate-backend", ["Backend", "Blocked"]);
+            requireText("pipeline-compact-gate-detail", ["Backend", "Backend start remains authoritative."]);
             const launchGateChecks = [
               ["pipeline-start-button", "Resolve blocked Backend Preflight checks"],
               ["pending-drain-button", "Refresh Backend Preflight"],
@@ -630,16 +678,28 @@ def _browser_launch_queue_readiness_runner_source() -> str:
 
             window.showPage("queue");
             await waitFor(
-              () => text("queue-launch-decision-summary").includes("Queue launch decision checklist:"),
-              "Queue launch decision after page switch",
+              () => text("queue-decision-summary").includes("Queue decision header:")
+                && text("queue-launch-decision-summary").includes("Queue-to-Launch handoff:"),
+              "Queue decision header after page switch",
             );
+            requireText("queue-decision-summary", [
+              "Queue decision header:",
+              "Visible rows after display filters:",
+              "Selected for Queue actions:",
+              "Backend launch scope is owned by Launch; Queue filters, selected rows, and rendered row caps are not submitted as processing scope.",
+            ]);
+            requireText("queue-attention-summary", [
+              "Attention required:",
+              "Hidden blocked/review rows behind display filters:",
+              "Boundary: attention evidence is read-only",
+            ]);
             requireText("queue-launch-decision-summary", [
-              "Queue launch decision checklist:",
-              "Decision rule: launch only after backend launch preflight",
-              "Mutation guardrail: this checklist cannot launch",
+              "Queue-to-Launch handoff:",
+              "Decision rule: open Launch only after backend launch preflight",
+              "Mutation guardrail: this handoff cannot launch",
             ]);
             requireText("queue-backend-scope-summary", [
-              "Backend launch scope preview:",
+              "Backend launch scope boundary:",
               "Backend start route: /api/pipeline/start",
               "Queue filters, row selection, and rendered table caps are not submitted as processing scope.",
             ]);
@@ -654,11 +714,15 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "Recent launch command",
             ]);
             requireText("queue-launch-decision-detail", [
-              "Queue launch decision checklist:",
+              "Queue-to-Launch handoff:",
               "Guardrail: only backend Launch routes can start processing",
             ]);
             const queueRefreshButton = document.querySelector("[data-queue-refresh-button]");
             if (!queueRefreshButton) throw new Error("missing Scan Sources button");
+            const queueRowsBeforeScan = tableText("queue-rows");
+            if (!queueRowsBeforeScan.trim() || queueRowsBeforeScan.includes("No queue loaded")) {
+              throw new Error("Queue rows were not loaded before Scan Sources smoke: " + queueRowsBeforeScan);
+            }
             queueRefreshButton.click();
             const topbarPrimaryNode = document.querySelector("#activity .activity-primary");
             const topbarPrimary = topbarPrimaryNode && topbarPrimaryNode.textContent ? topbarPrimaryNode.textContent.trim() : "";
@@ -671,13 +735,35 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             if (queueRefreshButton.textContent.trim() !== "Scanning...") {
               throw new Error("Scan Sources button did not switch to scanning text; got " + queueRefreshButton.textContent.trim());
             }
+            const queueWrap = document.querySelector(".queue-table-wrap");
+            const loadingScreen = document.getElementById("queue-loading-screen");
+            if (!queueWrap || queueWrap.dataset.queueLoading !== "true" || !queueWrap.classList.contains("is-queue-loading")) {
+              throw new Error("Scan Sources did not hide the current queue with loading state.");
+            }
+            if (!loadingScreen || loadingScreen.hidden) {
+              throw new Error("Queue loading screen was not visible after Scan Sources.");
+            }
+            requireText("queue-loading-status", [
+              "Dry-run scan in progress.",
+              "Current queue rows are hidden",
+              "refreshed backend snapshot",
+            ]);
+            requireText("queue-table-legend", ["Queue refresh in progress", "Current rows hidden"]);
+            const loadingRowsText = tableText("queue-rows");
+            if (!loadingRowsText.includes("Current queue rows are hidden") || loadingRowsText === queueRowsBeforeScan) {
+              throw new Error("Queue table body did not replace stale rows with loading copy: " + loadingRowsText);
+            }
             await waitFor(
               () => {
                 const button = document.querySelector("[data-queue-refresh-button]");
-                return Boolean(button && !button.hasAttribute("aria-busy"));
+                const wrap = document.querySelector(".queue-table-wrap");
+                return Boolean(button && !button.hasAttribute("aria-busy") && wrap && wrap.dataset.queueLoading !== "true");
               },
               "Queue refresh completion",
             );
+            if (queueWrap.classList.contains("is-queue-loading") || !loadingScreen.hidden) {
+              throw new Error("Queue loading screen did not clear after refreshed queue render.");
+            }
 
             window.showPage("schedule");
             await waitFor(
@@ -770,14 +856,14 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             const deadline = Date.now() + 20000;
             while (Date.now() < deadline) {
               const ready = await client.send("Runtime.evaluate", {
-                expression: `Boolean(document.getElementById("launch-backend-preflight-summary") && document.getElementById("launch-scope-reconciliation-summary") && document.getElementById("launch-start-decision-summary") && document.getElementById("launch-real-media-proof-summary") && document.getElementById("launch-sample-execution-summary") && document.getElementById("launch-pilot-readiness-summary") && document.getElementById("queue-launch-decision-summary") && document.getElementById("schedule-guidance") && document.getElementById("close-readiness") && typeof window.mediaPipelineLaunchView.activateLaunchTab === "function" && typeof window.mediaPipelineLaunchView.renderAllLaunchPreflights === "function" && typeof window.mediaPipelineLaunchView.renderLaunchScopeReconciliation === "function" && typeof window.mediaPipelineLaunchView.renderLaunchStartDecisionSummary === "function" && typeof window.mediaPipelineLaunchView.renderLaunchRealMediaProofHandoff === "function" && typeof window.mediaPipelineLaunchView.renderLaunchSampleExecutionChecklist === "function" && typeof window.mediaPipelineLaunchView.renderLaunchPilotRunReadiness === "function" && typeof window.queueLaunchDecisionRows === "function" && typeof window.commandHistoryOwnerPage === "function")`,
+                expression: `Boolean(document.getElementById("pipeline-compact-gate-strip") && document.getElementById("launch-backend-preflight-summary") && document.getElementById("launch-scope-reconciliation-summary") && document.getElementById("launch-start-decision-summary") && document.getElementById("launch-real-media-proof-summary") && document.getElementById("launch-sample-execution-summary") && document.getElementById("launch-pilot-readiness-summary") && document.getElementById("queue-launch-decision-summary") && document.getElementById("schedule-guidance") && document.getElementById("close-readiness") && typeof window.mediaPipelineLaunchView.activateLaunchTab === "function" && typeof window.mediaPipelineLaunchView.renderAllLaunchPreflights === "function" && typeof window.mediaPipelineLaunchView.renderLaunchCompactGate === "function" && typeof window.mediaPipelineLaunchView.renderLaunchScopeReconciliation === "function" && typeof window.mediaPipelineLaunchView.renderLaunchStartDecisionSummary === "function" && typeof window.mediaPipelineLaunchView.renderLaunchRealMediaProofHandoff === "function" && typeof window.mediaPipelineLaunchView.renderLaunchSampleExecutionChecklist === "function" && typeof window.mediaPipelineLaunchView.renderLaunchPilotRunReadiness === "function" && typeof window.queueLaunchDecisionRows === "function" && typeof window.commandHistoryOwnerPage === "function")`,
                 returnByValue: true,
               });
               if (ready.result?.value === true) break;
               await sleep(150);
             }
             const ready = await client.send("Runtime.evaluate", {
-              expression: `Boolean(document.getElementById("launch-backend-preflight-summary") && document.getElementById("launch-scope-reconciliation-summary") && document.getElementById("launch-start-decision-summary") && document.getElementById("launch-real-media-proof-summary") && document.getElementById("launch-sample-execution-summary") && document.getElementById("launch-pilot-readiness-summary") && document.getElementById("queue-launch-decision-summary") && document.getElementById("schedule-guidance") && document.getElementById("close-readiness") && typeof window.mediaPipelineLaunchView.activateLaunchTab === "function" && typeof window.mediaPipelineLaunchView.renderAllLaunchPreflights === "function" && typeof window.mediaPipelineLaunchView.renderLaunchScopeReconciliation === "function" && typeof window.mediaPipelineLaunchView.renderLaunchStartDecisionSummary === "function" && typeof window.mediaPipelineLaunchView.renderLaunchRealMediaProofHandoff === "function" && typeof window.mediaPipelineLaunchView.renderLaunchSampleExecutionChecklist === "function" && typeof window.mediaPipelineLaunchView.renderLaunchPilotRunReadiness === "function" && typeof window.queueLaunchDecisionRows === "function" && typeof window.commandHistoryOwnerPage === "function")`,
+              expression: `Boolean(document.getElementById("pipeline-compact-gate-strip") && document.getElementById("launch-backend-preflight-summary") && document.getElementById("launch-scope-reconciliation-summary") && document.getElementById("launch-start-decision-summary") && document.getElementById("launch-real-media-proof-summary") && document.getElementById("launch-sample-execution-summary") && document.getElementById("launch-pilot-readiness-summary") && document.getElementById("queue-launch-decision-summary") && document.getElementById("schedule-guidance") && document.getElementById("close-readiness") && typeof window.mediaPipelineLaunchView.activateLaunchTab === "function" && typeof window.mediaPipelineLaunchView.renderAllLaunchPreflights === "function" && typeof window.mediaPipelineLaunchView.renderLaunchCompactGate === "function" && typeof window.mediaPipelineLaunchView.renderLaunchScopeReconciliation === "function" && typeof window.mediaPipelineLaunchView.renderLaunchStartDecisionSummary === "function" && typeof window.mediaPipelineLaunchView.renderLaunchRealMediaProofHandoff === "function" && typeof window.mediaPipelineLaunchView.renderLaunchSampleExecutionChecklist === "function" && typeof window.mediaPipelineLaunchView.renderLaunchPilotRunReadiness === "function" && typeof window.queueLaunchDecisionRows === "function" && typeof window.commandHistoryOwnerPage === "function")`,
               returnByValue: true,
             });
             if (ready.result?.value !== true) throw new Error("Launch/Queue readiness WebView globals or DOM nodes did not become ready.");
@@ -917,7 +1003,7 @@ class WebViewBrowserLaunchQueueReadinessSmoke(unittest.TestCase):
             self.assertIn("Current category record matches: 0", browser_result["pilotReadinessDetail"])
             self.assertIn("Saved policy vs Queue route evidence packet:", browser_result["pilotPolicyDetail"])
             self.assertIn("Backend launch preflight:", browser_result["backendPreflight"])
-            self.assertIn("Queue launch decision checklist:", browser_result["queueDecision"])
+            self.assertIn("Queue-to-Launch handoff:", browser_result["queueDecision"])
             self.assertIn("Backend launch gating remains the source of truth.", browser_result["scheduleGuidance"])
             self.assertIn("Launch command review:", browser_result["commandReview"])
             for path, before in watched.items():

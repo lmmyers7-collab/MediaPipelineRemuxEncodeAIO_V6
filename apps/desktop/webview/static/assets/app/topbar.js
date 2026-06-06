@@ -20,6 +20,7 @@
     resumed: { main: "Resumed", detail: "" },
     stopped: { main: "Stopped", detail: "" },
     completed: { main: "Completed", detail: "" },
+    no_new_sources: { main: "No New Sources", detail: "" },
     failed: { main: "Failed", detail: "" },
     error: { main: "Error", detail: "" },
     audit: { main: "Audit", detail: "" },

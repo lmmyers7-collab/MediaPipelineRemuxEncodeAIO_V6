@@ -10,8 +10,8 @@ baselines under `docs/generated/`.
 
 Before this file was added, the repo already had these related safeguards:
 
-- `ops/scripts/dev/ai_guardrail.py`: generic AI preflight/postflight checks.
-- `ops/scripts/dev/check_architecture_guardrails.py`: architecture layout checks.
+- `python -m mediapipeline.tools.dev.ai_guardrail`: generic AI preflight/postflight checks.
+- `python -m mediapipeline.tools.dev.check_architecture_guardrails`: architecture layout checks.
 - `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`: media and mutation safety
   boundaries.
 - `docs/testing/WEBVIEW_GODFILE_SPLIT_RUNBOOK.md`: WebView split procedure.

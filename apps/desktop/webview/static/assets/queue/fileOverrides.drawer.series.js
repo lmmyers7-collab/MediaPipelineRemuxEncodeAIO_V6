@@ -1,0 +1,344 @@
+// queue/fileOverrides.drawer.series.js
+// Series preview/apply modal behavior for the Queue file override drawer.
+
+(function initFileOverridesDrawerSeriesModule() {
+  // eslint-disable-next-line max-lines-per-function
+  function createFileOverridesDrawerSeriesModule(ctx) {
+    const {
+      documentRef: document,
+      state,
+      byId,
+      statusToneForMessage,
+      setStatus,
+      isPlainObject,
+      backendErrorMessage,
+    } = ctx;
+    function apiPost(path, body, options) {
+      const fn = typeof window.apiPost === "function"
+        ? window.apiPost
+        : async function () { return { ok: false, message: "API unavailable." }; };
+      return fn(path, body, options);
+    }
+    function appendCommandResultFn(result) {
+      if (typeof window.appendCommandResult === "function") window.appendCommandResult(result);
+    }
+    async function refreshAllFn() {
+      if (typeof window.refreshAll === "function") await window.refreshAll();
+    }
+
+    function buildOverridePayload() { return ctx.form.buildOverridePayload(); }
+    function validateExactTrackSelectionsBeforeSave() { return ctx.tracks.validateExactTrackSelectionsBeforeSave(); }
+    function setDrawerCommandButtonsDisabled(disabled) { return ctx.form.setDrawerCommandButtonsDisabled(disabled); }
+    function openSeriesModal(trigger) { return ctx.focus.openSeriesModal(trigger); }
+    function closeSeriesModal(options) { return ctx.focus.closeSeriesModal(options); }
+    function loadFileOverrideEffectiveForPath(path, item) { return ctx.api.loadFileOverrideEffectiveForPath(path, item); }
+    function closeFileSettingsDrawer() { return ctx.closeFileSettingsDrawer(); }
+    function markDrawerClean() { return ctx.form.markDrawerClean(); }
+
+  function buildSeriesProposedOverridePayload() {
+    const payload = buildOverridePayload();
+    if (!payload) return null;
+    const proposed = { ...payload };
+    delete proposed.path;
+    return proposed;
+  }
+
+  function setSeriesStatus(message, tone = "") {
+    const el = byId("fo-series-status");
+    if (!el) return;
+    const text = String(message || "");
+    const resolvedTone = tone || statusToneForMessage(text);
+    el.textContent = text;
+    el.dataset.tone = resolvedTone;
+    el.setAttribute("role", resolvedTone === "error" ? "alert" : "status");
+    el.setAttribute("aria-live", resolvedTone === "error" ? "assertive" : "polite");
+  }
+
+  function resetSeriesPreviewState() {
+    state.foSeriesPreviewPayload = null;
+    state.foSeriesFilter = "all";
+    document.querySelectorAll("[data-fo-series-filter]").forEach((button) => {
+      button.setAttribute("aria-pressed", button.dataset.foSeriesFilter === "all" ? "true" : "false");
+    });
+    const summary = byId("fo-series-summary");
+    const detected = byId("fo-series-detected");
+    const fields = byId("fo-series-fields");
+    const counts = byId("fo-series-counts");
+    const issues = byId("fo-series-issues");
+    const rows = byId("fo-series-rows");
+    const applyButton = byId("fo-series-apply");
+    if (summary) summary.textContent = "Preview has not loaded.";
+    [detected, fields, counts, issues].forEach((el) => { if (el) el.replaceChildren(); });
+    if (rows) {
+      rows.replaceChildren();
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 4;
+      cell.textContent = "No preview loaded.";
+      row.appendChild(cell);
+      rows.appendChild(row);
+    }
+    if (applyButton) applyButton.disabled = true;
+  }
+
+  function fieldPathLabel(path) {
+    const labels = {
+      "routing.profile": "Route profile",
+      "routing.routeThresholdMode": "Route threshold mode",
+      "video.codec": "Video codec",
+      "video.container": "Output container",
+      "video.encodePreset": "Encode preset",
+      "video.encodeLadder": "Encode ladder",
+      "audio.keepTracks": "Audio keep tracks",
+      "audio.dropTracks": "Audio drop tracks",
+      "audio.maxChannels": "Audio max channels",
+      "audio.preferDefaultLanguage": "Audio preferred default language",
+      "subtitles.keepTracks": "Subtitle keep tracks",
+      "subtitles.dropTracks": "Subtitle drop tracks",
+      "subtitles.burnTrack": "Subtitle burn track",
+      "subtitles.stripAll": "Subtitle strip all",
+    };
+    const text = String(path || "").trim();
+    return labels[text] || text.replace(/[._-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  function appendSeriesChip(container, label, tone = "") {
+    if (!container) return;
+    const chip = document.createElement("span");
+    chip.textContent = label;
+    if (tone) chip.dataset.tone = tone;
+    container.appendChild(chip);
+  }
+
+  function seriesActionLabel(action) {
+    const labels = {
+      will_update: "Will update",
+      replace_prior_batch: "Replace batch",
+      protected_manual: "Protected",
+      skipped: "Skipped",
+      issue: "Issue",
+    };
+    return labels[String(action || "")] || String(action || "Unknown");
+  }
+
+  function seriesActionTone(action) {
+    if (action === "protected_manual") return "warning";
+    if (action === "issue") return "error";
+    if (action === "skipped") return "warning";
+    return "success";
+  }
+
+  function seriesEpisodeText(row) {
+    const season = Number(row?.season_number || 0);
+    const episode = Number(row?.episode_number || 0);
+    if (season || episode) return `S${String(season).padStart(2, "0")}E${String(episode).padStart(2, "0")}`;
+    return "";
+  }
+
+  function seriesRowVisible(row) {
+    const action = String(row?.action || "");
+    if (state.foSeriesFilter === "all") return true;
+    if (state.foSeriesFilter === "will_update") return action === "will_update" || action === "replace_prior_batch";
+    if (state.foSeriesFilter === "protected") return action === "protected_manual";
+    if (state.foSeriesFilter === "issues") return action === "issue";
+    return true;
+  }
+
+  function renderSeriesRows(rows) {
+    const body = byId("fo-series-rows");
+    if (!body) return;
+    body.replaceChildren();
+    const visibleRows = (Array.isArray(rows) ? rows : []).filter(seriesRowVisible);
+    if (!visibleRows.length) {
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 4;
+      cell.textContent = "No rows match this filter.";
+      row.appendChild(cell);
+      body.appendChild(row);
+      return;
+    }
+    visibleRows.forEach((previewRow) => {
+      const row = document.createElement("tr");
+      row.dataset.action = String(previewRow.action || "");
+
+      const actionCell = document.createElement("td");
+      const badge = document.createElement("span");
+      badge.className = "fo-track-badge";
+      badge.textContent = seriesActionLabel(previewRow.action);
+      badge.dataset.tone = seriesActionTone(previewRow.action);
+      actionCell.appendChild(badge);
+
+      const fileCell = document.createElement("td");
+      const displayName = String(previewRow.display_name || "").trim();
+      const relativePath = String(previewRow.relative_path || "").trim();
+      const sourcePath = String(previewRow.source_path || "").trim();
+      fileCell.textContent = displayName || relativePath || sourcePath || "Unknown file";
+      if (relativePath && relativePath !== fileCell.textContent) {
+        const detail = document.createElement("small");
+        detail.textContent = relativePath;
+        fileCell.appendChild(document.createElement("br"));
+        fileCell.appendChild(detail);
+      }
+
+      const episodeCell = document.createElement("td");
+      episodeCell.textContent = seriesEpisodeText(previewRow);
+
+      const reasonCell = document.createElement("td");
+      reasonCell.textContent = String(previewRow.reason || "");
+
+      row.append(actionCell, fileCell, episodeCell, reasonCell);
+      body.appendChild(row);
+    });
+  }
+
+  function renderSeriesPreview(payload) {
+    const summary = byId("fo-series-summary");
+    const detectedEl = byId("fo-series-detected");
+    const fieldsEl = byId("fo-series-fields");
+    const countsEl = byId("fo-series-counts");
+    const issuesEl = byId("fo-series-issues");
+    const applyButton = byId("fo-series-apply");
+    const data = isPlainObject(payload) ? payload : {};
+    const counts = isPlainObject(data.counts) ? data.counts : {};
+    const detected = isPlainObject(data.detected) ? data.detected : {};
+
+    if (summary) summary.textContent = String(data.message || "Series preview loaded.");
+    [detectedEl, fieldsEl, countsEl, issuesEl].forEach((el) => { if (el) el.replaceChildren(); });
+
+    appendSeriesChip(detectedEl, `Show: ${detected.show_name || "Unknown"}`);
+    appendSeriesChip(detectedEl, `Root: ${detected.show_root || "Unknown"}`);
+    appendSeriesChip(detectedEl, `Confidence: ${detected.confidence || "unknown"}`);
+
+    const proposedFields = Array.isArray(data.proposed_fields) ? data.proposed_fields : [];
+    if (proposedFields.length) {
+      proposedFields.forEach((field) => appendSeriesChip(fieldsEl, fieldPathLabel(field)));
+    } else {
+      appendSeriesChip(fieldsEl, "No proposed fields", "warning");
+    }
+
+    appendSeriesChip(countsEl, `Will update: ${counts.will_update || 0}`);
+    appendSeriesChip(countsEl, `Replace batch: ${counts.replace_prior_batch || 0}`);
+    appendSeriesChip(countsEl, `Protected: ${counts.protected_manual || 0}`, counts.protected_manual ? "warning" : "");
+    appendSeriesChip(countsEl, `Skipped: ${counts.skipped || 0}`, counts.skipped ? "warning" : "");
+    appendSeriesChip(countsEl, `Issues: ${counts.issue || 0}`, counts.issue ? "error" : "");
+
+    const blockers = Array.isArray(data.blockers) ? data.blockers : [];
+    const warnings = Array.isArray(data.warnings) ? data.warnings : [];
+    blockers.forEach((blocker) => appendSeriesChip(issuesEl, String(blocker?.message || blocker || ""), "error"));
+    warnings.forEach((warning) => appendSeriesChip(issuesEl, String(warning?.message || warning || ""), "warning"));
+    if (!blockers.length && !warnings.length) appendSeriesChip(issuesEl, "No blockers reported.");
+
+    renderSeriesRows(data.rows);
+    if (applyButton) {
+      applyButton.disabled = state.foCommandInFlight || !data.ok || blockers.length > 0 || !String(data.preview_fingerprint || "").trim();
+    }
+    setSeriesStatus(data.ok ? "Review the affected rows before applying." : "Preview has blockers.", data.ok ? "info" : "error");
+  }
+
+  async function requestSeriesPreview() {
+    if (state.foCommandInFlight) { setStatus("File override command already in progress."); return; }
+    if (!state.foCurrentPath) { setStatus("No file selected."); return; }
+    if (!byId("fo-series-auto-detect")?.checked) {
+      setStatus("Enable Auto-detect series scope before previewing a series batch.", "warning");
+      return;
+    }
+    const proposed = buildSeriesProposedOverridePayload();
+    if (!proposed) {
+      setStatus("Set at least one override field before applying to a series.", "warning");
+      return;
+    }
+    if (!validateExactTrackSelectionsBeforeSave()) return;
+
+    resetSeriesPreviewState();
+    state.foCommandInFlight = true;
+    setDrawerCommandButtonsDisabled(true);
+    setStatus("Previewing series override...");
+    try {
+      const result = await apiPost("/api/queue/file-overrides/series-preview", {
+        path: state.foCurrentPath,
+        proposed_override: proposed,
+      });
+      state.foSeriesPreviewPayload = result;
+      renderSeriesPreview(result);
+      openSeriesModal(byId("fo-series-preview-open"));
+      if (result && result.ok) {
+        setStatus("Series override preview loaded.");
+      } else {
+        setStatus("Error: " + backendErrorMessage(result, "Series preview failed."), "error");
+      }
+    } catch (err) {
+      setStatus("Error previewing series override: " + (err.message || err), "error");
+      setSeriesStatus("Error previewing series override: " + (err.message || err), "error");
+    } finally {
+      state.foCommandInFlight = false;
+      setDrawerCommandButtonsDisabled(false);
+      if (state.foSeriesPreviewPayload) renderSeriesPreview(state.foSeriesPreviewPayload);
+    }
+  }
+
+  async function applySeriesPreview() {
+    if (state.foCommandInFlight) { setSeriesStatus("File override command already in progress.", "warning"); return; }
+    if (!state.foCurrentPath) { setSeriesStatus("No file selected.", "error"); return; }
+    if (!state.foSeriesPreviewPayload || !state.foSeriesPreviewPayload.ok) {
+      setSeriesStatus("Preview the series before applying.", "warning");
+      return;
+    }
+    const fingerprint = String(state.foSeriesPreviewPayload.preview_fingerprint || "").trim();
+    if (!fingerprint) {
+      setSeriesStatus("Preview fingerprint is missing; preview again.", "error");
+      return;
+    }
+    const proposed = buildSeriesProposedOverridePayload();
+    if (!proposed) {
+      setSeriesStatus("Set at least one override field before applying to a series.", "warning");
+      return;
+    }
+    if (!validateExactTrackSelectionsBeforeSave()) return;
+
+    state.foCommandInFlight = true;
+    setDrawerCommandButtonsDisabled(true);
+    setSeriesStatus("Applying series override...");
+    setStatus("Applying series override...");
+    try {
+      const result = await apiPost("/api/queue/file-overrides/series-apply", {
+        path: state.foCurrentPath,
+        proposed_override: proposed,
+        confirm_apply: true,
+        preview_fingerprint: fingerprint,
+      });
+      if (!(result && result.ok)) {
+        setSeriesStatus("Error: " + backendErrorMessage(result, "Series apply failed."), "error");
+        setStatus("Error: " + backendErrorMessage(result, "Series apply failed."), "error");
+        return;
+      }
+      appendCommandResultFn(result);
+      await refreshAllFn();
+      await loadFileOverrideEffectiveForPath(state.foCurrentPath, state.foCurrentItem);
+      markDrawerClean();
+      setStatus(result.message || "Series override applied.");
+      closeSeriesModal({ restoreFocus: false, restoreDrawer: false });
+      closeFileSettingsDrawer();
+    } catch (err) {
+      setSeriesStatus("Error applying series override: " + (err.message || err), "error");
+      setStatus("Error applying series override: " + (err.message || err), "error");
+    } finally {
+      state.foCommandInFlight = false;
+      setDrawerCommandButtonsDisabled(false);
+    }
+  }
+
+
+    return {
+      buildSeriesProposedOverridePayload,
+      setSeriesStatus,
+      resetSeriesPreviewState,
+      renderSeriesRows,
+      renderSeriesPreview,
+      requestSeriesPreview,
+      applySeriesPreview,
+    };
+  }
+
+  window.__queueFileOverridesDrawerSeriesModule = { createFileOverridesDrawerSeriesModule };
+})();

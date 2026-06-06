@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: d46d85b29e260a01a04af4dda94c8b67f68f5b58a14e7624ada7dccecb09a82e
+sha256: d5fde2f651b5e299a5c90c340b4cc6546560b22a7ad7fa7abecdc3c00b34ddd6
 ---
 # `tests/python/tooling/test_dependency_boundaries.py`
 

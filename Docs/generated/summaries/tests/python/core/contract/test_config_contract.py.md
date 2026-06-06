@@ -3,9 +3,9 @@ file: tests/python/core/contract/test_config_contract.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: df775d21895f6c5a8f9ac3cf84097b55b6a76db6f78d25b8f33354fd3a92c138
+sha256: c48460951ef5d0154f451ca3ff9aa7af131d057204885ef024c01fcc50c34993
 ---
 # `tests/python/core/contract/test_config_contract.py`
 

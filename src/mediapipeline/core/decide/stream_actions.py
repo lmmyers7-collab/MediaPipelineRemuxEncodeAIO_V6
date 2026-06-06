@@ -98,11 +98,30 @@ def subtitle_action(stream: SourceSubtitleStream, policy: EffectiveDecisionPolic
             legacy_code="subtitle_format_incompatible_with_container",
             facts={"stream_index": stream.stream_index, "codec": codec, "output_container": policy.output_container},
         )
-        action = "burn" if stream.image_based else "convert"
+        if stream.image_based:
+            builder.add(
+                "SUBTITLE_IMAGE_REQUIRES_EXPLICIT_REVIEW",
+                f"image subtitle stream {stream.stream_index} cannot be auto-burned for MP4 without explicit policy",
+                enforcement="hard_block",
+                legacy_code="subtitle_image_requires_explicit_review",
+                facts={
+                    "stream_index": stream.stream_index,
+                    "codec": codec,
+                    "output_container": policy.output_container,
+                },
+            )
+            return SubtitleStreamDecision(
+                stream_index=stream.stream_index,
+                action="unknown",
+                reason_codes=[
+                    "SUBTITLE_FORMAT_INCOMPATIBLE_WITH_CONTAINER",
+                    "SUBTITLE_IMAGE_REQUIRES_EXPLICIT_REVIEW",
+                ],
+            )
         return SubtitleStreamDecision(
             stream_index=stream.stream_index,
-            action=action,  # type: ignore[arg-type]
-            output_codec="" if action == "burn" else "mov_text",
+            action="convert",
+            output_codec="mov_text",
             reason_codes=["SUBTITLE_FORMAT_INCOMPATIBLE_WITH_CONTAINER"],
         )
     return SubtitleStreamDecision(stream_index=stream.stream_index, action="copy")

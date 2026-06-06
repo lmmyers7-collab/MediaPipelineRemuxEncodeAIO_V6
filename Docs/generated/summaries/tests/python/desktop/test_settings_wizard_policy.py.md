@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: 010c17ec74011fdb49cffab8936aa19d0b2a8a35d2fa43fb27a9edcfba397bdd
+sha256: d4a40699e5623b931bf3b96486acce2f8cf764c7d54df61e5ad9da89278283a0
 ---
 # `tests/python/desktop/test_settings_wizard_policy.py`
 

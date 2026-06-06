@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.desktop.config_keys import KEY_VALID_EXTENSIONS
+from mediapipeline.core.kernel.config_keys import KEY_VALID_EXTENSIONS
 
 
 @dataclass(frozen=True)

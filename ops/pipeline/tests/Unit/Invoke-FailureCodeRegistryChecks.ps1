@@ -2,9 +2,15 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $scriptPath = if ($PSCommandPath) { $PSCommandPath } else { $MyInvocation.MyCommand.Path }
-$root = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $scriptPath))
-$projectRoot = Split-Path -Parent $root
-$failureCodesModule = Join-Path $projectRoot 'ops\pipeline\engine\shared\failure_codes.ps1'
+$pipelineRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $scriptPath))
+$repoRoot = Split-Path -Parent (Split-Path -Parent $pipelineRoot)
+if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'AGENTS.md') -PathType Leaf)) {
+    throw "Unable to resolve repository root from $scriptPath."
+}
+if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine') -PathType Container)) {
+    throw "Resolved repository root is missing ops\pipeline\engine: $repoRoot"
+}
+$failureCodesModule = Join-Path $repoRoot 'ops\pipeline\engine\shared\failure_codes.ps1'
 
 . $failureCodesModule
 
@@ -63,18 +69,19 @@ if ($null -ne (Get-MediaPipelineFailureCodeMetadata -Code 'NOT_A_REAL_FAILURE_CO
     throw 'Failure metadata lookup returned metadata for an unknown failure code.'
 }
 
-$pipelineRoot = $root
 $scanFiles = @()
-$scanFiles += Get-Item -LiteralPath (Join-Path $pipelineRoot 'MediaPipeline.ps1')
-$sliceRoot = Join-Path $pipelineRoot 'MediaPipeline'
-if (Test-Path -LiteralPath $sliceRoot -PathType Container) {
-    $scanFiles += Get-ChildItem -LiteralPath $sliceRoot -Filter '*.ps1' -File
+foreach ($scanRoot in @(
+    (Join-Path $pipelineRoot 'entrypoints'),
+    (Join-Path $pipelineRoot 'engine')
+)) {
+    if (Test-Path -LiteralPath $scanRoot -PathType Container) {
+        $scanFiles += Get-ChildItem -LiteralPath $scanRoot -Filter '*.ps1' -File -Recurse
+    }
 }
 $legacyModulesRoot = Join-Path $pipelineRoot 'Modules'
 if (Test-Path -LiteralPath $legacyModulesRoot -PathType Container) {
-    $scanFiles += Get-ChildItem -LiteralPath $legacyModulesRoot -Filter '*.ps1' -File
+    $scanFiles += Get-ChildItem -LiteralPath $legacyModulesRoot -Filter '*.ps1' -File -Recurse
 }
-$scanFiles += Get-ChildItem -LiteralPath (Join-Path $projectRoot 'engine') -Filter '*.ps1' -File -Recurse
 $outcomeTokenPattern = '(?<![A-Z0-9_])(?<code>(?:ALREADY|AUDIO|BAD|ENCODE|ENCODER|FFMPEG|FILE|HDR|INTEGRITY|MEDIA|MKVMERGE|NATIVE|OPERATOR|OUTPUT|PENDING|PERMANENT|PROGRESS|PUBLISH|REMUX|SCRATCH|SIDECAR|SOURCE|STOP|SUBTITLE|SYSTEM|TRANSIENT|TV|UNKNOWN)[A-Z0-9]*_[A-Z0-9_]*[A-Z0-9]|OK)(?![A-Z0-9_])'
 $emittedCodes = @(
     foreach ($file in $scanFiles) {

@@ -141,6 +141,7 @@ def _browser_pending_drain_guard_runner_source() -> str:
               "pendingPostDrainTrustRows",
               "startPendingPublishDrain",
               "pendingDrainGuardState",
+              "renderPendingDrainOverview",
               "getCommandHistory"
             ].forEach(requireFunction);
 
@@ -162,6 +163,18 @@ def _browser_pending_drain_guard_runner_source() -> str:
             if (initialGuardStatus === "Blocked") {
               throw new Error("fixture unexpectedly started blocked; cannot prove recovery-plan guard refresh");
             }
+            requireText("pending-drain-overview", [
+              "Pending Publish drain decision:",
+              "Operator outcome:",
+              "Button guard:",
+              "Command boundary:",
+            ]);
+            requireText("pending-drain-decision-chips", [
+              "Do not drain",
+              "Review first",
+              "Evidence incomplete",
+              "Ready-looking",
+            ]);
             requireText("pending-file-inventory-summary", [
               "Pending parked file inventory:",
               "Files scanned:",

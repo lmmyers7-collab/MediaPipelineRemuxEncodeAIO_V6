@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/api/http_helpers.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-06-02
+last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: 42bb871ca5b76e1de5918105c16b81a86f61ba3727e82e758a77234046063c51
+sha256: b2970bc652055f94ddbccc04eb2079007d5843aeac4f064a8b0a922e371dddfc
 ---
 # `src/mediapipeline/desktop/api/http_helpers.py`
 

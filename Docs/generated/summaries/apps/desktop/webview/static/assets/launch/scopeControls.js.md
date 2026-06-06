@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/launch/scopeControls.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 7fcacd5ed6f644774c193653386002eca6255eeb1f79f2cc58a0ee39e933dfb7
+sha256: 43c300a74bdacd293db762e9213fa39fe3003e72b7bea1e35ca9413801f74c49
 ---
 # `apps/desktop/webview/static/assets/launch/scopeControls.js`
 

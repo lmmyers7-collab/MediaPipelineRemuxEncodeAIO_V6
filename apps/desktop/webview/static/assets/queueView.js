@@ -5,9 +5,11 @@
   let lastQueuePayload = {};
   let lastQueueEmptyMessage = "No queue rows available.";
   let queueScanInFlight = false;
+  let queueScanLoading = false;
   let queueScanPollTimer = null;
   let queueActiveStrategy = "Standard";
   let queueManualDragKey = "";
+  const displayedQueueFileOverrideMarkers = new Map();
   const QUEUE_HIDDEN_SIDECAR_EXTENSIONS = new Set([".srt", ".ass", ".ssa", ".vtt", ".sub", ".idx", ".sup"]);
   const QUEUE_FILTER_FIELDS = ["media_type", "display_name", "relative_path", "source_path", "route_name", "route_reason", "route_reason_code", "route_decision_summary", "route_evidence_lines", "phase", "priority_reasons", "blocked_reason", "error", "operator_status", "operator_guidance", "review_flags", "runtime_outcome_status", "runtime_outcome_error_code", "runtime_outcome_reason", "runtime_outcome_event_type"];
   const QUEUE_PRIORITY_ROUTE = "/api/queue/priority";
@@ -315,6 +317,180 @@
     renderQueueLaunchDecisionChecklist = _queueNoop,
   } = _queueLaunch;
 
+  function queueVisibleFilterScope(rows) {
+    const rowList = Array.isArray(rows) ? rows : [];
+    const scope = typeof queueCurrentFilterScope === "function" ? queueCurrentFilterScope(rowList) : null;
+    if (scope && typeof scope === "object") {
+      return {
+        active: Boolean(scope.active),
+        totalRows: Number(scope.totalRows || 0),
+        visibleRows: Number(scope.visibleRows || 0),
+        hiddenRows: Number(scope.hiddenRows || 0),
+        hiddenBlocked: Number(scope.hiddenBlocked || 0),
+        hiddenWarning: Number(scope.hiddenWarning || 0),
+        hiddenReview: Number(scope.hiddenReview || 0),
+        renderLimit: Number(scope.renderLimit || 250),
+      };
+    }
+    return {
+      active: false,
+      totalRows: rowList.length,
+      visibleRows: rowList.length,
+      hiddenRows: 0,
+      hiddenBlocked: 0,
+      hiddenWarning: 0,
+      hiddenReview: 0,
+      renderLimit: 250,
+    };
+  }
+
+  function queueDecisionOutcome(queue, rows, entries) {
+    const rowList = Array.isArray(rows) ? rows : [];
+    const scope = queueVisibleFilterScope(rowList);
+    const rawStatus = typeof queueLaunchDecisionStatus === "function"
+      ? queueLaunchDecisionStatus(queue || {}, rowList, Array.isArray(entries) ? entries : [])
+      : "Read evidence";
+    if (String(rawStatus || "").toLowerCase() === "ready-looking") {
+      return scope.hiddenBlocked || scope.hiddenReview ? "Review first" : "Queue evidence OK";
+    }
+    if (String(rawStatus || "").toLowerCase() === "evidence incomplete" || String(rawStatus || "").toLowerCase() === "not evaluated") {
+      return "Read evidence";
+    }
+    return rawStatus || "Read evidence";
+  }
+
+  function queueDecisionStatusState(status) {
+    const normalized = String(status || "").trim().toLowerCase();
+    if (normalized === "queue evidence ok") return "ready";
+    return typeof queueLaunchDecisionStatusState === "function"
+      ? queueLaunchDecisionStatusState(status)
+      : normalized === "do not launch"
+        ? "blocked"
+        : normalized === "review first"
+          ? "warning"
+          : normalized === "read evidence"
+            ? "changed"
+            : "unknown";
+  }
+
+  function queueDecisionFirstAction(status, queue, rows, scope) {
+    const payload = queue || {};
+    const rowList = Array.isArray(rows) ? rows : [];
+    if (String(status || "").toLowerCase() === "do not launch") {
+      return "First action: stay in Queue and Diagnostics until blocked evidence is explained.";
+    }
+    if (scope.hiddenBlocked || scope.hiddenReview) {
+      return "First action: clear display filters or inspect hidden blocked/review rows before using Launch.";
+    }
+    if (Number(payload.excluded_row_count || 0) > 0 || Number(payload.completed_excluded_count || 0) > 0) {
+      return "First action: review backend-excluded source files and completed exclusions before assuming files were missed.";
+    }
+    if (!rowList.length) {
+      return "First action: explain the empty backend queue evidence before opening Launch.";
+    }
+    if (String(status || "").toLowerCase() === "queue evidence ok") {
+      return "First action: open Launch for backend preflight, scope controls, schedule checks, and final authorization.";
+    }
+    return "First action: read the Queue-to-Launch handoff and diagnostics evidence before opening Launch.";
+  }
+
+  function queueDecisionSummaryLines(queue, rows, entries) {
+    const payload = queue || {};
+    const rowList = Array.isArray(rows) ? rows : [];
+    const history = Array.isArray(entries) ? entries : [];
+    const scope = queueVisibleFilterScope(rowList);
+    const outcome = queueDecisionOutcome(payload, rowList, history);
+    const selectedCount = typeof getSelectedQueuePriorityRowKeys === "function" ? getSelectedQueuePriorityRowKeys().length : 0;
+    return [
+      "Queue decision header:",
+      `Decision state: ${outcome}.`,
+      `Loaded rows: ${rowList.length}.`,
+      `Visible rows after display filters: ${scope.visibleRows}/${scope.totalRows}.`,
+      `Selected for Queue actions: ${selectedCount}.`,
+      `Hidden blocked/review rows: ${scope.hiddenBlocked}/${scope.hiddenReview}.`,
+      `Backend-excluded source rows: ${payload.excluded_row_count || 0}${payload.excluded_rows_truncated ? " (truncated)" : ""}.`,
+      `Collision posture: ${payload.completed_collision_status || "unknown"} (${payload.completed_collision_severity || "unknown"}).`,
+      "Backend launch scope is owned by Launch; Queue filters, selected rows, and rendered row caps are not submitted as processing scope.",
+      queueDecisionFirstAction(outcome, payload, rowList, scope),
+    ];
+  }
+
+  function renderQueueDecisionHeader(queue = lastQueuePayload, rows = lastQueueRows, entries) {
+    const payload = queue || {};
+    const rowList = Array.isArray(rows) ? rows : [];
+    const history = Array.isArray(entries) ? entries : [];
+    const outcome = queueDecisionOutcome(payload, rowList, history);
+    setText("queue-decision-status", outcome);
+    const statusNode = byId("queue-decision-status");
+    if (statusNode) statusNode.dataset.state = queueDecisionStatusState(outcome);
+    setText("queue-decision-summary", queueDecisionSummaryLines(payload, rowList, history).join("\n"));
+  }
+
+  function queueAttentionStatus(queue, rows) {
+    const payload = queue || {};
+    const rowList = Array.isArray(rows) ? rows : [];
+    const scope = queueVisibleFilterScope(rowList);
+    const reviewRows = typeof queueReviewRows === "function" ? queueReviewRows(payload, rowList) : [];
+    const collisionSeverity = String(payload.completed_collision_severity || "").toLowerCase();
+    if (payload.error) return "Diagnostics first";
+    if (queueSnapshotIsStale(payload)) return "Refresh first";
+    if (scope.hiddenBlocked || scope.hiddenReview) return "Hidden review rows";
+    if (Array.isArray(reviewRows) && reviewRows.length) return `${reviewRows.length} flagged`;
+    if (Number(payload.blocked_row_count || 0) > 0 || Number(payload.invalid_row_count || 0) > 0) return "Review rows";
+    if (collisionSeverity && collisionSeverity !== "ok" && collisionSeverity !== "none") return "Collision review";
+    if (Number(payload.excluded_row_count || 0) > 0) return "Check exclusions";
+    if (!rowList.length) return "Explain empty";
+    return "No immediate blocker";
+  }
+
+  function queueAttentionSummaryLines(queue, rows) {
+    const payload = queue || {};
+    const rowList = Array.isArray(rows) ? rows : [];
+    const scope = queueVisibleFilterScope(rowList);
+    const reviewRows = typeof queueReviewRows === "function" ? queueReviewRows(payload, rowList) : [];
+    const flaggedCount = Array.isArray(reviewRows) ? reviewRows.length : 0;
+    const lines = [
+      "Attention required:",
+      `Readiness: ${typeof queueReadinessStatus === "function" ? queueReadinessStatus(payload, rowList) : "unknown"}.`,
+      `Flagged items: ${flaggedCount}; blocked rows: ${payload.blocked_row_count || 0}; invalid rows: ${payload.invalid_row_count || 0}.`,
+      `Hidden blocked/review rows behind display filters: ${scope.hiddenBlocked}/${scope.hiddenReview}.`,
+      `Collision risk: ${payload.completed_collision_status || "unknown"} (${payload.completed_collision_severity || "unknown"}).`,
+      `Backend-excluded source rows: ${payload.excluded_row_count || 0}${payload.excluded_rows_truncated ? " (truncated)" : ""}.`,
+    ];
+    if (payload.error) {
+      lines.push(`First action: open Diagnostics before Launch because Queue payload is unavailable: ${payload.error}`);
+    } else if (scope.hiddenBlocked || scope.hiddenReview) {
+      lines.push("First action: clear display filters or use the review views; the visible table can look safer than the backend queue evidence.");
+    } else if (flaggedCount) {
+      lines.push("First action: inspect flagged rows, collision risk, and selected-row diagnostics before opening Launch.");
+    } else if (Number(payload.excluded_row_count || 0) > 0) {
+      lines.push("First action: review Backend-Excluded Source Files so completed/history exclusions are understood before rerun decisions.");
+    } else if (!rowList.length) {
+      lines.push("First action: verify source roots, exclusions, and recent history before treating an empty Queue as safe.");
+    } else {
+      lines.push("First action: continue to Queue-to-Launch Handoff, then use Launch for backend authorization.");
+    }
+    lines.push("Boundary: attention evidence is read-only; Queue does not start work or submit display state as processing scope.");
+    return lines;
+  }
+
+  function renderQueueAttentionSummary(queue = lastQueuePayload, rows = lastQueueRows) {
+    const payload = queue || {};
+    const rowList = Array.isArray(rows) ? rows : [];
+    const status = queueAttentionStatus(payload, rowList);
+    setText("queue-attention-status", status);
+    const statusNode = byId("queue-attention-status");
+    if (statusNode) {
+      const normalized = String(status || "").toLowerCase();
+      statusNode.dataset.state = normalized.includes("first") || normalized.includes("review") || normalized.includes("flagged") || normalized.includes("collision") || normalized.includes("exclusion") || normalized.includes("empty")
+        ? "warning"
+        : normalized.includes("blocker")
+          ? "ready"
+          : "changed";
+    }
+    setText("queue-attention-summary", queueAttentionSummaryLines(payload, rowList).join("\n"));
+  }
+
   function queueScanStatus(queue = lastQueuePayload) {
     const payload = queue && typeof queue === "object" ? queue : {};
     const status = payload.queue_scan_status;
@@ -387,6 +563,57 @@
     window.mediaPipelineAppRefresh?.setQueueRefreshButtonBusy?.(queueScanIsRunning(queue));
   }
 
+  function queueTableWrap() {
+    const tbody = byId("queue-rows");
+    return tbody?.closest?.(".queue-table-wrap") || null;
+  }
+
+  function queueTableElement() {
+    const tbody = byId("queue-rows");
+    return tbody?.closest?.("table") || null;
+  }
+
+  function setQueueLoadingScreenVisible(isVisible) {
+    queueScanLoading = Boolean(isVisible);
+    const wrap = queueTableWrap();
+    const screen = byId("queue-loading-screen");
+    const table = queueTableElement();
+    if (wrap) {
+      wrap.classList.toggle("is-queue-loading", queueScanLoading);
+      wrap.dataset.queueLoading = queueScanLoading ? "true" : "false";
+      if (queueScanLoading) {
+        wrap.setAttribute("aria-busy", "true");
+      } else {
+        wrap.removeAttribute("aria-busy");
+      }
+    }
+    if (screen) screen.hidden = !queueScanLoading;
+    if (table) {
+      if (queueScanLoading) {
+        table.setAttribute("aria-hidden", "true");
+      } else {
+        table.removeAttribute("aria-hidden");
+      }
+    }
+  }
+
+  function renderQueueLoadingTable() {
+    const tbody = byId("queue-rows");
+    setRenderedQueueRows([]);
+    clearRows(tbody, 9, "Dry-run scan in progress. Current queue rows are hidden until the refreshed backend snapshot arrives.");
+    setText("queue-status", "Refreshing queue...");
+    setText("queue-table-legend", "Queue refresh in progress. Current rows hidden until the backend dry-run snapshot is loaded.");
+    setText("queue-loading-status", "Dry-run scan in progress. Current queue rows are hidden until the refreshed backend snapshot arrives.");
+    renderQueueDetail(null);
+    updateQueueManualOrderControls();
+  }
+
+  function renderQueueScanLoadingState() {
+    setQueueLoadingScreenVisible(true);
+    syncSelectedQueueRows([], []);
+    renderQueueLoadingTable();
+  }
+
   function scheduleQueueScanPoll() {
     if (queueScanPollTimer) {
       window.clearTimeout(queueScanPollTimer);
@@ -410,7 +637,8 @@
     const hiddenSidecars = rawRows.filter((row) => queueIsHiddenSidecarBlockedRow(row) && !queueIsOverrideArtifactRow(row));
     const rows = rawRows
       .filter((row) => !queueIsHiddenSidecarBlockedRow(row) && !queueIsOverrideArtifactRow(row))
-      .map((row) => queueRowWithOverrideMarker(row, overrideTargetKeys));
+      .map((row) => queueRowWithOverrideMarker(row, overrideTargetKeys))
+      .map(queueRowWithDisplayedFileOverrideMarker);
     const displayQueue = queueDisplayPayloadForVisibleRows(queue, rows, hiddenSidecars, rawRows);
     const excludedRows = Array.isArray(queue.excluded_rows) ? queue.excluded_rows : [];
     lastQueuePayload = displayQueue;
@@ -421,6 +649,10 @@
     lastQueueEmptyMessage = queueEmptyStateMessage(displayQueue, rows);
     renderQueueScanArtifacts(displayQueue);
     scheduleQueueScanPoll();
+    setQueueLoadingScreenVisible(queueScanIsRunning(displayQueue));
+    const commandHistory = typeof getCommandHistory === "function" ? getCommandHistory() : [];
+    renderQueueDecisionHeader(displayQueue, rows, commandHistory);
+    renderQueueAttentionSummary(displayQueue, rows);
     renderQueueProgress(displayQueue);
     renderQueueSummary(displayQueue, rows);
     renderQueueReadiness(displayQueue, rows);
@@ -428,13 +660,13 @@
     renderQueueRuntime(displayQueue, rows);
     renderQueueValidation(displayQueue, rows);
     renderQueueWorkflow(displayQueue, rows);
-    renderQueueBackendLaunchScopePreview(displayQueue, rows, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-    renderQueueLaunchDecisionChecklist(displayQueue, rows, typeof getCommandHistory === "function" ? getCommandHistory() : []);
+    renderQueueBackendLaunchScopePreview(displayQueue, rows, commandHistory);
+    renderQueueLaunchDecisionChecklist(displayQueue, rows, commandHistory);
     renderQueueReviewBoard(displayQueue, rows);
     renderQueueCollision(displayQueue, rows);
     renderQueueExcluded(displayQueue);
     renderQueueExcludedDetail(getSelectedQueueExcludedRow());
-    if (typeof getCommandHistory === "function") renderQueueOpenHistory(getCommandHistory());
+    if (typeof getCommandHistory === "function") renderQueueOpenHistory(commandHistory);
     renderQueueDetail(getSelectedQueueRow());
     renderQueueRows();
   }
@@ -774,10 +1006,14 @@
     const visibleSelectedCount = tbody && typeof tbody.querySelectorAll === "function"
       ? tbody.querySelectorAll('tr[data-priority-selected="true"]').length
       : selectedKeys.length;
-    legend.textContent = `${legend.textContent} Priority selection: ${selectedKeys.length} total, ${visibleSelectedCount} visible. Ctrl/Cmd-click or Space toggles rows; Shift-click selects a visible range.`;
+    legend.textContent = `${legend.textContent} Selected for Queue actions: ${selectedKeys.length} total, ${visibleSelectedCount} visible. Backend Launch scope is unchanged. Ctrl/Cmd-click or Space toggles rows; Shift-click selects a visible range.`;
   }
 
   function renderQueueRows() {
+    if (queueScanLoading) {
+      renderQueueLoadingTable();
+      return;
+    }
     const filterText = byId("queue-filter")?.value || "";
     const statusFilter = byId("queue-status-filter")?.value || "all";
     const investigationFilter = byId("queue-investigation-filter")?.value || "all";
@@ -797,7 +1033,7 @@
       : window.mediaPipelineDom?.filterResultSummaryLines;
     if (typeof buildFilterSummary === "function") {
       setText("queue-filter-summary", buildFilterSummary({
-        label: "Queue filter",
+        label: "Queue display filter",
         allRows: lastQueueRows,
         visibleRows: rows,
         filterText,
@@ -807,7 +1043,7 @@
         statusOf: queueDisplayRowStatus,
         limit: 250,
         decisionName: "launch",
-        guardrail: "Mutation guardrail: filtering the Queue table does not change backend launch scope, queue state, source files, or processing commands.",
+        guardrail: "Mutation guardrail: display filtering the Queue table does not change backend launch scope, queue state, source files, or processing commands.",
       }).join("\n"));
     }
     const tbody = byId("queue-rows");
@@ -818,8 +1054,11 @@
       updateQueueTableLegend(tbody);
       updateQueueManualOrderControls();
       if (getSelectedQueueRowKey()) renderQueueDetail(getSelectedQueueRow());
-      renderQueueBackendLaunchScopePreview(lastQueuePayload, lastQueueRows, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-      renderQueueLaunchDecisionChecklist(lastQueuePayload, lastQueueRows, typeof getCommandHistory === "function" ? getCommandHistory() : []);
+      const commandHistory = typeof getCommandHistory === "function" ? getCommandHistory() : [];
+      renderQueueBackendLaunchScopePreview(lastQueuePayload, lastQueueRows, commandHistory);
+      renderQueueLaunchDecisionChecklist(lastQueuePayload, lastQueueRows, commandHistory);
+      renderQueueDecisionHeader(lastQueuePayload, lastQueueRows, commandHistory);
+      renderQueueAttentionSummary(lastQueuePayload, lastQueueRows);
       restoreQueueTableScroll(scrollSnapshot);
       return;
     }
@@ -837,8 +1076,11 @@
     updateQueueTableLegend(tbody);
     updateQueueManualOrderControls();
     if (getSelectedQueueRowKey()) renderQueueDetail(getSelectedQueueRow());
-    renderQueueBackendLaunchScopePreview(lastQueuePayload, lastQueueRows, typeof getCommandHistory === "function" ? getCommandHistory() : []);
-    renderQueueLaunchDecisionChecklist(lastQueuePayload, lastQueueRows, typeof getCommandHistory === "function" ? getCommandHistory() : []);
+    const commandHistory = typeof getCommandHistory === "function" ? getCommandHistory() : [];
+    renderQueueBackendLaunchScopePreview(lastQueuePayload, lastQueueRows, commandHistory);
+    renderQueueLaunchDecisionChecklist(lastQueuePayload, lastQueueRows, commandHistory);
+    renderQueueDecisionHeader(lastQueuePayload, lastQueueRows, commandHistory);
+    renderQueueAttentionSummary(lastQueuePayload, lastQueueRows);
     restoreQueueTableScroll(scrollSnapshot);
   }
 
@@ -897,6 +1139,8 @@
         errors: [message],
       };
       if (typeof appendCommandResult === "function") appendCommandResult(result);
+      setQueueLoadingScreenVisible(false);
+      renderQueueRows();
       setText("queue-open-status", result.message);
       setText("queue-source-inventory", [
         result.message,
@@ -915,6 +1159,7 @@
   window.mediaPipelineQueueView = {
     renderQueue,
     renderQueueRows,
+    renderQueueScanLoadingState,
     resetQueueFilters,
     renderQueueDetail,
     renderQueueProgress,
@@ -1005,6 +1250,7 @@
     getLastQueueRows,
     queueRowKey,
     queuePriorityItemsForSelected,
+    applyDisplayedQueueFileOverrideMarker,
     sendSelectedQueuePriority,
     setQueueOpenBusy,
     rejectQueueOpenWhileBusy,
@@ -1123,6 +1369,28 @@
     return [row?.source_path, row?.relative_path].some((value) => queuePriorityPathKey(value) === targetKey);
   }
 
+  function queueDisplayedFileOverrideMarkerForRow(row) {
+    const keys = [row?.source_path, row?.relative_path]
+      .map(queuePriorityPathKey)
+      .filter(Boolean);
+    for (const key of keys) {
+      if (displayedQueueFileOverrideMarkers.has(key)) return displayedQueueFileOverrideMarkers.get(key);
+    }
+    return null;
+  }
+
+  function queueRowWithDisplayedFileOverrideMarker(row) {
+    const markerValue = queueDisplayedFileOverrideMarkerForRow(row);
+    if (markerValue === null) return row;
+    const next = { ...row, __queue_has_override: markerValue, has_file_override: markerValue };
+    if (!markerValue) {
+      next.has_override = false;
+      next.file_override = null;
+      next.file_override_path = "";
+    }
+    return next;
+  }
+
   function queuePriorityRowHasVisibleMarker(row) {
     const manifestLevel = queuePriorityNormalizedLevel(row?.manifest_priority_level);
     return Boolean(row?.is_priority) || manifestLevel === "high" || manifestLevel === "low" || manifestLevel === "hold";
@@ -1202,6 +1470,42 @@
       if (queuePriorityNormalizedLevel(row?.manifest_priority_level) === "normal") return row;
       changed = true;
       return { ...row, manifest_priority_level: "normal" };
+    });
+    if (!changed) return false;
+    refreshDisplayedQueuePriorityRows();
+    return true;
+  }
+
+  function applyDisplayedQueueFileOverrideMarker(path, hasOverride) {
+    const targetKey = queuePriorityPathKey(path);
+    if (!targetKey) return false;
+    const markerValue = Boolean(hasOverride);
+    displayedQueueFileOverrideMarkers.set(targetKey, markerValue);
+    let changed = false;
+    lastQueueRows = lastQueueRows.map((row) => {
+      if (!queuePriorityRowMatchesPath(row, targetKey)) return row;
+      const currentValue = Boolean(
+        row?.__queue_has_override
+          || row?.has_override
+          || row?.has_file_override
+          || row?.file_override
+          || row?.file_override_path
+      );
+      if (
+        currentValue === markerValue
+        && Boolean(row?.__queue_has_override) === markerValue
+        && Boolean(row?.has_file_override) === markerValue
+      ) {
+        return row;
+      }
+      changed = true;
+      const next = { ...row, __queue_has_override: markerValue, has_file_override: markerValue };
+      if (!markerValue) {
+        next.has_override = false;
+        next.file_override = null;
+        next.file_override_path = "";
+      }
+      return next;
     });
     if (!changed) return false;
     refreshDisplayedQueuePriorityRows();
@@ -1520,7 +1824,7 @@
 
   function updateQueueManualOrderControls() {
     const enabled = queueManualOrderIsEnabled();
-    const hasRows = lastQueueRows.length > 0;
+    const hasRows = lastQueueRows.length > 0 && !queueScanLoading;
     const hasSelection = getSelectedQueuePriorityRows().length > 0;
     [
       "queue-manual-save-order-btn",
@@ -1538,6 +1842,8 @@
     if (!status) return;
     if (!enabled) {
       status.textContent = "Manual order controls are available when the strategy selector is Manual Order.";
+    } else if (queueScanLoading) {
+      status.textContent = "Manual order is paused while the backend builds a fresh queue preview.";
     } else if (!hasRows) {
       status.textContent = "Manual order is active, but no queue rows are loaded.";
     } else if (!hasSelection) {

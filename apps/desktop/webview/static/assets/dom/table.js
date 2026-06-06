@@ -7,6 +7,7 @@
 
   function createDomTableModule(deps = {}) {
     const byId = typeof deps.byId === "function" ? deps.byId : () => null;
+    const DOCUMENT_SCROLL_TOLERANCE = 2;
 
     function clearRows(tbody, columns, message) {
       if (!tbody) return;
@@ -40,6 +41,14 @@
       return document.scrollingElement || document.documentElement || document.body || null;
     }
 
+    function maxScrollableTop(node) {
+      return Math.max(0, (Number(node?.scrollHeight) || 0) - (Number(node?.clientHeight) || 0));
+    }
+
+    function maxScrollableLeft(node) {
+      return Math.max(0, (Number(node?.scrollWidth) || 0) - (Number(node?.clientWidth) || 0));
+    }
+
     function scrollElementAllowsUserScroll(node) {
       if (!node) return false;
       if (node.scrollTop > 0 || node.scrollLeft > 0) return true;
@@ -55,8 +64,8 @@
       if (!node) return false;
       const top = Number(node.scrollTop) || 0;
       const left = Number(node.scrollLeft) || 0;
-      const maxTop = Math.max(0, (Number(node.scrollHeight) || 0) - (Number(node.clientHeight) || 0));
-      const maxLeft = Math.max(0, (Number(node.scrollWidth) || 0) - (Number(node.clientWidth) || 0));
+      const maxTop = maxScrollableTop(node);
+      const maxLeft = maxScrollableLeft(node);
       return (top > 0 || left > 0 || maxTop > 1 || maxLeft > 1) && scrollElementAllowsUserScroll(node);
     }
 
@@ -91,6 +100,8 @@
           node,
           top: Math.max(0, Number(node.scrollTop) || 0),
           left: Math.max(0, Number(node.scrollLeft) || 0),
+          maxTop: maxScrollableTop(node),
+          maxLeft: maxScrollableLeft(node),
         });
       };
       addEntry(documentScrollElement(), { force: true, isDocument: true });
@@ -108,26 +119,64 @@
       return null;
     }
 
-    function restoreScrollEntry(entry) {
+    function documentScrollMovedAfterRestore(node, entry, restoreState) {
+      const lastDocumentPositions = restoreState?.lastDocumentPositions;
+      if (!lastDocumentPositions) return false;
+      const key = entry.key || "document";
+      const last = lastDocumentPositions.get(key);
+      if (!last) return false;
+      const top = Math.max(0, Number(node.scrollTop) || 0);
+      const left = Math.max(0, Number(node.scrollLeft) || 0);
+      return Math.abs(top - last.top) > DOCUMENT_SCROLL_TOLERANCE
+        || Math.abs(left - last.left) > DOCUMENT_SCROLL_TOLERANCE;
+    }
+
+    function documentScrollRestoreWouldClampToEdge(entry, maxTop, maxLeft) {
+      const requestedTop = Math.max(0, Number(entry.top) || 0);
+      const requestedLeft = Math.max(0, Number(entry.left) || 0);
+      return requestedTop > maxTop + DOCUMENT_SCROLL_TOLERANCE
+        || requestedLeft > maxLeft + DOCUMENT_SCROLL_TOLERANCE;
+    }
+
+    function rememberDocumentScrollRestore(entry, top, left, restoreState) {
+      const lastDocumentPositions = restoreState?.lastDocumentPositions;
+      if (!lastDocumentPositions) return;
+      lastDocumentPositions.set(entry.key || "document", { top, left });
+    }
+
+    function restoreScrollEntry(entry, restoreState = null) {
       const node = scrollNodeForEntry(entry);
       if (!node) return;
-      const maxTop = Math.max(0, (Number(node.scrollHeight) || 0) - (Number(node.clientHeight) || 0));
-      const maxLeft = Math.max(0, (Number(node.scrollWidth) || 0) - (Number(node.clientWidth) || 0));
+      const maxTop = maxScrollableTop(node);
+      const maxLeft = maxScrollableLeft(node);
       const requestedTop = Math.max(0, Number(entry.top) || 0);
       const requestedLeft = Math.max(0, Number(entry.left) || 0);
       const top = Math.min(requestedTop, maxTop);
       const left = Math.min(requestedLeft, maxLeft);
-      if (entry.isDocument && typeof window.scrollTo === "function") {
-        window.scrollTo(left, top);
+      if (entry.isDocument || entry.key === "document") {
+        if (documentScrollMovedAfterRestore(node, entry, restoreState)) return;
+        if (documentScrollRestoreWouldClampToEdge(entry, maxTop, maxLeft)) return;
+        if (typeof window.scrollTo === "function") {
+          window.scrollTo(left, top);
+        }
+        node.scrollTop = top;
+        node.scrollLeft = left;
+        rememberDocumentScrollRestore(entry, top, left, restoreState);
+        return;
       }
       node.scrollTop = top;
       node.scrollLeft = left;
     }
 
+    function restoreScrollEntries(entries, restoreState) {
+      entries.forEach((entry) => restoreScrollEntry(entry, restoreState));
+    }
+
     function restoreScrollablePositions(snapshot) {
       const entries = Array.isArray(snapshot?.entries) ? snapshot.entries : [];
       if (!entries.length) return;
-      const apply = () => entries.forEach(restoreScrollEntry);
+      const restoreState = { lastDocumentPositions: new Map() };
+      const apply = () => restoreScrollEntries(entries, restoreState);
       apply();
       deferDomWork(() => {
         apply();
@@ -153,12 +202,21 @@
       return Array.from(tbody.querySelectorAll('tr[data-selectable-row="true"]'));
     }
 
+    function focusRowWithoutDocumentScroll(row) {
+      if (typeof row?.focus !== "function") return;
+      try {
+        row.focus({ preventScroll: true });
+      } catch (_) {
+        row.focus();
+      }
+    }
+
     function moveSelectableRowFocus(row, delta) {
       const rows = selectableRowsFor(row);
       const index = rows.indexOf(row);
       const next = rows[index + delta];
       if (!next) return;
-      next.focus();
+      focusRowWithoutDocumentScroll(next);
       next.click();
     }
 
@@ -171,11 +229,11 @@
       row.setAttribute("aria-selected", selected ? "true" : "false");
       row.classList.toggle("is-selected", selected);
       if (options.label) row.setAttribute("aria-label", options.label);
-      row.addEventListener("click", () => onSelect());
+      row.addEventListener("click", (event) => onSelect(event));
       row.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          onSelect();
+          onSelect(event);
         } else if (event.key === "ArrowDown") {
           event.preventDefault();
           moveSelectableRowFocus(row, 1);

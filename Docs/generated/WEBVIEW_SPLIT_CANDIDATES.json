@@ -31,8 +31,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 787,
-            "end": 1048,
+            "start": 866,
+            "end": 1127,
             "line_count": 262
           },
           "functions_to_move": [
@@ -160,9 +160,9 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/app.refresh.js",
           "topic": "app-refresh",
           "line_range": {
-            "start": 504,
-            "end": 758,
-            "line_count": 255
+            "start": 580,
+            "end": 837,
+            "line_count": 258
           },
           "functions_to_move": [
             "refreshAll",
@@ -195,6 +195,7 @@
             "renderExternalDependencyDigest",
             "renderHomeNextQueue",
             "renderHomePendingCount",
+            "renderHomePipelineQueueOutcome",
             "renderHomePromotionEntry",
             "renderHomeQueueSnapshot",
             "renderHomeReadiness",
@@ -202,8 +203,7 @@
             "renderHomeStorageHealth",
             "renderRefreshHealth",
             "renderRefreshInProgress",
-            "renderSnapshot",
-            "renderTelemetrySafely"
+            "renderSnapshot"
           ],
           "globals_to_preserve": [
             "externalDependencyEvidenceText",
@@ -226,6 +226,7 @@
             "/api/diagnostics",
             "/api/diagnostics/state-summary",
             "/api/health",
+            "/api/metrics",
             "/api/network/workers",
             "/api/pending-publish",
             "/api/queue",
@@ -263,6 +264,7 @@
               "renderExternalDependencyDigest",
               "renderHomeNextQueue",
               "renderHomePendingCount",
+              "renderHomePipelineQueueOutcome",
               "renderHomePromotionEntry",
               "renderHomeQueueSnapshot",
               "renderHomeReadiness",
@@ -288,6 +290,7 @@
               "/api/diagnostics",
               "/api/diagnostics/state-summary",
               "/api/health",
+              "/api/metrics",
               "/api/network/workers",
               "/api/pending-publish",
               "/api/queue",
@@ -306,6 +309,7 @@
               "window.mediaPipelineDiagnosticsView",
               "window.mediaPipelineDom",
               "window.mediaPipelineLaunchView",
+              "window.mediaPipelineMetricsView",
               "window.mediaPipelineNetworkView",
               "window.mediaPipelineProgressView",
               "window.mediaPipelineReportsView",
@@ -348,6 +352,7 @@
               "renderLaunchAuditLog",
               "renderLaunchReadiness",
               "renderLaunchRealMediaProofHandoff",
+              "renderMetrics",
               "renderNetworkView",
               "renderPendingPublish",
               "renderProgressEvidence",
@@ -380,92 +385,25 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 384,
-            "end": 502,
-            "line_count": 119
-          },
-          "functions_to_move": [
-            "renderExternalDependencyDigest",
-            "renderHomeNextQueue",
-            "renderDailyDriverReadiness",
-            "recordLocalUiDiagnostic",
-            "renderTelemetrySafely",
-            "renderControlReadiness",
-            "updatePagePanelEmptyStates",
-            "showPage",
-            "applyDefaultActionTooltips",
-            "normalizeRefreshOptions",
-            "mergeRefreshOptions"
-          ],
-          "parent_wrappers_required": [
-            "renderExternalDependencyDigest",
-            "renderDailyDriverReadiness",
-            "showPage"
-          ],
-          "dependencies_to_resolve": [],
-          "globals_to_preserve": [
-            "externalDependencyEvidenceText",
-            "externalDependencyOverallStatus",
-            "externalDependencyRows",
-            "externalDependencySummaryLines",
-            "getLastSnapshot",
-            "refreshAll",
-            "refreshAllNow",
-            "renderExternalDependencyDigest",
-            "setTopbarPendingLaunch",
-            "showPage"
-          ],
-          "api_routes": [],
-          "dom_ids_touched": [],
-          "event_types": [],
-          "dependency_classification": {
-            "parent_state_reads": [],
-            "parent_state_writes": [],
-            "outside_local_functions": [],
-            "dom_dependencies": [],
-            "api_dependencies": [],
-            "window_dependencies": [
-              "window.mediaPipelineAppHomeReadiness",
-              "window.mediaPipelineAppLifecycle",
-              "window.mediaPipelineTelemetryView"
-            ],
-            "browser_globals": [
-              "Boolean",
-              "Error",
-              "String",
-              "document",
-              "window"
-            ],
-            "unresolved_global_dependencies": [
-              "appendCommandResult",
-              "renderTelemetry",
-              "setText",
-              "setTextState"
-            ],
-            "movement_assessment": "needs_wrapper_or_context",
-            "assessment_reasons": [
-              "uses unresolved ordered-script globals"
-            ]
-          },
-          "route_ownership_notes": [],
-          "tests_affected": [
-            "tests.python.desktop.test_application_facade_web_static",
-            "tests.webview.test_webview_frontend_mutation_boundary",
-            "tests.webview.test_webview_inventory_docs"
-          ]
-        },
-        {
-          "source_file": "apps/desktop/webview/static/assets/app.js",
-          "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
-          "topic": "app-core",
-          "line_range": {
             "start": 87,
-            "end": 180,
-            "line_count": 94
+            "end": 256,
+            "line_count": 170
           },
           "functions_to_move": [
             "renderTauriBackendLifecycleAlert",
             "renderSnapshot",
+            "dashboardText",
+            "dashboardCount",
+            "dashboardHasOwn",
+            "dashboardPipelineStateAllowsEmptyScan",
+            "dashboardQueueScanStatus",
+            "dashboardQueueProgress",
+            "dashboardQueueScanRunning",
+            "dashboardQueueStale",
+            "dashboardQueueBlockingWarnings",
+            "dashboardQueueRunnableCount",
+            "dashboardQueueHasFreshEmptyProof",
+            "renderHomePipelineQueueOutcome",
             "renderCloseReadiness",
             "handleTauriBackendLifecycleEvent"
           ],
@@ -537,6 +475,7 @@
               "Boolean",
               "Math",
               "Number",
+              "Object",
               "String",
               "window"
             ],
@@ -546,6 +485,9 @@
               "detail",
               "getLastSettings",
               "phase_label",
+              "pipeline_state",
+              "queue_progress",
+              "queue_scan_status",
               "renderDiagnosticsProgress",
               "renderLaunchAuditProgress",
               "renderLaunchReadiness",
@@ -560,6 +502,85 @@
             "movement_assessment": "needs_wrapper_or_context",
             "assessment_reasons": [
               "depends on several parent/local helper functions",
+              "uses unresolved ordered-script globals"
+            ]
+          },
+          "route_ownership_notes": [],
+          "tests_affected": [
+            "tests.python.desktop.test_application_facade_web_static",
+            "tests.webview.test_webview_frontend_mutation_boundary",
+            "tests.webview.test_webview_inventory_docs"
+          ]
+        },
+        {
+          "source_file": "apps/desktop/webview/static/assets/app.js",
+          "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
+          "topic": "app-core",
+          "line_range": {
+            "start": 460,
+            "end": 578,
+            "line_count": 119
+          },
+          "functions_to_move": [
+            "renderExternalDependencyDigest",
+            "renderHomeNextQueue",
+            "renderDailyDriverReadiness",
+            "recordLocalUiDiagnostic",
+            "renderTelemetrySafely",
+            "renderControlReadiness",
+            "updatePagePanelEmptyStates",
+            "showPage",
+            "applyDefaultActionTooltips",
+            "normalizeRefreshOptions",
+            "mergeRefreshOptions"
+          ],
+          "parent_wrappers_required": [
+            "renderExternalDependencyDigest",
+            "renderDailyDriverReadiness",
+            "showPage"
+          ],
+          "dependencies_to_resolve": [],
+          "globals_to_preserve": [
+            "externalDependencyEvidenceText",
+            "externalDependencyOverallStatus",
+            "externalDependencyRows",
+            "externalDependencySummaryLines",
+            "getLastSnapshot",
+            "refreshAll",
+            "refreshAllNow",
+            "renderExternalDependencyDigest",
+            "setTopbarPendingLaunch",
+            "showPage"
+          ],
+          "api_routes": [],
+          "dom_ids_touched": [],
+          "event_types": [],
+          "dependency_classification": {
+            "parent_state_reads": [],
+            "parent_state_writes": [],
+            "outside_local_functions": [],
+            "dom_dependencies": [],
+            "api_dependencies": [],
+            "window_dependencies": [
+              "window.mediaPipelineAppHomeReadiness",
+              "window.mediaPipelineAppLifecycle",
+              "window.mediaPipelineTelemetryView"
+            ],
+            "browser_globals": [
+              "Boolean",
+              "Error",
+              "String",
+              "document",
+              "window"
+            ],
+            "unresolved_global_dependencies": [
+              "appendCommandResult",
+              "renderTelemetry",
+              "setText",
+              "setTextState"
+            ],
+            "movement_assessment": "needs_wrapper_or_context",
+            "assessment_reasons": [
               "uses unresolved ordered-script globals"
             ]
           },

@@ -24,20 +24,16 @@ function Invoke-DecideStage {
     if ($null -eq $sourceMediaProfile) {
         $sourceMediaProfile = [ordered]@{}
     }
-    $movieThresholdGB = [double](Get-ObjectValue -Object $Payload -Name 'encode_threshold_gb' -Default 8)
-    $tvThresholdGB = [double](Get-ObjectValue -Object $Payload -Name 'tv_encode_threshold_gb' -Default 3)
 
     $plan = Resolve-MediaRouteBySize `
         -FileSizeBytes $fileSizeBytes `
         -IsTV:$isTv `
-        -MovieThresholdGB $movieThresholdGB `
-        -TVThresholdGB $tvThresholdGB `
-        -MovieRoute1080pTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'movie_route_1080p_size_limit_gb' -Default $movieThresholdGB)) `
-        -MovieRoute1440pTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'movie_route_1440p_size_limit_gb' -Default $movieThresholdGB)) `
-        -MovieRoute4KTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'movie_route_4k_size_limit_gb' -Default $movieThresholdGB)) `
-        -TVRoute1080pTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'tv_route_1080p_size_limit_gb' -Default $tvThresholdGB)) `
-        -TVRoute1440pTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'tv_route_1440p_size_limit_gb' -Default $tvThresholdGB)) `
-        -TVRoute4KTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'tv_route_4k_size_limit_gb' -Default $tvThresholdGB)) `
+        -MovieRoute1080pTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'movie_route_1080p_size_limit_gb' -Default 8)) `
+        -MovieRoute1440pTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'movie_route_1440p_size_limit_gb' -Default 8)) `
+        -MovieRoute4KTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'movie_route_4k_size_limit_gb' -Default 8)) `
+        -TVRoute1080pTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'tv_route_1080p_size_limit_gb' -Default 3)) `
+        -TVRoute1440pTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'tv_route_1440p_size_limit_gb' -Default 3)) `
+        -TVRoute4KTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'tv_route_4k_size_limit_gb' -Default 3)) `
         -DurationSeconds $durationSeconds `
         -VideoCodec $videoCodec `
         -VideoHeight $videoHeight `
@@ -50,16 +46,12 @@ function Invoke-DecideStage {
         -AllowH264RemuxIfPlexCompatible:([bool](Get-ObjectValue -Object $Payload -Name 'allow_h264_remux_if_plex_compatible' -Default $true)) `
         -H264RemuxMaxBitrateMbps ([double](Get-ObjectValue -Object $Payload -Name 'h264_remux_max_bitrate_mbps' -Default 35.0)) `
         -H264RemuxMaxHeight ([int](Get-ObjectValue -Object $Payload -Name 'h264_remux_max_height' -Default 1080)) `
-        -MovieRouteMaxVideoBitrateMbps ([double](Get-ObjectValue -Object $Payload -Name 'movie_route_max_video_bitrate_mbps' -Default 35.0)) `
-        -TVRouteMaxVideoBitrateMbps ([double](Get-ObjectValue -Object $Payload -Name 'tv_route_max_video_bitrate_mbps' -Default 18.0)) `
-        -Route1080pBucketMaxHeight ([int](Get-ObjectValue -Object $Payload -Name 'route_1080p_bucket_max_height' -Default 1200)) `
         -Route1080pUpperHeightTolerancePercent ([double](Get-ObjectValue -Object $Payload -Name 'route_1080p_upper_height_tolerance_percent' -Default 11.111111)) `
         -Route1080pMaxVideoBitrateMbps ([double](Get-ObjectValue -Object $Payload -Name 'route_1080p_max_video_bitrate_mbps' -Default 20.0)) `
         -Route1440pLowerHeightTolerancePercent ([double](Get-ObjectValue -Object $Payload -Name 'route_1440p_lower_height_tolerance_percent' -Default 16.597222)) `
         -Route1440pUpperHeightTolerancePercent ([double](Get-ObjectValue -Object $Payload -Name 'route_1440p_upper_height_tolerance_percent' -Default 24.930556)) `
         -Route1440pMaxVideoBitrateMbps ([double](Get-ObjectValue -Object $Payload -Name 'route_1440p_max_video_bitrate_mbps' -Default 35.0)) `
         -Route4KLowerHeightTolerancePercent ([double](Get-ObjectValue -Object $Payload -Name 'route_4k_lower_height_tolerance_percent' -Default 16.666667)) `
-        -Route4KBucketMinHeight ([int](Get-ObjectValue -Object $Payload -Name 'route_4k_bucket_min_height' -Default 1800)) `
         -Route4KMaxVideoBitrateMbps ([double](Get-ObjectValue -Object $Payload -Name 'route_4k_max_video_bitrate_mbps' -Default 35.0))
 
     return [ordered]@{

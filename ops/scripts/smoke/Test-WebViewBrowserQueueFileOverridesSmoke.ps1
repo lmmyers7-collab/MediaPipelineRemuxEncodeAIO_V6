@@ -42,6 +42,14 @@ Write-Host "Python: $python"
 Push-Location -LiteralPath $projectRoot
 try {
     $env:PYTHONDONTWRITEBYTECODE = '1'
+    $srcPath = Join-Path $projectRoot 'src'
+    $pathSeparator = [System.IO.Path]::PathSeparator
+    if ([string]::IsNullOrWhiteSpace($env:PYTHONPATH)) {
+        $env:PYTHONPATH = $srcPath
+    }
+    elseif (-not ($env:PYTHONPATH -split [regex]::Escape([string]$pathSeparator) | Where-Object { $_ -eq $srcPath })) {
+        $env:PYTHONPATH = "$srcPath$pathSeparator$env:PYTHONPATH"
+    }
     & $python -m unittest tests.webview.test_webview_browser_queue_file_overrides_smoke -q
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE

@@ -26,24 +26,18 @@ def _numeric_baseline() -> dict:
         "VideoCodec": "hevc_nvenc",
         "VideoPreset": "p5",
         "OutputContainer": "mkv",
-        "EncodeThresholdGB": 8,
-        "TVEncodeThresholdGB": 4,
         "MovieRoute1080pTargetSizeGB": 8,
         "MovieRoute1440pTargetSizeGB": 10,
         "MovieRoute4KTargetSizeGB": 12,
         "TVRoute1080pTargetSizeGB": 4,
         "TVRoute1440pTargetSizeGB": 6,
         "TVRoute4KTargetSizeGB": 8,
-        "MovieRouteMaxVideoBitrateMbps": 35,
-        "TVRouteMaxVideoBitrateMbps": 18,
-        "Route1080pBucketMaxHeight": 1200,
         "Route1080pUpperHeightTolerancePercent": 11.111111,
         "Route1080pMaxVideoBitrateMbps": 20,
         "Route1440pLowerHeightTolerancePercent": 16.597222,
         "Route1440pUpperHeightTolerancePercent": 24.930556,
         "Route1440pMaxVideoBitrateMbps": 35,
         "Route4KLowerHeightTolerancePercent": 16.666667,
-        "Route4KBucketMinHeight": 1800,
         "Route4KMaxVideoBitrateMbps": 35,
         "MinFreeSpaceGB": 20,
         "OutsourceMinFreeSpaceGB": 20,
@@ -77,24 +71,18 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
     def test_backend_metadata_numeric_limits_match_numeric_policy_representatives(self) -> None:
         metadata = _metadata_by_key()
         expected_limits = {
-            "EncodeThresholdGB": {"min": 1, "max": None, "step": 1, "unit": "GB"},
-            "TVEncodeThresholdGB": {"min": 1, "max": None, "step": 1, "unit": "GB"},
             "MovieRoute1080pTargetSizeGB": {"min": 1, "max": None, "step": 1, "unit": "GB"},
             "MovieRoute1440pTargetSizeGB": {"min": 1, "max": None, "step": 1, "unit": "GB"},
             "MovieRoute4KTargetSizeGB": {"min": 1, "max": None, "step": 1, "unit": "GB"},
             "TVRoute1080pTargetSizeGB": {"min": 1, "max": None, "step": 1, "unit": "GB"},
             "TVRoute1440pTargetSizeGB": {"min": 1, "max": None, "step": 1, "unit": "GB"},
             "TVRoute4KTargetSizeGB": {"min": 1, "max": None, "step": 1, "unit": "GB"},
-            "MovieRouteMaxVideoBitrateMbps": {"min": 1, "max": 500, "step": 1, "unit": "Mbps"},
-            "TVRouteMaxVideoBitrateMbps": {"min": 1, "max": 500, "step": 1, "unit": "Mbps"},
-            "Route1080pBucketMaxHeight": {"min": 1, "max": 4320, "step": 1, "unit": "pixels"},
             "Route1080pUpperHeightTolerancePercent": {"min": 0, "max": 100, "step": 0.000001, "unit": "percent"},
             "Route1080pMaxVideoBitrateMbps": {"min": 1, "max": 500, "step": 1, "unit": "Mbps"},
             "Route1440pLowerHeightTolerancePercent": {"min": 0, "max": 100, "step": 0.000001, "unit": "percent"},
             "Route1440pUpperHeightTolerancePercent": {"min": 0, "max": 100, "step": 0.000001, "unit": "percent"},
             "Route1440pMaxVideoBitrateMbps": {"min": 1, "max": 500, "step": 1, "unit": "Mbps"},
             "Route4KLowerHeightTolerancePercent": {"min": 0, "max": 100, "step": 0.000001, "unit": "percent"},
-            "Route4KBucketMinHeight": {"min": 1, "max": 4320, "step": 1, "unit": "pixels"},
             "Route4KMaxVideoBitrateMbps": {"min": 1, "max": 500, "step": 1, "unit": "Mbps"},
             "VideoQuality": {"min": 1, "max": 51, "step": 1, "unit": None},
             "AudioMaxChannels": {"min": 1, "max": 16, "step": 1, "unit": "channels"},
@@ -141,8 +129,6 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
                 "OutputSizeMultiplier": 3.0,
                 "MovieRoute1080pTargetSizeGB": 0,
                 "TVRoute1440pTargetSizeGB": 0,
-                "MovieRouteMaxVideoBitrateMbps": 0,
-                "TVRouteMaxVideoBitrateMbps": 501,
                 "Route1080pUpperHeightTolerancePercent": 101,
                 "Route1080pMaxVideoBitrateMbps": 0,
                 "Route1440pMaxVideoBitrateMbps": 501,
@@ -161,29 +147,10 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
         self.assertIn("OutputSizeMultiplier must be <= 2.0.", errors)
         self.assertIn("MovieRoute1080pTargetSizeGB must be >= 1.", errors)
         self.assertIn("TVRoute1440pTargetSizeGB must be >= 1.", errors)
-        self.assertIn("MovieRouteMaxVideoBitrateMbps must be >= 1.", errors)
-        self.assertIn("TVRouteMaxVideoBitrateMbps must be <= 500.", errors)
         self.assertIn("Route1080pUpperHeightTolerancePercent must be <= 100.", errors)
         self.assertIn("Route1080pMaxVideoBitrateMbps must be >= 1.", errors)
         self.assertIn("Route1440pMaxVideoBitrateMbps must be <= 500.", errors)
         self.assertIn("Route4KMaxVideoBitrateMbps must be <= 500.", errors)
-
-    def test_numeric_policy_rejects_legacy_height_overlap_without_percent_keys(self) -> None:
-        values = _numeric_baseline()
-        for key in (
-            "Route1080pUpperHeightTolerancePercent",
-            "Route1440pLowerHeightTolerancePercent",
-            "Route1440pUpperHeightTolerancePercent",
-            "Route4KLowerHeightTolerancePercent",
-        ):
-            values.pop(key)
-        values["Route1080pBucketMaxHeight"] = 1800
-        values["Route4KBucketMinHeight"] = 1800
-        errors: list[str] = []
-
-        validate_required_and_numeric_config(values, errors)
-
-        self.assertIn("Route1080pBucketMaxHeight must be lower than Route4KBucketMinHeight.", errors)
 
     def test_numeric_policy_rejects_noncontiguous_height_tolerance_percent_keys(self) -> None:
         values = _numeric_baseline()
@@ -200,15 +167,15 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
 
     def test_numeric_policy_rejects_boolean_values_as_numbers(self) -> None:
         values = _numeric_baseline()
-        values["EncodeThresholdGB"] = True
-        values["Route1080pBucketMaxHeight"] = True
+        values["MovieRoute1080pTargetSizeGB"] = True
+        values["Route1080pUpperHeightTolerancePercent"] = True
         values["OutputSizeMultiplier"] = True
         errors: list[str] = []
 
         validate_required_and_numeric_config(values, errors)
 
-        self.assertIn("EncodeThresholdGB must be an integer.", errors)
-        self.assertIn("Route1080pBucketMaxHeight must be an integer.", errors)
+        self.assertIn("MovieRoute1080pTargetSizeGB must be an integer.", errors)
+        self.assertIn("Route1080pUpperHeightTolerancePercent must be numeric.", errors)
         self.assertIn("OutputSizeMultiplier must be numeric.", errors)
 
     def test_numeric_policy_bounds_optional_cpu_fields_when_present(self) -> None:

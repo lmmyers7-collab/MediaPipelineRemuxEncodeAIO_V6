@@ -36,6 +36,50 @@ VOBSUB_CONFIG_KEYS = {
 }
 
 
+def current_pending_manifest_payload(**overrides: object) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "schema_version": "pending_push_manifest.v1",
+        "parked_at": "2026-05-06T12:00:00Z",
+        "product_version": "2026.06.04.001",
+        "pipeline_version": "4",
+        "publish_transaction_id": "tx",
+        "manifest_state": "parked",
+        "local_file": r"C:\Scratch\Pending\Movie.mkv",
+        "original_local_file": r"C:\Scratch\Movie.mkv",
+        "parked_file": r"C:\Scratch\Pending\Movie.mkv",
+        "server_out": r"\\server\Movies\Movie.mkv",
+        "route": "remux",
+        "route_reason_code": "container_only",
+        "route_reason": "Container normalization only",
+        "media_type": "movie",
+        "source_identity": "source-v1",
+        "source_identity_v2": "source-v2",
+        "source_identity_v2_algorithm": "fixture-v2",
+        "source_path": r"C:\Media\Source\Movie.mkv",
+        "source_size": 42,
+        "source_mtime_utc": "2026-05-06T11:59:00Z",
+        "output_size": 42,
+        "publish_mode": "deferred",
+        "sidecar_files": [],
+        "tx3g_srt_tracks": [],
+        "tx3g_srt_failures": [],
+        "bdpgs_srt_failures": [],
+        "vobsub_srt_failures": [],
+        "tx3g_embedded_srt_tracks": [],
+        "bdpgs_embedded_srt_tracks": [],
+        "vobsub_embedded_srt_tracks": [],
+        "tx3g_srt_conversion_enabled": False,
+        "tx3g_external_srt_sidecars_enabled": False,
+        "drop_tx3g_after_conversion": False,
+        "bdpgs_srt_conversion_enabled": False,
+        "drop_bdpgs_after_conversion": False,
+        "vobsub_srt_conversion_enabled": False,
+        "drop_vobsub_after_conversion": False,
+    }
+    payload.update(overrides)
+    return payload
+
+
 class ContractTests(unittest.TestCase):
     def test_contract_schema_files_are_valid_json(self) -> None:
         expected = {
@@ -330,38 +374,15 @@ class ContractTests(unittest.TestCase):
         self.assertRegex(source, r"blocked_reason_code\s+=\s+\$blockedCode")
 
     def test_pending_push_manifest_contract_accepts_current_manifest_shape(self) -> None:
-        payload = {
-            "schema_version": "pending_push_manifest.v1",
-            "parked_at": "2026-05-06T12:00:00Z",
-            "product_version": "2026.06.04.001",
-            "pipeline_version": "4",
-            "publish_transaction_id": "tx",
-            "manifest_state": "parked",
-            "local_file": r"C:\Scratch\Pending\Movie.mkv",
-            "original_local_file": r"C:\Scratch\Movie.mkv",
-            "parked_file": r"C:\Scratch\Pending\Movie.mkv",
-            "server_out": r"\\server\Movies\Movie.mkv",
-            "route": "remux",
-            "route_reason_code": "container_only",
-            "route_reason": "Container normalization only",
-            "media_type": "movie",
-            "source_path": r"C:\Media\Source\Movie.mkv",
-            "source_size": 42,
-            "source_mtime_utc": "2026-05-06T11:59:00Z",
-            "output_size": 42,
-            "publish_mode": "deferred",
-            "sidecar_files": [{"local_file": r"C:\Scratch\Pending\Movie.eng.srt"}],
-            "tx3g_srt_tracks": [{"language": "eng"}],
-            "tx3g_srt_failures": [],
-            "bdpgs_srt_failures": [],
-            "vobsub_srt_failures": [{"reason": "ocr unavailable"}],
-            "tx3g_embedded_srt_tracks": [{"language": "eng"}],
-            "bdpgs_embedded_srt_tracks": [],
-            "vobsub_embedded_srt_tracks": [{"language": "eng"}],
-            "tx3g_srt_conversion_enabled": True,
-            "vobsub_srt_conversion_enabled": True,
-            "drop_vobsub_after_conversion": False,
-        }
+        payload = current_pending_manifest_payload(
+            sidecar_files=[{"local_file": r"C:\Scratch\Pending\Movie.eng.srt"}],
+            tx3g_srt_tracks=[{"language": "eng"}],
+            vobsub_srt_failures=[{"reason": "ocr unavailable"}],
+            tx3g_embedded_srt_tracks=[{"language": "eng"}],
+            vobsub_embedded_srt_tracks=[{"language": "eng"}],
+            tx3g_srt_conversion_enabled=True,
+            vobsub_srt_conversion_enabled=True,
+        )
 
         manifest = PendingPushManifest.from_mapping(payload)
 
@@ -388,17 +409,44 @@ class ContractTests(unittest.TestCase):
             "drop_vobsub_after_conversion",
         ):
             self.assertIn(field, schema["properties"])
+        for field in (
+            "pipeline_version",
+            "publish_transaction_id",
+            "manifest_state",
+            "local_file",
+            "server_out",
+            "route",
+            "source_identity_v2",
+            "source_identity_v2_algorithm",
+            "source_path",
+            "output_size",
+            "sidecar_files",
+            "tx3g_srt_tracks",
+            "tx3g_srt_failures",
+            "bdpgs_srt_failures",
+            "vobsub_srt_failures",
+            "tx3g_embedded_srt_tracks",
+            "bdpgs_embedded_srt_tracks",
+            "vobsub_embedded_srt_tracks",
+        ):
+            self.assertIn(field, schema["required"])
+        for field in (
+            "pipeline_version",
+            "publish_transaction_id",
+            "manifest_state",
+            "local_file",
+            "server_out",
+            "route",
+            "source_identity_v2",
+            "source_identity_v2_algorithm",
+            "source_path",
+        ):
+            self.assertEqual(schema["properties"][field].get("minLength"), 1)
 
     def test_pending_push_manifest_contract_accepts_recovery_and_sidecar_retry_states(self) -> None:
-        base = {
-            "schema_version": "pending_push_manifest.v1",
-            "publish_transaction_id": "tx",
-            "local_file": r"C:\Scratch\Pending\Movie.mkv",
-            "server_out": r"\\server\Movies\Movie.mkv",
-        }
         for state in ("parked_recovered", "retry_sidecar_failed"):
             with self.subTest(state=state):
-                manifest = PendingPushManifest.from_mapping({**base, "manifest_state": state})
+                manifest = PendingPushManifest.from_mapping(current_pending_manifest_payload(manifest_state=state))
                 self.assertEqual(manifest.manifest_state, state)
 
     def test_completed_job_contract_accepts_sidecar_schema_manifest_entries(self) -> None:
@@ -474,15 +522,41 @@ class ContractTests(unittest.TestCase):
 
     def test_pending_push_manifest_rejects_unknown_current_state(self) -> None:
         with self.assertRaises(ContractError):
-            PendingPushManifest.from_mapping(
-                {
-                    "schema_version": "pending_push_manifest.v1",
-                    "publish_transaction_id": "tx",
-                    "manifest_state": "mystery_state",
-                    "local_file": r"C:\Scratch\Pending\Movie.mkv",
-                    "server_out": r"\\server\Movies\Movie.mkv",
-                }
-            )
+            PendingPushManifest.from_mapping(current_pending_manifest_payload(manifest_state="mystery_state"))
+
+    def test_pending_push_manifest_rejects_blank_required_current_fields(self) -> None:
+        for field in (
+            "pipeline_version",
+            "publish_transaction_id",
+            "manifest_state",
+            "local_file",
+            "server_out",
+            "route",
+            "source_identity_v2",
+            "source_identity_v2_algorithm",
+            "source_path",
+        ):
+            with self.subTest(field=field):
+                with self.assertRaises(ContractError):
+                    PendingPushManifest.from_mapping(current_pending_manifest_payload(**{field: "  "}))
+
+    def test_pending_push_manifest_rejects_missing_required_arrays_and_output_size(self) -> None:
+        for field in (
+            "sidecar_files",
+            "tx3g_srt_tracks",
+            "tx3g_srt_failures",
+            "bdpgs_srt_failures",
+            "vobsub_srt_failures",
+            "tx3g_embedded_srt_tracks",
+            "bdpgs_embedded_srt_tracks",
+            "vobsub_embedded_srt_tracks",
+            "output_size",
+        ):
+            payload = current_pending_manifest_payload()
+            payload.pop(field)
+            with self.subTest(field=field):
+                with self.assertRaises(ContractError):
+                    PendingPushManifest.from_mapping(payload)
 
     def test_progress_contract_rejects_invalid_percent(self) -> None:
         with self.assertRaises(ContractError):

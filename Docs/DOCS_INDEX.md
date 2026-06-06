@@ -10,7 +10,6 @@ This is the active documentation map for the current promoted tree. It reflects 
 - `..\AGENTS.md`: root entry point for AI/code agents.
 - `CURRENT_PROJECT_STATE.md`: current architecture, launch paths, operating state, safety assumptions, and obsolete instructions.
 - `..\docs/OPEN_WORK_CHECKLIST.md`: active work queue and closed promotion-gate record.
-- `TLDR.md`: fast operator summary.
 - `README_MediaPipelineRemuxEncodeAIO.md`: bundle overview, launchers, setup, release packaging, and important paths.
 - `DOCS_INDEX.md`: this file.
 

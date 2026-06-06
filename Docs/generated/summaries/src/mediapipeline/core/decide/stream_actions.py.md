@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: decide
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: 3a9bc03c394c6e79122485c8623f17c2532745e32c62e52d6b0e638678f1c0f2
+sha256: aefb5cbfeb8fd0a80d209866a3c15d46af2289a79189fa66d0cfbfe8119d925d
 ---
 # `src/mediapipeline/core/decide/stream_actions.py`
 

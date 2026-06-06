@@ -178,7 +178,7 @@ function Resolve-MediaRouteSizeGuardModeName {
     } else {
         'advisory'
     }
-    if ($mode -in @('advisory','strict','off')) { return $mode }
+    if ($mode -in @('advisory','strict','fallback_remux','off')) { return $mode }
     return 'advisory'
 }
 
@@ -228,18 +228,19 @@ function Get-ActiveMediaRoutePlanMetadata {
             route_4k_lower_height_tolerance_percent = if (Get-Variable -Name Route4KLowerHeightTolerancePercent -Scope Script -ErrorAction SilentlyContinue) { [double]$script:Route4KLowerHeightTolerancePercent } else { 16.666667 }
             route_4k_bucket_min_height        = if (Get-Variable -Name Route4KBucketMinHeight -Scope Script -ErrorAction SilentlyContinue) { [int]$script:Route4KBucketMinHeight } else { 1800 }
             route_4k_max_bitrate_mbps         = if (Get-Variable -Name Route4KMaxVideoBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:Route4KMaxVideoBitrateMbps } else { 35.0 }
-            unknown_height_fallback_movie_mbps = if (Get-Variable -Name MovieRouteMaxVideoBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:MovieRouteMaxVideoBitrateMbps } else { 35.0 }
-            unknown_height_fallback_tv_mbps   = if (Get-Variable -Name TVRouteMaxVideoBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVRouteMaxVideoBitrateMbps } else { 18.0 }
+            unknown_height_bucket             = '1080p'
+            unknown_height_max_bitrate_mbps   = if (Get-Variable -Name Route1080pMaxVideoBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:Route1080pMaxVideoBitrateMbps } else { 20.0 }
         }
         resolution_size_policy = [ordered]@{
-            movie_1080p_target_gb       = if (Get-Variable -Name MovieRoute1080pTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:MovieRoute1080pTargetSizeGB } elseif (Get-Variable -Name EncodeThresholdGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:EncodeThresholdGB } else { 8.0 }
-            movie_1440p_target_gb       = if (Get-Variable -Name MovieRoute1440pTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:MovieRoute1440pTargetSizeGB } elseif (Get-Variable -Name EncodeThresholdGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:EncodeThresholdGB } else { 8.0 }
-            movie_4k_target_gb          = if (Get-Variable -Name MovieRoute4KTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:MovieRoute4KTargetSizeGB } elseif (Get-Variable -Name EncodeThresholdGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:EncodeThresholdGB } else { 8.0 }
-            tv_1080p_target_gb          = if (Get-Variable -Name TVRoute1080pTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVRoute1080pTargetSizeGB } elseif (Get-Variable -Name TVEncodeThresholdGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVEncodeThresholdGB } else { 3.0 }
-            tv_1440p_target_gb          = if (Get-Variable -Name TVRoute1440pTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVRoute1440pTargetSizeGB } elseif (Get-Variable -Name TVEncodeThresholdGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVEncodeThresholdGB } else { 3.0 }
-            tv_4k_target_gb             = if (Get-Variable -Name TVRoute4KTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVRoute4KTargetSizeGB } elseif (Get-Variable -Name TVEncodeThresholdGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVEncodeThresholdGB } else { 3.0 }
-            unknown_height_movie_target_gb = if (Get-Variable -Name EncodeThresholdGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:EncodeThresholdGB } else { 8.0 }
-            unknown_height_tv_target_gb = if (Get-Variable -Name TVEncodeThresholdGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVEncodeThresholdGB } else { 3.0 }
+            movie_1080p_target_gb       = if (Get-Variable -Name MovieRoute1080pTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:MovieRoute1080pTargetSizeGB } else { 8.0 }
+            movie_1440p_target_gb       = if (Get-Variable -Name MovieRoute1440pTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:MovieRoute1440pTargetSizeGB } else { 8.0 }
+            movie_4k_target_gb          = if (Get-Variable -Name MovieRoute4KTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:MovieRoute4KTargetSizeGB } else { 8.0 }
+            tv_1080p_target_gb          = if (Get-Variable -Name TVRoute1080pTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVRoute1080pTargetSizeGB } else { 3.0 }
+            tv_1440p_target_gb          = if (Get-Variable -Name TVRoute1440pTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVRoute1440pTargetSizeGB } else { 3.0 }
+            tv_4k_target_gb             = if (Get-Variable -Name TVRoute4KTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVRoute4KTargetSizeGB } else { 3.0 }
+            unknown_height_bucket       = '1080p'
+            unknown_height_movie_target_gb = if (Get-Variable -Name MovieRoute1080pTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:MovieRoute1080pTargetSizeGB } else { 8.0 }
+            unknown_height_tv_target_gb = if (Get-Variable -Name TVRoute1080pTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVRoute1080pTargetSizeGB } else { 3.0 }
         }
         source_codec           = [string]$plan.SourceCodec
         requires_codec_probe   = [bool]$plan.RequiresCodecProbe

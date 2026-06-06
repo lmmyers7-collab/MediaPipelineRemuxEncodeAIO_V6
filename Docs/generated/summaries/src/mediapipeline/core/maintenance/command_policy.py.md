@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: 43fa0cb4b2b5d84319d7cb48a5d72945175171786df276ecd36dca39402d4f31
+sha256: d41ac4ecb8a7e5e53b720f22434f551e16d925980d7db3704cb4a0099966ad18
 ---
 # `src/mediapipeline/core/maintenance/command_policy.py`
 

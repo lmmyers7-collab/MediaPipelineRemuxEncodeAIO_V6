@@ -16,10 +16,11 @@ from mediapipeline.desktop.api.contract_payload import local_api_contract_payloa
 
 REPO_ROOT = find_repo_root(Path(__file__))
 ASSET_ROOT = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "assets"
+DIAGNOSTICS_PARTIAL = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "partials" / "page-diagnostics.html"
 API_POST_LITERAL_RE = re.compile(
-    r"(?<![\w$])(?:\w+\.)?apiPost\s*\(\s*(?P<quote>[\"'])(?P<route>/api/[^\"']+)(?P=quote)"
+    r"(?<![\w$])(?:\w+\.)?apiPost(?:Local)?\s*\(\s*(?P<quote>[\"'])(?P<route>/api/[^\"']+)(?P=quote)"
 )
-API_POST_CALL_RE = re.compile(r"(?<![\w$])(?:\w+\.)?apiPost\s*\(")
+API_POST_CALL_RE = re.compile(r"(?<!function\s)(?<![\w$])(?:\w+\.)?apiPost(?:Local)?\s*\(")
 
 EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/backend/shutdown": {"app.js"},
@@ -49,10 +50,10 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/queue/scan": {"queueView.js"},
     "/api/queue/priority": {"queueView.js"},
     "/api/queue/strategy": {"queueView.js"},
-    "/api/queue/file-overrides": {"queue/fileOverrides.drawer.js"},
+    "/api/queue/file-overrides": {"queue/fileOverrides.drawer.api.js"},
     "/api/queue/file-overrides/route-preview": {"queue/fileOverrides.routePreview.js"},
-    "/api/queue/file-overrides/series-preview": {"queue/fileOverrides.drawer.js"},
-    "/api/queue/file-overrides/series-apply": {"queue/fileOverrides.drawer.js"},
+    "/api/queue/file-overrides/series-preview": {"queue/fileOverrides.drawer.series.js"},
+    "/api/queue/file-overrides/series-apply": {"queue/fileOverrides.drawer.series.js"},
     "/api/failures/clear": {"reportsView.js"},
     "/api/rename/apply": {"renameView.js"},
     "/api/rename/browse": {"renameView.js"},
@@ -64,6 +65,12 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/settings/preview-patch": {"settingsView.js"},
     "/api/settings/save-patch": {"settingsView.js"},
     "/api/settings/reload": {"settingsView.js"},
+    "/api/settings/wizard/validate-paths": {"settingsWizard.js"},
+    "/api/settings/wizard/validate-tools": {"settingsWizard.js"},
+    "/api/settings/wizard/probe-hardware": {"settingsWizard.js"},
+    "/api/settings/wizard/validate-workers": {"settingsWizard.js"},
+    "/api/settings/wizard/preview": {"settingsWizard.js"},
+    "/api/settings/wizard/save": {"settingsWizard.js"},
 }
 REPAIR_RECONCILE_ROUTE_TERMS = ("repair", "reconcile", "reconciliation")
 ALLOWED_TAURI_EVENT_BRIDGE = "tauriLifecycleBridge.js"
@@ -112,7 +119,7 @@ def _literal_api_post_owners() -> dict[str, set[str]]:
 def _payload_for_route(asset_name: str, route: str) -> str:
     source = _asset_sources()[asset_name]
     pattern = re.compile(
-        r"(?:\w+\.)?apiPost\s*\(\s*[\"']"
+        r"(?:\w+\.)?apiPost(?:Local)?\s*\(\s*[\"']"
         + re.escape(route)
         + r"[\"']\s*,\s*(?P<payload>\{.*?\})\s*(?:,\s*\{.*?\})?\s*\)",
         flags=re.DOTALL,
@@ -145,6 +152,18 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
 
     def test_api_post_command_ownership_stays_page_specific(self) -> None:
         self.assertEqual(_literal_api_post_owners(), EXPECTED_API_POST_OWNERS)
+
+    def test_diagnostics_does_not_own_pipeline_control_mutations(self) -> None:
+        diagnostics_view = _asset_sources()["diagnosticsView.js"]
+        diagnostics_html = DIAGNOSTICS_PARTIAL.read_text(encoding="utf-8")
+
+        self.assertNotIn("/api/pipeline/control", diagnostics_view)
+        self.assertNotIn("diagnostics-force-reset", diagnostics_view)
+        self.assertNotIn("diagnostics-force-reset", diagnostics_html)
+        self.assertIn(
+            "Diagnostics is read-only. If evidence shows stuck progress",
+            diagnostics_html,
+        )
 
     def test_ui_preferences_sync_stays_allowlisted_and_runs_before_layout_init(self) -> None:
         app_js = _asset_sources()["app.js"]

@@ -15,7 +15,13 @@ $ErrorActionPreference = 'Stop'
 
 $testsRoot = Split-Path -Parent $PSCommandPath
 $pipelineRoot = Split-Path -Parent (Split-Path -Parent $testsRoot)
-$repoRoot = Split-Path -Parent $pipelineRoot
+$repoRoot = Split-Path -Parent (Split-Path -Parent $pipelineRoot)
+if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'AGENTS.md') -PathType Leaf)) {
+    throw "Unable to resolve repository root from $PSCommandPath."
+}
+if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine') -PathType Container)) {
+    throw "Resolved repository root is missing ops\pipeline\engine: $repoRoot"
+}
 
 function Assert-True {
     param([bool] $Condition, [string] $Message)
@@ -71,6 +77,14 @@ function Get-ConvertedSrtCodecForFfmpegOutput {
     return 'srt'
 }
 
+function Resolve-SubtitleConfiguredPath {
+    param(
+        [string] $PathValue,
+        [switch] $AllowCommandLookup
+    )
+    return [string]$PathValue
+}
+
 function Test-CanPreserveTx3gInFfmpegOutput {
     return [bool]$script:CanPreserveTx3g
 }
@@ -117,6 +131,33 @@ function New-VobSubFailureRecord {
         ReproPath   = $ReproPath
         ErrorText   = $ErrorText
     }
+}
+
+function New-StandardFailureRecord {
+    param(
+        [string] $Stage,
+        [string] $Operation,
+        [string] $Category,
+        [string] $Reason,
+        [string] $ErrorCode,
+        [string] $Tool,
+        [string] $ReproPath,
+        [bool] $Retryable,
+        [hashtable] $AdditionalProperties = @{}
+    )
+    $record = [ordered]@{
+        Stage      = $Stage
+        Operation  = $Operation
+        Category   = $Category
+        Reason     = $Reason
+        ErrorCode  = $ErrorCode
+        error_code = $ErrorCode
+        Tool       = $Tool
+        ReproPath  = $ReproPath
+        Retryable  = $Retryable
+    }
+    foreach ($key in $AdditionalProperties.Keys) { $record[$key] = $AdditionalProperties[$key] }
+    return [pscustomobject]$record
 }
 
 function New-TestSubtitleEntry {
@@ -539,8 +580,8 @@ try {
     $script:BdpgsOcrTessdataPath = ''
     $bdpgsConvertedPath = Join-Path $script:processingDir 'bdpgs-converted-pipe-glyph.srt'
     $bdpgsConverted = Convert-BdpgsToSrt -SourceFile (Join-Path $script:processingDir 'source.mkv') -StreamIndex 40 -StreamInfo (New-TestSubtitleEntry -Index 40 -Lang 'eng' -Title 'English PGS' -Codec 'hdmv_pgs_subtitle' -Bdpgs) -DestinationPath $bdpgsConvertedPath -Context 'TEST: '
-    $bdpgsConvertedText = [System.IO.File]::ReadAllText($bdpgsConvertedPath, [System.Text.Encoding]::UTF8)
     Assert-True ([bool]$bdpgsConverted.Ok) ("BDPGS OCR conversion with pipe-glyph repair should succeed: {0}" -f $bdpgsConverted.Reason)
+    $bdpgsConvertedText = [System.IO.File]::ReadAllText($bdpgsConvertedPath, [System.Text.Encoding]::UTF8)
     Assert-ContainsText $bdpgsConvertedText 'I am here.' 'BDPGS OCR conversion should repair pipe glyphs before accepting the SRT.'
     Assert-True (-not ($bdpgsConvertedText -match '\|')) 'BDPGS OCR conversion should not publish OCR pipe glyphs in cue text.'
 } finally {

@@ -6,6 +6,7 @@ from .commands_final_library import LocalApiFinalLibraryPromotionCommandPayloadM
 from .commands_file_overrides import LocalApiFileOverridesCommandPayloadMixin
 from .commands_files import LocalApiFileCommandPayloadMixin
 from .commands_maintenance import LocalApiMaintenanceCommandPayloadMixin
+from .commands_metrics import LocalApiMetricsCommandPayloadMixin
 from .commands_process import LocalApiProcessCommandPayloadMixin
 from .commands_queue_priority import LocalApiQueuePriorityCommandPayloadMixin
 from .commands_queue_scan import LocalApiQueueScanCommandPayloadMixin
@@ -14,6 +15,7 @@ from .commands_rename import LocalApiRenameCommandPayloadMixin
 from .commands_schedule import LocalApiScheduleCommandPayloadMixin
 from .commands_sample_validation import LocalApiSampleValidationCommandPayloadMixin
 from .commands_settings import LocalApiSettingsCommandPayloadMixin
+from .commands_subtitle_qa import LocalApiSubtitleQaCommandPayloadMixin
 from .commands_ui_preferences import LocalApiUiPreferencesPayloadMixin
 
 
@@ -24,6 +26,7 @@ class LocalApiCommandHandlerMixin(
     LocalApiFileOverridesCommandPayloadMixin,
     LocalApiFileCommandPayloadMixin,
     LocalApiMaintenanceCommandPayloadMixin,
+    LocalApiMetricsCommandPayloadMixin,
     LocalApiQueueScanCommandPayloadMixin,
     LocalApiQueuePriorityCommandPayloadMixin,
     LocalApiQueueStrategyCommandPayloadMixin,
@@ -31,6 +34,7 @@ class LocalApiCommandHandlerMixin(
     LocalApiScheduleCommandPayloadMixin,
     LocalApiSampleValidationCommandPayloadMixin,
     LocalApiSettingsCommandPayloadMixin,
+    LocalApiSubtitleQaCommandPayloadMixin,
     LocalApiUiPreferencesPayloadMixin,
     LocalApiProcessCommandPayloadMixin,
 ):

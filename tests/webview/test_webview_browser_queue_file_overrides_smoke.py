@@ -48,20 +48,14 @@ def _browser_queue_file_overrides_runner_source() -> str:
             const originalApiGet = window.apiGet;
             const originalApiPost = window.apiPost;
             const originalConfirm = window.confirm;
+            const previousRefreshAllForQueueOverrideSmoke = window.refreshAll;
             const posts = [];
             const confirms = [];
             const sourcePath = "C:/Smoke/Example Show/Season 01/Queue Drawer Sample S01E01.mkv";
-            let savedEntry = {
-              audio: {
-                keepTracks: [{ language: "eng" }],
-                maxChannels: 6,
-              },
-              subtitles: {
-                stripAll: true,
-              },
-            };
+            let savedEntry = null;
             let failNextOverridePost = false;
             const confirmResponses = [false, true, true];
+            window.__queueOverrideMarkerCalls = [];
 
             function clone(value) {
               return JSON.parse(JSON.stringify(value));
@@ -70,6 +64,8 @@ def _browser_queue_file_overrides_runner_source() -> str:
             function text(id) { const node = byId(id); return node ? node.textContent || "" : ""; }
             function statusTone() { return byId("fo-drawer-status")?.dataset.tone || ""; }
             function statusRole() { return byId("fo-drawer-status")?.getAttribute("role") || ""; }
+            function overrideChipState() { return document.querySelector(".queue-override-chip")?.dataset.state || ""; }
+            function overrideChipText() { return document.querySelector(".queue-override-chip")?.textContent || ""; }
             function saveDisabled() { return Boolean(byId("fo-drawer-save")?.disabled); }
             function drawerHidden() { return Boolean(byId("fo-drawer")?.hidden); }
             function overlayHidden() { return Boolean(byId("fo-overlay")?.hidden); }
@@ -101,7 +97,15 @@ def _browser_queue_file_overrides_runner_source() -> str:
                 }
                 await new Promise((resolve) => setTimeout(resolve, 100));
               }
-              throw new Error("Timed out waiting for " + label + (lastError ? ": " + lastError.message : "") + "\\nStatus:\\n" + text("fo-drawer-status") + "\\nPosts:\\n" + JSON.stringify(posts));
+              throw new Error(
+                "Timed out waiting for " + label
+                + (lastError ? ": " + lastError.message : "")
+                + "\\nStatus:\\n" + text("fo-drawer-status")
+                + "\\nOverride chip:\\n" + overrideChipState() + " " + overrideChipText()
+                + "\\nMarker calls:\\n" + JSON.stringify(window.__queueOverrideMarkerCalls || [])
+                + "\\nQueue rows:\\n" + (document.querySelector("#queue-rows")?.innerHTML || "")
+                + "\\nPosts:\\n" + JSON.stringify(posts)
+              );
             }
             function applyClearFields(entry, fields) {
               if (!entry) return null;
@@ -125,11 +129,28 @@ def _browser_queue_file_overrides_runner_source() -> str:
               }
               return next;
             }
-            function effectiveField(fieldKey, value, source) {
-              return {
+            function effectiveField(fieldKey, value, source, choices = []) {
+              const field = {
                 effective: { available: true, display: String(value), value, source },
                 inherited: { available: true, display: "saved policy", value: "saved policy", source: "global_default" },
               };
+              if (choices.length) {
+                field.choices = choices;
+                field.effective.choices = choices;
+              }
+              return field;
+            }
+            function routeVideoProcessing() {
+              const profile = String(savedEntry?.routing?.profile || "").toLowerCase();
+              if (profile === "transcode" || profile === "encode") {
+                return {
+                  route: "transcode",
+                  videoCodec: "h264_nvenc",
+                  will_force_transcode: true,
+                  warnings: ["Effective route/video override may force a full video transcode during processing."],
+                };
+              }
+              return { route: "remux", videoCodec: "copy", will_force_transcode: false, warnings: [] };
             }
             function effectivePayload() {
               const sources = {};
@@ -137,6 +158,7 @@ def _browser_queue_file_overrides_runner_source() -> str:
               if (savedEntry?.audio?.maxChannels) sources["audio.maxChannels"] = "file_override";
               if (savedEntry?.audio?.preferDefaultLanguage) sources["audio.preferDefaultLanguage"] = "file_override";
               if (Object.prototype.hasOwnProperty.call(savedEntry?.subtitles || {}, "stripAll")) sources["subtitles.stripAll"] = "file_override";
+              if (savedEntry?.routing?.profile) sources["routing.profile"] = "file_override";
               return {
                 ok: true,
                 file_override_scope: savedEntry ? "file" : "none",
@@ -154,6 +176,19 @@ def _browser_queue_file_overrides_runner_source() -> str:
                   audioPreferDefaultLanguage: effectiveField("audioPreferDefaultLanguage", savedEntry?.audio?.preferDefaultLanguage || "eng", sources["audio.preferDefaultLanguage"] || "global_default"),
                   subtitleStripAll: effectiveField("subtitleStripAll", savedEntry?.subtitles?.stripAll ? "enabled" : "disabled", sources["subtitles.stripAll"] || "global_default"),
                 },
+                route_video_effective_fields: {
+                  routeProfile: effectiveField("routeProfile", savedEntry?.routing?.profile || "plex_direct_stream", sources["routing.profile"] || "global_default", [
+                    { value: "plex_direct_stream", label: "Plex direct stream" },
+                    { value: "remux", label: "Remux" },
+                    { value: "transcode", label: "Transcode" },
+                  ]),
+                  routingRouteThresholdMode: effectiveField("routingRouteThresholdMode", savedEntry?.routing?.routeThresholdMode || "compatibility_advisory", sources["routing.routeThresholdMode"] || "global_default", [
+                    { value: "compatibility_advisory", label: "Compatibility advisory" },
+                    { value: "bitrate", label: "Bitrate" },
+                    { value: "size_or_bitrate", label: "Size or bitrate" },
+                  ]),
+                },
+                route_video_processing: routeVideoProcessing(),
                 track_metadata: {
                   available: true,
                   probe_available: true,
@@ -169,6 +204,7 @@ def _browser_queue_file_overrides_runner_source() -> str:
 
             window.apiGet = async (path, options) => {
               const rawPath = String(path || "");
+              if (rawPath === "/api/queue" || rawPath.startsWith("/api/queue?")) return fixtureQueuePayload();
               if (rawPath.startsWith("/api/queue/file-overrides/effective")) return effectivePayload();
               if (rawPath.startsWith("/api/queue/file-overrides/tracks")) {
                 return {
@@ -207,7 +243,28 @@ def _browser_queue_file_overrides_runner_source() -> str:
                 return { ok: true, command: "queue.file_overrides", message: "Override saved." };
               }
               if (rawPath === "/api/queue/file-overrides/route-preview") {
-                return { ok: true, impact: { requires_confirmation: false }, warnings: [] };
+                const proposedRoute = String(payload.proposed_override?.routing?.forceRoute || "").toLowerCase();
+                if (proposedRoute === "transcode" || proposedRoute === "encode") {
+                  return {
+                    ok: true,
+                    current: { route: "remux" },
+                    proposed: { route: "transcode", videoCodec: "h264_nvenc" },
+                    impact: {
+                      estimated_risk: "high",
+                      requires_confirmation: true,
+                      will_force_transcode: true,
+                      will_prevent_remux: true,
+                    },
+                    warnings: [{ message: "This route preview would force a full video transcode for this file." }],
+                  };
+                }
+                return {
+                  ok: true,
+                  current: { route: "remux" },
+                  proposed: { route: "remux", videoCodec: "copy" },
+                  impact: { estimated_risk: "low", requires_confirmation: false, will_force_transcode: false },
+                  warnings: [],
+                };
               }
               if (rawPath === "/api/queue/file-overrides/series-preview") {
                 return {
@@ -281,6 +338,43 @@ def _browser_queue_file_overrides_runner_source() -> str:
               return confirmResponses.length ? confirmResponses.shift() : true;
             };
 
+            function fixtureQueuePayload() {
+              return {
+                ok: true,
+                count: 1,
+                rows: [{
+                  row_key: "queue-drawer-sample",
+                  global_order: 1,
+                  queue_index: 1,
+                  queue_total: 1,
+                  media_type: "tv",
+                  media_kind: "tv",
+                  display_name: "Queue Drawer Sample S01E01.mkv",
+                  relative_path: "Example Show/Season 01/Queue Drawer Sample S01E01.mkv",
+                  source_path: sourcePath,
+                  source_root: "C:/Smoke",
+                  root_path: "C:/Smoke",
+                  season_number: 1,
+                  episode_number: 1,
+                  route_name: "remux",
+                  route_reason: "drawer smoke fixture",
+                  operator_status: "ready for launch",
+                  operator_trust_state: "ready",
+                  proof_summary: ["drawer smoke row"],
+                  has_file_override: false,
+                }],
+                source_roots: ["C:/Smoke"],
+                snapshot_exists: true,
+                produced_at: "2026-06-04T00:00:00Z",
+              };
+            }
+            function renderFixtureQueue() {
+              window.renderQueue(fixtureQueuePayload());
+            }
+            window.refreshAll = async () => {
+              renderFixtureQueue();
+            };
+
             await waitFor(
               () => document.readyState === "complete"
                 && typeof window.renderQueue === "function"
@@ -288,48 +382,40 @@ def _browser_queue_file_overrides_runner_source() -> str:
                 && document.querySelector("#fo-drawer-save"),
               "Queue globals and drawer DOM",
             );
+            const markerFn = window.mediaPipelineQueueView?.applyDisplayedQueueFileOverrideMarker;
+            require(typeof markerFn === "function", "Queue marker update helper is not exported.");
+            window.mediaPipelineQueueView.applyDisplayedQueueFileOverrideMarker = (path, hasOverride) => {
+              window.__queueOverrideMarkerCalls.push({ path, hasOverride });
+              return markerFn(path, hasOverride);
+            };
 
-            window.renderQueue({
-              ok: true,
-              count: 1,
-              rows: [{
-                row_key: "queue-drawer-sample",
-                global_order: 1,
-                queue_index: 1,
-                queue_total: 1,
-                media_type: "tv",
-                media_kind: "tv",
-                display_name: "Queue Drawer Sample S01E01.mkv",
-                relative_path: "Example Show/Season 01/Queue Drawer Sample S01E01.mkv",
-                source_path: sourcePath,
-                source_root: "C:/Smoke",
-                root_path: "C:/Smoke",
-                season_number: 1,
-                episode_number: 1,
-                route_name: "remux",
-                route_reason: "drawer smoke fixture",
-                operator_status: "ready for launch",
-                operator_trust_state: "ready",
-                proof_summary: ["drawer smoke row"],
-                has_file_override: true,
-              }],
-              source_roots: ["C:/Smoke"],
-              snapshot_exists: true,
-              produced_at: "2026-06-04T00:00:00Z",
-            });
+            renderFixtureQueue();
             const openButton = document.querySelector(".fo-open-btn");
             require(openButton, "missing Queue file settings button");
+            require(overrideChipState() === "none", "Override chip should start inactive.");
+            require(overrideChipText() === "", "Inactive override chip should not show marker text.");
             openButton.click();
-            await waitFor(() => !drawerHidden() && text("fo-drawer-status").includes("Override loaded."), "drawer override load");
-            require(saveDisabled(), "Save should be disabled while the loaded form is clean.");
-            require(statusTone() === "success", "Loaded status should use success tone, got " + statusTone());
-            require(statusRole() === "status", "Loaded status should use status role, got " + statusRole());
+            await waitFor(() => !drawerHidden() && text("fo-drawer-status").includes("No override set"), "drawer empty override load");
+            require(!byId("fo-route-risk-confirm"), "Old route-impact confirmation checkbox should not render.");
+            require(saveDisabled(), "Save should be disabled while the empty loaded form is clean.");
+
+            setControlValue("fo-audio-keep-langs", "eng");
+            setControlValue("fo-audio-max-channels", "6");
+            await waitFor(() => !saveDisabled() && text("fo-drawer-status").includes("Unsaved changes"), "dirty state before first override save");
+            byId("fo-drawer-save").click();
+            await waitFor(() => text("fo-drawer-status").includes("Override saved."), "first override save status");
+            await waitFor(() => overrideChipState() === "active" && overrideChipText().includes("Override"), "visible override marker after save");
+            require(document.querySelector(".fo-open-btn")?.dataset.hasOverride === "true", "File settings button should show override state after save.");
+            require(saveDisabled(), "Save should be disabled again after first successful save.");
+            require(statusTone() === "success", "Save status should use success tone, got " + statusTone());
+            require(statusRole() === "status", "Save status should use status role, got " + statusRole());
 
             setControlValue("fo-audio-max-channels", "");
             await waitFor(() => !saveDisabled() && text("fo-drawer-status").includes("Unsaved changes"), "dirty state after neutral max channels");
             require(statusTone() === "warning", "Dirty status should use warning tone, got " + statusTone());
             byId("fo-drawer-save").click();
             await waitFor(() => text("fo-drawer-status").includes("Override saved."), "save status after clear_fields");
+            await waitFor(() => overrideChipState() === "active", "visible override marker remains after partial clear");
             require(saveDisabled(), "Save should be disabled again after successful save.");
             require(statusTone() === "success", "Save status should use success tone, got " + statusTone());
             const clearFieldPost = posts.find((entry) => Array.isArray(entry.body.clear_fields));
@@ -369,13 +455,26 @@ def _browser_queue_file_overrides_runner_source() -> str:
             byId("fo-overlay").click();
             await waitFor(() => drawerHidden(), "drawer closes after discard confirmation");
 
-            openButton.click();
+            const clearOpenButton = document.querySelector(".fo-open-btn");
+            require(clearOpenButton, "missing Queue file settings button before full clear");
+            clearOpenButton.click();
             await waitFor(() => !drawerHidden() && text("fo-drawer-status").includes("Override loaded."), "drawer reload before full clear");
             byId("fo-drawer-clear").click();
             await waitFor(() => text("fo-drawer-status").includes("Override cleared."), "full clear status");
+            await waitFor(() => overrideChipState() === "none" && overrideChipText() === "", "visible override marker cleared");
             require(statusTone() === "success", "Full clear status should use success tone, got " + statusTone());
             const fullClearPost = posts.find((entry) => entry.body.clear === true);
             require(fullClearPost, "Clear Override did not submit clear=true.");
+
+            setControlValue("fo-route-profile", "transcode");
+            await waitFor(() => text("fo-route-encode-advisory").includes("Force encode:"), "forced encode footer advisory");
+            const confirmsBeforeRouteSave = confirms.length;
+            byId("fo-drawer-save").click();
+            await waitFor(() => text("fo-drawer-status").includes("Override saved."), "route override save without confirmation checkbox");
+            require(confirms.length === confirmsBeforeRouteSave, "Route override save should not ask for confirmation; confirms=" + JSON.stringify(confirms));
+            requireText("fo-route-encode-advisory", ["Force encode:", "full video encode/transcode"]);
+            const routePost = posts.find((entry) => entry.path === "/api/queue/file-overrides" && entry.body.routing?.profile === "transcode");
+            require(routePost, "Forced encode route override was not saved: " + JSON.stringify(posts));
 
             setControlValue("fo-audio-max-channels", "2");
             await waitFor(() => !saveDisabled(), "dirty state before injected save failure");
@@ -388,10 +487,12 @@ def _browser_queue_file_overrides_runner_source() -> str:
             window.apiGet = originalApiGet;
             window.apiPost = originalApiPost;
             window.confirm = originalConfirm;
+            window.refreshAll = previousRefreshAllForQueueOverrideSmoke;
             return {
               ok: true,
               posts,
               confirms,
+              routeAdvisory: text("fo-route-encode-advisory"),
               status: text("fo-drawer-status"),
               statusTone: statusTone(),
               statusRole: statusRole(),
@@ -527,6 +628,8 @@ class WebViewBrowserQueueFileOverridesSmoke(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertTrue(any(post["body"].get("clear_fields") == ["audio.maxChannels"] for post in posts))
         self.assertTrue(any(post["body"].get("clear") is True for post in posts))
+        self.assertTrue(any(post["body"].get("routing", {}).get("profile") == "transcode" for post in posts))
+        self.assertIn("Force encode:", browser_result["routeAdvisory"])
         self.assertGreaterEqual(len(browser_result["confirms"]), 3)
         self.assertIn("Discard unsaved file override changes", browser_result["confirms"][0])
         self.assertIn("Clear all saved file override fields", browser_result["confirms"][-1])

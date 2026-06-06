@@ -26,13 +26,27 @@
       .trim();
   }
 
+  function queueSubtitleQaEvidence(item) {
+    const qa = item && typeof item.subtitle_qa === "object" ? item.subtitle_qa : null;
+    if (!qa) return "";
+    const posture = String(qa.posture || "").toLowerCase();
+    if (posture === "blocked") return "Subtitle QA blocked";
+    if (posture === "review") return "Subtitle QA review";
+    if (posture === "unknown") return "Subtitle QA unknown";
+    return "";
+  }
+
   function queueEvidenceText(item, routeParts, queueTableRowStatus) {
     const status = queueTableRowStatus(item);
     const candidates = [];
     if (status === "blocked" || status === "failed") {
       candidates.push(item.blocked_reason_code, item.blocked_reason, item.operator_status);
     }
+    if (queueRuntimeStoppedByRequest(item)) {
+      candidates.push(item.operator_status, item.runtime_outcome_reason, item.runtime_outcome_error_code);
+    }
     candidates.push(
+      queueSubtitleQaEvidence(item),
       routeParts?.evidence,
       item.route_reason_code,
       item.route_decision_summary,
@@ -63,6 +77,13 @@
       || Boolean(item?.runtime_checks_deferred);
   }
 
+  function queueRuntimeStoppedByRequest(item) {
+    const runtimeStatus = String(item?.runtime_outcome_status || "").toLowerCase();
+    const runtimeError = String(item?.runtime_outcome_error_code || "").toLowerCase();
+    const runtimeReason = String(item?.runtime_outcome_reason || "").toLowerCase();
+    return runtimeStatus === "stopped" && (runtimeError === "stop_requested" || (runtimeReason.includes("stop") && runtimeReason.includes("operator")));
+  }
+
   function queueDisplayRowStatus(item, queueTableRowStatus) {
     const status = queueTableRowStatus(item);
     return queueIsRunnableWarning(item, status) ? "ready" : status;
@@ -70,6 +91,7 @@
 
   function queueStateFromItem(item, status) {
     const normalized = String(status || "").toLowerCase();
+    if (item?.blocked_reason || item?.blocked_reason_code) return { label: "Blocked", state: "blocked" };
     if (normalized === "blocked" || normalized === "failed") return { label: "Blocked", state: "blocked" };
     if (normalized === "completed" || normalized === "skipped") return { label: "Done", state: "done" };
     if (queueIsRunnableWarning(item, normalized)) return { label: "Queued", state: "queued" };

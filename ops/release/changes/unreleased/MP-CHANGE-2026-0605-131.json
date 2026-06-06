@@ -1,0 +1,62 @@
+{
+  "id": "MP-CHANGE-2026-0605-131",
+  "title": "Refine Output trust workflow UI",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "medium",
+  "date_started": "2026-06-05",
+  "date_completed": "2026-06-05",
+  "summary": "Refined the WebView Output tab trust workflow with clearer Pending Publish labeling, Overview trust decisions, durable missing-output placement labels, Advanced proof grouping, and distinct command vs read-only evidence surfaces.",
+  "reason": "Operators needed to distinguish current completed outputs, historical/missing output evidence, and parked-output drain work without guessing whether a row was safe to trust, review, rerun, or investigate.",
+  "affected_areas": [
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The Output tab used a generic Publish subtab label, hid important trust warnings mostly in dense evidence panels, used Acceptance Checklist wording that could imply a backend state change, and did not classify missing historical outputs by pending/drain proof posture in the main History table.",
+  "behavior_after": "The Output tab labels parked-output work as Pending Publish, shows an Overview-level Output Trust Decision summary, classifies History rows as Current or missing with pending/drain/no/unknown proof, groups Advanced evidence by proof domain, and labels promotion/drain command areas separately from read-only evidence.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/completed/evidence/acceptance.js",
+    "apps/desktop/webview/static/assets/completed/statusBoards.js",
+    "apps/desktop/webview/static/assets/completed/table.js",
+    "apps/desktop/webview/static/assets/completedView.evidence.js",
+    "apps/desktop/webview/static/assets/completedView.js",
+    "apps/desktop/webview/static/assets/pendingPublishView.js",
+    "apps/desktop/webview/static/partials/page-completed.html",
+    "apps/desktop/webview/static/partials/page-pending.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/completed/evidence/acceptance.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/completed/statusBoards.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/pendingPublishView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-pending.html.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_completed_pending_proof_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_pending_drain_guard_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0605-131.json",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/webview/test_webview_browser_completed_pending_proof_smoke.py",
+    "tests/webview/test_webview_browser_layout_manager_smoke.py",
+    "tests/webview/test_webview_browser_pending_drain_guard_smoke.py",
+    "tests/webview/test_webview_navigation_static.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_completed_pending_proof_smoke.py",
+    "tests/webview/test_webview_browser_pending_drain_guard_smoke.py",
+    "tests/webview/test_webview_navigation_static.py"
+  ],
+  "manual_validation": [
+    "$env:PYTHONPATH=(Resolve-Path 'src').Path; apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype - failed before Output assertions on existing report-warnings HTML expectation",
+    "$env:PYTHONPATH=(Resolve-Path 'src').Path; apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_completed_pending_proof_smoke.WebViewBrowserCompletedPendingProofSmoke.test_real_browser_renders_completed_pending_proof_overlap_and_missing_output_detail - passed",
+    "$env:PYTHONPATH=(Resolve-Path 'src').Path; apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_pending_drain_guard_smoke.WebViewBrowserPendingDrainGuardSmoke.test_real_browser_refreshes_guard_after_blocked_recovery_plan_and_blocks_drain_post - passed",
+    "$env:PYTHONPATH=(Resolve-Path 'src').Path; apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_navigation_static tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_sidebar_nav_order_and_output_publish_tab - passed, 15 tests",
+    "apps/desktop/runtime/Python/python.exe -m pytest <targeted tests> - not run because bundled Python has no pytest module; unittest equivalents were run instead",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths <touched Output files> - passed, 2 written and 12 unchanged",
+    "node --check apps/desktop/webview/static/assets/completed/statusBoards.js - passed",
+    "npm run webview:check - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserCompletedPendingProofSmoke.ps1 - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserLayoutManagerSmoke.ps1 - failed before browser smoke because the wrapper omits PYTHONPATH; direct unittest rerun with PYTHONPATH reached browser and failed on unrelated Launch panel label mismatch Pipeline Controller vs Pipeline Processor",
+    "ops/scripts/smoke/Test-WebViewBrowserPendingDrainGuardSmoke.ps1 - passed"
+  ],
+  "rollback_plan": "Revert the touched WebView partial/static asset/test changes and remove this change packet; no backend command, schema, media policy, or filesystem mutation behavior was changed.",
+  "related_changes": [],
+  "notes": "Implemented Output trust decision, Pending Publish drain summary, durable placement labels, and acceptance readiness copy. Validation blockers recorded above are outside this Output trust workflow scope."
+}

@@ -5,21 +5,6 @@
 # routing.ps1 dot-sources this file as part of the route policy export surface.
 # ==============================================================================
 
-function Get-MediaRouteDefaultMaxBitrateMbps {
-    param(
-        [bool] $IsTV = $false,
-        [double] $MovieRouteMaxVideoBitrateMbps = 35.0,
-        [double] $TVRouteMaxVideoBitrateMbps = 18.0
-    )
-
-    if ($IsTV) {
-        if ($TVRouteMaxVideoBitrateMbps -gt 0) { return [double]$TVRouteMaxVideoBitrateMbps }
-        return 18.0
-    }
-    if ($MovieRouteMaxVideoBitrateMbps -gt 0) { return [double]$MovieRouteMaxVideoBitrateMbps }
-    return 35.0
-}
-
 function Get-MediaRouteMaxHeightFromUpperTolerance {
     param(
         [int] $BaseHeight,
@@ -64,16 +49,12 @@ function Resolve-MediaRouteResolutionBitrateSelection {
     param(
         [int] $VideoHeight = 0,
         [bool] $IsTV = $false,
-        [double] $MovieRouteMaxVideoBitrateMbps = 35.0,
-        [double] $TVRouteMaxVideoBitrateMbps = 18.0,
-        [int] $Route1080pBucketMaxHeight = 1200,
         [double] $Route1080pUpperHeightTolerancePercent = 11.111111,
         [double] $Route1080pMaxVideoBitrateMbps = 20.0,
         [double] $Route1440pLowerHeightTolerancePercent = 16.597222,
         [double] $Route1440pUpperHeightTolerancePercent = 24.930556,
         [double] $Route1440pMaxVideoBitrateMbps = 35.0,
         [double] $Route4KLowerHeightTolerancePercent = 16.666667,
-        [int] $Route4KBucketMinHeight = 1800,
         [double] $Route4KMaxVideoBitrateMbps = 35.0
     )
 
@@ -85,27 +66,22 @@ function Resolve-MediaRouteResolutionBitrateSelection {
     if (-not $heightBoundaries.IsContiguous) {
         $heightBoundaries = Get-MediaRouteHeightToleranceBoundaries
     }
-    $Route1080pBucketMaxHeight = [int]$heightBoundaries.Route1080pMaxHeight
-    $Route4KBucketMinHeight = [int]$heightBoundaries.Route4KMinHeight
+    $route1080pBucketMaxHeight = [int]$heightBoundaries.Route1080pMaxHeight
+    $route4KBucketMinHeight = [int]$heightBoundaries.Route4KMinHeight
     if ($Route1080pMaxVideoBitrateMbps -le 0) { $Route1080pMaxVideoBitrateMbps = 20.0 }
     if ($Route1440pMaxVideoBitrateMbps -le 0) { $Route1440pMaxVideoBitrateMbps = 35.0 }
     if ($Route4KMaxVideoBitrateMbps -le 0) { $Route4KMaxVideoBitrateMbps = 35.0 }
 
     if ($VideoHeight -le 0) {
-        $cap = Get-MediaRouteDefaultMaxBitrateMbps `
-            -IsTV:$IsTV `
-            -MovieRouteMaxVideoBitrateMbps $MovieRouteMaxVideoBitrateMbps `
-            -TVRouteMaxVideoBitrateMbps $TVRouteMaxVideoBitrateMbps
-        $fallback = if ($IsTV) { 'unknown_height_tv' } else { 'unknown_height_movie' }
         return [pscustomobject]([ordered]@{
-            CapMbps                  = [double]$cap
-            Source                   = 'movie_tv_fallback'
-            Bucket                   = $fallback
+            CapMbps                  = [double]$Route1080pMaxVideoBitrateMbps
+            Source                   = 'unknown_height_1080p_bucket'
+            Bucket                   = '1080p'
             Height                   = [int]$VideoHeight
-            Route1080pBucketMaxHeight = [int]$Route1080pBucketMaxHeight
+            Route1080pBucketMaxHeight = [int]$route1080pBucketMaxHeight
             Route1440pBucketMinHeight = [int]$heightBoundaries.Route1440pMinHeight
             Route1440pBucketMaxHeight = [int]$heightBoundaries.Route1440pMaxHeight
-            Route4KBucketMinHeight   = [int]$Route4KBucketMinHeight
+            Route4KBucketMinHeight   = [int]$route4KBucketMinHeight
         })
     }
 
@@ -115,10 +91,10 @@ function Resolve-MediaRouteResolutionBitrateSelection {
             Source                   = 'source_height_bucket'
             Bucket                   = '1080p'
             Height                   = [int]$VideoHeight
-            Route1080pBucketMaxHeight = [int]$Route1080pBucketMaxHeight
+            Route1080pBucketMaxHeight = [int]$route1080pBucketMaxHeight
             Route1440pBucketMinHeight = [int]$heightBoundaries.Route1440pMinHeight
             Route1440pBucketMaxHeight = [int]$heightBoundaries.Route1440pMaxHeight
-            Route4KBucketMinHeight   = [int]$Route4KBucketMinHeight
+            Route4KBucketMinHeight   = [int]$route4KBucketMinHeight
         })
     }
 
@@ -128,10 +104,10 @@ function Resolve-MediaRouteResolutionBitrateSelection {
             Source                   = 'source_height_bucket'
             Bucket                   = '1440p'
             Height                   = [int]$VideoHeight
-            Route1080pBucketMaxHeight = [int]$Route1080pBucketMaxHeight
+            Route1080pBucketMaxHeight = [int]$route1080pBucketMaxHeight
             Route1440pBucketMinHeight = [int]$heightBoundaries.Route1440pMinHeight
             Route1440pBucketMaxHeight = [int]$heightBoundaries.Route1440pMaxHeight
-            Route4KBucketMinHeight   = [int]$Route4KBucketMinHeight
+            Route4KBucketMinHeight   = [int]$route4KBucketMinHeight
         })
     }
 
@@ -140,10 +116,10 @@ function Resolve-MediaRouteResolutionBitrateSelection {
         Source                   = 'source_height_bucket'
         Bucket                   = '4k'
         Height                   = [int]$VideoHeight
-        Route1080pBucketMaxHeight = [int]$Route1080pBucketMaxHeight
+        Route1080pBucketMaxHeight = [int]$route1080pBucketMaxHeight
         Route1440pBucketMinHeight = [int]$heightBoundaries.Route1440pMinHeight
         Route1440pBucketMaxHeight = [int]$heightBoundaries.Route1440pMaxHeight
-        Route4KBucketMinHeight   = [int]$Route4KBucketMinHeight
+        Route4KBucketMinHeight   = [int]$route4KBucketMinHeight
     })
 }
 
@@ -151,8 +127,6 @@ function Resolve-MediaRouteResolutionSizeSelection {
     param(
         [int] $VideoHeight = 0,
         [bool] $IsTV = $false,
-        [double] $MovieThresholdGB = 8.0,
-        [double] $TVThresholdGB = 3.0,
         [double] $MovieRoute1080pTargetSizeGB = 0.0,
         [double] $MovieRoute1440pTargetSizeGB = 0.0,
         [double] $MovieRoute4KTargetSizeGB = 0.0,
@@ -165,12 +139,12 @@ function Resolve-MediaRouteResolutionSizeSelection {
         [double] $Route4KLowerHeightTolerancePercent = 16.666667
     )
 
-    if ($MovieRoute1080pTargetSizeGB -le 0) { $MovieRoute1080pTargetSizeGB = [double]$MovieThresholdGB }
-    if ($MovieRoute1440pTargetSizeGB -le 0) { $MovieRoute1440pTargetSizeGB = [double]$MovieThresholdGB }
-    if ($MovieRoute4KTargetSizeGB -le 0) { $MovieRoute4KTargetSizeGB = [double]$MovieThresholdGB }
-    if ($TVRoute1080pTargetSizeGB -le 0) { $TVRoute1080pTargetSizeGB = [double]$TVThresholdGB }
-    if ($TVRoute1440pTargetSizeGB -le 0) { $TVRoute1440pTargetSizeGB = [double]$TVThresholdGB }
-    if ($TVRoute4KTargetSizeGB -le 0) { $TVRoute4KTargetSizeGB = [double]$TVThresholdGB }
+    if ($MovieRoute1080pTargetSizeGB -le 0) { $MovieRoute1080pTargetSizeGB = 8.0 }
+    if ($MovieRoute1440pTargetSizeGB -le 0) { $MovieRoute1440pTargetSizeGB = 8.0 }
+    if ($MovieRoute4KTargetSizeGB -le 0) { $MovieRoute4KTargetSizeGB = 8.0 }
+    if ($TVRoute1080pTargetSizeGB -le 0) { $TVRoute1080pTargetSizeGB = 3.0 }
+    if ($TVRoute1440pTargetSizeGB -le 0) { $TVRoute1440pTargetSizeGB = 3.0 }
+    if ($TVRoute4KTargetSizeGB -le 0) { $TVRoute4KTargetSizeGB = 3.0 }
 
     $heightBoundaries = Get-MediaRouteHeightToleranceBoundaries `
         -Route1080pUpperHeightTolerancePercent $Route1080pUpperHeightTolerancePercent `
@@ -182,7 +156,7 @@ function Resolve-MediaRouteResolutionSizeSelection {
     }
 
     $bucket = if ($VideoHeight -le 0) {
-        if ($IsTV) { 'unknown_height_tv' } else { 'unknown_height_movie' }
+        '1080p'
     } elseif ($VideoHeight -lt $heightBoundaries.Route1440pMinHeight) {
         '1080p'
     } elseif ($VideoHeight -lt $heightBoundaries.Route4KMinHeight) {
@@ -191,14 +165,14 @@ function Resolve-MediaRouteResolutionSizeSelection {
         '4k'
     }
 
-    $movieTarget = [double]$MovieThresholdGB
-    $tvTarget = [double]$TVThresholdGB
-    $source = 'movie_tv_fallback'
+    $movieTarget = [double]$MovieRoute1080pTargetSizeGB
+    $tvTarget = [double]$TVRoute1080pTargetSizeGB
+    $source = if ($VideoHeight -le 0) { 'unknown_height_1080p_bucket' } else { 'source_height_bucket' }
     switch ($bucket) {
         '1080p' {
             $movieTarget = [double]$MovieRoute1080pTargetSizeGB
             $tvTarget = [double]$TVRoute1080pTargetSizeGB
-            $source = 'source_height_bucket'
+            if ($VideoHeight -gt 0) { $source = 'source_height_bucket' }
         }
         '1440p' {
             $movieTarget = [double]$MovieRoute1440pTargetSizeGB
@@ -240,6 +214,9 @@ function Test-MediaEncodeOutputSizePolicy {
 
     $mode = Resolve-MediaRouteSizeGuardModeName -SizeGuardMode $SizeGuardMode
     $profile = Resolve-MediaRouteRoutingProfileName -RoutingProfile $RoutingProfile
+    $overrideEncodeReasons = @(
+        'folder_policy_force_encode'
+    )
     $compatibilityReasons = @(
         'plex_strict_score_below_threshold',
         'codec_outside_policy',
@@ -253,6 +230,7 @@ function Test-MediaEncodeOutputSizePolicy {
         'gpu_unavailable_cpu_only'
     )
     $reasonCode = ([string]$RouteReasonCode).Trim().ToLowerInvariant()
+    $fallbackRemuxEligible = ($reasonCode -in $overrideEncodeReasons)
     $growthPercent = if ($profile -eq 'plex_direct_play' -or $reasonCode -in $compatibilityReasons) {
         [double]$CompatibilityGrowthPercent
     } else {
@@ -272,18 +250,20 @@ function Test-MediaEncodeOutputSizePolicy {
         ratio                      = 0.0
         exceeded                   = $false
         enforced                   = ($mode -eq 'strict')
+        fallback_remux_eligible    = [bool]$fallbackRemuxEligible
+        should_fallback_remux      = $false
         message                    = ''
     }
 
     if ($mode -eq 'off') {
         $metadata.message = 'encode output size guard disabled'
-        return [pscustomobject]@{ Ok = $true; Exceeded = $false; ShouldBlock = $false; Severity = 'info'; Message = $metadata.message; Metadata = [pscustomobject]$metadata }
+        return [pscustomobject]@{ Ok = $true; Exceeded = $false; ShouldBlock = $false; ShouldFallbackRemux = $false; Severity = 'info'; Message = $metadata.message; Metadata = [pscustomobject]$metadata }
     }
 
     try {
         if (-not (Test-Path -LiteralPath $SourcePath) -or -not (Test-Path -LiteralPath $OutputPath)) {
             $metadata.message = 'encode output size guard skipped because source or output was unavailable'
-            return [pscustomobject]@{ Ok = $true; Exceeded = $false; ShouldBlock = $false; Severity = 'warn'; Message = $metadata.message; Metadata = [pscustomobject]$metadata }
+            return [pscustomobject]@{ Ok = $true; Exceeded = $false; ShouldBlock = $false; ShouldFallbackRemux = $false; Severity = 'warn'; Message = $metadata.message; Metadata = [pscustomobject]$metadata }
         }
         $sourceSize = [long](Get-Item -LiteralPath $SourcePath).Length
         $outputSize = [long](Get-Item -LiteralPath $OutputPath).Length
@@ -291,28 +271,39 @@ function Test-MediaEncodeOutputSizePolicy {
         $metadata.output_size_bytes = $outputSize
         if ($sourceSize -le 0 -or $outputSize -le 0) {
             $metadata.message = 'encode output size guard skipped because source or output size was zero'
-            return [pscustomobject]@{ Ok = $true; Exceeded = $false; ShouldBlock = $false; Severity = 'warn'; Message = $metadata.message; Metadata = [pscustomobject]$metadata }
+            return [pscustomobject]@{ Ok = $true; Exceeded = $false; ShouldBlock = $false; ShouldFallbackRemux = $false; Severity = 'warn'; Message = $metadata.message; Metadata = [pscustomobject]$metadata }
         }
         $ratio = [math]::Round(([double]$outputSize / [double]$sourceSize), 4)
         $metadata.ratio = $ratio
         if ($ratio -le $limitRatio) {
             $metadata.message = ("encoded output is {0:N2}x source; within {1:N2}x limit" -f $ratio, $limitRatio)
-            return [pscustomobject]@{ Ok = $true; Exceeded = $false; ShouldBlock = $false; Severity = 'info'; Message = $metadata.message; Metadata = [pscustomobject]$metadata }
+            return [pscustomobject]@{ Ok = $true; Exceeded = $false; ShouldBlock = $false; ShouldFallbackRemux = $false; Severity = 'info'; Message = $metadata.message; Metadata = [pscustomobject]$metadata }
         }
 
         $metadata.exceeded = $true
         $metadata.message = ("encoded output is {0:N2}x source; exceeds {1:N2}x limit ({2:N0}% growth policy)" -f $ratio, $limitRatio, $growthPercent)
         $shouldBlock = ($mode -eq 'strict')
+        $shouldFallbackRemux = ($mode -eq 'fallback_remux' -and $fallbackRemuxEligible)
+        if ($mode -eq 'fallback_remux') {
+            if ($shouldFallbackRemux) {
+                $metadata.message = "$($metadata.message); fallback remux will be attempted because encode was override-forced"
+            } else {
+                $metadata.message = "$($metadata.message); fallback remux not applied because encode was not override-forced"
+            }
+        }
+        $metadata.enforced = ($shouldBlock -or $shouldFallbackRemux)
+        $metadata.should_fallback_remux = [bool]$shouldFallbackRemux
         return [pscustomobject]@{
-            Ok          = (-not $shouldBlock)
-            Exceeded    = $true
-            ShouldBlock = $shouldBlock
-            Severity    = if ($shouldBlock) { 'error' } else { 'warn' }
-            Message     = $metadata.message
-            Metadata    = [pscustomobject]$metadata
+            Ok                  = (-not $shouldBlock)
+            Exceeded            = $true
+            ShouldBlock         = $shouldBlock
+            ShouldFallbackRemux = $shouldFallbackRemux
+            Severity            = if ($shouldBlock) { 'error' } else { 'warn' }
+            Message             = $metadata.message
+            Metadata            = [pscustomobject]$metadata
         }
     } catch {
         $metadata.message = "encode output size guard failed to inspect file sizes: $($_.Exception.Message)"
-        return [pscustomobject]@{ Ok = $true; Exceeded = $false; ShouldBlock = $false; Severity = 'warn'; Message = $metadata.message; Metadata = [pscustomobject]$metadata }
+        return [pscustomobject]@{ Ok = $true; Exceeded = $false; ShouldBlock = $false; ShouldFallbackRemux = $false; Severity = 'warn'; Message = $metadata.message; Metadata = [pscustomobject]$metadata }
     }
 }

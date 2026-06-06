@@ -55,9 +55,10 @@ ROUTE_THRESHOLD_MODE_DESCRIPTIONS = {
 }
 
 SIZE_GUARD_MODE_DEFAULT = "advisory"
-SIZE_GUARD_MODE_NAMES = ("advisory", "strict", "off")
+SIZE_GUARD_MODE_NAMES = ("advisory", "strict", "fallback_remux", "off")
 SIZE_GUARD_MODE_DESCRIPTIONS = {
     "advisory": "Warns but does not block when an encode grows past the configured size budget; publish can continue if verification passes.",
     "strict": "Blocks publish when an encode grows past the configured size budget and routes the result to manual review.",
+    "fallback_remux": "For override-forced encodes that grow past the configured size budget, attempts a remux fallback before publishing the oversized encode with warning evidence.",
     "off": "Disable post-encode size growth checks.",
 }

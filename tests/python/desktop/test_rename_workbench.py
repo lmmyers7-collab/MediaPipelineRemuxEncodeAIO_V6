@@ -2,7 +2,7 @@
 
 Asserts the standalone-tool redesign:
   - header stepper removed, three workflow sections retained, queue controls removed
-  - manual-path / paste-paths removed
+  - staged-path controls use explicit safe labels
   - single Title/Show field, Movie Title removed
   - Template labels match the new copy
   - Confirm + Result dialogs present
@@ -112,6 +112,9 @@ class RenameWorkbenchHtmlTests(unittest.TestCase):
         self.assertIn('id="rename-confirm-dialog"', self.html)
         self.assertIn('id="rename-confirm-list"', self.html)
         self.assertIn('id="rename-confirm-count"', self.html)
+        self.assertIn("Confirm filesystem rename", self.html)
+        self.assertIn("This will rename files on disk. Review every source and destination path before continuing.", self.html)
+        self.assertIn("Apply filesystem rename", self.html)
         self.assertIn('id="rename-result-dialog"', self.html)
         for counter in ("rename-result-success", "rename-result-failed", "rename-result-skipped"):
             self.assertIn(counter, self.html)
@@ -133,6 +136,10 @@ class RenameWorkbenchHtmlTests(unittest.TestCase):
         self.assertIn('id="rename-add-path-input"', self.html)
         self.assertIn('id="rename-add-path-button"', self.html)
         self.assertIn('id="rename-paths"', self.html)
+        for label in ("Add files from folder", "Clear staged paths", "Add manual path"):
+            self.assertIn(label, self.html)
+        for old_label in (">Browse Folder<", ">Clear<", ">Add Path<", ">Apply Rename<"):
+            self.assertNotIn(old_label, self.html)
 
     def test_preview_and_readiness_tables_match_rendered_columns(self) -> None:
         self.assertIn("<th scope=\"col\">Use</th>", self.html)
@@ -186,6 +193,12 @@ class RenameWorkbenchJsTests(unittest.TestCase):
         self.assertIn("applyRenameWorkbench", self.js)
         self.assertIn("renameApplicablePreviewRows", self.js)
         self.assertIn('source: "all applicable preview rows"', self.js)
+        self.assertIn("Apply all ${rowsToApply.length} safe rename", self.js)
+        self.assertIn("Apply ${rowsToApply.length} checked rename", self.js)
+        self.assertIn("Preview out of date. Run Preview again before applying.", self.js)
+        self.assertIn("No rows were checked; this will apply all safe rows in the current preview.", self.js)
+        self.assertIn("renameRequestSignatureFromRequest", self.js)
+        self.assertIn("renamePathOrigins", self.js)
 
     def test_result_dialog_does_not_direct_open_file_urls(self) -> None:
         self.assertNotIn("window.open(`file://", self.js)

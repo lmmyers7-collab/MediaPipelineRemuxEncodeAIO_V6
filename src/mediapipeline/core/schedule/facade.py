@@ -25,6 +25,11 @@ from mediapipeline.desktop.application.dto_workspaces import ScheduleWorkspaceDt
 from mediapipeline.desktop.application.schedule_stop_watcher import schedule_stop_watcher_state_mapping
 
 
+def _request_bool(request: dict[str, Any], key: str, default: bool) -> bool:
+    value = request.get(key, default)
+    return value if isinstance(value, bool) else default
+
+
 class ScheduleFacadeMixin:
     """Schedule workspace query adapter for UI-neutral application facades."""
 
@@ -96,7 +101,7 @@ class ScheduleFacadeMixin:
             request,
             normalizer=normalizer if callable(normalizer) else None,
         )
-        proposed_enabled = bool(request.get("enabled", current_enabled))
+        proposed_enabled = _request_bool(request, "enabled", current_enabled)
         warnings = read_warnings + schedule_patch_warnings(enabled=proposed_enabled, grid=proposed_grid)
         formatter = getattr(self.service, "block_label", None)
         return schedule_preview_result(
@@ -113,7 +118,7 @@ class ScheduleFacadeMixin:
 
     def save_schedule_patch(self, request: dict[str, Any]) -> CommandResult:
         """Validate and save a schedule/app-state update through the service layer."""
-        if not bool(request.get("confirm_save", False)):
+        if request.get("confirm_save") is not True:
             return schedule_save_confirmation_required_result()
         lock, block_message = self._acquire_schedule_save_lock()
         if block_message:
@@ -126,7 +131,7 @@ class ScheduleFacadeMixin:
                 request,
                 normalizer=normalizer if callable(normalizer) else None,
             )
-            proposed_enabled = bool(request.get("enabled", current_enabled))
+            proposed_enabled = _request_bool(request, "enabled", current_enabled)
             warnings = read_warnings + schedule_patch_warnings(enabled=proposed_enabled, grid=proposed_grid)
             if errors:
                 return schedule_save_validation_error_result(errors, warnings)

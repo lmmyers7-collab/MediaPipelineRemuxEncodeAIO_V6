@@ -12,6 +12,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.core.rename.service import RenameServiceMixin
 from mediapipeline.core.rename.planner import plan_rename_paths_for_service
+from mediapipeline.core.rename.path_authority import rename_authority_fields_for_source
 
 
 class DummyRenamePlannerService(RenameServiceMixin):
@@ -81,6 +82,37 @@ class RenamePlannerTests(unittest.TestCase):
             all("two selected files would produce the same destination" in row["errors"] for row in plan)
         )
         self.assertTrue(all(row["confidence"] == "blocked" for row in plan))
+
+    def test_duplicate_movie_title_fixture_marks_every_colliding_row_blocked(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            first = Path(td) / "Feature.Part.1.mkv"
+            second = Path(td) / "Feature.Part.2.mkv"
+            first.write_text("a", encoding="utf-8")
+            second.write_text("b", encoding="utf-8")
+
+            plan = plan_rename_paths_for_service(
+                self.service,
+                [first, second],
+                mode="movie",
+                movie_title="Duplicate Feature",
+                movie_year="2024",
+                use_pipeline_naming_preview=False,
+            )
+
+        self.assertEqual([row["target_name"] for row in plan], ["Duplicate Feature (2024).mkv"] * 2)
+        self.assertEqual([row["status"] for row in plan], ["blocked", "blocked"])
+        self.assertTrue(
+            all("two selected files would produce the same destination" in row["errors"] for row in plan)
+        )
+
+    def test_unc_configured_media_root_marks_unc_child_ready_without_share_mutation(self) -> None:
+        fields = rename_authority_fields_for_source(
+            r"\\media-server\TV\Example\S01E01.mkv",
+            [Path(r"\\media-server\TV")],
+        )
+
+        self.assertEqual(fields["path_authority"], "configured_media_root")
+        self.assertEqual(fields["path_authority_status"], "ready")
 
 
 if __name__ == "__main__":

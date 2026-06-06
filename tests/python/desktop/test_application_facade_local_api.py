@@ -489,6 +489,28 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("local API attempted to send a non-strict JSON response", "\n".join(logs.output))
         self.assertIn("Out of range float values", "\n".join(logs.output))
 
+    def test_local_api_rejects_wrong_json_content_type_without_command_journal_entry(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v6-test")
+            server = LocalApiServer(facade, token="test-token")
+            try:
+                server.start()
+                status, payload = self._post_json(
+                    f"{server.url}/api/settings/reload",
+                    {},
+                    token="test-token",
+                    extra_headers={"Content-Type": "text/plain"},
+                )
+                commands_status, commands = self._get_json(f"{server.url}/api/commands?limit=10", token="test-token")
+            finally:
+                server.stop()
+
+        self.assertEqual(status, 415)
+        self.assertEqual(payload, {"error": "unsupported media type; use application/json"})
+        self.assertEqual(commands_status, 200)
+        self.assertEqual(commands["entries"], [])
+
     def test_local_api_settings_reload_failure_is_logged(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -582,7 +604,7 @@ class LocalApiServerTests(unittest.TestCase):
                 server.start()
                 status, payload = self._post_json(
                     f"{server.url}/api/pipeline/start",
-                    {"mode": "validate", "extra_args": "-NoDeleteSource"},
+                    {"mode": "validate", "extra_args": "-NoDeleteSource", "token": "secret-value"},
                     token="test-token",
                 )
                 commands_status, commands = self._get_json(f"{server.url}/api/commands?limit=5", token="test-token")
@@ -596,7 +618,14 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertFalse(hasattr(service, "started_pipeline"))
         self.assertEqual(commands_status, 200)
         self.assertEqual(commands["schema_version"], "desktop_command_history.v1")
-        self.assertEqual(commands["count"], 0)
+        self.assertEqual(commands["count"], 1)
+        entry = commands["entries"][0]
+        self.assertEqual(entry["command"], "local_api.validation_failed")
+        self.assertFalse(entry["ok"])
+        self.assertEqual(entry["severity"], "error")
+        self.assertEqual(entry["data"]["path"], "/api/pipeline/start")
+        self.assertEqual(entry["request"]["token"], "<redacted>")
+        self.assertEqual(entry["request"]["extra_args"], "-NoDeleteSource")
 
     def test_local_api_scheduled_continuous_start_arms_backend_stop_watcher(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -4015,9 +4044,26 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("completed-diagnostics-status", html)
         self.assertIn("completed-diagnostics-guidance", html)
         self.assertIn("completed-diagnostics-actions", html)
-        self.assertIn('data-open-target-row-actions="completed"', html)
+        completed_page_start = html.index('data-page-panel="completed"')
+        completed_page_end = html.find('data-page-panel="pending"', completed_page_start)
+        completed_page_html = html[completed_page_start:completed_page_end if completed_page_end != -1 else len(html)]
+        self.assertIn("completed-current-row-actions", completed_page_html)
+        self.assertIn('data-open-target-row-actions="completed"', completed_page_html)
+        self.assertLess(
+            completed_page_html.index('id="completed-table-legend"'),
+            completed_page_html.index('data-open-target-row-actions="completed"'),
+        )
+        self.assertLess(
+            completed_page_html.index('data-open-target-row-actions="completed"'),
+            completed_page_html.index("<h2>Selected File</h2>"),
+        )
+        self.assertLess(
+            completed_page_html.index('id="completed-open-status"'),
+            completed_page_html.index("<h2>Selected File</h2>"),
+        )
         self.assertIn('targetDataset: "openCompleted"', js)
-        self.assertIn("Open / Play Output", js)
+        self.assertIn("Play Output", js)
+        self.assertIn("play_output_file", js)
         self.assertIn("Output review:", completed_view_review_js)
         self.assertIn("pending-rows", html)
         self.assertIn("pending-filter", html)
@@ -4881,12 +4927,12 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("Mutation guardrail: this detail panel does not accept, repair, rerun, drain, cleanup, delete, publish, rewrite manifests, or touch media files.", completed_view_evidence_js)
         self.assertIn("function renderCompletedOutputAcceptance", completed_view_evidence_js)
         self.assertIn("function completedAcceptanceRows", completed_view_evidence_js)
-        self.assertIn("Completed output acceptance checklist:", completed_view_evidence_js)
+        self.assertIn("Completed output acceptance readiness:", completed_view_evidence_js)
         self.assertIn("Daily-use handoff: Completed evidence supports an operator trust decision", completed_view_evidence_js)
         self.assertIn("Scope boundary: Current Output filters, Completed History filters", completed_view_evidence_js)
-        self.assertIn("acceptance requires display filter scope, output/sidecar proof, route/size explanation, pending-publish proof, and recent command evidence to agree.", completed_view_evidence_js)
+        self.assertIn("readiness requires display filter scope, output/sidecar proof, route/size explanation, pending-publish proof, and recent command evidence to agree.", completed_view_evidence_js)
         self.assertIn("Mutation guardrail: this checklist does not accept, delete, rerun, reprocess, drain, cleanup, write manifests, or change policy.", completed_view_evidence_js)
-        self.assertIn("Output Proof", html)
+        self.assertIn("Media And Route Proof", html)
         self.assertIn("function renderCompletedRealMediaProof", completed_view_proof_js)
         self.assertIn("function completedRealMediaProofRows", completed_view_proof_js)
         self.assertIn("function completedRealMediaProofSummaryLines", completed_view_proof_js)
@@ -4935,7 +4981,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("Current Output filters never accept outputs", completed_view_evidence_js)
         self.assertIn("renderCompletedOutputAcceptance(payload, rows", completed_view_js)
         self.assertIn("ctx.renderCompletedOutputAcceptance(ctx.state.lastCompletedPayload, lastCompletedRows", completed_view_table_js)
-        self.assertIn("acceptance requires display filter scope, output/sidecar proof", completed_view_evidence_js)
+        self.assertIn("readiness requires display filter scope, output/sidecar proof", completed_view_evidence_js)
         self.assertIn("Route Agreement", html)
         self.assertIn("function renderCompletedRouteAgreement", completed_view_evidence_js)
         self.assertIn("function completedRouteAgreementRows", completed_view_evidence_js)
@@ -5079,7 +5125,41 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function queueExcludedRowKey", queue_view_js)
         self.assertIn("row_scope", queue_view_js)
         self.assertIn("Collision Risk", html)
-        self.assertIn("Excluded Files", html)
+        self.assertIn("Queue Decision", html)
+        self.assertIn("queue-decision-summary", html)
+        self.assertIn("Attention Required", html)
+        self.assertIn("queue-attention-summary", html)
+        self.assertIn("Search loaded queue rows", html)
+        self.assertIn("Display status filter", html)
+        self.assertIn("Investigation view", html)
+        self.assertIn("Clear Display Filters", html)
+        self.assertIn("Selected Row Detail (not launch scope)", html)
+        self.assertIn("Backend Launch Scope Boundary", html)
+        self.assertIn("Queue-to-Launch Handoff", html)
+        self.assertIn("Backend-Excluded Source Files", html)
+        self.assertIn("Selected Row Diagnostics Links", html)
+        queue_panel_order = [
+            "<h2>Queue Decision</h2>",
+            "<h2>Source Scan And Display Filters</h2>",
+            "<h2>Attention Required</h2>",
+            "<h2>Queue Rows</h2>",
+            "<h2>Selected Row Detail (not launch scope)</h2>",
+            "<h2>Selected Row Diagnostics Links</h2>",
+            "<h2>Backend Launch Scope Boundary</h2>",
+            "<h2>Queue-to-Launch Handoff</h2>",
+            "<h2>Source Scan Progress</h2>",
+            "<h2>Queue Snapshot</h2>",
+            "<h2>Readiness</h2>",
+            "<h2>Queue Summary</h2>",
+            "<h2>Run History</h2>",
+            "<h2>Queue Readiness Checklist</h2>",
+            "<h2>Next Step</h2>",
+            "<h2>Flagged Items</h2>",
+            "<h2>Collision Risk</h2>",
+            "<h2>Backend-Excluded Source Files</h2>",
+        ]
+        queue_panel_positions = [html.index(marker) for marker in queue_panel_order]
+        self.assertEqual(queue_panel_positions, sorted(queue_panel_positions))
         self.assertIn("Row-level excluded-file detail: unavailable", queue_view_js)
         self.assertIn("function renderQueueDetail", queue_view_js)
         self.assertIn("function renderQueueSummary", queue_view_js)
@@ -5089,8 +5169,13 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function renderQueueValidation", queue_view_js)
         self.assertIn("function renderQueueBackendLaunchScopePreview", queue_view_js)
         self.assertIn("function queueBackendLaunchScopeRows", queue_view_js)
-        self.assertIn("Backend launch scope preview:", queue_view_js)
+        self.assertIn("function renderQueueDecisionHeader", queue_view_js)
+        self.assertIn("function renderQueueAttentionSummary", queue_view_js)
+        self.assertIn("Queue decision header:", queue_view_js)
+        self.assertIn("Attention required:", queue_view_js)
+        self.assertIn("Backend launch scope boundary:", queue_view_js)
         self.assertIn("Queue filters, row selection, and rendered table caps are not submitted as processing scope.", queue_view_js)
+        self.assertIn("Backend launch scope is owned by Launch; Queue filters, selected rows, and rendered row caps are not submitted as processing scope.", queue_view_js)
         self.assertIn("Selecting a row cannot make Launch process only that row.", queue_view_js)
         self.assertIn("function renderQueueLaunchDecisionChecklist", queue_view_js)
         self.assertIn("function queueLaunchDecisionRows", queue_view_js)
@@ -5109,11 +5194,11 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("Backend launch preflight", queue_view_js)
         self.assertIn("Pipeline backend launch preflight has not been loaded", queue_view_js)
         self.assertIn("function isQueueLaunchCommand", queue_view_js)
-        self.assertIn("Queue launch decision checklist:", queue_view_js)
+        self.assertIn("Queue-to-Launch handoff:", queue_view_js)
         self.assertIn("Daily-use handoff: Queue evidence decides whether it is sensible to open Launch", queue_view_js)
         self.assertIn("Scope boundary: Queue filters, selected rows, review boards", queue_view_js)
-        self.assertIn("launch only after backend launch preflight, queue payload, display filter scope, freshness, blocked rows, runtime context, completed exclusions, selected-row proof, command history, and Launch readiness agree.", queue_view_js)
-        self.assertIn("Mutation guardrail: this checklist cannot launch, reorder, drop, rewrite queue snapshots, delete files, clear completed state, override schedule, or bypass backend validation.", queue_view_js)
+        self.assertIn("open Launch only after backend launch preflight, queue payload, display filter scope, freshness, blocked rows, runtime context, completed exclusions, selected-row proof, command history, and Launch readiness agree.", queue_view_js)
+        self.assertIn("Mutation guardrail: this handoff cannot launch, reorder, drop, rewrite queue snapshots, delete files, clear completed state, override schedule, or bypass backend validation.", queue_view_js)
         self.assertIn("queue-launch-decision-summary", html)
         self.assertIn("queue-launch-decision-detail", html)
         self.assertIn("function renderQueueReviewBoard", queue_view_js)
@@ -5545,8 +5630,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("pending-post-drain-trust-detail", html)
         self.assertIn("pending-drain-guard-status", html)
         self.assertIn("pending-drain-guard-summary", html)
-        self.assertIn('<h2>Publish Guard Evidence</h2>', html)
-        self.assertIn('<h2>Publish Parked Outputs</h2>', html)
+        self.assertIn('<h2>Pending Publish Guard Evidence</h2>', html)
+        self.assertIn('<h2>Pending Publish Drain</h2>', html)
         self.assertIn("function pendingDrainGuardState", pending_publish_confidence_js)
         self.assertIn("function renderPendingDrainGuard", pending_publish_confidence_js)
         self.assertIn("Publish Parked Outputs blocked by WebView evidence", pending_publish_confidence_js)
@@ -5598,6 +5683,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn('data-open-target-row-actions="pending"', html)
         self.assertIn('targetDataset: "openPending"', js)
         self.assertIn("requestPendingPublishOpen", js)
+        self.assertIn("Play Parked Output", js)
+        self.assertIn("play_local_file", js)
         self.assertIn("window.mediaPipelineRenameLabels", rename_labels_js)
         self.assertIn("function renameStatusExplanation", rename_labels_js)
         self.assertIn("function renamePreviewSourceLabel", rename_labels_js)
@@ -6001,6 +6088,21 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("Subtitle routing summary:", settings_view_subtitle_builder_js)
         self.assertIn('byId("settings-subtitle-languages")', settings_view_subtitle_builder_js)
         self.assertIn("ConvertTx3gToSrt", settings_view_subtitle_builder_js)
+        self.assertIn(
+            'setSubtitleBuilderControl("settings-subtitle-convert-bdpgs", "ConvertBdpgsToSrt", "bool", false)',
+            settings_view_subtitle_builder_js,
+        )
+        self.assertIn(
+            'settingsMediaPolicyBool("settings-subtitle-convert-bdpgs", "ConvertBdpgsToSrt", false)',
+            settings_policy_impact_js,
+        )
+        self.assertIn('settingsPatchCandidateBool(entries, "ConvertBdpgsToSrt", false)', settings_policy_impact_js)
+        self.assertIn('settingsPatchCurrentBool("ConvertBdpgsToSrt", false)', settings_policy_impact_js)
+        self.assertIn('launchSettingsConfigValue(config, "ConvertBdpgsToSrt"), false', launch_view_risk_js)
+        self.assertIn(
+            'launchPolicyCandidateValue(config, entryMap, "ConvertBdpgsToSrt", false), false',
+            launch_view_risk_js,
+        )
         self.assertIn("preferred-language TX3G/mov_text subtitles will not generate SRT without conversion enabled.", settings_view_subtitle_builder_js)
         self.assertIn("Drop TX3G is enabled while Convert TX3G to SRT is disabled.", settings_view_subtitle_builder_js)
         self.assertIn("writeSettingsPatchJson", settings_view_js)
@@ -6282,7 +6384,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn('groupDataset: "diagnosticsStateActionGroup"', diagnostics_state_summary_view_js)
         self.assertIn("Process lifecycle evidence", diagnostics_state_summary_view_js)
         self.assertIn("Settings tool-path handoff:", diagnostics_state_summary_view_js)
-        self.assertIn("Open Settings > Subtitles", diagnostics_state_summary_view_js)
+        self.assertIn("Open Settings > Media Output", diagnostics_state_summary_view_js)
         self.assertIn("Recommended first action:", diagnostics_state_summary_view_js)
         self.assertIn("Recovery stage:", diagnostics_state_summary_view_js)
         self.assertIn("Unsafe if ignored:", diagnostics_state_summary_view_js)
@@ -6555,9 +6657,11 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function telemetryGpuUsagePayload", telemetry_view_js)
         self.assertIn("desktop_gpu_encoder_usage.v1", telemetry_view_js)
         self.assertIn("Encoder sessions", telemetry_view_js)
-        self.assertIn("NVENC present.", telemetry_view_js)
-        self.assertIn("Telemetry is ready for operator monitoring.", telemetry_view_js)
+        self.assertIn("GPU video encoder telemetry available.", telemetry_view_js)
+        self.assertIn("Monitoring normal", telemetry_view_js)
         self.assertIn("Telemetry sample is stale.", telemetry_view_js)
+        self.assertIn("function telemetryOperatingState", telemetry_view_js)
+        self.assertIn("function telemetryChartMetaText", telemetry_view_js)
         self.assertNotIn("0% idle", telemetry_view_js)
         self.assertNotIn("NVENC idle", telemetry_view_js)
         self.assertIn("waiting for sample", telemetry_view_js)
@@ -7004,7 +7108,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("renderPipelineEvents(recentEvents)", js)
         self.assertIn("renderTopbarEventTicker(snapshot)", js)
         self.assertIn("window.setTopbarPendingLaunch = setTopbarPendingLaunch", js)
-        self.assertIn("renderTelemetrySafely(values.telemetry)", js)
+        self.assertIn("renderTelemetrySafely(values.telemetry, { snapshot: values.snapshot || lastSnapshot })", js)
         self.assertIn("renderQueueRows", js)
         self.assertIn('const queueStatusFilter = byId("queue-status-filter")', js)
         self.assertIn('queueStatusFilter.addEventListener("change", () => window.mediaPipelineQueueView?.renderQueueRows?.())', js)
@@ -7064,12 +7168,19 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("completed-history-investigation-filter", html)
         self.assertIn("completed-selected-status", html)
         self.assertIn("completed-selected-summary", html)
+        self.assertIn('id="completed-selected-summary" class="completed-selected-summary"', html)
         self.assertIn("function completedTableRowStatus", completed_view_review_js)
         self.assertIn("function completedHasSmallHealthySizeDelta", completed_view_review_js)
         self.assertIn("function completedMatchesInvestigationFilter", completed_view_review_js)
         self.assertIn("function completedInvestigationFilterLabel", completed_view_review_js)
         self.assertIn("function renderCompletedSelectedAtAGlance", completed_view_review_js)
         self.assertIn("function completedSelectedAtAGlanceLines", completed_view_review_js)
+        self.assertIn("function completedSelectedSummaryNodes", completed_view_review_js)
+        self.assertIn("summaryNode.replaceChildren", completed_view_review_js)
+        self.assertIn("completed-selected-decision-strip", completed_view_review_js)
+        self.assertIn("Primary concern", completed_view_review_js)
+        self.assertIn("Recommended next check", completed_view_review_js)
+        self.assertIn("Policy / route reason", completed_view_review_js)
         self.assertIn("window.mediaPipelineDom?.selectedRowAtAGlanceLines", completed_view_review_js)
         self.assertIn("selectedRowDetailDrawerLines", completed_view_selection_js)
         self.assertIn("Completed selected-row detail", completed_view_selection_js)

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/files/opening.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: d916f37bb6529cab0d6fe9ad5a99b7b7df1c28403ef8db478c118bb80aeea0f7
+sha256: ed19111f1e16263474975a4f7f35d05cd1bd919f651c81dace86200b02fcd7c3
 ---
 # `src/mediapipeline/core/files/opening.py`
 

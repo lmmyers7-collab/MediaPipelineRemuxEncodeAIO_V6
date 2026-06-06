@@ -3,9 +3,9 @@ file: src/mediapipeline/core/decide/routing_size_policy.py
 pipeline_stage: decide
 token_priority: high
 owner_domain: decide
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 545e9356a0db7a4a5a343346dd57b73dcbbe8db70f564bbea3532453638e1a64
+sha256: 92005597e7c17b94bdb7bde57e1f477166c868941f7583e042ebc939fe818693
 ---
 # `src/mediapipeline/core/decide/routing_size_policy.py`
 

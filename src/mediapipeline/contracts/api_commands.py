@@ -124,7 +124,7 @@ class SettingsSavePatchCommandPayload(StrictApiCommandPayload):
     changes: Any = None
     remove_keys: Any = None
     library_profile_resets: Any = None
-    confirm_save: Any = None
+    confirm_save: StrictBool | None = None
 
 
 class SettingsPipelinePlanPreviewCommandPayload(StrictApiCommandPayload):
@@ -136,9 +136,9 @@ class SettingsPipelinePlanPreviewCommandPayload(StrictApiCommandPayload):
         return dict(self.model_dump(mode="json"))
 
 
-class SettingsWizardCommandPayload(ApiCommandPayload):
+class SettingsWizardCommandPayload(StrictApiCommandPayload):
     wizard: Any = None
-    confirm_save: Any = None
+    confirm_save: StrictBool | None = None
 
 
 class SettingsBrowsePathCommandPayload(ApiCommandPayload):
@@ -147,11 +147,11 @@ class SettingsBrowsePathCommandPayload(ApiCommandPayload):
     initial_path: Any = None
 
 
-class ScheduleCommandPayload(ApiCommandPayload):
-    enabled: Any = None
+class ScheduleCommandPayload(StrictApiCommandPayload):
+    enabled: StrictBool | None = None
     day_windows: Any = None
     grid: Any = None
-    confirm_save: Any = None
+    confirm_save: StrictBool | None = None
     days: Any = None
     start_time: Any = None
     stop_time: Any = None
@@ -252,27 +252,27 @@ class UiPreferencesCommandPayload(StrictApiCommandPayload):
 
 class MaintenanceReleaseDryRunCommandPayload(StrictApiCommandPayload):
     destination_root: Any = None
-    zip_package: Any = None
-    verify: Any = None
-    include_tests: Any = None
-    include_dev_docs: Any = None
-    include_optional_tools: Any = None
-    include_tool_docs: Any = None
-    keep_personal_config: Any = None
+    zip_package: StrictBool | None = None
+    verify: StrictBool | None = None
+    include_tests: StrictBool | None = None
+    include_dev_docs: StrictBool | None = None
+    include_optional_tools: StrictBool | None = None
+    include_tool_docs: StrictBool | None = None
+    keep_personal_config: StrictBool | None = None
     timeout_seconds: Any = None
 
 
 class MaintenanceReleaseBuildCommandPayload(StrictApiCommandPayload):
     destination_root: Any = None
-    zip_package: Any = None
-    verify: Any = None
-    include_tests: Any = None
-    include_dev_docs: Any = None
-    include_optional_tools: Any = None
-    include_tool_docs: Any = None
-    keep_personal_config: Any = None
-    force: Any = None
-    confirm_create: Any = None
+    zip_package: StrictBool | None = None
+    verify: StrictBool | None = None
+    include_tests: StrictBool | None = None
+    include_dev_docs: StrictBool | None = None
+    include_optional_tools: StrictBool | None = None
+    include_tool_docs: StrictBool | None = None
+    keep_personal_config: StrictBool | None = None
+    force: StrictBool | None = None
+    confirm_create: StrictBool | None = None
     timeout_seconds: Any = None
 
 
@@ -284,6 +284,21 @@ class MaintenanceDependencyAtlasCommandPayload(StrictApiCommandPayload):
 
 class MaintenanceCompletedBackfillDryRunCommandPayload(StrictApiCommandPayload):
     timeout_seconds: Any = None
+
+
+class MetricsSourcesCommandPayload(StrictApiCommandPayload):
+    action: Any = None
+    path: Any = None
+    source_id: Any = None
+    label: Any = None
+    enabled: StrictBool | None = None
+
+
+class MetricsBackfillCommandPayload(StrictApiCommandPayload):
+    scope: Any = None
+    source_id: Any = None
+    path: Any = None
+    max_sidecars: Any = None
 
 
 class SampleValidationCommandPayload(ApiCommandPayload):
@@ -301,6 +316,16 @@ class SampleValidationCommandPayload(ApiCommandPayload):
     worksheet_path: Any = None
     result: Any = None
     notes: Any = None
+
+
+class SubtitleQaPreviewCommandPayload(StrictApiCommandPayload):
+    id: Any = None
+    row_key: Any = None
+    path: Any = None
+    source_path: Any = None
+    output_path: Any = None
+    scope: Any = None
+    limit: Any = None
 
 
 class FailureCommandPayload(StrictApiCommandPayload):
@@ -341,6 +366,7 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/pending-publish/open": OpenLocationCommandPayload,
     "/api/pending-publish/recovery-plan": OpenLocationCommandPayload,
     "/api/completed/open": OpenLocationCommandPayload,
+    "/api/subtitle-qa/preview": SubtitleQaPreviewCommandPayload,
     "/api/settings/validate": SettingsCommandPayload,
     "/api/settings/browse-path": SettingsBrowsePathCommandPayload,
     "/api/settings/preview-patch": SettingsPreviewPatchCommandPayload,
@@ -358,6 +384,8 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/maintenance/release-build": MaintenanceReleaseBuildCommandPayload,
     "/api/maintenance/completed-backfill-dry-run": MaintenanceCompletedBackfillDryRunCommandPayload,
     "/api/maintenance/dependency-atlas": MaintenanceDependencyAtlasCommandPayload,
+    "/api/metrics/sources": MetricsSourcesCommandPayload,
+    "/api/metrics/backfill": MetricsBackfillCommandPayload,
     "/api/settings/reload": EmptyCommandPayload,
     "/api/sample-validation/preview": SampleValidationCommandPayload,
     "/api/sample-validation/append": SampleValidationCommandPayload,

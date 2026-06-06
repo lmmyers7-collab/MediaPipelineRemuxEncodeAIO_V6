@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: 1d4374f057931a11469e7938baa02f846a7bea901c232a78577815f46821ca0e
+sha256: 911a1cddfe8ea9020f250d4eed55d43acb3da2be762b4932b97a9f5c6ed537f3
 ---
 # `tests/python/desktop/test_file_override_tracks.py`
 

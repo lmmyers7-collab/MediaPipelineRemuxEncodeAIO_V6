@@ -324,6 +324,30 @@
       return lines;
     }
 
+    function queueSubtitleQaLines(item) {
+      const qa = item && typeof item.subtitle_qa === "object" ? item.subtitle_qa : null;
+      if (!qa) return [];
+      const inventory = qa.inventory && typeof qa.inventory === "object" ? qa.inventory : {};
+      const srt = qa.srt_validity && typeof qa.srt_validity === "object" ? qa.srt_validity : {};
+      const conversion = qa.conversion_evidence && typeof qa.conversion_evidence === "object" ? qa.conversion_evidence : {};
+      const sync = qa.sync_review && typeof qa.sync_review === "object" ? qa.sync_review : {};
+      const reasons = Array.isArray(qa.reasons) ? qa.reasons.filter(Boolean) : [];
+      const languages = Array.isArray(inventory.subtitle_languages) ? inventory.subtitle_languages.filter(Boolean).join(", ") : "";
+      const lines = [
+        "Subtitle QA evidence:",
+        `  Posture: ${qa.posture || "unknown"}`,
+        `  Summary: ${qa.summary || "not reported"}`,
+        `  Inventory: ${inventory.status || "unknown"}; tracks=${inventory.embedded_subtitle_count ?? "unknown"}; languages=${languages || "not reported"}; forced=${inventory.has_forced_subtitles ? "yes" : "no"}`,
+        `  SRT validity: ${srt.status || "not_checked"} (${srt.reason || "no detail"})`,
+        `  Conversion/OCR: ${conversion.status || "not_checked"} (${conversion.reason || "no detail"})`,
+        `  Sync risk: ${sync.risk || "unknown"} (${sync.reason || "heuristic only"})`,
+        `  Safe next action: ${qa.safe_next_action || "inspect Completed and Diagnostics evidence before trust decisions"}`,
+      ];
+      reasons.slice(0, 4).forEach((reason) => lines.push(`  Reason: ${reason}`));
+      if (qa.guardrail) lines.push(`  ${qa.guardrail}`);
+      return lines;
+    }
+
     function renderQueueDetail(item) {
       renderQueueSelectedAtAGlance(item || null);
       const detailDrawer = window.mediaPipelineDom?.selectedRowDetailDrawerLines;
@@ -361,10 +385,12 @@
         })
         : [];
       const routeReasoningSection = queueRouteReasoningLines(item);
+      const subtitleQaSection = queueSubtitleQaLines(item);
       const detail = [
         ...queueSelectedQuickSignalLines(item),
         "",
         ...(routeReasoningSection.length ? [...routeReasoningSection, ""] : []),
+        ...(subtitleQaSection.length ? [...subtitleQaSection, ""] : []),
         ...queueRowReviewChecklistLines(item),
         "",
         ...queueRowIssueDigestLines(item),

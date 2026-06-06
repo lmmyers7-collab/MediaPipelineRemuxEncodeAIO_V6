@@ -85,6 +85,9 @@ def _browser_rename_runner_source() -> str:
             function outcomeCells() {
               return Array.from(document.querySelectorAll("#rename-apply-outcome-rows td")).map((cell) => cell.textContent || "").join("\\n");
             }
+            function previewCells() {
+              return Array.from(document.querySelectorAll("#rename-rows td")).map((cell) => cell.textContent || "").join("\\n");
+            }
             function requireReadiness(fragments) {
               const actual = readinessCells();
               for (const fragment of fragments) {
@@ -106,6 +109,9 @@ def _browser_rename_runner_source() -> str:
             ].forEach(requireFunction);
             if (typeof window.mediaPipelineSettingsView?.saveSettingsPatch !== "function") {
               throw new Error("missing settings save namespace function");
+            }
+            if (typeof window.mediaPipelineRenameView?.renameOpenResultDialog !== "function") {
+              throw new Error("missing rename result dialog namespace function");
             }
             window.getLastSettings = () => ({
               config: {
@@ -191,6 +197,12 @@ def _browser_rename_runner_source() -> str:
             requireText("settings-rename-preview-status", ["Backend clean preview complete"]);
 
             window.showPage("rename");
+            requireText("rename-browse-folder-button", ["Add files from folder"]);
+            requireText("rename-clear-paths-button", ["Clear staged paths"]);
+            requireText("rename-add-path-button", ["Add manual path"]);
+            requireText("rename-confirm-title", ["Confirm filesystem rename"]);
+            requireText("rename-confirm-mutation-warning", ["This will rename files on disk", "Review every source and destination path"]);
+            requireText("rename-confirm-apply-button", ["Apply filesystem rename"]);
             const originalApiPost = window.apiPost;
             const browsePosts = [];
             window.apiPost = async (url, body) => {
@@ -212,7 +224,7 @@ def _browser_rename_runner_source() -> str:
             };
             click("#rename-browse-files-button", "browse rename files");
             await new Promise((resolve) => setTimeout(resolve, 100));
-            requireText("rename-file-source-summary", ["Windows file browser added 2 paths", "Source paths staged: 2", "C:/Browse/Selected Rename A.mkv"]);
+            requireText("rename-file-source-summary", ["Windows file browser added 2 paths", "Source paths staged: 2", "Origins: browse=2", "C:/Browse/Selected Rename A.mkv"]);
             if (browsePosts.length !== 1 || browsePosts[0].body.selection_mode !== "files") {
               throw new Error("rename browse did not submit expected file-browser request: " + JSON.stringify(browsePosts));
             }
@@ -220,7 +232,7 @@ def _browser_rename_runner_source() -> str:
             click("#rename-clear-paths-button", "clear browsed rename paths");
             setValue("rename-add-path-input", "C:/Manual/Typed Rename Source.mkv");
             click("#rename-add-path-button", "add typed rename path");
-            requireText("rename-file-source-summary", ["Manual path added 1 path", "Source paths staged: 1"]);
+            requireText("rename-file-source-summary", ["Manual path added 1 path", "Source paths staged: 1", "Origins: manual=1"]);
             click("#rename-clear-paths-button", "clear typed rename paths");
             requireText("rename-file-source-summary", ["Cleared staged rename paths.", "No source paths staged."]);
             setValue("rename-mode", "tv");
@@ -251,6 +263,17 @@ def _browser_rename_runner_source() -> str:
               warnings: [],
               errors: [],
             };
+            window.mediaPipelineRenameView.renderRenamePreview({ rows: [first], counts: { total: 1, ready: 1 }, confidence_counts: { high: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { rename: 1 } });
+            requireText("rename-apply-button", ["Apply all 1 safe rename"]);
+            requireText("rename-apply-status-hint", ["No rows checked", "all safe rows"]);
+            setValue("rename-show", "Serial Experiments Lain Changed");
+            window.mediaPipelineRenameView.syncRenameCommandButtons();
+            requireText("rename-apply-button", ["Preview out of date"]);
+            requireText("rename-apply-status-hint", ["Preview out of date", "Run Preview again"]);
+            if (!byId("rename-apply-button").disabled) {
+              throw new Error("stale preview did not disable Apply");
+            }
+            setValue("rename-show", "Serial Experiments Lain");
             window.mediaPipelineRenameView.renderRenamePreview({ rows: [first], counts: { total: 1, ready: 1 }, confidence_counts: { high: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { rename: 1 } });
             click('#rename-rows tr[data-selectable-row="true"]', "rename preview row");
             requireText("rename-detail", ["Serial Experiments Lain - S02E01 - Weird.mkv", "Confidence reason(s): folder season 02 | episode token E01"]);
@@ -300,6 +323,13 @@ def _browser_rename_runner_source() -> str:
             requireText("rename-apply-outcome-status", ["Applied"]);
             requireText("rename-apply-outcome-summary", ["Backend rename apply outcome review", "selected=1", "Undo manifest: C:/State/Rename/undo.json", "read-only"]);
             requireText("rename-apply-progress-bars", ["Rename apply", "complete", "100%", "1 renamed / 1 planned", "source: rename.apply"]);
+            window.mediaPipelineRenameView.renameOpenResultDialog({
+              ok: true,
+              message: "Applied selected rename.",
+              data: { applied_count: 1, undo_manifest: "C:/State/Rename/undo.json", rows: [{ status: "renamed" }] },
+            });
+            requireText("rename-result-summary", ["Applied selected rename.", "Undo manifest: C:/State/Rename/undo.json"]);
+            byId("rename-result-dialog").close();
             for (const fragment of ["Backend result", "Selected scope", "Sidecar operations", "Undo / rollback evidence", "Mutation boundary"]) {
               if (!outcomeCells().includes(fragment)) throw new Error("outcome table missing " + fragment + "\\nActual:\\n" + outcomeCells());
             }
@@ -328,8 +358,15 @@ def _browser_rename_runner_source() -> str:
             requireText("rename-table-legend", ["Display cap: 250 shown / 260 preview rows rendered", "not visible in the table"]);
             click("#rename-check-applicable-button", "check all applicable large rename rows");
             requireText("rename-selected-count", ["260 checked"]);
+            requireText("rename-apply-button", ["Apply 260 checked renames"]);
             requireText("rename-selection-audit", ["Rows in scope: 260", "Rendered rows: 250 of 260", "checked scope may include rows not currently rendered"]);
             requireReadiness(["Render cap visibility", "250 of 260 preview row(s) are rendered", "unrendered backend preview rows"]);
+
+            const blockedExisting = { ...first, status: "blocked", errors: ["destination already exists"], warnings: [] };
+            window.mediaPipelineRenameView.renderRenamePreview({ rows: [blockedExisting], counts: { total: 1, blocked: 1 }, confidence_counts: { blocked: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { blocked: 1 } });
+            if (!previewCells().includes("Blocked: destination already exists")) {
+              throw new Error("preview table did not expose blocked destination reason\\nActual:\\n" + previewCells());
+            }
 
             const duplicateA = { ...first, source: "C:/TV/S02/E01.mkv", source_name: "E01.mkv" };
             const duplicateB = { ...first, source: "C:/TV/S02/E02.mkv", source_name: "E02.mkv" };
@@ -339,9 +376,13 @@ def _browser_rename_runner_source() -> str:
             requireText("rename-selected-count", ["2 checked"]);
             requireText("rename-apply-readiness-status", ["Blocked"]);
             requireReadiness(["Duplicate destinations", "duplicate target", "selected_sources"]);
+            requireText("rename-apply-button", ["Resolve blockers before apply"]);
+            requireText("rename-apply-status-hint", ["Blocked by readiness", "duplicate destination target"]);
+            if (!byId("rename-apply-button").disabled) {
+              throw new Error("duplicate-target scope did not disable Apply");
+            }
             click("#rename-apply-button", "apply rename");
             await new Promise((resolve) => setTimeout(resolve, 100));
-            requireText("rename-detail", ["blocked by apply readiness", "duplicate destination target"]);
             if (posted.some((url) => url.includes("rename") && url.includes("apply"))) {
               throw new Error("blocked duplicate-target scope still posted a rename apply request");
             }
@@ -349,6 +390,8 @@ def _browser_rename_runner_source() -> str:
               ok: true,
               readyStatus: "Ready",
               duplicateStatus: text("rename-apply-readiness-status"),
+              blockerHint: text("rename-apply-status-hint"),
+              applyDisabled: byId("rename-apply-button").disabled,
               appliedOutcomeStatus,
               outcomeStatus: text("rename-apply-outcome-status"),
               detail: text("rename-detail"),
@@ -494,7 +537,8 @@ class WebViewBrowserRenameSmoke(unittest.TestCase):
         self.assertEqual(browser_result["outcomeStatus"], "Applied")
         self.assertIn("codexrg", browser_result["savedReleaseGroups"])
         self.assertIn("neonoir", browser_result["savedReleaseGroups"].lower())
-        self.assertIn("blocked by apply readiness", browser_result["detail"])
+        self.assertTrue(browser_result["applyDisabled"])
+        self.assertIn("duplicate destination target", browser_result["blockerHint"])
         self.assertEqual(browser_result["posted"], [])
 
 

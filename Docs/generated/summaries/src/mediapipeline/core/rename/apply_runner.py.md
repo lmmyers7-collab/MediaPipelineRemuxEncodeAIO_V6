@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: rename
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: 69e5f45077f05d76ee02ac597dd48454fa9eda836aa4a9581a15fd3451b38337
+sha256: 76990f9a31638f373b4e2eed7323e33a18ee0896880d835deade813ea2f519f8
 ---
 # `src/mediapipeline/core/rename/apply_runner.py`
 

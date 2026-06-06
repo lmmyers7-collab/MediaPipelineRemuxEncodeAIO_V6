@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: c17f970b065a31b73c1b3e37e7934621c45f9103c89c53a91416282dd3685e94
+sha256: c72f88d7e98e94a1020d991add11d88fb56e80d64481c9723efbdfb3fec084ac
 ---
 # `apps/desktop/webview/static/assets/launch/risk/policyPatch.js`
 

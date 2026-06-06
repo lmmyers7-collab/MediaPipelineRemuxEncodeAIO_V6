@@ -69,24 +69,18 @@ class PresetPolicyContractTests(unittest.TestCase):
             "EncodeLadder": "How encode targets are calculated",
             "MaxEncodeGrowthPercent": "Quality-encode size tolerance",
             "CompatibilityEncodeGrowthPercent": "Compatibility-encode size tolerance",
-            "EncodeThresholdGB": "Movie target output size",
-            "TVEncodeThresholdGB": "TV target output size",
             "MovieRoute1080pTargetSizeGB": "Movie 1080p target output size",
             "MovieRoute1440pTargetSizeGB": "Movie 1440p target output size",
             "MovieRoute4KTargetSizeGB": "Movie 4K target output size",
             "TVRoute1080pTargetSizeGB": "TV 1080p target output size",
             "TVRoute1440pTargetSizeGB": "TV 1440p target output size",
             "TVRoute4KTargetSizeGB": "TV 4K target output size",
-            "MovieRouteMaxVideoBitrateMbps": "Movie fallback max bitrate",
-            "TVRouteMaxVideoBitrateMbps": "TV fallback max bitrate",
-            "Route1080pBucketMaxHeight": "Legacy 1080p bucket max height",
             "Route1080pUpperHeightTolerancePercent": "1080p upper height tolerance",
             "Route1080pMaxVideoBitrateMbps": "1080p max bitrate for direct copy",
             "Route1440pLowerHeightTolerancePercent": "1440p lower height tolerance",
             "Route1440pUpperHeightTolerancePercent": "1440p upper height tolerance",
             "Route1440pMaxVideoBitrateMbps": "1440p max bitrate for direct copy",
             "Route4KLowerHeightTolerancePercent": "4K lower height tolerance",
-            "Route4KBucketMinHeight": "Legacy 4K bucket min height",
             "Route4KMaxVideoBitrateMbps": "4K max bitrate for direct copy",
             "VideoPreset": "Encoder Speed Preset",
             "ExtraVideoFlags": "Advanced Encoder Flags",
@@ -118,19 +112,17 @@ class PresetPolicyContractTests(unittest.TestCase):
         legacy = {
             "RoutingProfile": "plex_direct_play",
             "RouteThresholdMode": "bitrate",
-            "EncodeThresholdGB": 9,
-            "TVEncodeThresholdGB": 4,
             "MovieRoute1080pTargetSizeGB": 7,
             "MovieRoute1440pTargetSizeGB": 10,
             "MovieRoute4KTargetSizeGB": 14,
             "TVRoute1080pTargetSizeGB": 2,
             "TVRoute1440pTargetSizeGB": 5,
             "TVRoute4KTargetSizeGB": 8,
-            "MovieRouteMaxVideoBitrateMbps": 40,
-            "TVRouteMaxVideoBitrateMbps": 20,
-            "Route1080pBucketMaxHeight": 1180,
+            "Route1080pUpperHeightTolerancePercent": 9.259259,
             "Route1080pMaxVideoBitrateMbps": 22,
-            "Route4KBucketMinHeight": 1780,
+            "Route1440pLowerHeightTolerancePercent": 17.986111,
+            "Route1440pUpperHeightTolerancePercent": 23.541667,
+            "Route4KLowerHeightTolerancePercent": 17.592593,
             "Route4KMaxVideoBitrateMbps": 36,
             "AllowH264RemuxIfPlexCompatible": True,
             "H264RemuxMaxBitrateMbps": 30,
@@ -151,19 +143,17 @@ class PresetPolicyContractTests(unittest.TestCase):
                 for key in (
                     "RoutingProfile",
                     "RouteThresholdMode",
-                    "EncodeThresholdGB",
-                    "TVEncodeThresholdGB",
                     "MovieRoute1080pTargetSizeGB",
                     "MovieRoute1440pTargetSizeGB",
                     "MovieRoute4KTargetSizeGB",
                     "TVRoute1080pTargetSizeGB",
                     "TVRoute1440pTargetSizeGB",
                     "TVRoute4KTargetSizeGB",
-                    "MovieRouteMaxVideoBitrateMbps",
-                    "TVRouteMaxVideoBitrateMbps",
-                    "Route1080pBucketMaxHeight",
+                    "Route1080pUpperHeightTolerancePercent",
                     "Route1080pMaxVideoBitrateMbps",
-                    "Route4KBucketMinHeight",
+                    "Route1440pLowerHeightTolerancePercent",
+                    "Route1440pUpperHeightTolerancePercent",
+                    "Route4KLowerHeightTolerancePercent",
                     "Route4KMaxVideoBitrateMbps",
                     "AllowH264RemuxIfPlexCompatible",
                     "H264RemuxMaxBitrateMbps",
@@ -375,9 +365,11 @@ class PresetPolicyContractTests(unittest.TestCase):
                     "enforcementMode": "bitrate",
                     "directCopyMaxBitrate": {"movieMbps": 40, "tvMbps": 20},
                     "resolutionAwareBitrate": {
-                        "bucket1080pMaxHeight": 1180,
+                        "bucket1080pUpperHeightTolerancePct": 9.259259,
                         "bucket1080pMaxBitrateMbps": 22,
-                        "bucket4kMinHeight": 1780,
+                        "bucket1440pLowerHeightTolerancePct": 17.986111,
+                        "bucket1440pUpperHeightTolerancePct": 23.541667,
+                        "bucket4kLowerHeightTolerancePct": 17.592593,
                         "bucket4kMaxBitrateMbps": 36,
                     },
                     "directCopyVideoCodecAllowlist": ["hevc", "h264"],
@@ -409,19 +401,17 @@ class PresetPolicyContractTests(unittest.TestCase):
         self.assertEqual(patch["EncodeLadder"], "plex_compat")
         self.assertEqual(patch["MaxEncodeGrowthPercent"], 7)
         self.assertEqual(patch["CompatibilityEncodeGrowthPercent"], 12)
-        self.assertEqual(patch["EncodeThresholdGB"], 9)
-        self.assertEqual(patch["TVEncodeThresholdGB"], 4)
         self.assertEqual(patch["MovieRoute1080pTargetSizeGB"], 9)
         self.assertEqual(patch["MovieRoute1440pTargetSizeGB"], 9)
         self.assertEqual(patch["MovieRoute4KTargetSizeGB"], 9)
         self.assertEqual(patch["TVRoute1080pTargetSizeGB"], 4)
         self.assertEqual(patch["TVRoute1440pTargetSizeGB"], 4)
         self.assertEqual(patch["TVRoute4KTargetSizeGB"], 4)
-        self.assertEqual(patch["MovieRouteMaxVideoBitrateMbps"], 40)
-        self.assertEqual(patch["TVRouteMaxVideoBitrateMbps"], 20)
-        self.assertEqual(patch["Route1080pBucketMaxHeight"], 1180)
+        self.assertAlmostEqual(patch["Route1080pUpperHeightTolerancePercent"], 9.259259)
         self.assertEqual(patch["Route1080pMaxVideoBitrateMbps"], 22)
-        self.assertEqual(patch["Route4KBucketMinHeight"], 1780)
+        self.assertAlmostEqual(patch["Route1440pLowerHeightTolerancePercent"], 17.986111)
+        self.assertAlmostEqual(patch["Route1440pUpperHeightTolerancePercent"], 23.541667)
+        self.assertAlmostEqual(patch["Route4KLowerHeightTolerancePercent"], 17.592593)
         self.assertEqual(patch["Route4KMaxVideoBitrateMbps"], 36)
         self.assertEqual(patch["VideoPreset"], "p6")
         self.assertEqual(patch["OutputContainer"], "mp4")
@@ -443,7 +433,7 @@ class PresetPolicyContractTests(unittest.TestCase):
                 {
                     "version": 2,
                     "name": "Invalid legacy patch",
-                    "routing": {"directCopyMaxBitrate": {"movieMbps": 0}},
+                    "routing": {"resolutionAwareBitrate": {"bucket1080pMaxBitrateMbps": 0}},
                 }
             )
 

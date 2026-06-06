@@ -338,7 +338,7 @@ class ApplicationFacadeCoreContractTests(unittest.TestCase):
             "Handler",
             (),
             {
-                "headers": {"Content-Length": str(len(body))},
+                "headers": {"Content-Length": str(len(body)), "Content-Type": "application/json"},
                 "rfile": io.BytesIO(body),
             },
         )()

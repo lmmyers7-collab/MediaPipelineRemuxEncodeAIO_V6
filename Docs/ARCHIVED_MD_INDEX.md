@@ -42,7 +42,7 @@ Under `archive-historical/`:
 - `consolidated-after-extraction/.../README_MediaPipelineRemuxEncodeAIO_DesktopApp.md`
 - `consolidated-after-extraction/HOUSEKEEPING_REVIEW.md`
 
-These files should remain quarantined unless a human wants to recover a specific paragraph into `DOCS_INDEX.md`, `CURRENT_PROJECT_STATE.md`, operator docs, testing docs, release docs, or the active README/TLDR.
+These files should remain quarantined unless a human wants to recover a specific paragraph into `DOCS_INDEX.md`, `CURRENT_PROJECT_STATE.md`, operator docs, testing docs, release docs, or the active README.
 
 ## Delete Candidates
 
@@ -87,7 +87,6 @@ Under `docs/archive/docs-housekeeping/2026-06-04-completed-md-pass/`:
 Use `DOCS_INDEX.md` for the current active documentation map. Notable active docs include:
 
 - `CURRENT_PROJECT_STATE.md`
-- `TLDR.md`
 - `README_MediaPipelineRemuxEncodeAIO.md`
 - `DOCS_INDEX.md`
 - `REMEDIATION_CHANGELOG.md`

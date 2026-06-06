@@ -36,8 +36,8 @@ class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
             resolved.failed_markers_path = root / "State" / "FailedMarkers"
             resolved.audit_reports_path = root / "AuditReports"
             resolved.completed_manifest_path = root / "State" / "completed_jobs.jsonl"
-            bdpgs_tool = root / "Tools" / "PgsToSrt" / "PgsToSrt.exe"
-            bdpgs_tessdata = root / "Tools" / "PgsToSrt" / "tessdata"
+            bdpgs_tool = root / "ops" / "pipeline" / "tools" / "PgsToSrt" / "PgsToSrt.exe"
+            bdpgs_tessdata = root / "ops" / "pipeline" / "tools" / "PgsToSrt" / "tessdata"
             bdpgs_tool.parent.mkdir(parents=True)
             bdpgs_tool.write_text("fake", encoding="utf-8")
             bdpgs_tessdata.mkdir()
@@ -47,8 +47,8 @@ class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
                 "RoutingProfile": "plex_direct_stream",
                 "SkipStabilityCheck": True,
                 "ConvertBdpgsToSrt": True,
-                "BdpgsOcrToolPath": r"Tools\PgsToSrt\PgsToSrt.exe",
-                "BdpgsOcrTessdataPath": r"Tools\PgsToSrt\tessdata",
+                "BdpgsOcrToolPath": r"tools\PgsToSrt\PgsToSrt.exe",
+                "BdpgsOcrTessdataPath": r"tools\PgsToSrt\tessdata",
                 "WorkerAuthToken": "secret-value",
             }
             facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v5-test")
@@ -89,9 +89,10 @@ class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
         self.assertEqual(settings["paths"]["audit_reports"], str(root / "AuditReports"))
         self.assertEqual(settings["paths"]["completed_manifest"], str(root / "State" / "completed_jobs.jsonl"))
         size_guard_field = next(field for field in settings["field_definitions"] if field["key"] == "SizeGuardMode")
-        self.assertEqual(size_guard_field["choices"], ["advisory", "strict", "off"])
-        self.assertEqual(size_guard_field["allowed_values"], ["advisory", "strict", "off"])
+        self.assertEqual(size_guard_field["choices"], ["advisory", "strict", "fallback_remux", "off"])
+        self.assertEqual(size_guard_field["allowed_values"], ["advisory", "strict", "fallback_remux", "off"])
         self.assertIn("Blocks publish", size_guard_field["choice_help"]["strict"])
+        self.assertIn("override-forced encodes", size_guard_field["choice_help"]["fallback_remux"])
         self.assertEqual(size_guard_field["persisted_key"], "SizeGuardMode")
         self.assertEqual(size_guard_field["override_group"], "editor")
         self.assertEqual(size_guard_field["scope"], "library_overridable")
@@ -107,7 +108,7 @@ class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
         self.assertEqual(size_guard_field["strictness"], "hard")
         self.assertEqual(
             size_guard_field["help_text"],
-            "Checked after encode. Warns but does not block in warn-only mode. Blocks publish when configured to block if output exceeds the configured size budget.",
+            "Checked after encode. Warn-only records oversized output. Strict blocks publish. Fallback remux applies existing growth buffers to override-forced encodes, tries remux first, and keeps the oversized encode with warning evidence when remux is blocked.",
         )
         self.assertEqual(size_guard_field["validation_owner"], "backend")
         self.assertEqual(size_guard_field["runtime_consumer"], "deferred")
@@ -119,24 +120,23 @@ class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
         self.assertEqual(threshold_mode_field["default"], "compatibility_advisory")
         self.assertIn("size_or_bitrate", threshold_mode_field["choices"])
         self.assertEqual(threshold_mode_field["override_group"], "editor")
-        movie_bitrate_field = next(field for field in settings["field_definitions"] if field["key"] == "MovieRouteMaxVideoBitrateMbps")
-        self.assertEqual(movie_bitrate_field["section"], "Size / Bitrate Guards")
-        self.assertEqual(movie_bitrate_field["label"], "Movie fallback max bitrate")
-        self.assertEqual(movie_bitrate_field["default"], 35)
-        self.assertEqual(movie_bitrate_field["min"], 1)
-        self.assertEqual(movie_bitrate_field["max"], 500)
-        self.assertEqual(movie_bitrate_field["unit"], "Mbps")
-        self.assertEqual(movie_bitrate_field["library_profile_designations"], ["movie", "auto"])
-        tv_bitrate_field = next(field for field in settings["field_definitions"] if field["key"] == "TVRouteMaxVideoBitrateMbps")
-        self.assertEqual(tv_bitrate_field["section"], "Size / Bitrate Guards")
-        self.assertEqual(tv_bitrate_field["label"], "TV fallback max bitrate")
-        self.assertEqual(tv_bitrate_field["default"], 18)
-        self.assertEqual(tv_bitrate_field["library_profile_designations"], ["tv", "auto"])
-        route_1080p_field = next(field for field in settings["field_definitions"] if field["key"] == "Route1080pBucketMaxHeight")
+        movie_1080p_field = next(field for field in settings["field_definitions"] if field["key"] == "MovieRoute1080pTargetSizeGB")
+        self.assertEqual(movie_1080p_field["section"], "Size / Bitrate Guards")
+        self.assertEqual(movie_1080p_field["label"], "Movie 1080p target output size")
+        self.assertEqual(movie_1080p_field["default"], 8)
+        self.assertEqual(movie_1080p_field["min"], 1)
+        self.assertEqual(movie_1080p_field["unit"], "GB")
+        self.assertEqual(movie_1080p_field["library_profile_designations"], ["movie", "auto"])
+        tv_1080p_field = next(field for field in settings["field_definitions"] if field["key"] == "TVRoute1080pTargetSizeGB")
+        self.assertEqual(tv_1080p_field["section"], "Size / Bitrate Guards")
+        self.assertEqual(tv_1080p_field["label"], "TV 1080p target output size")
+        self.assertEqual(tv_1080p_field["default"], 3)
+        self.assertEqual(tv_1080p_field["library_profile_designations"], ["tv", "auto"])
+        route_1080p_field = next(field for field in settings["field_definitions"] if field["key"] == "Route1080pUpperHeightTolerancePercent")
         self.assertEqual(route_1080p_field["section"], "Size / Bitrate Guards")
-        self.assertEqual(route_1080p_field["default"], 1200)
-        self.assertEqual(route_1080p_field["unit"], "pixels")
-        self.assertIn("Compatibility pixel height derived", route_1080p_field["help_text"])
+        self.assertAlmostEqual(route_1080p_field["default"], 11.111111)
+        self.assertEqual(route_1080p_field["unit"], "percent")
+        self.assertIn("Percent above 1080", route_1080p_field["help_text"])
         self.assertNotIn("library_profile_designations", route_1080p_field)
         route_4k_field = next(field for field in settings["field_definitions"] if field["key"] == "Route4KMaxVideoBitrateMbps")
         self.assertEqual(route_4k_field["default"], 35)
@@ -182,6 +182,19 @@ class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
         cpu_threads_field = next(field for field in settings["field_definitions"] if field["key"] == "CpuEncodeMaxThreads")
         self.assertEqual(cpu_threads_field["section"], "Advanced")
         self.assertIn("libx265 threads", cpu_threads_field["help"])
+
+    def test_settings_workspace_missing_bdpgs_conversion_defaults_to_disabled_readiness(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            resolved.config_data = {}
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v5-test")
+
+            readiness = facade.get_settings_workspace(resolved).to_mapping()["media_policy_readiness"]
+
+        rows = {row["area"]: row for row in readiness["rows"]}
+        self.assertEqual(rows["BDPGS OCR to SRT"]["posture"], "review")
+        self.assertIn("ocr=False", rows["BDPGS OCR to SRT"]["evidence"])
 
     def test_settings_workspace_reports_backend_media_policy_readiness(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -245,10 +258,15 @@ class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
                 "SizeGuardMode": "off",
                 "MaxEncodeGrowthPercent": 5,
                 "CompatibilityEncodeGrowthPercent": 15,
-                "EncodeThresholdGB": 8,
-                "TVEncodeThresholdGB": 3,
-                "MovieRouteMaxVideoBitrateMbps": 35,
-                "TVRouteMaxVideoBitrateMbps": 18,
+                "MovieRoute1080pTargetSizeGB": 8,
+                "MovieRoute1440pTargetSizeGB": 8,
+                "MovieRoute4KTargetSizeGB": 8,
+                "TVRoute1080pTargetSizeGB": 3,
+                "TVRoute1440pTargetSizeGB": 3,
+                "TVRoute4KTargetSizeGB": 3,
+                "Route1080pMaxVideoBitrateMbps": 20,
+                "Route1440pMaxVideoBitrateMbps": 35,
+                "Route4KMaxVideoBitrateMbps": 35,
                 "VideoCodec": "hevc_nvenc",
                 "EncodeTuningPreset": "balanced_nvenc",
                 "EncodeLadder": "auto",

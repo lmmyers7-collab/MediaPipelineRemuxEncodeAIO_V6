@@ -43,9 +43,9 @@
       setSubtitleBuilderControl("settings-subtitle-probe-timeout", "SubtitleProbeTimeoutSeconds", "number", 30);
       setSubtitleBuilderControl("settings-subtitle-bdpgs-timeout", "BdpgsOcrTimeoutSeconds", "number", 1800);
       setSubtitleBuilderControl("settings-subtitle-vobsub-timeout", "VobSubOcrTimeoutSeconds", "number", 1800);
-      setSubtitleBuilderControl("settings-subtitle-bdpgs-ocr-tool-path", "BdpgsOcrToolPath", "text", "Tools\\PgsToSrt\\PgsToSrt.exe");
-      setSubtitleBuilderControl("settings-subtitle-bdpgs-ocr-tessdata-path", "BdpgsOcrTessdataPath", "text", "Tools\\PgsToSrt\\tessdata");
-      setSubtitleBuilderControl("settings-subtitle-vobsub-ocr-tool-path", "VobSubOcrToolPath", "text", "");
+      setSubtitleBuilderControl("settings-subtitle-bdpgs-ocr-tool-path", "BdpgsOcrToolPath", "text", "tools\\PgsToSrt\\PgsToSrt.exe");
+      setSubtitleBuilderControl("settings-subtitle-bdpgs-ocr-tessdata-path", "BdpgsOcrTessdataPath", "text", "tools\\PgsToSrt\\tessdata");
+      setSubtitleBuilderControl("settings-subtitle-vobsub-ocr-tool-path", "VobSubOcrToolPath", "text", "tools\\SubtitleEditLegacy\\SubtitleEdit.exe");
       setSubtitleBuilderControl("settings-subtitle-sdh-keywords", "SubSDHTitleKeywords", "list", ["sdh", "hearing impaired", "hearing-impaired", "cc", "closed caption", "closedcaption", "captions", "subs for deaf", "deaf", "hoh", "hi", "descriptive"]);
       setSubtitleBuilderControl("settings-subtitle-supplemental-keywords", "SubSupplementalKeywords", "list", ["sign", "signs", "song", "songs", "karaoke", "chapter", "opening", "ending", "op", "ed", "credits", "lyrics"]);
       setSubtitleBuilderControl("settings-subtitle-exclude-styles", "ExcludeSubtitleStyles", "list", []);
@@ -56,7 +56,7 @@
       setSubtitleBuilderControl("settings-subtitle-preserve-tx3g-srt", "Tx3gPreserveExistingSrt", "bool", true);
       setSubtitleBuilderControl("settings-subtitle-forced-tx3g", "Tx3gTreatForcedAsSeparate", "bool", true);
       setSubtitleBuilderControl("settings-subtitle-tx3g-signs-forced", "TreatTx3gSignsSongsAsForced", "bool", false);
-      setSubtitleBuilderControl("settings-subtitle-convert-bdpgs", "ConvertBdpgsToSrt", "bool", true);
+      setSubtitleBuilderControl("settings-subtitle-convert-bdpgs", "ConvertBdpgsToSrt", "bool", false);
       setSubtitleBuilderControl("settings-subtitle-drop-bdpgs", "DropBdpgsAfterConversion", "bool", false);
       setSubtitleBuilderControl("settings-subtitle-bdpgs-signs-forced", "TreatBdpgsSignsSongsAsForced", "bool", false);
       setSubtitleBuilderControl("settings-subtitle-convert-vobsub", "ConvertVobSubToSrt", "bool", false);

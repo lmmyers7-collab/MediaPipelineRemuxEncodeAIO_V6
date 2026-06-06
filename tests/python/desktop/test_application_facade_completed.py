@@ -500,14 +500,29 @@ class ApplicationFacadeCompletedTests(unittest.TestCase):
             resolved = _resolved(root)
             resolved.completed_manifest_path = manifest
             service = DummyWorkflowFacadeService(root)
+            default_opened_paths: list[Path] = []
+
+            def open_with_default_app(path: Path | str | None) -> None:
+                if path is None:
+                    raise FileNotFoundError("Path does not exist: <none>")
+                target = Path(path)
+                if not target.exists():
+                    raise FileNotFoundError(f"Path does not exist: {target}")
+                default_opened_paths.append(target)
+
+            service.open_path_with_default_app = open_with_default_app  # type: ignore[attr-defined]
             facade = MediaPipelineApplicationFacade(service)
             row_key = facade.get_completed_preview(resolved).to_mapping()["rows"][0]["row_key"]
 
+            played = facade.open_completed_location(resolved, {"row_key": row_key, "target": "play_output_file"})
             opened_file = facade.open_completed_location(resolved, {"row_key": row_key, "target": "output_file"})
             opened = facade.open_completed_location(resolved, {"row_key": row_key, "target": "output_folder"})
             rejected = facade.open_completed_location(resolved, {"row_key": row_key, "target": str(root / "secret.txt")})
             missing = facade.open_completed_location(resolved, {"row_key": "not-a-row", "target": "output_folder"})
 
+        self.assertTrue(played.ok)
+        self.assertEqual(played.data["target"], "play_output_file")
+        self.assertEqual(default_opened_paths, [output])
         self.assertTrue(opened_file.ok)
         self.assertEqual(opened_file.data["target"], "output_file")
         self.assertTrue(opened.ok)

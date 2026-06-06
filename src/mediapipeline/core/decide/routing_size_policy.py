@@ -12,8 +12,6 @@ def _resolution_size_selection(
     bucket: str,
     media_type: str,
     effective_media_type: str,
-    movie_fallback_size: float,
-    tv_fallback_size: float,
     policy: EffectiveDecisionPolicy,
 ) -> dict[str, Any]:
     normalized_bucket = bucket.strip().lower()
@@ -27,9 +25,9 @@ def _resolution_size_selection(
         source = "source_height_bucket"
         selected_bucket = normalized_bucket
     else:
-        movie_size, tv_size = movie_fallback_size, tv_fallback_size
-        source = "movie_tv_fallback"
-        selected_bucket = normalized_bucket or "unknown_height"
+        movie_size, tv_size = bucket_sizes["1080p"]
+        source = "unknown_height_1080p_bucket"
+        selected_bucket = "1080p"
 
     if media_type == "unknown":
         limit = min(value for value in (movie_size, tv_size) if value > 0) if any((movie_size, tv_size)) else 0.0
@@ -51,8 +49,6 @@ def _resolution_bitrate_selection(
     *,
     height: int,
     media_type: str,
-    movie_bitrate: float,
-    tv_bitrate: float,
     policy: EffectiveDecisionPolicy,
 ) -> dict[str, Any]:
     boundaries = height_tolerance_boundaries(
@@ -65,19 +61,10 @@ def _resolution_bitrate_selection(
     )
 
     if height <= 0:
-        if media_type == "unknown":
-            cap = min(value for value in (movie_bitrate, tv_bitrate) if value > 0) if any((movie_bitrate, tv_bitrate)) else 0.0
-            fallback = "conservative_movie_tv"
-        elif media_type == "tv":
-            cap = tv_bitrate
-            fallback = "tv"
-        else:
-            cap = movie_bitrate
-            fallback = "movie"
         return {
-            "cap_mbps": float(cap),
-            "source": "movie_tv_fallback",
-            "bucket": f"unknown_height_{fallback}",
+            "cap_mbps": float(policy.route_1080p_max_video_bitrate_mbps),
+            "source": "unknown_height_1080p_bucket",
+            "bucket": "1080p",
             "height": int(height),
             "route_1440p_min_height": boundaries.route_1440p_min_height,
             "route_1440p_max_height": boundaries.route_1440p_max_height,

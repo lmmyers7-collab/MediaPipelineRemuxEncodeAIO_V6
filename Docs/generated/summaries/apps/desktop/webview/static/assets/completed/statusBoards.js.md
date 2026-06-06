@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/completed/statusBoards.js
 pipeline_stage: observability
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-03
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 262f223207aa0aca61c2f3c57ac3babc02928546973773f54b4b5b43522a2ba4
+sha256: 6c8461c7953558ef972fe6bffad835e937ef32077bd402d4593b38c5edb485d1
 ---
 # `apps/desktop/webview/static/assets/completed/statusBoards.js`
 

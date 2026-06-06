@@ -71,8 +71,6 @@ function New-MediaPipelineSizeGuardEvidence {
 
     $sizeKeys = @(
         'SizeGuardMode',
-        'EncodeThresholdGB',
-        'TVEncodeThresholdGB',
         'MovieRoute1080pTargetSizeGB',
         'MovieRoute1440pTargetSizeGB',
         'MovieRoute4KTargetSizeGB',
@@ -91,8 +89,6 @@ function New-MediaPipelineSizeGuardEvidence {
             -ActionEvidence 'checked after encode; does not participate in direct-copy bitrate gates' `
             -DecisionImpact ([ordered]@{
                 SizeGuardMode = 'post_encode_outcome_policy'
-                EncodeThresholdGB = 'output_size_target_budget'
-                TVEncodeThresholdGB = 'output_size_target_budget'
                 MovieRoute1080pTargetSizeGB = 'output_size_target_budget'
                 MovieRoute1440pTargetSizeGB = 'output_size_target_budget'
                 MovieRoute4KTargetSizeGB = 'output_size_target_budget'
@@ -145,7 +141,23 @@ function New-MediaPipelineSizeGuardEvidence {
     }
 
     $routeIsTV = if ($null -ne $RoutePlan) { [bool](Get-MediaPipelineProfileProperty -Profile $RoutePlan -Name 'IsTV' -Default $false) } else { $false }
-    $targetKey = if ($routeIsTV) { 'TVEncodeThresholdGB' } else { 'EncodeThresholdGB' }
+    $routeBucket = '1080p'
+    if ($null -ne $RoutePlan) {
+        foreach ($traceEntry in @((Get-MediaPipelineProfileProperty -Profile $RoutePlan -Name 'DecisionTrace' -Default @()))) {
+            $traceData = ConvertTo-MediaPipelineProfileMap (Get-MediaPipelineProfileProperty -Profile $traceEntry -Name 'Data' -Default $null)
+            if ($traceData.Contains('route_size_bucket') -and -not [string]::IsNullOrWhiteSpace([string]$traceData['route_size_bucket'])) {
+                $routeBucket = [string]$traceData['route_size_bucket']
+                break
+            }
+        }
+    }
+    $normalizedBucket = ([string]$routeBucket).Trim().ToLowerInvariant()
+    $targetSuffix = switch ($normalizedBucket) {
+        '1440p' { '1440pTargetSizeGB' }
+        '4k' { '4KTargetSizeGB' }
+        default { '1080pTargetSizeGB' }
+    }
+    $targetKey = if ($routeIsTV) { "TVRoute$targetSuffix" } else { "MovieRoute$targetSuffix" }
     $targetSizeGB = $null
     $settingMap = ConvertTo-MediaPipelineProfileMap $settingsEvidence['settings']
     if ($settingMap.Contains($targetKey)) {
@@ -215,6 +227,8 @@ function New-MediaPipelinePublishEvidence {
         publish_mode            = $publishMode
         output_path             = if ($hasPublishResult) { [string](Get-MediaPipelineProfileProperty -Profile $PublishResult -Name 'OutputPath' -Default '') } else { '' }
         output_size_bytes       = if ($hasPublishResult) { [long](Get-MediaPipelineProfileProperty -Profile $PublishResult -Name 'OutputSizeBytes' -Default 0L) } else { 0L }
+        source_path             = if ($hasPublishResult) { [string](Get-MediaPipelineProfileProperty -Profile $PublishResult -Name 'SourcePath' -Default '') } else { '' }
+        source_size_bytes       = if ($hasPublishResult) { [long](Get-MediaPipelineProfileProperty -Profile $PublishResult -Name 'SourceSizeBytes' -Default 0L) } else { 0L }
         reason                  = $reason
         parked_for_output_space = if ($hasPublishResult) { [bool](Get-MediaPipelineProfileProperty -Profile $PublishResult -Name 'ParkedForOutputSpace' -Default $false) } else { $false }
         pending_publish_status  = if ($deferred) { 'pending drain through existing pending-publish flow' } else { '' }

@@ -155,11 +155,13 @@ class HandBrakeRemuxRegressionMatrixTests(unittest.TestCase):
                 "name": "Container x subtitle",
                 "source": lambda: source_from_fixture("source_with_image_subtitles.json"),
                 "policy": EffectiveDecisionPolicy(output_container="mp4"),
-                "route": {"ENCODE"},
-                "video": "encode",
-                "subtitle_actions": ["burn", "burn"],
-                "reasons": {"SUBTITLE_FORMAT_INCOMPATIBLE_WITH_CONTAINER", "SUBTITLE_BURN_IN_REQUIRES_ENCODE"},
-                "required_steps": {"burn_subtitle", "encode_video"},
+                "route": {"REJECT"},
+                "video": "reject",
+                "subtitle_actions": ["unknown", "unknown"],
+                "reasons": {
+                    "SUBTITLE_FORMAT_INCOMPATIBLE_WITH_CONTAINER",
+                    "SUBTITLE_IMAGE_REQUIRES_EXPLICIT_REVIEW",
+                },
             },
             {
                 "name": "Subtitle burn-in",
@@ -264,11 +266,9 @@ class HandBrakeRemuxRegressionMatrixTests(unittest.TestCase):
             "OutputContainer": "mp4",
             "RemuxSafeVideoCodecs": ["hevc", "h265", "h.265"],
             "AudioMaxChannels": 6,
-            "MovieRouteMaxVideoBitrateMbps": 35,
-            "TVRouteMaxVideoBitrateMbps": 18,
-            "Route1080pBucketMaxHeight": 1200,
+            "Route1080pUpperHeightTolerancePercent": 11.111111,
             "Route1080pMaxVideoBitrateMbps": 20,
-            "Route4KBucketMinHeight": 1800,
+            "Route4KLowerHeightTolerancePercent": 16.666667,
             "Route4KMaxVideoBitrateMbps": 35,
         }
         preset = preset_v2_from_legacy_config(legacy_config, name="Matrix legacy parity")

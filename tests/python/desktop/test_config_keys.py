@@ -12,8 +12,9 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop import config_keys
 from mediapipeline.core.config.library_profiles import LIBRARY_OVERRIDE_KEYS_BY_GROUP
-from mediapipeline.core.config.metadata import CONFIG_FIELD_DEFINITIONS
+from mediapipeline.core.config.metadata import CONFIG_FIELD_DEFINITIONS, CONFIG_MANAGED_KEYS
 from mediapipeline.core.config.metadata_network import NETWORK_CONFIG_DEFAULTS
+from mediapipeline.core.kernel.config_key_aliases import CONFIG_KEY_ALIASES
 from mediapipeline.contracts.config import Config
 
 
@@ -39,6 +40,9 @@ FRIENDLY_LABEL_KEYS = {
 EVIDENCE_ONLY_KEYS = {
     "library_effective_settings",
     "runtime_effective_settings",
+}
+WEBVIEW_SETTINGS_ADVISORY_ONLY_KEYS = {
+    "DeleteSourceAfterProcessing",
 }
 
 
@@ -77,6 +81,26 @@ def _pipeline_json_schema_keys() -> set[str]:
 
 def _backend_library_override_keys() -> set[str]:
     return {key for keys in LIBRARY_OVERRIDE_KEYS_BY_GROUP.values() for key in keys}
+
+
+def _webview_settings_consumer_keys() -> set[str]:
+    static_root = find_repo_root(Path(__file__)) / "apps" / "desktop" / "webview" / "static"
+    paths = [
+        static_root / "partials" / "page-settings.html",
+        static_root / "assets" / "settingsView.js",
+        static_root / "assets" / "settingsMetadata.js",
+    ]
+    paths.extend(sorted((static_root / "assets" / "settings").glob("*.js")))
+
+    keys: set[str] = set()
+    for path in paths:
+        text = path.read_text(encoding="utf-8")
+        keys.update(re.findall(r'data-settings-(?:summary|path)-key="([A-Za-z][A-Za-z0-9_]*)"', text))
+        keys.update(re.findall(r'\["([A-Za-z][A-Za-z0-9_]*)"\s*,\s*"settings-', text))
+        keys.update(re.findall(r'\bkey:\s*"([A-Za-z][A-Za-z0-9_]*)"', text))
+        keys.update(re.findall(r"settings(?:BuilderConfigValue|RawConfigValue)\(\s*['\"]([A-Za-z][A-Za-z0-9_]*)['\"]", text))
+        keys.update(re.findall(r"settingsPatchCandidateValue\(\s*entries\s*,\s*['\"]([A-Za-z][A-Za-z0-9_]*)['\"]", text))
+    return keys
 
 
 class ConfigKeyRegistryTests(unittest.TestCase):
@@ -120,6 +144,35 @@ class ConfigKeyRegistryTests(unittest.TestCase):
         self.assertEqual((FRIENDLY_LABEL_KEYS | EVIDENCE_ONLY_KEYS) & powershell_keys, set())
         self.assertEqual((FRIENDLY_LABEL_KEYS | EVIDENCE_ONLY_KEYS) & set(Config.model_fields), set())
         self.assertEqual((FRIENDLY_LABEL_KEYS | EVIDENCE_ONLY_KEYS) & json_schema_keys, set())
+
+    def test_config_key_aliases_resolve_to_registered_canonical_keys(self) -> None:
+        for alias, canonical in CONFIG_KEY_ALIASES.items():
+            self.assertIn(canonical, config_keys.ALL_CONFIG_KEYS)
+            self.assertNotIn(alias, FRIENDLY_LABEL_KEYS | EVIDENCE_ONLY_KEYS)
+
+    def test_desktop_managed_keys_match_python_schema_and_all_config_key_partition(self) -> None:
+        managed_keys = tuple(str(key) for key in CONFIG_MANAGED_KEYS)
+        schema_keys = tuple(str(field["key"]) for field in CONFIG_FIELD_DEFINITIONS)
+
+        self.assertEqual(managed_keys, schema_keys)
+        self.assertEqual(set(managed_keys), config_keys.ALL_CONFIG_KEYS)
+        self.assertLessEqual(set(config_keys.CONFIG_KEY_ORDER), set(managed_keys))
+        self.assertLessEqual(set(config_keys.NETWORK_CONFIG_KEYS), set(managed_keys))
+
+    def test_webview_settings_consumers_reference_registered_config_keys(self) -> None:
+        consumer_keys = _webview_settings_consumer_keys()
+
+        self.assertEqual(sorted(consumer_keys - config_keys.ALL_CONFIG_KEYS), sorted(WEBVIEW_SETTINGS_ADVISORY_ONLY_KEYS))
+
+    def test_core_package_imports_core_config_key_registry_directly(self) -> None:
+        source_root = find_repo_root(Path(__file__)) / "src" / "mediapipeline" / "core"
+        violations: list[str] = []
+        for path in source_root.rglob("*.py"):
+            text = path.read_text(encoding="utf-8")
+            if "mediapipeline.desktop.config_keys" in text:
+                violations.append(str(path.relative_to(source_root.parent.parent)))
+
+        self.assertEqual(violations, [])
 
     def test_cross_surface_library_override_allowlist_rejects_python_powershell_drift(self) -> None:
         powershell_overrides = _powershell_library_override_keys()
@@ -180,8 +233,9 @@ class ConfigKeyRegistryTests(unittest.TestCase):
             config_keys.KEY_FALLBACK_CPU_QUALITY,
             config_keys.KEY_ROUTING_PROFILE,
             config_keys.KEY_ROUTE_THRESHOLD_MODE,
-            config_keys.KEY_MOVIE_ROUTE_MAX_VIDEO_BITRATE_MBPS,
-            config_keys.KEY_TV_ROUTE_MAX_VIDEO_BITRATE_MBPS,
+            config_keys.KEY_ROUTE_1080P_MAX_VIDEO_BITRATE_MBPS,
+            config_keys.KEY_ROUTE_1440P_MAX_VIDEO_BITRATE_MBPS,
+            config_keys.KEY_ROUTE_4K_MAX_VIDEO_BITRATE_MBPS,
             config_keys.KEY_ALLOW_H264_REMUX_IF_PLEX_COMPATIBLE,
             config_keys.KEY_H264_REMUX_MAX_BITRATE_MBPS,
             config_keys.KEY_H264_REMUX_MAX_HEIGHT,

@@ -21,7 +21,7 @@ from mediapipeline.core.queue.file_overrides import (
     normalize_file_override_path,
     resolve_file_override_match,
 )
-from mediapipeline.desktop.config_keys import (
+from mediapipeline.core.kernel.config_keys import (
     KEY_AUDIO_MAX_CHANNELS,
     KEY_ENCODE_LADDER,
     KEY_ENCODE_TUNING_PRESET,

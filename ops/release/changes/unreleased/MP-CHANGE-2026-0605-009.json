@@ -1,0 +1,42 @@
+{
+  "id": "MP-CHANGE-2026-0605-009",
+  "title": "Round route tolerance readouts",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-05",
+  "date_completed": "2026-06-05",
+  "summary": "Round the visible Settings route height tolerance percentage controls and readouts to whole percents while preserving precise generated values for unchanged controls.",
+  "reason": "Operators need the route tolerance percentages for scanning, not precision editing, so values like 11.111111% should display as 11%.",
+  "affected_areas": [
+    "generated_summaries",
+    "settings",
+    "webview"
+  ],
+  "behavior_before": "Route height tolerance controls and readouts displayed six-decimal percentages such as 11.111111%, 16.597222%, 24.930556%, and 16.666667%.",
+  "behavior_after": "Route height tolerance controls and readouts display nearest whole percents such as 11%, 17%, 25%, and 17%; unchanged generated controls still collect precise settings values.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settings/patchReview.js",
+    "apps/desktop/webview/static/partials/page-settings.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settings/patchReview.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-settings.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0605-009.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_handbrake_settings_ui.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0605-009.json",
+    "tests/webview/test_webview_handbrake_settings_ui.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Browser-backed Settings route tolerance visible input check via the repository CDP harness -> passed; visible inputs and readouts rendered as 11/11%, 17/17%, 25/25%, and 17/17%, while collected payload values remained 11.111111, 16.597222, 24.930556, and 16.666667.",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_handbrake_settings_ui -q -> passed; 27 tests OK.",
+    "PYTHONPATH=src powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewSettingsLaunchPolicySmoke.ps1 -> passed; 1 test OK.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> passed; 74 packet(s) valid before unrelated MP-CHANGE-2026-0605-010.json appeared.",
+    "Final strict coverage rerun -> failed due unrelated ops/release/changes/unreleased/MP-CHANGE-2026-0605-010.json missing required field date_completed and not being listed in files_touched of any unreleased packet; this packet's files were not listed as uncovered."
+  ],
+  "rollback_plan": "Revert the WebView Settings readout formatter/test changes, refresh generated summaries, and rerun the focused WebView settings tests.",
+  "related_changes": [
+    "MP-CHANGE-2026-0605-008"
+  ],
+  "notes": "Presentation-only WebView change. Backend-owned settings persistence, route policy, queue, pending-publish, rename, filesystem mutation, and media processing behavior are unchanged.\nRounded visible route height tolerance readouts while preserving precise input and payload values.\nRefreshed generated summaries for rounded route tolerance readouts.\nAdjusted visible route percent inputs to show whole percents while retaining precise generated values for unchanged controls.\nRefreshed generated summaries after rounding visible route percent inputs."
+}

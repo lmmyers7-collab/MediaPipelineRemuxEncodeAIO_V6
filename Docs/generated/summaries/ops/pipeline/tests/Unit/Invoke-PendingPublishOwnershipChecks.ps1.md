@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-PendingPublishOwnershipChecks.ps1
 pipeline_stage: publish
 token_priority: high
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: fe8809bf395e4be166b49a77c9cff80b2de3bd6b29c504d43e6658129da4d36a
+sha256: 2b24e89e525b07b5e3dd27c187c3982057b06d8d9f5ce9059803146c8890ae08
 ---
 # `ops/pipeline/tests/Unit/Invoke-PendingPublishOwnershipChecks.ps1`
 

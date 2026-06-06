@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Callable, Any
 
-from mediapipeline.desktop.config_keys import KEY_LOCAL_BASE, KEY_OUTSOURCE, KEY_SOURCE_MOVIES, KEY_SOURCE_TV
+from mediapipeline.core.kernel.config_keys import KEY_LOCAL_BASE, KEY_OUTSOURCE, KEY_SOURCE_MOVIES, KEY_SOURCE_TV
 from mediapipeline.core.config.value_checks import add_unique_warning
 
 PathKeyFunc = Callable[[Path], str]

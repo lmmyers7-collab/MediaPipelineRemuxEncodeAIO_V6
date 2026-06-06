@@ -12,6 +12,7 @@ from mediapipeline.core.publish.pending_manifest_rows import (
     readable_pending_manifest_row,
     unreadable_pending_manifest_row,
 )
+from mediapipeline.core.publish.pending_policy import pending_publish_rows
 
 
 class PendingPublishManifestRowsTests(unittest.TestCase):
@@ -86,6 +87,49 @@ class PendingPublishManifestRowsTests(unittest.TestCase):
         self.assertEqual(row["schema_version"], "legacy")
         self.assertEqual(row["size_text"], "1.0 KB")
         self.assertEqual(row["sidecar_count"], 1)
+
+    def test_legacy_and_unsupported_states_are_not_ready_to_drain(self) -> None:
+        legacy = readable_pending_manifest_row(
+            manifest_path=Path(r"D:\pending\legacy.manifest.json"),
+            parked_at="2026-05-08T01:02:03Z",
+            publish_mode="server",
+            route="remux",
+            state="parked",
+            local_path=Path(r"D:\pending\legacy.mkv"),
+            local_exists=True,
+            server_path=Path(r"D:\out\legacy.mkv"),
+            source_path=Path(r"D:\source\legacy.mkv"),
+            output_size=1024,
+            sidecar_paths=[],
+            missing_sidecars=0,
+            schema_version="",
+            error_text="Legacy pending manifest cannot be drained automatically.",
+        )
+        complete = readable_pending_manifest_row(
+            manifest_path=Path(r"D:\pending\complete.manifest.json"),
+            parked_at="2026-05-08T01:02:03Z",
+            publish_mode="server",
+            route="remux",
+            state="complete",
+            local_path=Path(r"D:\pending\complete.mkv"),
+            local_exists=True,
+            server_path=Path(r"D:\out\complete.mkv"),
+            source_path=Path(r"D:\source\complete.mkv"),
+            output_size=1024,
+            sidecar_paths=[],
+            missing_sidecars=0,
+            schema_version="pending_push_manifest.v1",
+            error_text="",
+        )
+
+        rows = pending_publish_rows([legacy, complete])
+
+        self.assertFalse(rows[0]["ready_to_drain"])
+        self.assertEqual(rows[0]["diagnostic_status"], "invalid_manifest")
+        self.assertIn("Legacy pending manifest", rows[0]["issue_summary"])
+        self.assertFalse(rows[1]["ready_to_drain"])
+        self.assertEqual(rows[1]["diagnostic_status"], "invalid_manifest")
+        self.assertIn("state 'complete'", rows[1]["issue_summary"])
 
 
 if __name__ == "__main__":

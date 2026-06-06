@@ -3,9 +3,9 @@ file: tests/python/desktop/test_settings_risk_policy_rules.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 8848abe6c9d4b0d91960be6bc6ac51c4311e5c34a305f7dc08326317a8c71d64
+sha256: e87e942251343368e4535b9949dcd84034f403e4f19b0750b34b13c30c41b162
 ---
 # `tests/python/desktop/test_settings_risk_policy_rules.py`
 

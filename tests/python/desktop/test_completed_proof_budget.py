@@ -25,7 +25,10 @@ from mediapipeline.core.completed.manifest import (
     OUTPUT_PROOF_LIVE,
     read_completed_manifest_records,
 )
-from mediapipeline.core.completed.policy import completed_record_to_row
+from mediapipeline.core.completed.policy import (
+    completed_record_to_row,
+    completed_row_operator_status_state,
+)
 from mediapipeline.desktop.api.read_payloads_inventory import (
     LocalApiInventoryReadPayloadMixin,
 )
@@ -125,6 +128,21 @@ class CompletedRowProofDtoTests(unittest.TestCase):
         self.assertNotIn("missing_output", row.get("consistency_issues") or [])
         # Output size still surfaces from the manifest payload, not from disk.
         self.assertEqual(row["output_size_bytes"], 2048)
+
+    def test_deferred_row_operator_status_is_unverified_not_match(self) -> None:
+        # Review finding LOW-1: a proof-deferred row has unproven existence, so
+        # its operator status must not read as the all-clear "match".
+        deferred = completed_record_to_row(_record(OUTPUT_PROOF_DEFERRED))
+        self.assertIsNone(deferred["output_exists"])
+        self.assertEqual(completed_row_operator_status_state(deferred), "unverified")
+        with patch.object(Path, "exists", autospec=True, return_value=True), patch.object(
+            Path, "stat", autospec=True
+        ) as mock_stat:
+            mock_stat.return_value.st_mtime = 1.0
+            mock_stat.return_value.st_size = 2048
+            live = completed_record_to_row(_record(OUTPUT_PROOF_LIVE))
+        self.assertIs(live["output_exists"], True)
+        self.assertEqual(completed_row_operator_status_state(live), "match")
 
     def test_live_row_performs_real_proof_and_marks_live(self) -> None:
         record = _record(OUTPUT_PROOF_LIVE)

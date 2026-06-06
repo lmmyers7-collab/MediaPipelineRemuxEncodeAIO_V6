@@ -3,9 +3,9 @@ file: src/mediapipeline/contracts/config_validators.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: e746cdd45737e57405a4aa4db28ea35df60946bcdf2f204fe948280848c17108
+sha256: f017690f889e0bcb1bb05e746c699d3e75d3de7e41b61197f7a1b9ad95e28367
 ---
 # `src/mediapipeline/contracts/config_validators.py`
 

@@ -37,7 +37,7 @@ VOBSUB_CONFIG_KEYS = {
     "VobSubOcrTimeoutSeconds",
     "TreatVobSubSignsSongsAsForced",
 }
-VOBSUB_OCR_TOOL_DEFAULT = r"Tools\SubtitleEditLegacy\SubtitleEdit.exe"
+VOBSUB_OCR_TOOL_DEFAULT = r"tools\SubtitleEditLegacy\SubtitleEdit.exe"
 FRIENDLY_LABEL_KEYS = {
     "LibraryGoal",
     "WhatForcesAnEncode",
@@ -54,6 +54,14 @@ FRIENDLY_LABEL_KEYS = {
 EVIDENCE_ONLY_KEYS = {
     "library_effective_settings",
     "runtime_effective_settings",
+}
+REMOVED_ROUTING_FALLBACK_KEYS = {
+    "EncodeThresholdGB",
+    "TVEncodeThresholdGB",
+    "MovieRouteMaxVideoBitrateMbps",
+    "TVRouteMaxVideoBitrateMbps",
+    "Route1080pBucketMaxHeight",
+    "Route4KBucketMinHeight",
 }
 
 
@@ -75,25 +83,22 @@ class ConfigContractTests(unittest.TestCase):
 
         self.assertEqual(config.RoutingProfile, "plex_direct_stream")
         self.assertEqual(config.RouteThresholdMode, "compatibility_advisory")
-        self.assertEqual(config.MovieRoute1080pTargetSizeGB, config.EncodeThresholdGB)
-        self.assertEqual(config.MovieRoute1440pTargetSizeGB, config.EncodeThresholdGB)
-        self.assertEqual(config.MovieRoute4KTargetSizeGB, config.EncodeThresholdGB)
-        self.assertEqual(config.TVRoute1080pTargetSizeGB, config.TVEncodeThresholdGB)
-        self.assertEqual(config.TVRoute1440pTargetSizeGB, config.TVEncodeThresholdGB)
-        self.assertEqual(config.TVRoute4KTargetSizeGB, config.TVEncodeThresholdGB)
-        self.assertEqual(config.MovieRouteMaxVideoBitrateMbps, 35)
-        self.assertEqual(config.TVRouteMaxVideoBitrateMbps, 18)
-        self.assertEqual(config.Route1080pBucketMaxHeight, 1200)
+        self.assertEqual(config.MovieRoute1080pTargetSizeGB, 8)
+        self.assertEqual(config.MovieRoute1440pTargetSizeGB, 8)
+        self.assertEqual(config.MovieRoute4KTargetSizeGB, 8)
+        self.assertEqual(config.TVRoute1080pTargetSizeGB, 3)
+        self.assertEqual(config.TVRoute1440pTargetSizeGB, 3)
+        self.assertEqual(config.TVRoute4KTargetSizeGB, 3)
         self.assertAlmostEqual(config.Route1080pUpperHeightTolerancePercent, 11.111111, places=6)
         self.assertEqual(config.Route1080pMaxVideoBitrateMbps, 20)
         self.assertAlmostEqual(config.Route1440pLowerHeightTolerancePercent, 16.597222, places=6)
         self.assertAlmostEqual(config.Route1440pUpperHeightTolerancePercent, 24.930556, places=6)
         self.assertEqual(config.Route1440pMaxVideoBitrateMbps, 35)
         self.assertAlmostEqual(config.Route4KLowerHeightTolerancePercent, 16.666667, places=6)
-        self.assertEqual(config.Route4KBucketMinHeight, 1800)
         self.assertEqual(config.Route4KMaxVideoBitrateMbps, 35)
         self.assertEqual(config.ConsoleLogLevel, "DEBUG")
         self.assertEqual(data["OperatorLocalKey"], "preserve")
+        self.assertEqual(REMOVED_ROUTING_FALLBACK_KEYS & set(data), set())
 
     def test_friendly_display_labels_are_not_canonical_config_fields(self) -> None:
         friendly_aliases = {
@@ -114,7 +119,7 @@ class ConfigContractTests(unittest.TestCase):
         schema_path = REPO_ROOT / "ops" / "pipeline" / "config" / "schemas" / "media_pipeline_config.schema.json"
         pipeline_schema = json.loads(schema_path.read_text(encoding="utf-8"))
         generated_schema = Config.model_json_schema()
-        forbidden = FRIENDLY_LABEL_KEYS | EVIDENCE_ONLY_KEYS
+        forbidden = FRIENDLY_LABEL_KEYS | EVIDENCE_ONLY_KEYS | REMOVED_ROUTING_FALLBACK_KEYS
 
         self.assertEqual(set(Config.model_fields), config_keys.ALL_CONFIG_KEYS)
         self.assertEqual(forbidden & set(Config.model_fields), set())
@@ -359,17 +364,12 @@ class ConfigContractTests(unittest.TestCase):
             ("TVRoute1080pTargetSizeGB", 0),
             ("TVRoute1440pTargetSizeGB", 0),
             ("TVRoute4KTargetSizeGB", 0),
-            ("MovieRouteMaxVideoBitrateMbps", 0),
-            ("TVRouteMaxVideoBitrateMbps", -1),
-            ("MovieRouteMaxVideoBitrateMbps", 501),
-            ("Route1080pBucketMaxHeight", 0),
             ("Route1080pUpperHeightTolerancePercent", 101),
             ("Route1080pMaxVideoBitrateMbps", 0),
             ("Route1440pLowerHeightTolerancePercent", -1),
             ("Route1440pUpperHeightTolerancePercent", 101),
             ("Route1440pMaxVideoBitrateMbps", 501),
             ("Route4KLowerHeightTolerancePercent", -1),
-            ("Route4KBucketMinHeight", 0),
             ("Route4KMaxVideoBitrateMbps", 501),
             ("RouteThresholdMode", "unknown"),
             ("VideoCodec", "vp9"),
@@ -384,9 +384,6 @@ class ConfigContractTests(unittest.TestCase):
                 Config.model_validate({key: value})
 
         with self.assertRaises(Exception):
-            Config.model_validate({"Route1080pBucketMaxHeight": 1800, "Route4KBucketMinHeight": 1800})
-
-        with self.assertRaises(Exception):
             Config.model_validate(
                 {
                     "Route1080pUpperHeightTolerancePercent": 0,
@@ -398,16 +395,18 @@ class ConfigContractTests(unittest.TestCase):
 
     def test_legacy_height_only_config_derives_height_tolerance_percents(self) -> None:
         config = Config.model_validate({"Route1080pBucketMaxHeight": 1180, "Route4KBucketMinHeight": 1780})
+        data = config_to_flat_dict(config)
 
-        self.assertEqual(config.Route1080pBucketMaxHeight, 1180)
-        self.assertEqual(config.Route4KBucketMinHeight, 1780)
         self.assertAlmostEqual(config.Route1080pUpperHeightTolerancePercent, 9.259259, places=6)
         self.assertAlmostEqual(config.Route1440pLowerHeightTolerancePercent, 17.986111, places=6)
         self.assertAlmostEqual(config.Route1440pUpperHeightTolerancePercent, 23.541667, places=6)
         self.assertAlmostEqual(config.Route4KLowerHeightTolerancePercent, 17.592593, places=6)
+        self.assertNotIn("Route1080pBucketMaxHeight", data)
+        self.assertNotIn("Route4KBucketMinHeight", data)
 
     def test_legacy_movie_tv_size_targets_seed_resolution_size_targets(self) -> None:
         config = Config.model_validate({"EncodeThresholdGB": 9, "TVEncodeThresholdGB": 4})
+        data = config_to_flat_dict(config)
 
         self.assertEqual(config.MovieRoute1080pTargetSizeGB, 9)
         self.assertEqual(config.MovieRoute1440pTargetSizeGB, 9)
@@ -415,6 +414,8 @@ class ConfigContractTests(unittest.TestCase):
         self.assertEqual(config.TVRoute1080pTargetSizeGB, 4)
         self.assertEqual(config.TVRoute1440pTargetSizeGB, 4)
         self.assertEqual(config.TVRoute4KTargetSizeGB, 4)
+        self.assertNotIn("EncodeThresholdGB", data)
+        self.assertNotIn("TVEncodeThresholdGB", data)
 
     def test_resolution_size_targets_take_precedence_over_legacy_movie_tv_targets(self) -> None:
         config = Config.model_validate(
@@ -436,6 +437,7 @@ class ConfigContractTests(unittest.TestCase):
         self.assertEqual(config.TVRoute1080pTargetSizeGB, 2)
         self.assertEqual(config.TVRoute1440pTargetSizeGB, 5)
         self.assertEqual(config.TVRoute4KTargetSizeGB, 8)
+        self.assertEqual(REMOVED_ROUTING_FALLBACK_KEYS & set(config_to_flat_dict(config)), set())
 
     def test_height_tolerance_percent_keys_take_precedence_over_legacy_heights(self) -> None:
         config = Config.model_validate(
@@ -448,14 +450,17 @@ class ConfigContractTests(unittest.TestCase):
                 "Route4KLowerHeightTolerancePercent": 16.666667,
             }
         )
+        data = config_to_flat_dict(config)
 
-        self.assertEqual(config.Route1080pBucketMaxHeight, 1200)
-        self.assertEqual(config.Route4KBucketMinHeight, 1800)
+        self.assertAlmostEqual(config.Route1080pUpperHeightTolerancePercent, 11.111111, places=6)
+        self.assertAlmostEqual(config.Route4KLowerHeightTolerancePercent, 16.666667, places=6)
+        self.assertNotIn("Route1080pBucketMaxHeight", data)
+        self.assertNotIn("Route4KBucketMinHeight", data)
 
     def test_boolean_numeric_config_values_are_rejected_before_coercion(self) -> None:
         for key in (
-            "EncodeThresholdGB",
-            "Route1080pBucketMaxHeight",
+            "MovieRoute1080pTargetSizeGB",
+            "Route1080pUpperHeightTolerancePercent",
             "OutputSizeMultiplier",
             "ConfigSchemaVersion",
         ):

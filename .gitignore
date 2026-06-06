@@ -47,6 +47,7 @@ src/*.egg-info/
 
 # Local assistant/editor settings
 .claude/settings.local.json
+docs/archive/root-artifacts/
 
 # Pipeline runtime output/state
 ops/pipeline/*.log

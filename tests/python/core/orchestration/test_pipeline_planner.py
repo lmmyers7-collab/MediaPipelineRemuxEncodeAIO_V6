@@ -60,7 +60,7 @@ class PipelinePlannerTests(unittest.TestCase):
         self.assertEqual(plan.runtime_fallbacks[0].fallback_id, "remux-codec-recheck")
 
     def test_encode_plan_includes_dimensions_filters_audio_subtitles_and_container(self) -> None:
-        source = load_source("source_with_image_subtitles.json")
+        source = load_source("tv_h264_1080p_12mbps_mkv.json")
         decision = build_processing_decision(
             source,
             EffectiveDecisionPolicy(
@@ -81,7 +81,8 @@ class PipelinePlannerTests(unittest.TestCase):
         self.assertEqual(plan.route_summary, "ENCODE")
         self.assertIn("encode_video", operations)
         self.assertIn("transcode_audio", operations)
-        self.assertIn("burn_subtitle", operations)
+        self.assertIn("convert_subtitle", operations)
+        self.assertNotIn("burn_subtitle", operations)
         self.assertIn("mux_container", operations)
         self.assertEqual(video_step.details["codec"], "hevc_nvenc")
         self.assertEqual(video_step.details["targetMode"], "constant_quality")
@@ -92,6 +93,17 @@ class PipelinePlannerTests(unittest.TestCase):
         self.assertEqual(plan.runtime_fallbacks[0].fallback_id, "nvenc-cpu-fallback")
         self.assertTrue(any(guard.code == "OUTPUT_SIZE_CHECK" for guard in plan.verification_guards))
         self.assertEqual(plan.verification_result.output_size_check.action, "warn_only")
+
+    def test_rejected_mp4_image_subtitle_plan_has_no_command(self) -> None:
+        source = load_source("source_with_image_subtitles.json")
+        decision = build_processing_decision(source, EffectiveDecisionPolicy(output_container="mp4"))
+
+        plan = build_pipeline_plan(source, decision, plan_id="reject-image-subtitles")
+
+        self.assertEqual(plan.route_summary, "REJECT")
+        self.assertEqual(plan.publish_strategy, "no_publish")
+        self.assertEqual(step_operations(plan), ["no_command"])
+        self.assertEqual(plan.command_plans[0].steps[0].details["routeSummary"], "REJECT")
 
     def test_plan_from_preset_carries_effective_preset_snapshot_and_publish_strategy(self) -> None:
         source = load_source("movie_h264_1080p_30mbps_mkv.json")

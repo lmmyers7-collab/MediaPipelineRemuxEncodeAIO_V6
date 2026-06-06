@@ -73,11 +73,11 @@ is ambiguous, looks like a new top-level status/checklist/report, or appears to
 Minimum:
 
 ```powershell
-.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\suggest_doc_location.py --title "Release foundation phase plan" --kind implementation
-.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\check_active_doc_references.py
-.\apps\desktop\runtime\Python\python.exe .\ops\scripts\dev\check_architecture_guardrails.py
-.\apps\desktop\runtime\Python\python.exe .\src\mediapipeline\tools\lint_naming.py
-.\apps\desktop\runtime\Python\python.exe .\src\mediapipeline\tools\change_control\validate_changes.py --require-worktree-coverage
+.\apps\desktop\runtime\Python\python.exe -m mediapipeline.tools.dev.suggest_doc_location --title "Release foundation phase plan" --kind implementation
+.\apps\desktop\runtime\Python\python.exe -m mediapipeline.tools.dev.check_active_doc_references
+.\apps\desktop\runtime\Python\python.exe -m mediapipeline.tools.dev.check_architecture_guardrails
+.\apps\desktop\runtime\Python\python.exe -m mediapipeline.tools.lint_naming
+.\apps\desktop\runtime\Python\python.exe -m mediapipeline.tools.change_control.validate_changes --require-worktree-coverage
 ```
 
 If this phase changes only docs and helper tooling, do not run real-media

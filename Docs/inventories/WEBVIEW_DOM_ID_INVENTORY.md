@@ -1,10 +1,10 @@
 # WebView DOM ID Inventory
 
-Date: 2026-06-04
+Date: 2026-06-05
 
 Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `apps/desktop/webview/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 1407. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 1458. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -571,9 +571,10 @@ Risk: Low — additive only; new IDs for queue drawer UI
 
 This section is generated from `apps/desktop/webview/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 1407
+Count: 1458
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
+```text
 active-job-detail
 active-job-detail-rows
 active-job-detail-status
@@ -1089,6 +1090,52 @@ maintenance-toolchain-status
 maintenance-total-count
 maintenance-warning-count
 maintenance-warnings
+metrics-backfill-button
+metrics-backfill-detail
+metrics-data-produced
+metrics-encode-count
+metrics-evidence-status
+metrics-final-library-rows
+metrics-final-library-status
+metrics-overview-bars
+metrics-overview-status
+metrics-pending-bytes
+metrics-pending-state-rows
+metrics-pending-status
+metrics-production-bars
+metrics-production-detail
+metrics-production-status
+metrics-remux-count
+metrics-route-bars
+metrics-route-detail
+metrics-route-series-rows
+metrics-route-status
+metrics-source-add-button
+metrics-source-evidence
+metrics-source-label
+metrics-source-path
+metrics-sources-rows
+metrics-sources-status
+metrics-storage-bars
+metrics-storage-breakdown-rows
+metrics-storage-saved
+metrics-storage-status
+metrics-summary
+metrics-top-growth-rows
+metrics-top-growth-status
+metrics-top-savings-rows
+metrics-top-savings-status
+metrics-total-jobs
+metrics-worker-active
+metrics-worker-bars
+metrics-worker-coordinator
+metrics-worker-count
+metrics-worker-encoded-gb
+metrics-worker-role
+metrics-worker-rows
+metrics-worker-session-completed
+metrics-worker-session-failed
+metrics-worker-status
 network-api-status
 network-api-summary
 network-coordinator-target
@@ -1583,10 +1630,15 @@ settings-backend-result-legend
 settings-backend-result-rows
 settings-backend-result-status
 settings-backend-result-summary
+settings-bitrate-estimate-1080p
+settings-bitrate-estimate-1440p
+settings-bitrate-estimate-4k
 settings-boundary-1080p-end
+settings-boundary-1080p-end-readout
 settings-boundary-1440p-end
 settings-boundary-1440p-start
 settings-boundary-4k-start
+settings-boundary-4k-start-readout
 settings-builder-1080p-bucket-height
 settings-builder-1080p-route-bitrate
 settings-builder-1080p-upper-tolerance
@@ -1981,5 +2033,6 @@ wizard-subtitle-policy
 wizard-video-preset
 wizard-video-quality
 wizard-video-strategy
+```
 <!-- END GENERATED DOM ID MANIFEST -->
 

@@ -15,10 +15,17 @@ $ErrorActionPreference = 'Stop'
 
 $testsRoot = Split-Path -Parent $PSCommandPath
 $pipelineRoot = Split-Path -Parent (Split-Path -Parent $testsRoot)
-$auditScript = Join-Path $pipelineRoot 'Audit-MediaLibrary.ps1'
+$repoRoot = Split-Path -Parent (Split-Path -Parent $pipelineRoot)
+if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'AGENTS.md') -PathType Leaf)) {
+    throw "Unable to resolve repository root from $PSCommandPath."
+}
+if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine') -PathType Container)) {
+    throw "Resolved repository root is missing ops\pipeline\engine: $repoRoot"
+}
+$auditScript = Join-Path $pipelineRoot 'entrypoints\Audit-MediaLibrary.ps1'
 $legacyGuiScript = Join-Path $pipelineRoot 'MediaPipelineRemuxEncodeAIO_LegacyGUI.ps1'
-$configTemplate = Join-Path $pipelineRoot 'MediaPipeline_config_template.psd1'
-$defaultProfile = Join-Path $pipelineRoot 'Profiles\Default.psd1'
+$configTemplate = Join-Path $pipelineRoot 'config\MediaPipeline_config_template.psd1'
+$defaultProfile = Join-Path $pipelineRoot 'config\profiles\Default.psd1'
 
 function Assert-True {
     param(

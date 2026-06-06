@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/partials/page-settings.html
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: bd1554ad2f70716c447318410a44b7d584a356aea7ebefbc5acc614d51e115d6
+sha256: d1eb98a5508b0a6cc45ab91ffe5c09e5c52f3816cc2a85a42f4ec4c1d92b9776
 ---
 # `apps/desktop/webview/static/partials/page-settings.html`
 

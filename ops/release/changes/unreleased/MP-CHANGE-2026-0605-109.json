@@ -1,0 +1,38 @@
+{
+  "id": "MP-CHANGE-2026-0605-109",
+  "title": "Show Queue override marker after save",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-05",
+  "date_completed": "2026-06-05",
+  "summary": "Keeps the visible Queue table override marker in sync immediately after successful Queue file-override save and clear commands.",
+  "reason": "Operators need the Override chip to appear as soon as a per-file override is saved, even if the immediate queue refresh has not yet returned backend marker fields.",
+  "affected_areas": [
+    "webview-queue"
+  ],
+  "behavior_before": "Saving a per-file override could leave the Queue table row without the Override chip until a later queue snapshot or rebuild exposed backend marker fields.",
+  "behavior_after": "Successful file-override save, partial clear, and full clear commands update a local displayed marker overlay for the matching Queue row, while normal backend refresh still runs.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.api.js",
+    "apps/desktop/webview/static/assets/queueView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/queue/fileOverrides.drawer.api.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/queueView.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0605-109.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_queue_file_overrides_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0605-109.json",
+    "tests/webview/test_webview_browser_queue_file_overrides_smoke.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_queue_file_overrides_smoke -v - passed",
+    "git diff --check -- apps/desktop/webview/static/assets/queueView.js tests/webview/test_webview_browser_queue_file_overrides_smoke.py - passed with LF-to-CRLF warnings",
+    "node --check apps/desktop/webview/static/assets/queue/fileOverrides.drawer.api.js - passed",
+    "node --check apps/desktop/webview/static/assets/queueView.js - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserQueueFileOverridesSmoke.ps1 - passed"
+  ],
+  "rollback_plan": "Remove the displayed Queue file-override marker overlay and drawer callback wiring, then revert the focused browser smoke assertions for immediate marker save/clear behavior.",
+  "related_changes": [],
+  "notes": "Ensure saved file overrides update the visible Queue override marker immediately without adding frontend mutation authority.\nBundled Python lacks pytest in this workspace; focused browser smoke was run through unittest and the project PowerShell wrapper."
+}

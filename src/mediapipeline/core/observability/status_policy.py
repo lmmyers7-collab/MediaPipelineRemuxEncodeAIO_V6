@@ -63,7 +63,9 @@ ACTIVE_PROGRESS_STATES = (
 
 COMPLETE_PROGRESS_STATES = ("complete", "completed", "published", "deferred", "idle")
 
-FAILED_PROGRESS_STATES = ("failed", "error", "blocked", "stopped")
+HELD_PROGRESS_STATES = ("stopped",)
+
+FAILED_PROGRESS_STATES = ("failed", "error", "blocked")
 
 
 def application_capabilities() -> list[str]:
@@ -162,6 +164,8 @@ def progress_state_status(*values: str, stale: bool = False) -> str:
     text = " ".join(str(value or "").lower() for value in values)
     if any(token in text for token in FAILED_PROGRESS_STATES):
         return "blocked"
+    if any(token in text for token in HELD_PROGRESS_STATES):
+        return "warning"
     if any(token in text for token in ACTIVE_PROGRESS_STATES):
         return "active"
     if any(token in text for token in COMPLETE_PROGRESS_STATES):
@@ -549,6 +553,7 @@ __all__ = [
     "APP_CAPABILITIES",
     "ACTIVE_PROGRESS_STATES",
     "COMPLETE_PROGRESS_STATES",
+    "HELD_PROGRESS_STATES",
     "FAILED_PROGRESS_STATES",
     "application_capabilities",
     "int_from_mapping",

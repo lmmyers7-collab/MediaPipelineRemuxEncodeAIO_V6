@@ -42,6 +42,19 @@ def pending_manifest_row(manifest_path: Path) -> dict[str, Any]:
     output_size = pending_output_size(manifest, local_path)
     parked_at = contract.parked_at if contract else str(manifest.get("parked_at") or "").strip()
     state = contract.manifest_state if contract else str(manifest.get("manifest_state") or "").strip()
+    error_text = pending_payload_error_text(
+        local_path,
+        local_exists,
+        missing_sidecars,
+        server_path=server_path,
+        state=state,
+        known_states=PENDING_PUSH_MANIFEST_STATES,
+        require_destination=True,
+        require_state=True,
+    )
+    if not schema_version:
+        legacy_error = "Legacy pending manifest without schema_version cannot be drained automatically."
+        error_text = f"{legacy_error} {error_text}" if error_text else legacy_error
     return readable_pending_manifest_row(
         manifest_path=manifest_path,
         parked_at=parked_at,
@@ -56,14 +69,5 @@ def pending_manifest_row(manifest_path: Path) -> dict[str, Any]:
         sidecar_paths=sidecar_paths,
         missing_sidecars=missing_sidecars,
         schema_version=schema_version,
-        error_text=pending_payload_error_text(
-            local_path,
-            local_exists,
-            missing_sidecars,
-            server_path=server_path,
-            state=state,
-            known_states=PENDING_PUSH_MANIFEST_STATES,
-            require_destination=True,
-            require_state=True,
-        ),
+        error_text=error_text,
     )

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: 57628558ee5ef5b686205c046e854d371cee69d103a45030b918179cb75754d5
+sha256: b7f920b1919b9888ec9049680d6c104e953e9918321b591af0c2160c00668493
 ---
 # `ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1`
 

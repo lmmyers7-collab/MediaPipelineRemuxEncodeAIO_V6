@@ -6,7 +6,7 @@
 # ==============================================================================
 
 function Do-Remux {
-    param($file, [bool]$isTV, $tvInfo)
+    param($file, [bool]$isTV, $tvInfo, [switch] $FallbackFromOversizedEncode)
     $safeName   = Get-SafeLocalName $file.Name
     $localIn    = $null
     $paths      = $null
@@ -32,6 +32,7 @@ function Do-Remux {
                     $localIn = $null
                     return $false
                 }
+                $script:LastPublishResult = New-ExistingOutputPublishResult -SourceFile $file -OutputPath $paths.ServerOut
                 Write-Log "SKIP REMUX (exists on server): $(Split-Path $paths.ServerOut -Leaf)"
                 Clear-SourceFailureState $file
                 return $true
@@ -63,10 +64,14 @@ function Do-Remux {
             $srcCodec = Get-SourceVideoCodec $localIn
         }
         $codecRoutePlan = Resolve-RemuxCodecRoutePlan -SourceCodec $srcCodec -RemuxSafeVideoCodecs $RemuxSafeVideoCodecs -BasePlan $script:CurrentRoutePlan
-        $script:CurrentRoutePlan = $codecRoutePlan
-        $script:CurrentRouteReasonCode = [string]$codecRoutePlan.ReasonCode
-        $script:CurrentRouteReason = [string]$codecRoutePlan.Reason
         if ($codecRoutePlan.Route -eq 'encode') {
+            if ($FallbackFromOversizedEncode) {
+                Write-Log "REMUX FALLBACK: remux blocked by codec/policy check; keeping oversized encode with warning: $($codecRoutePlan.Reason)" "WARN"
+                return $false
+            }
+            $script:CurrentRoutePlan = $codecRoutePlan
+            $script:CurrentRouteReasonCode = [string]$codecRoutePlan.ReasonCode
+            $script:CurrentRouteReason = [string]$codecRoutePlan.Reason
             Write-Log "REMUX: $($codecRoutePlan.Reason)"
             # R7 fix — leave the scratch copy in place. Do-Encode calls
             # Ensure-ScratchCopy which is idempotent: it verifies the
@@ -81,6 +86,9 @@ function Do-Remux {
             $localIn = $null
             return Do-Encode $file $isTV $tvInfo
         }
+        $script:CurrentRoutePlan = $codecRoutePlan
+        $script:CurrentRouteReasonCode = [string]$codecRoutePlan.ReasonCode
+        $script:CurrentRouteReason = [string]$codecRoutePlan.Reason
 
         Set-ProgressStage -Stage 'remux_prepare' -Status $script:pipelineStatus -Route 'remux' -CopyState 'complete' -Percent 0 -SaveNow
         try {
@@ -381,6 +389,7 @@ function Do-Remux {
         return $false
     } finally {
         if ($tempAvFile)  { Remove-Item -LiteralPath $tempAvFile -Force -ErrorAction SilentlyContinue }
+        if ($FallbackFromOversizedEncode) { $localIn = $null }
         if ($localIn)     {
             Remove-Item -LiteralPath $localIn -Force -ErrorAction SilentlyContinue
             Remove-ScratchFingerprint $localIn

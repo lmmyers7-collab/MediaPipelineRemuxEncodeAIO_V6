@@ -26,6 +26,7 @@ def derive_missing_height_tolerance_fields(value: Any) -> Any:
     if not isinstance(value, dict):
         return value
     next_value = dict(value)
+    legacy_height_keys = ("Route1080pBucketMaxHeight", "Route4KBucketMinHeight")
     tolerance_keys = (
         "Route1080pUpperHeightTolerancePercent",
         "Route1440pLowerHeightTolerancePercent",
@@ -71,6 +72,8 @@ def derive_missing_height_tolerance_fields(value: Any) -> Any:
             return next_value
         next_value["Route1080pBucketMaxHeight"] = boundaries.route_1080p_max_height
         next_value["Route4KBucketMinHeight"] = boundaries.route_4k_min_height
+    for key in legacy_height_keys:
+        next_value.pop(key, None)
     return next_value
 
 
@@ -92,6 +95,13 @@ def derive_missing_resolution_size_targets(value: Any) -> Any:
         "TVRoute4KTargetSizeGB",
     ):
         next_value.setdefault(key, tv_size)
+    for key in (
+        "EncodeThresholdGB",
+        "TVEncodeThresholdGB",
+        "MovieRouteMaxVideoBitrateMbps",
+        "TVRouteMaxVideoBitrateMbps",
+    ):
+        next_value.pop(key, None)
     return next_value
 
 
@@ -105,11 +115,6 @@ def validate_cross_field_config_policy(config: Any) -> None:
     height_errors = validate_height_tolerance_boundaries(height_tolerances)
     if height_errors:
         raise ValueError("; ".join(height_errors))
-    boundaries = height_tolerance_boundaries(height_tolerances)
-    if config.Route1080pBucketMaxHeight != boundaries.route_1080p_max_height:
-        raise ValueError("Route1080pBucketMaxHeight must match the 1080p upper height tolerance.")
-    if config.Route4KBucketMinHeight != boundaries.route_4k_min_height:
-        raise ValueError("Route4KBucketMinHeight must match the 4K lower height tolerance.")
     if not config.ConvertTx3gToSrt and config.DropTx3gAfterConversion:
         raise ValueError("DropTx3gAfterConversion requires ConvertTx3gToSrt.")
     if not config.ConvertTx3gToSrt and config.CreateExternalTx3gSrtSidecars:

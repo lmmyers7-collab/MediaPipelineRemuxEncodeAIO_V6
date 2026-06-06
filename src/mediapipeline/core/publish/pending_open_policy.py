@@ -35,7 +35,7 @@ def optional_pending_publish_path(value: Any) -> Path | None:
 
 
 def pending_publish_open_path(row: Mapping[str, Any], target: str) -> Path | None:
-    if target == "local_file":
+    if target in {"play_local_file", "local_file"}:
         return optional_pending_publish_path(row.get("local_file"))
     if target == "manifest":
         return optional_pending_publish_path(row.get("manifest_path"))
@@ -142,10 +142,15 @@ def pending_publish_open_exception_result(target: str, row_key: str, path: Path,
 
 def pending_publish_open_success_result(target: str, row_key: str, path: Path) -> CommandResult:
     label = PENDING_PUBLISH_OPEN_TARGETS.get(target, target)
+    message = (
+        "Opened parked output playback with the default app."
+        if target == "play_local_file"
+        else f"Opened {label}."
+    )
     return _command_result(
         command=PENDING_PUBLISH_OPEN_COMMAND,
         ok=True,
-        message=f"Opened {label}.",
+        message=message,
         severity="info",
         data=pending_publish_open_result_data(target, row_key, path),
         refresh_hint="pending_publish",

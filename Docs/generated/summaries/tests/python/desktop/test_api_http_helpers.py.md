@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: 5d6d19ba6329a0550a9637dddb22fae0b3c87587fb7ad86c26cef26cf23e3415
+sha256: 49855c1366144b39becfb5e9027e99961b11214791f6887e11e8f47079c496e4
 ---
 # `tests/python/desktop/test_api_http_helpers.py`
 

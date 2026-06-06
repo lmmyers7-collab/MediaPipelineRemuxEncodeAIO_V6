@@ -20,13 +20,13 @@
         </div>
         <div class="settings-tab-bar completed-tab-bar" role="tablist" aria-label="Output Files sections">
           <button type="button" class="settings-tab-btn" role="tab" data-output-completed-tab="overview" aria-selected="false">Overview</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-output-page-target="pending" aria-selected="true">Publish</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-output-page-target="pending" aria-selected="true">Pending Publish</button>
           <button type="button" class="settings-tab-btn" role="tab" data-output-completed-tab="history" aria-selected="false">History</button>
           <button type="button" class="settings-tab-btn" role="tab" data-output-completed-tab="advanced" aria-selected="false">Advanced</button>
         </div>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Publish Guard Evidence</h2>
+            <h2>Pending Publish Guard Evidence</h2>
             <strong id="pending-drain-guard-status">Not evaluated</strong>
           </div>
           <div id="pending-drain-guard-summary" class="diagnostic-callout" aria-live="polite">
@@ -40,9 +40,17 @@
         </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Publish Parked Outputs</h2>
+            <h2>Pending Publish Drain</h2>
             <strong>Backend command</strong>
           </div>
+          <p class="note">Moves parked outputs only after backend validation. This command is related to completed files, but it is not completed-file acceptance.</p>
+          <div id="pending-drain-decision-chips" class="action-row action-row-left wrap-actions" aria-live="polite">
+            <span class="status-chip" data-status="blocked">Do not drain</span>
+            <span class="status-chip" data-status="warning">Review first</span>
+            <span class="status-chip" data-status="validation-needed">Evidence incomplete</span>
+            <span class="status-chip" data-status="ok">Ready-looking</span>
+          </div>
+          <pre id="pending-drain-overview" class="prose-block">No pending publish drain decision summary loaded.</pre>
           <div class="action-row action-row-left">
             <button type="button" id="pending-drain-button" class="danger-button">Publish Parked Outputs</button>
             <strong id="pending-drain-status">Idle</strong>
@@ -114,7 +122,7 @@
         </section>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Publish Checklist</h2>
+            <h2>Pending Publish Checklist</h2>
             <strong id="pending-validation-status">Not loaded</strong>
           </div>
           <pre id="pending-validation" class="prose-block">No pending publish validation checklist loaded.</pre>

@@ -13,7 +13,7 @@ from mediapipeline.core.config.constants import (
 from mediapipeline.core.config.library_profiles import effective_library_profile_for_source_path
 from mediapipeline.core.config.metadata_choices import CONFIG_LIST_CHOICES
 from mediapipeline.core.queue.file_overrides import normalize_file_override_path
-from mediapipeline.desktop.config_keys import (
+from mediapipeline.core.kernel.config_keys import (
     KEY_ENCODE_LADDER,
     KEY_ENCODE_TUNING_PRESET,
     KEY_OUTPUT_CONTAINER,

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/preset_encoding_sections.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-02
+last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: f1f8cc10dbaf5f1b8ca4d96bc2e8a79377e36f49ecbf12c978743c149224ce45
+sha256: 7cd15f41a31405a393bdc3039fb03e6ec722eb555ce32c90d10ad18de7e7e402
 ---
 # `src/mediapipeline/core/config/preset_encoding_sections.py`
 

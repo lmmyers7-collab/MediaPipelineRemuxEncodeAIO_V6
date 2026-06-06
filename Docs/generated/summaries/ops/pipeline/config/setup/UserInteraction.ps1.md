@@ -3,9 +3,9 @@ file: ops/pipeline/config/setup/UserInteraction.ps1
 pipeline_stage: setup
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: c16023555c5469878ae7356cea720138444561d73997f8da60f76c2b3729f80f
+sha256: 9b2c6e72ecfd83fcf28302f6e3eee5770bd5b0df3d4e72a53f1d04010fbe34b6
 ---
 # `ops/pipeline/config/setup/UserInteraction.ps1`
 

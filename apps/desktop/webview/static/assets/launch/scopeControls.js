@@ -47,7 +47,7 @@
     }
     const status = byId("pipeline-single-file-browse-status");
     if (status && !singleFile && selectedScope === "queue" && !state.pipelineFileBrowseInFlight) {
-      status.textContent = "Queue scope selected. Use Single File to stage one path.";
+      status.textContent = "Backend queue scope selected. This uses backend queue, schedule, and settings scope, not Queue tab visible or selected rows. Use Single File to stage one path.";
     }
   }
 

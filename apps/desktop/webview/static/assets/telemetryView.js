@@ -4,6 +4,8 @@
     gpu: [],
     ram: [],
   };
+  const TELEMETRY_REFRESH_SECONDS = 4;
+  const TELEMETRY_HISTORY_SECONDS = 120 * TELEMETRY_REFRESH_SECONDS;
 
   function pushTelemetryHistory(name, value) {
     const list = telemetryHistory[name];
@@ -100,9 +102,9 @@
   function telemetryGpuNote(telemetry) {
     const details = [];
     if (!telemetryGpuPresent(telemetry)) {
-      details.push("NVENC telemetry unavailable; encoder graph is retained but data source did not report a GPU.");
+      details.push("GPU video encoder telemetry unavailable. CPU/RAM data is still usable.");
     } else {
-      details.push("NVENC present.");
+      details.push("GPU video encoder telemetry available.");
     }
     if (telemetry.gpu_name) details.push(`Device: ${telemetry.gpu_name}`);
     if (telemetry.source) details.push(`Source: ${telemetry.source}`);
@@ -188,6 +190,11 @@
     return Number.isFinite(Number(value));
   }
 
+  function telemetryPercentNumber(value) {
+    if (!telemetryHasNumber(value)) return null;
+    return Math.max(0, Math.min(100, Number(value)));
+  }
+
   function telemetryGpuPresent(telemetry) {
     const rows = Array.isArray(telemetry?.gpu_rows) ? telemetry.gpu_rows : [];
     return Boolean(
@@ -198,33 +205,146 @@
     );
   }
 
-  function telemetryReadinessStatus(telemetry) {
-    if (!telemetry || typeof telemetry !== "object") return "Unavailable";
-    if (telemetry.error) return "Warning";
-    const age = telemetrySampleAgeSeconds(telemetry);
-    if (age !== null && age > 60) return "Stale";
-    const hasCpu = telemetryHasNumber(telemetry.cpu_percent);
-    const hasRam = telemetryHasNumber(telemetry.memory_percent);
-    const gpuPresent = telemetryGpuPresent(telemetry);
-    if (gpuPresent) {
-      return "Ready";
-    }
-    if (hasCpu || hasRam) return "CPU/RAM only";
-    return "Limited";
+  function telemetryHasUsefulValues(telemetry) {
+    return Boolean(
+      telemetryHasNumber(telemetry?.cpu_percent)
+      || telemetryHasNumber(telemetry?.memory_percent)
+      || telemetryGpuPresent(telemetry)
+    );
   }
 
-  function telemetryReadinessLines(telemetry) {
+  function telemetryActiveWork(snapshot) {
+    if (!snapshot || typeof snapshot !== "object") return false;
+    if (snapshot.active_work === true) return true;
+    const state = String(snapshot.pipeline_state || snapshot.state || snapshot.status || "").trim().toLowerCase();
+    if (["running", "processing", "encoding", "remuxing", "copying", "publishing", "active", "audit", "auditing", "starting", "stopping"].includes(state)) {
+      return true;
+    }
+    if (["idle", "stopped", "complete", "completed", "ready", "safe"].includes(state)) return false;
+    const progress = snapshot.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
+    const progressStatus = String(progress.Status || progress.status || progress.CurrentStage || "").trim().toLowerCase();
+    if (["running", "processing", "encoding", "remuxing", "copying", "publishing", "audit", "auditing"].some((token) => progressStatus.includes(token))) {
+      return true;
+    }
+    const currentWork = snapshot.current_work && typeof snapshot.current_work === "object" ? snapshot.current_work : {};
+    return [
+      currentWork.item_label,
+      currentWork.source_path,
+      currentWork.phase_label,
+      currentWork.route_label,
+      progress.CurrentDisplayName,
+      progress.CurrentFileDisplay,
+      progress.CleanDisplayName,
+    ].some((value) => String(value || "").trim());
+  }
+
+  function telemetryOperatingState(telemetry, options = {}) {
+    const payload = telemetry && typeof telemetry === "object" ? telemetry : {};
+    const snapshot = options && typeof options === "object" ? options.snapshot : null;
+    const age = telemetrySampleAgeSeconds(payload);
+    const cpu = telemetryPercentNumber(payload.cpu_percent);
+    const ram = telemetryPercentNumber(payload.memory_percent);
+    const encoder = telemetryPercentNumber(payload.gpu_encoder_percent);
+    const gpuPresent = telemetryGpuPresent(payload);
+    const active = telemetryActiveWork(snapshot);
+    const hasUsefulValues = telemetryHasUsefulValues(payload);
+    const base = (key, label, state, nextStep) => ({ key, label, state, nextStep, active, age });
+    if (payload.error) {
+      return base(
+        "degraded",
+        "Telemetry degraded",
+        "blocked",
+        "Telemetry is degraded. If hardware encoding is expected, inspect Maintenance GPU tools, Diagnostics nvidia-smi, and Video settings."
+      );
+    }
+    if (age !== null && age > 60) {
+      return base(
+        "stale",
+        "Telemetry stale",
+        "warning",
+        "Telemetry sample is stale. Check whether the backend sampler is running before trusting graph values."
+      );
+    }
+    if (!hasUsefulValues) {
+      return base(
+        "waiting",
+        "Waiting for telemetry",
+        "loading",
+        "Waiting for the first hardware telemetry sample. Refresh or open Diagnostics if telemetry remains empty."
+      );
+    }
+    if (ram !== null && ram >= 85) {
+      return base(
+        "memory-pressure",
+        "Memory pressure",
+        "warning",
+        "RAM pressure is high. Inspect active jobs and close unrelated apps before starting more work."
+      );
+    }
+    if (active && encoder !== null && encoder >= 80) {
+      return base(
+        "gpu-bound",
+        "GPU-bound encode",
+        "changed",
+        "The GPU video encoder is the likely bottleneck. Inspect encode progress and GPU Details if throughput is lower than expected."
+      );
+    }
+    if (active && cpu !== null && cpu >= 85 && (encoder === null || encoder < 20)) {
+      return base(
+        "cpu-bound",
+        "CPU-bound encode",
+        "warning",
+        "CPU is likely limiting the current job. Inspect the active job stage and whether this encode is using CPU fallback."
+      );
+    }
+    if (!active && cpu !== null && cpu < 20 && (ram === null || ram < 80) && (encoder === null || encoder === 0)) {
+      return base(
+        "idle",
+        "Idle",
+        "empty",
+        "No active work is reported; hardware usage looks idle."
+      );
+    }
+    if (!gpuPresent && (cpu !== null || ram !== null)) {
+      return base(
+        "cpu-ram-only",
+        "CPU/RAM only",
+        "warning",
+        "GPU video encoder telemetry is not available. CPU/RAM data is still usable. If hardware encoding is expected, inspect Maintenance GPU tools, Diagnostics nvidia-smi, and Video settings."
+      );
+    }
+    return base(
+      "normal",
+      "Monitoring normal",
+      "ok",
+      "No CPU, GPU video encoder, or RAM pressure is obvious from the current sample."
+    );
+  }
+
+  function telemetryReadinessStatus(telemetry, options = {}) {
+    return telemetryOperatingState(telemetry, options).label;
+  }
+
+  function telemetryChartMetaText(telemetry) {
+    const age = telemetrySampleAgeSeconds(telemetry);
+    return `0-100% | Last ~${Math.round(TELEMETRY_HISTORY_SECONDS / 60)} min | Refreshes every ${TELEMETRY_REFRESH_SECONDS}s | Sample age ${formatTelemetryAge(age)}`;
+  }
+
+  function telemetryReadinessLines(telemetry, options = {}) {
     if (!telemetry || typeof telemetry !== "object") {
       return [
         "Payload: unavailable",
         "Next step: Refresh the page or open Diagnostics if telemetry remains unavailable.",
       ];
     }
+    const operatingState = telemetryOperatingState(telemetry, options);
     const rows = Array.isArray(telemetry.gpu_rows) ? telemetry.gpu_rows : [];
     const age = telemetrySampleAgeSeconds(telemetry);
     const sampleTime = telemetry.sampled_at || telemetry.collected_at || telemetry.timestamp || "not reported";
     const gpuPresent = telemetryGpuPresent(telemetry);
     const lines = [
+      `Operating state: ${operatingState.label}`,
+      `Next step: ${operatingState.nextStep}`,
       "Payload: loaded",
       `Sample: ${sampleTime}`,
       `Age: ${formatTelemetryAge(age)}`,
@@ -232,28 +352,62 @@
       `CPU: ${telemetryHasNumber(telemetry.cpu_percent) ? formatPercent(telemetry.cpu_percent) : "unavailable"}`,
       `RAM: ${telemetryHasNumber(telemetry.memory_percent) ? formatPercent(telemetry.memory_percent) : "unavailable"}`,
       `GPU present: ${gpuPresent ? "yes" : "no"}`,
-      `NVENC: ${gpuPresent ? formatGpuEncoderPercent(telemetry.gpu_encoder_percent) : "unavailable"}`,
+      `Video encoder (NVENC): ${gpuPresent ? formatGpuEncoderPercent(telemetry.gpu_encoder_percent) : "unavailable"}`,
       `GPU rows: ${rows.length}`,
       ...telemetryGpuUsageDetailLines(telemetry),
     ];
     if (telemetry.error) lines.push(`Warning: ${telemetry.error}`);
-    if (age !== null && age > 60) {
-      lines.push("Next step: Telemetry sample is stale. Check whether the backend sampler is running before trusting graph values.");
-    } else if (!gpuPresent) {
-      lines.push("Next step: GPU telemetry is unavailable. CPU/RAM data may still be valid; use Diagnostics for nvidia-smi/tool health.");
-    } else {
-      lines.push("Next step: Telemetry is ready for operator monitoring.");
-    }
     return lines;
   }
 
-  function renderTelemetryReadiness(telemetry) {
-    const status = telemetryReadinessStatus(telemetry);
-    setText("telemetry-readiness-status", status);
-    setText("telemetry-readiness-summary", telemetryReadinessLines(telemetry).join("\n"));
+  function setTelemetryTextState(id, text, state) {
+    if (typeof setTextState === "function") {
+      setTextState(id, text, state);
+      return;
+    }
+    setText(id, text);
+    const node = byId(id);
+    if (node) node.dataset.state = state || "";
   }
 
-  function renderTelemetry(telemetry) {
+  function setTelemetryDatasetState(id, state) {
+    const node = byId(id);
+    if (node) node.dataset.state = state || "";
+  }
+
+  function renderTelemetryReadiness(telemetry, options = {}) {
+    const operatingState = telemetryOperatingState(telemetry, options);
+    setTelemetryTextState("telemetry-readiness-status", operatingState.label, operatingState.state);
+    setText("telemetry-operator-state-label", operatingState.label);
+    setText("telemetry-operator-next-step", operatingState.nextStep);
+    setTelemetryDatasetState("telemetry-operator-state", operatingState.key);
+    setText("telemetry-readiness-summary", telemetryReadinessLines(telemetry, options).join("\n"));
+  }
+
+  function telemetryKpiGpuStatus(telemetry) {
+    if (telemetry?.error) return "Degraded";
+    const age = telemetrySampleAgeSeconds(telemetry);
+    if (age !== null && age > 60) return "Stale";
+    if (telemetryGpuPresent(telemetry)) return "Available";
+    if (telemetryHasNumber(telemetry?.cpu_percent) || telemetryHasNumber(telemetry?.memory_percent)) return "Not available";
+    return "Waiting";
+  }
+
+  function renderTelemetryKpis(telemetry) {
+    setText("telemetry-kpi-cpu-value", telemetryHasNumber(telemetry?.cpu_percent) ? formatPercent(telemetry.cpu_percent) : "Unavailable");
+    setText("telemetry-kpi-encoder-value", telemetryGpuPresent(telemetry) ? formatGpuEncoderPercent(telemetry?.gpu_encoder_percent) : "Unavailable");
+    setText("telemetry-kpi-ram-value", telemetryHasNumber(telemetry?.memory_percent) ? formatPercent(telemetry.memory_percent) : "Unavailable");
+    setText("telemetry-kpi-gpu-status", telemetryKpiGpuStatus(telemetry));
+  }
+
+  function renderTelemetryChartMetadata(telemetry) {
+    const text = telemetryChartMetaText(telemetry);
+    setText("cpu-chart-meta", text);
+    setText("gpu-chart-meta", text);
+    setText("ram-chart-meta", text);
+  }
+
+  function renderTelemetry(telemetry, options = {}) {
     telemetry = telemetry && typeof telemetry === "object" ? telemetry : {};
     const cpu = telemetry.cpu_percent;
     const gpu = telemetry.gpu_encoder_percent;
@@ -265,12 +419,14 @@
     setText("gpu-value", telemetryGpuPresent(telemetry) ? formatGpuEncoderPercent(gpu) : "Unavailable");
     setText("ram-value", formatPercent(ram));
     setText("gpu-note", telemetryGpuNote(telemetry));
+    renderTelemetryKpis(telemetry);
+    renderTelemetryChartMetadata(telemetry);
     const colors = telemetryCanvasColors();
     drawTelemetryChart("cpu-chart", telemetryHistory.cpu, colors.cpu);
     drawTelemetryChart("gpu-chart", telemetryHistory.gpu, colors.gpu);
     drawTelemetryChart("ram-chart", telemetryHistory.ram, colors.ram);
     renderGpuRows(telemetry);
-    renderTelemetryReadiness(telemetry);
+    renderTelemetryReadiness(telemetry, options);
   }
 
   function renderGpuRows(telemetry) {
@@ -334,6 +490,9 @@
     telemetryGpuUsagePayload,
     telemetryGpuUsageSummaryLine,
     telemetryGpuUsageDetailLines,
+    telemetryActiveWork,
+    telemetryOperatingState,
+    telemetryChartMetaText,
     telemetryReadinessStatus,
     telemetryReadinessLines,
   };

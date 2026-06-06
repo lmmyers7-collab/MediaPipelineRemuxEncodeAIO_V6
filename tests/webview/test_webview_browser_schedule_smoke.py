@@ -116,12 +116,32 @@ def _browser_schedule_runner_source() -> str:
               () => Boolean(byId(todayInputId)) && text("schedule-editor-result").includes("No schedule preview"),
               "schedule editor initial render",
             );
+            const editHeading = Array.from(document.querySelectorAll('[data-page-panel="schedule"] h2')).map((node) => node.textContent || "");
+            if (editHeading.indexOf("Edit Schedule") < 0 || editHeading.indexOf("Current Schedule") < 0 || editHeading.indexOf("Edit Schedule") > editHeading.indexOf("Current Schedule")) {
+              throw new Error("Edit Schedule is not the first Schedule panel: " + JSON.stringify(editHeading));
+            }
             requireText("schedule-coverage-detail", ["Use Schedule Editor for backend-owned preview/save"]);
             requireText("schedule-editor-result", ["No schedule preview or save result loaded", "Backend validation owns time parsing"]);
+            requireText("schedule-editor-impact", ["Launch impact:", "Preview the draft before saving schedule changes"]);
+            requireText("schedule-editor-save-state", ["Preview required before save"]);
+            if (!byId("schedule-editor-save-button").disabled) {
+              throw new Error("Save Schedule should be disabled before backend preview.");
+            }
             requireText("schedule-guidance", ["Backend continuous watcher: idle"]);
             requireText("schedule-coverage-rows", ["Continuous watcher"]);
 
-            click("schedule-editor-clear-button");
+            const originalConfirm = window.confirm;
+            let bulkConfirmCount = 0;
+            window.confirm = () => {
+              bulkConfirmCount += 1;
+              return true;
+            };
+            try {
+              click("schedule-editor-clear-button");
+            } finally {
+              window.confirm = originalConfirm;
+            }
+            if (bulkConfirmCount !== 1) throw new Error("expected one bulk Schedule confirmation; got " + bulkConfirmCount);
             setCheckbox("schedule-editor-enabled", true);
             click("schedule-editor-" + today.toLowerCase() + "-block-18");
             click("schedule-editor-" + today.toLowerCase() + "-block-19");
@@ -141,6 +161,10 @@ def _browser_schedule_runner_source() -> str:
               () => text("schedule-editor-result").includes("Command: schedule.preview") && commandHistory("schedule.preview").length >= 1,
               "schedule preview command result",
             );
+            if (byId("schedule-editor-save-button").disabled) {
+              throw new Error("Save Schedule should be enabled after successful backend preview.");
+            }
+            requireText("schedule-editor-save-state", ["Preview accepted", "Save Schedule is available"]);
             requireText("schedule-editor-result", [
               "Command: schedule.preview",
               "Writes app state: no",
@@ -148,8 +172,18 @@ def _browser_schedule_runner_source() -> str:
               today + " is allowed all day.",
               "Mutation guardrail",
             ]);
+            click("schedule-editor-" + today.toLowerCase() + "-block-0");
+            if (!byId("schedule-editor-save-button").disabled) {
+              throw new Error("Save Schedule should be disabled after changing a previewed draft.");
+            }
+            requireText("schedule-editor-save-state", ["Draft changed", "Preview required"]);
+            click("schedule-editor-" + today.toLowerCase() + "-block-0");
+            click("schedule-editor-preview-button");
+            await waitFor(
+              () => commandHistory("schedule.preview").length >= 2 && !byId("schedule-editor-save-button").disabled,
+              "second schedule preview command result",
+            );
 
-            const originalConfirm = window.confirm;
             let confirmCount = 0;
             let confirmMessage = "";
             window.confirm = (message) => {

@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0605-121",
+  "title": "Compact route height target cards",
+  "version_target": "2026.06.05.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-05",
+  "date_completed": "2026-06-05",
+  "summary": "Compact the Settings route-height bucket cards by removing visible height-tolerance percent inputs and making encoded output-size units explicit.",
+  "reason": "The operator-facing route-height editor should keep the draggable height boundary controls prominent while reducing duplicate percent fields and labeling output size values with their GB unit.",
+  "affected_areas": [
+    "webview",
+    "settings_ui",
+    "generated_summaries",
+    "validation"
+  ],
+  "behavior_before": "Route bucket cards showed visible tolerance percent number inputs alongside the draggable height controls, and output-size labels relied on nearby text for units.",
+  "behavior_after": "Route bucket cards keep hidden tolerance fields for patch generation, show rounded grey derived percent readouts, place a GB unit suffix beside each encoded output-size input, and hide the 1440p top-rail range chip while leaving its output node available for JS updates.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settings/builderControls.js",
+    "apps/desktop/webview/static/assets/styles.pages.css",
+    "apps/desktop/webview/static/partials/page-settings.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settings/builderControls.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.pages.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-settings.html.md",
+    "docs/generated/summaries/tests/webview/test_webview_handbrake_settings_ui.py.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0605-121.json.md",
+    "tests/webview/test_webview_handbrake_settings_ui.py",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0605-121.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PASS: PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_handbrake_settings_ui.WebViewHandBrakeSettingsUiTests.test_routing_labels_are_visible_without_taxonomy_badges -q",
+    "PASS: PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_css_design_tokens tests.webview.test_webview_handbrake_settings_ui -q",
+    "PASS: PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_css_design_tokens tests.webview.test_webview_handbrake_settings_ui.WebViewHandBrakeSettingsUiTests.test_routing_labels_are_visible_without_taxonomy_badges tests.webview.test_webview_browser_settings_launch_smoke -q",
+    "PASS: Browser-backed compact route card smoke verified route tolerance controls remain type=hidden after renderSettings, output-size controls show GB, and derived percent readouts render as 11%, 17%, 25%, 17%.",
+    "PASS: powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewSettingsLaunchPolicySmoke.ps1",
+    "PASS: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/settings/builderControls.js apps/desktop/webview/static/assets/styles.pages.css apps/desktop/webview/static/partials/page-settings.html tests/webview/test_webview_handbrake_settings_ui.py ops/release/changes/unreleased/MP-CHANGE-2026-0605-121.json",
+    "FAIL: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage failed on unrelated dirty work: MP-CHANGE-2026-0605-010.json is missing date_completed.",
+    "INFO: In-app Browser plugin visual check could not run because the Playwright MCP Bridge extension connection timed out; Chromium CDP browser smokes were used as fallback evidence."
+  ],
+  "rollback_plan": "Restore the visible tolerance number fields and remove the route-card unit wrapper CSS, hidden-input preserve guard, and route-card static expectations.",
+  "related_changes": [
+    "MP-CHANGE-2026-0605-117"
+  ],
+  "notes": "No backend media policy, settings persistence, queue, publish, FFmpeg, subtitle, audio, source/scratch/output, or filesystem mutation behavior changed."
+}

@@ -23,6 +23,7 @@ PENDING_DRAIN_CONFIDENCE_SCHEMA_VERSION = "desktop_pending_drain_confidence.v1"
 PENDING_FILE_INVENTORY_SCHEMA_VERSION = "desktop_pending_publish_file_inventory.v1"
 
 PENDING_PUBLISH_OPEN_TARGETS = {
+    "play_local_file": "parked output playback",
     "local_file": "parked local payload",
     "manifest": "pending manifest",
     "destination_folder": "destination folder",

@@ -131,10 +131,15 @@ class ApiCommandContractsTests(unittest.TestCase):
             "/api/rename/apply": {"paths": [], "selected_sources": [], "confirm_apply": True, "selected_ids": ["1"]},
             "/api/settings/preview-patch": {"changes": {}, "values": {}},
             "/api/settings/save-patch": {"changes": {}, "confirm_save": True, "values": {}},
+            "/api/settings/wizard/save": {"wizard": {}, "confirm_save": True, "values": {}},
+            "/api/schedule/preview": {"enabled": True, "values": {}},
+            "/api/schedule/save": {"enabled": True, "confirm_save": True, "values": {}},
             "/api/maintenance/release-dry-run": {"destination_root": "C:/Deploy", "output_root": "C:/Other"},
             "/api/maintenance/release-build": {"destination_root": "C:/Deploy", "output_root": "C:/Other"},
             "/api/maintenance/completed-backfill-dry-run": {"timeout_seconds": 600, "output_root": "C:/Other"},
             "/api/maintenance/dependency-atlas": {"timeout_seconds": 600, "output_root": "C:/Other"},
+            "/api/metrics/sources": {"action": "add", "path": r"D:\Media", "label": "Drive D", "root": r"E:\Other"},
+            "/api/metrics/backfill": {"scope": "enabled", "recursive": True},
             "/api/final-library-promotion/promote-queue": {"confirm_promote": True, "row_key": "client-owned"},
             "/api/final-library-promotion/pause": {"run_id": "run-1", "row_key": "client-owned"},
             "/api/final-library-promotion/resume": {"run_id": "run-1", "row_key": "client-owned"},
@@ -233,6 +238,17 @@ class ApiCommandContractsTests(unittest.TestCase):
         )
         self.assertEqual(
             validate_api_payload(
+                "/api/metrics/sources",
+                {"action": "add", "path": r"D:\Media", "label": "Drive D", "enabled": True},
+            ),
+            {"action": "add", "path": r"D:\Media", "label": "Drive D", "enabled": True},
+        )
+        self.assertEqual(
+            validate_api_payload("/api/metrics/backfill", {"scope": "enabled", "max_sidecars": 100}),
+            {"scope": "enabled", "max_sidecars": 100},
+        )
+        self.assertEqual(
+            validate_api_payload(
                 "/api/settings/preview-patch",
                 {"changes": {}, "library_profile_resets": [{"library_id": "movies", "overrides": {"editor": ["RoutingProfile"]}}]},
             ),
@@ -285,10 +301,42 @@ class ApiCommandContractsTests(unittest.TestCase):
                 with self.assertRaises(ValidationFailure):
                     validate_api_payload("/api/queue/scan", {"force": value})
 
+    def test_settings_schedule_and_maintenance_booleans_require_strict_boolean(self) -> None:
+        cases = [
+            ("/api/settings/save-patch", "confirm_save", {"changes": {}}),
+            ("/api/settings/wizard/save", "confirm_save", {"wizard": {}}),
+            ("/api/schedule/preview", "enabled", {}),
+            ("/api/schedule/save", "enabled", {"confirm_save": True}),
+            ("/api/schedule/save", "confirm_save", {"enabled": True}),
+            ("/api/maintenance/release-dry-run", "zip_package", {"destination_root": "C:/Deploy"}),
+            ("/api/maintenance/release-dry-run", "verify", {"destination_root": "C:/Deploy"}),
+            ("/api/maintenance/release-dry-run", "include_tests", {"destination_root": "C:/Deploy"}),
+            ("/api/maintenance/release-dry-run", "include_dev_docs", {"destination_root": "C:/Deploy"}),
+            ("/api/maintenance/release-dry-run", "include_optional_tools", {"destination_root": "C:/Deploy"}),
+            ("/api/maintenance/release-dry-run", "include_tool_docs", {"destination_root": "C:/Deploy"}),
+            ("/api/maintenance/release-dry-run", "keep_personal_config", {"destination_root": "C:/Deploy"}),
+            ("/api/maintenance/release-build", "zip_package", {"destination_root": "C:/Deploy", "confirm_create": True}),
+            ("/api/maintenance/release-build", "verify", {"destination_root": "C:/Deploy", "confirm_create": True}),
+            ("/api/maintenance/release-build", "include_tests", {"destination_root": "C:/Deploy", "confirm_create": True}),
+            ("/api/maintenance/release-build", "include_dev_docs", {"destination_root": "C:/Deploy", "confirm_create": True}),
+            ("/api/maintenance/release-build", "include_optional_tools", {"destination_root": "C:/Deploy", "confirm_create": True}),
+            ("/api/maintenance/release-build", "include_tool_docs", {"destination_root": "C:/Deploy", "confirm_create": True}),
+            ("/api/maintenance/release-build", "keep_personal_config", {"destination_root": "C:/Deploy", "confirm_create": True}),
+            ("/api/maintenance/release-build", "force", {"destination_root": "C:/Deploy", "confirm_create": True}),
+            ("/api/maintenance/release-build", "confirm_create", {"destination_root": "C:/Deploy"}),
+            ("/api/metrics/sources", "enabled", {"action": "add", "path": r"D:\Media"}),
+        ]
+
+        for route, field, base_payload in cases:
+            for value in ("true", "false", 1, 0):
+                with self.subTest(route=route, field=field, value=value):
+                    with self.assertRaises(ValidationFailure):
+                        validate_api_payload(route, {**base_payload, field: value})
+
     def test_command_ownership_matrix_lists_every_post_command_route(self) -> None:
         matrix = (REPO_ROOT / "docs" / "inventories" / "COMMAND_OWNERSHIP_MATRIX.md").read_text(encoding="utf-8")
 
-        self.assertIn("Total command routes: 51 POST routes across 9 contract groups.", matrix)
+        self.assertIn("Total command routes: 53 POST routes across 10 contract groups.", matrix)
         for route in COMMAND_ROUTE_METHODS:
             with self.subTest(route=route):
                 self.assertIn(f"`POST {route}`", matrix)

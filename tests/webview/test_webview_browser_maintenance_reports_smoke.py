@@ -376,6 +376,9 @@ def _browser_maintenance_reports_runner_source() -> str:
             if (document.querySelector('[data-reports-tab="overview"]')) {
               throw new Error("Reports Overview tab should not be present.");
             }
+            if (document.querySelector('[data-reports-tab="files"]')?.textContent.trim() !== "Locations") {
+              throw new Error("Reports files tab key should render with the visible Locations label.");
+            }
             if (document.querySelector('[data-reports-tab="failures"]')?.getAttribute("aria-selected") !== "true") {
               throw new Error("Reports Failures tab was not selected by default.");
             }
@@ -621,9 +624,9 @@ def _browser_maintenance_reports_runner_source() -> str:
                 path: "C:/State/audit_ignore_manifest.json",
               },
             });
-            clickFirst('[data-reports-tab="files"]', "Reports Files tab");
+            clickFirst('[data-reports-tab="files"]', "Reports Locations tab");
             if (document.querySelector('[data-reports-tab="files"]')?.getAttribute("aria-selected") !== "true") {
-              throw new Error("Reports Files tab did not become selected.");
+              throw new Error("Reports Locations tab did not become selected.");
             }
             requireText("report-triage", [
               "Failure JSON: present",
@@ -634,12 +637,20 @@ def _browser_maintenance_reports_runner_source() -> str:
             ]);
             requireText("report-investigation-checklist", [
               "Reports investigation checklist:",
-              "Failure preview loaded: yes",
-              "Audit preview loaded: yes",
+              "Failure preview | Loaded",
+              "Audit preview | Loaded",
               "Suggested investigation order:",
             ]);
-            requireText("report-warnings", [
-              "No snapshot warnings.",
+            requireText("report-warning-rows", [
+              "fixture failure warning",
+              "fixture audit warning",
+              "Diagnostics",
+            ]);
+            requireText("report-triage-band-detail", [
+              "Next action:",
+              "Action owner:",
+              "Failure rows needing operator/permanent review: 1",
+              "Audit rerun/redownload/high-priority candidates: 2",
             ]);
             requireText("failure-review-board", [
               "Failure review board:",
@@ -665,6 +676,10 @@ def _browser_maintenance_reports_runner_source() -> str:
             requireText("failure-rows", [
               "Needs operator",
               "Broken Movie",
+              "Stage: source-stability",
+              "Code: source_locked",
+              "Class: operator_required",
+              "Manual review",
               "Wait for the source to stabilize before rerun.",
               "Open details",
               "Clear error",
@@ -699,6 +714,9 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Retry state",
               "Retry status: blocked",
               "Retry route/command: none_exposed",
+              "Owner routing",
+              "Evidence owner: Diagnostics",
+              "Action owner: Manual review",
               "Evidence",
             ]);
             window.confirm = () => true;
@@ -980,14 +998,22 @@ def _browser_maintenance_reports_runner_source() -> str:
             }
             requireText("audit-preview-status", ["1 selected"]);
             requireText("report-audit-export-status", ["1 selected"]);
+            requireText("audit-preview-rows", [
+              "RERUN_PIPELINE",
+              "subtitle_missing_srt",
+              "Launch CSV Rerun",
+            ]);
             clickFirst('#audit-preview-rows tr[data-row-key]', "audit row");
             requireText("audit-preview-detail", [
               "Reports audit selected row",
               "Bucket: RERUN_PIPELINE",
               "Issue: subtitle_missing_srt",
               "Suggested action: Rerun pipeline for preferred-language SRT.",
+              "Owner routing",
+              "Evidence owner: Diagnostics",
+              "Action owner: Launch CSV Rerun",
             ]);
-            clickFirst('[data-reports-tab="files"]', "Reports Files tab");
+            clickFirst('[data-reports-tab="files"]', "Reports Locations tab");
             requireText("report-triage", [
               "Failure rows: 1",
               "Audit rows: 1",

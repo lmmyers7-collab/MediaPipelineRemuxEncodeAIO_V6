@@ -35,7 +35,6 @@ Documents what a clean release package is expected to include and exclude. Sourc
 | File / Path | Included by default | Notes |
 |---|---|---|
 | `docs\README_MediaPipelineRemuxEncodeAIO.md` | Yes | Bundle overview and first-run order |
-| `docs\TLDR.md` | Yes | Operator daily-use summary |
 | `docs\testing\WEBVIEW_SMOKE_TEST_CATALOG.md` | Yes | Smoke wrapper catalog |
 | `docs\inventories\SMOKE_TEST_INVENTORY.md` | Yes | Canonical smoke wrapper location and boundary inventory |
 | `docs\testing\BROWSER_SMOKE_TEST_RUNBOOK.md` | Yes | Browser smoke runbook |
@@ -183,5 +182,5 @@ From the WebView, the operator can also trigger a release dry-run or build via *
 - Validation ladder: `docs/testing/VALIDATION_LADDER_RUNBOOK.md`
 - Packaging dependency inventory: `docs/inventories/PACKAGING_DEPENDENCY_INVENTORY.md`
 - PowerShell host expectations: `docs/operator/POWERSHELL_HOST_EXPECTATIONS.md`
-- TLDR release packaging section: `docs/TLDR.md`
+- Bundle release packaging overview: `docs/README_MediaPipelineRemuxEncodeAIO.md`
 

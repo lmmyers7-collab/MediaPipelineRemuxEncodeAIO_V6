@@ -179,10 +179,16 @@ def _browser_large_table_runner_source() -> str:
             requireText("queue-status", ["1 / 260 rows"]);
             requireText("queue-filter-summary", ["Hidden review rows: 1", "blocked/warning rows are currently hidden"]);
             requireText("queue-backend-scope-summary", [
-              "Backend launch scope preview:",
+              "Backend launch scope boundary:",
               "visible after filters: 1/260",
               "hidden blocked/review rows: 1/1",
               "Queue filters, row selection, and rendered table caps are not submitted as processing scope.",
+            ]);
+            requireText("queue-decision-summary", [
+              "Queue decision header:",
+              "Visible rows after display filters: 1/260",
+              "Hidden blocked/review rows: 1/1",
+              "Backend launch scope is owned by Launch",
             ]);
             requireText("queue-backend-scope-rows", [
               "Display filter vs launch scope",
@@ -235,6 +241,8 @@ def _browser_large_table_runner_source() -> str:
                 consistency_issues: blocked ? ["missing_output", "missing_sidecar"] : [],
                 size_growth_over_5: blocked,
                 size_delta_label: blocked ? "+110%" : "-5%",
+                audio_decision_count: blocked ? 2 : 1,
+                subtitle_decision_count: blocked ? 5 : 2,
                 operator_status: blocked ? "completed proof conflict" : "completed proof ready",
                 operator_trust_state: blocked ? "broken-output" : "ready",
                 operator_guidance: blocked ? "Inspect Completed Manifest and Pending Publish before rerun." : "Compare output proof if needed.",
@@ -304,7 +312,28 @@ def _browser_large_table_runner_source() -> str:
             clickRowContaining("#completed-output-acceptance-rows tr", "Display filter / backend action scope");
             requireText("completed-output-acceptance-detail", ["Current Output display filter / backend action scope", "hidden blocked rows: 0", "hidden review rows: 0", "Current Output filters never accept outputs"]);
             window.selectCompletedRow(completedRows[259]);
-            requireText("completed-selected-summary", ["Selected Completed row: Large Completed 260.mkv", "at-a-glance=Broken proof", "Filter visibility: Selected row visible in table: no", "Authority: this summary is read-only"]);
+            requireText("completed-selected-summary", [
+              "Large Completed 260.mkv",
+              "Output unavailable",
+              "Trust state: output unavailable",
+              "Primary concern",
+              "completed row points to a missing output",
+              "Recommended next check",
+              "Inspect Completed Manifest and Pending Publish before rerun.",
+              "Route",
+              "Encode",
+              "Size change",
+              "+110%",
+              "Audio tracks",
+              "2",
+              "Subtitle tracks",
+              "5",
+              "Current table visibility",
+              "Selected row visible in table: no",
+              "Policy / route reason",
+              "Paths",
+              "Authority: this summary is read-only",
+            ]);
             requireText("completed-detail", ["Large Completed 260", "Selected row visible in table: no", "not present in Current Output Status table", "text filter=\\"Large Completed 001\\"", "Mutation guardrail"]);
             if (!pressShortcut("3")) throw new Error("Output page shortcut should be handled");
             requireActivePage("completed");

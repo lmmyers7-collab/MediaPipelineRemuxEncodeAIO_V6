@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/preset_compatibility.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: d5d339a4b2588d3be3d892ef8146dbb618d5673498000bd9d6b5322e4a932b57
+sha256: dd65c4050c3675b8c5630815e8353f5bfce567efcee627d0dfa1a9df1a299049
 ---
 # `src/mediapipeline/core/config/preset_compatibility.py`
 

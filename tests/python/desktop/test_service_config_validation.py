@@ -39,8 +39,12 @@ def _valid_config_values() -> dict:
         "VideoCodec": "hevc_nvenc",
         "VideoPreset": "p5",
         "OutputContainer": "mkv",
-        "EncodeThresholdGB": 8,
-        "TVEncodeThresholdGB": 4,
+        "MovieRoute1080pTargetSizeGB": 8,
+        "MovieRoute1440pTargetSizeGB": 10,
+        "MovieRoute4KTargetSizeGB": 12,
+        "TVRoute1080pTargetSizeGB": 4,
+        "TVRoute1440pTargetSizeGB": 6,
+        "TVRoute4KTargetSizeGB": 8,
         "MinFreeSpaceGB": 20,
         "OutsourceMinFreeSpaceGB": 20,
         "VideoQuality": 22,
@@ -106,6 +110,23 @@ class ServiceConfigValidationTests(unittest.TestCase):
         )
 
         self.assertEqual(errors, [])
+        self.assertEqual(warnings, [])
+
+    def test_validate_config_values_rejects_case_variant_canonical_keys(self) -> None:
+        values = _valid_config_values()
+        values["routingprofile"] = "not-a-real-choice"
+
+        errors, warnings = validate_config_values(
+            values,
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        self.assertIn("Invalid settings key: 'routingprofile'; use canonical key RoutingProfile.", errors)
+        self.assertIn(
+            "Config contains duplicate keys for RoutingProfile: 'RoutingProfile' and 'routingprofile'; use only canonical key RoutingProfile.",
+            errors,
+        )
         self.assertEqual(warnings, [])
 
     def test_validate_config_values_allows_custom_blank_output_but_requires_source(self) -> None:
@@ -254,7 +275,7 @@ class ServiceConfigValidationTests(unittest.TestCase):
         self.assertEqual(errors, [])
         self.assertIn("LocalBase is inside SourceTV. Keep source, output, and scratch roots separated.", warnings)
 
-    def test_validate_config_values_warns_when_bdpgs_ocr_enabled_without_tool_path(self) -> None:
+    def test_validate_config_values_rejects_bdpgs_ocr_enabled_without_tool_path(self) -> None:
         values = _valid_config_values()
         values["ConvertBdpgsToSrt"] = True
         values["BdpgsOcrToolPath"] = " "
@@ -265,13 +286,39 @@ class ServiceConfigValidationTests(unittest.TestCase):
             path_within_root=_path_within_root,
         )
 
-        self.assertEqual(errors, [])
-        self.assertIn(
-            "BdpgsOcrToolPath is blank while ConvertBdpgsToSrt is enabled; BDPGS OCR will be blocked until a bundled or configured OCR tool path is saved.",
-            warnings,
-        )
+        self.assertIn("ConvertBdpgsToSrt requires BdpgsOcrToolPath.", errors)
+        self.assertEqual(warnings, [])
 
-    def test_validate_config_values_warns_when_vobsub_ocr_enabled_without_tool_path(self) -> None:
+    def test_validate_config_values_rejects_subtitle_drop_without_conversion(self) -> None:
+        cases = [
+            ("ConvertTx3gToSrt", False, "DropTx3gAfterConversion", True, "DropTx3gAfterConversion requires ConvertTx3gToSrt."),
+            (
+                "ConvertTx3gToSrt",
+                False,
+                "CreateExternalTx3gSrtSidecars",
+                True,
+                "CreateExternalTx3gSrtSidecars requires ConvertTx3gToSrt.",
+            ),
+            ("ConvertBdpgsToSrt", False, "DropBdpgsAfterConversion", True, "DropBdpgsAfterConversion requires ConvertBdpgsToSrt."),
+            ("ConvertVobSubToSrt", False, "DropVobSubAfterConversion", True, "DropVobSubAfterConversion requires ConvertVobSubToSrt."),
+        ]
+
+        for conversion_key, conversion_value, dependent_key, dependent_value, expected_error in cases:
+            with self.subTest(dependent_key=dependent_key):
+                values = _valid_config_values()
+                values[conversion_key] = conversion_value
+                values[dependent_key] = dependent_value
+
+                errors, warnings = validate_config_values(
+                    values,
+                    normalized_path_key=_path_key,
+                    path_within_root=_path_within_root,
+                )
+
+                self.assertIn(expected_error, errors)
+                self.assertEqual(warnings, [])
+
+    def test_validate_config_values_rejects_vobsub_ocr_enabled_without_tool_path(self) -> None:
         values = _valid_config_values()
         values["ConvertVobSubToSrt"] = True
         values["VobSubOcrToolPath"] = " "
@@ -282,11 +329,8 @@ class ServiceConfigValidationTests(unittest.TestCase):
             path_within_root=_path_within_root,
         )
 
-        self.assertEqual(errors, [])
-        self.assertIn(
-            "VobSubOcrToolPath is blank while ConvertVobSubToSrt is enabled; VobSub OCR will be blocked until Subtitle Edit 4.x SubtitleEdit.exe is configured.",
-            warnings,
-        )
+        self.assertIn("ConvertVobSubToSrt requires VobSubOcrToolPath.", errors)
+        self.assertEqual(warnings, [])
 
     def test_service_mixin_preserves_validation_wrapper_methods(self) -> None:
         service = _ConfigValidationWrapperService()
@@ -354,6 +398,32 @@ class ServiceConfigValidationTests(unittest.TestCase):
             "Library profile Movies override editor.ProcessingStrategy is not a supported library override key.",
             str(raised.exception),
         )
+
+    def test_save_config_document_rejects_contract_invalid_subtitle_policy_before_write(self) -> None:
+        service = _ConfigValidationWrapperService()
+        values = _valid_config_values()
+        values["ConvertTx3gToSrt"] = False
+        values["DropTx3gAfterConversion"] = True
+        document_text = service.serialize_psd1_document(values)
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            config_path = Path(raw_root) / "MediaPipelineConfig.psd1"
+            original_text = "@{ ConvertTx3gToSrt = $true }\n"
+            config_path.write_text(original_text, encoding="utf-8")
+
+            with self.assertRaises(ValueError) as raised:
+                service.save_config_document(
+                    config_path,
+                    document_text,
+                    True,
+                    config_values=values,
+                    powershell_host="powershell",
+                )
+
+            self.assertEqual(config_path.read_text(encoding="utf-8"), original_text)
+
+        self.assertIn("Config document failed validation before save", str(raised.exception))
+        self.assertIn("DropTx3gAfterConversion requires ConvertTx3gToSrt.", str(raised.exception))
 
 
 if __name__ == "__main__":

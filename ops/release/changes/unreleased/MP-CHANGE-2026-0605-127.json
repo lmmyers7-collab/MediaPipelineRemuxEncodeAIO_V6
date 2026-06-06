@@ -1,0 +1,43 @@
+{
+  "id": "MP-CHANGE-2026-0605-127",
+  "title": "Refresh Reports tab information architecture",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-05",
+  "date_completed": "2026-06-05",
+  "summary": "Refreshes the WebView Reports tab into an operator triage surface with owner-aware report discovery, richer failure/audit row context, actionable warnings, and Locations support evidence.",
+  "reason": "Operators needed faster report discovery and clearer separation between report evidence, Diagnostics handoff, and the owner pages where launch, rerun, publish, settings, or manual review decisions belong.",
+  "affected_areas": [
+    "reports",
+    "ui",
+    "webview"
+  ],
+  "behavior_before": "Reports opened with availability metrics and Failures/Audit/Files subtabs. Summary, warnings, paths, locations, and open history were hidden under Files, failure rows had limited context before detail, audit controls sat near audit evidence, and warnings rendered as plain text.",
+  "behavior_after": "Reports opens with a compact Report Triage band, keeps Failures and Audit distinct, renames the visible Files tab to Locations while preserving its tab key, adds filter chips and owner-aware row evidence, renders warnings as actionable rows, and keeps paths/open history as support evidence.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/reportsView.js",
+    "apps/desktop/webview/static/partials/page-reports.html",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0605-127.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0605-127.json",
+    "tests/python/desktop/test_reports_view_static.py",
+    "tests/webview/test_webview_browser_maintenance_reports_smoke.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_reports_view_static.py",
+    "tests/webview/test_webview_browser_maintenance_reports_smoke.py"
+  ],
+  "manual_validation": [
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_reports_view_static - passed",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_maintenance_reports_smoke - passed",
+    "node --check apps/desktop/webview/static/assets/reportsView.js - passed",
+    "npm run webview:check - passed",
+    "refresh_summaries targeted paths - passed",
+    "validate_changes --require-worktree-coverage - failed: unrelated packets MP-CHANGE-2026-0605-010/124 invalid and 50 unrelated dirty files uncovered",
+    "validate_changes --require-worktree-coverage - failed: unrelated packets MP-CHANGE-2026-0605-010/124 invalid and 53 unrelated dirty files uncovered"
+  ],
+  "rollback_plan": "Revert the Reports WebView partial, reportsView.js renderer changes, targeted Reports tests, and generated summary for this packet. No backend routes, schemas, media policy, or filesystem behavior changed.",
+  "related_changes": [],
+  "notes": "Implements plan reports-tab-ia-refresh-2026-06-06 as a WebView-only Reports tab IA refresh.\nReports tab now has a triage band, Locations label, filter chips, owner-aware row evidence, actionable warnings, collapsed open history, and targeted smoke/static coverage.\nStrict coverage failed on pre-existing unrelated worktree/package issues; Reports IA files touched by this change are listed in this packet.\nFinal strict coverage rerun still failed on unrelated packet validation errors and unrelated uncovered dirty files; Reports IA packet coverage remains current."
+}

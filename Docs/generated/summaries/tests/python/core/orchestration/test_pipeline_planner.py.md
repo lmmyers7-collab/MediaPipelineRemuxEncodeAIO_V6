@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: 30274f0d7593d2136d1affcf419d6040c2b075a0d88bed5744706df1b3bdde29
+sha256: f3ab64e9ef5021b34795d7e66008f7c1a9ba3b0772e6cf5ac7a39aeec364ab82
 ---
 # `tests/python/core/orchestration/test_pipeline_planner.py`
 

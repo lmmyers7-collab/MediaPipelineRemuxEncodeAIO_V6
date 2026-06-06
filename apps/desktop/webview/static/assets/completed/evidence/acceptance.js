@@ -1,5 +1,5 @@
 // completed/evidence/acceptance.js
-// Split child of completedView.evidence.js. Builds read-only output acceptance checklist evidence.
+// Split child of completedView.evidence.js. Builds read-only output acceptance readiness evidence.
 
 /* eslint-disable complexity, max-lines-per-function */
 (function () {
@@ -98,7 +98,7 @@
             evidence: payload.error ? `Completed history unavailable: ${payload.error}` : "No completed rows are loaded.",
             action: "Open Diagnostics > Completed Manifest and Run Logs before accepting, deleting, rerunning, or reprocessing any output.",
             detail: [
-              "Output acceptance checklist:",
+              "Output acceptance readiness:",
               "No completed row can be accepted from this WebView state.",
               "Mutation guardrail: this checklist does not accept, delete, rerun, reprocess, move, drain, or write files.",
             ],
@@ -128,7 +128,7 @@
             : "Use row detail and diagnostics as supporting evidence before accepting output.",
           completedRow: item,
           detail: [
-            "Output acceptance checklist:",
+            "Output acceptance readiness:",
             `Selected row: ${item ? completedProofRowLabel(item) : "none"}`,
             `Output path: ${completedProofCompletedOutputPath(item) || "unknown"}`,
             `Source path: ${completedProofCompletedSourcePath(item) || "unknown"}`,
@@ -217,7 +217,7 @@
       const list = Array.isArray(rows) ? rows : [];
       if (!list.length) return "No checklist";
       if (list.some((row) => completedAcceptancePostureStatus(row.posture) === "blocked")) return "Blocked review";
-      if (list.some((row) => completedAcceptancePostureStatus(row.posture) === "warning")) return "Review before accepting";
+      if (list.some((row) => completedAcceptancePostureStatus(row.posture) === "warning")) return "Review before trusting";
       if (list.some((row) => completedAcceptancePostureStatus(row.posture) === "changed")) return "Read evidence";
       if (list.some((row) => completedAcceptancePostureStatus(row.posture) === "unknown")) return "Select row";
       return "Read-only";
@@ -229,21 +229,21 @@
       const review = list.filter((row) => completedAcceptancePostureStatus(row.posture) === "warning").length;
       const readFirst = list.filter((row) => completedAcceptancePostureStatus(row.posture) === "changed").length;
       const unknown = list.filter((row) => completedAcceptancePostureStatus(row.posture) === "unknown").length;
-      const outcome = blocked ? "Blocked review" : review ? "Review before accepting" : readFirst ? "Read evidence" : unknown ? "Select row" : list.length ? "Read-only" : "No checklist";
+      const outcome = blocked ? "Blocked review" : review ? "Review before trusting" : readFirst ? "Read evidence" : unknown ? "Select row" : list.length ? "Read-only" : "No readiness";
       const lines = [
-        "Completed output acceptance checklist:",
+        "Completed output acceptance readiness:",
         `Daily-use handoff: Completed evidence supports an operator trust decision; it does not mark output accepted or perform cleanup. Operator outcome: ${outcome}.`,
         `Checkpoints loaded: ${list.length}`,
         `Blocked checkpoints: ${blocked}`,
         `Review checkpoints: ${review}`,
         `Read-first checkpoints: ${readFirst}`,
-        "Decision rule: acceptance requires display filter scope, output/sidecar proof, route/size explanation, pending-publish proof, and recent command evidence to agree.",
+        "Decision rule: readiness requires display filter scope, output/sidecar proof, route/size explanation, pending-publish proof, and recent command evidence to agree.",
         "Scope boundary: Current Output filters, Completed History filters, selected rows, proof boards, and rendered row caps never accept outputs, delete files, rerun jobs, repair manifests, or change pending-publish state.",
       ];
       if (blocked) {
         lines.push("First action: do not rerun, delete, cleanup, drain, or reprocess until blocked proof is explained.");
       } else if (review) {
-        lines.push("First action: read the review rows, then compare Completed Manifest, Run Logs, Last Stderr, and Pending Publish before accepting output.");
+        lines.push("First action: read the review rows, then compare Completed Manifest, Run Logs, Last Stderr, and Pending Publish before trusting output.");
       } else {
         lines.push("First action: use this as read-only confidence support; backend state remains authoritative.");
       }
@@ -254,13 +254,13 @@
     function completedAcceptanceDetailLines(item) {
       if (!item) {
         return [
-          "Completed output acceptance checklist:",
-          "Select a completed output acceptance checkpoint for detail.",
+          "Completed output acceptance readiness:",
+          "Select a completed output readiness checkpoint for detail.",
           "Mutation guardrail: no action is performed from this detail panel.",
         ];
       }
       const lines = [
-        "Completed output acceptance checklist:",
+        "Completed output acceptance readiness:",
         `Checkpoint: ${item.checkpoint || "unknown"}`,
         `Posture: ${item.posture || "read-only"}`,
         `Evidence: ${item.evidence || ""}`,

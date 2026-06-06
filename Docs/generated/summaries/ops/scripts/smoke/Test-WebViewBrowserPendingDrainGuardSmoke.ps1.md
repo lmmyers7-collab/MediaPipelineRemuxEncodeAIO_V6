@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: scripts
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: 755c43dfb1f5cf4d70abc2fc30defa013e352b110fbfb59f4687a983b5a81cda
+sha256: 1d6d8ec1d5cd4e76adf9dd409ef25fcd3f6dee97925549af3ff2813053f1aeb5
 ---
 # `ops/scripts/smoke/Test-WebViewBrowserPendingDrainGuardSmoke.ps1`
 

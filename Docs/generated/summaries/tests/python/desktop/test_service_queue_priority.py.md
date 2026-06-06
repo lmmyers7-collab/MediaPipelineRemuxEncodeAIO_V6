@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: 04e79b915bac6c44f2a0be001c04d19d5e9c7a8b9d6a645930c2fc8b5b280c56
+sha256: 8aac962dd4a19ad17c6b927e008bb963268c050cb9946f3b37c461a530777f83
 ---
 # `tests/python/desktop/test_service_queue_priority.py`
 

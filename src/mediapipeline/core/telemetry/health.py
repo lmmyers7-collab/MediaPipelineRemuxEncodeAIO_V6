@@ -48,21 +48,30 @@ SUBTITLE_LANGUAGE_MAP = {
     "ko": "kor",
 }
 
-BDPGS_OCR_TOOL_DEFAULT = r"Tools\PgsToSrt\PgsToSrt.exe"
-BDPGS_OCR_TESSDATA_DEFAULT = r"Tools\PgsToSrt\tessdata"
-VOBSUB_OCR_TOOL_DEFAULT = r"Tools\SubtitleEditLegacy\SubtitleEdit.exe"
+BDPGS_OCR_TOOL_DEFAULT = r"tools\PgsToSrt\PgsToSrt.exe"
+BDPGS_OCR_TESSDATA_DEFAULT = r"tools\PgsToSrt\tessdata"
+VOBSUB_OCR_TOOL_DEFAULT = r"tools\SubtitleEditLegacy\SubtitleEdit.exe"
 DEFAULT_SUBTITLE_OCR_LANGUAGES = ("eng", "en", "und")
 
 VOBSUB_TESSERACT_CANDIDATES = (
-    r"Tools\SubtitleEditLegacy\Tesseract550\tesseract.exe",
-    r"Tools\SubtitleEditLegacy\Tesseract-OCR\tesseract.exe",
-    r"Tools\SubtitleEditLegacy\Tesseract302\tesseract.exe",
-    r"Tools\SubtitleEditLegacy\Tesseract\tesseract.exe",
-    r"Tools\SubtitleEdit\Tesseract550\tesseract.exe",
-    r"Tools\SubtitleEdit\Tesseract-OCR\tesseract.exe",
-    r"Tools\SubtitleEdit\Tesseract\tesseract.exe",
-    r"Tools\Tesseract-OCR\tesseract.exe",
-    r"Tools\Tesseract\tesseract.exe",
+    r"tools\SubtitleEditLegacy\Tesseract550\tesseract.exe",
+    r"tools\SubtitleEditLegacy\Tesseract-OCR\tesseract.exe",
+    r"tools\SubtitleEditLegacy\Tesseract302\tesseract.exe",
+    r"tools\SubtitleEditLegacy\Tesseract\tesseract.exe",
+    r"tools\SubtitleEdit\Tesseract550\tesseract.exe",
+    r"tools\SubtitleEdit\Tesseract-OCR\tesseract.exe",
+    r"tools\SubtitleEdit\Tesseract\tesseract.exe",
+    r"tools\Tesseract-OCR\tesseract.exe",
+    r"tools\Tesseract\tesseract.exe",
+    r"SubtitleEditLegacy\Tesseract550\tesseract.exe",
+    r"SubtitleEditLegacy\Tesseract-OCR\tesseract.exe",
+    r"SubtitleEditLegacy\Tesseract302\tesseract.exe",
+    r"SubtitleEditLegacy\Tesseract\tesseract.exe",
+    r"SubtitleEdit\Tesseract550\tesseract.exe",
+    r"SubtitleEdit\Tesseract-OCR\tesseract.exe",
+    r"SubtitleEdit\Tesseract\tesseract.exe",
+    r"Tesseract-OCR\tesseract.exe",
+    r"Tesseract\tesseract.exe",
 )
 
 TOOL_HEALTH_DEFINITIONS = (

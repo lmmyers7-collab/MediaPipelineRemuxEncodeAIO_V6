@@ -44,17 +44,17 @@
       setNetworkBuilderControl("settings-network-worker-overrides", "WorkerConfigOverrides", "json_text", "");
       networkSettingsBuilderState.initialized = true;
       networkSettingsBuilderState.dirty = false;
-      setText("settings-network-builder-status", "Loaded current values");
+      setText("settings-network-builder-status", "Staged Patch: none (saved values loaded)");
       renderNetworkSettingsBuilderGuidance();
-      window.mediaPipelineNetworkView?.renderNetworkSettingsPatchHandoff?.("Worker mode controls loaded from saved backend settings.");
+      window.mediaPipelineNetworkView?.renderNetworkSettingsPatchHandoff?.("Saved Worker Mode Settings loaded from saved backend settings.");
     }
 
     function markNetworkSettingsBuilderDirty() {
       networkSettingsBuilderState.initialized = true;
       networkSettingsBuilderState.dirty = true;
-      setText("settings-network-builder-status", "Editing network values");
+      setText("settings-network-builder-status", "Staged Patch: dirty local edits");
       renderNetworkSettingsBuilderGuidance();
-      window.mediaPipelineNetworkView?.renderNetworkSettingsPatchHandoff?.("Worker mode settings changed locally. Stage, preview, and save before relying on them.");
+      window.mediaPipelineNetworkView?.renderNetworkSettingsPatchHandoff?.("Saved Worker Mode Settings changed locally. Stage, preview, and save before relying on them.");
     }
 
     function readNetworkJsonText(id, label) {
@@ -105,7 +105,7 @@
         patch = collectNetworkSettingsBuilderPatch();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        setText("settings-network-builder-status", "Invalid network value");
+        setText("settings-network-builder-status", "Staged Patch: invalid network value");
         setText("settings-patch-status", "Builder invalid");
         setText("settings-patch-detail", message);
         return;
@@ -113,17 +113,17 @@
       writeSettingsPatchJson(patch, "Workers tab merged role, coordinator, worker, and path-map keys into Changes JSON. Preview or Save still uses backend validation.");
       networkSettingsBuilderState.initialized = true;
       networkSettingsBuilderState.dirty = true;
-      setText("settings-network-builder-status", `${Object.keys(patch).length} network patch keys ready`);
+      setText("settings-network-builder-status", `Staged Patch: ${Object.keys(patch).length} network keys ready`);
       renderNetworkSettingsBuilderGuidance();
-      window.mediaPipelineNetworkView?.renderNetworkSettingsPatchHandoff?.("Worker mode settings staged into the shared Settings patch JSON.");
+      window.mediaPipelineNetworkView?.renderNetworkSettingsPatchHandoff?.("Saved Worker Mode Settings staged into the shared Settings patch JSON.");
     }
 
     function renderNetworkSettingsBuilderGuidance() {
       const role = settingsBuilderInputValue("settings-network-role") || "standalone";
       const lines = [
         `Role: ${formatSettingsChoiceLabel(role)}`,
-        "Location: these controls live on the Workers tab because they affect coordinator, standalone, and worker behavior.",
-        "Lifecycle guardrail: this builder only stages config values. Start/stop coordinator and worker runtime remains backend-owned during the transition.",
+        "Purpose: this builder stages saved config values for standalone, coordinator, and worker behavior.",
+        "Lifecycle guardrail: this builder only stages config values. Coordinator/worker runtime command controls remain backend-owned during the transition.",
         "Auth-token guardrail: CoordinatorAuthToken and WorkerAuthToken are intentionally excluded from this builder to avoid accidental token churn.",
       ];
       networkSettingsBuilderFields.forEach(([key, id, kind]) => {

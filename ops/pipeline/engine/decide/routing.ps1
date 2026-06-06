@@ -14,8 +14,6 @@ function Resolve-MediaRouteBySize {
     param(
         [Parameter(Mandatory)] [long] $FileSizeBytes,
         [bool] $IsTV = $false,
-        [Parameter(Mandatory)] [double] $MovieThresholdGB,
-        [Parameter(Mandatory)] [double] $TVThresholdGB,
         [double] $MovieRoute1080pTargetSizeGB = 0.0,
         [double] $MovieRoute1440pTargetSizeGB = 0.0,
         [double] $MovieRoute4KTargetSizeGB = 0.0,
@@ -34,16 +32,12 @@ function Resolve-MediaRouteBySize {
         [bool] $AllowH264RemuxIfPlexCompatible = $true,
         [double] $H264RemuxMaxBitrateMbps = 35.0,
         [int] $H264RemuxMaxHeight = 1080,
-        [double] $MovieRouteMaxVideoBitrateMbps = 35.0,
-        [double] $TVRouteMaxVideoBitrateMbps = 18.0,
-        [int] $Route1080pBucketMaxHeight = 1200,
         [double] $Route1080pUpperHeightTolerancePercent = 11.111111,
         [double] $Route1080pMaxVideoBitrateMbps = 20.0,
         [double] $Route1440pLowerHeightTolerancePercent = 16.597222,
         [double] $Route1440pUpperHeightTolerancePercent = 24.930556,
         [double] $Route1440pMaxVideoBitrateMbps = 35.0,
         [double] $Route4KLowerHeightTolerancePercent = 16.666667,
-        [int] $Route4KBucketMinHeight = 1800,
         [double] $Route4KMaxVideoBitrateMbps = 35.0
     )
 
@@ -73,38 +67,40 @@ function Resolve-MediaRouteBySize {
     }
     $duration = [math]::Max(0.0, [double]$DurationSeconds)
     $estimatedBitrate = if ($duration -gt 0) { [math]::Round((([double]$FileSizeBytes * 8.0) / $duration) / 1000000.0, 3) } else { 0.0 }
+    $routeHeightBoundaries = Get-MediaRouteHeightToleranceBoundaries `
+        -Route1080pUpperHeightTolerancePercent $Route1080pUpperHeightTolerancePercent `
+        -Route1440pLowerHeightTolerancePercent $Route1440pLowerHeightTolerancePercent `
+        -Route1440pUpperHeightTolerancePercent $Route1440pUpperHeightTolerancePercent `
+        -Route4KLowerHeightTolerancePercent $Route4KLowerHeightTolerancePercent
+    if (-not $routeHeightBoundaries.IsContiguous) {
+        $routeHeightBoundaries = Get-MediaRouteHeightToleranceBoundaries
+    }
     $bitrateSelection = if ($null -ne $hints.max_video_bitrate_mbps) {
         [pscustomobject]([ordered]@{
             CapMbps                  = [double]$hints.max_video_bitrate_mbps
             Source                   = 'folder_policy'
             Bucket                   = 'explicit_override'
             Height                   = [int]$VideoHeight
-            Route1080pBucketMaxHeight = [int]$Route1080pBucketMaxHeight
-            Route1440pBucketMinHeight = 0
-            Route1440pBucketMaxHeight = 0
-            Route4KBucketMinHeight   = [int]$Route4KBucketMinHeight
+            Route1080pBucketMaxHeight = [int]$routeHeightBoundaries.Route1080pMaxHeight
+            Route1440pBucketMinHeight = [int]$routeHeightBoundaries.Route1440pMinHeight
+            Route1440pBucketMaxHeight = [int]$routeHeightBoundaries.Route1440pMaxHeight
+            Route4KBucketMinHeight   = [int]$routeHeightBoundaries.Route4KMinHeight
         })
     } else {
         Resolve-MediaRouteResolutionBitrateSelection `
             -VideoHeight $VideoHeight `
             -IsTV:$IsTV `
-            -MovieRouteMaxVideoBitrateMbps $MovieRouteMaxVideoBitrateMbps `
-            -TVRouteMaxVideoBitrateMbps $TVRouteMaxVideoBitrateMbps `
-            -Route1080pBucketMaxHeight $Route1080pBucketMaxHeight `
             -Route1080pUpperHeightTolerancePercent $Route1080pUpperHeightTolerancePercent `
             -Route1080pMaxVideoBitrateMbps $Route1080pMaxVideoBitrateMbps `
             -Route1440pLowerHeightTolerancePercent $Route1440pLowerHeightTolerancePercent `
             -Route1440pUpperHeightTolerancePercent $Route1440pUpperHeightTolerancePercent `
             -Route1440pMaxVideoBitrateMbps $Route1440pMaxVideoBitrateMbps `
             -Route4KLowerHeightTolerancePercent $Route4KLowerHeightTolerancePercent `
-            -Route4KBucketMinHeight $Route4KBucketMinHeight `
             -Route4KMaxVideoBitrateMbps $Route4KMaxVideoBitrateMbps
     }
     $sizeSelection = Resolve-MediaRouteResolutionSizeSelection `
         -VideoHeight $VideoHeight `
         -IsTV:$IsTV `
-        -MovieThresholdGB $MovieThresholdGB `
-        -TVThresholdGB $TVThresholdGB `
         -MovieRoute1080pTargetSizeGB $MovieRoute1080pTargetSizeGB `
         -MovieRoute1440pTargetSizeGB $MovieRoute1440pTargetSizeGB `
         -MovieRoute4KTargetSizeGB $MovieRoute4KTargetSizeGB `
@@ -330,32 +326,24 @@ function Resolve-InitialMediaRoutePlan {
     $allowH264Remux = if (Get-Variable -Name AllowH264RemuxIfPlexCompatible -Scope Script -ErrorAction SilentlyContinue) { [bool]$script:AllowH264RemuxIfPlexCompatible } else { $true }
     $h264MaxBitrate = if (Get-Variable -Name H264RemuxMaxBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:H264RemuxMaxBitrateMbps } else { 35.0 }
     $h264MaxHeight = if (Get-Variable -Name H264RemuxMaxHeight -Scope Script -ErrorAction SilentlyContinue) { [int]$script:H264RemuxMaxHeight } else { 1080 }
-    $movieFallbackTargetSize = if (Get-Variable -Name EncodeThresholdGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:EncodeThresholdGB } else { 8.0 }
-    $tvFallbackTargetSize = if (Get-Variable -Name TVEncodeThresholdGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVEncodeThresholdGB } else { 3.0 }
-    $movieRoute1080pTargetSize = if (Get-Variable -Name MovieRoute1080pTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:MovieRoute1080pTargetSizeGB } else { $movieFallbackTargetSize }
-    $movieRoute1440pTargetSize = if (Get-Variable -Name MovieRoute1440pTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:MovieRoute1440pTargetSizeGB } else { $movieFallbackTargetSize }
-    $movieRoute4kTargetSize = if (Get-Variable -Name MovieRoute4KTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:MovieRoute4KTargetSizeGB } else { $movieFallbackTargetSize }
-    $tvRoute1080pTargetSize = if (Get-Variable -Name TVRoute1080pTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVRoute1080pTargetSizeGB } else { $tvFallbackTargetSize }
-    $tvRoute1440pTargetSize = if (Get-Variable -Name TVRoute1440pTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVRoute1440pTargetSizeGB } else { $tvFallbackTargetSize }
-    $tvRoute4kTargetSize = if (Get-Variable -Name TVRoute4KTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVRoute4KTargetSizeGB } else { $tvFallbackTargetSize }
-    $movieRouteMaxBitrate = if (Get-Variable -Name MovieRouteMaxVideoBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:MovieRouteMaxVideoBitrateMbps } else { 35.0 }
-    $tvRouteMaxBitrate = if (Get-Variable -Name TVRouteMaxVideoBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVRouteMaxVideoBitrateMbps } else { 18.0 }
-    $route1080pBucketMaxHeight = if (Get-Variable -Name Route1080pBucketMaxHeight -Scope Script -ErrorAction SilentlyContinue) { [int]$script:Route1080pBucketMaxHeight } else { 1200 }
+    $movieRoute1080pTargetSize = if (Get-Variable -Name MovieRoute1080pTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:MovieRoute1080pTargetSizeGB } else { 8.0 }
+    $movieRoute1440pTargetSize = if (Get-Variable -Name MovieRoute1440pTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:MovieRoute1440pTargetSizeGB } else { 8.0 }
+    $movieRoute4kTargetSize = if (Get-Variable -Name MovieRoute4KTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:MovieRoute4KTargetSizeGB } else { 8.0 }
+    $tvRoute1080pTargetSize = if (Get-Variable -Name TVRoute1080pTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVRoute1080pTargetSizeGB } else { 3.0 }
+    $tvRoute1440pTargetSize = if (Get-Variable -Name TVRoute1440pTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVRoute1440pTargetSizeGB } else { 3.0 }
+    $tvRoute4kTargetSize = if (Get-Variable -Name TVRoute4KTargetSizeGB -Scope Script -ErrorAction SilentlyContinue) { [double]$script:TVRoute4KTargetSizeGB } else { 3.0 }
     $route1080pUpperTolerance = if (Get-Variable -Name Route1080pUpperHeightTolerancePercent -Scope Script -ErrorAction SilentlyContinue) { [double]$script:Route1080pUpperHeightTolerancePercent } else { 11.111111 }
     $route1080pMaxBitrate = if (Get-Variable -Name Route1080pMaxVideoBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:Route1080pMaxVideoBitrateMbps } else { 20.0 }
     $route1440pLowerTolerance = if (Get-Variable -Name Route1440pLowerHeightTolerancePercent -Scope Script -ErrorAction SilentlyContinue) { [double]$script:Route1440pLowerHeightTolerancePercent } else { 16.597222 }
     $route1440pUpperTolerance = if (Get-Variable -Name Route1440pUpperHeightTolerancePercent -Scope Script -ErrorAction SilentlyContinue) { [double]$script:Route1440pUpperHeightTolerancePercent } else { 24.930556 }
     $route1440pMaxBitrate = if (Get-Variable -Name Route1440pMaxVideoBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:Route1440pMaxVideoBitrateMbps } else { 35.0 }
     $route4kLowerTolerance = if (Get-Variable -Name Route4KLowerHeightTolerancePercent -Scope Script -ErrorAction SilentlyContinue) { [double]$script:Route4KLowerHeightTolerancePercent } else { 16.666667 }
-    $route4kBucketMinHeight = if (Get-Variable -Name Route4KBucketMinHeight -Scope Script -ErrorAction SilentlyContinue) { [int]$script:Route4KBucketMinHeight } else { 1800 }
     $route4kMaxBitrate = if (Get-Variable -Name Route4KMaxVideoBitrateMbps -Scope Script -ErrorAction SilentlyContinue) { [double]$script:Route4KMaxVideoBitrateMbps } else { 35.0 }
     $routeThresholdMode = if (Get-Variable -Name RouteThresholdMode -Scope Script -ErrorAction SilentlyContinue) { [string]$script:RouteThresholdMode } else { 'compatibility_advisory' }
 
     return Resolve-MediaRouteBySize `
         -FileSizeBytes ([long]$File.Length) `
         -IsTV:$IsTV `
-        -MovieThresholdGB $movieFallbackTargetSize `
-        -TVThresholdGB $tvFallbackTargetSize `
         -MovieRoute1080pTargetSizeGB $movieRoute1080pTargetSize `
         -MovieRoute1440pTargetSizeGB $movieRoute1440pTargetSize `
         -MovieRoute4KTargetSizeGB $movieRoute4kTargetSize `
@@ -374,15 +362,11 @@ function Resolve-InitialMediaRoutePlan {
         -AllowH264RemuxIfPlexCompatible:$allowH264Remux `
         -H264RemuxMaxBitrateMbps $h264MaxBitrate `
         -H264RemuxMaxHeight $h264MaxHeight `
-        -MovieRouteMaxVideoBitrateMbps $movieRouteMaxBitrate `
-        -TVRouteMaxVideoBitrateMbps $tvRouteMaxBitrate `
-        -Route1080pBucketMaxHeight $route1080pBucketMaxHeight `
         -Route1080pUpperHeightTolerancePercent $route1080pUpperTolerance `
         -Route1080pMaxVideoBitrateMbps $route1080pMaxBitrate `
         -Route1440pLowerHeightTolerancePercent $route1440pLowerTolerance `
         -Route1440pUpperHeightTolerancePercent $route1440pUpperTolerance `
         -Route1440pMaxVideoBitrateMbps $route1440pMaxBitrate `
         -Route4KLowerHeightTolerancePercent $route4kLowerTolerance `
-        -Route4KBucketMinHeight $route4kBucketMinHeight `
         -Route4KMaxVideoBitrateMbps $route4kMaxBitrate
 }

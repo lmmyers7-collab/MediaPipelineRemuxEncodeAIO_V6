@@ -2,7 +2,7 @@
 
 Companion to `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`. This document separates every route into its mutation class, states whether the frontend can own the behavior, and notes the key restriction on each command route.
 
-Total routes: 86 (35 read, 51 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
+Total routes: 89 (36 read, 53 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
 
 ---
 
@@ -37,6 +37,7 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 | `GET /api/queue/file-overrides/effective` | `read` | No | Reads inherited/effective override metadata for one source-root-contained path; no manifest write |
 | `GET /api/queue/file-overrides/tracks` | `read` | No | Reads normalized track metadata for one source-root-contained path; no queue preview mutation |
 | `GET /api/completed` | `read` | No | Completed-jobs manifest; no output-share scan |
+| `GET /api/metrics` | `read` | No | Backend aggregates completed manifest, pending publish, worker runtime, and final-library promotion evidence; no launch, drain, promote, settings, queue, or media mutation |
 | `GET /api/final-library-promotion/status` | `read` | No | Reads final-library promotion readiness/run state; no copy, move, delete, or cleanup action |
 | `GET /api/failures` | `read` | No | Failure markers and reports; query-bounded |
 | `GET /api/audit-results` | `read` | No | Audit CSV preview; no rerun CSV written |
@@ -73,6 +74,15 @@ Runs backend-owned source inventory and queue-plan dry-run behavior. It writes s
 | Route | Mutation class | Frontend cannot own? | Key restriction |
 |---|---|---|---|
 | `POST /api/queue/scan` | `process-dry-run` | Frontend cannot enumerate launchable queue rows or run queue policy independently | `mode`: `inventory_then_curate`, `inventory_only`, or `curate_only`; `scope`: `all`; duplicate requests observe the active backend scan |
+
+### metrics-state-write / metrics-backfill-state-write (Metrics state only)
+
+Writes backend-owned Metrics source registry, cache, and status files under `State\Metrics`. Backfill recursively reads configured sidecar roots but does not rewrite sidecars, launch work, change queue state, drain, publish, rename, or touch media files.
+
+| Route | Mutation class | Frontend cannot own? | Key restriction |
+|---|---|---|---|
+| `POST /api/metrics/sources` | `metrics-state-write` | Frontend cannot persist Metrics source roots directly | `action`: `add`, `remove`, `enable`, or `disable`; registry writes stay under `State\Metrics` |
+| `POST /api/metrics/backfill` | `metrics-backfill-state-write` | Frontend cannot recursively scan sidecars independently | `scope`: `enabled` or `all`, or one configured `source_id`; reads `*.pipeline.json` only and writes Metrics cache/status under `State\Metrics` |
 
 ### queue-state-write (medium risk, non-destructive source state)
 

@@ -52,35 +52,35 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 | Field | Type | Default | Notes |
 |---|---|---|---|
 | `schema_version` | `str` | — | `"pending_push_manifest.v1"` (required) |
-| `parked_at` | `str` | — | ISO 8601 — when the output was parked (required) |
-| `product_version` | `str` | — | Product version (required) |
+| `parked_at` | `str` | `""` | ISO 8601 — when the output was parked |
+| `product_version` | `str` | `""` | Product version when available |
 | `pipeline_version` | `str` | — | Pipeline version (required) |
 | `publish_transaction_id` | `str` | — | Unique transaction ID per parked output (required) |
 | `manifest_state` | `str` | — | Current state (required; see valid states below) |
 | `local_file` | `str` | — | Local staging file path (required) |
 | `original_local_file` | `str` | — | Original local file path before parking |
 | `parked_file` | `str` | — | Parked/temporary file path in `State/PendingServerPush` |
-| `server_out` | `str` | — | Destination server output path |
-| `route` | `str` | — | Processing route (`"remux"` or `"encode"`) |
+| `server_out` | `str` | — | Destination server output path (required, non-empty) |
+| `route` | `str` | — | Processing route (`"remux"` or `"encode"`) (required, non-empty) |
 | `route_reason_code` | `str` | `""` | Route determination code |
 | `route_reason` | `str` | `""` | Route determination reason text |
 | `media_type` | `str` | `""` | Destination media kind (`"movie"` or `"tv"` when known) |
 | `source_identity` | `str` | `""` | Legacy source identity (v1 compat) |
-| `source_identity_v2` | `str` | `""` | Content hash of source file |
-| `source_identity_v2_algorithm` | `str` | `""` | Hash algorithm name |
-| `source_path` | `str` | `""` | Original source file path |
+| `source_identity_v2` | `str` | — | Content hash of source file (required, non-empty) |
+| `source_identity_v2_algorithm` | `str` | — | Hash algorithm name (required, non-empty) |
+| `source_path` | `str` | — | Original source file path (required, non-empty) |
 | `source_size` | `int` | `0` | Source file size in bytes |
 | `source_mtime_utc` | `str` | `""` | Source file modified time at parking |
-| `output_size` | `int` | `0` | Output file size in bytes |
+| `output_size` | `int` | — | Output file size in bytes (required, non-negative) |
 | `publish_mode` | `str` | `""` | Publishing mode |
-| `sidecar_files` | `list` | `[]` | Associated sidecar file list |
-| `tx3g_srt_tracks` | `list` | `[]` | TX3G SRT sidecar evidence carried into drain |
-| `tx3g_srt_failures` | `list` | `[]` | TX3G SRT publish/conversion failures |
-| `bdpgs_srt_failures` | `list` | `[]` | BDPGS SRT conversion/OCR failures |
-| `vobsub_srt_failures` | `list` | `[]` | VobSub SRT conversion/OCR failures |
-| `tx3g_embedded_srt_tracks` | `list` | `[]` | Embedded TX3G track records for completed sidecar evidence |
-| `bdpgs_embedded_srt_tracks` | `list` | `[]` | Embedded BDPGS track records for completed sidecar evidence |
-| `vobsub_embedded_srt_tracks` | `list` | `[]` | Embedded VobSub track records for completed sidecar evidence |
+| `sidecar_files` | `list` | — | Associated sidecar file list (required; empty list allowed) |
+| `tx3g_srt_tracks` | `list` | — | TX3G SRT sidecar evidence carried into drain (required; empty list allowed) |
+| `tx3g_srt_failures` | `list` | — | TX3G SRT publish/conversion failures (required; empty list allowed) |
+| `bdpgs_srt_failures` | `list` | — | BDPGS SRT conversion/OCR failures (required; empty list allowed) |
+| `vobsub_srt_failures` | `list` | — | VobSub SRT conversion/OCR failures (required; empty list allowed) |
+| `tx3g_embedded_srt_tracks` | `list` | — | Embedded TX3G track records for completed sidecar evidence (required; empty list allowed) |
+| `bdpgs_embedded_srt_tracks` | `list` | — | Embedded BDPGS track records for completed sidecar evidence (required; empty list allowed) |
+| `vobsub_embedded_srt_tracks` | `list` | — | Embedded VobSub track records for completed sidecar evidence (required; empty list allowed) |
 | `tx3g_srt_conversion_enabled` | `bool` | `False` | TX3G subtitle conversion flag |
 | `tx3g_external_srt_sidecars_enabled` | `bool` | `False` | External SRT sidecar support flag |
 | `drop_tx3g_after_conversion` | `bool` | `False` | Drop original TX3G after conversion |
@@ -106,9 +106,11 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 
 ### Notes
 
-- The Pending Publish Manifest is the authoritative state record for parked outputs. The WebView Pending Publish page reads this via `GET /api/pending-publish`.
+- The Pending Publish Manifest is evidence for parked outputs, not standalone mutation authority. The WebView Pending Publish page reads this via `GET /api/pending-publish`.
+- Current manifests must use `schema_version = "pending_push_manifest.v1"` and carry non-empty `pipeline_version`, `publish_transaction_id`, `manifest_state`, `local_file`, `server_out`, `route`, `source_identity_v2`, `source_identity_v2_algorithm`, and `source_path`, plus non-negative `output_size` and the required sidecar/subtitle arrays. Legacy manifests remain scan-visible for operator review but are not auto-drainable or auto-repairable.
+- Auto-drain requires a trusted manifest file under `State\PendingServerPush`, a present `local_file` and sidecar payloads under the pending root, and a `server_out` under the configured output root, not under source, local state, or pending roots.
 - `do_not_drain` guidance in the Pending Publish table derives from `manifest_state` combined with backend safety analysis, not from a dedicated field.
-- The drain operation (`POST /api/pipeline/start` with `mode: drain_pending_pushes`) consumes `parked` and `pending_move` entries and updates their state.
+- The drain operation (`POST /api/pipeline/start` with `mode: drain_pending_pushes`) consumes only trusted `parked`, `parked_recovered`, `missing_payload`, or retry-state manifests with a present parked payload. `pending_move` is repair-only after strict crash-recovery proof; `complete`, `published`, blank, unknown, legacy, malformed, or outside-root manifests are blocked.
 
 ---
 

@@ -12,6 +12,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.models import ResolvedPaths
 from mediapipeline.core.publish.pending_service import PendingPublishServiceMixin
+from mediapipeline.core.publish.pending_policy import pending_publish_rows
 
 
 class DummyPendingPublishService(PendingPublishServiceMixin):
@@ -31,19 +32,69 @@ class PendingPublishServiceTests(unittest.TestCase):
             pending_push_path=pending_root,
         )
 
+    def _current_manifest(
+        self,
+        *,
+        root: Path,
+        payload: Path,
+        server_out: Path,
+        source: Path,
+        state: str = "parked",
+        **overrides: object,
+    ) -> dict[str, object]:
+        manifest: dict[str, object] = {
+            "schema_version": "pending_push_manifest.v1",
+            "parked_at": "2026-05-19T04:00:00Z",
+            "product_version": "v5-test",
+            "pipeline_version": "1.0",
+            "publish_transaction_id": "tx-parked",
+            "manifest_state": state,
+            "local_file": str(payload),
+            "original_local_file": str(root / "Encoded" / payload.name),
+            "parked_file": str(payload),
+            "server_out": str(server_out),
+            "route": "encode",
+            "route_reason_code": "bitrate_over_threshold",
+            "route_reason": "fixture",
+            "media_type": "movie",
+            "source_identity": "sid-v1",
+            "source_identity_v2": "sid-v2",
+            "source_identity_v2_algorithm": "fixture-v2",
+            "source_path": str(source),
+            "source_size": 123456,
+            "source_mtime_utc": "2026-05-19T03:00:00Z",
+            "output_size": payload.stat().st_size if payload.exists() else 123,
+            "publish_mode": "deferred",
+            "sidecar_files": [],
+            "tx3g_srt_tracks": [],
+            "tx3g_srt_failures": [],
+            "bdpgs_srt_failures": [],
+            "vobsub_srt_failures": [],
+            "tx3g_embedded_srt_tracks": [],
+            "bdpgs_embedded_srt_tracks": [],
+            "vobsub_embedded_srt_tracks": [],
+            "tx3g_srt_conversion_enabled": False,
+            "tx3g_external_srt_sidecars_enabled": False,
+            "drop_tx3g_after_conversion": False,
+            "bdpgs_srt_conversion_enabled": False,
+            "drop_bdpgs_after_conversion": False,
+            "vobsub_srt_conversion_enabled": False,
+            "drop_vobsub_after_conversion": False,
+        }
+        manifest.update(overrides)
+        return manifest
+
     def test_missing_payload_is_reported_as_health_row(self) -> None:
         service = DummyPendingPublishService()
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             missing_payload = root / "missing-output.mkv"
-            manifest = {
-                "schema_version": "pending_push_manifest.v1",
-                "manifest_state": "parked",
-                "local_file": str(missing_payload),
-                "server_out": str(root / "server-output.mkv"),
-                "source_path": str(root / "source.mkv"),
-                "output_size": 123,
-            }
+            manifest = self._current_manifest(
+                root=root,
+                payload=missing_payload,
+                server_out=root / "server-output.mkv",
+                source=root / "source.mkv",
+            )
             (root / "missing-output.mkv.manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
 
             result = service.scan_pending_publish(self._resolved(root))
@@ -63,28 +114,12 @@ class PendingPublishServiceTests(unittest.TestCase):
             sidecar.write_text("1\r\n00:00:01,000 --> 00:00:02,000\r\nhello\r\n", encoding="utf-8")
             server_out = root / "server-output.mkv"
             source = root / "source.mkv"
-            manifest = {
-                "schema_version": "pending_push_manifest.v1",
-                "parked_at": "2026-05-19T04:00:00Z",
-                "product_version": "v5-test",
-                "pipeline_version": "1.0",
-                "publish_transaction_id": "tx-parked",
-                "manifest_state": "parked",
-                "local_file": str(payload),
-                "original_local_file": str(root / "scratch-output.mkv"),
-                "parked_file": str(payload),
-                "server_out": str(server_out),
-                "route": "encode",
-                "route_reason_code": "bitrate_over_threshold",
-                "route_reason": "fixture",
-                "source_identity": "sid-v1",
-                "source_identity_v2": "sid-v2",
-                "source_identity_v2_algorithm": "fixture-v2",
-                "source_path": str(source),
-                "source_size": 123456,
-                "output_size": payload.stat().st_size,
-                "publish_mode": "deferred",
-                "sidecar_files": [
+            manifest = self._current_manifest(
+                root=root,
+                payload=payload,
+                server_out=server_out,
+                source=source,
+                sidecar_files=[
                     {
                         "kind": "tx3g_srt",
                         "local_file": str(sidecar),
@@ -93,7 +128,7 @@ class PendingPublishServiceTests(unittest.TestCase):
                         "preserve_existing": True,
                     }
                 ],
-            }
+            )
             (root / "payload.mkv.manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
 
             result = service.scan_pending_publish(self._resolved(root))
@@ -122,15 +157,13 @@ class PendingPublishServiceTests(unittest.TestCase):
             root = Path(raw_root)
             payload = root / "payload.mkv"
             payload.write_text("payload", encoding="utf-8")
-            manifest = {
-                "schema_version": "pending_push_manifest.v1",
-                "manifest_state": "mystery_state",
-                "publish_transaction_id": "tx",
-                "local_file": str(payload),
-                "server_out": str(root / "server-output.mkv"),
-                "source_path": str(root / "source.mkv"),
-                "output_size": payload.stat().st_size,
-            }
+            manifest = self._current_manifest(
+                root=root,
+                payload=payload,
+                server_out=root / "server-output.mkv",
+                source=root / "source.mkv",
+                state="mystery_state",
+            )
             (root / "payload.mkv.manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
 
             result = service.scan_pending_publish(self._resolved(root))
@@ -156,9 +189,13 @@ class PendingPublishServiceTests(unittest.TestCase):
 
             result = service.scan_pending_publish(self._resolved(root))
 
-        self.assertEqual(result["health_count"], 0)
+        self.assertEqual(result["health_count"], 1)
         self.assertEqual(result["rows"][0]["state"], "parked")
         self.assertEqual(result["rows"][0]["schema_version"], "legacy")
+        dto_row = pending_publish_rows([result["rows"][0]])[0]
+        self.assertFalse(dto_row["ready_to_drain"])
+        self.assertEqual(dto_row["diagnostic_status"], "invalid_manifest")
+        self.assertIn("Legacy pending manifest", result["rows"][0]["error"])
 
     def test_duplicate_manifest_targets_are_reported_as_health_rows(self) -> None:
         service = DummyPendingPublishService()

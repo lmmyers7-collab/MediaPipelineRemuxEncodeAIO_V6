@@ -61,7 +61,7 @@ $script:BdpgsOcrTessdataPath = if ($config.ContainsKey('BdpgsOcrTessdataPath')) 
 $script:ConvertVobSubToSrt = Get-ConfigBool 'ConvertVobSubToSrt' $false
 $script:DropVobSubAfterConversion = Get-ConfigBool 'DropVobSubAfterConversion' $false
 $script:TreatVobSubSignsSongsAsForced = Get-ConfigBool 'TreatVobSubSignsSongsAsForced' $false
-$script:VobSubOcrToolPath = if ($config.ContainsKey('VobSubOcrToolPath')) { [string]$config['VobSubOcrToolPath'] } else { 'Tools\SubtitleEditLegacy\SubtitleEdit.exe' }
+$script:VobSubOcrToolPath = if ($config.ContainsKey('VobSubOcrToolPath')) { [string]$config['VobSubOcrToolPath'] } else { 'tools\SubtitleEditLegacy\SubtitleEdit.exe' }
 $script:TreatAssSignsSongsAsForced = Get-ConfigBool 'TreatAssSignsSongsAsForced' $false
 $script:TreatTx3gSignsSongsAsForced = Get-ConfigBool 'TreatTx3gSignsSongsAsForced' $false
 $script:AggressiveEpisodeParsing = Get-ConfigBool 'AggressiveEpisodeParsing' $false
@@ -283,20 +283,31 @@ $script:SizeGuardMode = if ($config.ContainsKey('SizeGuardMode')) {
 } else {
     Get-MediaPipelineSizeGuardModeDefault
 }
-$script:MovieRoute1080pTargetSizeGB = Get-ConfigDouble 'MovieRoute1080pTargetSizeGB' ([double]$EncodeThresholdGB) 1 1000000
-$script:MovieRoute1440pTargetSizeGB = Get-ConfigDouble 'MovieRoute1440pTargetSizeGB' ([double]$EncodeThresholdGB) 1 1000000
-$script:MovieRoute4KTargetSizeGB = Get-ConfigDouble 'MovieRoute4KTargetSizeGB' ([double]$EncodeThresholdGB) 1 1000000
-$script:TVRoute1080pTargetSizeGB = Get-ConfigDouble 'TVRoute1080pTargetSizeGB' ([double]$TVEncodeThresholdGB) 1 1000000
-$script:TVRoute1440pTargetSizeGB = Get-ConfigDouble 'TVRoute1440pTargetSizeGB' ([double]$TVEncodeThresholdGB) 1 1000000
-$script:TVRoute4KTargetSizeGB = Get-ConfigDouble 'TVRoute4KTargetSizeGB' ([double]$TVEncodeThresholdGB) 1 1000000
-$script:Route1080pBucketMaxHeight = Get-ConfigInt 'Route1080pBucketMaxHeight' 1200 1 4320
+$removedRoutingFallbackConfigKeys = @(
+    'EncodeThresholdGB',
+    'TVEncodeThresholdGB',
+    'MovieRouteMaxVideoBitrateMbps',
+    'TVRouteMaxVideoBitrateMbps',
+    'Route1080pBucketMaxHeight',
+    'Route4KBucketMinHeight'
+)
+foreach ($removedKey in $removedRoutingFallbackConfigKeys) {
+    if ($config.ContainsKey($removedKey)) {
+        Add-StartupWarning "$removedKey is obsolete and ignored; use per-height target sizes, bitrate caps, and tolerance percents."
+    }
+}
+$script:MovieRoute1080pTargetSizeGB = Get-ConfigDouble 'MovieRoute1080pTargetSizeGB' 8 1 1000000
+$script:MovieRoute1440pTargetSizeGB = Get-ConfigDouble 'MovieRoute1440pTargetSizeGB' 8 1 1000000
+$script:MovieRoute4KTargetSizeGB = Get-ConfigDouble 'MovieRoute4KTargetSizeGB' 8 1 1000000
+$script:TVRoute1080pTargetSizeGB = Get-ConfigDouble 'TVRoute1080pTargetSizeGB' 3 1 1000000
+$script:TVRoute1440pTargetSizeGB = Get-ConfigDouble 'TVRoute1440pTargetSizeGB' 3 1 1000000
+$script:TVRoute4KTargetSizeGB = Get-ConfigDouble 'TVRoute4KTargetSizeGB' 3 1 1000000
 $script:Route1080pUpperHeightTolerancePercent = Get-ConfigDouble 'Route1080pUpperHeightTolerancePercent' 11.111111 0 100
 $script:Route1080pMaxVideoBitrateMbps = Get-ConfigDouble 'Route1080pMaxVideoBitrateMbps' 20 1 500
 $script:Route1440pLowerHeightTolerancePercent = Get-ConfigDouble 'Route1440pLowerHeightTolerancePercent' 16.597222 0 100
 $script:Route1440pUpperHeightTolerancePercent = Get-ConfigDouble 'Route1440pUpperHeightTolerancePercent' 24.930556 0 100
 $script:Route1440pMaxVideoBitrateMbps = Get-ConfigDouble 'Route1440pMaxVideoBitrateMbps' 35 1 500
 $script:Route4KLowerHeightTolerancePercent = Get-ConfigDouble 'Route4KLowerHeightTolerancePercent' 16.666667 0 100
-$script:Route4KBucketMinHeight = Get-ConfigInt 'Route4KBucketMinHeight' 1800 1 4320
 $script:Route4KMaxVideoBitrateMbps = Get-ConfigDouble 'Route4KMaxVideoBitrateMbps' 35 1 500
 $routeHeightBoundaries = Get-MediaPipelineRouteHeightToleranceBoundaries `
     -Route1080pUpperHeightTolerancePercent $script:Route1080pUpperHeightTolerancePercent `

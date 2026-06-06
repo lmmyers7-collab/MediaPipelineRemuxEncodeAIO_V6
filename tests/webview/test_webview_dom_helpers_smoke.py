@@ -39,7 +39,10 @@ def _run_node_dom_helper_smoke() -> dict[str, object]:
         const rafCallbacks = [];
         let scrollCalls = 0;
         let focusCalls = 0;
+        let focusPreventScrollCalls = 0;
         let selectedByKeyboard = false;
+        let forwardedClickEvent = null;
+        let forwardedKeyboardEvent = null;
         let queryAllNodes = [];
 
         class FakeClassList {{
@@ -181,15 +184,31 @@ def _run_node_dom_helper_smoke() -> dict[str, object]:
             setAttribute(key, value) {{ this.attributes[key] = String(value); }},
             addEventListener(key, fn) {{ listeners[key] = fn; }},
             closest(selector) {{ return selector === "tbody" ? this.parent : null; }},
-            focus() {{ focusCalls += 1; }},
-            click() {{ if (listeners.click) listeners.click({{ type: "click" }}); }},
-            keydown(key) {{
-              if (listeners.keydown) {{
-                listeners.keydown({{
-                  key,
-                  preventDefault() {{}},
-                }});
+            focus(options) {{
+              focusCalls += 1;
+              if (options && options.preventScroll === true) focusPreventScrollCalls += 1;
+            }},
+            click(eventProps = {{}}) {{
+              if (listeners.click) {{
+                listeners.click(Object.assign({{
+                  type: "click",
+                  ctrlKey: false,
+                  metaKey: false,
+                  shiftKey: false,
+                }}, eventProps));
               }}
+            }},
+            keydown(key, eventProps = {{}}) {{
+              if (listeners.keydown) {{
+                const event = Object.assign({{
+                  key,
+                  defaultPrevented: false,
+                  preventDefault() {{ this.defaultPrevented = true; }},
+                }}, eventProps);
+                listeners.keydown(event);
+                return event;
+              }}
+              return null;
             }},
             scrollIntoView() {{ scrollCalls += 1; }},
           }};
@@ -274,8 +293,20 @@ def _run_node_dom_helper_smoke() -> dict[str, object]:
 
         context.window.makeRowSelectable(second, () => {{ selectedByKeyboard = true; }}, {{ selected: false }});
         first.keydown("ArrowDown");
-        if (focusCalls !== 1 || !selectedByKeyboard) {{
+        if (focusCalls !== 1 || focusPreventScrollCalls !== 1 || !selectedByKeyboard) {{
           throw new Error("keyboard row movement should still focus and select the next row");
+        }}
+
+        context.window.makeRowSelectable(second, (event) => {{ forwardedClickEvent = event; }}, {{ selected: false }});
+        second.click({{ ctrlKey: true, shiftKey: true }});
+        if (!forwardedClickEvent || forwardedClickEvent.ctrlKey !== true || forwardedClickEvent.shiftKey !== true) {{
+          throw new Error("row click should forward modifier keys to the select handler");
+        }}
+
+        context.window.makeRowSelectable(second, (event) => {{ forwardedKeyboardEvent = event; }}, {{ selected: false }});
+        const spaceEvent = second.keydown(" ");
+        if (forwardedKeyboardEvent !== spaceEvent || !spaceEvent.defaultPrevented || forwardedKeyboardEvent.key !== " ") {{
+          throw new Error("row keyboard selection should forward the keydown event to the select handler");
         }}
 
         const detail = makeElement("scroll-detail", "pre", "prose-block");
@@ -347,15 +378,47 @@ def _run_node_dom_helper_smoke() -> dict[str, object]:
         if (documentScroller.scrollTop !== 120 || documentScroller.scrollLeft !== 8) {{
           throw new Error("document scroll was not restored");
         }}
+        const restoredDocumentTop = documentScroller.scrollTop;
+        const restoredDocumentLeft = documentScroller.scrollLeft;
+
+        documentScroller.scrollTop = 220;
+        documentScroller.scrollLeft = 0;
+        documentScroller.scrollHeight = 700;
+        documentScroller.clientHeight = 300;
+        queryAllNodes = [];
+        const userMoveSnapshot = context.window.mediaPipelineDom.captureScrollablePositions();
+        context.window.mediaPipelineDom.restoreScrollablePositions(userMoveSnapshot);
+        documentScroller.scrollTop = 260;
+        while (rafCallbacks.length) rafCallbacks.shift()();
+        if (documentScroller.scrollTop !== 260) {{
+          throw new Error("deferred document restore should not override user scroll movement");
+        }}
+
+        documentScroller.scrollTop = 120;
+        documentScroller.scrollLeft = 0;
+        documentScroller.scrollHeight = 700;
+        documentScroller.clientHeight = 300;
+        const shrinkSnapshot = context.window.mediaPipelineDom.captureScrollablePositions();
+        documentScroller.scrollTop = 0;
+        documentScroller.scrollHeight = 360;
+        documentScroller.clientHeight = 300;
+        context.window.mediaPipelineDom.restoreScrollablePositions(shrinkSnapshot);
+        while (rafCallbacks.length) rafCallbacks.shift()();
+        if (documentScroller.scrollTop !== 0) {{
+          throw new Error("document restore should skip stale positions that clamp to the new bottom");
+        }}
 
         console.log(JSON.stringify({{
           ok: true,
           scrollCalls,
           focusCalls,
+          focusPreventScrollCalls,
           selectedByKeyboard,
           calloutScrollTop: afterRefreshBody.scrollTop,
           stableWrapTop: stableWrap.scrollTop,
           replacementDetailTop: replacementDetail.scrollTop,
+          restoredDocumentTop,
+          restoredDocumentLeft,
           documentTop: documentScroller.scrollTop,
         }}));
         """
@@ -390,7 +453,9 @@ class WebViewDomHelpersSmoke(unittest.TestCase):
         self.assertEqual(result["calloutScrollTop"], 48)
         self.assertEqual(result["stableWrapTop"], 90)
         self.assertEqual(result["replacementDetailTop"], 70)
-        self.assertEqual(result["documentTop"], 120)
+        self.assertEqual(result["restoredDocumentTop"], 120)
+        self.assertEqual(result["restoredDocumentLeft"], 8)
+        self.assertEqual(result["documentTop"], 0)
 
 
 if __name__ == "__main__":

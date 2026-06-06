@@ -907,9 +907,18 @@
       return "ready";
     }
 
+    function completedSelectedOutputUnavailable(item) {
+      if (!item) return false;
+      const outputHealth = String(item.output_health || "").toLowerCase();
+      return item.output_exists === false
+        || outputHealth.includes("missing")
+        || outputHealth.includes("unavailable")
+        || outputHealth.includes("without media");
+    }
+
     function completedSelectedAtAGlanceStatus(item) {
       const state = completedSelectedAtAGlanceState(item);
-      if (state === "blocked") return "Broken proof";
+      if (state === "blocked") return completedSelectedOutputUnavailable(item) ? "Output unavailable" : "Needs review";
       if (state === "warning") return "Review";
       if (state === "ready") return "Consistent-looking";
       return "No selection";
@@ -920,6 +929,154 @@
       return lines
         .filter((line) => /^Selected row visible|^Active filters|^Hidden by current filters/.test(String(line || "")))
         .join(" ");
+    }
+
+    function completedSelectedLabel(item) {
+      if (!item) return "No completed row selected";
+      return item.output_file || item.lookup_title || item.output_path || item.source_path || "(unnamed row)";
+    }
+
+    function completedSelectedConcern(item) {
+      if (!item) return "No row selected.";
+      const healthy = completedRowLooksHealthy(item);
+      return healthy && completedPrimaryConcernIsBenign(item)
+        ? "row has no output, sidecar, size, or runtime blocker in the loaded completed manifest"
+        : item.primary_concern
+        || (item.output_exists === false ? "completed row points to a missing output" : "")
+        || (item.size_growth_over_5 ? "output grew beyond policy threshold" : "")
+        || item.operator_guidance
+        || "no primary concern reported";
+    }
+
+    function completedSelectedSafeAction(item) {
+      if (!item) return "Select a completed row to review output, sidecar, route, size, pending-publish, and diagnostics evidence.";
+      return item.safe_next_action
+        || item.operator_guidance
+        || (completedSelectedAtAGlanceState(item) === "ready"
+          ? "Compare output/sidecar proof and Pending Publish state before treating this as accepted."
+          : "Read Completed Manifest, Pending Publish, Run Logs, and Last Stderr before rerun or cleanup.");
+    }
+
+    function completedSelectedTrustStatus(item) {
+      if (!item) return "not selected";
+      if (completedSelectedOutputUnavailable(item)) return "output unavailable";
+      return completedRowLooksHealthy(item)
+        ? "consistent-looking"
+        : item.operator_trust_state || item.output_health || item.consistency_status || "not reported";
+    }
+
+    function completedSelectedRouteLabel(item) {
+      if (!item) return "not reported";
+      return item.route_decision_summary || item.route_label || item.route || "not reported";
+    }
+
+    function completedSelectedSizeLabel(item) {
+      if (!item) return "unknown";
+      return item.size_delta_label || item.size_reduction_text || "unknown";
+    }
+
+    function completedSelectedRuntimeLabel(item) {
+      if (!item) return "none reported";
+      return [
+        item.runtime_outcome_status,
+        item.runtime_outcome_error_code,
+        item.runtime_outcome_reason,
+        item.runtime_outcome_freshness_status,
+      ].filter(Boolean).join(" - ") || "none reported";
+    }
+
+    function completedSelectedPolicyLabel(item) {
+      if (!item) return "not reported";
+      return [item.route_reason_code, item.route_reason, item.route_decision_summary].filter(Boolean).join(" - ") || "not reported";
+    }
+
+    function completedSelectedEvidenceItems(item) {
+      return [
+        ["Route", completedSelectedRouteLabel(item)],
+        ["Size change", completedSelectedSizeLabel(item)],
+        ["Health", item?.output_health || "unknown"],
+        ["Runtime", completedSelectedRuntimeLabel(item)],
+        ["Audio tracks", String(item?.audio_decision_count || 0)],
+        ["Subtitle tracks", String(item?.subtitle_decision_count || 0)],
+        ["Current table visibility", completedSelectedVisibilitySummary(item) || "not evaluated"],
+        ["Policy / route reason", completedSelectedPolicyLabel(item)],
+      ];
+    }
+
+    function completedSelectedNode(tagName, className, text) {
+      const node = document.createElement(tagName);
+      if (className) node.className = className;
+      if (text !== undefined && text !== null) node.textContent = String(text);
+      return node;
+    }
+
+    function completedSelectedPriorityRow(label, value) {
+      const row = completedSelectedNode("div", "completed-selected-priority-row");
+      row.appendChild(completedSelectedNode("span", "completed-selected-label", label));
+      row.appendChild(completedSelectedNode("p", "completed-selected-priority-text", value || "not reported"));
+      return row;
+    }
+
+    function completedSelectedEvidenceItem(label, value) {
+      const item = completedSelectedNode("div", "completed-selected-evidence-item");
+      item.appendChild(completedSelectedNode("span", "completed-selected-label", label));
+      item.appendChild(completedSelectedNode("strong", "completed-selected-evidence-value", value || "not reported"));
+      return item;
+    }
+
+    function completedSelectedPaths(item) {
+      const details = completedSelectedNode("details", "completed-selected-paths");
+      details.appendChild(completedSelectedNode("summary", "", "Paths"));
+      const list = completedSelectedNode("div", "completed-selected-path-list");
+      const paths = [
+        ["Output", item?.output_path],
+        ["Source", item?.source_path],
+        ["Sidecar", item?.sidecar_path],
+      ].filter((entry) => entry[1]);
+      if (!paths.length) {
+        list.appendChild(completedSelectedNode("p", "completed-selected-path-empty", "No output, source, or sidecar path is reported for this row."));
+      } else {
+        paths.forEach(([label, value]) => {
+          const row = completedSelectedNode("div", "completed-selected-path-row");
+          row.appendChild(completedSelectedNode("span", "completed-selected-label", label));
+          row.appendChild(completedSelectedNode("code", "completed-selected-path-value", value));
+          list.appendChild(row);
+        });
+      }
+      details.appendChild(list);
+      return details;
+    }
+
+    function completedSelectedSummaryNodes(item, status, statusState) {
+      const strip = completedSelectedNode("div", "completed-selected-decision-strip");
+      const titleWrap = completedSelectedNode("div", "completed-selected-title-wrap");
+      titleWrap.appendChild(completedSelectedNode("span", "completed-selected-label", "File/title"));
+      titleWrap.appendChild(completedSelectedNode("strong", "completed-selected-title", completedSelectedLabel(item)));
+      titleWrap.appendChild(completedSelectedNode("span", "completed-selected-trust", `Trust state: ${completedSelectedTrustStatus(item)}`));
+      strip.appendChild(titleWrap);
+
+      const badge = completedSelectedNode("strong", "completed-selected-status-chip", status);
+      badge.dataset.state = statusState;
+      strip.appendChild(badge);
+
+      const priority = completedSelectedNode("div", "completed-selected-priority-grid");
+      priority.appendChild(completedSelectedPriorityRow("Primary concern", completedSelectedConcern(item)));
+      priority.appendChild(completedSelectedPriorityRow("Recommended next check", completedSelectedSafeAction(item)));
+
+      const evidenceGrid = completedSelectedNode("div", "completed-selected-evidence-grid");
+      completedSelectedEvidenceItems(item).forEach(([label, value]) => {
+        evidenceGrid.appendChild(completedSelectedEvidenceItem(label, value));
+      });
+
+      const authority = completedSelectedNode(
+        "p",
+        "completed-selected-authority",
+        item
+          ? "Authority: this summary is read-only. It cannot accept outputs, repair manifests, rerun jobs, reconcile sidecars, publish, or delete files."
+          : "Authority: this summary is read-only. Completed history is proof to inspect, not acceptance or cleanup authority.",
+      );
+
+      return [strip, priority, evidenceGrid, completedSelectedPaths(item), authority];
     }
 
     function completedSelectedAtAGlanceLines(item) {
@@ -939,26 +1096,15 @@
             "Authority: this summary is read-only. Completed history is proof to inspect, not acceptance or cleanup authority.",
           ];
       }
-      const healthy = completedRowLooksHealthy(item);
-      const concern = healthy && completedPrimaryConcernIsBenign(item)
-        ? "row has no output, sidecar, size, or runtime blocker in the loaded completed manifest"
-        : item.primary_concern
-        || (item.output_exists === false ? "completed row points to a missing output" : "")
-        || (item.size_growth_over_5 ? "output grew beyond policy threshold" : "")
-        || item.operator_guidance
-        || "no primary concern reported";
-      const safeAction = item.safe_next_action
-        || item.operator_guidance
-        || (completedSelectedAtAGlanceState(item) === "ready"
-          ? "Compare output/sidecar proof and Pending Publish state before treating this as accepted."
-          : "Read Completed Manifest, Pending Publish, Run Logs, and Last Stderr before rerun or cleanup.");
-      const outputReview = `${item.output_path || "output not reported"}; ${item.route_decision_summary || item.route_label || item.route || "route not reported"}; size=${item.size_delta_label || item.size_reduction_text || "unknown"}; audio=${item.audio_decision_count || 0}; subtitles=${item.subtitle_decision_count || 0}; health=${item.output_health || "unknown"}`;
-      const trustStatus = healthy ? "consistent-looking" : item.operator_trust_state || item.output_health || item.consistency_status || "not reported";
+      const concern = completedSelectedConcern(item);
+      const safeAction = completedSelectedSafeAction(item);
+      const outputReview = `${item.output_path || "output not reported"}; ${completedSelectedRouteLabel(item) || "route not reported"}; size=${completedSelectedSizeLabel(item)}; audio=${item.audio_decision_count || 0}; subtitles=${item.subtitle_decision_count || 0}; health=${item.output_health || "unknown"}`;
+      const trustStatus = completedSelectedTrustStatus(item);
       if (typeof sharedSummary === "function") {
         return sharedSummary({
           title: "Selected Completed row",
           item,
-          label: item.output_file || item.lookup_title || item.output_path || item.source_path || "(unnamed row)",
+          label: completedSelectedLabel(item),
           trustStatus,
           atAGlanceStatus: completedSelectedAtAGlanceStatus(item),
           proofLabel: "Output review",
@@ -970,7 +1116,7 @@
         });
       }
       return [
-        `Selected Completed row: ${item.output_file || item.lookup_title || item.output_path || item.source_path || "(unnamed row)"}`,
+        `Selected Completed row: ${completedSelectedLabel(item)}`,
         `Trust/status: ${trustStatus}; at-a-glance=${completedSelectedAtAGlanceStatus(item)}`,
         `Output review: ${outputReview}`,
         `Primary concern: ${concern}`,
@@ -982,10 +1128,18 @@
 
     function renderCompletedSelectedAtAGlance(item) {
       const status = completedSelectedAtAGlanceStatus(item);
+      const statusState = completedSelectedAtAGlanceState(item);
       setText("completed-selected-status", status);
       const statusNode = byId("completed-selected-status");
-      if (statusNode) statusNode.dataset.state = completedSelectedAtAGlanceState(item);
-      setText("completed-selected-summary", completedSelectedAtAGlanceLines(item).join("\n"));
+      if (statusNode) statusNode.dataset.state = statusState;
+      const summaryNode = byId("completed-selected-summary");
+      if (!summaryNode || typeof summaryNode.replaceChildren !== "function") {
+        setText("completed-selected-summary", completedSelectedAtAGlanceLines(item).join("\n"));
+        return;
+      }
+      summaryNode.className = `completed-selected-summary${item ? "" : " is-empty"}`;
+      summaryNode.dataset.state = statusState;
+      summaryNode.replaceChildren(...completedSelectedSummaryNodes(item, status, statusState));
     }
 
     function completedRowIssueDigestLines(item) {

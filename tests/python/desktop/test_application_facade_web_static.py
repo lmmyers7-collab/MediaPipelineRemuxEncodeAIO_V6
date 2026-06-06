@@ -62,6 +62,12 @@ def _read_queue_file_overrides_asset_bundle(assets_root: Path) -> str:
         for name in [
             "queueView.js",
             "queue/fileOverrides.routePreview.js",
+            "queue/fileOverrides.drawer.state.js",
+            "queue/fileOverrides.drawer.form.js",
+            "queue/fileOverrides.drawer.series.js",
+            "queue/fileOverrides.drawer.tracks.js",
+            "queue/fileOverrides.drawer.api.js",
+            "queue/fileOverrides.drawer.focus.js",
             "queue/fileOverrides.drawer.js",
         ]
     )
@@ -270,7 +276,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         ]
         completed_positions = [completed_html.index(token) for token in completed_tab_order]
         self.assertEqual(completed_positions, sorted(completed_positions))
-        self.assertIn(">Publish</button>", completed_html)
+        self.assertIn(">Pending Publish</button>", completed_html)
         pending_tab_order = [
             'data-output-completed-tab="overview"',
             'data-output-page-target="pending"',
@@ -279,7 +285,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         ]
         pending_positions = [pending_html.index(token) for token in pending_tab_order]
         self.assertEqual(pending_positions, sorted(pending_positions))
-        self.assertIn('data-output-page-target="pending" aria-selected="true">Publish</button>', pending_html)
+        self.assertIn('data-output-page-target="pending" aria-selected="true">Pending Publish</button>', pending_html)
 
     def test_topbar_event_ticker_formats_pending_and_backend_events(self) -> None:
         node = shutil.which("node")
@@ -832,8 +838,11 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             topbar_js,
         )
         self.assertIn('retrying_pending_push: { main: "Retrying Pending Publish", detail: "" }', topbar_js)
+        self.assertIn('no_new_sources: { main: "No New Sources", detail: "" }', topbar_js)
         self.assertIn('const readable = raw.replace(/[_-]+/g, " ")', topbar_js)
         self.assertIn("renderHomePipelineState(state);", app_js)
+        self.assertIn("function renderHomePipelineQueueOutcome", app_js)
+        self.assertIn("renderHomePipelineQueueOutcome(values.snapshot || lastSnapshot, values.queue || {});", app_js)
         self.assertIn(".pipeline-state-value {", components_css)
         self.assertIn("overflow-wrap: anywhere;", components_css)
 
@@ -915,6 +924,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
         html = _render_static_index_html(static_root)
         launch_js = _read_launch_view_asset_bundle(static_root / "assets")
+        launch_scope_js = (static_root / "assets" / "launchView.scope.js").read_text(encoding="utf-8")
         app_js = (static_root / "assets" / "app.js").read_text(encoding="utf-8")
 
         self.assertIn('class="danger-button emergency-button topbar-emergency-control"', html)
@@ -924,6 +934,27 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("function launchButtonGate", launch_js)
         self.assertIn("launchBackendPreflightPayloadForTarget", launch_js)
         self.assertIn("launchStartDecisionGate", launch_js)
+        self.assertIn('return ["pipeline", "audit", "rerun", "history", "readiness"];', launch_js)
+        self.assertIn('data-launch-tab="pipeline">Pipeline Processor</button>', html)
+        self.assertIn('id="pipeline-compact-gate-strip"', html)
+        self.assertIn('id="pipeline-compact-gate-detail"', html)
+        self.assertIn('id="pipeline-compact-gate-refresh-button"', html)
+        for gate_id in [
+            "pipeline-gate-backend",
+            "pipeline-gate-queue",
+            "pipeline-gate-settings",
+            "pipeline-gate-schedule",
+            "pipeline-gate-active",
+            "pipeline-gate-last",
+        ]:
+            self.assertIn(f'id="{gate_id}"', html)
+        self.assertIn('aria-describedby="pipeline-start-disabled-reason"', html)
+        self.assertIn("function launchCompactGateRows", launch_scope_js)
+        self.assertIn("function launchCompactGateOverallStatus", launch_scope_js)
+        self.assertIn("function renderLaunchCompactGate", launch_scope_js)
+        self.assertIn("launchCompactGateRows,", launch_js)
+        self.assertIn("renderLaunchCompactGate,", launch_js)
+        self.assertIn("Submit ${label} for ${scope}? Backend will re-check queue, settings, schedule, and locks before starting.", launch_js)
         self.assertIn("Resolve blocked Backend Preflight checks", launch_js)
         self.assertIn("Resolve blocked Launch Start Summary rows", launch_js)
         self.assertIn("Refresh Backend Preflight before using this start control", launch_js)
@@ -1108,6 +1139,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         expected = {
             "home": "Pipeline Dashboard",
             "live": "Hardware Telemetry",
+            "metrics": "Metrics",
             "queue": "Processing Queue",
             "completed": "Pipeline Output",
             "pending": "Pending Publish",
@@ -1589,7 +1621,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("try {\n    if (typeof window.__queueSetFileDrawer === \"function\")", queue_view_js)
         self.assertIn("window.__queueSetFileDrawer(openFileSettingsDrawer);", queue_view_js)
         self.assertIn("finally {\n    delete window.__queueSetFileDrawer;", queue_view_js)
-        self.assertIn('if (typeof refreshAll === "function") await refreshAll();', queue_view_js)
+        self.assertIn("await refreshAllFn();", queue_view_js)
 
     def test_queue_priority_clear_all_uses_manifest_clear_route(self) -> None:
         desktop_root = find_repo_root(Path(__file__))
@@ -1707,7 +1739,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("function loadFileOverrideEffectiveForPath(path, item)", queue_view_js)
         self.assertIn("function applyFileOverrideEffectivePayload(payload, item)", queue_view_js)
         self.assertIn("function drawerDefaultsFromEffectivePayload(payload, item)", queue_view_js)
-        self.assertIn("await loadFileOverrideEffectiveForPath(foCurrentPath, foCurrentItem);", queue_view_js)
+        self.assertIn("await loadFileOverrideEffectiveForPath(state.foCurrentPath, state.foCurrentItem);", queue_view_js)
         self.assertIn("function renderDrawerInheritedDefaults(defaults)", queue_view_js)
         self.assertIn('Saved policy values unavailable for this queue row.', queue_view_js)
         self.assertIn("Saved policy value: unavailable", queue_view_js)
@@ -1725,7 +1757,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('if (event.key !== "Tab") return;', queue_view_js)
         self.assertIn("event.shiftKey && active === first", queue_view_js)
         self.assertIn("!event.shiftKey && active === last", queue_view_js)
-        self.assertIn("document.addEventListener(\"keydown\", handleFileSettingsDrawerKeydown);", queue_view_js)
+        self.assertIn("document.addEventListener(\"keydown\", ctx.focus.handleFileSettingsDrawerKeydown);", queue_view_js)
 
         self.assertIn(".fo-inherited-hint", queue_css)
         self.assertIn(".fo-inherited-status", queue_css)
@@ -1780,21 +1812,21 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("function savedPolicyButtonText(fieldKey)", queue_view_js)
         self.assertIn("function savedPolicyOptionText(fieldKey)", queue_view_js)
         self.assertIn('document.querySelectorAll("[data-fo-use-inherited]")', queue_view_js)
-        self.assertIn("let foCommandInFlight = false;", queue_view_js)
-        self.assertIn("let foDrawerBaselineSignature = \"\";", queue_view_js)
-        self.assertIn("let foDrawerDirty = false;", queue_view_js)
+        self.assertIn("foCommandInFlight: false,", queue_view_js)
+        self.assertIn("foDrawerBaselineSignature: \"\",", queue_view_js)
+        self.assertIn("foDrawerDirty: false,", queue_view_js)
         self.assertIn("function setDrawerCommandButtonsDisabled(disabled)", queue_view_js)
         self.assertIn("function markDrawerClean()", queue_view_js)
         self.assertIn("function handleDrawerFormChanged()", queue_view_js)
         self.assertIn("function confirmDiscardDrawerChanges", queue_view_js)
-        self.assertIn('if (foCommandInFlight) { setStatus("File override command already in progress."); return; }', queue_view_js)
-        self.assertIn("foCommandInFlight = true;", queue_view_js)
+        self.assertIn('if (state.foCommandInFlight) { setStatus("File override command already in progress."); return; }', queue_view_js)
+        self.assertIn("state.foCommandInFlight = true;", queue_view_js)
         self.assertIn("setDrawerCommandButtonsDisabled(true);", queue_view_js)
         self.assertIn("setDrawerCommandButtonsDisabled(false);", queue_view_js)
-        self.assertIn('if (!foDrawerDirty) { setStatus("No unsaved changes to save.", "warning"); return; }', queue_view_js)
-        self.assertIn("await loadFileOverrideEffectiveForPath(foCurrentPath, foCurrentItem);", queue_view_js)
+        self.assertIn('if (!state.foDrawerDirty) { setStatus("No unsaved changes to save.", "warning"); return; }', queue_view_js)
+        self.assertIn("await loadFileOverrideEffectiveForPath(state.foCurrentPath, state.foCurrentItem);", queue_view_js)
         self.assertIn("Override field cleared. Saved policy value will be used.", queue_view_js)
-        self.assertIn('if (typeof refreshAll === "function") await refreshAll();', queue_view_js)
+        self.assertIn("await refreshAllFn();", queue_view_js)
         self.assertIn("function saveFileOverrideForPath()", queue_view_js)
         self.assertIn("function clearFileOverrideForPath()", queue_view_js)
         self.assertIn("function handleFileSettingsDrawerKeydown(event)", queue_view_js)
@@ -1842,8 +1874,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('id="fo-processing-route-section" class="fo-section fo-route-section" hidden', html)
         self.assertIn("These settings can change whether this file is remuxed or fully transcoded.", html)
         self.assertIn('id="fo-route-preview-status" class="fo-route-preview-status" aria-live="polite" hidden', html)
-        self.assertIn('id="fo-route-risk-confirmation" class="fo-route-confirmation" hidden', html)
-        self.assertIn("I understand this may force a full transcode for this file.", html)
+        self.assertIn('id="fo-route-encode-advisory" class="fo-route-encode-advisory" aria-live="polite" data-tone="info" hidden', html)
+        self.assertNotIn('id="fo-route-risk-confirmation"', html)
+        self.assertNotIn('id="fo-route-risk-confirm"', html)
+        self.assertNotIn("I understand this may force a full transcode for this file.", html)
 
         route_fields = {
             "routeProfile": ("fo-route-profile", "routing.profile", "Use saved policy value for routing profile"),
@@ -1874,7 +1908,13 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("routingProfile = profile", queue_view_js)
         self.assertIn("function ensureRoutePreviewAllowsSave(payload)", queue_view_js)
         self.assertIn("await loadRoutePreviewForPayload(payload)", queue_view_js)
-        self.assertIn("Confirm the route impact before saving this processing override.", queue_view_js)
+        self.assertIn("function routePreviewEncodeAdvisory(result)", queue_view_js)
+        self.assertIn("Force encode: backend preview says these settings can route this file to a full video encode/transcode.", queue_view_js)
+        self.assertIn("May encode: possible. These settings can change remux-vs-encode routing; backend preview did not prove a forced encode.", queue_view_js)
+        self.assertIn("Will Remux: backend preview keeps this file on remux/copy; review any route warnings before saving.", queue_view_js)
+        self.assertNotIn("May encode: no.", queue_view_js)
+        self.assertNotIn("Confirm the route impact before saving this processing override.", queue_view_js)
+        self.assertNotIn("fo-route-risk-confirm", queue_view_js)
         self.assertIn("function collectFileOverrideFieldsToClearOnSave()", queue_view_js)
         self.assertIn("function collectRouteVideoFieldsToClearOnSave()", queue_view_js)
         self.assertIn("function drawerFieldIsNeutral(fieldKey)", queue_view_js)
@@ -1885,9 +1925,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("function fieldPathsIncludeRouteVideo(fieldPaths)", queue_view_js)
         self.assertIn("clear_fields: [fieldPath]", queue_view_js)
         self.assertIn("ROUTE_FIELD_KEYS.includes(fieldKey)", queue_view_js)
-        self.assertIn('control.addEventListener("change", scheduleRoutePreviewFromCurrentForm);', queue_view_js)
+        self.assertIn('control.addEventListener("change", ctx.routePreview.scheduleRoutePreviewFromCurrentForm);', queue_view_js)
         self.assertIn(".fo-route-preview-status", queue_css)
-        self.assertIn(".fo-route-confirmation", queue_css)
+        self.assertIn(".fo-route-encode-advisory", queue_css)
+        self.assertNotIn(".fo-route-confirmation", queue_css)
 
     def test_queue_file_settings_drawer_series_batch_preview_modal(self) -> None:
         desktop_root = find_repo_root(Path(__file__))
@@ -1918,7 +1959,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("preview_fingerprint: fingerprint", queue_view_js)
         self.assertIn("confirm_apply: true", queue_view_js)
         self.assertIn('button.addEventListener("click", () => {', queue_view_js)
-        self.assertIn("renderSeriesRows(foSeriesPreviewPayload?.rows);", queue_view_js)
+        self.assertIn("ctx.series.renderSeriesRows(ctx.state.foSeriesPreviewPayload?.rows);", queue_view_js)
         self.assertIn("closeSeriesModal()", queue_view_js)
 
         self.assertIn(".fo-series-modal", queue_css)
@@ -2019,7 +2060,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('appendSelectorRules(subtitles, "keepTracks", exactTrackSelectors.subtitleKeep);', queue_view_js)
         self.assertIn('appendSelectorRules(subtitles, "dropTracks", exactTrackSelectors.subtitleDrop);', queue_view_js)
         self.assertIn("subtitles.burnTrack = exactTrackSelectors.subtitleBurn[0];", queue_view_js)
-        self.assertIn("foExactTrackOverrideEntry = payload.file_override_scope === \"file\"", queue_view_js)
+        self.assertIn("state.foExactTrackOverrideEntry = payload.file_override_scope === \"file\"", queue_view_js)
         self.assertIn("Saved exact-track override no longer matches detected track metadata", queue_view_js)
         self.assertIn("Saved exact-track override cannot be safely resaved.", queue_view_js)
         self.assertIn("Choose only one subtitle stream to burn into the video.", queue_view_js)

@@ -49,10 +49,12 @@
         delete status.dataset.risk;
         status.replaceChildren();
       }
-      const confirmation = safeById("fo-route-risk-confirmation");
-      const checkbox = safeById("fo-route-risk-confirm");
-      if (checkbox) checkbox.checked = false;
-      if (confirmation) confirmation.hidden = true;
+      const advisory = safeById("fo-route-encode-advisory");
+      if (advisory) {
+        advisory.hidden = true;
+        advisory.textContent = "";
+        advisory.dataset.tone = "info";
+      }
     }
 
     function clearProcessingRouteControls() {
@@ -144,10 +146,83 @@
       return Array.from(new Set(warnings));
     }
 
+    function routeTextForAdvisory(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function routeTextIsEncode(value) {
+      const route = routeTextForAdvisory(value);
+      return route === "encode" || route === "transcode";
+    }
+
+    function warningMentionsForcedEncode(message) {
+      const text = String(message || "").toLowerCase();
+      return (
+        /(force|forces|forced|may force).*(encode|transcode)/.test(text)
+        || /(encode|transcode).*(force|forces|forced)/.test(text)
+      );
+    }
+
+    function setRouteEncodeAdvisory(text, tone = "info") {
+      const advisory = safeById("fo-route-encode-advisory");
+      if (!advisory) return;
+      const message = String(text || "").trim();
+      advisory.textContent = message;
+      advisory.hidden = !message;
+      advisory.dataset.tone = tone;
+    }
+
+    function routePreviewEncodeAdvisory(result) {
+      if (result?.ok === false) {
+        return {
+          tone: "warning",
+          text: "May encode: not checked. Route preview failed; read the preview error before saving.",
+        };
+      }
+      const impact = safeIsPlainObject(result?.impact) ? result.impact : {};
+      const proposed = safeIsPlainObject(result?.proposed) ? result.proposed : {};
+      const processing = safeIsPlainObject(result?.route_video_processing) ? result.route_video_processing : {};
+      const proposedRoute = routeTextForAdvisory(proposed.route || processing.route);
+      const warnings = routePreviewWarningMessages(result);
+      const forcedByWarning = warnings.some(warningMentionsForcedEncode);
+      const willForceEncode = Boolean(
+        impact.will_force_transcode
+        || processing.will_force_transcode
+        || routeTextIsEncode(proposedRoute)
+        || forcedByWarning
+      );
+      if (willForceEncode) {
+        return {
+          tone: "warning",
+          text: "Force encode: backend preview says these settings can route this file to a full video encode/transcode.",
+        };
+      }
+      if (proposedRoute === "remux" || proposedRoute === "copy") {
+        return {
+          tone: "safe",
+          text: "Will Remux: backend preview keeps this file on remux/copy; review any route warnings before saving.",
+        };
+      }
+      const risk = String(impact.estimated_risk || "").trim().toLowerCase();
+      if (impact.requires_confirmation || risk === "medium" || risk === "high") {
+        return {
+          tone: "warning",
+          text: "May encode: possible. These settings can change remux-vs-encode routing; backend preview did not prove a forced encode.",
+        };
+      }
+      return {
+        tone: "safe",
+        text: "Will Remux: backend preview did not report an encode requirement for this override.",
+      };
+    }
+
+    function renderRouteEncodeAdvisory(result) {
+      const advisory = routePreviewEncodeAdvisory(result);
+      setRouteEncodeAdvisory(advisory.text, advisory.tone);
+    }
+
     function renderRoutePreviewPayload(result) {
       const status = safeById("fo-route-preview-status");
-      const confirmation = safeById("fo-route-risk-confirmation");
-      const checkbox = safeById("fo-route-risk-confirm");
       if (!status) return;
       status.replaceChildren();
       status.hidden = false;
@@ -184,10 +259,7 @@
         });
         status.appendChild(list);
       }
-
-      const requiresConfirmation = Boolean(impact.requires_confirmation);
-      if (confirmation) confirmation.hidden = !requiresConfirmation;
-      if (!requiresConfirmation && checkbox) checkbox.checked = false;
+      renderRouteEncodeAdvisory(result);
     }
 
     function renderRoutePreviewFromEffectivePayload(payload) {
@@ -209,6 +281,7 @@
         route_video_processing: processing,
         impact: {
           estimated_risk: processing.will_force_transcode ? "high" : "medium",
+          will_force_transcode: Boolean(processing.will_force_transcode),
           requires_confirmation: false,
         },
         warnings,
@@ -228,6 +301,7 @@
         status.textContent = "Checking route impact...";
         delete status.dataset.risk;
       }
+      setRouteEncodeAdvisory("May encode: checking backend route impact...", "info");
       const result = await apiPost("/api/queue/file-overrides/route-preview", {
         path: currentPath,
         proposed_override: proposed,
@@ -247,10 +321,6 @@
       }
       if (!result || result.ok === false) {
         safeSetStatus("Error: " + safeBackendErrorMessage(result, "Route preview failed."));
-        return false;
-      }
-      if (result?.impact?.requires_confirmation && !safeById("fo-route-risk-confirm")?.checked) {
-        safeSetStatus("Confirm the route impact before saving this processing override.");
         return false;
       }
       return true;
@@ -276,8 +346,6 @@
     }
 
     function scheduleRoutePreviewFromCurrentForm() {
-      const checkbox = safeById("fo-route-risk-confirm");
-      if (checkbox) checkbox.checked = false;
       if (routePreviewTimer) clearTimeout(routePreviewTimer);
       routePreviewTimer = setTimeout(() => {
         routePreviewTimer = null;

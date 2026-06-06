@@ -130,10 +130,36 @@ for path in sorted(root.glob("*.json")):
 $fixtureCases = @(Get-Phase07BFixturePlans)
 Assert-Equal $fixtureCases.Count 10 'Phase 07B parity harness must cover every Phase 03 source-media fixture.'
 
+function Test-PlanRequiresMkvmergeSubtitleTidMap {
+    param([Parameter(Mandatory)] $Plan)
+
+    if ([string]$Plan.routeSummary -ne 'REMUX') { return $false }
+    foreach ($action in @(Get-PipelinePlanStreamActions -Plan $Plan -StreamType 'subtitle')) {
+        $actionName = ([string]$action.action).Trim().ToLowerInvariant()
+        if ($actionName -ne 'drop' -and $actionName -ne 'burn') {
+            return $true
+        }
+    }
+    return $false
+}
+
 $matched = [System.Collections.Generic.List[string]]::new()
 foreach ($case in $fixtureCases) {
     $planJson = $case.plan | ConvertTo-Json -Depth 100
     $plan = ConvertFrom-PipelinePlanJson -Json $planJson
+    if (Test-PlanRequiresMkvmergeSubtitleTidMap -Plan $plan) {
+        $tidRejected = $false
+        try {
+            New-PipelinePlanExecutorDryRun -Plan $plan | Out-Null
+        } catch {
+            $message = [string]$_.Exception.Message
+            $tidRejected = ($message -like '*mkvmerge subtitle TID map unavailable*')
+        }
+        Assert-True $tidRejected "REMUX fixture $($case.fixture) should fail closed without mkvmerge subtitle TID evidence."
+        $matched.Add($case.fixture) | Out-Null
+        continue
+    }
+
     $dryRun = New-PipelinePlanExecutorDryRun -Plan $plan
     Assert-Equal $dryRun.schemaVersion 'pipeline_plan_executor_dry_run.v1' "Dry-run schema mismatch for $($case.fixture)."
     Assert-True $dryRun.dryRunOnly "Executor result must be dry-run only for $($case.fixture)."
@@ -177,6 +203,54 @@ foreach ($case in $fixtureCases) {
 }
 
 Assert-Equal $matched.Count $fixtureCases.Count 'Not every Phase 03 fixture reached a parity assertion.'
+
+$textBurnPlan = [pscustomobject]@{
+    streamActions = @(
+        [pscustomobject]@{ streamType = 'video'; streamIndex = 0; action = 'encode'; inputCodec = 'h264'; outputCodec = 'hevc_nvenc'; reasonCodes = @() },
+        [pscustomobject]@{ streamType = 'container'; action = 'keep'; inputCodec = 'matroska'; outputCodec = 'mkv'; reasonCodes = @() },
+        [pscustomobject]@{ streamType = 'subtitle'; streamIndex = 3; action = 'copy'; inputCodec = 'subrip'; outputCodec = ''; reasonCodes = @() },
+        [pscustomobject]@{ streamType = 'subtitle'; streamIndex = 7; action = 'burn'; inputCodec = 'subrip'; outputCodec = ''; reasonCodes = @() }
+    )
+}
+$burnFilterArgs = New-PipelinePlanExecutorSubtitleBurnVideoFilterArgs -Plan $textBurnPlan -InputPath 'C:\Media\Input With Subs.mkv'
+$burnFilterText = $burnFilterArgs -join ' '
+Assert-ContainsText $burnFilterText ':si=1' 'Text subtitle burn must use subtitle ordinal, not global ffprobe stream index.'
+Assert-DoesNotContainText $burnFilterText ':si=7' 'Text subtitle burn leaked global ffprobe stream index into si.'
+
+function Get-MkvmergeTidMap {
+    param([string] $FilePath, [string] $Context = '')
+    return @{ 2 = 9; 5 = 4 }
+}
+
+$mkvmergePlan = [pscustomobject]@{
+    planId = 'tid-map-plan'
+    sourceId = 'source'
+    output = [pscustomobject]@{ container = 'mkv' }
+    streamActions = @(
+        [pscustomobject]@{ streamType = 'video'; streamIndex = 0; action = 'copy'; inputCodec = 'hevc'; outputCodec = ''; reasonCodes = @() },
+        [pscustomobject]@{ streamType = 'container'; action = 'remux'; inputCodec = 'matroska'; outputCodec = 'mkv'; reasonCodes = @() },
+        [pscustomobject]@{ streamType = 'subtitle'; streamIndex = 2; action = 'copy'; inputCodec = 'hdmv_pgs_subtitle'; outputCodec = ''; reasonCodes = @() },
+        [pscustomobject]@{ streamType = 'subtitle'; streamIndex = 5; action = 'convert'; inputCodec = 'ass'; outputCodec = 'subrip'; reasonCodes = @() }
+    )
+}
+$mkvArgs = New-PipelinePlanExecutorMkvmergeArgumentList -Plan $mkvmergePlan -InputPath 'C:\Media\Input.mkv' -TempAvPath 'C:\Temp\Input.temp_av.mkv' -OutputPath 'C:\Out\Input.mkv'
+$tracksIndex = [array]::IndexOf([object[]]$mkvArgs, '--subtitle-tracks')
+Assert-True ($tracksIndex -ge 0) 'mkvmerge subtitle track selector is missing.'
+Assert-Equal $mkvArgs[$tracksIndex + 1] '9,4' 'mkvmerge subtitle selector must use mkvmerge TIDs.'
+Assert-DoesNotContainText ($mkvArgs -join ' ') '--subtitle-tracks 2,5' 'mkvmerge subtitle selector leaked ffprobe stream indexes.'
+
+function Get-MkvmergeTidMap {
+    param([string] $FilePath, [string] $Context = '')
+    return @{}
+}
+
+$missingTidRejected = $false
+try {
+    New-PipelinePlanExecutorMkvmergeArgumentList -Plan $mkvmergePlan -InputPath 'C:\Media\Input.mkv' -TempAvPath 'C:\Temp\Input.temp_av.mkv' -OutputPath 'C:\Out\Input.mkv' | Out-Null
+} catch {
+    $missingTidRejected = ([string]$_.Exception.Message -like '*mkvmerge subtitle TID map unavailable for ffprobe stream(s) 2,5*')
+}
+Assert-True $missingTidRejected 'mkvmerge subtitle selector must fail closed when TID evidence is incomplete.'
 
 $invalidPlan = $fixtureCases[0].plan | ConvertTo-Json -Depth 100 | ConvertFrom-Json -Depth 100
 $invalidPlan | Add-Member -NotePropertyName 'extraField' -NotePropertyValue 'not allowed'

@@ -280,10 +280,10 @@
   function diagnosticsStateRecommendedFirstAction(item) {
     const target = String(item?.target || "").toLowerCase();
     if (target === "settings_bdpgs_ocr_paths") {
-      return "Open Settings > Subtitles, verify the saved BDPGS OCR tool/tessdata evidence, save if needed, then refresh Diagnostics before rerunning OCR work.";
+      return "Open Settings > Media Output, verify the saved BDPGS OCR tool/tessdata evidence, save if needed, then refresh Diagnostics before rerunning OCR work.";
     }
     if (target === "settings_vobsub_ocr_paths") {
-      return "Open Settings > Subtitles, verify the saved VobSub OCR tool and Tesseract evidence, save if needed, then refresh Diagnostics before rerunning OCR work.";
+      return "Open Settings > Media Output, verify the saved VobSub OCR tool and Tesseract evidence, save if needed, then refresh Diagnostics before rerunning OCR work.";
     }
     const openTarget = String(item?.recommended_open_target || "").trim();
     const tailTarget = String(item?.recommended_tail_target || "").trim();

@@ -189,7 +189,7 @@ class ApplicationFacadeDiagnosticsTests(unittest.TestCase):
         self.assertEqual(issue["operator_status"], "blocked")
         self.assertEqual(issue["operator_status_state"], "blocked")
         self.assertEqual(issue["recovery_stage"], "settings_subtitle_ocr_readiness")
-        self.assertIn("Settings > Subtitles", issue["operator_guidance"])
+        self.assertIn("Settings > Media Output", issue["operator_guidance"])
         self.assertIn("PGS subtitle conversion", issue["unsafe_if_ignored"])
         self.assertIn("BdpgsOcrToolPath", "\n".join(issue["facts"]))
         rows = {row["target"]: row for row in payload["targets"]}

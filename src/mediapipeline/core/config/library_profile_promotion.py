@@ -4,7 +4,7 @@ import json
 from collections.abc import Mapping
 from typing import Any
 
-from mediapipeline.desktop.config_keys import (
+from mediapipeline.core.kernel.config_keys import (
     KEY_FINAL_LIBRARY_PROMOTION_RULES,
     KEY_LIBRARY_PROFILES,
     KEY_OUTSOURCE,

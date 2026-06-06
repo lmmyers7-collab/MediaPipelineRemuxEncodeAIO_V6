@@ -694,10 +694,6 @@ pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellRe
             "RoutingProfile: settingsBuilderInputValue(\"settings-builder-routing-profile\")",
         ),
         (
-            "settings builder output container patch key",
-            "OutputContainer: settingsBuilderInputValue(\"settings-builder-output-container\")",
-        ),
-        (
             "settings source-specific route preview boundary",
             "Source-specific route previews are not exposed in Settings",
         ),
@@ -705,6 +701,45 @@ pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellRe
         if !settings_patch_review_script.contains(fragment) {
             return Err(shell_error(format!(
                 "Backend WebView settings patch-review script is missing required fragment '{label}'."
+            )));
+        }
+    }
+    let settings_metadata_script =
+        request_backend_json(backend_url, "GET", "/assets/settingsMetadata.js", token, "")?;
+    for (label, fragment) in [(
+        "settings video detail output container field",
+        "[\"OutputContainer\", \"settings-builder-output-container\", \"select\"]",
+    )] {
+        if !settings_metadata_script.contains(fragment) {
+            return Err(shell_error(format!(
+                "Backend WebView settings metadata script is missing required fragment '{label}'."
+            )));
+        }
+    }
+    let settings_video_builder_script = request_backend_json(
+        backend_url,
+        "GET",
+        "/assets/settingsView.builders.video.js",
+        token,
+        "",
+    )?;
+    for (label, fragment) in [
+        (
+            "settings video detail patch collector",
+            "function collectVideoDetailSettingsBuilderPatch",
+        ),
+        (
+            "settings video detail output container control",
+            "setVideoDetailBuilderControl(\"settings-builder-output-container\", \"OutputContainer\", \"select\", \"mkv\")",
+        ),
+        (
+            "settings video detail patch assignment",
+            "patch[key] = readVideoDetailBuilderValue(id, kind, field?.label || key)",
+        ),
+    ] {
+        if !settings_video_builder_script.contains(fragment) {
+            return Err(shell_error(format!(
+                "Backend WebView settings video builder script is missing required fragment '{label}'."
             )));
         }
     }

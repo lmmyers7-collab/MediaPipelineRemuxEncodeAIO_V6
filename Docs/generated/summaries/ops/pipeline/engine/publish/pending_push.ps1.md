@@ -3,9 +3,9 @@ file: ops/pipeline/engine/publish/pending_push.ps1
 pipeline_stage: publish
 token_priority: high
 owner_domain: publish
-last_modified: 2026-05-31
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 285f8eccbc173933e43da064de1a996690cd9da4fefb6f79aa0a7062be39c19b
+sha256: b0bf5a571ebc7736ec11d49dc2a6e390874cda804edd3ebbe3b4878e97eb6799
 ---
 # `ops/pipeline/engine/publish/pending_push.ps1`
 

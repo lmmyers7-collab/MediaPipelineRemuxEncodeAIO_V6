@@ -2,7 +2,7 @@
 
 Documents all Local API routes, their mutation risk, auth requirements, backend owner confirmation, and primary frontend caller. Source of truth is `contract_read.py` and `contract_command.py`; handler dispatch is in `routes_read.py` and `routes_command.py`.
 
-Total routes: 86 (35 read, 51 command).
+Total routes: 89 (36 read, 53 command).
 
 All routes that mutate state are backend-owned. The WebView never resolves filesystem paths, selects output targets, chooses encode settings, or launches processes directly — it forwards requests with allowlisted parameters and the backend validates, plans, and executes.
 
@@ -39,6 +39,7 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 | `GET /api/queue/file-overrides/effective` | Yes | `queue_file_overrides_effective.v1` | Queue | Reads inherited/effective file override metadata for one source-root-contained path; no manifest write |
 | `GET /api/queue/file-overrides/tracks` | Yes | `queue_file_override_tracks.v1` | Queue | Reads normalized track metadata for one source-root-contained path; no queue preview mutation |
 | `GET /api/completed` | Yes | `desktop_completed_preview.v1` | Completed | From local completed-jobs manifest; no output-share scan |
+| `GET /api/metrics` | Yes | `desktop_metrics.v1` | Metrics | Backend-owned route, storage, production, and worker/coordinator metrics from completed manifest, pending publish, worker runtime, and final-library promotion evidence; no launch, drain, promote, config save, queue mutation, or media touch |
 | `GET /api/final-library-promotion/status` | Yes | `desktop_final_library_promotion_status.v1` | Completed | Reads backend-owned final-library promotion readiness, run state, pause state, counts, and destinations; no copy/move/delete action |
 | `GET /api/failures` | Yes | `desktop_failure_preview.v1` | Reports, Diagnostics | Query params: `source` (`latest_json` or `markers`), `limit` |
 | `GET /api/audit-results` | Yes | `desktop_audit_preview.v1` | Reports | Query params: `priority_only`, `limit`; no rerun CSV written |
@@ -97,7 +98,7 @@ Failure marker clear is backend-owned retry-blocker cleanup. It requires `confir
 | Route | Effect | Request Keys | Allowed Targets | Frontend Caller |
 |---|---|---|---|---|
 | `POST /api/queue/open` | `shell-open` | `row_key`, `target`, `row_scope` | `source_file`, `source_folder`, `source_root` | Queue |
-| `POST /api/completed/open` | `shell-open` | `row_key`, `target` | `output_file`, `output_folder`, `sidecar`, `source_folder` | Completed |
+| `POST /api/completed/open` | `shell-open` | `row_key`, `target` | `output_file`, `play_output_file`, `output_folder`, `sidecar`, `source_folder` | Completed |
 | `POST /api/pending-publish/open` | `shell-open` | `row_key`, `target` | `local_file`, `manifest`, `destination_folder`, `source_folder` | Pending Publish |
 | `POST /api/pending-publish/recovery-plan` | `none` (dry-run) | `scope`, `row_key` | `all`, `selected` | Pending Publish |
 
@@ -139,6 +140,15 @@ UI preference sync is backend-owned state persistence for browser-local customiz
 | `POST /api/maintenance/dependency-atlas` | `tooling-artifact-write` | `timeout_seconds`, `min_overview_edge_count`, `min_overview_files` | Maintenance |
 
 The dry-run routes run existing backend scripts with `-DryRun` and write no release folder, zip, manifest, or completed manifest. `dependency-atlas` writes generated dependency-atlas tooling artifacts under `docs/generated/dependency-atlas/` only and does not touch media, queue, settings, manifests, pending publish state, or pipeline state. `release-build` requires explicit `confirm_create`, is blocked during active work, runs under the backend maintenance command lock, and writes only release deployment artifacts through the backend release builder.
+
+### Metrics Commands
+
+| Route | Effect | Key Request Keys | Frontend Caller |
+|---|---|---|---|
+| `POST /api/metrics/sources` | `metrics-state-write` | `action`, `path`, `source_id`, `label`, `enabled` | Metrics |
+| `POST /api/metrics/backfill` | `metrics-backfill-state-write` | `scope`, `source_id`, `path`, `max_sidecars` | Metrics |
+
+Metrics commands write only backend Metrics state under `State\Metrics`. Source updates maintain the configured root registry. Backfill recursively reads `*.pipeline.json` sidecars under configured Metrics roots, skips symlinked folders, and refreshes Metrics cache/status files without rewriting sidecars, launching work, changing queue state, or touching media files.
 
 ### Rename Commands
 
@@ -218,12 +228,14 @@ files.
 
 | Effect tag | Routes | Risk level |
 |---|---|---|
-| `none` | 47 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, Settings Wizard validation/preview routes, settings/reload, recovery-plan, sample-validation/preview, schedule/preview) | None |
+| `none` | 48 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, Settings Wizard validation/preview routes, settings/reload, recovery-plan, sample-validation/preview, schedule/preview) | None |
 | `bounded-health-check` | `GET /api/maintenance` | Read-only probes |
 | `read-only-preview` | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/folder-preview` | Advisory backend previews only |
 | `shell-open` | `POST /api/queue/open`, `POST /api/completed/open`, `POST /api/pending-publish/open`, `POST /api/diagnostics/open` | OS open only; no file mutation |
 | `shell-dialog` | `POST /api/rename/browse`, `POST /api/settings/browse-path`, `POST /api/pipeline/browse-file` | Native Windows picker only; no file mutation |
 | `ui-state-write` | `POST /api/ui-preferences` | Allowlisted UI preference JSON only |
+| `metrics-state-write` | `POST /api/metrics/sources` | Metrics source registry JSON under `State\Metrics` only |
+| `metrics-backfill-state-write` | `POST /api/metrics/backfill` | Recursive sidecar read plus Metrics cache/status writes under `State\Metrics` only |
 | `queue-state-write` | `POST /api/queue/priority`, `POST /api/queue/strategy`, `POST /api/queue/file-overrides`, `POST /api/queue/file-overrides/series-apply`, `POST /api/queue/file-overrides/folder-rule` | Non-destructive queue state JSON only |
 | `failure-marker-write` | `POST /api/failures/clear` | Moves retry-blocker marker JSON out of the active marker folder only |
 | `audit-state-write` | `POST /api/audit/score-policy`, `POST /api/audit/ignore` | Audit-only score/ignore state; no queue/media mutation |

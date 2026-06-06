@@ -1,0 +1,41 @@
+{
+  "id": "MP-CHANGE-2026-0605-112",
+  "title": "Reduce subtitle QA false blockers",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-05",
+  "date_completed": "2026-06-05",
+  "summary": "Reduces false blocked Subtitle QA labels by downgrading incomplete image-subtitle conversion metadata to review unless an explicit OCR/conversion failure is present, and keeps Completed table evidence focused on output, size, sidecar, consistency, and runtime blockers before advisory Subtitle QA review labels.",
+  "reason": "Completed evidence boxes were showing repeated Subtitle QA blocked labels for rows that did not have explicit subtitle failures, obscuring the more relevant evidence such as size review.",
+  "affected_areas": [
+    "completed",
+    "subtitles",
+    "webview"
+  ],
+  "behavior_before": "Image-based subtitle decisions without a tool field were treated as blocked even when the row only lacked detailed conversion metadata. Completed table evidence displayed Subtitle QA before size/output/sidecar/runtime evidence.",
+  "behavior_after": "Explicit OCR/conversion failures remain blocked. Missing image-subtitle conversion detail without failure evidence is review, and positive cue/output/status evidence prevents a false blocker. Completed table evidence shows output/size/sidecar/consistency/runtime issues before Subtitle QA advisory labels.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/completed/table.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/completed/table.js.md",
+    "docs/generated/summaries/src/mediapipeline/core/subtitles/qa.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_subtitle_qa_feature.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0605-112.json",
+    "src/mediapipeline/core/subtitles/qa.py",
+    "tests/python/desktop/test_subtitle_qa_feature.py"
+  ],
+  "tests_added": [
+    "Expanded tests/python/desktop/test_subtitle_qa_feature.py false-blocker coverage"
+  ],
+  "manual_validation": [
+    "$env:PYTHONPATH='src'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_subtitle_qa_feature -q",
+    "$env:PYTHONPATH='src'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_subtitle_qa_feature tests.python.desktop.test_application_facade_core_contracts tests.python.desktop.test_api_handler_policy -q",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m py_compile src\\mediapipeline\\core\\subtitles\\qa.py tests\\python\\desktop\\test_subtitle_qa_feature.py",
+    "node --check apps\\desktop\\webview\\static\\assets\\completed\\table.js",
+    ".\\ops\\scripts\\smoke\\Test-WebViewRowDetailSmoke.ps1"
+  ],
+  "rollback_plan": "Restore the prior image-subtitle missing-tool blocker logic, restore Completed table evidence precedence to show Subtitle QA first, and remove the added false-blocker tests.",
+  "related_changes": [],
+  "notes": "This fix does not hide actual subtitle failures. OCR/conversion failure text still produces blocked QA; missing metadata alone produces review."
+}

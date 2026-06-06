@@ -51,6 +51,53 @@ def _normalized_failure_source_path(value: Any) -> str:
     return normalized.replace("/", "\\").casefold()
 
 
+def _failure_lookup_key(kind: str, *values: Any) -> str:
+    parts = [_failure_text(value).casefold() for value in values]
+    if not all(parts):
+        return ""
+    return "\u001f".join([kind, *parts])
+
+
+def _failure_marker_lookup_keys_for_record(record: FailureRecord) -> list[str]:
+    keys: list[str] = []
+    source_key = _normalized_failure_source_path(record.source_path_text)
+    if source_key:
+        keys.append(source_key)
+    job_key = _failure_lookup_key("job", record.job_id, record.stage, record.error_code)
+    if job_key:
+        keys.append(job_key)
+    correlation_key = _failure_lookup_key(
+        "correlation",
+        record.correlation_id,
+        record.source_path_text,
+        record.stage,
+        record.error_code,
+    )
+    if correlation_key:
+        keys.append(correlation_key)
+    return keys
+
+
+def _failure_marker_lookup_keys_for_row(row: dict[str, object]) -> list[str]:
+    keys: list[str] = []
+    source_key = _normalized_failure_source_path(row.get("source_path"))
+    if source_key:
+        keys.append(source_key)
+    job_key = _failure_lookup_key("job", row.get("job_id"), row.get("stage"), row.get("error_code"))
+    if job_key:
+        keys.append(job_key)
+    correlation_key = _failure_lookup_key(
+        "correlation",
+        row.get("correlation_id"),
+        row.get("source_path"),
+        row.get("stage"),
+        row.get("error_code"),
+    )
+    if correlation_key:
+        keys.append(correlation_key)
+    return keys
+
+
 def _unique_failure_marker_paths(marker_paths: list[str]) -> list[str]:
     unique: list[str] = []
     seen: set[str] = set()
@@ -71,9 +118,10 @@ def failure_marker_lookup(records: object) -> dict[str, list[str]]:
     for record in records or []:
         if not isinstance(record, FailureRecord):
             continue
-        key = _normalized_failure_source_path(record.source_path_text)
         marker_path = _failure_text(record.source_json)
-        if key and marker_path:
+        if not marker_path:
+            continue
+        for key in _failure_marker_lookup_keys_for_record(record):
             lookup[key] = _unique_failure_marker_paths([*lookup.get(key, []), marker_path])
     return lookup
 
@@ -169,15 +217,19 @@ def _failure_clear_error(
 
     if marker_lookup is None:
         return _failure_clear_error_unavailable("Active failure markers could not be loaded for this failure row.")
-    source_key = _normalized_failure_source_path(row.get("source_path"))
-    if not source_key:
+    lookup_keys = _failure_marker_lookup_keys_for_row(row)
+    if not lookup_keys:
         return _failure_clear_error_unavailable(
-            "This failure row did not include a source path that can be matched to an active marker."
+            "This failure row did not include source or job evidence that can be matched to an active marker."
         )
-    marker_paths = marker_lookup.get(source_key, [])
+    marker_paths = _unique_failure_marker_paths(
+        [path for key in lookup_keys for path in marker_lookup.get(key, [])]
+    )
     if marker_paths:
         return _failure_clear_error_available(marker_paths)
-    return _failure_clear_error_unavailable("No active failure marker matched this failure row.")
+    return _failure_clear_error_unavailable(
+        "No active failure marker matched this latest-report row. If markers were already cleared, switch to Use failure markers to view active retry blockers only."
+    )
 
 
 def failure_record_to_row(

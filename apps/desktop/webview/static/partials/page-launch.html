@@ -1,12 +1,395 @@
       <section class="page" data-page-panel="launch">
         <h1 class="visually-hidden">Launch Pipeline</h1>
         <div class="settings-tab-bar launch-tab-bar" role="tablist" aria-label="Launch sections">
-          <button type="button" class="settings-tab-btn" role="tab" aria-selected="true" data-launch-tab="pipeline">Pipeline</button>
+          <button type="button" class="settings-tab-btn" role="tab" aria-selected="true" data-launch-tab="pipeline">Pipeline Processor</button>
           <button type="button" class="settings-tab-btn" role="tab" aria-selected="false" data-launch-tab="audit">Audit</button>
           <button type="button" class="settings-tab-btn" role="tab" aria-selected="false" data-launch-tab="rerun">CSV Rerun</button>
           <button type="button" class="settings-tab-btn" role="tab" aria-selected="false" data-launch-tab="history">History</button>
           <button type="button" class="settings-tab-btn" role="tab" aria-selected="false" data-launch-tab="readiness">Readiness</button>
         </div>
+        <section class="panel settings-tab-pane is-active launch-tab-panel pipeline-controller-panel" data-launch-tab-panel="pipeline" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Pipeline Processor</h2>
+            <strong id="pipeline-launch-status">Idle</strong>
+          </div>
+          <div class="pipeline-controller-status-strip" aria-label="Pipeline controller status">
+            <div class="pipeline-controller-status-card">
+              <span class="pipeline-controller-status-label">Backend</span>
+              <strong id="pipeline-controller-backend-status">Started</strong>
+              <span id="pipeline-controller-backend-detail">Local API loaded.</span>
+            </div>
+            <div class="pipeline-controller-status-card">
+              <span class="pipeline-controller-status-label">Pipeline</span>
+              <strong id="pipeline-controller-pipeline-state">Idle</strong>
+              <span id="pipeline-controller-stage-summary">No active backend work.</span>
+            </div>
+            <div class="pipeline-controller-status-card">
+              <span class="pipeline-controller-status-label">Control readiness</span>
+              <strong id="control-readiness-status">Not loaded</strong>
+              <span id="pipeline-controller-control-summary">Waiting for backend snapshot.</span>
+            </div>
+            <div class="pipeline-controller-status-card">
+              <span class="pipeline-controller-status-label">Last start</span>
+              <strong id="pipeline-controller-last-start-status">Idle</strong>
+              <span id="pipeline-controller-last-start-summary">No launch command in recent history.</span>
+            </div>
+          </div>
+          <div class="pipeline-controller-grid">
+            <div class="pipeline-controller-start">
+              <div class="pipeline-compact-gate">
+                <div class="pipeline-compact-gate-header">
+                  <strong id="pipeline-compact-gate-status">Review</strong>
+                  <button type="button" id="pipeline-compact-gate-refresh-button" class="secondary-button">Refresh</button>
+                </div>
+                <div id="pipeline-compact-gate-strip" class="pipeline-compact-gate-strip" role="group" aria-label="Pipeline processor gate summary">
+                  <button type="button" id="pipeline-gate-backend" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Backend gate: Review. Refresh Backend Preflight before submitting normal start modes.">
+                    <span class="pipeline-gate-label">Backend</span>
+                    <strong class="pipeline-gate-value">Review</strong>
+                    <span class="pipeline-gate-note">Refresh</span>
+                  </button>
+                  <button type="button" id="pipeline-gate-queue" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Queue gate: Review. Load Queue before trusting visible launch scope.">
+                    <span class="pipeline-gate-label">Queue</span>
+                    <strong class="pipeline-gate-value">Review</strong>
+                    <span class="pipeline-gate-note">Load Queue</span>
+                  </button>
+                  <button type="button" id="pipeline-gate-settings" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Settings gate: Review. Load saved settings before starting work.">
+                    <span class="pipeline-gate-label">Settings</span>
+                    <strong class="pipeline-gate-value">Review</strong>
+                    <span class="pipeline-gate-note">Load Settings</span>
+                  </button>
+                  <button type="button" id="pipeline-gate-schedule" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Schedule gate: Review. Load schedule evidence before starting work.">
+                    <span class="pipeline-gate-label">Schedule</span>
+                    <strong class="pipeline-gate-value">Review</strong>
+                    <span class="pipeline-gate-note">Load Schedule</span>
+                  </button>
+                  <button type="button" id="pipeline-gate-active" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Active gate: Review. Load backend state before starting work.">
+                    <span class="pipeline-gate-label">Active</span>
+                    <strong class="pipeline-gate-value">Review</strong>
+                    <span class="pipeline-gate-note">Load State</span>
+                  </button>
+                  <button type="button" id="pipeline-gate-last" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Last gate: Review. No recent launch result loaded.">
+                    <span class="pipeline-gate-label">Last</span>
+                    <strong class="pipeline-gate-value">Review</strong>
+                    <span class="pipeline-gate-note">No history</span>
+                  </button>
+                </div>
+                <p id="pipeline-compact-gate-detail" class="pipeline-compact-gate-detail" aria-live="polite">Refresh Backend Preflight and review compact gates before submitting normal start modes.</p>
+              </div>
+              <div class="panel-heading panel-subheading pipeline-controller-subheading">
+                <h3>Start Work</h3>
+                <strong>Normal launch path</strong>
+              </div>
+              <div class="pipeline-mode-command-grid" role="group" aria-label="Common pipeline start modes">
+                <button type="button" class="pipeline-mode-button" data-pipeline-mode-preset="once" aria-pressed="false">
+                  <span class="pipeline-mode-title">Run Once</span>
+                  <span class="pipeline-mode-hint">Process the current queue one time, then return to idle.</span>
+                </button>
+                <button type="button" class="pipeline-mode-button" data-pipeline-mode-preset="continuous" aria-pressed="false">
+                  <span class="pipeline-mode-title">Continuous</span>
+                  <span class="pipeline-mode-hint">Keep processing until stopped or schedule policy blocks work.</span>
+                </button>
+              </div>
+              <div class="pipeline-mode-secondary-row" role="group" aria-label="Secondary pipeline start modes">
+                <button type="button" class="secondary-button pipeline-mode-secondary-button" data-pipeline-mode-preset="validate">Validate</button>
+                <button type="button" class="secondary-button pipeline-mode-secondary-button" data-cross-page-target="pending">Open Pending Publish</button>
+              </div>
+              <select id="pipeline-start-mode" hidden aria-hidden="true">
+                <option value="once" selected>Run Once</option>
+                <option value="continuous">Continuous</option>
+                <option value="validate">Validate</option>
+                <option value="drain_pending_pushes">Publish Parked</option>
+              </select>
+              <div class="pipeline-scope-row">
+                <span class="pipeline-controller-field-label">Scope</span>
+                <div class="pipeline-scope-segmented" role="group" aria-label="Pipeline launch scope">
+                  <button type="button" class="pipeline-scope-button is-active" data-pipeline-scope-preset="queue" aria-pressed="true">Backend Queue</button>
+                  <button type="button" class="pipeline-scope-button" data-pipeline-scope-preset="single_file" aria-pressed="false">Single File</button>
+                </div>
+              </div>
+              <div class="pipeline-single-file-group" data-pipeline-single-file-container hidden aria-hidden="true">
+                <div class="pipeline-single-file-row">
+                  <label>
+                    Single File
+                    <input id="pipeline-start-single-file" type="text" autocomplete="off" placeholder="Optional absolute path">
+                  </label>
+                  <div class="pipeline-single-file-actions">
+                    <button type="button" id="pipeline-single-file-browse-button" class="secondary-button">Browse File</button>
+                    <button type="button" id="pipeline-single-file-clear-button" class="secondary-button">Clear</button>
+                  </div>
+                </div>
+                <p id="pipeline-single-file-browse-status" class="note">Backend queue scope selected. This uses backend queue, schedule, and settings scope, not Queue tab visible or selected rows. Use Single File to stage one path.</p>
+              </div>
+              <div data-advanced class="pipeline-controller-advanced">
+                <div class="panel-heading panel-subheading pipeline-controller-subheading">
+                  <h3>Advanced Controller</h3>
+                  <strong>Start parameters</strong>
+                </div>
+                <div class="form-grid launch-form-grid pipeline-controller-settings-grid">
+                  <label>
+                    Sleep Seconds
+                    <input id="pipeline-start-sleep" type="number" min="1" step="1" value="30">
+                  </label>
+                  <label>
+                    Schedule Override
+                    <select id="pipeline-start-schedule-override">
+                      <option value="">None</option>
+                      <option value="run_once">Run Once Outside Window</option>
+                      <option value="ignore">Ignore Schedule</option>
+                    </select>
+                  </label>
+                  <label class="check-row launch-check-row"><input id="pipeline-start-show-config" type="checkbox"> Show Config</label>
+                  <label class="check-row launch-check-row"><input id="pipeline-start-show-console" type="checkbox"> Show Console</label>
+                </div>
+              </div>
+              <div class="pipeline-controller-start-actions">
+                <button type="button" id="pipeline-start-button" class="primary-button pipeline-start-command-button" aria-describedby="pipeline-start-disabled-reason">Start Pipeline</button>
+                <span id="pipeline-start-disabled-reason" class="pipeline-controller-action-note">Backend start still re-checks queue, schedule, settings, and process locks; Queue tab display filters and row selection are not submitted.</span>
+              </div>
+              <p class="pipeline-startup-banner note" hidden></p>
+            </div>
+            <div class="pipeline-controller-controls" aria-label="Running pipeline controls" data-live-state="idle">
+              <div class="panel-heading panel-subheading pipeline-controller-subheading">
+                <h3>Live Run Controls</h3>
+                <strong id="pipeline-live-control-state">Idle</strong>
+              </div>
+              <p id="pipeline-live-control-summary" class="pipeline-controller-action-note">No active backend work.</p>
+              <div class="pipeline-controller-button-row">
+                <button type="button" class="secondary-button pipeline-control-button" data-control-action="pause">Pause / Resume</button>
+                <button type="button" class="secondary-button pipeline-control-button" data-control-action="rescan" data-confirm-command="true">Rescan</button>
+              </div>
+              <div class="pipeline-controller-stop-zone">
+                <div class="pipeline-controller-stop-heading">
+                  <span>Stop controls</span>
+                  <span>Use graceful stop first unless the process is stalled.</span>
+                </div>
+                <div class="pipeline-controller-button-row">
+                  <button type="button" class="danger-button pipeline-stop-button" data-control-action="stop" data-confirm-command="true">Stop After Current</button>
+                </div>
+                <div class="pipeline-controller-emergency" hidden aria-hidden="true">
+                  <span class="pipeline-controller-emergency-label">Emergency</span>
+                  <button type="button" class="danger-button emergency-button pipeline-emergency-button" data-control-action="kill" data-confirm-command="true">Force Stop</button>
+                </div>
+              </div>
+              <p id="control-status" class="note"></p>
+            </div>
+          </div>
+          <div class="pipeline-controller-history">
+            <div class="panel-heading panel-subheading pipeline-controller-subheading">
+              <h3>Command Journal</h3>
+              <strong>Latest control</strong>
+            </div>
+            <pre id="control-latest" class="prose-block">No pipeline control command in recent history.</pre>
+            <details class="pipeline-controller-history-details">
+              <summary>Full recent control history</summary>
+              <pre id="control-history" class="prose-block">No pipeline control command history loaded.</pre>
+            </details>
+            <pre id="status-summary" class="prose-block" style="display:none">No status loaded.</pre>
+            <pre id="control-readiness" class="prose-block" style="display:none">No pipeline control readiness loaded.</pre>
+          </div>
+        </section>
+        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="pipeline" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Start Evidence</h2>
+            <strong>Read-only</strong>
+          </div>
+          <pre id="pipeline-launch-preflight" class="prose-block">No pipeline launch evidence loaded.</pre>
+          <pre id="pipeline-launch-detail" class="prose-block">No launch result evidence.</pre>
+        </section>
+        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="audit" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Audit Mode Start</h2>
+            <strong id="audit-launch-status">Idle</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label>
+              Library Root
+              <input id="audit-start-library-root" type="text" autocomplete="off">
+            </label>
+            <label class="check-row launch-check-row"><input id="audit-start-include-sidecars" type="checkbox" checked> Include Sidecars</label>
+            <label class="check-row launch-check-row"><input id="audit-start-show-console" type="checkbox"> Show Console</label>
+          </div>
+          <div class="panel-heading panel-subheading">
+            <h3>Score Policy</h3>
+            <strong id="audit-score-policy-status">Not loaded</strong>
+          </div>
+          <pre id="audit-score-policy-summary" class="prose-block">No audit score policy loaded.</pre>
+          <details class="settings-advanced-disclosure" data-advanced>
+            <summary>Advanced score controls</summary>
+            <div class="table-wrap detail-table-wrap">
+              <table aria-label="Audit score point issues">
+                <thead>
+                  <tr>
+                    <th scope="col">Point issue</th>
+                    <th scope="col" class="num">Points</th>
+                    <th scope="col">Applies when</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><label for="audit-score-redownload-bucket">Redownload candidate bucket</label></td>
+                    <td class="num"><input id="audit-score-redownload-bucket" type="number" min="0" max="1000" step="1"></td>
+                    <td>Any effective issue has bucket REDOWNLOAD_CANDIDATE, including ffprobe-open-failed, missing-video-stream, or missing-audio-stream.</td>
+                  </tr>
+                  <tr>
+                    <td><label for="audit-score-high-issue">High issue-code marker</label></td>
+                    <td class="num"><input id="audit-score-high-issue" type="number" min="0" max="1000" step="1"></td>
+                    <td>Score applied to every high issue-code marker listed below after redownload candidate bucket markers are handled.</td>
+                  </tr>
+                  <tr>
+                    <td><label for="audit-score-rerun-bucket">Rerun pipeline bucket</label></td>
+                    <td class="num"><input id="audit-score-rerun-bucket" type="number" min="0" max="1000" step="1"></td>
+                    <td>Any remaining effective issue has bucket RERUN_PIPELINE and was not already matched by a higher-priority bucket or issue-code marker.</td>
+                  </tr>
+                  <tr>
+                    <td><label for="audit-score-medium-issue">Medium issue-code marker</label></td>
+                    <td class="num"><input id="audit-score-medium-issue" type="number" min="0" max="1000" step="1"></td>
+                    <td>Score applied to every medium issue-code marker listed below after redownload, high, and rerun bucket markers are handled.</td>
+                  </tr>
+                  <tr>
+                    <td><label for="audit-score-review-bucket">Review bucket</label></td>
+                    <td class="num"><input id="audit-score-review-bucket" type="number" min="0" max="1000" step="1"></td>
+                    <td>Any remaining effective issue has bucket REVIEW and was not already matched by a medium or high issue-code marker.</td>
+                  </tr>
+                  <tr>
+                    <td><label for="audit-score-fallback-issue">Fallback issue marker</label></td>
+                    <td class="num"><input id="audit-score-fallback-issue" type="number" min="0" max="1000" step="1"></td>
+                    <td>Any effective issue not matched by redownload, high, rerun, medium, or review markers.</td>
+                  </tr>
+                  <tr>
+                    <td><label for="audit-score-redownload-bonus">Redownload candidate bonus</label></td>
+                    <td class="num"><input id="audit-score-redownload-bonus" type="number" min="0" max="1000" step="1"></td>
+                    <td>Added once when at least one effective REDOWNLOAD_CANDIDATE issue is present.</td>
+                  </tr>
+                  <tr>
+                    <td><label for="audit-score-rerun-bonus">Rerun pipeline bonus</label></td>
+                    <td class="num"><input id="audit-score-rerun-bonus" type="number" min="0" max="1000" step="1"></td>
+                    <td>Added once when no redownload issue is present and at least one effective RERUN_PIPELINE issue is present.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="action-row action-row-left wrap-actions">
+              <button type="button" id="audit-score-policy-save-button" class="secondary-button">Save Score Policy</button>
+              <button type="button" id="audit-score-policy-reset-button" class="secondary-button">Reset Score Defaults</button>
+            </div>
+            <pre id="audit-score-policy-detail" class="prose-block">Score policy changes apply to future backend audit report generation.</pre>
+          </details>
+          <div class="panel-heading panel-subheading">
+            <h3>Audit Progress</h3>
+            <strong id="audit-launch-progress-status">Not loaded</strong>
+          </div>
+          <div id="audit-launch-progress-bars" class="progress-bar-list" aria-live="polite">
+            <p class="note">No audit progress loaded.</p>
+          </div>
+          <pre id="audit-launch-progress-summary" class="prose-block">No audit progress loaded.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Latest Audit Log</h3>
+            <strong id="audit-launch-log-status">No rows</strong>
+          </div>
+          <pre id="audit-launch-log-summary" class="prose-block">No audit log loaded.</pre>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Select</th>
+                  <th scope="col" class="num">Score</th>
+                  <th scope="col">Priority</th>
+                  <th scope="col">Bucket</th>
+                  <th scope="col">Media</th>
+                  <th scope="col">Title</th>
+                  <th scope="col">Issue</th>
+                </tr>
+              </thead>
+              <tbody id="audit-launch-log-rows">
+                <tr><td colspan="7">No audit rows loaded.</td></tr>
+              </tbody>
+            </table>
+            <div class="empty-state" data-empty-state="hidden" style="display:none">
+              <span class="empty-state-label">Audit log not loaded</span>
+              <span class="empty-state-hint">Audit rows appear here after the backend produces an audit CSV.</span>
+            </div>
+          </div>
+          <p id="audit-launch-log-table-legend" class="note table-legend">Audit log rows: no selectable rows.</p>
+          <pre id="audit-launch-log-detail" class="prose-block">No audit row selected.</pre>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" id="audit-ignore-selected-button" class="secondary-button">Ignore Selected</button>
+            <button type="button" id="audit-export-rerun-csv-button" class="secondary-button">Export Rerun CSV</button>
+          </div>
+          <pre id="audit-export-detail" class="prose-block">No audit rerun CSV export submitted.</pre>
+          <pre id="audit-launch-preflight" class="prose-block">No audit launch preflight loaded.</pre>
+          <div class="action-row action-row-left">
+            <button type="button" id="audit-start-button" class="primary-button">Start Audit</button>
+          </div>
+          <pre id="audit-launch-detail" class="prose-block">No audit launch result.</pre>
+        </section>
+        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="rerun" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Rerun from CSV</h2>
+            <strong id="rerun-launch-status">Idle</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label>
+              CSV Path
+              <input id="rerun-start-csv-path" type="text" autocomplete="off">
+            </label>
+            <label>
+              Stage
+              <input type="text" value="copy" readonly title="CSV rerun stages files by copying to scratch first; source rows are not edited by the WebView.">
+            </label>
+            <label>
+              Original
+              <input type="text" value="keep" readonly title="CSV rerun keeps original source media by default. Source deletion requires backend-owned explicit policy.">
+            </label>
+            <label>
+              Return
+              <input type="text" value="park" readonly title="CSV rerun parks outputs for backend publish/drain review rather than treating WebView as publish authority.">
+            </label>
+            <label class="check-row launch-check-row"><input id="rerun-start-show-console" type="checkbox"> Show Console</label>
+          </div>
+          <pre id="rerun-launch-preflight" class="prose-block">No CSV rerun preflight loaded.</pre>
+          <div class="action-row action-row-left">
+            <button type="button" id="rerun-start-button" class="primary-button">Start CSV Rerun</button>
+          </div>
+          <pre id="rerun-launch-detail" class="prose-block">No CSV rerun launch result.</pre>
+        </section>
+        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="history" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Command History</h2>
+            <strong id="launch-history-status">No launches</strong>
+          </div>
+          <pre id="launch-history" class="prose-block">No launch command history loaded.</pre>
+          <div data-advanced>
+          <div class="panel-heading panel-subheading">
+            <h3>Command Review</h3>
+            <strong id="launch-command-review-status">Not loaded</strong>
+          </div>
+          <pre id="launch-command-review-summary" class="prose-block">No launch command review loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Flow</th>
+                  <th scope="col">Issue</th>
+                  <th scope="col">Latest Command</th>
+                  <th scope="col">Checklist Correlation</th>
+                  <th scope="col">Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="launch-command-review-rows">
+                <tr><td colspan="5">No launch command review rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Review not run</span>
+            <span class="empty-state-hint">Launch command review rows appear here after the backend preflight loads.</span>
+          </div>
+          </div>
+          <p id="launch-command-review-legend" class="note table-legend">Launch command review rows: no selectable rows.</p>
+          <pre id="launch-command-review-detail" class="prose-block">Select a launch command review row for checklist correlation.</pre>
+          <pre id="launch-command-diagnostics-guidance" class="prose-block">Select a launch command row to see backend-allowlisted diagnostics retry guidance.</pre>
+          <div id="launch-command-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
+          </div>
+        </section>
         <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="readiness" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Readiness</h2>
@@ -20,6 +403,34 @@
             <strong id="launch-timing-status">Not loaded</strong>
           </div>
           <pre id="launch-timing" class="prose-block">No launch timing trust loaded.</pre>
+        </section>
+        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="readiness" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Start Summary</h2>
+            <strong id="launch-start-decision-status">Not evaluated</strong>
+          </div>
+          <pre id="launch-start-decision-summary" class="prose-block">No launch start decision summary loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Signal</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Operator Action</th>
+                </tr>
+              </thead>
+              <tbody id="launch-start-decision-rows">
+                <tr><td colspan="4">No launch start decision rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Not evaluated</span>
+            <span class="empty-state-hint">Load the Launch page to see go/no-go start decision rows.</span>
+          </div>
+          </div>
+          <p id="launch-start-decision-legend" class="note table-legend">Launch start decision rows: no selectable rows.</p>
+          <pre id="launch-start-decision-detail" class="prose-block">Select a start decision signal before using backend-owned start controls.</pre>
         </section>
         <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="readiness" data-panel-type="interactive" id="launch-evidence-section">
           <div class="panel-heading">
@@ -257,377 +668,5 @@
           <p id="launch-backend-preflight-legend" class="note table-legend">Backend launch preflight rows: no selectable rows.</p>
           <pre id="launch-backend-preflight-detail" class="prose-block">Select a backend preflight check for details.</pre>
           </div><!-- end #launch-evidence-body -->
-        </section>
-        <section class="panel settings-tab-pane is-active launch-tab-panel pipeline-controller-panel" data-launch-tab-panel="pipeline" data-panel-type="interactive">
-          <div class="panel-heading">
-            <h2>Pipeline Controller</h2>
-            <strong id="pipeline-launch-status">Idle</strong>
-          </div>
-          <div class="pipeline-controller-status-strip" aria-label="Pipeline controller status">
-            <div class="pipeline-controller-status-card">
-              <span class="pipeline-controller-status-label">Backend</span>
-              <strong id="pipeline-controller-backend-status">Started</strong>
-              <span id="pipeline-controller-backend-detail">Local API loaded.</span>
-            </div>
-            <div class="pipeline-controller-status-card">
-              <span class="pipeline-controller-status-label">Pipeline</span>
-              <strong id="pipeline-controller-pipeline-state">Idle</strong>
-              <span id="pipeline-controller-stage-summary">No active backend work.</span>
-            </div>
-            <div class="pipeline-controller-status-card">
-              <span class="pipeline-controller-status-label">Control readiness</span>
-              <strong id="control-readiness-status">Not loaded</strong>
-              <span id="pipeline-controller-control-summary">Waiting for backend snapshot.</span>
-            </div>
-            <div class="pipeline-controller-status-card">
-              <span class="pipeline-controller-status-label">Last start</span>
-              <strong id="pipeline-controller-last-start-status">Idle</strong>
-              <span id="pipeline-controller-last-start-summary">No launch command in recent history.</span>
-            </div>
-          </div>
-          <div class="pipeline-controller-grid">
-            <div class="pipeline-controller-start">
-              <div class="panel-heading panel-subheading pipeline-controller-subheading">
-                <h3>Start Work</h3>
-                <strong>Normal launch path</strong>
-              </div>
-              <div class="pipeline-mode-command-grid" role="group" aria-label="Common pipeline start modes">
-                <button type="button" class="pipeline-mode-button" data-pipeline-mode-preset="once" aria-pressed="false">
-                  <span class="pipeline-mode-title">Run Once</span>
-                  <span class="pipeline-mode-hint">Process the current queue one time, then return to idle.</span>
-                </button>
-                <button type="button" class="pipeline-mode-button" data-pipeline-mode-preset="continuous" aria-pressed="false">
-                  <span class="pipeline-mode-title">Continuous</span>
-                  <span class="pipeline-mode-hint">Keep processing until stopped or schedule policy blocks work.</span>
-                </button>
-              </div>
-              <div class="pipeline-mode-secondary-row" role="group" aria-label="Secondary pipeline start modes">
-                <button type="button" class="secondary-button pipeline-mode-secondary-button" data-pipeline-mode-preset="validate">Validate</button>
-                <button type="button" class="secondary-button pipeline-mode-secondary-button" data-cross-page-target="pending">Open Pending Publish</button>
-              </div>
-              <select id="pipeline-start-mode" hidden aria-hidden="true">
-                <option value="once" selected>Run Once</option>
-                <option value="continuous">Continuous</option>
-                <option value="validate">Validate</option>
-                <option value="drain_pending_pushes">Publish Parked</option>
-              </select>
-              <div class="pipeline-scope-row">
-                <span class="pipeline-controller-field-label">Scope</span>
-                <div class="pipeline-scope-segmented" role="group" aria-label="Pipeline launch scope">
-                  <button type="button" class="pipeline-scope-button is-active" data-pipeline-scope-preset="queue" aria-pressed="true">Queue</button>
-                  <button type="button" class="pipeline-scope-button" data-pipeline-scope-preset="single_file" aria-pressed="false">Single File</button>
-                </div>
-              </div>
-              <div class="pipeline-single-file-group" data-pipeline-single-file-container hidden aria-hidden="true">
-                <div class="pipeline-single-file-row">
-                  <label>
-                    Single File
-                    <input id="pipeline-start-single-file" type="text" autocomplete="off" placeholder="Optional absolute path">
-                  </label>
-                  <div class="pipeline-single-file-actions">
-                    <button type="button" id="pipeline-single-file-browse-button" class="secondary-button">Browse File</button>
-                    <button type="button" id="pipeline-single-file-clear-button" class="secondary-button">Clear</button>
-                  </div>
-                </div>
-                <p id="pipeline-single-file-browse-status" class="note">Queue scope selected. Use Single File to stage one path.</p>
-              </div>
-              <div data-advanced class="pipeline-controller-advanced">
-                <div class="panel-heading panel-subheading pipeline-controller-subheading">
-                  <h3>Advanced Controller</h3>
-                  <strong>Start parameters</strong>
-                </div>
-                <div class="form-grid launch-form-grid pipeline-controller-settings-grid">
-                  <label>
-                    Sleep Seconds
-                    <input id="pipeline-start-sleep" type="number" min="1" step="1" value="30">
-                  </label>
-                  <label>
-                    Schedule Override
-                    <select id="pipeline-start-schedule-override">
-                      <option value="">None</option>
-                      <option value="run_once">Run Once Outside Window</option>
-                      <option value="ignore">Ignore Schedule</option>
-                    </select>
-                  </label>
-                  <label class="check-row launch-check-row"><input id="pipeline-start-show-config" type="checkbox"> Show Config</label>
-                  <label class="check-row launch-check-row"><input id="pipeline-start-show-console" type="checkbox"> Show Console</label>
-                </div>
-              </div>
-              <div class="pipeline-controller-start-actions">
-                <button type="button" id="pipeline-start-button" class="primary-button pipeline-start-command-button">Start Pipeline</button>
-                <span class="pipeline-controller-action-note">Backend start still re-checks queue, schedule, settings, and process locks.</span>
-              </div>
-              <p class="pipeline-startup-banner note" hidden></p>
-            </div>
-            <div class="pipeline-controller-controls" aria-label="Running pipeline controls" data-live-state="idle">
-              <div class="panel-heading panel-subheading pipeline-controller-subheading">
-                <h3>Live Run Controls</h3>
-                <strong id="pipeline-live-control-state">Idle</strong>
-              </div>
-              <p id="pipeline-live-control-summary" class="pipeline-controller-action-note">No active backend work.</p>
-              <div class="pipeline-controller-button-row">
-                <button type="button" class="secondary-button pipeline-control-button" data-control-action="pause">Pause / Resume</button>
-                <button type="button" class="secondary-button pipeline-control-button" data-control-action="rescan" data-confirm-command="true">Rescan</button>
-              </div>
-              <div class="pipeline-controller-stop-zone">
-                <div class="pipeline-controller-stop-heading">
-                  <span>Stop controls</span>
-                  <span>Use graceful stop first unless the process is stalled.</span>
-                </div>
-                <div class="pipeline-controller-button-row">
-                  <button type="button" class="danger-button pipeline-stop-button" data-control-action="stop" data-confirm-command="true">Stop After Current</button>
-                </div>
-                <div class="pipeline-controller-emergency" hidden aria-hidden="true">
-                  <span class="pipeline-controller-emergency-label">Emergency</span>
-                  <button type="button" class="danger-button emergency-button pipeline-emergency-button" data-control-action="kill" data-confirm-command="true">Force Stop</button>
-                </div>
-              </div>
-              <p id="control-status" class="note"></p>
-            </div>
-          </div>
-          <div class="pipeline-controller-history">
-            <div class="panel-heading panel-subheading pipeline-controller-subheading">
-              <h3>Command Journal</h3>
-              <strong>Latest control</strong>
-            </div>
-            <pre id="control-latest" class="prose-block">No pipeline control command in recent history.</pre>
-            <details class="pipeline-controller-history-details">
-              <summary>Full recent control history</summary>
-              <pre id="control-history" class="prose-block">No pipeline control command history loaded.</pre>
-            </details>
-            <pre id="status-summary" class="prose-block" style="display:none">No status loaded.</pre>
-            <pre id="control-readiness" class="prose-block" style="display:none">No pipeline control readiness loaded.</pre>
-          </div>
-        </section>
-        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="pipeline" data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Start Evidence</h2>
-            <strong>Read-only</strong>
-          </div>
-          <pre id="pipeline-launch-preflight" class="prose-block">No pipeline launch evidence loaded.</pre>
-          <pre id="pipeline-launch-detail" class="prose-block">No launch result evidence.</pre>
-        </section>
-        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="pipeline" data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Start Summary</h2>
-            <strong id="launch-start-decision-status">Not evaluated</strong>
-          </div>
-          <pre id="launch-start-decision-summary" class="prose-block">No launch start decision summary loaded.</pre>
-          <div class="table-wrap detail-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Signal</th>
-                  <th scope="col">Posture</th>
-                  <th scope="col">Evidence</th>
-                  <th scope="col">Operator Action</th>
-                </tr>
-              </thead>
-              <tbody id="launch-start-decision-rows">
-                <tr><td colspan="4">No launch start decision rows loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">Not evaluated</span>
-            <span class="empty-state-hint">Load the Launch page to see go/no-go start decision rows.</span>
-          </div>
-          </div>
-          <p id="launch-start-decision-legend" class="note table-legend">Launch start decision rows: no selectable rows.</p>
-          <pre id="launch-start-decision-detail" class="prose-block">Select a start decision signal before using backend-owned start controls.</pre>
-        </section>
-        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="audit" data-panel-type="interactive">
-          <div class="panel-heading">
-            <h2>Audit Mode Start</h2>
-            <strong id="audit-launch-status">Idle</strong>
-          </div>
-          <div class="form-grid launch-form-grid">
-            <label>
-              Library Root
-              <input id="audit-start-library-root" type="text" autocomplete="off">
-            </label>
-            <label class="check-row launch-check-row"><input id="audit-start-include-sidecars" type="checkbox" checked> Include Sidecars</label>
-            <label class="check-row launch-check-row"><input id="audit-start-show-console" type="checkbox"> Show Console</label>
-          </div>
-          <div class="panel-heading panel-subheading">
-            <h3>Score Policy</h3>
-            <strong id="audit-score-policy-status">Not loaded</strong>
-          </div>
-          <pre id="audit-score-policy-summary" class="prose-block">No audit score policy loaded.</pre>
-          <details class="settings-advanced-disclosure" data-advanced>
-            <summary>Advanced score controls</summary>
-            <div class="table-wrap detail-table-wrap">
-              <table aria-label="Audit score point issues">
-                <thead>
-                  <tr>
-                    <th scope="col">Point issue</th>
-                    <th scope="col" class="num">Points</th>
-                    <th scope="col">Applies when</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><label for="audit-score-redownload-bucket">Redownload candidate bucket</label></td>
-                    <td class="num"><input id="audit-score-redownload-bucket" type="number" min="0" max="1000" step="1"></td>
-                    <td>Any effective issue has bucket REDOWNLOAD_CANDIDATE, including ffprobe-open-failed, missing-video-stream, or missing-audio-stream.</td>
-                  </tr>
-                  <tr>
-                    <td><label for="audit-score-high-issue">High issue-code marker</label></td>
-                    <td class="num"><input id="audit-score-high-issue" type="number" min="0" max="1000" step="1"></td>
-                    <td>Score applied to every high issue-code marker listed below after redownload candidate bucket markers are handled.</td>
-                  </tr>
-                  <tr>
-                    <td><label for="audit-score-rerun-bucket">Rerun pipeline bucket</label></td>
-                    <td class="num"><input id="audit-score-rerun-bucket" type="number" min="0" max="1000" step="1"></td>
-                    <td>Any remaining effective issue has bucket RERUN_PIPELINE and was not already matched by a higher-priority bucket or issue-code marker.</td>
-                  </tr>
-                  <tr>
-                    <td><label for="audit-score-medium-issue">Medium issue-code marker</label></td>
-                    <td class="num"><input id="audit-score-medium-issue" type="number" min="0" max="1000" step="1"></td>
-                    <td>Score applied to every medium issue-code marker listed below after redownload, high, and rerun bucket markers are handled.</td>
-                  </tr>
-                  <tr>
-                    <td><label for="audit-score-review-bucket">Review bucket</label></td>
-                    <td class="num"><input id="audit-score-review-bucket" type="number" min="0" max="1000" step="1"></td>
-                    <td>Any remaining effective issue has bucket REVIEW and was not already matched by a medium or high issue-code marker.</td>
-                  </tr>
-                  <tr>
-                    <td><label for="audit-score-fallback-issue">Fallback issue marker</label></td>
-                    <td class="num"><input id="audit-score-fallback-issue" type="number" min="0" max="1000" step="1"></td>
-                    <td>Any effective issue not matched by redownload, high, rerun, medium, or review markers.</td>
-                  </tr>
-                  <tr>
-                    <td><label for="audit-score-redownload-bonus">Redownload candidate bonus</label></td>
-                    <td class="num"><input id="audit-score-redownload-bonus" type="number" min="0" max="1000" step="1"></td>
-                    <td>Added once when at least one effective REDOWNLOAD_CANDIDATE issue is present.</td>
-                  </tr>
-                  <tr>
-                    <td><label for="audit-score-rerun-bonus">Rerun pipeline bonus</label></td>
-                    <td class="num"><input id="audit-score-rerun-bonus" type="number" min="0" max="1000" step="1"></td>
-                    <td>Added once when no redownload issue is present and at least one effective RERUN_PIPELINE issue is present.</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="action-row action-row-left wrap-actions">
-              <button type="button" id="audit-score-policy-save-button" class="secondary-button">Save Score Policy</button>
-              <button type="button" id="audit-score-policy-reset-button" class="secondary-button">Reset Score Defaults</button>
-            </div>
-            <pre id="audit-score-policy-detail" class="prose-block">Score policy changes apply to future backend audit report generation.</pre>
-          </details>
-          <div class="panel-heading panel-subheading">
-            <h3>Audit Progress</h3>
-            <strong id="audit-launch-progress-status">Not loaded</strong>
-          </div>
-          <div id="audit-launch-progress-bars" class="progress-bar-list" aria-live="polite">
-            <p class="note">No audit progress loaded.</p>
-          </div>
-          <pre id="audit-launch-progress-summary" class="prose-block">No audit progress loaded.</pre>
-          <div class="panel-heading panel-subheading">
-            <h3>Latest Audit Log</h3>
-            <strong id="audit-launch-log-status">No rows</strong>
-          </div>
-          <pre id="audit-launch-log-summary" class="prose-block">No audit log loaded.</pre>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Select</th>
-                  <th scope="col" class="num">Score</th>
-                  <th scope="col">Priority</th>
-                  <th scope="col">Bucket</th>
-                  <th scope="col">Media</th>
-                  <th scope="col">Title</th>
-                  <th scope="col">Issue</th>
-                </tr>
-              </thead>
-              <tbody id="audit-launch-log-rows">
-                <tr><td colspan="7">No audit rows loaded.</td></tr>
-              </tbody>
-            </table>
-            <div class="empty-state" data-empty-state="hidden" style="display:none">
-              <span class="empty-state-label">Audit log not loaded</span>
-              <span class="empty-state-hint">Audit rows appear here after the backend produces an audit CSV.</span>
-            </div>
-          </div>
-          <p id="audit-launch-log-table-legend" class="note table-legend">Audit log rows: no selectable rows.</p>
-          <pre id="audit-launch-log-detail" class="prose-block">No audit row selected.</pre>
-          <div class="action-row action-row-left wrap-actions">
-            <button type="button" id="audit-ignore-selected-button" class="secondary-button">Ignore Selected</button>
-            <button type="button" id="audit-export-rerun-csv-button" class="secondary-button">Export Rerun CSV</button>
-          </div>
-          <pre id="audit-export-detail" class="prose-block">No audit rerun CSV export submitted.</pre>
-          <pre id="audit-launch-preflight" class="prose-block">No audit launch preflight loaded.</pre>
-          <div class="action-row action-row-left">
-            <button type="button" id="audit-start-button" class="primary-button">Start Audit</button>
-          </div>
-          <pre id="audit-launch-detail" class="prose-block">No audit launch result.</pre>
-        </section>
-        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="rerun" data-panel-type="interactive">
-          <div class="panel-heading">
-            <h2>Rerun from CSV</h2>
-            <strong id="rerun-launch-status">Idle</strong>
-          </div>
-          <div class="form-grid launch-form-grid">
-            <label>
-              CSV Path
-              <input id="rerun-start-csv-path" type="text" autocomplete="off">
-            </label>
-            <label>
-              Stage
-              <input type="text" value="copy" readonly title="CSV rerun stages files by copying to scratch first; source rows are not edited by the WebView.">
-            </label>
-            <label>
-              Original
-              <input type="text" value="keep" readonly title="CSV rerun keeps original source media by default. Source deletion requires backend-owned explicit policy.">
-            </label>
-            <label>
-              Return
-              <input type="text" value="park" readonly title="CSV rerun parks outputs for backend publish/drain review rather than treating WebView as publish authority.">
-            </label>
-            <label class="check-row launch-check-row"><input id="rerun-start-show-console" type="checkbox"> Show Console</label>
-          </div>
-          <pre id="rerun-launch-preflight" class="prose-block">No CSV rerun preflight loaded.</pre>
-          <div class="action-row action-row-left">
-            <button type="button" id="rerun-start-button" class="primary-button">Start CSV Rerun</button>
-          </div>
-          <pre id="rerun-launch-detail" class="prose-block">No CSV rerun launch result.</pre>
-        </section>
-        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="history" data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Command History</h2>
-            <strong id="launch-history-status">No launches</strong>
-          </div>
-          <pre id="launch-history" class="prose-block">No launch command history loaded.</pre>
-          <div data-advanced>
-          <div class="panel-heading panel-subheading">
-            <h3>Command Review</h3>
-            <strong id="launch-command-review-status">Not loaded</strong>
-          </div>
-          <pre id="launch-command-review-summary" class="prose-block">No launch command review loaded.</pre>
-          <div class="table-wrap detail-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Flow</th>
-                  <th scope="col">Issue</th>
-                  <th scope="col">Latest Command</th>
-                  <th scope="col">Checklist Correlation</th>
-                  <th scope="col">Next Step</th>
-                </tr>
-              </thead>
-              <tbody id="launch-command-review-rows">
-                <tr><td colspan="5">No launch command review rows loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">Review not run</span>
-            <span class="empty-state-hint">Launch command review rows appear here after the backend preflight loads.</span>
-          </div>
-          </div>
-          <p id="launch-command-review-legend" class="note table-legend">Launch command review rows: no selectable rows.</p>
-          <pre id="launch-command-review-detail" class="prose-block">Select a launch command review row for checklist correlation.</pre>
-          <pre id="launch-command-diagnostics-guidance" class="prose-block">Select a launch command row to see backend-allowlisted diagnostics retry guidance.</pre>
-          <div id="launch-command-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
-          </div>
         </section>
       </section>

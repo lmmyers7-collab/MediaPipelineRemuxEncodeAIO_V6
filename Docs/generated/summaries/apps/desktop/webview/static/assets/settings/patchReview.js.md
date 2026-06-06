@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settings/patchReview.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: fabe3598293b52219c1366793bcc9b29d0b36ddb5dd2c5917c8abe953dbe07ea
+sha256: cabaea066431d9008f7760b03fd9200aff8308ba9df9b520a18fed0aecc430b2
 ---
 # `apps/desktop/webview/static/assets/settings/patchReview.js`
 

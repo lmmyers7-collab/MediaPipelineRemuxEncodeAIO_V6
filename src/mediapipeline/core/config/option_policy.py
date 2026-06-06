@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from mediapipeline.desktop.config_keys import (
+from mediapipeline.core.kernel.config_keys import (
     KEY_AUDIO_DOWNMIX_MODE,
     KEY_AUDIO_PASSTHROUGH_PROFILE,
     KEY_AUDIO_TRANSCODE_BITRATE,

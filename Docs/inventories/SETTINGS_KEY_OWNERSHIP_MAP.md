@@ -54,13 +54,11 @@ These keys have no structured WebView builder panel because they are auth secret
 | `RouteThresholdMode` | **High** | Selects whether initial routing treats size, bitrate, or both as hard thresholds. Default preserves compatibility-advisory behavior. | Yes — active route policy row | `test_service_config_option_policy.py`, `test_stage_entrypoint.py` |
 | `VideoCodec` | **High** | Encoder: `hevc_nvenc`, `libx265`, `h264_nvenc`, `libx264`, `av1_nvenc`. Wrong value causes encode failure if hardware not available. | Yes — active video codec row | `test_settings_risk_policy_rules.py` |
 | `OutputContainer` | **High** | `mkv` or `mp4`. Affects subtitle compatibility and muxing behavior. | Yes — container policy row | `test_service_config_validation.py` |
-| `EncodeThresholdGB` | **High** | Movie file size above which encode (rather than remux) is triggered. | Yes — route threshold row | `test_service_config_numeric_policy.py` |
-| `TVEncodeThresholdGB` | **High** | TV episode size above which encode is triggered. | Yes — route threshold row | `test_service_config_numeric_policy.py` |
-| `MovieRouteMaxVideoBitrateMbps` | **High** | Movie fallback bitrate cap when source height is unknown. Known-height sources use the resolution-aware bucket caps. | Yes — route bitrate row | `test_service_config_numeric_policy.py`, `test_stage_entrypoint.py` |
-| `TVRouteMaxVideoBitrateMbps` | **High** | TV fallback bitrate cap when source height is unknown. Known-height sources use the resolution-aware bucket caps. | Yes — route bitrate row | `test_service_config_numeric_policy.py`, `test_stage_entrypoint.py` |
-| `Route1080pBucketMaxHeight` | **High** | Source-height maximum for selecting the 1080-ish bitrate cap. Height selects the cap only; it does not force remux or encode. | Yes — route bitrate row | `test_service_config_numeric_policy.py`, `test_stage_entrypoint.py` |
-| `Route1080pMaxVideoBitrateMbps` | **High** | Bitrate cap used for known-height sources in the 1080-ish bucket. | Yes — route bitrate row | `test_service_config_numeric_policy.py`, `test_stage_entrypoint.py` |
-| `Route4KBucketMinHeight` | **High** | Source-height minimum for labeling the 4K bucket; heights between the two bucket boundaries use the 4K cap by default. | Yes — route bitrate row | `test_service_config_numeric_policy.py`, `test_stage_entrypoint.py` |
+| `MovieRoute1080pTargetSizeGB` | **High** | Movie output-size target for the 1080p bucket. Unknown-height movies use this target. | Yes — route target row | `test_service_config_numeric_policy.py`, `test_processing_decision.py` |
+| `TVRoute1080pTargetSizeGB` | **High** | TV output-size target for the 1080p bucket. Unknown-height TV uses this target. | Yes — route target row | `test_service_config_numeric_policy.py`, `test_processing_decision.py` |
+| `Route1080pUpperHeightTolerancePercent` | **High** | Percent used to derive the 1080p bucket ceiling. | Yes — route bucket row | `test_service_config_numeric_policy.py`, `test_stage_entrypoint.py` |
+| `Route1080pMaxVideoBitrateMbps` | **High** | Bitrate cap used for known 1080p sources and unknown-height sources. | Yes — route bitrate row | `test_service_config_numeric_policy.py`, `test_stage_entrypoint.py` |
+| `Route4KLowerHeightTolerancePercent` | **High** | Percent used to derive the 4K bucket start. | Yes — route bucket row | `test_service_config_numeric_policy.py`, `test_stage_entrypoint.py` |
 | `Route4KMaxVideoBitrateMbps` | **High** | Bitrate cap used for known-height 4K and between-bucket sources. | Yes — route bitrate row | `test_service_config_numeric_policy.py`, `test_stage_entrypoint.py` |
 | `SizeGuardMode` | **High** | Post-encode size validation: `advisory` (warn), `strict` (fail if over), `off`. `strict` + aggressive growth settings blocks large encodes. | Yes — size guard posture row | `test_settings_risk_policy_rules.py` |
 | `MaxEncodeGrowthPercent` | Medium | Allowed output size growth % for normal encodes before size guard triggers. | Yes — growth limit row | `test_service_config_numeric_policy.py` |
@@ -139,7 +137,7 @@ The Launch page reads these config values (via `GET /api/launch/preflight` and `
 
 | Handoff row | Key(s) driving it |
 |---|---|
-| Route policy | `RoutingProfile`, `RouteThresholdMode`, `EncodeThresholdGB`, `TVEncodeThresholdGB`, `MovieRouteMaxVideoBitrateMbps`, `TVRouteMaxVideoBitrateMbps`, `Route1080pBucketMaxHeight`, `Route1080pMaxVideoBitrateMbps`, `Route4KBucketMinHeight`, `Route4KMaxVideoBitrateMbps` |
+| Route policy | `RoutingProfile`, `RouteThresholdMode`, `MovieRoute1080pTargetSizeGB`, `TVRoute1080pTargetSizeGB`, `Route1080pUpperHeightTolerancePercent`, `Route1080pMaxVideoBitrateMbps`, `Route4KLowerHeightTolerancePercent`, `Route4KMaxVideoBitrateMbps` |
 | Video codec / preset | `VideoCodec`, `VideoPreset`, `VideoQuality` |
 | Audio policy | `AudioPassthroughProfile`, `AudioTranscodeCodec`, `AudioDownmixMode`, `AllowNoAudio` |
 | Subtitle policy | `SubKeepLanguages`, `ConvertTx3gToSrt`, `ConvertBdpgsToSrt` |

@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_config_numeric_policy.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: c6c65235cbbc4162ab3186e74b6dcf9e0a979e9c1e1f3bf2d135c840716eda8d
+sha256: 5accb495771edcb6c71947de4d8c42ae55578bf26cf43e8cb0b8450e82d2b4e7
 ---
 # `tests/python/desktop/test_service_config_numeric_policy.py`
 

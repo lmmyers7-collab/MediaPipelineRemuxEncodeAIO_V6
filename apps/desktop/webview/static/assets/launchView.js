@@ -29,6 +29,7 @@
   let selectedLaunchSettingsIntentKey = "";
   let selectedLaunchScopeReconciliationKey = "";
   let selectedLaunchStartDecisionKey = "";
+  let selectedLaunchCompactGateKey = "";
   let selectedLaunchRealMediaProofKey = "";
   let selectedLaunchSampleExecutionKey = "";
   let selectedLaunchAuditLogRowKey = "";
@@ -182,7 +183,7 @@
   } = launchCommandButtons;
 
   function launchTabIds() {
-    return ["readiness", "pipeline", "audit", "rerun", "history"];
+    return ["pipeline", "audit", "rerun", "history", "readiness"];
   }
 
   function activateLaunchTab(tabId) {
@@ -754,6 +755,12 @@
     set selectedLaunchStartDecisionKey(value) {
       selectedLaunchStartDecisionKey = value || "";
     },
+    get selectedLaunchCompactGateKey() {
+      return selectedLaunchCompactGateKey;
+    },
+    set selectedLaunchCompactGateKey(value) {
+      selectedLaunchCompactGateKey = value || "";
+    },
   };
 
   const launchScopeModule = window.__launchViewScopeModule || {};
@@ -836,6 +843,9 @@
     launchStartDecisionSummaryLines = launchScopeFallbackLines,
     launchStartDecisionDetailLines = launchScopeFallbackLines,
     renderLaunchStartDecisionSummary = launchScopeFallbackRender,
+    launchCompactGateRows = launchScopeFallbackRows,
+    launchCompactGateOverallStatus = launchScopeFallbackStatus,
+    renderLaunchCompactGate = launchScopeFallbackRender,
   } = launchScope;
 
   const launchRealMediaState = {
@@ -1000,6 +1010,14 @@
     const renderPipelineControlFullHistory = typeof launchPreflight.renderPipelineControlHistory === "function" ? launchPreflight.renderPipelineControlHistory : renderPipelineControlHistory;
     renderPipelineControlHistory = (history = []) => renderPipelineControlJournal(history, renderPipelineControlFullHistory);
   }
+  {
+    const renderAllLaunchPreflightDetails = renderAllLaunchPreflights;
+    renderAllLaunchPreflights = (...args) => {
+      const result = renderAllLaunchPreflightDetails(...args);
+      renderLaunchCompactGate();
+      return result;
+    };
+  }
 
   function initLaunchViewEvents() {
     initLaunchTabNav();
@@ -1032,13 +1050,15 @@
       element.addEventListener("input", refreshLaunchControlsForInput);
       element.addEventListener("change", refreshLaunchControlsForInput);
     });
-    const backendPreflightRefresh = byId("launch-backend-preflight-refresh-button");
-    if (backendPreflightRefresh) {
+    ["launch-backend-preflight-refresh-button", "pipeline-compact-gate-refresh-button"].forEach((id) => {
+      const backendPreflightRefresh = byId(id);
+      if (!backendPreflightRefresh) return;
       backendPreflightRefresh.addEventListener("click", async () => {
         await refreshLaunchBackendPreflight();
+        renderLaunchCompactGate();
         updateLaunchCommandButtonStates();
       });
-    }
+    });
     const auditScoreSaveButton = byId("audit-score-policy-save-button");
     if (auditScoreSaveButton) auditScoreSaveButton.addEventListener("click", () => saveAuditScorePolicy(false));
     const auditScoreResetButton = byId("audit-score-policy-reset-button");
@@ -1179,12 +1199,26 @@
     updateLaunchCommandButtonStates();
   }
 
+  function pipelineStartConfirmMessage(request, label) {
+    const scope = request?.single_file ? "Single File" : "Queue";
+    const parts = [
+      `Submit ${label} for ${scope}? Backend will re-check queue, settings, schedule, and locks before starting.`,
+    ];
+    if (String(request?.mode || "").toLowerCase() === "continuous") {
+      parts.push("Continuous mode keeps requesting work until stopped or schedule policy blocks work.");
+    }
+    if (request?.schedule_override) {
+      parts.push("Schedule override is selected for this submission.");
+    }
+    return parts.join("\n");
+  }
+
   async function startPipelineFromForm() {
     if (rejectLaunchCommandWhileBusy("pipeline.start", "pipeline-launch-status", "pipeline-launch-detail")) return;
     const request = collectPipelineStartRequest();
     renderLaunchPreflight("pipeline-launch-preflight", pipelineLaunchPreflightLines(request));
     const label = pipelineModeLabel(request.mode);
-    if (!window.confirm(`Start pipeline mode: ${label}?`)) {
+    if (!window.confirm(pipelineStartConfirmMessage(request, label))) {
       const canceled = {
         command: "pipeline.start",
         ok: false,
@@ -1455,6 +1489,7 @@
     selectPipelineModePreset,
     browsePipelineSingleFile,
     clearPipelineSingleFile,
+    pipelineStartConfirmMessage,
     startPipelineFromForm,
     startPendingPublishDrain,
     collectAuditStartRequest,
@@ -1503,6 +1538,9 @@
     launchStartDecisionSummaryLines,
     launchStartDecisionDetailLines,
     renderLaunchStartDecisionSummary,
+    launchCompactGateRows,
+    launchCompactGateOverallStatus,
+    renderLaunchCompactGate,
     launchRealMediaProofRows,
     launchRealMediaProofStatus,
     launchRealMediaProofSummaryLines,
@@ -1594,6 +1632,9 @@
   window.launchStartDecisionStatus = launchStartDecisionStatus;
   window.launchStartDecisionSummaryLines = launchStartDecisionSummaryLines;
   window.launchStartDecisionDetailLines = launchStartDecisionDetailLines;
+  window.launchCompactGateRows = launchCompactGateRows;
+  window.launchCompactGateOverallStatus = launchCompactGateOverallStatus;
+  window.renderLaunchCompactGate = renderLaunchCompactGate;
   window.launchRealMediaProofRows = launchRealMediaProofRows;
   window.launchRealMediaProofStatus = launchRealMediaProofStatus;
   window.launchRealMediaProofSummaryLines = launchRealMediaProofSummaryLines;

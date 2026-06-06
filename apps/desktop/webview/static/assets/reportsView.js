@@ -13,6 +13,8 @@
   let lastAuditControls = {};
   let lastFailureEmptyMessage = "No failure rows available.";
   let lastAuditEmptyMessage = "No audit rows available.";
+  let activeFailureFilterChip = "all";
+  let activeAuditFilterChip = "all";
   let reportsTabNavInitialized = false;
   let reportsViewEventsInitialized = false;
   const REPORTS_TAB_STORAGE_KEY = "mediapipeline-reports-tab";
@@ -154,8 +156,41 @@
     return `${entry?.at || ""} diagnostics.open [${status}; ${local}] ${entry?.message || ""}${bits.length ? ` (${bits.join("; ")})` : ""}`.trim();
   }
 
+  function reportCompactPath(path) {
+    const text = String(path || "").trim();
+    if (text.length <= 96) return text;
+    return `${text.slice(0, 42)}...${text.slice(-45)}`;
+  }
+
+  function reportCountLabel(count, singular, plural = `${singular}s`) {
+    const numeric = Number(count || 0) || 0;
+    return `${numeric} ${numeric === 1 ? singular : plural}`;
+  }
+
+  function reportLatestState(latestPaths = {}) {
+    const names = [];
+    if (latestPaths.latest_failure_json) names.push("failure JSON");
+    if (latestPaths.latest_audit_csv) names.push("audit CSV");
+    if (latestPaths.latest_priority_csv) names.push("priority CSV");
+    return names.length ? names.join(", ") : "No latest reports";
+  }
+
+  function reportOwnerFromText(text) {
+    const value = String(text || "").toLowerCase();
+    if (value.includes("publish") || value.includes("pending")) return "Pending Publish";
+    if (value.includes("queue")) return "Queue";
+    if (value.includes("completed") || value.includes("manifest") || value.includes("output")) return "Completed";
+    if (value.includes("setting") || value.includes("policy") || value.includes("config")) return "Settings";
+    if (value.includes("audit") || value.includes("rerun") || value.includes("launch")) return "Launch";
+    if (value.includes("failure") || value.includes("marker") || value.includes("log") || value.includes("path")) return "Diagnostics";
+    return "Reports";
+  }
+
   function renderReportOpenHistory(history = []) {
+    const disclosure = byId("report-open-history-disclosure");
     if (typeof commandHistoryView.renderCompactCommandHistoryBlock === "function") {
+      const entries = Array.isArray(history) ? history.filter(isReportOpenCommand).slice(0, 6) : [];
+      if (disclosure) disclosure.open = entries.length > 0;
       commandHistoryView.renderCompactCommandHistoryBlock({
         history,
         filter: isReportOpenCommand,
@@ -172,6 +207,7 @@
       return;
     }
     const entries = Array.isArray(history) ? history.filter(isReportOpenCommand).slice(0, 6) : [];
+    if (disclosure) disclosure.open = entries.length > 0;
     setText("report-open-history-status", entries.length ? `${entries.length} recent` : "No opens");
     if (!Array.isArray(history) || !history.length) {
       setText("report-open-history", "No report open command history loaded. Open a report path or report root to see backend results here after refresh.");
@@ -200,7 +236,9 @@
     tbody.replaceChildren();
     entries.forEach((item) => {
       const row = document.createElement("tr");
-      appendCells(row, [item.label, item.path]);
+      appendCells(row, [item.label, reportCompactPath(item.path)]);
+      const pathCell = row.children[1];
+      if (pathCell) pathCell.title = item.path;
       const action = document.createElement("td");
       const target = reportOpenTarget(item.key);
       if (target) {
@@ -215,6 +253,166 @@
       row.appendChild(action);
       tbody.appendChild(row);
     });
+  }
+
+  function reportWarningMessage(warning) {
+    if (warning && typeof warning === "object") {
+      return String(warning.message || warning.warning || warning.detail || warning.reason || "").trim()
+        || reportAuditJsonDetail("Warning JSON", warning, "Warning payload.");
+    }
+    return String(warning || "").trim();
+  }
+
+  function reportWarningSeverity(warning, message) {
+    const explicit = warning && typeof warning === "object" ? String(warning.severity || warning.status || "").trim() : "";
+    if (explicit) return explicit;
+    const lower = String(message || "").toLowerCase();
+    if (lower.includes("error") || lower.includes("blocked") || lower.includes("unavailable")) return "Blocked";
+    if (lower.includes("missing") || lower.includes("stale") || lower.includes("failed")) return "Review";
+    return "Notice";
+  }
+
+  function reportWarningOwner(warning, message) {
+    const explicit = warning && typeof warning === "object"
+      ? String(warning.owner || warning.owner_page || warning.page || "").trim()
+      : "";
+    return explicit || reportOwnerFromText(message);
+  }
+
+  function reportWarningAction(warning, message, owner) {
+    const explicit = warning && typeof warning === "object"
+      ? String(warning.next_action || warning.action || warning.safe_next_action || "").trim()
+      : "";
+    if (explicit) return explicit;
+    const lower = String(message || "").toLowerCase();
+    if (owner === "Launch") return "Verify the CSV path, then use backend-owned Launch controls.";
+    if (owner === "Pending Publish") return "Compare parked output evidence before drain or rerun decisions.";
+    if (owner === "Queue") return "Compare current queue snapshot before launch or rerun decisions.";
+    if (owner === "Completed") return "Compare completed manifest/output evidence before accepting or rerunning.";
+    if (owner === "Settings") return "Review saved policy before launch, rerun, or manual correction.";
+    if (lower.includes("path") || lower.includes("missing")) return "Open the allowlisted Diagnostics target or report location.";
+    return "Review row evidence and Diagnostics targets before taking action.";
+  }
+
+  function collectReportWarnings() {
+    const warnings = [];
+    const addWarning = (source, warning) => {
+      const message = reportWarningMessage(warning);
+      if (!message) return;
+      const owner = reportWarningOwner(warning, message);
+      warnings.push({
+        source,
+        severity: reportWarningSeverity(warning, message),
+        message,
+        owner,
+        nextAction: reportWarningAction(warning, message, owner),
+      });
+    };
+    (Array.isArray(lastReportSnapshot?.warnings) ? lastReportSnapshot.warnings : []).forEach((warning) => addWarning("Snapshot", warning));
+    (Array.isArray(lastFailurePreviewPayload?.warnings) ? lastFailurePreviewPayload.warnings : []).forEach((warning) => addWarning("Failures", warning));
+    (Array.isArray(lastAuditPreviewPayload?.warnings) ? lastAuditPreviewPayload.warnings : []).forEach((warning) => addWarning("Audit", warning));
+    const seen = new Set();
+    return warnings.filter((warning) => {
+      const key = `${warning.severity}\u001f${warning.message}\u001f${warning.owner}`.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function renderReportWarnings() {
+    const rows = collectReportWarnings();
+    setText("report-warning-count", String(rows.length));
+    setText("report-triage-warning-count", String(rows.length));
+    setText("report-warning-status", rows.length ? reportCountLabel(rows.length, "warning") : "No warnings");
+    const tbody = byId("report-warning-rows");
+    if (!tbody) return;
+    if (!rows.length) {
+      clearRows(tbody, 4, "No snapshot warnings.");
+      return;
+    }
+    tbody.replaceChildren();
+    rows.slice(0, 12).forEach((item) => {
+      const row = document.createElement("tr");
+      row.dataset.status = String(item.severity || "").toLowerCase() === "blocked" ? "blocked" : "warning";
+      appendCells(row, [
+        item.severity,
+        `${item.source}: ${item.message}`,
+        item.owner,
+        item.nextAction,
+      ]);
+      tbody.appendChild(row);
+    });
+  }
+
+  function reportFailureReviewCount() {
+    return reportNumber(lastFailurePreviewPayload?.operator_required_count)
+      + reportNumber(lastFailurePreviewPayload?.permanent_count);
+  }
+
+  function reportAuditReviewCount() {
+    return reportNumber(lastAuditPreviewPayload?.redownload_count)
+      + reportNumber(lastAuditPreviewPayload?.rerun_count)
+      + reportNumber(lastAuditPreviewPayload?.high_priority_count);
+  }
+
+  function reportTriageActionOwner() {
+    const failures = lastFailurePreviewPayload || {};
+    const audit = lastAuditPreviewPayload || {};
+    if (failures.error || audit.error) return "Diagnostics";
+    if (reportFailureReviewCount() > 0) return "Failures";
+    if (reportNumber(audit.redownload_count) > 0) return "Manual source review";
+    if (reportNumber(audit.rerun_count) > 0 || reportNumber(audit.high_priority_count) > 0) return "Launch";
+    const warningRows = collectReportWarnings();
+    if (warningRows.length) return warningRows[0].owner || "Diagnostics";
+    return "Reports";
+  }
+
+  function reportTriageBandNextAction() {
+    const owner = reportTriageActionOwner();
+    const latestPaths = lastReportSnapshot?.latest_paths || {};
+    if (
+      owner === "Reports"
+      && !lastFailureRows.length
+      && !lastAuditRows.length
+      && !latestPaths.latest_failure_json
+      && !latestPaths.latest_audit_csv
+      && !latestPaths.latest_priority_csv
+    ) {
+      return "Load reports";
+    }
+    if (owner === "Failures") return "Inspect failure rows";
+    if (owner === "Manual source review") return "Review redownload candidates";
+    if (owner === "Launch") return "Verify CSV rerun";
+    if (owner === "Diagnostics") return "Open diagnostics evidence";
+    if (owner === "Reports") return "No report action";
+    return `Review ${owner}`;
+  }
+
+  function renderReportTriageBand() {
+    const latestPaths = lastReportSnapshot?.latest_paths || {};
+    const failureCount = reportFailureReviewCount();
+    const auditCount = reportAuditReviewCount();
+    const warningCount = collectReportWarnings().length;
+    const owner = reportTriageActionOwner();
+    const nextAction = reportTriageBandNextAction();
+    const status = reportTriageStatus();
+    setText("report-triage-band-status", status);
+    setText("report-triage-next-action", nextAction);
+    setText("report-triage-action-owner", owner);
+    setText("report-triage-failure-count", String(failureCount));
+    setText("report-triage-audit-count", String(auditCount));
+    setText("report-triage-warning-count", String(warningCount));
+    setText("report-triage-report-state", reportLatestState(latestPaths));
+    setText("report-triage-band-detail", [
+      `Next action: ${nextAction}`,
+      `Action owner: ${owner}`,
+      `Failure rows needing operator/permanent review: ${failureCount}`,
+      `Audit rerun/redownload/high-priority candidates: ${auditCount}`,
+      `Warnings needing review: ${warningCount}`,
+      `Latest reports: ${reportLatestState(latestPaths)}`,
+      "Boundary: Reports points to evidence and owner pages; backend commands remain authoritative for launch, rerun, publish/drain, repair, rename, settings save, and file movement.",
+    ].join("\n"));
   }
 
   function renderReports(snapshot, settings) {
@@ -236,8 +434,6 @@
         emptyText: "No audit report progress loaded.",
       });
     }
-    const warnings = Array.isArray(snapshotPayload.warnings) ? snapshotPayload.warnings : [];
-    setText("report-warning-count", String(warnings.length));
     const latestRows = ["latest_failure_report", "latest_failure_json", "latest_audit_csv", "latest_priority_csv"].map((key) => ({
       key,
       label: reportLabel(key),
@@ -250,7 +446,7 @@
       path: workspacePaths[key] || "",
     }));
     renderKeyPathRows("report-root-rows", "report-root-status", rootRows, "No report roots loaded.");
-    setText("report-warnings", warnings.join("\n") || "No snapshot warnings.");
+    renderReportWarnings();
     renderReportTriage();
     if (typeof getCommandHistory === "function") renderReportOpenHistory(getCommandHistory());
   }
@@ -523,6 +719,63 @@
     ].filter(Boolean);
   }
 
+  function failureRowSearchText(item) {
+    return [
+      item?.stage,
+      item?.error_code,
+      item?.classification,
+      item?.reason,
+      item?.suggested_action,
+      item?.retry_safe_next_action,
+      item?.lookup_title,
+      item?.source_path,
+      item?.media_type,
+    ].filter(Boolean).join(" ").toLowerCase();
+  }
+
+  function failureActionOwner(item) {
+    const text = failureRowSearchText(item);
+    const classification = String(item?.classification || "").toLowerCase();
+    if (text.includes("publish") || text.includes("pending")) return "Pending Publish";
+    if (text.includes("queue")) return "Queue";
+    if (text.includes("subtitle") || text.includes("bdpgs") || text.includes("tx3g") || text.includes("vobsub") || text.includes("ocr")) return "Settings";
+    if (text.includes("audio") || text.includes("commentary") || text.includes("language")) return "Settings";
+    if (text.includes("completed") || text.includes("output") || text.includes("manifest")) return "Completed";
+    if (classification === "transient" || failureRetryStateForRow(item)?.retry_allowed) return "Launch";
+    if (classification === "operator_required" || classification === "permanent") return "Manual review";
+    return "Diagnostics";
+  }
+
+  function failureTableEvidenceText(item) {
+    return [
+      `Stage: ${failureStageText(item)}`,
+      `Code: ${item?.error_code || "no-code"}`,
+      `Class: ${failureClassificationText(item)}`,
+      `Retry: ${failureRetrySummaryText(item)}`,
+      `Marker: ${failureClearMarkerPathsForRow(item).length ? "available" : "not active"}`,
+    ].join("\n");
+  }
+
+  function failureMatchesChip(item, chip) {
+    const selected = String(chip || "all");
+    if (selected === "all") return true;
+    const text = failureRowSearchText(item);
+    const retry = failureRetryStateForRow(item);
+    const classification = String(item?.classification || "").toLowerCase();
+    if (selected === "needs_operator") return ["operator_required", "permanent"].includes(classification);
+    if (selected === "will_retry") return Boolean(retry?.retry_allowed);
+    if (selected === "blocked") return retry?.status_state === "blocked" || ["operator_required", "permanent"].includes(classification);
+    if (selected === "warnings") return failureSeverity(item) === "warning" || retry?.status_state === "warning";
+    return text.includes(selected);
+  }
+
+  function setReportChipPressed(selector, activeValue) {
+    document.querySelectorAll(selector).forEach((button) => {
+      const value = button.dataset.failureFilterChip || button.dataset.auditFilterChip || "all";
+      button.setAttribute("aria-pressed", String(value === activeValue));
+    });
+  }
+
   function failureRecordedText(value) {
     const raw = String(value || "").trim();
     if (!raw) return "not recorded";
@@ -573,9 +826,16 @@
     return String(lastFailurePreviewPayload.source_kind || "").toLowerCase() === "markers";
   }
 
+  function setFailureMarkerSourceMode(enabled) {
+    const checkbox = byId("failure-source-markers");
+    if (!checkbox) return false;
+    checkbox.checked = Boolean(enabled);
+    return true;
+  }
+
   function visibleFailureRows() {
     const filterText = byId("failure-filter")?.value || "";
-    return filterRows(lastFailureRows, filterText, [
+    const textRows = filterRows(lastFailureRows, filterText, [
       "classification",
       "error_code",
       "stage",
@@ -586,6 +846,7 @@
       "suggested_action",
       "retry_safe_next_action",
     ]);
+    return textRows.filter((row) => failureMatchesChip(row, activeFailureFilterChip));
   }
 
   function failureMarkerPath(item) {
@@ -720,6 +981,10 @@
       if (typeof appendCommandResult === "function") appendCommandResult(result);
       renderFailureClearResult(result);
       if (!dryRun && result?.ok) {
+        const movedMarkers = Number(result?.data?.markers || 0) || 0;
+        if (movedMarkers > 0 || request.all_markers) {
+          setFailureMarkerSourceMode(true);
+        }
         selectedFailureRowKey = "";
         selectedFailureRowKeys.clear();
         if (typeof refreshAll === "function") await refreshAll();
@@ -749,6 +1014,46 @@
     selectedFailureRowKeys = new Set([selectedFailureRowKey].filter(Boolean));
     renderFailureRows();
     await requestFailureMarkerClear("selected", false);
+  }
+
+  function auditRowSearchText(item) {
+    return [
+      item?.effective_bucket,
+      item?.priority_fix_level,
+      item?.primary_issue_code,
+      item?.primary_suggested_action,
+      item?.issue_messages,
+      item?.lookup_title,
+      item?.relative_path,
+      item?.path,
+      item?.media_type,
+    ].filter(Boolean).join(" ").toLowerCase();
+  }
+
+  function auditActionOwner(item) {
+    const bucket = String(item?.effective_bucket || "").toUpperCase();
+    const text = auditRowSearchText(item);
+    if (bucket === "REDOWNLOAD_CANDIDATE") return "Manual source review";
+    if (bucket === "RERUN_PIPELINE") return "Launch CSV Rerun";
+    if (text.includes("subtitle") || text.includes("bdpgs") || text.includes("tx3g") || text.includes("vobsub") || text.includes("ocr")) return "Settings policy review";
+    if (text.includes("audio") || text.includes("commentary") || text.includes("language")) return "Settings policy review";
+    if (text.includes("completed") || text.includes("manifest") || text.includes("output")) return "Completed evidence review";
+    if (bucket === "OK") return "No action";
+    return "Completed evidence review";
+  }
+
+  function auditMatchesChip(item, chip) {
+    const selected = String(chip || "all");
+    if (selected === "all") return true;
+    const bucket = String(item?.effective_bucket || "").toUpperCase();
+    const priority = String(item?.priority_fix_level || "").toUpperCase();
+    const text = auditRowSearchText(item);
+    if (selected === "rerun") return bucket === "RERUN_PIPELINE";
+    if (selected === "redownload") return bucket === "REDOWNLOAD_CANDIDATE";
+    if (selected === "review") return bucket === "REVIEW" || text.includes("review");
+    if (selected === "high") return priority === "HIGH" || Number(item?.priority_score || 0) >= 80;
+    if (selected === "duplicates") return text.includes("duplicate") || Boolean(item?.duplicate_group || item?.duplicate_group_key || item?.duplicate_group_size);
+    return text.includes(selected);
   }
 
   function auditDiagnosticsActionsForRow(item) {
@@ -855,6 +1160,10 @@
       ...failureRetryDetailLines(item),
       `Safe next action: ${item.retry_safe_next_action || failureSuggestedActionText(item)}`,
       "",
+      "Owner routing",
+      "Evidence owner: Diagnostics",
+      `Action owner: ${failureActionOwner(item)}`,
+      "",
       "Evidence",
       `Title: ${item.lookup_title || ""}`,
       `Media: ${item.media_type || ""}`,
@@ -871,11 +1180,12 @@
   }
 
   function renderFailureRows() {
+    setReportChipPressed("[data-failure-filter-chip]", activeFailureFilterChip);
     const rows = visibleFailureRows();
     setText("failure-status", `${rows.length} / ${lastFailureRows.length} row${lastFailureRows.length === 1 ? "" : "s"}`);
     const tbody = byId("failure-rows");
     if (!rows.length) {
-      clearRows(tbody, 5, lastFailureRows.length ? "No failure rows match the filter." : lastFailureEmptyMessage);
+      clearRows(tbody, 7, lastFailureRows.length ? "No failure rows match the filter." : lastFailureEmptyMessage);
       updateTableStatusLegend("failure-table-legend", tbody, "Failure rows");
       return;
     }
@@ -897,7 +1207,9 @@
       appendCells(row, [
         failureStatusLabel(item),
         failureFileText(item),
+        failureTableEvidenceText(item),
         failureSuggestedActionText(item),
+        failureActionOwner(item),
       ]);
       const actionCell = document.createElement("td");
       const actions = document.createElement("div");
@@ -1031,7 +1343,7 @@
       return [
         "Failure review board: no failure preview has loaded yet.",
         "First action: refresh Reports or open Failure Reports if you expected recent failures.",
-        "Mutation guardrail: Reports triage is read-only except Clear Errors, which only moves marker JSON through the backend command.",
+        "Mutation guardrail: Reports triage is read-only except Marker Cleanup, which only moves marker JSON through the backend command.",
       ];
     }
     const operatorRows = rows.filter((row) => ["operator_required", "permanent"].includes(String(row.classification || "").toLowerCase()));
@@ -1207,13 +1519,14 @@
   function reportTriageLines() {
     const latestPaths = lastReportSnapshot?.latest_paths || {};
     const snapshotWarnings = Array.isArray(lastReportSnapshot?.warnings) ? lastReportSnapshot.warnings : [];
+    const warningRows = collectReportWarnings();
     const failures = lastFailurePreviewPayload || {};
     const audit = lastAuditPreviewPayload || {};
     const lines = [
       `Failure JSON: ${latestPaths.latest_failure_json ? "present" : "missing"}`,
       `Audit CSV: ${latestPaths.latest_audit_csv ? "present" : "missing"}`,
       `Priority CSV: ${latestPaths.latest_priority_csv ? "present" : "missing"}`,
-      `Snapshot warnings: ${snapshotWarnings.length}`,
+      `Actionable warnings: ${warningRows.length}`,
       `Failure rows: ${reportNumber(failures.count || lastFailureRows.length)} (operator=${reportNumber(failures.operator_required_count)}, permanent=${reportNumber(failures.permanent_count)}, transient=${reportNumber(failures.transient_count)})`,
       `Audit rows: ${reportNumber(audit.count || lastAuditRows.length)} (high=${reportNumber(audit.high_priority_count)}, rerun=${reportNumber(audit.rerun_count)}, redownload=${reportNumber(audit.redownload_count)}, review=${reportNumber(audit.review_count)})`,
       `Duplicate groups: ${reportNumber(audit.duplicate_group_count)}`,
@@ -1234,6 +1547,8 @@
   function renderReportTriage() {
     setText("report-triage-status", reportTriageStatus());
     setText("report-triage", reportTriageLines().join("\n"));
+    renderReportWarnings();
+    renderReportTriageBand();
     renderReportInvestigation();
     renderFailureReviewBoard();
     renderAuditReviewBoard();
@@ -1253,47 +1568,49 @@
   function reportInvestigationChecklistLines() {
     const latestPaths = lastReportSnapshot?.latest_paths || {};
     const workspacePaths = lastReportSettings?.paths || {};
-    const snapshotWarnings = Array.isArray(lastReportSnapshot?.warnings) ? lastReportSnapshot.warnings : [];
+    const warningRows = collectReportWarnings();
     const failures = lastFailurePreviewPayload || {};
     const audit = lastAuditPreviewPayload || {};
     const failureLoaded = reportPreviewLoaded(failures, lastFailureRows);
     const auditLoaded = reportPreviewLoaded(audit, lastAuditRows);
+    const failureReviewCount = reportNumber(failures.operator_required_count) + reportNumber(failures.permanent_count);
+    const auditReviewCount = reportNumber(audit.rerun_count) + reportNumber(audit.redownload_count) + reportNumber(audit.high_priority_count);
     const lines = [
       "Reports investigation checklist:",
-      `Latest Failure JSON: ${latestPaths.latest_failure_json ? "present" : "missing"}`,
-      `Latest Failure report: ${latestPaths.latest_failure_report ? "present" : "missing"}`,
-      `Latest Audit CSV: ${latestPaths.latest_audit_csv ? "present" : "missing"}`,
-      `Latest Priority CSV: ${latestPaths.latest_priority_csv ? "present" : "missing"}`,
-      `Failure preview loaded: ${failureLoaded ? "yes" : "no"}`,
-      `Audit preview loaded: ${auditLoaded ? "yes" : "no"}`,
-      `Failure rows needing operator/permanent review: ${reportNumber(failures.operator_required_count) + reportNumber(failures.permanent_count)}`,
-      `Audit rerun/redownload candidates: ${reportNumber(audit.rerun_count) + reportNumber(audit.redownload_count)}`,
-      `Snapshot warnings: ${snapshotWarnings.length}`,
-      `Failure report root configured: ${workspacePaths.failed_reports ? "yes" : "no"}`,
-      `Audit report root configured: ${workspacePaths.audit_reports ? "yes" : "no"}`,
+      `Latest Failure JSON | ${latestPaths.latest_failure_json ? "Ready" : "Missing"} | Diagnostics | evidence only`,
+      `Latest Failure report | ${latestPaths.latest_failure_report ? "Ready" : "Missing"} | Diagnostics | evidence only`,
+      `Latest Audit CSV | ${latestPaths.latest_audit_csv ? "Ready" : "Missing"} | Diagnostics | evidence only`,
+      `Latest Priority CSV | ${latestPaths.latest_priority_csv ? "Ready" : "Missing"} | Launch | verify before CSV rerun`,
+      `Failure preview | ${failureLoaded ? "Loaded" : "Not loaded"} | Failures | row triage only`,
+      `Audit preview | ${auditLoaded ? "Loaded" : "Not loaded"} | Audit | row triage/export only`,
+      `Failure review rows | ${failureReviewCount ? "Needs review" : "Ready"} | Failures | ${failureReviewCount} row(s)`,
+      `Audit rerun/redownload rows | ${auditReviewCount ? "Needs review" : "Ready"} | Audit/Launch | ${auditReviewCount} row(s)`,
+      `Warnings | ${warningRows.length ? "Review" : "Ready"} | ${warningRows[0]?.owner || "Reports"} | ${warningRows.length} warning(s)`,
+      `Failure report root | ${workspacePaths.failed_reports ? "Configured" : "Missing"} | Locations | open through allowlist`,
+      `Audit report root | ${workspacePaths.audit_reports ? "Configured" : "Missing"} | Locations | open through allowlist`,
       "",
       "Suggested investigation order:",
     ];
-    if (failures.error || reportNumber(failures.operator_required_count) || reportNumber(failures.permanent_count)) {
-      lines.push("1. Recent Failures: select operator/permanent rows and read Latest Failure + Failure JSON.");
-      lines.push("2. Diagnostics: compare Failure Markers and Run Logs before rerun or cleanup.");
-      lines.push("3. Queue/Pending: confirm the source is not still blocked or parked.");
-    } else if (audit.error || reportNumber(audit.redownload_count) || reportNumber(audit.rerun_count) || reportNumber(audit.high_priority_count)) {
-      lines.push("1. Latest Audit Rows: inspect redownload/rerun/high-priority rows.");
-      lines.push("2. Diagnostics: compare Latest Audit CSV, Completed Manifest, Queue Snapshot, and Run Logs.");
-      lines.push("3. Launch: use CSV Rerun only after the chosen CSV/path is verified.");
-    } else if (snapshotWarnings.length) {
-      lines.push("1. Snapshot Warnings: read warnings and open Diagnostics state/log targets.");
-      lines.push("2. Failure/Audit tables: confirm whether warnings match recent rows.");
-      lines.push("3. Refresh: rerun Reports after addressing missing state artifacts.");
+    if (failures.error || failureReviewCount) {
+      lines.push("1. Needs review | Failures | select operator/permanent rows and read Latest Failure + Failure JSON.");
+      lines.push("2. Evidence only | Diagnostics | compare Failure Markers and Run Logs before rerun or cleanup.");
+      lines.push("3. Action owner | Queue/Pending Publish | confirm the source is not still blocked or parked.");
+    } else if (audit.error || auditReviewCount) {
+      lines.push("1. Needs review | Audit | inspect redownload/rerun/high-priority rows.");
+      lines.push("2. Evidence only | Diagnostics | compare Latest Audit CSV, Completed Manifest, Queue Snapshot, and Run Logs.");
+      lines.push("3. Action owner | Launch | use CSV Rerun only after the chosen CSV/path is verified.");
+    } else if (warningRows.length) {
+      lines.push("1. Review | Warnings | read actionable warning rows and owner pages.");
+      lines.push("2. Evidence only | Diagnostics/Locations | open state/log targets through backend allowlists.");
+      lines.push("3. Refresh | Reports | rerender after addressing missing state artifacts.");
     } else if (!failureLoaded && !auditLoaded) {
-      lines.push("1. Refresh Reports to load failure and audit previews.");
-      lines.push("2. Run Audit from Launch if no current CSV exists.");
-      lines.push("3. Open report roots only through backend Diagnostics allowlists.");
+      lines.push("1. Not loaded | Reports | refresh to load failure and audit previews.");
+      lines.push("2. Action owner | Launch | run Audit only if no current CSV exists.");
+      lines.push("3. Evidence only | Locations/Diagnostics | open report roots through backend allowlists.");
     } else {
-      lines.push("1. Select any visible failure/audit row that looks suspicious.");
-      lines.push("2. Use the row Diagnostics handoff before rerun, cleanup, or manual library edits.");
-      lines.push("3. No report-driven action is indicated if both review boards are clean.");
+      lines.push("1. Ready | Reports | select any visible failure/audit row that looks suspicious.");
+      lines.push("2. Evidence only | Diagnostics | use row handoff before rerun, cleanup, or manual library edits.");
+      lines.push("3. Ready | Reports | no report-driven action is indicated if review boards are clean.");
     }
     lines.push("");
     lines.push("Mutation guardrail: Reports triage is read-only; marker cleanup, rerun, export, repair, delete, and filesystem mutation must stay behind backend-owned commands.");
@@ -1588,6 +1905,20 @@
     initReportsTabNav();
     if (reportsViewEventsInitialized) return;
     reportsViewEventsInitialized = true;
+    document.querySelectorAll("[data-failure-filter-chip]").forEach((button) => {
+      button.addEventListener("click", () => {
+        activeFailureFilterChip = button.dataset.failureFilterChip || "all";
+        setReportChipPressed("[data-failure-filter-chip]", activeFailureFilterChip);
+        renderFailureRows();
+      });
+    });
+    document.querySelectorAll("[data-audit-filter-chip]").forEach((button) => {
+      button.addEventListener("click", () => {
+        activeAuditFilterChip = button.dataset.auditFilterChip || "all";
+        setReportChipPressed("[data-audit-filter-chip]", activeAuditFilterChip);
+        renderAuditRows();
+      });
+    });
     const previewSelectedClearButton = byId("failure-preview-selected-clear-button");
     if (previewSelectedClearButton) previewSelectedClearButton.addEventListener("click", () => requestFailureMarkerClear("selected", true));
     const clearSelectedButton = byId("failure-clear-selected-button");
@@ -1689,6 +2020,11 @@
       `Issue: ${item.primary_issue_code || ""}`,
       `Suggested action: ${item.primary_suggested_action || ""}`,
       `Messages: ${item.issue_messages || ""}`,
+      "",
+      "Owner routing",
+      "Evidence owner: Diagnostics",
+      `Action owner: ${auditActionOwner(item)}`,
+      "",
       `Path: ${item.path || ""}`,
       `Relative: ${item.relative_path || ""}`,
       `Source CSV: ${item.source_csv || ""}`,
@@ -1700,6 +2036,7 @@
   }
 
   function renderAuditRows() {
+    setReportChipPressed("[data-audit-filter-chip]", activeAuditFilterChip);
     const filterText = byId("audit-preview-filter")?.value || "";
     const rows = filterRows(lastAuditRows, filterText, [
       "path",
@@ -1711,13 +2048,13 @@
       "primary_issue_code",
       "primary_suggested_action",
       "issue_messages",
-    ]);
+    ]).filter((row) => auditMatchesChip(row, activeAuditFilterChip));
     const selectedCount = selectedAuditRowKeys.size;
     setText("audit-preview-status", `${rows.length} / ${lastAuditRows.length} row${lastAuditRows.length === 1 ? "" : "s"}${selectedCount ? `, ${selectedCount} selected` : ""}`);
     setText("report-audit-export-status", selectedCount ? `${selectedCount} selected` : "All loaded");
     const tbody = byId("audit-preview-rows");
     if (!rows.length) {
-      clearRows(tbody, 7, lastAuditRows.length ? "No audit rows match the filter." : lastAuditEmptyMessage);
+      clearRows(tbody, 8, lastAuditRows.length ? "No audit rows match the filter." : lastAuditEmptyMessage);
       updateTableStatusLegend("audit-preview-table-legend", tbody, "Audit rows");
       return;
     }
@@ -1745,7 +2082,8 @@
         item.media_type || "",
         item.lookup_title || item.relative_path || item.path || "",
         item.primary_issue_code || item.issue_messages || item.primary_suggested_action || "",
-      ], ["num", null, null, null, null, null]);
+        auditActionOwner(item),
+      ], ["num", null, null, null, null, null, null]);
       makeRowSelectable(row, () => selectAuditRow(item), {
         selected: Boolean(key && key === selectedAuditRowKey),
         label: `Audit row ${item.lookup_title || item.relative_path || item.path || ""}`,

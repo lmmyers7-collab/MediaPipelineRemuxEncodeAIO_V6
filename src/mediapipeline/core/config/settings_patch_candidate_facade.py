@@ -5,9 +5,14 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from mediapipeline.core.kernel.config_keys import (
+    ALL_CONFIG_KEYS,
+    KEY_BDPGS_OCR_TOOL_PATH,
+    KEY_CONVERT_BDPGS_TO_SRT,
+    KEY_CONVERT_VOBSUB_TO_SRT,
     KEY_RENAME_MOVIE_FILTER_OPTIONS,
     KEY_RENAME_MOVIE_FILTER_TERMS,
     KEY_RENAME_MOVIE_REMOVE_TERMS,
+    KEY_VOBSUB_OCR_TOOL_PATH,
 )
 from mediapipeline.core.rename.policy import rename_cleaning_policy_from_config
 from mediapipeline.core.config.settings_patch_policy import (
@@ -19,10 +24,18 @@ from mediapipeline.core.config.library_profiles import (
     library_profile_state_from_config,
     normalize_library_profile_config_values,
 )
+from mediapipeline.core.config.validation import (
+    canonical_config_key_spelling_error,
+    canonical_config_key_spelling_errors,
+)
 from mediapipeline.desktop.models import ResolvedPaths
 
 if TYPE_CHECKING:
     from mediapipeline.desktop.application.dto_base import JsonMap
+
+
+REGISTERED_CONFIG_KEYS = frozenset(ALL_CONFIG_KEYS)
+
 
 
 def _json_safe(value: Any) -> "JsonMap":
@@ -58,6 +71,46 @@ def _normalize_rename_cleaning_policy_values(values: dict[str, Any], changed_key
             changed_keys.append(key)
 
 
+def _unique_strings(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    unique: list[str] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        unique.append(value)
+    return unique
+
+
+
+
+
+
+
+def _truthy_patch_value(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int | float):
+        return value != 0
+    return str(value or "").strip().casefold() in {"1", "true", "yes", "on", "enabled", "enable"}
+
+
+def _ocr_tool_path_errors(values: dict[str, Any], changed_keys: list[str]) -> list[str]:
+    errors: list[str] = []
+    changed = set(changed_keys)
+    if (
+        KEY_CONVERT_BDPGS_TO_SRT in changed or KEY_BDPGS_OCR_TOOL_PATH in changed
+    ) and _truthy_patch_value(values.get(KEY_CONVERT_BDPGS_TO_SRT, False)):
+        if not str(values.get(KEY_BDPGS_OCR_TOOL_PATH, "") or "").strip():
+            errors.append("ConvertBdpgsToSrt requires BdpgsOcrToolPath.")
+    if (
+        KEY_CONVERT_VOBSUB_TO_SRT in changed or KEY_VOBSUB_OCR_TOOL_PATH in changed
+    ) and _truthy_patch_value(values.get(KEY_CONVERT_VOBSUB_TO_SRT, False)):
+        if not str(values.get(KEY_VOBSUB_OCR_TOOL_PATH, "") or "").strip():
+            errors.append("ConvertVobSubToSrt requires VobSubOcrToolPath.")
+    return errors
+
+
 class SettingsPatchCandidateFacadeMixin:
     """Settings patch candidate construction shared by preview and save commands."""
 
@@ -80,6 +133,13 @@ class SettingsPatchCandidateFacadeMixin:
             if not self._settings_patch_key_allowed(key):
                 errors.append(f"Invalid remove key: {key!r}")
                 continue
+            spelling_error = canonical_config_key_spelling_error(key, context="remove key")
+            if spelling_error:
+                errors.append(spelling_error)
+                continue
+            if key not in REGISTERED_CONFIG_KEYS:
+                errors.append(f"Unknown config key {key}. Use a registered backend config key.")
+                continue
             if key in merged:
                 merged.pop(key, None)
                 removed_keys.append(key)
@@ -89,10 +149,22 @@ class SettingsPatchCandidateFacadeMixin:
             if not self._settings_patch_key_allowed(key):
                 errors.append(f"Invalid settings key: {key!r}")
                 continue
+            spelling_error = canonical_config_key_spelling_error(key)
+            if spelling_error:
+                errors.append(spelling_error)
+                continue
             if self._is_sensitive_key(key) and str(value or "").strip() == "<redacted>":
                 errors.append(f"{key} is sensitive and cannot be set to the redacted display placeholder.")
                 continue
             safe_value = _json_safe(value)
+            if self._source_mutation_setting(key, safe_value):
+                errors.append(
+                    f"{key} appears to enable source/original-file mutation and cannot be saved through Settings Patch."
+                )
+                continue
+            if key not in REGISTERED_CONFIG_KEYS:
+                errors.append(f"Unknown config key {key}. Use a registered backend config key.")
+                continue
             if key in merged and _json_safe(merged.get(key)) == safe_value:
                 continue
             merged[key] = safe_value
@@ -118,6 +190,9 @@ class SettingsPatchCandidateFacadeMixin:
 
         _normalize_rename_cleaning_policy_values(merged, changed_keys)
 
+        errors.extend(canonical_config_key_spelling_errors(merged))
+        errors.extend(_ocr_tool_path_errors(merged, changed_keys))
+
         library_profile_state: list[dict[str, Any]] = []
         if "LibraryProfiles" in merged:
             try:
@@ -134,13 +209,21 @@ class SettingsPatchCandidateFacadeMixin:
         validator = getattr(self.service, "validate_config_values", None)
         if callable(validator):
             try:
-                raw_errors, raw_warnings = validator(merged)
+                validation_values = {key: value for key, value in merged.items() if key in REGISTERED_CONFIG_KEYS}
+                changed = set(changed_keys)
+                if KEY_CONVERT_BDPGS_TO_SRT not in changed and KEY_BDPGS_OCR_TOOL_PATH not in changed:
+                    validation_values.pop(KEY_CONVERT_BDPGS_TO_SRT, None)
+                if KEY_CONVERT_VOBSUB_TO_SRT not in changed and KEY_VOBSUB_OCR_TOOL_PATH not in changed:
+                    validation_values.pop(KEY_CONVERT_VOBSUB_TO_SRT, None)
+                raw_errors, raw_warnings = validator(validation_values)
                 errors.extend(str(item) for item in raw_errors)
                 warnings.extend(str(item) for item in raw_warnings)
             except Exception as exc:
                 errors.append(f"Settings validation failed: {exc}")
         else:
             warnings.append("Settings validation service is not available.")
+        errors = _unique_strings(errors)
+        warnings = _unique_strings(warnings)
 
         redacted_before = self._redacted_config(base_config)
         redacted_after = self._redacted_config(merged)
@@ -157,6 +240,7 @@ class SettingsPatchCandidateFacadeMixin:
             "risk_summary": risk_summary,
             "library_profile_state": library_profile_state,
         }
+
 
 __all__ = [
     "SettingsPatchCandidateFacadeMixin",

@@ -301,7 +301,7 @@
         return "No local Queue filter is narrowing the table, but Launch still uses backend-owned queue scope rather than table selection.";
       }
       if (scope.hiddenBlocked || scope.hiddenReview) {
-        return "Clear Queue filters or inspect hidden review rows before Launch; backend start scope is not narrowed to the visible table.";
+        return "Clear display filters or inspect hidden review rows before Launch; backend start scope is not narrowed to the visible table.";
       }
       return "Treat filters as display-only search. Backend start routes do not receive Queue filter state or visible-row subsets.";
     }
@@ -406,7 +406,7 @@
       const selected = getSelectedQueueRow();
       const latest = queueLaunchDecisionLatestCommand(Array.isArray(entries) ? entries : []);
       const lines = [
-        "Backend launch scope preview:",
+        "Backend launch scope boundary:",
         `Loaded queue rows: ${rowList.length}; visible after filters: ${scope.visibleRows}/${scope.totalRows}; selected row: ${selected ? "detail/open context only" : "none"}.`,
         queueHiddenSidecarLine(payload),
         `Active filters: ${scope.active ? "yes" : "no"}; hidden blocked/review rows: ${scope.hiddenBlocked}/${scope.hiddenReview}.`,
@@ -478,7 +478,7 @@
         "Backend launch authority",
         "Ready - backend owned",
         "Launch, audit, and CSV rerun start commands are backend routes with locking, schedule checks, and saved-settings validation.",
-        "Use the Launch page for start commands; this Queue checklist cannot start, reorder, drop, or mutate work.",
+        "Use the Launch page for start commands; this Queue handoff cannot start, reorder, drop, or mutate work.",
         [
           "Queue is a read-only preview. Frontend launch decisions are advisory only.",
           "Backend launch routes remain authoritative for schedule, close-readiness, settings, process locks, and runtime safety checks.",
@@ -618,7 +618,7 @@
         "This checklist is advisory. Backend Launch remains authoritative and may still block the run.",
         "Start only from Launch; do not treat this table as queue mutation, schedule override, or settings validation.",
         [
-          "Mutation guardrail: this checklist cannot launch, reorder, drop, rewrite queue snapshots, delete files, clear completed state, override schedule, or bypass backend validation.",
+          "Mutation guardrail: this handoff cannot launch, reorder, drop, rewrite queue snapshots, delete files, clear completed state, override schedule, or bypass backend validation.",
         ],
       );
 
@@ -655,11 +655,11 @@
       const unknown = decisionRows.filter((row) => queueLaunchDecisionPostureStatus(row.posture) === "unknown").length;
       const outcome = blocked ? "Do not launch" : review ? "Review first" : readFirst ? "Read evidence" : unknown ? "Evidence incomplete" : decisionRows.length ? "Ready-looking" : "Not evaluated";
       const lines = [
-        "Queue launch decision checklist:",
-        `Daily-use handoff: Queue evidence decides whether it is sensible to open Launch; only backend Launch can start work. Operator outcome: ${outcome}.`,
+        "Queue-to-Launch handoff:",
+        `Daily-use handoff: Queue evidence decides whether it is sensible to open Launch; backend Launch owns final start authorization. Operator outcome: ${outcome}.`,
         `Checkpoints loaded: ${decisionRows.length}`,
         `Blocked/review/read-first/unknown: ${blocked}/${review}/${readFirst}/${unknown}`,
-        "Decision rule: launch only after backend launch preflight, queue payload, display filter scope, freshness, blocked rows, runtime context, completed exclusions, selected-row proof, command history, and Launch readiness agree.",
+        "Decision rule: open Launch only after backend launch preflight, queue payload, display filter scope, freshness, blocked rows, runtime context, completed exclusions, selected-row proof, command history, and Launch readiness agree.",
         "Scope boundary: Queue filters, selected rows, review boards, and rendered row caps never narrow backend launch scope or mutate the queue.",
       ];
       if (blocked) {
@@ -667,9 +667,9 @@
       } else if (review || readFirst || unknown) {
         lines.push("First action: select review/read-first checkpoints, then use backend allowlisted Diagnostics and Launch readiness before starting work.");
       } else {
-        lines.push("First action: Queue is ready-looking, but backend Launch still performs authoritative schedule, settings, lock, and process validation.");
+        lines.push("First action: Queue evidence is ready-looking; open Launch for authoritative schedule, settings, lock, and process validation.");
       }
-      lines.push("Mutation guardrail: this checklist cannot launch, reorder, drop, rewrite queue snapshots, delete files, clear completed state, override schedule, or bypass backend validation.");
+      lines.push("Mutation guardrail: this handoff cannot launch, reorder, drop, rewrite queue snapshots, delete files, clear completed state, override schedule, or bypass backend validation.");
       return lines;
     }
 
@@ -677,13 +677,13 @@
     function queueLaunchDecisionDetailLines(item) {
       if (!item) {
         return [
-          "Queue launch decision checklist:",
-          "Select a checkpoint before starting queued work.",
+          "Queue-to-Launch handoff:",
+          "Select a handoff checkpoint before opening Launch.",
           "Mutation guardrail: this detail panel is read-only.",
         ];
       }
       const lines = [
-        "Queue launch decision checklist:",
+        "Queue-to-Launch handoff:",
         `Checkpoint: ${item.checkpoint || "unknown"}`,
         `Posture: ${item.posture || "read-only"}`,
         `Evidence: ${item.evidence || ""}`,
@@ -737,8 +737,8 @@
       const tbody = byId("queue-launch-decision-rows");
       if (!tbody) return;
       if (!decisionRows.length) {
-        clearRows(tbody, 4, "No queue launch decision rows loaded.");
-        updateTableStatusLegend("queue-launch-decision-legend", tbody, "Queue launch decision rows");
+        clearRows(tbody, 4, "No queue-to-Launch handoff rows loaded.");
+        updateTableStatusLegend("queue-launch-decision-legend", tbody, "Queue-to-Launch handoff rows");
         return;
       }
       tbody.replaceChildren();
@@ -748,11 +748,11 @@
         appendCells(row, [item.checkpoint || "", item.posture || "Read-only", item.evidence || "", item.action || ""]);
         makeRowSelectable(row, () => selectQueueLaunchDecisionRow(item), {
           selected: item.key === selectedQueueLaunchDecisionKey,
-          label: `Queue launch decision checkpoint ${item.checkpoint || ""}`,
+          label: `Queue-to-Launch handoff checkpoint ${item.checkpoint || ""}`,
         });
         tbody.appendChild(row);
       });
-      updateTableStatusLegend("queue-launch-decision-legend", tbody, "Queue launch decision rows");
+      updateTableStatusLegend("queue-launch-decision-legend", tbody, "Queue-to-Launch handoff rows");
       if (typeof renderLaunchScopeReconciliation === "function") {
         renderLaunchScopeReconciliation();
       }

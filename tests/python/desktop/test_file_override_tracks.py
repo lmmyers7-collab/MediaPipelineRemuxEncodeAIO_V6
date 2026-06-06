@@ -136,6 +136,15 @@ def _probe_result() -> ProbeResult:
     )
 
 
+def _probe_result_without_stream(stream_index: int) -> ProbeResult:
+    data = _probe_result().model_dump(mode="json")
+    data["streams"] = [
+        stream for stream in data.get("streams", [])
+        if int(stream.get("index", -1)) != stream_index
+    ]
+    return ProbeResult.model_validate(data)
+
+
 def _track_payload() -> dict:
     return {
         "ok": True,
@@ -427,6 +436,96 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
         self.assertIn(FILE_OVERRIDE_BATCH_METADATA_KEY, special_entry)
         self.assertNotIn(FILE_OVERRIDE_BATCH_METADATA_KEY, manual_entry)
         self.assertNotEqual(special_entry[FILE_OVERRIDE_BATCH_METADATA_KEY]["batch_id"], "series-old")
+
+    def test_series_preview_blocks_exact_track_selectors_that_do_not_validate_for_every_row(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            tv_root = resolved.source_tv  # type: ignore[assignment]
+            rows = [
+                _tv_snapshot_row(tv_root, "Exact Show", "Season 01", "Exact.Show.S01E01.mkv"),
+                _tv_snapshot_row(tv_root, "Exact Show", "Season 01", "Exact.Show.S01E02.mkv", episode_number=2),
+            ]
+            for row in rows:
+                source = Path(str(row["source_path"]))
+                source.parent.mkdir(parents=True, exist_ok=True)
+                source.write_bytes(b"fake media")
+            _write_queue_snapshot(resolved, rows)
+            harness = _TrackMetadataHarness(resolved)
+            selected = Path(str(rows[0]["source_path"]))
+            missing_exact_stream = Path(str(rows[1]["source_path"]))
+            selected_probe = make_stage_result(
+                stage="probe",
+                ok=True,
+                started_at=datetime.now(timezone.utc),
+                data=_probe_result(),
+            )
+            missing_probe = make_stage_result(
+                stage="probe",
+                ok=True,
+                started_at=datetime.now(timezone.utc),
+                data=_probe_result_without_stream(4),
+            )
+
+            def probe_side_effect(payload: dict, _options: object):
+                source_path = str(payload.get("scratch_path") or "")
+                return selected_probe if source_path == str(selected) else missing_probe
+
+            proposed_override = {
+                "subtitles": {
+                    "burnTrack": {
+                        "streamIndex": 4,
+                        "language": "eng",
+                        "codec": "hdmv_pgs_subtitle",
+                        "forced": False,
+                    }
+                }
+            }
+            with patch("mediapipeline.core.api.commands_file_overrides.run_probe_stage", side_effect=probe_side_effect):
+                preview = harness._file_overrides_series_preview_payload(
+                    {"path": str(selected), "proposed_override": proposed_override}
+                )
+                applied = harness._file_overrides_series_apply_payload(
+                    {
+                        "path": str(selected),
+                        "proposed_override": proposed_override,
+                        "confirm_apply": True,
+                        "preview_fingerprint": str(preview.get("preview_fingerprint") or ""),
+                    }
+                )
+            manifest = read_file_overrides(resolved.file_overrides_path)  # type: ignore[arg-type]
+
+        preview_text = json.dumps(preview)
+        self.assertFalse(preview["ok"])
+        self.assertIn(missing_exact_stream.name, preview_text)
+        self.assertIn("not available in detected subtitle streams", preview_text)
+        self.assertEqual(_series_action_by_file(preview, missing_exact_stream.name), "issue")
+        self.assertFalse(applied["ok"])
+        self.assertEqual(manifest["entries"], {})
+
+    def test_malformed_file_overrides_fall_back_and_next_write_recreates_valid_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            source = resolved.source_movies / "Movie.mkv"  # type: ignore[operator]
+            source.parent.mkdir(parents=True, exist_ok=True)
+            source.write_bytes(b"fake media")
+            manifest_path = resolved.file_overrides_path  # type: ignore[assignment]
+            manifest_path.parent.mkdir(parents=True, exist_ok=True)
+            manifest_path.write_text("{not-json", encoding="utf-8")
+
+            self.assertEqual(read_file_overrides(manifest_path)["entries"], {})
+            manifest = set_file_override_entry(
+                manifest_path,
+                source,
+                {"audio": {"maxChannels": 2}},
+            )
+            written = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+        key = normalize_file_override_path(source)
+        self.assertEqual(manifest["entries"][key]["audio"]["maxChannels"], 2)
+        self.assertEqual(written["version"], 1)
+        self.assertEqual(written["entries"][key]["audio"]["maxChannels"], 2)
 
     def test_series_apply_write_failure_does_not_partially_update_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

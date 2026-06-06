@@ -6,7 +6,7 @@ from pathlib import Path
 import shutil
 from typing import TYPE_CHECKING, Any
 
-from mediapipeline.desktop.config_keys import (
+from mediapipeline.core.kernel.config_keys import (
     KEY_ALLOW_SYSTEM_TOOLS,
     KEY_BDPGS_OCR_TESSDATA_PATH,
     KEY_BDPGS_OCR_TOOL_PATH,
@@ -25,9 +25,11 @@ SETTINGS_VALIDATE_COMMAND = "settings.validate"
 VOBSUB_TESSERACT_BUNDLED_CANDIDATES = (
     Path("Tools") / "SubtitleEditLegacy" / "Tesseract550" / "tesseract.exe",
     Path("Tools") / "SubtitleEditLegacy" / "Tesseract-OCR" / "tesseract.exe",
+    Path("Tools") / "SubtitleEditLegacy" / "Tesseract302" / "tesseract.exe",
     Path("Tools") / "SubtitleEditLegacy" / "Tesseract" / "tesseract.exe",
     Path("Tools") / "SubtitleEdit" / "Tesseract550" / "tesseract.exe",
     Path("Tools") / "SubtitleEdit" / "Tesseract-OCR" / "tesseract.exe",
+    Path("Tools") / "SubtitleEdit" / "Tesseract302" / "tesseract.exe",
     Path("Tools") / "SubtitleEdit" / "Tesseract" / "tesseract.exe",
     Path("Tools") / "Tesseract-OCR" / "tesseract.exe",
     Path("Tools") / "Tesseract" / "tesseract.exe",
@@ -82,13 +84,84 @@ def settings_bool(config: dict[str, Any], key: str, default: bool = False) -> bo
     return default
 
 
-def settings_pipeline_base(resolved: ResolvedPaths) -> Path:
+def _settings_add_unique_path(paths: list[Path], candidate: object) -> None:
+    try:
+        path = Path(candidate)
+    except (TypeError, ValueError):
+        return
+    if not str(path):
+        return
+    key = str(path).casefold()
+    if any(str(existing).casefold() == key for existing in paths):
+        return
+    paths.append(path)
+
+
+def _settings_add_pipeline_base(paths: list[Path], candidate: object, *, include_tool_roots: bool) -> None:
+    try:
+        base = Path(candidate)
+    except (TypeError, ValueError):
+        return
+    if not str(base):
+        return
+    if base.name.casefold() == "entrypoints":
+        pipeline_base = base.parent
+        _settings_add_unique_path(paths, pipeline_base)
+        if include_tool_roots:
+            _settings_add_unique_path(paths, pipeline_base / "tools")
+        _settings_add_unique_path(paths, base)
+        return
+    _settings_add_unique_path(paths, base)
+    if include_tool_roots and base.name.casefold() == "pipeline":
+        _settings_add_unique_path(paths, base / "tools")
+
+
+def settings_pipeline_bases(resolved: ResolvedPaths, *, include_tool_roots: bool = True) -> tuple[Path, ...]:
+    paths: list[Path] = []
     try:
         if resolved.pipeline_path:
-            return Path(resolved.pipeline_path).parent
+            _settings_add_pipeline_base(paths, Path(resolved.pipeline_path).parent, include_tool_roots=include_tool_roots)
     except (TypeError, ValueError):
         pass
+    try:
+        workspace_root = Path(resolved.workspace_root)
+    except (TypeError, ValueError):
+        workspace_root = None
+    if workspace_root is not None:
+        _settings_add_pipeline_base(paths, workspace_root / "ops" / "pipeline", include_tool_roots=include_tool_roots)
+        _settings_add_pipeline_base(paths, workspace_root / "Pipeline", include_tool_roots=include_tool_roots)
+        _settings_add_unique_path(paths, workspace_root)
+    try:
+        app_root = Path(resolved.app_root)
+    except (TypeError, ValueError):
+        app_root = None
+    if app_root is not None:
+        _settings_add_pipeline_base(paths, app_root / "pipeline", include_tool_roots=include_tool_roots)
+        if include_tool_roots:
+            _settings_add_unique_path(paths, app_root / "tools")
+        _settings_add_unique_path(paths, app_root)
+    return tuple(paths)
+
+
+def settings_pipeline_base(resolved: ResolvedPaths) -> Path:
+    bases = settings_pipeline_bases(resolved, include_tool_roots=False)
+    if bases:
+        return bases[0]
     return Path(resolved.workspace_root)
+
+
+def _settings_existing_or_first_candidate(
+    resolved: ResolvedPaths,
+    raw_path: Path,
+) -> tuple[Path, bool]:
+    first_candidate: Path | None = None
+    for base in settings_pipeline_bases(resolved):
+        candidate = base / raw_path
+        if first_candidate is None:
+            first_candidate = candidate
+        if candidate.exists():
+            return candidate, True
+    return first_candidate or raw_path, False
 
 
 def settings_resolve_configured_path(resolved: ResolvedPaths, raw_value: object, *, allow_command_lookup: bool = False) -> tuple[str, str, bool]:
@@ -98,9 +171,10 @@ def settings_resolve_configured_path(resolved: ResolvedPaths, raw_value: object,
     raw_path = Path(raw)
     if raw_path.is_absolute():
         candidate = raw_path
+        exists = candidate.exists()
     else:
-        candidate = settings_pipeline_base(resolved) / raw_path
-    if candidate.exists():
+        candidate, exists = _settings_existing_or_first_candidate(resolved, raw_path)
+    if exists:
         try:
             return raw, str(candidate.resolve()), False
         except OSError:
@@ -116,23 +190,29 @@ def settings_resolve_configured_path(resolved: ResolvedPaths, raw_value: object,
 
 
 def settings_resolve_vobsub_tesseract_path(resolved: ResolvedPaths, *, allow_command_lookup: bool = False) -> tuple[str, str, bool]:
-    pipeline_base = settings_pipeline_base(resolved)
-    for relative in VOBSUB_TESSERACT_BUNDLED_CANDIDATES:
-        candidate = pipeline_base / relative
-        if candidate.is_file():
-            try:
-                return str(relative), str(candidate.resolve()), False
-            except OSError:
-                return str(relative), str(candidate), False
+    first: Path | None = None
+    first_relative = VOBSUB_TESSERACT_BUNDLED_CANDIDATES[0]
+    for base in settings_pipeline_bases(resolved):
+        for relative in VOBSUB_TESSERACT_BUNDLED_CANDIDATES:
+            candidate = base / relative
+            if first is None:
+                first = candidate
+                first_relative = relative
+            if candidate.is_file():
+                try:
+                    return str(relative), str(candidate.resolve()), False
+                except OSError:
+                    return str(relative), str(candidate), False
     if allow_command_lookup:
         found = shutil.which("tesseract")
         if found:
             return "PATH", found, True
-    first = pipeline_base / VOBSUB_TESSERACT_BUNDLED_CANDIDATES[0]
+    if first is None:
+        first = settings_pipeline_base(resolved) / first_relative
     try:
-        return str(VOBSUB_TESSERACT_BUNDLED_CANDIDATES[0]), str(first.resolve(strict=False)), False
+        return str(first_relative), str(first.resolve(strict=False)), False
     except OSError:
-        return str(VOBSUB_TESSERACT_BUNDLED_CANDIDATES[0]), str(first), False
+        return str(first_relative), str(first), False
 
 
 def settings_path_evidence_row(
@@ -180,7 +260,7 @@ def settings_path_evidence_row(
 
 
 def settings_bdpgs_ocr_path_evidence(resolved: ResolvedPaths, config: dict[str, Any]) -> dict[str, Any]:
-    enabled = settings_bool(config, KEY_CONVERT_BDPGS_TO_SRT, True)
+    enabled = settings_bool(config, KEY_CONVERT_BDPGS_TO_SRT, False)
     allow_system_tools = settings_bool(config, KEY_ALLOW_SYSTEM_TOOLS, False)
     tool_configured, tool_resolved, tool_from_path = settings_resolve_configured_path(
         resolved,
@@ -404,6 +484,7 @@ __all__ = [
     "settings_config_path_value",
     "settings_workspace_paths",
     "settings_bool",
+    "settings_pipeline_bases",
     "settings_pipeline_base",
     "settings_resolve_configured_path",
     "settings_path_evidence_row",

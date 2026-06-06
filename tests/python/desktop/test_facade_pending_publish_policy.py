@@ -227,21 +227,26 @@ class PendingPublishFacadePolicyTests(unittest.TestCase):
         rows = pending_publish_rows([row])
 
         self.assertIn("local_file", PENDING_PUBLISH_OPEN_TARGETS)
+        self.assertIn("play_local_file", PENDING_PUBLISH_OPEN_TARGETS)
         self.assertEqual(
             rows[0]["available_open_targets"],
-            ["local_file", "manifest", "destination_folder", "source_folder"],
+            ["play_local_file", "local_file", "manifest", "destination_folder", "source_folder"],
         )
         self.assertEqual(normalize_pending_publish_open_target(" Local_File "), "local_file")
+        self.assertEqual(normalize_pending_publish_open_target(" Play_Local_File "), "play_local_file")
         self.assertEqual(normalize_pending_publish_row_key(f" {row_key.upper()} "), row_key)
         self.assertEqual(pending_publish_open_path(row, "local_file"), Path(row["local_file"]))
+        self.assertEqual(pending_publish_open_path(row, "play_local_file"), Path(row["local_file"]))
         self.assertEqual(pending_publish_open_path(row, "manifest"), Path(row["manifest_path"]))
         self.assertEqual(pending_publish_open_path(row, "destination_folder"), Path(row["server_out"]).parent)
         self.assertEqual(pending_publish_open_path(row, "source_folder"), Path(row["source_path"]).parent)
 
         opened = pending_publish_open_success_result("local_file", row_key, Path(row["local_file"]))
+        played = pending_publish_open_success_result("play_local_file", row_key, Path(row["local_file"]))
         self.assertTrue(opened.ok)
         self.assertEqual(opened.command, "pending_publish.open")
         self.assertEqual(opened.data["row_key"], row_key)
+        self.assertEqual(played.message, "Opened parked output playback with the default app.")
 
         scan_failed = pending_publish_open_scan_exception_result(row_key, RuntimeError("scan locked"))
         self.assertFalse(scan_failed.ok)

@@ -137,8 +137,8 @@
       const tbody = byId("completed-output-acceptance-rows");
       if (!tbody) return;
       if (!acceptanceRows.length) {
-        clearRows(tbody, 4, "No completed output acceptance rows loaded.");
-        updateTableStatusLegend("completed-output-acceptance-legend", tbody, "Completed output acceptance rows");
+        clearRows(tbody, 4, "No completed output readiness rows loaded.");
+        updateTableStatusLegend("completed-output-acceptance-legend", tbody, "Completed output readiness rows");
         return;
       }
       tbody.replaceChildren();
@@ -153,11 +153,11 @@
         ]);
         makeRowSelectable(row, () => selectCompletedAcceptanceRow(item), {
           selected: item.key === state.selectedCompletedAcceptanceKey,
-          label: `Review completed output acceptance checkpoint ${item.checkpoint || ""}`,
+          label: `Review completed output readiness checkpoint ${item.checkpoint || ""}`,
         });
         tbody.appendChild(row);
       });
-      updateTableStatusLegend("completed-output-acceptance-legend", tbody, "Completed output acceptance rows");
+      updateTableStatusLegend("completed-output-acceptance-legend", tbody, "Completed output readiness rows");
     }
 
     const completedEvidenceRouteAgreementModule = window.__completedViewEvidenceRouteAgreementModule || {};

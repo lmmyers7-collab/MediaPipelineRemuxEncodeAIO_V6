@@ -117,17 +117,7 @@ function Resolve-VobSubOcrToolInvocation {
         return [pscustomobject]@{ Ok = $false; FilePath = ''; PrefixArgs = @(); Reason = 'VobSubOcrToolPath is not configured' }
     }
 
-    $resolved = $toolPath
-    if (-not [System.IO.Path]::IsPathRooted($resolved)) {
-        $baseDir = if ($scriptDir) { $scriptDir } elseif ($PSScriptRoot) { Split-Path -Parent $PSScriptRoot } else { (Get-Location).Path }
-        $candidate = Join-Path $baseDir $resolved
-        if (Test-Path -LiteralPath $candidate -ErrorAction SilentlyContinue) {
-            $resolved = (Resolve-Path -LiteralPath $candidate).Path
-        } elseif ($script:AllowSystemTools) {
-            $cmd = Get-Command $resolved -ErrorAction SilentlyContinue | Select-Object -First 1
-            if ($cmd -and $cmd.Source) { $resolved = $cmd.Source }
-        }
-    }
+    $resolved = Resolve-SubtitleConfiguredPath -PathValue $toolPath -AllowCommandLookup
 
     if (-not (Test-Path -LiteralPath $resolved -ErrorAction SilentlyContinue) -and -not (Get-Command $resolved -ErrorAction SilentlyContinue)) {
         return [pscustomobject]@{ Ok = $false; FilePath = ''; PrefixArgs = @(); Reason = "VobSub OCR tool not found: $toolPath" }
@@ -212,18 +202,31 @@ function Resolve-VobSubTesseractInvocation {
         }
     }
 
-    $baseDir = if ($scriptDir) { $scriptDir } elseif ($PSScriptRoot) { Split-Path -Parent $PSScriptRoot } else { (Get-Location).Path }
-    $candidateRoots += @(
-        (Join-Path $baseDir 'Tools\SubtitleEditLegacy\Tesseract550'),
-        (Join-Path $baseDir 'Tools\SubtitleEditLegacy\Tesseract-OCR'),
-        (Join-Path $baseDir 'Tools\SubtitleEditLegacy\Tesseract302'),
-        (Join-Path $baseDir 'Tools\SubtitleEditLegacy\Tesseract'),
-        (Join-Path $baseDir 'Tools\SubtitleEdit\Tesseract550'),
-        (Join-Path $baseDir 'Tools\SubtitleEdit\Tesseract-OCR'),
-        (Join-Path $baseDir 'Tools\SubtitleEdit\Tesseract'),
-        (Join-Path $baseDir 'Tools\Tesseract-OCR'),
-        (Join-Path $baseDir 'Tools\Tesseract')
-    )
+    foreach ($baseDir in @(Get-SubtitleConfiguredPathBaseDirectories)) {
+        if ([string]::IsNullOrWhiteSpace([string]$baseDir)) { continue }
+        $candidateRoots += @(
+            (Join-Path ([string]$baseDir) 'tools\SubtitleEditLegacy\Tesseract550'),
+            (Join-Path ([string]$baseDir) 'tools\SubtitleEditLegacy\Tesseract-OCR'),
+            (Join-Path ([string]$baseDir) 'tools\SubtitleEditLegacy\Tesseract302'),
+            (Join-Path ([string]$baseDir) 'tools\SubtitleEditLegacy\Tesseract'),
+            (Join-Path ([string]$baseDir) 'tools\SubtitleEdit\Tesseract550'),
+            (Join-Path ([string]$baseDir) 'tools\SubtitleEdit\Tesseract-OCR'),
+            (Join-Path ([string]$baseDir) 'tools\SubtitleEdit\Tesseract302'),
+            (Join-Path ([string]$baseDir) 'tools\SubtitleEdit\Tesseract'),
+            (Join-Path ([string]$baseDir) 'tools\Tesseract-OCR'),
+            (Join-Path ([string]$baseDir) 'tools\Tesseract'),
+            (Join-Path ([string]$baseDir) 'SubtitleEditLegacy\Tesseract550'),
+            (Join-Path ([string]$baseDir) 'SubtitleEditLegacy\Tesseract-OCR'),
+            (Join-Path ([string]$baseDir) 'SubtitleEditLegacy\Tesseract302'),
+            (Join-Path ([string]$baseDir) 'SubtitleEditLegacy\Tesseract'),
+            (Join-Path ([string]$baseDir) 'SubtitleEdit\Tesseract550'),
+            (Join-Path ([string]$baseDir) 'SubtitleEdit\Tesseract-OCR'),
+            (Join-Path ([string]$baseDir) 'SubtitleEdit\Tesseract302'),
+            (Join-Path ([string]$baseDir) 'SubtitleEdit\Tesseract'),
+            (Join-Path ([string]$baseDir) 'Tesseract-OCR'),
+            (Join-Path ([string]$baseDir) 'Tesseract')
+        )
+    }
 
     foreach ($root in @($candidateRoots | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) } | Select-Object -Unique)) {
         $candidate = Join-Path ([string]$root) 'tesseract.exe'
@@ -794,10 +797,10 @@ function Convert-VobSubToSrt {
             # tags, line length). Runs on a snapshot copy; the result is only accepted
             # if it still validates and retains at least half the cues. Otherwise the
             # pre-seconv temp is kept unchanged.
-            $baseDir = if ($scriptDir) { $scriptDir } elseif ($PSScriptRoot) { Split-Path -Parent $PSScriptRoot } else { (Get-Location).Path }
             $seconvCleanupExe = ''
             foreach ($candidate in @(
-                (Join-Path $baseDir 'Tools\SubtitleEdit\seconv.exe'),
+                (Resolve-SubtitleConfiguredPath -PathValue 'tools\SubtitleEdit\seconv.exe'),
+                (Resolve-SubtitleConfiguredPath -PathValue 'SubtitleEdit\seconv.exe'),
                 (Join-Path (Split-Path (Split-Path ([string]$tool.FilePath) -Parent) -Parent) 'SubtitleEdit\seconv.exe')
             )) {
                 if (Test-Path -LiteralPath $candidate -PathType Leaf -ErrorAction SilentlyContinue) {

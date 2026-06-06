@@ -4,7 +4,11 @@ import json
 import re
 from typing import Any
 
-from mediapipeline.desktop.config_keys import (
+from pydantic import ValidationError
+
+from mediapipeline.core.kernel.config_key_aliases import CONFIG_KEY_ALIASES
+from mediapipeline.core.kernel.config_key_order import ALL_CONFIG_KEYS
+from mediapipeline.core.kernel.config_keys import (
     KEY_BDPGS_OCR_TOOL_PATH,
     KEY_CONVERT_BDPGS_TO_SRT,
     KEY_CONVERT_VOBSUB_TO_SRT,
@@ -40,6 +44,90 @@ EVIDENCE_ONLY_CONFIG_KEYS = {
     "library_effective_settings",
     "runtime_effective_settings",
 }
+_CANONICAL_CONFIG_KEYS_BY_CASEFOLD = {str(key).casefold(): str(key) for key in ALL_CONFIG_KEYS}
+_CONFIG_KEY_ALIASES_BY_CASEFOLD = {
+    str(alias).casefold(): str(target) for alias, target in CONFIG_KEY_ALIASES.items()
+}
+
+
+def _canonical_config_key_for(key: str) -> str | None:
+    normalized = str(key or "").strip().casefold()
+    if not normalized:
+        return None
+    canonical = _CANONICAL_CONFIG_KEYS_BY_CASEFOLD.get(normalized)
+    if canonical:
+        return canonical
+    alias_target = _CONFIG_KEY_ALIASES_BY_CASEFOLD.get(normalized)
+    if alias_target:
+        return _CANONICAL_CONFIG_KEYS_BY_CASEFOLD.get(alias_target.casefold(), alias_target)
+    return None
+
+
+def canonical_config_key_spelling_error(raw_key: object, *, context: str = "settings key") -> str | None:
+    key = str(raw_key or "").strip()
+    canonical = _canonical_config_key_for(key)
+    if canonical and key != canonical:
+        return f"Invalid {context}: {key!r}; use canonical key {canonical}."
+    return None
+
+
+def canonical_config_key_spelling_errors(values: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    seen: dict[str, str] = {}
+    for raw_key in values:
+        key = str(raw_key or "").strip()
+        if not key:
+            continue
+        spelling_error = canonical_config_key_spelling_error(key)
+        if spelling_error:
+            errors.append(spelling_error)
+        canonical = _canonical_config_key_for(key)
+        if not canonical:
+            continue
+        previous = seen.get(canonical)
+        if previous is not None and previous != key:
+            errors.append(
+                f"Config contains duplicate keys for {canonical}: {previous!r} and {key!r}; use only canonical key {canonical}."
+            )
+            continue
+        seen[canonical] = key
+    return errors
+
+
+def _canonical_config_contract_errors(values: dict[str, Any]) -> list[str]:
+    from mediapipeline.contracts.config import Config
+
+    try:
+        Config.model_validate(values)
+    except ValidationError as exc:
+        errors: list[str] = []
+        for item in exc.errors():
+            ctx = item.get("ctx") if isinstance(item, dict) else None
+            ctx_error = ctx.get("error") if isinstance(ctx, dict) else None
+            if ctx_error is not None:
+                message = str(ctx_error)
+            else:
+                message = str(item.get("msg") or "Config contract validation failed.")
+                if message.startswith("Value error, "):
+                    message = message.removeprefix("Value error, ")
+            loc = item.get("loc") if isinstance(item, dict) else None
+            if loc:
+                errors.append(f"{'.'.join(str(part) for part in loc)}: {message}")
+            else:
+                errors.append(message)
+        return errors
+    return []
+
+
+def _unique_strings(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    unique: list[str] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        unique.append(value)
+    return unique
 
 
 def split_list_input(raw: str) -> list[str]:
@@ -59,22 +147,22 @@ def truthy_config_value(value: Any) -> bool:
     return str(value or "").strip().casefold() in {"1", "true", "yes", "on", "enabled", "enable"}
 
 
-def bdpgs_ocr_path_warning(values: dict[str, Any]) -> str | None:
+def bdpgs_ocr_path_error(values: dict[str, Any]) -> str | None:
     if not truthy_config_value(values.get(KEY_CONVERT_BDPGS_TO_SRT, False)):
         return None
     tool_path = str(values.get(KEY_BDPGS_OCR_TOOL_PATH, "") or "").strip()
     if tool_path:
         return None
-    return "BdpgsOcrToolPath is blank while ConvertBdpgsToSrt is enabled; BDPGS OCR will be blocked until a bundled or configured OCR tool path is saved."
+    return "ConvertBdpgsToSrt requires BdpgsOcrToolPath."
 
 
-def vobsub_ocr_path_warning(values: dict[str, Any]) -> str | None:
+def vobsub_ocr_path_error(values: dict[str, Any]) -> str | None:
     if not truthy_config_value(values.get(KEY_CONVERT_VOBSUB_TO_SRT, False)):
         return None
     tool_path = str(values.get(KEY_VOBSUB_OCR_TOOL_PATH, "") or "").strip()
     if tool_path:
         return None
-    return "VobSubOcrToolPath is blank while ConvertVobSubToSrt is enabled; VobSub OCR will be blocked until Subtitle Edit 4.x SubtitleEdit.exe is configured."
+    return "ConvertVobSubToSrt requires VobSubOcrToolPath."
 
 
 def _coerce_promotion_rules(raw: Any) -> list[dict[str, Any]]:
@@ -152,11 +240,13 @@ def validate_config_values(
     raw_values = dict(values or {})
     had_library_profiles = KEY_LIBRARY_PROFILES in raw_values
     raw_errors: list[str] = []
+    raw_errors.extend(canonical_config_key_spelling_errors(raw_values))
     validate_raw_library_profile_override_groups(raw_values, raw_errors)
     values = normalize_library_profile_config_values(raw_values)
     values = mirror_legacy_keys_from_library_profiles(values)
     errors: list[str] = list(raw_errors)
     warnings: list[str] = []
+    errors.extend(_canonical_config_contract_errors(values))
 
     for key in sorted(set(raw_values) & set(FRIENDLY_LABEL_PERSISTED_KEY_ALIASES)):
         persisted_key = FRIENDLY_LABEL_PERSISTED_KEY_ALIASES[key]
@@ -185,16 +275,16 @@ def validate_config_values(
             path_within_root=path_within_root,
         )
     )
-    bdpgs_warning = bdpgs_ocr_path_warning(values)
-    if bdpgs_warning:
-        warnings.append(bdpgs_warning)
-    vobsub_warning = vobsub_ocr_path_warning(values)
-    if vobsub_warning:
-        warnings.append(vobsub_warning)
+    bdpgs_error = bdpgs_ocr_path_error(values)
+    if bdpgs_error and bdpgs_error not in errors:
+        errors.append(bdpgs_error)
+    vobsub_error = vobsub_ocr_path_error(values)
+    if vobsub_error and vobsub_error not in errors:
+        errors.append(vobsub_error)
     if isinstance(values.get(KEY_OUTSOURCE_MIN_FREE_SPACE_GB), int) and isinstance(values.get(KEY_MIN_FREE_SPACE_GB), int):
         if int(values[KEY_OUTSOURCE_MIN_FREE_SPACE_GB]) < int(values[KEY_MIN_FREE_SPACE_GB]):
             warnings.append("OutsourceMinFreeSpaceGB is lower than MinFreeSpaceGB.")
     if isinstance(values.get(KEY_PROCESSED_INDEX_REFRESH_SECONDS), int) and isinstance(values.get(KEY_SOURCE_SCAN_INTERVAL_SECONDS), int):
         if int(values[KEY_PROCESSED_INDEX_REFRESH_SECONDS]) and int(values[KEY_SOURCE_SCAN_INTERVAL_SECONDS]) and int(values[KEY_PROCESSED_INDEX_REFRESH_SECONDS]) < int(values[KEY_SOURCE_SCAN_INTERVAL_SECONDS]):
             warnings.append("ProcessedIndexRefreshSeconds is shorter than SourceScanIntervalSeconds.")
-    return errors, warnings
+    return _unique_strings(errors), _unique_strings(warnings)

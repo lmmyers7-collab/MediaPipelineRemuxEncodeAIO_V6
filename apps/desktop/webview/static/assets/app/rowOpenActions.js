@@ -4,7 +4,8 @@
       completed: {
         targetDataset: "openCompleted",
         actions: [
-          { kind: "open", target: "output_file", label: "Open / Play Output", primary: true, hint: "Open the backend-selected completed output file." },
+          { kind: "open", target: "play_output_file", label: "Play Output", primary: true, hint: "Play the backend-selected completed output file with the PC default app." },
+          { kind: "open", target: "output_file", label: "Open Output File", hint: "Open the backend-selected completed output file." },
           { kind: "open", target: "output_folder", label: "Open Output Folder", hint: "Open the backend-selected completed output folder." },
           { kind: "open", target: "sidecar", label: "Open Sidecar", hint: "Open the backend-selected sidecar file." },
           { kind: "open", target: "source_folder", label: "Open Source Folder", hint: "Open the backend-selected source folder." },
@@ -14,7 +15,8 @@
       pending: {
         targetDataset: "openPending",
         actions: [
-          { kind: "open", target: "local_file", label: "Open Local", hint: "Open the backend-selected parked local payload." },
+          { kind: "open", target: "play_local_file", label: "Play Parked Output", primary: true, hint: "Play the backend-selected parked output with the PC default app." },
+          { kind: "open", target: "local_file", label: "Open Parked File", hint: "Open the backend-selected parked local payload." },
           { kind: "open", target: "manifest", label: "Open Manifest", hint: "Open the backend-selected pending publish manifest." },
           { kind: "open", target: "destination_folder", label: "Open Destination Folder", hint: "Open the backend-selected destination folder." },
           { kind: "open", target: "source_folder", label: "Open Source Folder", hint: "Open the backend-selected source folder." },

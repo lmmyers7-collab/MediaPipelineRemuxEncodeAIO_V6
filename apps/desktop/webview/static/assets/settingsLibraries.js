@@ -25,7 +25,7 @@
 
   const overrideLayouts = {
     editor: [
-      { type: "grid", fields: ["RoutingProfile", "SizeGuardMode", "RouteThresholdMode", "EncodeTuningPreset", "EncodeLadder", "VideoCodec", "OutputContainer", "MaxEncodeGrowthPercent", "CompatibilityEncodeGrowthPercent", "EncodeThresholdGB", "TVEncodeThresholdGB", "MovieRoute1080pTargetSizeGB", "MovieRoute1440pTargetSizeGB", "MovieRoute4KTargetSizeGB", "TVRoute1080pTargetSizeGB", "TVRoute1440pTargetSizeGB", "TVRoute4KTargetSizeGB", "MovieRouteMaxVideoBitrateMbps", "TVRouteMaxVideoBitrateMbps", "Route1080pBucketMaxHeight", "Route1080pUpperHeightTolerancePercent", "Route1080pMaxVideoBitrateMbps", "Route1440pLowerHeightTolerancePercent", "Route1440pUpperHeightTolerancePercent", "Route1440pMaxVideoBitrateMbps", "Route4KLowerHeightTolerancePercent", "Route4KBucketMinHeight", "Route4KMaxVideoBitrateMbps"] },
+      { type: "grid", fields: ["RoutingProfile", "SizeGuardMode", "RouteThresholdMode", "EncodeTuningPreset", "EncodeLadder", "VideoCodec", "OutputContainer", "MaxEncodeGrowthPercent", "CompatibilityEncodeGrowthPercent", "MovieRoute1080pTargetSizeGB", "MovieRoute1440pTargetSizeGB", "MovieRoute4KTargetSizeGB", "TVRoute1080pTargetSizeGB", "TVRoute1440pTargetSizeGB", "TVRoute4KTargetSizeGB", "Route1080pUpperHeightTolerancePercent", "Route1080pMaxVideoBitrateMbps", "Route1440pLowerHeightTolerancePercent", "Route1440pUpperHeightTolerancePercent", "Route1440pMaxVideoBitrateMbps", "Route4KLowerHeightTolerancePercent", "Route4KMaxVideoBitrateMbps"] },
       { type: "note", text: "Library editor overrides affect only content routed through this library. Backend preview/save remains authoritative before future runs use these values." },
     ],
     video: [

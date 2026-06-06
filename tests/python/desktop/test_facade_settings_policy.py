@@ -27,10 +27,10 @@ def _resolved(root: Path) -> ResolvedPaths:
     return ResolvedPaths(
         app_root=root / "DesktopApp",
         workspace_root=root,
-        pipeline_path=root / "Pipeline" / "MediaPipeline.ps1",
-        config_path=root / "Pipeline" / "MediaPipeline_config.psd1",
-        audit_script_path=root / "Pipeline" / "Audit-MediaLibrary.ps1",
-        rerun_script_path=root / "Pipeline" / "Invoke-RerunCsv.ps1",
+        pipeline_path=root / "ops" / "pipeline" / "entrypoints" / "MediaPipeline.ps1",
+        config_path=root / "ops" / "pipeline" / "config" / "MediaPipeline_config.psd1",
+        audit_script_path=root / "ops" / "pipeline" / "entrypoints" / "Audit-MediaLibrary.ps1",
+        rerun_script_path=root / "ops" / "pipeline" / "entrypoints" / "Invoke-RerunCsv.ps1",
         powershell_host="pwsh.exe",
         local_base=root / "LocalBase",
         state_root=root / "State",
@@ -86,8 +86,8 @@ class SettingsFacadePolicyTests(unittest.TestCase):
     def test_bdpgs_ocr_path_evidence_reports_ready_relative_bundle_paths(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
-            tool = root / "Pipeline" / "Tools" / "PgsToSrt" / "PgsToSrt.exe"
-            tessdata = root / "Pipeline" / "Tools" / "PgsToSrt" / "tessdata"
+            tool = root / "ops" / "pipeline" / "tools" / "PgsToSrt" / "PgsToSrt.exe"
+            tessdata = root / "ops" / "pipeline" / "tools" / "PgsToSrt" / "tessdata"
             tool.parent.mkdir(parents=True)
             tool.write_text("fake", encoding="utf-8")
             tessdata.mkdir()
@@ -108,9 +108,53 @@ class SettingsFacadePolicyTests(unittest.TestCase):
         rows = {row["key"]: row for row in evidence["rows"]}
         self.assertEqual(rows["BdpgsOcrToolPath"]["status"], "ready")
         self.assertEqual(rows["BdpgsOcrToolPath"]["path_type"], "file")
-        self.assertTrue(rows["BdpgsOcrToolPath"]["resolved"].endswith(str(Path("Tools") / "PgsToSrt" / "PgsToSrt.exe")))
+        self.assertEqual(Path(rows["BdpgsOcrToolPath"]["resolved"]).resolve(), tool.resolve())
         self.assertEqual(rows["BdpgsOcrTessdataPath"]["status"], "ready")
         self.assertEqual(rows["BdpgsOcrTessdataPath"]["path_type"], "directory")
+
+    def test_bdpgs_ocr_path_evidence_is_inactive_until_enabled(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            evidence = settings_bdpgs_ocr_path_evidence(
+                _resolved(root),
+                {
+                    "AllowSystemTools": False,
+                    "BdpgsOcrToolPath": "",
+                    "BdpgsOcrTessdataPath": "",
+                },
+            )
+
+        self.assertEqual(evidence["schema_version"], "settings_bdpgs_ocr_path_evidence.v1")
+        self.assertEqual(evidence["operator_status"], "Inactive")
+        rows = {row["key"]: row for row in evidence["rows"]}
+        self.assertEqual(rows["BdpgsOcrToolPath"]["status"], "inactive")
+        self.assertEqual(rows["BdpgsOcrTessdataPath"]["status"], "inactive")
+
+    def test_vobsub_ocr_path_evidence_reports_ready_promoted_bundle_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            tool = root / "ops" / "pipeline" / "tools" / "SubtitleEditLegacy" / "SubtitleEdit.exe"
+            tesseract = root / "ops" / "pipeline" / "tools" / "SubtitleEditLegacy" / "Tesseract302" / "tesseract.exe"
+            tool.parent.mkdir(parents=True)
+            tesseract.parent.mkdir(parents=True)
+            tool.write_text("fake", encoding="utf-8")
+            tesseract.write_text("fake", encoding="utf-8")
+
+            evidence = settings_vobsub_ocr_path_evidence(
+                _resolved(root),
+                {
+                    "ConvertVobSubToSrt": True,
+                    "AllowSystemTools": False,
+                    "VobSubOcrToolPath": r"Tools\SubtitleEditLegacy\SubtitleEdit.exe",
+                },
+            )
+
+        self.assertEqual(evidence["operator_status"], "Ready")
+        rows = {row["key"]: row for row in evidence["rows"]}
+        self.assertEqual(rows["VobSubOcrToolPath"]["status"], "ready")
+        self.assertEqual(Path(rows["VobSubOcrToolPath"]["resolved"]).resolve(), tool.resolve())
+        self.assertEqual(rows["tesseract"]["status"], "ready")
+        self.assertEqual(Path(rows["tesseract"]["resolved"]).resolve(), tesseract.resolve())
 
     def test_bdpgs_ocr_path_evidence_blocks_missing_tool_when_ocr_enabled(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

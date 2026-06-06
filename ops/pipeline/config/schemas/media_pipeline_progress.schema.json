@@ -37,6 +37,8 @@
     "CopyDestination": { "type": [ "string", "null" ] },
     "CopyStartedAt": { "type": [ "string", "null" ] },
     "CopyUpdatedAt": { "type": [ "string", "null" ] },
+    "CopySessionBytesPerSecond": { "type": [ "integer", "null" ], "minimum": 0 },
+    "CopySessionFilesCompleted": { "type": "integer", "minimum": 0 },
     "PauseRequested": { "type": "boolean" },
     "StopRequested": { "type": "boolean" },
     "ControlRequests": { "type": "object", "additionalProperties": true },

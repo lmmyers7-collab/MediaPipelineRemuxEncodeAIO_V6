@@ -13,6 +13,12 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Added
 
+- Read-only Metrics workspace:
+  `GET /api/metrics` returns `desktop_metrics.v1` from completed manifest,
+  pending publish, worker runtime, and final-library evidence. The WebView now
+  has a Metrics tab with Overview, Remux vs Encode, Storage, Production, and
+  Workers subtabs for route mix, storage saved, data produced, and
+  coordinator/worker signals.
 - Maintenance Change Ledger:
   `GET /api/maintenance/change-ledger` now returns a read-only
   `desktop_change_ledger.v1` payload built from existing change-control
@@ -209,8 +215,8 @@ intent is worth keeping, it goes here and/or in an ADR.
 
   | Old root path                                                     | New canonical path                                       |
   | ----------------------------------------------------------------- | -------------------------------------------------------- |
-  | `Build-MediaPipelineRemuxEncodeAIO-Release.ps1`                   | `ops/scripts/ops/release/metadata/build.ps1`                              |
-  | `Test-MediaPipelineRemuxEncodeAIO-Release.ps1`                    | `ops/scripts/ops/release/metadata/test.ps1`                               |
+  | `Build-MediaPipelineRemuxEncodeAIO-Release.ps1`                   | `ops/scripts/release/build.ps1`                              |
+  | `Test-MediaPipelineRemuxEncodeAIO-Release.ps1`                    | `ops/scripts/release/test.ps1`                               |
   | `Verify-MediaPipelineRemuxEncodeAIO-Environment.ps1`              | `ops/scripts/dev/verify-env.ps1`                                 |
   | `Verify-MediaPipelineRemuxEncodeAIO-Environment.bat`              | `ops/scripts/dev/verify-env.bat`                                 |
   | `Run-MediaPipelineRemuxEncodeAIO.bat`                             | `ops/scripts/dev/run.bat`                                    |
@@ -225,7 +231,7 @@ intent is worth keeping, it goes here and/or in an ADR.
   repo root. `%~dp0`-relative paths in the moved `.bat` files were
   patched to step up from their new subfolders.
   `ops/scripts/ops/release/metadata/Backup-PreOverhaul.ps1`
-  calls `ops/scripts/ops/release/metadata/build.ps1` through the canonical script layout.
+  calls `ops/scripts/release/build.ps1` through the canonical script layout.
   Release build verification and release self-test layout checks now use the
   canonical `scripts\` paths without requiring root shims.
 
@@ -237,6 +243,9 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Fixed
 
+- Settings Preview/Save now rejects non-canonical casing for known persisted
+  config keys, and settings/launch BDPGS OCR display fallbacks now match the
+  contract default of disabled when `ConvertBdpgsToSrt` is missing.
 - Python JSON-line logging now preserves required envelope fields when
   structured context uses colliding keys, while repeated
   `configure_json_logging` calls reuse the same stream handler instead of

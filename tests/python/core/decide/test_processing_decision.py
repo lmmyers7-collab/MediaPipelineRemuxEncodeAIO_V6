@@ -66,10 +66,17 @@ class ProcessingDecisionTests(unittest.TestCase):
             {
                 "RoutingProfile": "plex_direct_play",
                 "RouteThresholdMode": "bitrate",
-                "EncodeThresholdGB": 9,
-                "TVEncodeThresholdGB": 4,
-                "MovieRouteMaxVideoBitrateMbps": 40,
-                "TVRouteMaxVideoBitrateMbps": 20,
+                "EncodeThresholdGB": 99,
+                "TVEncodeThresholdGB": 88,
+                "MovieRouteMaxVideoBitrateMbps": 77,
+                "TVRouteMaxVideoBitrateMbps": 66,
+                "MovieRoute1080pTargetSizeGB": 9,
+                "MovieRoute1440pTargetSizeGB": 10,
+                "MovieRoute4KTargetSizeGB": 11,
+                "TVRoute1080pTargetSizeGB": 4,
+                "TVRoute1440pTargetSizeGB": 5,
+                "TVRoute4KTargetSizeGB": 6,
+                "Route1080pMaxVideoBitrateMbps": 40,
                 "OutputContainer": "mp4",
                 "RemuxSafeVideoCodecs": ["hevc", "h264"],
             }
@@ -77,14 +84,13 @@ class ProcessingDecisionTests(unittest.TestCase):
 
         self.assertEqual(policy.routing_profile, "plex_direct_play")
         self.assertEqual(policy.route_threshold_mode, "bitrate")
-        self.assertEqual(policy.movie_route_size_limit_gb, 9)
-        self.assertEqual(policy.tv_route_size_limit_gb, 4)
         self.assertEqual(policy.movie_route_1080p_size_limit_gb, 9)
-        self.assertEqual(policy.movie_route_1440p_size_limit_gb, 9)
-        self.assertEqual(policy.movie_route_4k_size_limit_gb, 9)
+        self.assertEqual(policy.movie_route_1440p_size_limit_gb, 10)
+        self.assertEqual(policy.movie_route_4k_size_limit_gb, 11)
         self.assertEqual(policy.tv_route_1080p_size_limit_gb, 4)
-        self.assertEqual(policy.tv_route_1440p_size_limit_gb, 4)
-        self.assertEqual(policy.tv_route_4k_size_limit_gb, 4)
+        self.assertEqual(policy.tv_route_1440p_size_limit_gb, 5)
+        self.assertEqual(policy.tv_route_4k_size_limit_gb, 6)
+        self.assertEqual(policy.route_1080p_max_video_bitrate_mbps, 40)
         self.assertEqual(policy.output_container, "mp4")
         self.assertEqual(policy.direct_copy_video_codecs, ["hevc", "h264"])
 
@@ -234,8 +240,8 @@ class ProcessingDecisionTests(unittest.TestCase):
             ("tv", 1080, "1080p", 2.0, "source_height_bucket_tv"),
             ("tv", 1440, "1440p", 5.0, "source_height_bucket_tv"),
             ("tv", 2160, "4k", 9.0, "source_height_bucket_tv"),
-            ("movie", 0, "unknown_height_movie", 50.0, "movie_tv_fallback_movie"),
-            ("tv", 0, "unknown_height_tv", 25.0, "movie_tv_fallback_tv"),
+            ("movie", 0, "1080p", 7.0, "unknown_height_1080p_bucket_movie"),
+            ("tv", 0, "1080p", 2.0, "unknown_height_1080p_bucket_tv"),
         ]
 
         for media_type, height, expected_bucket, expected_size, expected_source in cases:
@@ -253,19 +259,22 @@ class ProcessingDecisionTests(unittest.TestCase):
                 self.assertEqual(decision.source_facts_used["route_size_limit_gb"], expected_size)
                 self.assertEqual(decision.source_facts_used["route_size_limit_source"], expected_source)
 
-    def test_unknown_height_falls_back_to_movie_tv_bitrate_keys(self) -> None:
+    def test_unknown_height_uses_1080p_bitrate_bucket(self) -> None:
         unknown_height_movie = load_source_variant("movie_h264_1080p_30mbps_mkv.json", height=0)
         unknown_height_tv = load_source_variant("tv_h264_1080p_24mbps_mkv.json", height=0)
+        policy = EffectiveDecisionPolicy(route_1080p_max_video_bitrate_mbps=22)
 
-        movie_decision = build_processing_decision(unknown_height_movie)
-        tv_decision = build_processing_decision(unknown_height_tv)
+        movie_decision = build_processing_decision(unknown_height_movie, policy)
+        tv_decision = build_processing_decision(unknown_height_tv, policy)
 
-        self.assertEqual(movie_decision.route_summary, "REMUX")
-        self.assertEqual(movie_decision.source_facts_used["direct_copy_bitrate_cap_mbps"], 35.0)
-        self.assertEqual(movie_decision.source_facts_used["direct_copy_bitrate_bucket"], "unknown_height_movie")
+        self.assertEqual(movie_decision.route_summary, "ENCODE")
+        self.assertEqual(movie_decision.source_facts_used["direct_copy_bitrate_cap_mbps"], 22.0)
+        self.assertEqual(movie_decision.source_facts_used["direct_copy_bitrate_bucket"], "1080p")
+        self.assertEqual(movie_decision.source_facts_used["direct_copy_bitrate_cap_source"], "unknown_height_1080p_bucket")
         self.assertEqual(tv_decision.route_summary, "ENCODE")
-        self.assertEqual(tv_decision.source_facts_used["direct_copy_bitrate_cap_mbps"], 18.0)
-        self.assertEqual(tv_decision.source_facts_used["direct_copy_bitrate_bucket"], "unknown_height_tv")
+        self.assertEqual(tv_decision.source_facts_used["direct_copy_bitrate_cap_mbps"], 22.0)
+        self.assertEqual(tv_decision.source_facts_used["direct_copy_bitrate_bucket"], "1080p")
+        self.assertEqual(tv_decision.source_facts_used["direct_copy_bitrate_cap_source"], "unknown_height_1080p_bucket")
 
     def test_h264_max_bitrate_is_additional_cap_on_selected_bucket(self) -> None:
         relaxed_bucket_policy = EffectiveDecisionPolicy(
@@ -338,6 +347,22 @@ class ProcessingDecisionTests(unittest.TestCase):
         self.assertNotIn("OUTPUT_SIZE_BLOCK_USES_PENDING_PUBLISH", publish_codes)
         self.assertEqual(size_guard.on_fail, "fail_job")
 
+    def test_output_size_check_fallback_remux_plans_remux_before_oversized_encode_publish(self) -> None:
+        decision = build_processing_decision(
+            load_source("tv_h264_1080p_24mbps_mkv.json"),
+            EffectiveDecisionPolicy(output_size_check_action="fallback_remux"),
+        )
+        verification_codes = {item.code for item in decision.verification_requirements}
+        publish_codes = {item.code for item in decision.publish_requirements}
+        size_guard = next(guard for guard in decision.verification_guards if guard.code == "OUTPUT_SIZE_CHECK")
+
+        self.assertIn("OUTPUT_SIZE_CHECK_FALLBACK_REMUX", verification_codes)
+        self.assertIn("OUTPUT_SIZE_FALLBACK_REMUX_BEFORE_ENCODE_PUBLISH", publish_codes)
+        self.assertEqual(size_guard.enforcement, "HARD_BLOCK")
+        self.assertEqual(size_guard.on_fail, "try_remux_then_record_warning")
+        self.assertEqual(decision.verification_result.output_size_check.action, "fallback_remux")
+        self.assertEqual(decision.verification_result.output_size_check.status, "planned")
+
     def test_unknown_media_type_uses_conservative_caps_and_preserves_missing_metadata(self) -> None:
         decision = build_processing_decision(load_source("unknown_bitrate_source.json"))
 
@@ -396,17 +421,32 @@ class ProcessingDecisionTests(unittest.TestCase):
         self.assertIn("SOURCE_UNPROBEABLE_REJECT", reason_codes(decision))
         self.assertEqual(decision.publish_requirements[0].code, "NO_PUBLISH_FOR_REJECTED_SOURCE")
 
-    def test_mp4_subtitle_cross_constraint_forces_video_encode_for_image_subtitles(self) -> None:
+    def test_mp4_subtitle_cross_constraint_rejects_image_subtitles_without_explicit_policy(self) -> None:
         decision = build_processing_decision(
             load_source("source_with_image_subtitles.json"),
             EffectiveDecisionPolicy(output_container="mp4"),
         )
 
-        self.assertEqual(decision.route_summary, "ENCODE")
-        self.assertEqual(decision.stream_actions.video.action, "encode")
-        self.assertTrue(all(stream.action == "burn" for stream in decision.stream_actions.subtitles))
+        self.assertEqual(decision.route_summary, "REJECT")
+        self.assertEqual(decision.stream_actions.video.action, "reject")
+        self.assertTrue(all(stream.action == "unknown" for stream in decision.stream_actions.subtitles))
         self.assertIn("SUBTITLE_FORMAT_INCOMPATIBLE_WITH_CONTAINER", reason_codes(decision))
-        self.assertIn("SUBTITLE_BURN_IN_REQUIRES_ENCODE", reason_codes(decision))
+        self.assertIn("SUBTITLE_IMAGE_REQUIRES_EXPLICIT_REVIEW", reason_codes(decision))
+        self.assertNotIn("SUBTITLE_BURN_IN_REQUIRES_ENCODE", reason_codes(decision))
+        self.assertEqual(decision.publish_requirements[0].code, "NO_PUBLISH_FOR_REJECTED_SOURCE")
+
+    def test_mp4_text_subtitle_cross_constraint_converts_without_video_encode(self) -> None:
+        decision = build_processing_decision(
+            load_source("tv_h264_1080p_12mbps_mkv.json"),
+            EffectiveDecisionPolicy(output_container="mp4"),
+        )
+
+        self.assertEqual(decision.route_summary, "REMUX")
+        self.assertEqual(decision.stream_actions.video.action, "copy")
+        self.assertEqual(decision.stream_actions.subtitles[0].action, "convert")
+        self.assertEqual(decision.stream_actions.subtitles[0].output_codec, "mov_text")
+        self.assertIn("SUBTITLE_FORMAT_INCOMPATIBLE_WITH_CONTAINER", reason_codes(decision))
+        self.assertNotIn("SUBTITLE_IMAGE_REQUIRES_EXPLICIT_REVIEW", reason_codes(decision))
 
     def test_mp4_audio_cross_constraint_is_per_stream_without_forcing_video_encode(self) -> None:
         decision = build_processing_decision(

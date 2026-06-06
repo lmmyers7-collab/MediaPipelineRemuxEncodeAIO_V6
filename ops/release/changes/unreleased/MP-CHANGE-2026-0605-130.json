@@ -1,0 +1,62 @@
+{
+  "id": "MP-CHANGE-2026-0605-130",
+  "title": "Regroup Settings tabs by operator workflow",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "medium",
+  "date_started": "2026-06-05",
+  "date_completed": "2026-06-06",
+  "summary": "Regrouped the Settings top-level navigation from media-category tabs into operator workflow tabs while preserving existing settings panels, backend Preview/Save authority, staged-change behavior, and command history semantics.",
+  "reason": "The previous tab order made high-impact paths, safety, routing, publish, runtime, and raw evidence controls harder to scan. The new IA groups the existing panels around how an operator prepares, validates, and publishes media output without changing backend settings policy.",
+  "affected_areas": [
+    "diagnostics",
+    "settings",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Settings exposed separate top-level tabs for Summary / Effective Decision, Routing, Dimensions, Filters, Video, Audio, Subtitles, Container, Verification / Publish, Presets, Rename, and Advanced.",
+  "behavior_after": "Settings exposes Status, Guided Setup, Paths & Safety, Routing & Size, Media Output, Publish & Recovery, Naming, Queue & Runtime, and Advanced Evidence. Retired stored tab IDs fall back through the existing lifecycle default, and OCR guidance now points to Settings > Media Output.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app/home.js",
+    "apps/desktop/webview/static/assets/diagnosticsStateSummaryView.js",
+    "apps/desktop/webview/static/assets/diagnosticsView.js",
+    "apps/desktop/webview/static/partials/page-settings.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/diagnosticsStateSummaryView.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0605-130.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/diagnostics/state_summary.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_diagnostics.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_settings_launch_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_settings_libraries.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0605-130.json",
+    "src/mediapipeline/core/diagnostics/state_summary.py",
+    "tests/python/desktop/test_application_facade_diagnostics.py",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/python/desktop/test_final_library_promotion.py",
+    "tests/webview/test_webview_browser_settings_launch_smoke.py",
+    "tests/webview/test_webview_handbrake_settings_ui.py",
+    "tests/webview/test_webview_settings_libraries.py"
+  ],
+  "tests_added": [
+    "Updated Settings static tab-order assertions for the new operator workflow tab IDs and retired tab IDs.",
+    "Updated browser Settings smoke helper to open Media Output for subtitle controls.",
+    "Updated final-library promotion, diagnostics, and libraries static assertions for the regrouped Settings destinations."
+  ],
+  "manual_validation": [
+    "PASS: npm run webview:check",
+    "PASS: PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_handbrake_settings_ui.WebViewHandBrakeSettingsUiTests.test_settings_tabs_follow_operator_workflow_grouping",
+    "PASS: PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_settings_libraries.WebViewSettingsLibrariesStaticTests.test_libraries_page_is_main_nav_surface",
+    "PASS: PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_final_library_promotion.FinalLibraryPromotionWebViewSettingsTests.test_settings_has_dedicated_final_library_promotion_controls tests.python.desktop.test_application_facade_diagnostics.ApplicationFacadeDiagnosticsTests.test_facade_diagnostics_state_summary_surfaces_blocked_bdpgs_ocr_paths",
+    "BLOCKED: apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_handbrake_settings_ui.py failed before collection because bundled Python has no pytest module.",
+    "BLOCKED: full unittest tests.webview.test_webview_handbrake_settings_ui currently fails on unrelated backend metadata/routing-panel drift, including missing EncodeThresholdGB metadata and an existing Advanced Routing Details expectation.",
+    "BLOCKED: full unittest tests.webview.test_webview_settings_libraries currently fails on unrelated missing EncodeThresholdGB backend metadata.",
+    "BLOCKED: unittest tests.webview.test_webview_browser_settings_launch_smoke reaches the browser but fails on unrelated missing MovieRouteMaxVideoBitrateMbps override-row evidence.",
+    "BLOCKED: unittest tests.webview.test_webview_browser_layout_manager_smoke fails before Settings-specific assertions on an unrelated Completed panel expectation for Size Evidence.",
+    "BLOCKED: broad Local API static prototype audit currently fails on unrelated missing report-warnings text before reaching the updated diagnostics Settings label assertion.",
+    "PASS: rg stale-scan found no live Settings > Subtitles guidance, retired Settings data-settings-tab IDs, or old Settings tab buttons outside intentional retired-token assertions and unrelated non-Settings page controls.",
+    "PASS: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ... reported 1 written, 11 unchanged."
+  ],
+  "rollback_plan": "Restore the previous Settings tab buttons and data-settings-tab wrapper assignments in page-settings.html, then revert the updated Settings destination text in diagnostics/home guidance and the associated test expectations.",
+  "related_changes": [],
+  "notes": "Navigation-only IA pass. Existing dirty workspace changes in the same Settings/test files were left intact and are not part of this regrouping intent."
+}

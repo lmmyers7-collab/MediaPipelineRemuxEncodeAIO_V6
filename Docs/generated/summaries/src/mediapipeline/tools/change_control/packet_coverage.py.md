@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: 9d080dd2103199499316bdf8d7e5403d38ae620c0b552ed52d8348f3f8ab767c
+sha256: cc2967d9554b06a0e4f5c9478a7e428b0636985d72cdbf6f0bd0699e78e95213
 ---
 # `src/mediapipeline/tools/change_control/packet_coverage.py`
 

@@ -117,6 +117,78 @@ class EtaPayloadTests(unittest.TestCase):
         self.assertIsNone(row["eta_seconds"])
         self.assertIn("start and update timestamps", row["unavailable_reason"])
 
+    def test_eta_payload_prefers_session_average_throughput_once_files_complete(self) -> None:
+        payload = eta_payload(
+            {"rows": []},
+            progress={
+                "CurrentStage": "push",
+                "CurrentFileDisplay": "Movie.mkv",
+                "PushState": "copying",
+                "CopyBytesCopied": 536870912,
+                "CopyTotalBytes": 1073741824,
+                "CopyStartedAt": "2026-06-04T12:00:00+00:00",
+                "CopyUpdatedAt": "2026-06-04T12:01:00+00:00",
+                "CopySessionBytesPerSecond": 50000000,
+                "CopySessionFilesCompleted": 3,
+            },
+            now=datetime(2026, 6, 4, 12, 1, tzinfo=timezone.utc),
+        )
+
+        row = payload["rows"][0]
+        # Rate and ETA come from the learned session average (50 MB/s), not the
+        # in-progress file's own partial bytes/elapsed (which would be ~8.9 MB/s).
+        self.assertEqual(row["bytes_per_second"], 50000000)
+        self.assertEqual(row["bytes_remaining"], 536870912)
+        self.assertEqual(row["eta_seconds"], round(536870912 / 50000000))
+        self.assertIn("average publish-copy throughput", row["basis"])
+        self.assertIn("3 completed files", row["basis"])
+
+    def test_eta_payload_session_average_estimates_before_current_file_has_elapsed(self) -> None:
+        # A freshly started push (no usable start/update timestamps yet) still
+        # gets a stable estimate from the learned session average.
+        payload = eta_payload(
+            {"rows": []},
+            progress={
+                "CurrentStage": "push",
+                "CurrentFileDisplay": "Movie.mkv",
+                "PushState": "copying",
+                "CopyBytesCopied": 1048576,
+                "CopyTotalBytes": 1073741824,
+                "CopySessionBytesPerSecond": 50000000,
+                "CopySessionFilesCompleted": 2,
+            },
+        )
+
+        self.assertEqual(payload["status"], "loaded")
+        row = payload["rows"][0]
+        self.assertEqual(row["bytes_per_second"], 50000000)
+        self.assertEqual(row["eta_seconds"], round((1073741824 - 1048576) / 50000000))
+        self.assertEqual(row["unavailable_reason"], "")
+
+    def test_eta_payload_ignores_session_average_for_first_file_of_run(self) -> None:
+        # Guinea-pig file: no completed files yet, so the per-file partial
+        # measurement is used unchanged.
+        payload = eta_payload(
+            {"rows": []},
+            progress={
+                "CurrentStage": "push",
+                "CurrentFileDisplay": "Movie.mkv",
+                "PushState": "copying",
+                "CopyBytesCopied": 536870912,
+                "CopyTotalBytes": 1073741824,
+                "CopyStartedAt": "2026-06-04T12:00:00+00:00",
+                "CopyUpdatedAt": "2026-06-04T12:01:00+00:00",
+                "CopySessionBytesPerSecond": None,
+                "CopySessionFilesCompleted": 0,
+            },
+            now=datetime(2026, 6, 4, 12, 1, tzinfo=timezone.utc),
+        )
+
+        row = payload["rows"][0]
+        self.assertEqual(row["bytes_per_second"], 8947849)
+        self.assertEqual(row["eta_seconds"], 60)
+        self.assertIn("publish-copy bytes", row["basis"])
+
 
 if __name__ == "__main__":
     unittest.main()

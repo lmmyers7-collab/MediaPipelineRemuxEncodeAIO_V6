@@ -6,6 +6,7 @@
     "partials/app-shell-start.html",
     "partials/page-home.html",
     "partials/page-telemetry.html",
+    "partials/page-metrics.html",
     "partials/page-queue.html",
     "partials/page-completed.html",
     "partials/page-pending.html",
@@ -22,9 +23,9 @@
   ],
   "report_note": "Pre-split report only. IDs are collected from index.html with mp-include partials expanded. Missing IDs can be legitimate when markup is generated at runtime, but every future split should keep this report stable or deliberately update it.",
   "counts": {
-    "html_ids": 1407,
-    "js_touched_ids": 418,
-    "ids_present_in_index": 393,
+    "html_ids": 1458,
+    "js_touched_ids": 426,
+    "ids_present_in_index": 401,
     "ids_missing_from_index": 25,
     "likely_dynamic_missing_ids": 0,
     "review_missing_ids": 25
@@ -208,6 +209,14 @@
     "maintenance-diagnostics-actions",
     "maintenance-refresh-button",
     "maintenance-rows",
+    "metrics-backfill-button",
+    "metrics-route-series-rows",
+    "metrics-source-add-button",
+    "metrics-source-label",
+    "metrics-source-path",
+    "metrics-sources-rows",
+    "metrics-storage-breakdown-rows",
+    "metrics-worker-rows",
     "network-evidence-rows",
     "network-lifecycle-rows",
     "network-settings-preview-button",
@@ -825,8 +834,16 @@
       "missing_from_index": []
     },
     {
-      "src": "/assets/queue/fileOverrides.drawer.js",
-      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.js",
+      "src": "/assets/queue/fileOverrides.drawer.state.js",
+      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.state.js",
+      "dom_ids_touched": [
+        "fo-drawer-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/fileOverrides.drawer.form.js",
+      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.form.js",
       "dom_ids_touched": [
         "fo-audio-drop-langs",
         "fo-audio-keep-langs",
@@ -834,41 +851,87 @@
         "fo-audio-prefer-default-language",
         "fo-drawer",
         "fo-drawer-clear",
-        "fo-drawer-close",
-        "fo-drawer-path",
         "fo-drawer-save",
-        "fo-drawer-status",
-        "fo-drawer-title",
         "fo-inherited-settings-status",
-        "fo-overlay",
         "fo-route-profile",
-        "fo-route-risk-confirm",
         "fo-route-threshold-mode",
         "fo-series-apply",
-        "fo-series-auto-detect",
-        "fo-series-cancel",
-        "fo-series-counts",
-        "fo-series-detected",
-        "fo-series-fields",
-        "fo-series-issues",
-        "fo-series-modal",
-        "fo-series-modal-close",
         "fo-series-preview-open",
-        "fo-series-rows",
-        "fo-series-status",
-        "fo-series-summary",
-        "fo-source-info-grid",
-        "fo-source-info-missing",
-        "fo-source-info-section",
         "fo-sub-drop-langs",
         "fo-sub-filter-fields",
         "fo-sub-keep-langs",
         "fo-sub-strip-all",
-        "fo-track-warning-list",
         "fo-video-codec",
         "fo-video-container",
         "fo-video-encode-ladder",
         "fo-video-encode-preset"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/fileOverrides.drawer.series.js",
+      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.series.js",
+      "dom_ids_touched": [
+        "fo-series-apply",
+        "fo-series-auto-detect",
+        "fo-series-counts",
+        "fo-series-detected",
+        "fo-series-fields",
+        "fo-series-issues",
+        "fo-series-preview-open",
+        "fo-series-rows",
+        "fo-series-status",
+        "fo-series-summary"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/fileOverrides.drawer.tracks.js",
+      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.tracks.js",
+      "dom_ids_touched": [
+        "fo-route-risk-confirm",
+        "fo-source-info-grid",
+        "fo-source-info-missing",
+        "fo-source-info-section",
+        "fo-track-warning-list"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/fileOverrides.drawer.api.js",
+      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.api.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/fileOverrides.drawer.focus.js",
+      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.focus.js",
+      "dom_ids_touched": [
+        "fo-drawer",
+        "fo-overlay",
+        "fo-series-apply",
+        "fo-series-modal",
+        "fo-series-modal-close"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/fileOverrides.drawer.js",
+      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.js",
+      "dom_ids_touched": [
+        "fo-drawer",
+        "fo-drawer-clear",
+        "fo-drawer-close",
+        "fo-drawer-path",
+        "fo-drawer-save",
+        "fo-drawer-title",
+        "fo-overlay",
+        "fo-series-apply",
+        "fo-series-cancel",
+        "fo-series-modal",
+        "fo-series-modal-close",
+        "fo-series-preview-open",
+        "fo-sub-strip-all"
       ],
       "missing_from_index": []
     },
@@ -1347,6 +1410,21 @@
         "network-worker-status-filter",
         "settings-patch-json",
         "settings-patch-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/metricsView.js",
+      "path": "apps/desktop/webview/static/assets/metricsView.js",
+      "dom_ids_touched": [
+        "metrics-backfill-button",
+        "metrics-route-series-rows",
+        "metrics-source-add-button",
+        "metrics-source-label",
+        "metrics-source-path",
+        "metrics-sources-rows",
+        "metrics-storage-breakdown-rows",
+        "metrics-worker-rows"
       ],
       "missing_from_index": []
     },

@@ -3,9 +3,9 @@ file: tests/webview/test_webview_browser_large_table_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 74495869415e10018b90deae5324a62e2eda901b4f5197622720e8e6e78827ff
+sha256: d14188766c0736035ca727e02689f6edb46b2a353cbcf454f767fd342c5612d2
 ---
 # `tests/webview/test_webview_browser_large_table_smoke.py`
 

@@ -434,11 +434,20 @@ function Invoke-RetryPendingPushes {
             $visitedCount++
             $manifest = Read-PendingManifestFile -Path $m.FullName
             $local    = [string]$manifest.local_file
+            $server   = [string]$manifest.server_out
             $route    = [string]$manifest.route
-            Set-ProgressItemContext -DisplayName (Split-Path $local -Leaf) -FilePath $local -MediaType 'pending' -QueuePhase 'pending_push' -QueueIndex $visitedCount -QueueTotal $manifests.Count
+            $displayName = if ([string]::IsNullOrWhiteSpace($server)) { Split-Path $local -Leaf } else { Split-Path $server -Leaf }
+            if ([string]::IsNullOrWhiteSpace($displayName)) { $displayName = Split-Path $local -Leaf }
+            Set-ProgressItemContext -DisplayName $displayName -FilePath $local -MediaType 'pending' -QueuePhase 'pending_push' -QueueIndex $visitedCount -QueueTotal $manifests.Count
             Set-ProgressStage -Stage 'retry_pending_push' -Status 'Retrying pending push' -Route $route -PushState 'retrying' -Percent $null -SaveNow
 
             $summary['attempted_count'] = [int]$summary['attempted_count'] + 1
+            $drainTrust = Test-PendingManifestTrustedForDrain -ManifestFile $m -Manifest $manifest
+            if (-not $drainTrust.Ok) {
+                Write-Log "Pending: refusing retry drain for untrusted manifest $($m.Name): $($drainTrust.Reason)" "ERROR"
+                $summaryItems.Add((New-PendingDrainSummaryItem -ManifestFile $m -Manifest $manifest -Status $drainTrust.Status -ErrorMessage $drainTrust.Reason)) | Out-Null
+                continue
+            }
             $transaction = Invoke-PendingDrainTransaction -ManifestFile $m -Manifest $manifest
             $summaryItems.Add((New-PendingDrainSummaryItem -ManifestFile $m -Manifest $manifest -Transaction $transaction)) | Out-Null
             if ($transaction.Status -eq 'already_published' -or $transaction.Status -eq 'succeeded') {

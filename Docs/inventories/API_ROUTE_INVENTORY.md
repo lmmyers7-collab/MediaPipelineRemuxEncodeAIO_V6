@@ -1,16 +1,16 @@
 # API Route Inventory
 
-Date: 2026-06-04
+Date: 2026-06-05
 
 Full inventory of all Local API routes: route, method, effect class, backend contract/handler, mutation risk, primary frontend caller, and test coverage. Source: `contract_read.py`, `contract_command.py`, `routes_read.py`, `routes_command.py`.
 
-Total: 86 routes — 35 GET (read) + 51 POST (command).
+Total: 89 routes — 36 GET (read) + 53 POST (command).
 
 All routes require the bootstrap token (`Authorization: Bearer` or `X-MediaPipeline-Token`) except `GET /api/health`.
 
 ---
 
-## GET Routes (Read — 35 routes)
+## GET Routes (Read — 36 routes)
 
 All GET routes return data only. None launch pipeline work, write config, drain pending outputs, rename files, or mutate queue or manifest state.
 
@@ -32,7 +32,7 @@ All GET routes return data only. None launch pipeline work, write config, drain 
 
 Query params: `/api/diagnostics/tail` accepts `target` (allowlisted key) and `max_bytes` (1 KB–256 KB); backend tail evidence includes `evidence_authority=backend`, and any WebView fallback over older/no-evidence payloads must be labelled frontend advisory only. `/api/launch/preflight` accepts target-specific read-only start-intent fields (`target`, pipeline `mode`, `sleep_seconds`, `show_config`, `show_console`, `single_file`, `schedule_override`, `extra_args`, `allow_extra_args`, audit `library_root`/`include_sidecars`, and rerun `csv_path`/`dry_run`/`stage_mode`/`original_mode`/`return_mode`) and returns nested backend `operator_readiness` (`desktop_launch_readiness.v1`) so Launch readiness rendering does not have to infer start posture from DOM state. `/api/commands` accepts `limit`. `/api/failures` accepts `source` and `limit`. `/api/queue/file-overrides`, `/api/queue/file-overrides/effective`, and `/api/queue/file-overrides/tracks` accept `path` and validate it under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots).
 
-### Inventory Group (15 routes)
+### Inventory Group (16 routes)
 
 | Route | Effect | Response Schema | Frontend Caller | Auth | Backend Test Coverage |
 |---|---|---|---|---|---|
@@ -43,6 +43,7 @@ Query params: `/api/diagnostics/tail` accepts `target` (allowlisted key) and `ma
 | `GET /api/queue/file-overrides/effective` | `none` | `queue_file_overrides_effective.v1` | Queue | Yes | `test_application_facade_local_api.py`, `test_file_override_tracks.py` |
 | `GET /api/queue/file-overrides/tracks` | `none` | `queue_file_override_tracks.v1` | Queue | Yes | `test_file_override_tracks.py` |
 | `GET /api/completed` | `none` | `desktop_completed_preview.v1` | Completed | Yes | `test_facade_completed_policy.py`, `test_service_completed_manifest.py` |
+| `GET /api/metrics` | `none` | `desktop_metrics.v1` | Metrics | Yes | `test_metrics_feature.py` |
 | `GET /api/final-library-promotion/status` | `none` | `desktop_final_library_promotion_status.v1` | Completed | Yes | `test_final_library_promotion.py` |
 | `GET /api/failures` | `none` | `desktop_failure_preview.v1` | Reports, Diagnostics | Yes | `test_facade_failures_policy.py`, `test_service_failure_markers.py` |
 | `GET /api/audit-results` | `none` | `desktop_audit_preview.v1` | Reports | Yes | `test_facade_audit_policy.py`, `test_service_audit_rerun_records.py` |
@@ -76,7 +77,7 @@ Network lifecycle mutation remains design-only. `/api/contract` publishes the fu
 
 ---
 
-## POST Routes (Command — 49 routes)
+## POST Routes (Command — 53 routes)
 
 All POST routes require auth. File-open routes pass row keys or allowlisted target keys. Queue state routes accept only absolute paths under backend-configured `SourceMovies`/`SourceTV` roots and write non-destructive state manifests. Queue source scan is backend-owned and writes scan evidence plus an authoritative queue snapshot through the existing queue-plan dry run.
 
@@ -109,7 +110,7 @@ Priority and file override/folder-rule path writes are rejected unless the submi
 | Route | Effect | Allowed Targets | Frontend Caller | Mutation Risk | Backend Test Coverage |
 |---|---|---|---|---|---|
 | `POST /api/queue/open` | `shell-open` | `source_file`, `source_folder`, `source_root` | Queue | Low — OS open only | `test_facade_queue_policy.py`, `test_service_file_open.py` |
-| `POST /api/completed/open` | `shell-open` | `output_file`, `output_folder`, `sidecar`, `source_folder` | Completed | Low | `test_facade_completed_open_policy.py`, `test_service_file_open.py` |
+| `POST /api/completed/open` | `shell-open` | `output_file`, `play_output_file`, `output_folder`, `sidecar`, `source_folder` | Completed | Low | `test_facade_completed_open_policy.py`, `test_service_file_open.py` |
 | `POST /api/pending-publish/open` | `shell-open` | `local_file`, `manifest`, `destination_folder`, `source_folder` | Pending Publish | Low | `test_facade_pending_publish_policy.py`, `test_service_file_open.py` |
 | `POST /api/pending-publish/recovery-plan` | `none` | `scope` (`all`/`selected`), `row_key` | Pending Publish | None — dry-run plan only | `test_facade_pending_publish_policy.py` |
 
@@ -153,6 +154,15 @@ Full target catalog: `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`.
 | `POST /api/maintenance/dependency-atlas` | `tooling-artifact-write` | `timeout_seconds`, `min_overview_edge_count`, `min_overview_files` | Maintenance | Low — regenerates dependency atlas HTML, PNG/SVG, and CSV tooling artifacts under `docs/generated/dependency-atlas/` only | `test_application_facade_maintenance.py`, `test_application_facade_local_api.py` |
 
 The dry-run routes do not write a release folder, zip, manifest, or completed manifest. `dependency-atlas` writes generated tooling artifacts under `docs/generated/dependency-atlas/` only; it does not touch media, queue, settings, manifests, pending publish state, or pipeline state. `release-build` requires `confirm_create: true`, is blocked while active work is present, and writes deployment artifacts only through the backend release builder.
+
+### Metrics Commands (2 routes)
+
+| Route | Effect | Key Request Keys | Frontend Caller | Mutation Risk | Backend Test Coverage |
+|---|---|---|---|---|---|
+| `POST /api/metrics/sources` | `metrics-state-write` | `action`, `path`, `source_id`, `label`, `enabled` | Metrics | Medium — writes Metrics source registry state under `State\Metrics` only | `test_metrics_feature.py`, `test_api_command_contracts.py` |
+| `POST /api/metrics/backfill` | `metrics-backfill-state-write` | `scope`, `source_id`, `path`, `max_sidecars` | Metrics | Medium — recursively reads configured sidecar roots and writes Metrics cache/status under `State\Metrics`; no media or sidecar mutation | `test_metrics_feature.py`, `test_api_command_contracts.py` |
+
+Metrics source and backfill commands are backend-owned. Source registry updates write only Metrics state, and backfill recursively reads `*.pipeline.json` sidecars under configured source roots while skipping symlinked folders. It does not rewrite sidecars, launch work, drain, publish, rename, mutate queue state, or touch source/output media files.
 
 ### Rename Commands (3 routes)
 
@@ -232,12 +242,14 @@ media files.
 
 | Effect | Count | Routes |
 |---|---|---|
-| `none` (read-only) | 46 | All non-probing GET routes + preview/validate/reload POSTs |
+| `none` (read-only) | 48 | All non-probing GET routes + preview/validate/reload POSTs |
 | `bounded-health-check` | 1 | `GET /api/maintenance` |
 | `read-only-preview` | 3 | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/folder-preview` |
 | `shell-open` | 4 | `POST /api/queue/open`, `completed/open`, `pending-publish/open`, `diagnostics/open` |
 | `shell-dialog` | 3 | `POST /api/rename/browse`, `POST /api/settings/browse-path`, `POST /api/pipeline/browse-file` |
 | `ui-state-write` | 1 | `POST /api/ui-preferences` |
+| `metrics-state-write` | 1 | `POST /api/metrics/sources` |
+| `metrics-backfill-state-write` | 1 | `POST /api/metrics/backfill` |
 | `queue-state-write` | 5 | `POST /api/queue/priority`, `queue/strategy`, `queue/file-overrides`, `queue/file-overrides/series-apply`, `queue/file-overrides/folder-rule` |
 | `failure-marker-write` | 1 | `POST /api/failures/clear` |
 | `audit-state-write` | 2 | `POST /api/audit/score-policy`, `audit/ignore` |

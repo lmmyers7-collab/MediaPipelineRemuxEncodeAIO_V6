@@ -16,6 +16,17 @@ $engineRootForPipelinePlanExecutor = if ($PSScriptRoot) {
 
 . (Join-Path $engineRootForPipelinePlanExecutor 'shared\media_constants.ps1')
 . (Join-Path $engineRootForPipelinePlanExecutor 'decide\encode_policy.ps1')
+if (-not (Get-Command Write-Log -ErrorAction SilentlyContinue)) {
+    function Write-Log {
+        param([string] $Message, [string] $Level = 'INFO')
+    }
+}
+if (-not (Get-Command DebugLog -ErrorAction SilentlyContinue)) {
+    function DebugLog {
+        param([string] $Message)
+    }
+}
+. (Join-Path $engineRootForPipelinePlanExecutor 'subtitles\builders.ps1')
 . (Join-Path $engineRootForPipelinePlanExecutor 'process\pipeline_plan_executor\validation.ps1')
 
 function ConvertTo-PipelinePlanInt {
@@ -216,6 +227,62 @@ function ConvertTo-PipelinePlanFfmpegSubtitleFilterPath {
     return $text
 }
 
+function Get-PipelinePlanSubtitleOrdinalMap {
+    param([Parameter(Mandatory)] $Plan)
+
+    $map = @{}
+    $ordinal = 0
+    foreach ($action in @(Get-PipelinePlanStreamActions -Plan $Plan -StreamType 'subtitle' | Sort-Object { [int]$_.streamIndex })) {
+        $sourceIndex = ConvertTo-PipelinePlanInt -Value $action.streamIndex -Default -1
+        if ($sourceIndex -lt 0) {
+            throw 'PipelinePlan validation failed: subtitle stream action requires a non-negative streamIndex.'
+        }
+        $map[$sourceIndex] = $ordinal
+        $ordinal++
+    }
+    return $map
+}
+
+function Resolve-PipelinePlanMkvmergeSubtitleTrackIds {
+    param(
+        [Parameter(Mandatory)] $Plan,
+        [Parameter(Mandatory)] [string] $InputPath
+    )
+
+    $copyActions = @(
+        Get-PipelinePlanStreamActions -Plan $Plan -StreamType 'subtitle' |
+            Sort-Object { [int]$_.streamIndex } |
+            Where-Object {
+                $actionName = ([string]$_.action).Trim().ToLowerInvariant()
+                $actionName -ne 'drop' -and $actionName -ne 'burn'
+            }
+    )
+    if ($copyActions.Count -eq 0) { return @() }
+
+    if (-not (Get-Command Get-MkvmergeTidMap -ErrorAction SilentlyContinue)) {
+        throw 'PipelinePlan validation failed: mkvmerge subtitle TID resolver is unavailable.'
+    }
+
+    $tidMap = Get-MkvmergeTidMap -FilePath $InputPath -Context 'PIPELINE PLAN: '
+    $resolved = [System.Collections.Generic.List[string]]::new()
+    $missing = [System.Collections.Generic.List[string]]::new()
+    foreach ($action in $copyActions) {
+        $sourceIndex = ConvertTo-PipelinePlanInt -Value $action.streamIndex -Default -1
+        if ($sourceIndex -lt 0) {
+            throw 'PipelinePlan validation failed: subtitle stream action requires a non-negative streamIndex.'
+        }
+        if ($tidMap -and $tidMap.ContainsKey($sourceIndex)) {
+            $resolved.Add([string]$tidMap[$sourceIndex]) | Out-Null
+        } else {
+            $missing.Add([string]$sourceIndex) | Out-Null
+        }
+    }
+    if ($missing.Count -gt 0) {
+        throw "PipelinePlan validation failed: mkvmerge subtitle TID map unavailable for ffprobe stream(s) $($missing.ToArray() -join ',')."
+    }
+    return @($resolved.ToArray())
+}
+
 function New-PipelinePlanExecutorSubtitleBurnVideoFilterArgs {
     param(
         [Parameter(Mandatory)] $Plan,
@@ -243,8 +310,13 @@ function New-PipelinePlanExecutorSubtitleBurnVideoFilterArgs {
         return @('-filter_complex', "[0:v:0][0:$sourceIndex]overlay=eof_action=pass:repeatlast=0[vout]", '-map', '[vout]')
     }
     if ($codec -in $textCodecs -or [string]::IsNullOrWhiteSpace($codec)) {
+        $ordinalMap = Get-PipelinePlanSubtitleOrdinalMap -Plan $Plan
+        if (-not $ordinalMap.ContainsKey($sourceIndex)) {
+            throw "PipelinePlan validation failed: subtitle stream $sourceIndex has no subtitle ordinal."
+        }
+        $subtitleOrdinal = [int]$ordinalMap[$sourceIndex]
         $filterPath = ConvertTo-PipelinePlanFfmpegSubtitleFilterPath -Path $InputPath
-        return @('-filter_complex', "[0:v:0]subtitles=filename='$filterPath':si=$sourceIndex[vout]", '-map', '[vout]')
+        return @('-filter_complex', "[0:v:0]subtitles=filename='$filterPath':si=$subtitleOrdinal[vout]", '-map', '[vout]')
     }
     throw "PipelinePlan validation failed: subtitle burn codec '$codec' is not supported by the PowerShell encode command builder."
 }
@@ -284,7 +356,6 @@ function New-PipelinePlanExecutorMkvmergeArgumentList {
     $args = [System.Collections.Generic.List[string]]::new()
     $args.AddRange([string[]]@('--output', $OutputPath, '--title', (Get-PipelinePlanGlobalTitle -Plan $Plan), $TempAvPath))
 
-    $subtitleSourceIndexes = [System.Collections.Generic.List[string]]::new()
     foreach ($action in @(Get-PipelinePlanStreamActions -Plan $Plan -StreamType 'subtitle' | Sort-Object { [int]$_.streamIndex })) {
         $actionName = ([string]$action.action).Trim().ToLowerInvariant()
         if ($actionName -eq 'drop') { continue }
@@ -294,11 +365,11 @@ function New-PipelinePlanExecutorMkvmergeArgumentList {
         if ($actionName -eq 'unknown') {
             throw "PipelinePlan validation failed: subtitle stream $($action.streamIndex) action is unknown."
         }
-        $subtitleSourceIndexes.Add([string]$action.streamIndex)
     }
 
-    if ($subtitleSourceIndexes.Count -gt 0) {
-        $args.AddRange([string[]]@('--no-video', '--no-audio', '--subtitle-tracks', ($subtitleSourceIndexes.ToArray() -join ','), $InputPath))
+    $subtitleTrackIds = @(Resolve-PipelinePlanMkvmergeSubtitleTrackIds -Plan $Plan -InputPath $InputPath)
+    if ($subtitleTrackIds.Count -gt 0) {
+        $args.AddRange([string[]]@('--no-video', '--no-audio', '--subtitle-tracks', ($subtitleTrackIds -join ','), $InputPath))
     }
     return @($args.ToArray())
 }
@@ -318,6 +389,7 @@ function New-PipelinePlanExecutorEncodeCommand {
     $cpuPreset = [string](Get-PipelinePlanNestedProperty -Value $Plan -Path @('effectivePresetSnapshot','presetV2','advanced','cpuEncoderSpeedPreset') -Default 'medium')
     $fallbackQuality = ConvertTo-PipelinePlanInt -Value (Get-PipelinePlanNestedProperty -Value $Plan -Path @('effectivePresetSnapshot','presetV2','advanced','cpuFallbackQualityTarget') -Default $null) -Default 20
     $cpuThreads = ConvertTo-PipelinePlanInt -Value (Get-PipelinePlanNestedProperty -Value $Plan -Path @('effectivePresetSnapshot','presetV2','advanced','cpuEncodeMaxThreads') -Default $null) -Default 0
+    $videoFilterArgs = @(New-PipelinePlanExecutorSubtitleBurnVideoFilterArgs -Plan $Plan -InputPath $InputPath)
 
     $attemptPlan = New-EncodeAttemptPlan `
         -UseCpuFallback:$false `
@@ -328,7 +400,7 @@ function New-PipelinePlanExecutorEncodeCommand {
         -GlobalTitle (Get-PipelinePlanGlobalTitle -Plan $Plan) `
         -AudioArgs (New-PipelinePlanExecutorAudioArgumentList -Plan $Plan) `
         -SubtitleMapArgs (New-PipelinePlanExecutorSubtitleArgumentList -Plan $Plan) `
-        -VideoFilterArgs (New-PipelinePlanExecutorSubtitleBurnVideoFilterArgs -Plan $Plan -InputPath $InputPath) `
+        -VideoFilterArgs $videoFilterArgs `
         -OutputPath $OutputPath `
         -VideoCodec $codec `
         -VideoPreset $preset `

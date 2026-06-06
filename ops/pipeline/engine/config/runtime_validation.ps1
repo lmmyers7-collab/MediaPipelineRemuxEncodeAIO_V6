@@ -49,10 +49,6 @@ function Invoke-MediaPipelineRuntimeConfigLogicalValidation {
     param()
 
     # Logical config validation
-    if ([double]$EncodeThresholdGB -le 0) {
-        Add-StartupWarning "EncodeThresholdGB ($EncodeThresholdGB) must be > 0; using 8"
-        $script:EncodeThresholdGB = 8
-    }
     if ([double]$MinFreeSpaceGB -le 0) {
         Add-StartupWarning "MinFreeSpaceGB ($MinFreeSpaceGB) must be > 0; using 10"
         $script:MinFreeSpaceGB = 10

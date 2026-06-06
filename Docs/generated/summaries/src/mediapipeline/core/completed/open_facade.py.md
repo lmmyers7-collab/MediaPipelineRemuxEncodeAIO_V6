@@ -3,9 +3,9 @@ file: src/mediapipeline/core/completed/open_facade.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: completed
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: f540211906c9d0e9ed342b35014e72c0c3533aad7c590c27abed23c7cb728c86
+sha256: d8b609dbb42928eb788dae47a714c7a91c9f6117058889fcc55d354ef7b16217
 ---
 # `src/mediapipeline/core/completed/open_facade.py`
 

@@ -38,10 +38,16 @@ function Invoke-RequiredReliabilityScript {
 }
 
 function Invoke-ArchitectureGuardrails {
-    $repoRoot = Split-Path -Parent (Split-Path -Parent $testsRoot)
-    $guardScript = Join-Path $repoRoot 'ops\scripts\dev\check_architecture_guardrails.py'
-    if (-not (Test-Path -LiteralPath $guardScript -PathType Leaf)) {
-        throw "architecture guardrails script is missing: $guardScript"
+    $repoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $testsRoot))
+    if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'AGENTS.md') -PathType Leaf)) {
+        throw "reliability regression checks resolved an invalid repo root: $repoRoot"
+    }
+    if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine') -PathType Container)) {
+        throw "reliability regression checks resolved a repo root without ops\pipeline\engine: $repoRoot"
+    }
+    $toolRunner = Join-Path $repoRoot 'ops\scripts\dev\run-python-tool.py'
+    if (-not (Test-Path -LiteralPath $toolRunner -PathType Leaf)) {
+        throw "python tool runner is missing: $toolRunner"
     }
 
     $pythonCandidates = @(
@@ -55,7 +61,7 @@ function Invoke-ArchitectureGuardrails {
     }
 
     Write-Host 'Running architecture guardrails...'
-    & $pythonCandidates[0] $guardScript
+    & $pythonCandidates[0] $toolRunner mediapipeline.tools.dev.check_architecture_guardrails
     $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
     if ($exitCode -ne 0) {
         throw "architecture guardrails failed with exit $exitCode."
@@ -76,6 +82,7 @@ Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-ContractSchemaChecks
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-ConfigKeyRegistryChecks.ps1' -Label 'config-key registry checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-FailureCodeRegistryChecks.ps1' -Label 'failure-code registry checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-FFmpegProgressChecks.ps1' -Label 'FFmpeg/mkvmerge progress checks'
+Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-MediaVerificationSafetyChecks.ps1' -Label 'media verification safety checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-MediaRouteSelectionChecks.ps1' -Label 'media route selection checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-NamingSupportChecks.ps1' -Label 'naming support checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-PipelineQueueEngineChecks.ps1' -Label 'pipeline queue engine checks'

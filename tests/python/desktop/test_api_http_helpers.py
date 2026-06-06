@@ -14,8 +14,10 @@ from mediapipeline.desktop.api.http_helpers import read_json_body, resolve_asset
 
 
 class _FakeHandler:
-    def __init__(self, *, content_length: str, body: bytes = b"") -> None:
+    def __init__(self, *, content_length: str, body: bytes = b"", content_type: str | None = "application/json") -> None:
         self.headers = {"Content-Length": content_length}
+        if content_type is not None:
+            self.headers["Content-Type"] = content_type
         self.rfile = BytesIO(body)
 
 
@@ -47,6 +49,38 @@ class ApiHttpHelpersTests(unittest.TestCase):
         payload = read_json_body(handler, lambda body, status: sent.append((body, status)))
 
         self.assertEqual(payload, {})
+        self.assertEqual(sent, [])
+
+    def test_read_json_body_rejects_missing_content_type_without_reading(self) -> None:
+        sent: list[tuple[dict[str, object], int]] = []
+        body = b'{"ok": true}'
+        handler = _FakeHandler(content_length=str(len(body)), body=body, content_type=None)
+
+        payload = read_json_body(handler, lambda body, status: sent.append((body, status)))
+
+        self.assertIsNone(payload)
+        self.assertEqual(sent, [({"error": "unsupported media type; use application/json"}, 415)])
+        self.assertEqual(handler.rfile.tell(), 0)
+
+    def test_read_json_body_rejects_non_json_content_type_without_reading(self) -> None:
+        sent: list[tuple[dict[str, object], int]] = []
+        body = b'{"ok": true}'
+        handler = _FakeHandler(content_length=str(len(body)), body=body, content_type="text/plain")
+
+        payload = read_json_body(handler, lambda body, status: sent.append((body, status)))
+
+        self.assertIsNone(payload)
+        self.assertEqual(sent, [({"error": "unsupported media type; use application/json"}, 415)])
+        self.assertEqual(handler.rfile.tell(), 0)
+
+    def test_read_json_body_accepts_json_content_type_with_charset(self) -> None:
+        sent: list[tuple[dict[str, object], int]] = []
+        body = b'{"ok": true}'
+        handler = _FakeHandler(content_length=str(len(body)), body=body, content_type="application/json; charset=utf-8")
+
+        payload = read_json_body(handler, lambda body, status: sent.append((body, status)))
+
+        self.assertEqual(payload, {"ok": True})
         self.assertEqual(sent, [])
 
     def test_resolve_asset_path_rejects_traversal_and_returns_asset_files(self) -> None:

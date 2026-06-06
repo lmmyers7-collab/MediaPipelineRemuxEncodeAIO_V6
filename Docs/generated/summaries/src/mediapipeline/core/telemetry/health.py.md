@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: observability
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: 9a2e7895328fe7d7fe67aa93e84c893a85fdbaebd958cbf7ab531dc948a77ca2
+sha256: ccd473e9378031af79d62fdf54d97d24d10c735ead26b231684e8c0075619106
 ---
 # `src/mediapipeline/core/telemetry/health.py`
 

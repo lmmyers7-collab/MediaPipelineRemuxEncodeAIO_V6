@@ -123,7 +123,7 @@
 <title>external_core_config&#45;&gt;mediapipeline_contracts_config</title>
 <path fill="none" stroke="#64748b" stroke-width="1.05" stroke-dasharray="5,2" d="M86.28,-247.22C126.71,-230.29 192.65,-202.69 233.75,-185.47"/>
 <polygon fill="#64748b" stroke="#64748b" stroke-width="1.05" points="234.55,-187.61 239.66,-183 232.79,-183.41 234.55,-187.61"/>
-<text xml:space="preserve" text-anchor="middle" x="130.21" y="-233.82" font-family="Segoe UI" font-size="9.00" fill="#475569">6</text>
+<text xml:space="preserve" text-anchor="middle" x="130.21" y="-233.82" font-family="Segoe UI" font-size="9.00" fill="#475569">7</text>
 </g>
 <!-- external_core_queue -->
 <g id="node9" class="node">

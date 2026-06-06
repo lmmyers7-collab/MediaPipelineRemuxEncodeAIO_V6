@@ -20,7 +20,7 @@ from mediapipeline.contracts.verification import OutputSizeCheckAction, output_s
 
 RoutingProfile = Literal["plex_direct_stream", "plex_direct_play", "archive_shrink", "archive_quality", "manual"]
 RouteThresholdMode = Literal["compatibility_advisory", "size", "bitrate", "size_or_bitrate"]
-SizeGuardMode = Literal["advisory", "strict", "off"]
+SizeGuardMode = Literal["advisory", "strict", "fallback_remux", "off"]
 ResolutionLimit = Literal["source", "480p", "720p", "1080p", "2160p", "custom"]
 ScalingPolicy = Literal["never_upscale", "allow_upscale", "preserve_source"]
 VideoTargetMode = Literal["auto", "constant_quality", "average_bitrate", "max_bitrate"]
@@ -59,16 +59,12 @@ class EffectiveDecisionPolicy(DecisionPolicyModel):
     output_size_check_action: OutputSizeCheckAction | None = None
     quality_encode_growth_tolerance_percent: float = Field(default=5.0, ge=0)
     compatibility_encode_growth_tolerance_percent: float = Field(default=15.0, ge=0)
-    movie_route_size_limit_gb: float = Field(default=8.0, ge=0)
-    tv_route_size_limit_gb: float = Field(default=3.0, ge=0)
     movie_route_1080p_size_limit_gb: float = Field(default=8.0, ge=0)
     movie_route_1440p_size_limit_gb: float = Field(default=8.0, ge=0)
     movie_route_4k_size_limit_gb: float = Field(default=8.0, ge=0)
     tv_route_1080p_size_limit_gb: float = Field(default=3.0, ge=0)
     tv_route_1440p_size_limit_gb: float = Field(default=3.0, ge=0)
     tv_route_4k_size_limit_gb: float = Field(default=3.0, ge=0)
-    movie_direct_copy_max_bitrate_mbps: float = Field(default=35.0, ge=0)
-    tv_direct_copy_max_bitrate_mbps: float = Field(default=18.0, ge=0)
     route_1080p_bucket_max_height: int = Field(default=1200, ge=1, le=4320)
     route_1080p_upper_height_tolerance_percent: float = Field(
         default=DEFAULT_ROUTE_1080P_UPPER_HEIGHT_TOLERANCE_PERCENT,
@@ -131,20 +127,10 @@ class EffectiveDecisionPolicy(DecisionPolicyModel):
         if not isinstance(value, Mapping):
             return value
         next_value = dict(value)
-        movie_size = next_value.get("movie_route_size_limit_gb", 8.0)
-        tv_size = next_value.get("tv_route_size_limit_gb", 3.0)
-        for field in (
-            "movie_route_1080p_size_limit_gb",
-            "movie_route_1440p_size_limit_gb",
-            "movie_route_4k_size_limit_gb",
-        ):
-            next_value.setdefault(field, movie_size)
-        for field in (
-            "tv_route_1080p_size_limit_gb",
-            "tv_route_1440p_size_limit_gb",
-            "tv_route_4k_size_limit_gb",
-        ):
-            next_value.setdefault(field, tv_size)
+        next_value.pop("movie_route_size_limit_gb", None)
+        next_value.pop("tv_route_size_limit_gb", None)
+        next_value.pop("movie_direct_copy_max_bitrate_mbps", None)
+        next_value.pop("tv_direct_copy_max_bitrate_mbps", None)
         percent_fields = (
             "route_1080p_upper_height_tolerance_percent",
             "route_1440p_lower_height_tolerance_percent",

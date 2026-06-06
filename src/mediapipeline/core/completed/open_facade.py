@@ -50,7 +50,8 @@ class CompletedOpenFacadeMixin:
         path = self._completed_open_path(record, target)
         if path is None:
             return completed_open_path_missing_result(target, row_key)
-        opener = getattr(self.service, "open_path", None)
+        opener_name = "open_path_with_default_app" if target == "play_output_file" else "open_path"
+        opener = getattr(self.service, opener_name, None)
         if not callable(opener):
             return completed_open_path_service_unavailable_result(target, row_key, path)
         try:

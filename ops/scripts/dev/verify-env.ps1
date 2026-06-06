@@ -414,8 +414,8 @@ if (Test-Path -LiteralPath $pipelineConfig) {
 
 Write-Section 'BDPGS OCR Readiness'
 $convertBdpgs = Get-ConfigBoolValue -Config $configData -Key 'ConvertBdpgsToSrt' -Default $false
-$configuredPgsTool = [string](Get-ConfigValue -Config $configData -Key 'BdpgsOcrToolPath' -Default 'Tools\PgsToSrt\PgsToSrt.exe')
-$configuredPgsTessdata = [string](Get-ConfigValue -Config $configData -Key 'BdpgsOcrTessdataPath' -Default 'Tools\PgsToSrt\tessdata')
+$configuredPgsTool = [string](Get-ConfigValue -Config $configData -Key 'BdpgsOcrToolPath' -Default 'tools\PgsToSrt\PgsToSrt.exe')
+$configuredPgsTessdata = [string](Get-ConfigValue -Config $configData -Key 'BdpgsOcrTessdataPath' -Default 'tools\PgsToSrt\tessdata')
 $resolvedPgsTool = Resolve-PipelineRelativePath -PathValue $configuredPgsTool
 $resolvedPgsTessdata = Resolve-PipelineRelativePath -PathValue $configuredPgsTessdata
 $resolvedPgsEnglishData = if ($resolvedPgsTessdata) { Join-Path $resolvedPgsTessdata 'eng.traineddata' } else { '' }

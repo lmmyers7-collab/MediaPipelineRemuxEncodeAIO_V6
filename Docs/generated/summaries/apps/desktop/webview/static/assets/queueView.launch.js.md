@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/queueView.launch.js
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-28
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 94824d6fb8705b2b103699a0b352f5a77d935ce695869b3e354ced230cb70c2e
+sha256: 52cbf31324d2426ee48d79e3c7090185dba28415ed1a48c6373585e5bed12fb7
 ---
 # `apps/desktop/webview/static/assets/queueView.launch.js`
 

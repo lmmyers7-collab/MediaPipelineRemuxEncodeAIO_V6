@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/commandHistory.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-30
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 4ff31e6debf330837cee426f16f7a80b4f17a0b72cb620a42ae9207a3b774a4b
+sha256: cdc0107cbf1b8a84772ec2769f3e9b5d024810358928d2470992ad2dac6ffc1a
 ---
 # `apps/desktop/webview/static/assets/commandHistory.js`
 

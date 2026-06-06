@@ -149,6 +149,14 @@ function Publish-PendingSidecarFiles {
             $pendingKeys[$serverOut.ToLowerInvariant()] = $true
         }
 
+        if (Get-Command -Name Test-PendingSidecarTrustedForPublish -ErrorAction SilentlyContinue) {
+            $sidecarTrust = Test-PendingSidecarTrustedForPublish -Manifest $Manifest -Sidecar $sidecar
+            if (-not $sidecarTrust.Ok) {
+                $failures.Add((New-PendingTx3gPublishFailure -Record $record -Reason $sidecarTrust.Reason))
+                continue
+            }
+        }
+
         if ([string]::IsNullOrWhiteSpace($localFile) -or [string]::IsNullOrWhiteSpace($serverOut)) {
             $failures.Add((New-PendingTx3gPublishFailure -Record $record -Reason 'pending sidecar manifest is missing local_file or server_out'))
             continue

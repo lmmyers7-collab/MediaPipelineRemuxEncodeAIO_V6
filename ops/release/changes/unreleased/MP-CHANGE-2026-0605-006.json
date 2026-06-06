@@ -1,0 +1,35 @@
+{
+  "id": "MP-CHANGE-2026-0605-006",
+  "title": "Polish settings route target table",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-05",
+  "date_completed": "2026-06-05",
+  "summary": "Improve the WebView Settings TV/Movie route target table so the bucket rows, numeric controls, tolerance readouts, and derived height ranges are easier to scan.",
+  "reason": "The existing table stretched across wide desktop viewports with weak visual grouping, making the route bucket fields hard to compare at a glance.",
+  "affected_areas": [
+    "generated_summaries",
+    "settings",
+    "webview"
+  ],
+  "behavior_before": "The Settings route target table rendered as a flat wide table with controls spread across the full panel and little distinction between bucket identity, editable numeric fields, tolerance readouts, and derived ranges.",
+  "behavior_after": "The table keeps the same controls and IDs but presents route buckets with stronger column weighting, grouped field surfaces, tabular numeric readouts, and clearer range badges for faster scanning.",
+  "files_touched": [
+    "Docs/generated/summaries/apps/desktop/webview/static/assets/styles.pages.css.md",
+    "apps/desktop/webview/static/assets/styles.pages.css",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0605-006.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0605-006.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Final strict coverage: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> failed due unrelated worktree state: MP-CHANGE-2026-0604-053 missing high/critical notes or rollback detail, MP-CHANGE-2026-0605-007 has invalid type 'fix', and 289 other changed files are not covered by any packet. This packet's files were not listed as uncovered.",
+    "Headless Chrome visual metrics against http://127.0.0.1:39835 Settings > Routing -> passed; table 1094px wide, no horizontal overflow at 1440px viewport, target fields share row, range badges inline-flex, tabular numeric readouts active; screenshot captured at C:\\Users\\lmmye\\AppData\\Local\\Temp\\mediapipeline-settings-route-target-after.png.",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_css_design_tokens tests.webview.test_webview_handbrake_settings_ui -q -> passed; 38 tests OK after final CSS adjustment.",
+    "PYTHONPATH=src powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewBrowserSettingsLaunchSmoke.ps1 -> passed; browser-served Settings/Launch smoke OK and did not post Save Patch."
+  ],
+  "rollback_plan": "Revert the WebView CSS changes for the settings route target table, refresh generated summaries, and rerun the targeted settings WebView tests.",
+  "related_changes": [],
+  "notes": "Presentation-only WebView polish. No backend media policy, settings persistence, queue, pending-publish, rename, source/scratch/output movement, cleanup, or filesystem mutation behavior is changed.\nPolished Settings route target table presentation without changing control IDs or backend-owned behavior.\nGenerated summary refreshed for the new change packet; stylesheet summary regenerated with no git delta.\nRecorded generated summary paths with repository casing after strict coverage reported Docs/ paths."
+}

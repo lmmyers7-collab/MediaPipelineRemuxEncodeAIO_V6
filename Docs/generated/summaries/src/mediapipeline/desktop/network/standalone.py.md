@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/standalone.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 8f35cf919e5d0d824e51caa1a67b8ed2cda37f8c4a3b61d816ef3048cc03e89e
+sha256: 764823a8ccbf364e8d15ede6694106aff7684c6ba75e00e04f2f89deae878d04
 ---
 # `src/mediapipeline/desktop/network/standalone.py`
 

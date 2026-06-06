@@ -604,6 +604,7 @@
       const normalized = String(value || "").trim().toLowerCase();
       if (normalized === "advisory") return "Warn only";
       if (normalized === "strict") return "Fail job";
+      if (normalized === "fallback_remux") return "Try remux fallback";
       if (normalized === "off") return "Disabled";
       return formatSettingsChoiceLabel(value);
     }
@@ -618,16 +619,12 @@
       const videoPreset = formatSettingsSummaryValue("VideoPreset", "backend default");
       const videoQuality = formatSettingsSummaryValue("VideoQuality", "backend default");
       const sizeGuard = formatSettingsSummaryValue("SizeGuardMode", "backend default");
-      const movieTarget = formatSettingsSummaryValue("EncodeThresholdGB", "default");
-      const tvTarget = formatSettingsSummaryValue("TVEncodeThresholdGB", "default");
-      const movie1080pTarget = formatSettingsSummaryValue("MovieRoute1080pTargetSizeGB", movieTarget);
-      const movie1440pTarget = formatSettingsSummaryValue("MovieRoute1440pTargetSizeGB", movieTarget);
-      const movie4kTarget = formatSettingsSummaryValue("MovieRoute4KTargetSizeGB", movieTarget);
-      const tv1080pTarget = formatSettingsSummaryValue("TVRoute1080pTargetSizeGB", tvTarget);
-      const tv1440pTarget = formatSettingsSummaryValue("TVRoute1440pTargetSizeGB", tvTarget);
-      const tv4kTarget = formatSettingsSummaryValue("TVRoute4KTargetSizeGB", tvTarget);
-      const movieBitrate = formatSettingsSummaryValue("MovieRouteMaxVideoBitrateMbps", "default");
-      const tvBitrate = formatSettingsSummaryValue("TVRouteMaxVideoBitrateMbps", "default");
+      const movie1080pTarget = formatSettingsSummaryValue("MovieRoute1080pTargetSizeGB", "8");
+      const movie1440pTarget = formatSettingsSummaryValue("MovieRoute1440pTargetSizeGB", "8");
+      const movie4kTarget = formatSettingsSummaryValue("MovieRoute4KTargetSizeGB", "8");
+      const tv1080pTarget = formatSettingsSummaryValue("TVRoute1080pTargetSizeGB", "3");
+      const tv1440pTarget = formatSettingsSummaryValue("TVRoute1440pTargetSizeGB", "3");
+      const tv4kTarget = formatSettingsSummaryValue("TVRoute4KTargetSizeGB", "3");
       const routeBoundaries = routeHeightToleranceBoundariesFromConfigValues();
       const route1080pBitrate = formatSettingsSummaryValue("Route1080pMaxVideoBitrateMbps", "20");
       const route1440pBitrate = formatSettingsSummaryValue("Route1440pMaxVideoBitrateMbps", "35");
@@ -650,7 +647,7 @@
       );
       setText(
         "settings-summary-size-bitrate-guards",
-        `Size guard ${formatSettingsOutputSizeCheckMode(sizeGuard)}; targets by height: 1080p movie ${movie1080pTarget} GB / TV ${tv1080pTarget} GB, 1440p movie ${movie1440pTarget} GB / TV ${tv1440pTarget} GB, 4K movie ${movie4kTarget} GB / TV ${tv4kTarget} GB. Direct-copy caps: 1080p <=${routeBoundaries.route1080pMaxHeight}p ${route1080pBitrate} Mbps, 1440p ${routeBoundaries.route1440pMinHeight}-${routeBoundaries.route1440pMaxHeight}p ${route1440pBitrate} Mbps, 4K >=${routeBoundaries.route4kMinHeight}p ${route4kBitrate} Mbps. Unknown-height fallbacks: movie ${movieTarget} GB / ${movieBitrate} Mbps, TV ${tvTarget} GB / ${tvBitrate} Mbps; growth ${maxGrowth}% normal / ${compatGrowth}% compatibility.`
+        `Size guard ${formatSettingsOutputSizeCheckMode(sizeGuard)}; targets by height: 1080p movie ${movie1080pTarget} GB / TV ${tv1080pTarget} GB, 1440p movie ${movie1440pTarget} GB / TV ${tv1440pTarget} GB, 4K movie ${movie4kTarget} GB / TV ${tv4kTarget} GB. Unknown height uses the 1080p targets. Direct-copy caps: 1080p <=${routeBoundaries.route1080pMaxHeight}p ${route1080pBitrate} Mbps, 1440p ${routeBoundaries.route1440pMinHeight}-${routeBoundaries.route1440pMaxHeight}p ${route1440pBitrate} Mbps, 4K >=${routeBoundaries.route4kMinHeight}p ${route4kBitrate} Mbps. Unknown height uses the 1080p cap; growth ${maxGrowth}% normal / ${compatGrowth}% compatibility.`
       );
       setText(
         "settings-summary-evidence-scope",
@@ -671,7 +668,6 @@
       const publishText = deferredPublish === true || String(deferredPublish).toLowerCase() === "true"
         ? "Deferred publish enabled"
         : "Saved publish policy loaded";
-      const containerRouteBoundaries = routeHeightToleranceBoundariesFromConfigValues();
       setText("settings-handbrake-active-preset", activePreset.name);
       setText("settings-handbrake-output-video", `${formatSettingsChoiceLabel(videoCodec)}; preset ${formatSettingsChoiceLabel(videoPreset)}; quality ${videoQuality}`);
       setText("settings-handbrake-output-container", formatSettingsChoiceLabel(outputContainer));
@@ -679,11 +675,6 @@
       setText("settings-handbrake-publish-requirements", publishText);
       renderSettingsEffectiveIntentSummary();
       setText("settings-container-size-container", `Output container: ${formatSettingsChoiceLabel(outputContainer)}.`);
-      setText("settings-container-size-guard", `If encoded output is too large: ${formatSettingsOutputSizeCheckMode(sizeGuard)}; growth tolerances ${maxGrowth}% normal / ${compatGrowth}% compatibility.`);
-      setText(
-        "settings-container-size-bitrate",
-        `Known-height targets: 1080p movie ${formatSettingsSummaryValue("MovieRoute1080pTargetSizeGB", "8")} GB / TV ${formatSettingsSummaryValue("TVRoute1080pTargetSizeGB", "3")} GB / ${formatSettingsSummaryValue("Route1080pMaxVideoBitrateMbps", "20")} Mbps; 1440p movie ${formatSettingsSummaryValue("MovieRoute1440pTargetSizeGB", "8")} GB / TV ${formatSettingsSummaryValue("TVRoute1440pTargetSizeGB", "3")} GB / ${formatSettingsSummaryValue("Route1440pMaxVideoBitrateMbps", "35")} Mbps; 4K movie ${formatSettingsSummaryValue("MovieRoute4KTargetSizeGB", "8")} GB / TV ${formatSettingsSummaryValue("TVRoute4KTargetSizeGB", "3")} GB / ${formatSettingsSummaryValue("Route4KMaxVideoBitrateMbps", "35")} Mbps. Height ranges: 1080p <=${containerRouteBoundaries.route1080pMaxHeight}p; 1440p ${containerRouteBoundaries.route1440pMinHeight}-${containerRouteBoundaries.route1440pMaxHeight}p; 4K >=${containerRouteBoundaries.route4kMinHeight}p. Unknown-height fallback: movie ${formatSettingsSummaryValue("EncodeThresholdGB", "default")} GB / ${formatSettingsSummaryValue("MovieRouteMaxVideoBitrateMbps", "default")} Mbps; TV ${formatSettingsSummaryValue("TVEncodeThresholdGB", "default")} GB / ${formatSettingsSummaryValue("TVRouteMaxVideoBitrateMbps", "default")} Mbps.`
-      );
       setText("settings-handbrake-preview-status", "Predicted pending cutover");
       setText("settings-handbrake-decision", "NOT EVALUATED");
       setText("settings-handbrake-preview-detail", [
@@ -732,12 +723,7 @@
       route4kLowerPercent: 16.666667,
     };
 
-    const routeHeightBoundaryControlFields = [
-      ["Route1080pBucketEndHeight", "settings-boundary-1080p-end"],
-      ["Route1440pBucketStartHeight", "settings-boundary-1440p-start"],
-      ["Route1440pBucketEndHeight", "settings-boundary-1440p-end"],
-      ["Route4KBucketStartHeight", "settings-boundary-4k-start"],
-    ];
+    let routeRailDragState = null;
 
     function routeClamp(value, min, max) {
       const number = Number(value);
@@ -749,6 +735,12 @@
       const number = Number(value);
       if (!Number.isFinite(number)) return "";
       return number.toFixed(6).replace(/\.?0+$/, "");
+    }
+
+    function routeFormatDisplayPercent(value) {
+      const number = Number(value);
+      if (!Number.isFinite(number)) return "";
+      return String(Math.round(number));
     }
 
     function routeFormatHeight(value) {
@@ -774,22 +766,80 @@
     }
 
     function setRouteToleranceControl(id, value) {
-      setSettingsBuilderControl(id, routeFormatPercent(routeClamp(value, 0, 100)));
+      const clamped = routeClamp(value, 0, 100);
+      const preciseValue = routeFormatPercent(clamped);
+      const displayValue = routeFormatDisplayPercent(clamped);
+      setSettingsBuilderControl(id, displayValue);
+      const element = byId(id);
+      if (element) {
+        element.dataset.routePreciseValue = preciseValue;
+        element.dataset.routeDisplayValue = displayValue;
+      }
     }
 
     function setRouteBoundaryControl(id, value) {
       setSettingsBuilderControl(id, routeFormatHeight(value));
     }
 
+    function setRouteRailBoundaryInput(id, value) {
+      setSettingsBuilderControl(id, routeFormatHeight(value));
+    }
+
     function routeToleranceValue(id, fallback) {
-      const parsed = Number(settingsBuilderInputValue(id));
+      const parsed = Number(settingsBuilderPreciseInputValue(id));
       return Number.isFinite(parsed) ? routeClamp(parsed, 0, 100) : fallback;
     }
 
-    function routeBoundaryValue(id, fallback, min, max) {
-      const parsed = Number(settingsBuilderInputValue(id));
-      const value = Number.isFinite(parsed) ? parsed : fallback;
-      return Math.round(routeClamp(value, min, max));
+    function routeRailBoundaryConfig(boundary) {
+      if (boundary === "first") {
+        return {
+          inputId: "settings-route-boundary-1080p-end-input",
+          min: 1080,
+          max: 1439,
+          currentId: "settings-boundary-1080p-end",
+        };
+      }
+      if (boundary === "second") {
+        return {
+          inputId: "settings-route-boundary-4k-start-input",
+          min: 1441,
+          max: 2160,
+          currentId: "settings-boundary-4k-start",
+        };
+      }
+      return null;
+    }
+
+    function routeRailCurrentBoundaryHeight(boundary) {
+      const config = routeRailBoundaryConfig(boundary);
+      if (!config) return null;
+      const inputValue = Number(settingsBuilderInputValue(config.inputId));
+      if (Number.isFinite(inputValue)) return routeClamp(Math.round(inputValue), config.min, config.max);
+      const currentValue = Number(settingsBuilderInputValue(config.currentId));
+      if (Number.isFinite(currentValue)) return routeClamp(Math.round(currentValue), config.min, config.max);
+      return config.min;
+    }
+
+    function applyRouteRailBoundaryHeight(boundary, rawHeight) {
+      const config = routeRailBoundaryConfig(boundary);
+      const number = Number(rawHeight);
+      if (!config || !Number.isFinite(number)) return;
+      const height = Math.round(routeClamp(number, config.min, config.max));
+      if (boundary === "first") {
+        setRouteFirstBoundary(height + 1);
+      } else {
+        setRouteSecondBoundary(height);
+      }
+      renderRouteHeightTolerancePreview();
+    }
+
+    function applyRouteRailBoundaryInput(id) {
+      const boundary = id === "settings-route-boundary-1080p-end-input" ? "first"
+        : id === "settings-route-boundary-4k-start-input" ? "second"
+          : "";
+      if (!boundary) return;
+      applyRouteRailBoundaryHeight(boundary, settingsBuilderInputValue(id));
+      markSettingsBuilderDirty({ target: { id } });
     }
 
     function routeConfigNumber(key, fallback) {
@@ -799,26 +849,6 @@
     }
 
     function routeHeightToleranceBoundariesFromConfigValues() {
-      const percentKeys = [
-        "Route1080pUpperHeightTolerancePercent",
-        "Route1440pLowerHeightTolerancePercent",
-        "Route1440pUpperHeightTolerancePercent",
-        "Route4KLowerHeightTolerancePercent",
-      ];
-      const hasPercentConfig = percentKeys.some((key) => {
-        const value = settingsRawConfigValue(key);
-        return value !== undefined && value !== null && String(value).trim() !== "";
-      });
-      if (!hasPercentConfig) {
-        const route1080pMaxHeight = Math.round(routeConfigNumber("Route1080pBucketMaxHeight", 1200));
-        const route4kMinHeight = Math.round(routeConfigNumber("Route4KBucketMinHeight", 1800));
-        return {
-          route1080pMaxHeight,
-          route1440pMinHeight: route1080pMaxHeight + 1,
-          route1440pMaxHeight: route4kMinHeight - 1,
-          route4kMinHeight,
-        };
-      }
       return {
         route1080pMaxHeight: routeMaxHeightFromUpperTolerance(
           1080,
@@ -893,24 +923,41 @@
       setRouteBoundaryControl("settings-boundary-1440p-start", boundaries.route1440pMinHeight);
       setRouteBoundaryControl("settings-boundary-1440p-end", boundaries.route1440pMaxHeight);
       setRouteBoundaryControl("settings-boundary-4k-start", boundaries.route4kMinHeight);
+      setRouteRailBoundaryInput("settings-route-boundary-1080p-end-input", boundaries.route1080pMaxHeight);
+      setRouteRailBoundaryInput("settings-route-boundary-4k-start-input", boundaries.route4kMinHeight);
+      syncRouteSliderVisuals(boundaries);
+      setText("settings-boundary-1080p-end-readout", `${routeFormatHeight(boundaries.route1080pMaxHeight)}p`);
+      setText("settings-boundary-4k-start-readout", `${routeFormatHeight(boundaries.route4kMinHeight)}p`);
+    }
+
+    function syncRouteSliderVisuals(boundaries) {
+      const rail = byId("settings-route-height-slider");
+      if (!rail) return;
+      const minHeight = 1080;
+      const maxHeight = 2160;
+      const heightSpan = maxHeight - minHeight;
+      const firstPct = routeClamp(((Number(boundaries.route1080pMaxHeight) - minHeight) / heightSpan) * 100, 0, 100);
+      const secondPct = routeClamp(((Number(boundaries.route4kMinHeight) - minHeight) / heightSpan) * 100, 0, 100);
+      rail.style.setProperty("--route-first-pct", `${routeFormatPercent(firstPct)}%`);
+      rail.style.setProperty("--route-second-pct", `${routeFormatPercent(secondPct)}%`);
     }
 
     function renderRoutePercentReadouts() {
       setText(
         "settings-builder-1080p-upper-tolerance-readout",
-        `${routeFormatPercent(routeToleranceValue("settings-builder-1080p-upper-tolerance", routeHeightToleranceDefaults.route1080pUpperPercent))}%`
+        `${routeFormatDisplayPercent(routeToleranceValue("settings-builder-1080p-upper-tolerance", routeHeightToleranceDefaults.route1080pUpperPercent))}%`
       );
       setText(
         "settings-builder-1440p-lower-tolerance-readout",
-        `${routeFormatPercent(routeToleranceValue("settings-builder-1440p-lower-tolerance", routeHeightToleranceDefaults.route1440pLowerPercent))}%`
+        `${routeFormatDisplayPercent(routeToleranceValue("settings-builder-1440p-lower-tolerance", routeHeightToleranceDefaults.route1440pLowerPercent))}%`
       );
       setText(
         "settings-builder-1440p-upper-tolerance-readout",
-        `${routeFormatPercent(routeToleranceValue("settings-builder-1440p-upper-tolerance", routeHeightToleranceDefaults.route1440pUpperPercent))}%`
+        `${routeFormatDisplayPercent(routeToleranceValue("settings-builder-1440p-upper-tolerance", routeHeightToleranceDefaults.route1440pUpperPercent))}%`
       );
       setText(
         "settings-builder-4k-lower-tolerance-readout",
-        `${routeFormatPercent(routeToleranceValue("settings-builder-4k-lower-tolerance", routeHeightToleranceDefaults.route4kLowerPercent))}%`
+        `${routeFormatDisplayPercent(routeToleranceValue("settings-builder-4k-lower-tolerance", routeHeightToleranceDefaults.route4kLowerPercent))}%`
       );
     }
 
@@ -951,13 +998,12 @@
     }
 
     function renderRouteAdvancedSummary() {
-      const movieFallbackSize = settingsBuilderControlOrConfigValue("settings-builder-movie-threshold", "EncodeThresholdGB", "8");
-      const tvFallbackSize = settingsBuilderControlOrConfigValue("settings-builder-tv-threshold", "TVEncodeThresholdGB", "3");
-      const movieFallbackBitrate = settingsBuilderControlOrConfigValue("settings-builder-movie-route-bitrate", "MovieRouteMaxVideoBitrateMbps", "35");
-      const tvFallbackBitrate = settingsBuilderControlOrConfigValue("settings-builder-tv-route-bitrate", "TVRouteMaxVideoBitrateMbps", "18");
+      const movieFallbackSize = settingsBuilderControlOrConfigValue("settings-builder-movie-1080p-target", "MovieRoute1080pTargetSizeGB", "8");
+      const tvFallbackSize = settingsBuilderControlOrConfigValue("settings-builder-tv-1080p-target", "TVRoute1080pTargetSizeGB", "3");
+      const fallbackBitrate = settingsBuilderControlOrConfigValue("settings-builder-1080p-route-bitrate", "Route1080pMaxVideoBitrateMbps", "20");
       setText(
         "settings-advanced-routing-summary",
-        `Unknown-height fallback: Movie ${movieFallbackSize} GB / ${movieFallbackBitrate} Mbps; TV ${tvFallbackSize} GB / ${tvFallbackBitrate} Mbps.`
+        `Unknown height uses 1080p: Movie ${movieFallbackSize} GB / TV ${tvFallbackSize} GB, cap ${fallbackBitrate} Mbps.`
       );
     }
 
@@ -968,15 +1014,48 @@
       setText("settings-routing-video-quality-readout", formatConfigValue(settingsBuilderConfigValue("VideoQuality", 22)));
     }
 
+    function routeEstimatedSizeGb(mbps, minutes) {
+      const bitrate = Number(mbps);
+      if (!Number.isFinite(bitrate) || bitrate <= 0) return null;
+      return (bitrate * minutes * 60) / 8000;
+    }
+
+    function routeFormatEstimatedGb(value) {
+      const number = Number(value);
+      if (!Number.isFinite(number)) return "";
+      return number.toFixed(1).replace(/\.0$/, "");
+    }
+
+    function renderRouteBitrateSizeEstimates() {
+      [
+        ["settings-builder-1080p-route-bitrate", "Route1080pMaxVideoBitrateMbps", 20, "settings-bitrate-estimate-1080p"],
+        ["settings-builder-1440p-route-bitrate", "Route1440pMaxVideoBitrateMbps", 35, "settings-bitrate-estimate-1440p"],
+        ["settings-builder-4k-route-bitrate", "Route4KMaxVideoBitrateMbps", 35, "settings-bitrate-estimate-4k"],
+      ].forEach(([inputId, key, fallback, outputId]) => {
+        const bitrate = Number(settingsBuilderControlOrConfigValue(inputId, key, fallback));
+        const tvSize = routeEstimatedSizeGb(bitrate, 30);
+        const movieSize = routeEstimatedSizeGb(bitrate, 120);
+        if (tvSize === null || movieSize === null) {
+          setText(outputId, "If constant: enter Mbps to estimate size");
+          return;
+        }
+        setText(
+          outputId,
+          `If constant: 30m TV ~${routeFormatEstimatedGb(tvSize)} GB; 2h movie ~${routeFormatEstimatedGb(movieSize)} GB`
+        );
+      });
+    }
+
     function renderRouteHeightTolerancePreview() {
       const boundaries = routeHeightToleranceBoundariesFromControls();
-      setSettingsBuilderControl("settings-builder-1080p-bucket-height", boundaries.route1080pMaxHeight);
-      setSettingsBuilderControl("settings-builder-4k-bucket-height", boundaries.route4kMinHeight);
       syncRouteBoundaryControls(boundaries);
       renderRoutePercentReadouts();
       setText("settings-height-1080p-range", `<=${boundaries.route1080pMaxHeight}p`);
       setText("settings-height-1440p-range", `${boundaries.route1440pMinHeight}-${boundaries.route1440pMaxHeight}p`);
       setText("settings-height-4k-range", `>=${boundaries.route4kMinHeight}p`);
+      setText("settings-route-card-range-1080p", `uses <=${boundaries.route1080pMaxHeight}p`);
+      setText("settings-route-card-range-1440p", `uses ${boundaries.route1440pMinHeight}-${boundaries.route1440pMaxHeight}p`);
+      setText("settings-route-card-range-4k", `uses >=${boundaries.route4kMinHeight}p`);
       setText(
         "settings-height-pixel-summary",
         `Derived direct-copy buckets: 1080p <=${boundaries.route1080pMaxHeight}p, 1440p ${boundaries.route1440pMinHeight}-${boundaries.route1440pMaxHeight}p, 4K >=${boundaries.route4kMinHeight}p. Boundary values route to the higher bucket.`
@@ -986,34 +1065,11 @@
       renderRouteConsequenceSummary(boundaries);
       renderRouteAdvancedSummary();
       renderRouteVideoReadouts();
+      renderRouteBitrateSizeEstimates();
       return boundaries;
     }
 
-    function normalizeRouteHeightBoundary(changedId) {
-      if (changedId === "settings-boundary-1080p-end") {
-        setRouteFirstBoundary(routeBoundaryValue(changedId, 1200, 1080, 1439) + 1);
-        return true;
-      }
-      if (changedId === "settings-boundary-1440p-start") {
-        setRouteFirstBoundary(routeBoundaryValue(changedId, 1201, 1081, 1440));
-        return true;
-      }
-      if (changedId === "settings-boundary-1440p-end") {
-        setRouteSecondBoundary(routeBoundaryValue(changedId, 1799, 1440, 2159) + 1);
-        return true;
-      }
-      if (changedId === "settings-boundary-4k-start") {
-        setRouteSecondBoundary(routeBoundaryValue(changedId, 1800, 1441, 2160));
-        return true;
-      }
-      return false;
-    }
-
     function normalizeRouteHeightTolerancePair(changedId) {
-      if (normalizeRouteHeightBoundary(changedId)) {
-        renderRouteHeightTolerancePreview();
-        return;
-      }
       if (changedId === "settings-builder-1080p-upper-tolerance") {
         const nextLine = routeMaxHeightFromUpperTolerance(
           1080,
@@ -1047,35 +1103,21 @@
       setSettingsBuilderControl("settings-builder-routing-profile", settingsBuilderConfigValue("RoutingProfile", "plex_direct_stream"));
       setSettingsBuilderControl("settings-builder-route-threshold-mode", settingsBuilderConfigValue("RouteThresholdMode", "compatibility_advisory"));
       setSettingsBuilderControl("settings-builder-size-guard", settingsBuilderConfigValue("SizeGuardMode", "advisory"));
-      setSettingsBuilderControl("settings-builder-encode-tuning", settingsBuilderConfigValue("EncodeTuningPreset", "balanced_nvenc"));
-      setSettingsBuilderControl("settings-builder-encode-ladder", settingsBuilderConfigValue("EncodeLadder", "auto"));
-      setSettingsBuilderControl("settings-builder-video-codec", settingsBuilderConfigValue("VideoCodec", "hevc_nvenc"));
-      setSettingsBuilderControl("settings-builder-output-container", settingsBuilderConfigValue("OutputContainer", "mkv"));
       setSettingsBuilderControl("settings-builder-max-growth", settingsBuilderConfigValue("MaxEncodeGrowthPercent", 5));
       setSettingsBuilderControl("settings-builder-compat-growth", settingsBuilderConfigValue("CompatibilityEncodeGrowthPercent", 15));
-      const movieFallbackSize = settingsBuilderConfigValue("EncodeThresholdGB", 8);
-      const tvFallbackSize = settingsBuilderConfigValue("TVEncodeThresholdGB", 3);
-      setSettingsBuilderControl("settings-builder-movie-threshold", movieFallbackSize);
-      setSettingsBuilderControl("settings-builder-tv-threshold", tvFallbackSize);
-      setSettingsBuilderControl("settings-builder-movie-1080p-target", settingsBuilderConfigValue("MovieRoute1080pTargetSizeGB", movieFallbackSize));
-      setSettingsBuilderControl("settings-builder-movie-1440p-target", settingsBuilderConfigValue("MovieRoute1440pTargetSizeGB", movieFallbackSize));
-      setSettingsBuilderControl("settings-builder-movie-4k-target", settingsBuilderConfigValue("MovieRoute4KTargetSizeGB", movieFallbackSize));
-      setSettingsBuilderControl("settings-builder-tv-1080p-target", settingsBuilderConfigValue("TVRoute1080pTargetSizeGB", tvFallbackSize));
-      setSettingsBuilderControl("settings-builder-tv-1440p-target", settingsBuilderConfigValue("TVRoute1440pTargetSizeGB", tvFallbackSize));
-      setSettingsBuilderControl("settings-builder-tv-4k-target", settingsBuilderConfigValue("TVRoute4KTargetSizeGB", tvFallbackSize));
-      setSettingsBuilderControl("settings-builder-movie-route-bitrate", settingsBuilderConfigValue("MovieRouteMaxVideoBitrateMbps", 35));
-      setSettingsBuilderControl("settings-builder-tv-route-bitrate", settingsBuilderConfigValue("TVRouteMaxVideoBitrateMbps", 18));
-      setSettingsBuilderControl("settings-builder-1080p-bucket-height", settingsBuilderConfigValue("Route1080pBucketMaxHeight", 1200));
-      setSettingsBuilderControl("settings-builder-1080p-upper-tolerance", settingsBuilderConfigValue("Route1080pUpperHeightTolerancePercent", routeHeightToleranceDefaults.route1080pUpperPercent));
+      setSettingsBuilderControl("settings-builder-movie-1080p-target", settingsBuilderConfigValue("MovieRoute1080pTargetSizeGB", 8));
+      setSettingsBuilderControl("settings-builder-movie-1440p-target", settingsBuilderConfigValue("MovieRoute1440pTargetSizeGB", 8));
+      setSettingsBuilderControl("settings-builder-movie-4k-target", settingsBuilderConfigValue("MovieRoute4KTargetSizeGB", 8));
+      setSettingsBuilderControl("settings-builder-tv-1080p-target", settingsBuilderConfigValue("TVRoute1080pTargetSizeGB", 3));
+      setSettingsBuilderControl("settings-builder-tv-1440p-target", settingsBuilderConfigValue("TVRoute1440pTargetSizeGB", 3));
+      setSettingsBuilderControl("settings-builder-tv-4k-target", settingsBuilderConfigValue("TVRoute4KTargetSizeGB", 3));
       setSettingsBuilderControl("settings-builder-1080p-route-bitrate", settingsBuilderConfigValue("Route1080pMaxVideoBitrateMbps", 20));
-      setSettingsBuilderControl("settings-builder-1440p-lower-tolerance", settingsBuilderConfigValue("Route1440pLowerHeightTolerancePercent", routeHeightToleranceDefaults.route1440pLowerPercent));
-      setSettingsBuilderControl("settings-builder-1440p-upper-tolerance", settingsBuilderConfigValue("Route1440pUpperHeightTolerancePercent", routeHeightToleranceDefaults.route1440pUpperPercent));
       setSettingsBuilderControl("settings-builder-1440p-route-bitrate", settingsBuilderConfigValue("Route1440pMaxVideoBitrateMbps", 35));
-      setSettingsBuilderControl("settings-builder-4k-lower-tolerance", settingsBuilderConfigValue("Route4KLowerHeightTolerancePercent", routeHeightToleranceDefaults.route4kLowerPercent));
-      setSettingsBuilderControl("settings-builder-4k-bucket-height", settingsBuilderConfigValue("Route4KBucketMinHeight", 1800));
       setSettingsBuilderControl("settings-builder-4k-route-bitrate", settingsBuilderConfigValue("Route4KMaxVideoBitrateMbps", 35));
-      normalizeRouteHeightTolerancePair("settings-builder-1080p-upper-tolerance");
-      normalizeRouteHeightTolerancePair("settings-builder-1440p-upper-tolerance");
+      const routeBoundaries = routeHeightToleranceBoundariesFromConfigValues();
+      setRouteFirstBoundary(routeBoundaries.route1080pMaxHeight + 1);
+      setRouteSecondBoundary(routeBoundaries.route4kMinHeight);
+      renderRouteHeightTolerancePreview();
       setSettingsBuilderState(true, false);
       setText("settings-builder-status", "Loaded current values");
       renderSettingsBuilderGuidance();
@@ -1095,6 +1137,16 @@
       return String(byId(id)?.value ?? "").trim();
     }
 
+    function settingsBuilderPreciseInputValue(id) {
+      const element = byId(id);
+      const value = String(element?.value ?? "").trim();
+      if (!element) return value;
+      const routeDisplayValue = String(element.dataset.routeDisplayValue || "").trim();
+      const routePreciseValue = String(element.dataset.routePreciseValue || "").trim();
+      if (routePreciseValue && value === routeDisplayValue) return routePreciseValue;
+      return value;
+    }
+
     function readSettingsBuilderNumber(id, label) {
       const raw = settingsBuilderInputValue(id);
       if (!raw) throw new Error(`${label} is required.`);
@@ -1112,7 +1164,10 @@
     }
 
     function readSettingsBuilderPercent(id, label) {
-      const value = readSettingsBuilderFloat(id, label);
+      const raw = settingsBuilderPreciseInputValue(id);
+      if (!raw) throw new Error(`${label} is required.`);
+      const value = Number(raw);
+      if (!Number.isFinite(value) || value < 0) throw new Error(`${label} must be zero or higher.`);
       if (value > 100) throw new Error(`${label} must be 100 or lower.`);
       return Number(value.toFixed(6));
     }
@@ -1171,33 +1226,26 @@
     }
 
     function collectSettingsBuilderPatch() {
+      normalizeRouteHeightTolerancePair("settings-builder-1080p-upper-tolerance");
+      normalizeRouteHeightTolerancePair("settings-builder-4k-lower-tolerance");
       const patch = {
         RoutingProfile: settingsBuilderInputValue("settings-builder-routing-profile"),
         RouteThresholdMode: settingsBuilderInputValue("settings-builder-route-threshold-mode"),
         SizeGuardMode: settingsBuilderInputValue("settings-builder-size-guard"),
-        EncodeLadder: settingsBuilderInputValue("settings-builder-encode-ladder"),
-        VideoCodec: settingsBuilderInputValue("settings-builder-video-codec"),
-        OutputContainer: settingsBuilderInputValue("settings-builder-output-container"),
         MaxEncodeGrowthPercent: readSettingsBuilderNumber("settings-builder-max-growth", settingsDisplayLabel("MaxEncodeGrowthPercent", "Normal growth percent")),
         CompatibilityEncodeGrowthPercent: readSettingsBuilderNumber("settings-builder-compat-growth", settingsDisplayLabel("CompatibilityEncodeGrowthPercent", "Compatibility growth percent")),
-        EncodeThresholdGB: readSettingsBuilderNumber("settings-builder-movie-threshold", settingsDisplayLabel("EncodeThresholdGB", "Movie threshold GB")),
-        TVEncodeThresholdGB: readSettingsBuilderNumber("settings-builder-tv-threshold", settingsDisplayLabel("TVEncodeThresholdGB", "TV threshold GB")),
         MovieRoute1080pTargetSizeGB: readSettingsBuilderNumber("settings-builder-movie-1080p-target", settingsDisplayLabel("MovieRoute1080pTargetSizeGB", "Movie 1080p target size GB")),
         MovieRoute1440pTargetSizeGB: readSettingsBuilderNumber("settings-builder-movie-1440p-target", settingsDisplayLabel("MovieRoute1440pTargetSizeGB", "Movie 1440p target size GB")),
         MovieRoute4KTargetSizeGB: readSettingsBuilderNumber("settings-builder-movie-4k-target", settingsDisplayLabel("MovieRoute4KTargetSizeGB", "Movie 4K target size GB")),
         TVRoute1080pTargetSizeGB: readSettingsBuilderNumber("settings-builder-tv-1080p-target", settingsDisplayLabel("TVRoute1080pTargetSizeGB", "TV 1080p target size GB")),
         TVRoute1440pTargetSizeGB: readSettingsBuilderNumber("settings-builder-tv-1440p-target", settingsDisplayLabel("TVRoute1440pTargetSizeGB", "TV 1440p target size GB")),
         TVRoute4KTargetSizeGB: readSettingsBuilderNumber("settings-builder-tv-4k-target", settingsDisplayLabel("TVRoute4KTargetSizeGB", "TV 4K target size GB")),
-        MovieRouteMaxVideoBitrateMbps: readSettingsBuilderNumber("settings-builder-movie-route-bitrate", settingsDisplayLabel("MovieRouteMaxVideoBitrateMbps", "Movie fallback bitrate Mbps")),
-        TVRouteMaxVideoBitrateMbps: readSettingsBuilderNumber("settings-builder-tv-route-bitrate", settingsDisplayLabel("TVRouteMaxVideoBitrateMbps", "TV fallback bitrate Mbps")),
-        Route1080pBucketMaxHeight: readSettingsBuilderNumber("settings-builder-1080p-bucket-height", settingsDisplayLabel("Route1080pBucketMaxHeight", "Legacy 1080p bucket max height")),
         Route1080pUpperHeightTolerancePercent: readSettingsBuilderPercent("settings-builder-1080p-upper-tolerance", settingsDisplayLabel("Route1080pUpperHeightTolerancePercent", "1080p upper height tolerance")),
         Route1080pMaxVideoBitrateMbps: readSettingsBuilderNumber("settings-builder-1080p-route-bitrate", settingsDisplayLabel("Route1080pMaxVideoBitrateMbps", "1080p max video bitrate Mbps")),
         Route1440pLowerHeightTolerancePercent: readSettingsBuilderPercent("settings-builder-1440p-lower-tolerance", settingsDisplayLabel("Route1440pLowerHeightTolerancePercent", "1440p lower height tolerance")),
         Route1440pUpperHeightTolerancePercent: readSettingsBuilderPercent("settings-builder-1440p-upper-tolerance", settingsDisplayLabel("Route1440pUpperHeightTolerancePercent", "1440p upper height tolerance")),
         Route1440pMaxVideoBitrateMbps: readSettingsBuilderNumber("settings-builder-1440p-route-bitrate", settingsDisplayLabel("Route1440pMaxVideoBitrateMbps", "1440p max video bitrate Mbps")),
         Route4KLowerHeightTolerancePercent: readSettingsBuilderPercent("settings-builder-4k-lower-tolerance", settingsDisplayLabel("Route4KLowerHeightTolerancePercent", "4K lower height tolerance")),
-        Route4KBucketMinHeight: readSettingsBuilderNumber("settings-builder-4k-bucket-height", settingsDisplayLabel("Route4KBucketMinHeight", "Legacy 4K bucket min height")),
         Route4KMaxVideoBitrateMbps: readSettingsBuilderNumber("settings-builder-4k-route-bitrate", settingsDisplayLabel("Route4KMaxVideoBitrateMbps", "4K max video bitrate Mbps")),
       };
       const boundaries = routeHeightToleranceBoundariesFromControls();
@@ -1321,6 +1369,113 @@
       renderSettingsRows();
     }
 
+    function routeRailBoundaryFromSegment(target, event) {
+      const boundary = target?.dataset?.routeDragBoundary || "";
+      if (boundary === "first" || boundary === "second") return boundary;
+      if (boundary === "middle" && event) {
+        const rect = target.getBoundingClientRect();
+        return event.clientX < rect.left + (rect.width / 2) ? "first" : "second";
+      }
+      return "";
+    }
+
+    function routeRailTrackRect(rail) {
+      const track = rail?.querySelector?.(".settings-route-slider-track");
+      const trackRect = track?.getBoundingClientRect?.();
+      if (trackRect && trackRect.width > 0) return trackRect;
+      return rail?.getBoundingClientRect?.() || null;
+    }
+
+    function routeRailHeightFromPointer(boundary, event, rail) {
+      const config = routeRailBoundaryConfig(boundary);
+      const rect = routeRailTrackRect(rail);
+      if (!config || !event || !rect) return null;
+      const ratio = routeClamp((event.clientX - rect.left) / Math.max(rect.width, 1), 0, 1);
+      const height = 1080 + (ratio * (2160 - 1080));
+      return routeClamp(Math.round(height), config.min, config.max);
+    }
+
+    function routeRailApplyDrag(event) {
+      if (!routeRailDragState) return;
+      event.preventDefault();
+      const config = routeRailBoundaryConfig(routeRailDragState.boundary);
+      if (!config) return;
+      const height = routeRailDragState.mode === "absolute"
+        ? routeRailHeightFromPointer(routeRailDragState.boundary, event, routeRailDragState.rail)
+        : routeRailDragState.startHeight + Math.round(
+          (event.clientX - routeRailDragState.startX) * ((2160 - 1080) / Math.max(routeRailDragState.railWidth, 1))
+        );
+      if (height === null || height === undefined) return;
+      applyRouteRailBoundaryHeight(routeRailDragState.boundary, height);
+      markSettingsBuilderDirty({ target: { id: routeRailDragState.inputId } });
+    }
+
+    function routeRailEndDrag() {
+      if (!routeRailDragState) return;
+      routeRailDragState.target?.classList.remove("is-dragging");
+      routeRailDragState = null;
+      document.removeEventListener("pointermove", routeRailApplyDrag);
+      document.removeEventListener("pointerup", routeRailEndDrag);
+      document.removeEventListener("pointercancel", routeRailEndDrag);
+    }
+
+    function routeRailStartDrag(event) {
+      if (event.button !== undefined && event.button !== 0) return;
+      if (event.target?.closest?.("input, select, textarea, button")) return;
+      const target = event.target?.closest?.("[data-route-drag-boundary]");
+      if (!target) return;
+      const boundary = routeRailBoundaryFromSegment(target, event);
+      const config = routeRailBoundaryConfig(boundary);
+      const rail = target.closest(".settings-route-range-rail");
+      if (!config || !rail) return;
+      event.preventDefault();
+      routeRailEndDrag();
+      const trackRect = routeRailTrackRect(rail);
+      const mode = target.classList.contains("settings-route-slider-hit") ? "absolute" : "delta";
+      if (mode === "absolute") {
+        const height = routeRailHeightFromPointer(boundary, event, rail);
+        if (height !== null && height !== undefined) {
+          applyRouteRailBoundaryHeight(boundary, height);
+          markSettingsBuilderDirty({ target: { id: config.inputId } });
+        }
+      }
+      routeRailDragState = {
+        boundary,
+        inputId: config.inputId,
+        mode,
+        rail,
+        railWidth: Math.max(trackRect?.width || rail.getBoundingClientRect().width, 1),
+        startHeight: routeRailCurrentBoundaryHeight(boundary),
+        startX: event.clientX,
+        target,
+      };
+      target.classList.add("is-dragging");
+      document.addEventListener("pointermove", routeRailApplyDrag);
+      document.addEventListener("pointerup", routeRailEndDrag);
+      document.addEventListener("pointercancel", routeRailEndDrag);
+    }
+
+    function bindRouteRangeRailControls() {
+      const rail = byId("settings-route-boundary-1080p-end-input")?.closest?.(".settings-route-range-rail");
+      if (!rail || rail.dataset.routeRailBound === "true") return;
+      rail.dataset.routeRailBound = "true";
+      rail.addEventListener("pointerdown", routeRailStartDrag);
+      [
+        "settings-route-boundary-1080p-end-input",
+        "settings-route-boundary-4k-start-input",
+      ].forEach((id) => {
+        const input = byId(id);
+        if (!input) return;
+        input.addEventListener("change", () => applyRouteRailBoundaryInput(id));
+        input.addEventListener("keydown", (event) => {
+          if (event.key !== "Enter") return;
+          event.preventDefault();
+          applyRouteRailBoundaryInput(id);
+          input.blur();
+        });
+      });
+    }
+
     function bindSettingsControls(fields, handler) {
       if (typeof handler !== "function") return;
       fields.forEach(([, id]) => {
@@ -1352,7 +1507,7 @@
       bindSettingsClick("settings-builder-apply-button", addSettingsEventHandlers.applySettingsBuilderToPatch);
       bindSettingsClick("settings-builder-reset-button", addSettingsEventHandlers.syncSettingsBuilderFromConfig);
       bindSettingsControls(settingsBuilderFields, addSettingsEventHandlers.markSettingsBuilderDirty);
-      bindSettingsControls(routeHeightBoundaryControlFields, addSettingsEventHandlers.markSettingsBuilderDirty);
+      bindRouteRangeRailControls();
       bindSettingsClick("settings-video-apply-button", addSettingsEventHandlers.applyVideoDetailSettingsBuilderToPatch);
       bindSettingsClick("settings-video-reset-button", addSettingsEventHandlers.syncVideoDetailSettingsBuilderFromConfig);
       bindSettingsControls(videoDetailSettingsBuilderFields, addSettingsEventHandlers.markVideoDetailSettingsBuilderDirty);

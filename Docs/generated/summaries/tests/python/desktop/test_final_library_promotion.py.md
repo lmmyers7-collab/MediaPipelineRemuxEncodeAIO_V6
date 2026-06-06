@@ -3,9 +3,9 @@ file: tests/python/desktop/test_final_library_promotion.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 2723e955673e4f9de3fdbb9548b59e9cf856f8ff6b4928381687c5f8d7689ce0
+sha256: 2a2e2222b8f742c3e1eeb9b14b8657c5bd5038a0323a52180a18b1e87f143b26
 ---
 # `tests/python/desktop/test_final_library_promotion.py`
 

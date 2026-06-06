@@ -269,7 +269,7 @@
     const allowSystemTools = launchSettingsBool(launchSettingsConfigValue(config, "AllowSystemTools"), false);
     const convertTx3g = launchSettingsBool(launchSettingsConfigValue(config, "ConvertTx3gToSrt"), true);
     const dropTx3g = launchSettingsBool(launchSettingsConfigValue(config, "DropTx3gAfterConversion"), false);
-    const convertBdpgs = launchSettingsBool(launchSettingsConfigValue(config, "ConvertBdpgsToSrt"), true);
+    const convertBdpgs = launchSettingsBool(launchSettingsConfigValue(config, "ConvertBdpgsToSrt"), false);
     const dropBdpgs = launchSettingsBool(launchSettingsConfigValue(config, "DropBdpgsAfterConversion"), false);
     const convertVobSub = launchSettingsBool(launchSettingsConfigValue(config, "ConvertVobSubToSrt"), false);
     const dropVobSub = launchSettingsBool(launchSettingsConfigValue(config, "DropVobSubAfterConversion"), false);
@@ -284,16 +284,12 @@
     const remuxSafeCodecs = Array.isArray(remuxSafeCodecsValue) ? remuxSafeCodecsValue : String(remuxSafeCodecsValue).split(/[,;]/).map((item) => item.trim()).filter(Boolean);
     const maxGrowth = launchSettingsConfigValue(config, "MaxEncodeGrowthPercent") ?? "default";
     const compatGrowth = launchSettingsConfigValue(config, "CompatibilityEncodeGrowthPercent") ?? "default";
-    const movieThreshold = launchSettingsConfigValue(config, "EncodeThresholdGB") ?? "default";
-    const tvThreshold = launchSettingsConfigValue(config, "TVEncodeThresholdGB") ?? "default";
-    const movie1080pTarget = launchSettingsConfigValue(config, "MovieRoute1080pTargetSizeGB") ?? movieThreshold;
-    const movie1440pTarget = launchSettingsConfigValue(config, "MovieRoute1440pTargetSizeGB") ?? movieThreshold;
-    const movie4kTarget = launchSettingsConfigValue(config, "MovieRoute4KTargetSizeGB") ?? movieThreshold;
-    const tv1080pTarget = launchSettingsConfigValue(config, "TVRoute1080pTargetSizeGB") ?? tvThreshold;
-    const tv1440pTarget = launchSettingsConfigValue(config, "TVRoute1440pTargetSizeGB") ?? tvThreshold;
-    const tv4kTarget = launchSettingsConfigValue(config, "TVRoute4KTargetSizeGB") ?? tvThreshold;
-    const movieRouteMaxBitrate = launchSettingsConfigValue(config, "MovieRouteMaxVideoBitrateMbps") ?? "35";
-    const tvRouteMaxBitrate = launchSettingsConfigValue(config, "TVRouteMaxVideoBitrateMbps") ?? "18";
+    const movie1080pTarget = launchSettingsConfigValue(config, "MovieRoute1080pTargetSizeGB") ?? "8";
+    const movie1440pTarget = launchSettingsConfigValue(config, "MovieRoute1440pTargetSizeGB") ?? "8";
+    const movie4kTarget = launchSettingsConfigValue(config, "MovieRoute4KTargetSizeGB") ?? "8";
+    const tv1080pTarget = launchSettingsConfigValue(config, "TVRoute1080pTargetSizeGB") ?? "3";
+    const tv1440pTarget = launchSettingsConfigValue(config, "TVRoute1440pTargetSizeGB") ?? "3";
+    const tv4kTarget = launchSettingsConfigValue(config, "TVRoute4KTargetSizeGB") ?? "3";
     const routeBoundaries = launchRouteHeightBoundaries(config);
     const route1080pMaxBitrate = launchSettingsConfigValue(config, "Route1080pMaxVideoBitrateMbps") ?? "20";
     const route1440pMaxBitrate = launchSettingsConfigValue(config, "Route1440pMaxVideoBitrateMbps") ?? "35";
@@ -390,7 +386,7 @@
     add(
       "Remux / encode size posture",
       sizeGuard === "off" || sizeGuard === "disabled" || sizeGuard === "strict" || extraVideoFlags.length ? "review" : "ready",
-      `routing=${routingProfile}; if encoded output is too large=${sizeGuard}; normal growth=${maxGrowth}%; compatibility growth=${compatGrowth}%; targets 1080p movie/TV=${movie1080pTarget}/${tv1080pTarget}GB, 1440p movie/TV=${movie1440pTarget}/${tv1440pTarget}GB, 4K movie/TV=${movie4kTarget}/${tv4kTarget}GB; unknown-height movie/TV=${movieThreshold}/${tvThreshold}GB and ${movieRouteMaxBitrate}/${tvRouteMaxBitrate}Mbps; bitrate caps 1080p<=${routeBoundaries.route1080pMaxHeight}p ${route1080pMaxBitrate}Mbps, 1440p ${routeBoundaries.route1440pMinHeight}-${routeBoundaries.route1440pMaxHeight}p ${route1440pMaxBitrate}Mbps, 4K>=${routeBoundaries.route4kMinHeight}p ${route4kMaxBitrate}Mbps; codec=${videoCodec}; tuning=${encodeTuning}; ladder=${encodeLadder}; legacy flags=${extraVideoFlags.length}`,
+      `routing=${routingProfile}; if encoded output is too large=${sizeGuard}; normal growth=${maxGrowth}%; compatibility growth=${compatGrowth}%; targets 1080p movie/TV=${movie1080pTarget}/${tv1080pTarget}GB, 1440p movie/TV=${movie1440pTarget}/${tv1440pTarget}GB, 4K movie/TV=${movie4kTarget}/${tv4kTarget}GB; unknown height uses the 1080p movie/TV targets and ${route1080pMaxBitrate}Mbps cap; bitrate caps 1080p<=${routeBoundaries.route1080pMaxHeight}p ${route1080pMaxBitrate}Mbps, 1440p ${routeBoundaries.route1440pMinHeight}-${routeBoundaries.route1440pMaxHeight}p ${route1440pMaxBitrate}Mbps, 4K>=${routeBoundaries.route4kMinHeight}p ${route4kMaxBitrate}Mbps; codec=${videoCodec}; tuning=${encodeTuning}; ladder=${encodeLadder}; legacy flags=${extraVideoFlags.length}`,
       sizeGuard === "off" || sizeGuard === "disabled"
         ? "Size-growth guard is not enforcing or warning normally; confirm this before testing low-bitrate sources that can balloon."
         : "Use Settings Preview before long runs if route, growth limits, encoder, or output container differs from the intended Plex direct/stream profile.",

@@ -2,14 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from mediapipeline.desktop.config_keys import (
+from mediapipeline.core.kernel.config_keys import (
     KEY_BDPGS_OCR_TIMEOUT_SECONDS,
     KEY_CLEANUP_SCAN_TIMEOUT_SECONDS,
     KEY_CLEANUP_STALE_AGE_HOURS,
     KEY_COMPATIBILITY_ENCODE_GROWTH_PERCENT,
     KEY_CPU_ENCODE_MAX_THREADS,
     KEY_AUDIO_MAX_CHANNELS,
-    KEY_ENCODE_THRESHOLD_GB,
     KEY_FALLBACK_CPU_QUALITY,
     KEY_FFMPEG_CPU_ENCODE_TIMEOUT_SECONDS,
     KEY_FFMPEG_ENCODE_TIMEOUT_SECONDS,
@@ -24,20 +23,17 @@ from mediapipeline.desktop.config_keys import (
     KEY_MOVIE_ROUTE_1080P_TARGET_SIZE_GB,
     KEY_MOVIE_ROUTE_1440P_TARGET_SIZE_GB,
     KEY_MOVIE_ROUTE_4K_TARGET_SIZE_GB,
-    KEY_MOVIE_ROUTE_MAX_VIDEO_BITRATE_MBPS,
     KEY_MKVMERGE_REMUX_TIMEOUT_SECONDS,
     KEY_OUTSOURCE,
     KEY_OUTSOURCE_MIN_FREE_SPACE_GB,
     KEY_OUTPUT_CONTAINER,
     KEY_OUTPUT_SIZE_MULTIPLIER,
     KEY_PROCESSED_INDEX_REFRESH_SECONDS,
-    KEY_ROUTE_1080P_BUCKET_MAX_HEIGHT,
     KEY_ROUTE_1080P_MAX_VIDEO_BITRATE_MBPS,
     KEY_ROUTE_1080P_UPPER_HEIGHT_TOLERANCE_PERCENT,
     KEY_ROUTE_1440P_LOWER_HEIGHT_TOLERANCE_PERCENT,
     KEY_ROUTE_1440P_MAX_VIDEO_BITRATE_MBPS,
     KEY_ROUTE_1440P_UPPER_HEIGHT_TOLERANCE_PERCENT,
-    KEY_ROUTE_4K_BUCKET_MIN_HEIGHT,
     KEY_ROUTE_4K_LOWER_HEIGHT_TOLERANCE_PERCENT,
     KEY_ROUTE_4K_MAX_VIDEO_BITRATE_MBPS,
     KEY_ROBOCOPY_TIMEOUT_SECONDS,
@@ -48,11 +44,9 @@ from mediapipeline.desktop.config_keys import (
     KEY_SUBTITLE_EXTRACT_TIMEOUT_SECONDS,
     KEY_SUBTITLE_PROBE_TIMEOUT_SECONDS,
     KEY_TRANSIENT_FAILURE_RETRY_LIMIT,
-    KEY_TV_ENCODE_THRESHOLD_GB,
     KEY_TV_ROUTE_1080P_TARGET_SIZE_GB,
     KEY_TV_ROUTE_1440P_TARGET_SIZE_GB,
     KEY_TV_ROUTE_4K_TARGET_SIZE_GB,
-    KEY_TV_ROUTE_MAX_VIDEO_BITRATE_MBPS,
     KEY_VOBSUB_OCR_TIMEOUT_SECONDS,
     KEY_VIDEO_CODEC,
     KEY_VIDEO_PRESET,
@@ -80,8 +74,6 @@ def validate_required_and_numeric_config(values: dict[str, Any], errors: list[st
     ):
         require_non_empty(values, errors, key, label)
 
-    validate_int(values, errors, KEY_ENCODE_THRESHOLD_GB, "EncodeThresholdGB", minimum=1)
-    validate_int(values, errors, KEY_TV_ENCODE_THRESHOLD_GB, "TVEncodeThresholdGB", minimum=1)
     for key, label in (
         (KEY_MOVIE_ROUTE_1080P_TARGET_SIZE_GB, "MovieRoute1080pTargetSizeGB"),
         (KEY_MOVIE_ROUTE_1440P_TARGET_SIZE_GB, "MovieRoute1440pTargetSizeGB"),
@@ -92,33 +84,6 @@ def validate_required_and_numeric_config(values: dict[str, Any], errors: list[st
     ):
         if key in values:
             validate_int(values, errors, key, label, minimum=1)
-    if KEY_MOVIE_ROUTE_MAX_VIDEO_BITRATE_MBPS in values:
-        validate_int(
-            values,
-            errors,
-            KEY_MOVIE_ROUTE_MAX_VIDEO_BITRATE_MBPS,
-            "MovieRouteMaxVideoBitrateMbps",
-            minimum=1,
-            maximum=500,
-        )
-    if KEY_TV_ROUTE_MAX_VIDEO_BITRATE_MBPS in values:
-        validate_int(
-            values,
-            errors,
-            KEY_TV_ROUTE_MAX_VIDEO_BITRATE_MBPS,
-            "TVRouteMaxVideoBitrateMbps",
-            minimum=1,
-            maximum=500,
-        )
-    if KEY_ROUTE_1080P_BUCKET_MAX_HEIGHT in values:
-        validate_int(
-            values,
-            errors,
-            KEY_ROUTE_1080P_BUCKET_MAX_HEIGHT,
-            "Route1080pBucketMaxHeight",
-            minimum=1,
-            maximum=4320,
-        )
     if KEY_ROUTE_1080P_MAX_VIDEO_BITRATE_MBPS in values:
         validate_int(
             values,
@@ -145,15 +110,6 @@ def validate_required_and_numeric_config(values: dict[str, Any], errors: list[st
             minimum=1,
             maximum=500,
         )
-    if KEY_ROUTE_4K_BUCKET_MIN_HEIGHT in values:
-        validate_int(
-            values,
-            errors,
-            KEY_ROUTE_4K_BUCKET_MIN_HEIGHT,
-            "Route4KBucketMinHeight",
-            minimum=1,
-            maximum=4320,
-        )
     if KEY_ROUTE_4K_MAX_VIDEO_BITRATE_MBPS in values:
         validate_int(
             values,
@@ -163,27 +119,6 @@ def validate_required_and_numeric_config(values: dict[str, Any], errors: list[st
             minimum=1,
             maximum=500,
         )
-    percent_height_keys_present = any(
-        key in values
-        for key in (
-            KEY_ROUTE_1080P_UPPER_HEIGHT_TOLERANCE_PERCENT,
-            KEY_ROUTE_1440P_LOWER_HEIGHT_TOLERANCE_PERCENT,
-            KEY_ROUTE_1440P_UPPER_HEIGHT_TOLERANCE_PERCENT,
-            KEY_ROUTE_4K_LOWER_HEIGHT_TOLERANCE_PERCENT,
-        )
-    )
-    route_1080p_height = values.get(KEY_ROUTE_1080P_BUCKET_MAX_HEIGHT)
-    route_4k_height = values.get(KEY_ROUTE_4K_BUCKET_MIN_HEIGHT)
-    if (
-        not percent_height_keys_present
-        and
-        isinstance(route_1080p_height, int)
-        and not isinstance(route_1080p_height, bool)
-        and isinstance(route_4k_height, int)
-        and not isinstance(route_4k_height, bool)
-        and route_1080p_height >= route_4k_height
-    ):
-        errors.append("Route1080pBucketMaxHeight must be lower than Route4KBucketMinHeight.")
     height_tolerance_values = {
         "Route1080pUpperHeightTolerancePercent": values.get(KEY_ROUTE_1080P_UPPER_HEIGHT_TOLERANCE_PERCENT),
         "Route1440pLowerHeightTolerancePercent": values.get(KEY_ROUTE_1440P_LOWER_HEIGHT_TOLERANCE_PERCENT),

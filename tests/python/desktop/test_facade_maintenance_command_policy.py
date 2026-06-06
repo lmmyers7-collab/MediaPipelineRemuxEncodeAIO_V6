@@ -35,7 +35,7 @@ class MaintenanceCommandPolicyTests(unittest.TestCase):
         self.assertEqual(release_stdout_value(stdout, "Exclude"), "4")
         self.assertEqual(release_stdout_value(stdout, "Missing"), "")
 
-    def test_release_dry_run_builder_kwargs_force_dry_run_and_preserve_existing_bool_semantics(self) -> None:
+    def test_release_dry_run_builder_kwargs_force_dry_run_and_reject_string_bool_options(self) -> None:
         kwargs = release_dry_run_builder_kwargs(
             {
                 "destination_root": " C:/Deploy ",
@@ -50,7 +50,7 @@ class MaintenanceCommandPolicyTests(unittest.TestCase):
         self.assertEqual(kwargs["destination_root"], "C:/Deploy")
         self.assertFalse(kwargs["zip_package"])
         self.assertTrue(kwargs["verify"])
-        self.assertTrue(kwargs["include_optional_tools"])
+        self.assertFalse(kwargs["include_optional_tools"])
         self.assertTrue(kwargs["force"])
         self.assertTrue(kwargs["dry_run"])
         self.assertEqual(kwargs["timeout_seconds"], 1800)

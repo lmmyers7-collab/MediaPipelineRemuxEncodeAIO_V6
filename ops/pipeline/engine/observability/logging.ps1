@@ -249,8 +249,8 @@ function Get-EffectiveConfigSummary {
         CleanupStaleAgeHours    = $script:CleanupStaleAgeHours
         AllowSystemTools        = $script:AllowSystemTools
         TransientFailureRetryLimit = $script:TransientFailureRetryLimit
-        EncodeThresholdGB     = $EncodeThresholdGB
-        TVEncodeThresholdGB   = $TVEncodeThresholdGB
+        MovieRoute1080pTargetSizeGB = $script:MovieRoute1080pTargetSizeGB
+        TVRoute1080pTargetSizeGB = $script:TVRoute1080pTargetSizeGB
         VideoCodec            = $VideoCodec
         VideoPreset           = $VideoPreset
         VideoQuality          = $VideoQuality
@@ -318,7 +318,7 @@ Write-Log "SleepSeconds  : $SleepSeconds"
 $workerSlotLog = if ($WorkerChild) { " worker_slot=$WorkerSlotId" } else { "" }
 Write-Log "Parallel encodes: max=$script:MaxParallelEncodes mode=$script:ParallelEncodeMode$workerSlotLog"
 Write-Log "Scan refresh  : source $($script:SourceScanIntervalSeconds)s | index $($script:ProcessedIndexRefreshSeconds)s"
-Write-Log "Unknown height size: movie $EncodeThresholdGB GB | TV $TVEncodeThresholdGB GB"
+Write-Log "Unknown height: uses 1080p targets (movie $($script:MovieRoute1080pTargetSizeGB) GB / TV $($script:TVRoute1080pTargetSizeGB) GB) and $($script:Route1080pMaxVideoBitrateMbps) Mbps cap"
 Write-Log "Route size targets: 1080p movie $($script:MovieRoute1080pTargetSizeGB) GB / TV $($script:TVRoute1080pTargetSizeGB) GB | 1440p movie $($script:MovieRoute1440pTargetSizeGB) GB / TV $($script:TVRoute1440pTargetSizeGB) GB | 4K movie $($script:MovieRoute4KTargetSizeGB) GB / TV $($script:TVRoute4KTargetSizeGB) GB"
 Write-Log "Codec         : $VideoCodec preset $VideoPreset CQ $VideoQuality"
 Write-Log "Encode tuning : $script:EncodeTuningPreset flags=$($script:ExtraVideoFlags -join ' ')"

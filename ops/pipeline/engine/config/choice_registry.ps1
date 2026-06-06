@@ -114,6 +114,7 @@ function Get-MediaPipelineSizeGuardModeNames {
     return @(
         'advisory',
         'strict',
+        'fallback_remux',
         'off'
     )
 }

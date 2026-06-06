@@ -28,7 +28,7 @@
 <text xml:space="preserve" text-anchor="middle" x="271.94" y="-314.75" font-family="Segoe UI" font-size="12.00" fill="#111827">final_library/facade.py</text>
 </g>
 <!-- external_desktop_application -->
-<g id="node13" class="node">
+<g id="node14" class="node">
 <title>external_desktop_application</title>
 <path fill="#f0fdf4" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M564.51,-95.52C564.51,-95.52 472.8,-95.52 472.8,-95.52 466.8,-95.52 460.8,-89.52 460.8,-83.52 460.8,-83.52 460.8,-71.52 460.8,-71.52 460.8,-65.52 466.8,-59.52 472.8,-59.52 472.8,-59.52 564.51,-59.52 564.51,-59.52 570.51,-59.52 576.51,-65.52 576.51,-71.52 576.51,-71.52 576.51,-83.52 576.51,-83.52 576.51,-89.52 570.51,-95.52 564.51,-95.52"/>
 <text xml:space="preserve" text-anchor="middle" x="518.65" y="-74.75" font-family="Segoe UI" font-size="12.00" fill="#111827">desktop/application</text>
@@ -133,17 +133,17 @@
 <polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="723.1,-154.74 728.9,-151.03 722.05,-150.31 723.1,-154.74"/>
 <text xml:space="preserve" text-anchor="middle" x="623.63" y="-193.77" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">1</text>
 </g>
-<!-- external_desktop_config_keys -->
-<g id="node14" class="node">
-<title>external_desktop_config_keys</title>
-<path fill="#f0fdf4" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M814.59,-100.52C814.59,-100.52 719.13,-100.52 719.13,-100.52 713.13,-100.52 707.13,-94.52 707.13,-88.52 707.13,-88.52 707.13,-76.52 707.13,-76.52 707.13,-70.52 713.13,-64.52 719.13,-64.52 719.13,-64.52 814.59,-64.52 814.59,-64.52 820.59,-64.52 826.59,-70.52 826.59,-76.52 826.59,-76.52 826.59,-88.52 826.59,-88.52 826.59,-94.52 820.59,-100.52 814.59,-100.52"/>
-<text xml:space="preserve" text-anchor="middle" x="766.86" y="-79.75" font-family="Segoe UI" font-size="12.00" fill="#111827">desktop/config_keys</text>
+<!-- external_core_kernel -->
+<g id="node13" class="node">
+<title>external_core_kernel</title>
+<path fill="#f8fafc" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M790.97,-100.52C790.97,-100.52 742.76,-100.52 742.76,-100.52 736.76,-100.52 730.76,-94.52 730.76,-88.52 730.76,-88.52 730.76,-76.52 730.76,-76.52 730.76,-70.52 736.76,-64.52 742.76,-64.52 742.76,-64.52 790.97,-64.52 790.97,-64.52 796.97,-64.52 802.97,-70.52 802.97,-76.52 802.97,-76.52 802.97,-88.52 802.97,-88.52 802.97,-94.52 796.97,-100.52 790.97,-100.52"/>
+<text xml:space="preserve" text-anchor="middle" x="766.86" y="-79.75" font-family="Segoe UI" font-size="12.00" fill="#111827">core/kernel</text>
 </g>
-<!-- mediapipeline_core_final_library_promotion&#45;&gt;external_desktop_config_keys -->
+<!-- mediapipeline_core_final_library_promotion&#45;&gt;external_core_kernel -->
 <g id="edge13" class="edge">
-<title>mediapipeline_core_final_library_promotion&#45;&gt;external_desktop_config_keys</title>
-<path fill="none" stroke="#9333ea" stroke-width="1.05" d="M534.7,-238.16C563.42,-203.54 625.68,-130.56 653.88,-113.52 667.6,-105.23 683.6,-99.1 699.14,-94.58"/>
-<polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="699.52,-96.84 705.19,-92.92 698.31,-92.45 699.52,-96.84"/>
+<title>mediapipeline_core_final_library_promotion&#45;&gt;external_core_kernel</title>
+<path fill="none" stroke="#9333ea" stroke-width="1.05" d="M534.7,-238.16C563.42,-203.54 625.68,-130.56 653.88,-113.52 674.72,-100.93 700.79,-93.32 722.54,-88.8"/>
+<polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="722.84,-91.06 728.78,-87.57 721.96,-86.59 722.84,-91.06"/>
 <text xml:space="preserve" text-anchor="middle" x="623.63" y="-144.49" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">1</text>
 </g>
 <!-- mediapipeline_core_final_library_promotion&#45;&gt;external_desktop_models -->

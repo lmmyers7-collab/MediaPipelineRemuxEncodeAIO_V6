@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/preset_migration.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: af1cb6e078f6cfa29abe6f004204337362ceefbfe59e2c6d11d838518f8a39fe
+sha256: 6c65eb1b823355c9cbe87c408558c0f4fcae579c8c255918847ca7d030f73c2e
 ---
 # `src/mediapipeline/core/config/preset_migration.py`
 

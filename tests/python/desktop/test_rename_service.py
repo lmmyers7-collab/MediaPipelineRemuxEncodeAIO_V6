@@ -372,6 +372,46 @@ class RenameServiceTests(unittest.TestCase):
             self.assertEqual(data["RenameTool"]["FinalName"], new_path.name)
             Path(str(summary["undo_manifest"])).unlink(missing_ok=True)
 
+    def test_apply_preserves_unicode_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            source = Path(td) / "Amelie cafe 東京 2001.mkv"
+            source.write_text("x", encoding="utf-8")
+
+            plan = self.service.plan_rename_paths(
+                [source],
+                mode="movie",
+                movie_title="Amélie Café 東京",
+                movie_year="2001",
+            )
+            summary = self.service.apply_rename_path_plan(plan)
+            destination = Path(td) / "Amélie Café 東京 (2001).mkv"
+
+            self.assertEqual(summary["renamed"], 1)
+            self.assertTrue(destination.exists())
+            self.assertFalse(source.exists())
+            Path(str(summary["undo_manifest"])).unlink(missing_ok=True)
+
+    def test_apply_same_leaf_noop_does_not_enqueue_media_operation(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            source = Path(td) / "Example - S01E01.mkv"
+            source.write_text("x", encoding="utf-8")
+
+            plan = self.service.plan_rename_paths(
+                [source],
+                mode="tv",
+                show_name="Example",
+                season_value="S01",
+                start_episode_value="E01",
+                template_preset="tv_no_episode_title",
+            )
+            summary = self.service.apply_rename_path_plan(plan)
+
+            self.assertEqual(plan[0]["change_kind"], "unchanged")
+            self.assertEqual(summary["unchanged"], 1)
+            self.assertEqual(summary["media_operations"], 0)
+            self.assertTrue(source.exists())
+            Path(str(summary["undo_manifest"])).unlink(missing_ok=True)
+
     def test_apply_rolls_back_prior_renames_when_later_row_fails(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             first = Path(td) / "one.mkv"
@@ -404,6 +444,49 @@ class RenameServiceTests(unittest.TestCase):
 
             try:
                 with self.assertRaises(PermissionError):
+                    self.service.apply_rename_path_plan(plan)
+            finally:
+                for path in set(undo_paths):
+                    path.unlink(missing_ok=True)
+
+            self.assertTrue(first.exists())
+            self.assertTrue(second.exists())
+            self.assertFalse((Path(td) / "Example - S01E01.mkv").exists())
+
+    def test_apply_rolls_back_when_undo_manifest_write_fails_after_first_rename(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            first = Path(td) / "one.mkv"
+            second = Path(td) / "two.mkv"
+            first.write_text("x", encoding="utf-8")
+            second.write_text("x", encoding="utf-8")
+            plan = self.service.plan_rename_paths(
+                [first, second],
+                mode="tv",
+                show_name="Example",
+                season_value="S01",
+                start_episode_value="E01",
+            )
+            original_rename = self.service._rename_path_case_safe
+            original_manifest_write = self.service._write_rename_undo_manifest
+            undo_paths: list[Path] = []
+
+            def fail_second(source: Path, destination: Path) -> None:
+                if source.name == "two.mkv":
+                    raise PermissionError("locked media")
+                original_rename(source, destination)
+
+            def fail_rollback_started_manifest(manifest: dict) -> Path:
+                if manifest.get("status") == "rollback_started":
+                    raise PermissionError("manifest unavailable")
+                path = original_manifest_write(manifest)
+                undo_paths.append(path)
+                return path
+
+            self.service._rename_path_case_safe = fail_second  # type: ignore[method-assign]
+            self.service._write_rename_undo_manifest = fail_rollback_started_manifest  # type: ignore[method-assign]
+
+            try:
+                with self.assertRaisesRegex(PermissionError, "locked media"):
                     self.service.apply_rename_path_plan(plan)
             finally:
                 for path in set(undo_paths):

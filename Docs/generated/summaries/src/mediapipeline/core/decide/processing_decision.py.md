@@ -3,9 +3,9 @@ file: src/mediapipeline/core/decide/processing_decision.py
 pipeline_stage: decide
 token_priority: high
 owner_domain: decide
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: f701bba7db2aaebd77393084a708b21ca9bc086f615be075bf4f0974d8381788
+sha256: b4b8dbfbccd3e77db06b8b83c61ff4f127b678cc7625e554f9b1e280111de588
 ---
 # `src/mediapipeline/core/decide/processing_decision.py`
 

@@ -1,17 +1,24 @@
       <section class="page" data-page-panel="queue">
         <h1 class="visually-hidden">Processing Queue</h1>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Queue Decision</h2>
+            <strong id="queue-decision-status">Not loaded</strong>
+          </div>
+          <pre id="queue-decision-summary" class="prose-block">No queue launch decision evidence loaded.</pre>
+        </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Queue</h2>
+            <h2>Source Scan And Display Filters</h2>
             <strong id="queue-status">No rows</strong>
           </div>
           <div class="form-grid launch-form-grid">
             <label>
-              Filter queue
+              Search loaded queue rows
               <input id="queue-filter" type="search" autocomplete="off" placeholder="Name, route, reason, kind">
             </label>
             <label>
-              Queue status
+              Display status filter
               <select id="queue-status-filter">
                 <option value="all">All rows</option>
                 <option value="review">Review only</option>
@@ -21,7 +28,7 @@
               </select>
             </label>
             <label>
-              Queue view
+              Investigation view
               <select id="queue-investigation-filter">
                 <option value="all">All signals</option>
                 <option value="launch_blockers">Launch blockers</option>
@@ -35,17 +42,24 @@
             </label>
             <div class="form-actions-inline">
               <button class="primary-button" type="button" data-queue-refresh-button>Scan Sources</button>
-              <button id="queue-clear-filters-button" class="secondary-button" type="button">Clear Queue Filters</button>
+              <button id="queue-clear-filters-button" class="secondary-button" type="button">Clear Display Filters</button>
             </div>
           </div>
-          <p class="note">Scan Sources asks the backend to inventory configured source roots, then curate the authoritative queue snapshot. Filters, selected rows, and visible table limits do not change backend launch scope.</p>
+          <p class="note">Scan Sources asks the backend to inventory configured source roots, then curate the authoritative queue snapshot. Display filters, selected rows, and visible table limits do not change backend launch scope.</p>
           <pre id="queue-filter-summary" class="prose-block">Queue filter inactive. No rows loaded.</pre>
           <pre id="queue-source-inventory" class="prose-block">Source inventory not loaded. Click Scan Sources to request backend inventory and queue curation.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Attention Required</h2>
+            <strong id="queue-attention-status">Not loaded</strong>
+          </div>
+          <pre id="queue-attention-summary" class="prose-block">No queue attention summary loaded.</pre>
         </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Queue Rows</h2>
-            <strong>Backend preview</strong>
+            <strong>Queue actions only</strong>
           </div>
           <!-- S60 Priority toolbar -->
           <div class="table-toolbar queue-priority-toolbar">
@@ -58,7 +72,7 @@
             <button type="button" class="secondary-button" id="queue-priority-promote-tv-btn" title="Promote all visible TV rows to High">⬆ All TV</button>
             <button type="button" class="secondary-button" id="queue-priority-clear-all-btn" title="Reset all manifest entries to Normal (clear entire manifest)">✕ Clear All</button>
           </div>
-          <p id="queue-priority-status" class="note">Priority actions apply to the selected queue row set. Hold writes a backend queue-state override only; it does not delete or rename media.</p>
+          <p id="queue-priority-status" class="note">Priority actions apply to rows selected for Queue actions only. Hold writes a backend queue-state override only; it does not delete, rename, or define backend Launch scope.</p>
           <!-- End S60 Priority toolbar -->
           <!-- S70 Queue ordering strategy selector -->
           <div class="table-toolbar queue-strategy-toolbar">
@@ -86,7 +100,14 @@
             <button type="button" class="secondary-button icon-button" id="queue-manual-move-bottom-btn" title="Move selected row(s) to the bottom of the current backend phase" aria-label="Move selected queue rows to bottom">⇥</button>
           </div>
           <p id="queue-manual-order-status" class="note">Manual order controls are available when the strategy selector is Manual Order.</p>
-          <div class="table-wrap queue-table-wrap">
+          <div class="table-wrap queue-table-wrap" data-queue-loading="false">
+            <div id="queue-loading-screen" class="queue-loading-screen" role="status" aria-live="polite" aria-atomic="true" hidden>
+              <span class="queue-loading-spinner" aria-hidden="true"></span>
+              <span class="queue-loading-copy">
+                <strong>Building fresh queue preview</strong>
+                <span id="queue-loading-status">Dry-run scan in progress. Current queue rows are hidden until the refreshed backend snapshot arrives.</span>
+              </span>
+            </div>
             <table class="workflow-table queue-table">
               <thead>
                 <tr>
@@ -298,10 +319,6 @@
                   <span id="fo-route-threshold-mode-inherited" class="fo-inherited-hint"></span>
                 </div>
                 <div id="fo-route-preview-status" class="fo-route-preview-status" aria-live="polite" hidden></div>
-                <label id="fo-route-risk-confirmation" class="fo-route-confirmation" hidden>
-                  <input type="checkbox" id="fo-route-risk-confirm" aria-label="I understand this may force a full transcode for this file">
-                  <span>I understand this may force a full transcode for this file.</span>
-                </label>
               </section>
               <div class="fo-drawer-footer" aria-label="File override actions">
                 <div class="fo-drawer-actions">
@@ -313,6 +330,7 @@
                   <input type="checkbox" id="fo-series-auto-detect" checked>
                   <span>Auto-detect series scope</span>
                 </label>
+                <p id="fo-route-encode-advisory" class="fo-route-encode-advisory" aria-live="polite" data-tone="info" hidden></p>
                 <p id="fo-drawer-status" class="fo-drawer-status" role="status" aria-live="polite" data-tone="info"></p>
               </div>
             </div>
@@ -362,11 +380,77 @@
         </section>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Selected File</h2>
+            <h2>Selected Row Detail (not launch scope)</h2>
             <strong id="queue-selected-status">No selection</strong>
           </div>
           <pre id="queue-selected-summary" class="prose-block">Select a queue row to see trust, route, concern, safe next step, filter visibility, and backend authority.</pre>
           <pre id="queue-detail" class="prose-block">No queue row selected.</pre>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Selected Row Diagnostics Links</h2>
+            <strong id="queue-diagnostics-status">Not selected</strong>
+          </div>
+          <pre id="queue-diagnostics-guidance" class="prose-block">Select a queue row to see backend-allowlisted diagnostics actions.</pre>
+          <div id="queue-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
+          <div class="action-row action-row-left" data-open-target-row-actions="queue"></div>
+          <p id="queue-open-status" class="note">Select a queue row to open a backend-selected source location.</p>
+          <pre id="queue-open-history" class="prose-block">No queue open command history loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Backend Launch Scope Boundary</h2>
+            <strong id="queue-backend-scope-status">Not evaluated</strong>
+          </div>
+          <pre id="queue-backend-scope-summary" class="prose-block">No backend launch scope boundary loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Signal</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Operator Meaning</th>
+                  <th scope="col">Boundary</th>
+                </tr>
+              </thead>
+              <tbody id="queue-backend-scope-rows">
+                <tr><td colspan="4">No backend launch scope boundary rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Scope not evaluated</span>
+            <span class="empty-state-hint">Backend launch scope boundary rows appear here after queue data loads.</span>
+          </div>
+          </div>
+          <p id="queue-backend-scope-legend" class="note table-legend">Backend launch scope boundary rows are read-only and do not launch, reorder, drop, skip, or mutate queue state.</p>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Queue-to-Launch Handoff</h2>
+            <strong id="queue-launch-decision-status">Not evaluated</strong>
+          </div>
+          <pre id="queue-launch-decision-summary" class="prose-block">No queue-to-Launch handoff loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Checkpoint</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Safe Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="queue-launch-decision-rows">
+                <tr><td colspan="4">No queue-to-Launch handoff rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Handoff pending</span>
+            <span class="empty-state-hint">Queue-to-Launch handoff rows appear here after queue data loads.</span>
+          </div>
+          </div>
+          <p id="queue-launch-decision-legend" class="note table-legend">Queue-to-Launch handoff rows: no selectable rows.</p>
+          <pre id="queue-launch-decision-detail" class="prose-block">Select a handoff checkpoint before opening Launch for backend authorization.</pre>
         </section>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
@@ -408,7 +492,7 @@
         </section>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Pre-Launch Checklist</h2>
+            <h2>Queue Readiness Checklist</h2>
             <strong id="queue-validation-status">Not loaded</strong>
           </div>
           <pre id="queue-validation" class="prose-block">No queue validation checklist loaded.</pre>
@@ -419,61 +503,6 @@
             <strong id="queue-workflow-status">Not loaded</strong>
           </div>
           <pre id="queue-workflow" class="prose-block">No queue workflow guidance loaded.</pre>
-        </section>
-        <section class="panel" data-advanced data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Launch Scope</h2>
-            <strong id="queue-backend-scope-status">Not evaluated</strong>
-          </div>
-          <pre id="queue-backend-scope-summary" class="prose-block">No backend launch scope preview loaded.</pre>
-          <div class="table-wrap detail-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Signal</th>
-                  <th scope="col">Evidence</th>
-                  <th scope="col">Operator Meaning</th>
-                  <th scope="col">Boundary</th>
-                </tr>
-              </thead>
-              <tbody id="queue-backend-scope-rows">
-                <tr><td colspan="4">No backend launch scope rows loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">Scope not evaluated</span>
-            <span class="empty-state-hint">Launch scope rows appear here after queue data loads.</span>
-          </div>
-          </div>
-          <p id="queue-backend-scope-legend" class="note table-legend">Backend launch scope rows are read-only and do not launch, reorder, drop, skip, or mutate queue state.</p>
-        </section>
-        <section class="panel" data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Launch Checklist</h2>
-            <strong id="queue-launch-decision-status">Not evaluated</strong>
-          </div>
-          <pre id="queue-launch-decision-summary" class="prose-block">No queue launch decision checklist loaded.</pre>
-          <div class="table-wrap detail-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Checkpoint</th>
-                  <th scope="col">Posture</th>
-                  <th scope="col">Evidence</th>
-                  <th scope="col">Safe Next Step</th>
-                </tr>
-              </thead>
-              <tbody id="queue-launch-decision-rows">
-                <tr><td colspan="4">No queue launch decision rows loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">Checklist pending</span>
-            <span class="empty-state-hint">Launch checklist rows appear here after queue data loads.</span>
-          </div>
-          </div>
-          <p id="queue-launch-decision-legend" class="note table-legend">Queue launch decision rows: no selectable rows.</p>
-          <pre id="queue-launch-decision-detail" class="prose-block">Select a launch decision checkpoint before starting queued work.</pre>
         </section>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
@@ -512,10 +541,10 @@
         </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Excluded Files</h2>
+            <h2>Backend-Excluded Source Files</h2>
             <strong id="queue-excluded-status">Not loaded</strong>
           </div>
-          <pre id="queue-excluded-summary" class="prose-block">No excluded source row detail loaded.</pre>
+          <pre id="queue-excluded-summary" class="prose-block">No backend-excluded source row detail loaded.</pre>
           <div class="table-wrap detail-table-wrap">
             <table>
               <thead>
@@ -533,23 +562,12 @@
             </table>
           <div class="empty-state" data-empty-state="hidden" style="display:none">
             <span class="empty-state-label">No exclusions</span>
-            <span class="empty-state-hint">Excluded rows appear here when files are filtered out of the active scope.</span>
+            <span class="empty-state-hint">Backend-excluded rows appear here when detected source files are excluded from the runnable queue.</span>
           </div>
           </div>
-          <p id="queue-excluded-table-legend" class="note table-legend">Excluded rows: no selectable rows.</p>
+          <p id="queue-excluded-table-legend" class="note table-legend">Backend-excluded source rows: no selectable rows.</p>
           <pre id="queue-excluded-detail" class="prose-block">No excluded source row selected.</pre>
           <div class="action-row action-row-left" data-open-target-row-actions="queue-excluded"></div>
-          <p id="queue-excluded-open-status" class="note">Select an excluded source row to open a backend-selected source location.</p>
-        </section>
-        <section class="panel" data-advanced data-panel-type="interactive">
-          <div class="panel-heading">
-            <h2>Diagnostics Links</h2>
-            <strong id="queue-diagnostics-status">Not selected</strong>
-          </div>
-          <pre id="queue-diagnostics-guidance" class="prose-block">Select a queue row to see backend-allowlisted diagnostics actions.</pre>
-          <div id="queue-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
-          <div class="action-row action-row-left" data-open-target-row-actions="queue"></div>
-          <p id="queue-open-status" class="note">Select a queue row to open a backend-selected source location.</p>
-          <pre id="queue-open-history" class="prose-block">No queue open command history loaded.</pre>
+          <p id="queue-excluded-open-status" class="note">Select a backend-excluded source row to open a backend-selected source location.</p>
         </section>
       </section>

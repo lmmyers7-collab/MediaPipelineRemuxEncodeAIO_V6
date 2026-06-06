@@ -5,6 +5,31 @@
             <h2>Monitoring Status</h2>
             <strong id="telemetry-readiness-status">Not loaded</strong>
           </div>
+          <div id="telemetry-operator-state" class="telemetry-operator-state" data-state="waiting">
+            <div>
+              <span class="metric-label">Hardware state</span>
+              <strong id="telemetry-operator-state-label">Waiting for telemetry</strong>
+            </div>
+            <p id="telemetry-operator-next-step">Waiting for the first hardware telemetry sample.</p>
+          </div>
+          <div class="telemetry-kpi-grid" aria-label="Telemetry at a glance">
+            <div class="telemetry-kpi" data-telemetry-kpi="cpu">
+              <span>CPU</span>
+              <strong id="telemetry-kpi-cpu-value">...</strong>
+            </div>
+            <div class="telemetry-kpi" data-telemetry-kpi="encoder">
+              <span>Video Encoder</span>
+              <strong id="telemetry-kpi-encoder-value">...</strong>
+            </div>
+            <div class="telemetry-kpi" data-telemetry-kpi="ram">
+              <span>RAM</span>
+              <strong id="telemetry-kpi-ram-value">...</strong>
+            </div>
+            <div class="telemetry-kpi" data-telemetry-kpi="gpu">
+              <span>GPU telemetry</span>
+              <strong id="telemetry-kpi-gpu-status">Waiting</strong>
+            </div>
+          </div>
           <pre id="telemetry-readiness-summary" class="prose-block">No telemetry readiness loaded.</pre>
         </section>
 
@@ -15,14 +40,16 @@
               <strong id="cpu-value">...</strong>
             </div>
             <canvas id="cpu-chart" width="520" height="140"></canvas>
+            <p id="cpu-chart-meta" class="telemetry-chart-meta">0-100% | Last ~8 min | Refreshes every 4s | Sample age unknown</p>
           </section>
 
           <section class="panel" data-panel-type="interactive">
             <div class="panel-heading">
-              <h2>NVENC Usage</h2>
+              <h2>Video Encoder (NVENC)</h2>
               <strong id="gpu-value">...</strong>
             </div>
             <canvas id="gpu-chart" width="520" height="140"></canvas>
+            <p id="gpu-chart-meta" class="telemetry-chart-meta">0-100% | Last ~8 min | Refreshes every 4s | Sample age unknown</p>
             <p id="gpu-note" class="note"></p>
           </section>
 
@@ -32,6 +59,7 @@
               <strong id="ram-value">...</strong>
             </div>
             <canvas id="ram-chart" width="520" height="140"></canvas>
+            <p id="ram-chart-meta" class="telemetry-chart-meta">0-100% | Last ~8 min | Refreshes every 4s | Sample age unknown</p>
           </section>
         </div>
 
@@ -46,8 +74,8 @@
                 <tr>
                   <th scope="col" class="num">GPU</th>
                   <th scope="col">Name</th>
-                  <th scope="col" class="num">Encoder</th>
-                  <th scope="col" class="num">GPU</th>
+                  <th scope="col" class="num">Video Encoder</th>
+                  <th scope="col" class="num">GPU Load</th>
                   <th scope="col" class="num">Memory</th>
                 </tr>
               </thead>

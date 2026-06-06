@@ -50,6 +50,25 @@ class ActiveDocReferenceTests(unittest.TestCase):
 
         self.assertIn("DOC005", {finding.rule_id for finding in findings})
 
+    def test_active_removed_quick_start_references_are_flagged(self) -> None:
+        removed_name = "T" + "LDR"
+        findings = docs_check.findings_for_text(
+            f"See docs/{removed_name}.md and {removed_name}.md for removed quick-start content.",
+            "docs/DOCS_INDEX.md",
+        )
+
+        self.assertEqual([finding.rule_id for finding in findings], ["DOC006"])
+
+    def test_historical_removed_quick_start_references_are_allowed(self) -> None:
+        removed_name = "T" + "LDR"
+        for rel in (
+            "docs/archive/old.md",
+            "docs/REMEDIATION_CHANGELOG.md",
+            "docs/change_control/CHANGELOG.md",
+        ):
+            findings = docs_check.findings_for_text(f"Historical reference to docs/{removed_name}.md.", rel)
+            self.assertEqual(findings, [])
+
     def test_historical_change_logs_can_keep_version_line_labels(self) -> None:
         findings = docs_check.findings_for_text(
             "Historical " + "V" + "6.0.0 release notes.",

@@ -3,9 +3,9 @@ file: ops/pipeline/engine/config/choice_registry.ps1
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: ba26b390da1017f65df64f223c205a2895bb2b4ccb3e79aaab5ea9321c778b9c
+sha256: 83dee7370a19a262068325c5dba4abcc385953cd8d4d5ba41c7bf80cc68f6fe3
 ---
 # `ops/pipeline/engine/config/choice_registry.ps1`
 

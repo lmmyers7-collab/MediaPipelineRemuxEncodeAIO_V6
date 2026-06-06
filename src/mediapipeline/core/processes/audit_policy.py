@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from mediapipeline.desktop.config_keys import KEY_OUTSOURCE
+from mediapipeline.core.kernel.config_keys import KEY_OUTSOURCE
 
 if TYPE_CHECKING:
     from mediapipeline.desktop.application.dto_commands import CommandResult

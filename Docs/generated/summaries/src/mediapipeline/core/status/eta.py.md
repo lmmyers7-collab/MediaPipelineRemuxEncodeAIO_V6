@@ -3,9 +3,9 @@ file: src/mediapipeline/core/status/eta.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 89d6af56a2909afb3a7086c781f183f5b967aac03fdd9169d07fc0738c281f23
+sha256: c67ef1c1718a6b104f80e1d046295da9a7a2182e5a8359aa5c441cd7fdbbcb35
 ---
 # `src/mediapipeline/core/status/eta.py`
 

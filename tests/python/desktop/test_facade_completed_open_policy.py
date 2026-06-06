@@ -31,8 +31,11 @@ class CompletedOpenPolicyTests(unittest.TestCase):
     def test_target_helpers_normalize_and_label_allowlisted_targets(self) -> None:
         self.assertEqual(normalize_completed_open_target(" Output_Folder "), "output_folder")
         self.assertEqual(normalize_completed_open_target(" Output_File "), "output_file")
+        self.assertEqual(normalize_completed_open_target(" Play_Output_File "), "play_output_file")
         self.assertIn("output_folder", allowed_completed_open_targets_text())
         self.assertIn("output_file", allowed_completed_open_targets_text())
+        self.assertIn("play_output_file", allowed_completed_open_targets_text())
+        self.assertEqual(completed_open_target_label("play_output_file"), "completed output playback")
         self.assertEqual(completed_open_target_label("output_file"), "completed output file")
         self.assertEqual(completed_open_target_label("sidecar"), "completed sidecar file")
 
@@ -58,6 +61,7 @@ class CompletedOpenPolicyTests(unittest.TestCase):
         )
 
         self.assertEqual(completed_open_path(record, "output_file"), Path(r"D:\Library\Movie.mkv"))
+        self.assertEqual(completed_open_path(record, "play_output_file"), Path(r"D:\Library\Movie.mkv"))
         self.assertEqual(completed_open_path(record, "output_folder"), Path(r"D:\Library"))
         self.assertEqual(completed_open_path(record, "sidecar"), Path(r"D:\Library\Movie.pipeline.json"))
         self.assertEqual(completed_open_path(record, "source_folder"), Path(r"E:\Source"))
@@ -76,11 +80,13 @@ class CompletedOpenPolicyTests(unittest.TestCase):
         open_unavailable = completed_open_path_service_unavailable_result("output_folder", "row-1", path)
         open_failed = completed_open_exception_result("output_folder", "row-1", path, RuntimeError("blocked"))
         opened = completed_open_success_result("output_file", "row-1", path)
+        played = completed_open_success_result("play_output_file", "row-1", path)
 
         self.assertEqual(open_unavailable.data["path"], str(path))
         self.assertIn("blocked", open_failed.message)
         self.assertTrue(opened.ok)
         self.assertEqual(opened.message, "Opened completed output file.")
+        self.assertEqual(played.message, "Opened completed output playback with the default app.")
         self.assertEqual(opened.refresh_hint, "completed")
 
 

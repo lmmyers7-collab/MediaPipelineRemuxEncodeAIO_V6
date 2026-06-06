@@ -36,6 +36,13 @@
     updateTableStatusLegend = typeof updateTableStatusLegend === "function" ? updateTableStatusLegend : function () {};
     const QUEUE_FILTER_FIELDS = Array.isArray(queueFilterFields) ? queueFilterFields : [];
 
+    function queueRuntimeStoppedByRequest(row) {
+      const runtimeStatus = String(row?.runtime_outcome_status || "").toLowerCase();
+      const runtimeError = String(row?.runtime_outcome_error_code || "").toLowerCase();
+      const runtimeReason = String(row?.runtime_outcome_reason || "").toLowerCase();
+      return runtimeStatus === "stopped" && (runtimeError === "stop_requested" || (runtimeReason.includes("stop") && runtimeReason.includes("operator")));
+    }
+
     function queueReviewRowReasons(row) {
       const reasons = [];
       const severity = String(row?.operator_severity || "").toLowerCase();
@@ -48,7 +55,9 @@
       if (status === "invalid") reasons.push("invalid queue row");
       if (row?.blocked_reason || row?.blocked_reason_code) reasons.push(`blocked: ${row.blocked_reason_code || row.blocked_reason}`);
       if (row?.runtime_checks_deferred) reasons.push("runtime checks deferred");
-      if (runtimeFreshness === "fresh" && ["failed", "error", "skipped", "stopped"].some((value) => runtimeStatus.includes(value))) {
+      if (runtimeFreshness === "fresh" && queueRuntimeStoppedByRequest(row)) {
+        reasons.push("stopped by operator request");
+      } else if (runtimeFreshness === "fresh" && ["failed", "error", "skipped", "stopped"].some((value) => runtimeStatus.includes(value))) {
         reasons.push(`fresh runtime outcome: ${row.runtime_outcome_status}`);
       }
       if (reviewFlags.length) reasons.push(`review flags: ${reviewFlags.join(", ")}`);
@@ -173,7 +182,10 @@
       const reviewFlags = Array.isArray(item?.review_flags) ? item.review_flags.join(" ").toLowerCase() : "";
       if (!normalized || normalized === "all") return true;
       if (normalized === "launch_blockers") return queueTableRowStatus(item) === "blocked";
-      if (normalized === "runtime_failed") return ["failed", "error", "skipped", "stopped"].some((value) => runtime.includes(value) || runtimeError.includes(value));
+      if (normalized === "runtime_failed") {
+        if (queueRuntimeStoppedByRequest(item)) return false;
+        return ["failed", "error", "skipped", "stopped"].some((value) => runtime.includes(value) || runtimeError.includes(value));
+      }
       if (normalized === "deferred_checks") return Boolean(item?.runtime_checks_deferred || Number(item?.runtime_check_deferred_count || 0) > 0);
       if (normalized === "priority") return Boolean(item?.is_priority);
       if (normalized === "encode") return route.includes("encode");

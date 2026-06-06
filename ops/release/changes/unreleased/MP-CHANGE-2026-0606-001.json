@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0606-001",
+  "title": "Schedule tab editor-first redesign",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "low",
+  "date_started": "2026-06-06",
+  "date_completed": "2026-06-06",
+  "summary": "Reorders the WebView Schedule tab around Edit Schedule as the primary workflow while preserving backend-owned schedule preview and save boundaries.",
+  "reason": "Operators use the Schedule tab primarily to edit unattended processing windows, so the editor needs to be the first visible panel with immediate schedule and Launch impact context.",
+  "affected_areas": [
+    "schedule",
+    "ui",
+    "webview"
+  ],
+  "behavior_before": "The Schedule tab led with read-only schedule metrics and evidence panels, with Edit Schedule lower on the page.",
+  "behavior_after": "The Schedule tab leads with the Edit Schedule panel, embeds schedule state and Launch impact in that panel, separates bulk edit controls, and requires a successful backend preview before Save Schedule can run.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/scheduleView.js",
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "apps/desktop/webview/static/partials/page-schedule.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/scheduleView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-schedule.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0606-001.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_schedule_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_schedule_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0606-001.json",
+    "tests/webview/test_webview_browser_schedule_smoke.py",
+    "tests/webview/test_webview_schedule_smoke.py"
+  ],
+  "tests_added": [
+    "Updated tests/webview/test_webview_browser_schedule_smoke.py for browser-backed Save gating and editor-first assertions.",
+    "Updated tests/webview/test_webview_schedule_smoke.py for editor-first order, Launch impact copy, bulk grouping, and Save gating."
+  ],
+  "manual_validation": [
+    "$env:PYTHONPATH='src'; apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_schedule_smoke",
+    "$env:PYTHONPATH='src'; apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_schedule_smoke",
+    "$env:PYTHONPATH='src'; ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewScheduleSmoke.ps1",
+    "Test-WebViewScheduleSmoke.ps1 with PYTHONPATH=src - passed",
+    "unittest tests.webview.test_webview_browser_schedule_smoke - passed",
+    "unittest tests.webview.test_webview_schedule_smoke - passed"
+  ],
+  "rollback_plan": "Revert the Schedule WebView partial, Schedule JS, Schedule CSS additions, targeted Schedule smoke updates, and this change packet.",
+  "related_changes": [],
+  "notes": "No backend API, schema, media policy, queue, Launch, or schedule-gate behavior changes. apps/desktop/webview/static/assets/styles.components.css had unrelated pre-existing dirty Metrics/Completed CSS edits; this change only adds Schedule editor-first styles near the existing schedule block rules."
+}

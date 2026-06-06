@@ -4,6 +4,7 @@
   let selectedScheduleDayName = "";
   let scheduleEditorDirty = false;
   let lastScheduleEditorResult = null;
+  let scheduleEditorPreviewSignature = "";
   const SCHEDULE_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   const SCHEDULE_BLOCKS_PER_DAY = 48;
 
@@ -537,6 +538,69 @@
     };
   }
 
+  function scheduleEditorRequestSignature(request = scheduleEditorRequest()) {
+    const dayWindows = {};
+    SCHEDULE_DAYS.forEach((day) => {
+      dayWindows[day] = String(request?.day_windows?.[day] || "").trim();
+    });
+    return JSON.stringify({
+      enabled: Boolean(request?.enabled),
+      day_windows: dayWindows,
+    });
+  }
+
+  function scheduleEditorPreviewIsCurrent() {
+    return Boolean(
+      scheduleEditorPreviewSignature &&
+      !scheduleEditorDirty &&
+      lastScheduleEditorResult?.ok &&
+      lastScheduleEditorResult?.command === "schedule.preview" &&
+      scheduleEditorPreviewSignature === scheduleEditorRequestSignature()
+    );
+  }
+
+  function scheduleEditorSaveStateText() {
+    if (scheduleEditorPreviewIsCurrent()) return "Preview accepted. Save Schedule is available.";
+    if (scheduleEditorDirty) return "Draft changed. Preview required before save.";
+    if (lastScheduleEditorResult?.command === "schedule.save" && lastScheduleEditorResult?.ok) return "Schedule saved. Preview again before another save.";
+    if (lastScheduleEditorResult?.command === "schedule.preview" && !lastScheduleEditorResult?.ok) return "Preview failed. Fix the draft before save.";
+    if (lastScheduleEditorResult?.command === "schedule.preview") return "Preview required before save.";
+    return "Preview required before save.";
+  }
+
+  function updateScheduleEditorSaveGate() {
+    const save = byId("schedule-editor-save-button");
+    const canSave = scheduleEditorPreviewIsCurrent();
+    if (save) {
+      save.disabled = !canSave;
+      save.dataset.state = canSave ? "ready" : "blocked";
+      save.setAttribute("aria-disabled", canSave ? "false" : "true");
+    }
+    const saveState = byId("schedule-editor-save-state");
+    if (saveState) saveState.dataset.state = canSave ? "ready" : "blocked";
+    setText("schedule-editor-save-state", scheduleEditorSaveStateText());
+  }
+
+  function scheduleEditorImpactText(schedule = lastSchedule, request = scheduleCurrentLaunchSelection()) {
+    const status = scheduleTimingTrustStatus(schedule || {}, request);
+    const mode = schedulePipelineModeLabel(request?.mode || "validate");
+    const override = scheduleOverrideLabel(request?.schedule_override || "");
+    const base = `Launch impact: ${status}. Selected Launch mode: ${mode}; schedule override: ${override}.`;
+    if (scheduleEditorDirty) return `${base} Draft changes are not saved yet; Launch still uses the current saved schedule.`;
+    if (scheduleEditorPreviewIsCurrent()) return `${base} Preview accepted for this draft; Save Schedule will update future backend Launch preflight timing.`;
+    if (lastScheduleEditorResult?.command === "schedule.save" && lastScheduleEditorResult?.ok) return `${base} Schedule saved; refresh or Launch preflight will use the updated windows.`;
+    return `${base} Preview the draft before saving schedule changes.`;
+  }
+
+  function renderScheduleEditorImpact(schedule = lastSchedule, request = scheduleCurrentLaunchSelection()) {
+    const text = scheduleEditorImpactText(schedule || {}, request);
+    const node = byId("schedule-editor-impact");
+    if (node) {
+      node.dataset.state = String(scheduleTimingTrustStatus(schedule || {}, request)).toLowerCase().replace(/\s+/g, "-");
+    }
+    setText("schedule-editor-impact", text);
+  }
+
   function scheduleEditorResultLines(result) {
     if (!result) {
       return [
@@ -570,10 +634,17 @@
     lastScheduleEditorResult = result || null;
     setText("schedule-editor-status", result ? (result.ok ? "Result ready" : "Review result") : (scheduleEditorDirty ? "Unsaved edits" : "Ready"));
     setText("schedule-editor-result", scheduleEditorResultLines(result).join("\n"));
+    updateScheduleEditorSaveGate();
+    renderScheduleEditorImpact(lastSchedule || {});
   }
 
   function setScheduleEditorDirty(value) {
     scheduleEditorDirty = Boolean(value);
+    if (scheduleEditorDirty) {
+      scheduleEditorPreviewSignature = "";
+    }
+    updateScheduleEditorSaveGate();
+    renderScheduleEditorImpact(lastSchedule || {});
     if (!scheduleEditorDirty) {
       setText("schedule-editor-status", "Ready");
       return;
@@ -597,6 +668,7 @@
     }
     const enabledInput = byId("schedule-editor-enabled");
     if (enabledInput) enabledInput.checked = Boolean(schedule?.enabled);
+    scheduleEditorPreviewSignature = "";
     tbody.replaceChildren();
     scheduleEditorRowsFromPayload(schedule || {}).forEach((item) => {
       const dayKey = scheduleDayKey(item.day);
@@ -674,10 +746,16 @@
   function loadCurrentScheduleIntoEditor() {
     renderScheduleEditor(lastSchedule || {}, { force: true });
     lastScheduleEditorResult = null;
+    scheduleEditorPreviewSignature = "";
     setText("schedule-editor-result", "Loaded current backend schedule payload into the editor.\nMutation guardrail: nothing was saved.");
+    updateScheduleEditorSaveGate();
+    renderScheduleEditorImpact(lastSchedule || {});
   }
 
   function clearScheduleEditorWeek() {
+    if (typeof window.confirm === "function" && !window.confirm("Clear the full weekly schedule draft?\n\nThis only stages a draft. Use Preview Schedule and Save Schedule before backend app state changes.")) {
+      return;
+    }
     SCHEDULE_DAYS.forEach((day) => {
       scheduleApplyEditorDayBlocks(day, [], { dirty: false });
     });
@@ -685,6 +763,9 @@
   }
 
   function allowAllScheduleEditorWeek() {
+    if (typeof window.confirm === "function" && !window.confirm("Allow every day and time in the weekly schedule draft?\n\nThis only stages a draft. Use Preview Schedule and Save Schedule before backend app state changes.")) {
+      return;
+    }
     const allBlocks = Array.from({ length: SCHEDULE_BLOCKS_PER_DAY }, (_, index) => index);
     SCHEDULE_DAYS.forEach((day) => {
       scheduleApplyEditorDayBlocks(day, allBlocks, { dirty: false });
@@ -694,9 +775,17 @@
 
   async function previewScheduleEditor() {
     setText("schedule-editor-status", "Previewing");
+    scheduleEditorPreviewSignature = "";
+    updateScheduleEditorSaveGate();
+    const request = scheduleEditorRequest();
+    const requestSignature = scheduleEditorRequestSignature(request);
     try {
-      const result = await apiPost("/api/schedule/preview", scheduleEditorRequest());
+      const result = await apiPost("/api/schedule/preview", request);
       appendCommandResult(result);
+      if (result?.ok) {
+        scheduleEditorPreviewSignature = requestSignature;
+        scheduleEditorDirty = false;
+      }
       renderScheduleEditorResult(result);
     } catch (error) {
       const result = {
@@ -714,6 +803,19 @@
 
   async function saveScheduleEditor() {
     const request = scheduleEditorRequest();
+    if (!scheduleEditorPreviewIsCurrent()) {
+      const result = {
+        command: "schedule.save",
+        ok: false,
+        severity: "warning",
+        message: "Preview Schedule must succeed for the current draft before Save Schedule can write app state.",
+        warnings: ["Draft has no current successful backend preview."],
+        refresh_hint: "schedule",
+      };
+      appendCommandResult(result);
+      renderScheduleEditorResult(result);
+      return;
+    }
     const confirmed = window.confirm(
       "Save Schedule?\n\nThis writes schedule_enabled and schedule_grid to desktop app state through the backend. It does not start work, bypass schedule gates, mutate queue state, or touch media files."
     );
@@ -734,6 +836,7 @@
     try {
       const result = await apiPost("/api/schedule/save", { ...request, confirm_save: true });
       appendCommandResult(result);
+      scheduleEditorPreviewSignature = "";
       renderScheduleEditorResult(result);
       if (result.ok) {
         setScheduleEditorDirty(false);
@@ -857,6 +960,7 @@
   function renderScheduleTimingTrust(schedule = lastSchedule, request = scheduleCurrentLaunchSelection()) {
     setText("schedule-timing-status", scheduleTimingTrustStatus(schedule || {}, request));
     setText("schedule-timing", scheduleTimingTrustLines(schedule || {}, request).join("\n"));
+    renderScheduleEditorImpact(schedule || {}, request);
   }
 
   function renderSchedule(schedule) {
@@ -867,6 +971,10 @@
     setText("schedule-allowed-state", evaluation.allowed_now === false ? "No" : "Yes");
     setText("schedule-next-start", scheduleDisplayValue(evaluation.next_allowed_start));
     setText("schedule-window-end", scheduleDisplayValue(evaluation.current_window_end || evaluation.next_allowed_end));
+    const enabledState = byId("schedule-enabled-state");
+    if (enabledState) enabledState.dataset.state = lastSchedule.enabled ? "ready" : "review";
+    const allowedState = byId("schedule-allowed-state");
+    if (allowedState) allowedState.dataset.state = lastSchedule.enabled && evaluation.allowed_now === false ? "blocked" : "ready";
     setText("schedule-status", warnings.length ? `${warnings.length} warning${warnings.length === 1 ? "" : "s"}` : "Read-only");
     const summary = [
       evaluation.status_text || "",

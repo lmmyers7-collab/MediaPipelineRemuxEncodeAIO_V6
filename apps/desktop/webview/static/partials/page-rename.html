@@ -17,15 +17,15 @@
               </div>
               <div class="action-row action-row-left wrap-actions">
                 <button type="button" id="rename-browse-files-button" class="primary-button">Browse Files</button>
-                <button type="button" id="rename-browse-folder-button" class="secondary-button">Browse Folder</button>
-                <button type="button" id="rename-clear-paths-button" class="secondary-button">Clear</button>
+                <button type="button" id="rename-browse-folder-button" class="secondary-button">Add files from folder</button>
+                <button type="button" id="rename-clear-paths-button" class="secondary-button">Clear staged paths</button>
               </div>
               <div class="action-row action-row-left wrap-actions">
                 <label class="rename-inline-path">
                   Manual path
                   <input id="rename-add-path-input" type="text" autocomplete="off" placeholder="C:\Media\Source.mkv">
                 </label>
-                <button type="button" id="rename-add-path-button" class="secondary-button">Add Path</button>
+                <button type="button" id="rename-add-path-button" class="secondary-button">Add manual path</button>
               </div>
               <div id="rename-drop-zone" class="rename-drop-zone" tabindex="0" aria-label="Drag and drop files or one folder here">
                 Drag files or a folder here, or use the buttons above. Folder selection adds only the files directly inside (no subfolders), all extensions.
@@ -126,7 +126,7 @@
                 <p id="rename-pipeline-handoff-status" class="status-line">No preview</p>
                 <pre id="rename-pipeline-handoff" class="prose-block compact-text-block">No rename-to-pipeline handoff loaded.</pre>
                 <div class="action-row action-row-left wrap-actions">
-                  <button type="button" id="rename-apply-button" class="primary-button">Apply Renames</button>
+                  <button type="button" id="rename-apply-button" class="primary-button" disabled>Preview before apply</button>
                   <span id="rename-apply-status-hint" class="note"></span>
                 </div>
                 <div class="table-wrap">
@@ -180,13 +180,14 @@
           -->
           <dialog id="rename-confirm-dialog" class="rename-modal" aria-labelledby="rename-confirm-title">
             <form method="dialog" class="rename-modal-form">
-              <h2 id="rename-confirm-title" class="rename-modal-title">Confirm rename</h2>
+              <h2 id="rename-confirm-title" class="rename-modal-title">Confirm filesystem rename</h2>
               <p id="rename-confirm-count" class="rename-modal-count">Renaming 0 file(s).</p>
+              <p id="rename-confirm-mutation-warning" class="rename-modal-warning">This will rename files on disk. Review every source and destination path before continuing.</p>
               <div id="rename-confirm-list" class="rename-modal-list" role="list"></div>
               <p id="rename-confirm-warning" class="rename-modal-warning" hidden></p>
               <div class="action-row action-row-right">
                 <button type="button" id="rename-confirm-cancel-button" class="secondary-button" value="cancel">Cancel</button>
-                <button type="submit" id="rename-confirm-apply-button" class="primary-button" value="confirm">Apply Rename</button>
+                <button type="submit" id="rename-confirm-apply-button" class="primary-button" value="confirm">Apply filesystem rename</button>
               </div>
             </form>
           </dialog>

@@ -25,7 +25,6 @@ from ..config_keys import (
     KEY_DROP_TX3G_AFTER_CONVERSION,
     KEY_DROP_VOBSUB_AFTER_CONVERSION,
     KEY_ENCODE_LADDER,
-    KEY_ENCODE_THRESHOLD_GB,
     KEY_ENCODE_TUNING_PRESET,
     KEY_ENABLE_INTEGRITY_CHECK,
     KEY_EXTRA_VIDEO_FLAGS,
@@ -34,7 +33,7 @@ from ..config_keys import (
     KEY_KEEP_SIGNS_AND_SONGS,
     KEY_LOCAL_BASE,
     KEY_MAX_ENCODE_GROWTH_PERCENT,
-    KEY_MOVIE_ROUTE_MAX_VIDEO_BITRATE_MBPS,
+    KEY_MOVIE_ROUTE_1080P_TARGET_SIZE_GB,
     KEY_OUTPUT_CONTAINER,
     KEY_OUTPUT_SIZE_MULTIPLIER,
     KEY_OUTSOURCE,
@@ -43,6 +42,7 @@ from ..config_keys import (
     KEY_REMOVE_KARAOKE,
     KEY_REMUX_SAFE_VIDEO_CODECS,
     KEY_ROBOCOPY_TIMEOUT_SECONDS,
+    KEY_ROUTE_1080P_MAX_VIDEO_BITRATE_MBPS,
     KEY_ROUTING_PROFILE,
     KEY_SIZE_GUARD_MODE,
     KEY_SOURCE_MOVIES,
@@ -51,8 +51,7 @@ from ..config_keys import (
     KEY_STRIP_FORMATTING,
     KEY_SUB_KEEP_LANGUAGES,
     KEY_TRANSIENT_FAILURE_RETRY_LIMIT,
-    KEY_TV_ENCODE_THRESHOLD_GB,
-    KEY_TV_ROUTE_MAX_VIDEO_BITRATE_MBPS,
+    KEY_TV_ROUTE_1080P_TARGET_SIZE_GB,
     KEY_TX3G_EXTRACT_LANGUAGES,
     KEY_VOBSUB_EXTRACT_LANGUAGES,
     KEY_VOBSUB_OCR_TOOL_PATH,
@@ -322,7 +321,7 @@ def build_launch_settings_risk_handoff(
     allow_system_tools = _bool_value(config, KEY_ALLOW_SYSTEM_TOOLS, False)
     convert_tx3g = _bool_value(config, KEY_CONVERT_TX3G_TO_SRT, True)
     drop_tx3g = _bool_value(config, KEY_DROP_TX3G_AFTER_CONVERSION, False)
-    convert_bdpgs = _bool_value(config, KEY_CONVERT_BDPGS_TO_SRT, True)
+    convert_bdpgs = _bool_value(config, KEY_CONVERT_BDPGS_TO_SRT, False)
     drop_bdpgs = _bool_value(config, KEY_DROP_BDPGS_AFTER_CONVERSION, False)
     convert_vobsub = _bool_value(config, KEY_CONVERT_VOBSUB_TO_SRT, False)
     drop_vobsub = _bool_value(config, KEY_DROP_VOBSUB_AFTER_CONVERSION, False)
@@ -340,10 +339,9 @@ def build_launch_settings_risk_handoff(
 
     max_growth = _display_text(_config_value(config, KEY_MAX_ENCODE_GROWTH_PERCENT, "default"))
     compat_growth = _display_text(_config_value(config, KEY_COMPATIBILITY_ENCODE_GROWTH_PERCENT, "default"))
-    movie_threshold = _display_text(_config_value(config, KEY_ENCODE_THRESHOLD_GB, "default"))
-    tv_threshold = _display_text(_config_value(config, KEY_TV_ENCODE_THRESHOLD_GB, "default"))
-    movie_route_max_bitrate = _display_text(_config_value(config, KEY_MOVIE_ROUTE_MAX_VIDEO_BITRATE_MBPS, "35"))
-    tv_route_max_bitrate = _display_text(_config_value(config, KEY_TV_ROUTE_MAX_VIDEO_BITRATE_MBPS, "18"))
+    movie_1080p_target = _display_text(_config_value(config, KEY_MOVIE_ROUTE_1080P_TARGET_SIZE_GB, "default"))
+    tv_1080p_target = _display_text(_config_value(config, KEY_TV_ROUTE_1080P_TARGET_SIZE_GB, "default"))
+    route_1080p_max_bitrate = _display_text(_config_value(config, KEY_ROUTE_1080P_MAX_VIDEO_BITRATE_MBPS, "20"))
     h264_max_bitrate = _display_text(_config_value(config, KEY_H264_REMUX_MAX_BITRATE_MBPS, "default"))
     h264_max_height = _display_text(_config_value(config, KEY_H264_REMUX_MAX_HEIGHT, "default"))
     encode_tuning = _display_text(_config_value(config, KEY_ENCODE_TUNING_PRESET, "default")) or "default"
@@ -428,7 +426,7 @@ def build_launch_settings_risk_handoff(
         rows,
         "Remux / encode size posture",
         "review" if size_guard in {"off", "disabled", "strict"} or extra_video_flags else "ready",
-        f"routing={routing_profile}; output_size_check={size_guard}; normal growth={max_growth}%; compatibility growth={compat_growth}%; movie>{movie_threshold}GB/{movie_route_max_bitrate}Mbps; TV>{tv_threshold}GB/{tv_route_max_bitrate}Mbps; codec={video_codec}; tuning={encode_tuning}; ladder={encode_ladder}; legacy flags={len(extra_video_flags)}",
+        f"routing={routing_profile}; output_size_check={size_guard}; normal growth={max_growth}%; compatibility growth={compat_growth}%; unknown-height uses 1080p targets movie={movie_1080p_target}GB, TV={tv_1080p_target}GB, cap={route_1080p_max_bitrate}Mbps; codec={video_codec}; tuning={encode_tuning}; ladder={encode_ladder}; legacy flags={len(extra_video_flags)}",
         "Output Size Check is not enforcing or warning normally; confirm this before testing low-bitrate sources that can balloon."
         if size_guard in {"off", "disabled"}
         else "Use Settings Preview before long runs if route, growth limits, encoder, or output container differs from the intended Plex direct/stream profile.",
@@ -628,7 +626,7 @@ def build_media_policy_readiness(config: dict[str, Any]) -> dict[str, Any]:
     convert_tx3g = _bool_value(config, KEY_CONVERT_TX3G_TO_SRT, True)
     drop_tx3g = _bool_value(config, KEY_DROP_TX3G_AFTER_CONVERSION, False)
     tx3g_sidecars = _bool_value(config, KEY_CREATE_EXTERNAL_TX3G_SRT_SIDECARS, False)
-    convert_bdpgs = _bool_value(config, KEY_CONVERT_BDPGS_TO_SRT, True)
+    convert_bdpgs = _bool_value(config, KEY_CONVERT_BDPGS_TO_SRT, False)
     drop_bdpgs = _bool_value(config, KEY_DROP_BDPGS_AFTER_CONVERSION, False)
     convert_vobsub = _bool_value(config, KEY_CONVERT_VOBSUB_TO_SRT, False)
     drop_vobsub = _bool_value(config, KEY_DROP_VOBSUB_AFTER_CONVERSION, False)

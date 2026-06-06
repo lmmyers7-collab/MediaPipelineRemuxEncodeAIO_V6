@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: d7aede5a12621cd20cc0a12902d8dcae94f485ed0ede508a928c0d2e66d1bf16
+sha256: 51f27305d8cfd23307f603bc257080e7ea5eca4fcfd4000a723b3d6709cdf09c
 ---
 # `tests/python/desktop/test_application_facade_core_contracts.py`
 

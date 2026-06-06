@@ -31,16 +31,22 @@ from mediapipeline.core.telemetry.health import (
     subtitle_tool_health_rows,
 )
 from mediapipeline.core.telemetry.nvidia import apply_nvidia_smi_rows_to_snapshot, parse_nvidia_smi_encoder_rows
-from mediapipeline.core.telemetry.system_metrics import apply_system_metrics_to_snapshot, prime_cpu_sampler
+from mediapipeline.core.telemetry.system_metrics import apply_system_metrics_to_snapshot, create_cpu_sampler, prime_cpu_sampler
 from mediapipeline.desktop.subprocess_runner import run_capture
 
 
-TELEMETRY_INTERVAL_SECONDS = 4.0
+# Background sampling cadence for the cached telemetry snapshot. Kept below the
+# WebView's broad 4s refresh (app.js refreshAll) so each UI fetch reads a value
+# at most ~2s old, letting CPU/GPU drops (e.g. a finished encode) clear quickly
+# instead of lingering on the previous sample's busy tail. Each sample spawns one
+# short nvidia-smi probe, so do not drop this far below the UI poll rate.
+TELEMETRY_INTERVAL_SECONDS = 2.0
 
 
 class TelemetryServiceMixin:
     def _initialize_telemetry_sampler(self) -> None:
-        prime_cpu_sampler(psutil)
+        self._cpu_sampler = create_cpu_sampler()
+        prime_cpu_sampler(psutil, self._cpu_sampler)
 
     def _resolve_nvidia_smi(self) -> str | None:
         if self._nvidia_smi_checked:
@@ -90,7 +96,7 @@ class TelemetryServiceMixin:
     def sample_system_telemetry(self) -> TelemetrySnapshot:
         snapshot = TelemetrySnapshot(collected_at=datetime.now())
 
-        apply_system_metrics_to_snapshot(snapshot, psutil)
+        apply_system_metrics_to_snapshot(snapshot, psutil, getattr(self, "_cpu_sampler", None))
 
         nvidia_smi = self._resolve_nvidia_smi()
         if nvidia_smi:
@@ -98,7 +104,7 @@ class TelemetryServiceMixin:
                 result = run_capture(
                     [
                         nvidia_smi,
-                        "--query-gpu=index,name,utilization.encoder,temperature.gpu,memory.used,memory.total",
+                        "--query-gpu=index,name,utilization.encoder,utilization.gpu,temperature.gpu,memory.used,memory.total",
                         "--format=csv,noheader,nounits",
                     ],
                     encoding="utf-8",

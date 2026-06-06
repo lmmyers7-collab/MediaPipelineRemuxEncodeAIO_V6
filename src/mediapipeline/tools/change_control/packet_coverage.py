@@ -12,6 +12,9 @@ COVERAGE_FAILURE_HINT = (
     "mediapipeline.tools.change_control.record_change_touch MP-CHANGE-YYYY-MMDD-### <path>"
 )
 COVERAGE_GIT_HINT = "Run strict coverage from a Git checkout with git available, or omit the strict coverage flag."
+CANONICAL_ROOT_SEGMENTS = {
+    "docs": "docs",
+}
 
 
 @dataclass(frozen=True)
@@ -55,7 +58,24 @@ def normalize_repo_path(value: str) -> str:
     text = str(value or "").strip().strip('"').replace("\\", "/")
     while text.startswith("./"):
         text = text[2:]
-    return text.strip("/")
+    text = text.strip("/")
+    if not text:
+        return ""
+    parts = text.split("/", 1)
+    root = parts[0]
+    canonical_root = CANONICAL_ROOT_SEGMENTS.get(root.lower())
+    if canonical_root:
+        parts[0] = canonical_root
+    text = "/".join(parts)
+    summary_prefix = "docs/generated/summaries/"
+    if text.lower().startswith(summary_prefix):
+        summary_parts = text.split("/")
+        if len(summary_parts) > 3:
+            canonical_summary_root = CANONICAL_ROOT_SEGMENTS.get(summary_parts[3].lower())
+            if canonical_summary_root:
+                summary_parts[3] = canonical_summary_root
+                text = "/".join(summary_parts)
+    return text
 
 
 def parse_git_status_short(output: str) -> list[str]:
@@ -161,10 +181,12 @@ def _files_touched_from_packet(packet: Any) -> list[str]:
     return [normalize_repo_path(str(item)) for item in files if normalize_repo_path(str(item))]
 
 
-def _path_covered_by_touched(path: str, touched: set[str]) -> bool:
+def _path_covered_by_touched(path: str, touched: set[str], *, allow_directory_coverage: bool = True) -> bool:
     normalized = normalize_repo_path(path)
     if normalized in touched:
         return True
+    if not allow_directory_coverage:
+        return False
     return any(normalized.startswith(prefix + "/") for prefix in touched if prefix)
 
 
@@ -221,14 +243,23 @@ def coverage_for_paths(
     changed_files: Iterable[str],
     packet_source: str = "worktree",
     initial_errors: Iterable[str] = (),
+    allow_directory_coverage: bool = True,
 ) -> CoverageResult:
     normalized_changed = sorted({normalize_repo_path(path) for path in changed_files if normalize_repo_path(path)})
     if packet_source == "index":
         touched, packet_paths, packet_errors = files_touched_from_staged_unreleased_packets(root)
     else:
         touched, packet_paths, packet_errors = files_touched_from_unreleased_packets(root)
-    covered = sorted(path for path in normalized_changed if _path_covered_by_touched(path, touched))
-    uncovered = sorted(path for path in normalized_changed if not _path_covered_by_touched(path, touched))
+    covered = sorted(
+        path
+        for path in normalized_changed
+        if _path_covered_by_touched(path, touched, allow_directory_coverage=allow_directory_coverage)
+    )
+    uncovered = sorted(
+        path
+        for path in normalized_changed
+        if not _path_covered_by_touched(path, touched, allow_directory_coverage=allow_directory_coverage)
+    )
     errors = tuple(str(error) for error in [*initial_errors, *packet_errors] if str(error))
     return CoverageResult(
         scope=scope,
@@ -243,7 +274,13 @@ def coverage_for_paths(
 
 def coverage_for_worktree(root: Path, *, require_git: bool = True) -> CoverageResult:
     changed, error = changed_files_from_worktree(root, require_git=require_git)
-    return coverage_for_paths(root=root, scope="worktree", changed_files=changed, initial_errors=[error] if error else [])
+    return coverage_for_paths(
+        root=root,
+        scope="worktree",
+        changed_files=changed,
+        initial_errors=[error] if error else [],
+        allow_directory_coverage=False,
+    )
 
 
 def coverage_for_staged(root: Path) -> CoverageResult:
@@ -269,9 +306,14 @@ def coverage_failure_lines(result: CoverageResult) -> list[str]:
     if result.errors:
         lines.append(f"Hint: {COVERAGE_GIT_HINT}")
     if result.uncovered_files:
+        coverage_mode = (
+            "in files_touched of any unreleased change packet"
+            if result.scope == "worktree"
+            else "in files_touched of any unreleased change packet or covered by a listed directory"
+        )
         lines.append(
             f"change coverage {result.scope}: {len(result.uncovered_files)} changed file(s) are not listed "
-            "in files_touched of any unreleased change packet or covered by a listed directory"
+            f"{coverage_mode}"
         )
         lines.extend(f"  - {path}" for path in result.uncovered_files)
         lines.append(f"Hint: {COVERAGE_FAILURE_HINT}")

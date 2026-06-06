@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/partials/page-telemetry.html
 pipeline_stage: observability
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-28
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 61b303594dffbf3c52c1b8144fee88646b4a2f6acebde687774cbfe44eb6d584
+sha256: 425f665c11313c17f1d83e59f2c4663c0f61302c5f08aaffb37a21b5c71a2327
 ---
 # `apps/desktop/webview/static/partials/page-telemetry.html`
 

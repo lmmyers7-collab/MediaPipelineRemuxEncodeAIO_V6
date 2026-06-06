@@ -39,7 +39,61 @@ def _button_labels_and_attrs(html: str) -> list[tuple[str, str]]:
     return rows
 
 
+def _h2_texts(html: str) -> list[str]:
+    rows: list[str] = []
+    for match in re.finditer(r"<h2\b[^>]*>(?P<label>.*?)</h2>", html, flags=re.DOTALL | re.IGNORECASE):
+        label = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", "", match.group("label"))).strip()
+        rows.append(label)
+    return rows
+
+
 class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
+    def test_workers_page_uses_evidence_first_panel_order(self) -> None:
+        headings = _h2_texts(_network_page_html())
+
+        self.assertEqual(
+            headings,
+            [
+                "Mode Summary",
+                "Readiness + Lifecycle Boundary",
+                "Persisted Worker State",
+                "Saved Worker Mode Settings Medium Impact",
+                "Network Config",
+                "Open History",
+                "Lifecycle Handoff",
+                "Evidence Checklist",
+                "State Files",
+                "API Contract",
+            ],
+        )
+
+    def test_workers_page_distinguishes_saved_and_persisted_state_labels(self) -> None:
+        network_html = _network_page_html()
+
+        for expected in (
+            "Saved Role",
+            "Mode Model",
+            "Lifecycle Boundary",
+            "Workers Route Summary",
+            "Persisted Worker State",
+            "Last Reported Worker Progress",
+            "Saved Worker Mode Settings",
+            "Staged Patch: none",
+        ):
+            self.assertIn(expected, network_html)
+
+    def test_workers_api_contract_detail_is_advanced_only(self) -> None:
+        network_html = _network_page_html()
+        first_advanced = network_html.index("data-advanced")
+
+        self.assertLess(network_html.index("Workers Route Summary"), first_advanced)
+        self.assertGreater(network_html.index("<h2>API Contract</h2>"), first_advanced)
+        self.assertRegex(
+            network_html,
+            r'<section class="panel" data-advanced data-panel-type="evidence">\s*'
+            r'<div class="panel-heading">\s*<h2>API Contract</h2>',
+        )
+
     def test_workers_page_buttons_are_diagnostics_or_settings_only(self) -> None:
         buttons = _button_labels_and_attrs(_network_page_html())
 

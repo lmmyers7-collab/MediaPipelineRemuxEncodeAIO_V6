@@ -66,6 +66,7 @@ def _row_from_mapping(
         "adapter_index": str(row.get("index") if row.get("index") not in (None, "") else telemetry.gpu_index),
         "encoder_sessions": _finite_int(row.get("encoder_sessions")),
         "utilization_percent": _finite_float(row.get("encoder_percent", telemetry.gpu_encoder_percent)),
+        "gpu_utilization_percent": _finite_float(row.get("gpu_percent", telemetry.gpu_percent)),
         "memory_used": memory_used_mb,
         "memory_used_mb": memory_used_mb,
         "memory_total_mb": memory_total_mb,

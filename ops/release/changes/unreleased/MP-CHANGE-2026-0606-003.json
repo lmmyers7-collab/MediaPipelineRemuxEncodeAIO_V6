@@ -1,0 +1,44 @@
+{
+  "id": "MP-CHANGE-2026-0606-003",
+  "title": "Rename workbench minimal safety polish",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-06",
+  "date_completed": "2026-06-06",
+  "summary": "Tightens the existing Rename tab safety copy, stale-preview handling, apply scope wording, row-state reason text, staged-path provenance, and result undo evidence without changing backend rename behavior.",
+  "reason": "Rename apply mutates files on disk, so the existing three-section workbench needs clearer operator guardrails while preserving the current minimal flow.",
+  "affected_areas": [
+    "rename",
+    "ui",
+    "webview"
+  ],
+  "behavior_before": "Rename preview/apply copy did not always make stale preview scope, all-safe default apply scope, row blocker reasons, staged path provenance, or result undo evidence explicit at the point of action.",
+  "behavior_after": "Rename keeps the current workbench but disables stale preview apply, uses explicit apply-scope labels, strengthens filesystem confirmation copy, surfaces blocker reasons in status cells, summarizes staged-path origins, and repeats undo manifest evidence in result feedback.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/renameView.js",
+    "apps/desktop/webview/static/partials/page-rename.html",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-rename.html.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_rename_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_rename_readiness_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0606-003.json",
+    "tests/python/desktop/test_rename_workbench.py",
+    "tests/webview/test_webview_browser_rename_smoke.py",
+    "tests/webview/test_webview_rename_readiness_smoke.py"
+  ],
+  "tests_added": [
+    "Updated tests/python/desktop/test_rename_workbench.py for Rename labels, confirmation copy, stale/apply-scope JS strings, and no visible Queue controls.",
+    "Updated tests/webview/test_webview_browser_rename_smoke.py for browser-backed origin counts, stale preview state, checked/all-safe apply copy, blocked-row status reason, and result dialog undo evidence.",
+    "Updated tests/webview/test_webview_rename_readiness_smoke.py for stale preview disabling, dynamic apply copy, blocker status text, origin counts, and undo evidence."
+  ],
+  "manual_validation": [
+    "npm run webview:check - passed",
+    "python -m unittest tests.python.desktop.test_rename_workbench tests.webview.test_webview_rename_readiness_smoke tests.webview.test_webview_browser_rename_smoke - passed with PYTHONPATH=src",
+    "refresh_summaries - passed; 15 written, 296 unchanged",
+    "git diff --check for touched Rename files - passed"
+  ],
+  "rollback_plan": "Revert the Rename WebView partial, Rename JS updates, focused Rename test updates, generated summaries for touched files, and this change packet.",
+  "related_changes": [],
+  "notes": "Requested slug: rename-workbench-minimal-safety-2026-06-06. The requested numeric packet MP-CHANGE-2026-0606-001 was already occupied by an unrelated Schedule packet in the dirty worktree, so this Rename work uses the next available valid change ID. No backend route, schema, rename planner, filesystem mutation, media policy, or Queue control behavior changes.\nKept backend rename.preview and rename.apply behavior unchanged; frontend-only safety copy, stale-preview gating, provenance, status reason, and undo-evidence polish. Also preserved the cleaning-filter save confirmation when backend reports reloaded=false so the focused browser smoke remains stable.\nAdded generated summaries touched by the requested summary refresh for the Rename partial and focused WebView smokes."
+}

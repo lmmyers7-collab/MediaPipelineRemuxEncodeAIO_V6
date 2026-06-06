@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import ntpath
+import re
 from typing import Any
+import unicodedata
 
 from mediapipeline.desktop.application.dto import PublishReconciliationDto
 from mediapipeline.desktop.application.dto_base import json_safe
@@ -38,19 +41,42 @@ def _first_value(item: Mapping[str, Any] | None, keys: tuple[str, ...]) -> str:
 
 
 def _normalize_path(value: Any) -> str:
-    return str(value or "").strip().replace("/", "\\").lower()
+    text = unicodedata.normalize("NFC", str(value or "").strip())
+    if not text:
+        return ""
+    text = text.replace("/", "\\")
+    folded = text.casefold()
+    if folded.startswith("\\\\?\\unc\\"):
+        text = "\\\\" + text[8:]
+    elif folded.startswith("\\\\?\\"):
+        text = text[4:]
+    if text.startswith("\\\\"):
+        text = "\\\\" + re.sub(r"\\+", r"\\", text[2:])
+    else:
+        text = re.sub(r"\\+", r"\\", text)
+    try:
+        text = ntpath.normpath(text)
+    except (TypeError, ValueError):
+        pass
+    if text == ".":
+        return ""
+    drive, _tail = ntpath.splitdrive(text)
+    root = drive or ntpath.abspath(text)[:0]
+    if len(text) > len(root):
+        text = text.rstrip("\\")
+    return text.casefold()
 
 
 def _leaf(value: Any) -> str:
-    text = str(value or "").strip()
+    text = _normalize_path(value)
     if not text:
         return ""
-    return next((part for part in reversed(text.replace("/", "\\").split("\\")) if part), text).lower()
+    return next((part for part in reversed(text.split("\\")) if part), text).casefold()
 
 
 def _path_looks_absolute(value: Any) -> bool:
-    text = str(value or "").strip()
-    return bool(text and ((len(text) > 2 and text[1:3] in {":\\", ":/"}) or text.startswith("\\\\") or text.startswith("//")))
+    text = _normalize_path(value)
+    return bool(text and ((len(text) > 2 and text[1:3] == ":\\") or text.startswith("\\\\")))
 
 
 def _completed_output(row: Mapping[str, Any]) -> str:

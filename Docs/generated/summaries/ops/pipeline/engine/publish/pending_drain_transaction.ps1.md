@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: publish
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: 3bb6335d2a4a0ad0f6223612489643807b6fb566b0750488f8867f1718f1d757
+sha256: e6fa163975075f32d808dc84dc24208187276e887be7d974be4e93b2b80de979
 ---
 # `ops/pipeline/engine/publish/pending_drain_transaction.ps1`
 

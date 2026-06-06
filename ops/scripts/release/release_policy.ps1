@@ -77,6 +77,7 @@ function Get-MediaPipelineReleaseExclusionReason {
 
     if ($relative -like 'docs\RealMediaValidationRuns\*' -and $name -ne 'README.md') { return 'operator real-media validation evidence omitted' }
     if ($relative -like 'docs\PG3CleanMachineReports\*') { return 'operator clean-machine validation evidence omitted' }
+    if ($relative -like 'docs\archive\root-artifacts\*') { return 'local assistant root artifact' }
 
     if ($relative -like 'Pipeline\*.log' -or $relative -like 'Pipeline\*.tmp' -or $relative -like 'Pipeline\*.bak') { return 'pipeline runtime artifact' }
     if ($relative -like 'Pipeline\*_progress.json' -or $relative -eq 'Pipeline\pipeline_progress.json' -or $relative -eq 'Pipeline\audit_progress.json') { return 'pipeline runtime state' }
@@ -171,6 +172,7 @@ function Get-MediaPipelineReleaseHygieneRules {
         (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'apps\desktop\tauri\src-tauri\gen' -Label 'Tauri generated schemas'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'apps\desktop\tauri\src-tauri\target' -Label 'Tauri Rust build output'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'docs\PG3CleanMachineReports' -Label 'PG-3 clean-machine operator reports'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'docs\archive\root-artifacts' -Label 'local assistant root artifacts'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'Pipeline\MediaPipeline_config.backup_*.psd1' -Label 'generated config backups'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'Pipeline\MediaPipeline_config_chatgpt.backup_*.psd1' -Label 'generated config backups (legacy)'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'ops\pipeline\config\MediaPipeline_config.backup_*.psd1' -Label 'generated config backups'),

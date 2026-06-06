@@ -47,6 +47,7 @@
       "Mutation guardrail: filters, launch scope, queue state commands, source files, and processing commands remain backend-owned.",
     ].join("\n"));
     setText("queue-open-status", "Scanning sources and curating queue snapshot...");
+    window.mediaPipelineQueueView?.renderQueueScanLoadingState?.();
   }
 
   async function refreshCurrentOutputStatus() {

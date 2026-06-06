@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-06-04
 last_reviewed: 2026-05-29
-sha256: 08b408dae0625ae076c777e3b33e9ab647c39202734fa57b15723bcd32d9929d
+sha256: 5ca580f02ea41f313b3e2ccf79007bde348062aa65de7bdd00931ee132d590a3
 ---
 # `docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md`
 

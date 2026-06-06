@@ -145,6 +145,16 @@ function Invoke-PendingDrainTransaction {
         Error = ''
     }
 
+    if (Get-Command -Name Test-PendingManifestTrustedForDrain -ErrorAction SilentlyContinue) {
+        $drainTrust = Test-PendingManifestTrustedForDrain -ManifestFile $ManifestFile -Manifest $Manifest
+        if (-not $drainTrust.Ok) {
+            Write-Log "Pending: refusing drain for untrusted manifest $($ManifestFile.Name): $($drainTrust.Reason)" "ERROR"
+            $result.Status = $drainTrust.Status
+            $result.Error = $drainTrust.Reason
+            return [pscustomobject]$result
+        }
+    }
+
     if (-not (Test-Path -LiteralPath $local)) {
         $reason = "Pending parked local file is missing: $local"
         Write-Log "Pending: $reason; leaving manifest queued as missing_payload: $($ManifestFile.Name)" "ERROR"

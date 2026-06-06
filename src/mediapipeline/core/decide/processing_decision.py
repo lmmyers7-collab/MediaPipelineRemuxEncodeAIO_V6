@@ -24,7 +24,7 @@ RouteSummary = Literal["COPY", "REMUX", "ENCODE", "REJECT", "UNKNOWN"]
 RuleEnforcement = Literal["hard_route", "hard_block", "soft_target", "advisory", "derived", "conditional"]
 RoutingProfile = Literal["plex_direct_stream", "plex_direct_play", "archive_shrink", "archive_quality", "manual"]
 RouteThresholdMode = Literal["compatibility_advisory", "size", "bitrate", "size_or_bitrate"]
-SizeGuardMode = Literal["advisory", "strict", "off"]
+SizeGuardMode = Literal["advisory", "strict", "fallback_remux", "off"]
 ResolutionLimit = Literal["source", "480p", "720p", "1080p", "2160p", "custom"]
 ScalingPolicy = Literal["never_upscale", "allow_upscale", "preserve_source"]
 VideoTargetMode = Literal["auto", "constant_quality", "average_bitrate", "max_bitrate"]
@@ -45,6 +45,7 @@ REQUIRED_REASON_CODES: frozenset[str] = frozenset(
         "AUDIO_TRANSCODE_REQUIRED",
         "SUBTITLE_BURN_IN_REQUIRES_ENCODE",
         "SUBTITLE_FORMAT_INCOMPATIBLE_WITH_CONTAINER",
+        "SUBTITLE_IMAGE_REQUIRES_EXPLICIT_REVIEW",
         "AUDIO_CODEC_INCOMPATIBLE_WITH_CONTAINER",
         "MISSING_BITRATE_METADATA",
         "MEDIA_TYPE_UNKNOWN_CONSERVATIVE_CAP",
@@ -170,24 +171,18 @@ _LEGACY_POLICY_ALIASES: Mapping[str, str] = {
     "OutputSizeCheckAction": "output_size_check_action",
     "MaxEncodeGrowthPercent": "quality_encode_growth_tolerance_percent",
     "CompatibilityEncodeGrowthPercent": "compatibility_encode_growth_tolerance_percent",
-    "EncodeThresholdGB": "movie_route_size_limit_gb",
-    "TVEncodeThresholdGB": "tv_route_size_limit_gb",
     "MovieRoute1080pTargetSizeGB": "movie_route_1080p_size_limit_gb",
     "MovieRoute1440pTargetSizeGB": "movie_route_1440p_size_limit_gb",
     "MovieRoute4KTargetSizeGB": "movie_route_4k_size_limit_gb",
     "TVRoute1080pTargetSizeGB": "tv_route_1080p_size_limit_gb",
     "TVRoute1440pTargetSizeGB": "tv_route_1440p_size_limit_gb",
     "TVRoute4KTargetSizeGB": "tv_route_4k_size_limit_gb",
-    "MovieRouteMaxVideoBitrateMbps": "movie_direct_copy_max_bitrate_mbps",
-    "TVRouteMaxVideoBitrateMbps": "tv_direct_copy_max_bitrate_mbps",
-    "Route1080pBucketMaxHeight": "route_1080p_bucket_max_height",
     "Route1080pUpperHeightTolerancePercent": "route_1080p_upper_height_tolerance_percent",
     "Route1080pMaxVideoBitrateMbps": "route_1080p_max_video_bitrate_mbps",
     "Route1440pLowerHeightTolerancePercent": "route_1440p_lower_height_tolerance_percent",
     "Route1440pUpperHeightTolerancePercent": "route_1440p_upper_height_tolerance_percent",
     "Route1440pMaxVideoBitrateMbps": "route_1440p_max_video_bitrate_mbps",
     "Route4KLowerHeightTolerancePercent": "route_4k_lower_height_tolerance_percent",
-    "Route4KBucketMinHeight": "route_4k_bucket_min_height",
     "Route4KMaxVideoBitrateMbps": "route_4k_max_video_bitrate_mbps",
     "AllowH264RemuxIfPlexCompatible": "allow_h264_compatible_direct_copy",
     "H264RemuxMaxBitrateMbps": "h264_direct_copy_max_bitrate_mbps",
@@ -201,6 +196,16 @@ _LEGACY_POLICY_ALIASES: Mapping[str, str] = {
     "AudioTranscodeCodec": "audio_transcode_codec",
     "AudioMaxChannels": "audio_max_channels",
 }
+_REMOVED_ROUTING_FALLBACK_KEYS = frozenset(
+    {
+        "EncodeThresholdGB",
+        "TVEncodeThresholdGB",
+        "MovieRouteMaxVideoBitrateMbps",
+        "TVRouteMaxVideoBitrateMbps",
+        "Route1080pBucketMaxHeight",
+        "Route4KBucketMinHeight",
+    }
+)
 
 
 def decision_policy_from_mapping(value: EffectiveDecisionPolicy | Mapping[str, Any] | None) -> EffectiveDecisionPolicy:
@@ -213,7 +218,10 @@ def decision_policy_from_mapping(value: EffectiveDecisionPolicy | Mapping[str, A
 
     data: dict[str, Any] = {}
     for key, item in value.items():
-        target = _LEGACY_POLICY_ALIASES.get(str(key), str(key))
+        raw_key = str(key)
+        if raw_key in _REMOVED_ROUTING_FALLBACK_KEYS:
+            continue
+        target = _LEGACY_POLICY_ALIASES.get(raw_key, raw_key)
         data[target] = item
     return EffectiveDecisionPolicy.model_validate(data)
 

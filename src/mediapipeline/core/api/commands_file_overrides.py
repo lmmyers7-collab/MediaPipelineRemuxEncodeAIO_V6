@@ -266,6 +266,11 @@ class LocalApiFileOverridesCommandPayloadMixin:
             source_path=source_path or "",
             proposed_override=proposed_override,
             validation_warnings=validation_warnings,
+            exact_selector_validator=lambda override_data, row_source_path: _override_exact_selector_validation(
+                override_data,
+                row_source_path,
+                state_db_root=getattr(resolved, "state_root", None),
+            ),
         )
 
     def _file_overrides_series_apply_payload(self, request: dict[str, Any]) -> dict[str, Any]:
@@ -306,6 +311,11 @@ class LocalApiFileOverridesCommandPayloadMixin:
             proposed_override=proposed_override,
             preview_fingerprint=str(request.get("preview_fingerprint") or "").strip(),
             validation_warnings=validation_warnings,
+            exact_selector_validator=lambda override_data, row_source_path: _override_exact_selector_validation(
+                override_data,
+                row_source_path,
+                state_db_root=getattr(resolved, "state_root", None),
+            ),
         )
         return _fo_command_result_payload(payload)
 

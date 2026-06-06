@@ -3,9 +3,9 @@ file: ops/pipeline/engine/decide/profile_selection.ps1
 pipeline_stage: decide
 token_priority: high
 owner_domain: decide
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 70e31b3dba19f806b2d6cf52509a4beba9837eaad4c436ef11a65dad7d672e25
+sha256: a14f2163f84d794f534f3ea612fc3770d05ff170c8430b14a64e0be8a17b2d84
 ---
 # `ops/pipeline/engine/decide/profile_selection.ps1`
 

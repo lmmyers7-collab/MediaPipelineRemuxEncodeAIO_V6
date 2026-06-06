@@ -3,9 +3,9 @@ file: tests/python/desktop/test_metadata_contract.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: f97300312c8f085d2854bd93a16affbe616ed93d2a71a67bbf1d7a7f54a54d62
+sha256: 8d5a0f15d04392342af1d0e1f78b82fa49185024d09ba6329804ff2b9125e70a
 ---
 # `tests/python/desktop/test_metadata_contract.py`
 

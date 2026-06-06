@@ -48,7 +48,18 @@ def build_processing_decision(
     audio_actions = [audio_action(stream, effective_policy, builder) for stream in source.audio_streams]
     subtitle_actions = [subtitle_action(stream, effective_policy, builder) for stream in source.subtitle_streams]
 
-    if any(stream.action == "burn" for stream in subtitle_actions):
+    image_subtitle_requires_review = any(
+        stream.action == "unknown" and "SUBTITLE_IMAGE_REQUIRES_EXPLICIT_REVIEW" in stream.reason_codes
+        for stream in subtitle_actions
+    )
+    if image_subtitle_requires_review:
+        video_action = VideoStreamDecision(
+            stream_index=primary_video.stream_index,
+            action="reject",
+            reason_codes=sorted(set(video_action.reason_codes + ["SUBTITLE_IMAGE_REQUIRES_EXPLICIT_REVIEW"])),
+        )
+
+    if not image_subtitle_requires_review and any(stream.action == "burn" for stream in subtitle_actions):
         video_action = video_action.model_copy(
             update={
                 "action": "encode",
@@ -68,6 +79,16 @@ def build_processing_decision(
         subtitles=subtitle_actions,
         container=selected_container_action,
     )
+    if image_subtitle_requires_review:
+        return finalize_decision(
+            source,
+            effective_policy,
+            builder.reasons,
+            actions,
+            "reject",
+            "subtitle_image_requires_explicit_review",
+            facts,
+        )
     legacy_route = "encode" if video_action.action == "encode" else "remux"
     legacy_reason = _legacy_reason_for_actions(actions, builder)
     return finalize_decision(source, effective_policy, builder.reasons, actions, legacy_route, legacy_reason, facts)

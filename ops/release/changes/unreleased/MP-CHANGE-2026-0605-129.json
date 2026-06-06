@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0605-129",
+  "title": "Compact Pipeline Processor launch gate",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-05",
+  "date_completed": "2026-06-05",
+  "summary": "Redesign the Launch tab's primary Pipeline surface as Pipeline Processor with compact symbolic safety gates, visible disabled-start reasoning, and detailed readiness evidence moved after History.",
+  "reason": "Operators need the main launch action first and visible without scrolling, while still seeing queue/settings/schedule/backend posture without implying frontend checks replace backend validation.",
+  "affected_areas": [
+    "accessibility",
+    "change-control",
+    "launch",
+    "webview"
+  ],
+  "behavior_before": "The Launch DOM rendered Readiness evidence before the Pipeline action surface, the first tab label was Pipeline, and Start Pipeline gating relied on detailed evidence panels plus button titles for disabled reasons.",
+  "behavior_after": "The Launch DOM order starts with Pipeline Processor, then Audit, CSV Rerun, History, and Readiness. Pipeline Processor shows a compact Backend/Queue/Settings/Schedule/Active/Last gate strip before mode and scope controls, keeps Start Pipeline visible in the main action path, and exposes disabled reasons inline while preserving backend-owned preflight and start-route validation.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launch/commandButtons.js",
+    "apps/desktop/webview/static/assets/launchView.js",
+    "apps/desktop/webview/static/assets/launchView.scope.js",
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "apps/desktop/webview/static/partials/page-launch.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launch/commandButtons.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0605-129.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0605-129.json",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/webview/test_webview_browser_launch_queue_readiness_smoke.py"
+  ],
+  "tests_added": [
+    "Extended tests/python/desktop/test_application_facade_web_static.py coverage for compact gate IDs, Launch tab order, helper exports, and confirmation wording.",
+    "Extended tests/webview/test_webview_browser_launch_queue_readiness_smoke.py coverage for rendered tab order, compact gate DOM order, gate button accessibility labels, click-to-detail behavior, and visible disabled start reason."
+  ],
+  "manual_validation": [
+    "$env:PYTHONPATH=(Resolve-Path .\\src).Path; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_launch_controls_are_state_aware_and_topbar_kill_is_emergency_only -q: passed.",
+    "$env:PYTHONPATH=(Resolve-Path .\\src).Path; .\\ops\\scripts\\smoke\\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1: passed.",
+    "$env:PYTHONPATH=(Resolve-Path .\\src).Path; .\\ops\\scripts\\smoke\\Test-WebViewSettingsLaunchPolicySmoke.ps1: passed.",
+    ".\\ops\\scripts\\smoke\\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1: failed without PYTHONPATH because the portable Python could not import mediapipeline.",
+    "Strict coverage validation rerun: packet files covered; command still fails on unrelated MP-CHANGE-2026-0605-010, MP-CHANGE-2026-0605-124, and 32 unrelated uncovered dirty files.",
+    "npm run webview:check: passed."
+  ],
+  "rollback_plan": "Revert the WebView Launch markup/CSS/JS/test changes in this packet to restore the previous Launch tab DOM order, Pipeline label, detailed Start Summary placement, and title-only disabled reason behavior. No backend API, schema, queue, settings, schedule, or media-policy changes were made.",
+  "related_changes": [],
+  "notes": "Compact gates are frontend summaries only. Existing backend preflight hard-blocking behavior and the Validate exception remain unchanged; backend launch routes still re-check runtime state at submission time."
+}

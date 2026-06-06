@@ -1,9 +1,9 @@
       <section class="page" data-page-panel="diagnostics">
         <h1 class="visually-hidden">System Diagnostics</h1>
         <div class="settings-tab-bar" role="tablist" aria-label="Diagnostics sections">
-          <button type="button" class="settings-tab-btn" role="tab" data-diag-tab="logs" aria-selected="true">Logs</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-diag-tab="triage" aria-selected="false">Overview</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-diag-tab="triage" aria-selected="true">Overview</button>
           <button type="button" class="settings-tab-btn" role="tab" data-diag-tab="investigation" aria-selected="false">Investigation</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-diag-tab="logs" aria-selected="false">Logs</button>
           <button type="button" class="settings-tab-btn" role="tab" data-diag-tab="progress" aria-selected="false">State</button>
           <button type="button" class="settings-tab-btn" role="tab" data-diag-tab="advanced" aria-selected="false">Advanced</button>
         </div>
@@ -12,7 +12,44 @@
         </div>
 
         <!-- TAB: TRIAGE -->
-        <div class="settings-tab-pane" data-diag-tab="triage">
+        <div class="settings-tab-pane is-active" data-diag-tab="triage">
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>First Response</h2>
+            <strong id="diagnostics-first-response-status">Not loaded</strong>
+          </div>
+          <pre id="diagnostics-first-response-summary" class="prose-block">No diagnostics first-response checklist loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Step</th>
+                  <th scope="col">Posture</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Safe Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="diagnostics-first-response-rows">
+                <tr><td colspan="4">No diagnostics first-response rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No triage data</span>
+            <span class="empty-state-hint">Run a pipeline job to populate the first-response checklist here.</span>
+          </div>
+          </div>
+          <p id="diagnostics-first-response-legend" class="note table-legend">Diagnostics first-response rows are read-only and do not launch, drain, save, rename, repair, delete, publish, clear state, or touch files.</p>
+          <pre id="diagnostics-first-response-detail" class="prose-block">No diagnostics first-response row selected.</pre>
+        </section>
+
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Shutdown Readiness</h2>
+            <strong id="diagnostics-close-status">Not loaded</strong>
+          </div>
+          <pre id="diagnostics-close-readiness" class="prose-block">No close-readiness data loaded.</pre>
+        </section>
+
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Diagnostics Overview</h2>
@@ -67,35 +104,6 @@
           <pre id="active-job-detail" class="prose-block">No ActiveJob row selected.</pre>
           <div id="active-job-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
         </section>
-
-        <section class="panel" data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>First Response</h2>
-            <strong id="diagnostics-first-response-status">Not loaded</strong>
-          </div>
-          <pre id="diagnostics-first-response-summary" class="prose-block">No diagnostics first-response checklist loaded.</pre>
-          <div class="table-wrap detail-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Step</th>
-                  <th scope="col">Posture</th>
-                  <th scope="col">Evidence</th>
-                  <th scope="col">Safe Next Step</th>
-                </tr>
-              </thead>
-              <tbody id="diagnostics-first-response-rows">
-                <tr><td colspan="4">No diagnostics first-response rows loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">No triage data</span>
-            <span class="empty-state-hint">Run a pipeline job to populate the first-response checklist here.</span>
-          </div>
-          </div>
-          <p id="diagnostics-first-response-legend" class="note table-legend">Diagnostics first-response rows are read-only and do not launch, drain, save, rename, repair, delete, publish, clear state, or touch files.</p>
-          <pre id="diagnostics-first-response-detail" class="prose-block">No diagnostics first-response row selected.</pre>
-        </section>
         </div>
 
         <!-- TAB: STATE -->
@@ -131,14 +139,6 @@
 
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Shutdown Readiness</h2>
-            <strong id="diagnostics-close-status">Not loaded</strong>
-          </div>
-          <pre id="diagnostics-close-readiness" class="prose-block">No close-readiness data loaded.</pre>
-        </section>
-
-        <section class="panel" data-panel-type="interactive">
-          <div class="panel-heading">
             <h2>State Summary</h2>
             <strong id="diagnostics-state-summary-status">Not loaded</strong>
           </div>
@@ -149,13 +149,9 @@
           </div>
           <pre id="diagnostics-state-recovery" class="prose-block">No diagnostics state recovery checklist loaded.</pre>
           <div class="panel-heading panel-subheading">
-            <h3>Stuck Progress Reset</h3>
+            <h3>Recovery Controls</h3>
           </div>
-          <p class="note">Use this when the pipeline shows an active stage (e.g. <em>copy_to_scratch</em>, <em>Remuxing Movie</em>) but no process is actually running. Force Stop on the Launch tab performs the same reset automatically. This button is always available regardless of reported pipeline state.</p>
-          <div class="action-row action-row-left">
-            <button id="diagnostics-force-reset-button" class="danger-button" type="button">Reset Stuck Progress to Idle</button>
-            <strong id="diagnostics-force-reset-status"></strong>
-          </div>
+          <p class="note">Diagnostics is read-only. If evidence shows stuck progress, compare ActiveJobs, Runtime Progress, Run Logs, and Shutdown Readiness here, then use the owning Launch/active control surface for Force Stop or Stop After Current.</p>
           <div data-advanced>
           <div class="panel-heading panel-subheading">
             <h3>Read Order</h3>
@@ -230,6 +226,39 @@
           </div>
           <pre id="diagnostics-investigation-trail" class="prose-block">No diagnostics investigation trail loaded.</pre>
           <div id="diagnostics-investigation-actions" class="action-row action-row-left wrap-actions"></div>
+        </section>
+
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Page Handoff</h2>
+            <strong id="diagnostics-owner-handoff-status">Not loaded</strong>
+          </div>
+          <pre id="diagnostics-owner-handoff" class="prose-block">No owning-page evidence handoff loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Owner</th>
+                  <th scope="col">Row</th>
+                  <th scope="col">Severity</th>
+                  <th scope="col">Reason</th>
+                  <th scope="col">Safe Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="diagnostics-owner-handoff-rows">
+                <tr><td colspan="5">No owning-page handoff rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">No handoff data</span>
+            <span class="empty-state-hint">Handoff rows appear when active queue, completed, or pending items have diagnostics context.</span>
+          </div>
+          </div>
+          <p id="diagnostics-owner-handoff-legend" class="note table-legend">Diagnostics owning-page handoff rows: no selectable rows.</p>
+          <pre id="diagnostics-owner-handoff-detail" class="prose-block">No owning-page handoff row selected.</pre>
+          <div id="diagnostics-owner-handoff-actions" class="action-row action-row-left wrap-actions"></div>
+          <p id="diagnostics-owner-handoff-nav-status" class="note">Owner-row navigation is local UI selection only and sends no backend command.</p>
+          <p class="note">Read-only: Diagnostics points to Queue, Completed, or Pending Publish evidence. Row file/folder opens and mutation commands stay on the owning page and use backend-owned row keys.</p>
         </section>
 
         <section class="panel" data-panel-type="interactive">
@@ -401,11 +430,12 @@
         </div>
 
         <!-- TAB: LOGS -->
-        <div class="settings-tab-pane is-active" data-diag-tab="logs">
+        <div class="settings-tab-pane" data-diag-tab="logs">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Pipeline Log</h2>
           </div>
+          <p class="note">Source: backend diagnostics pipeline log tail from the diagnostics payload. Use Investigation > Log Access for structured source, severity, timestamp, and line filtering before acting.</p>
           <pre id="log-tail" class="log-block">No log tail loaded.</pre>
         </section>
 
@@ -414,9 +444,10 @@
             <h2>File Log</h2>
             <strong id="diagnostics-tail-status">Idle</strong>
           </div>
+          <p class="note">Source: backend allowlisted file tail. Choose a target key and byte limit; the loaded detail reports the resolved label, read window, and truncation state.</p>
           <div class="form-grid option-grid-compact">
             <label>
-              Target
+              Target Key
               <select id="diagnostics-tail-target">
                 <option value="last_stderr_log">Last Stderr</option>
                 <option value="last_stdout_log">Last Stdout</option>
@@ -432,7 +463,7 @@
               </select>
             </label>
             <label>
-              Bytes
+              Byte Limit
               <select id="diagnostics-tail-max-bytes">
                 <option value="16384">16 KB</option>
                 <option value="65536" selected>64 KB</option>
@@ -453,50 +484,19 @@
           <div class="panel-heading">
             <h2>Launch Log</h2>
           </div>
+          <p class="note">Source: backend launch log summary from diagnostics. Compare this with File Log targets Last Stdout and Last Stderr before retrying or stopping work from the owning control surface.</p>
           <pre id="launch-logs" class="log-block">No launch logs loaded.</pre>
         </section>
         </div>
 
         <!-- TAB: ADVANCED -->
         <div class="settings-tab-pane" data-diag-tab="advanced">
-        <section class="panel" data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Page Handoff</h2>
-            <strong id="diagnostics-owner-handoff-status">Not loaded</strong>
-          </div>
-          <pre id="diagnostics-owner-handoff" class="prose-block">No owning-page evidence handoff loaded.</pre>
-          <div class="table-wrap detail-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Owner</th>
-                  <th scope="col">Row</th>
-                  <th scope="col">Severity</th>
-                  <th scope="col">Reason</th>
-                  <th scope="col">Safe Next Step</th>
-                </tr>
-              </thead>
-              <tbody id="diagnostics-owner-handoff-rows">
-                <tr><td colspan="5">No owning-page handoff rows loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">No handoff data</span>
-            <span class="empty-state-hint">Handoff rows appear when active queue, completed, or pending items have diagnostics context.</span>
-          </div>
-          </div>
-          <p id="diagnostics-owner-handoff-legend" class="note table-legend">Diagnostics owning-page handoff rows: no selectable rows.</p>
-          <pre id="diagnostics-owner-handoff-detail" class="prose-block">No owning-page handoff row selected.</pre>
-          <div id="diagnostics-owner-handoff-actions" class="action-row action-row-left wrap-actions"></div>
-          <p id="diagnostics-owner-handoff-nav-status" class="note">Owner-row navigation is local UI selection only and sends no backend command.</p>
-          <p class="note">Read-only: Diagnostics points to Queue, Completed, or Pending Publish evidence. Row file/folder opens and mutation commands stay on the owning page and use backend-owned row keys.</p>
-        </section>
-
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Backend State</h2>
+            <h2>Lifecycle - Backend State</h2>
             <strong id="backend-lifecycle-status" data-state="unknown">Not loaded</strong>
           </div>
+          <p class="note">Lifecycle evidence for close-readiness and backend shutdown posture. Shutdown remains backend-owned and disabled until close-readiness reports safe.</p>
           <pre id="backend-lifecycle-summary" class="prose-block">No backend lifecycle readiness loaded.</pre>
           <div class="action-row action-row-left">
             <button type="button" id="backend-shutdown-button" class="danger-button" disabled>Request Backend Shutdown</button>
@@ -507,9 +507,10 @@
 
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Open Files</h2>
+            <h2>Allowlisted File Access - Open Files</h2>
             <strong id="diagnostics-open-status">Idle</strong>
           </div>
+          <p class="note">Evidence access only. Buttons send backend allowlisted target keys, not arbitrary filesystem paths.</p>
           <div class="action-row action-row-left wrap-actions">
             <button type="button" class="secondary-button" data-open-diagnostics="run_logs">Run Logs</button>
             <button type="button" class="secondary-button" data-open-diagnostics="cluster_log">Cluster Log</button>
@@ -533,9 +534,10 @@
 
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>API Contract</h2>
+            <h2>Developer / Contract Evidence - API Contract</h2>
             <strong id="api-contract-status">Not loaded</strong>
           </div>
+          <p class="note">Developer-facing route evidence for effects, schemas, and ownership boundaries. Contract review is advisory and does not execute commands.</p>
           <pre id="api-contract" class="prose-block">No contract loaded.</pre>
           <div class="panel-heading panel-subheading">
             <h3>Contract Review</h3>

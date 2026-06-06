@@ -171,8 +171,12 @@ try {
             $profile['output_path'] = $outsource
         }
     }
-    $config['EncodeThresholdGB'] = 999
-    $config['TVEncodeThresholdGB'] = 999
+    $config['MovieRoute1080pTargetSizeGB'] = 999
+    $config['MovieRoute1440pTargetSizeGB'] = 999
+    $config['MovieRoute4KTargetSizeGB'] = 999
+    $config['TVRoute1080pTargetSizeGB'] = 999
+    $config['TVRoute1440pTargetSizeGB'] = 999
+    $config['TVRoute4KTargetSizeGB'] = 999
     $config['MinFreeSpaceGB'] = 1
     $config['OutsourceMinFreeSpaceGB'] = 1
     $config['DeferredPublish'] = $true

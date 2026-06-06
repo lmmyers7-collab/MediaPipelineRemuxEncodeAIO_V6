@@ -97,7 +97,7 @@ The drain authority remains: `POST /api/pipeline/start` with `mode: drain_pendin
 
 ## See Also
 
-- Queue page scope behavior: `docs\TLDR.md` (Queue section)
+- Queue page scope behavior: `docs/CURRENT_PROJECT_STATE.md`
 - Pending Publish drain ownership: `docs\archive\admin-audits\PENDING_PUBLISH_DOCS_FRESHNESS_REVIEW.md`
 - Full command route classification: `docs\archive\completed-audits\WEBVIEW_APIPOST_MUTATION_REVIEW.md`
 - Browser smoke boundary: `docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md`
@@ -108,7 +108,7 @@ The drain authority remains: `POST /api/pipeline/start` with `mode: drain_pendin
 
 ```
 Task ID: CLN4-003
-Files inspected: docs\TLDR.md, docs\archive\completed-audits\WEBVIEW_APIPOST_MUTATION_REVIEW.md, docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md, apps\desktop\webview\static\assets\queueView.js, apps\desktop\webview\static\assets\pendingPublishView.js
+Files inspected: docs\DOCS_INDEX.md, docs\archive\completed-audits\WEBVIEW_APIPOST_MUTATION_REVIEW.md, docs\testing\BROWSER_SMOKE_DOES_NOT_MUTATE_MATRIX.md, apps\desktop\webview\static\assets\queueView.js, apps\desktop\webview\static\assets\pendingPublishView.js
 Files changed: docs\operator\WEBVIEW_SCOPE_PREVIEW_OPERATOR_GUIDE.md (created)
 Validation: Test-Path docs\operator\WEBVIEW_SCOPE_PREVIEW_OPERATOR_GUIDE.md; Select-String -Path docs\operator\WEBVIEW_SCOPE_PREVIEW_OPERATOR_GUIDE.md -Pattern "selected row|filters|backend-owned|Mutation guardrail"
 Findings: New operator guide created covering Queue Backend Launch Scope Preview, Pending Backend Drain Scope Preview, filter/selected-row/render-cap interpretation, safe next actions, and mutation guardrail.

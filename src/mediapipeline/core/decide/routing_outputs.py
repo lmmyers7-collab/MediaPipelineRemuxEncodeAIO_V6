@@ -183,13 +183,14 @@ def verification_requirements(summary: str, policy: EffectiveDecisionPolicy, leg
             "warn_only": "OUTPUT_SIZE_CHECK_WARN_ONLY",
             "block_publish": "OUTPUT_SIZE_CHECK_BLOCK_PUBLISH",
             "fail_job": "OUTPUT_SIZE_CHECK_FAIL_JOB",
+            "fallback_remux": "OUTPUT_SIZE_CHECK_FALLBACK_REMUX",
             "disabled": "OUTPUT_SIZE_CHECK_DISABLED",
         }[size_action]
         requirements.append(
             DecisionRequirement(
                 code=code,
                 text=f"apply Output Size Check after encode with {growth:g}% growth tolerance",
-                enforcement="hard_block" if size_action in {"block_publish", "fail_job"} else "advisory",
+                enforcement="hard_block" if size_action in {"block_publish", "fail_job", "fallback_remux"} else "advisory",
             )
         )
     requirements.append(
@@ -232,6 +233,14 @@ def publish_requirements(summary: str, policy: EffectiveDecisionPolicy | None = 
             DecisionRequirement(
                 code="OUTPUT_SIZE_FAILS_JOB_BEFORE_PUBLISH",
                 text="Output Size Check fail-job failures use current failure handling and do not publish output",
+                enforcement="hard_block",
+            )
+        )
+    if policy is not None and _size_check_action(policy) == "fallback_remux":
+        requirements.append(
+            DecisionRequirement(
+                code="OUTPUT_SIZE_FALLBACK_REMUX_BEFORE_ENCODE_PUBLISH",
+                text="Output Size Check fallback-remux failures try stream copy before oversized encode publish continues with warning evidence",
                 enforcement="hard_block",
             )
         )
@@ -361,6 +370,8 @@ def _size_check_on_fail(action: OutputSizeCheckAction) -> str:
         return "park_pending_publish"
     if action == "fail_job":
         return "fail_job"
+    if action == "fallback_remux":
+        return "try_remux_then_record_warning"
     return "record_advisory_warning"
 
 
@@ -371,6 +382,8 @@ def _size_check_message(action: OutputSizeCheckAction, source: SourceMediaInfo) 
         return f"Output Size Check can block publish and park output with manifest evidence; {size_text}."
     if action == "fail_job":
         return f"Output Size Check can fail the job before publish; {size_text}."
+    if action == "fallback_remux":
+        return f"Output Size Check can try remux before oversized encode publish continues with warning evidence; {size_text}."
     return f"Output Size Check warning records advisory evidence without blocking publish; {size_text}."
 
 

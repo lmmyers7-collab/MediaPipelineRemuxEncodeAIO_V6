@@ -35,11 +35,9 @@ from mediapipeline.contracts.config_validators import (
 )
 
 from mediapipeline.contracts.height_tolerance import (
-    DEFAULT_ROUTE_1080P_BUCKET_MAX_HEIGHT,
     DEFAULT_ROUTE_1080P_UPPER_HEIGHT_TOLERANCE_PERCENT,
     DEFAULT_ROUTE_1440P_LOWER_HEIGHT_TOLERANCE_PERCENT,
     DEFAULT_ROUTE_1440P_UPPER_HEIGHT_TOLERANCE_PERCENT,
-    DEFAULT_ROUTE_4K_BUCKET_MIN_HEIGHT,
     DEFAULT_ROUTE_4K_LOWER_HEIGHT_TOLERANCE_PERCENT,
 )
 from mediapipeline.core.rename.constants import RENAME_MOVIE_FILTER_OPTION_KEYS
@@ -52,8 +50,6 @@ REQUIRED_CONFIG_KEYS: tuple[str, ...] = (
     "SourceTV",
     "Outsource",
     "LocalBase",
-    "EncodeThresholdGB",
-    "TVEncodeThresholdGB",
     "MinFreeSpaceGB",
     "VideoCodec",
     "VideoPreset",
@@ -81,8 +77,6 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "Outsource",
     "LibraryProfiles",
     "LocalBase",
-    "EncodeThresholdGB",
-    "TVEncodeThresholdGB",
     "MovieRoute1080pTargetSizeGB",
     "MovieRoute1440pTargetSizeGB",
     "MovieRoute4KTargetSizeGB",
@@ -91,16 +85,12 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "TVRoute4KTargetSizeGB",
     "RoutingProfile",
     "RouteThresholdMode",
-    "MovieRouteMaxVideoBitrateMbps",
-    "TVRouteMaxVideoBitrateMbps",
-    "Route1080pBucketMaxHeight",
     "Route1080pUpperHeightTolerancePercent",
     "Route1080pMaxVideoBitrateMbps",
     "Route1440pLowerHeightTolerancePercent",
     "Route1440pUpperHeightTolerancePercent",
     "Route1440pMaxVideoBitrateMbps",
     "Route4KLowerHeightTolerancePercent",
-    "Route4KBucketMinHeight",
     "Route4KMaxVideoBitrateMbps",
     "AllowH264RemuxIfPlexCompatible",
     "H264RemuxMaxBitrateMbps",
@@ -251,8 +241,6 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "AudioDownmixMode",
     "AudioMaxChannels",
     "AllowNoAudio",
-    "EncodeThresholdGB",
-    "TVEncodeThresholdGB",
     "MovieRoute1080pTargetSizeGB",
     "MovieRoute1440pTargetSizeGB",
     "MovieRoute4KTargetSizeGB",
@@ -261,16 +249,12 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "TVRoute4KTargetSizeGB",
     "RoutingProfile",
     "RouteThresholdMode",
-    "MovieRouteMaxVideoBitrateMbps",
-    "TVRouteMaxVideoBitrateMbps",
-    "Route1080pBucketMaxHeight",
     "Route1080pUpperHeightTolerancePercent",
     "Route1080pMaxVideoBitrateMbps",
     "Route1440pLowerHeightTolerancePercent",
     "Route1440pUpperHeightTolerancePercent",
     "Route1440pMaxVideoBitrateMbps",
     "Route4KLowerHeightTolerancePercent",
-    "Route4KBucketMinHeight",
     "Route4KMaxVideoBitrateMbps",
     "AllowH264RemuxIfPlexCompatible",
     "H264RemuxMaxBitrateMbps",
@@ -391,24 +375,18 @@ LIST_CONFIG_KEYS: tuple[str, ...] = (
 
 NUMERIC_CONFIG_KEYS: tuple[str, ...] = (
     "ConfigSchemaVersion",
-    "EncodeThresholdGB",
-    "TVEncodeThresholdGB",
     "MovieRoute1080pTargetSizeGB",
     "MovieRoute1440pTargetSizeGB",
     "MovieRoute4KTargetSizeGB",
     "TVRoute1080pTargetSizeGB",
     "TVRoute1440pTargetSizeGB",
     "TVRoute4KTargetSizeGB",
-    "MovieRouteMaxVideoBitrateMbps",
-    "TVRouteMaxVideoBitrateMbps",
-    "Route1080pBucketMaxHeight",
     "Route1080pUpperHeightTolerancePercent",
     "Route1080pMaxVideoBitrateMbps",
     "Route1440pLowerHeightTolerancePercent",
     "Route1440pUpperHeightTolerancePercent",
     "Route1440pMaxVideoBitrateMbps",
     "Route4KLowerHeightTolerancePercent",
-    "Route4KBucketMinHeight",
     "Route4KMaxVideoBitrateMbps",
     "H264RemuxMaxBitrateMbps",
     "H264RemuxMaxHeight",
@@ -458,24 +436,18 @@ LIBRARY_PROFILE_OVERRIDE_KEYS_BY_GROUP: dict[str, tuple[str, ...]] = {
         "EncodeLadder",
         "VideoCodec",
         "OutputContainer",
-        "EncodeThresholdGB",
-        "TVEncodeThresholdGB",
         "MovieRoute1080pTargetSizeGB",
         "MovieRoute1440pTargetSizeGB",
         "MovieRoute4KTargetSizeGB",
         "TVRoute1080pTargetSizeGB",
         "TVRoute1440pTargetSizeGB",
         "TVRoute4KTargetSizeGB",
-        "MovieRouteMaxVideoBitrateMbps",
-        "TVRouteMaxVideoBitrateMbps",
-        "Route1080pBucketMaxHeight",
         "Route1080pUpperHeightTolerancePercent",
         "Route1080pMaxVideoBitrateMbps",
         "Route1440pLowerHeightTolerancePercent",
         "Route1440pUpperHeightTolerancePercent",
         "Route1440pMaxVideoBitrateMbps",
         "Route4KLowerHeightTolerancePercent",
-        "Route4KBucketMinHeight",
         "Route4KMaxVideoBitrateMbps",
         "MaxEncodeGrowthPercent",
         "CompatibilityEncodeGrowthPercent",
@@ -686,8 +658,6 @@ class Config(BaseModel):
     )
     LocalBase: str = Field(default=r"C:\MediaPipeline\Scratch", min_length=1)
 
-    EncodeThresholdGB: int = Field(default=8, ge=1)
-    TVEncodeThresholdGB: int = Field(default=3, ge=1)
     MovieRoute1080pTargetSizeGB: int = Field(default=8, ge=1)
     MovieRoute1440pTargetSizeGB: int = Field(default=8, ge=1)
     MovieRoute4KTargetSizeGB: int = Field(default=8, ge=1)
@@ -707,9 +677,6 @@ class Config(BaseModel):
         "bitrate",
         "size_or_bitrate",
     ] = "compatibility_advisory"
-    MovieRouteMaxVideoBitrateMbps: int = Field(default=35, ge=1, le=500)
-    TVRouteMaxVideoBitrateMbps: int = Field(default=18, ge=1, le=500)
-    Route1080pBucketMaxHeight: int = Field(default=1200, ge=1, le=4320)
     Route1080pUpperHeightTolerancePercent: float = Field(
         default=DEFAULT_ROUTE_1080P_UPPER_HEIGHT_TOLERANCE_PERCENT,
         ge=0,
@@ -732,12 +699,11 @@ class Config(BaseModel):
         ge=0,
         le=100,
     )
-    Route4KBucketMinHeight: int = Field(default=1800, ge=1, le=4320)
     Route4KMaxVideoBitrateMbps: int = Field(default=35, ge=1, le=500)
     AllowH264RemuxIfPlexCompatible: bool = True
     H264RemuxMaxBitrateMbps: int = Field(default=35, ge=1, le=500)
     H264RemuxMaxHeight: int = Field(default=1080, ge=1, le=4320)
-    SizeGuardMode: Literal["advisory", "strict", "off"] = "advisory"
+    SizeGuardMode: Literal["advisory", "strict", "fallback_remux", "off"] = "advisory"
     MaxEncodeGrowthPercent: int = Field(default=5, ge=0, le=1000)
     CompatibilityEncodeGrowthPercent: int = Field(default=15, ge=0, le=1000)
 
@@ -807,14 +773,14 @@ class Config(BaseModel):
     BdpgsExtractLanguages: list[str] = Field(
         default_factory=lambda: _list_default(SUBTITLE_EXTRACT_LANGUAGE_DEFAULT)
     )
-    BdpgsOcrToolPath: str = r"Tools\PgsToSrt\PgsToSrt.exe"
-    BdpgsOcrTessdataPath: str = r"Tools\PgsToSrt\tessdata"
+    BdpgsOcrToolPath: str = r"tools\PgsToSrt\PgsToSrt.exe"
+    BdpgsOcrTessdataPath: str = r"tools\PgsToSrt\tessdata"
     ConvertVobSubToSrt: bool = False
     DropVobSubAfterConversion: bool = False
     VobSubExtractLanguages: list[str] = Field(
         default_factory=lambda: _list_default(SUBTITLE_EXTRACT_LANGUAGE_DEFAULT)
     )
-    VobSubOcrToolPath: str = r"Tools\SubtitleEditLegacy\SubtitleEdit.exe"
+    VobSubOcrToolPath: str = r"tools\SubtitleEditLegacy\SubtitleEdit.exe"
     SubSDHTitleKeywords: list[str] = Field(
         default_factory=lambda: _list_default(SUB_SDH_KEYWORD_DEFAULT)
     )

@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-PipelineProcessingPreflightChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 9629f236f45e4dc56662eeae4b97608d86faeeb2efef3439c2137d06d5712d8a
+sha256: 730416d1397b1a8c43e843e2f8856dee632c90c8d843749da20d2ba6b5f6afd4
 ---
 # `ops/pipeline/tests/Unit/Invoke-PipelineProcessingPreflightChecks.ps1`
 

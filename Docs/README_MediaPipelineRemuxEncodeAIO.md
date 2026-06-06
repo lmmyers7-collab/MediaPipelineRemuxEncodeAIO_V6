@@ -5,8 +5,8 @@ This folder is the active all-in-one deployment bundle.
 
 Start here:
 
-- `TLDR.md` for the short operational summary.
 - `DOCS_INDEX.md` for the full documentation map.
+- `CURRENT_PROJECT_STATE.md` for the current operational summary.
 - `..\README.md` for the root operator entry point.
 - `..\ops\scripts\dev\verify-env.bat` to check whether this folder is runnable on the current machine.
 
@@ -151,8 +151,8 @@ Clean releases omit optional tool bulk such as `ffplay.exe`, MKVToolNix GUI/diag
 ## Documentation Map
 
 - `..\README.md`: root operator entry point
-- `TLDR.md`: fastest overview for daily use and release packaging
 - `DOCS_INDEX.md`: all docs and what each one is for; organized by subfolder
+- `CURRENT_PROJECT_STATE.md`: current operational state, launch paths, and safety assumptions
 - `implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`: real-media pilot checklist for validating WebView/Tauri on real media
 - `sample-validation/REAL_MEDIA_VALIDATION_EVIDENCE_TEMPLATE.md`: evidence template for real-media validation runs
 - `Pipeline\NEW_PC_CHECKLIST_MediaPipelineRemuxEncodeAIO.md`: new-machine checklist

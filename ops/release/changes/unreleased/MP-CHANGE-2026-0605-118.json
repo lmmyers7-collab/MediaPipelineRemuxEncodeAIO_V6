@@ -1,0 +1,43 @@
+{
+  "id": "MP-CHANGE-2026-0605-118",
+  "title": "Rename missing Completed output status",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-05",
+  "date_completed": "2026-06-05",
+  "summary": "Renames the Completed selected-summary missing-output badge from the harsh Broken proof wording to Output unavailable, while keeping non-output blocked rows as Needs review.",
+  "reason": "When the output file is missing or unavailable, the operator needs a clear condition label rather than a verdict about proof quality.",
+  "affected_areas": [
+    "completed",
+    "output",
+    "webview"
+  ],
+  "behavior_before": "Completed selected rows in blocked state displayed Broken proof even when the backend simply had no output file available to inspect.",
+  "behavior_after": "Completed selected rows with missing, unavailable, or metadata-without-media output health display Output unavailable; other blocked rows display Needs review. Raw backend trust detail remains available in completed-detail.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/completedView.review.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/completedView.review.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0605-118.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_large_table_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_row_detail_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0605-118.json"
+  ],
+  "tests_added": [
+    "Updated tests/webview/test_webview_browser_large_table_smoke.py to assert Output unavailable and the display trust state for missing Completed output rows.",
+    "Updated tests/webview/test_webview_row_detail_smoke.py to assert Output unavailable in the high-risk Completed selected summary."
+  ],
+  "manual_validation": [
+    "rg -n \"Broken proof|Trust state: broken-output|at-a-glance=Broken proof\" apps/desktop/webview/static tests ops/release/changes/unreleased/MP-CHANGE-2026-0605-118.json -> no remaining matches.",
+    "node --check apps/desktop/webview/static/assets/completedView.review.js -> passed.",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_row_detail_smoke.WebViewRowDetailSmoke -q -> passed; 2 tests OK.",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_large_table_smoke.WebViewBrowserLargeTableSmoke -q -> passed; 1 test OK.",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q -> passed; 1 test OK.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths <touched files> -> passed; 4 summaries written.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> failed due unrelated ops/release/changes/unreleased/MP-CHANGE-2026-0605-010.json missing date_completed, unrelated ops/release/changes/unreleased/MP-CHANGE-2026-0605-117.json missing date_completed, and uncovered changed file ops/release/changes/unreleased/MP-CHANGE-2026-0605-117.json."
+  ],
+  "rollback_plan": "Change completedSelectedAtAGlanceStatus back to returning Broken proof for blocked rows, remove the missing-output display trust override, revert the focused smoke expectations, and refresh summaries.",
+  "related_changes": [],
+  "notes": "WebView-only wording change. No backend fields, Local API routes, command targets, filesystem behavior, pending publish, queue mutation, settings persistence, FFmpeg, subtitle, audio, or media policy behavior changed."
+}

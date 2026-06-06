@@ -47,6 +47,14 @@ CONTRACT_FIELDS = {
     "runtime_consumer",
     "migration_status",
 }
+REMOVED_ROUTING_FALLBACK_KEYS = {
+    "EncodeThresholdGB",
+    "TVEncodeThresholdGB",
+    "MovieRouteMaxVideoBitrateMbps",
+    "TVRouteMaxVideoBitrateMbps",
+    "Route1080pBucketMaxHeight",
+    "Route4KBucketMinHeight",
+}
 
 LABEL_ONLY_RENAMES = {
     "RoutingProfile": ("Library goal", "editor"),
@@ -56,24 +64,18 @@ LABEL_ONLY_RENAMES = {
     "EncodeLadder": ("How encode targets are calculated", "editor"),
     "MaxEncodeGrowthPercent": ("Quality-encode size tolerance", "editor"),
     "CompatibilityEncodeGrowthPercent": ("Compatibility-encode size tolerance", "editor"),
-    "EncodeThresholdGB": ("Movie target output size", "editor"),
-    "TVEncodeThresholdGB": ("TV target output size", "editor"),
     "MovieRoute1080pTargetSizeGB": ("Movie 1080p target output size", "editor"),
     "MovieRoute1440pTargetSizeGB": ("Movie 1440p target output size", "editor"),
     "MovieRoute4KTargetSizeGB": ("Movie 4K target output size", "editor"),
     "TVRoute1080pTargetSizeGB": ("TV 1080p target output size", "editor"),
     "TVRoute1440pTargetSizeGB": ("TV 1440p target output size", "editor"),
     "TVRoute4KTargetSizeGB": ("TV 4K target output size", "editor"),
-    "MovieRouteMaxVideoBitrateMbps": ("Movie fallback max bitrate", "editor"),
-    "TVRouteMaxVideoBitrateMbps": ("TV fallback max bitrate", "editor"),
-    "Route1080pBucketMaxHeight": ("Legacy 1080p bucket max height", "editor"),
     "Route1080pUpperHeightTolerancePercent": ("1080p upper height tolerance", "editor"),
     "Route1080pMaxVideoBitrateMbps": ("1080p max bitrate for direct copy", "editor"),
     "Route1440pLowerHeightTolerancePercent": ("1440p lower height tolerance", "editor"),
     "Route1440pUpperHeightTolerancePercent": ("1440p upper height tolerance", "editor"),
     "Route1440pMaxVideoBitrateMbps": ("1440p max bitrate for direct copy", "editor"),
     "Route4KLowerHeightTolerancePercent": ("4K lower height tolerance", "editor"),
-    "Route4KBucketMinHeight": ("Legacy 4K bucket min height", "editor"),
     "Route4KMaxVideoBitrateMbps": ("4K max bitrate for direct copy", "editor"),
     "VideoPreset": ("Encoder Speed Preset", "video"),
     "ExtraVideoFlags": ("Advanced Encoder Flags", "video"),
@@ -88,24 +90,18 @@ DISPLAY_SECTION_GROUP_EXPECTATIONS = {
     "EncodeLadder": ("Presets", "editor"),
     "VideoCodec": ("Video", "editor"),
     "OutputContainer": ("Container", "editor"),
-    "EncodeThresholdGB": ("Size / Bitrate Guards", "editor"),
-    "TVEncodeThresholdGB": ("Size / Bitrate Guards", "editor"),
     "MovieRoute1080pTargetSizeGB": ("Size / Bitrate Guards", "editor"),
     "MovieRoute1440pTargetSizeGB": ("Size / Bitrate Guards", "editor"),
     "MovieRoute4KTargetSizeGB": ("Size / Bitrate Guards", "editor"),
     "TVRoute1080pTargetSizeGB": ("Size / Bitrate Guards", "editor"),
     "TVRoute1440pTargetSizeGB": ("Size / Bitrate Guards", "editor"),
     "TVRoute4KTargetSizeGB": ("Size / Bitrate Guards", "editor"),
-    "MovieRouteMaxVideoBitrateMbps": ("Size / Bitrate Guards", "editor"),
-    "TVRouteMaxVideoBitrateMbps": ("Size / Bitrate Guards", "editor"),
-    "Route1080pBucketMaxHeight": ("Size / Bitrate Guards", "editor"),
     "Route1080pUpperHeightTolerancePercent": ("Size / Bitrate Guards", "editor"),
     "Route1080pMaxVideoBitrateMbps": ("Size / Bitrate Guards", "editor"),
     "Route1440pLowerHeightTolerancePercent": ("Size / Bitrate Guards", "editor"),
     "Route1440pUpperHeightTolerancePercent": ("Size / Bitrate Guards", "editor"),
     "Route1440pMaxVideoBitrateMbps": ("Size / Bitrate Guards", "editor"),
     "Route4KLowerHeightTolerancePercent": ("Size / Bitrate Guards", "editor"),
-    "Route4KBucketMinHeight": ("Size / Bitrate Guards", "editor"),
     "Route4KMaxVideoBitrateMbps": ("Size / Bitrate Guards", "editor"),
     "MaxEncodeGrowthPercent": ("Size / Bitrate Guards", "editor"),
     "CompatibilityEncodeGrowthPercent": ("Size / Bitrate Guards", "editor"),
@@ -134,7 +130,7 @@ REPRESENTATIVE_DISPLAY_TAXONOMY = {
         "Size / Bitrate Guards",
         ("size", "verification"),
         "hard",
-        "Checked after encode. Warns but does not block in warn-only mode. Blocks publish when configured to block if output exceeds the configured size budget.",
+        "Checked after encode. Warn-only records oversized output. Strict blocks publish. Fallback remux applies existing growth buffers to override-forced encodes, tries remux first, and keeps the oversized encode with warning evidence when remux is blocked.",
     ),
     "EncodeTuningPreset": (
         "NVENC Tuning",
@@ -143,26 +139,12 @@ REPRESENTATIVE_DISPLAY_TAXONOMY = {
         "soft",
         "Applies only when encoding is required. Chooses the encoder speed/compression tradeoff without changing copy/remux decisions by itself.",
     ),
-    "EncodeThresholdGB": (
-        "Movie Target",
+    "MovieRoute1080pTargetSizeGB": (
+        "Movie 1080p",
         "Size / Bitrate Guards",
         ("size", "routing"),
         "soft",
-        "GB target output size used as the movie size budget for route and size-policy checks; not the Mbps max bitrate for direct copy.",
-    ),
-    "MovieRouteMaxVideoBitrateMbps": (
-        "Movie Fallback",
-        "Size / Bitrate Guards",
-        ("bitrate", "routing"),
-        "hard",
-        "Fallback movie bitrate cap in Mbps when source height is unknown. Known-height sources use the 1080p, 1440p, or 4K bucket cap instead.",
-    ),
-    "Route1080pBucketMaxHeight": (
-        "Raw 1080p Height",
-        "Size / Bitrate Guards",
-        ("size", "bitrate", "routing"),
-        "hard",
-        "Compatibility pixel height derived from height tolerance settings when those percent keys are present.",
+        "GB target output size for movie sources in the 1080p bucket. Unknown-height movies use this 1080p target.",
     ),
     "VideoPreset": (
         "Speed Preset",
@@ -260,6 +242,7 @@ class MetadataContractTests(unittest.TestCase):
         fields = _fields_by_key()
 
         self.assertEqual(sorted(set(Config.model_fields) - set(fields)), [])
+        self.assertEqual(REMOVED_ROUTING_FALLBACK_KEYS & set(fields), set())
 
     def test_phase3_label_only_renames_preserve_persisted_keys_and_override_groups(self) -> None:
         fields = _fields_by_key()
@@ -285,8 +268,6 @@ class MetadataContractTests(unittest.TestCase):
         routing_editor_keys = {"RoutingProfile", "RouteThresholdMode"}
         size_editor_keys = {
             "SizeGuardMode",
-            "EncodeThresholdGB",
-            "TVEncodeThresholdGB",
             "MovieRoute1080pTargetSizeGB",
             "MovieRoute1440pTargetSizeGB",
             "MovieRoute4KTargetSizeGB",
@@ -320,20 +301,13 @@ class MetadataContractTests(unittest.TestCase):
         self.assertNotIn("threshold", str(fields["RouteThresholdMode"]["help_text"]).lower())
         self.assertIn("Used before processing to decide copy/remux versus encode.", fields["RouteThresholdMode"]["help_text"])
         self.assertIn("Checked after encode.", fields["SizeGuardMode"]["help_text"])
-        self.assertIn("Warns but does not block", fields["SizeGuardMode"]["help_text"])
-        self.assertIn("Blocks publish when configured to block", fields["SizeGuardMode"]["help_text"])
-        self.assertIn("GB target output size", fields["EncodeThresholdGB"]["help_text"])
-        self.assertIn("not the Mbps max bitrate for direct copy", fields["EncodeThresholdGB"]["help_text"])
-        self.assertIn("GB target output size", fields["TVEncodeThresholdGB"]["help_text"])
-        self.assertIn("not the Mbps max bitrate for direct copy", fields["TVEncodeThresholdGB"]["help_text"])
+        self.assertIn("Warn-only records oversized output", fields["SizeGuardMode"]["help_text"])
+        self.assertIn("Strict blocks publish", fields["SizeGuardMode"]["help_text"])
+        self.assertIn("Fallback remux applies existing growth buffers", fields["SizeGuardMode"]["help_text"])
+        self.assertIn("Unknown-height movies use this 1080p target", fields["MovieRoute1080pTargetSizeGB"]["help_text"])
+        self.assertIn("Unknown-height TV uses this 1080p target", fields["TVRoute1080pTargetSizeGB"]["help_text"])
         self.assertIn("known-height movie sources", fields["MovieRoute1440pTargetSizeGB"]["help_text"])
         self.assertIn("known-height TV sources", fields["TVRoute1440pTargetSizeGB"]["help_text"])
-        self.assertIn("Fallback movie bitrate cap", fields["MovieRouteMaxVideoBitrateMbps"]["help_text"])
-        self.assertIn("source height is unknown", fields["MovieRouteMaxVideoBitrateMbps"]["help_text"])
-        self.assertIn("1080p, 1440p, or 4K bucket", fields["MovieRouteMaxVideoBitrateMbps"]["help_text"])
-        self.assertIn("Fallback TV bitrate cap", fields["TVRouteMaxVideoBitrateMbps"]["help_text"])
-        self.assertIn("source height is unknown", fields["TVRouteMaxVideoBitrateMbps"]["help_text"])
-        self.assertIn("Compatibility pixel height derived", fields["Route1080pBucketMaxHeight"]["help_text"])
         self.assertIn("Percent above 1080", fields["Route1080pUpperHeightTolerancePercent"]["help_text"])
         self.assertIn("Direct-copy/remux bitrate cap", fields["Route1440pMaxVideoBitrateMbps"]["help_text"])
         self.assertIn("Applies only when encoding is required.", fields["EncodeTuningPreset"]["help_text"])
@@ -342,25 +316,19 @@ class MetadataContractTests(unittest.TestCase):
     def test_library_profile_designation_metadata_scopes_movie_and_tv_fields_only(self) -> None:
         fields = _fields_by_key()
 
-        self.assertEqual(fields["EncodeThresholdGB"]["library_profile_designations"], ("movie", "auto"))
         self.assertEqual(fields["MovieRoute1080pTargetSizeGB"]["library_profile_designations"], ("movie", "auto"))
         self.assertEqual(fields["MovieRoute1440pTargetSizeGB"]["library_profile_designations"], ("movie", "auto"))
         self.assertEqual(fields["MovieRoute4KTargetSizeGB"]["library_profile_designations"], ("movie", "auto"))
-        self.assertEqual(fields["MovieRouteMaxVideoBitrateMbps"]["library_profile_designations"], ("movie", "auto"))
-        self.assertEqual(fields["TVEncodeThresholdGB"]["library_profile_designations"], ("tv", "auto"))
         self.assertEqual(fields["TVRoute1080pTargetSizeGB"]["library_profile_designations"], ("tv", "auto"))
         self.assertEqual(fields["TVRoute1440pTargetSizeGB"]["library_profile_designations"], ("tv", "auto"))
         self.assertEqual(fields["TVRoute4KTargetSizeGB"]["library_profile_designations"], ("tv", "auto"))
-        self.assertEqual(fields["TVRouteMaxVideoBitrateMbps"]["library_profile_designations"], ("tv", "auto"))
         for key in (
-            "Route1080pBucketMaxHeight",
             "Route1080pUpperHeightTolerancePercent",
             "Route1080pMaxVideoBitrateMbps",
             "Route1440pLowerHeightTolerancePercent",
             "Route1440pUpperHeightTolerancePercent",
             "Route1440pMaxVideoBitrateMbps",
             "Route4KLowerHeightTolerancePercent",
-            "Route4KBucketMinHeight",
             "Route4KMaxVideoBitrateMbps",
         ):
             with self.subTest(key=key):
@@ -430,8 +398,8 @@ class MetadataContractTests(unittest.TestCase):
 
         self.assertIn("plex_direct_stream", fields["RoutingProfile"]["allowed_values"])
         self.assertIn("mkv", fields["OutputContainer"]["allowed_values"])
-        self.assertEqual(fields["EncodeThresholdGB"]["min"], 1)
-        self.assertEqual(fields["EncodeThresholdGB"]["unit"], "GB")
+        self.assertEqual(fields["MovieRoute1080pTargetSizeGB"]["min"], 1)
+        self.assertEqual(fields["MovieRoute1080pTargetSizeGB"]["unit"], "GB")
         self.assertEqual(fields["MixPriorityPhase"]["default_value"], False)
         self.assertEqual(fields["QueueOrderingStrategy"]["allowed_values"], (
             "Standard",

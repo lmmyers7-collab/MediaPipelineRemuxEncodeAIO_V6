@@ -15,6 +15,7 @@ from mediapipeline.desktop.api.handler_policy import (
     options_response_headers,
     route_exception_payload,
     route_validation_error_payload,
+    route_validation_journal_payload,
     should_record_command_payload,
     unauthorized_payload,
 )
@@ -57,6 +58,17 @@ class LocalApiHandlerPolicyTests(unittest.TestCase):
             route_validation_error_payload("/api/snapshot", RuntimeError("x" * 2500))["error"],
             ("x" * 1997) + "...",
         )
+
+    def test_route_validation_journal_payload_is_sanitized_command_result(self) -> None:
+        payload = route_validation_journal_payload("/api/pipeline/start", RuntimeError("x" * 2500))
+
+        self.assertEqual(payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(payload["command"], "local_api.validation_failed")
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["severity"], "error")
+        self.assertEqual(payload["errors"], [("x" * 1997) + "..."])
+        self.assertEqual(payload["data"]["path"], "/api/pipeline/start")
+        self.assertEqual(payload["data"]["status"], 400)
 
     def test_command_journal_recording_policy_is_success_status_only(self) -> None:
         self.assertTrue(should_record_command_payload(200))

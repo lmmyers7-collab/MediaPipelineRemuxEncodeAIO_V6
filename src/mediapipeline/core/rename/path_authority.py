@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from mediapipeline.core.paths.layout import path_within_root
-from mediapipeline.desktop.config_keys import KEY_OUTSOURCE
+from mediapipeline.core.kernel.config_keys import KEY_OUTSOURCE
 
 OUTSIDE_CONFIGURED_ROOTS_MESSAGE = "Rename apply includes path(s) outside configured media roots."
 OUTSIDE_CONFIGURED_ROOTS_WARNING = (

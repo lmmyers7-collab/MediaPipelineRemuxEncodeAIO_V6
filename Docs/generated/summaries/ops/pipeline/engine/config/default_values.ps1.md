@@ -3,9 +3,9 @@ file: ops/pipeline/engine/config/default_values.ps1
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 705f5ffdb948281d0ec18552afe8d55573747bc1f737bf8efea21d5f8afbd05d
+sha256: 8ea3c309d0e7c3e0782de451c392833730f15a795f24b29942027e8b244b97ac
 ---
 # `ops/pipeline/engine/config/default_values.ps1`
 

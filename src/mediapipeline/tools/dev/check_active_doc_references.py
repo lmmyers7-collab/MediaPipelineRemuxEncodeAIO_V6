@@ -96,9 +96,20 @@ VERSION_LABEL_SCAN_EXCLUSIONS = {
     "docs/change_control/CHANGE_INDEX.md",
     "docs/change_control/RELEASE_HISTORY.md",
 }
+HISTORICAL_REFERENCE_EXCLUSIONS = {
+    "docs/REMEDIATION_CHANGELOG.md",
+    "docs/change_control/CHANGELOG.md",
+    "docs/change_control/CHANGE_INDEX.md",
+    "docs/change_control/RELEASE_HISTORY.md",
+}
 REMOVED_SHELL_PATTERN = re.compile(
     r"CustomTkinter|customtkinter|tkinter|\bTk\b|Tk-owned|Tk fallback|"
     r"Tk replacement|replace Tk|Tk as|Tk app|Tk shell|Tk main",
+    re.IGNORECASE,
+)
+REMOVED_QUICK_START_NAME = "T" + "LDR"
+REMOVED_QUICK_START_PATTERN = re.compile(
+    rf"(?:docs[\\/])?{REMOVED_QUICK_START_NAME}\.md",
     re.IGNORECASE,
 )
 VERSION_LINE_LABEL_PATTERN = re.compile(
@@ -123,6 +134,11 @@ def normalize_path(path: str | Path) -> str:
 
 def _is_archive_path(rel: str) -> bool:
     return "/docs/archive/" in f"/{normalize_path(rel)}"
+
+
+def _allows_historical_references(rel: str) -> bool:
+    rel = normalize_path(rel)
+    return _is_archive_path(rel) or rel in HISTORICAL_REFERENCE_EXCLUSIONS
 
 
 def collect_active_markdown_files(root: Path = REPO_ROOT) -> list[Path]:
@@ -187,6 +203,9 @@ def findings_for_text(
 
         if rel in HANDOFF_PATH_RESTRICTED_RELATIVES and re.search(r"C:\\Users\\lmmye\\.*CurrentHandoff", line):
             findings.append(DocFinding("DOC003", rel, line_no, "absolute current-handoff path"))
+
+        if not _allows_historical_references(rel) and REMOVED_QUICK_START_PATTERN.search(line):
+            findings.append(DocFinding("DOC006", rel, line_no, "removed active quick-start reference"))
 
         if rel not in REMOVED_SHELL_SCAN_EXCLUSIONS and REMOVED_SHELL_PATTERN.search(line):
             findings.append(DocFinding("DOC004", rel, line_no, "removed legacy desktop-shell wording"))

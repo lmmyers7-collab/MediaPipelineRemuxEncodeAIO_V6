@@ -147,8 +147,8 @@ def _browser_layout_manager_runner_source() -> str:
             }
             openDrawer();
             const required = {
-              queue: ["Readiness", "Queue Summary", "Run History", "Pre-Launch Checklist"],
-              completed: ["Output Files", "Current Output Status", "Completed History Summary", "Size Evidence", "Proof Check", "Integrity Check", "Diagnostics Links"],
+              queue: ["Queue Decision", "Attention Required", "Queue Rows", "Backend Launch Scope Boundary", "Queue-to-Launch Handoff", "Queue Readiness Checklist"],
+              completed: ["Output Trust Decision", "Output Files", "Current Output Status", "Completed History Summary", "File And Size Proof", "Publish And Pending Proof", "Integrity Check", "Diagnostics Links"],
               settings: ["Staged Changes", "Active Policy", "Save Status", "Launch Impact", "Save Result"],
               diagnostics: ["Recovery Steps", "Read Order", "Impact Summary", "Related Evidence", "Contract Review"],
               launch: ["Readiness", "Settings Check", "Pipeline Controller", "Start Evidence", "Start Summary", "Command Review"],
@@ -192,7 +192,7 @@ def _browser_layout_manager_runner_source() -> str:
             const queueSummary = requireManagedPanel("queue", "Queue Summary");
             if (!queueSummary.classList.contains("panel-layout-moved")) throw new Error("move-up button did not show moved-panel animation state");
             const beforeDragOrder = panelOrder("queue");
-            dragDrawerRow(requireDrawerPanel("queue", "Pre-Launch Checklist"), requireDrawerPanel("queue", "Run History"));
+            dragDrawerRow(requireDrawerPanel("queue", "Queue Readiness Checklist"), requireDrawerPanel("queue", "Run History"));
             const afterDragOrder = panelOrder("queue");
             if (beforeDragOrder.join("|") === afterDragOrder.join("|")) throw new Error("drawer drag/drop did not reorder panels");
             queueSummaryRow = requireDrawerPanel("queue", "Queue Summary");
@@ -208,10 +208,10 @@ def _browser_layout_manager_runner_source() -> str:
             if (queueSummaryPanel.hasAttribute("data-panel-advanced")) throw new Error("drawer Advanced toggle did not restore Queue Summary");
             window.showPage("completed");
             openDrawer();
-            const sizeEvidenceRow = requireDrawerPanel("completed", "Size Evidence");
+            const sizeEvidenceRow = requireDrawerPanel("completed", "File And Size Proof");
             sizeEvidenceRow.click();
             const advancedSelected = document.querySelector('[data-page-panel="completed"] .settings-tab-btn[data-completed-tab="advanced"]').getAttribute("aria-selected") === "true";
-            if (!advancedSelected) throw new Error("selecting Size Evidence did not switch to Completed Advanced");
+            if (!advancedSelected) throw new Error("selecting File And Size Proof did not switch to Completed Advanced");
             const sizeEvidencePanel = panelForDrawerRow(sizeEvidenceRow);
             if (!sizeEvidencePanel.classList.contains("layout-panel-preview")) throw new Error("selected drawer row did not highlight visible panel");
             window.showPage("completed");

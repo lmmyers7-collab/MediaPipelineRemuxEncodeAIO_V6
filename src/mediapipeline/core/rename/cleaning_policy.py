@@ -6,7 +6,7 @@ from typing import Any, Callable, Mapping
 
 from mediapipeline.core.rename.constants import PLEX_RENAME_DEFAULT_REMOVE_TERMS
 from mediapipeline.core.rename.movie import normalize_movie_filter_options, normalize_movie_filter_terms, rename_movie_filter_default_terms
-from mediapipeline.desktop.config_keys import (
+from mediapipeline.core.kernel.config_keys import (
     KEY_RENAME_MOVIE_FILTER_OPTIONS,
     KEY_RENAME_MOVIE_FILTER_TERMS,
     KEY_RENAME_MOVIE_REMOVE_TERMS,

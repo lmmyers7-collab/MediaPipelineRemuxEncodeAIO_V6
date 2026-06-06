@@ -1,0 +1,50 @@
+{
+  "id": "MP-CHANGE-2026-0606-004",
+  "title": "Clarify Telemetry tab operating state",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-06",
+  "date_completed": "2026-06-06",
+  "summary": "Adds frontend-only Telemetry tab presentation that classifies raw hardware telemetry into operator-readable states.",
+  "reason": "Operators need to quickly understand whether media processing is idle, CPU-bound, GPU-bound, memory-bound, unavailable, stale, or degraded.",
+  "affected_areas": [
+    "telemetry",
+    "ui",
+    "webview"
+  ],
+  "behavior_before": "The Telemetry tab showed raw CPU, NVENC, RAM, and GPU values, while the visible readiness status primarily described telemetry availability.",
+  "behavior_after": "The Telemetry tab shows a visible operating state, next-step guidance, KPI chips, chart timing metadata, and non-specialist GPU encoder wording without changing backend telemetry contracts.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "apps/desktop/webview/static/assets/telemetryView.js",
+    "apps/desktop/webview/static/partials/page-telemetry.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/telemetryView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-telemetry.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0606-004.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_telemetry_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0606-004.json",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/python/desktop/test_tauri_shell_scaffold.py",
+    "tests/webview/test_webview_browser_telemetry_smoke.py"
+  ],
+  "tests_added": [
+    "Updated static WebView tests that asserted old Telemetry/NVENC copy.",
+    "Updated tests/webview/test_webview_browser_telemetry_smoke.py to cover idle, GPU-bound, CPU-bound, memory-pressure, CPU/RAM-only, degraded, stale, chart metadata, KPI chips, and operator wording."
+  ],
+  "manual_validation": [
+    "$env:PYTHONPATH='src'; apps/desktop/runtime/Python/python.exe -m unittest selected Telemetry/static tests - 3 passed; test_local_api_serves_read_only_web_prototype failed before Telemetry assertions on unrelated missing report-warnings markup",
+    "$env:PYTHONPATH='src'; apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_telemetry_smoke -v - passed",
+    "$env:PYTHONPATH='src'; ops/scripts/smoke/Test-WebViewBrowserTelemetrySmoke.ps1 - passed",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_browser_telemetry_smoke.py -q - failed because the bundled Python runtime does not have pytest installed",
+    "node --check apps/desktop/webview/static/assets/telemetryView.js and node --check apps/desktop/webview/static/assets/app.js - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserTelemetrySmoke.ps1 without PYTHONPATH - failed because mediapipeline was not importable in the current shell",
+    "validate_changes --require-worktree-coverage - failed after Telemetry packet coverage was corrected; remaining failures are unrelated MP-CHANGE-2026-0605-010 missing date_completed, MP-CHANGE-2026-0605-124 missing high/critical notes or rollback detail, and 32 unrelated uncovered dirty files",
+    "validate_changes --require-worktree-coverage - failed due unrelated pre-existing packet/schema issues and unrelated uncovered dirty files; Telemetry-generated summaries were added to this packet before rerun"
+  ],
+  "rollback_plan": "Revert the WebView Telemetry partial, Telemetry renderer, app refresh call, Telemetry CSS additions, focused Telemetry/static test updates, generated summaries for touched files, and this change packet.",
+  "related_changes": [],
+  "notes": "Frontend presentation-only change; backend telemetry DTOs, media policy, queue behavior, filesystem behavior, and API schemas remain unchanged. MP-CHANGE-2026-0606-001 was already occupied by an unrelated Schedule packet in the dirty worktree, so Telemetry uses this packet.\nFrontend presentation-only; no backend telemetry DTO, media policy, queue, filesystem, or API schema changes."
+}

@@ -103,6 +103,30 @@ class DependencyBoundaryTests(unittest.TestCase):
             self.assertEqual(len(report.forbidden_observability_status_imports), 1)
             self.assertEqual(len(report.forbidden_telemetry_observability_imports), 1)
 
+    def test_core_to_desktop_imports_are_hard_findings(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            write_module(root, "src/mediapipeline/core/__init__.py")
+            write_module(root, "src/mediapipeline/core/config/__init__.py")
+            write_module(
+                root,
+                "src/mediapipeline/core/config/settings.py",
+                """
+                from mediapipeline.desktop import models
+                from mediapipeline.desktop.config_keys import KEY_OUTSOURCE
+                """,
+            )
+
+            report = dependency_check.analyze(root)
+            self.assertEqual(
+                [(edge.source_module, edge.target_module) for edge in report.forbidden_core_desktop_imports],
+                [
+                    ("mediapipeline.core.config.settings", "mediapipeline.desktop.models"),
+                    ("mediapipeline.core.config.settings", "mediapipeline.desktop.config_keys"),
+                ],
+            )
+            self.assertEqual(dependency_check.main(["--root", str(root), "--max-internal-imports", "10"]), 1)
+
     def test_main_fails_on_unallowlisted_hard_violation_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

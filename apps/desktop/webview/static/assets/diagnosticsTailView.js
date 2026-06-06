@@ -35,6 +35,30 @@
     return "unknown";
   }
 
+  function diagnosticsTailLineHasNegatedError(line) {
+    const text = String(line || "").toLowerCase();
+    return /\b(?:no|without)\b(?:\s+[\w-]+){0,4}\s+errors?\b/.test(text)
+      || /\b0\s+errors?\b/.test(text)
+      || /\berrors?\s*[:=]\s*0\b/.test(text)
+      || /\berror[_ -]?count\s*[:=]\s*0\b/.test(text);
+  }
+
+  function diagnosticsTailLineHasNegatedFailure(line) {
+    const text = String(line || "").toLowerCase();
+    return /\b(?:no|without)\b(?:\s+[\w-]+){0,4}\s+fail(?:ed|ures?|ure)?\b/.test(text)
+      || /\b0\s+fail(?:ed|ures?|ure)?\b/.test(text)
+      || /\bfail(?:ed|ures?|ure)?\s*[:=]\s*0\b/.test(text);
+  }
+
+  function diagnosticsTailLineContainsTerm(line, term) {
+    const text = String(line || "").toLowerCase();
+    const needle = String(term || "").toLowerCase();
+    if (!needle) return false;
+    if (needle === "error" && diagnosticsTailLineHasNegatedError(text)) return false;
+    if ((needle === "failed" || needle === "failure") && diagnosticsTailLineHasNegatedFailure(text)) return false;
+    return text.includes(needle);
+  }
+
   function diagnosticsTailEvidence(payload) {
     const tail = payload && typeof payload === "object" ? payload : {};
     const evidence = tail.evidence && typeof tail.evidence === "object" ? tail.evidence : {};
@@ -45,8 +69,7 @@
       backendEvidence.operator_status_state = evidence.operator_status_state || diagnosticsTailOperatorStatusState(evidence.operator_status);
       return backendEvidence;
     }
-    const lowerLines = lines.map((line) => line.toLowerCase());
-    const countMatching = (terms) => lowerLines.filter((line) => terms.some((term) => line.includes(term))).length;
+    const countMatching = (terms) => lines.filter((line) => terms.some((term) => diagnosticsTailLineContainsTerm(line, term))).length;
     const errors = diagnosticsTailLines(tail.errors);
     const warnings = diagnosticsTailLines(tail.warnings);
     const errorCount = errors.length + countMatching(["error", "failed", "failure", "exception", "traceback", "denied", "blocked", "corrupt", "malformed", "invalid", "unreadable", "locked", "fatal"]);

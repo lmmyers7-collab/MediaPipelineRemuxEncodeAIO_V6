@@ -14,6 +14,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from mediapipeline.core.config.settings_wizard import (  # noqa: E402
     preview_settings_wizard,
+    save_settings_wizard,
     validate_ffmpeg_tools,
     validate_wizard_paths,
     validate_wizard_payload,
@@ -206,6 +207,80 @@ class SettingsWizardPolicyTests(unittest.TestCase):
         )
         self.assertEqual(categories[-1]["status"], "warning")
         self.assertFalse(result.data["wizard"]["touches_media"])
+
+    def test_save_settings_wizard_blocks_missing_danger_ack_without_saving(self) -> None:
+        class Facade:
+            def save_settings_patch(self, _resolved: ResolvedPaths, _request: dict[str, object]) -> CommandResult:
+                raise AssertionError("save_settings_patch must not be called when danger acknowledgements are missing")
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            request = {
+                "wizard": {
+                    "output": {"root": str(root / "Output"), "existing_policy": "reprocess_all_once"},
+                    "scratch": {"path": str(root / "Scratch")},
+                    "workers": {"max_parallel_encodes": 1, "parallel_encode_mode": "single"},
+                    "safety": {
+                        "allow_system_tools": True,
+                        "allow_no_audio": True,
+                        "cleanup_remote_staging": True,
+                        "danger_ack": [],
+                    },
+                },
+                "confirm_save": True,
+            }
+            result = save_settings_wizard(Facade(), _resolved(root), request)
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.command, "settings.wizard.save")
+        self.assertEqual(result.severity, "error")
+        error_text = "\n".join(result.errors)
+        for key in ("AllowSystemTools", "AllowNoAudio", "CleanupRemoteStaging", "ReprocessAll"):
+            self.assertIn(key, error_text)
+        self.assertIn("acknowledgement", result.message)
+
+    def test_save_settings_wizard_allows_acknowledged_danger_keys(self) -> None:
+        class Facade:
+            def __init__(self) -> None:
+                self.requests: list[dict[str, object]] = []
+
+            def save_settings_patch(self, _resolved: ResolvedPaths, request: dict[str, object]) -> CommandResult:
+                self.requests.append(request)
+                return CommandResult(
+                    command="settings.save_patch",
+                    ok=True,
+                    message="saved",
+                    severity="info",
+                    data={"writes_config": True, "changed_keys": sorted(request["changes"])},
+                )
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            facade = Facade()
+            request = {
+                "wizard": {
+                    "output": {"root": str(root / "Output"), "existing_policy": "reprocess_all_once"},
+                    "scratch": {"path": str(root / "Scratch")},
+                    "workers": {"max_parallel_encodes": 1, "parallel_encode_mode": "single"},
+                    "safety": {
+                        "allow_system_tools": True,
+                        "allow_no_audio": True,
+                        "cleanup_remote_staging": True,
+                        "danger_ack": ["AllowSystemTools", "AllowNoAudio", "CleanupRemoteStaging", "ReprocessAll"],
+                    },
+                },
+                "confirm_save": True,
+            }
+            result = save_settings_wizard(facade, _resolved(root), request)
+
+        self.assertTrue(result.ok)
+        self.assertEqual(len(facade.requests), 1)
+        self.assertTrue(facade.requests[0]["confirm_save"])
+        changes = facade.requests[0]["changes"]
+        self.assertEqual(changes["AllowSystemTools"], True)
+        self.assertEqual(changes["AllowNoAudio"], True)
+        self.assertEqual(changes["CleanupRemoteStaging"], True)
+        self.assertEqual(changes["ReprocessAll"], True)
 
 
 if __name__ == "__main__":

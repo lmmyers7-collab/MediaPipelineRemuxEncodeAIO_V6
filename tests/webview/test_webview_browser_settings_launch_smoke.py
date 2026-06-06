@@ -100,7 +100,7 @@ def _browser_settings_launch_runner_source() -> str:
               button.click();
             }
             function requireDefaultVisibleAssSsaCheckboxes() {
-              clickSettingsTab("subtitles");
+              clickSettingsTab("media-output");
               for (const id of [
                 "settings-subtitle-drop-ass",
                 "settings-subtitle-remove-karaoke",
@@ -177,16 +177,12 @@ def _browser_settings_launch_runner_source() -> str:
               const movieCard = libraryCard("movies");
               requireFocusedLibrarySelectSurvivesAutomaticRefresh(movieCard);
               let tvCard = libraryCard("tv");
-              if (overrideRow(tvCard, "EncodeThresholdGB")) throw new Error("TV profile rendered Movie target output size");
               if (overrideRow(tvCard, "MovieRoute1080pTargetSizeGB")) throw new Error("TV profile rendered Movie 1080p target output size");
               if (overrideRow(tvCard, "MovieRoute1440pTargetSizeGB")) throw new Error("TV profile rendered Movie 1440p target output size");
               if (overrideRow(tvCard, "MovieRoute4KTargetSizeGB")) throw new Error("TV profile rendered Movie 4K target output size");
-              if (overrideRow(tvCard, "MovieRouteMaxVideoBitrateMbps")) throw new Error("TV profile rendered Movie fallback max bitrate");
-              if (overrideRow(movieCard, "TVEncodeThresholdGB")) throw new Error("Movie profile rendered TV target output size");
               if (overrideRow(movieCard, "TVRoute1080pTargetSizeGB")) throw new Error("Movie profile rendered TV 1080p target output size");
               if (overrideRow(movieCard, "TVRoute1440pTargetSizeGB")) throw new Error("Movie profile rendered TV 1440p target output size");
               if (overrideRow(movieCard, "TVRoute4KTargetSizeGB")) throw new Error("Movie profile rendered TV 4K target output size");
-              if (overrideRow(movieCard, "TVRouteMaxVideoBitrateMbps")) throw new Error("Movie profile rendered TV fallback max bitrate");
 
               const directCopyRow = requireRow(tvCard, "Route1080pMaxVideoBitrateMbps");
               const directCopyControl = directCopyRow.querySelector("[data-library-override-control]");
@@ -199,25 +195,25 @@ def _browser_settings_launch_runner_source() -> str:
 
               setLibraryDesignation(tvCard, "auto");
               tvCard = libraryCard("tv");
-              const autoMovieFallbackRow = requireRow(tvCard, "MovieRouteMaxVideoBitrateMbps");
-              requireRow(tvCard, "TVRouteMaxVideoBitrateMbps");
-              setOverrideValue(autoMovieFallbackRow, "25");
-              if (autoMovieFallbackRow.dataset.libraryOverride !== "true") {
-                throw new Error("Edited movie fallback did not become an explicit override while TV profile was Auto");
+              const autoMovie1080pRow = requireRow(tvCard, "MovieRoute1080pTargetSizeGB");
+              requireRow(tvCard, "TVRoute1080pTargetSizeGB");
+              setOverrideValue(autoMovie1080pRow, "9");
+              if (autoMovie1080pRow.dataset.libraryOverride !== "true") {
+                throw new Error("Edited movie 1080p target did not become an explicit override while TV profile was Auto");
               }
 
               setLibraryDesignation(tvCard, "tv");
               tvCard = libraryCard("tv");
-              if (overrideRow(tvCard, "MovieRouteMaxVideoBitrateMbps")) {
-                throw new Error("TV profile kept Movie fallback visible after switching back from Auto");
+              if (overrideRow(tvCard, "MovieRoute1080pTargetSizeGB")) {
+                throw new Error("TV profile kept Movie 1080p target visible after switching back from Auto");
               }
               const patch = window.mediaPipelineSettingsLibraries.buildPatchFromLibraries();
               const tvProfile = patch && Array.isArray(patch.LibraryProfiles)
                 ? patch.LibraryProfiles.find((profile) => profile.id === "tv")
                 : null;
               const tvEditorOverrides = tvProfile && tvProfile.overrides ? tvProfile.overrides.editor || {} : {};
-              if (Object.prototype.hasOwnProperty.call(tvEditorOverrides, "MovieRouteMaxVideoBitrateMbps")) {
-                throw new Error("TV LibraryProfiles patch kept hidden Movie fallback override");
+              if (Object.prototype.hasOwnProperty.call(tvEditorOverrides, "MovieRoute1080pTargetSizeGB")) {
+                throw new Error("TV LibraryProfiles patch kept hidden Movie 1080p override");
               }
               const warning = text("settings-library-warning-summary");
               if (!warning.includes("omitted designation-specific override")) {

@@ -33,7 +33,7 @@ $python = Resolve-WebViewBrowserLaunchQueueReadinessSmokePython -ProjectRoot $pr
 Write-Host 'WebView browser Launch/Queue readiness smoke'
 Write-Host 'Boundary: starts a temporary local API against generated temporary state, a generated launch command journal, and a temporary sample-validation record.'
 Write-Host 'Boundary: launches installed Chrome/Edge headless and renders real backend-served WebView Launch, Queue, and Schedule readiness panels.'
-Write-Host 'Boundary: verifies Launch preflight, Queue launch decision, Schedule guidance, close-readiness, and launch command-review evidence align.'
+Write-Host 'Boundary: verifies Launch preflight, Queue-to-Launch handoff, Schedule guidance, close-readiness, and launch command-review evidence align.'
 Write-Host 'Boundary: verifies Launch real-media sample proof handoff mirrors Home worksheet evidence without starting work.'
 Write-Host 'Boundary: verifies Launch Sample Validation record evidence mirrors Home record/reconciliation evidence without appending records.'
 Write-Host 'Boundary: verifies Pilot category coverage is visible at Launch without turning category evidence into acceptance state.'

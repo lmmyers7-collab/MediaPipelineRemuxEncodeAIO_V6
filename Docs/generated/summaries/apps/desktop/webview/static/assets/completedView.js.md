@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/completedView.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 8abf64f78ef9bdadaa88887582ccddb804cfa29a9c34539d3b06e658a5f2f9ce
+sha256: 99afde61106873b5ba37fb0920b51fb8f35dc8f01b750a6f94e7e69ab02f224f
 ---
 # `apps/desktop/webview/static/assets/completedView.js`
 

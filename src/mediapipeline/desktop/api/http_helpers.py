@@ -198,6 +198,11 @@ def read_json_body(
     *,
     max_bytes: int = 1_000_000,
 ) -> dict[str, Any] | None:
+    raw_content_type = str(handler.headers.get("Content-Type") or "").strip()
+    content_type = raw_content_type.split(";", 1)[0].strip().casefold()
+    if content_type != "application/json":
+        send_json({"error": "unsupported media type; use application/json"}, 415)
+        return None
     raw_length = str(handler.headers.get("Content-Length") or "0").strip()
     try:
         length = int(raw_length)

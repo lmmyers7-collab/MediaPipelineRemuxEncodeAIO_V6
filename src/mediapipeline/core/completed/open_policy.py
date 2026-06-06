@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 
 COMPLETED_OPEN_TARGETS = {
+    "play_output_file": "completed output playback",
     "output_file": "completed output file",
     "output_folder": "completed output folder",
     "sidecar": "completed sidecar file",
@@ -52,7 +53,7 @@ def find_completed_record_by_key(
 
 
 def completed_open_path(record: CompletedJobRecord, target: str) -> Path | None:
-    if target == "output_file":
+    if target in {"play_output_file", "output_file"}:
         return record.output_path
     if target == "output_folder":
         return record.output_path.parent
@@ -156,10 +157,14 @@ def completed_open_exception_result(target: str, row_key: str, path: Path, exc: 
 
 
 def completed_open_success_result(target: str, row_key: str, path: Path) -> CommandResult:
+    if target == "play_output_file":
+        message = "Opened completed output playback with the default app."
+    else:
+        message = f"Opened {completed_open_target_label(target)}."
     return _command_result(
         command=COMPLETED_OPEN_COMMAND,
         ok=True,
-        message=f"Opened {completed_open_target_label(target)}.",
+        message=message,
         severity="info",
         data=completed_open_result_data(target, row_key, path),
         refresh_hint=COMPLETED_REFRESH_HINT,

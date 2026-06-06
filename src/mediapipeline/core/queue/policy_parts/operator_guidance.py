@@ -6,6 +6,38 @@ from typing import Any, Iterable, Mapping
 
 from .route_evidence import queue_row_route_decision_summary, queue_row_route_evidence_lines
 
+
+def _runtime_outcome_is_operator_stop(row: Mapping[str, Any]) -> bool:
+    runtime_status = str(row.get("runtime_outcome_status") or "").strip().casefold()
+    if runtime_status != "stopped":
+        return False
+    runtime_error = str(row.get("runtime_outcome_error_code") or "").strip().casefold()
+    runtime_reason = str(row.get("runtime_outcome_reason") or "").strip().casefold()
+    return runtime_error == "stop_requested" or ("stop" in runtime_reason and "operator" in runtime_reason)
+
+
+def _runtime_publish_state(row: Mapping[str, Any]) -> str:
+    return str(row.get("runtime_outcome_publish_state") or "").strip().casefold()
+
+
+def _runtime_operator_stop_label_and_guidance(row: Mapping[str, Any]) -> tuple[str, str]:
+    publish_state = _runtime_publish_state(row)
+    if publish_state in {"parked", "parked_recovered", "pending_move", "deferred"} or "retry" in publish_state:
+        return (
+            "Waiting for push",
+            "The previous run stopped after the current item and left output in Pending Publish. Drain Pending Publish when the final output root is safe.",
+        )
+    if publish_state in {"published", "already_published", "succeeded"}:
+        return (
+            "Recently completed",
+            "The previous run stopped after the current item and publish evidence says this output is complete. Refresh Completed, then use Launch when ready to continue queued work.",
+        )
+    return (
+        "Check publish state",
+        "Stop After Current was requested. Check Completed and Pending Publish for the last item, then use Launch when ready to continue queued work.",
+    )
+
+
 def queue_row_operator_status_state(
     row: Mapping[str, Any],
     *,
@@ -18,6 +50,7 @@ def queue_row_operator_status_state(
     runtime_status = str(row.get("runtime_outcome_status") or "").strip().casefold()
     runtime_freshness = str(row.get("runtime_outcome_freshness_status") or "").strip().casefold()
     runtime_recent = bool(runtime_status) and runtime_freshness != "stale"
+    runtime_operator_stop = runtime_recent and _runtime_outcome_is_operator_stop(row)
     runtime_success = row.get("runtime_outcome_success")
     runtime_success_text = str(runtime_success).casefold() if runtime_success is not None else ""
     if status == "invalid" or operator_severity in {"error", "critical"}:
@@ -25,6 +58,8 @@ def queue_row_operator_status_state(
     if row.get("blocked_reason") or row.get("blocked_reason_code") or "blocked" in flags:
         return "blocked"
     if runtime_recent:
+        if runtime_operator_stop:
+            return "warning"
         if runtime_status in {
             "failed",
             "stopped",
@@ -94,17 +129,20 @@ def queue_row_operator_guidance(row: dict[str, Any]) -> dict[str, Any]:
     runtime_outcome_freshness = str(row.get("runtime_outcome_freshness_status") or "").strip().casefold()
     runtime_error_code = str(row.get("runtime_outcome_error_code") or "").strip()
     runtime_recent = bool(runtime_outcome_status) and runtime_outcome_freshness != "stale"
+    runtime_operator_stop = runtime_recent and _runtime_outcome_is_operator_stop(row)
     runtime_success = row.get("runtime_outcome_success")
     runtime_success_text = str(runtime_success).casefold() if runtime_success is not None else ""
-    runtime_failed = runtime_success is False or runtime_success_text == "false" or runtime_outcome_status.casefold() in {
-        "failed",
-        "skipped",
-        "stopped",
-        "transient_failure",
-        "permanent_failure",
-        "operator_required_failure",
-        "failure_recorded",
-    }
+    runtime_failed = not runtime_operator_stop and (
+        runtime_success is False or runtime_success_text == "false" or runtime_outcome_status.casefold() in {
+            "failed",
+            "skipped",
+            "stopped",
+            "transient_failure",
+            "permanent_failure",
+            "operator_required_failure",
+            "failure_recorded",
+        }
+    )
     if runtime_outcome_status:
         flags.append("runtime_outcome")
         flags.append(f"runtime_outcome:{runtime_outcome_status.casefold()}")
@@ -127,6 +165,8 @@ def queue_row_operator_guidance(row: dict[str, Any]) -> dict[str, Any]:
     elif not route_name or not source_path:
         label = "Review before launch"
         guidance = "This row is missing source or routing metadata. Refresh Queue and inspect Diagnostics before starting unattended work."
+    elif runtime_operator_stop:
+        label, guidance = _runtime_operator_stop_label_and_guidance(row)
     elif runtime_recent and runtime_failed:
         label = "Recent runtime failure"
         guidance = "This row is runnable in the latest snapshot, but recent backend runtime history for the same source path failed or skipped. Inspect the runtime outcome and logs before relaunching."
@@ -160,17 +200,20 @@ def queue_row_trust_fields(row: dict[str, Any], flags: list[str], *, label: str,
     runtime_freshness = str(row.get("runtime_outcome_freshness_status") or "").strip().casefold()
     runtime_error = str(row.get("runtime_outcome_error_code") or "").strip()
     runtime_recent = bool(runtime_status) and runtime_freshness != "stale"
+    runtime_operator_stop = runtime_recent and _runtime_outcome_is_operator_stop(row)
     runtime_success = row.get("runtime_outcome_success")
     runtime_success_text = str(runtime_success).casefold() if runtime_success is not None else ""
-    runtime_failed = runtime_success is False or runtime_success_text == "false" or runtime_status.casefold() in {
-        "failed",
-        "skipped",
-        "stopped",
-        "transient_failure",
-        "permanent_failure",
-        "operator_required_failure",
-        "failure_recorded",
-    }
+    runtime_failed = not runtime_operator_stop and (
+        runtime_success is False or runtime_success_text == "false" or runtime_status.casefold() in {
+            "failed",
+            "skipped",
+            "stopped",
+            "transient_failure",
+            "permanent_failure",
+            "operator_required_failure",
+            "failure_recorded",
+        }
+    )
 
     if status == "invalid":
         trust_state = "invalid-snapshot-row"
@@ -184,6 +227,20 @@ def queue_row_trust_fields(row: dict[str, Any], flags: list[str], *, label: str,
         trust_state = "review-before-launch"
         concern = "row is missing source or routing metadata"
         safe_action = "Refresh Queue and inspect Queue Snapshot before starting unattended processing."
+    elif runtime_operator_stop:
+        publish_state = _runtime_publish_state(row)
+        if publish_state in {"parked", "parked_recovered", "pending_move", "deferred"} or "retry" in publish_state:
+            trust_state = "pending-publish"
+            concern = "output is waiting for pending publish drain"
+            safe_action = "Drain Pending Publish when the final output root is safe; otherwise leave it parked."
+        elif publish_state in {"published", "already_published", "succeeded"}:
+            trust_state = "review-before-launch"
+            concern = "recent backend runtime history says this source already completed"
+            safe_action = "Refresh Completed and Pending Publish state before relaunching this source."
+        else:
+            trust_state = "review-before-launch"
+            concern = "operator Stop After Current was requested; publish state needs confirmation"
+            safe_action = "Check Completed and Pending Publish for the last item, then use Launch when ready to continue queued work."
     elif runtime_recent and runtime_failed:
         trust_state = "review-before-launch"
         concern = " - ".join(str(item) for item in (runtime_status, runtime_error, row.get("runtime_outcome_reason")) if str(item or "").strip()) or "fresh runtime failure"

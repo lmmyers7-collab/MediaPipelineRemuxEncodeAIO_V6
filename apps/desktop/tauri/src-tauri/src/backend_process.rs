@@ -47,6 +47,31 @@ pub(crate) enum BackendProcessExit {
     NoChild,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum BackendShutdownMode {
+    SafeOnly,
+    ConfirmedForceActiveWork,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum BackendShutdownOutcome {
+    Requested,
+    Blocked,
+}
+
+#[derive(Debug, Deserialize)]
+struct BackendShutdownResponse {
+    schema_version: String,
+    ok: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum CloseRequestDecision {
+    AllowSafe,
+    AllowConfirmedForce,
+    Deny,
+}
+
 impl BackendProcess {
     pub(crate) fn url(&self) -> &str {
         &self.url
@@ -82,51 +107,83 @@ impl BackendProcess {
         }
     }
 
-    fn shutdown(&self) {
+    fn shutdown(&self, mode: BackendShutdownMode) {
         if let Ok(mut guard) = self.child.lock() {
-            if let Some(mut child) = guard.take() {
-                if let Err(error) = request_backend_shutdown(&self.url, &self.token) {
-                    eprintln!("[mediapipeline-shell] backend shutdown request failed: {error}");
-                }
-                if wait_for_child_exit(&mut child, Duration::from_secs(3)) {
-                    return;
-                }
-                eprintln!(
-                    "[mediapipeline-shell] backend did not exit within grace period; terminating process"
-                );
-                terminate_child(&mut child);
+            if guard.is_none() {
+                return;
             }
+            match request_backend_shutdown(&self.url, &self.token, mode) {
+                Ok(BackendShutdownOutcome::Requested) => {}
+                Ok(BackendShutdownOutcome::Blocked) => {
+                    eprintln!(
+                        "[mediapipeline-shell] backend shutdown request blocked by close-readiness"
+                    );
+                    if mode == BackendShutdownMode::SafeOnly {
+                        return;
+                    }
+                }
+                Err(error) => {
+                    eprintln!("[mediapipeline-shell] backend shutdown request failed: {error}");
+                    if mode == BackendShutdownMode::SafeOnly {
+                        return;
+                    }
+                }
+            }
+            let Some(mut child) = guard.take() else {
+                return;
+            };
+            drop(guard);
+            if wait_for_child_exit(&mut child, Duration::from_secs(3)) {
+                return;
+            }
+            eprintln!(
+                "[mediapipeline-shell] backend did not exit within grace period; terminating process"
+            );
+            terminate_child(&mut child);
         }
     }
 }
 
 impl Drop for BackendProcess {
     fn drop(&mut self) {
-        self.shutdown();
+        self.shutdown(BackendShutdownMode::SafeOnly);
     }
 }
 
-pub(crate) fn shutdown_backend_state(manager: &impl Manager<tauri::Wry>) {
+pub(crate) fn shutdown_backend_state(
+    manager: &impl Manager<tauri::Wry>,
+    mode: BackendShutdownMode,
+) {
     if let Some(backend) = manager.try_state::<BackendProcess>() {
-        backend.shutdown();
+        backend.shutdown(mode);
     }
 }
 
-pub(crate) fn confirm_close_if_needed(manager: &impl Manager<tauri::Wry>) -> bool {
+pub(crate) fn close_request_decision(manager: &impl Manager<tauri::Wry>) -> CloseRequestDecision {
     let Some(backend) = manager.try_state::<BackendProcess>() else {
-        return true;
+        return CloseRequestDecision::AllowSafe;
     };
     match request_close_readiness(&backend.url, &backend.token) {
-        Ok(readiness) if readiness.safe_to_close => true,
+        Ok(readiness) if readiness.safe_to_close => CloseRequestDecision::AllowSafe,
         Ok(readiness) => {
             let detail = close_readiness_warning_detail(&readiness);
-            confirm_close_dialog(&format!(
+            if confirm_close_dialog(&format!(
                 "{detail}\n\nClose the MediaPipeline shell anyway?\n\n{FORCE_CLOSE_RECOVERY_WARNING}"
-            ))
+            )) {
+                CloseRequestDecision::AllowConfirmedForce
+            } else {
+                CloseRequestDecision::Deny
+            }
         }
-        Err(error) => confirm_close_dialog(&format!(
-            "Close readiness could not be verified: {error}\n\nThis is not treated as safe. Close the MediaPipeline shell anyway?\n\n{FORCE_CLOSE_RECOVERY_WARNING}"
-        )),
+        Err(error) => {
+            if confirm_close_dialog(&format!(
+                "Close readiness could not be verified: {error}\n\nThis is not treated as safe. Close the MediaPipeline shell anyway?\n\n{FORCE_CLOSE_RECOVERY_WARNING}"
+            )) {
+                CloseRequestDecision::AllowConfirmedForce
+            } else {
+                CloseRequestDecision::Deny
+            }
+        }
     }
 }
 
@@ -377,15 +434,44 @@ fn wait_for_child_exit(child: &mut Child, timeout: Duration) -> bool {
     }
 }
 
-fn request_backend_shutdown(backend_url: &str, token: &str) -> ShellResult<()> {
-    request_backend_json(
+fn backend_shutdown_request_body(mode: BackendShutdownMode) -> &'static str {
+    match mode {
+        BackendShutdownMode::SafeOnly => r#"{"reason":"tauri-shell-exit"}"#,
+        BackendShutdownMode::ConfirmedForceActiveWork => {
+            r#"{"reason":"tauri-shell-close","force_active_work_shutdown":true}"#
+        }
+    }
+}
+
+fn parse_backend_shutdown_outcome(body: &str) -> ShellResult<BackendShutdownOutcome> {
+    let response: BackendShutdownResponse = serde_json::from_str(body)
+        .map_err(|error| shell_error(format!("Backend shutdown response was not JSON: {error}")))?;
+    if response.schema_version != "desktop_command_result.v1" {
+        return Err(shell_error(format!(
+            "Unexpected backend shutdown schema: {}",
+            response.schema_version
+        )));
+    }
+    if response.ok {
+        Ok(BackendShutdownOutcome::Requested)
+    } else {
+        Ok(BackendShutdownOutcome::Blocked)
+    }
+}
+
+fn request_backend_shutdown(
+    backend_url: &str,
+    token: &str,
+    mode: BackendShutdownMode,
+) -> ShellResult<BackendShutdownOutcome> {
+    let response = request_backend_json(
         backend_url,
         "POST",
         "/api/backend/shutdown",
         token,
-        r#"{"reason":"tauri-shell-close","force_active_work_shutdown":true}"#,
-    )
-    .map(|_| ())
+        backend_shutdown_request_body(mode),
+    )?;
+    parse_backend_shutdown_outcome(&response)
 }
 
 pub(crate) fn redact_bootstrap_stdout(value: &str) -> String {
@@ -523,7 +609,10 @@ pub(crate) fn bootstrap_error(
 
 #[cfg(test)]
 mod tests {
-    use super::{BackendProcess, BackendProcessExit};
+    use super::{
+        backend_shutdown_request_body, parse_backend_shutdown_outcome, BackendProcess,
+        BackendProcessExit, BackendShutdownMode, BackendShutdownOutcome,
+    };
     use std::{
         process::{Child, Command, Stdio},
         sync::Mutex,
@@ -538,6 +627,40 @@ mod tests {
             token: "test-token".to_string(),
             startup_warnings: Vec::new(),
         }
+    }
+
+    #[test]
+    fn backend_shutdown_request_body_omits_force_for_safe_only() {
+        let safe_body = backend_shutdown_request_body(BackendShutdownMode::SafeOnly);
+        let force_body =
+            backend_shutdown_request_body(BackendShutdownMode::ConfirmedForceActiveWork);
+
+        assert_eq!(safe_body, r#"{"reason":"tauri-shell-exit"}"#);
+        assert!(!safe_body.contains("force_active_work_shutdown"));
+        assert_eq!(
+            force_body,
+            r#"{"reason":"tauri-shell-close","force_active_work_shutdown":true}"#
+        );
+    }
+
+    #[test]
+    fn backend_shutdown_response_parser_blocks_unsafe_safe_only_shutdown() {
+        let outcome = parse_backend_shutdown_outcome(
+            r#"{"schema_version":"desktop_command_result.v1","command":"backend.shutdown","ok":false,"message":"Backend shutdown blocked because close-readiness is unsafe."}"#,
+        )
+        .expect("blocked response should parse");
+
+        assert_eq!(outcome, BackendShutdownOutcome::Blocked);
+    }
+
+    #[test]
+    fn backend_shutdown_response_parser_allows_ok_shutdown() {
+        let outcome = parse_backend_shutdown_outcome(
+            r#"{"schema_version":"desktop_command_result.v1","command":"backend.shutdown","ok":true,"message":"Backend shutdown requested."}"#,
+        )
+        .expect("ok response should parse");
+
+        assert_eq!(outcome, BackendShutdownOutcome::Requested);
     }
 
     fn wait_for_non_running(process: &BackendProcess) -> BackendProcessExit {

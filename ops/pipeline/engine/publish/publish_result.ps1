@@ -10,6 +10,8 @@ function New-PipelinePublishResult {
         [string] $PublishMode = '',
         [string] $OutputPath = '',
         [long] $OutputSizeBytes = 0,
+        [string] $SourcePath = '',
+        [long] $SourceSizeBytes = 0,
         [string] $Reason = '',
         [bool] $ParkedForOutputSpace = $false
     )
@@ -22,7 +24,36 @@ function New-PipelinePublishResult {
         PublishMode          = [string]$PublishMode
         OutputPath           = [string]$OutputPath
         OutputSizeBytes      = [long]$OutputSizeBytes
+        SourcePath           = [string]$SourcePath
+        SourceSizeBytes      = [long]$SourceSizeBytes
         Reason               = [string]$Reason
         ParkedForOutputSpace = [bool]$ParkedForOutputSpace
     }
+}
+
+function New-ExistingOutputPublishResult {
+    param(
+        [Parameter(Mandatory)] $SourceFile,
+        [Parameter(Mandatory)] [string] $OutputPath
+    )
+
+    $outputSize = 0L
+    if (Test-Path -LiteralPath $OutputPath -ErrorAction SilentlyContinue) {
+        $outputSize = [long](Get-Item -LiteralPath $OutputPath).Length
+    }
+
+    $sourcePath = if ($SourceFile -and $SourceFile.PSObject.Properties['FullName']) { [string]$SourceFile.FullName } else { '' }
+    $sourceSize = if ($SourceFile -and $SourceFile.PSObject.Properties['Length']) { [long]$SourceFile.Length } else { 0L }
+
+    return New-PipelinePublishResult `
+        -Ok:$true `
+        -DeleteLocalOutput:$false `
+        -KeepScratchInput:$false `
+        -PublishState 'published' `
+        -PublishMode 'existing-output' `
+        -OutputPath $OutputPath `
+        -OutputSizeBytes $outputSize `
+        -SourcePath $sourcePath `
+        -SourceSizeBytes $sourceSize `
+        -Reason 'Existing output accepted by reprocess policy'
 }

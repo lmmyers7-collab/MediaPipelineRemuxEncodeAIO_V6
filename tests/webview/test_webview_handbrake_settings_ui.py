@@ -44,30 +44,26 @@ EDITOR_BUILDER_KEYS = {
     "RoutingProfile",
     "RouteThresholdMode",
     "SizeGuardMode",
-    "EncodeLadder",
     "MaxEncodeGrowthPercent",
     "CompatibilityEncodeGrowthPercent",
-    "EncodeThresholdGB",
-    "TVEncodeThresholdGB",
     "MovieRoute1080pTargetSizeGB",
     "MovieRoute1440pTargetSizeGB",
     "MovieRoute4KTargetSizeGB",
     "TVRoute1080pTargetSizeGB",
     "TVRoute1440pTargetSizeGB",
     "TVRoute4KTargetSizeGB",
-    "MovieRouteMaxVideoBitrateMbps",
-    "TVRouteMaxVideoBitrateMbps",
-    "Route1080pBucketMaxHeight",
     "Route1080pUpperHeightTolerancePercent",
     "Route1080pMaxVideoBitrateMbps",
     "Route1440pLowerHeightTolerancePercent",
     "Route1440pUpperHeightTolerancePercent",
     "Route1440pMaxVideoBitrateMbps",
     "Route4KLowerHeightTolerancePercent",
-    "Route4KBucketMinHeight",
     "Route4KMaxVideoBitrateMbps",
 }
 VIDEO_DETAIL_BUILDER_KEYS = {
+    "EncodeLadder",
+    "VideoCodec",
+    "OutputContainer",
     "EncodeTuningPreset",
     "VideoPreset",
     "ExtraVideoFlags",
@@ -150,23 +146,19 @@ def _normalize_js_literal(value: str | None) -> object:
 
 
 class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
-    def test_settings_tabs_follow_phase_08_grouping(self) -> None:
+    def test_settings_tabs_follow_operator_workflow_grouping(self) -> None:
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
 
         expected_order = [
-            "Summary / Effective Decision",
+            "Status",
             "Guided Setup",
-            "Routing",
-            "Dimensions",
-            "Filters",
-            "Video",
-            "Audio",
-            "Subtitles",
-            "Container",
-            "Size / Bitrate Guards",
-            "Verification / Publish",
-            "Presets",
-            "Advanced",
+            "Paths &amp; Safety",
+            "Routing &amp; Size",
+            "Media Output",
+            "Publish &amp; Recovery",
+            "Naming",
+            "Queue &amp; Runtime",
+            "Advanced Evidence",
         ]
         cursor = -1
         for label in expected_order:
@@ -177,6 +169,36 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         for tab in (
             'data-settings-tab="status"',
             'data-settings-tab="guided-setup"',
+            'data-settings-tab="paths-safety"',
+            'data-settings-tab="routing-size"',
+            'data-settings-tab="media-output"',
+            'data-settings-tab="publish-recovery"',
+            'data-settings-tab="naming"',
+            'data-settings-tab="queue-runtime"',
+            'data-settings-tab="advanced-evidence"',
+        ):
+            self.assertIn(tab, html)
+
+        for retired_tab in (
+            ">Summary / Effective Decision</button>",
+            ">Routing</button>",
+            ">Dimensions</button>",
+            ">Filters</button>",
+            ">Video</button>",
+            ">Audio</button>",
+            ">Subtitles</button>",
+            ">Container</button>",
+            ">Verification / Publish</button>",
+            ">Presets</button>",
+            ">Rename</button>",
+            ">Advanced</button>",
+            ">Video / Audio / Subtitles</button>",
+            ">Container / Output Size Check</button>",
+            ">Size / Bitrate Guards</button>",
+            ">Wizard</button>",
+            ">Rename Filters</button>",
+            ">Source / Compatibility</button>",
+            ">System</button>",
             'data-settings-tab="editor"',
             'data-settings-tab="dimensions"',
             'data-settings-tab="filters"',
@@ -184,22 +206,13 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             'data-settings-tab="audio"',
             'data-settings-tab="subtitles"',
             'data-settings-tab="container"',
-            'data-settings-tab="size-bitrate"',
             'data-settings-tab="paths"',
             'data-settings-tab="presets"',
+            'data-settings-tab="rename"',
             'data-settings-tab="advanced"',
-        ):
-            self.assertIn(tab, html)
-
-        for retired_tab in (
-            ">Video / Audio / Subtitles</button>",
-            ">Container / Output Size Check</button>",
-            ">Wizard</button>",
-            ">Rename Filters</button>",
-            ">Source / Compatibility</button>",
-            ">System</button>",
             'data-settings-tab="media"',
             'data-settings-tab="container-size"',
+            'data-settings-tab="size-bitrate"',
             'data-settings-tab="wizard"',
             'data-settings-tab="rename-filters"',
             'data-settings-tab="source-compat"',
@@ -245,8 +258,9 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             'formatSettingsSummaryValue("VideoCodec"',
             'formatSettingsSummaryValue("VideoPreset"',
             'formatSettingsSummaryValue("SizeGuardMode"',
-            'formatSettingsSummaryValue("EncodeThresholdGB"',
-            'formatSettingsSummaryValue("MovieRouteMaxVideoBitrateMbps"',
+            'formatSettingsSummaryValue("MovieRoute1080pTargetSizeGB"',
+            'formatSettingsSummaryValue("TVRoute1080pTargetSizeGB"',
+            'formatSettingsSummaryValue("Route1080pMaxVideoBitrateMbps"',
             'persisted key RoutingProfile',
             'persisted key OutputContainer',
             "Applies only when encoding is required.",
@@ -330,6 +344,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
     def test_routing_labels_are_visible_without_taxonomy_badges(self) -> None:
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
         review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
+        builder_controls_js = (STATIC_ROOT / "assets" / "settings" / "builderControls.js").read_text(encoding="utf-8")
 
         for token in (
             "Library goal",
@@ -339,41 +354,70 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "settings-route-trigger-summary",
             "TV / Movie targets by height",
             "Target GB is the encoded output budget",
-            "Encoded target size",
-            "Movie GB",
-            "TV GB",
+            "Encoded output size (GB)",
+            "Movie 1080p encoded output size in GB",
+            "TV 1080p encoded output size in GB",
+            "Movie 1440p encoded output size in GB",
+            "TV 1440p encoded output size in GB",
+            "Movie 4K encoded output size in GB",
+            "TV 4K encoded output size in GB",
             "Direct-copy limits",
             "Max Mbps",
-            "Height boundary",
-            "1080p ends at",
-            "1440p starts at",
-            "1440p ends at",
-            "4K starts at",
-            "Upper tolerance",
-            "Lower tolerance",
+            "If constant",
+            "30m TV",
+            "2h movie",
+            "Height range",
+            "Derived",
+            "tolerance",
+            "ends at",
+            "starts at",
             "Derived height range",
+            "Editable route height slider by bucket",
+            "TV and movie route target bucket editor",
+            "settings-route-range-rail",
+            "settings-route-height-slider",
+            "settings-route-slider-labels",
+            "settings-route-slider",
+            "settings-route-slider-track",
+            "settings-route-slider-fill-1080p",
+            "settings-route-slider-fill-1440p",
+            "settings-route-slider-fill-4k",
+            'id="settings-height-1440p-range" class="visually-hidden"',
+            "settings-route-slider-thumb",
+            "settings-route-slider-hit",
+            "settings-route-boundary-1080p-end-input",
+            "settings-route-boundary-4k-start-input",
+            "data-route-drag-boundary",
+            "1080p upper route height boundary",
+            "4K lower route height boundary",
+            "settings-route-target-editor",
+            "settings-route-bucket-card",
+            "settings-route-bucket-grid",
+            "settings-route-card-range-1080p",
+            "settings-route-card-range-1440p",
+            "settings-route-card-range-4k",
+            "uses &lt;=1200p",
+            "uses 1201-1799p",
+            "uses &gt;=1800p",
             "settings-route-consequence-summary",
             "If encoded output is too large",
             "Oversize result",
-            "Video encoding",
+            "Oversize result descriptions",
+            "If an override-forced encode grows past the buffer, try remux/direct copy.",
+            "Stop an oversized encode before publish",
+            "Record the size overage and continue",
+            "Encode target calculation",
             "Video encoder",
             "settings-routing-video-codec-readout",
             "settings-routing-output-container-readout",
-            "Movie 1080p target output size",
-            "TV 1080p target output size",
-            "Movie 1440p target output size",
-            "TV 1440p target output size",
-            "Movie 4K target output size",
-            "TV 4K target output size",
-            "Advanced Routing Details",
-            "settings-advanced-routing-summary",
-            "How encode targets are calculated",
-            "Unknown-height movie size fallback",
-            "Unknown-height TV size fallback",
-            "Unknown-height movie bitrate fallback",
-            "Unknown-height TV bitrate fallback",
-            "Legacy 1080p bucket max height",
-            "Legacy 4K bucket min height",
+            "Movie 1080p encoded output size in GB",
+            "TV 1080p encoded output size in GB",
+            "Movie 1440p encoded output size in GB",
+            "TV 1440p encoded output size in GB",
+            "Movie 4K encoded output size in GB",
+            "TV 4K encoded output size in GB",
+            "TV / Movie targets by height",
+            "settings-builder-1080p-route-bitrate",
             "Bitrate strict, size flexible",
             "Target size strict",
             "Direct-copy bitrate strict",
@@ -381,25 +425,64 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         ):
             self.assertIn(token, html)
 
+        self.assertNotIn("settings-route-target-table", html)
+        self.assertNotIn("settings-route-target-wrap", html)
+
         for token in (
-            'id="settings-builder-1080p-upper-tolerance" type="hidden"',
             'id="settings-builder-1440p-lower-tolerance" type="hidden"',
             'id="settings-builder-1440p-upper-tolerance" type="hidden"',
+            'id="settings-boundary-1080p-end" type="hidden"',
+            'id="settings-boundary-1440p-start" type="hidden"',
+            'id="settings-boundary-1440p-end" type="hidden"',
+            'id="settings-boundary-4k-start" type="hidden"',
+            'id="settings-builder-1080p-upper-tolerance" type="hidden"',
             'id="settings-builder-4k-lower-tolerance" type="hidden"',
+            'data-settings-preserve-input-type="true"',
+            'id="settings-route-boundary-1080p-end-input" type="number" min="1080" max="1439" step="1" value="1200"',
+            'id="settings-route-boundary-4k-start-input" type="number" min="1441" max="2160" step="1" value="1800"',
+            'id="settings-bitrate-estimate-1080p"',
+            'id="settings-bitrate-estimate-1440p"',
+            'id="settings-bitrate-estimate-4k"',
         ):
             self.assertIn(token, html)
 
-        editor_start = html.index('<div class="settings-tab-pane" data-settings-tab="editor">')
+        for token in (
+            'id="settings-builder-1080p-upper-tolerance" type="hidden" min="0" max="33.240741" step="1"',
+            'id="settings-builder-4k-lower-tolerance" type="hidden" min="0" max="33.287037" step="1"',
+        ):
+            self.assertIn(token, html)
+
+        for token in (
+            "Movie GB",
+            "TV GB",
+            "1080p +",
+            "Derived buffer",
+            "4K -",
+            'id="settings-builder-1080p-upper-tolerance" type="number"',
+            'id="settings-builder-4k-lower-tolerance" type="number"',
+        ):
+            self.assertNotIn(token, html)
+
+        for token in (
+            'id="settings-builder-1080p-upper-tolerance-readout">11%</output>',
+            'id="settings-builder-1440p-lower-tolerance-readout">17%</output>',
+            'id="settings-builder-1440p-upper-tolerance-readout">25%</output>',
+            'id="settings-builder-4k-lower-tolerance-readout">17%</output>',
+        ):
+            self.assertIn(token, html)
+
+        editor_start = html.index('<div class="settings-tab-pane" data-settings-tab="routing-size">')
         active_policy_start = html.index("<h2>Active Policy</h2>", editor_start)
         routing_builder_html = html[editor_start:active_policy_start]
-        advanced_start = routing_builder_html.index('<details class="settings-advanced-disclosure">')
-        visible_routing_html = routing_builder_html[:advanced_start]
-        advanced_routing_html = routing_builder_html[advanced_start:]
+        media_output_start = html.index('<div class="settings-tab-pane" data-settings-tab="media-output">')
+        queue_runtime_start = html.index('<div class="settings-tab-pane" data-settings-tab="queue-runtime">')
+        media_output_html = html[media_output_start:queue_runtime_start]
 
-        self.assertIn('id="settings-builder-video-codec"', advanced_routing_html)
-        self.assertIn('id="settings-builder-output-container"', advanced_routing_html)
-        self.assertNotIn('id="settings-builder-video-codec"', visible_routing_html)
-        self.assertNotIn('id="settings-builder-output-container"', visible_routing_html)
+        self.assertNotIn('<details class="settings-advanced-disclosure">', routing_builder_html)
+        self.assertNotIn('id="settings-builder-video-codec"', routing_builder_html)
+        self.assertNotIn('id="settings-builder-output-container"', routing_builder_html)
+        self.assertIn('id="settings-builder-video-codec"', media_output_html)
+        self.assertIn('id="settings-builder-output-container"', media_output_html)
 
         for token in (
             "Processing Strategy",
@@ -410,7 +493,6 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "Hard route gate",
             "Post-encode guard",
             "Direct-copy cap Mbps",
-            "Height tolerance",
             "Movie target output size",
             "TV target output size",
             "Movie fallback max bitrate",
@@ -432,16 +514,35 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertNotIn("FORCES ENCODE", html)
 
         for token in (
-            "routeHeightBoundaryControlFields",
-            "normalizeRouteHeightBoundary",
+            "setRouteFirstBoundary",
+            "setRouteSecondBoundary",
             "renderRouteConsequenceSummary",
             "renderRouteAdvancedSummary",
+            "renderRouteBitrateSizeEstimates",
+            "routeEstimatedSizeGb",
+            "routeFormatDisplayPercent",
+            "settingsBuilderPreciseInputValue",
+            "routePreciseValue",
+            "routeDisplayValue",
+            "syncRouteSliderVisuals",
+            "routeRailHeightFromPointer",
+            "bindRouteRangeRailControls",
+            "applyRouteRailBoundaryHeight",
+            "routeRailStartDrag",
+            "routeRailApplyDrag",
+            "settings-route-boundary-1080p-end-input",
+            "settings-route-boundary-4k-start-input",
+            "settings-route-card-range-1080p",
+            "settings-route-card-range-1440p",
+            "settings-route-card-range-4k",
             "settings-boundary-1080p-end",
             "settings-boundary-1440p-start",
             "settings-boundary-1440p-end",
             "settings-boundary-4k-start",
         ):
             self.assertIn(token, review_js)
+
+        self.assertIn("settingsPreserveInputType", builder_controls_js)
 
     def test_advanced_encoder_controls_are_collapsed_by_default(self) -> None:
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
@@ -842,7 +943,6 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         builder_controls_js = (STATIC_ROOT / "assets" / "settings" / "builderControls.js").read_text(encoding="utf-8")
         review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
 
-        self.assertNotIn("settingsDisplayLabels", metadata_js)
         for key, label in LABEL_ONLY_RENAMES.items():
             with self.subTest(key=key):
                 self.assertEqual(backend[key]["label"], label)
@@ -853,34 +953,19 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
     def test_size_target_and_direct_copy_bitrate_labels_are_not_swapped(self) -> None:
         backend = _backend_metadata_by_key()
 
-        self.assertEqual(backend["EncodeThresholdGB"]["label"], "Movie target output size")
-        self.assertEqual(backend["EncodeThresholdGB"]["unit"], "GB")
-        self.assertIn("GB target output size", backend["EncodeThresholdGB"]["help_text"])
-        self.assertIn("not the Mbps max bitrate for direct copy", backend["EncodeThresholdGB"]["help_text"])
-        self.assertEqual(backend["TVEncodeThresholdGB"]["label"], "TV target output size")
-        self.assertEqual(backend["TVEncodeThresholdGB"]["unit"], "GB")
-        self.assertIn("GB target output size", backend["TVEncodeThresholdGB"]["help_text"])
-        self.assertIn("not the Mbps max bitrate for direct copy", backend["TVEncodeThresholdGB"]["help_text"])
         self.assertEqual(backend["MovieRoute1080pTargetSizeGB"]["label"], "Movie 1080p target output size")
+        self.assertEqual(backend["MovieRoute1080pTargetSizeGB"]["unit"], "GB")
         self.assertEqual(backend["MovieRoute1440pTargetSizeGB"]["label"], "Movie 1440p target output size")
         self.assertEqual(backend["MovieRoute4KTargetSizeGB"]["label"], "Movie 4K target output size")
         self.assertEqual(backend["TVRoute1080pTargetSizeGB"]["label"], "TV 1080p target output size")
+        self.assertEqual(backend["TVRoute1080pTargetSizeGB"]["unit"], "GB")
         self.assertEqual(backend["TVRoute1440pTargetSizeGB"]["label"], "TV 1440p target output size")
         self.assertEqual(backend["TVRoute4KTargetSizeGB"]["label"], "TV 4K target output size")
+        self.assertIn("Unknown-height movies use this 1080p target", backend["MovieRoute1080pTargetSizeGB"]["help_text"])
+        self.assertIn("Unknown-height TV uses this 1080p target", backend["TVRoute1080pTargetSizeGB"]["help_text"])
         self.assertIn("known-height movie sources", backend["MovieRoute1440pTargetSizeGB"]["help_text"])
         self.assertIn("known-height TV sources", backend["TVRoute1440pTargetSizeGB"]["help_text"])
-        self.assertEqual(backend["MovieRouteMaxVideoBitrateMbps"]["label"], "Movie fallback max bitrate")
-        self.assertEqual(backend["MovieRouteMaxVideoBitrateMbps"]["unit"], "Mbps")
-        self.assertIn("Fallback movie bitrate cap", backend["MovieRouteMaxVideoBitrateMbps"]["help_text"])
-        self.assertIn("source height is unknown", backend["MovieRouteMaxVideoBitrateMbps"]["help_text"])
-        self.assertEqual(backend["TVRouteMaxVideoBitrateMbps"]["label"], "TV fallback max bitrate")
-        self.assertEqual(backend["TVRouteMaxVideoBitrateMbps"]["unit"], "Mbps")
-        self.assertIn("Fallback TV bitrate cap", backend["TVRouteMaxVideoBitrateMbps"]["help_text"])
-        self.assertIn("source height is unknown", backend["TVRouteMaxVideoBitrateMbps"]["help_text"])
-        self.assertEqual(backend["Route1080pBucketMaxHeight"]["label"], "Legacy 1080p bucket max height")
-        self.assertIn("Compatibility pixel height", backend["Route1080pBucketMaxHeight"]["help_text"])
         self.assertEqual(backend["Route1080pMaxVideoBitrateMbps"]["unit"], "Mbps")
-        self.assertEqual(backend["Route4KBucketMinHeight"]["unit"], "pixels")
         self.assertEqual(backend["Route4KMaxVideoBitrateMbps"]["unit"], "Mbps")
 
     def test_phase3e_help_text_disambiguates_routing_encode_and_publish_copy(self) -> None:
@@ -892,8 +977,9 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertIn("Used before processing to decide copy/remux versus encode.", backend["RouteThresholdMode"]["help_text"])
         self.assertNotIn("threshold", backend["RouteThresholdMode"]["help_text"].lower())
         self.assertIn("Checked after encode.", backend["SizeGuardMode"]["help_text"])
-        self.assertIn("Warns but does not block", backend["SizeGuardMode"]["help_text"])
-        self.assertIn("Blocks publish when configured to block", backend["SizeGuardMode"]["help_text"])
+        self.assertIn("Warn-only records oversized output", backend["SizeGuardMode"]["help_text"])
+        self.assertIn("Strict blocks publish", backend["SizeGuardMode"]["help_text"])
+        self.assertIn("Fallback remux applies existing growth buffers", backend["SizeGuardMode"]["help_text"])
         self.assertIn("Applies only when encoding is required.", backend["EncodeTuningPreset"]["help_text"])
         self.assertIn("Applies only when encoding is required.", backend["VideoPreset"]["help_text"])
 
@@ -906,6 +992,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "Bitrate strict, size flexible",
             "Warn only",
             "Block publish",
+            "Try remux fallback",
             "direct-copy allowlists and fallback encode controls",
         ):
             self.assertIn(token, metadata_js + libraries_js + html)

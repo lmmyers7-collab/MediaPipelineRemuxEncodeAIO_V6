@@ -17,6 +17,7 @@ from mediapipeline.core.status.progress import (
     is_progress_stale,
     parse_progress_datetime,
 )
+from mediapipeline.core.observability.status_policy import progress_state_status
 
 
 class StatusProgressHelperTests(unittest.TestCase):
@@ -47,6 +48,10 @@ class StatusProgressHelperTests(unittest.TestCase):
         self.assertFalse(is_audit_progress_stale({"status": "completed", "completed": True, "last_update": old}))
         self.assertFalse(is_audit_progress_stale({"status": "scanning", "completed": False, "failed": False, "last_update": fresh}))
         self.assertTrue(is_audit_progress_stale({"status": "scanning", "completed": False, "failed": False, "last_update": old}, stale_after_seconds=5))
+
+    def test_progress_status_treats_stopped_as_hold_not_failure(self) -> None:
+        self.assertEqual(progress_state_status("stopped"), "warning")
+        self.assertEqual(progress_state_status("stopped", "failed"), "blocked")
 
     def test_format_audit_progress_reports_file_percent_stale_and_write_failures(self) -> None:
         old = (datetime.now() - timedelta(seconds=30)).isoformat(timespec="seconds")

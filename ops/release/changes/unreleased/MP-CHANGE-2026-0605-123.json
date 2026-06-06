@@ -1,0 +1,38 @@
+{
+  "id": "MP-CHANGE-2026-0605-123",
+  "title": "Add size guard option descriptions",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "low",
+  "date_started": "2026-06-05",
+  "date_completed": "2026-06-05",
+  "summary": "Add compact explanatory text for the Routing oversize-result choices.",
+  "reason": "The fallback-remux, block-publish, and warn-only behaviors need visible definitions next to the dropdown where the operator chooses them.",
+  "affected_areas": [
+    "settings",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The Routing oversize-result dropdown listed the choices without adjacent descriptions.",
+  "behavior_after": "The Routing oversize-result dropdown is followed by a small helper box describing Try remux fallback, Block publish, and Warn only.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/styles.pages.css",
+    "apps/desktop/webview/static/partials/page-settings.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.pages.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-settings.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0605-123.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_handbrake_settings_ui.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0605-123.json",
+    "tests/webview/test_webview_handbrake_settings_ui.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_handbrake_settings_ui.py"
+  ],
+  "manual_validation": [
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_handbrake_settings_ui -q - passed: 27 tests"
+  ],
+  "rollback_plan": "Remove the settings-size-guard-help markup and styles, then restore the previous WebView test expectations.",
+  "related_changes": [],
+  "notes": "Helper text sits below settings-builder-size-guard and describes only Try remux fallback, Block publish, and Warn only as requested."
+}

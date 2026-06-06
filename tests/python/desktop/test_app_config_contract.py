@@ -31,6 +31,16 @@ from mediapipeline.core.config.metadata import CONFIG_FIELD_DEFINITIONS
 from mediapipeline.core.config.metadata_network import NETWORK_CONFIG_DEFAULTS
 
 
+REMOVED_ROUTING_FALLBACK_KEYS = {
+    "EncodeThresholdGB",
+    "TVEncodeThresholdGB",
+    "MovieRouteMaxVideoBitrateMbps",
+    "TVRouteMaxVideoBitrateMbps",
+    "Route1080pBucketMaxHeight",
+    "Route4KBucketMinHeight",
+}
+
+
 class DummyCaptureResult:
     def __init__(self, stdout: str, returncode: int = 0, stderr: str = "") -> None:
         self.args: list[str] = []
@@ -83,25 +93,22 @@ class AppConfigContractTests(unittest.TestCase):
 
         self.assertEqual(config.RoutingProfile, "plex_direct_stream")
         self.assertEqual(config.RouteThresholdMode, "compatibility_advisory")
-        self.assertEqual(config.MovieRoute1080pTargetSizeGB, config.EncodeThresholdGB)
-        self.assertEqual(config.MovieRoute1440pTargetSizeGB, config.EncodeThresholdGB)
-        self.assertEqual(config.MovieRoute4KTargetSizeGB, config.EncodeThresholdGB)
-        self.assertEqual(config.TVRoute1080pTargetSizeGB, config.TVEncodeThresholdGB)
-        self.assertEqual(config.TVRoute1440pTargetSizeGB, config.TVEncodeThresholdGB)
-        self.assertEqual(config.TVRoute4KTargetSizeGB, config.TVEncodeThresholdGB)
-        self.assertEqual(config.MovieRouteMaxVideoBitrateMbps, 35)
-        self.assertEqual(config.TVRouteMaxVideoBitrateMbps, 18)
-        self.assertEqual(config.Route1080pBucketMaxHeight, 1200)
+        self.assertEqual(config.MovieRoute1080pTargetSizeGB, 8)
+        self.assertEqual(config.MovieRoute1440pTargetSizeGB, 8)
+        self.assertEqual(config.MovieRoute4KTargetSizeGB, 8)
+        self.assertEqual(config.TVRoute1080pTargetSizeGB, 3)
+        self.assertEqual(config.TVRoute1440pTargetSizeGB, 3)
+        self.assertEqual(config.TVRoute4KTargetSizeGB, 3)
         self.assertAlmostEqual(config.Route1080pUpperHeightTolerancePercent, 11.111111, places=6)
         self.assertEqual(config.Route1080pMaxVideoBitrateMbps, 20)
         self.assertAlmostEqual(config.Route1440pLowerHeightTolerancePercent, 16.597222, places=6)
         self.assertAlmostEqual(config.Route1440pUpperHeightTolerancePercent, 24.930556, places=6)
         self.assertEqual(config.Route1440pMaxVideoBitrateMbps, 35)
         self.assertAlmostEqual(config.Route4KLowerHeightTolerancePercent, 16.666667, places=6)
-        self.assertEqual(config.Route4KBucketMinHeight, 1800)
         self.assertEqual(config.Route4KMaxVideoBitrateMbps, 35)
         self.assertEqual(config.ConsoleLogLevel, "DEBUG")
         self.assertEqual(data["UnknownOperatorKey"], "preserve")
+        self.assertEqual(REMOVED_ROUTING_FALLBACK_KEYS & set(data), set())
         self.assertEqual(list(order_top_level_config({"zz": 1, "SourceMovies": 2, "aa": 3})), ["SourceMovies", "aa", "zz"])
 
     def test_psd1_loader_uses_single_import_command_and_builds_config(self) -> None:

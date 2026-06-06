@@ -1,0 +1,66 @@
+{
+  "id": "MP-CHANGE-2026-0605-002",
+  "title": "Fix review-found safety regressions",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-05",
+  "date_completed": "2026-06-05",
+  "summary": "Fix review-found queue override validation, worktree change-packet coverage, release metadata, release packaging exclusions, and operator path documentation.",
+  "reason": "The review found a series exact-selector safety gap, overly broad strict worktree coverage, stale dirty build metadata, an unsafe local root-artifact capture, and wrong release script paths.",
+  "affected_areas": [
+    "change_control",
+    "docs",
+    "file_overrides",
+    "release_metadata",
+    "release_packaging",
+    "tests"
+  ],
+  "behavior_before": "Series file overrides could batch-save exact audio/subtitle selectors without validating every eligible row, strict worktree coverage could accept unrelated dirty files through broad directory entries, package metadata carried a stale dirty suffix, and release docs referenced nonexistent script paths.",
+  "behavior_after": "Series exact selectors are validated for every eligible row before preview/apply can succeed, strict worktree coverage requires exact file entries, committed package metadata no longer carries a dirty suffix, release policy excludes local root artifacts, and release docs point at canonical scripts.",
+  "files_touched": [
+    ".gitignore",
+    "CHANGELOG.md",
+    "Docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1.md",
+    "Docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0604-040.json.md",
+    "Docs/generated/summaries/ops/scripts/release/release_policy.ps1.md",
+    "Docs/generated/summaries/src/mediapipeline/core/api/commands_file_overrides.py.md",
+    "Docs/generated/summaries/src/mediapipeline/core/api/file_overrides/series.py.md",
+    "Docs/generated/summaries/src/mediapipeline/tools/change_control/packet_coverage.py.md",
+    "Docs/generated/summaries/tests/python/desktop/test_file_override_tracks.py.md",
+    "Docs/generated/summaries/tests/python/tooling/test_change_control.py.md",
+    "apps/desktop/tauri/src-tauri/tauri.conf.json",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0605-002.json.md",
+    "ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0605-002.json",
+    "ops/release/metadata/RELEASE_MANIFEST.json",
+    "ops/scripts/release/release_policy.ps1",
+    "pyproject.toml",
+    "src/mediapipeline/core/api/commands_file_overrides.py",
+    "src/mediapipeline/core/api/file_overrides/series.py",
+    "src/mediapipeline/tools/change_control/packet_coverage.py",
+    "tests/python/desktop/test_file_override_tracks.py",
+    "tests/python/tooling/test_change_control.py"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1",
+    "tests/python/desktop/test_file_override_tracks.py",
+    "tests/python/tooling/test_change_control.py"
+  ],
+  "manual_validation": [
+    "PYTHONPATH=src python -m unittest tests.python.desktop.test_file_override_tracks tests.python.tooling.test_change_control -v - passed (53 tests)",
+    "Test-Path docs/archive/root-artifacts/CON.txt and src/mediapipeline.egg-info - both absent",
+    "check_active_doc_references - passed",
+    "git diff --check on touched files and generated summaries - passed",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1 - passed",
+    "rg stale release paths / stale dirty version metadata - no matches",
+    "validate_changes --require-diff-coverage master - passed (61 packets valid)",
+    "validate_changes --require-worktree-coverage - failed only for unrelated uncovered dirty files outside this packet"
+  ],
+  "rollback_plan": "Revert the series exact-selector validation callback, packet coverage exact-worktree mode, metadata normalization, release-policy root-artifact exclusion, changelog path edits, and focused regression tests.",
+  "related_changes": [
+    "MP-CHANGE-2026-0604-040"
+  ],
+  "notes": "High risk because Queue file overrides can affect subtitle/audio selection, but this change blocks unsafe exact-selector batches and does not alter FFmpeg command generation or runtime audio/subtitle policy."
+}

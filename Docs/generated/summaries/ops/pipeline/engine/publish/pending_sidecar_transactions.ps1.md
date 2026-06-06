@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: publish
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: fb403c7e3491a84ac5034b011e338738a58269010200a20da5e8c4d1693c0f9a
+sha256: 0a68946a8ef2443abdf6ad48e81aa897ed53e29eb458a8c3a88ea912c60e8841
 ---
 # `ops/pipeline/engine/publish/pending_sidecar_transactions.ps1`
 

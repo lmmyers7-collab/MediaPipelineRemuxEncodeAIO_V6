@@ -1,0 +1,49 @@
+{
+  "id": "MP-CHANGE-2026-0605-111",
+  "title": "Make retryable failure marker clears available from Reports",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-05",
+  "date_completed": "2026-06-05",
+  "summary": "Fix Reports failure rows where retryable Will retry statuses can be shown without a working marker clear action.",
+  "reason": "Operators need to clear active retryable failure markers through the backend command path when the root cause has been handled; row-level clear controls should not silently become unusable for retryable failure rows with marker evidence.",
+  "affected_areas": [
+    "failures",
+    "local_api",
+    "reports",
+    "webview"
+  ],
+  "behavior_before": "Retryable latest-failure rows could display Will retry while the Clear error control remained disabled or ineffective when marker matching evidence was incomplete.",
+  "behavior_after": "Retryable Reports failure rows can match active markers by source path or per-file job/stage/error evidence, and successful marker clears switch the view to active failure markers so stale latest-report rows do not make the clear look ineffective.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/reportsView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/reportsView.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0605-111.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/failures/policy.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_reports.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_reports_view_static.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0605-111.json",
+    "src/mediapipeline/core/failures/policy.py",
+    "tests/python/desktop/test_application_facade_reports.py",
+    "tests/python/desktop/test_reports_view_static.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_reports.py",
+    "tests/python/desktop/test_reports_view_static.py"
+  ],
+  "manual_validation": [
+    "PYTHONPATH=src python -m unittest tests.python.desktop.test_application_facade_reports tests.python.desktop.test_reports_view_static - passed",
+    "PYTHONPATH=src python -m unittest tests.python.desktop.test_facade_failures_policy tests.python.desktop.test_service_failure_markers - passed",
+    "PYTHONPATH=src python -m unittest tests.webview.test_webview_browser_maintenance_reports_smoke.WebViewBrowserMaintenanceReportsSmoke.test_real_browser_renders_maintenance_reports_and_clear_error_payloads - failed before failure-clear assertions: unrelated Reports audit score-policy assertion",
+    "PYTHONPATH=src python -m unittest tests.webview.test_webview_frontend_mutation_boundary - passed",
+    "npm run webview:check - passed",
+    "pytest targeted failure/report tests - blocked: bundled Python has no pytest module",
+    "refresh_summaries --paths packet - passed",
+    "refresh_summaries --paths touched files - passed"
+  ],
+  "rollback_plan": "Revert the failure preview/WebView clear changes and focused tests. Existing backend marker cleanup safeguards and media files remain untouched.",
+  "related_changes": [],
+  "notes": ""
+}

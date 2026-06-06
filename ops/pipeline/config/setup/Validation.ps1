@@ -116,7 +116,7 @@ function Invoke-Validation {
         $failures.Add("VideoPreset '$($Config['VideoPreset'])' is not valid for codec '$($Config['VideoCodec'])'.")
     }
 
-    foreach ($key in @('EncodeThresholdGB','TVEncodeThresholdGB','MinFreeSpaceGB','OutsourceMinFreeSpaceGB','VideoQuality','FFmpegEncodeTimeoutSeconds','FFmpegRemuxTimeoutSeconds','LogRetentionDays','FallbackCpuQuality','SourceScanIntervalSeconds','ProcessedIndexRefreshSeconds')) {
+    foreach ($key in @('MovieRoute1080pTargetSizeGB','TVRoute1080pTargetSizeGB','MinFreeSpaceGB','OutsourceMinFreeSpaceGB','VideoQuality','FFmpegEncodeTimeoutSeconds','FFmpegRemuxTimeoutSeconds','LogRetentionDays','FallbackCpuQuality','SourceScanIntervalSeconds','ProcessedIndexRefreshSeconds')) {
         if ($Config.ContainsKey($key)) {
             try {
                 if ([double]$Config[$key] -le 0) {
@@ -206,10 +206,10 @@ function Invoke-Validation {
         }
     }
 
-    if ($Config.ContainsKey('MinFreeSpaceGB') -and $Config.ContainsKey('EncodeThresholdGB')) {
+    if ($Config.ContainsKey('MinFreeSpaceGB') -and $Config.ContainsKey('MovieRoute1080pTargetSizeGB')) {
         try {
-            if ([double]$Config['MinFreeSpaceGB'] -lt [double]$Config['EncodeThresholdGB']) {
-                $warnings.Add("MinFreeSpaceGB is lower than EncodeThresholdGB. Large encodes may still run out of scratch space.")
+            if ([double]$Config['MinFreeSpaceGB'] -lt [double]$Config['MovieRoute1080pTargetSizeGB']) {
+                $warnings.Add("MinFreeSpaceGB is lower than MovieRoute1080pTargetSizeGB. Large encodes may still run out of scratch space.")
             }
         } catch { }
     }

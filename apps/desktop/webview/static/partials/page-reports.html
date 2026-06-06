@@ -18,10 +18,43 @@
             <strong id="report-warning-count">0</strong>
           </section>
         </div>
+        <section class="panel report-triage-panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Report Triage</h2>
+            <strong id="report-triage-band-status">Waiting</strong>
+          </div>
+          <div class="metric-grid">
+            <section class="metric">
+              <span class="metric-label">Next Action</span>
+              <strong id="report-triage-next-action">Load reports</strong>
+            </section>
+            <section class="metric">
+              <span class="metric-label">Action Owner</span>
+              <strong id="report-triage-action-owner">Reports</strong>
+            </section>
+            <section class="metric">
+              <span class="metric-label">Failure Review</span>
+              <strong id="report-triage-failure-count">0</strong>
+            </section>
+            <section class="metric">
+              <span class="metric-label">Audit Review</span>
+              <strong id="report-triage-audit-count">0</strong>
+            </section>
+            <section class="metric">
+              <span class="metric-label">Warnings</span>
+              <strong id="report-triage-warning-count">0</strong>
+            </section>
+            <section class="metric">
+              <span class="metric-label">Latest Reports</span>
+              <strong id="report-triage-report-state">Not loaded</strong>
+            </section>
+          </div>
+          <pre id="report-triage-band-detail" class="prose-block">No report triage loaded.</pre>
+        </section>
         <div class="settings-tab-bar reports-tab-bar" role="tablist" aria-label="Reports sections">
           <button type="button" class="settings-tab-btn" role="tab" data-reports-tab="failures" aria-selected="true">Failures</button>
           <button type="button" class="settings-tab-btn" role="tab" data-reports-tab="audit" aria-selected="false">Audit</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-reports-tab="files" aria-selected="false">Files</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-reports-tab="files" aria-selected="false">Locations</button>
         </div>
 
 <section class="panel settings-tab-pane is-active reports-tab-panel" data-reports-tab-panel="failures" data-panel-type="interactive">
@@ -39,6 +72,17 @@
             Filter failures
             <input id="failure-filter" type="search" autocomplete="off" placeholder="Title, path, stage, code, reason">
           </label>
+          <div class="action-row action-row-left wrap-actions report-filter-chips" role="toolbar" aria-label="Failure report filters">
+            <button type="button" class="secondary-button" data-failure-filter-chip="all" aria-pressed="true">All</button>
+            <button type="button" class="secondary-button" data-failure-filter-chip="needs_operator" aria-pressed="false">Needs operator</button>
+            <button type="button" class="secondary-button" data-failure-filter-chip="will_retry" aria-pressed="false">Will retry</button>
+            <button type="button" class="secondary-button" data-failure-filter-chip="blocked" aria-pressed="false">Blocked</button>
+            <button type="button" class="secondary-button" data-failure-filter-chip="publish" aria-pressed="false">Publish</button>
+            <button type="button" class="secondary-button" data-failure-filter-chip="queue" aria-pressed="false">Queue</button>
+            <button type="button" class="secondary-button" data-failure-filter-chip="subtitle" aria-pressed="false">Subtitle</button>
+            <button type="button" class="secondary-button" data-failure-filter-chip="audio" aria-pressed="false">Audio</button>
+            <button type="button" class="secondary-button" data-failure-filter-chip="warnings" aria-pressed="false">Warnings</button>
+          </div>
           <div class="option-grid option-grid-compact">
             <label class="check-row"><input id="failure-source-markers" type="checkbox"> Use failure markers</label>
           </div>
@@ -49,12 +93,14 @@
                   <th scope="col">Select</th>
                   <th scope="col">Status</th>
                   <th scope="col">File</th>
+                  <th scope="col">Evidence</th>
                   <th scope="col">Suggested fix</th>
+                  <th scope="col">Owner</th>
                   <th scope="col">Actions</th>
                 </tr>
               </thead>
               <tbody id="failure-rows">
-                <tr><td colspan="5">No failure rows loaded.</td></tr>
+                <tr><td colspan="7">No failure rows loaded.</td></tr>
               </tbody>
             </table>
           <div class="empty-state" data-empty-state="hidden" style="display:none">
@@ -66,7 +112,7 @@
           <pre id="failure-detail" class="prose-block">No failure row selected.</pre>
           <div id="failure-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
           <div class="panel-heading panel-subheading">
-            <h3>Clear Errors</h3>
+            <h3>Marker Cleanup</h3>
             <strong id="failure-clear-status">No clear action</strong>
           </div>
           <div class="action-row action-row-left wrap-actions">
@@ -93,7 +139,75 @@
 
 <section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Audit Controls</h2>
+            <h2>Audit Log</h2>
+            <strong id="audit-preview-status">No rows</strong>
+          </div>
+          <pre id="audit-preview-summary" class="prose-block">No audit preview loaded.</pre>
+          <label class="filter-field">
+            Filter audit rows
+            <input id="audit-preview-filter" type="search" autocomplete="off" placeholder="Title, path, bucket, issue, action">
+          </label>
+          <div class="action-row action-row-left wrap-actions report-filter-chips" role="toolbar" aria-label="Audit report filters">
+            <button type="button" class="secondary-button" data-audit-filter-chip="all" aria-pressed="true">All</button>
+            <button type="button" class="secondary-button" data-audit-filter-chip="rerun" aria-pressed="false">Rerun</button>
+            <button type="button" class="secondary-button" data-audit-filter-chip="redownload" aria-pressed="false">Redownload</button>
+            <button type="button" class="secondary-button" data-audit-filter-chip="review" aria-pressed="false">Review</button>
+            <button type="button" class="secondary-button" data-audit-filter-chip="high" aria-pressed="false">High</button>
+            <button type="button" class="secondary-button" data-audit-filter-chip="subtitle" aria-pressed="false">Subtitle</button>
+            <button type="button" class="secondary-button" data-audit-filter-chip="audio" aria-pressed="false">Audio</button>
+            <button type="button" class="secondary-button" data-audit-filter-chip="duplicates" aria-pressed="false">Duplicates</button>
+          </div>
+          <div class="option-grid option-grid-compact">
+            <label class="check-row"><input id="audit-preview-priority-only" type="checkbox"> Use latest priority CSV</label>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Select</th>
+                  <th scope="col" class="num">Score</th>
+                  <th scope="col">Priority</th>
+                  <th scope="col">Bucket</th>
+                  <th scope="col">Media</th>
+                  <th scope="col">Title</th>
+                  <th scope="col">Issue</th>
+                  <th scope="col">Owner</th>
+                </tr>
+              </thead>
+              <tbody id="audit-preview-rows">
+                <tr><td colspan="8">No audit rows loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Audit not loaded</span>
+            <span class="empty-state-hint">Audit rows appear here after the pipeline produces an audit CSV.</span>
+          </div>
+          </div>
+          <p id="audit-preview-table-legend" class="note table-legend">Audit rows: no selectable rows.</p>
+          <pre id="audit-preview-detail" class="prose-block">No audit row selected.</pre>
+          <div id="audit-preview-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
+          <div class="panel-heading panel-subheading">
+            <h3>Selected Audit Row Actions</h3>
+            <strong id="report-audit-export-status">No export</strong>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" id="report-audit-ignore-selected-button" class="secondary-button">Ignore Selected</button>
+            <button type="button" id="report-audit-export-rerun-csv-button" class="secondary-button">Export Rerun CSV</button>
+          </div>
+          <pre id="report-audit-export-detail" class="prose-block">No audit rerun CSV export submitted.</pre>
+        </section>
+
+<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Audit Entries</h2>
+            <strong id="audit-review-status">Not loaded</strong>
+          </div>
+          <pre id="audit-review-board" class="prose-block">No audit review board loaded.</pre>
+        </section>
+
+<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Audit Policy</h2>
             <strong id="report-audit-score-policy-status">Not loaded</strong>
           </div>
           <pre id="report-audit-score-policy-summary" class="prose-block">No audit score policy loaded.</pre>
@@ -160,66 +274,9 @@
           </details>
         </section>
 
-<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="interactive">
-          <div class="panel-heading">
-            <h2>Audit Log</h2>
-            <strong id="audit-preview-status">No rows</strong>
-          </div>
-          <pre id="audit-preview-summary" class="prose-block">No audit preview loaded.</pre>
-          <label class="filter-field">
-            Filter audit rows
-            <input id="audit-preview-filter" type="search" autocomplete="off" placeholder="Title, path, bucket, issue, action">
-          </label>
-          <div class="option-grid option-grid-compact">
-            <label class="check-row"><input id="audit-preview-priority-only" type="checkbox"> Use latest priority CSV</label>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Select</th>
-                  <th scope="col" class="num">Score</th>
-                  <th scope="col">Priority</th>
-                  <th scope="col">Bucket</th>
-                  <th scope="col">Media</th>
-                  <th scope="col">Title</th>
-                  <th scope="col">Issue</th>
-                </tr>
-              </thead>
-              <tbody id="audit-preview-rows">
-                <tr><td colspan="7">No audit rows loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">Audit not loaded</span>
-            <span class="empty-state-hint">Audit rows appear here after the pipeline produces an audit CSV.</span>
-          </div>
-          </div>
-          <p id="audit-preview-table-legend" class="note table-legend">Audit rows: no selectable rows.</p>
-          <pre id="audit-preview-detail" class="prose-block">No audit row selected.</pre>
-          <div id="audit-preview-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
-          <div class="panel-heading panel-subheading">
-            <h3>Audit Row Actions</h3>
-            <strong id="report-audit-export-status">No export</strong>
-          </div>
-          <div class="action-row action-row-left wrap-actions">
-            <button type="button" id="report-audit-ignore-selected-button" class="secondary-button">Ignore Selected</button>
-            <button type="button" id="report-audit-export-rerun-csv-button" class="secondary-button">Export Rerun CSV</button>
-          </div>
-          <pre id="report-audit-export-detail" class="prose-block">No audit rerun CSV export submitted.</pre>
-        </section>
-
-<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Audit Entries</h2>
-            <strong id="audit-review-status">Not loaded</strong>
-          </div>
-          <pre id="audit-review-board" class="prose-block">No audit review board loaded.</pre>
-        </section>
-
 <section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="files" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Report Summary</h2>
+            <h2>Report Support Summary</h2>
             <strong id="report-triage-status">Not loaded</strong>
           </div>
           <pre id="report-triage" class="prose-block">No report triage loaded.</pre>
@@ -235,14 +292,29 @@
 
 <section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="files" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Warnings</h2>
+            <h2>Actionable Warnings</h2>
+            <strong id="report-warning-status">No warnings</strong>
           </div>
-          <pre id="report-warnings" class="prose-block">No snapshot warnings.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Severity</th>
+                  <th scope="col">Warning</th>
+                  <th scope="col">Owner</th>
+                  <th scope="col">Next Action</th>
+                </tr>
+              </thead>
+              <tbody id="report-warning-rows">
+                <tr><td colspan="4">No snapshot warnings.</td></tr>
+              </tbody>
+            </table>
+          </div>
         </section>
 
 <section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="files" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Report Paths</h2>
+            <h2>Latest Report Paths</h2>
             <strong id="report-path-status">No paths</strong>
           </div>
           <div class="table-wrap detail-table-wrap">
@@ -267,7 +339,7 @@
 
 <section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="files" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Report Locations</h2>
+            <h2>Report Roots</h2>
             <strong id="report-root-status">No roots</strong>
           </div>
           <div class="table-wrap detail-table-wrap">
@@ -295,6 +367,9 @@
             <h2>Recently Opened</h2>
             <strong id="report-open-history-status">No opens</strong>
           </div>
-          <pre id="report-open-history" class="prose-block">No report open command history loaded.</pre>
+          <details id="report-open-history-disclosure" class="settings-advanced-disclosure">
+            <summary>Report open history</summary>
+            <pre id="report-open-history" class="prose-block">No report open command history loaded.</pre>
+          </details>
         </section>
       </section>

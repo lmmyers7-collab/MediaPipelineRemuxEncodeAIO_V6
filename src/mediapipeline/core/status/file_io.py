@@ -8,6 +8,7 @@ from typing import Any
 
 
 TAIL_READ_CHUNK_SIZE = 8192
+STATUS_TAIL_MAX_BYTES = 262_144
 
 
 def read_json_file(path: Path, *, retries: int = 1, delay_seconds: float = 0.05) -> Any | None:
@@ -26,21 +27,35 @@ def read_json_file(path: Path, *, retries: int = 1, delay_seconds: float = 0.05)
     return None
 
 
-def tail_text_file(path: Path, *, line_count: int, encoding: str = "utf-8") -> str:
+def tail_text_file(
+    path: Path,
+    *,
+    line_count: int,
+    encoding: str = "utf-8",
+    max_bytes: int = STATUS_TAIL_MAX_BYTES,
+) -> str:
     if line_count <= 0:
         return ""
+    try:
+        byte_limit = max(1, int(max_bytes))
+    except (TypeError, ValueError):
+        byte_limit = STATUS_TAIL_MAX_BYTES
 
     with path.open("rb") as handle:
         handle.seek(0, os.SEEK_END)
         file_size = handle.tell()
         buffer = b""
         newline_count = 0
-        while file_size > 0 and newline_count <= line_count:
-            read_size = min(TAIL_READ_CHUNK_SIZE, file_size)
+        bytes_read = 0
+        while file_size > 0 and newline_count <= line_count and bytes_read < byte_limit:
+            read_size = min(TAIL_READ_CHUNK_SIZE, file_size, byte_limit - bytes_read)
+            if read_size <= 0:
+                break
             file_size -= read_size
             handle.seek(file_size)
             chunk = handle.read(read_size)
             buffer = chunk + buffer
+            bytes_read += len(chunk)
             newline_count += chunk.count(b"\n")
 
     text = buffer.decode(encoding, errors="replace")
@@ -48,8 +63,14 @@ def tail_text_file(path: Path, *, line_count: int, encoding: str = "utf-8") -> s
     return "\n".join(lines)
 
 
-def tail_jsonl_file(path: Path, *, line_count: int, encoding: str = "utf-8") -> list[dict[str, Any]]:
-    text = tail_text_file(path, line_count=line_count, encoding=encoding)
+def tail_jsonl_file(
+    path: Path,
+    *,
+    line_count: int,
+    encoding: str = "utf-8",
+    max_bytes: int = STATUS_TAIL_MAX_BYTES,
+) -> list[dict[str, Any]]:
+    text = tail_text_file(path, line_count=line_count, encoding=encoding, max_bytes=max_bytes)
     events: list[dict[str, Any]] = []
     for raw_line in text.splitlines():
         line = raw_line.strip().lstrip("\ufeff")

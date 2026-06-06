@@ -602,6 +602,160 @@ class FinalLibraryPromotionTests(unittest.TestCase):
             self.assertTrue(outsource.exists())
             self.assertFalse((outsource / "Movies").exists())
 
+    def test_sidecar_destination_conflict_rolls_back_primary_promotion(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            outsource = root / "Outsource"
+            dest = root / "Final"
+            source = root / "Source" / "Movie.mkv"
+            output = outsource / "Movies" / "Movie.mkv"
+            sidecar = output.with_suffix(".en.srt")
+            existing_sidecar = dest / "Movies" / "Movie.en.srt"
+            output.parent.mkdir(parents=True)
+            existing_sidecar.parent.mkdir(parents=True)
+            source.parent.mkdir(parents=True)
+            source.write_bytes(b"source")
+            output.write_bytes(b"media")
+            sidecar.write_text("new subtitle", encoding="utf-8")
+            existing_sidecar.write_text("old subtitle", encoding="utf-8")
+            resolved = _resolved(
+                root,
+                outsource,
+                {
+                    KEY_FINAL_LIBRARY_PROMOTION_RULES: [
+                        {"id": "movies", "enabled": True, "source_root": str(root / "Source"), "destination_root": str(dest)}
+                    ],
+                    KEY_FINAL_LIBRARY_PROMOTION_VERIFICATION_MODE: "fast",
+                },
+            )
+            item = promotion_status_payload(resolved, [_record(source, output)])["items"][0]
+
+            evidence = promote_item(item, promotion_settings_from_config(resolved.config_data))
+
+            self.assertFalse(evidence["success"])
+            self.assertEqual(evidence["copied_files"], [])
+            self.assertIn("Destination file already exists", json.dumps(evidence["failures"]))
+            self.assertFalse((dest / "Movies" / "Movie.mkv").exists())
+            self.assertEqual(existing_sidecar.read_text(encoding="utf-8"), "old subtitle")
+            self.assertTrue(output.exists())
+            self.assertTrue(sidecar.exists())
+
+    def test_sidecar_final_verification_failure_rolls_back_revealed_primary(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            outsource = root / "Outsource"
+            dest = root / "Final"
+            source = root / "Source" / "Movie.mkv"
+            output = outsource / "Movies" / "Movie.mkv"
+            sidecar = output.with_suffix(".en.srt")
+            output.parent.mkdir(parents=True)
+            dest.mkdir()
+            source.parent.mkdir(parents=True)
+            source.write_bytes(b"source")
+            output.write_bytes(b"media")
+            sidecar.write_text("subtitle", encoding="utf-8")
+            resolved = _resolved(
+                root,
+                outsource,
+                {
+                    KEY_FINAL_LIBRARY_PROMOTION_RULES: [
+                        {"id": "movies", "enabled": True, "source_root": str(root / "Source"), "destination_root": str(dest)}
+                    ],
+                    KEY_FINAL_LIBRARY_PROMOTION_VERIFICATION_MODE: "fast",
+                },
+            )
+            item = promotion_status_payload(resolved, [_record(source, output)])["items"][0]
+            final_sidecar = dest / "Movies" / "Movie.en.srt"
+            real_verify = promotion_transfer.verify_copy
+
+            def fail_sidecar_final_verification(check_source, check_destination, mode):
+                if Path(check_destination) == final_sidecar:
+                    return {
+                        "source_path": str(check_source),
+                        "destination_path": str(check_destination),
+                        "mode": mode,
+                        "exists": True,
+                        "size_match": True,
+                        "ok": False,
+                        "error": "forced sidecar final verification failure",
+                    }
+                return real_verify(check_source, check_destination, mode)
+
+            with patch.object(promotion_transfer, "verify_copy", side_effect=fail_sidecar_final_verification):
+                evidence = promote_item(item, promotion_settings_from_config(resolved.config_data))
+
+            self.assertFalse(evidence["success"])
+            self.assertEqual(evidence["copied_files"], [])
+            self.assertIn("forced sidecar final verification failure", json.dumps(evidence["failures"]))
+            rolled_destinations = {entry["destination_path"] for entry in evidence["rolled_back_files"]}
+            self.assertIn(str(dest / "Movies" / "Movie.mkv"), rolled_destinations)
+            self.assertIn(str(final_sidecar), rolled_destinations)
+            self.assertEqual(evidence["rollback_errors"], [])
+            self.assertFalse((dest / "Movies" / "Movie.mkv").exists())
+            self.assertFalse(final_sidecar.exists())
+            self.assertTrue(output.exists())
+            self.assertTrue(sidecar.exists())
+
+    def test_overwrite_primary_restored_when_later_sidecar_transaction_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            outsource = root / "Outsource"
+            dest = root / "Final"
+            source = root / "Source" / "Movie.mkv"
+            output = outsource / "Movies" / "Movie.mkv"
+            sidecar = output.with_suffix(".en.srt")
+            existing_primary = dest / "Movies" / "Movie.mkv"
+            output.parent.mkdir(parents=True)
+            existing_primary.parent.mkdir(parents=True)
+            source.parent.mkdir(parents=True)
+            source.write_bytes(b"source")
+            output.write_bytes(b"new media")
+            sidecar.write_text("subtitle", encoding="utf-8")
+            existing_primary.write_bytes(b"old media")
+            resolved = _resolved(
+                root,
+                outsource,
+                {
+                    KEY_FINAL_LIBRARY_PROMOTION_RULES: [
+                        {"id": "movies", "enabled": True, "source_root": str(root / "Source"), "destination_root": str(dest)}
+                    ],
+                    KEY_FINAL_LIBRARY_PROMOTION_VERIFICATION_MODE: "fast",
+                    KEY_FINAL_LIBRARY_PROMOTION_OVERWRITE_EXISTING: True,
+                },
+            )
+            item = promotion_status_payload(resolved, [_record(source, output)])["items"][0]
+            final_sidecar = dest / "Movies" / "Movie.en.srt"
+            real_verify = promotion_transfer.verify_copy
+
+            def fail_sidecar_final_verification(check_source, check_destination, mode):
+                if Path(check_destination) == final_sidecar:
+                    return {
+                        "source_path": str(check_source),
+                        "destination_path": str(check_destination),
+                        "mode": mode,
+                        "exists": True,
+                        "size_match": True,
+                        "ok": False,
+                        "error": "forced sidecar final verification failure",
+                    }
+                return real_verify(check_source, check_destination, mode)
+
+            with patch.object(promotion_transfer, "verify_copy", side_effect=fail_sidecar_final_verification):
+                evidence = promote_item(item, promotion_settings_from_config(resolved.config_data))
+
+            self.assertFalse(evidence["success"])
+            self.assertEqual(evidence["copied_files"], [])
+            rolled_primary = [
+                entry for entry in evidence["rolled_back_files"] if entry["destination_path"] == str(existing_primary)
+            ]
+            self.assertEqual(len(rolled_primary), 1)
+            self.assertTrue(rolled_primary[0]["restored_existing"])
+            self.assertEqual(evidence["rollback_errors"], [])
+            self.assertEqual(existing_primary.read_bytes(), b"old media")
+            self.assertFalse(final_sidecar.exists())
+            self.assertTrue(output.exists())
+            self.assertTrue(sidecar.exists())
+
     def test_destructive_overwrite_replaces_existing_final_file_when_enabled(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
@@ -1039,7 +1193,7 @@ class FinalLibraryPromotionWebViewSettingsTests(unittest.TestCase):
         settings_script_text = settings_js + "\n" + settings_patch_review_js
         metadata_js = (static_root / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
 
-        self.assertIn('data-settings-tab="paths"', settings_html)
+        self.assertIn('data-settings-tab="publish-recovery"', settings_html)
         self.assertIn("settings-final-library-enabled", settings_html)
         self.assertIn("settings-final-library-rules-rows", settings_html)
         self.assertIn("Preview Final Library Settings", settings_html)

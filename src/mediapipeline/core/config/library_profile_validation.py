@@ -6,7 +6,7 @@ from typing import Any
 
 from mediapipeline.core.config.numeric_policy import validate_required_and_numeric_config
 from mediapipeline.core.config.option_policy import validate_option_config
-from mediapipeline.desktop.config_keys import KEY_LIBRARY_PROFILES
+from mediapipeline.core.kernel.config_keys import KEY_LIBRARY_PROFILES
 
 from .library_profile_defaults import (
     DEFAULT_LIBRARY_IDS,

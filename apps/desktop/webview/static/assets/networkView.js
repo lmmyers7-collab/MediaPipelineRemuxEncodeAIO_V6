@@ -86,24 +86,34 @@
   function networkGuidance(role) {
     if (role === "coordinator") {
       return [
-        "Role: coordinator",
-        "Coordinator config is controlled from Worker Mode Settings on this tab.",
-        "Coordinator lifecycle controls remain backend-owned until lifecycle routes and tests exist.",
-        "Workers claim jobs only after the coordinator queue is populated.",
+        "Saved role: coordinator",
+        "Saved coordinator config is controlled from Saved Worker Mode Settings on this tab.",
+        "Runtime lifecycle command controls remain absent until backend routes and tests exist.",
+        "Worker claim evidence is read from persisted worker state after the coordinator queue is populated.",
       ];
     }
     if (role === "worker") {
       return [
-        "Role: worker",
+        "Saved role: worker",
         "This worker polls the configured coordinator URL and launches backend-owned single-file pipeline jobs.",
-        "Worker URL, name, poll interval, path map, and overrides are controlled from Worker Mode Settings on this tab.",
+        "Worker URL, name, poll interval, path map, and overrides are controlled from Saved Worker Mode Settings on this tab.",
         "Use Diagnostics to inspect RunLogs and ActiveJobs when worker claims fail or are reclaimed.",
       ];
     }
     return [
-      `Role: ${role || "standalone"}`,
+      `Saved role: ${role || "standalone"}`,
       "Standalone mode keeps all processing local to this workstation.",
-      "Use Worker Mode Settings on this tab to stage role changes through backend settings Preview/Save.",
+      "Use Saved Worker Mode Settings on this tab to stage role changes through backend settings Preview/Save.",
+    ];
+  }
+
+  function networkModeModelLines(role) {
+    return [
+      `Current saved role: ${role || "standalone"}`,
+      "Standalone: local queue work only on this workstation.",
+      "Coordinator: owns queue claims and worker registry state.",
+      "Worker: polls a coordinator and runs claimed single-file jobs.",
+      "Runtime authority: WebView displays saved settings and read-only evidence; backend routes own lifecycle commands.",
     ];
   }
 
@@ -173,6 +183,64 @@
     ].join(" ");
   }
 
+  function networkLifecycleMutationRouteCount(contract) {
+    const routes = Array.isArray(contract?.routes) ? contract.routes : [];
+    const networkRoutePrefix = ["/api", "network"].join("/") + "/";
+    return routes.filter((route) => {
+      const path = String(route?.path || "");
+      const method = String(route?.method || "GET").toUpperCase();
+      const effect = String(route?.effect || "").toLowerCase();
+      const isReadOnly = method === "GET" && (!effect || effect === "none");
+      return path.startsWith(networkRoutePrefix) && !isReadOnly;
+    }).length;
+  }
+
+  function networkLifecycleBoundaryStatus({ closeReadiness, contract } = {}) {
+    if (!contract?.schema_version) return "Not loaded";
+    const unsafeClose = closeReadiness && typeof closeReadiness === "object" && closeReadiness.safe_to_close === false;
+    if (unsafeClose) return "Blocked by active work";
+    return "Read-only boundary";
+  }
+
+  function networkLifecycleBoundaryLines({ closeReadiness, contract, networkWorkers } = {}) {
+    const lifecycleSummary = contract?.network_lifecycle_summary || {};
+    const mutationRoutes = networkLifecycleMutationRouteCount(contract);
+    const workerRouteLoaded = routeExists(contract, "/api/network/workers", "GET");
+    const workerSource = networkWorkers?.source || "not loaded";
+    const unsafeClose = closeReadiness && typeof closeReadiness === "object" && closeReadiness.safe_to_close === false;
+    return [
+      "Lifecycle owner: backend Network diagnostics / Python dispatcher.",
+      closeReadinessLine(closeReadiness),
+      `Persisted worker state source: ${workerSource}`,
+      `Read-only worker route: ${workerRouteLoaded ? "available" : "missing"} (GET /api/network/workers, effect=none).`,
+      `Lifecycle mutation routes: ${mutationRoutes ? `present (${mutationRoutes})` : "absent"}.`,
+      `Design-only lifecycle contracts: ${networkLifecycleContracts(contract).length}; frontend allowed=${lifecycleSummary.frontend_allowed ? "yes" : "no"}.`,
+      unsafeClose
+        ? "Safe next step: leave network role/settings and lifecycle planning unchanged until close-readiness is safe."
+        : "Safe next step: inspect persisted worker evidence and Diagnostics; runtime command controls stay outside this tab until backend routes, journal evidence, and no-mutation tests exist.",
+    ];
+  }
+
+  function networkRouteSummaryStatus(contract) {
+    if (!contract?.schema_version) return "Not loaded";
+    const workerRouteLoaded = routeExists(contract, "/api/network/workers", "GET");
+    const mutationRoutes = networkLifecycleMutationRouteCount(contract);
+    if (workerRouteLoaded && mutationRoutes === 0) return "Read-only route";
+    return "Review";
+  }
+
+  function networkRouteSummaryLines(contract) {
+    const workerRouteLoaded = routeExists(contract, "/api/network/workers", "GET");
+    const lifecycleContracts = networkLifecycleContracts(contract);
+    const lifecycleSummary = contract?.network_lifecycle_summary || {};
+    return [
+      `Workers evidence route: ${workerRouteLoaded ? "GET /api/network/workers available with effect=none" : "GET /api/network/workers missing or not loaded"}.`,
+      `Lifecycle mutation routes: ${networkLifecycleMutationRouteCount(contract) ? "present - review contract before showing controls" : "absent"}.`,
+      `Lifecycle contract posture: ${lifecycleContracts.length ? "design-only lifecycle contracts only" : "not published"}; mutation enabled=${lifecycleSummary.mutation_enabled ? "yes" : "no"}.`,
+      "Deep API contract detail remains in Advanced and Diagnostics/Contract surfaces.",
+    ];
+  }
+
   function networkOpenTargets() {
     return ["run_logs", "cluster_log", "active_jobs", "config", "state"];
   }
@@ -189,7 +257,10 @@
   }
 
   function networkSettingsPatchStatusText() {
-    return byId("settings-patch-status")?.textContent || "No patch";
+    const raw = byId("settings-patch-status")?.textContent || "none";
+    const text = String(raw || "none").trim();
+    if (!text || text.toLowerCase() === "no patch") return "Staged Patch: none";
+    return text.toLowerCase().startsWith("staged patch:") ? text : `Staged Patch: ${text}`;
   }
 
   function renderNetworkSettingsPatchHandoff(message = "") {
@@ -207,11 +278,11 @@
     setText("network-settings-control-status", patchStatus);
     setText("network-settings-patch-handoff", [
       message,
-      `Shared settings patch status: ${patchStatus}`,
+      `Saved settings patch status: ${patchStatus}`,
       `Staged keys: ${patchKeys.length ? patchKeys.join(", ") : "none"}`,
       "Preview Settings Patch calls the backend settings preview route and does not write the PSD1.",
       "Save Worker Settings calls the backend settings save route, asks for confirmation, and creates the normal config backup before writing.",
-      "Runtime boundary: these controls do not start, stop, claim, reclaim, release, abort, or retry coordinator/worker jobs.",
+      "Runtime boundary: these controls only stage, preview, and save config. Coordinator/worker lifecycle command controls are not exposed on this tab.",
     ].filter(Boolean).join("\n"));
   }
 
@@ -223,9 +294,9 @@
       return;
     }
     setText("network-settings-control-status", "Previewing...");
-    renderNetworkSettingsPatchHandoff("Previewing staged Worker Mode Settings through backend validation.");
+    renderNetworkSettingsPatchHandoff("Previewing staged Saved Worker Mode Settings through backend validation.");
     await preview();
-    renderNetworkSettingsPatchHandoff("Worker Mode Settings preview command finished.");
+    renderNetworkSettingsPatchHandoff("Saved Worker Mode Settings preview command finished.");
   }
 
   async function saveNetworkSettingsPatch() {
@@ -236,9 +307,9 @@
       return;
     }
     setText("network-settings-control-status", "Saving...");
-    renderNetworkSettingsPatchHandoff("Saving staged Worker Mode Settings through the backend settings route.");
+    renderNetworkSettingsPatchHandoff("Saving staged Saved Worker Mode Settings through the backend settings route.");
     await save();
-    renderNetworkSettingsPatchHandoff("Worker Mode Settings save command finished.");
+    renderNetworkSettingsPatchHandoff("Saved Worker Mode Settings save command finished.");
   }
 
   function isNetworkOpenCommand(entry) {
@@ -313,7 +384,7 @@
 
   function networkReadinessLines({ role, config, closeReadiness, snapshot, contract }) {
     const lines = [
-      `Role: ${role || "standalone"}`,
+      `Saved role: ${role || "standalone"}`,
       closeReadinessLine(closeReadiness),
       snapshotStateLine(snapshot),
       "Lifecycle owner: backend Network diagnostics / Python dispatcher.",
@@ -326,7 +397,7 @@
         `Coordinator encodes locally: ${configFlagText(config, "CoordinatorAlsoEncodeLocally", "not configured")}`,
         `Heartbeat timeout: ${displayConfigValue(config, "CoordinatorHeartbeatTimeoutMins", "not configured")} minute(s)`,
         "Worker board source: persisted runtime state from /api/network/workers; live dispatcher lifecycle rows remain backend-owned.",
-        "Next step: start/stop coordinator and inspect live workers in the backend Network diagnostics until lifecycle ownership moves behind backend commands."
+        "Next step: inspect persisted worker evidence and backend Network diagnostics before trusting coordinator health."
       );
     } else if (role === "worker") {
       lines.push(
@@ -335,7 +406,7 @@
         "Network auth: backend-owned secret, not displayed by WebView.",
         `Poll interval: ${displayConfigValue(config, "WorkerPollIntervalSecs", "not configured")} second(s)`,
         `Source path map: ${networkPathMapStatus(config)}`,
-        "Next step: use backend Network diagnostics for worker start/stop; use Diagnostics for RunLogs and ActiveJobs when claims fail or are reclaimed."
+        "Next step: use backend Network diagnostics for worker lifecycle evidence; use Diagnostics for RunLogs and ActiveJobs when claims fail or are reclaimed."
       );
     } else {
       lines.push(
@@ -363,6 +434,15 @@
         contract: payload.contract || {},
       }).join("\n")
     );
+    const boundaryPayload = {
+      closeReadiness: payload.closeReadiness,
+      contract: payload.contract || {},
+      networkWorkers: payload.networkWorkers || {},
+    };
+    setText("network-lifecycle-boundary-status", networkLifecycleBoundaryStatus(boundaryPayload));
+    setText("network-lifecycle-boundary-summary", networkLifecycleBoundaryLines(boundaryPayload).join("\n"));
+    setText("network-route-summary-status", networkRouteSummaryStatus(payload.contract || {}));
+    setText("network-route-summary", networkRouteSummaryLines(payload.contract || {}).join("\n"));
   }
 
   function networkLifecycleStatusState(status) {
@@ -418,9 +498,9 @@
       roleText === "standalone" ? "ready" : "review",
       `role=${roleText}; coordinator=${coordinatorTarget(config)}; auth=backend-owned secret not displayed; path map=${networkPathMapStatus(config)}`,
       roleText === "worker"
-        ? "Before trusting worker mode, verify coordinator URL, auth token, and source path map from Worker Mode Settings and backend Network."
+        ? "Before trusting worker mode, verify coordinator URL, auth token, and source path map from Saved Worker Mode Settings and backend Network."
         : roleText === "coordinator"
-          ? "Before trusting coordinator mode, verify bind/port/auth token and local-encode policy from Worker Mode Settings and backend Network."
+          ? "Before trusting coordinator mode, verify bind/port/auth token and local-encode policy from Saved Worker Mode Settings and backend Network."
           : "Standalone role has no distributed lifecycle to promote.",
       [
         `NetworkRole: ${roleText}`,
@@ -1220,16 +1300,21 @@
   function networkWorkerProgressSummaryLines(progress) {
     const payload = progress && typeof progress === "object" ? progress : {};
     const lines = Array.isArray(payload.summary_lines) && payload.summary_lines.length
-      ? payload.summary_lines.map((line) => String(line || ""))
+      ? payload.summary_lines.map((line) => String(line || "")
+        .replace(/^Worker progress:/, "Last reported worker progress:")
+        .replace(
+          /^Mutation guardrail: Network progress is read-only persisted runtime evidence;/,
+          "Mutation guardrail: Last reported network progress is read-only persisted runtime evidence;"
+        ))
       : [
-        `Worker progress: ${payload.status || "not loaded"}`,
+        `Last reported worker progress: ${payload.status || "not loaded"}`,
         `Progress bars: ${payload.bar_count || 0}`,
         `Active worker bars: ${payload.active_count || 0}`,
       ];
     lines.push(
       "",
       "Safe interpretation:",
-      "- Active bars reflect persisted coordinator/worker runtime state, not a lifecycle command surface.",
+      "- Active bars reflect last reported persisted coordinator/worker runtime state, not a lifecycle command surface.",
       "- Stale or blocked bars should be cross-checked with Cluster Log, ActiveJobs, Run Logs, and Last Stderr before retries.",
       "Mutation guardrail: this panel does not start/stop workers, reclaim jobs, release claims, send done reports, mutate queue state, or touch media files."
     );
@@ -1243,9 +1328,9 @@
     const bars = Array.isArray(progress.progress_bars) ? progress.progress_bars : [];
     setText("network-worker-progress-status", networkWorkerProgressStatus(progress));
     if (typeof renderProgressBarsInto === "function") {
-      renderProgressBarsInto("network-worker-progress-bars", bars, progress, "No worker progress loaded.");
+      renderProgressBarsInto("network-worker-progress-bars", bars, progress, "No last reported worker progress loaded.");
     } else {
-      setText("network-worker-progress-bars", bars.length ? bars.map((bar) => `${bar.label || bar.id || "Worker"}: ${bar.status || "unknown"} ${bar.percent ?? ""}%`).join("\n") : "No worker progress loaded.");
+      setText("network-worker-progress-bars", bars.length ? bars.map((bar) => `${bar.label || bar.id || "Worker"}: ${bar.status || "unknown"} ${bar.percent ?? ""}%`).join("\n") : "No last reported worker progress loaded.");
     }
     setText("network-worker-progress-summary", networkWorkerProgressSummaryLines(progress).join("\n"));
   }
@@ -1259,7 +1344,7 @@
     renderNetworkWorkerFilterSummary(rows, visibleRows);
     if (!rows.length) {
       selectedNetworkWorkerKey = "";
-      clearRows(tbody, 9, "No persisted worker rows. Use backend network lifecycle commands only after they are implemented, or inspect cluster.log for worker events.");
+      clearRows(tbody, 9, "No persisted worker rows. Inspect cluster.log, ActiveJobs, or state files before inferring worker lifecycle health.");
       updateTableStatusLegend("network-worker-table-legend", tbody, "Network worker rows");
       renderNetworkWorkerDetail(null);
       return;
@@ -1343,15 +1428,16 @@
         : `${rows.length} worker row${rows.length === 1 ? "" : "s"}`
     );
     const lines = [
-      `Source: ${payload.source || "runtime_state_files"}`,
-      `Role: ${payload.role || "unknown"}`,
-      `Active workers: ${payload.active_count || 0}`,
-      `Idle workers: ${payload.idle_count || 0}`,
-      `Session completed: ${payload.session_completed || 0}`,
-      `Session failed: ${payload.session_failed || 0}`,
-      `Coordinator state: ${payload.coordinator_inflight_path || "not resolved"}`,
-      `Worker state: ${payload.worker_state_path || "not resolved"}`,
-      `Cluster log: ${payload.cluster_log_path || "not resolved"}`,
+      payload.error ? `Persisted worker state: unavailable (${payload.error})` : "Persisted worker state: loaded",
+      `State source: ${payload.source || "runtime_state_files"}`,
+      `Runtime evidence role: ${payload.role || "unknown"}`,
+      `Last reported active workers: ${payload.active_count || 0}`,
+      `Last reported idle workers: ${payload.idle_count || 0}`,
+      `Session completed from persisted state: ${payload.session_completed || 0}`,
+      `Session failed from persisted state: ${payload.session_failed || 0}`,
+      `Coordinator state file: ${payload.coordinator_inflight_path || "not resolved"}`,
+      `Worker state file: ${payload.worker_state_path || "not resolved"}`,
+      `Cluster log file: ${payload.cluster_log_path || "not resolved"}`,
       ...networkStateFileCompactLines(payload.state_files || []),
       "Lifecycle controls remain backend-owned. This panel is read-only persisted state, not a live coordinator control surface.",
     ];
@@ -1389,6 +1475,7 @@
     setText("network-local-api", localApiState);
     setText("network-status", settings.error ? "Settings unavailable" : "Read-only");
     setText("network-summary", guidance.join("\n"));
+    setText("network-mode-model", networkModeModelLines(role).join("\n"));
     setText("network-api-status", contract?.schema_version || "Not loaded");
     setText("network-api-summary", contractSummary(contract));
     renderNetworkReadiness(payload, role, config);

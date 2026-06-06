@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 import hashlib
 import json
 import re
@@ -31,6 +31,7 @@ SERIES_PREVIEW_POST_KEYS = frozenset({"path", "proposed_override"})
 SERIES_APPLY_POST_KEYS = frozenset({"path", "proposed_override", "confirm_apply", "preview_fingerprint"})
 SERIES_BATCH_SCOPE = "series_current_queue"
 SERIES_BATCH_ORIGIN = "series_batch"
+ExactSelectorValidator = Callable[[Mapping[str, Any], str], tuple[list[str], list[str]]]
 
 _SEASON_FOLDER_RE = re.compile(r"^(season\s*\d+|s\d+|specials?|ovas?|ova|season\s*0+)$", re.IGNORECASE)
 
@@ -72,6 +73,7 @@ def file_override_series_preview_payload(
     source_path: str,
     proposed_override: dict[str, Any],
     validation_warnings: list[str] | None = None,
+    exact_selector_validator: ExactSelectorValidator | None = None,
 ) -> dict[str, Any]:
     manifest_path = getattr(resolved, "file_overrides_path", None)
     if manifest_path is None:
@@ -98,9 +100,14 @@ def file_override_series_preview_payload(
 
     manifest = read_file_overrides(Path(manifest_path))
     preview_rows = _series_preview_rows(rows, selected_identity, manifest)
+    exact_selector_blockers = _series_exact_selector_blockers(
+        proposed_override,
+        preview_rows,
+        exact_selector_validator,
+    )
     counts = _series_counts(preview_rows)
-    blockers: list[str] = []
-    if counts["eligible_update_count"] <= 0:
+    blockers: list[str] = list(exact_selector_blockers)
+    if counts["eligible_update_count"] <= 0 and not blockers:
         blockers.append("No eligible current queue rows would be updated.")
 
     warnings = _warning_rows(validation_warnings or [])
@@ -145,6 +152,7 @@ def file_override_series_apply_payload(
     proposed_override: dict[str, Any],
     preview_fingerprint: str,
     validation_warnings: list[str] | None = None,
+    exact_selector_validator: ExactSelectorValidator | None = None,
 ) -> dict[str, Any]:
     manifest_path = getattr(resolved, "file_overrides_path", None)
     if manifest_path is None:
@@ -155,6 +163,7 @@ def file_override_series_apply_payload(
         source_path=source_path,
         proposed_override=proposed_override,
         validation_warnings=validation_warnings,
+        exact_selector_validator=exact_selector_validator,
     )
     if not preview.get("ok"):
         return _series_apply_error(str(preview.get("message") or "Series preview is blocked."), preview.get("blockers"))
@@ -403,6 +412,34 @@ def _series_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
         if action in {"will_update", "replace_prior_batch"}:
             counts["eligible_update_count"] += 1
     return counts
+
+
+def _series_exact_selector_blockers(
+    proposed_override: Mapping[str, Any],
+    preview_rows: list[dict[str, Any]],
+    exact_selector_validator: ExactSelectorValidator | None,
+) -> list[str]:
+    if exact_selector_validator is None:
+        return []
+
+    blockers: list[str] = []
+    for row in preview_rows:
+        if str(row.get("action") or "") not in {"will_update", "replace_prior_batch"}:
+            continue
+        source_path = str(row.get("source_path") or "").strip()
+        if not source_path:
+            continue
+        errors, warnings = exact_selector_validator(proposed_override, source_path)
+        row_blockers = list(dict.fromkeys([*(str(error) for error in errors), *(str(warning) for warning in warnings)]))
+        row_blockers = [message for message in row_blockers if message.strip()]
+        if not row_blockers:
+            continue
+        row["action"] = "issue"
+        row["reason"] = "Exact track selector validation failed for this row."
+        row["validation_errors"] = row_blockers
+        display_name = str(row.get("display_name") or Path(source_path).name or source_path).strip()
+        blockers.extend(f"{display_name}: {message}" for message in row_blockers)
+    return blockers
 
 
 def _proposed_field_paths(data: Mapping[str, Any]) -> list[str]:

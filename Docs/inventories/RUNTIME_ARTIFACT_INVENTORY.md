@@ -146,7 +146,7 @@ Full allowlist with mutation-safety notes: `docs/operator/DIAGNOSTICS_READ_ONLY_
 
 ## See Also
 
-- State layout summary: `docs/TLDR.md` (Runtime State section)
+- Current operating state: `docs/CURRENT_PROJECT_STATE.md`
 - Diagnostics target runbook: `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`
 - Failure triage: `docs/operator/FAILURE_TRIAGE_WORKSHEET.md`
 - Route and mutation ownership: `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`

@@ -101,6 +101,7 @@ def _node_runner_source() -> str:
 
         function makeElement(id = "") {
           let text = "";
+          const listeners = {};
           const node = {
             id,
             value: "",
@@ -110,24 +111,71 @@ def _node_runner_source() -> str:
             style: {},
             children: [],
             classList: makeClassList(),
-            appendChild(child) { this.children.push(child); return child; },
-            append(...children) { this.children.push(...children); },
-            replaceChildren(...children) { this.children = children; },
-            querySelectorAll() { return []; },
-            querySelector() { return null; },
-            closest() { return null; },
-            addEventListener() {},
-            removeEventListener() {},
+            parentNode: null,
+            parentElement: null,
+            appendChild(child) {
+              this.children.push(child);
+              child.parentNode = this;
+              child.parentElement = this;
+              if (id) texts[id] = this.textContent;
+              return child;
+            },
+            append(...children) { children.forEach((child) => this.appendChild(child)); },
+            replaceChildren(...children) {
+              this.children = [];
+              children.forEach((child) => this.appendChild(child));
+              if (id) texts[id] = this.textContent;
+            },
+            querySelectorAll(selector) { return queryDescendants(this, selector); },
+            querySelector(selector) { return queryDescendants(this, selector)[0] || null; },
+            closest(selector) {
+              let current = this.parentElement;
+              while (current) {
+                if (matchesSelector(current, selector)) return current;
+                current = current.parentElement;
+              }
+              return null;
+            },
+            addEventListener(type, fn) {
+              if (!listeners[type]) listeners[type] = [];
+              listeners[type].push(fn);
+            },
+            removeEventListener(type, fn) {
+              if (!listeners[type]) return;
+              listeners[type] = listeners[type].filter((candidate) => candidate !== fn);
+            },
+            dispatchEvent(event) {
+              if (!event || !event.type) throw new Error("dispatchEvent requires an event type");
+              event.target = event.target || this;
+              event.currentTarget = this;
+              if (typeof event.preventDefault !== "function") {
+                event.preventDefault = function () { this.defaultPrevented = true; };
+              }
+              if (typeof event.stopPropagation !== "function") {
+                event.stopPropagation = function () { this.propagationStopped = true; };
+              }
+              (listeners[event.type] || []).forEach((fn) => fn(event));
+              return !event.defaultPrevented;
+            },
             setAttribute(name, value) { this[name] = String(value); },
             getAttribute(name) { return this[name] || ""; },
             focus() {},
-            click() {},
+            click(eventProps = {}) {
+              return this.dispatchEvent(Object.assign({
+                type: "click",
+                bubbles: true,
+                ctrlKey: false,
+                metaKey: false,
+                shiftKey: false,
+              }, eventProps));
+            },
             scrollIntoView() {},
           };
           Object.defineProperty(node, "textContent", {
-            get() { return text; },
+            get() { return text + this.children.map((child) => child.textContent || "").join(""); },
             set(value) {
               text = value === null || value === undefined ? "" : String(value);
+              this.children = [];
               if (id) texts[id] = text;
             },
           });
@@ -139,6 +187,42 @@ def _node_runner_source() -> str:
             },
           });
           return node;
+        }
+
+        function dataKey(name) {
+          return String(name || "").replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+        }
+
+        function matchesSelector(node, selector) {
+          const normalized = String(selector || "").trim();
+          if (!node || !normalized) return false;
+          if (normalized === "*") return true;
+          const tag = String(node.tagName || node.nodeName || "").toLowerCase();
+          if (/^[a-z][a-z0-9-]*$/i.test(normalized)) {
+            return tag === normalized.toLowerCase();
+          }
+          if (normalized.startsWith("#") && !normalized.includes(" ")) {
+            return node.id === normalized.slice(1);
+          }
+          const dataMatch = normalized.match(/^([a-z0-9-]+)?\[data-([a-z0-9-]+)(?:="([^"]*)")?\]$/i);
+          if (dataMatch) {
+            const wantedTag = dataMatch[1] ? dataMatch[1].toLowerCase() : "";
+            if (wantedTag && tag !== wantedTag) return false;
+            const value = node.dataset ? node.dataset[dataKey(dataMatch[2])] : undefined;
+            return dataMatch[3] === undefined ? value !== undefined : String(value) === dataMatch[3];
+          }
+          return false;
+        }
+
+        function queryDescendants(root, selector) {
+          const matches = [];
+          function visit(node) {
+            if (!node) return;
+            if (matchesSelector(node, selector)) matches.push(node);
+            (node.children || []).forEach(visit);
+          }
+          (root.children || []).forEach(visit);
+          return matches;
         }
 
         const context = {
@@ -270,11 +354,24 @@ def _node_runner_source() -> str:
           media_type: index === 1 ? "episode" : "movie",
         }));
         context.renderQueue({ ok: true, rows: priorityRows, count: priorityRows.length, snapshot_exists: true });
-        context.selectQueueRow(priorityRows[0]);
-        context.selectQueueRow(priorityRows[1], { ctrlKey: true });
+        function queueRenderedRows() {
+          return Array.from(context.document.getElementById("queue-rows").children)
+            .filter((row) => row.dataset && row.dataset.rowKey);
+        }
+        let renderedPriorityRows = queueRenderedRows();
+        if (renderedPriorityRows.length !== 3) {
+          throw new Error(`expected three rendered priority rows, got ${renderedPriorityRows.length}`);
+        }
+        renderedPriorityRows[0].click();
+        renderedPriorityRows = queueRenderedRows();
+        renderedPriorityRows[1].click({ ctrlKey: true });
         const selectedPriorityRows = context.mediaPipelineQueueView.getSelectedQueuePriorityRows();
         if (selectedPriorityRows.length !== 2) {
           throw new Error(`expected two selected priority rows, got ${selectedPriorityRows.length}`);
+        }
+        const selectedRenderedRows = queueRenderedRows().filter((row) => row.classList.contains("is-selected"));
+        if (selectedRenderedRows.length !== 2) {
+          throw new Error(`expected two visibly selected priority rows, got ${selectedRenderedRows.length}`);
         }
         const selectedPriorityNames = selectedPriorityRows.map((row) => row.display_name).join(", ");
         if (!selectedPriorityNames.includes("Priority Smoke 1") || !selectedPriorityNames.includes("Priority Smoke 2")) {
@@ -287,9 +384,13 @@ def _node_runner_source() -> str:
         if (priorityItems.some((item) => item.level !== "low" || item.reason !== "multi-select smoke" || !item.path.includes("Priority/Smoke"))) {
           throw new Error(`unexpected priority payload items: ${JSON.stringify(priorityItems)}`);
         }
-        context.selectQueueRow(priorityRows[2], { shiftKey: true });
+        renderedPriorityRows = queueRenderedRows();
+        renderedPriorityRows[2].click({ shiftKey: true });
         if (context.mediaPipelineQueueView.getSelectedQueuePriorityRows().length !== 3) {
           throw new Error("shift selection should include the visible range");
+        }
+        if (queueRenderedRows().filter((row) => row.classList.contains("is-selected")).length !== 3) {
+          throw new Error("shift selection should visibly select the rendered range");
         }
 
         requireText("completed-detail", [
@@ -811,10 +912,30 @@ def _node_runner_source() -> str:
             runtime_outcome_freshness_status: "fresh",
             runtime_outcome_error_code: "publish_missing_output",
             runtime_outcome_reason: "Completed manifest points at a missing file.",
+            primary_concern: "completed row points to a missing output",
+            safe_next_action: "Read Completed Manifest and Pending Publish before rerun.",
+            audio_decision_count: 2,
+            subtitle_decision_count: 4,
             proof_summary: ["completed manifest row exists", "output file is missing", "sidecar proof is missing"],
           })];
           context.renderCompleted(riskCompleted);
           context.selectCompletedRow(riskCompleted.rows[0]);
+          requireText("completed-selected-summary", [
+            "Output unavailable",
+            "Primary concern",
+            "completed row points to a missing output",
+            "Recommended next check",
+            "Read Completed Manifest and Pending Publish before rerun.",
+            "Route",
+            "Size change",
+            "+110%",
+            "Audio tracks",
+            "2",
+            "Subtitle tracks",
+            "4",
+            "Current table visibility",
+            "Authority: this summary is read-only",
+          ]);
           ["+0.8%", "-0.9%"].forEach((deltaLabel) => {
             const healthySmallDeltaRow = Object.assign({}, riskCompleted.rows[0], {
               output_exists: true,

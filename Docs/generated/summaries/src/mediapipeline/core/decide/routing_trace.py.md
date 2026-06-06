@@ -3,9 +3,9 @@ file: src/mediapipeline/core/decide/routing_trace.py
 pipeline_stage: decide
 token_priority: high
 owner_domain: decide
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 65262399b11c3e78d744d9d83f5e99ddd94af8efb153cc00c2f4b5d6bec4cbf0
+sha256: de67aa5687f5334ea800c39100bef1b1a809792c86901ab79e59f4c3c5c85595
 ---
 # `src/mediapipeline/core/decide/routing_trace.py`
 

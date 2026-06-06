@@ -267,13 +267,33 @@ def _progress_active(progress: Mapping[str, Any]) -> bool:
     return True
 
 
+def _truthy_progress_value(progress: Mapping[str, Any], *keys: str) -> bool:
+    for key in keys:
+        text = str(progress.get(key) or "").strip().casefold()
+        if text in {"1", "true", "yes", "y"}:
+            return True
+    return False
+
+
+def _progress_stop_requested(progress: Mapping[str, Any]) -> bool:
+    if _truthy_progress_value(progress, "StopRequested", "stop_requested"):
+        return True
+    error_code = _text_from_mapping(progress, "ErrorCode", "error_code").casefold()
+    reason = _text_from_mapping(progress, "Reason", "reason").casefold()
+    return error_code == "stop_requested" or ("stop" in reason and "operator" in reason)
+
+
 def _progress_status_state(progress: Mapping[str, Any], *, stale: bool) -> str:
     if stale:
         return "warning"
     status = _text_from_mapping(progress, "Status", "status")
     stage = _text_from_mapping(progress, "CurrentStage", "current_stage")
     text = f"{status} {stage}".casefold()
-    if any(token in text for token in ("failed", "error", "blocked", "killed", "stopped")):
+    if any(token in text for token in ("failed", "error", "blocked", "killed")):
+        return "blocked"
+    if "stopped" in text and _progress_stop_requested(progress):
+        return "warning"
+    if "stopped" in text:
         return "blocked"
     if any(token in text for token in ("processing", "running", "active", "publishing", "copying", "encoding", "remuxing", "scanning", "retry")):
         return "running"

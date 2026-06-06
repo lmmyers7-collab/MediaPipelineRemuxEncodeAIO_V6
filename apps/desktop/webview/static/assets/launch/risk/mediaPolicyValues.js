@@ -25,26 +25,6 @@
   }
 
   function launchRouteHeightBoundaries(config) {
-    const percentKeys = [
-      "Route1080pUpperHeightTolerancePercent",
-      "Route1440pLowerHeightTolerancePercent",
-      "Route1440pUpperHeightTolerancePercent",
-      "Route4KLowerHeightTolerancePercent",
-    ];
-    const hasPercentKeys = percentKeys.some((key) => {
-      const value = launchSettingsConfigValue(config, key);
-      return value !== undefined && value !== null && String(value).trim() !== "";
-    });
-    if (!hasPercentKeys) {
-      const route1080pMaxHeight = Math.round(launchSettingsNumber(launchSettingsConfigValue(config, "Route1080pBucketMaxHeight"), 1200));
-      const route4kMinHeight = Math.round(launchSettingsNumber(launchSettingsConfigValue(config, "Route4KBucketMinHeight"), 1800));
-      return {
-        route1080pMaxHeight,
-        route1440pMinHeight: route1080pMaxHeight + 1,
-        route1440pMaxHeight: route4kMinHeight - 1,
-        route4kMinHeight,
-      };
-    }
     return {
       route1080pMaxHeight: launchRouteMaxHeightFromUpperTolerance(
         1080,

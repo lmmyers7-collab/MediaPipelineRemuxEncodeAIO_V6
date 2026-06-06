@@ -172,7 +172,7 @@
         ? "Use this as the intended pilot candidate, then compare route, source, output, and validation evidence after the run."
         : "Select or load a single known Queue row before treating the pilot as operator-proof.",
       [
-        `Queue launch decision rows: ${queueDecisionRows.length}`,
+        `Queue-to-Launch handoff rows: ${queueDecisionRows.length}`,
         `Queue source root: ${queuePayload?.source || "(not reported)"}`,
         `Display filters do not change backend launch scope.`,
         "Boundary: this row cannot select, reorder, launch, or mutate queue state.",

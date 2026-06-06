@@ -425,6 +425,70 @@ class ApplicationFacadePendingPublishTests(unittest.TestCase):
         self.assertEqual(row["signal"], "same_leaf_hint")
         self.assertIn("duplicate-title", row["safe_next_action"])
 
+    def test_publish_reconciliation_normalizes_final_proof_paths_without_filesystem_existence(self) -> None:
+        completed = {
+            "rows": [
+                {
+                    "source_path": r"\\?\UNC\Server\Share\Source\Café\Movie.mkv",
+                    "output_path": r"C:/Outsource//Movies/Café/Movie.mkv",
+                    "output_file": "Movie.mkv",
+                }
+            ],
+            "count": 1,
+        }
+        pending = {
+            "rows": [
+                {
+                    "source_path": r"\\server/share/Source/Café/Movie.mkv",
+                    "server_out": r"c:\outsource\movies\Café\Movie.mkv",
+                    "local_file": r"C:\Pending\Movie.mkv",
+                    "state": "parked",
+                    "ready_to_drain": True,
+                }
+            ],
+            "count": 1,
+        }
+
+        preview = publish_reconciliation_from_payloads(completed, pending).to_mapping()
+
+        self.assertEqual(preview["exact_pending_destination_count"], 1)
+        self.assertEqual(preview["exact_pending_source_count"], 1)
+        signals = {row["signal"] for row in preview["rows"]}
+        self.assertIn("pending_destination_overlap", signals)
+        self.assertIn("completed_source_still_pending", signals)
+
+    def test_publish_reconciliation_same_leaf_absolute_paths_remain_weak_evidence(self) -> None:
+        completed = {
+            "rows": [
+                {
+                    "source_path": r"C:\Source\A\Movie.mkv",
+                    "output_path": r"C:\Outsource\Movies\Movie.mkv",
+                    "output_file": "Movie.mkv",
+                }
+            ],
+            "count": 1,
+        }
+        pending = {
+            "rows": [
+                {
+                    "source_path": r"C:\Source\B\Movie.mkv",
+                    "server_out": r"C:\Outsource\Other Library\Movie.mkv",
+                    "local_file": r"C:\Pending\Movie.mkv",
+                    "state": "parked",
+                    "ready_to_drain": True,
+                }
+            ],
+            "count": 1,
+        }
+
+        preview = publish_reconciliation_from_payloads(completed, pending).to_mapping()
+
+        self.assertEqual(preview["exact_pending_destination_count"], 0)
+        self.assertEqual(preview["exact_pending_source_count"], 0)
+        self.assertEqual(preview["same_leaf_hint_count"], 1)
+        self.assertEqual(preview["rows"][0]["signal"], "same_leaf_hint")
+        self.assertIn("duplicate-title", preview["rows"][0]["safe_next_action"])
+
     def test_pending_publish_open_uses_backend_row_key_not_frontend_paths(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -452,15 +516,30 @@ class ApplicationFacadePendingPublishTests(unittest.TestCase):
             resolved = _resolved(root)
             resolved.pending_push_path = pending_root
             service = DummyWorkflowFacadeService(root)
+            default_opened_paths: list[Path] = []
+
+            def open_with_default_app(path: Path | str | None) -> None:
+                if path is None:
+                    raise FileNotFoundError("Path does not exist: <none>")
+                target = Path(path)
+                if not target.exists():
+                    raise FileNotFoundError(f"Path does not exist: {target}")
+                default_opened_paths.append(target)
+
+            service.open_path_with_default_app = open_with_default_app  # type: ignore[attr-defined]
             facade = MediaPipelineApplicationFacade(service)
             preview = facade.get_pending_publish_preview(resolved).to_mapping()
             row_key = preview["rows"][0]["row_key"]
 
+            played_payload = facade.open_pending_publish_location(resolved, {"row_key": row_key, "target": "play_local_file"})
             opened_payload = facade.open_pending_publish_location(resolved, {"row_key": row_key, "target": "local_file"})
             opened_manifest = facade.open_pending_publish_location(resolved, {"row_key": row_key, "target": "manifest"})
             opened_destination = facade.open_pending_publish_location(resolved, {"row_key": row_key, "target": "destination_folder"})
             rejected = facade.open_pending_publish_location(resolved, {"row_key": row_key, "target": str(root / "secret.txt")})
 
+        self.assertTrue(played_payload.ok)
+        self.assertEqual(played_payload.data["target"], "play_local_file")
+        self.assertEqual(default_opened_paths, [payload])
         self.assertTrue(opened_payload.ok)
         self.assertEqual(opened_payload.command, "pending_publish.open")
         self.assertEqual(opened_payload.data["target"], "local_file")

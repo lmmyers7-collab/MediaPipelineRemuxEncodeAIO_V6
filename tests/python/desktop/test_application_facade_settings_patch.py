@@ -23,11 +23,11 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
             resolved.config_data = {
                 "RoutingProfile": "plex_direct_stream",
                 "SizeGuardMode": "advisory",
-                "ApiToken": "secret-token",
+                "CoordinatorAuthToken": "secret-token",
             }
 
             preview = facade.preview_settings_patch(resolved, {"changes": {"RoutingProfile": "plex_direct_play"}})
-            rejected = facade.preview_settings_patch(resolved, {"changes": {"ApiToken": "<redacted>"}})
+            rejected = facade.preview_settings_patch(resolved, {"changes": {"CoordinatorAuthToken": "<redacted>"}})
 
         self.assertTrue(preview.ok)
         self.assertEqual(preview.command, "settings.preview_patch")
@@ -43,6 +43,50 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
         self.assertEqual(preview.data["risk_summary"]["total_count"], 0)
         self.assertFalse(rejected.ok)
         self.assertIn("redacted display placeholder", "\n".join(rejected.errors))
+
+    def test_settings_patch_rejects_noncanonical_known_key_spelling(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {"RoutingProfile": "plex_direct_stream"}
+
+            canonical = facade.preview_settings_patch(resolved, {"changes": {"RoutingProfile": "plex_direct_play"}})
+            case_variant = facade.preview_settings_patch(resolved, {"changes": {"routingprofile": "not-a-real-choice"}})
+            remove_variant = facade.preview_settings_patch(resolved, {"changes": {}, "remove_keys": ["routingprofile"]})
+            unknown = facade.preview_settings_patch(resolved, {"changes": {"UnknownExperimentalKey": "enabled"}})
+
+        self.assertTrue(canonical.ok)
+        self.assertIn("RoutingProfile", canonical.data["changed_keys"])
+        self.assertFalse(case_variant.ok)
+        self.assertIn("Invalid settings key: 'routingprofile'; use canonical key RoutingProfile.", "\n".join(case_variant.errors))
+        self.assertNotIn("routingprofile", case_variant.data["changed_keys"])
+        self.assertFalse(remove_variant.ok)
+        self.assertIn("Invalid remove key: 'routingprofile'; use canonical key RoutingProfile.", "\n".join(remove_variant.errors))
+        self.assertFalse(unknown.ok)
+        self.assertIn("Unknown config key UnknownExperimentalKey", "\n".join(unknown.errors))
+        self.assertNotIn("UnknownExperimentalKey", unknown.data["changed_keys"])
+
+    def test_settings_patch_rejects_existing_case_duplicate_config(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            config_path = root / "config.psd1"
+            config_path.write_text("@{ RoutingProfile = 'old' }\n", encoding="utf-8")
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_path = config_path
+            resolved.config_data = {"RoutingProfile": "plex_direct_stream", "routingprofile": "plex_direct_play"}
+
+            preview = facade.preview_settings_patch(resolved, {"changes": {"SizeGuardMode": "advisory"}})
+            saved = facade.save_settings_patch(resolved, {"changes": {"SizeGuardMode": "advisory"}, "confirm_save": True})
+
+        self.assertFalse(preview.ok)
+        self.assertIn("use canonical key RoutingProfile", "\n".join(preview.errors))
+        self.assertIn("duplicate keys for RoutingProfile", "\n".join(preview.errors))
+        self.assertFalse(saved.ok)
+        self.assertEqual(service.saved_config_calls, [])
 
     def test_settings_redacted_diff_logs_psd1_serialization_fallback(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -92,7 +136,6 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
                         "ReprocessAll": True,
                         "EncodeTuningPreset": "custom_legacy_flags",
                         "ExtraVideoFlags": ["-spatial-aq", "1"],
-                        "UnknownExperimentalKey": "enabled",
                     }
                 },
             )
@@ -103,7 +146,6 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
         self.assertEqual(summary["schema_version"], "settings_patch_risk_summary.v1")
         self.assertEqual(summary["highest_severity"], "high")
         self.assertGreaterEqual(summary["counts"]["high"], 3)
-        self.assertTrue(any(item["code"] == "unknown_key" for item in summary["items"]))
         self.assertTrue(any(item["code"] == "no_audio_allowed" for item in summary["items"]))
         self.assertTrue(any(item["code"] == "system_tool_fallback" for item in summary["items"]))
         self.assertTrue(any(item["code"] == "size_guard_disabled" for item in summary["items"]))
@@ -111,6 +153,102 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
         self.assertTrue(any(item["code"] == "custom_video_flags_enabled" for item in summary["items"]))
         self.assertTrue(any(item["code"] == "raw_video_flags_present" for item in summary["items"]))
         self.assertIn("Settings risk", "\n".join(preview.warnings))
+
+    def test_settings_patch_preview_rejects_new_unknown_config_key(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {"RoutingProfile": "plex_direct_stream"}
+            preview = facade.preview_settings_patch(resolved, {"changes": {"UnknownExperimentalKey": "enabled"}})
+        self.assertFalse(preview.ok)
+        self.assertIn("Unknown config key UnknownExperimentalKey", "\n".join(preview.errors))
+        self.assertNotIn("UnknownExperimentalKey", preview.data["changed_keys"])
+        self.assertFalse(any(item["code"] == "unknown_key" for item in preview.data["risk_summary"]["items"]))
+
+    def test_settings_save_patch_rejects_new_unknown_config_key_without_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            config_path = root / "config.psd1"
+            original_text = "@{ RoutingProfile = 'plex_direct_stream' }\n"
+            config_path.write_text(original_text, encoding="utf-8")
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_path = config_path
+            resolved.config_data = {"RoutingProfile": "plex_direct_stream"}
+            saved = facade.save_settings_patch(resolved, {"changes": {"UnknownExperimentalKey": "enabled"}, "confirm_save": True})
+            saved_document_text = config_path.read_text(encoding="utf-8")
+        self.assertFalse(saved.ok)
+        self.assertIn("Unknown config key UnknownExperimentalKey", "\n".join(saved.errors))
+        self.assertEqual(service.saved_config_calls, [])
+        self.assertEqual(saved_document_text, original_text)
+
+    def test_settings_patch_rejects_existing_unknown_key_edits_and_removals(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {"RoutingProfile": "plex_direct_stream", "LegacyUnknownKey": "keep"}
+            edited = facade.preview_settings_patch(resolved, {"changes": {"LegacyUnknownKey": "changed"}})
+            removed = facade.preview_settings_patch(resolved, {"changes": {}, "remove_keys": ["LegacyUnknownKey"]})
+        self.assertFalse(edited.ok)
+        self.assertFalse(removed.ok)
+        self.assertIn("Unknown config key LegacyUnknownKey", "\n".join(edited.errors))
+        self.assertIn("Unknown config key LegacyUnknownKey", "\n".join(removed.errors))
+        self.assertNotIn("LegacyUnknownKey", edited.data["changed_keys"])
+        self.assertNotIn("LegacyUnknownKey", removed.data["removed_keys"])
+
+    def test_settings_patch_remove_keys_rejects_unknown_and_removes_known_key(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {"RoutingProfile": "plex_direct_stream", "RenameMovieRemoveTerms": ["sample"]}
+            known = facade.preview_settings_patch(resolved, {"changes": {}, "remove_keys": ["RenameMovieRemoveTerms"]})
+            unknown = facade.preview_settings_patch(resolved, {"changes": {}, "remove_keys": ["UnknownExperimentalKey"]})
+        self.assertTrue(known.ok)
+        self.assertIn("RenameMovieRemoveTerms", known.data["removed_keys"])
+        self.assertFalse(unknown.ok)
+        self.assertIn("Unknown config key UnknownExperimentalKey", "\n".join(unknown.errors))
+        self.assertNotIn("UnknownExperimentalKey", unknown.data["removed_keys"])
+
+    def test_settings_save_patch_preserves_existing_unknown_keys_when_saving_known_change(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            config_path = root / "config.psd1"
+            config_path.write_text("@{ RoutingProfile = 'old'; LegacyUnknownKey = 'keep' }\n", encoding="utf-8")
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_path = config_path
+            resolved.config_data = {"RoutingProfile": "plex_direct_stream", "LegacyUnknownKey": "keep"}
+            saved = facade.save_settings_patch(resolved, {"changes": {"RoutingProfile": "plex_direct_play"}, "confirm_save": True})
+            saved_document_text = config_path.read_text(encoding="utf-8")
+            self.assertTrue(saved.ok)
+            saved_values = service.saved_config_calls[-1]["config_values"]
+            self.assertEqual(saved_values["LegacyUnknownKey"], "keep")
+            self.assertIn("LegacyUnknownKey = 'keep'", saved_document_text)
+
+    def test_settings_save_patch_rejects_source_mutation_key_without_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            config_path = root / "config.psd1"
+            original_text = "@{ RoutingProfile = 'plex_direct_stream' }\n"
+            config_path.write_text(original_text, encoding="utf-8")
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_path = config_path
+            resolved.config_data = {"RoutingProfile": "plex_direct_stream"}
+            saved = facade.save_settings_patch(resolved, {"changes": {"DeleteSourceAfterProcessing": True}, "confirm_save": True})
+            self.assertFalse(saved.ok)
+            self.assertIn("source/original-file mutation", "\n".join(saved.errors))
+            self.assertEqual(service.saved_config_calls, [])
+            self.assertEqual(config_path.read_text(encoding="utf-8"), original_text)
 
     def test_settings_patch_preview_treats_queue_and_show_policy_keys_as_known_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -231,7 +369,7 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
             resolved.config_path = config_path
             resolved.config_data = {
                 "RoutingProfile": "plex_direct_stream",
-                "ApiToken": "secret-token",
+                "CoordinatorAuthToken": "secret-token",
             }
 
             rejected = facade.save_settings_patch(resolved, {"changes": {"RoutingProfile": "plex_direct_play"}})
@@ -241,7 +379,7 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
             )
             secret_rejected = facade.save_settings_patch(
                 resolved,
-                {"changes": {"ApiToken": "<redacted>"}, "confirm_save": True},
+                {"changes": {"CoordinatorAuthToken": "<redacted>"}, "confirm_save": True},
             )
 
             self.assertFalse(rejected.ok)
@@ -255,7 +393,7 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
             self.assertEqual(saved.data["settings_progress"]["schema_version"], "desktop_settings_save_reload_progress.v1")
             self.assertEqual(saved.data["progress_bars"][0]["id"], "settings_save_reload")
             self.assertEqual(saved.data["progress_bars"][0]["percent"], 60.0)
-            self.assertEqual(service.saved_config_calls[-1]["config_values"]["ApiToken"], "secret-token")
+            self.assertEqual(service.saved_config_calls[-1]["config_values"]["CoordinatorAuthToken"], "secret-token")
             self.assertIn("plex_direct_play", config_path.read_text(encoding="utf-8"))
             self.assertFalse(secret_rejected.ok)
             self.assertIn("redacted display placeholder", "\n".join(secret_rejected.errors))

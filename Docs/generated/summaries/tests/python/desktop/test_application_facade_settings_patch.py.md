@@ -3,9 +3,9 @@ file: tests/python/desktop/test_application_facade_settings_patch.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 95f54cd1a4a94009d8fe921f53dd2198f82e4b19807302ee2c93a82c01006de2
+sha256: e16c9b9326de6eae15b8700743aeae2f11772e0b9108bb52019befc0ea5cc68a
 ---
 # `tests/python/desktop/test_application_facade_settings_patch.py`
 

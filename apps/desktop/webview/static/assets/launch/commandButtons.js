@@ -50,6 +50,7 @@
     "audit-start-button",
     "rerun-start-button",
   ];
+  const pipelineStartBoundaryNote = "Backend start still re-checks queue, schedule, settings, and process locks; Queue tab display filters and row selection are not submitted.";
 
   function launchTargetGate(target, request, options = {}) {
     const payload = launchBackendPreflightPayloadForTarget(target);
@@ -139,6 +140,9 @@
     button.disabled = Boolean(disabled);
     button.setAttribute("aria-disabled", disabled ? "true" : "false");
     if (reason) button.title = reason;
+    if (button.id === "pipeline-start-button") {
+      setText("pipeline-start-disabled-reason", disabled && reason ? reason : pipelineStartBoundaryNote);
+    }
   }
 
   function updateLaunchCommandButtonStates(snapshot = state.lastLaunchCommandState.snapshot, closeReadiness = state.lastLaunchCommandState.closeReadiness) {

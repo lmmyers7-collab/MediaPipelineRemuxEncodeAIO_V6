@@ -165,7 +165,7 @@ class SettingsPatchFacadeMixin:
 
     def save_settings_patch(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
         """Validate and save explicit settings changes to the active PSD1 config."""
-        if not bool(request.get("confirm_save", False)):
+        if request.get("confirm_save") is not True:
             return settings_save_confirmation_required_result()
         config_identity = dict(getattr(resolved, "config_identity", {}) or {})
         if config_identity.get("blocks_operations") is True:
@@ -198,7 +198,7 @@ class SettingsPatchFacadeMixin:
                 resolved.config_path,
                 document_text,
                 True,
-                config_values=patch["merged"],
+                config_values=dict(patch["merged"]),
                 powershell_host=resolved.powershell_host,
             )
         except Exception as exc:
@@ -240,3 +240,8 @@ class SettingsPatchFacadeMixin:
 __all__ = [
     "SettingsPatchFacadeMixin",
 ]
+
+
+
+
+

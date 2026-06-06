@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: 032435f0a2a91fa650b4d67c33982595d38e2ba76a1475bc6da4d062baed1ef0
+sha256: 4fd15c5778a595bafe34917a37d4c1fc3b4ce6845294e399d5539d827036d5d6
 ---
 # `tests/python/desktop/test_architecture_guardrails.py`
 

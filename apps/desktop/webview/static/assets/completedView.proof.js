@@ -67,6 +67,8 @@
         row.size_policy_message,
         row.audio_summary,
         row.subtitle_summary,
+        row.subtitle_qa?.posture,
+        row.subtitle_qa?.summary,
         row.runtime_outcome_status,
         row.runtime_outcome_reason,
         row.runtime_outcome_publish_state,
@@ -80,6 +82,28 @@
       if (Array.isArray(row.subtitle_decision_preview)) fields.push(...row.subtitle_decision_preview);
       if (Array.isArray(row.proof_summary)) fields.push(...row.proof_summary);
       return fields.filter(Boolean).map((value) => String(value)).join(" ").toLowerCase();
+    }
+
+    function completedSubtitleQaLines(item = null) {
+      const qa = item && typeof item.subtitle_qa === "object" ? item.subtitle_qa : null;
+      if (!qa) return ["Subtitle QA: not reported by backend."];
+      const inventory = qa.inventory && typeof qa.inventory === "object" ? qa.inventory : {};
+      const srt = qa.srt_validity && typeof qa.srt_validity === "object" ? qa.srt_validity : {};
+      const conversion = qa.conversion_evidence && typeof qa.conversion_evidence === "object" ? qa.conversion_evidence : {};
+      const sync = qa.sync_review && typeof qa.sync_review === "object" ? qa.sync_review : {};
+      const reasons = Array.isArray(qa.reasons) ? qa.reasons.filter(Boolean) : [];
+      const languages = Array.isArray(inventory.subtitle_languages) ? inventory.subtitle_languages.filter(Boolean).join(", ") : "";
+      const lines = [
+        `Subtitle QA: ${qa.posture || "unknown"} - ${qa.summary || "not reported"}`,
+        `Subtitle inventory: ${inventory.status || "unknown"}; tracks=${inventory.embedded_subtitle_count ?? "unknown"}; languages=${languages || "not reported"}; forced=${inventory.has_forced_subtitles ? "yes" : "no"}; SDH=${inventory.has_sdh_subtitles ? "yes" : "no"}`,
+        `SRT validity: ${srt.status || "not_checked"}; cue_count=${srt.cue_count ?? "unknown"}; ${srt.reason || "no detail"}`,
+        `Conversion/OCR evidence: ${conversion.status || "not_checked"}; sources=${Array.isArray(conversion.sources) && conversion.sources.length ? conversion.sources.join(", ") : "not reported"}; ${conversion.reason || "no detail"}`,
+        `Sync review: risk=${sync.risk || "unknown"}; ${sync.reason || "heuristic only"}`,
+        `Subtitle QA safe action: ${qa.safe_next_action || "manual playback and Completed/Dashboard evidence remain required"}`,
+      ];
+      reasons.slice(0, 4).forEach((reason) => lines.push(`Subtitle QA reason: ${reason}`));
+      if (qa.guardrail) lines.push(qa.guardrail);
+      return lines;
     }
 
     function completedPolicyOutputCategorySignal(item = null, categoryKey = "", proofRows = []) {
@@ -198,6 +222,8 @@
       const sizeText = item ? item.size_delta_label || item.size_reduction_text || "unknown" : "unknown";
       const audioCount = Number(item?.audio_decision_count || 0);
       const subtitleCount = Number(item?.subtitle_decision_count || 0);
+      const subtitleQaPosture = String(item?.subtitle_qa?.posture || "").toLowerCase();
+      const subtitleQaReview = ["blocked", "review", "unknown"].includes(subtitleQaPosture);
       const runtimeStatus = String(item?.runtime_outcome_status || "").toLowerCase();
       const runtimeReview = runtimeStatus.includes("fail") || runtimeStatus.includes("error") || String(item?.runtime_outcome_freshness_status || "").toLowerCase() === "fresh";
       const policyOutput = completedPolicyAlignmentOutputEvidence(item, relevantProofRows);
@@ -259,17 +285,20 @@
         {
           key: "route-size-media-proof",
           checkpoint: "Route, size, and media decisions",
-          posture: item?.size_growth_over_5 || item?.size_delta_percent === null || item?.size_delta_percent === undefined || routeText === "unknown route" ? "Review" : "Current proof",
-          evidence: `Route=${routeText}; reason=${routeReason}; size=${sizeText}; encoder=${item?.encoder || item?.encoder_kind || "unknown"}; audio/subtitle decisions=${audioCount}/${subtitleCount}.`,
+          posture: item?.size_growth_over_5 || subtitleQaReview || item?.size_delta_percent === null || item?.size_delta_percent === undefined || routeText === "unknown route" ? "Review" : "Current proof",
+          evidence: `Route=${routeText}; reason=${routeReason}; size=${sizeText}; encoder=${item?.encoder || item?.encoder_kind || "unknown"}; audio/subtitle decisions=${audioCount}/${subtitleCount}; subtitle_qa=${subtitleQaPosture || "not_reported"}.`,
           action: item?.size_growth_over_5
             ? "Compare route reason, encoder, audio/subtitle decisions, Settings policy, and Last Stderr before accepting size growth."
-            : "Confirm the route/size/media decision matches the intended Plex profile for this sample.",
+            : subtitleQaReview
+              ? "Read subtitle QA evidence and manually verify playback/subtitle behavior before accepting this sample."
+              : "Confirm the route/size/media decision matches the intended Plex profile for this sample.",
           completedRow: item,
           detail: [
             "Plex compatibility proof needs more than output existence.",
             `Route evidence lines: ${Array.isArray(item?.route_evidence_lines) ? item.route_evidence_lines.length : 0}`,
             `Audio preview rows: ${Array.isArray(item?.audio_decision_preview) ? item.audio_decision_preview.length : 0}`,
             `Subtitle preview rows: ${Array.isArray(item?.subtitle_decision_preview) ? item.subtitle_decision_preview.length : 0}`,
+            ...completedSubtitleQaLines(item),
           ],
         },
         {
@@ -496,6 +525,8 @@
       const routeEvidence = Array.isArray(item?.route_evidence_lines) ? item.route_evidence_lines.length : 0;
       const audioCount = Number(item?.audio_decision_count || 0);
       const subtitleCount = Number(item?.subtitle_decision_count || 0);
+      const subtitleQaPosture = String(item?.subtitle_qa?.posture || "").toLowerCase();
+      const subtitleQaReview = ["blocked", "review", "unknown"].includes(subtitleQaPosture);
       const realMediaBlocked = realMediaRows.filter((row) => completedRealMediaProofPostureStatus(row.posture) === "blocked").length;
       const realMediaReview = realMediaRows.filter((row) => completedRealMediaProofPostureStatus(row.posture) === "warning").length;
       const acceptanceBlocked = acceptanceRows.filter((row) => completedAcceptancePostureStatus(row.posture) === "blocked").length;
@@ -567,15 +598,18 @@
       add(
         "plex-media-policy-proof",
         "4. Plex/media policy proof",
-        item?.size_growth_over_5 || routeEvidence === 0 ? "Review" : "Read-first",
-        `route=${item?.route_decision_summary || item?.route_label || item?.route || "unknown"}; encoder=${item?.encoder || item?.encoder_kind || "unknown"}; size=${item?.size_delta_label || item?.size_reduction_text || "unknown"}; audio/subtitle=${audioCount}/${subtitleCount}; route_evidence=${routeEvidence}.`,
+        item?.size_growth_over_5 || subtitleQaReview || routeEvidence === 0 ? "Review" : "Read-first",
+        `route=${item?.route_decision_summary || item?.route_label || item?.route || "unknown"}; encoder=${item?.encoder || item?.encoder_kind || "unknown"}; size=${item?.size_delta_label || item?.size_reduction_text || "unknown"}; audio/subtitle=${audioCount}/${subtitleCount}; subtitle_qa=${subtitleQaPosture || "not_reported"}; route_evidence=${routeEvidence}.`,
         item?.size_growth_over_5
           ? "Compare route reason, size policy, audio/subtitle decisions, Settings, and Last Stderr before accepting growth."
-          : "Confirm route, size, audio, and subtitle decisions match the intended Plex direct-stream/direct-play profile.",
+          : subtitleQaReview
+            ? "Read subtitle QA evidence and manually verify subtitle selection, type, and sync before accepting this output."
+            : "Confirm route, size, audio, and subtitle decisions match the intended Plex direct-stream/direct-play profile.",
         [
           "Output existence does not prove Plex compatibility.",
           `Route reason: ${[item?.route_reason_code, item?.route_reason].filter(Boolean).join(" - ") || "unknown"}`,
           `Audio/subtitle preview rows: ${Array.isArray(item?.audio_decision_preview) ? item.audio_decision_preview.length : 0}/${Array.isArray(item?.subtitle_decision_preview) ? item.subtitle_decision_preview.length : 0}`,
+          ...completedSubtitleQaLines(item),
         ],
       );
       add(
@@ -798,6 +832,8 @@
       const routeEvidence = Array.isArray(item?.route_evidence_lines) ? item.route_evidence_lines.length : 0;
       const audioCount = Number(item?.audio_decision_count || 0);
       const subtitleCount = Number(item?.subtitle_decision_count || 0);
+      const subtitleQaPosture = String(item?.subtitle_qa?.posture || "").toLowerCase();
+      const subtitleQaReview = ["blocked", "review", "unknown"].includes(subtitleQaPosture);
       const sizeReview = Boolean(
         item?.size_growth_over_5
         || item?.size_policy_exceeded
@@ -886,16 +922,19 @@
       add(
         "route-size-media-proof",
         "3. Route, size, audio, subtitle proof",
-        sizeReview || routeEvidence === 0 ? "Review" : "Current proof",
-        `route=${item?.route_decision_summary || item?.route_label || item?.route || "unknown"}; size=${item?.size_delta_label || item?.size_reduction_text || "unknown"}; audio/subtitle=${audioCount}/${subtitleCount}; route_evidence=${routeEvidence}.`,
+        sizeReview || subtitleQaReview || routeEvidence === 0 ? "Review" : "Current proof",
+        `route=${item?.route_decision_summary || item?.route_label || item?.route || "unknown"}; size=${item?.size_delta_label || item?.size_reduction_text || "unknown"}; audio/subtitle=${audioCount}/${subtitleCount}; subtitle_qa=${subtitleQaPosture || "not_reported"}; route_evidence=${routeEvidence}.`,
         sizeReview
           ? "Compare route reason, size policy, audio/subtitle decisions, Settings, and Last Stderr before accepting output growth."
-          : "Confirm the route and media decisions match the intended Plex profile and operator expectation.",
+          : subtitleQaReview
+            ? "Read subtitle QA evidence and manually verify subtitle selection, type, and sync before accepting this pilot."
+            : "Confirm the route and media decisions match the intended Plex profile and operator expectation.",
         [
           `Route reason: ${[item?.route_reason_code, item?.route_reason].filter(Boolean).join(" - ") || "unknown"}`,
           `Encoder: ${item?.encoder || item?.encoder_kind || "unknown"}`,
           `Size policy: ${item?.size_policy_mode || "unknown"} ${item?.size_policy_limit_label || ""}; status=${item?.size_policy_status || "unknown"}`,
           `Audio/subtitle preview rows: ${Array.isArray(item?.audio_decision_preview) ? item.audio_decision_preview.length : 0}/${Array.isArray(item?.subtitle_decision_preview) ? item.subtitle_decision_preview.length : 0}`,
+          ...completedSubtitleQaLines(item),
         ],
       );
       add(

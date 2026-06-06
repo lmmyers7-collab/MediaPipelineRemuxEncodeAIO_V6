@@ -263,7 +263,17 @@ function Set-ProgressStage {
         $script:currentCopyState = if ($null -eq $CopyState -or [string]::IsNullOrWhiteSpace([string]$CopyState)) { $null } else { [string]$CopyState }
     }
     if ($PSBoundParameters.ContainsKey('PushState')) {
-        $script:currentPushState = if ($null -eq $PushState -or [string]::IsNullOrWhiteSpace([string]$PushState)) { $null } else { [string]$PushState }
+        $newPushState = if ($null -eq $PushState -or [string]::IsNullOrWhiteSpace([string]$PushState)) { $null } else { [string]$PushState }
+        $script:currentPushState = $newPushState
+        $pushStateKey = ([string]$newPushState).Trim().ToLowerInvariant()
+        if ($pushStateKey -eq 'copying') {
+            # A fresh server push (or retry) started: stamp its own start time and
+            # arm the one-shot sample so the eventual success records this transfer.
+            $script:currentPushStartedAt = Get-Date
+            $script:currentPushSampleRecorded = $false
+        } elseif ($pushStateKey -in @('copied_pending_reveal', 'complete')) {
+            Add-PushThroughputSample
+        }
     }
     if ($PSBoundParameters.ContainsKey('SidecarState')) {
         $script:currentSidecarState = if ($null -eq $SidecarState -or [string]::IsNullOrWhiteSpace([string]$SidecarState)) { $null } else { [string]$SidecarState }
@@ -362,6 +372,59 @@ function Reset-ProgressCopyTelemetry {
     $script:currentCopyDestination = $null
     $script:currentCopyStartedAt = $null
     $script:currentCopyUpdatedAt = $null
+    $script:currentPushStartedAt = $null
+    $script:currentPushSampleRecorded = $false
+}
+
+# Session-level publish-push throughput accumulators. These $script: variables
+# live for the life of the pipeline process, so they reset automatically on each
+# pipeline launch and learn only from completed server pushes within the current
+# run. They are intentionally NOT reset per item.
+function Get-PushAverageBytesPerSecond {
+    param(
+        $TotalBytes,
+        $TotalSeconds,
+        $FilesCompleted
+    )
+
+    $bytes = 0.0
+    $seconds = 0.0
+    $files = 0
+    try { if ($null -ne $TotalBytes) { $bytes = [double]$TotalBytes } } catch { $bytes = 0.0 }
+    try { if ($null -ne $TotalSeconds) { $seconds = [double]$TotalSeconds } } catch { $seconds = 0.0 }
+    try { if ($null -ne $FilesCompleted) { $files = [int]$FilesCompleted } } catch { $files = 0 }
+    if ($files -lt 1 -or $seconds -le 0 -or $bytes -le 0) { return $null }
+    return [long][math]::Round($bytes / $seconds)
+}
+
+# Fold the just-finished server push into the session throughput average. Called
+# once per file when PushState transitions into a copy-success state. Weighted by
+# bytes (sum bytes / sum seconds) so mixed file sizes aggregate honestly. Every
+# step is guarded so a telemetry hiccup can never affect the publish flow that
+# invokes it.
+function Add-PushThroughputSample {
+    if ($script:currentPushSampleRecorded) { return }
+    if (-not $script:currentPushStartedAt) { return }
+
+    $bytes = $null
+    try {
+        if ($null -ne $script:currentCopyTotalBytes -and "$script:currentCopyTotalBytes" -ne '') {
+            $bytes = [long]$script:currentCopyTotalBytes
+        }
+    } catch { $bytes = $null }
+    if ($null -eq $bytes -or $bytes -le 0) { return }
+
+    $elapsed = ((Get-Date) - $script:currentPushStartedAt).TotalSeconds
+    if ($elapsed -le 0) { return }
+
+    if ($null -eq $script:SessionPushBytesTotal) { $script:SessionPushBytesTotal = [double]0 }
+    if ($null -eq $script:SessionPushSecondsTotal) { $script:SessionPushSecondsTotal = [double]0 }
+    if ($null -eq $script:SessionPushFilesCompleted) { $script:SessionPushFilesCompleted = 0 }
+
+    $script:SessionPushBytesTotal += [double]$bytes
+    $script:SessionPushSecondsTotal += [double]$elapsed
+    $script:SessionPushFilesCompleted++
+    $script:currentPushSampleRecorded = $true
 }
 
 function Convert-CopyPercentToStagePercent {
@@ -556,6 +619,8 @@ function Save-Progress {
             CopyDestination       = $script:currentCopyDestination
             CopyStartedAt         = Get-ProgressIsoTimestamp $script:currentCopyStartedAt
             CopyUpdatedAt         = Get-ProgressIsoTimestamp $script:currentCopyUpdatedAt
+            CopySessionBytesPerSecond = Get-PushAverageBytesPerSecond -TotalBytes $script:SessionPushBytesTotal -TotalSeconds $script:SessionPushSecondsTotal -FilesCompleted $script:SessionPushFilesCompleted
+            CopySessionFilesCompleted = if ($null -eq $script:SessionPushFilesCompleted) { 0 } else { [int]$script:SessionPushFilesCompleted }
             SubtitleProgress      = $script:currentSubtitleProgress
             PauseRequested        = [bool]$pauseInfo.Exists
             StopRequested         = [bool]($script:StopRequested -or $stopInfo.Exists)

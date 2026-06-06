@@ -10,6 +10,7 @@ from .handler_policy import (
     options_response_headers,
     route_exception_payload,
     route_validation_error_payload,
+    route_validation_journal_payload,
     should_record_command_payload,
     unauthorized_payload,
 )
@@ -99,6 +100,10 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
                     try:
                         body = validate_payload(route, body)
                     except Exception as exc:
+                        try:
+                            owner._record_command_journal(route_validation_journal_payload(route, exc), request=body)
+                        except Exception as journal_exc:
+                            owner.logger.warning("Could not record local API validation failure for %s: %s", route, journal_exc)
                         self._send_json(route_validation_error_payload(route, exc), status=400)
                         return
                 self._send_json(getattr(owner, spec.method_name)(body), journal_request=body)

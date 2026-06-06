@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: observability
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: ce51196d750754922f10b219c26267dbf85eb23776abdf8656faf9695e846ba9
+sha256: bf5fb4fd429cf92991e2a8e3bc69ac5581219f1cd1aac269bcf362a35d2c5036
 ---
 # `src/mediapipeline/core/telemetry/gpu_usage.py`
 

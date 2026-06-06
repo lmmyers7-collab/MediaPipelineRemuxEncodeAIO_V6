@@ -36,7 +36,12 @@ from mediapipeline.core.telemetry.nvidia import (
     select_active_gpu_row,
 )
 from mediapipeline.core.telemetry.gpu_usage import GPU_ENCODER_USAGE_SCHEMA_VERSION, gpu_encoder_usage_payload
-from mediapipeline.core.telemetry.system_metrics import apply_system_metrics_to_snapshot, prime_cpu_sampler
+from mediapipeline.core.telemetry.system_metrics import (
+    apply_system_metrics_to_snapshot,
+    prime_cpu_sampler,
+    WINDOWS_PROCESSOR_TIME_COUNTER,
+    WindowsProcessorUtilitySampler,
+)
 from mediapipeline.desktop.services import DesktopAppService
 from mediapipeline.desktop.subprocess_runner import CapturedCommandResult
 
@@ -71,6 +76,118 @@ class TelemetryServiceTests(unittest.TestCase):
         self.assertEqual(snapshot.memory_percent, 61.5)
         self.assertEqual(snapshot.memory_used_gb, 3.0)
         self.assertEqual(snapshot.memory_total_gb, 8.0)
+        self.assertEqual(snapshot.error, "")
+
+    def test_system_metric_helper_prefers_cpu_sampler_over_psutil_cpu(self) -> None:
+        class Vm:
+            percent = 61.5
+            used = 3 * 1024 ** 3
+            total = 8 * 1024 ** 3
+
+        class FakePsutil:
+            calls = 0
+
+            @classmethod
+            def cpu_percent(cls, interval=None):
+                self.assertIsNone(interval)
+                cls.calls += 1
+                return 99.0
+
+            @staticmethod
+            def virtual_memory():
+                return Vm()
+
+        class FakeCpuSampler:
+            calls: list[str] = []
+
+            @classmethod
+            def prime(cls):
+                cls.calls.append("prime")
+
+            @classmethod
+            def sample(cls):
+                cls.calls.append("sample")
+                return 33.6
+
+        snapshot = TelemetrySnapshot()
+
+        prime_cpu_sampler(FakePsutil, FakeCpuSampler)
+        apply_system_metrics_to_snapshot(snapshot, FakePsutil, FakeCpuSampler)
+
+        self.assertEqual(FakeCpuSampler.calls, ["prime", "sample"])
+        self.assertEqual(FakePsutil.calls, 1)
+        self.assertEqual(snapshot.cpu_percent, 33.6)
+        self.assertEqual(snapshot.memory_percent, 61.5)
+        self.assertEqual(snapshot.error, "")
+
+    def test_system_metric_helper_falls_back_when_cpu_sampler_has_no_sample(self) -> None:
+        class Vm:
+            percent = 50.0
+            used = 2 * 1024 ** 3
+            total = 4 * 1024 ** 3
+
+        class FakePsutil:
+            @staticmethod
+            def cpu_percent(interval=None):
+                self.assertIsNone(interval)
+                return 14.0
+
+            @staticmethod
+            def virtual_memory():
+                return Vm()
+
+        class EmptyCpuSampler:
+            @staticmethod
+            def sample():
+                return None
+
+        snapshot = TelemetrySnapshot()
+
+        apply_system_metrics_to_snapshot(snapshot, FakePsutil, EmptyCpuSampler)
+
+        self.assertEqual(snapshot.cpu_percent, 14.0)
+        self.assertEqual(snapshot.memory_percent, 50.0)
+        self.assertEqual(snapshot.error, "")
+
+    def test_cpu_counter_uses_processor_time_basis_not_turbo_utility(self) -> None:
+        # "% Processor Utility" is scaled by the turbo frequency ratio and
+        # saturates the 0-100% bar at 100% on turbo-capable CPUs. The CPU
+        # telemetry basis must be the true-utilization "% Processor Time" counter.
+        self.assertEqual(
+            WINDOWS_PROCESSOR_TIME_COUNTER,
+            r"\Processor Information(_Total)\% Processor Time",
+        )
+        self.assertEqual(
+            WindowsProcessorUtilitySampler()._counter_path,
+            WINDOWS_PROCESSOR_TIME_COUNTER,
+        )
+
+    def test_system_metric_helper_clamps_task_manager_cpu_utility(self) -> None:
+        class Vm:
+            percent = 50.0
+            used = 2 * 1024 ** 3
+            total = 4 * 1024 ** 3
+
+        class FakePsutil:
+            @staticmethod
+            def cpu_percent(interval=None):
+                return 14.0
+
+            @staticmethod
+            def virtual_memory():
+                return Vm()
+
+        class TurboCpuSampler:
+            @staticmethod
+            def sample():
+                return 112.5
+
+        snapshot = TelemetrySnapshot()
+
+        apply_system_metrics_to_snapshot(snapshot, FakePsutil, TurboCpuSampler)
+
+        self.assertEqual(snapshot.cpu_percent, 100.0)
+        self.assertEqual(snapshot.memory_percent, 50.0)
         self.assertEqual(snapshot.error, "")
 
     def test_system_metric_helper_marks_psutil_unavailable(self) -> None:
@@ -495,20 +612,22 @@ class TelemetryServiceTests(unittest.TestCase):
 
     def test_nvidia_smi_parser_keeps_idle_na_encoder_rows_visible(self) -> None:
         rows, failures = parse_nvidia_smi_encoder_rows(
-            "0, NVIDIA RTX Idle, N/A, 44, 1024, 8192\n"
-            "1, NVIDIA RTX Busy, 21, 55, 2048, 8192\n"
+            "0, NVIDIA RTX Idle, N/A, 1, 44, 1024, 8192\n"
+            "1, NVIDIA RTX Busy, 21, 64, 55, 2048, 8192\n"
             "bad,row\n"
         )
 
         self.assertEqual(failures, 1)
         self.assertEqual(rows[0]["encoder_percent"], 0.0)
+        self.assertEqual(rows[0]["gpu_percent"], 1.0)
         self.assertEqual(rows[1]["encoder_percent"], 21.0)
+        self.assertEqual(rows[1]["gpu_percent"], 64.0)
         self.assertEqual(rows[1]["temperature_c"], 55.0)
 
     def test_nvidia_smi_snapshot_uses_max_encoder_gpu_and_memory(self) -> None:
         rows, _failures = parse_nvidia_smi_encoder_rows(
-            "0, NVIDIA RTX Idle, 0, 44, 1024, 8192\n"
-            "1, NVIDIA RTX Busy, 21, 55, 2048, 8192\n"
+            "0, NVIDIA RTX Idle, 0, 1, 44, 1024, 8192\n"
+            "1, NVIDIA RTX Busy, 21, 64, 55, 2048, 8192\n"
         )
         snapshot = TelemetrySnapshot()
 
@@ -521,7 +640,7 @@ class TelemetryServiceTests(unittest.TestCase):
         self.assertEqual(snapshot.gpu_index, "1")
         self.assertEqual(snapshot.gpu_count, 2)
         self.assertEqual(snapshot.gpu_encoder_percent, 21.0)
-        self.assertEqual(snapshot.gpu_percent, 21.0)
+        self.assertEqual(snapshot.gpu_percent, 64.0)
         self.assertEqual(snapshot.gpu_temperature_c, 55.0)
         self.assertAlmostEqual(snapshot.gpu_memory_used_gb, 2.0)
         self.assertIn("max of 2", snapshot.gpu_name)
@@ -534,6 +653,7 @@ class TelemetryServiceTests(unittest.TestCase):
                     "index": "0",
                     "name": "NVIDIA RTX Idle",
                     "encoder_percent": 0.0,
+                    "gpu_percent": 1.0,
                     "temperature_c": 44.0,
                     "memory_used_mb": 1024.0,
                     "memory_total_mb": 8192.0,
@@ -542,6 +662,7 @@ class TelemetryServiceTests(unittest.TestCase):
                     "index": "1",
                     "name": "NVIDIA RTX Busy",
                     "encoder_percent": 21.0,
+                    "gpu_percent": 64.0,
                     "temperature_c": 55.0,
                     "memory_used_mb": 2048.0,
                     "memory_total_mb": 8192.0,
@@ -560,6 +681,7 @@ class TelemetryServiceTests(unittest.TestCase):
         self.assertTrue(payload["read_only"])
         self.assertEqual(payload["rows"][1]["adapter"], "NVIDIA RTX Busy")
         self.assertEqual(payload["rows"][1]["utilization_percent"], 21.0)
+        self.assertEqual(payload["rows"][1]["gpu_utilization_percent"], 64.0)
         self.assertEqual(payload["rows"][1]["memory_used"], 2048.0)
         self.assertIsNone(payload["rows"][1]["encoder_sessions"])
         self.assertIn("Encoder sessions are not reported", "\n".join(payload["summary_lines"]))
@@ -574,7 +696,7 @@ class TelemetryServiceTests(unittest.TestCase):
                 return CapturedCommandResult(
                     args=[],
                     returncode=0,
-                    stdout="0, NVIDIA RTX Test, N/A, 44, 1024, 8192\n",
+                    stdout="0, NVIDIA RTX Test, N/A, 1, 44, 1024, 8192\n",
                     stderr="",
                 )
 
@@ -582,9 +704,11 @@ class TelemetryServiceTests(unittest.TestCase):
                 snapshot = service.sample_system_telemetry()
 
             self.assertEqual(snapshot.gpu_encoder_percent, 0.0)
+            self.assertEqual(snapshot.gpu_percent, 1.0)
             self.assertEqual(snapshot.gpu_index, "0")
             self.assertEqual(snapshot.gpu_count, 1)
             self.assertEqual(snapshot.gpu_rows[0]["encoder_percent"], 0.0)
+            self.assertEqual(snapshot.gpu_rows[0]["gpu_percent"], 1.0)
             self.assertIn("NVIDIA RTX Test", snapshot.gpu_name)
             for handler in list(service.logger.handlers):
                 base_filename = getattr(handler, "baseFilename", "")

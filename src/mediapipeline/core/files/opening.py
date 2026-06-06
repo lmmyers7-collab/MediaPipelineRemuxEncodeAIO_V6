@@ -206,6 +206,19 @@ class FileOpenServiceMixin:
         proc = subprocess.Popen([opener, str(path)], close_fds=True)
         threading.Thread(target=proc.wait, daemon=True).start()
 
+    def open_path_with_default_app(self, path: Path | str | None) -> None:
+        raw_path_text = str(path) if path is not None else ""
+        path = _coerce_open_path(path)
+        self.logger.info("Open path with default app requested: raw=%s normalized=%s", raw_path_text, path)
+        if not path.exists():
+            raise FileNotFoundError(f"Path does not exist: {path}")
+        if os.name == "nt":
+            self._open_windows_path_with_shell(path)
+            return
+        opener = "open" if sys.platform == "darwin" else "xdg-open"
+        proc = subprocess.Popen([opener, str(path)], close_fds=True)
+        threading.Thread(target=proc.wait, daemon=True).start()
+
     def open_parent(self, path: Path | str | None) -> None:
         path = _coerce_open_path(path)
         target = path.parent if path.exists() and path.is_file() else path

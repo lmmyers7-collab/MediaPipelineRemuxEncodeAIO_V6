@@ -14,7 +14,6 @@ function Get-MediaPipelineResolvedConfigDump {
     # the JSON serialization is stable and diffable.
     $names = @(
         'configPath','LocalBase','SourceMovies','SourceTV','Outsource',
-        'EncodeThresholdGB','TVEncodeThresholdGB',
         'MovieRoute1080pTargetSizeGB','MovieRoute1440pTargetSizeGB','MovieRoute4KTargetSizeGB',
         'TVRoute1080pTargetSizeGB','TVRoute1440pTargetSizeGB','TVRoute4KTargetSizeGB',
         'MinFreeSpaceGB',

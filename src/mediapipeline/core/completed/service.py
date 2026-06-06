@@ -3,7 +3,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-from mediapipeline.desktop.config_keys import KEY_OUTSOURCE
+from mediapipeline.core.kernel.config_keys import KEY_OUTSOURCE
 from mediapipeline.desktop.models import CompletedJobRecord, ResolvedPaths
 from mediapipeline.core.completed.backfill import (
     build_completed_backfill_args,

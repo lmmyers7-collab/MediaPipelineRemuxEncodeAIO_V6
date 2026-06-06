@@ -267,6 +267,13 @@ def changed_key_risk_item(key: str, value: Any) -> RiskItem | None:
                 key,
                 "SizeGuardMode is strict. Oversized encodes will fail before publishing.",
             )
+        if mode == "fallback_remux":
+            return make_risk_item(
+                "medium",
+                "fallback_remux_size_guard",
+                key,
+                "SizeGuardMode tries remux fallback for oversized override-forced encodes; validate with real media before unattended batches.",
+            )
     if normalized_key in {"droptx3gafterconversion", "dropbdpgsafterconversion", "dropvobsubafterconversion", "dropassafterconversion"} and truthy_setting(value):
         return make_risk_item(
             "medium",

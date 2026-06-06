@@ -653,10 +653,10 @@
       btn.addEventListener("click", () => activateTab(btn.dataset.diagTab));
     });
   
-    let stored = "logs";
-    try { stored = localStorage.getItem(STORAGE_KEY) || "logs"; } catch (_) {}
-    // Validate stored value is a real tab, fall back to logs.
-    if (!btns.some((b) => b.dataset.diagTab === stored)) stored = "logs";
+    let stored = "triage";
+    try { stored = localStorage.getItem(STORAGE_KEY) || "triage"; } catch (_) {}
+    // Validate stored value is a real tab, fall back to Overview.
+    if (!btns.some((b) => b.dataset.diagTab === stored)) stored = "triage";
     activateTab(stored);
   }
 

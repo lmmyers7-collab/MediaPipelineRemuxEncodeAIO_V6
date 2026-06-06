@@ -1,0 +1,42 @@
+{
+  "id": "MP-CHANGE-2026-0605-108",
+  "title": "Move Completed output action row into status panel",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-05",
+  "date_completed": "2026-06-05",
+  "summary": "Moves Completed selected-row action controls into the Current Output Status panel directly below the current output table, while keeping selected-file evidence in the lower Selected File panel.",
+  "reason": "Operators need playback/open actions closer to the selected current output row instead of separated below the selected-file evidence block.",
+  "affected_areas": [
+    "completed",
+    "output",
+    "webview"
+  ],
+  "behavior_before": "Completed row open/play/promote controls rendered inside the lower Selected File panel below the selected-file evidence summary.",
+  "behavior_after": "Completed row open/play/promote controls render below the Current Output Status table and legend; the Selected File panel remains below for read-only selected-file evidence and detail.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "apps/desktop/webview/static/partials/page-completed.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.components.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-completed.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0605-108.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_local_api.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0605-108.json",
+    "tests/python/desktop/test_application_facade_local_api.py"
+  ],
+  "tests_added": [
+    "Extended tests/python/desktop/test_application_facade_local_api.py to assert Completed open actions render below the Current Output Status table legend and before the Selected File panel."
+  ],
+  "manual_validation": [
+    "In-app Browser verification against http://127.0.0.1:8765 -> passed; screenshot saved to C:/Users/lmmye/AppData/Local/Temp/mediapipeline-completed-actions-under-status-refreshed.png and showed Play Output under Current Output Status with Selected File below.",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q -> initially failed because the new order assertion compared against the Queue Selected File heading; assertion was scoped to the Completed page section.",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q -> passed; 1 test OK.",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_css_design_tokens tests.webview.test_webview_navigation_static -q -> passed; 25 tests OK.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> failed due unrelated ops/release/changes/unreleased/MP-CHANGE-2026-0605-010.json missing date_completed and not covering itself; this packet's touched files are listed."
+  ],
+  "rollback_plan": "Move the Completed open-action container, promotion action row, completed-open-status note, and completed-open-history block back into the Selected File panel; remove the completed-current-row-actions CSS; revert the focused static test assertions; refresh summaries.",
+  "related_changes": [],
+  "notes": "WebView layout-only change. It does not alter Local API routes, backend command targets, source/scratch/output files, pending publish, queue mutation, settings persistence, FFmpeg, subtitle, audio, or media policy behavior."
+}

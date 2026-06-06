@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: publish
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: a6541bc66fe97c1125e8b103116ef956f72650d26911cc6bebed1681ae8811e5
+sha256: 74efba29690aeed299e9f9ec6da2b7ae5200a0da3958e1ab9c30b22e6a1bb8ed
 ---
 # `ops/pipeline/engine/publish/pending_repair.ps1`
 

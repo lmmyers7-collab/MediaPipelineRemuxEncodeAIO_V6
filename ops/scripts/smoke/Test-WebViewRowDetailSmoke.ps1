@@ -38,14 +38,22 @@ Write-Host 'Boundary: does not process media, launch pipeline commands, publish,
 Write-Host "Python: $python"
 
 Push-Location -LiteralPath $projectRoot
+$previousPythonPath = $env:PYTHONPATH
 try {
     $env:PYTHONDONTWRITEBYTECODE = '1'
+    $srcPath = Join-Path $projectRoot 'src'
+    if ([string]::IsNullOrWhiteSpace($previousPythonPath)) {
+        $env:PYTHONPATH = $srcPath
+    } else {
+        $env:PYTHONPATH = $srcPath + [IO.Path]::PathSeparator + $previousPythonPath
+    }
     & $python -m unittest tests.webview.test_webview_row_detail_smoke -q
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }
 }
 finally {
+    $env:PYTHONPATH = $previousPythonPath
     Pop-Location
 }
 

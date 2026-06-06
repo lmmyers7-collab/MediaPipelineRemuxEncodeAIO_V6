@@ -1,0 +1,63 @@
+{
+  "id": "MP-CHANGE-2026-0604-047",
+  "title": "Fix settings key canonicalization and BDPGS default drift",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-04",
+  "date_completed": null,
+  "summary": "Fail closed on non-canonical settings patch key casing and align missing BDPGS OCR settings display defaults with the contract default.",
+  "reason": "Settings preview/save could accept case-variant canonical keys as raw extras while exact-key validation ignored them, and several settings/launch display helpers treated missing ConvertBdpgsToSrt as enabled despite the contract default being disabled.",
+  "affected_areas": [
+    "config",
+    "metadata_coverage",
+    "settings",
+    "webview"
+  ],
+  "behavior_before": "Case-variant settings keys such as routingprofile could bypass canonical validation or fail late, and partial settings payloads could display BDPGS OCR as enabled/coherent when the contract default is disabled.",
+  "behavior_after": "Settings preview/save reject non-canonical casing for known config keys with an actionable canonical-key message, and BDPGS OCR display/readiness fallbacks match the disabled contract default.",
+  "files_touched": [
+    "CHANGELOG.md",
+    "apps/desktop/webview/static/assets/launch/risk/policyPatch.js",
+    "apps/desktop/webview/static/assets/launch/risk/riskRows.js",
+    "apps/desktop/webview/static/assets/settings/policyImpact.js",
+    "apps/desktop/webview/static/assets/settingsView.builders.subtitle.js",
+    "docs/architecture/SETTINGS_RAW_KEY_TRIAGE.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/application/settings_risk_policy.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0604-047.json",
+    "src/mediapipeline/core/config/settings_patch_candidate_facade.py",
+    "src/mediapipeline/core/config/settings_patch_policy.py",
+    "src/mediapipeline/core/config/settings_policy.py",
+    "src/mediapipeline/core/config/validation.py",
+    "src/mediapipeline/core/orchestration/settings_patch_facade.py",
+    "src/mediapipeline/desktop/application/settings_risk_policy.py",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/python/desktop/test_application_facade_settings_patch.py",
+    "tests/python/desktop/test_application_facade_settings_workspace.py",
+    "tests/python/desktop/test_config_keys.py",
+    "tests/python/desktop/test_facade_settings_policy.py",
+    "tests/python/desktop/test_metadata_contract.py",
+    "tests/python/desktop/test_service_config_validation.py",
+    "tests/python/desktop/test_settings_risk_policy_rules.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_settings_patch.py",
+    "tests/python/desktop/test_service_config_validation.py"
+  ],
+  "manual_validation": [
+    "Focused unittest suite currently fails because settings_patch_candidate_facade.py reintroduced unknown-key rejection branches during validation; see final handoff.",
+    "Test-WebViewBrowserSettingsLaunchSmoke.ps1 with PYTHONPATH=src - passed",
+    "Test-WebViewSettingsLaunchLiveConfigSmoke.ps1 - passed",
+    "Test-WebViewSettingsLaunchPolicySmoke.ps1 with PYTHONPATH=src - passed",
+    "Test-WebViewSettingsPatchEvidenceSmoke.ps1 - passed",
+    "compileall touched Python files - passed",
+    "pytest unavailable in bundled runtime: No module named pytest",
+    "unittest related config/settings modules (92 tests) - passed before concurrent overwrite",
+    "unittest settings patch module - passed before concurrent overwrite",
+    "unittest test_application_facade_local_api (39 tests) - passed"
+  ],
+  "rollback_plan": "Revert the canonical-key validation helper, BDPGS fallback changes, docs, tests, and this packet. This change does not mutate media files, queue state, or publish state.",
+  "related_changes": [],
+  "notes": "Fix settings patch canonical key handling and align missing BDPGS OCR defaults with the contract.\nAdded config validation coverage for case-variant canonical keys.\nMetadata-only coverage update on 2026-06-05 for pre-existing dirty paths reported by strict worktree coverage; file content was not changed by MP-CHANGE-2026-0605-005.\nCurrent handoff blocked by concurrent workspace writer repeatedly overwriting tests/python/desktop/test_application_facade_settings_patch.py and settings patch candidate assertions after successful focused validation.\nBlocked handoff: src/mediapipeline/core/config/settings_patch_candidate_facade.py and tests/python/desktop/test_application_facade_settings_patch.py were overwritten back to stale unknown-key rejection behavior after passing validation, even while temporarily read-only; final current tree is not safe to mark complete."
+}

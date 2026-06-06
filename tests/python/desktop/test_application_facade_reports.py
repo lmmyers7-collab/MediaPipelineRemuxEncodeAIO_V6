@@ -203,6 +203,59 @@ class ApplicationFacadeReportsTests(unittest.TestCase):
         self.assertEqual(preview["rows"][0]["clear_error"]["marker_path"], str(marker_file))
         self.assertEqual(preview["rows"][0]["clear_error"]["marker_paths"], [str(marker_file)])
 
+    def test_latest_failure_preview_maps_retryable_marker_by_job_when_source_path_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            source_path = root / "Movies" / "Retry Movie.mkv"
+            failure_json = root / "failures.json"
+            failure_json.write_text(
+                json.dumps(
+                    [
+                        {
+                            "JobId": "job-subtitle-1",
+                            "Stage": "subtitle-extract",
+                            "Reason": "BDPGS subtitle OCR failed.",
+                            "Classification": "transient",
+                            "ErrorCode": "SUBTITLE_BDPGS_OCR_FAILED",
+                            "SuggestedAction": "Configure PgsToSrt before retry.",
+                            "RetryCount": 1,
+                            "RetryLimit": 5,
+                        }
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            markers_path = root / "State" / "Failures" / "Markers"
+            markers_path.mkdir(parents=True)
+            marker_file = markers_path / "marker-1.json"
+            marker_file.write_text(
+                json.dumps(
+                    {
+                        "source_full_path": str(source_path),
+                        "job_id": "job-subtitle-1",
+                        "stage": "subtitle-extract",
+                        "reason": "BDPGS subtitle OCR failed.",
+                        "classification": "transient",
+                        "error_code": "SUBTITLE_BDPGS_OCR_FAILED",
+                        "suggested_action": "Configure PgsToSrt before retry.",
+                        "retry_count": 1,
+                        "retry_limit": 5,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.failed_markers_path = markers_path
+
+            preview = facade.get_failure_preview(resolved).to_mapping()
+
+        self.assertEqual(preview["rows"][0]["triage"]["status_label"], "Will retry")
+        self.assertTrue(preview["rows"][0]["retry_allowed"])
+        self.assertTrue(preview["rows"][0]["clear_error"]["available"])
+        self.assertEqual(preview["rows"][0]["clear_error"]["marker_path"], str(marker_file))
+        self.assertEqual(preview["rows"][0]["clear_error"]["marker_paths"], [str(marker_file)])
+
     def test_latest_failure_preview_maps_multiple_matching_markers_for_clear_error(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

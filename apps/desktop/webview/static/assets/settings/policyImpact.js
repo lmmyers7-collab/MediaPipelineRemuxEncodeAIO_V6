@@ -65,16 +65,6 @@ function settingsRouteMinHeightFromLowerTolerance(baseHeight, tolerancePercent) 
 }
 
 function settingsRouteHeightBoundariesFromValues(values) {
-  if (!values.hasPercentKeys) {
-    const route1080pMaxHeight = Math.round(Number(values.route1080pBucketMaxHeight ?? 1200));
-    const route4kMinHeight = Math.round(Number(values.route4kBucketMinHeight ?? 1800));
-    return {
-      route1080pMaxHeight,
-      route1440pMinHeight: route1080pMaxHeight + 1,
-      route1440pMaxHeight: route4kMinHeight - 1,
-      route4kMinHeight,
-    };
-  }
   return {
     route1080pMaxHeight: settingsRouteMaxHeightFromUpperTolerance(1080, values.route1080pUpperPercent ?? 11.111111),
     route1440pMinHeight: settingsRouteMinHeightFromLowerTolerance(1440, values.route1440pLowerPercent ?? 16.597222),
@@ -85,13 +75,10 @@ function settingsRouteHeightBoundariesFromValues(values) {
 
 function settingsActiveRouteHeightBoundaries() {
   return settingsRouteHeightBoundariesFromValues({
-    hasPercentKeys: true,
     route1080pUpperPercent: settingsMediaPolicyNumber("settings-builder-1080p-upper-tolerance", "Route1080pUpperHeightTolerancePercent", 11.111111),
     route1440pLowerPercent: settingsMediaPolicyNumber("settings-builder-1440p-lower-tolerance", "Route1440pLowerHeightTolerancePercent", 16.597222),
     route1440pUpperPercent: settingsMediaPolicyNumber("settings-builder-1440p-upper-tolerance", "Route1440pUpperHeightTolerancePercent", 24.930556),
     route4kLowerPercent: settingsMediaPolicyNumber("settings-builder-4k-lower-tolerance", "Route4KLowerHeightTolerancePercent", 16.666667),
-    route1080pBucketMaxHeight: settingsMediaPolicyNumber("settings-builder-1080p-bucket-height", "Route1080pBucketMaxHeight", 1200),
-    route4kBucketMinHeight: settingsMediaPolicyNumber("settings-builder-4k-bucket-height", "Route4KBucketMinHeight", 1800),
   });
 }
 
@@ -118,18 +105,12 @@ function settingsPatchHasCandidatePercentKeys(entries) {
 
 function settingsPatchRouteHeightBoundaries(entries, mode) {
   const candidate = mode === "candidate";
-  const hasPercentKeys = candidate
-    ? settingsPatchHasCandidatePercentKeys(entries)
-    : settingsPatchHasCurrentPercentKeys();
   const numberValue = candidate ? settingsPatchCandidateNumber : ((_entries, key, fallback) => settingsPatchCurrentNumber(key, fallback));
   return settingsRouteHeightBoundariesFromValues({
-    hasPercentKeys,
     route1080pUpperPercent: numberValue(entries, "Route1080pUpperHeightTolerancePercent", 11.111111),
     route1440pLowerPercent: numberValue(entries, "Route1440pLowerHeightTolerancePercent", 16.597222),
     route1440pUpperPercent: numberValue(entries, "Route1440pUpperHeightTolerancePercent", 24.930556),
     route4kLowerPercent: numberValue(entries, "Route4KLowerHeightTolerancePercent", 16.666667),
-    route1080pBucketMaxHeight: numberValue(entries, "Route1080pBucketMaxHeight", 1200),
-    route4kBucketMinHeight: numberValue(entries, "Route4KBucketMinHeight", 1800),
   });
 }
 
@@ -147,7 +128,7 @@ function settingsMediaPolicyRows() {
   const dropTx3g = settingsMediaPolicyBool("settings-subtitle-drop-tx3g", "DropTx3gAfterConversion", false);
   const sidecarTx3g = settingsMediaPolicyBool("settings-subtitle-sidecar-tx3g", "CreateExternalTx3gSrtSidecars", false);
   const preserveTx3gSrt = settingsMediaPolicyBool("settings-subtitle-preserve-tx3g-srt", "Tx3gPreserveExistingSrt", true);
-  const convertBdpgs = settingsMediaPolicyBool("settings-subtitle-convert-bdpgs", "ConvertBdpgsToSrt", true);
+  const convertBdpgs = settingsMediaPolicyBool("settings-subtitle-convert-bdpgs", "ConvertBdpgsToSrt", false);
   const dropBdpgs = settingsMediaPolicyBool("settings-subtitle-drop-bdpgs", "DropBdpgsAfterConversion", false);
   const convertVobSub = settingsMediaPolicyBool("settings-subtitle-convert-vobsub", "ConvertVobSubToSrt", false);
   const dropVobSub = settingsMediaPolicyBool("settings-subtitle-drop-vobsub", "DropVobSubAfterConversion", false);
@@ -256,16 +237,12 @@ function settingsActiveMediaPolicyRows() {
   const outputContainer = settingsMediaPolicyValue("settings-builder-output-container", "OutputContainer", "mkv") || "mkv";
   const maxGrowth = settingsMediaPolicyNumber("settings-builder-max-growth", "MaxEncodeGrowthPercent", 5);
   const compatGrowth = settingsMediaPolicyNumber("settings-builder-compat-growth", "CompatibilityEncodeGrowthPercent", 15);
-  const movieThreshold = settingsMediaPolicyNumber("settings-builder-movie-threshold", "EncodeThresholdGB", 8);
-  const tvThreshold = settingsMediaPolicyNumber("settings-builder-tv-threshold", "TVEncodeThresholdGB", 3);
-  const movie1080pTarget = settingsMediaPolicyNumber("settings-builder-movie-1080p-target", "MovieRoute1080pTargetSizeGB", movieThreshold);
-  const movie1440pTarget = settingsMediaPolicyNumber("settings-builder-movie-1440p-target", "MovieRoute1440pTargetSizeGB", movieThreshold);
-  const movie4kTarget = settingsMediaPolicyNumber("settings-builder-movie-4k-target", "MovieRoute4KTargetSizeGB", movieThreshold);
-  const tv1080pTarget = settingsMediaPolicyNumber("settings-builder-tv-1080p-target", "TVRoute1080pTargetSizeGB", tvThreshold);
-  const tv1440pTarget = settingsMediaPolicyNumber("settings-builder-tv-1440p-target", "TVRoute1440pTargetSizeGB", tvThreshold);
-  const tv4kTarget = settingsMediaPolicyNumber("settings-builder-tv-4k-target", "TVRoute4KTargetSizeGB", tvThreshold);
-  const movieRouteMaxBitrate = settingsMediaPolicyNumber("settings-builder-movie-route-bitrate", "MovieRouteMaxVideoBitrateMbps", 35);
-  const tvRouteMaxBitrate = settingsMediaPolicyNumber("settings-builder-tv-route-bitrate", "TVRouteMaxVideoBitrateMbps", 18);
+  const movie1080pTarget = settingsMediaPolicyNumber("settings-builder-movie-1080p-target", "MovieRoute1080pTargetSizeGB", 8);
+  const movie1440pTarget = settingsMediaPolicyNumber("settings-builder-movie-1440p-target", "MovieRoute1440pTargetSizeGB", 8);
+  const movie4kTarget = settingsMediaPolicyNumber("settings-builder-movie-4k-target", "MovieRoute4KTargetSizeGB", 8);
+  const tv1080pTarget = settingsMediaPolicyNumber("settings-builder-tv-1080p-target", "TVRoute1080pTargetSizeGB", 3);
+  const tv1440pTarget = settingsMediaPolicyNumber("settings-builder-tv-1440p-target", "TVRoute1440pTargetSizeGB", 3);
+  const tv4kTarget = settingsMediaPolicyNumber("settings-builder-tv-4k-target", "TVRoute4KTargetSizeGB", 3);
   const routeBoundaries = settingsActiveRouteHeightBoundaries();
   const route1080pMaxBitrate = settingsMediaPolicyNumber("settings-builder-1080p-route-bitrate", "Route1080pMaxVideoBitrateMbps", 20);
   const route1440pMaxBitrate = settingsMediaPolicyNumber("settings-builder-1440p-route-bitrate", "Route1440pMaxVideoBitrateMbps", 35);
@@ -277,7 +254,7 @@ function settingsActiveMediaPolicyRows() {
   const extraVideoFlags = settingsMediaPolicyList("settings-video-extra-flags", "ExtraVideoFlags", []);
   const convertTx3g = settingsMediaPolicyBool("settings-subtitle-convert-tx3g", "ConvertTx3gToSrt", true);
   const dropTx3g = settingsMediaPolicyBool("settings-subtitle-drop-tx3g", "DropTx3gAfterConversion", false);
-  const convertBdpgs = settingsMediaPolicyBool("settings-subtitle-convert-bdpgs", "ConvertBdpgsToSrt", true);
+  const convertBdpgs = settingsMediaPolicyBool("settings-subtitle-convert-bdpgs", "ConvertBdpgsToSrt", false);
   const dropBdpgs = settingsMediaPolicyBool("settings-subtitle-drop-bdpgs", "DropBdpgsAfterConversion", false);
   const convertVobSub = settingsMediaPolicyBool("settings-subtitle-convert-vobsub", "ConvertVobSubToSrt", false);
   const dropVobSub = settingsMediaPolicyBool("settings-subtitle-drop-vobsub", "DropVobSubAfterConversion", false);
@@ -293,7 +270,7 @@ function settingsActiveMediaPolicyRows() {
     {
       area: "Routing profile / output-size guard",
       posture: ["off", "disabled"].includes(String(sizeGuard).toLowerCase()) ? "review" : "coherent",
-      evidence: `profile=${formatSettingsChoiceLabel(routingProfile)}; threshold=${formatSettingsChoiceLabel(routeThresholdMode)}; if encoded output is too large=${formatSettingsChoiceLabel(sizeGuard)}; normal growth=${maxGrowth}%; compatibility growth=${compatGrowth}%; targets 1080p movie/TV=${movie1080pTarget}/${tv1080pTarget}GB, 1440p movie/TV=${movie1440pTarget}/${tv1440pTarget}GB, 4K movie/TV=${movie4kTarget}/${tv4kTarget}GB; unknown-height movie/TV=${movieThreshold}/${tvThreshold}GB and ${movieRouteMaxBitrate}/${tvRouteMaxBitrate}Mbps; bitrate caps 1080p <=${routeBoundaries.route1080pMaxHeight}p ${route1080pMaxBitrate}Mbps, 1440p ${routeBoundaries.route1440pMinHeight}-${routeBoundaries.route1440pMaxHeight}p ${route1440pMaxBitrate}Mbps, 4K >=${routeBoundaries.route4kMinHeight}p ${route4kMaxBitrate}Mbps`,
+      evidence: `profile=${formatSettingsChoiceLabel(routingProfile)}; threshold=${formatSettingsChoiceLabel(routeThresholdMode)}; if encoded output is too large=${formatSettingsChoiceLabel(sizeGuard)}; normal growth=${maxGrowth}%; compatibility growth=${compatGrowth}%; targets 1080p movie/TV=${movie1080pTarget}/${tv1080pTarget}GB, 1440p movie/TV=${movie1440pTarget}/${tv1440pTarget}GB, 4K movie/TV=${movie4kTarget}/${tv4kTarget}GB; unknown height uses the 1080p targets and ${route1080pMaxBitrate}Mbps cap; bitrate caps 1080p <=${routeBoundaries.route1080pMaxHeight}p ${route1080pMaxBitrate}Mbps, 1440p ${routeBoundaries.route1440pMinHeight}-${routeBoundaries.route1440pMaxHeight}p ${route1440pMaxBitrate}Mbps, 4K >=${routeBoundaries.route4kMinHeight}p ${route4kMaxBitrate}Mbps`,
       handoff: "Launch should show these saved route/size values before Start. Source height selects both the target output size and direct-copy bitrate cap; final enforcement remains backend-owned.",
     },
     {
@@ -959,24 +936,18 @@ function settingsPolicyDeltaRows(entries) {
     "RoutingProfile",
     "RouteThresholdMode",
     "SizeGuardMode",
-    "EncodeThresholdGB",
-    "TVEncodeThresholdGB",
     "MovieRoute1080pTargetSizeGB",
     "MovieRoute1440pTargetSizeGB",
     "MovieRoute4KTargetSizeGB",
     "TVRoute1080pTargetSizeGB",
     "TVRoute1440pTargetSizeGB",
     "TVRoute4KTargetSizeGB",
-    "MovieRouteMaxVideoBitrateMbps",
-    "TVRouteMaxVideoBitrateMbps",
-    "Route1080pBucketMaxHeight",
     "Route1080pUpperHeightTolerancePercent",
     "Route1080pMaxVideoBitrateMbps",
     "Route1440pLowerHeightTolerancePercent",
     "Route1440pUpperHeightTolerancePercent",
     "Route1440pMaxVideoBitrateMbps",
     "Route4KLowerHeightTolerancePercent",
-    "Route4KBucketMinHeight",
     "Route4KMaxVideoBitrateMbps",
     "MaxEncodeGrowthPercent",
     "CompatibilityEncodeGrowthPercent",
@@ -994,8 +965,8 @@ function settingsPolicyDeltaRows(entries) {
   rows.push({
     area: "Routing / output-size guard",
     posture: ["off", "disabled"].includes(nextSizeGuard) || nextMaxGrowth > 15 || nextCompatGrowth > 30 ? "review" : (settingsPolicyDeltaChangedLabels(entries, routingKeys).length ? "preview required" : "unchanged"),
-    current: `profile=${formatSettingsChoiceLabel(settingsPatchCurrentText("RoutingProfile", "plex_direct_stream"))}; threshold=${formatSettingsChoiceLabel(currentRouteThresholdMode)}; guard=${formatSettingsChoiceLabel(currentSizeGuard)}; growth=${currentMaxGrowth}%/${currentCompatGrowth}%; size targets 1080p=${settingsPatchCurrentNumber("MovieRoute1080pTargetSizeGB", settingsPatchCurrentNumber("EncodeThresholdGB", 8))}/${settingsPatchCurrentNumber("TVRoute1080pTargetSizeGB", settingsPatchCurrentNumber("TVEncodeThresholdGB", 3))}GB, 1440p=${settingsPatchCurrentNumber("MovieRoute1440pTargetSizeGB", settingsPatchCurrentNumber("EncodeThresholdGB", 8))}/${settingsPatchCurrentNumber("TVRoute1440pTargetSizeGB", settingsPatchCurrentNumber("TVEncodeThresholdGB", 3))}GB, 4K=${settingsPatchCurrentNumber("MovieRoute4KTargetSizeGB", settingsPatchCurrentNumber("EncodeThresholdGB", 8))}/${settingsPatchCurrentNumber("TVRoute4KTargetSizeGB", settingsPatchCurrentNumber("TVEncodeThresholdGB", 3))}GB; unknown fallback movie/TV=${settingsPatchCurrentNumber("EncodeThresholdGB", 8)}/${settingsPatchCurrentNumber("TVEncodeThresholdGB", 3)}GB and ${settingsPatchCurrentNumber("MovieRouteMaxVideoBitrateMbps", 35)}/${settingsPatchCurrentNumber("TVRouteMaxVideoBitrateMbps", 18)}Mbps; buckets 1080p<=${currentRouteBoundaries.route1080pMaxHeight}p ${settingsPatchCurrentNumber("Route1080pMaxVideoBitrateMbps", 20)}Mbps, 1440p ${currentRouteBoundaries.route1440pMinHeight}-${currentRouteBoundaries.route1440pMaxHeight}p ${settingsPatchCurrentNumber("Route1440pMaxVideoBitrateMbps", 35)}Mbps, 4K>=${currentRouteBoundaries.route4kMinHeight}p ${settingsPatchCurrentNumber("Route4KMaxVideoBitrateMbps", 35)}Mbps`,
-    candidate: `profile=${formatSettingsChoiceLabel(settingsPatchCandidateText(entries, "RoutingProfile", "plex_direct_stream"))}; threshold=${formatSettingsChoiceLabel(nextRouteThresholdMode)}; guard=${formatSettingsChoiceLabel(nextSizeGuard)}; growth=${nextMaxGrowth}%/${nextCompatGrowth}%; size targets 1080p=${settingsPatchCandidateNumber(entries, "MovieRoute1080pTargetSizeGB", settingsPatchCandidateNumber(entries, "EncodeThresholdGB", 8))}/${settingsPatchCandidateNumber(entries, "TVRoute1080pTargetSizeGB", settingsPatchCandidateNumber(entries, "TVEncodeThresholdGB", 3))}GB, 1440p=${settingsPatchCandidateNumber(entries, "MovieRoute1440pTargetSizeGB", settingsPatchCandidateNumber(entries, "EncodeThresholdGB", 8))}/${settingsPatchCandidateNumber(entries, "TVRoute1440pTargetSizeGB", settingsPatchCandidateNumber(entries, "TVEncodeThresholdGB", 3))}GB, 4K=${settingsPatchCandidateNumber(entries, "MovieRoute4KTargetSizeGB", settingsPatchCandidateNumber(entries, "EncodeThresholdGB", 8))}/${settingsPatchCandidateNumber(entries, "TVRoute4KTargetSizeGB", settingsPatchCandidateNumber(entries, "TVEncodeThresholdGB", 3))}GB; unknown fallback movie/TV=${settingsPatchCandidateNumber(entries, "EncodeThresholdGB", 8)}/${settingsPatchCandidateNumber(entries, "TVEncodeThresholdGB", 3)}GB and ${settingsPatchCandidateNumber(entries, "MovieRouteMaxVideoBitrateMbps", 35)}/${settingsPatchCandidateNumber(entries, "TVRouteMaxVideoBitrateMbps", 18)}Mbps; buckets 1080p<=${nextRouteBoundaries.route1080pMaxHeight}p ${settingsPatchCandidateNumber(entries, "Route1080pMaxVideoBitrateMbps", 20)}Mbps, 1440p ${nextRouteBoundaries.route1440pMinHeight}-${nextRouteBoundaries.route1440pMaxHeight}p ${settingsPatchCandidateNumber(entries, "Route1440pMaxVideoBitrateMbps", 35)}Mbps, 4K>=${nextRouteBoundaries.route4kMinHeight}p ${settingsPatchCandidateNumber(entries, "Route4KMaxVideoBitrateMbps", 35)}Mbps`,
+    current: `profile=${formatSettingsChoiceLabel(settingsPatchCurrentText("RoutingProfile", "plex_direct_stream"))}; threshold=${formatSettingsChoiceLabel(currentRouteThresholdMode)}; guard=${formatSettingsChoiceLabel(currentSizeGuard)}; growth=${currentMaxGrowth}%/${currentCompatGrowth}%; size targets 1080p=${settingsPatchCurrentNumber("MovieRoute1080pTargetSizeGB", 8)}/${settingsPatchCurrentNumber("TVRoute1080pTargetSizeGB", 3)}GB, 1440p=${settingsPatchCurrentNumber("MovieRoute1440pTargetSizeGB", 8)}/${settingsPatchCurrentNumber("TVRoute1440pTargetSizeGB", 3)}GB, 4K=${settingsPatchCurrentNumber("MovieRoute4KTargetSizeGB", 8)}/${settingsPatchCurrentNumber("TVRoute4KTargetSizeGB", 3)}GB; unknown height uses 1080p targets and ${settingsPatchCurrentNumber("Route1080pMaxVideoBitrateMbps", 20)}Mbps cap; buckets 1080p<=${currentRouteBoundaries.route1080pMaxHeight}p ${settingsPatchCurrentNumber("Route1080pMaxVideoBitrateMbps", 20)}Mbps, 1440p ${currentRouteBoundaries.route1440pMinHeight}-${currentRouteBoundaries.route1440pMaxHeight}p ${settingsPatchCurrentNumber("Route1440pMaxVideoBitrateMbps", 35)}Mbps, 4K>=${currentRouteBoundaries.route4kMinHeight}p ${settingsPatchCurrentNumber("Route4KMaxVideoBitrateMbps", 35)}Mbps`,
+    candidate: `profile=${formatSettingsChoiceLabel(settingsPatchCandidateText(entries, "RoutingProfile", "plex_direct_stream"))}; threshold=${formatSettingsChoiceLabel(nextRouteThresholdMode)}; guard=${formatSettingsChoiceLabel(nextSizeGuard)}; growth=${nextMaxGrowth}%/${nextCompatGrowth}%; size targets 1080p=${settingsPatchCandidateNumber(entries, "MovieRoute1080pTargetSizeGB", 8)}/${settingsPatchCandidateNumber(entries, "TVRoute1080pTargetSizeGB", 3)}GB, 1440p=${settingsPatchCandidateNumber(entries, "MovieRoute1440pTargetSizeGB", 8)}/${settingsPatchCandidateNumber(entries, "TVRoute1440pTargetSizeGB", 3)}GB, 4K=${settingsPatchCandidateNumber(entries, "MovieRoute4KTargetSizeGB", 8)}/${settingsPatchCandidateNumber(entries, "TVRoute4KTargetSizeGB", 3)}GB; unknown height uses 1080p targets and ${settingsPatchCandidateNumber(entries, "Route1080pMaxVideoBitrateMbps", 20)}Mbps cap; buckets 1080p<=${nextRouteBoundaries.route1080pMaxHeight}p ${settingsPatchCandidateNumber(entries, "Route1080pMaxVideoBitrateMbps", 20)}Mbps, 1440p ${nextRouteBoundaries.route1440pMinHeight}-${nextRouteBoundaries.route1440pMaxHeight}p ${settingsPatchCandidateNumber(entries, "Route1440pMaxVideoBitrateMbps", 35)}Mbps, 4K>=${nextRouteBoundaries.route4kMinHeight}p ${settingsPatchCandidateNumber(entries, "Route4KMaxVideoBitrateMbps", 35)}Mbps`,
     check: `${settingsPolicyDeltaChangedText(entries, routingKeys)} The output-size guard and growth limits affect remux-vs-encode trust and oversized-output review.`,
   });
 
@@ -1042,7 +1013,7 @@ function settingsPolicyDeltaRows(entries) {
   const nextContainer = settingsPatchCandidateText(entries, "OutputContainer", "mkv").toLowerCase();
   const nextConvertTx3g = settingsPatchCandidateBool(entries, "ConvertTx3gToSrt", true);
   const nextDropTx3g = settingsPatchCandidateBool(entries, "DropTx3gAfterConversion", false);
-  const nextConvertBdpgs = settingsPatchCandidateBool(entries, "ConvertBdpgsToSrt", true);
+  const nextConvertBdpgs = settingsPatchCandidateBool(entries, "ConvertBdpgsToSrt", false);
   const nextDropBdpgs = settingsPatchCandidateBool(entries, "DropBdpgsAfterConversion", false);
   const nextConvertVobSub = settingsPatchCandidateBool(entries, "ConvertVobSubToSrt", false);
   const nextDropVobSub = settingsPatchCandidateBool(entries, "DropVobSubAfterConversion", false);
@@ -1051,7 +1022,7 @@ function settingsPolicyDeltaRows(entries) {
   rows.push({
     area: "Container / subtitle preservation",
     posture: subtitleBlocked ? "blocked" : (nextContainer === "mp4" || nextDropTx3g || nextDropBdpgs || nextDropVobSub || nextDropAss || !nextConvertTx3g || !nextConvertBdpgs || !nextConvertVobSub ? "review" : (settingsPolicyDeltaChangedLabels(entries, subtitleKeys).length ? "preview required" : "unchanged")),
-    current: `container=${formatSettingsChoiceLabel(settingsPatchCurrentText("OutputContainer", "mkv"))}; TX3G=${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("ConvertTx3gToSrt", true))}/${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("DropTx3gAfterConversion", false))}; BDPGS=${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("ConvertBdpgsToSrt", true))}/${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("DropBdpgsAfterConversion", false))}; VobSub=${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("ConvertVobSubToSrt", false))}/${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("DropVobSubAfterConversion", false))}; ASS drop=${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("DropAssAfterConversion", false))}`,
+    current: `container=${formatSettingsChoiceLabel(settingsPatchCurrentText("OutputContainer", "mkv"))}; TX3G=${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("ConvertTx3gToSrt", true))}/${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("DropTx3gAfterConversion", false))}; BDPGS=${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("ConvertBdpgsToSrt", false))}/${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("DropBdpgsAfterConversion", false))}; VobSub=${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("ConvertVobSubToSrt", false))}/${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("DropVobSubAfterConversion", false))}; ASS drop=${settingsPolicyDeltaBoolText(settingsPatchCurrentBool("DropAssAfterConversion", false))}`,
     candidate: `container=${formatSettingsChoiceLabel(nextContainer)}; keep=${settingsPatchCandidateList(entries, "SubKeepLanguages", ["eng", "und"]).join(", ") || "(empty)"}; TX3G=${settingsPolicyDeltaBoolText(nextConvertTx3g)}/${settingsPolicyDeltaBoolText(nextDropTx3g)}; BDPGS=${settingsPolicyDeltaBoolText(nextConvertBdpgs)}/${settingsPolicyDeltaBoolText(nextDropBdpgs)}; VobSub=${settingsPolicyDeltaBoolText(nextConvertVobSub)}/${settingsPolicyDeltaBoolText(nextDropVobSub)}; ASS drop=${settingsPolicyDeltaBoolText(nextDropAss)}`,
     check: subtitleBlocked
       ? "Do not drop TX3G/BDPGS/VobSub originals when the matching SRT/OCR conversion is disabled."

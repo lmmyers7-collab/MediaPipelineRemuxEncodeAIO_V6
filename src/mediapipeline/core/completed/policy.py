@@ -11,12 +11,14 @@ from typing import TYPE_CHECKING, Any, Iterable
 from mediapipeline.core.completed.manifest import OUTPUT_PROOF_DEFERRED, OUTPUT_PROOF_LIVE
 from mediapipeline.core.completed.trust_fields import build_completed_row_trust_fields
 from mediapipeline.core.completed.validation_state import validation_state_for_completed_row, validation_state_payload
+from mediapipeline.core.files.constants import MEDIA_FILE_SUFFIXES
 from mediapipeline.core.observability.artifact_freshness import file_freshness_fields
 from mediapipeline.core.observability.runtime_outcomes import (
     RUNTIME_OUTCOME_EVENT_LIMIT as COMPLETED_RUNTIME_OUTCOME_EVENT_LIMIT,
     runtime_outcome_index,
     source_identity_key,
 )
+from mediapipeline.core.subtitles.qa import build_completed_subtitle_qa
 from mediapipeline.desktop.models import CompletedJobRecord
 
 if TYPE_CHECKING:
@@ -267,13 +269,21 @@ def completed_record_to_row(record: CompletedJobRecord) -> dict[str, Any]:
         }
     )
     row.update(completed_row_trust_fields(row))
+    row["subtitle_qa"] = build_completed_subtitle_qa(
+        row,
+        subtitle_decisions=subtitle_decisions,
+        record_payload=record.payload,
+    )
     return row
 
 
 def completed_row_available_open_targets(row: dict[str, Any]) -> list[str]:
     targets: list[str] = []
-    if str(row.get("output_path") or "").strip():
+    output_path = str(row.get("output_path") or "").strip()
+    if output_path:
         if row.get("output_exists") is not False:
+            if Path(output_path).suffix.lower() in MEDIA_FILE_SUFFIXES:
+                targets.append("play_output_file")
             targets.append("output_file")
         targets.append("output_folder")
     if str(row.get("sidecar_path") or "").strip():
@@ -307,6 +317,11 @@ def completed_row_operator_status_state(
         return "warning"
     if operator_severity == "warning" or warning_flags:
         return "warning"
+    if row.get("output_exists") is None:
+        # Output-existence proof was deferred (bounded/summary proof budget),
+        # so existence is unproven. Do not present an unverified row as the
+        # all-clear "match"; surface a distinct "unverified" state instead.
+        return "unverified"
     return "match"
 
 

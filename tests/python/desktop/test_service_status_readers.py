@@ -11,6 +11,7 @@ from mediapipeline.tools.paths import find_repo_root
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.status.file_io import STATUS_TAIL_MAX_BYTES
 from mediapipeline.core.status.service import StatusServiceMixin
 from mediapipeline.core.status.readers import (
     read_audit_progress_file,
@@ -155,6 +156,17 @@ class StatusReaderHelperTests(unittest.TestCase):
             self.assertEqual(read_log_tail_file(empty), "(log is empty)")
             self.assertEqual(read_log_tail_file(log, line_count=2), "two\nthree")
 
+    def test_read_log_tail_file_caps_multi_mb_single_line(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            log = Path(td) / "pipeline_debug.log"
+            log.write_text("start-" + ("x" * (STATUS_TAIL_MAX_BYTES * 4)) + "-tail", encoding="utf-8")
+
+            tail = read_log_tail_file(log, line_count=100)
+
+        self.assertLessEqual(len(tail.encode("utf-8")), STATUS_TAIL_MAX_BYTES)
+        self.assertIn("-tail", tail)
+        self.assertNotIn("start-", tail)
+
     def test_read_pipeline_events_tail_file_filters_invalid_contract_records(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             event_file = Path(td) / "pipeline_events.jsonl"
@@ -176,6 +188,21 @@ class StatusReaderHelperTests(unittest.TestCase):
         combined = "\n".join(logger.messages)
         self.assertIn("Skipped 1 invalid pipeline event record", combined)
         self.assertIn(str(event_file), combined)
+
+    def test_read_pipeline_events_tail_file_caps_multi_mb_jsonl_prefix(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            event_file = Path(td) / "pipeline_events.jsonl"
+            event_file.write_text(
+                ("x" * (STATUS_TAIL_MAX_BYTES * 4))
+                + "\n"
+                + json.dumps(_event_payload(event_id="latest")),
+                encoding="utf-8",
+            )
+
+            events = read_pipeline_events_tail_file(event_file)
+
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["event_id"], "latest")
 
     def test_service_mixin_preserves_reader_wrapper_methods(self) -> None:
         with tempfile.TemporaryDirectory() as td:

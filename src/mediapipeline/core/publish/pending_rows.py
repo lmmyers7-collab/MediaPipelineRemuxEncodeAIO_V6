@@ -4,6 +4,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping
 
+from mediapipeline.core.files.constants import MEDIA_FILE_SUFFIXES
+from mediapipeline.core.kernel.contracts.pending_publish import (
+    PENDING_PUSH_MANIFEST_DRAINABLE_STATES,
+    PENDING_PUSH_MANIFEST_SCHEMA_VERSION,
+)
 from .pending_policy_parts.status_rules import (
     row_operator_guidance as _row_operator_guidance,
     row_recovery_action as _row_recovery_action,
@@ -235,10 +240,13 @@ def count_pending_publish_row_targets(rows: list[dict[str, Any]], key: str = "re
 
 def pending_publish_row_ready_to_drain(row: Mapping[str, Any]) -> bool:
     state = str(row.get("state") or "").casefold()
+    schema_version = str(row.get("schema_version") or "").strip()
     return not (
         row.get("error")
         or row.get("local_exists") is False
         or int_value(row.get("missing_sidecar_count")) > 0
+        or schema_version != PENDING_PUSH_MANIFEST_SCHEMA_VERSION
+        or state not in PENDING_PUSH_MANIFEST_DRAINABLE_STATES
         or state in {"orphan_payload", "invalid_manifest", "unreadable_manifest", "invalid_contract", "unreadable"}
     )
 
@@ -259,12 +267,20 @@ def pending_publish_row_issue_summary(row: Mapping[str, Any]) -> str:
         issues.append("manifest is invalid")
     elif state in {"unreadable_manifest", "unreadable"}:
         issues.append("manifest is unreadable")
+    schema_version = str(row.get("schema_version") or "").strip()
+    if schema_version and schema_version != PENDING_PUSH_MANIFEST_SCHEMA_VERSION and "Legacy pending manifest" not in "; ".join(issues):
+        issues.append("manifest schema is not drainable")
+    if schema_version == PENDING_PUSH_MANIFEST_SCHEMA_VERSION and state and state not in PENDING_PUSH_MANIFEST_DRAINABLE_STATES:
+        issues.append(f"manifest state '{state}' is not drainable")
     return "; ".join(issues)
 
 
 def pending_publish_row_available_open_targets(row: Mapping[str, Any]) -> list[str]:
     targets: list[str] = []
-    if row.get("local_file"):
+    local_file = str(row.get("local_file") or "").strip()
+    if local_file:
+        if row.get("local_exists") is not False and Path(local_file).suffix.lower() in MEDIA_FILE_SUFFIXES:
+            targets.append("play_local_file")
         targets.append("local_file")
     if row.get("manifest_path"):
         targets.append("manifest")
@@ -278,12 +294,17 @@ def pending_publish_row_available_open_targets(row: Mapping[str, Any]) -> list[s
 def pending_publish_row_diagnostic_status(row: Mapping[str, Any]) -> str:
     state = str(row.get("state") or "").casefold()
     error = str(row.get("error") or "")
+    schema_version = str(row.get("schema_version") or "").strip()
     if state in {"orphan_payload"}:
         return state
     if state in {"invalid_manifest", "invalid_contract"}:
         return "invalid_manifest"
     if state in {"unreadable_manifest", "unreadable"}:
         return "unreadable_manifest"
+    if schema_version != PENDING_PUSH_MANIFEST_SCHEMA_VERSION:
+        return "invalid_manifest"
+    if state not in PENDING_PUSH_MANIFEST_DRAINABLE_STATES:
+        return "invalid_manifest"
     if "Duplicate pending publish" in error:
         return "duplicate_target"
     if row.get("local_exists") is False:
@@ -356,7 +377,7 @@ def pending_publish_row_evidence_fields(row: Mapping[str, Any], status: str) -> 
 def pending_publish_row_recommended_open_targets(row: Mapping[str, Any], status: str) -> list[str]:
     available = set(pending_publish_row_available_open_targets(row))
     priority_by_status = {
-        "ready": ["local_file", "manifest", "destination_folder"],
+        "ready": ["play_local_file", "local_file", "manifest", "destination_folder"],
         "missing_payload": ["manifest", "destination_folder", "source_folder"],
         "missing_sidecar": ["manifest", "local_file", "source_folder"],
         "orphan_payload": ["local_file"],

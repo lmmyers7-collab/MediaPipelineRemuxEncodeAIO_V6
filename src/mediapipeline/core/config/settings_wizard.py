@@ -15,7 +15,7 @@ from mediapipeline.core.config.library_profiles import (
     library_profiles_from_wizard_payload,
     normalize_library_profile_config_values,
 )
-from mediapipeline.desktop.config_keys import (
+from mediapipeline.core.kernel.config_keys import (
     KEY_ALLOW_NO_AUDIO,
     KEY_ALLOW_SYSTEM_TOOLS,
     KEY_AUDIO_PASSTHROUGH_PROFILE,
@@ -165,7 +165,7 @@ def preview_settings_wizard(facade: object, resolved: ResolvedPaths, request: ob
 def save_settings_wizard(facade: object, resolved: ResolvedPaths, request: object) -> CommandResult:
     from mediapipeline.desktop.application.dto_commands import CommandResult
 
-    confirm_save = bool(request.get("confirm_save", False)) if isinstance(request, dict) else False
+    confirm_save = request.get("confirm_save") is True if isinstance(request, dict) else False
     if not confirm_save:
         return CommandResult(
             command="settings.wizard.save",
@@ -185,6 +185,22 @@ def save_settings_wizard(facade: object, resolved: ResolvedPaths, request: objec
             message="Settings Wizard save blocked by validation errors.",
             severity="error",
             errors=validation["errors"],
+            warnings=validation["warnings"],
+            refresh_hint=WIZARD_REFRESH_HINT,
+            data={"wizard": _wizard_preview_payload(wizard, validation, {}, writes_config=False, base_config=dict(resolved.config_data or {}))},
+        )
+    missing_ack = _missing_wizard_danger_acknowledgements(wizard)
+    if missing_ack:
+        errors = [
+            f"{key} is enabled and requires matching safety.danger_ack before Settings Wizard save."
+            for key in missing_ack
+        ]
+        return CommandResult(
+            command="settings.wizard.save",
+            ok=False,
+            message="Settings Wizard save blocked by missing danger acknowledgement.",
+            severity="error",
+            errors=errors,
             warnings=validation["warnings"],
             refresh_hint=WIZARD_REFRESH_HINT,
             data={"wizard": _wizard_preview_payload(wizard, validation, {}, writes_config=False, base_config=dict(resolved.config_data or {}))},
@@ -245,6 +261,19 @@ def validate_wizard_payload(wizard: object) -> dict[str, Any]:
         "path_validation": path_validation,
         "worker_validation": worker_validation,
     }
+
+
+def _missing_wizard_danger_acknowledgements(wizard: dict[str, Any]) -> list[str]:
+    safety = wizard.get("safety", {}) if isinstance(wizard.get("safety"), dict) else {}
+    danger_ack = {str(item) for item in safety.get("danger_ack") or []}
+    output = wizard.get("output", {}) if isinstance(wizard.get("output"), dict) else {}
+    checks = (
+        (bool(safety.get("allow_system_tools")), "AllowSystemTools"),
+        (bool(safety.get("allow_no_audio")), "AllowNoAudio"),
+        (bool(safety.get("cleanup_remote_staging")), "CleanupRemoteStaging"),
+        (output.get("existing_policy") == "reprocess_all_once", "ReprocessAll"),
+    )
+    return [key for enabled, key in checks if enabled and key not in danger_ack]
 
 
 def validate_wizard_paths(wizard: object) -> dict[str, Any]:

@@ -26,7 +26,10 @@ use backend_process::{
     bootstrap_error, push_bootstrap_stdout_context, redact_bootstrap_stdout,
     web_ui_validation_error_is_fatal, MAX_BOOTSTRAP_STDOUT_CHARS, MAX_BOOTSTRAP_STDOUT_LINES,
 };
-use backend_process::{confirm_close_if_needed, shutdown_backend_state, start_backend};
+use backend_process::{
+    close_request_decision, shutdown_backend_state, start_backend, BackendShutdownMode,
+    CloseRequestDecision,
+};
 #[cfg(test)]
 use close_readiness::{
     close_readiness_warning_detail, close_readiness_watcher_lines, request_close_readiness,
@@ -97,15 +100,25 @@ pub fn run() {
             }
             match event {
                 WindowEvent::CloseRequested { api, .. } => {
-                    if !confirm_close_if_needed(window) {
-                        api.prevent_close();
-                        return;
+                    match close_request_decision(window) {
+                        CloseRequestDecision::Deny => {
+                            api.prevent_close();
+                            return;
+                        }
+                        CloseRequestDecision::AllowSafe => {
+                            shutdown_backend_state(window, BackendShutdownMode::SafeOnly);
+                        }
+                        CloseRequestDecision::AllowConfirmedForce => {
+                            shutdown_backend_state(
+                                window,
+                                BackendShutdownMode::ConfirmedForceActiveWork,
+                            );
+                        }
                     }
-                    shutdown_backend_state(window);
                     window.app_handle().exit(0);
                 }
                 WindowEvent::Destroyed => {
-                    shutdown_backend_state(window);
+                    shutdown_backend_state(window, BackendShutdownMode::SafeOnly);
                 }
                 _ => {}
             }
@@ -115,7 +128,7 @@ pub fn run() {
 
     app.run(|app_handle, event| match event {
         RunEvent::ExitRequested { .. } | RunEvent::Exit => {
-            shutdown_backend_state(app_handle);
+            shutdown_backend_state(app_handle, BackendShutdownMode::SafeOnly);
         }
         _ => {}
     });
@@ -786,10 +799,18 @@ window.__settingsBackendResultModule = { createSettingsBackendResultModule };"#;
 function collectSettingsBuilderPatch() {
   return {
     RoutingProfile: settingsBuilderInputValue("settings-builder-routing-profile"),
-    OutputContainer: settingsBuilderInputValue("settings-builder-output-container"),
   };
 }
 function bindSettingsClick() {}"#;
+        let settings_metadata_script = r#"const videoDetailSettingsBuilderFields = [
+  ["OutputContainer", "settings-builder-output-container", "select"],
+];"#;
+        let settings_video_builder_script = r#"function collectVideoDetailSettingsBuilderPatch() {
+  patch[key] = readVideoDetailBuilderValue(id, kind, field?.label || key);
+}
+function syncVideoDetailSettingsBuilderFromConfig() {
+  setVideoDetailBuilderControl("settings-builder-output-container", "OutputContainer", "select", "mkv");
+}"#;
         let settings_script = r#"const settingsRawTriageModule = window.__settingsRawTriageModule || {};
 const settingsSafetyLocksModule = window.__settingsSafetyLocksModule || {};
 const settingsBackendResultModule = window.__settingsBackendResultModule || {};
@@ -919,6 +940,8 @@ const pendingConfidenceModule = window.__pendingPublishConfidenceModule || {};"#
             settings_safety_locks_script,
             settings_backend_result_script,
             settings_patch_review_script,
+            settings_metadata_script,
+            settings_video_builder_script,
             settings_script,
             settings_policy_impact_script,
             settings_overview_script,
@@ -949,7 +972,7 @@ const pendingConfidenceModule = window.__pendingPublishConfidenceModule || {};"#
         let (url, rx) = serve_sequence(responses);
 
         validate_backend_web_ui(&url, "secret-token").expect("web UI validation should pass");
-        let requests = (0..42)
+        let requests = (0..44)
             .map(|_| {
                 rx.recv_timeout(Duration::from_secs(2))
                     .expect("request received")
@@ -987,36 +1010,38 @@ const pendingConfidenceModule = window.__pendingPublishConfidenceModule || {};"#
         assert!(requests[15].starts_with("GET /assets/settingsView.safetyLocks.js HTTP/1.1\r\n"));
         assert!(requests[16].starts_with("GET /assets/settings/backendResult.js HTTP/1.1\r\n"));
         assert!(requests[17].starts_with("GET /assets/settings/patchReview.js HTTP/1.1\r\n"));
-        assert!(requests[18].starts_with("GET /assets/settingsView.js HTTP/1.1\r\n"));
-        assert!(requests[19].starts_with("GET /assets/settings/policyImpact.js HTTP/1.1\r\n"));
-        assert!(requests[20].starts_with("GET /assets/settingsOverview.js HTTP/1.1\r\n"));
-        assert!(requests[21].starts_with("GET /assets/launch/risk/settingsAccess.js HTTP/1.1\r\n"));
+        assert!(requests[18].starts_with("GET /assets/settingsMetadata.js HTTP/1.1\r\n"));
+        assert!(requests[19].starts_with("GET /assets/settingsView.builders.video.js HTTP/1.1\r\n"));
+        assert!(requests[20].starts_with("GET /assets/settingsView.js HTTP/1.1\r\n"));
+        assert!(requests[21].starts_with("GET /assets/settings/policyImpact.js HTTP/1.1\r\n"));
+        assert!(requests[22].starts_with("GET /assets/settingsOverview.js HTTP/1.1\r\n"));
+        assert!(requests[23].starts_with("GET /assets/launch/risk/settingsAccess.js HTTP/1.1\r\n"));
         assert!(
-            requests[22].starts_with("GET /assets/launch/risk/mediaPolicyValues.js HTTP/1.1\r\n")
+            requests[24].starts_with("GET /assets/launch/risk/mediaPolicyValues.js HTTP/1.1\r\n")
         );
-        assert!(requests[23].starts_with("GET /assets/launch/risk/riskRows.js HTTP/1.1\r\n"));
-        assert!(requests[24].starts_with("GET /assets/launch/risk/policyPatch.js HTTP/1.1\r\n"));
-        assert!(requests[25].starts_with("GET /assets/launch/risk/policyBoundary.js HTTP/1.1\r\n"));
-        assert!(requests[26].starts_with("GET /assets/launchView.risk.js HTTP/1.1\r\n"));
-        assert!(requests[27].starts_with("GET /assets/launchView.scope.js HTTP/1.1\r\n"));
-        assert!(requests[28].starts_with("GET /assets/launchView.realmedia.js HTTP/1.1\r\n"));
-        assert!(requests[29].starts_with("GET /assets/launchView.preflight.js HTTP/1.1\r\n"));
-        assert!(requests[30].starts_with("GET /assets/launch/controllerState.js HTTP/1.1\r\n"));
-        assert!(requests[31].starts_with("GET /assets/launch/statusRender.js HTTP/1.1\r\n"));
-        assert!(requests[32].starts_with("GET /assets/launch/startRequest.js HTTP/1.1\r\n"));
-        assert!(requests[33].starts_with("GET /assets/launch/scopeControls.js HTTP/1.1\r\n"));
-        assert!(requests[34].starts_with("GET /assets/launch/commandButtons.js HTTP/1.1\r\n"));
-        assert!(requests[35].starts_with("GET /assets/launchView.js HTTP/1.1\r\n"));
-        assert!(requests[36].starts_with("GET /assets/diagnosticsStateSummaryView.js HTTP/1.1\r\n"));
-        assert!(requests[37].starts_with("GET /assets/pendingPublishView.recovery.js HTTP/1.1\r\n"));
+        assert!(requests[25].starts_with("GET /assets/launch/risk/riskRows.js HTTP/1.1\r\n"));
+        assert!(requests[26].starts_with("GET /assets/launch/risk/policyPatch.js HTTP/1.1\r\n"));
+        assert!(requests[27].starts_with("GET /assets/launch/risk/policyBoundary.js HTTP/1.1\r\n"));
+        assert!(requests[28].starts_with("GET /assets/launchView.risk.js HTTP/1.1\r\n"));
+        assert!(requests[29].starts_with("GET /assets/launchView.scope.js HTTP/1.1\r\n"));
+        assert!(requests[30].starts_with("GET /assets/launchView.realmedia.js HTTP/1.1\r\n"));
+        assert!(requests[31].starts_with("GET /assets/launchView.preflight.js HTTP/1.1\r\n"));
+        assert!(requests[32].starts_with("GET /assets/launch/controllerState.js HTTP/1.1\r\n"));
+        assert!(requests[33].starts_with("GET /assets/launch/statusRender.js HTTP/1.1\r\n"));
+        assert!(requests[34].starts_with("GET /assets/launch/startRequest.js HTTP/1.1\r\n"));
+        assert!(requests[35].starts_with("GET /assets/launch/scopeControls.js HTTP/1.1\r\n"));
+        assert!(requests[36].starts_with("GET /assets/launch/commandButtons.js HTTP/1.1\r\n"));
+        assert!(requests[37].starts_with("GET /assets/launchView.js HTTP/1.1\r\n"));
+        assert!(requests[38].starts_with("GET /assets/diagnosticsStateSummaryView.js HTTP/1.1\r\n"));
+        assert!(requests[39].starts_with("GET /assets/pendingPublishView.recovery.js HTTP/1.1\r\n"));
         assert!(
-            requests[38].starts_with("GET /assets/pendingPublishView.diagnostics.js HTTP/1.1\r\n")
+            requests[40].starts_with("GET /assets/pendingPublishView.diagnostics.js HTTP/1.1\r\n")
         );
-        assert!(requests[39].starts_with("GET /assets/pendingPublishView.drain.js HTTP/1.1\r\n"));
+        assert!(requests[41].starts_with("GET /assets/pendingPublishView.drain.js HTTP/1.1\r\n"));
         assert!(
-            requests[40].starts_with("GET /assets/pendingPublishView.confidence.js HTTP/1.1\r\n")
+            requests[42].starts_with("GET /assets/pendingPublishView.confidence.js HTTP/1.1\r\n")
         );
-        assert!(requests[41].starts_with("GET /assets/pendingPublishView.js HTTP/1.1\r\n"));
+        assert!(requests[43].starts_with("GET /assets/pendingPublishView.js HTTP/1.1\r\n"));
         assert!(requests
             .iter()
             .all(|request| request.contains("Authorization: Bearer secret-token\r\n")));

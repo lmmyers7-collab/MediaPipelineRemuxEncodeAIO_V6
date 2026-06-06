@@ -339,8 +339,53 @@
     return text.length > maxChars ? `...${text.slice(-(maxChars - 3))}` : text;
   }
 
+  function homeQueueLeaf(value) {
+    const text = String(value || "").trim();
+    if (!text) return "";
+    const parts = text.split(/[\\/]+/);
+    return parts[parts.length - 1] || text;
+  }
+
+  // Release-style movie filenames ("Hoppers.2026.2160p.WEB-DL...") collapse to
+  // "Title (Year)". Picks the release year (a 1900-2099 token that is
+  // parenthesized, last, or immediately followed by a quality/source tag) so a
+  // year inside the title (e.g. "Blade Runner 2049 2017") is not mistaken for it.
+  function homeMovieTitleYear(value) {
+    let text = String(value || "").trim();
+    if (!text) return "";
+    text = text.replace(/\.(mkv|mp4|m4v|avi|mov|ts|webm)$/i, "");
+    const spaced = text.replace(/[._]+/g, " ").replace(/\s+/g, " ").trim();
+    const junk = /^(480p|576p|720p|1080p|2160p|4k|uhd|web|webdl|web-dl|webrip|web-rip|bluray|blu-ray|brrip|bdrip|hdrip|dvdrip|remux|remaster|remastered|unrated|extended|proper|repack|imax|hdr|hdr10|dv|dovi|hevc|avc|x264|x265|h264|h265|10bit|8bit|aac|ac3|eac3|dd5|ddp5|dts|atmos|truehd|flac|dual|multi)$/i;
+    const tokens = spaced.split(" ");
+    const yearRe = /^\(?((?:19|20)\d{2})\)?$/;
+    for (let i = 0; i < tokens.length; i += 1) {
+      const match = tokens[i].match(yearRe);
+      if (!match) continue;
+      const parenthesized = /^\(.*\)$/.test(tokens[i]);
+      const next = (tokens[i + 1] || "").replace(/[()]/g, "");
+      if (parenthesized || i === tokens.length - 1 || junk.test(next)) {
+        const title = tokens.slice(0, i).join(" ").replace(/[\s-]+$/g, "").trim();
+        if (title) return `${title} (${match[1]})`;
+        break;
+      }
+    }
+    return spaced;
+  }
+
+  function homeNormalizeQueueTitle(rawValue, item = {}) {
+    const raw = String(rawValue || "").trim();
+    if (!raw) return "";
+    const mediaType = String(item.media_type || item.media_kind || "").trim().toLowerCase();
+    if (mediaType === "movie" || mediaType === "movies") {
+      const leaf = homeQueueLeaf(raw);
+      return homeMovieTitleYear(leaf) || leaf;
+    }
+    // TV and unknown rows: display_name is already "Show - S01E01 - Title"; keep verbatim.
+    return raw;
+  }
+
   function homeQueueTitle(item = {}) {
-    return item.lookup_title
+    const raw = item.lookup_title
       || item.display_name
       || item.title
       || item.source_file_name
@@ -350,6 +395,7 @@
       || item.input_path
       || item.file
       || "";
+    return homeNormalizeQueueTitle(raw, item);
   }
 
   function homeQueueRoute(item = {}) {
@@ -370,9 +416,54 @@
     return status === "ready" || status === "priority ready";
   }
 
-  function homeNextQueueRows(queue = {}) {
+  function homeQueueGlobalOrder(item = {}) {
+    const value = Number(item.global_order);
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  function homeQueueSourceKey(value) {
+    return String(value || "").trim().replace(/[\\/]+/g, "/").toLowerCase();
+  }
+
+  // Live processing position as a 1-based global order. The queue snapshot is the
+  // full static plan in execution order (global_order 1..N), so the panel must
+  // skip everything up to the current point; otherwise it shows already-finished
+  // items. Resolution order:
+  //   1. Anchor to the file currently being processed (exact global_order).
+  //   2. Otherwise max(CurrentQueueIndex, TotalProcessed). CurrentQueueIndex
+  //      resets to 0 between items while TotalProcessed (counts.processed) does
+  //      not, so max() keeps the panel from reverting to finished items in the gap.
+  function homeCurrentQueueOrder(context = {}, rows = []) {
+    const snapshot = context && typeof context.snapshot === "object" ? context.snapshot : {};
+    const counts = snapshot && typeof snapshot.counts === "object" ? snapshot.counts : {};
+    const progress = snapshot && typeof snapshot.progress === "object" ? snapshot.progress : {};
+    const currentKey = homeQueueSourceKey(progress.CurrentFilePath || progress.current_file_path || progress.CurrentFile);
+    if (currentKey) {
+      const list = Array.isArray(rows) ? rows : [];
+      const match = list.find((item) => item && homeQueueSourceKey(item.source_path) === currentKey);
+      const matchOrder = match ? homeQueueGlobalOrder(match) : 0;
+      if (matchOrder > 0) return matchOrder;
+    }
+    const index = Math.trunc(Number(counts.queue_index) || 0);
+    const processed = Math.trunc(Number(counts.processed) || 0);
+    return Math.max(index > 0 ? index : 0, processed > 0 ? processed : 0);
+  }
+
+  function homeNextQueueRows(queue = {}, currentOrder = 0) {
     const rows = Array.isArray(queue.rows) ? queue.rows.filter(Boolean) : [];
-    return rows.filter(homeQueueRowIsRunnable).slice(0, 5);
+    const runnable = rows.filter(homeQueueRowIsRunnable);
+    const cutoff = Math.trunc(Number(currentOrder) || 0);
+    if (cutoff > 0) {
+      // Genuinely upcoming items sit after the live position in global order.
+      const upcoming = runnable
+        .filter((item) => homeQueueGlobalOrder(item) > cutoff)
+        .sort((left, right) => homeQueueGlobalOrder(left) - homeQueueGlobalOrder(right));
+      // Only apply the offset when it yields rows. If nothing is upcoming (run
+      // near its end, or a payload without global_order), fall back to the first
+      // runnable rows so the panel never blanks out.
+      if (upcoming.length) return upcoming.slice(0, 5);
+    }
+    return runnable.slice(0, 5);
   }
 
   function renderHomePendingCount(pending) {
@@ -741,7 +832,7 @@
         area: "Settings BDPGS OCR paths",
         status: attention ? status : "ready",
         evidence: `enabled=${bdpgs.enabled ? "yes" : "no"}; blocked=${bdpgs.blocked_count || 0}; review=${bdpgs.review_count || 0}`,
-        nextStep: attention ? "Open Settings > Subtitles and fix saved OCR tool/tessdata path evidence or disable OCR intentionally before rerunning PGS subtitle conversion." : "Saved BDPGS OCR path evidence is not blocking in the loaded Settings payload."
+        nextStep: attention ? "Open Settings > Media Output and fix saved OCR tool/tessdata path evidence or disable OCR intentionally before rerunning PGS subtitle conversion." : "Saved BDPGS OCR path evidence is not blocking in the loaded Settings payload."
       });
     } else {
       rows.push({
@@ -759,7 +850,7 @@
         area: "Settings VobSub OCR paths",
         status: attention ? status : "ready",
         evidence: `enabled=${vobsub.enabled ? "yes" : "no"}; blocked=${vobsub.blocked_count || 0}; review=${vobsub.review_count || 0}`,
-        nextStep: attention ? "Open Settings > Subtitles and fix saved Subtitle Edit/Tesseract path evidence or disable OCR intentionally before rerunning VobSub subtitle conversion." : "Saved VobSub OCR path evidence is not blocking in the loaded Settings payload."
+        nextStep: attention ? "Open Settings > Media Output and fix saved Subtitle Edit/Tesseract path evidence or disable OCR intentionally before rerunning VobSub subtitle conversion." : "Saved VobSub OCR path evidence is not blocking in the loaded Settings payload."
       });
     } else {
       rows.push({
@@ -776,7 +867,7 @@
         area: "Diagnostics settings handoff",
         status: blocked ? "blocked" : "review",
         evidence: `settings dependency issue rows=${settingsIssues.length}; blocked=${blocked}`,
-        nextStep: "Use Diagnostics State Artifact Summary read order, then return to Settings > Subtitles before rerun or manual-review decisions."
+        nextStep: "Use Diagnostics State Artifact Summary read order, then return to Settings > Media Output before rerun or manual-review decisions."
       });
     }
     if (typeof settingsRawActionPlanRows === "function") {
@@ -867,7 +958,7 @@
     const list = byId("home-next-queue-list");
     if (!list) return;
     list.replaceChildren();
-    const rows = homeNextQueueRows(queue);
+    const rows = homeNextQueueRows(queue, homeCurrentQueueOrder(context, queue.rows));
     const status = byId("home-next-queue-status");
     if (status) status.textContent = rows.length ? `${rows.length} ready` : "No runnable";
     if (!rows.length) {
@@ -881,7 +972,10 @@
       const title = document.createElement("span");
       title.className = "home-next-queue-title";
       const rawTitle = homeQueueTitle(item);
-      title.textContent = homeCompactShortValue(rawTitle, 70) || "Untitled queue item";
+      // display_name is already normalized ("Show - S01E01 - Title" / "Movie (Year)").
+      // Render it verbatim and let the CSS ellipsis clip overflow; do NOT pass it
+      // through shortenPath, which prepends a bogus ".../" and makes it look like a file path.
+      title.textContent = rawTitle || "Untitled queue item";
       if (rawTitle) title.title = rawTitle;
       const meta = document.createElement("span");
       meta.className = "home-next-queue-meta";
@@ -929,9 +1023,13 @@
     dependencyStatusLabel,
     homeProgressPercent,
     homeQueueTitle,
+    homeNormalizeQueueTitle,
+    homeMovieTitleYear,
     homeQueueRoute,
     homeQueueMeta,
     homeQueueRowIsRunnable,
+    homeQueueGlobalOrder,
+    homeCurrentQueueOrder,
     homeNextQueueRows,
     renderHomePendingCount,
     renderHomeNetworkRole,

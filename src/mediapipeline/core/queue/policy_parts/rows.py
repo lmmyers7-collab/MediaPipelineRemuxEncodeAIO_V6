@@ -26,6 +26,7 @@ from mediapipeline.core.queue.policy_parts.row_identity import (
 )
 from mediapipeline.core.queue.policy_parts.runtime_outcomes import queue_apply_runtime_outcomes
 from mediapipeline.core.queue.policy_parts.track_metadata import queue_preview_track_metadata_summary
+from mediapipeline.core.subtitles.qa import build_queue_subtitle_qa
 from mediapipeline.desktop.models import QueueRecord
 
 
@@ -59,6 +60,7 @@ def queue_record_to_row(record: QueueRecord) -> dict[str, Any]:
     row["row_key"] = queue_row_key(row)
     row["available_open_targets"] = queue_row_available_open_targets(row)
     row.update(queue_row_operator_guidance(row))
+    row["subtitle_qa"] = build_queue_subtitle_qa(row)
     return row
 
 
@@ -168,6 +170,7 @@ def queue_preview_rows(
             invalid_row.update(queue_preview_track_metadata_summary(raw_row))
             invalid_row["available_open_targets"] = queue_row_available_open_targets(invalid_row)
             invalid_row.update(queue_row_operator_guidance(invalid_row))
+            invalid_row["subtitle_qa"] = build_queue_subtitle_qa(invalid_row)
             rows.append(invalid_row)
             continue
         if isinstance(record, QueueRecord):
@@ -203,6 +206,7 @@ def queue_preview_rows(
             safe_row["row_key"] = queue_row_key(safe_row)
             safe_row["available_open_targets"] = queue_row_available_open_targets(safe_row)
             safe_row.update(queue_row_operator_guidance(safe_row))
+            safe_row["subtitle_qa"] = build_queue_subtitle_qa(safe_row)
             rows.append(safe_row)
     return rows
 

@@ -55,17 +55,12 @@ def legacy_config_patch_from_preset_v2(
         "EncodeLadder": preset.video.target_selection,
         "MaxEncodeGrowthPercent": _legacy_number(preset.guards.size.quality_encode_growth_tolerance_pct),
         "CompatibilityEncodeGrowthPercent": _legacy_number(preset.guards.size.compatibility_encode_growth_tolerance_pct),
-        "EncodeThresholdGB": _legacy_number(preset.guards.size.movie_route_size_limit_gb),
-        "TVEncodeThresholdGB": _legacy_number(preset.guards.size.tv_route_size_limit_gb),
         "MovieRoute1080pTargetSizeGB": _legacy_number(preset.guards.size.movie_route_1080p_size_limit_gb),
         "MovieRoute1440pTargetSizeGB": _legacy_number(preset.guards.size.movie_route_1440p_size_limit_gb),
         "MovieRoute4KTargetSizeGB": _legacy_number(preset.guards.size.movie_route_4k_size_limit_gb),
         "TVRoute1080pTargetSizeGB": _legacy_number(preset.guards.size.tv_route_1080p_size_limit_gb),
         "TVRoute1440pTargetSizeGB": _legacy_number(preset.guards.size.tv_route_1440p_size_limit_gb),
         "TVRoute4KTargetSizeGB": _legacy_number(preset.guards.size.tv_route_4k_size_limit_gb),
-        "MovieRouteMaxVideoBitrateMbps": _legacy_number(preset.routing.direct_copy_max_bitrate.movie_mbps),
-        "TVRouteMaxVideoBitrateMbps": _legacy_number(preset.routing.direct_copy_max_bitrate.tv_mbps),
-        "Route1080pBucketMaxHeight": preset.routing.resolution_aware_bitrate.bucket_1080p_max_height,
         "Route1080pUpperHeightTolerancePercent": preset.routing.resolution_aware_bitrate.bucket_1080p_upper_height_tolerance_pct,
         "Route1080pMaxVideoBitrateMbps": _legacy_number(
             preset.routing.resolution_aware_bitrate.bucket_1080p_max_bitrate_mbps
@@ -76,7 +71,6 @@ def legacy_config_patch_from_preset_v2(
             preset.routing.resolution_aware_bitrate.bucket_1440p_max_bitrate_mbps
         ),
         "Route4KLowerHeightTolerancePercent": preset.routing.resolution_aware_bitrate.bucket_4k_lower_height_tolerance_pct,
-        "Route4KBucketMinHeight": preset.routing.resolution_aware_bitrate.bucket_4k_min_height,
         "Route4KMaxVideoBitrateMbps": _legacy_number(
             preset.routing.resolution_aware_bitrate.bucket_4k_max_bitrate_mbps
         ),
@@ -105,18 +99,16 @@ def preset_v2_from_legacy_config(
         routing=RoutingPolicy(
             enforcement_mode=config.RouteThresholdMode,
             direct_copy_max_bitrate=DirectCopyMaxBitratePolicy(
-                movie_mbps=config.MovieRouteMaxVideoBitrateMbps,
-                tv_mbps=config.TVRouteMaxVideoBitrateMbps,
+                movie_mbps=config.Route1080pMaxVideoBitrateMbps,
+                tv_mbps=config.Route1080pMaxVideoBitrateMbps,
             ),
             resolution_aware_bitrate=ResolutionAwareBitratePolicy(
-                bucket_1080p_max_height=config.Route1080pBucketMaxHeight,
                 bucket_1080p_upper_height_tolerance_pct=config.Route1080pUpperHeightTolerancePercent,
                 bucket_1080p_max_bitrate_mbps=config.Route1080pMaxVideoBitrateMbps,
                 bucket_1440p_lower_height_tolerance_pct=config.Route1440pLowerHeightTolerancePercent,
                 bucket_1440p_upper_height_tolerance_pct=config.Route1440pUpperHeightTolerancePercent,
                 bucket_1440p_max_bitrate_mbps=config.Route1440pMaxVideoBitrateMbps,
                 bucket_4k_lower_height_tolerance_pct=config.Route4KLowerHeightTolerancePercent,
-                bucket_4k_min_height=config.Route4KBucketMinHeight,
                 bucket_4k_max_bitrate_mbps=config.Route4KMaxVideoBitrateMbps,
             ),
             allow_h264_compatible_direct_copy=config.AllowH264RemuxIfPlexCompatible,
@@ -190,8 +182,8 @@ def preset_v2_from_legacy_config(
                 on_exceeded=_size_on_exceeded(config.SizeGuardMode),
                 compatibility_encode_growth_tolerance_pct=config.CompatibilityEncodeGrowthPercent,
                 quality_encode_growth_tolerance_pct=config.MaxEncodeGrowthPercent,
-                movie_route_size_limit_gb=config.EncodeThresholdGB,
-                tv_route_size_limit_gb=config.TVEncodeThresholdGB,
+                movie_route_size_limit_gb=config.MovieRoute1080pTargetSizeGB,
+                tv_route_size_limit_gb=config.TVRoute1080pTargetSizeGB,
                 movie_route_1080p_size_limit_gb=config.MovieRoute1080pTargetSizeGB,
                 movie_route_1440p_size_limit_gb=config.MovieRoute1440pTargetSizeGB,
                 movie_route_4k_size_limit_gb=config.MovieRoute4KTargetSizeGB,
@@ -254,17 +246,12 @@ def effective_decision_policy_from_preset_v2(value: PresetV2 | Mapping[str, Any]
         output_size_check_action=preset.guards.size.on_exceeded,
         quality_encode_growth_tolerance_percent=preset.guards.size.quality_encode_growth_tolerance_pct,
         compatibility_encode_growth_tolerance_percent=preset.guards.size.compatibility_encode_growth_tolerance_pct,
-        movie_route_size_limit_gb=preset.guards.size.movie_route_size_limit_gb,
-        tv_route_size_limit_gb=preset.guards.size.tv_route_size_limit_gb,
         movie_route_1080p_size_limit_gb=preset.guards.size.movie_route_1080p_size_limit_gb,
         movie_route_1440p_size_limit_gb=preset.guards.size.movie_route_1440p_size_limit_gb,
         movie_route_4k_size_limit_gb=preset.guards.size.movie_route_4k_size_limit_gb,
         tv_route_1080p_size_limit_gb=preset.guards.size.tv_route_1080p_size_limit_gb,
         tv_route_1440p_size_limit_gb=preset.guards.size.tv_route_1440p_size_limit_gb,
         tv_route_4k_size_limit_gb=preset.guards.size.tv_route_4k_size_limit_gb,
-        movie_direct_copy_max_bitrate_mbps=preset.routing.direct_copy_max_bitrate.movie_mbps,
-        tv_direct_copy_max_bitrate_mbps=preset.routing.direct_copy_max_bitrate.tv_mbps,
-        route_1080p_bucket_max_height=preset.routing.resolution_aware_bitrate.bucket_1080p_max_height,
         route_1080p_upper_height_tolerance_percent=(
             preset.routing.resolution_aware_bitrate.bucket_1080p_upper_height_tolerance_pct
         ),
@@ -279,7 +266,6 @@ def effective_decision_policy_from_preset_v2(value: PresetV2 | Mapping[str, Any]
         route_4k_lower_height_tolerance_percent=(
             preset.routing.resolution_aware_bitrate.bucket_4k_lower_height_tolerance_pct
         ),
-        route_4k_bucket_min_height=preset.routing.resolution_aware_bitrate.bucket_4k_min_height,
         route_4k_max_video_bitrate_mbps=preset.routing.resolution_aware_bitrate.bucket_4k_max_bitrate_mbps,
         allow_h264_compatible_direct_copy=preset.routing.allow_h264_compatible_direct_copy,
         h264_direct_copy_max_bitrate_mbps=preset.routing.h264_direct_copy_max_bitrate_mbps,

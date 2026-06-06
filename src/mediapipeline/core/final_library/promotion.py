@@ -10,7 +10,7 @@ from typing import Any, Iterable, Mapping
 
 from mediapipeline.core.completed.policy import completed_record_key
 from mediapipeline.core.config.library_profiles import library_profiles_from_config
-from mediapipeline.desktop.config_keys import (
+from mediapipeline.core.kernel.config_keys import (
     KEY_FINAL_LIBRARY_PROMOTION_CLEANUP_AFTER_VERIFIED,
     KEY_FINAL_LIBRARY_PROMOTION_ENABLED,
     KEY_FINAL_LIBRARY_PROMOTION_OVERWRITE_EXISTING,
@@ -40,6 +40,7 @@ from .promotion_parts.results import (
 )
 from .promotion_parts.transfer import (
     companion_sidecars,
+    copy_files_transactionally,
     copy_file_with_verification,
     sha256_file,
     verify_copy,
@@ -530,6 +531,8 @@ def promote_item(item: Mapping[str, Any], settings: PromotionSettingsSnapshot) -
         "copied_files": [],
         "missing_sidecars": [],
         "overwritten_files": [],
+        "rolled_back_files": [],
+        "rollback_errors": [],
         "warnings": [],
         "failures": [],
         "success": False,
@@ -564,27 +567,27 @@ def promote_item(item: Mapping[str, Any], settings: PromotionSettingsSnapshot) -
         evidence["completed_at"] = utc_now_text()
         return evidence
 
-    for target_file in copy_plan.files:
-        result = copy_file_with_verification(
-            target_file.source_path,
-            target_file.destination_path,
-            destination_root=destination_root,
-            verification_mode=settings.verification_mode,
-            overwrite_existing=settings.overwrite_existing,
-        )
-        if result.get("overwritten"):
-            evidence["overwritten_files"].append(result.get("overwritten_path") or str(target_file.destination_path))
-        if not result.get("ok"):
+    transaction = copy_files_transactionally(
+        copy_plan.files,
+        destination_root=destination_root,
+        verification_mode=settings.verification_mode,
+        overwrite_existing=settings.overwrite_existing,
+    )
+    evidence["rolled_back_files"].extend(transaction.get("rolled_back_files") or [])
+    evidence["rollback_errors"].extend(transaction.get("rollback_errors") or [])
+    if not transaction.get("ok"):
+        evidence["failures"].extend(transaction.get("failures") or [])
+        if transaction.get("rollback_errors"):
             evidence["failures"].append(
                 {
-                    "source_path": str(target_file.source_path),
-                    "destination_path": str(target_file.destination_path),
-                    "error": result.get("error") or "copy failed",
+                    "error": "Promotion transaction failed and rollback had errors.",
+                    "rollback_error_count": len(transaction.get("rollback_errors") or []),
                 }
             )
-            evidence["completed_at"] = utc_now_text()
-            return evidence
-        evidence["copied_files"].append(result)
+        evidence["completed_at"] = utc_now_text()
+        return evidence
+    evidence["copied_files"].extend(transaction.get("copied_files") or [])
+    evidence["overwritten_files"].extend(transaction.get("overwritten_files") or [])
 
     if settings.cleanup_after_verified:
         evidence["cleanup_result"] = cleanup_verified_files(evidence["copied_files"], publish_root)
@@ -614,6 +617,7 @@ __all__ = [
     "build_promotion_item_rows",
     "cleanup_verified_files",
     "companion_sidecars",
+    "copy_files_transactionally",
     "copy_file_with_verification",
     "default_promotion_row_fields",
     "destination_for_output",

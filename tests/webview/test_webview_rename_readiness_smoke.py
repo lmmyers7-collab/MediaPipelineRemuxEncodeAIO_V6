@@ -155,6 +155,10 @@ def _rename_readiness_runner_source() -> str:
           const tbody = context.document.getElementById("rename-apply-outcome-rows");
           return tbody.children.flatMap((row) => row.children.map((cell) => cell.textContent || "")).join("\n");
         }
+        function previewCellText() {
+          const tbody = context.document.getElementById("rename-rows");
+          return tbody.children.flatMap((row) => row.children.map((cell) => cell.textContent || "")).join("\n");
+        }
         function requireContains(label, value, fragments) {
           for (const fragment of fragments) {
             if (!String(value).includes(fragment)) {
@@ -175,15 +179,15 @@ def _rename_readiness_runner_source() -> str:
         setValue("rename-add-path-input", "C:/Manual/Typed Rename Source.mkv");
         context.addRenamePathFromInput();
         requireContains("manual path add", context.document.getElementById("rename-paths").value, ["C:/Manual/Typed Rename Source.mkv"]);
-        requireContains("manual path summary", text("rename-file-source-summary"), ["Manual path added 1 path", "Source paths staged: 1"]);
+        requireContains("manual path summary", text("rename-file-source-summary"), ["Manual path added 1 path", "Source paths staged: 1", "Origins: manual=1"]);
         context.clearRenamePaths();
         requireContains("clear path summary", text("rename-file-source-summary"), ["Cleared staged rename paths.", "No source paths staged."]);
         context.useSelectedQueueRowForRename();
         requireContains("selected queue import paths", context.document.getElementById("rename-paths").value, ["C:/Queue/Selected Rename Source.mkv"]);
-        requireContains("selected queue import summary", text("rename-file-source-summary"), ["Selected Rename Source.mkv added 1 path", "Source paths staged: 1"]);
+        requireContains("selected queue import summary", text("rename-file-source-summary"), ["Selected Rename Source.mkv added 1 path", "Source paths staged: 1", "Origins: queue=1"]);
         context.useLoadedQueueRowsForRename();
         requireContains("loaded queue import paths", context.document.getElementById("rename-paths").value, ["C:/Queue/Selected Rename Source.mkv", "C:/Queue/Second Rename Source.mkv"]);
-        requireContains("loaded queue import summary", text("rename-file-source-summary"), ["Loaded Queue rows added 1 path", "Source paths staged: 2", "Loaded Queue rows: 3"]);
+        requireContains("loaded queue import summary", text("rename-file-source-summary"), ["Loaded Queue rows added 1 path", "Source paths staged: 2", "Origins: queue=2", "Loaded Queue rows: 3"]);
 
         setValue("rename-mode", "tv");
         setValue("rename-show", "Serial Experiments Lain");
@@ -215,6 +219,17 @@ def _rename_readiness_runner_source() -> str:
         context.renderRenameApplyReadiness();
         requireContains("ready status", text("rename-apply-readiness-status"), ["Ready"]);
         requireContains("ready cells", readinessCellText(), ["Apply scope", "all applicable preview rows", "Mutation boundary", "/api/rename/apply"]);
+        requireContains("all safe apply button", text("rename-apply-button"), ["Apply all 1 safe rename"]);
+        requireContains("all safe apply hint", text("rename-apply-status-hint"), ["No rows checked", "all safe rows"]);
+        setValue("rename-show", "Serial Experiments Lain Changed");
+        context.syncRenameCommandButtons();
+        requireContains("stale apply button", text("rename-apply-button"), ["Preview out of date"]);
+        requireContains("stale apply hint", text("rename-apply-status-hint"), ["Preview out of date", "Run Preview again"]);
+        if (!context.document.getElementById("rename-apply-button").disabled) {
+          throw new Error("stale preview did not disable Apply");
+        }
+        setValue("rename-show", "Serial Experiments Lain");
+        context.renderRenamePreview({ rows: [first], counts: { total: 1, ready: 1 }, confidence_counts: { high: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { rename: 1 } });
         requireContains("pipeline handoff status", text("rename-pipeline-handoff-status"), ["Ready"]);
         requireContains("pipeline handoff", text("rename-pipeline-handoff"), ["Rename-to-pipeline handoff", "Saved routing profile: plex_direct_stream", "output container: mkv", "renaming changes filenames only", "Mutation guardrail"]);
         context.renderRenameApplyResult({
@@ -255,8 +270,13 @@ def _rename_readiness_runner_source() -> str:
         requireContains("large preview legend", text("rename-table-legend"), ["Display cap: 250 shown / 260 preview rows rendered", "not visible in the table"]);
         context.checkApplicableRenameRows();
         requireContains("large checked count", text("rename-selected-count"), ["260 checked"]);
+        requireContains("checked apply button", text("rename-apply-button"), ["Apply 260 checked renames"]);
         requireContains("large selection audit", text("rename-selection-audit"), ["Rows in scope: 260", "Rendered rows: 250 of 260", "checked scope may include rows not currently rendered"]);
         requireContains("large readiness cells", readinessCellText(), ["Render cap visibility", "250 of 260 preview row(s) are rendered", "unrendered backend preview rows"]);
+
+        const blockedExisting = { ...first, status: "blocked", errors: ["destination already exists"], warnings: [] };
+        context.renderRenamePreview({ rows: [blockedExisting], counts: { total: 1, blocked: 1 }, confidence_counts: { blocked: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { blocked: 1 } });
+        requireContains("blocked status cell reason", previewCellText(), ["Blocked: destination already exists"]);
 
         const duplicateA = { ...first, source: "C:/TV/S02/E01.mkv", source_name: "E01.mkv" };
         const duplicateB = { ...first, source: "C:/TV/S02/E02.mkv", source_name: "E02.mkv" };

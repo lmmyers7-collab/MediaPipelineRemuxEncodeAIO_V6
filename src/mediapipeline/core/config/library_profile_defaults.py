@@ -7,7 +7,7 @@ from mediapipeline.core.config.metadata_parts.field_definitions import (
     CONFIG_FIELD_DEFINITIONS,
     METADATA_LIBRARY_OVERRIDE_KEYS_BY_GROUP,
 )
-from mediapipeline.desktop.config_keys import (
+from mediapipeline.core.kernel.config_keys import (
     KEY_OUTSOURCE,
     KEY_SOURCE_MOVIES,
     KEY_SOURCE_TV,

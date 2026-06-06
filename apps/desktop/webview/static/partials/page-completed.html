@@ -20,10 +20,25 @@
         </div>
         <div class="settings-tab-bar completed-tab-bar" role="tablist" aria-label="Output Files sections">
           <button type="button" class="settings-tab-btn" role="tab" data-completed-tab="overview" aria-selected="true">Overview</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-output-page-target="pending" aria-selected="false">Publish</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-output-page-target="pending" aria-selected="false">Pending Publish</button>
           <button type="button" class="settings-tab-btn" role="tab" data-completed-tab="history" aria-selected="false">History</button>
           <button type="button" class="settings-tab-btn" role="tab" data-completed-tab="advanced" aria-selected="false">Advanced</button>
         </div>
+
+        <section class="panel settings-tab-pane is-active output-overview-section output-trust-decision-section" data-completed-tab="overview" data-panel-type="evidence" aria-labelledby="completed-trust-decision-heading">
+          <div class="panel-heading output-overview-heading">
+            <h2 id="completed-trust-decision-heading">Output Trust Decision</h2>
+            <strong id="completed-trust-decision-status">Not loaded</strong>
+          </div>
+          <p class="output-overview-kicker">Daily review handoff for deciding whether current output is ready to trust, needs review, needs rerun consideration, or needs investigation.</p>
+          <div id="completed-trust-decision-chips" class="action-row action-row-left wrap-actions" aria-live="polite">
+            <span class="status-chip" data-status="ok">Trust ready</span>
+            <span class="status-chip" data-status="warning">Review first</span>
+            <span class="status-chip" data-status="blocked">Investigate</span>
+            <span class="status-chip" data-status="validation-needed">Evidence incomplete</span>
+          </div>
+          <pre id="completed-trust-decision-summary" class="prose-block">No output trust decision loaded.</pre>
+        </section>
 
         <section class="panel settings-tab-pane is-active output-overview-section output-overview-section-current" data-completed-tab="overview" data-panel-type="interactive" aria-labelledby="completed-current-output-heading">
           <div class="panel-heading output-overview-heading">
@@ -91,6 +106,15 @@
             </div>
           </div>
           <p id="completed-table-legend" class="note table-legend">Current output rows: no selectable rows.</p>
+          <div class="completed-current-row-actions">
+            <div class="action-row action-row-left wrap-actions" data-open-target-row-actions="completed"></div>
+            <div class="action-row action-row-left wrap-actions completed-promotion-action-row">
+              <span class="status-chip" data-status="publishing">Promotion command</span>
+              <button type="button" class="secondary-button" data-completed-promote-selected disabled>Promote Selected File</button>
+            </div>
+            <p id="completed-open-status" class="note completed-open-status-note">Select a completed row to open a backend-selected location.</p>
+            <pre id="completed-open-history" class="prose-block completed-open-history-block">No completed open command history loaded.</pre>
+          </div>
         </section>
 
         <section class="panel settings-tab-pane is-active" data-completed-tab="overview" data-panel-type="interactive">
@@ -138,13 +162,9 @@
             <h2>Selected File</h2>
             <strong id="completed-selected-status">No selection</strong>
           </div>
-          <pre id="completed-selected-summary" class="prose-block">Select a completed row to see trust, output health, route/size proof, safe next step, filter visibility, and backend authority.</pre>
-          <div class="action-row action-row-left wrap-actions" data-open-target-row-actions="completed"></div>
-          <div class="action-row action-row-left wrap-actions completed-promotion-action-row">
-            <button type="button" class="secondary-button" data-completed-promote-selected disabled>Promote Selected File</button>
+          <div id="completed-selected-summary" class="completed-selected-summary" role="region" aria-label="Selected completed output summary">
+            <p class="completed-selected-empty">Select a completed row to see trust, output health, route/size proof, safe next step, filter visibility, and backend authority.</p>
           </div>
-          <p id="completed-open-status" class="note">Select a completed row to open a backend-selected location.</p>
-          <pre id="completed-open-history" class="prose-block">No completed open command history loaded.</pre>
           <pre id="completed-detail" class="prose-block">No completed row selected.</pre>
         </section>
 
@@ -154,6 +174,7 @@
             <strong id="completed-history-status">Not loaded</strong>
           </div>
           <p class="output-overview-kicker">Append-only completed manifest history. Rows stay visible here even when outputs are later moved, deleted, offline, or unavailable.</p>
+          <p class="note">Placement states distinguish current output from missing history: Current, Missing: pending proof, Missing: drain proof, Missing: no proof, or Moved/offline unknown.</p>
           <div class="form-grid launch-form-grid">
             <label>
               Filter history
@@ -282,15 +303,15 @@
 
         <section class="panel settings-tab-pane" data-completed-tab="advanced" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Output Evidence</h2>
+            <h2>Advanced Evidence Groups</h2>
             <strong>Read-only</strong>
           </div>
-          <p class="note">Read-only output evidence. The panels below separate size, route, publish, pending, and trust checks into independently movable sections.</p>
+          <p class="note">Read-only output evidence grouped by File and Size Proof, Media and Route Proof, Publish and Pending Proof, Acceptance and Evidence Packet, and Reconciliation.</p>
         </section>
 
         <section class="panel settings-tab-pane" data-completed-tab="advanced" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Size Evidence</h2>
+            <h2>File And Size Proof</h2>
             <strong id="completed-size-evidence-status">Not loaded</strong>
           </div>
           <pre id="completed-size-evidence-summary" class="prose-block">No completed size-growth evidence handoff loaded.</pre>
@@ -319,7 +340,7 @@
 
         <section class="panel settings-tab-pane" data-completed-tab="advanced" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Output Proof</h2>
+            <h2>Media And Route Proof</h2>
             <strong id="completed-real-media-proof-status">Not loaded</strong>
           </div>
           <pre id="completed-real-media-proof-summary" class="prose-block">No real-media output proof ladder loaded.</pre>
@@ -377,10 +398,10 @@
 
         <section class="panel settings-tab-pane" data-completed-tab="advanced" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Acceptance Checklist</h2>
+            <h2>Acceptance Readiness</h2>
             <strong id="completed-output-acceptance-status">Not loaded</strong>
           </div>
-          <pre id="completed-output-acceptance-summary" class="prose-block">No completed output acceptance checklist loaded.</pre>
+          <pre id="completed-output-acceptance-summary" class="prose-block">No completed output acceptance readiness loaded.</pre>
           <div class="table-wrap detail-table-wrap">
             <table>
               <thead>
@@ -392,22 +413,22 @@
                 </tr>
               </thead>
               <tbody id="completed-output-acceptance-rows">
-                <tr><td colspan="4">No completed output acceptance rows loaded.</td></tr>
+                <tr><td colspan="4">No completed output readiness rows loaded.</td></tr>
               </tbody>
             </table>
             <div class="empty-state" data-empty-state="hidden" style="display:none">
               <span class="empty-state-label">Select a completed row</span>
-              <span class="empty-state-hint">Acceptance checklist rows appear here when a completed row is selected.</span>
+              <span class="empty-state-hint">Acceptance readiness rows appear here when a completed row is selected.</span>
             </div>
           </div>
-          <p id="completed-output-acceptance-legend" class="note table-legend">Completed output acceptance rows: no selectable rows.</p>
-          <pre id="completed-output-acceptance-detail" class="prose-block">Select a completed row to review output acceptance evidence.</pre>
+          <p id="completed-output-acceptance-legend" class="note table-legend">Completed output readiness rows: no selectable rows.</p>
+          <pre id="completed-output-acceptance-detail" class="prose-block">Select a completed row to review output readiness evidence.</pre>
         </section>
 
         <section class="panel settings-tab-pane" data-completed-tab="advanced" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Evidence Packet</h2>
-            <strong id="completed-pilot-evidence-status">Not loaded</strong>
+            <h2>Acceptance And Evidence Packet</h2>
+            <strong id="completed-pilot-evidence-status">Read-only packet</strong>
           </div>
           <pre id="completed-pilot-evidence-summary" class="prose-block">No selected pilot evidence packet loaded.</pre>
           <div class="table-wrap detail-table-wrap">
@@ -440,7 +461,7 @@
 
         <section class="panel settings-tab-pane" data-completed-tab="advanced" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Proof Check</h2>
+            <h2>Publish And Pending Proof</h2>
             <strong id="completed-pending-proof-status">Not loaded</strong>
           </div>
           <pre id="completed-pending-proof-summary" class="prose-block">No completed-to-pending output proof loaded.</pre>

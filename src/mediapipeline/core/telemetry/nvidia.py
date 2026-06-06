@@ -5,6 +5,13 @@ from typing import Any
 from mediapipeline.desktop.models import TelemetrySnapshot
 
 
+def _parse_percent_text(value: object, *, default_for_na: float | None = None) -> float | None:
+    text = str(value if value is not None else "").strip()
+    if text.casefold() in {"n/a", "na", "[n/a]", ""}:
+        return default_for_na
+    return float(text)
+
+
 def parse_nvidia_smi_encoder_rows(output: str) -> tuple[list[dict[str, float | str | None]], int]:
     gpu_rows: list[dict[str, float | str | None]] = []
     parse_failures = 0
@@ -16,33 +23,38 @@ def parse_nvidia_smi_encoder_rows(output: str) -> tuple[list[dict[str, float | s
         index_text = parts[0]
         name_text = parts[1]
         try:
-            encoder_percent = float(parts[2])
+            encoder_percent = _parse_percent_text(parts[2], default_for_na=0.0)
         except ValueError:
-            # Several driver/GPU combinations report N/A when NVENC is idle
-            # or unsupported. Keep the GPU row so the UI can show a visible
-            # 0% baseline instead of treating telemetry as missing.
-            if parts[2].strip().casefold() in {"n/a", "na", "[n/a]", ""}:
-                encoder_percent = 0.0
-            else:
-                parse_failures += 1
-                continue
+            parse_failures += 1
+            continue
+        if encoder_percent is None:
+            encoder_percent = 0.0
+        gpu_percent = None
+        metric_offset = 3
+        if len(parts) >= 7:
+            try:
+                gpu_percent = _parse_percent_text(parts[3], default_for_na=None)
+            except ValueError:
+                gpu_percent = None
+            metric_offset = 4
         row: dict[str, float | str | None] = {
             "index": index_text,
             "name": name_text,
             "encoder_percent": encoder_percent,
+            "gpu_percent": gpu_percent,
             "temperature_c": None,
             "memory_used_mb": None,
             "memory_total_mb": None,
         }
-        if len(parts) >= 4:
+        if len(parts) >= metric_offset + 1:
             try:
-                row["temperature_c"] = float(parts[3])
+                row["temperature_c"] = float(parts[metric_offset])
             except ValueError:
                 pass
-        if len(parts) >= 6:
+        if len(parts) >= metric_offset + 3:
             try:
-                row["memory_used_mb"] = float(parts[4])
-                row["memory_total_mb"] = float(parts[5])
+                row["memory_used_mb"] = float(parts[metric_offset + 1])
+                row["memory_total_mb"] = float(parts[metric_offset + 2])
             except ValueError:
                 pass
         gpu_rows.append(row)
@@ -52,7 +64,13 @@ def parse_nvidia_smi_encoder_rows(output: str) -> tuple[list[dict[str, float | s
 def select_active_gpu_row(gpu_rows: list[dict[str, Any]]) -> dict[str, Any] | None:
     if not gpu_rows:
         return None
-    return max(gpu_rows, key=lambda row: float(row.get("encoder_percent") or 0.0))
+    return max(
+        gpu_rows,
+        key=lambda row: (
+            float(row.get("encoder_percent") or 0.0),
+            float(row.get("gpu_percent") or 0.0),
+        ),
+    )
 
 
 def apply_nvidia_smi_rows_to_snapshot(snapshot: TelemetrySnapshot, gpu_rows: list[dict[str, Any]]) -> None:
@@ -67,7 +85,9 @@ def apply_nvidia_smi_rows_to_snapshot(snapshot: TelemetrySnapshot, gpu_rows: lis
     snapshot.gpu_count = gpu_count
     snapshot.gpu_rows = [dict(row) for row in gpu_rows]
     snapshot.gpu_encoder_percent = float(active.get("encoder_percent") or 0.0)
-    snapshot.gpu_percent = snapshot.gpu_encoder_percent
+    snapshot.gpu_percent = (
+        float(active["gpu_percent"]) if active.get("gpu_percent") is not None else snapshot.gpu_encoder_percent
+    )
     snapshot.source = "nvidia-smi"
     if active.get("temperature_c") is not None:
         snapshot.gpu_temperature_c = float(active["temperature_c"])

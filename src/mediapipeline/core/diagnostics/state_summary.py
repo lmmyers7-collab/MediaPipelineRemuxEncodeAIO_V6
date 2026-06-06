@@ -207,7 +207,7 @@ def diagnostics_settings_tool_path_summary_rows(evidence: Mapping[str, Any] | No
             "format_label": "BDPGS",
             "guidance": (
                 "Settings says BDPGS OCR to SRT is enabled, but the saved OCR tool/tessdata path evidence is not ready. "
-                "Open Settings > Subtitles, fix the saved OCR paths or disable OCR intentionally, save, then refresh Diagnostics before rerunning subtitle conversion."
+                "Open Settings > Media Output, fix the saved OCR paths or disable OCR intentionally, save, then refresh Diagnostics before rerunning subtitle conversion."
             ),
             "unsafe": (
                 "Ignoring blocked BDPGS OCR path evidence can make PGS subtitle conversion fail and leave files marked for manual review even though the media route itself looks healthy."
@@ -220,7 +220,7 @@ def diagnostics_settings_tool_path_summary_rows(evidence: Mapping[str, Any] | No
             "format_label": "VobSub",
             "guidance": (
                 "Settings says VobSub OCR to SRT is enabled, but the saved Subtitle Edit/Tesseract path evidence is not ready. "
-                "Open Settings > Subtitles, fix the saved OCR tool path or disable OCR intentionally, save, then refresh Diagnostics before rerunning subtitle conversion."
+                "Open Settings > Media Output, fix the saved OCR tool path or disable OCR intentionally, save, then refresh Diagnostics before rerunning subtitle conversion."
             ),
             "unsafe": (
                 "Ignoring blocked VobSub OCR path evidence can make VobSub subtitle conversion fail and leave files marked for manual review even though the media route itself looks healthy."

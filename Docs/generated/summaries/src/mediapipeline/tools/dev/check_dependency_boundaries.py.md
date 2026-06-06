@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: d32e3dd8fcd4a9e74fb3c4f4564b105703d69eb592cd36fe5f12dc2fae7b36ce
+sha256: cfa444882058a33fdbe9e03734e25b653558425f82968bd8cb7c478172c3999d
 ---
 # `src/mediapipeline/tools/dev/check_dependency_boundaries.py`
 

@@ -50,6 +50,28 @@ class LocalApiInventoryReadPayloadMixin:
             }
         return payload
 
+    def _metrics_payload(self) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return read_unavailable_payload("metrics")
+        return self.facade.get_metrics(resolved)
+
+    def _subtitle_qa_summary_payload(self, query: dict[str, list[str]]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return read_unavailable_payload("subtitle QA")
+        return self.facade.get_subtitle_qa_summary(resolved, limit=query_int(query, "limit", 250))
+
+    def _subtitle_qa_item_payload(self, query: dict[str, list[str]]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return read_unavailable_payload("subtitle QA item")
+        return self.facade.get_subtitle_qa_item(
+            resolved,
+            query_value(query, "id", ""),
+            limit=query_int(query, "limit", 250),
+        )
+
     def _final_library_promotion_status_payload(self) -> dict[str, Any]:
         resolved = self._resolved()
         if resolved is None:

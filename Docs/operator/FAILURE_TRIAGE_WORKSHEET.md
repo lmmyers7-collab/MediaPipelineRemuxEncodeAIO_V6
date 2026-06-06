@@ -190,5 +190,5 @@ List actions you have confirmed are NOT safe to take yet:
 - Runtime artifact inventory: `docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md`
 - Diagnostics target runbook: `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`
 - Real-media validation evidence template: `docs/sample-validation/REAL_MEDIA_VALIDATION_EVIDENCE_TEMPLATE.md`
-- Failure marker clear behavior: `docs/TLDR.md` (Behavior Worth Knowing section)
+- Failure marker clear behavior: `docs/CURRENT_PROJECT_STATE.md`
 - No-touch boundaries: `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`

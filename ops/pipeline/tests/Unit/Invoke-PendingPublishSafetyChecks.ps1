@@ -13,16 +13,30 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
 
 $ErrorActionPreference = 'Stop'
 
-$testsRoot = Split-Path -Parent $PSCommandPath
-$pipelineRoot = Split-Path -Parent (Split-Path -Parent $testsRoot)
-$repoRoot = Split-Path -Parent $pipelineRoot
+$repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')
+if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'AGENTS.md') -PathType Leaf)) {
+    throw "Pending publish safety checks resolved an invalid repo root: $repoRoot"
+}
+if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine') -PathType Container)) {
+    throw "Pending publish safety checks resolved a repo root without ops\pipeline\engine: $repoRoot"
+}
 
+. (Join-Path $repoRoot 'ops\pipeline\engine\shared\path_helpers.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\paths\path_capability.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\paths\library_profiles.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_manifest_store.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_transactions.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_push.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_publish_index.ps1')
 
+$script:ProductVersion = 'v5-test-product'
 $script:PipelineVersion = 'v5-test'
 $script:MinPipelineVersion = 'v5-test'
 $script:SourceIdentityV2Algorithm = 'test-v2'
+$script:DeferredPublish = $false
+$script:StopRequested = $false
+$script:StopFlag = Join-Path ([System.IO.Path]::GetTempPath()) ('mediapipeline-stop-' + [guid]::NewGuid().ToString('N'))
+$script:ProgressItemContexts = @()
 
 function Write-Log {
     param(
@@ -80,10 +94,28 @@ function Test-SrtFileUsable {
 
 function New-StandardFailureRecord {
     param(
+        [string] $Stage = '',
+        [string] $Operation = '',
+        [string] $Category = '',
         [string] $Reason,
-        [string] $ErrorCode
+        [string] $ErrorCode,
+        [string] $Tool = '',
+        [bool] $Retryable = $false,
+        [hashtable] $AdditionalProperties = @{}
     )
-    return [pscustomobject]@{ Reason = $Reason; ErrorCode = $ErrorCode }
+    $record = [ordered]@{
+        Stage = $Stage
+        Operation = $Operation
+        Category = $Category
+        Reason = $Reason
+        ErrorCode = $ErrorCode
+        Tool = $Tool
+        Retryable = $Retryable
+    }
+    foreach ($key in @($AdditionalProperties.Keys)) {
+        $record[$key] = $AdditionalProperties[$key]
+    }
+    return [pscustomobject]$record
 }
 
 function Compare-PipelineVersion {
@@ -99,15 +131,54 @@ function Get-SidecarPath {
     return "$OutputPath.pipeline.json"
 }
 
+function Set-ProgressStage {
+    param(
+        [string] $Stage,
+        [string] $Status,
+        [string] $Route,
+        [string] $PushState,
+        [string] $SidecarState,
+        $Percent,
+        [switch] $SaveNow
+    )
+}
+
+function Set-ProgressItemContext {
+    param(
+        [string] $DisplayName,
+        [string] $FilePath,
+        [string] $MediaType,
+        [string] $QueuePhase,
+        [int] $QueueIndex,
+        [int] $QueueTotal
+    )
+    $script:ProgressItemContexts += [pscustomobject]@{
+        DisplayName = $DisplayName
+        FilePath = $FilePath
+        MediaType = $MediaType
+        QueuePhase = $QueuePhase
+        QueueIndex = $QueueIndex
+        QueueTotal = $QueueTotal
+    }
+}
+
+function Reset-ProgressItemContext {
+}
+
 function New-TestPendingManifest {
     param(
         [Parameter(Mandatory)] [string] $LocalFile,
         [Parameter(Mandatory)] [string] $ServerOut,
-        [string] $State = 'parked'
+        [string] $State = 'parked',
+        [string] $SourcePath = ''
     )
+    if ([string]::IsNullOrWhiteSpace($SourcePath)) {
+        $SourcePath = Join-Path $script:SourceMovies 'Movie.mkv'
+    }
     return [ordered]@{
         schema_version                 = 'pending_push_manifest.v1'
         parked_at                      = '2026-05-19T00:00:00Z'
+        product_version                = $script:ProductVersion
         pipeline_version               = $script:PipelineVersion
         publish_transaction_id         = 'tx-test'
         manifest_state                 = $State
@@ -119,7 +190,7 @@ function New-TestPendingManifest {
         source_identity                = 'source-v1'
         source_identity_v2             = 'source-v2'
         source_identity_v2_algorithm   = $script:SourceIdentityV2Algorithm
-        source_path                    = 'C:\Source\Movie.mkv'
+        source_path                    = $SourcePath
         source_size                    = 5
         source_mtime_utc               = '2026-05-19T00:00:00Z'
         output_size                    = 5
@@ -153,6 +224,42 @@ function Invoke-WithTempRoot {
     }
 }
 
+function Set-TestPipelineRoots {
+    param([Parameter(Mandatory)] [System.IO.DirectoryInfo] $Root)
+
+    $script:LocalBase = Join-Path $Root.FullName 'State'
+    $script:LocalPendingPush = Join-Path $script:LocalBase 'PendingServerPush'
+    $script:LocalEncoded = Join-Path $script:LocalBase 'Encoded'
+    $script:SourceMovies = Join-Path $Root.FullName 'Source\Movies'
+    $script:SourceTV = Join-Path $Root.FullName 'Source\TV'
+    $script:Outsource = Join-Path $Root.FullName 'Server'
+    $script:LibraryProfiles = @(
+        [pscustomobject]@{
+            id = 'movies'
+            name = 'Movies'
+            enabled = $true
+            designation = 'movie'
+            source_path = $script:SourceMovies
+            output_path = $script:Outsource
+            promotion_enabled = $false
+            promotion_destination = ''
+        },
+        [pscustomobject]@{
+            id = 'tv'
+            name = 'TV'
+            enabled = $true
+            designation = 'tv'
+            source_path = $script:SourceTV
+            output_path = $script:Outsource
+            promotion_enabled = $false
+            promotion_destination = ''
+        }
+    )
+    foreach ($path in @($script:LocalBase, $script:LocalPendingPush, $script:LocalEncoded, $script:SourceMovies, $script:SourceTV, $script:Outsource)) {
+        [System.IO.Directory]::CreateDirectory($path) | Out-Null
+    }
+}
+
 $pendingPushPath = Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_push.ps1'
 $pendingPushText = Get-Content -LiteralPath $pendingPushPath -Raw
 foreach ($requiredFunction in @(
@@ -174,16 +281,14 @@ Assert-True (-not $pendingPushText.Contains('Complete-PendingDrainSummary -Summa
 
 Invoke-WithTempRoot {
     param($Root)
-    $script:LocalPendingPush = Join-Path $Root.FullName 'State\PendingServerPush'
-    $scratch = Join-Path $Root.FullName 'Scratch'
-    $serverRoot = Join-Path $Root.FullName 'Server'
-    [System.IO.Directory]::CreateDirectory($scratch) | Out-Null
-    [System.IO.Directory]::CreateDirectory($serverRoot) | Out-Null
-    $localOut = Join-Path $scratch 'Movie.mkv'
-    $localSrt = Join-Path $scratch 'Movie.eng.srt'
-    $serverOut = Join-Path $serverRoot 'Movie.mkv'
+    Set-TestPipelineRoots -Root $Root
+    $localOut = Join-Path $script:LocalEncoded 'Movie.mkv'
+    $localSrt = Join-Path $script:LocalEncoded 'Movie.eng.srt'
+    $serverOut = Join-Path $script:Outsource 'Movie.mkv'
+    $sourcePath = Join-Path $script:SourceMovies 'Movie.mkv'
     [System.IO.File]::WriteAllText($localOut, 'media')
     [System.IO.File]::WriteAllText($localSrt, "1`n00:00:00,000 --> 00:00:01,000`nCaption`n")
+    [System.IO.File]::WriteAllText($sourcePath, 'source')
 
     $sidecar = [pscustomobject]@{
         LocalPath       = $localSrt
@@ -198,7 +303,7 @@ Invoke-WithTempRoot {
         -Route 'encode' `
         -SourceIdentity 'source-v1' `
         -SourceIdentityV2 'source-v2' `
-        -SourcePath 'C:\Source\Movie.mkv' `
+        -SourcePath $sourcePath `
         -SourceSize 5 `
         -SourceMTimeUtc '2026-05-19T00:00:00Z' `
         -PublishTransactionId 'tx-test' `
@@ -221,18 +326,235 @@ Invoke-WithTempRoot {
 
 Invoke-WithTempRoot {
     param($Root)
-    $manifestPath = Join-Path $Root.FullName 'missing-payload.manifest.json'
-    $missingLocal = Join-Path $Root.FullName 'State\PendingServerPush\missing.mkv'
-    $serverOut = Join-Path $Root.FullName 'Server\missing.mkv'
+    Set-TestPipelineRoots -Root $Root
+    $manifestPath = Join-Path $script:LocalPendingPush 'missing-payload.manifest.json'
+    $missingLocal = Join-Path $script:LocalPendingPush 'missing.mkv'
+    $serverOut = Join-Path $script:Outsource 'missing.mkv'
     $manifest = New-TestPendingManifest -LocalFile $missingLocal -ServerOut $serverOut
     Write-PendingManifestFile -Path $manifestPath -Manifest $manifest | Out-Null
 
     $result = Invoke-PendingDrainTransaction -ManifestFile (Get-Item -LiteralPath $manifestPath) -Manifest (Read-PendingManifestFile -Path $manifestPath)
     $updated = Read-PendingManifestFile -Path $manifestPath
 
-    Assert-Equal ([string]$result.Status) 'missing_payload' 'Missing parked media did not stay queued as missing_payload.'
-    Assert-Equal ([string]$updated.manifest_state) 'missing_payload' 'Missing payload state was not persisted back to manifest.'
+    Assert-Equal ([string]$result.Status) 'missing_payload' 'Missing parked media did not fail closed as missing_payload.'
+    Assert-Equal ([string]$updated.manifest_state) 'parked' 'Missing-payload drain must not rewrite an untrusted manifest.'
     Assert-True (Test-Path -LiteralPath $manifestPath -PathType Leaf) 'Missing-payload manifest was incorrectly deleted.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
+    $payload = Join-Path $script:LocalPendingPush 'legacy.mkv'
+    $serverOut = Join-Path $script:Outsource 'legacy.mkv'
+    [System.IO.File]::WriteAllText($payload, 'media')
+    $manifestPath = Join-Path $script:LocalPendingPush 'legacy.mkv.manifest.json'
+    [System.IO.File]::WriteAllText(
+        $manifestPath,
+        (@{
+            manifest_state = 'parked'
+            local_file = $payload
+            server_out = $serverOut
+            source_path = Join-Path $script:SourceMovies 'legacy.mkv'
+            output_size = 5
+        } | ConvertTo-Json -Depth 5),
+        [System.Text.UTF8Encoding]::new($false)
+    )
+
+    $drained = Invoke-RetryPendingPushes -Force
+    $summary = Get-Content -LiteralPath (Get-PendingDrainSummaryPath) -Raw | ConvertFrom-Json
+
+    Assert-Equal $drained 0 'Legacy manifest drain should not report a recovered publish.'
+    Assert-Equal ([string]$summary.status_counts.invalid_manifest) '1' 'Legacy manifest should be recorded as an invalid_manifest drain error.'
+    Assert-True (Test-Path -LiteralPath $payload -PathType Leaf) 'Legacy manifest retry moved or deleted the parked payload.'
+    Assert-True (Test-Path -LiteralPath $manifestPath -PathType Leaf) 'Legacy manifest retry deleted the manifest.'
+    Assert-True (-not (Test-Path -LiteralPath $serverOut -PathType Leaf)) 'Legacy manifest retry published output.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
+    $script:ProgressItemContexts = @()
+    $payload = Join-Path $script:LocalPendingPush '20260605_164936__aa67fe5c5e3949409914023f__Clean Final.mkv'
+    $serverOut = Join-Path $script:Outsource 'Clean Final.mkv'
+    [System.IO.File]::WriteAllText($payload, 'media')
+    $manifest = New-TestPendingManifest -LocalFile $payload -ServerOut $serverOut
+    $manifest['schema_version'] = 'legacy_manifest.v0'
+    $manifestPath = Join-Path $script:LocalPendingPush 'display-name.manifest.json'
+    [System.IO.File]::WriteAllText(
+        $manifestPath,
+        ($manifest | ConvertTo-Json -Depth 10),
+        [System.Text.UTF8Encoding]::new($false)
+    )
+
+    $drained = Invoke-RetryPendingPushes -Force
+    $context = @($script:ProgressItemContexts)[0]
+
+    Assert-Equal $drained 0 'Display-name manifest should not drain when schema validation fails.'
+    Assert-Equal ([string]$context.DisplayName) 'Clean Final.mkv' 'Pending drain progress should show the final destination leaf, not the parked payload leaf.'
+    Assert-Equal ([string]$context.FilePath) $payload 'Pending drain progress should keep the local parked payload as the diagnostic file path.'
+    Assert-Equal ([string]$context.QueuePhase) 'pending_push' 'Pending drain progress context lost pending_push queue phase.'
+    Assert-True (Test-Path -LiteralPath $payload -PathType Leaf) 'Display-name progress test mutated the parked payload.'
+    Assert-True (-not (Test-Path -LiteralPath $serverOut -PathType Leaf)) 'Display-name progress test published output.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
+    $payload = Join-Path $Root.FullName 'ForgedOutsidePending.mkv'
+    $serverOut = Join-Path $script:Outsource 'ForgedOutsidePending.mkv'
+    [System.IO.File]::WriteAllText($payload, 'media')
+    $manifest = New-TestPendingManifest -LocalFile $payload -ServerOut $serverOut
+    $manifestPath = Join-Path $script:LocalPendingPush 'forged-local.manifest.json'
+    Write-PendingManifestFile -Path $manifestPath -Manifest $manifest | Out-Null
+
+    $trust = Test-PendingManifestTrustedForDrain -ManifestFile (Get-Item -LiteralPath $manifestPath) -Manifest (Read-PendingManifestFile -Path $manifestPath)
+
+    Assert-True (-not [bool]$trust.Ok) 'Forged local_file outside PendingServerPush was trusted for drain.'
+    Assert-Equal ([string]$trust.Status) 'invalid_manifest' 'Forged local_file should be an invalid_manifest drain blocker.'
+    Assert-MatchText ([string]$trust.Reason) 'local_file' 'Forged local_file trust failure should name local_file.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
+    $payload = Join-Path $script:LocalPendingPush 'forged-server.mkv'
+    $serverOut = Join-Path $Root.FullName 'Source\Movies\forged-server.mkv'
+    [System.IO.File]::WriteAllText($payload, 'media')
+    $manifest = New-TestPendingManifest -LocalFile $payload -ServerOut $serverOut
+    $manifestPath = Join-Path $script:LocalPendingPush 'forged-server.manifest.json'
+    Write-PendingManifestFile -Path $manifestPath -Manifest $manifest | Out-Null
+
+    $trust = Test-PendingManifestTrustedForDrain -ManifestFile (Get-Item -LiteralPath $manifestPath) -Manifest (Read-PendingManifestFile -Path $manifestPath)
+
+    Assert-True (-not [bool]$trust.Ok) 'Forged server_out under a source root was trusted for drain.'
+    Assert-Equal ([string]$trust.Status) 'invalid_manifest' 'Forged server_out should be an invalid_manifest drain blocker.'
+    Assert-MatchText ([string]$trust.Reason) 'server_out' 'Forged server_out trust failure should name server_out.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
+    $payload = Join-Path $script:LocalPendingPush 'missing-proof.mkv'
+    $serverOut = Join-Path $script:Outsource 'missing-proof.mkv'
+    [System.IO.File]::WriteAllText($payload, 'media')
+    $manifest = New-TestPendingManifest -LocalFile $payload -ServerOut $serverOut
+    $manifest['publish_transaction_id'] = ''
+    $manifestPath = Join-Path $script:LocalPendingPush 'missing-proof.manifest.json'
+    [System.IO.File]::WriteAllText(
+        $manifestPath,
+        ($manifest | ConvertTo-Json -Depth 10),
+        [System.Text.UTF8Encoding]::new($false)
+    )
+
+    $trust = Test-PendingManifestTrustedForDrain -ManifestFile (Get-Item -LiteralPath $manifestPath) -Manifest (Read-PendingManifestFile -Path $manifestPath)
+
+    Assert-True (-not [bool]$trust.Ok) 'Manifest with blank transaction proof was trusted for drain.'
+    Assert-Equal ([string]$trust.Status) 'invalid_manifest' 'Blank transaction proof should be an invalid_manifest blocker.'
+    Assert-MatchText ([string]$trust.Reason) 'publish_transaction_id' 'Blank transaction proof failure should name publish_transaction_id.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
+    $payload = Join-Path $script:LocalPendingPush 'bad-array.mkv'
+    $serverOut = Join-Path $script:Outsource 'bad-array.mkv'
+    [System.IO.File]::WriteAllText($payload, 'media')
+    $manifest = New-TestPendingManifest -LocalFile $payload -ServerOut $serverOut
+    $manifest['sidecar_files'] = 'not-an-array'
+    $manifestPath = Join-Path $script:LocalPendingPush 'bad-array.manifest.json'
+    [System.IO.File]::WriteAllText(
+        $manifestPath,
+        ($manifest | ConvertTo-Json -Depth 10),
+        [System.Text.UTF8Encoding]::new($false)
+    )
+
+    $trust = Test-PendingManifestTrustedForDrain -ManifestFile (Get-Item -LiteralPath $manifestPath) -Manifest (Read-PendingManifestFile -Path $manifestPath)
+
+    Assert-True (-not [bool]$trust.Ok) 'Manifest with string sidecar_files was trusted for drain.'
+    Assert-Equal ([string]$trust.Status) 'invalid_manifest' 'String sidecar_files should be an invalid_manifest blocker.'
+    Assert-Equal ([string]$trust.ReasonCode) 'REQUIRED_ARRAY_INVALID' 'String sidecar_files should fail required-array validation.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
+    $sourceOriginal = Join-Path $script:SourceMovies 'UnsafeOriginal.mkv'
+    $pendingLocal = Join-Path $script:LocalPendingPush 'UnsafeOriginal.mkv'
+    [System.IO.File]::WriteAllText($sourceOriginal, 'source-media')
+    $manifest = New-TestPendingManifest -LocalFile $pendingLocal -ServerOut (Join-Path $script:Outsource 'UnsafeOriginal.mkv') -State 'pending_move'
+    $manifest['original_local_file'] = $sourceOriginal
+    $manifest['parked_file'] = $pendingLocal
+    $manifestPath = Join-Path $script:LocalPendingPush 'unsafe-original.manifest.json'
+    Write-PendingManifestFile -Path $manifestPath -Manifest $manifest | Out-Null
+
+    $repaired = Repair-PendingManifestState -ManifestFile (Get-Item -LiteralPath $manifestPath) -Manifest (Read-PendingManifestFile -Path $manifestPath)
+
+    Assert-Equal ([string]$repaired.manifest_state) 'pending_move' 'Unsafe original_local_file should not be recovered.'
+    Assert-True (Test-Path -LiteralPath $sourceOriginal -PathType Leaf) 'Unsafe original_local_file under source root was moved.'
+    Assert-True (-not (Test-Path -LiteralPath $pendingLocal -PathType Leaf)) 'Unsafe original_local_file created a parked payload.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
+    $payload = Join-Path $script:LocalPendingPush 'sidecar-forged.mkv'
+    $sidecarOutsidePending = Join-Path $Root.FullName 'sidecar-forged.eng.srt'
+    $sidecarDestination = Join-Path $script:Outsource 'sidecar-forged.eng.srt'
+    [System.IO.File]::WriteAllText($payload, 'media')
+    [System.IO.File]::WriteAllText($sidecarOutsidePending, "1`n00:00:00,000 --> 00:00:01,000`nCaption`n")
+    $manifest = New-TestPendingManifest -LocalFile $payload -ServerOut (Join-Path $script:Outsource 'sidecar-forged.mkv')
+    $manifest['sidecar_files'] = @(
+        [pscustomobject]@{
+            local_file = $sidecarOutsidePending
+            server_out = $sidecarDestination
+            preserve_existing = $false
+            tx3g_record = [pscustomobject]@{ stream_index = 1; language = 'eng' }
+        }
+    )
+
+    $result = Publish-PendingSidecarFiles -Manifest ([pscustomobject]$manifest) -PublishTransactionId 'tx-forged-sidecar'
+
+    Assert-Equal @($result.Failures).Count 1 'Sidecar outside PendingServerPush should be rejected before publish.'
+    Assert-True (-not (Test-Path -LiteralPath $sidecarDestination -PathType Leaf)) 'Sidecar outside PendingServerPush was copied to the final output root.'
+    Assert-True (Test-Path -LiteralPath $sidecarOutsidePending -PathType Leaf) 'Sidecar outside PendingServerPush was mutated.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
+    $payload = Join-Path $script:LocalPendingPush 'mixed-safe.mkv'
+    $serverOut = Join-Path $script:Outsource 'nested\mixed-safe.mkv'
+    [System.IO.Directory]::CreateDirectory((Split-Path $serverOut -Parent)) | Out-Null
+    [System.IO.File]::WriteAllText($payload, 'media')
+    $mixedPayload = $payload.Replace('\', '/')
+    $mixedServer = $serverOut.Replace('\', '/')
+    $manifest = New-TestPendingManifest -LocalFile $mixedPayload -ServerOut $mixedServer
+    $manifestPath = Join-Path $script:LocalPendingPush 'mixed-safe.manifest.json'
+    Write-PendingManifestFile -Path $manifestPath -Manifest $manifest | Out-Null
+
+    $trust = Test-PendingManifestTrustedForDrain -ManifestFile (Get-Item -LiteralPath $manifestPath) -Manifest (Read-PendingManifestFile -Path $manifestPath)
+
+    Assert-True ([bool]$trust.Ok) "Mixed slash safe pending/output paths were not trusted: $($trust.Reason)"
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
+    $safeLocal = Join-Path $script:LocalPendingPush 'cleanup-safe.mkv'
+    $unsafeLocal = Join-Path $Root.FullName 'cleanup-outside.mkv'
+    $unsafeSidecar = Join-Path $Root.FullName 'cleanup-outside.srt'
+    [System.IO.File]::WriteAllText($safeLocal, 'media')
+    [System.IO.File]::WriteAllText($unsafeLocal, 'outside')
+    [System.IO.File]::WriteAllText($unsafeSidecar, 'outside-sidecar')
+    $manifestPath = Join-Path $script:LocalPendingPush 'cleanup-safe.manifest.json'
+    $manifest = [pscustomobject]@{
+        sidecar_files = @([pscustomobject]@{ local_file = $unsafeSidecar })
+    }
+
+    Remove-PendingDrainLocalArtifacts -Manifest $manifest -LocalPath $unsafeLocal -ManifestPath $manifestPath
+
+    Assert-True (Test-Path -LiteralPath $unsafeLocal -PathType Leaf) 'Pending cleanup removed a local media path outside PendingServerPush.'
+    Assert-True (Test-Path -LiteralPath $unsafeSidecar -PathType Leaf) 'Pending cleanup removed a sidecar path outside PendingServerPush.'
 }
 
 Invoke-WithTempRoot {
@@ -283,24 +605,23 @@ Invoke-WithTempRoot {
 
 Invoke-WithTempRoot {
     param($Root)
-    $serverDir = Join-Path $Root.FullName 'Server'
-    [System.IO.Directory]::CreateDirectory($serverDir) | Out-Null
-    $localSidecar = Join-Path $Root.FullName 'parked.srt'
+    Set-TestPipelineRoots -Root $Root
+    $serverDir = $script:Outsource
+    $localSidecar = Join-Path $script:LocalPendingPush 'parked.srt'
     $serverSidecar = Join-Path $serverDir 'movie.eng.srt'
     [System.IO.File]::WriteAllText($localSidecar, "1`n00:00:00,000 --> 00:00:01,000`nNew`n")
     [System.IO.File]::WriteAllText($serverSidecar, 'old-srt')
-    $manifest = [pscustomobject]@{
-        sidecar_files = @(
-            [pscustomobject]@{
-                local_file = $localSidecar
-                server_out = $serverSidecar
-                preserve_existing = $false
-                tx3g_record = [pscustomobject]@{ stream_index = 2; language = 'eng'; title = 'English' }
-            }
-        )
-        tx3g_srt_tracks = @()
-        tx3g_srt_failures = @()
-    }
+    $mediaPayload = Join-Path $script:LocalPendingPush 'movie.mkv'
+    [System.IO.File]::WriteAllText($mediaPayload, 'media')
+    $manifest = New-TestPendingManifest -LocalFile $mediaPayload -ServerOut (Join-Path $script:Outsource 'movie.mkv')
+    $manifest['sidecar_files'] = @(
+        [pscustomobject]@{
+            local_file = $localSidecar
+            server_out = $serverSidecar
+            preserve_existing = $false
+            tx3g_record = [pscustomobject]@{ stream_index = 2; language = 'eng'; title = 'English' }
+        }
+    )
 
     $originalCopySrtAtomic = (Get-Item -Path function:Copy-SrtAtomic).ScriptBlock
     Set-Item -Path function:Copy-SrtAtomic -Value {

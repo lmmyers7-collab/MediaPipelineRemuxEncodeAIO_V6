@@ -31,7 +31,7 @@ PRESET_POLICY_WRITE_FORMAT: Literal["legacy"] = "legacy"
 
 RoutingProfile = Literal["plex_direct_stream", "plex_direct_play", "archive_shrink", "archive_quality", "manual"]
 RouteThresholdMode = Literal["compatibility_advisory", "size", "bitrate", "size_or_bitrate"]
-SizeGuardMode = Literal["advisory", "strict", "off"]
+SizeGuardMode = Literal["advisory", "strict", "fallback_remux", "off"]
 
 _SOURCE_FACT_KEYS = frozenset(
     {

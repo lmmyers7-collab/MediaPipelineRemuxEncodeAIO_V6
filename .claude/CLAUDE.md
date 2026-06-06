@@ -25,7 +25,7 @@ Do this before non-trivial repository work. For read-only questions or tiny sing
 minimum startup needed to avoid violating AGENTS.md and docs/SESSION.md, then proceed with a named caveat.
 
 1. Read **AGENTS.md** — §§1–3 and §7 in full; skim the rest. §7 changes most often; never skim it.
-2. Read **PROJECT_INDEX.md**. If missing, ask whether to regenerate via `ops/scripts/dev/refresh_index.py`,
+2. Read **PROJECT_INDEX.md**. If missing, ask whether to regenerate via `python -m mediapipeline.tools.dev.generate_project_index`,
    proceed degraded with a named caveat, or abort. Do not reconstruct it by reading source files.
 3. Read **docs/SESSION.md**. If absent, read-only answers, repository discovery, and tiny single-file typo/comment
    fixes may proceed degraded; any non-trivial edit, refactor, migration, validation-sensitive task, or

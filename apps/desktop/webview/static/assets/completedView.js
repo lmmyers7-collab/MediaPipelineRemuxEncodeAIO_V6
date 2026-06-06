@@ -186,6 +186,8 @@
   const {
     completedCurrentRows = completedReviewNoop,
     completedMissingRows = completedReviewNoop,
+    completedOutputPlacement = completedReviewNoop,
+    completedPlacementCounts = completedReviewNoop,
     completedMetricCounts = completedReviewNoop,
     completedInventoryProgressBars = completedReviewNoop,
     renderCompletedInventoryProgress = completedReviewNoop,
@@ -642,13 +644,16 @@
       completedDisplayRowStatus: (...args) => completedDisplayRowStatus(...args),
       completedFilteredRows: (...args) => completedFilteredRows(...args),
       completedInvestigationFilterLabel: (...args) => completedInvestigationFilterLabel(...args),
+      completedOutputPlacement: (...args) => completedOutputPlacement(...args),
       completedRiskStatusLine: (...args) => completedRiskStatusLine(...args),
       completedRowsStatusLine: (...args) => completedRowsStatusLine(...args),
       filterResultSummaryLines: window.filterResultSummaryLines || window.mediaPipelineDom?.filterResultSummaryLines,
       finalLibraryPromotionChipState: (...args) => finalLibraryPromotionChipState(...args),
       finalLibraryPromotionStatusText: (...args) => finalLibraryPromotionStatusText(...args),
       getSelectedCompletedRow: (...args) => getSelectedCompletedRow(...args),
+      makeStatusChip: window.mediaPipelineDom?.makeStatusChip,
       makeRowSelectable: typeof makeRowSelectable === "function" ? makeRowSelectable : window.makeRowSelectable,
+      renderCompletedTrustDecision: (...args) => renderCompletedTrustDecision(...args),
       renderCompletedDetail: (...args) => renderCompletedDetail(...args),
       renderCompletedFinalTrust: (...args) => renderCompletedFinalTrust(...args),
       renderCompletedOutputAcceptance: (...args) => renderCompletedOutputAcceptance(...args),
@@ -664,6 +669,110 @@
     renderCompletedRows = completedReviewNoop,
     renderCompletedHistoryRows = completedReviewNoop,
   } = completedTable);
+
+  function completedTrustDecisionState(status) {
+    const normalized = String(status || "").toLowerCase();
+    if (normalized.includes("trust")) return "ok";
+    if (normalized.includes("investigate")) return "blocked";
+    if (normalized.includes("incomplete")) return "validation-needed";
+    if (normalized.includes("review")) return "warning";
+    return "unknown";
+  }
+
+  function completedTrustDecisionRowIdentity(row) {
+    return String(row?.row_key || row?.output_path || row?.source_path || row?.output_file || "").trim().toLowerCase();
+  }
+
+  function completedTrustDecisionHiddenReviewCount(currentRows, visibleRows) {
+    const visible = new Set((Array.isArray(visibleRows) ? visibleRows : []).map(completedTrustDecisionRowIdentity).filter(Boolean));
+    return (Array.isArray(currentRows) ? currentRows : []).filter((row) => {
+      const identity = completedTrustDecisionRowIdentity(row);
+      if (identity && visible.has(identity)) return false;
+      const status = String(completedDisplayRowStatus(row) || "").toLowerCase();
+      const reasons = completedReviewRowReasons(row);
+      return ["blocked", "warning", "failed", "validation-needed"].includes(status)
+        || (Array.isArray(reasons) && reasons.length);
+    }).length;
+  }
+
+  function completedTrustDecisionReconciliationLoaded() {
+    const payload = lastPublishReconciliationPayload && typeof lastPublishReconciliationPayload === "object"
+      ? lastPublishReconciliationPayload
+      : {};
+    const status = String(payload.status || "").trim().toLowerCase();
+    return Boolean(status && status !== "not_loaded") || Array.isArray(payload.rows);
+  }
+
+  function renderCompletedTrustDecision({
+    payload = lastCompletedPayload,
+    allRows = lastCompletedRows,
+    currentRows = completedCurrentRows(allRows),
+    visibleRows = currentRows,
+    proofRows = lastCompletedPendingProofRows,
+  } = {}) {
+    const rowList = Array.isArray(allRows) ? allRows : [];
+    const currentList = Array.isArray(currentRows) ? currentRows : [];
+    const visibleList = Array.isArray(visibleRows) ? visibleRows : [];
+    const proofList = Array.isArray(proofRows) ? proofRows : [];
+    const missingRows = completedMissingRows(rowList);
+    const missingList = Array.isArray(missingRows) ? missingRows : [];
+    const placementCounts = completedPlacementCounts(rowList, proofList) || {};
+    const currentReview = completedReviewRows(payload || {}, currentList);
+    const currentReviewCount = Array.isArray(currentReview) ? currentReview.length : 0;
+    const hiddenReviewCount = completedTrustDecisionHiddenReviewCount(currentList, visibleList);
+    const reconciliationLoaded = completedTrustDecisionReconciliationLoaded();
+    const pendingProofLoaded = Boolean(proofList.length || Object.keys(lastCompletedPendingPayload || {}).length);
+    const missingNoProof = Number(placementCounts.missing_no_proof || 0);
+    const movedUnknown = Number(placementCounts.moved_offline_unknown || 0);
+    const pendingProofMissing = Number(placementCounts.missing_pending_proof || 0);
+    const drainProofMissing = Number(placementCounts.missing_drain_proof || 0);
+    const incompleteReasons = [];
+    if (!rowList.length) incompleteReasons.push("no completed history rows loaded");
+    if (!pendingProofLoaded) incompleteReasons.push("pending/drain proof not loaded");
+    if (!reconciliationLoaded) incompleteReasons.push("publish reconciliation not loaded");
+    let status = "Trust ready";
+    if (payload?.error || missingNoProof || movedUnknown) {
+      status = "Investigate";
+    } else if (currentReviewCount || hiddenReviewCount || pendingProofMissing || drainProofMissing || !reconciliationLoaded) {
+      status = "Review first";
+    } else if (incompleteReasons.length) {
+      status = "Evidence incomplete";
+    }
+    const statusNode = byId("completed-trust-decision-status");
+    setText("completed-trust-decision-status", status);
+    if (statusNode) statusNode.dataset.state = completedTrustDecisionState(status);
+    const chipContainer = byId("completed-trust-decision-chips");
+    if (chipContainer && window.mediaPipelineDom?.makeStatusChip) {
+      chipContainer.replaceChildren(
+        window.mediaPipelineDom.makeStatusChip(`Trust ready${status === "Trust ready" ? "" : ` ${Math.max(currentList.length - currentReviewCount, 0)}`}`, status === "Trust ready" ? "ok" : "normal"),
+        window.mediaPipelineDom.makeStatusChip(`Review first ${currentReviewCount + hiddenReviewCount + pendingProofMissing + drainProofMissing}`, status === "Review first" ? "warning" : "normal"),
+        window.mediaPipelineDom.makeStatusChip(`Investigate ${missingNoProof + movedUnknown + (payload?.error ? 1 : 0)}`, status === "Investigate" ? "blocked" : "normal"),
+        window.mediaPipelineDom.makeStatusChip(`Evidence incomplete ${incompleteReasons.length}`, status === "Evidence incomplete" ? "validation-needed" : "normal"),
+      );
+    }
+    const lines = [
+      "Output trust decision:",
+      `Operator outcome: ${status}.`,
+      `Current outputs present: ${currentList.length}; visible after filters: ${visibleList.length}.`,
+      `Current rows needing review: ${currentReviewCount}; hidden review rows: ${hiddenReviewCount}.`,
+      `Historical missing outputs: ${missingList.length}.`,
+      `Placement evidence: Current=${placementCounts.current || 0}; Missing: pending proof=${pendingProofMissing}; Missing: drain proof=${drainProofMissing}; Missing: no proof=${missingNoProof}; Moved/offline unknown=${movedUnknown}.`,
+      `Pending/drain proof: ${pendingProofLoaded ? "loaded or locally derived" : "not loaded"}.`,
+      `Backend publish reconciliation: ${reconciliationLoaded ? (lastPublishReconciliationPayload.status || "loaded") : "not loaded"}.`,
+    ];
+    if (incompleteReasons.length) lines.push(`Evidence gaps: ${incompleteReasons.join("; ")}.`);
+    if (status === "Investigate") {
+      lines.push("First action: inspect missing/no-proof outputs in Completed History, Pending Publish, Diagnostics, Run Logs, and Last Stderr before rerun, cleanup, deletion, or manual movement.");
+    } else if (status === "Review first") {
+      lines.push("First action: read review rows and refresh backend reconciliation before trusting, rerunning, draining, or promoting output.");
+    } else if (status === "Evidence incomplete") {
+      lines.push("First action: load Completed, Pending Publish, and backend reconciliation evidence before making a trust decision.");
+    } else {
+      lines.push("First action: output appears trust-ready in the loaded evidence; acceptance remains an operator judgment and backend state remains authoritative.");
+    }
+    lines.push("Mutation guardrail: this summary is read-only and cannot accept outputs, rerun jobs, drain pending publish, promote files, delete files, rewrite manifests, or touch media.");
+    setText("completed-trust-decision-summary", lines.join("\n"));
+  }
 
   function renderCompleted(completed = {}) {
     const payload = completed && typeof completed === "object" ? completed : {};
@@ -807,6 +916,8 @@
     completedInventoryProgressBars,
     completedCurrentRows,
     completedMissingRows,
+    completedOutputPlacement,
+    completedPlacementCounts,
     completedMetricCounts,
     finalLibraryPromotionActionState,
     renderCompletedPromotionActions,
@@ -955,6 +1066,7 @@
     completedOpenHistoryLine,
     renderCompletedOpenHistory,
     completedRiskStatusLine,
+    renderCompletedTrustDecision,
     renderCompletedReconciliationHint,
     completedEvidencePacketText,
     copyCompletedEvidencePacket,
@@ -1077,6 +1189,9 @@
   window.completedFormatCounts = completedFormatCounts;
   window.completedFreshnessLine = completedFreshnessLine;
   window.completedManifestIsAged = completedManifestIsAged;
+  window.completedOutputPlacement = completedOutputPlacement;
+  window.completedPlacementCounts = completedPlacementCounts;
+  window.renderCompletedTrustDecision = renderCompletedTrustDecision;
   window.selectCompletedRow = selectCompletedRow;
   window.getSelectedCompletedRow = getSelectedCompletedRow;
   window.getLastCompletedPayload = getLastCompletedPayload;

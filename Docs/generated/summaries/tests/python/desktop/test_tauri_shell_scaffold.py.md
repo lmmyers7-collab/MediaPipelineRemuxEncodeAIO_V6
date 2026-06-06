@@ -3,9 +3,9 @@ file: tests/python/desktop/test_tauri_shell_scaffold.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: e0ede1a5d2f5933e1b4d6282fc2c9c02f8922fcecf24e88f5c5a979884c8206f
+sha256: 7954068a188f42138f3d5bc10335d26e1ab1ef5d18aa9f32beb7874a6bc1ee75
 ---
 # `tests/python/desktop/test_tauri_shell_scaffold.py`
 

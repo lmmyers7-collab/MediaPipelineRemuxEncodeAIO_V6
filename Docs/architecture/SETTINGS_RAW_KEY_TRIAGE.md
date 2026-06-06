@@ -30,6 +30,8 @@ This document does not change settings behavior. Changes to builder coverage req
 
 **Update (2026-06-02, MDS-049):** `MixPriorityPhase`, `QueueOrderingStrategy`, and `ShowOverrides` now have backend field metadata so Settings Preview/Save and the Raw-Key Action Plan treat them as known advanced/direct-config keys instead of schema drift.
 
+**Update (2026-06-04, MP-CHANGE-2026-0604-047):** Raw JSON may still stage unknown keys for backend Preview/Save, but keys that case-insensitively match a known persisted key must use the exact canonical spelling. Preview/Save now reject non-canonical spellings such as `routingprofile` with a canonical-key message instead of preserving an inert duplicate. Missing `ConvertBdpgsToSrt` is displayed as disabled, matching the config contract.
+
 ---
 
 ## Known Advanced / Direct-Config Keys

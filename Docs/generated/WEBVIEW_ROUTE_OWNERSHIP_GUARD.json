@@ -178,6 +178,12 @@
       ]
     },
     {
+      "route": "/api/metrics",
+      "files": [
+        "apps/desktop/webview/static/assets/app.js"
+      ]
+    },
+    {
       "route": "/api/network/workers",
       "files": [
         "apps/desktop/webview/static/assets/app.js"
@@ -234,7 +240,7 @@
     {
       "route": "/api/queue/file-overrides",
       "files": [
-        "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.js"
+        "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.api.js"
       ]
     },
     {
@@ -246,13 +252,13 @@
     {
       "route": "/api/queue/file-overrides/series-apply",
       "files": [
-        "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.js"
+        "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.series.js"
       ]
     },
     {
       "route": "/api/queue/file-overrides/series-preview",
       "files": [
-        "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.js"
+        "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.series.js"
       ]
     },
     {

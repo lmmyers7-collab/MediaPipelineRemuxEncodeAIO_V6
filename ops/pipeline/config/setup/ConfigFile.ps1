@@ -309,8 +309,8 @@ function Invoke-ConfigWizard {
 
     Write-Step 4 4 'Routing and safety'
     Write-Header 'Step 4 of 4: Routing and safety'
-    $config['EncodeThresholdGB'] = Read-PositiveNumber -Prompt 'Movie encode threshold in GB' -Default ([string]$config['EncodeThresholdGB'])
-    $config['TVEncodeThresholdGB'] = Read-PositiveNumber -Prompt 'TV encode threshold in GB' -Default ([string]$config['TVEncodeThresholdGB'])
+    $config['MovieRoute1080pTargetSizeGB'] = Read-PositiveNumber -Prompt 'Movie 1080p target output size in GB' -Default ([string]$config['MovieRoute1080pTargetSizeGB'])
+    $config['TVRoute1080pTargetSizeGB'] = Read-PositiveNumber -Prompt 'TV 1080p target output size in GB' -Default ([string]$config['TVRoute1080pTargetSizeGB'])
     $config['MinFreeSpaceGB'] = Read-PositiveNumber -Prompt 'Minimum free space on the scratch disk in GB' -Default ([string]$config['MinFreeSpaceGB'])
     if (Read-YesNo 'Use the same minimum free-space reserve for the outsource path?' -DefaultYes $true) {
         $config['OutsourceMinFreeSpaceGB'] = $config['MinFreeSpaceGB']

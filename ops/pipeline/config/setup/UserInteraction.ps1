@@ -113,7 +113,7 @@ function Write-ConfigHighlights {
     Write-Host ("Outsource     : {0}" -f $Config['Outsource'])
     Write-Host ("Scratch       : {0}" -f $Config['LocalBase'])
     Write-Host ("Video         : {0} / preset {1} / quality {2}" -f $Config['VideoCodec'], $Config['VideoPreset'], $Config['VideoQuality'])
-    Write-Host ("Thresholds    : Movies {0} GB, TV {1} GB" -f $Config['EncodeThresholdGB'], $Config['TVEncodeThresholdGB'])
+    Write-Host ("1080p targets : Movies {0} GB, TV {1} GB" -f $Config['MovieRoute1080pTargetSizeGB'], $Config['TVRoute1080pTargetSizeGB'])
     Write-Host ("Disk reserve  : Scratch {0} GB, Outsource {1} GB" -f $Config['MinFreeSpaceGB'], $Config['OutsourceMinFreeSpaceGB'])
     Write-Host ("Deferred push : {0}" -f $(if ($Config['DeferredPublish']) { 'Enabled' } else { 'Disabled' }))
     Write-Host ("TV folders    : {0}" -f $(if ($Config['CreateTVSubfolder']) { 'Enabled' } else { 'Disabled' }))

@@ -3,9 +3,9 @@ file: tests/python/desktop/test_facade_completed_open_policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 82727bca59e1cdc658699e486c0f0540abe7db917780ee0905bc6a1d15fe5a53
+sha256: 0ad3f200ce87b209695a0a47840a5e11d1c98d8fd5c2879f2733b9d036ffb6c4
 ---
 # `tests/python/desktop/test_facade_completed_open_policy.py`
 

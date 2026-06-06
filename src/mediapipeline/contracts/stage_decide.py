@@ -39,7 +39,7 @@ class DecidePayload(StagePayload):
         "bitrate",
         "size_or_bitrate",
     ] = "compatibility_advisory"
-    size_guard_mode: Literal["advisory", "strict", "off"] = "advisory"
+    size_guard_mode: Literal["advisory", "strict", "fallback_remux", "off"] = "advisory"
     encode_threshold_gb: float = Field(default=8, gt=0)
     tv_encode_threshold_gb: float = Field(default=3, gt=0)
     movie_route_1080p_size_limit_gb: float = Field(default=8, gt=0)

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: 119dde4859c16dc89424aeca179e2d227bba777b4a08cca4cf44eb46d93e1f75
+sha256: 1825ffb5f3be4f84e8058f9c6448193a6d5b7cafbf633cbc4fcb2bc054e9d529
 ---
 # `ops/scripts/dev/verify-env.ps1`
 

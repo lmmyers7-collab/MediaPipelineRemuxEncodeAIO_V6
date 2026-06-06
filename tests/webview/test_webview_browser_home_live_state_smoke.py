@@ -535,7 +535,38 @@ def _browser_home_live_state_runner_source() -> str:
             if (typeof window.renderSnapshot !== "function") {
               throw new Error("renderSnapshot is not available for Home pipeline state formatting.");
             }
-            window.renderSnapshot({
+            const stoppedSnapshot = {
+              app_version: "v5-test",
+              pipeline_state: "idle",
+              status_summary: "Stopped by request",
+              current_work: { phase_label: "Idle" },
+              counts: { queue_index: 0, queue_total: 0, processed: 9, failed: 1 },
+              progress: { Status: "Stopped", CurrentStage: "stopped", StopRequested: true, Failed: 1 },
+              progress_bars: [],
+              recent_events: [
+                {
+                  event_type: "job_completed",
+                  status: "stopped",
+                  data: {
+                    completion_status: "stopped",
+                    error_code: "STOP_REQUESTED",
+                    reason: "Processing stopped by operator",
+                    publish_state: "parked",
+                    publish_mode: "deferred",
+                  },
+                },
+              ],
+            };
+            window.renderSnapshot(stoppedSnapshot);
+            requireText("home-failed-label", ["Failed"]);
+            requireText("failed-label", ["Failed"]);
+            requireText("home-failed-count", ["0"]);
+            requireText("progress-bar-list", ["Stopped after current", "Pending Publish"]);
+            requireText("progress-detail-rows", ["Issues", "0", "Stop After Current is tracked"]);
+            const stoppedMetricLabel = text("home-failed-label");
+            const stoppedMetricTitle = byId("home-failed-count")?.title || "";
+            const stoppedProgressBarText = text("progress-bar-list");
+            const activeSnapshot = {
               app_version: "v5-test",
               pipeline_state: "encoding_tv_(cpu_fallback)",
               status_summary: "Status OK",
@@ -544,12 +575,59 @@ def _browser_home_live_state_runner_source() -> str:
               progress: {},
               progress_bars: [],
               recent_events: [],
-            });
+            };
+            window.renderSnapshot(activeSnapshot);
+            requireText("home-failed-label", ["Failed"]);
             requireText("queue-count", ["3 / 17"]);
             requireText("pipeline-state", [
               "Encoding TV",
               "(cpu fallback)",
             ]);
+            const queueOutcomeRenderer = window.renderHomePipelineQueueOutcome
+              || (typeof renderHomePipelineQueueOutcome === "function" ? renderHomePipelineQueueOutcome : null);
+            if (typeof queueOutcomeRenderer !== "function") {
+              throw new Error("renderHomePipelineQueueOutcome is not available for Home empty scan status.");
+            }
+            const emptyQueuePayload = {
+              schema_version: "desktop_queue_preview.v1",
+              rows: [],
+              runnable_count: 0,
+              warnings: ["Queue snapshot contains no runnable rows."],
+              snapshot_file_freshness_status: "fresh",
+              produced_freshness_status: "fresh",
+              queue_progress: { schema_version: "desktop_queue_source_scan_progress.v1", status: "complete", stale: false },
+              queue_scan_status: {
+                schema_version: "desktop_queue_scan_status.v1",
+                status: "completed",
+                phase: "complete",
+                curated_row_count: 0,
+                inventory_count: 4,
+              },
+            };
+            const activeEmptyApplied = queueOutcomeRenderer(window.getLastSnapshot?.(), emptyQueuePayload);
+            if (activeEmptyApplied || !text("pipeline-state").includes("Encoding TV")) {
+              throw new Error("Empty queue outcome overwrote active Pipeline tile: " + text("pipeline-state"));
+            }
+            window.renderSnapshot({
+              app_version: "v5-test",
+              pipeline_state: "idle",
+              status_summary: "Status OK",
+              current_work: { phase_label: "Idle" },
+              counts: { queue_index: 3, queue_total: 17, processed: 0, failed: 0 },
+              progress: {},
+              progress_bars: [],
+              recent_events: [],
+            });
+            const idleEmptyApplied = queueOutcomeRenderer(window.getLastSnapshot?.(), emptyQueuePayload);
+            if (!idleEmptyApplied) {
+              throw new Error("Empty queue outcome did not apply to idle Pipeline tile.");
+            }
+            requireText("pipeline-state", ["No New Sources"]);
+            requireText("queue-count", ["3 / 17"]);
+            const noNewPipelineState = text("pipeline-state");
+            const noNewPipelineStateMain = byId("pipeline-state")?.querySelector(".pipeline-state-main")?.textContent || "";
+            const noNewPipelineStateLabel = byId("pipeline-state")?.getAttribute("aria-label") || "";
+            window.renderSnapshot(activeSnapshot);
             if (text("pipeline-state").includes("_")) {
               throw new Error("Home pipeline state still contains underscores: " + text("pipeline-state"));
             }
@@ -562,6 +640,12 @@ def _browser_home_live_state_runner_source() -> str:
               pipelineStateMain: byId("pipeline-state")?.querySelector(".pipeline-state-main")?.textContent || "",
               pipelineStateDetail: byId("pipeline-state")?.querySelector(".pipeline-state-detail")?.textContent || "",
               pipelineStateLabel: byId("pipeline-state")?.getAttribute("aria-label") || "",
+              noNewPipelineState,
+              noNewPipelineStateMain,
+              noNewPipelineStateLabel,
+              stoppedMetricLabel,
+              stoppedMetricTitle,
+              stoppedProgressBarText,
               ...preservedHomeLiveState,
             };
           })()
@@ -793,6 +877,13 @@ class WebViewBrowserHomeLiveStateSmoke(unittest.TestCase):
             self.assertEqual(browser_result["pipelineStateMain"], "Encoding TV")
             self.assertEqual(browser_result["pipelineStateDetail"], "(cpu fallback)")
             self.assertEqual(browser_result["pipelineStateLabel"], "Encoding TV (cpu fallback)")
+            self.assertEqual(browser_result["noNewPipelineStateMain"], "No New Sources")
+            self.assertEqual(browser_result["noNewPipelineStateLabel"], "No New Sources")
+            self.assertEqual(browser_result["stoppedMetricLabel"], "Failed")
+            self.assertIn("not counted as a failed media output", browser_result["stoppedMetricTitle"])
+            self.assertIn("Stopped after current", browser_result["stoppedProgressBarText"])
+            self.assertIn("Pending Publish", browser_result["stoppedProgressBarText"])
+            self.assertIn("No New Sources", browser_result["noNewPipelineState"])
             self.assertNotIn("_", browser_result["pipelineState"])
             self.assertIn("Encoding", browser_result["statePill"])
             self.assertIn("Serial Experiments Lain S02E01 Weird.mkv", browser_result["nextQueue"])

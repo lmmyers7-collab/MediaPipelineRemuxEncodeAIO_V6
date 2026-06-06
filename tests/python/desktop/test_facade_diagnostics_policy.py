@@ -13,6 +13,7 @@ from mediapipeline.core.diagnostics.policy import (
     diagnostics_launch_log_summary,
     diagnostics_summary_lines,
     diagnostics_tail_evidence,
+    diagnostics_tail_line_contains_term,
     diagnostics_warnings,
 )
 from mediapipeline.desktop.models import ResolvedPaths, Snapshot
@@ -110,6 +111,24 @@ class DiagnosticsFacadePolicyTests(unittest.TestCase):
         ready = diagnostics_tail_evidence(text="completed normally\n", ok=True, exists=True, is_file=True)
         self.assertEqual(ready["operator_status"], "ready")
         self.assertEqual(ready["operator_status_state"], "ready")
+
+    def test_diagnostics_tail_evidence_ignores_negated_error_phrases(self) -> None:
+        for text in ["completed without errors\n", "No recent pipeline errors found.\n", "error_count=0\n"]:
+            with self.subTest(text=text):
+                evidence = diagnostics_tail_evidence(text=text, ok=True, exists=True, is_file=True)
+                self.assertEqual(evidence["operator_status"], "ready")
+                self.assertEqual(evidence["error_count"], 0)
+                self.assertFalse(evidence["issue_lines"])
+
+        self.assertFalse(diagnostics_tail_line_contains_term("completed without errors", "error"))
+        self.assertFalse(diagnostics_tail_line_contains_term("No recent pipeline errors found.", "error"))
+
+    def test_diagnostics_tail_evidence_keeps_true_error_terms_blocked(self) -> None:
+        for text in ["ERROR source locked\n", "Traceback unavailable\n", "publish failed\n", "fatal mux failure\n"]:
+            with self.subTest(text=text):
+                evidence = diagnostics_tail_evidence(text=text, ok=True, exists=True, is_file=True)
+                self.assertEqual(evidence["operator_status"], "blocked")
+                self.assertGreater(evidence["error_count"], 0)
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ from mediapipeline.core.maintenance.commands_facade import MaintenanceCommandFac
 from mediapipeline.core.maintenance.dependency_atlas_facade import MaintenanceDependencyAtlasFacadeMixin
 from mediapipeline.core.maintenance.facade import MaintenanceFacadeMixin
 from mediapipeline.core.maintenance.release_facade import MaintenanceReleaseFacadeMixin
+from mediapipeline.core.metrics.facade import MetricsFacadeMixin
 from mediapipeline.core.network.facade import NetworkFacadeMixin
 from mediapipeline.core.publish.pending_facade import PendingPublishFacadeMixin
 from mediapipeline.core.publish.reconciliation_facade import PublishReconciliationFacadeMixin
@@ -35,6 +36,7 @@ from mediapipeline.core.config.settings_risk_facade import SettingsRiskFacadeMix
 from mediapipeline.core.config.settings_wizard_facade import SettingsWizardFacadeMixin
 from mediapipeline.core.orchestration.settings_patch_facade import SettingsPatchFacadeMixin
 from mediapipeline.core.status.facade import StatusFacadeMixin
+from mediapipeline.core.subtitles.facade import SubtitleQaFacadeMixin
 from mediapipeline.core.application.utilities import FacadeUtilityMixin
 from .schedule_stop_watcher import ScheduleStopWatcherManager
 
@@ -55,8 +57,10 @@ class MediaPipelineApplicationFacade(
     MaintenanceReleaseFacadeMixin,
     MaintenanceBackfillFacadeMixin,
     MaintenanceDependencyAtlasFacadeMixin,
+    MetricsFacadeMixin,
     NetworkFacadeMixin,
     QueueFacadeMixin,
+    SubtitleQaFacadeMixin,
     FailureFacadeMixin,
     AuditFacadeMixin,
     PendingPublishFacadeMixin,
@@ -101,6 +105,7 @@ class MediaPipelineApplicationFacade(
         self._settings_save_lock = threading.Lock()
         self._sample_validation_lock = threading.Lock()
         self._schedule_save_lock = threading.Lock()
+        self._metrics_state_lock = threading.Lock()
         self._schedule_stop_watcher = ScheduleStopWatcherManager()
 
 __all__ = [

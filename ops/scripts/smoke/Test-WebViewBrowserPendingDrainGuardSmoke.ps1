@@ -41,14 +41,18 @@ Write-Host 'Boundary: skips cleanly when Chrome/Edge is not installed.'
 Write-Host "Python: $python"
 
 Push-Location -LiteralPath $projectRoot
+$previousPythonPath = $env:PYTHONPATH
 try {
     $env:PYTHONDONTWRITEBYTECODE = '1'
+    $srcPath = Join-Path $projectRoot 'src'
+    $env:PYTHONPATH = if ([string]::IsNullOrWhiteSpace($previousPythonPath)) { $srcPath } else { "$srcPath;$previousPythonPath" }
     & $python -m unittest tests.webview.test_webview_browser_pending_drain_guard_smoke -q
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }
 }
 finally {
+    $env:PYTHONPATH = $previousPythonPath
     Pop-Location
 }
 

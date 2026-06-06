@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: 09f575add975a8302cec409e0cff96cf255b8950fb9afbaac929f6530b7d7034
+sha256: 099c1e646e267bc59bcc138b3c1d00a927456307e3396a2d2f9ca820586ff0f1
 ---
 # `tests/python/desktop/test_completed_proof_budget.py`
 

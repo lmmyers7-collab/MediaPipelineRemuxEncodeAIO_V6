@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/launch/risk/riskRows.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: f60186cb8d1248c7fa2f5e427ade7302dcbe7ca2c3e1e162e6133c8270c9720b
+sha256: b1a47786b201df4885d6b7ae5bf19789eb849902145b70b9631f7bd3c069d86d
 ---
 # `apps/desktop/webview/static/assets/launch/risk/riskRows.js`
 

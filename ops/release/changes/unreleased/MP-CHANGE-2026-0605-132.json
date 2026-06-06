@@ -1,0 +1,46 @@
+{
+  "id": "MP-CHANGE-2026-0605-132",
+  "title": "Refresh Tauri settings asset gate",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-05",
+  "date_completed": "2026-06-05",
+  "summary": "Updates the Tauri pre-window WebView asset validation so Settings OutputContainer is validated through the current video detail builder and settings metadata instead of the older patchReview routing-size collector.",
+  "reason": "Startup was warning that patchReview.js no longer contained the stale OutputContainer literal even though the WebView now owns that setting in the media-output/video detail builder.",
+  "affected_areas": [
+    "startup-validation",
+    "tauri",
+    "webview"
+  ],
+  "behavior_before": "Tauri requested patchReview.js and required OutputContainer to be collected by collectSettingsBuilderPatch, causing startup asset drift warnings after the Settings UI split moved the control.",
+  "behavior_after": "Tauri still validates the routing-size patch collector in patchReview.js, then separately validates settingsMetadata.js and settingsView.builders.video.js for the OutputContainer field and video detail patch collector.",
+  "files_touched": [
+    "apps/desktop/tauri/src-tauri/src/backend_contract.rs",
+    "apps/desktop/tauri/src-tauri/src/lib.rs",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/backend_contract.rs.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/lib.rs.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0605-132.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_tauri_shell_scaffold.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0605-132.json",
+    "tests/python/desktop/test_tauri_shell_scaffold.py"
+  ],
+  "tests_added": [
+    "Updated tests/python/desktop/test_tauri_shell_scaffold.py startup asset validation expectations for Settings metadata and video-detail builder"
+  ],
+  "manual_validation": [
+    "Direct real WebView asset fragment check for metadata/video builder/patchReview - passed",
+    "Full tests.python.desktop.test_tauri_shell_scaffold - failed on unrelated dirty metrics/subtitle route and Rename smoke wording drift; focused startup asset test passed",
+    "Python focused Settings persisted-key builder tests - passed",
+    "Python focused Tauri asset scaffold test - passed",
+    "cargo fmt --check - passed",
+    "cargo test validate_backend_web_ui_reports_missing_fragments_without_token - passed",
+    "cargo test validate_backend_web_ui_requires_index_and_real_media_assets_without_leaking_token - passed",
+    "start-tauri-preview.bat -CheckOnly - passed",
+    "validate_changes --require-worktree-coverage - failed due unrelated MP-CHANGE-2026-0605-010 missing date_completed and unrelated uncovered dirty files: docs/generated/summaries/ops/pipeline/tests/Invoke-AdversarialForceKillEncodeChecks.ps1.md, docs/generated/summaries/tests/webview/test_webview_browser_maintenance_reports_smoke.py.md, ops/pipeline/tests/Invoke-AdversarialForceKillEncodeChecks.ps1"
+  ],
+  "rollback_plan": "Revert the Tauri backend contract asset-fragment updates, the Rust request-order expectation, the scaffold test expectation, and this change packet.",
+  "related_changes": [],
+  "notes": "Tauri Settings asset gate must follow OutputContainer's current video detail builder owner instead of the old patchReview collector.\nGenerated summaries refreshed for the touched Tauri validator, Rust test, scaffold test, and change packet.\nCompleted after focused Tauri/WebView asset validation and summary refresh.\nStrict coverage failure was unrelated to this packet's files."
+}

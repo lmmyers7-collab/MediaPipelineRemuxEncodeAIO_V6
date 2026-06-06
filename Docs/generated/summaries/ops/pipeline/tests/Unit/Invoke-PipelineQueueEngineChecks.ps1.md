@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: 86e79041f65a414c8b99e549b72e7584ca7ef5c80a67b7685e52ea7e68fa142d
+sha256: d2f4332df710922da06e6472cfb371f3e346dca67d3cbb5ab2335b1d72606b86
 ---
 # `ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1`
 

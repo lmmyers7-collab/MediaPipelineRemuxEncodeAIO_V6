@@ -29,6 +29,7 @@ function Do-Encode {
                     $localIn = $null
                     return $false
                 }
+                $script:LastPublishResult = New-ExistingOutputPublishResult -SourceFile $file -OutputPath $paths.ServerOut
                 Write-Log "SKIP ENCODE (exists on server): $(Split-Path $paths.ServerOut -Leaf)"
                 Clear-SourceFailureState $file
                 return $true
@@ -477,6 +478,24 @@ function Do-Encode {
             $localIn = $null
             Write-Log "ENCODE: output rejected by strict size policy: $safeName" "ERROR"
             return $false
+        }
+        if ([bool]$sizePolicy.ShouldFallbackRemux) {
+            $originalRoutePlan = $script:CurrentRoutePlan
+            $originalRouteReasonCode = [string]$script:CurrentRouteReasonCode
+            $originalRouteReason = [string]$script:CurrentRouteReason
+            $originalSizePolicyResult = $script:CurrentSizePolicyResult
+            Write-Log "ENCODE SIZE: attempting remux fallback for oversized override encode; direct-copy bitrate caps are bypassed for this fallback" "WARN"
+            $fallbackRemuxOk = Do-Remux $file $isTV $tvInfo -FallbackFromOversizedEncode
+            if ($fallbackRemuxOk) {
+                Write-Log "ENCODE SIZE: remux fallback published; rejected oversized encode temp output will be deleted" "WARN"
+                if ($script:LastPublishResult -and $script:LastPublishResult.KeepScratchInput) { $localIn = $null }
+                return $true
+            }
+            $script:CurrentRoutePlan = $originalRoutePlan
+            $script:CurrentRouteReasonCode = $originalRouteReasonCode
+            $script:CurrentRouteReason = $originalRouteReason
+            $script:CurrentSizePolicyResult = $originalSizePolicyResult
+            Write-Log "ENCODE SIZE: remux fallback unavailable; keeping oversized encode with warning evidence" "WARN"
         }
 
         [System.IO.Directory]::CreateDirectory($paths.LocalDir) | Out-Null

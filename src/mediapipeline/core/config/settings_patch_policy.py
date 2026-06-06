@@ -28,7 +28,6 @@ SETTINGS_SAVE_PROGRESS_STEPS = [
     ("validate", "Validate loaded config"),
 ]
 
-
 def _command_result(**fields: Any) -> "CommandResult":
     from mediapipeline.desktop.application.dto_commands import CommandResult
 

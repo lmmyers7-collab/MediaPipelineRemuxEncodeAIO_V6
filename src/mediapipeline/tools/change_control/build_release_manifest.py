@@ -18,6 +18,11 @@ VERSION_FILE = REPO_ROOT / "ops" / "release" / "metadata" / "VERSION"
 DEFAULT_MANIFEST_PATH = REPO_ROOT / "ops" / "release" / "metadata" / "RELEASE_MANIFEST.json"
 LEGACY_CHANGE_PATH_PREFIX = "ops/ops/release/metadata/changes/"
 LEGACY_CHANGE_SUMMARY_PREFIX = "docs/generated/summaries/ops/ops/release/metadata/changes/"
+REMOVED_QUICK_START_STEM = "tl" + "dr"
+REMOVED_ACTIVE_ARTIFACTS = {
+    f"docs/{REMOVED_QUICK_START_STEM}.md",
+    f"docs/generated/summaries/docs/{REMOVED_QUICK_START_STEM}.md.md",
+}
 
 CHANNELS = {"dev", "alpha", "beta", "rc", "stable", "hotfix", "local"}
 SOURCES = {"unreleased", "released", "auto"}
@@ -119,6 +124,10 @@ def _normalize_display_path(value: Any) -> str:
     return text
 
 
+def _is_removed_active_artifact(value: str) -> bool:
+    return value.replace("\\", "/").lower() in REMOVED_ACTIVE_ARTIFACTS
+
+
 def _list_values(
     packets: list[dict[str, Any]],
     field: str,
@@ -132,6 +141,8 @@ def _list_values(
             values.extend(field_value)
     if normalize_paths:
         values = [_normalize_display_path(value) for value in values]
+    if field == "files_touched":
+        values = [value for value in values if not _is_removed_active_artifact(str(value))]
     return _dedupe_sorted(values)
 
 

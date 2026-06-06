@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 import os
 from pathlib import Path
+import re
 import stat
 from typing import Any
 
@@ -64,6 +65,17 @@ _DIAGNOSTICS_TAIL_STATE_TERMS = (
     "progress",
     "pid",
 )
+_DIAGNOSTICS_TAIL_NEGATED_ERROR_RE = re.compile(
+    r"\b(?:no|without)\b(?:\s+[\w-]+){0,4}\s+errors?\b"
+    r"|\b0\s+errors?\b"
+    r"|\berrors?\s*[:=]\s*0\b"
+    r"|\berror[_ -]?count\s*[:=]\s*0\b"
+)
+_DIAGNOSTICS_TAIL_NEGATED_FAILURE_RE = re.compile(
+    r"\b(?:no|without)\b(?:\s+[\w-]+){0,4}\s+fail(?:ed|ures?|ure)?\b"
+    r"|\b0\s+fail(?:ed|ures?|ure)?\b"
+    r"|\bfail(?:ed|ures?|ure)?\s*[:=]\s*0\b"
+)
 
 
 def _split_summary_lines(value: object) -> list[str]:
@@ -85,9 +97,20 @@ def _diagnostics_tail_status_state(operator_status: str) -> str:
     return "unknown"
 
 
+def diagnostics_tail_line_contains_term(line: str, term: str) -> bool:
+    folded = str(line or "").casefold()
+    needle = str(term or "").casefold()
+    if not needle:
+        return False
+    if needle == "error" and _DIAGNOSTICS_TAIL_NEGATED_ERROR_RE.search(folded):
+        return False
+    if needle in {"failed", "failure"} and _DIAGNOSTICS_TAIL_NEGATED_FAILURE_RE.search(folded):
+        return False
+    return needle in folded
+
+
 def _line_contains_any(line: str, terms: tuple[str, ...]) -> bool:
-    folded = line.casefold()
-    return any(term in folded for term in terms)
+    return any(diagnostics_tail_line_contains_term(line, term) for term in terms)
 
 
 def _tail_issue_lines(lines: list[str], terms: tuple[str, ...]) -> list[str]:
@@ -343,6 +366,7 @@ __all__ = [
     "DIAGNOSTICS_TAIL_MIN_BYTES",
     "DIAGNOSTICS_TAIL_MAX_BYTES",
     "DIAGNOSTICS_TAIL_ISSUE_LINE_LIMIT",
+    "diagnostics_tail_line_contains_term",
     "diagnostics_tail_evidence",
     "clamp_diagnostics_tail_bytes",
     "diagnostics_tail_base_payload",

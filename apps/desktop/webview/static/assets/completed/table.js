@@ -17,6 +17,7 @@
       completedDisplayRowStatus: typeof deps.completedDisplayRowStatus === "function" ? deps.completedDisplayRowStatus : function () { return "normal"; },
       completedFilteredRows: typeof deps.completedFilteredRows === "function" ? deps.completedFilteredRows : function (rows) { return Array.isArray(rows) ? rows : []; },
       completedInvestigationFilterLabel: typeof deps.completedInvestigationFilterLabel === "function" ? deps.completedInvestigationFilterLabel : function () { return ""; },
+      completedOutputPlacement: typeof deps.completedOutputPlacement === "function" ? deps.completedOutputPlacement : function () { return { label: "Current", state: "ok", key: "current" }; },
       completedRiskStatusLine: typeof deps.completedRiskStatusLine === "function" ? deps.completedRiskStatusLine : function () { return "No current output blockers"; },
       completedRowsStatusLine: typeof deps.completedRowsStatusLine === "function" ? deps.completedRowsStatusLine : function (visibleRows, renderedRows, totalRows) {
         return `${visibleRows || renderedRows || 0} / ${totalRows || 0} rows`;
@@ -25,7 +26,13 @@
       finalLibraryPromotionChipState: typeof deps.finalLibraryPromotionChipState === "function" ? deps.finalLibraryPromotionChipState : function () { return "unknown"; },
       finalLibraryPromotionStatusText: typeof deps.finalLibraryPromotionStatusText === "function" ? deps.finalLibraryPromotionStatusText : function () { return ""; },
       getSelectedCompletedRow: typeof deps.getSelectedCompletedRow === "function" ? deps.getSelectedCompletedRow : function () { return null; },
+      makeStatusChip: typeof deps.makeStatusChip === "function" ? deps.makeStatusChip : function (label) {
+        const span = document.createElement("span");
+        span.textContent = label || "";
+        return span;
+      },
       makeRowSelectable: typeof deps.makeRowSelectable === "function" ? deps.makeRowSelectable : noop,
+      renderCompletedTrustDecision: typeof deps.renderCompletedTrustDecision === "function" ? deps.renderCompletedTrustDecision : noop,
       renderCompletedDetail: typeof deps.renderCompletedDetail === "function" ? deps.renderCompletedDetail : noop,
       renderCompletedFinalTrust: typeof deps.renderCompletedFinalTrust === "function" ? deps.renderCompletedFinalTrust : noop,
       renderCompletedOutputAcceptance: typeof deps.renderCompletedOutputAcceptance === "function" ? deps.renderCompletedOutputAcceptance : noop,
@@ -129,6 +136,8 @@
   }
 
   function completedEvidenceText(item) {
+    const qa = item && typeof item.subtitle_qa === "object" ? item.subtitle_qa : null;
+    const qaPosture = String(qa?.posture || "").toLowerCase();
     if (item?.output_exists === false) return "Output missing";
     if (item?.size_growth_over_5 || item?.size_policy_exceeded) return "Size review";
     if (item?.sidecar_exists === false) return "Sidecar missing";
@@ -141,6 +150,8 @@
     const runtimeError = String(item?.runtime_outcome_error_code || item?.runtime_outcome_reason || "").trim();
     if (runtimeStatus && ["failed", "error", "skipped", "stopped"].some((value) => runtimeStatus.toLowerCase().includes(value))) return runtimeStatus;
     if (runtimeError.toLowerCase() === "already_processed" && runtimeStatus.toLowerCase().includes("succeed")) return "Already processed";
+    if (qaPosture === "blocked") return "Subtitle QA blocked";
+    if (qaPosture === "review") return "Subtitle QA review";
     if (consistency) return consistency;
     if (item?.publish) return item.publish;
     return item?.output_health || "Present";
@@ -196,12 +207,25 @@
   }
 
   function completedEvidenceCellTitle(item) {
+    const qa = item && typeof item.subtitle_qa === "object" ? item.subtitle_qa : null;
     return [
       item.primary_concern ? `Primary concern: ${item.primary_concern}` : "",
       Array.isArray(item.review_flags) && item.review_flags.length ? `Review flags: ${item.review_flags.join(", ")}` : "",
+      qa ? `Subtitle QA: ${qa.posture || "unknown"} - ${qa.summary || "not reported"}` : "",
+      qa?.safe_next_action ? `Subtitle QA action: ${qa.safe_next_action}` : "",
       item.consistency_guidance ? `Consistency: ${item.consistency_guidance}` : "",
       item.runtime_outcome_status ? `Runtime: ${item.runtime_outcome_status}` : "",
     ].filter(Boolean).join("\n");
+  }
+
+  function appendCompletedPlacementChip(ctx, cell, item) {
+    if (!cell) return;
+    const placement = ctx.completedOutputPlacement(item, ctx.state.lastCompletedPendingProofRows);
+    const chip = ctx.makeStatusChip(placement.label, placement.state);
+    chip.classList.add("completed-placement-chip");
+    chip.title = `Placement: ${placement.label}. Durable evidence classification for completed history.`;
+    cell.appendChild(document.createElement("br"));
+    cell.appendChild(chip);
   }
 
   function renderCompletedRow(ctx, item, rowLabel, options = {}) {
@@ -221,7 +245,10 @@
     if (stateCell) stateCell.appendChild(makeCompletedStateChip(item, row.dataset.status));
     renderCompletedTitleCell(titleCell, item, model);
     if (routeCell) routeCell.appendChild(makeCompletedRouteChip(item));
-    if (evidenceCell) evidenceCell.title = completedEvidenceCellTitle(item);
+    if (evidenceCell) {
+      evidenceCell.title = completedEvidenceCellTitle(item);
+      appendCompletedPlacementChip(ctx, evidenceCell, item);
+    }
     if (typeof ctx.setCellStatusChip === "function" && ctx.finalLibraryPromotionStatusText(item)) {
       ctx.setCellStatusChip(promotionCell, ctx.finalLibraryPromotionStatusText(item), ctx.finalLibraryPromotionChipState(item));
     }
@@ -301,6 +328,13 @@
     ctx.setText("completed-status", `${riskStatus} / ${rowsStatus}`);
     ctx.setText("completed-current-status", rowsStatus);
     renderCurrentFilterSummary(ctx, currentRows, rows, filterText, statusFilter, investigationFilter);
+    ctx.renderCompletedTrustDecision({
+      payload: ctx.state.lastCompletedPayload,
+      allRows: lastCompletedRows,
+      currentRows,
+      visibleRows: rows,
+      proofRows: ctx.state.lastCompletedPendingProofRows,
+    });
     renderCompletedTableRows(ctx, {
       tbodyId: "completed-rows",
       legendId: "completed-table-legend",

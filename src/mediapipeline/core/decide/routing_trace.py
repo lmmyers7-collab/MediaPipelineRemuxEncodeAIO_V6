@@ -49,29 +49,20 @@ def _source_facts(
         conservative_media_type = "tv"
         builder.add(
             "MEDIA_TYPE_UNKNOWN_CONSERVATIVE_CAP",
-            "media type is unknown; using conservative size caps and unknown-height bitrate fallback when needed",
+            "media type is unknown; using conservative 1080p size target when needed",
             enforcement="advisory",
             legacy_code="media_type_unknown_conservative_cap",
         )
 
-    movie_size = policy.movie_route_size_limit_gb
-    tv_size = policy.tv_route_size_limit_gb
-    movie_bitrate = policy.movie_direct_copy_max_bitrate_mbps
-    tv_bitrate = policy.tv_direct_copy_max_bitrate_mbps
-
     bitrate_selection = _resolution_bitrate_selection(
         height=video.height,
         media_type=media_type,
-        movie_bitrate=movie_bitrate,
-        tv_bitrate=tv_bitrate,
         policy=policy,
     )
     size_selection = _resolution_size_selection(
-        bucket=str(bitrate_selection["bucket"]),
+        bucket="unknown" if int(bitrate_selection.get("height", 0)) <= 0 else str(bitrate_selection["bucket"]),
         media_type=media_type,
         effective_media_type=conservative_media_type,
-        movie_fallback_size=movie_size,
-        tv_fallback_size=tv_size,
         policy=policy,
     )
     size_limit = float(size_selection["limit_gb"])
@@ -98,8 +89,6 @@ def _source_facts(
         "route_size_limit_gb": size_limit,
         "route_size_limit_source": size_selection["source"],
         "route_size_limit_bucket": size_selection["bucket"],
-        "movie_route_size_limit_gb": movie_size,
-        "tv_route_size_limit_gb": tv_size,
         "movie_route_1080p_size_limit_gb": policy.movie_route_1080p_size_limit_gb,
         "movie_route_1440p_size_limit_gb": policy.movie_route_1440p_size_limit_gb,
         "movie_route_4k_size_limit_gb": policy.movie_route_4k_size_limit_gb,
@@ -123,8 +112,7 @@ def _source_facts(
         "route_4k_lower_height_tolerance_percent": policy.route_4k_lower_height_tolerance_percent,
         "route_4k_bucket_min_height": policy.route_4k_bucket_min_height,
         "route_4k_max_video_bitrate_mbps": policy.route_4k_max_video_bitrate_mbps,
-        "unknown_height_fallback_movie_bitrate_mbps": movie_bitrate,
-        "unknown_height_fallback_tv_bitrate_mbps": tv_bitrate,
+        "unknown_height_bucket": "1080p",
         "h264_direct_copy_bitrate_cap_applied": h264_cap_applied,
         "h264_direct_copy_max_bitrate_mbps": policy.h264_direct_copy_max_bitrate_mbps,
         "source_size_over_route_limit": size_over,

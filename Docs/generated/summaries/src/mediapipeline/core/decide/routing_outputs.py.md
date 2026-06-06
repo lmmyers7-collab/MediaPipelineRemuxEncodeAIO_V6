@@ -3,9 +3,9 @@ file: src/mediapipeline/core/decide/routing_outputs.py
 pipeline_stage: decide
 token_priority: high
 owner_domain: decide
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-04
-sha256: b846608506d825779a5f72beb2a00d408942d6bb325468f4a97a8dc23517b3eb
+sha256: 0116ff04af581c83bc186bd50774057747d3f57033ff840b53f287276cf62e61
 ---
 # `src/mediapipeline/core/decide/routing_outputs.py`
 

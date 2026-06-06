@@ -14,7 +14,9 @@ class VerificationContractTests(unittest.TestCase):
         self.assertEqual(output_size_check_action_from_settings("off"), "disabled")
         self.assertEqual(output_size_check_action_from_settings("advisory"), "warn_only")
         self.assertEqual(output_size_check_action_from_settings("strict"), "fail_job")
+        self.assertEqual(output_size_check_action_from_settings("fallback_remux"), "fallback_remux")
         self.assertEqual(output_size_check_action_from_settings("advisory", "block_publish"), "block_publish")
+        self.assertEqual(output_size_check_action_from_settings("advisory", "try_remux"), "fallback_remux")
 
     def test_warn_only_size_check_records_advisory_without_failure_or_publish_block(self) -> None:
         check = evaluate_output_size_check(
@@ -59,6 +61,21 @@ class VerificationContractTests(unittest.TestCase):
         self.assertEqual(check.on_fail, "fail_job")
         self.assertEqual(result.advisory_warnings, [])
         self.assertEqual(len(result.failures), 1)
+        self.assertEqual(result.publish_blockers, [])
+
+    def test_fallback_remux_size_check_records_warning_without_failure_or_publish_block(self) -> None:
+        check = evaluate_output_size_check(
+            action="fallback_remux",
+            source_size_bytes=100,
+            actual_output_size_bytes=130,
+            growth_tolerance_percent=10,
+        )
+        result = verification_result_from_size_check(check)
+
+        self.assertEqual(check.status, "warning")
+        self.assertEqual(check.on_fail, "try_remux_then_record_warning")
+        self.assertEqual(len(result.advisory_warnings), 1)
+        self.assertEqual(result.failures, [])
         self.assertEqual(result.publish_blockers, [])
 
 

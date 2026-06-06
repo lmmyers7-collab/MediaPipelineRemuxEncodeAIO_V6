@@ -205,11 +205,12 @@ class TestTauriPG1CloseAdversarialScaffold(unittest.TestCase):
 
     def test_safe_to_close_true_allows_close(self):
         """safe_to_close=true must result in the window being allowed to close."""
-        self.assertIn("safe_to_close => true", self.source)
+        self.assertIn("safe_to_close => CloseRequestDecision::AllowSafe", self.source)
 
     def test_unsafe_close_shows_confirm_dialog(self):
         """safe_to_close=false must present a confirm-close dialog."""
         self.assertIn("confirm_close_dialog", self.source)
+        self.assertIn("CloseRequestDecision::AllowConfirmedForce", self.source)
 
     # ------------------------------------------------------------------
     # Mutation guardrail — PG-1 scaffold does NOT test media/pipeline behavior

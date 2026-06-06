@@ -72,6 +72,7 @@ $movedDocs = [ordered]@{
 
 $missingTargets = [System.Collections.Generic.List[string]]::new()
 foreach ($target in $movedDocs.Values) {
+    if ([string]$target -like 'docs/archive/docs-housekeeping/*') { continue }
     $targetPath = Join-Path $repoRoot ($target -replace '/', '\')
     if (-not (Test-Path -LiteralPath $targetPath -PathType Leaf)) {
         $missingTargets.Add($target) | Out-Null

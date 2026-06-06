@@ -1,82 +1,43 @@
       <section class="page" data-page-panel="schedule">
         <h1 class="visually-hidden">Pipeline Schedule</h1>
-        <div class="metric-grid">
-          <section class="metric">
-            <span class="metric-label">Enforcement</span>
-            <strong id="schedule-enabled-state">Off</strong>
-          </section>
-          <section class="metric">
-            <span class="metric-label">Allowed Now</span>
-            <strong id="schedule-allowed-state">Yes</strong>
-          </section>
-          <section class="metric">
-            <span class="metric-label">Next Allowed</span>
-            <strong id="schedule-next-start">None</strong>
-          </section>
-          <section class="metric">
-            <span class="metric-label">Window Ends</span>
-            <strong id="schedule-window-end">None</strong>
-          </section>
-        </div>
-        <section class="panel" data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Current Schedule</h2>
-            <strong id="schedule-status">Read-only</strong>
-          </div>
-          <pre id="schedule-summary" class="prose-block">No schedule state loaded.</pre>
-        </section>
-        <section class="panel" data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Launch Windows</h2>
-            <strong id="schedule-guidance-status">No guidance</strong>
-          </div>
-          <pre id="schedule-guidance" class="prose-block">No schedule launch guidance loaded.</pre>
-        </section>
-        <section class="panel" data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Schedule Trust</h2>
-            <strong id="schedule-timing-status">Not loaded</strong>
-          </div>
-          <pre id="schedule-timing" class="prose-block">No schedule timing trust loaded.</pre>
-        </section>
-        <section class="panel" data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Coverage Review</h2>
-            <strong id="schedule-coverage-status">Not loaded</strong>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Check</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Evidence</th>
-                  <th scope="col">Next Step</th>
-                </tr>
-              </thead>
-              <tbody id="schedule-coverage-rows">
-                <tr><td colspan="4">No schedule coverage loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">Not loaded</span>
-            <span class="empty-state-hint">Refresh to see schedule coverage checks.</span>
-          </div>
-          </div>
-          <pre id="schedule-coverage-detail" class="prose-block">No schedule coverage row selected.</pre>
-        </section>
-        <section class="panel" data-panel-type="interactive">
+        <section class="panel schedule-editor-panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Edit Schedule</h2>
-            <strong id="schedule-editor-status">Not loaded</strong>
+            <strong id="schedule-editor-status" aria-live="polite">Not loaded</strong>
           </div>
-          <div class="form-grid launch-form-grid">
+          <div class="schedule-editor-status-strip" aria-label="Current schedule status">
+            <div class="schedule-editor-fact">
+              <span class="metric-label">Enforcement</span>
+              <strong id="schedule-enabled-state">Off</strong>
+            </div>
+            <div class="schedule-editor-fact">
+              <span class="metric-label">Allowed Now</span>
+              <strong id="schedule-allowed-state">Yes</strong>
+            </div>
+            <div class="schedule-editor-fact">
+              <span class="metric-label">Next Allowed</span>
+              <strong id="schedule-next-start">None</strong>
+            </div>
+            <div class="schedule-editor-fact">
+              <span class="metric-label">Window Ends</span>
+              <strong id="schedule-window-end">None</strong>
+            </div>
+          </div>
+          <p id="schedule-editor-impact" class="schedule-editor-impact" aria-live="polite">Launch impact not loaded.</p>
+          <div class="schedule-editor-control-row">
             <label class="check-row launch-check-row"><input id="schedule-editor-enabled" type="checkbox"> Enable schedule enforcement</label>
-            <button type="button" id="schedule-editor-load-current-button" class="secondary-button">Load Current</button>
-            <button type="button" id="schedule-editor-clear-button" class="secondary-button">Clear Week</button>
-            <button type="button" id="schedule-editor-allow-all-button" class="secondary-button">Allow All</button>
-            <button type="button" id="schedule-editor-preview-button" class="secondary-button">Preview Schedule</button>
-            <button type="button" id="schedule-editor-save-button" class="primary-button">Save Schedule</button>
+          </div>
+          <div class="schedule-editor-actions">
+            <div class="schedule-editor-action-group schedule-editor-primary-actions" role="group" aria-label="Schedule preview and save actions">
+              <button type="button" id="schedule-editor-load-current-button" class="secondary-button">Load Current</button>
+              <button type="button" id="schedule-editor-preview-button" class="secondary-button">Preview Schedule</button>
+              <button type="button" id="schedule-editor-save-button" class="primary-button" aria-describedby="schedule-editor-save-state">Save Schedule</button>
+              <span id="schedule-editor-save-state" class="schedule-editor-save-state">Preview required before save.</span>
+            </div>
+            <div class="schedule-editor-action-group schedule-editor-bulk-actions" role="group" aria-label="Bulk schedule changes">
+              <button type="button" id="schedule-editor-clear-button" class="secondary-button">Clear Week</button>
+              <button type="button" id="schedule-editor-allow-all-button" class="secondary-button">Allow All</button>
+            </div>
           </div>
           <p class="note">Select 30-minute blocks per day. Preview Schedule sends the generated windows to backend validation before Save Schedule can write app state. Split overnight windows across adjacent days.</p>
           <div class="table-wrap">
@@ -97,7 +58,14 @@
             <span class="empty-state-hint">Click Load Current to load the existing schedule for editing.</span>
           </div>
           </div>
-          <pre id="schedule-editor-result" class="prose-block">No schedule preview or save result loaded.</pre>
+          <pre id="schedule-editor-result" class="prose-block" aria-live="polite">No schedule preview or save result loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Current Schedule</h2>
+            <strong id="schedule-status">Read-only</strong>
+          </div>
+          <pre id="schedule-summary" class="prose-block">No schedule state loaded.</pre>
         </section>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
@@ -124,5 +92,45 @@
           </div>
           <pre id="schedule-day-legend" class="prose-block">Weekly windows table: no selectable rows.</pre>
           <pre id="schedule-day-detail" class="prose-block">No schedule day selected.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Schedule Trust</h2>
+            <strong id="schedule-timing-status">Not loaded</strong>
+          </div>
+          <pre id="schedule-timing" class="prose-block">No schedule timing trust loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Launch Windows</h2>
+            <strong id="schedule-guidance-status">No guidance</strong>
+          </div>
+          <pre id="schedule-guidance" class="prose-block">No schedule launch guidance loaded.</pre>
+        </section>
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Coverage Review</h2>
+            <strong id="schedule-coverage-status">Not loaded</strong>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Check</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Evidence</th>
+                  <th scope="col">Next Step</th>
+                </tr>
+              </thead>
+              <tbody id="schedule-coverage-rows">
+                <tr><td colspan="4">No schedule coverage loaded.</td></tr>
+              </tbody>
+            </table>
+          <div class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">Not loaded</span>
+            <span class="empty-state-hint">Refresh to see schedule coverage checks.</span>
+          </div>
+          </div>
+          <pre id="schedule-coverage-detail" class="prose-block">No schedule coverage row selected.</pre>
         </section>
       </section>

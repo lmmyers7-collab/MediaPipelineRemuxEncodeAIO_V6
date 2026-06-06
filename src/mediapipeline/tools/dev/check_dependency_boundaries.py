@@ -28,10 +28,14 @@ CONFIG_FORBIDDEN_TARGET_PACKAGES = {
     "mediapipeline.core.telemetry",
     "mediapipeline.core.ui",
 }
+FORBIDDEN_EXTERNAL_PREFIXES = (
+    "mediapipeline.desktop",
+)
 
 HARD_RULE_IDS = {
     "NO_PACKAGE_CYCLES",
     "NO_MODULE_CYCLES",
+    "NO_CORE_TO_DESKTOP",
     "NO_CONFIG_TO_ORCHESTRATION",
     "NO_CONFIG_TO_DECIDE",
     "NO_CONFIG_TO_HIGHER_LEVEL",
@@ -72,6 +76,7 @@ class DependencyReport:
     app_imports: list[ImportEdge]
     module_cycles: list[list[str]]
     package_cycles: list[list[str]]
+    forbidden_core_desktop_imports: list[ImportEdge]
     direct_app_shared_imports: list[ImportEdge]
     direct_app_shared_utils_imports: list[ImportEdge]
     direct_app_shared_constants_imports: list[ImportEdge]
@@ -163,6 +168,13 @@ def resolve_known_module(name: str, known_modules: set[str]) -> str | None:
     return None
 
 
+def resolve_forbidden_external_module(name: str) -> str | None:
+    for prefix in FORBIDDEN_EXTERNAL_PREFIXES:
+        if name == prefix or name.startswith(prefix + "."):
+            return name
+    return None
+
+
 def resolve_import_from_base(
     node: ast.ImportFrom,
     source_module: str,
@@ -192,6 +204,8 @@ def import_targets(
             for alias in node.names:
                 target = resolve_known_module(alias.name, known_modules)
                 if target is None:
+                    target = resolve_forbidden_external_module(alias.name)
+                if target is None:
                     continue
                 edges.append(
                     ImportEdge(
@@ -204,11 +218,19 @@ def import_targets(
                 )
         elif isinstance(node, ast.ImportFrom):
             base = resolve_import_from_base(node, source_module, source_path)
-            if not base or not (base == "mediapipeline.core" or base.startswith("mediapipeline.core.")):
+            if not base:
                 continue
             base_target = resolve_known_module(base, known_modules)
+            external_base_target = resolve_forbidden_external_module(base)
+            if base_target is None and external_base_target is None:
+                continue
             for alias in node.names:
-                if alias.name == "*":
+                if external_base_target is not None:
+                    if base == "mediapipeline.desktop" and alias.name != "*":
+                        target = resolve_forbidden_external_module(f"{base}.{alias.name}") or external_base_target
+                    else:
+                        target = external_base_target
+                elif alias.name == "*":
                     target = base_target
                 else:
                     target = resolve_known_module(f"{base}.{alias.name}", known_modules)
@@ -369,11 +391,24 @@ def analyze(root: Path = REPO_ROOT) -> DependencyReport:
         if package_name(edge.source_module) == "mediapipeline.core.config"
         and package_name(edge.target_module) in CONFIG_FORBIDDEN_TARGET_PACKAGES
     ]
+    forbidden_core_desktop_imports = [
+        edge
+        for edge in app_imports
+        if (
+            edge.source_module == "mediapipeline.core"
+            or edge.source_module.startswith("mediapipeline.core.")
+        )
+        and (
+            edge.target_module == "mediapipeline.desktop"
+            or edge.target_module.startswith("mediapipeline.desktop.")
+        )
+    ]
 
     return DependencyReport(
         app_imports=app_imports,
         module_cycles=cycles_from_graph(module_graph),
         package_cycles=cycles_from_graph(package_graph),
+        forbidden_core_desktop_imports=forbidden_core_desktop_imports,
         direct_app_shared_imports=filter_target(app_imports, "mediapipeline.core.shared"),
         direct_app_shared_utils_imports=filter_target(app_imports, "mediapipeline.core.shared.utils"),
         direct_app_shared_constants_imports=filter_target(app_imports, "mediapipeline.core.shared.constants"),
@@ -396,6 +431,7 @@ def has_rule_findings(report: DependencyReport) -> bool:
         (
             report.module_cycles,
             report.package_cycles,
+            report.forbidden_core_desktop_imports,
             report.direct_app_shared_imports,
             report.direct_app_shared_utils_imports,
             report.direct_app_shared_constants_imports,
@@ -438,6 +474,15 @@ def hard_rule_findings(report: DependencyReport) -> list[RuleFinding]:
             "Package-level cycle edge. Remove the cycle or add a specific temporary allowlist entry.",
         )
         for source, target in package_cycle_edges(report)
+    )
+    findings.extend(
+        RuleFinding(
+            "NO_CORE_TO_DESKTOP",
+            edge.source_module,
+            edge.target_module,
+            f"Backend core must not import desktop adapters; import found at {edge.source_path}:{edge.line}.",
+        )
+        for edge in report.forbidden_core_desktop_imports
     )
     findings.extend(
         RuleFinding(
@@ -728,6 +773,7 @@ def render_report(
         lines.append("- none")
 
     sections = [
+        ("Forbidden mediapipeline.core to mediapipeline.desktop imports", report.forbidden_core_desktop_imports),
         ("Direct mediapipeline.core.shared imports", report.direct_app_shared_imports),
         ("Direct mediapipeline.core.shared.utils imports", report.direct_app_shared_utils_imports),
         ("Direct mediapipeline.core.shared.constants imports", report.direct_app_shared_constants_imports),

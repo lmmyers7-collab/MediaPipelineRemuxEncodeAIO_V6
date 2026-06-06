@@ -2,7 +2,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 
-$repoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
+$repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')
 . (Join-Path $repoRoot 'ops\pipeline\engine\paths\output_path_planning.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\shared\path_helpers.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\queue\queue_plan.ps1')
@@ -190,7 +190,7 @@ $movieOutput = Get-MediaPipelineLibraryOutputRootForPath -SourcePath 'C:\Incomin
 Assert-Equal $movieOutput 'D:\Processed' 'Expected default movie output root to mirror Outsource.'
 
 $runtimeEvidence = New-MediaPipelineRuntimeEffectiveSettingsEvidence -Layers @(
-    (New-MediaPipelineRuntimeSettingsLayer -Name 'global' -Source 'active_config' -Keys ([ordered]@{ VideoCodec = 'H264'; AudioMaxChannels = 8; AudioTranscodeCodec = 'eac3'; ConvertVobSubToSrt = $false; VobSubOcrTimeoutSeconds = 1800; OutputContainer = 'mkv'; SizeGuardMode = 'advisory'; EncodeThresholdGB = 8; TVEncodeThresholdGB = 3; MaxEncodeGrowthPercent = 5; CompatibilityEncodeGrowthPercent = 15 })),
+    (New-MediaPipelineRuntimeSettingsLayer -Name 'global' -Source 'active_config' -Keys ([ordered]@{ VideoCodec = 'H264'; AudioMaxChannels = 8; AudioTranscodeCodec = 'eac3'; ConvertVobSubToSrt = $false; VobSubOcrTimeoutSeconds = 1800; OutputContainer = 'mkv'; SizeGuardMode = 'advisory'; MovieRoute1080pTargetSizeGB = 8; TVRoute1080pTargetSizeGB = 3; MaxEncodeGrowthPercent = 5; CompatibilityEncodeGrowthPercent = 15 })),
     (New-MediaPipelineRuntimeSettingsLayer -Name 'library' -Source 'LibraryProfiles[*].overrides' -Keys ([ordered]@{ VideoCodec = 'HEVC'; OutputContainer = 'mp4'; ConvertVobSubToSrt = $true; VobSubOcrTimeoutSeconds = 900 })),
     (New-MediaPipelineRuntimeSettingsLayer -Name 'show' -Source 'ShowOverrides' -Keys ([ordered]@{ VideoCodec = 'AV1' })),
     (New-MediaPipelineRuntimeSettingsLayer -Name 'folder' -Source 'mediapipeline.folder.json' -Keys ([ordered]@{ VideoCodec = 'H264'; FolderPolicyPath = 'C:\Incoming\Movies\mediapipeline.folder.json' }) -ExcludeKeys @('FolderPolicyPath')),
@@ -324,7 +324,7 @@ Assert-Equal $sizeGuardEvidence['schema'] 'size_guard_evidence.v1' 'Expected siz
 Assert-True ([bool]$sizeGuardEvidence['diagnostic_only']) 'Expected size guard evidence to be diagnostic-only.'
 Assert-Equal $sizeGuardEvidence['outcome'] 'warn' 'Expected advisory exceeded size guard to emit warning evidence without blocking.'
 Assert-Equal $sizeGuardEvidence['strictness'] 'advisory' 'Expected advisory size guard strictness.'
-Assert-Equal $sizeGuardEvidence['target_size_key'] 'EncodeThresholdGB' 'Expected movie size guard evidence to identify movie GB target key.'
+Assert-Equal $sizeGuardEvidence['target_size_key'] 'MovieRoute1080pTargetSizeGB' 'Expected movie size guard evidence to identify movie 1080p GB target key.'
 Assert-Equal $sizeGuardEvidence['target_size_gb'] 8 'Expected size guard evidence to expose GB target setting separately from Mbps gate.'
 Assert-Equal $sizeGuardEvidence['bitrate_gate_mbps'] 35.0 'Expected size guard evidence to expose the routing Mbps gate as distinct evidence.'
 Assert-Equal $sizeGuardEvidence['settings']['settings']['SizeGuardMode']['source_layer'] 'global' 'Expected size guard evidence to include source layer for SizeGuardMode.'
@@ -747,9 +747,9 @@ $invalidOverrideConfig['LibraryProfiles'] = @(
         overrides = [ordered]@{
             editor = [ordered]@{
                 RouteThresholdMode = 'all'
-                EncodeThresholdGB = -1
-                MovieRouteMaxVideoBitrateMbps = 'many'
-                TVRouteMaxVideoBitrateMbps = 0
+                MovieRoute1080pTargetSizeGB = -1
+                Route1080pMaxVideoBitrateMbps = 'many'
+                Route4KMaxVideoBitrateMbps = 0
             }
         }
     },
@@ -767,9 +767,9 @@ $invalidOverrideResult = Test-MediaPipelineConfigSchema -Config $invalidOverride
 $invalidOverrideErrors = (@($invalidOverrideResult.Errors) -join "`n")
 Assert-True (-not [bool]$invalidOverrideResult.Ok) 'Expected invalid library route overrides to fail config validation.'
 Assert-True ($invalidOverrideErrors -match 'Library profile Movies override is invalid: RouteThresholdMode must be one of') 'Expected invalid RouteThresholdMode override error.'
-Assert-True ($invalidOverrideErrors -match 'Library profile Movies override is invalid: MovieRouteMaxVideoBitrateMbps must be an integer') 'Expected malformed movie bitrate override error.'
-Assert-True ($invalidOverrideErrors -match 'Library profile Movies override is invalid: TVRouteMaxVideoBitrateMbps must be between 1 and 500') 'Expected zero TV bitrate override error.'
-Assert-True ($invalidOverrideErrors -match 'Library profile Movies override is invalid: EncodeThresholdGB must be at least 1') 'Expected negative size threshold override error.'
+Assert-True ($invalidOverrideErrors -match 'Library profile Movies override is invalid: Route1080pMaxVideoBitrateMbps must be an integer') 'Expected malformed 1080p bitrate override error.'
+Assert-True ($invalidOverrideErrors -match 'Library profile Movies override is invalid: Route4KMaxVideoBitrateMbps must be between 1 and 500') 'Expected zero 4K bitrate override error.'
+Assert-True ($invalidOverrideErrors -match 'Library profile Movies override is invalid: MovieRoute1080pTargetSizeGB must be at least 1') 'Expected negative 1080p target override error.'
 
 $duplicateRootConfig = Get-MediaPipelineConfigDefaultValues
 $duplicateRootConfig['LibraryProfiles'] = @(

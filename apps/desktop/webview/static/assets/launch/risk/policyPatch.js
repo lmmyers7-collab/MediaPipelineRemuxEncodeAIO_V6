@@ -100,7 +100,7 @@
     const vobSubLang = launchSettingsList(launchPolicyCandidateValue(config, entryMap, "VobSubExtractLanguages", ["eng", "und"]), ["eng", "und"]);
     const convertTx3g = launchSettingsBool(launchPolicyCandidateValue(config, entryMap, "ConvertTx3gToSrt", true), true);
     const dropTx3g = launchSettingsBool(launchPolicyCandidateValue(config, entryMap, "DropTx3gAfterConversion", false), false);
-    const convertBdpgs = launchSettingsBool(launchPolicyCandidateValue(config, entryMap, "ConvertBdpgsToSrt", true), true);
+    const convertBdpgs = launchSettingsBool(launchPolicyCandidateValue(config, entryMap, "ConvertBdpgsToSrt", false), false);
     const dropBdpgs = launchSettingsBool(launchPolicyCandidateValue(config, entryMap, "DropBdpgsAfterConversion", false), false);
     const convertVobSub = launchSettingsBool(launchPolicyCandidateValue(config, entryMap, "ConvertVobSubToSrt", false), false);
     const dropVobSub = launchSettingsBool(launchPolicyCandidateValue(config, entryMap, "DropVobSubAfterConversion", false), false);

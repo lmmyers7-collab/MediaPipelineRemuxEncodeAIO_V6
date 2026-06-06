@@ -1,0 +1,50 @@
+{
+  "id": "MP-CHANGE-2026-0605-107",
+  "title": "Show empty scan outcome on Dashboard Pipeline tile",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-05",
+  "date_completed": "2026-06-05",
+  "summary": "Adds a WebView-only Dashboard Pipeline tile state that reports No New Sources after loaded backend queue evidence proves a source scan or launch found zero runnable queue rows.",
+  "reason": "After launching or scanning, operators need a clear idle outcome when all configured sources were checked but no new runnable work exists.",
+  "affected_areas": [
+    "dashboard",
+    "queue",
+    "webview"
+  ],
+  "behavior_before": "The Dashboard Pipeline tile returned to generic Idle/Completed-style state after an empty scan, even when the queue payload proved there were no runnable rows.",
+  "behavior_after": "The Dashboard Pipeline tile renders No New Sources when fresh backend queue evidence shows zero runnable rows and no active, running, stale, warning, or error state needs to remain visible.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/app/topbar.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/topbar.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0605-107.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_home_live_state_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0605-107.json",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/webview/test_webview_browser_home_live_state_smoke.py"
+  ],
+  "tests_added": [
+    "Extended tests/python/desktop/test_application_facade_web_static.py to pin the No New Sources tile label and refreshAllNow queue-outcome hook.",
+    "Extended tests/webview/test_webview_browser_home_live_state_smoke.py with a fresh empty queue payload that proves No New Sources renders, active snapshot states are preserved, queue-count is unchanged, and no mutation POST route is called."
+  ],
+  "manual_validation": [
+    "node --check apps/desktop/webview/static/assets/app.js -> passed.",
+    "node --check apps/desktop/webview/static/assets/app/topbar.js -> passed.",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static tests.webview.test_webview_browser_home_live_state_smoke -q -> failed before collection because the bundled Python process did not resolve the src/mediapipeline package without PYTHONPATH.",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_home_pipeline_state_metric_uses_naturalized_text_renderer -q -> passed; 1 test OK.",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static tests.webview.test_webview_browser_home_live_state_smoke -q -> failed in unrelated dirty-worktree static checks: eight Queue file-settings drawer split expectations and missing subtitle-QA route references.",
+    "npm run webview:check -> passed.",
+    "ops/scripts/smoke/Test-WebViewBrowserHomeLiveStateSmoke.ps1 -> failed before collection because the wrapper did not set PYTHONPATH for the current src layout.",
+    "PYTHONPATH=src ops/scripts/smoke/Test-WebViewBrowserHomeLiveStateSmoke.ps1 -> passed; 1 test OK.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/app.js apps/desktop/webview/static/assets/app/topbar.js tests/python/desktop/test_application_facade_web_static.py tests/webview/test_webview_browser_home_live_state_smoke.py ops/release/changes/unreleased/MP-CHANGE-2026-0605-107.json -> passed; 5 summaries written.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> failed on unrelated ops/release/changes/unreleased/MP-CHANGE-2026-0605-010.json: missing date_completed and not covered by any packet files_touched."
+  ],
+  "rollback_plan": "Remove the no_new_sources Pipeline tile label, remove the queue-outcome helper and refresh hook in app.js, revert the focused static/browser smoke assertions, refresh summaries, and delete this change packet.",
+  "related_changes": [],
+  "notes": "UI-only display change. It does not mutate source, scratch, output, queue state, pending publish, settings, FFmpeg, subtitle, audio, or media policy behavior. Requested packet MP-CHANGE-2026-0605-106 already existed as an unrelated untracked Queue drawer split packet, so this feature uses MP-CHANGE-2026-0605-107 to avoid overwriting unrelated work."
+}

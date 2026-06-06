@@ -67,6 +67,16 @@ class ArchitectureGuardrailsTests(unittest.TestCase):
 
         self.assertNotIn("LAYNE-SERVER", metadata)
 
+    def test_core_code_does_not_import_desktop_config_key_shim(self) -> None:
+        offenders = []
+        core_root = REPO_ROOT / "src" / "mediapipeline" / "core"
+        for path in sorted(core_root.rglob("*.py")):
+            source = path.read_text(encoding="utf-8")
+            if "from mediapipeline.desktop.config_keys import" in source:
+                offenders.append(path.relative_to(REPO_ROOT).as_posix())
+
+        self.assertEqual(offenders, [])
+
     def test_working_tree_candidates_ignore_modified_existing_files(self) -> None:
         status = "\n".join(
             [

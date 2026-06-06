@@ -1,0 +1,370 @@
+      <section class="page" data-page-panel="metrics">
+        <h1 class="visually-hidden">Metrics</h1>
+        <div class="metric-grid">
+          <section class="metric">
+            <span class="metric-label">Completed Jobs</span>
+            <strong id="metrics-total-jobs">0</strong>
+          </section>
+          <section class="metric">
+            <span class="metric-label">Remux Jobs</span>
+            <strong id="metrics-remux-count">0</strong>
+          </section>
+          <section class="metric">
+            <span class="metric-label">Encode Jobs</span>
+            <strong id="metrics-encode-count">0</strong>
+          </section>
+          <section class="metric">
+            <span class="metric-label">Net Saved</span>
+            <strong id="metrics-storage-saved">0 B</strong>
+          </section>
+          <section class="metric">
+            <span class="metric-label">Output Written</span>
+            <strong id="metrics-data-produced">0 B</strong>
+          </section>
+          <section class="metric">
+            <span class="metric-label">Pending Publish</span>
+            <strong id="metrics-pending-bytes">0 B</strong>
+          </section>
+        </div>
+
+        <div class="settings-tab-bar metrics-tab-bar" role="tablist" aria-label="Metrics sections">
+          <button type="button" class="settings-tab-btn" role="tab" data-metrics-tab="overview" aria-selected="true">Overview</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-metrics-tab="routes" aria-selected="false">Remux vs Encode</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-metrics-tab="storage" aria-selected="false">Storage</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-metrics-tab="production" aria-selected="false">Production</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-metrics-tab="workers" aria-selected="false">Workers</button>
+        </div>
+
+        <section class="panel settings-tab-pane is-active metrics-tab-panel" data-metrics-tab-panel="overview" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Overview</h2>
+            <strong id="metrics-overview-status">Not loaded</strong>
+          </div>
+          <div class="panel-heading panel-subheading">
+            <h3>Attention</h3>
+            <strong id="metrics-attention-status">Not loaded</strong>
+          </div>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Severity</th>
+                  <th scope="col">Signal</th>
+                  <th scope="col" class="num">Value</th>
+                  <th scope="col">Detail</th>
+                  <th scope="col">Subtab</th>
+                </tr>
+              </thead>
+              <tbody id="metrics-attention-rows">
+                <tr><td colspan="5">No attention items loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="panel-heading panel-subheading">
+            <h3>Coverage</h3>
+            <strong id="metrics-coverage-status">Not loaded</strong>
+          </div>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Metric</th>
+                  <th scope="col" class="num">Value</th>
+                  <th scope="col">Meaning</th>
+                </tr>
+              </thead>
+              <tbody id="metrics-coverage-rows">
+                <tr><td colspan="3">No coverage metrics loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="metrics-overview-bars" class="metrics-chart-list" aria-live="polite"></div>
+          <pre id="metrics-summary" class="prose-block">No metrics loaded.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Sources &amp; Coverage</h3>
+            <strong id="metrics-evidence-status">No sources</strong>
+          </div>
+          <pre id="metrics-source-evidence" class="prose-block">No metrics source evidence loaded.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Backfill Sources</h3>
+            <strong id="metrics-sources-status">No sources</strong>
+          </div>
+          <div class="metrics-source-controls">
+            <label class="settings-inline-field" for="metrics-source-path">
+              Source root
+              <input id="metrics-source-path" type="text" autocomplete="off" placeholder="D:\Media" />
+            </label>
+            <label class="settings-inline-field" for="metrics-source-label">
+              Label
+              <input id="metrics-source-label" type="text" autocomplete="off" placeholder="Drive label" />
+            </label>
+            <button id="metrics-source-add-button" type="button">Add Source</button>
+            <button id="metrics-backfill-button" type="button">Backfill Enabled</button>
+          </div>
+          <div class="table-wrap detail-table-wrap metrics-source-table-wrap">
+            <table class="metrics-source-table">
+              <thead>
+                <tr>
+                  <th scope="col">Source</th>
+                  <th scope="col">State</th>
+                  <th scope="col" class="num">Cached</th>
+                  <th scope="col">Last Scan</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="metrics-sources-rows">
+                <tr><td colspan="5">No Metrics source roots configured.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <pre id="metrics-backfill-detail" class="prose-block">No Metrics sidecar backfill has run.</pre>
+        </section>
+
+        <section class="panel settings-tab-pane metrics-tab-panel" data-metrics-tab-panel="routes" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Remux vs Encode</h2>
+            <strong id="metrics-route-status">Not loaded</strong>
+          </div>
+          <div id="metrics-route-bars" class="metrics-chart-list" aria-live="polite"></div>
+          <div class="panel-heading panel-subheading">
+            <h3>Decision Reasons</h3>
+            <strong id="metrics-reason-group-status">Not loaded</strong>
+          </div>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Reason Group</th>
+                  <th scope="col" class="num">Jobs</th>
+                  <th scope="col" class="num">Share</th>
+                  <th scope="col">Severity</th>
+                  <th scope="col">Raw Codes</th>
+                </tr>
+              </thead>
+              <tbody id="metrics-reason-group-rows">
+                <tr><td colspan="5">No route reason groups loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col" class="num">Remux</th>
+                  <th scope="col" class="num">Encode</th>
+                  <th scope="col" class="num">Other</th>
+                  <th scope="col" class="num">Total</th>
+                </tr>
+              </thead>
+              <tbody id="metrics-route-series-rows">
+                <tr><td colspan="5">No route series loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <pre id="metrics-route-detail" class="prose-block">No route metrics loaded.</pre>
+        </section>
+
+        <section class="panel settings-tab-pane metrics-tab-panel" data-metrics-tab-panel="storage" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Storage</h2>
+            <strong id="metrics-storage-status">Not loaded</strong>
+          </div>
+          <div id="metrics-storage-bars" class="metrics-chart-list" aria-live="polite"></div>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Route</th>
+                  <th scope="col" class="num">Jobs</th>
+                  <th scope="col" class="num">Measured</th>
+                  <th scope="col" class="num">Excluded</th>
+                  <th scope="col" class="num">Source</th>
+                  <th scope="col" class="num">Output</th>
+                  <th scope="col" class="num">Saved</th>
+                  <th scope="col" class="num">Saved %</th>
+                </tr>
+              </thead>
+              <tbody id="metrics-storage-breakdown-rows">
+                <tr><td colspan="8">No storage breakdown loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="metrics-two-column">
+            <section>
+              <div class="panel-heading panel-subheading">
+                <h3>Top Savings</h3>
+                <strong id="metrics-top-savings-status">No rows</strong>
+              </div>
+              <div class="table-wrap detail-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Title</th>
+                      <th scope="col">Route</th>
+                      <th scope="col" class="num">Saved</th>
+                    </tr>
+                  </thead>
+                  <tbody id="metrics-top-savings-rows">
+                    <tr><td colspan="3">No savings rows loaded.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <section>
+              <div class="panel-heading panel-subheading">
+                <h3>Largest Growth</h3>
+                <strong id="metrics-top-growth-status">No rows</strong>
+              </div>
+              <div class="table-wrap detail-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Title</th>
+                      <th scope="col">Route</th>
+                      <th scope="col" class="num">Growth</th>
+                    </tr>
+                  </thead>
+                  <tbody id="metrics-top-growth-rows">
+                    <tr><td colspan="3">No growth rows loaded.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="panel settings-tab-pane metrics-tab-panel" data-metrics-tab-panel="production" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Production</h2>
+            <strong id="metrics-production-status">Not loaded</strong>
+          </div>
+          <div class="panel-heading panel-subheading">
+            <h3>Throughput &amp; Backlog</h3>
+            <strong id="metrics-throughput-status">Not loaded</strong>
+          </div>
+          <pre id="metrics-throughput-detail" class="prose-block">No throughput metrics loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Date</th>
+                  <th scope="col" class="num">Completed</th>
+                  <th scope="col" class="num">Output</th>
+                  <th scope="col" class="num">Remux</th>
+                  <th scope="col" class="num">Encode</th>
+                </tr>
+              </thead>
+              <tbody id="metrics-throughput-rows">
+                <tr><td colspan="5">No recent completion series loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div id="metrics-production-bars" class="metrics-chart-list" aria-live="polite"></div>
+          <div class="metrics-two-column">
+            <section>
+              <div class="panel-heading panel-subheading">
+                <h3>Pending Publish</h3>
+                <strong id="metrics-pending-status">Not loaded</strong>
+              </div>
+              <div class="table-wrap detail-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">State</th>
+                      <th scope="col" class="num">Rows</th>
+                    </tr>
+                  </thead>
+                  <tbody id="metrics-pending-state-rows">
+                    <tr><td colspan="2">No pending publish metrics loaded.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+            <section>
+              <div class="panel-heading panel-subheading">
+                <h3>Final Library</h3>
+                <strong id="metrics-final-library-status">Not loaded</strong>
+              </div>
+              <div class="table-wrap detail-table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th scope="col">Count</th>
+                      <th scope="col" class="num">Rows</th>
+                    </tr>
+                  </thead>
+                  <tbody id="metrics-final-library-rows">
+                    <tr><td colspan="2">No final-library metrics loaded.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+          <pre id="metrics-production-detail" class="prose-block">No production metrics loaded.</pre>
+        </section>
+
+        <section class="panel settings-tab-pane metrics-tab-panel" data-metrics-tab-panel="workers" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Workers</h2>
+            <strong id="metrics-worker-status">Not loaded</strong>
+          </div>
+          <div class="metrics-handoff-row">
+            <button type="button" class="secondary-button" data-cross-page-target="network">Open Workers</button>
+          </div>
+          <div class="metric-grid">
+            <section class="metric">
+              <span class="metric-label">Role</span>
+              <strong id="metrics-worker-role">standalone</strong>
+            </section>
+            <section class="metric">
+              <span class="metric-label">Workers</span>
+              <strong id="metrics-worker-count">0</strong>
+            </section>
+            <section class="metric">
+              <span class="metric-label">Active</span>
+              <strong id="metrics-worker-active">0</strong>
+            </section>
+            <section class="metric">
+              <span class="metric-label">Session Done</span>
+              <strong id="metrics-worker-session-completed">0</strong>
+            </section>
+            <section class="metric">
+              <span class="metric-label">Session Failed</span>
+              <strong id="metrics-worker-session-failed">0</strong>
+            </section>
+            <section class="metric">
+              <span class="metric-label">GB Encoded</span>
+              <strong id="metrics-worker-encoded-gb">0</strong>
+            </section>
+            <section class="metric">
+              <span class="metric-label">GB/h</span>
+              <strong id="metrics-worker-average-gbh">0 GB/h</strong>
+            </section>
+            <section class="metric">
+              <span class="metric-label">Warnings</span>
+              <strong id="metrics-worker-warnings">0</strong>
+            </section>
+          </div>
+          <div id="metrics-worker-bars" class="metrics-chart-list" aria-live="polite"></div>
+          <pre id="metrics-worker-posture" class="prose-block">No worker posture loaded.</pre>
+          <pre id="metrics-worker-coordinator" class="prose-block">No worker coordinator metrics loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Worker</th>
+                  <th scope="col">Status</th>
+                  <th scope="col" class="num">Done</th>
+                  <th scope="col" class="num">GB</th>
+                  <th scope="col" class="num">GB/h</th>
+                  <th scope="col">Stage</th>
+                </tr>
+              </thead>
+              <tbody id="metrics-worker-rows">
+                <tr><td colspan="6">No worker metrics loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>

@@ -476,6 +476,44 @@
     renderPendingRows();
   }
 
+  function pendingDrainOverviewState(status) {
+    const normalized = String(status || "").toLowerCase();
+    if (normalized.includes("do not") || normalized.includes("blocked")) return "blocked";
+    if (normalized.includes("incomplete") || normalized.includes("not evaluated")) return "validation-needed";
+    if (normalized.includes("review")) return "warning";
+    if (normalized.includes("ready")) return "ok";
+    return "unknown";
+  }
+
+  function renderPendingDrainOverview(pending = lastPendingPayload, rows = lastPendingRows, snapshot = lastPendingSnapshot, entries) {
+    const payload = pending && typeof pending === "object" ? pending : {};
+    const rowList = Array.isArray(rows) ? rows : [];
+    const entryList = Array.isArray(entries) ? entries : (typeof getCommandHistory === "function" ? getCommandHistory() : []);
+    const decisionStatus = pendingDrainDecisionStatus(payload, rowList, snapshot || {}, entryList);
+    const validationStatus = pendingValidationStatus(payload, rowList);
+    const filterScope = pendingCurrentFilterScope(rowList);
+    const guard = pendingDrainGuardState(payload, rowList, snapshot || {}, entryList);
+    const chips = byId("pending-drain-decision-chips");
+    if (chips && window.mediaPipelineDom?.makeStatusChip) {
+      chips.replaceChildren(
+        window.mediaPipelineDom.makeStatusChip("Do not drain", decisionStatus === "Do not drain" ? "blocked" : "normal"),
+        window.mediaPipelineDom.makeStatusChip("Review first", decisionStatus === "Review first" ? "warning" : "normal"),
+        window.mediaPipelineDom.makeStatusChip("Evidence incomplete", decisionStatus === "Evidence incomplete" || decisionStatus === "Not evaluated" ? "validation-needed" : "normal"),
+        window.mediaPipelineDom.makeStatusChip("Ready-looking", decisionStatus === "Ready-looking" ? "ok" : "normal"),
+      );
+    }
+    setText("pending-drain-overview", [
+      "Pending Publish drain decision:",
+      `Operator outcome: ${decisionStatus}.`,
+      `Publish checklist: ${validationStatus}.`,
+      `Rows loaded: ${rowList.length}; visible table scope: ${filterScope.visibleCount ?? rowList.length}/${filterScope.totalCount ?? rowList.length}; hidden blocked=${filterScope.hiddenBlockedCount || 0}; hidden review=${filterScope.hiddenReviewCount || 0}.`,
+      `Button guard: ${guard.allowed ? (guard.review_required ? "review confirmation required" : "allowed by local evidence") : "blocked by local evidence"}.`,
+      "Command boundary: Publish Parked Outputs remains the backend-owned validation and movement path; this overview cannot move, publish, repair, delete, rewrite, or mark outputs complete.",
+    ].join("\n"));
+    const overviewNode = byId("pending-drain-overview");
+    if (overviewNode) overviewNode.dataset.state = pendingDrainOverviewState(decisionStatus);
+  }
+
   let pendingRowReviewChecklistLines = function () { return []; };
   let pendingSelectedAtAGlanceState = function () { return "unknown"; };
   let pendingSelectedAtAGlanceStatus = function () { return "No row selected"; };
@@ -560,6 +598,7 @@
       renderPendingDrainActionConfidence(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
       renderPendingBackendDrainScopePreview(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
       renderPendingDrainDecisionChecklist(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
+      renderPendingDrainOverview(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
       renderPendingDrainGuard(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
       return;
     }
@@ -597,6 +636,7 @@
     renderPendingDrainActionConfidence(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
     renderPendingBackendDrainScopePreview(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
     renderPendingDrainDecisionChecklist(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
+    renderPendingDrainOverview(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
     renderPendingDrainGuard(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
   }
 
@@ -991,6 +1031,8 @@
     pendingDrainGuardState,
     pendingDrainGuardLines,
     renderPendingDrainGuard,
+    pendingDrainOverviewState,
+    renderPendingDrainOverview,
     pendingRecoverySummaryPayload,
     pendingRecoverySummaryLines,
     pendingFormatCounts,
@@ -1085,6 +1127,8 @@
   window.pendingDrainGuardState = pendingDrainGuardState;
   window.pendingDrainGuardLines = pendingDrainGuardLines;
   window.renderPendingDrainGuard = renderPendingDrainGuard;
+  window.pendingDrainOverviewState = pendingDrainOverviewState;
+  window.renderPendingDrainOverview = renderPendingDrainOverview;
   window.pendingFormatCounts = pendingFormatCounts;
   window.pendingListText = pendingListText;
   window.pendingSelectedOpenTargetLines = pendingSelectedOpenTargetLines;

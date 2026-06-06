@@ -84,9 +84,10 @@
       if (field.default_source) element.dataset.settingsDefaultSource = String(field.default_source);
       if (field.validation_owner) element.dataset.settingsValidationOwner = String(field.validation_owner);
       if (field.runtime_consumer) element.dataset.settingsRuntimeConsumer = String(field.runtime_consumer);
+      const preserveInputType = element.dataset.settingsPreserveInputType === "true" || element.type === "hidden";
       if (element instanceof HTMLInputElement && element.type !== "checkbox") {
         if (["integer", "number"].includes(String(field.value_type || ""))) {
-          if (element.type !== "range") element.type = "number";
+          if (!preserveInputType && element.type !== "range") element.type = "number";
         }
         const preserveRangeLimits = element.type === "range" && element.dataset.settingsPreserveRangeLimits === "true";
         if (!preserveRangeLimits && field.min !== null && field.min !== undefined) element.min = String(field.min);

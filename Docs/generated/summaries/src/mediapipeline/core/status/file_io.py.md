@@ -3,9 +3,9 @@ file: src/mediapipeline/core/status/file_io.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-05-31
+last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: 3655c4ddbb962292d7707c973cf5b60809138f599bc39bc34a2c031913415ea0
+sha256: ef5101b10edb02900919547d5a5824b1e230a303700b297bb3b9218f656370c5
 ---
 # `src/mediapipeline/core/status/file_io.py`
 

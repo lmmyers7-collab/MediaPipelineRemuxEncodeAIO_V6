@@ -174,6 +174,65 @@ function Invoke-ReleaseScriptCheck {
     $output | Select-Object -Last 80 | ForEach-Object { Write-Host $_ }
 }
 
+function Invoke-PythonModuleCheck {
+    param(
+        [Parameter(Mandatory = $true)][string]$Label,
+        [Parameter(Mandatory = $true)][string]$Module,
+        [string[]]$Arguments = @(),
+        [switch]$Required
+    )
+
+    if (-not (Test-Path -LiteralPath $script:Python -PathType Leaf)) {
+        if ($Required) {
+            Write-Fail "$Label requires bundled desktop Python: $script:Python"
+            $script:Failed = $true
+        } else {
+            Write-Warn "$Label skipped; bundled desktop Python is missing: $script:Python"
+        }
+        return
+    }
+
+    Write-Host "Running $Label..." -ForegroundColor DarkGray
+    $previousPythonPath = $env:PYTHONPATH
+    try {
+        $env:PYTHONPATH = Join-Path $script:BundleRoot 'src'
+        Push-Location -LiteralPath $script:BundleRoot
+        $output = & $script:Python -m $Module @Arguments 2>&1 | ForEach-Object { [string]$_ }
+        $exitCode = $LASTEXITCODE
+        if ($exitCode -eq 0) {
+            Write-Ok "$Label passed."
+        } else {
+            Write-Fail "$Label failed with exit $exitCode."
+            $script:Failed = $true
+            $output | Select-Object -Last 80 | ForEach-Object { Write-Host $_ }
+        }
+    } finally {
+        Pop-Location
+        $env:PYTHONPATH = $previousPythonPath
+    }
+}
+
+function Invoke-PythonUnittestDiscovery {
+    param(
+        [Parameter(Mandatory = $true)][string]$Label,
+        [Parameter(Mandatory = $true)][string]$RelativePath,
+        [switch]$Required
+    )
+
+    $testRoot = Join-Path $script:BundleRoot $RelativePath
+    if (-not (Test-Path -LiteralPath $testRoot -PathType Container)) {
+        if ($Required) {
+            Write-Fail "$Label tests are required but missing: $testRoot"
+            $script:Failed = $true
+        } else {
+            Write-Warn "$Label tests skipped; tests are not present: $testRoot"
+        }
+        return
+    }
+
+    Invoke-PythonModuleCheck -Label "$Label unit tests" -Module 'unittest' -Arguments @('discover', '-s', $RelativePath, '-p', 'test_*.py') -Required:$Required
+}
+
 function Get-ObjectPropertyValue {
     param(
         $Object,
@@ -504,7 +563,7 @@ function Test-ReleaseManifestHygiene {
 $script:BundleRoot = if ($BundleRoot) {
     [System.IO.Path]::GetFullPath($BundleRoot)
 } elseif ($PSScriptRoot) {
-    [System.IO.Path]::GetFullPath((Split-Path -Parent (Split-Path -Parent $PSScriptRoot)))
+    [System.IO.Path]::GetFullPath((Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))))
 } else {
     [System.IO.Path]::GetFullPath((Get-Location).Path)
 }
@@ -539,7 +598,6 @@ foreach ($entry in @(
     @{ Label = 'ops/scripts/smoke'; Path = (Join-Path $script:BundleRoot 'ops/scripts/smoke'); Type = 'Container' },
     @{ Label = 'Docs index'; Path = (Join-Path $script:BundleRoot 'docs\DOCS_INDEX.md'); Type = 'Leaf' },
     @{ Label = 'Bundle README'; Path = (Join-Path $script:BundleRoot 'docs\README_MediaPipelineRemuxEncodeAIO.md'); Type = 'Leaf' },
-    @{ Label = 'Operator TLDR'; Path = (Join-Path $script:BundleRoot 'docs\TLDR.md'); Type = 'Leaf' },
     @{ Label = 'Smoke test inventory'; Path = (Join-Path $script:BundleRoot 'docs\inventories\SMOKE_TEST_INVENTORY.md'); Type = 'Leaf' },
     @{ Label = 'Desktop/WebView docs README'; Path = (Join-Path $script:BundleRoot 'docs\desktop\README.md'); Type = 'Leaf' },
     @{ Label = 'Release package inventory'; Path = (Join-Path $script:BundleRoot 'docs\inventories\RELEASE_PACKAGE_ADMIN_INVENTORY.md'); Type = 'Leaf' },
@@ -821,7 +879,8 @@ if (Test-Path -LiteralPath $pipelinePackageRoot -PathType Container) {
     )
 }
 $pythonSyntaxFiles = @($pythonSyntaxFiles | Sort-Object -Unique)
-$pythonForSyntax = Join-Path $script:BundleRoot 'apps\desktop\runtime\Python\python.exe'
+$script:Python = Join-Path $script:BundleRoot 'apps\desktop\runtime\Python\python.exe'
+$pythonForSyntax = $script:Python
 if (-not (Test-Path -LiteralPath $pythonForSyntax -PathType Leaf)) {
     Write-Fail "Bundled desktop Python missing for syntax checks: $pythonForSyntax"
     $script:Failed = $true
@@ -857,37 +916,25 @@ raise SystemExit(1 if failed else 0)
     }
 }
 
-Write-Section 'Desktop Python Unit Tests'
-$desktopTestsRoot = Join-Path $script:BundleRoot 'tests\python\desktop'
-if (-not (Test-Path -LiteralPath $desktopTestsRoot -PathType Container)) {
-    if ($RequireTests) {
-        Write-Fail "Desktop Python tests are required but missing: $desktopTestsRoot"
-        $script:Failed = $true
-    } else {
-        Write-Warn "Desktop Python tests skipped; tests are not present: $desktopTestsRoot"
-    }
-} elseif (-not (Test-Path -LiteralPath $pythonForSyntax -PathType Leaf)) {
-    Write-Fail "Bundled desktop Python missing for unit tests: $pythonForSyntax"
-    $script:Failed = $true
-} else {
-    Write-Host 'Running desktop Python unit tests...' -ForegroundColor DarkGray
-    $previousPythonPath = $env:PYTHONPATH
-    try {
-        $env:PYTHONPATH = Join-Path $script:BundleRoot 'src'
-        Push-Location -LiteralPath $script:BundleRoot
-        $desktopTestOutput = & $pythonForSyntax -m unittest discover -s 'tests\python\desktop' -p 'test_*.py' 2>&1 | ForEach-Object { [string]$_ }
-        $desktopTestExit = $LASTEXITCODE
-        if ($desktopTestExit -eq 0) {
-            Write-Ok 'desktop Python unit tests passed.'
-        } else {
-            Write-Fail "desktop Python unit tests failed with exit $desktopTestExit."
-            $script:Failed = $true
-            $desktopTestOutput | Select-Object -Last 80 | ForEach-Object { Write-Host $_ }
-        }
-    } finally {
-        Pop-Location
-        $env:PYTHONPATH = $previousPythonPath
-    }
+Write-Section 'Python Unit Tests'
+foreach ($suite in @(
+    @{ Label = 'desktop Python'; Path = 'tests\python\desktop' },
+    @{ Label = 'core Python'; Path = 'tests\python\core' },
+    @{ Label = 'tooling Python'; Path = 'tests\python\tooling' }
+)) {
+    Invoke-PythonUnittestDiscovery -Label $suite.Label -RelativePath $suite.Path -Required:([bool]$RequireTests)
+}
+
+Write-Section 'Generated and Tooling Guards'
+foreach ($check in @(
+    @{ Label = 'summary freshness'; Module = 'mediapipeline.tools.dev.refresh_summaries'; Arguments = @('--check') },
+    @{ Label = 'project index freshness'; Module = 'mediapipeline.tools.dev.generate_project_index'; Arguments = @('--check') },
+    @{ Label = 'config schema freshness'; Module = 'mediapipeline.tools.dev.generate_config_schema'; Arguments = @('--check') },
+    @{ Label = 'active doc references'; Module = 'mediapipeline.tools.dev.check_active_doc_references'; Arguments = @() },
+    @{ Label = 'dependency boundaries'; Module = 'mediapipeline.tools.dev.check_dependency_boundaries'; Arguments = @('--max-internal-imports', '1') },
+    @{ Label = 'legacy removal readiness'; Module = 'mediapipeline.tools.dev.check_legacy_removal_readiness'; Arguments = @() }
+)) {
+    Invoke-PythonModuleCheck -Label $check.Label -Module $check.Module -Arguments $check.Arguments -Required
 }
 
 Write-Section 'Environment'

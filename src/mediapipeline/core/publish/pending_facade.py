@@ -72,7 +72,8 @@ class PendingPublishFacadeMixin:
         path = pending_publish_open_path(selected, target)
         if path is None:
             return pending_publish_open_missing_path_result(target, row_key)
-        opener = getattr(self.service, "open_path", None)
+        opener_name = "open_path_with_default_app" if target == "play_local_file" else "open_path"
+        opener = getattr(self.service, opener_name, None)
         if not callable(opener):
             return pending_publish_open_service_unavailable_result(target, row_key, path)
         try:

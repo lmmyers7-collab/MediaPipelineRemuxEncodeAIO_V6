@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
-sha256: e41d705d905d1a0f9fe83a4463a5752b9e256a00af99173ae21b135c9d6ce7ea
+sha256: 0239b49e756c9ffc5adfd7859964c3e8752a5b5e7bba6313a24d772f622264f1
 ---
 # `ops/scripts/release/release_policy.ps1`
 

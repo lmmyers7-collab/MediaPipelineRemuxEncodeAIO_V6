@@ -40,6 +40,12 @@ def apply_rename_path_plan_for_service(
             return service._write_rename_undo_manifest(undo_manifest)
         return service._write_rename_undo_manifest(undo_manifest, root=undo_manifest_root)
 
+    def best_effort_write_undo_manifest(context: str) -> None:
+        try:
+            write_undo_manifest()
+        except Exception as exc:
+            service.logger.warning("Rename undo manifest update failed during %s: %s", context, exc)
+
     undo_path = write_undo_manifest()
     try:
         undo_manifest["status"] = "applying"
@@ -104,7 +110,7 @@ def apply_rename_path_plan_for_service(
         service.logger.exception("Standalone rename failed after %s applied row(s)", len(applied))
         undo_manifest["status"] = "rollback_started"
         undo_manifest["failed_at"] = datetime.now().isoformat(timespec="seconds")
-        write_undo_manifest()
+        best_effort_write_undo_manifest("rollback start")
         for path_text, original_text in metadata_backups.items():
             path = Path(path_text)
             try:
@@ -119,7 +125,7 @@ def apply_rename_path_plan_for_service(
         undo_manifest["status"] = "rollback_failed" if rollback_errors else "rolled_back"
         undo_manifest["rollback_errors"] = rollback_errors
         undo_manifest["rolled_back_at"] = datetime.now().isoformat(timespec="seconds")
-        write_undo_manifest()
+        best_effort_write_undo_manifest("rollback result")
         if rollback_errors:
             raise RuntimeError(f"Rename failed and rollback had {len(rollback_errors)} error(s). Undo manifest: {undo_path}") from None
         raise

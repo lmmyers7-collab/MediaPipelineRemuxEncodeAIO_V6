@@ -14,7 +14,9 @@ from mediapipeline.tools.paths import find_repo_root
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 
-WEB_STATIC = find_repo_root(Path(__file__)) / "apps" / "desktop" / "webview" / "static" / "assets"
+WEBVIEW_STATIC_ROOT = find_repo_root(Path(__file__)) / "apps" / "desktop" / "webview" / "static"
+WEB_STATIC = WEBVIEW_STATIC_ROOT / "assets"
+PAGE_SCHEDULE = WEBVIEW_STATIC_ROOT / "partials" / "page-schedule.html"
 
 
 def _schedule_runner_source() -> str:
@@ -226,6 +228,11 @@ def _schedule_runner_source() -> str:
         };
 
         context.renderSchedule(schedule);
+        requireContains("editor impact", text("schedule-editor-impact"), ["Launch impact:", "Selected Launch mode:", "Preview the draft before saving schedule changes"]);
+        requireContains("save state", text("schedule-editor-save-state"), ["Preview required before save"]);
+        if (!context.document.getElementById("schedule-editor-save-button").disabled) {
+          throw new Error("save button should be disabled before backend preview");
+        }
         requireContains("coverage status", text("schedule-coverage-status"), ["Outside window"]);
         requireContains("coverage rows", tableText("schedule-coverage-rows"), ["Schedule payload", "Current window", "Continuous watcher", "Weekly coverage", "Save boundary"]);
         requireContains("coverage detail default", text("schedule-coverage-detail"), ["Coverage check: Schedule payload", "App state path: C:/MediaPipeline/State/app_state.json"]);
@@ -256,12 +263,26 @@ def _schedule_runner_source() -> str:
         if (request.day_windows.Monday !== "" || request.day_windows.Tuesday !== "") {
           throw new Error(`clear week did not blank schedule editor windows: ${JSON.stringify(request.day_windows)}`);
         }
+        requireContains("dirty save state", text("schedule-editor-save-state"), ["Draft changed", "Preview required"]);
         context.scheduleSetDayBlocks("Monday", [18, 19]);
         request = context.scheduleEditorRequest();
         if (request.day_windows.Monday !== "09:00 - 10:00") {
           throw new Error(`block editor did not generate a 30-minute window draft: ${JSON.stringify(request.day_windows)}`);
         }
+        if (!context.document.getElementById("schedule-editor-save-button").disabled) {
+          throw new Error("save button should stay disabled for an unpreviewed draft");
+        }
         context.initScheduleViewEvents();
+        await context.previewScheduleEditor();
+        if (context.document.getElementById("schedule-editor-save-button").disabled) {
+          throw new Error("save button should be enabled after successful backend preview");
+        }
+        requireContains("preview save state", text("schedule-editor-save-state"), ["Preview accepted", "Save Schedule is available"]);
+        context.scheduleSetDayBlocks("Tuesday", [2, 3]);
+        if (!context.document.getElementById("schedule-editor-save-button").disabled) {
+          throw new Error("save button should be disabled after editing a previewed draft");
+        }
+        requireContains("post-edit save state", text("schedule-editor-save-state"), ["Draft changed", "Preview required"]);
         await context.previewScheduleEditor();
         await context.saveScheduleEditor();
         if (!apiPosts.some((item) => item.url === "/api/schedule/preview")) {
@@ -290,6 +311,15 @@ def _schedule_runner_source() -> str:
 
 
 class WebViewScheduleSmoke(unittest.TestCase):
+    def test_schedule_editor_is_first_panel_in_static_markup(self) -> None:
+        markup = PAGE_SCHEDULE.read_text(encoding="utf-8")
+        self.assertLess(markup.index("<h2>Edit Schedule</h2>"), markup.index("<h2>Current Schedule</h2>"))
+        self.assertIn("schedule-editor-status-strip", markup)
+        self.assertIn("schedule-editor-impact", markup)
+        self.assertIn("schedule-editor-primary-actions", markup)
+        self.assertIn("schedule-editor-bulk-actions", markup)
+        self.assertIn('aria-live="polite"', markup)
+
     def test_schedule_coverage_and_day_detail_render_in_node(self) -> None:
         node = shutil.which("node")
         if not node:

@@ -1,0 +1,57 @@
+{
+  "id": "MP-CHANGE-2026-0604-052",
+  "title": "Harden config diagnostics status evidence",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-04",
+  "date_completed": "2026-06-05",
+  "summary": "Fail closed on submitted unknown settings keys, cap status/event tail reads by bytes, and avoid blocked diagnostics posture for negated error phrases.",
+  "reason": "The review found release risks where settings patches could introduce unregistered keys, status readers could read unbounded oversized tails, and diagnostics fallback scanners could treat successful 'without errors' text as blocked evidence.",
+  "affected_areas": [
+    "config",
+    "diagnostics",
+    "metadata_coverage",
+    "status",
+    "webview"
+  ],
+  "behavior_before": "Settings preview/save accepted patch-submitted unknown keys as warning-only evidence, status tail readers were line-bounded but not byte-bounded, and diagnostics tail evidence used raw substring matching for error terms.",
+  "behavior_after": "Settings preview/save reject patch-submitted unknown keys while preserving untouched legacy unknown keys, status and event tails stop at a byte cap, and diagnostics/WebView tail classification ignores obvious negated success phrases while still blocking true error terms.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/diagnosticsTailView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/diagnosticsTailView.js.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/settings_patch_candidate_facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/settings_patch_policy.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/diagnostics/policy.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/status/file_io.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_settings_patch.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_facade_diagnostics_policy.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_status_readers.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_diagnostics_drilldown_static.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0604-052.json",
+    "src/mediapipeline/core/config/settings_patch_candidate_facade.py",
+    "src/mediapipeline/core/config/settings_patch_policy.py",
+    "src/mediapipeline/core/diagnostics/policy.py",
+    "src/mediapipeline/core/status/file_io.py",
+    "tests/python/desktop/test_application_facade_settings_patch.py",
+    "tests/python/desktop/test_facade_diagnostics_policy.py",
+    "tests/python/desktop/test_service_status_readers.py",
+    "tests/webview/test_webview_diagnostics_drilldown_static.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_settings_patch.py",
+    "tests/python/desktop/test_facade_diagnostics_policy.py",
+    "tests/python/desktop/test_service_status_readers.py",
+    "tests/webview/test_webview_diagnostics_drilldown_static.py"
+  ],
+  "manual_validation": [
+    "bundled Python pytest recommended command - blocked: No module named pytest",
+    "bundled Python unittest targeted diagnostics/config/status/WebView command - passed (82 tests)",
+    "change_control validate_changes --require-worktree-coverage - passed (73 packets valid)",
+    "targeted refresh_summaries --paths for touched files - passed (1 written, 8 unchanged)"
+  ],
+  "rollback_plan": "Revert MP-CHANGE-2026-0604-052 touched files and rerun the targeted config/status/diagnostics/WebView unittest command plus change-control validation.",
+  "related_changes": [],
+  "notes": "Harden settings patch key validation, status tail byte bounds, and diagnostics tail classification.\nImplemented config-key patch validation, bounded status/event tails, diagnostics negation classification, and targeted regression coverage.\nMetadata-only coverage update on 2026-06-05 for pre-existing dirty paths reported by strict worktree coverage; file content was not changed by MP-CHANGE-2026-0605-005."
+}

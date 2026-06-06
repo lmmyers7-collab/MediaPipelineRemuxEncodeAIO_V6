@@ -1,0 +1,44 @@
+{
+  "id": "MP-CHANGE-2026-0604-054",
+  "title": "Fix CPU telemetry basis",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-04",
+  "date_completed": "2026-06-04",
+  "summary": "Corrected hardware telemetry sampling so Windows CPU usage uses a reusable PDH Processor Information(_Total) % Processor Time sampler (true 0-100% utilization, aligned with psutil) instead of the turbo-scaled % Processor Utility counter that saturated the bar at 100%, while preserving the psutil fallback, and separated overall GPU utilization from NVENC encoder utilization in nvidia-smi rows.",
+  "reason": "The Telemetry page showed CPU pegged at 100% when Windows Task Manager showed materially lower utilization, and GPU detail rows reused NVENC encoder utilization as overall GPU utilization.",
+  "affected_areas": [
+    "observability",
+    "telemetry"
+  ],
+  "behavior_before": "CPU telemetry used psutil/Processor Time directly. NVIDIA telemetry queried only utilization.encoder and copied that value into both gpu_encoder_percent and gpu_percent.",
+  "behavior_after": "On Windows, CPU telemetry uses a reusable PDH Processor Information(_Total) % Processor Time sampler (true 0-100% utilization, matches psutil and the classic CPU-usage number) with psutil as fallback and a defensive 0-100% clamp. The % Processor Utility basis was reverted because it is scaled by the turbo frequency ratio and saturated the 0-100% bar at 100% under load on turbo-capable CPUs even when actual utilization was far lower. NVIDIA telemetry queries utilization.gpu separately from utilization.encoder, preserving old six-column parser compatibility.",
+  "files_touched": [
+    "Docs/generated/summaries/src/mediapipeline/core/telemetry/gpu_usage.py.md",
+    "Docs/generated/summaries/src/mediapipeline/core/telemetry/nvidia.py.md",
+    "Docs/generated/summaries/src/mediapipeline/core/telemetry/service.py.md",
+    "Docs/generated/summaries/src/mediapipeline/core/telemetry/system_metrics.py.md",
+    "Docs/generated/summaries/tests/python/desktop/test_telemetry_service.py.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0604-054.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0604-054.json",
+    "src/mediapipeline/core/telemetry/gpu_usage.py",
+    "src/mediapipeline/core/telemetry/nvidia.py",
+    "src/mediapipeline/core/telemetry/service.py",
+    "src/mediapipeline/core/telemetry/system_metrics.py",
+    "tests/python/desktop/test_telemetry_service.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_telemetry_service.py"
+  ],
+  "manual_validation": [
+    "$env:PYTHONPATH='src'; apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_telemetry_service - passed",
+    "$env:PYTHONPATH='src'; powershell -NoProfile -ExecutionPolicy Bypass -File ops\\scripts\\smoke\\Test-WebViewBrowserTelemetrySmoke.ps1 - passed",
+    "Live helper probe via apply_system_metrics_to_snapshot with create_cpu_sampler - WindowsProcessorUtilitySampler initialized and returned bounded CPU telemetry",
+    "refresh_summaries --paths telemetry files and MP-CHANGE-2026-0604-054.json - passed"
+  ],
+  "rollback_plan": "Revert the telemetry sampler changes in src/mediapipeline/core/telemetry/system_metrics.py and service.py plus the nvidia-smi parser/query changes in nvidia.py and gpu_usage.py, then rerun the focused telemetry unit and WebView smoke tests.",
+  "related_changes": [],
+  "notes": "Fix CPU telemetry to sample the Windows % Processor Time counter (true 0-100% utilization) via the reusable PDH sampler, with psutil fallback and a defensive 0-100% clamp.\n2026-06-04 in-day correction: the initial cut used % Processor Utility, which is turbo-scaled and pinned the bar at 100% on the 7800X3D while Task Manager showed materially lower utilization; reverted to % Processor Time (constant renamed WINDOWS_PROCESSOR_UTILITY_COUNTER -> WINDOWS_PROCESSOR_TIME_COUNTER, regression test added).\nAlso report nvidia-smi overall GPU utilization separately from NVENC encoder utilization.\nReduced TELEMETRY_INTERVAL_SECONDS 4.0 -> 2.0 in core/telemetry/service.py so the cached snapshot the WebView reads is at most ~2s old (CPU/GPU drops after a finished encode clear quickly instead of lingering on the prior sample); frontend 4s refreshAll cadence left unchanged.\nGenerated summaries for system_metrics.py, service.py, and test_telemetry_service.py should be refreshed (refresh_summaries)."
+}
