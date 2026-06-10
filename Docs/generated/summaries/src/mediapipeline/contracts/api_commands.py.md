@@ -3,15 +3,15 @@ file: src/mediapipeline/contracts/api_commands.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-06-05
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: 912d94fe2d71b98d1e4e87c140bc9c42a0a9e1702ef31e6e0e47f906f8ac02a8
+sha256: 1e4303dff947b87f69d828c5bd9d6c755b09668ff461d5698283fc474e18e3d8
 ---
 # `src/mediapipeline/contracts/api_commands.py`
 
 **Purpose:** Pydantic contracts for Local API command request payloads.
 
-**Classes:** `ApiCommandPayload`, `AuditExportRerunCsvCommandPayload`, `AuditIgnoreCommandPayload`, `AuditScorePolicyCommandPayload`, `BackendShutdownCommandPayload`, `EmptyCommandPayload`, `FailureCommandPayload`, `FinalLibraryPromoteQueueCommandPayload`, `FinalLibraryPromotionRunCommandPayload`, `MaintenanceCompletedBackfillDryRunCommandPayload`, `MaintenanceDependencyAtlasCommandPayload`, `MaintenanceReleaseBuildCommandPayload`, `MaintenanceReleaseDryRunCommandPayload`, `MetricsBackfillCommandPayload`, `MetricsSourcesCommandPayload`
+**Classes:** `ApiCommandPayload`, `AuditExportRerunCsvCommandPayload`, `AuditIgnoreCommandPayload`, `AuditScorePolicyCommandPayload`, `BackendShutdownCommandPayload`, `DiagnosticsTdarrMatrixAuditCommandPayload`, `DiagnosticsTdarrMatrixEvidenceOpenCommandPayload`, `DiagnosticsTdarrMatrixRerunCommandPayload`, `EmptyCommandPayload`, `FailureCommandPayload`, `FinalLibraryPromoteQueueCommandPayload`, `FinalLibraryPromotionRunCommandPayload`, `MaintenanceCompletedBackfillDryRunCommandPayload`, `MaintenanceDependencyAtlasCommandPayload`, `MaintenanceDependencyAtlasOpenFolderCommandPayload`
 **Public functions:** `command_model_for_route()`, `validate_api_command_payload()`
 **In-repo imports:** `mediapipeline.contracts.source_media`
 

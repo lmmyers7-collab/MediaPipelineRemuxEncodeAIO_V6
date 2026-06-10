@@ -5,9 +5,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from mediapipeline.contracts.source_media import SourceMediaInfo, SourceVideoStream
+from mediapipeline.contracts.source_media import SourceAudioStream, SourceMediaInfo, SourceVideoStream
 from mediapipeline.core.decide.encoding_rules import effective_resolution_limit_height, video_encode_filter_reasons
 from mediapipeline.core.decide.processing_decision import (
+    AudioStreamDecision,
     DecisionReason,
     EffectiveDecisionPolicy,
     ProcessingDecision,
@@ -46,6 +47,8 @@ def build_processing_decision(
     video_action = _decide_video_action(primary_video, effective_policy, builder, facts)
     selected_container_action = container_action(source, effective_policy, builder)
     audio_actions = [audio_action(stream, effective_policy, builder) for stream in source.audio_streams]
+    if effective_policy.output_container == "mp4":
+        audio_actions = _apply_mp4_single_audio_policy(source.audio_streams, audio_actions, effective_policy, builder)
     subtitle_actions = [subtitle_action(stream, effective_policy, builder) for stream in source.subtitle_streams]
 
     image_subtitle_requires_review = any(
@@ -92,6 +95,93 @@ def build_processing_decision(
     legacy_route = "encode" if video_action.action == "encode" else "remux"
     legacy_reason = _legacy_reason_for_actions(actions, builder)
     return finalize_decision(source, effective_policy, builder.reasons, actions, legacy_route, legacy_reason, facts)
+
+
+def _apply_mp4_single_audio_policy(
+    audio_streams: list[SourceAudioStream],
+    audio_actions: list[AudioStreamDecision],
+    policy: EffectiveDecisionPolicy,
+    builder: _DecisionBuilder,
+) -> list[AudioStreamDecision]:
+    if len(audio_actions) <= 1:
+        return audio_actions
+    selected_index = _select_mp4_audio_stream(audio_streams, policy)
+    if selected_index is None:
+        return audio_actions
+
+    next_actions: list[AudioStreamDecision] = []
+    for action in audio_actions:
+        if action.stream_index == selected_index:
+            stream = next((item for item in audio_streams if item.stream_index == action.stream_index), None)
+            codec = normalize_codec(stream.codec) if stream is not None else ""
+            if codec != "eac3" and action.action != "transcode":
+                reason_codes = sorted(set(action.reason_codes + ["AUDIO_TRANSCODE_REQUIRED"]))
+                next_actions.append(
+                    AudioStreamDecision(
+                        stream_index=action.stream_index,
+                        action="transcode",
+                        output_codec=policy.audio_transcode_codec,
+                        reason_codes=reason_codes,
+                    )
+                )
+                builder.add(
+                    "AUDIO_TRANSCODE_REQUIRED",
+                    f"MP4 compatibility transcodes selected audio stream {action.stream_index} to EAC3",
+                    enforcement="hard_route",
+                    legacy_code="audio_transcode_required",
+                    facts={"stream_index": action.stream_index, "codec": codec, "output_codec": policy.audio_transcode_codec},
+                )
+                continue
+            next_actions.append(action)
+            continue
+
+        next_actions.append(
+            AudioStreamDecision(
+                stream_index=action.stream_index,
+                action="drop",
+                reason_codes=["MP4_COMPATIBILITY_SINGLE_AUDIO_TRACK"],
+            )
+        )
+        builder.add(
+            "MP4_COMPATIBILITY_SINGLE_AUDIO_TRACK",
+            f"MP4 compatibility drops audio stream {action.stream_index}; only one preferred-language EAC3 track is kept",
+            enforcement="hard_route",
+            legacy_code="mp4_single_audio_track",
+            facts={"stream_index": action.stream_index, "selected_stream_index": selected_index},
+        )
+    return next_actions
+
+
+def _select_mp4_audio_stream(audio_streams: list[SourceAudioStream], policy: EffectiveDecisionPolicy) -> int | None:
+    if not audio_streams:
+        return None
+    preferred = [_normalize_language(item) for item in policy.preferred_default_audio_languages if _normalize_language(item)]
+    if not preferred:
+        preferred = ["eng"]
+
+    def rank(stream: SourceAudioStream) -> tuple[int, int, int, int, int]:
+        language = _normalize_language(stream.language)
+        try:
+            preference_rank = preferred.index(language)
+        except ValueError:
+            preference_rank = 999
+        title = str(stream.title or "").lower()
+        commentary_penalty = 1 if any(token in title for token in ("commentary", "director", "descriptive")) else 0
+        codec_penalty = 0 if normalize_codec(stream.codec) == "eac3" else 1
+        default_penalty = 0 if stream.default else 1
+        return (preference_rank, commentary_penalty, codec_penalty, default_penalty, -int(stream.channels or 0))
+
+    selected = sorted(audio_streams, key=lambda item: (*rank(item), int(item.stream_index)))[0]
+    return int(selected.stream_index)
+
+
+def _normalize_language(value: object) -> str:
+    text = str(value or "").strip().lower()
+    if text in {"", "und", "unknown", "undefined"}:
+        return "und"
+    if text in {"en", "eng", "english"}:
+        return "eng"
+    return text
 
 
 def _decide_video_action(

@@ -28,6 +28,19 @@ ACTIVE_JOB_BLOCKING_STATUSES = frozenset({"launching", "active"})
 VALIDATE_ONLY_ARG = "-validateonly"
 
 
+def _normalized_job_kind_filter(job_kinds: set[str] | None) -> set[str] | None:
+    if job_kinds is None:
+        return None
+    normalized: set[str] = set()
+    for item in job_kinds:
+        key = str(item or "").strip().casefold()
+        if key == "rerun":
+            key = "rerun_csv"
+        if key:
+            normalized.add(key)
+    return normalized
+
+
 def active_jobs_dir_for_resolved(resolved: ResolvedPaths | None) -> Path | None:
     if resolved is None:
         return None
@@ -261,6 +274,7 @@ def active_job_close_block_messages(
     *,
     max_items: int = 24,
     psutil_module: Any = None,
+    job_kinds: set[str] | None = None,
 ) -> list[str]:
     """Return operator-facing close blockers from non-terminal ActiveJobs records.
 
@@ -272,6 +286,7 @@ def active_job_close_block_messages(
     folder = active_jobs_dir_for_resolved(resolved)
     if not folder or not folder.exists():
         return []
+    normalized_job_kinds = _normalized_job_kind_filter(job_kinds)
     try:
         records = sorted(folder.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True)
     except OSError as exc:
@@ -286,6 +301,8 @@ def active_job_close_block_messages(
             messages.append(f"ActiveJobs record {record_path.name} could not be verified: {exc}")
             continue
         if record.status not in ACTIVE_JOB_BLOCKING_STATUSES:
+            continue
+        if normalized_job_kinds is not None and str(record.job_kind or "").strip().casefold() not in normalized_job_kinds:
             continue
         label = record.job_kind
         if record.mode:

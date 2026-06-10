@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/styles.css
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-29
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: 33066bca5c006cabafcc915f4aed8af9ed3b5bb440af12245236f9e63e7211bd
+sha256: ca14e01211fcaf27d81ba101bfe624c071f75fceef3d3c2a02ef259aa0fd8710
 ---
 # `apps/desktop/webview/static/assets/styles.css`
 

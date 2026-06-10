@@ -209,13 +209,19 @@ function Test-MediaEncodeOutputSizePolicy {
         [string] $SizeGuardMode = '',
         [double] $MaxGrowthPercent = 5,
         [double] $CompatibilityGrowthPercent = 15,
-        [string] $RouteReasonCode = ''
+        [string] $RouteReasonCode = '',
+        [string] $RouteIntentReasonCode = ''
     )
 
     $mode = Resolve-MediaRouteSizeGuardModeName -SizeGuardMode $SizeGuardMode
     $profile = Resolve-MediaRouteRoutingProfileName -RoutingProfile $RoutingProfile
-    $overrideEncodeReasons = @(
-        'folder_policy_force_encode'
+    $forcedRouteOverrideReasons = @(
+        'folder_policy_force_encode',
+        'forced_remux_rejected_unsafe_codec'
+    )
+    $fallbackRemuxReasons = @(
+        'bitrate_over_threshold',
+        'size_over_threshold'
     )
     $compatibilityReasons = @(
         'plex_strict_score_below_threshold',
@@ -230,7 +236,10 @@ function Test-MediaEncodeOutputSizePolicy {
         'gpu_unavailable_cpu_only'
     )
     $reasonCode = ([string]$RouteReasonCode).Trim().ToLowerInvariant()
-    $fallbackRemuxEligible = ($reasonCode -in $overrideEncodeReasons)
+    $intentReasonCode = ([string]$RouteIntentReasonCode).Trim().ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($intentReasonCode)) { $intentReasonCode = $reasonCode }
+    $forcedRouteOverride = ($intentReasonCode -in $forcedRouteOverrideReasons)
+    $fallbackRemuxEligible = ($intentReasonCode -in $fallbackRemuxReasons)
     $growthPercent = if ($profile -eq 'plex_direct_play' -or $reasonCode -in $compatibilityReasons) {
         [double]$CompatibilityGrowthPercent
     } else {
@@ -243,6 +252,7 @@ function Test-MediaEncodeOutputSizePolicy {
         mode                       = $mode
         routing_profile            = $profile
         route_reason_code          = $reasonCode
+        route_intent_reason_code   = $intentReasonCode
         max_growth_percent         = [double]$growthPercent
         limit_ratio                = [double]$limitRatio
         source_size_bytes          = 0L
@@ -250,6 +260,7 @@ function Test-MediaEncodeOutputSizePolicy {
         ratio                      = 0.0
         exceeded                   = $false
         enforced                   = ($mode -eq 'strict')
+        forced_route_override      = [bool]$forcedRouteOverride
         fallback_remux_eligible    = [bool]$fallbackRemuxEligible
         should_fallback_remux      = $false
         message                    = ''
@@ -286,9 +297,11 @@ function Test-MediaEncodeOutputSizePolicy {
         $shouldFallbackRemux = ($mode -eq 'fallback_remux' -and $fallbackRemuxEligible)
         if ($mode -eq 'fallback_remux') {
             if ($shouldFallbackRemux) {
-                $metadata.message = "$($metadata.message); fallback remux will be attempted because encode was override-forced"
+                $metadata.message = "$($metadata.message); fallback remux will be attempted because encode was an automatic size/bitrate threshold decision"
+            } elseif ($forcedRouteOverride) {
+                $metadata.message = "$($metadata.message); fallback remux not applied because route was explicitly forced by override"
             } else {
-                $metadata.message = "$($metadata.message); fallback remux not applied because encode was not override-forced"
+                $metadata.message = "$($metadata.message); fallback remux not applied because encode reason is not eligible for automatic fallback"
             }
         }
         $metadata.enforced = ($shouldBlock -or $shouldFallbackRemux)

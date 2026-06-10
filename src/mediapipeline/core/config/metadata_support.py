@@ -4,20 +4,20 @@ from __future__ import annotations
 
 
 ENCODE_TUNING_PRESET_DESCRIPTIONS = {
-    "balanced_nvenc": "Balanced NVENC quality, speed, and compression.",
-    "quality_nvenc": "Higher-quality NVENC flags for larger, cleaner output.",
-    "fast_nvenc": "Faster NVENC flags for quicker batch processing.",
-    "compatibility": "Conservative NVENC flags for fragile hardware or Plex compatibility.",
-    "custom_legacy_flags": "Use raw ExtraVideoFlags exactly as entered.",
+    "balanced_nvenc": "Default HEVC NVENC bundle: VBR, 60-frame lookahead, spatial and temporal AQ, full-resolution multipass, 4 B-frames, and HQ tune.",
+    "quality_nvenc": "Cleaner NVENC output: keeps deep lookahead, AQ, full-resolution multipass, 4 B-frames, and raises AQ strength for larger/slower encodes.",
+    "fast_nvenc": "Faster NVENC output: shorter 20-frame lookahead, temporal AQ off, lower AQ strength, disabled multipass, 2 B-frames, and low-latency tune.",
+    "compatibility": "Conservative NVENC output: minimal VBR, spatial AQ, lower AQ strength, and 2 B-frames for fragile hardware or Plex compatibility.",
+    "custom_legacy_flags": "Bypass the named bundles and pass raw ExtraVideoFlags to FFmpeg exactly as entered.",
 }
 
 ENCODE_LADDER_DESCRIPTIONS = {
-    "auto": "Use TV or movie defaults based on source type.",
-    "tv_balanced": "TV-oriented quality and bitrate limits.",
-    "tv_space_saver": "Smaller TV output with tighter bitrate limits.",
-    "movie_balanced": "Movie-oriented balanced output.",
-    "movie_archive": "Higher-quality movie archival profile.",
-    "plex_compat": "Conservative target for broad Plex direct-play compatibility.",
+    "auto": "Use TV balanced for TV sources and movie balanced for movie sources.",
+    "tv_balanced": "TV-oriented default: one step smaller/softer than base quality, with 90M maxrate and 180M buffer.",
+    "tv_space_saver": "Smallest TV target: two steps smaller/softer than base quality, with 80M maxrate and 160M buffer.",
+    "movie_balanced": "Movie default: uses the configured base quality unchanged, with 120M maxrate and 240M buffer.",
+    "movie_archive": "Cleaner movie target: one step cleaner/larger than base quality, with 160M maxrate and 320M buffer.",
+    "plex_compat": "Compatibility target: one step smaller/softer than base quality, 80M maxrate, 160M buffer, and conservative encoder flags.",
 }
 
 AUDIO_TRANSCODE_CODEC_DESCRIPTIONS = {

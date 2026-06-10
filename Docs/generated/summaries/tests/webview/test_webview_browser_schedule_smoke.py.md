@@ -3,9 +3,9 @@ file: tests/webview/test_webview_browser_schedule_smoke.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-05
+last_modified: 2026-06-06
 last_reviewed: 2026-06-04
-sha256: ae43f74e122f9ba1d1af3a2dd5cc234946021b273956adc5ab8a8eae5bf20368
+sha256: 050685743026709cd56bc83d6a1acde87763e59b3e9658209651530ab1f1455a
 ---
 # `tests/webview/test_webview_browser_schedule_smoke.py`
 

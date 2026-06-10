@@ -37,10 +37,10 @@ def build_pending_publish_row_trust_fields(
         safe_action = "Do not drain; inspect pending manifest/payload/sidecar evidence, Last Stderr, and Run Logs first."
     elif issues:
         trust_state = "review-before-drain"
-        safe_action = "Review backend-selected row targets before Publish Parked Outputs; backend drain validation remains authoritative."
+        safe_action = "Review backend-selected row targets before Drain Parked Outputs; backend drain validation remains authoritative."
     elif ready_to_drain:
         trust_state = "ready-looking"
-        safe_action = "Use only backend-owned Publish Parked Outputs after page-level validation still agrees."
+        safe_action = "Use only backend-owned Drain Parked Outputs after page-level validation still agrees."
     else:
         trust_state = "review-before-drain"
         safe_action = "Treat this row as review-needed until a refreshed pending scan marks it ready."

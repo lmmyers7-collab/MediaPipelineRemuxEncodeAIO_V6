@@ -163,10 +163,20 @@
     setText("pending-recovery-plan-row-detail", pendingRecoveryPlanRowDetailLines(row).join("\n"));
   }
 
+  function capturePendingRecoverySelectionScroll() {
+    return window.mediaPipelineDom?.captureScrollablePositions?.() || null;
+  }
+
+  function restorePendingRecoverySelectionScroll(snapshot) {
+    if (snapshot) window.mediaPipelineDom?.restoreScrollablePositions?.(snapshot);
+  }
+
   function selectPendingRecoveryPlanRow(row, index = 0) {
+    const scrollSnapshot = capturePendingRecoverySelectionScroll();
     setSelectedPendingRecoveryPlanKey(pendingRecoveryPlanRowKey(row, index));
     renderPendingRecoveryPlanRows(getLastPendingRecoveryPlanRows());
     renderPendingRecoveryPlanRowDetail(row);
+    restorePendingRecoverySelectionScroll(scrollSnapshot);
   }
 
   function renderPendingRecoveryPlanRows(rows) {
@@ -232,7 +242,7 @@
     const errors = Array.isArray(result?.errors) ? result.errors.filter(Boolean) : [];
     if (warnings.length) lines.push("", "Warning(s):", ...warnings.slice(0, 5).map((warning) => `- ${warning}`));
     if (errors.length) lines.push("", "Error(s):", ...errors.slice(0, 5).map((error) => `- ${error}`));
-    lines.push("", "Recovery plan is dry-run only. Publish Parked Outputs remains the only backend-owned drain command.");
+    lines.push("", "Recovery plan is dry-run only. Drain Parked Outputs remains the only backend-owned drain command.");
     return lines;
   }
 

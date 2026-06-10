@@ -81,9 +81,9 @@ def pending_publish_recovery_plan_summary_lines(data: Mapping[str, Any]) -> list
     if blockers:
         lines.append("Safe next action: do not drain; inspect blocker rows and diagnostics evidence first.")
     elif reviews:
-        lines.append("Safe next action: review warning rows before using backend-owned Publish Parked Outputs.")
+        lines.append("Safe next action: review warning rows before using backend-owned Drain Parked Outputs.")
     elif ready:
-        lines.append("Safe next action: rows look ready; Publish Parked Outputs remains the authoritative backend validation path.")
+        lines.append("Safe next action: rows look ready; Drain Parked Outputs remains the authoritative backend validation path.")
     else:
         lines.append("Safe next action: no parked rows were included in this plan.")
     return lines

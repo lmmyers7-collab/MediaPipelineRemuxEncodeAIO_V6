@@ -1,0 +1,45 @@
+{
+  "id": "MP-CHANGE-2026-0607-005",
+  "title": "Clarify NVENC tuning bundle choices",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-07",
+  "date_completed": "2026-06-07",
+  "summary": "Adds concrete descriptions for every EncodeTuningPreset choice in backend field metadata and shows those definitions below the Settings Video NVENC tuning dropdown.",
+  "reason": "The NVENC tuning bundle dropdown labels do not explain which preset is balanced, slower/cleaner, faster, compatibility-focused, or raw legacy flag passthrough.",
+  "affected_areas": [
+    "settings",
+    "webview"
+  ],
+  "behavior_before": "The Settings Video advanced encoder controls listed Balanced NVENC, Quality NVENC, Fast NVENC, Compatibility, and Custom legacy flags without visible per-choice meaning. Backend choice help was brief and did not name the practical flag differences.",
+  "behavior_after": "The Settings Video advanced encoder controls show a compact definition list for all five NVENC tuning choices, and backend choice help explains lookahead, AQ, multipass, B-frame, compatibility, and raw ExtraVideoFlags behavior.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/styles.pages.css",
+    "apps/desktop/webview/static/partials/page-settings.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.pages.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-settings.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0607-005.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/metadata_support.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_metadata_contract.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_handbrake_settings_ui.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0607-005.json",
+    "src/mediapipeline/core/config/metadata_support.py",
+    "tests/python/desktop/test_metadata_contract.py",
+    "tests/webview/test_webview_handbrake_settings_ui.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_metadata_contract.py",
+    "tests/webview/test_webview_handbrake_settings_ui.py"
+  ],
+  "manual_validation": [
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_metadata_contract tests.webview.test_webview_handbrake_settings_ui - passed",
+    "PYTHONPATH=src powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewSettingsLaunchPolicySmoke.ps1 - passed",
+    "npm run webview:check - passed",
+    "validate_changes --require-worktree-coverage - blocked by unrelated MP-CHANGE-2026-0605-010 missing date_completed; direct coverage helper reported 206/206 dirty paths covered"
+  ],
+  "rollback_plan": "Remove the Settings NVENC tuning definition list and CSS, restore the prior EncodeTuningPreset choice_help strings, and rerun the focused metadata/WebView Settings tests. No FFmpeg command behavior, persisted schema, or media files are changed.",
+  "related_changes": [],
+  "notes": "Clarify every EncodeTuningPreset choice in backend metadata and visible Settings UI help without changing encode behavior.\nRefreshed targeted generated summaries for changed Settings UI, metadata, tests, and packet.\nBundled Python has no pytest module in this workspace; focused Python tests were run through unittest with PYTHONPATH=src."
+}

@@ -36,26 +36,26 @@
 <!-- mediapipeline_core_publish_pending_results -->
 <g id="node15" class="node">
 <title>mediapipeline_core_publish_pending_results</title>
-<path fill="#eff6ff" stroke="#334155" stroke-width="1.1" d="M1331.64,-517.08C1331.64,-517.08 1202.43,-517.08 1202.43,-517.08 1196.43,-517.08 1190.43,-511.08 1190.43,-505.08 1190.43,-505.08 1190.43,-493.08 1190.43,-493.08 1190.43,-487.08 1196.43,-481.08 1202.43,-481.08 1202.43,-481.08 1331.64,-481.08 1331.64,-481.08 1337.64,-481.08 1343.64,-487.08 1343.64,-493.08 1343.64,-493.08 1343.64,-505.08 1343.64,-505.08 1343.64,-511.08 1337.64,-517.08 1331.64,-517.08"/>
-<text xml:space="preserve" text-anchor="middle" x="1267.03" y="-496.31" font-family="Segoe UI" font-size="12.00" fill="#111827">publish/pending_results.py</text>
+<path fill="#eff6ff" stroke="#334155" stroke-width="1.1" d="M1331.64,-515.08C1331.64,-515.08 1202.43,-515.08 1202.43,-515.08 1196.43,-515.08 1190.43,-509.08 1190.43,-503.08 1190.43,-503.08 1190.43,-491.08 1190.43,-491.08 1190.43,-485.08 1196.43,-479.08 1202.43,-479.08 1202.43,-479.08 1331.64,-479.08 1331.64,-479.08 1337.64,-479.08 1343.64,-485.08 1343.64,-491.08 1343.64,-491.08 1343.64,-503.08 1343.64,-503.08 1343.64,-509.08 1337.64,-515.08 1331.64,-515.08"/>
+<text xml:space="preserve" text-anchor="middle" x="1267.03" y="-494.31" font-family="Segoe UI" font-size="12.00" fill="#111827">publish/pending_results.py</text>
 </g>
 <!-- mediapipeline_core_publish_pending_drain_confidence&#45;&gt;mediapipeline_core_publish_pending_results -->
 <g id="edge1" class="edge">
 <title>mediapipeline_core_publish_pending_drain_confidence&#45;&gt;mediapipeline_core_publish_pending_results</title>
-<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M881.58,-551.59C958.46,-563.03 1068.5,-571.79 1162.05,-550.08 1186.12,-544.5 1211.05,-532.52 1230.46,-521.58"/>
-<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1231.48,-523.62 1235.97,-518.4 1229.2,-519.67 1231.48,-523.62"/>
+<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M879.32,-551.62C956.35,-563.45 1067.71,-572.74 1162.05,-550.08 1186.9,-544.12 1212.5,-531.16 1232.09,-519.56"/>
+<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1233.01,-521.66 1237.39,-516.35 1230.65,-517.77 1233.01,-521.66"/>
 </g>
 <!-- mediapipeline_core_publish_pending_rows -->
 <g id="node16" class="node">
 <title>mediapipeline_core_publish_pending_rows</title>
-<path fill="#eff6ff" stroke="#334155" stroke-width="1.1" d="M1536.72,-517.08C1536.72,-517.08 1416.51,-517.08 1416.51,-517.08 1410.51,-517.08 1404.51,-511.08 1404.51,-505.08 1404.51,-505.08 1404.51,-493.08 1404.51,-493.08 1404.51,-487.08 1410.51,-481.08 1416.51,-481.08 1416.51,-481.08 1536.72,-481.08 1536.72,-481.08 1542.72,-481.08 1548.72,-487.08 1548.72,-493.08 1548.72,-493.08 1548.72,-505.08 1548.72,-505.08 1548.72,-511.08 1542.72,-517.08 1536.72,-517.08"/>
-<text xml:space="preserve" text-anchor="middle" x="1476.62" y="-496.31" font-family="Segoe UI" font-size="12.00" fill="#111827">publish/pending_rows.py</text>
+<path fill="#eff6ff" stroke="#334155" stroke-width="1.1" d="M1536.72,-509.08C1536.72,-509.08 1416.51,-509.08 1416.51,-509.08 1410.51,-509.08 1404.51,-503.08 1404.51,-497.08 1404.51,-497.08 1404.51,-485.08 1404.51,-485.08 1404.51,-479.08 1410.51,-473.08 1416.51,-473.08 1416.51,-473.08 1536.72,-473.08 1536.72,-473.08 1542.72,-473.08 1548.72,-479.08 1548.72,-485.08 1548.72,-485.08 1548.72,-497.08 1548.72,-497.08 1548.72,-503.08 1542.72,-509.08 1536.72,-509.08"/>
+<text xml:space="preserve" text-anchor="middle" x="1476.62" y="-488.31" font-family="Segoe UI" font-size="12.00" fill="#111827">publish/pending_rows.py</text>
 </g>
 <!-- mediapipeline_core_publish_pending_drain_confidence&#45;&gt;mediapipeline_core_publish_pending_rows -->
 <g id="edge2" class="edge">
 <title>mediapipeline_core_publish_pending_drain_confidence&#45;&gt;mediapipeline_core_publish_pending_rows</title>
-<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M888.42,-546.95C908.25,-550.42 928.96,-553.38 948.59,-554.58 1124.77,-565.38 1171.06,-552.84 1344.01,-517.58 1360.96,-514.13 1379.07,-510.09 1396.25,-506.4"/>
-<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1396.64,-508.64 1402.52,-505.06 1395.68,-504.19 1396.64,-508.64"/>
+<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M888.39,-547.43C908.22,-550.86 928.94,-553.68 948.59,-554.58 1125,-562.71 1171.94,-555.32 1344.01,-515.58 1361.06,-511.65 1379.2,-506.91 1396.39,-502.46"/>
+<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1396.95,-504.66 1402.67,-500.83 1395.81,-500.26 1396.95,-504.66"/>
 </g>
 <!-- mediapipeline_core_publish_pending_facade -->
 <g id="node4" class="node">
@@ -76,7 +76,7 @@
 <polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="481.04,-536.79 486.18,-532.21 479.3,-532.58 481.04,-536.79"/>
 </g>
 <!-- external_desktop_application -->
-<g id="node23" class="node">
+<g id="node24" class="node">
 <title>external_desktop_application</title>
 <path fill="#f0fdf4" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M1312.89,-232.08C1312.89,-232.08 1221.18,-232.08 1221.18,-232.08 1215.18,-232.08 1209.18,-226.08 1209.18,-220.08 1209.18,-220.08 1209.18,-208.08 1209.18,-208.08 1209.18,-202.08 1215.18,-196.08 1221.18,-196.08 1221.18,-196.08 1312.89,-196.08 1312.89,-196.08 1318.89,-196.08 1324.89,-202.08 1324.89,-208.08 1324.89,-208.08 1324.89,-220.08 1324.89,-220.08 1324.89,-226.08 1318.89,-232.08 1312.89,-232.08"/>
 <text xml:space="preserve" text-anchor="middle" x="1267.03" y="-211.31" font-family="Segoe UI" font-size="12.00" fill="#111827">desktop/application</text>
@@ -89,7 +89,7 @@
 <text xml:space="preserve" text-anchor="middle" x="784.49" y="-210.53" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">2</text>
 </g>
 <!-- external_desktop_models -->
-<g id="node25" class="node">
+<g id="node26" class="node">
 <title>external_desktop_models</title>
 <path fill="#f0fdf4" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M568.63,-304.08C568.63,-304.08 495.67,-304.08 495.67,-304.08 489.67,-304.08 483.67,-298.08 483.67,-292.08 483.67,-292.08 483.67,-280.08 483.67,-280.08 483.67,-274.08 489.67,-268.08 495.67,-268.08 495.67,-268.08 568.63,-268.08 568.63,-268.08 574.63,-268.08 580.63,-274.08 580.63,-280.08 580.63,-280.08 580.63,-292.08 580.63,-292.08 580.63,-298.08 574.63,-304.08 568.63,-304.08"/>
 <text xml:space="preserve" text-anchor="middle" x="532.15" y="-283.31" font-family="Segoe UI" font-size="12.00" fill="#111827">desktop/models</text>
@@ -144,7 +144,7 @@
 <polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="957.79,-758.16 963.69,-754.61 956.86,-753.7 957.79,-758.16"/>
 </g>
 <!-- external_desktop_contracts -->
-<g id="node24" class="node">
+<g id="node25" class="node">
 <title>external_desktop_contracts</title>
 <path fill="#f0fdf4" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M825.47,-375.08C825.47,-375.08 743.51,-375.08 743.51,-375.08 737.51,-375.08 731.51,-369.08 731.51,-363.08 731.51,-363.08 731.51,-351.08 731.51,-351.08 731.51,-345.08 737.51,-339.08 743.51,-339.08 743.51,-339.08 825.47,-339.08 825.47,-339.08 831.47,-339.08 837.47,-345.08 837.47,-351.08 837.47,-351.08 837.47,-363.08 837.47,-363.08 837.47,-369.08 831.47,-375.08 825.47,-375.08"/>
 <text xml:space="preserve" text-anchor="middle" x="784.49" y="-354.31" font-family="Segoe UI" font-size="12.00" fill="#111827">desktop/contracts</text>
@@ -177,8 +177,8 @@
 <!-- mediapipeline_core_publish_pending_open_policy&#45;&gt;mediapipeline_core_publish_pending_results -->
 <g id="edge9" class="edge">
 <title>mediapipeline_core_publish_pending_open_policy&#45;&gt;mediapipeline_core_publish_pending_results</title>
-<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M1130.02,-499.08C1147.31,-499.08 1165.36,-499.08 1182.43,-499.08"/>
-<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1182.12,-501.36 1188.62,-499.08 1182.12,-496.81 1182.12,-501.36"/>
+<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M1130.02,-498.29C1147.31,-498.13 1165.36,-497.98 1182.43,-497.82"/>
+<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1182.14,-500.1 1188.62,-497.77 1182.1,-495.55 1182.14,-500.1"/>
 </g>
 <!-- mediapipeline_core_publish_pending_open_policy&#45;&gt;external_desktop_application -->
 <g id="edge33" class="edge">
@@ -220,14 +220,14 @@
 <!-- mediapipeline_core_publish_pending_policy&#45;&gt;mediapipeline_core_publish_pending_results -->
 <g id="edge14" class="edge">
 <title>mediapipeline_core_publish_pending_policy&#45;&gt;mediapipeline_core_publish_pending_results</title>
-<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M607.12,-507.09C630.68,-505.45 656.86,-503.9 680.88,-503.08 772.92,-499.97 798.02,-483.9 888.09,-503.08 916.89,-509.22 919.79,-523.95 948.59,-530.08 1027.25,-546.84 1049.62,-539.05 1129.55,-530.08 1149.59,-527.84 1170.98,-523.79 1190.73,-519.34"/>
-<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1191.13,-521.59 1196.96,-517.91 1190.11,-517.15 1191.13,-521.59"/>
+<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M607.12,-507.09C630.68,-505.45 656.86,-503.9 680.88,-503.08 772.92,-499.97 798.02,-483.9 888.09,-503.08 916.89,-509.22 919.79,-523.95 948.59,-530.08 1027.25,-546.84 1049.69,-539.6 1129.55,-530.08 1151.22,-527.5 1174.42,-522.69 1195.43,-517.53"/>
+<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1195.77,-519.79 1201.52,-516 1194.66,-515.37 1195.77,-519.79"/>
 </g>
 <!-- mediapipeline_core_publish_pending_policy&#45;&gt;mediapipeline_core_publish_pending_rows -->
 <g id="edge15" class="edge">
 <title>mediapipeline_core_publish_pending_policy&#45;&gt;mediapipeline_core_publish_pending_rows</title>
-<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M575.89,-531.51C604.92,-543.1 644.5,-557.14 680.88,-564.08 825.65,-591.72 1201.1,-588.14 1344.01,-552.08 1373.68,-544.6 1405.55,-531.9 1430.49,-520.8"/>
-<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1431.23,-522.97 1436.22,-518.22 1429.36,-518.82 1431.23,-522.97"/>
+<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M575.88,-531.55C604.9,-543.16 644.49,-557.21 680.88,-564.08 825.71,-591.45 1201.94,-590.34 1344.01,-551.08 1376.2,-542.19 1410.46,-526.34 1435.96,-513.17"/>
+<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1436.79,-515.3 1441.5,-510.27 1434.68,-511.27 1436.79,-515.3"/>
 </g>
 <!-- mediapipeline_core_publish_pending_policy_parts -->
 <g id="node11" class="node">
@@ -238,14 +238,14 @@
 <!-- mediapipeline_core_publish_pending_policy_parts_status_rules -->
 <g id="node12" class="node">
 <title>mediapipeline_core_publish_pending_policy_parts_status_rules</title>
-<path fill="#eff6ff" stroke="#334155" stroke-width="1.1" d="M1844.18,-450.08C1844.18,-450.08 1621.22,-450.08 1621.22,-450.08 1615.22,-450.08 1609.22,-444.08 1609.22,-438.08 1609.22,-438.08 1609.22,-426.08 1609.22,-426.08 1609.22,-420.08 1615.22,-414.08 1621.22,-414.08 1621.22,-414.08 1844.18,-414.08 1844.18,-414.08 1850.18,-414.08 1856.18,-420.08 1856.18,-426.08 1856.18,-426.08 1856.18,-438.08 1856.18,-438.08 1856.18,-444.08 1850.18,-450.08 1844.18,-450.08"/>
-<text xml:space="preserve" text-anchor="middle" x="1732.7" y="-429.31" font-family="Segoe UI" font-size="12.00" fill="#111827">publish/pending_policy_parts/status_rules.py</text>
+<path fill="#eff6ff" stroke="#334155" stroke-width="1.1" d="M1844.18,-445.08C1844.18,-445.08 1621.22,-445.08 1621.22,-445.08 1615.22,-445.08 1609.22,-439.08 1609.22,-433.08 1609.22,-433.08 1609.22,-421.08 1609.22,-421.08 1609.22,-415.08 1615.22,-409.08 1621.22,-409.08 1621.22,-409.08 1844.18,-409.08 1844.18,-409.08 1850.18,-409.08 1856.18,-415.08 1856.18,-421.08 1856.18,-421.08 1856.18,-433.08 1856.18,-433.08 1856.18,-439.08 1850.18,-445.08 1844.18,-445.08"/>
+<text xml:space="preserve" text-anchor="middle" x="1732.7" y="-424.31" font-family="Segoe UI" font-size="12.00" fill="#111827">publish/pending_policy_parts/status_rules.py</text>
 </g>
 <!-- mediapipeline_core_publish_pending_policy_parts_trust_fields -->
 <g id="node13" class="node">
 <title>mediapipeline_core_publish_pending_policy_parts_trust_fields</title>
-<path fill="#eff6ff" stroke="#334155" stroke-width="1.1" d="M1841.93,-517.08C1841.93,-517.08 1623.47,-517.08 1623.47,-517.08 1617.47,-517.08 1611.47,-511.08 1611.47,-505.08 1611.47,-505.08 1611.47,-493.08 1611.47,-493.08 1611.47,-487.08 1617.47,-481.08 1623.47,-481.08 1623.47,-481.08 1841.93,-481.08 1841.93,-481.08 1847.93,-481.08 1853.93,-487.08 1853.93,-493.08 1853.93,-493.08 1853.93,-505.08 1853.93,-505.08 1853.93,-511.08 1847.93,-517.08 1841.93,-517.08"/>
-<text xml:space="preserve" text-anchor="middle" x="1732.7" y="-496.31" font-family="Segoe UI" font-size="12.00" fill="#111827">publish/pending_policy_parts/trust_fields.py</text>
+<path fill="#eff6ff" stroke="#334155" stroke-width="1.1" d="M1841.93,-509.08C1841.93,-509.08 1623.47,-509.08 1623.47,-509.08 1617.47,-509.08 1611.47,-503.08 1611.47,-497.08 1611.47,-497.08 1611.47,-485.08 1611.47,-485.08 1611.47,-479.08 1617.47,-473.08 1623.47,-473.08 1623.47,-473.08 1841.93,-473.08 1841.93,-473.08 1847.93,-473.08 1853.93,-479.08 1853.93,-485.08 1853.93,-485.08 1853.93,-497.08 1853.93,-497.08 1853.93,-503.08 1847.93,-509.08 1841.93,-509.08"/>
+<text xml:space="preserve" text-anchor="middle" x="1732.7" y="-488.31" font-family="Segoe UI" font-size="12.00" fill="#111827">publish/pending_policy_parts/trust_fields.py</text>
 </g>
 <!-- mediapipeline_core_publish_pending_recovery&#45;&gt;mediapipeline_core_publish_pending_open_policy -->
 <g id="edge16" class="edge">
@@ -256,20 +256,20 @@
 <!-- mediapipeline_core_publish_pending_recovery&#45;&gt;mediapipeline_core_publish_pending_policy_parts_status_rules -->
 <g id="edge17" class="edge">
 <title>mediapipeline_core_publish_pending_recovery&#45;&gt;mediapipeline_core_publish_pending_policy_parts_status_rules</title>
-<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M866.73,-409.83C916.2,-405.5 980.71,-401.08 1038.07,-401.08 1038.07,-401.08 1038.07,-401.08 1477.62,-401.08 1524.25,-401.08 1575.35,-406.29 1619.42,-412.44"/>
-<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1618.95,-414.67 1625.71,-413.34 1619.59,-410.17 1618.95,-414.67"/>
+<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M866.73,-409.83C916.2,-405.5 980.71,-401.08 1038.07,-401.08 1038.07,-401.08 1038.07,-401.08 1477.62,-401.08 1517.83,-401.08 1561.45,-404.35 1601.01,-408.56"/>
+<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1600.57,-410.8 1607.28,-409.25 1601.07,-406.28 1600.57,-410.8"/>
 </g>
 <!-- mediapipeline_core_publish_pending_recovery&#45;&gt;mediapipeline_core_publish_pending_results -->
 <g id="edge18" class="edge">
 <title>mediapipeline_core_publish_pending_recovery&#45;&gt;mediapipeline_core_publish_pending_results</title>
-<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M866.74,-428.51C936.62,-437.87 1040.02,-452.63 1129.55,-469.08 1146.77,-472.25 1165.14,-476.02 1182.63,-479.79"/>
-<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1181.67,-481.91 1188.51,-481.07 1182.64,-477.47 1181.67,-481.91"/>
+<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M866.68,-428.83C936.53,-438.38 1039.9,-453.26 1129.55,-469.08 1146.59,-472.09 1164.77,-475.61 1182.11,-479.11"/>
+<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1181.64,-481.33 1188.46,-480.4 1182.54,-476.87 1181.64,-481.33"/>
 </g>
 <!-- mediapipeline_core_publish_pending_recovery&#45;&gt;mediapipeline_core_publish_pending_rows -->
 <g id="edge19" class="edge">
 <title>mediapipeline_core_publish_pending_recovery&#45;&gt;mediapipeline_core_publish_pending_rows</title>
-<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M866.67,-419.22C936.52,-420.83 1039.89,-424.71 1129.55,-434.08 1225.6,-444.12 1249.23,-450.56 1344.01,-469.08 1360.96,-472.4 1379.06,-476.29 1396.25,-480.15"/>
-<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1395.68,-482.36 1402.52,-481.57 1396.68,-477.92 1395.68,-482.36"/>
+<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M866.64,-419.83C936.47,-421.88 1039.83,-426.2 1129.55,-435.08 1225.45,-444.58 1248.94,-451.33 1344.01,-467.08 1360.9,-469.88 1378.97,-473.06 1396.15,-476.17"/>
+<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1395.6,-478.38 1402.41,-477.3 1396.42,-473.9 1395.6,-478.38"/>
 </g>
 <!-- mediapipeline_core_publish_pending_recovery&#45;&gt;external_desktop_application -->
 <g id="edge34" class="edge">
@@ -281,59 +281,72 @@
 <!-- mediapipeline_core_publish_pending_results&#45;&gt;mediapipeline_core_publish_pending_rows -->
 <g id="edge20" class="edge">
 <title>mediapipeline_core_publish_pending_results&#45;&gt;mediapipeline_core_publish_pending_rows</title>
-<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M1344.15,-490.01C1361.11,-489.63 1379.13,-489.61 1396.21,-489.94"/>
-<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1395.85,-492.21 1402.4,-490.08 1395.96,-487.66 1395.85,-492.21"/>
+<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M1344.15,-485.81C1361.11,-484.94 1379.13,-484.4 1396.21,-484.24"/>
+<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1395.92,-486.51 1402.4,-484.2 1395.89,-481.96 1395.92,-486.51"/>
 </g>
 <!-- mediapipeline_core_publish_pending_results&#45;&gt;external_desktop_application -->
 <g id="edge35" class="edge">
 <title>mediapipeline_core_publish_pending_results&#45;&gt;external_desktop_application</title>
-<path fill="none" stroke="#9333ea" stroke-width="1.05" d="M1267.03,-480.61C1267.03,-431.41 1267.03,-297.11 1267.03,-240.17"/>
-<polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="1269.31,-240.43 1267.03,-233.93 1264.76,-240.43 1269.31,-240.43"/>
-<text xml:space="preserve" text-anchor="middle" x="1257.66" y="-354.41" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">3</text>
+<path fill="none" stroke="#9333ea" stroke-width="1.05" d="M1267.03,-478.74C1267.03,-429.88 1267.03,-296.53 1267.03,-239.98"/>
+<polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="1269.31,-240.31 1267.03,-233.81 1264.76,-240.31 1269.31,-240.31"/>
+<text xml:space="preserve" text-anchor="middle" x="1257.66" y="-353.41" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">3</text>
 </g>
 <!-- mediapipeline_core_publish_pending_rows&#45;&gt;mediapipeline_core_publish_pending_drain_confidence -->
 <g id="edge21" class="edge">
 <title>mediapipeline_core_publish_pending_rows&#45;&gt;mediapipeline_core_publish_pending_drain_confidence</title>
-<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M1442.74,-517.54C1416.2,-526.49 1377.82,-535.69 1344.01,-542.58 1171.06,-577.84 1124.77,-590.38 948.59,-579.58 905.16,-576.92 856.44,-565.65 823.66,-554.26"/>
-<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="824.47,-552.14 817.58,-552.07 822.92,-556.42 824.47,-552.14"/>
+<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M1447.32,-509.57C1420.8,-520.41 1379.97,-532.28 1344.01,-540.58 1171.94,-580.32 1125,-587.71 948.59,-579.58 904.85,-577.57 855.82,-566.05 823.04,-554.39"/>
+<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="823.85,-552.26 816.97,-552.14 822.27,-556.53 823.85,-552.26"/>
 </g>
 <!-- mediapipeline_core_publish_pending_rows&#45;&gt;mediapipeline_core_publish_pending_policy_parts_status_rules -->
 <g id="edge22" class="edge">
 <title>mediapipeline_core_publish_pending_rows&#45;&gt;mediapipeline_core_publish_pending_policy_parts_status_rules</title>
-<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M1547.72,-480.6C1580.63,-471.92 1619.97,-461.55 1653.81,-452.62"/>
-<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1654.14,-454.89 1659.85,-451.03 1652.98,-450.49 1654.14,-454.89"/>
+<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M1549.07,-473.09C1580.59,-465.15 1617.81,-455.77 1650.39,-447.56"/>
+<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1650.84,-449.8 1656.59,-446 1649.73,-445.38 1650.84,-449.8"/>
 </g>
 <!-- mediapipeline_core_publish_pending_rows&#45;&gt;mediapipeline_core_publish_pending_policy_parts_trust_fields -->
 <g id="edge23" class="edge">
 <title>mediapipeline_core_publish_pending_rows&#45;&gt;mediapipeline_core_publish_pending_policy_parts_trust_fields</title>
-<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M1549.07,-499.08C1566.02,-499.08 1584.62,-499.08 1603.26,-499.08"/>
-<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1603.15,-501.36 1609.65,-499.08 1603.15,-496.81 1603.15,-501.36"/>
+<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M1549.07,-491.08C1566.02,-491.08 1584.62,-491.08 1603.26,-491.08"/>
+<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1603.15,-493.36 1609.65,-491.08 1603.15,-488.81 1603.15,-493.36"/>
 </g>
 <!-- mediapipeline_core_publish_pending_rows&#45;&gt;mediapipeline_core_publish_pending_results -->
 <g id="edge24" class="edge">
 <title>mediapipeline_core_publish_pending_rows&#45;&gt;mediapipeline_core_publish_pending_results</title>
-<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M1403.99,-508.05C1387.24,-508.49 1369.24,-508.58 1352.01,-508.31"/>
-<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1352.28,-506.04 1345.74,-508.19 1352.19,-510.58 1352.28,-506.04"/>
+<path fill="none" stroke="#2563eb" stroke-width="1.05" d="M1403.99,-502.12C1387.24,-503.04 1369.24,-503.65 1352.01,-503.88"/>
+<polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1352.21,-501.6 1345.74,-503.94 1352.26,-506.15 1352.21,-501.6"/>
+</g>
+<!-- external_core_files -->
+<g id="node21" class="node">
+<title>external_core_files</title>
+<path fill="#f8fafc" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M1751.18,-384.08C1751.18,-384.08 1714.22,-384.08 1714.22,-384.08 1708.22,-384.08 1702.22,-378.08 1702.22,-372.08 1702.22,-372.08 1702.22,-360.08 1702.22,-360.08 1702.22,-354.08 1708.22,-348.08 1714.22,-348.08 1714.22,-348.08 1751.18,-348.08 1751.18,-348.08 1757.18,-348.08 1763.18,-354.08 1763.18,-360.08 1763.18,-360.08 1763.18,-372.08 1763.18,-372.08 1763.18,-378.08 1757.18,-384.08 1751.18,-384.08"/>
+<text xml:space="preserve" text-anchor="middle" x="1732.7" y="-363.31" font-family="Segoe UI" font-size="12.00" fill="#111827">core/files</text>
+</g>
+<!-- mediapipeline_core_publish_pending_rows&#45;&gt;external_core_files -->
+<g id="edge36" class="edge">
+<title>mediapipeline_core_publish_pending_rows&#45;&gt;external_core_files</title>
+<path fill="none" stroke="#9333ea" stroke-width="1.05" d="M1494.89,-472.9C1518.39,-449.34 1562.88,-408.83 1609.22,-388.08 1636.09,-376.06 1669.05,-370.6 1694.01,-368.13"/>
+<polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="1693.96,-370.42 1700.23,-367.57 1693.55,-365.88 1693.96,-370.42"/>
+<text xml:space="preserve" text-anchor="middle" x="1578.97" y="-409.63" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">1</text>
 </g>
 <!-- external_core_kernel -->
-<g id="node21" class="node">
+<g id="node22" class="node">
 <title>external_core_kernel</title>
-<path fill="#f8fafc" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M1756.81,-384.08C1756.81,-384.08 1708.6,-384.08 1708.6,-384.08 1702.6,-384.08 1696.6,-378.08 1696.6,-372.08 1696.6,-372.08 1696.6,-360.08 1696.6,-360.08 1696.6,-354.08 1702.6,-348.08 1708.6,-348.08 1708.6,-348.08 1756.81,-348.08 1756.81,-348.08 1762.81,-348.08 1768.81,-354.08 1768.81,-360.08 1768.81,-360.08 1768.81,-372.08 1768.81,-372.08 1768.81,-378.08 1762.81,-384.08 1756.81,-384.08"/>
-<text xml:space="preserve" text-anchor="middle" x="1732.7" y="-363.31" font-family="Segoe UI" font-size="12.00" fill="#111827">core/kernel</text>
+<path fill="#f8fafc" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M1756.81,-323.08C1756.81,-323.08 1708.6,-323.08 1708.6,-323.08 1702.6,-323.08 1696.6,-317.08 1696.6,-311.08 1696.6,-311.08 1696.6,-299.08 1696.6,-299.08 1696.6,-293.08 1702.6,-287.08 1708.6,-287.08 1708.6,-287.08 1756.81,-287.08 1756.81,-287.08 1762.81,-287.08 1768.81,-293.08 1768.81,-299.08 1768.81,-299.08 1768.81,-311.08 1768.81,-311.08 1768.81,-317.08 1762.81,-323.08 1756.81,-323.08"/>
+<text xml:space="preserve" text-anchor="middle" x="1732.7" y="-302.31" font-family="Segoe UI" font-size="12.00" fill="#111827">core/kernel</text>
 </g>
 <!-- mediapipeline_core_publish_pending_rows&#45;&gt;external_core_kernel -->
-<g id="edge36" class="edge">
+<g id="edge37" class="edge">
 <title>mediapipeline_core_publish_pending_rows&#45;&gt;external_core_kernel</title>
-<path fill="none" stroke="#9333ea" stroke-width="1.05" d="M1493.41,-480.75C1516.25,-455.53 1561.07,-410.71 1609.22,-388.08 1633.9,-376.49 1664.02,-370.98 1688.22,-368.37"/>
-<polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="1688.35,-370.65 1694.6,-367.75 1687.91,-366.12 1688.35,-370.65"/>
-<text xml:space="preserve" text-anchor="middle" x="1578.97" y="-410.92" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">1</text>
+<path fill="none" stroke="#9333ea" stroke-width="1.05" d="M1488,-472.56C1507.38,-439.76 1552.3,-371.56 1609.22,-336.08 1633.07,-321.22 1663.73,-313.47 1688.41,-309.43"/>
+<polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="1688.54,-311.71 1694.62,-308.49 1687.85,-307.22 1688.54,-311.71"/>
+<text xml:space="preserve" text-anchor="middle" x="1578.97" y="-363.4" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">1</text>
 </g>
 <!-- mediapipeline_core_publish_pending_rows&#45;&gt;external_desktop_application -->
-<g id="edge37" class="edge">
+<g id="edge38" class="edge">
 <title>mediapipeline_core_publish_pending_rows&#45;&gt;external_desktop_application</title>
-<path fill="none" stroke="#9333ea" stroke-width="1.05" d="M1462.16,-480.61C1426.03,-431 1326.9,-294.91 1286.02,-238.78"/>
-<polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="1287.93,-237.54 1282.27,-233.63 1284.25,-240.22 1287.93,-237.54"/>
-<text xml:space="preserve" text-anchor="middle" x="1374.26" y="-365.06" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">1</text>
+<path fill="none" stroke="#9333ea" stroke-width="1.05" d="M1461.94,-472.84C1425.74,-424.54 1327.36,-293.26 1286.36,-238.54"/>
+<polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="1288.32,-237.37 1282.6,-233.53 1284.68,-240.1 1288.32,-237.37"/>
+<text xml:space="preserve" text-anchor="middle" x="1374.26" y="-360.94" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">1</text>
 </g>
 <!-- mediapipeline_core_publish_pending_service -->
 <g id="node17" class="node">
@@ -366,7 +379,7 @@
 <polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="1008.77,-714.43 1015.27,-716.69 1011.6,-710.86 1008.77,-714.43"/>
 </g>
 <!-- mediapipeline_core_publish_pending_service&#45;&gt;external_desktop_models -->
-<g id="edge38" class="edge">
+<g id="edge39" class="edge">
 <title>mediapipeline_core_publish_pending_service&#45;&gt;external_desktop_models</title>
 <path fill="none" stroke="#9333ea" stroke-width="1.05" d="M349.75,-652.65C362.3,-648.11 374.19,-641.54 383.42,-632.08 422.75,-591.8 417.96,-436.04 443.92,-386.08 459.13,-356.81 484.62,-329 504.12,-310.17"/>
 <polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="505.66,-311.85 508.81,-305.72 502.53,-308.55 505.66,-311.85"/>
@@ -391,14 +404,14 @@
 <polygon fill="#2563eb" stroke="#2563eb" stroke-width="1.05" points="436.19,-447.27 442.08,-443.71 435.26,-442.81 436.19,-447.27"/>
 </g>
 <!-- mediapipeline_core_publish_reconciliation_facade&#45;&gt;external_desktop_application -->
-<g id="edge39" class="edge">
+<g id="edge40" class="edge">
 <title>mediapipeline_core_publish_reconciliation_facade&#45;&gt;external_desktop_application</title>
 <path fill="none" stroke="#9333ea" stroke-width="1.05" d="M362.13,-465.41C370.15,-461.24 377.47,-455.9 383.42,-449.08 446.78,-376.48 366.65,-319.41 411.42,-234.08 444.71,-170.62 459.49,-126.08 531.15,-126.08 531.15,-126.08 531.15,-126.08 1040.07,-126.08 1112.05,-126.08 1188.68,-165.34 1231.64,-191.41"/>
 <polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="1230.41,-193.33 1237.14,-194.8 1232.8,-189.46 1230.41,-193.33"/>
 <text xml:space="preserve" text-anchor="middle" x="784.49" y="-130.28" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">1</text>
 </g>
 <!-- mediapipeline_core_publish_reconciliation_facade&#45;&gt;external_desktop_models -->
-<g id="edge40" class="edge">
+<g id="edge41" class="edge">
 <title>mediapipeline_core_publish_reconciliation_facade&#45;&gt;external_desktop_models</title>
 <path fill="none" stroke="#9333ea" stroke-width="1.05" d="M362.09,-465.38C370.12,-461.21 377.46,-455.88 383.42,-449.08 444.57,-379.38 341.59,-303.34 411.42,-242.33 438.27,-218.88 478.73,-242.26 505.05,-262.83"/>
 <polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="503.37,-264.39 509.85,-266.7 506.22,-260.85 503.37,-264.39"/>
@@ -411,54 +424,54 @@
 <text xml:space="preserve" text-anchor="middle" x="784.49" y="-293.31" font-family="Segoe UI" font-size="12.00" fill="#111827">core/completed</text>
 </g>
 <!-- mediapipeline_core_publish_reconciliation_policy&#45;&gt;external_core_completed -->
-<g id="edge41" class="edge">
+<g id="edge42" class="edge">
 <title>mediapipeline_core_publish_reconciliation_policy&#45;&gt;external_core_completed</title>
 <path fill="none" stroke="#9333ea" stroke-width="1.05" d="M572.16,-406.6C588.59,-397.37 606.96,-384.98 620.38,-370.08 639.2,-349.19 625.48,-329.67 648.38,-313.33 671.32,-296.97 702.18,-292.1 728.61,-291.57"/>
 <polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="728.58,-293.85 735.07,-291.55 728.56,-289.3 728.58,-293.85"/>
 <text xml:space="preserve" text-anchor="middle" x="650.63" y="-317.53" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">1</text>
 </g>
 <!-- mediapipeline_core_publish_reconciliation_policy&#45;&gt;external_desktop_application -->
-<g id="edge42" class="edge">
+<g id="edge43" class="edge">
 <title>mediapipeline_core_publish_reconciliation_policy&#45;&gt;external_desktop_application</title>
 <path fill="none" stroke="#9333ea" stroke-width="1.05" d="M572.97,-406.67C589.35,-397.53 607.46,-385.19 620.38,-370.08 655.13,-329.44 633.51,-290.89 680.88,-266.08 769.8,-219.53 1067.9,-213.82 1200.95,-213.67"/>
 <polygon fill="#9333ea" stroke="#9333ea" stroke-width="1.05" points="1200.61,-215.95 1207.11,-213.67 1200.61,-211.4 1200.61,-215.95"/>
 <text xml:space="preserve" text-anchor="middle" x="918.34" y="-227.11" font-family="Segoe UI" font-size="9.00" fill="#7e22ce">2</text>
 </g>
 <!-- external_desktop_api -->
-<g id="node22" class="node">
+<g id="node23" class="node">
 <title>external_desktop_api</title>
 <path fill="#f0fdf4" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M297.17,-868.08C297.17,-868.08 246.71,-868.08 246.71,-868.08 240.71,-868.08 234.71,-862.08 234.71,-856.08 234.71,-856.08 234.71,-844.08 234.71,-844.08 234.71,-838.08 240.71,-832.08 246.71,-832.08 246.71,-832.08 297.17,-832.08 297.17,-832.08 303.17,-832.08 309.17,-838.08 309.17,-844.08 309.17,-844.08 309.17,-856.08 309.17,-856.08 309.17,-862.08 303.17,-868.08 297.17,-868.08"/>
 <text xml:space="preserve" text-anchor="middle" x="271.94" y="-847.31" font-family="Segoe UI" font-size="12.00" fill="#111827">desktop/api</text>
 </g>
 <!-- external_desktop_api&#45;&gt;mediapipeline_core_publish_reconciliation_policy -->
-<g id="edge43" class="edge">
+<g id="edge44" class="edge">
 <title>external_desktop_api&#45;&gt;mediapipeline_core_publish_reconciliation_policy</title>
 <path fill="none" stroke="#64748b" stroke-width="1.05" stroke-dasharray="5,2" d="M309.7,-852.67C333.93,-852.27 364.56,-847.39 383.42,-828.08 492.23,-716.75 358.76,-613.4 443.92,-483.08 453.5,-468.43 468.2,-456.6 482.83,-447.53"/>
 <polygon fill="#64748b" stroke="#64748b" stroke-width="1.05" points="483.73,-449.65 488.16,-444.37 481.41,-445.73 483.73,-449.65"/>
 <text xml:space="preserve" text-anchor="middle" x="413.67" y="-792.49" font-family="Segoe UI" font-size="9.00" fill="#475569">1</text>
 </g>
 <!-- external_desktop_application&#45;&gt;mediapipeline_core_publish_pending_facade -->
-<g id="edge44" class="edge">
+<g id="edge45" class="edge">
 <title>external_desktop_application&#45;&gt;mediapipeline_core_publish_pending_facade</title>
 <path fill="none" stroke="#64748b" stroke-width="1.05" stroke-dasharray="5,2" d="M1251.87,-195.57C1219.27,-155.25 1134.43,-63.08 1040.07,-63.08 531.15,-63.08 531.15,-63.08 531.15,-63.08 438.37,-63.08 442.96,-146.83 411.42,-234.08 385.87,-304.76 431.5,-513.33 383.42,-571.08 376.08,-579.9 366.44,-586.26 355.91,-590.83"/>
 <polygon fill="#64748b" stroke="#64748b" stroke-width="1.05" points="355.21,-588.66 349.98,-593.14 356.86,-592.9 355.21,-588.66"/>
 <text xml:space="preserve" text-anchor="middle" x="784.49" y="-67.28" font-family="Segoe UI" font-size="9.00" fill="#475569">1</text>
 </g>
 <!-- external_desktop_application&#45;&gt;mediapipeline_core_publish_reconciliation_facade -->
-<g id="edge45" class="edge">
+<g id="edge46" class="edge">
 <title>external_desktop_application&#45;&gt;mediapipeline_core_publish_reconciliation_facade</title>
 <path fill="none" stroke="#64748b" stroke-width="1.05" stroke-dasharray="5,2" d="M1259.54,-195.66C1246.45,-161.09 1213.67,-86.17 1162.05,-44.08 1117.38,-7.67 1097.7,-0.08 1040.07,-0.08 531.15,-0.08 531.15,-0.08 531.15,-0.08 474.46,-0.08 445.45,1.26 411.42,-44.08 357.27,-116.24 440.66,-379.35 383.42,-449.08 379.21,-454.22 374.21,-458.52 368.7,-462.13"/>
 <polygon fill="#64748b" stroke="#64748b" stroke-width="1.05" points="367.85,-459.99 363.4,-465.24 370.16,-463.91 367.85,-459.99"/>
 <text xml:space="preserve" text-anchor="middle" x="784.49" y="-4.28" font-family="Segoe UI" font-size="9.00" fill="#475569">1</text>
 </g>
 <!-- external_desktop_services -->
-<g id="node26" class="node">
+<g id="node27" class="node">
 <title>external_desktop_services</title>
 <path fill="#f0fdf4" stroke="#64748b" stroke-width="1.1" stroke-dasharray="5,2" d="M87.96,-680.08C87.96,-680.08 12,-680.08 12,-680.08 6,-680.08 0,-674.08 0,-668.08 0,-668.08 0,-656.08 0,-656.08 0,-650.08 6,-644.08 12,-644.08 12,-644.08 87.96,-644.08 87.96,-644.08 93.96,-644.08 99.96,-650.08 99.96,-656.08 99.96,-656.08 99.96,-668.08 99.96,-668.08 99.96,-674.08 93.96,-680.08 87.96,-680.08"/>
 <text xml:space="preserve" text-anchor="middle" x="49.98" y="-659.31" font-family="Segoe UI" font-size="12.00" fill="#111827">desktop/services</text>
 </g>
 <!-- external_desktop_services&#45;&gt;mediapipeline_core_publish_pending_service -->
-<g id="edge46" class="edge">
+<g id="edge47" class="edge">
 <title>external_desktop_services&#45;&gt;mediapipeline_core_publish_pending_service</title>
 <path fill="none" stroke="#64748b" stroke-width="1.05" stroke-dasharray="5,2" d="M100.34,-662.08C125.69,-662.08 157.29,-662.08 186.37,-662.08"/>
 <polygon fill="#64748b" stroke="#64748b" stroke-width="1.05" points="186.01,-664.36 192.51,-662.08 186.01,-659.81 186.01,-664.36"/>

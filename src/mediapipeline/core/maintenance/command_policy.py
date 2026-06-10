@@ -15,6 +15,7 @@ RELEASE_DRY_RUN_COMMAND = "maintenance.release_dry_run"
 RELEASE_BUILD_COMMAND = "maintenance.release_build"
 COMPLETED_BACKFILL_DRY_RUN_COMMAND = "maintenance.completed_backfill_dry_run"
 DEPENDENCY_ATLAS_COMMAND = "maintenance.dependency_atlas"
+DEPENDENCY_ATLAS_OPEN_FOLDER_COMMAND = "maintenance.dependency_atlas_open_folder"
 RELEASE_PROGRESS_SCHEMA_VERSION = "desktop_release_package_progress.v1"
 BACKFILL_PROGRESS_SCHEMA_VERSION = "desktop_maintenance_backfill_progress.v1"
 DEPENDENCY_ATLAS_PROGRESS_SCHEMA_VERSION = "desktop_dependency_atlas_progress.v1"
@@ -828,6 +829,62 @@ def dependency_atlas_result(result: dict[str, Any], request: dict[str, Any]) -> 
     )
 
 
+def dependency_atlas_open_result_data(path: Path) -> dict[str, Any]:
+    return {
+        "target": "dependency_atlas_folder",
+        "path": str(path),
+        "writes_media": False,
+        "writes_dependency_atlas": False,
+    }
+
+
+def dependency_atlas_open_missing_result(path: Path) -> CommandResult:
+    return _command_result(
+        command=DEPENDENCY_ATLAS_OPEN_FOLDER_COMMAND,
+        ok=False,
+        message="Dependency atlas folder was not found. Run Update Atlas before opening the folder.",
+        severity="warning",
+        warnings=[f"Missing dependency atlas folder: {path}"],
+        refresh_hint=MAINTENANCE_REFRESH_HINT,
+        data=dependency_atlas_open_result_data(path),
+    )
+
+
+def dependency_atlas_open_service_unavailable_result(path: Path) -> CommandResult:
+    return _command_result(
+        command=DEPENDENCY_ATLAS_OPEN_FOLDER_COMMAND,
+        ok=False,
+        message="Dependency atlas folder open service is not available.",
+        severity="error",
+        errors=["open_path is required."],
+        refresh_hint=MAINTENANCE_REFRESH_HINT,
+        data=dependency_atlas_open_result_data(path),
+    )
+
+
+def dependency_atlas_open_exception_result(path: Path, exc: Exception) -> CommandResult:
+    return _command_result(
+        command=DEPENDENCY_ATLAS_OPEN_FOLDER_COMMAND,
+        ok=False,
+        message=f"Could not open dependency atlas folder: {exc}",
+        severity="error",
+        errors=[str(exc)],
+        refresh_hint=MAINTENANCE_REFRESH_HINT,
+        data=dependency_atlas_open_result_data(path),
+    )
+
+
+def dependency_atlas_open_success_result(path: Path) -> CommandResult:
+    return _command_result(
+        command=DEPENDENCY_ATLAS_OPEN_FOLDER_COMMAND,
+        ok=True,
+        message="Dependency atlas folder opened.",
+        severity="info",
+        refresh_hint=MAINTENANCE_REFRESH_HINT,
+        data=dependency_atlas_open_result_data(path),
+    )
+
+
 def completed_backfill_dry_run_result(
     ok: bool,
     message: object,
@@ -871,6 +928,7 @@ __all__ = [
     "RELEASE_BUILD_COMMAND",
     "COMPLETED_BACKFILL_DRY_RUN_COMMAND",
     "DEPENDENCY_ATLAS_COMMAND",
+    "DEPENDENCY_ATLAS_OPEN_FOLDER_COMMAND",
     "RELEASE_PROGRESS_SCHEMA_VERSION",
     "BACKFILL_PROGRESS_SCHEMA_VERSION",
     "DEPENDENCY_ATLAS_PROGRESS_SCHEMA_VERSION",
@@ -889,6 +947,11 @@ __all__ = [
     "completed_backfill_progress_payload",
     "dependency_atlas_message",
     "dependency_atlas_progress_payload",
+    "dependency_atlas_open_result_data",
+    "dependency_atlas_open_missing_result",
+    "dependency_atlas_open_service_unavailable_result",
+    "dependency_atlas_open_exception_result",
+    "dependency_atlas_open_success_result",
     "maintenance_command_blocked_result",
     "release_builder_unavailable_result",
     "release_build_confirmation_required_result",

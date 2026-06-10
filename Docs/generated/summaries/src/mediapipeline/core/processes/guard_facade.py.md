@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/guard_facade.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-04
+last_modified: 2026-06-06
 last_reviewed: 2026-06-04
-sha256: c21d72285f690ba36543bca49dd33b36880802ec4dbed2f6ebed66a18b7a9728
+sha256: 5fb97b4bae392522adcab2b784256170df0c6938529ce313cd1a45b518528f4e
 ---
 # `src/mediapipeline/core/processes/guard_facade.py`
 

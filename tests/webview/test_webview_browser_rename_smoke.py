@@ -79,6 +79,24 @@ def _browser_rename_runner_source() -> str:
               if (!node) throw new Error("missing " + label + " selector " + selector);
               node.click();
             }
+            function requireRenameScrollPreservedOnSelection(fragment) {
+              const row = Array.from(document.querySelectorAll('#rename-rows tr[data-selectable-row="true"]'))
+                .find((candidate) => (candidate.textContent || "").includes(fragment));
+              if (!row) throw new Error("rename table missing row containing " + fragment);
+              const wrap = row.closest(".table-wrap");
+              if (!wrap) throw new Error("missing rename table scroll wrapper");
+              wrap.style.height = "220px";
+              wrap.style.maxHeight = "220px";
+              wrap.style.overflow = "auto";
+              wrap.scrollTop = wrap.scrollHeight;
+              const before = wrap.scrollTop;
+              if (before <= 0) throw new Error("rename table did not become scrollable");
+              row.click();
+              const after = wrap.scrollTop;
+              if (after < Math.max(1, before - 3)) {
+                throw new Error("rename table scroll reset after row selection: before=" + before + " after=" + after);
+              }
+            }
             function readinessCells() {
               return Array.from(document.querySelectorAll("#rename-apply-readiness-rows td")).map((cell) => cell.textContent || "").join("\\n");
             }
@@ -134,7 +152,7 @@ def _browser_rename_runner_source() -> str:
             setCheckedBySelector('[data-rename-movie-filter="release_groups"]', false);
             click("#settings-save-header-save-button", "main settings save");
             await new Promise((resolve) => setTimeout(resolve, 150));
-            requireText("settings-patch-detail", ["Rename cleaning filter draft was retained in browser storage.", "PSD1 was not changed"]);
+            requireText("settings-patch-detail", ["Rename filter draft retained in this browser", "Stage Rename Filter Patch", "Preview Patch and Save Settings"]);
             const storedRenameFilters = JSON.parse(localStorage.getItem("mediapipeline.rename.cleaningFilters.v1") || "null");
             if (Object.prototype.hasOwnProperty.call(storedRenameFilters || {}, "use_editable_filters")) {
               throw new Error("removed editable rename filter toggle was saved");
@@ -154,39 +172,82 @@ def _browser_rename_runner_source() -> str:
             if (!byId("settings-rename-filter-release-groups").value.includes("codexrg")) {
               throw new Error("release-group terms did not reload from browser storage: " + byId("settings-rename-filter-release-groups").value);
             }
-            requireText("settings-rename-cleaning-filter-summary", ["Unsaved cleaning filter draft loaded from browser storage", "release groups=4", "Browser storage is draft recovery only"]);
+            requireText("settings-rename-cleaning-filter-summary", ["Unsaved cleaning filter draft loaded from browser storage", "release groups=4", "Browser storage is local draft recovery only"]);
             const savedReleaseGroups = byId("settings-rename-filter-release-groups").value;
 
             const originalSettingsApiPost = window.apiPost;
             const settingsPosts = [];
+            const settingsConfirmMessages = [];
             window.apiPost = async (url, body) => {
               if (String(url || "").startsWith("/api/settings/")) {
                 settingsPosts.push({ url: String(url || ""), body: body || {} });
                 if (String(url || "") === "/api/settings/preview-patch") {
-                  return { command: "settings.preview_patch", ok: true, message: "Preview ready.", data: { changed_keys: Object.keys(body?.changes || {}) } };
+                  return {
+                    command: "settings.preview_patch",
+                    ok: true,
+                    message: "Preview ready.",
+                    data: {
+                      writes_config: false,
+                      changed_keys: Object.keys(body?.changes || {}),
+                      removed_keys: [],
+                    },
+                  };
                 }
                 if (String(url || "") === "/api/settings/save-patch") {
-                  return { command: "settings.save_patch", ok: true, message: "Settings saved.", data: { reloaded: false } };
+                  return {
+                    command: "settings.save_patch",
+                    ok: true,
+                    message: "Settings saved.",
+                    data: {
+                      writes_config: true,
+                      changed_keys: Object.keys(body?.changes || {}),
+                      removed_keys: [],
+                      config_path: "C:/Config/Local.psd1",
+                      backup_path: "C:/Config/Local.psd1.bak",
+                      reloaded: false,
+                    },
+                  };
                 }
               }
               return originalSettingsApiPost(url, body);
             };
-            click("#settings-rename-cleaning-filters-save-button", "save rename filters");
+            const originalConfirm = window.confirm;
+            window.confirm = (message) => {
+              settingsConfirmMessages.push(String(message || ""));
+              return true;
+            };
+            click("#settings-rename-cleaning-filters-save-button", "stage rename filters");
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            if (settingsPosts.length !== 0) {
+              throw new Error("rename filter staging called backend settings routes: " + JSON.stringify(settingsPosts));
+            }
+            const stagedChanges = JSON.parse(byId("settings-patch-json").value || "{}");
+            if (!stagedChanges.RenameMovieFilterOptions || !stagedChanges.RenameMovieFilterTerms || !stagedChanges.RenameMovieRemoveTerms) {
+              throw new Error("rename filter staging did not write persisted setting keys to Settings Changes JSON: " + JSON.stringify(stagedChanges));
+            }
+            if (!String((stagedChanges.RenameMovieFilterTerms.release_groups || []).join(",")).includes("codexrg")) {
+              throw new Error("rename filter staging omitted edited release group terms: " + JSON.stringify(stagedChanges.RenameMovieFilterTerms));
+            }
+            if (localStorage.getItem("mediapipeline.rename.cleaningFilters.v1") === null) {
+              throw new Error("rename filter staging should retain browser draft storage");
+            }
+            requireText("settings-rename-cleaning-filter-summary", ["Rename cleaning filters staged into Settings Changes JSON.", "Next step: run Preview Patch, then Save Settings from Settings.", "Browser storage is local draft recovery only"]);
+            click("#settings-save-header-preview-button", "preview staged rename filter patch");
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            click("#settings-save-header-save-button", "save staged rename filter patch");
             await new Promise((resolve) => setTimeout(resolve, 250));
             if (settingsPosts.length !== 2 || settingsPosts[0].url !== "/api/settings/preview-patch" || settingsPosts[1].url !== "/api/settings/save-patch") {
-              throw new Error("rename filter save did not call settings preview/save routes: " + JSON.stringify(settingsPosts));
+              throw new Error("staged rename filters were not saved through settings preview/save routes: " + JSON.stringify(settingsPosts));
             }
             const saveChanges = settingsPosts[1].body?.changes || {};
-            if (!saveChanges.RenameMovieFilterOptions || !saveChanges.RenameMovieFilterTerms || !saveChanges.RenameMovieRemoveTerms) {
-              throw new Error("rename filter save did not submit persisted setting keys: " + JSON.stringify(saveChanges));
+            if (!saveChanges.RenameMovieFilterOptions || !saveChanges.RenameMovieFilterTerms || !saveChanges.RenameMovieRemoveTerms || settingsPosts[1].body?.confirm_save !== true) {
+              throw new Error("settings save did not submit rename filter persisted keys with confirmation: " + JSON.stringify(settingsPosts[1]));
             }
-            if (!String((saveChanges.RenameMovieFilterTerms.release_groups || []).join(",")).includes("codexrg")) {
-              throw new Error("rename filter save omitted edited release group terms: " + JSON.stringify(saveChanges.RenameMovieFilterTerms));
+            if (!settingsConfirmMessages.join("\\n").includes("Save 3 setting patch key(s) to the active PSD1 config?")) {
+              throw new Error("settings save confirmation did not run for staged rename filters: " + JSON.stringify(settingsConfirmMessages));
             }
-            if (localStorage.getItem("mediapipeline.rename.cleaningFilters.v1") !== null) {
-              throw new Error("saved rename filters left stale browser draft storage");
-            }
-            requireText("settings-rename-cleaning-filter-summary", ["Rename cleaning filters saved to backend settings.", "Saved filters affect future pipeline output naming"]);
+            requireText("settings-patch-status", ["Saved"]);
+            window.confirm = originalConfirm;
             window.apiPost = originalSettingsApiPost;
 
             setCheckedBySelector('[data-rename-movie-filter="release_groups"]', true);
@@ -356,6 +417,8 @@ def _browser_rename_runner_source() -> str:
             window.mediaPipelineRenameView.renderRenamePreview({ rows: largeRows, counts: { total: 260, ready: 260 }, confidence_counts: { high: 260 }, preview_source_counts: { auto_tv_heuristic: 260 }, change_kind_counts: { rename: 260 } });
             requireText("rename-status", ["260 ready", "250 shown / 260 preview rows"]);
             requireText("rename-table-legend", ["Display cap: 250 shown / 260 preview rows rendered", "not visible in the table"]);
+            requireRenameScrollPreservedOnSelection("S02E240");
+            requireText("rename-detail", ["Serial Experiments Lain - S02E240.mkv"]);
             click("#rename-check-applicable-button", "check all applicable large rename rows");
             requireText("rename-selected-count", ["260 checked"]);
             requireText("rename-apply-button", ["Apply 260 checked renames"]);

@@ -191,7 +191,7 @@ BASIC_ROUTE_AND_SIZE_FIELDS = (
         "choices": SIZE_GUARD_MODE_NAMES,
         "default": SIZE_GUARD_MODE_DEFAULT,
         "choice_help": SIZE_GUARD_MODE_DESCRIPTIONS,
-        "help": "Checked after encode. Warn-only records oversized output. Strict blocks publish. Fallback remux applies existing growth buffers to override-forced encodes, tries remux first, and keeps the oversized encode with warning evidence when remux is blocked.",
+        "help": "Checked after encode. Warn-only records oversized output. Strict blocks publish. Fallback remux applies existing growth buffers to automatic size/bitrate-threshold encodes, tries safe remux first, and rejects the oversized encode for review when remux is blocked. Forced route overrides warn only.",
     },
 {
         "page": "Basic",

@@ -1,5 +1,5 @@
       <section class="page is-visible" data-page-panel="home">
-        <h1 class="visually-hidden">Pipeline Dashboard</h1>
+        <h1 class="visually-hidden">Home</h1>
 
         <!-- ═══ DAILY DRIVER: STATUS STRIP ═══ -->
         <div class="metric-grid">
@@ -22,6 +22,11 @@
             <span id="home-failed-label" class="metric-label">Failed</span>
             <strong id="home-failed-count">0</strong>
           </section>
+          <section class="metric">
+            <span class="metric-label">Tdarr Matrix</span>
+            <strong id="home-tdarr-matrix-status">Checking</strong>
+            <span id="home-tdarr-matrix-detail" class="metric-detail">No matrix run loaded.</span>
+          </section>
         </div>
 
         <!-- ═══ DAILY DRIVER: QUICK CONTROLS ═══ -->
@@ -31,18 +36,46 @@
             <strong id="home-control-readiness-status">Not loaded</strong>
           </div>
           <div class="action-row action-row-left wrap-actions">
-            <button type="button" id="home-refresh-button" class="secondary-button">Refresh Dashboard</button>
+            <button type="button" id="home-refresh-button" class="secondary-button">Refresh Home</button>
             <button type="button" class="primary-button" data-cross-page-target="launch">Start / Launch</button>
-            <button type="button" class="secondary-button" data-cross-page-target="completed" data-home-promotion-entry disabled>Promote Files</button>
+            <button type="button" class="secondary-button" data-cross-page-target="completed" data-home-promotion-entry disabled>Open Completed Output</button>
             <button type="button" class="secondary-button" data-cross-page-target="queue">Queue</button>
-            <button type="button" class="secondary-button" data-cross-page-target="pending">Publish</button>
+            <button type="button" class="secondary-button" data-cross-page-target="pending">Open Pending Publish</button>
             <button type="button" class="secondary-button" data-cross-page-target="diagnostics">Diagnostics</button>
           </div>
           <div class="action-row action-row-left wrap-actions">
             <button type="button" class="secondary-button" data-open-diagnostics="run_logs">Run Logs</button>
             <button type="button" class="secondary-button" data-open-diagnostics="active_jobs">Active Jobs</button>
           </div>
-          <p id="home-control-message" class="note">Dashboard controls navigate or open backend-allowlisted evidence. Use Launch for starts, stops, and full readiness detail.</p>
+          <p id="home-control-message" class="note">Home controls navigate or open backend-allowlisted evidence. Use Launch for starts, stops, and full readiness detail.</p>
+        </section>
+
+        <section class="panel live-run-strip-panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Live Run</h2>
+            <strong id="home-live-run-status" data-state="unknown">Checking</strong>
+          </div>
+          <div id="home-live-run-strip" class="live-run-strip" aria-live="polite" aria-label="Current backend live run summary">
+            <span class="live-run-chip" data-status="unknown">
+              <span class="live-run-chip-label">State</span>
+              <strong class="live-run-chip-value">Waiting for backend snapshot</strong>
+            </span>
+          </div>
+        </section>
+
+        <!-- ═══ DAILY DRIVER: TDARR MATRIX SIGNAL ═══ -->
+        <section class="panel home-tdarr-matrix-panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Tdarr Matrix</h2>
+            <strong id="home-tdarr-matrix-panel-status">No data</strong>
+          </div>
+          <div id="home-tdarr-matrix-progress-bars" class="progress-bar-list" aria-live="polite">
+            <p class="note">No Tdarr Matrix progress loaded.</p>
+          </div>
+          <pre id="home-tdarr-matrix-summary" class="prose-block">No Tdarr Matrix diagnostics loaded.</pre>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" class="secondary-button" data-cross-page-target="diagnostics">Open Matrix Diagnostics</button>
+          </div>
         </section>
 
         <!-- ═══ DAILY DRIVER: NEXT QUEUE ═══ -->
@@ -63,7 +96,7 @@
             <strong id="progress-detail-status">No details</strong>
           </div>
           <div id="progress-bar-list" class="progress-bar-list" aria-live="polite">
-            <p class="note">No progress bars loaded.</p>
+            <p class="note">Waiting for backend progress snapshot.</p>
           </div>
           <div id="progress-detail-rows" class="progress-fact-grid" role="list" aria-live="polite">
             <p class="note">No progress details loaded.</p>

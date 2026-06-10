@@ -204,7 +204,7 @@ def _copy_eta_row(progress: Mapping[str, Any], *, now: datetime | None = None) -
     return {
         "job_id": str(progress.get("CurrentFileDisplay") or progress.get("CurrentFile") or "publish_copy"),
         "worker_id": "publish_copy",
-        "worker_label": "Push file",
+        "worker_label": "Publishing completed output",
         "stage": str(progress.get("CurrentStage") or progress.get("PushState") or "publish copy"),
         "source": str(progress.get("CurrentFileDisplay") or progress.get("CurrentFile") or ""),
         "eta_seconds": eta_seconds,

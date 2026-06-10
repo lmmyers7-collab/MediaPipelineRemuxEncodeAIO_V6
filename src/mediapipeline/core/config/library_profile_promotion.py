@@ -72,7 +72,7 @@ def normalize_library_profile_config_values(
         return normalized
     try:
         profiles = library_profiles_from_config(normalized)
-    except Exception:
+    except Exception:  # tolerate malformed profiles; validation reports the error
         return normalized
     normalized[KEY_LIBRARY_PROFILES] = profiles
     mirrored = mirror_legacy_keys_from_library_profiles(normalized, require_profiles=True)
@@ -89,9 +89,7 @@ def mirror_legacy_keys_from_library_profiles(
         return mirrored
     try:
         profiles = library_profiles_from_config(mirrored)
-    except Exception:
-        return mirrored
-    if KEY_LIBRARY_PROFILES not in mirrored and require_profiles:
+    except Exception:  # tolerate malformed profiles; validation reports the error
         return mirrored
 
     movie = next((profile for profile in profiles if profile.get("designation") == "movie" and profile.get("enabled", True)), None)

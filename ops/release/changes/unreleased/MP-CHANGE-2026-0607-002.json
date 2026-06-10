@@ -1,0 +1,55 @@
+{
+  "id": "MP-CHANGE-2026-0607-002",
+  "title": "Make Completed size column switchable",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-07",
+  "date_completed": "2026-06-07",
+  "summary": "Adds a read-only Completed table display toggle so the existing Size column can show either size delta/bytes or bitrate evidence without adding another column.",
+  "reason": "The size and bitrate evidence are useful, but showing both as separate columns would overcrowd the Completed output tables.",
+  "affected_areas": [
+    "completed",
+    "local-api",
+    "webview"
+  ],
+  "behavior_before": "Completed current/history tables always displayed size delta/output size in the Size column, with no compact way to view route bitrate evidence there.",
+  "behavior_after": "Completed current/history tables keep one numeric evidence column and let the operator switch it between Size and Bitrate. Bitrate values are display-only evidence from completed manifest route metadata when available.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/completed/table.js",
+    "apps/desktop/webview/static/assets/completedView.js",
+    "apps/desktop/webview/static/partials/page-completed.html",
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "Docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "Docs/generated/summaries/apps/desktop/webview/static/assets/completed/table.js.md",
+    "Docs/generated/summaries/apps/desktop/webview/static/assets/completedView.js.md",
+    "Docs/generated/summaries/apps/desktop/webview/static/assets/styles.components.css.md",
+    "Docs/generated/summaries/apps/desktop/webview/static/partials/page-completed.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0607-002.json.md",
+    "Docs/generated/summaries/src/mediapipeline/core/completed/policy.py.md",
+    "Docs/generated/summaries/tests/python/desktop/test_application_facade_completed.py.md",
+    "Docs/generated/summaries/tests/webview/test_webview_completed_table_title_cell.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0607-002.json",
+    "src/mediapipeline/core/completed/policy.py",
+    "tests/python/desktop/test_application_facade_completed.py",
+    "tests/webview/test_webview_completed_table_title_cell.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_completed.py",
+    "tests/webview/test_webview_completed_table_title_cell.py"
+  ],
+  "manual_validation": [
+    "python -m pytest tests/python/desktop/test_application_facade_completed.py tests/webview/test_webview_completed_table_title_cell.py - blocked: bundled Python reported No module named pytest",
+    "PYTHONPATH=src python -m unittest tests.python.desktop.test_application_facade_completed tests.webview.test_webview_completed_table_title_cell - passed (12 tests)",
+    "ops/scripts/smoke/Test-WebViewBrowserLargeTableSmoke.ps1 - blocked without PYTHONPATH: wrapper Python import failed for mediapipeline",
+    "PYTHONPATH=src ops/scripts/smoke/Test-WebViewBrowserLargeTableSmoke.ps1 - passed (1 browser-backed smoke test)",
+    "refresh_summaries --paths touched Completed bitrate toggle files - passed (4 written, 5 unchanged)",
+    "validate_changes --require-worktree-coverage - failed on unrelated existing packet ops/release/changes/unreleased/MP-CHANGE-2026-0605-010.json missing date_completed"
+  ],
+  "rollback_plan": "Revert the Completed DTO bitrate display helpers, table toggle markup/styles/wiring, focused tests, generated summaries, and this packet. No media policy or filesystem mutation path is changed.",
+  "related_changes": [],
+  "high_risk_notes": "Read-only UI/DTO evidence only. Does not alter FFmpeg, route selection, publish/drain, source/scratch/output movement, queue mutation, or media policy.",
+  "notes": "Keep the Completed table at 8 columns; this is local display state only.\nStrict change-control validation is blocked by unrelated existing packet MP-CHANGE-2026-0605-010 missing date_completed; no coverage failure lines were emitted before that packet validation failure."
+}

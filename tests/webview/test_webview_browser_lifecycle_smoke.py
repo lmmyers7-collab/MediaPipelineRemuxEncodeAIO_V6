@@ -112,6 +112,26 @@ def _browser_lifecycle_runner_source() -> str:
                 },
               };
             }
+            function activePageName() {
+              const active = document.querySelector("[data-page-panel].is-visible");
+              return active ? active.getAttribute("data-page-panel") || "" : "";
+            }
+            async function requireTopbarDiagnosticsButton(id) {
+              const button = byId(id);
+              if (!button) throw new Error("missing topbar diagnostics button " + id);
+              if (button.tagName !== "BUTTON") throw new Error(id + " is not a semantic button");
+              button.focus({ preventScroll: true });
+              if (document.activeElement !== button) throw new Error(id + " is not keyboard focusable");
+              const deadline = Date.now() + 5000;
+              while (Date.now() < deadline) {
+                window.showPage("home");
+                button.focus({ preventScroll: true });
+                button.click();
+                if (activePageName() === "diagnostics") return;
+                await new Promise((resolve) => setTimeout(resolve, 100));
+              }
+              throw new Error(id + " did not navigate to Diagnostics");
+            }
             [
               "showPage",
               "requestBackendShutdown",
@@ -119,6 +139,10 @@ def _browser_lifecycle_runner_source() -> str:
               "renderBackendLifecycle",
             ].forEach(requireFunction);
 
+            window.showPage("home");
+            await requireTopbarDiagnosticsButton("refresh-health");
+            window.showPage("home");
+            await requireTopbarDiagnosticsButton("close-readiness");
             window.showPage("diagnostics");
 
             if (scenario === "blocked") {

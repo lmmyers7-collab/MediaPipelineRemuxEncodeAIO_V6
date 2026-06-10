@@ -6,6 +6,7 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..')
 . (Join-Path $repoRoot 'ops\pipeline\engine\paths\output_path_planning.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\shared\path_helpers.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\queue\queue_plan.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\naming\naming.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\queue\file_overrides.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\library\library_index.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\config\config_schema.ps1')
@@ -188,6 +189,49 @@ Assert-Equal $stringFalseEvidence['promotion_rule_source'] 'disabled' 'Expected 
 
 $movieOutput = Get-MediaPipelineLibraryOutputRootForPath -SourcePath 'C:\Incoming\Movies\Movie.mkv'
 Assert-Equal $movieOutput 'D:\Processed' 'Expected default movie output root to mirror Outsource.'
+
+$script:LocalEncoded = 'C:\LocalEncoded'
+$script:CreateTVSubfolder = $true
+$animeTvFile = [pscustomobject]@{
+    Name = 'Anime.Show.S01E01.mkv'
+    FullName = 'E:\AnimeSource\Anime Show\Season 01\Anime.Show.S01E01.mkv'
+}
+$animeTvInfo = [pscustomobject]@{
+    OriginalName = $animeTvFile.Name
+    ShowName = 'Anime Show'
+    Season = 1
+    Episode = 1
+}
+$animeTvPaths = Get-OutputPaths -File $animeTvFile -IsTV:$true -TvInfo $animeTvInfo -SafeName $animeTvFile.Name
+Assert-Equal $animeTvPaths['RelativePath'] (Join-Path 'TV\Anime Show\Season 01' 'Anime Show - S01E01.mkv') 'Expected shared TV output root to keep the configured TV library folder.'
+Assert-Equal $animeTvPaths['ServerOut'] (Join-Path 'F:\AnimeProcessed\TV\Anime Show\Season 01' 'Anime Show - S01E01.mkv') 'Expected shared TV output root to publish under TV\Show\Season.'
+
+$tvLeafProfile = [pscustomobject]@{
+    id = 'tv-leaf'
+    name = 'TV'
+    enabled = $true
+    designation = 'tv'
+    source_path = 'C:\Incoming\TV'
+    output_path = 'D:\Processed\TV'
+    promotion_enabled = $false
+    promotion_destination = ''
+    overrides = [pscustomobject]@{}
+}
+$script:LibraryProfiles = @($script:LibraryProfiles + $tvLeafProfile)
+$tvLeafFile = [pscustomobject]@{
+    Name = 'Example.Show.S02E03.mkv'
+    FullName = 'C:\Incoming\TV\Example Show\Season 02\Example.Show.S02E03.mkv'
+}
+$tvLeafInfo = [pscustomobject]@{
+    OriginalName = $tvLeafFile.Name
+    ShowName = 'Example Show'
+    Season = 2
+    Episode = 3
+}
+$tvLeafPaths = Get-OutputPaths -File $tvLeafFile -IsTV:$true -TvInfo $tvLeafInfo -SafeName $tvLeafFile.Name
+Assert-Equal $tvLeafPaths['RelativePath'] (Join-Path 'Example Show\Season 02' 'Example Show - S02E03.mkv') 'Expected TV-leaf output root to suppress duplicate TV relative folder.'
+Assert-Equal $tvLeafPaths['ServerOut'] (Join-Path 'D:\Processed\TV\Example Show\Season 02' 'Example Show - S02E03.mkv') 'Expected TV-leaf output root not to publish under TV\TV.'
+Assert-True (-not ([string]$tvLeafPaths['ServerOut']).Contains('TV\TV')) 'TV-leaf output root should not create duplicate TV\TV nesting.'
 
 $runtimeEvidence = New-MediaPipelineRuntimeEffectiveSettingsEvidence -Layers @(
     (New-MediaPipelineRuntimeSettingsLayer -Name 'global' -Source 'active_config' -Keys ([ordered]@{ VideoCodec = 'H264'; AudioMaxChannels = 8; AudioTranscodeCodec = 'eac3'; ConvertVobSubToSrt = $false; VobSubOcrTimeoutSeconds = 1800; OutputContainer = 'mkv'; SizeGuardMode = 'advisory'; MovieRoute1080pTargetSizeGB = 8; TVRoute1080pTargetSizeGB = 3; MaxEncodeGrowthPercent = 5; CompatibilityEncodeGrowthPercent = 15 })),
@@ -559,6 +603,8 @@ Assert-True (-not $fileUnknownConfigMap.Contains('ProcessingStrategy')) 'Expecte
 Assert-True (-not $fileUnknownConfigMap.Contains('VideoCodec')) 'Expected unsupported legacy-cased per-file video override key not to be promoted.'
 
 $pipelineProcessingText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\process\pipeline_processing.ps1') -Raw
+$encodeEntrypointText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\encode.ps1') -Raw
+$remuxEntrypointText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\remux.ps1') -Raw
 $routingText = @(
     (Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\decide\route_plan.ps1') -Raw)
     (Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\decide\profile_selection.ps1') -Raw)
@@ -578,11 +624,13 @@ Assert-True ($pipelineProcessingText -match 'routing_key_sources\s*=\s*\$routing
 Assert-True ($pipelineProcessingText -match 'runtime_consumer_evidence\s*=\s*\$runtimeConsumerEvidence' -and $pipelineProcessingText -match 'audio_consumer_settings\s*=\s*\$audioConsumerSettings' -and $pipelineProcessingText -match 'subtitle_consumer_settings\s*=\s*\$subtitleConsumerSettings') 'Expected route_selected evidence to expose consumer-specific runtime settings.'
 Assert-True ($pipelineProcessingText -match 'container_path_planning_evidence\s*=\s*\$containerPathPlanningEvidence') 'Expected route_selected evidence to expose container/path planning evidence.'
 Assert-True ($pipelineProcessingText -match 'size_guard_evidence\s*=\s*\$Result\.SizeGuardEvidence' -and $pipelineProcessingText -match 'verification_evidence\s*=\s*\$Result\.VerificationEvidence' -and $pipelineProcessingText -match 'publish_evidence\s*=\s*\$Result\.PublishEvidence') 'Expected job_completed evidence to expose size guard, verification, and publish diagnostics.'
+Assert-True ($encodeEntrypointText -match 'remux fallback unavailable; rejecting oversized encode before publish' -and $encodeEntrypointText -match 'ENCODE_SIZE_GUARD_EXCEEDED' -and $encodeEntrypointText -match 'return\s+\$false') 'Expected fallback_remux failure to reject the oversized encode before publish.'
+Assert-True ($remuxEntrypointText -match 'Remux fallback after oversized encode' -and $remuxEntrypointText -match 'oversized_encode_remux_fallback' -and $remuxEntrypointText -match 'CurrentSizePolicyResult\s*=\s*\$fallbackSizePolicyResult') 'Expected successful fallback_remux remux to preserve oversized encode size-policy evidence and route reason.'
 Assert-True ($pipelineProcessingText -match 'RUNTIME EVIDENCE: layers=') 'Expected concise runtime evidence debug logging.'
 Assert-True ($pipelineProcessingText -match 'Pop-MediaPipelineActiveConfigOverrides' -and $pipelineProcessingText -match '\$script:ActiveOverrides\s*=\s*\$null' -and $pipelineProcessingText -match '\$script:LastFileOverrideConfigMap\s*=\s*\$null') 'Expected processing finally block to restore/clear active override state.'
 Assert-True ($pipelineProcessingText -match '\$script:CurrentRuntimeEffectiveSettings\s*=\s*\$null' -and $pipelineProcessingText -match '\$script:CurrentRoutePlan\s*=\s*\$null' -and $pipelineProcessingText -match '\$script:CurrentSizePolicyResult\s*=\s*\$null') 'Expected processing finally block to clear runtime evidence, route, and size guard state.'
 Assert-True ($pipelineProcessingText -match '\$script:LastPublishResult\s*=\s*\$null' -and $pipelineProcessingText -match '\$script:CurrentRouteReasonCode\s*=\s*\$null' -and $pipelineProcessingText -match '\$script:CurrentRouteReason\s*=\s*\$null') 'Expected processing finally block to clear publish and route reason state between jobs.'
-Assert-True ($routingText -match 'function Get-MediaRouteRuleOutcomeEvidence' -and $routingText -match 'runtime_effective_settings_ref' -and $routingText -match 'library_effective_settings_ref') 'Expected route metadata helper to expose runtime provenance and library-only references.'
+Assert-True ($routingText -match 'function Get-MediaRouteRuleOutcomeEvidence' -and $routingText -match 'runtime_effective_settings_ref' -and $routingText -match 'library_effective_settings_ref' -and $routingText -match 'oversized_encode_remux_fallback') 'Expected route metadata helper to expose runtime provenance, library-only references, and fallback-remux advisory evidence.'
 Assert-True ($outputPathText -match 'function New-MediaPipelineRuntimeConsumerSettingsEvidence' -and $outputPathText -match 'function Get-MediaPipelineOutputContainerPlanningEvidence' -and $outputPathText -match 'function New-MediaPipelineSizeGuardEvidence' -and $outputPathText -match 'function New-MediaPipelineVerificationEvidence' -and $outputPathText -match 'function New-MediaPipelinePublishEvidence') 'Expected output/path planning helpers to own diagnostic consumer and post-processing evidence shaping.'
 
 $script:LibraryProfiles = @(

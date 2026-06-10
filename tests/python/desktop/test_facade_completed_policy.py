@@ -37,6 +37,7 @@ def _record(
     output_size: int = 2048,
     output_exists: bool = True,
     size_policy: dict[str, object] | None = None,
+    library_metadata: dict[str, object] | None = None,
 ) -> CompletedJobRecord:
     payload = {
         "source_path": source,
@@ -58,6 +59,8 @@ def _record(
     }
     if size_policy is not None:
         payload["size_policy"] = size_policy
+    if library_metadata is not None:
+        payload.update(library_metadata)
     return CompletedJobRecord(
         sidecar_path=Path(sidecar),
         payload=payload,
@@ -117,6 +120,25 @@ class CompletedFacadePolicyTests(unittest.TestCase):
         self.assertTrue(row["validation_playback_required"])
         self.assertIn("ffprobe output proof not reported", row["validation_unavailable_reasons"])
         self.assertEqual(row["available_open_targets"], ["play_output_file", "output_file", "output_folder", "sidecar", "source_folder"])
+
+    def test_completed_row_preserves_library_metadata_for_display_filters(self) -> None:
+        row = completed_record_to_row(
+            _record(
+                library_metadata={
+                    "library_id": "anime-tv",
+                    "library_name": "Anime TV",
+                    "library_designation": "tv",
+                    "library_source_root": "C:/Source/Anime",
+                    "library_output_root": "C:/Outsource/Anime",
+                }
+            )
+        )
+
+        self.assertEqual(row["library_id"], "anime-tv")
+        self.assertEqual(row["library_name"], "Anime TV")
+        self.assertEqual(row["library_designation"], "tv")
+        self.assertEqual(row["library_source_root"], "C:/Source/Anime")
+        self.assertEqual(row["library_output_root"], "C:/Outsource/Anime")
 
     def test_completed_row_marks_sidecar_only_inconsistency_for_operator_review(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

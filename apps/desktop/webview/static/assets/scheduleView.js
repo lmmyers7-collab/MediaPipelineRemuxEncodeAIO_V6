@@ -5,6 +5,7 @@
   let scheduleEditorDirty = false;
   let lastScheduleEditorResult = null;
   let scheduleEditorPreviewSignature = "";
+  let scheduleEditorDayClipboard = null;
   const SCHEDULE_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   const SCHEDULE_BLOCKS_PER_DAY = 48;
 
@@ -512,6 +513,44 @@
     );
   }
 
+  function scheduleUpdatePasteDayButtons() {
+    const hasClipboard = Boolean(scheduleEditorDayClipboard?.blocks);
+    const sourceDay = scheduleEditorDayClipboard?.day || "";
+    SCHEDULE_DAYS.forEach((day) => {
+      const key = scheduleDayKey(day);
+      const button = byId(`schedule-editor-${key}-paste-day`);
+      if (!button) return;
+      button.disabled = !hasClipboard;
+      button.setAttribute("aria-disabled", hasClipboard ? "false" : "true");
+      button.title = hasClipboard
+        ? `Paste copied ${sourceDay} blocks into ${day}`
+        : "Copy a day before pasting";
+    });
+  }
+
+  function scheduleCopyEditorDay(day) {
+    const values = scheduleEditorBlocksForDay(day);
+    scheduleEditorDayClipboard = {
+      day,
+      blocks: values.slice(),
+    };
+    scheduleUpdatePasteDayButtons();
+    setText("schedule-editor-status", `Copied ${day}`);
+    return true;
+  }
+
+  function schedulePasteEditorDay(day) {
+    if (!scheduleEditorDayClipboard?.blocks) {
+      setText("schedule-editor-status", "Copy a day before pasting");
+      scheduleUpdatePasteDayButtons();
+      return false;
+    }
+    const sourceDay = scheduleEditorDayClipboard.day || "copied day";
+    scheduleApplyEditorDayBlocks(day, scheduleEditorDayClipboard.blocks);
+    setText("schedule-editor-status", `Pasted ${sourceDay} into ${day}`);
+    return true;
+  }
+
   function scheduleEditorRowsFromPayload(schedule = lastSchedule) {
     const byDay = new Map((Array.isArray(schedule?.day_summaries) ? schedule.day_summaries : [])
       .map((row) => [String(row?.day || ""), row]));
@@ -701,7 +740,20 @@
       allowDay.id = `schedule-editor-${dayKey}-allow-day`;
       allowDay.textContent = "All Day";
       allowDay.addEventListener("click", () => scheduleAllowAllEditorDay(item.day));
-      actions.append(clearDay, allowDay);
+      const copyDay = document.createElement("button");
+      copyDay.type = "button";
+      copyDay.className = "schedule-block-action";
+      copyDay.id = `schedule-editor-${dayKey}-copy-day`;
+      copyDay.textContent = "Copy Day";
+      copyDay.title = `Copy ${item.day} selected blocks`;
+      copyDay.addEventListener("click", () => scheduleCopyEditorDay(item.day));
+      const pasteDay = document.createElement("button");
+      pasteDay.type = "button";
+      pasteDay.className = "schedule-block-action";
+      pasteDay.id = `schedule-editor-${dayKey}-paste-day`;
+      pasteDay.textContent = "Paste Day";
+      pasteDay.addEventListener("click", () => schedulePasteEditorDay(item.day));
+      actions.append(clearDay, allowDay, copyDay, pasteDay);
       toolbar.append(summary, count, actions);
       const input = document.createElement("input");
       input.id = `schedule-editor-${dayKey}-windows`;
@@ -741,6 +793,7 @@
     });
     setScheduleEditorDirty(false);
     renderScheduleEditorResult(lastScheduleEditorResult);
+    scheduleUpdatePasteDayButtons();
   }
 
   function loadCurrentScheduleIntoEditor() {

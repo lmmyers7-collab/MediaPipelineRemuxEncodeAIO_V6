@@ -17,8 +17,15 @@ function Do-Remux {
     # network failure preserves the completed mkvmerge output in
     # PendingServerPush for the next run to retry.
     $pushOk     = $false
+    $fallbackSizePolicyResult = if ($FallbackFromOversizedEncode) { $script:CurrentSizePolicyResult } else { $null }
+    $fallbackSourceRouteReasonCode = if ($FallbackFromOversizedEncode) { [string]$script:CurrentRouteReasonCode } else { '' }
+    $fallbackSourceRouteReason = if ($FallbackFromOversizedEncode) { [string]$script:CurrentRouteReason } else { '' }
     $script:LastPublishResult = $null
-    $script:CurrentSizePolicyResult = $null
+    if ($FallbackFromOversizedEncode) {
+        $script:CurrentSizePolicyResult = $fallbackSizePolicyResult
+    } else {
+        $script:CurrentSizePolicyResult = $null
+    }
 
     try {
         Set-ProgressStage -Stage 'copy_to_scratch' -Status $script:pipelineStatus -Route 'remux' -CopyState 'starting' -Percent $null -SaveNow
@@ -66,7 +73,7 @@ function Do-Remux {
         $codecRoutePlan = Resolve-RemuxCodecRoutePlan -SourceCodec $srcCodec -RemuxSafeVideoCodecs $RemuxSafeVideoCodecs -BasePlan $script:CurrentRoutePlan
         if ($codecRoutePlan.Route -eq 'encode') {
             if ($FallbackFromOversizedEncode) {
-                Write-Log "REMUX FALLBACK: remux blocked by codec/policy check; keeping oversized encode with warning: $($codecRoutePlan.Reason)" "WARN"
+                Write-Log "REMUX FALLBACK: remux blocked by codec/policy check; oversized encode will be rejected: $($codecRoutePlan.Reason)" "WARN"
                 return $false
             }
             $script:CurrentRoutePlan = $codecRoutePlan
@@ -85,6 +92,34 @@ function Do-Remux {
             # scratch survives the return into Do-Encode.
             $localIn = $null
             return Do-Encode $file $isTV $tvInfo
+        }
+        if ($FallbackFromOversizedEncode) {
+            $fallbackSizePolicyMessage = ''
+            if ($fallbackSizePolicyResult -and $fallbackSizePolicyResult.PSObject.Properties['message']) {
+                $fallbackSizePolicyMessage = [string]$fallbackSizePolicyResult.message
+            }
+            $fallbackReason = 'Remux fallback after oversized encode'
+            if (-not [string]::IsNullOrWhiteSpace($fallbackSourceRouteReasonCode)) {
+                $fallbackReason = "$fallbackReason; original encode reason $fallbackSourceRouteReasonCode"
+            }
+            if (-not [string]::IsNullOrWhiteSpace($fallbackSourceRouteReason)) {
+                $fallbackReason = "$fallbackReason - $fallbackSourceRouteReason"
+            }
+            if (-not [string]::IsNullOrWhiteSpace($fallbackSizePolicyMessage)) {
+                $fallbackReason = "$fallbackReason; $fallbackSizePolicyMessage"
+            }
+            $fallbackReason = "$fallbackReason; direct-copy size/bitrate caps bypassed for this fallback"
+            $fallbackTraceData = [ordered]@{
+                original_route_reason_code = $fallbackSourceRouteReasonCode
+                original_route_reason      = $fallbackSourceRouteReason
+                size_policy_message        = $fallbackSizePolicyMessage
+                bypassed_size_bitrate_caps = $true
+            }
+            $fallbackTrace = @($codecRoutePlan.DecisionTrace) + (New-MediaRouteDecisionTraceEntry -Code 'oversized_encode_remux_fallback' -Message $fallbackReason -Data $fallbackTraceData)
+            $codecRoutePlan.ReasonCode = 'oversized_encode_remux_fallback'
+            $codecRoutePlan.Reason = $fallbackReason
+            $codecRoutePlan.DecisionTrace = @($fallbackTrace)
+            Write-Log "REMUX FALLBACK: safe remux accepted after oversized encode; publishing remux with out-of-scope warning evidence" "WARN"
         }
         $script:CurrentRoutePlan = $codecRoutePlan
         $script:CurrentRouteReasonCode = [string]$codecRoutePlan.ReasonCode

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/active_job_runner.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-04
+last_modified: 2026-06-06
 last_reviewed: 2026-06-04
-sha256: 268c3c094df65a795c1f7876817c1b14d58f380217480bfdf7e6e13c707d69e8
+sha256: 5b0ac4393f04bcf07e9fd845d183462f97a023463b60f7c537effc51e560f194
 ---
 # `src/mediapipeline/core/processes/active_job_runner.py`
 

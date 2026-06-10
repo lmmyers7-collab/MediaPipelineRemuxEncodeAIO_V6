@@ -84,6 +84,9 @@ class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
         self.assertEqual(profile_state_by_id["movies"]["path_fields"]["source_path"]["source_key"], "SourceMovies")
         self.assertEqual(profile_state_by_id["movies"]["path_fields"]["output_path"]["source_key"], "Outsource")
         self.assertIn("RoutingProfile", profile_state_by_id["movies"]["setting_overrides"]["editor"])
+        self.assertEqual(settings["library_compatibility_presets"][0]["id"], "mp4_compatibility")
+        self.assertEqual(settings["library_compatibility_presets"][0]["overrides"]["editor"]["OutputContainer"], "mp4")
+        self.assertEqual(settings["library_compatibility_presets"][0]["overrides"]["audio"]["CompatibleAudioCodecs"], ["eac3"])
         self.assertIn("LocalBase shares a volume", settings["warnings"][0])
         self.assertEqual(settings["paths"]["failed_reports"], str(root / "Logs" / "FailedReports"))
         self.assertEqual(settings["paths"]["audit_reports"], str(root / "AuditReports"))
@@ -92,7 +95,7 @@ class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
         self.assertEqual(size_guard_field["choices"], ["advisory", "strict", "fallback_remux", "off"])
         self.assertEqual(size_guard_field["allowed_values"], ["advisory", "strict", "fallback_remux", "off"])
         self.assertIn("Blocks publish", size_guard_field["choice_help"]["strict"])
-        self.assertIn("override-forced encodes", size_guard_field["choice_help"]["fallback_remux"])
+        self.assertIn("automatic size/bitrate-threshold encodes", size_guard_field["choice_help"]["fallback_remux"])
         self.assertEqual(size_guard_field["persisted_key"], "SizeGuardMode")
         self.assertEqual(size_guard_field["override_group"], "editor")
         self.assertEqual(size_guard_field["scope"], "library_overridable")
@@ -108,7 +111,7 @@ class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
         self.assertEqual(size_guard_field["strictness"], "hard")
         self.assertEqual(
             size_guard_field["help_text"],
-            "Checked after encode. Warn-only records oversized output. Strict blocks publish. Fallback remux applies existing growth buffers to override-forced encodes, tries remux first, and keeps the oversized encode with warning evidence when remux is blocked.",
+            "Checked after encode. Warn-only records oversized output. Strict blocks publish. Fallback remux applies existing growth buffers to automatic size/bitrate-threshold encodes, tries safe remux first, and rejects the oversized encode for review when remux is blocked. Forced route overrides warn only.",
         )
         self.assertEqual(size_guard_field["validation_owner"], "backend")
         self.assertEqual(size_guard_field["runtime_consumer"], "deferred")

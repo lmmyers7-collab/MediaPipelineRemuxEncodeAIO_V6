@@ -19,6 +19,7 @@ from mediapipeline.desktop.subprocess_runner import run_capture
 class ReleasePackageServiceMixin:
     def default_release_builder_path(self) -> Path:
         return self._first_existing(
+            self.workspace_root / "ops" / "scripts" / "release" / "build.ps1",
             self.workspace_root / "scripts" / "release" / "build.ps1",
             self.app_root / "scripts" / "release" / "build.ps1",
         )
@@ -39,6 +40,7 @@ class ReleasePackageServiceMixin:
         keep_personal_config: bool,
         force: bool,
         dry_run: bool,
+        include_tauri_preview_binary: bool = False,
         timeout_seconds: int = 7200,
     ) -> dict[str, Any]:
         powershell_host = self.resolve_powershell_host()
@@ -62,6 +64,7 @@ class ReleasePackageServiceMixin:
             keep_personal_config=keep_personal_config,
             force=force,
             dry_run=dry_run,
+            include_tauri_preview_binary=include_tauri_preview_binary,
         )
 
         command_line = release_command_line(args)

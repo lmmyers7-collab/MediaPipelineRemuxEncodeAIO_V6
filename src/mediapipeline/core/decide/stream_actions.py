@@ -31,7 +31,7 @@ def audio_action(stream: SourceAudioStream, policy: EffectiveDecisionPolicy, bui
     if policy.output_container == "mp4" and codec not in policy.mp4_audio_copy_codecs:
         builder.add(
             "AUDIO_CODEC_INCOMPATIBLE_WITH_CONTAINER",
-            f"audio codec '{codec}' cannot be copied to MP4 by the Phase 04 policy",
+            f"audio codec '{codec}' cannot be copied in MP4 compatibility mode",
             enforcement="hard_route",
             legacy_code="audio_codec_incompatible_with_container",
             facts={"stream_index": stream.stream_index, "codec": codec, "output_container": policy.output_container},
@@ -45,7 +45,7 @@ def audio_action(stream: SourceAudioStream, policy: EffectiveDecisionPolicy, bui
         return AudioStreamDecision(
             stream_index=stream.stream_index,
             action="transcode",
-            output_codec="aac",
+            output_codec=policy.audio_transcode_codec,
             reason_codes=["AUDIO_CODEC_INCOMPATIBLE_WITH_CONTAINER", "AUDIO_TRANSCODE_REQUIRED"],
         )
 
@@ -89,6 +89,39 @@ def subtitle_action(stream: SourceSubtitleStream, policy: EffectiveDecisionPolic
             stream_index=stream.stream_index,
             action="burn",
             reason_codes=["SUBTITLE_BURN_IN_REQUIRES_ENCODE"],
+        )
+    if policy.output_container == "mp4" and not policy.mp4_subtitle_copy_codecs:
+        builder.add(
+            "SUBTITLE_FORMAT_INCOMPATIBLE_WITH_CONTAINER",
+            "MP4 compatibility mode omits embedded subtitles; selected subtitles must be external SRT sidecars",
+            enforcement="hard_route",
+            legacy_code="subtitle_format_incompatible_with_container",
+            facts={"stream_index": stream.stream_index, "codec": codec, "output_container": policy.output_container},
+        )
+        if stream.image_based:
+            builder.add(
+                "SUBTITLE_IMAGE_REQUIRES_EXPLICIT_REVIEW",
+                f"image subtitle stream {stream.stream_index} requires OCR to external SRT before MP4 publish",
+                enforcement="hard_block",
+                legacy_code="subtitle_image_requires_explicit_review",
+                facts={
+                    "stream_index": stream.stream_index,
+                    "codec": codec,
+                    "output_container": policy.output_container,
+                },
+            )
+            return SubtitleStreamDecision(
+                stream_index=stream.stream_index,
+                action="unknown",
+                reason_codes=[
+                    "SUBTITLE_FORMAT_INCOMPATIBLE_WITH_CONTAINER",
+                    "SUBTITLE_IMAGE_REQUIRES_EXPLICIT_REVIEW",
+                ],
+            )
+        return SubtitleStreamDecision(
+            stream_index=stream.stream_index,
+            action="drop",
+            reason_codes=["SUBTITLE_FORMAT_INCOMPATIBLE_WITH_CONTAINER", "MP4_EXTERNAL_SRT_ONLY"],
         )
     if policy.output_container == "mp4" and codec not in policy.mp4_subtitle_copy_codecs:
         builder.add(

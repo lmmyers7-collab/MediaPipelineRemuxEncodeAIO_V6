@@ -26,7 +26,7 @@ ROW_RECOVERY_CLASSES = {
 }
 
 ROW_RECOVERY_ACTIONS = {
-    "ready": "Use Publish Parked Outputs only after the current pending scan still shows this row ready.",
+    "ready": "Use Drain Parked Outputs only after the current pending scan still shows this row ready.",
     "missing_payload": "Open the manifest and destination/source folders, then confirm whether the parked payload was moved, deleted, or never written.",
     "missing_sidecar": "Open the manifest and payload, then compare expected sidecar paths against disk before draining.",
     "orphan_payload": "Open the orphan payload and run logs before deciding whether it is a leftover, manual copy, or failed parking artifact.",

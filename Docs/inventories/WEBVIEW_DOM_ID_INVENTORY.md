@@ -390,6 +390,7 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `backfill-dry-run-detail` | `<div>` | Backfill dry-run result detail |
 | `backfill-dry-run-status` | `<span>` | Backfill status |
 | `dependency-atlas-button` | `<button>` | Trigger `/api/maintenance/dependency-atlas` |
+| `dependency-atlas-open-folder-button` | `<button>` | Trigger `/api/maintenance/dependency-atlas/open-folder` |
 | `dependency-atlas-detail` | `<pre>` | Dependency atlas result detail |
 | `dependency-atlas-progress-bars` | `<div>` | Dependency atlas progress bars |
 | `dependency-atlas-status` | `<strong>` | Dependency atlas status |
@@ -768,6 +769,7 @@ daily-driver-rows
 daily-driver-status
 daily-driver-summary
 dependency-atlas-button
+dependency-atlas-open-folder-button
 dependency-atlas-detail
 dependency-atlas-progress-bars
 dependency-atlas-status

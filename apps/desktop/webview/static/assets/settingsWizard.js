@@ -78,7 +78,156 @@
 
   function setValue(id, value) {
     const node = byIdLocal(id);
-    if (node) node.value = value == null ? "" : String(value);
+    if (node) {
+      node.value = value == null ? "" : String(value);
+      syncWizardChoiceGroup(node);
+    }
+  }
+
+  const wizardChoiceGroupConfigs = {
+    "wizard-mode": {
+      descriptions: {
+        first_run: "Start from bundled defaults and complete required operator paths.",
+        reconfigure: "Keep existing settings visible while changing a smaller set of values.",
+      },
+    },
+    "wizard-output-container": {
+      descriptions: {
+        mkv: "Best fit for multiple audio and subtitle tracks.",
+        mp4: "Use only when the target playback environment needs MP4.",
+      },
+    },
+    "wizard-publish-mode": {
+      descriptions: {
+        staged_pending: "Park unsafe final writes until the backend can drain them with manifest evidence.",
+        immediate: "Publish directly when the final root passes backend safety checks.",
+        review_required: "Require operator review before publishing completed outputs.",
+      },
+    },
+    "wizard-existing-policy": {
+      descriptions: {
+        skip_existing: "Leave already processed titles alone.",
+        review_existing: "Stop for review when a matching output is already present.",
+        reprocess_all_once: "Force one pass through existing titles.",
+      },
+    },
+    "wizard-video-strategy": {
+      descriptions: {
+        remux_when_possible: "Prefer copy/remux paths and encode only when policy requires it.",
+        prefer_nvenc_cpu_fallback: "Use NVENC first, then CPU if hardware is unavailable.",
+        cpu_fallback: "Use CPU encoding as the primary fallback path.",
+        manual_review_missing_hardware: "Route missing hardware cases to review instead of guessing.",
+      },
+    },
+    "wizard-audio-policy": {
+      descriptions: {
+        preserve_compatible_convert_incompatible: "Keep compatible audio and normalize tracks that need conversion.",
+        keep_all_audio: "Preserve every source audio track when possible.",
+        review_unusual_audio: "Send unusual audio layouts to review.",
+      },
+    },
+    "wizard-subtitle-policy": {
+      descriptions: {
+        keep_english_convert_supported: "Keep configured languages and add supported text conversions.",
+        review_uncertain_subtitles: "Route uncertain subtitle handling to review.",
+      },
+    },
+  };
+
+  function wizardChoiceSafeId(value) {
+    return String(value || "blank").replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "") || "blank";
+  }
+
+  function wizardChoiceLabelText(select) {
+    const wrapper = select.closest("label");
+    const raw = wrapper ? Array.from(wrapper.childNodes)
+      .filter((node) => node.nodeType === Node.TEXT_NODE)
+      .map((node) => node.textContent)
+      .join(" ") : "";
+    return String(raw || select.getAttribute("aria-label") || "Choice").trim();
+  }
+
+  function syncWizardChoiceGroup(select) {
+    if (!select?.id) return;
+    const group = document.querySelector(`[data-enhanced-choice-for="${select.id}"]`);
+    if (!group) return;
+    group.querySelectorAll("input[type='radio']").forEach((radio) => {
+      const checked = String(radio.value || "") === String(select.value || "");
+      radio.checked = checked;
+      radio.closest(".enhanced-choice-card")?.classList.toggle("is-selected", checked);
+    });
+  }
+
+  function enhanceWizardChoiceSelect(selectId) {
+    const select = byIdLocal(selectId);
+    if (!select || document.querySelector(`[data-enhanced-choice-for="${selectId}"]`)) {
+      syncWizardChoiceGroup(select);
+      return;
+    }
+    const config = wizardChoiceGroupConfigs[selectId] || {};
+    const wrapper = select.closest("label");
+    const group = document.createElement("fieldset");
+    group.className = "enhanced-choice-group settings-wizard-choice-group";
+    group.dataset.enhancedChoiceFor = selectId;
+
+    const legend = document.createElement("legend");
+    legend.textContent = wizardChoiceLabelText(select);
+    group.appendChild(legend);
+
+    const grid = document.createElement("div");
+    grid.className = "enhanced-choice-grid";
+    Array.from(select.options || []).forEach((option) => {
+      const value = String(option.value || "");
+      const optionId = `${selectId}-choice-${wizardChoiceSafeId(value)}`;
+      const card = document.createElement("label");
+      card.className = "enhanced-choice-card";
+      card.htmlFor = optionId;
+
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.id = optionId;
+      input.name = `${selectId}-choice`;
+      input.value = value;
+      input.checked = value === String(select.value || "");
+      input.addEventListener("change", () => {
+        if (!input.checked) return;
+        select.value = value;
+        select.dispatchEvent(new Event("input", { bubbles: true }));
+        select.dispatchEvent(new Event("change", { bubbles: true }));
+        syncWizardChoiceGroup(select);
+      });
+
+      const title = document.createElement("span");
+      title.className = "enhanced-choice-card-title";
+      title.textContent = String(option.textContent || value).trim();
+
+      const detailText = String(config.descriptions?.[value] || "").trim();
+      if (detailText) {
+        const detail = document.createElement("span");
+        detail.className = "enhanced-choice-card-detail";
+        detail.textContent = detailText;
+        card.append(input, title, detail);
+      } else {
+        card.append(input, title);
+      }
+      grid.appendChild(card);
+    });
+    group.appendChild(grid);
+
+    select.addEventListener("input", () => syncWizardChoiceGroup(select));
+    select.addEventListener("change", () => syncWizardChoiceGroup(select));
+    select.classList.add("enhanced-choice-source");
+    if (wrapper) {
+      wrapper.classList.add("enhanced-choice-source-label");
+      wrapper.insertAdjacentElement("afterend", group);
+    } else {
+      select.insertAdjacentElement("afterend", group);
+    }
+    syncWizardChoiceGroup(select);
+  }
+
+  function initWizardChoiceGroups() {
+    Object.keys(wizardChoiceGroupConfigs).forEach((selectId) => enhanceWizardChoiceSelect(selectId));
   }
 
   function boolValue(id) {
@@ -319,14 +468,15 @@
   function activateWizardTab() {
     const page = document.querySelector('[data-page-panel="settings"]');
     if (!page) return;
-    page.querySelectorAll(".settings-tab-btn[data-settings-tab]").forEach((button) => {
+    page.querySelectorAll(".settings-section-nav-btn[data-settings-tab]").forEach((button) => {
       const active = button.dataset.settingsTab === WIZARD_TAB_ID;
-      button.setAttribute("aria-selected", String(active));
+      if (active) button.setAttribute("aria-current", "location");
+      else button.removeAttribute("aria-current");
     });
     page.querySelectorAll(".settings-tab-pane[data-settings-tab]").forEach((pane) => {
       pane.classList.toggle("is-active", pane.dataset.settingsTab === WIZARD_TAB_ID);
     });
-    try { localStorage.setItem("mediapipeline-settings-tab", WIZARD_TAB_ID); } catch (_error) {}
+    try { localStorage.setItem("mediapipeline-settings-section", WIZARD_TAB_ID); } catch (_error) {}
     if (typeof window.updatePagePanelEmptyStates === "function") window.updatePagePanelEmptyStates();
   }
 
@@ -937,6 +1087,7 @@
     byIdLocal("settings-wizard-preview-button")?.addEventListener("click", previewWizard);
     byIdLocal("settings-wizard-save-button")?.addEventListener("click", saveWizard);
     byIdLocal("settings-wizard-copy-diagnostics-button")?.addEventListener("click", copyDiagnostics);
+    initWizardChoiceGroups();
     document.querySelectorAll(".settings-wizard-panel input, .settings-wizard-panel select").forEach((node) => {
       node.addEventListener("input", markDirty);
       node.addEventListener("change", markDirty);

@@ -1,0 +1,40 @@
+{
+  "id": "MP-CHANGE-2026-0608-003",
+  "title": "Fix Tdarr Matrix Finding Selection",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-08",
+  "date_completed": "2026-06-08",
+  "summary": "Fix the Tdarr Matrix findings table checkbox selection so selecting cases does not bubble into the row detail click handler.",
+  "reason": "The Diagnostics console select control on finding rows appeared clickable but did not reliably select rows for targeted rerun.",
+  "affected_areas": [
+    "summaries",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Clicking a Tdarr Matrix finding checkbox could bubble to the row click handler and re-render the table before the selection state was visible.",
+  "behavior_after": "Checkbox clicks stay inside the checkbox control, update the selected finding key set, and leave row-detail selection as a separate interaction.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/diagnosticsView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/diagnosticsView.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0608-003.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_frontend_mutation_boundary.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0608-003.json",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_frontend_mutation_boundary.py asserts Tdarr Matrix finding checkbox clicks and select-cell clicks are handled separately from row clicks"
+  ],
+  "manual_validation": [
+    "2026-06-08: node --check apps/desktop/webview/static/assets/diagnosticsView.js",
+    "2026-06-08: apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_frontend_mutation_boundary",
+    "2026-06-08: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/diagnosticsView.js tests/webview/test_webview_frontend_mutation_boundary.py ops/release/changes/unreleased/MP-CHANGE-2026-0608-003.json"
+  ],
+  "rollback_plan": "Remove the checkbox click event boundary and related static test, then refresh summaries and rerun WebView mutation-boundary tests.",
+  "related_changes": [
+    "MP-CHANGE-2026-0608-002"
+  ],
+  "notes": "Keep rerun payloads keyed-only; do not add frontend path submission.\nFixed Tdarr Matrix finding checkbox selection event handling and added static regression coverage."
+}

@@ -2,7 +2,7 @@
 
 Companion to `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`. This document separates every route into its mutation class, states whether the frontend can own the behavior, and notes the key restriction on each command route.
 
-Total routes: 89 (36 read, 53 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
+Total routes: 98 (42 read, 56 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
 
 ---
 
@@ -37,6 +37,8 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 | `GET /api/queue/file-overrides/effective` | `read` | No | Reads inherited/effective override metadata for one source-root-contained path; no manifest write |
 | `GET /api/queue/file-overrides/tracks` | `read` | No | Reads normalized track metadata for one source-root-contained path; no queue preview mutation |
 | `GET /api/completed` | `read` | No | Completed-jobs manifest; no output-share scan |
+| `GET /api/subtitle-qa/summary` | `read` | No | Backend-authored subtitle QA evidence already loaded in Queue and Completed payloads; no probing, conversion, repair, or media touch |
+| `GET /api/subtitle-qa/item` | `read` | No | One loaded Queue or Completed row's subtitle QA evidence by backend row key/source/output identity; no arbitrary path probing or mutation |
 | `GET /api/metrics` | `read` | No | Backend aggregates completed manifest, pending publish, worker runtime, and final-library promotion evidence; no launch, drain, promote, settings, queue, or media mutation |
 | `GET /api/final-library-promotion/status` | `read` | No | Reads final-library promotion readiness/run state; no copy, move, delete, or cleanup action |
 | `GET /api/failures` | `read` | No | Failure markers and reports; query-bounded |
@@ -56,6 +58,10 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 | `GET /api/maintenance/change-ledger` | `read` | No | Reads structured change-control packets, changelog source status, and hygiene; no probes, codegen, packet writes, or media/state mutation |
 | `GET /api/schedule` | `read` | No | Reads persisted schedule state; does not save or edit |
 | `GET /api/settings/workspace` | `read` | No | Read-only, redacted settings snapshot |
+| `GET /api/libraries/route-map` | `read` | No | Backend-authored Library Route Map and decision-matrix evidence only; no save, launch, plugin execution, queue mutation, or media touch |
+| `GET /api/libraries/route-map/trace` | `read` | No | Selected-file trace from existing Queue, Completed, and Sample Validation row evidence only; no probing, launch, save, repair, drain, rename, or media mutation |
+| `GET /api/libraries/route-map/compare` | `read` | No | Backend-authored Library Profile diff with explicit/inherited evidence and designation filtering; no staging or saving |
+| `GET /api/libraries/route-map/validation` | `read` | No | Validation handoff evidence keeps Sample Validation, Completed, Pending Publish, Diagnostics, and command proof distinct; no launch, drain, accept, repair, rename, save, plugin execution, or media mutation |
 | `GET /api/settings/wizard/status` | `read` | No | Reads wizard availability and first-run recommendation state only |
 | `GET /api/settings/wizard/defaults` | `read` | No | Reads wizard defaults and tool candidates only |
 | `GET /api/network/workers` | `read` | No | Coordinator/worker persisted state; no lifecycle controls |
@@ -105,6 +111,7 @@ Returns backend-authored previews. No files, manifests, config, or queue state a
 | `POST /api/queue/file-overrides/route-preview` | `read-only-preview` | Frontend cannot decide media route impact | Backend uses a source-root-contained path plus proposed override; advisory only |
 | `POST /api/queue/file-overrides/series-preview` | `read-only-preview` | Frontend cannot infer or approve TV series batch scope independently | Backend uses the current queue snapshot, selected TV path, same source/show root detection, manual-protection evidence, and a preview fingerprint; no state write |
 | `POST /api/queue/file-overrides/folder-preview` | `read-only-preview` | Frontend cannot scan or approve folder rules independently | Backend uses bounded known-file/cached-track evidence only; no source folder scan or state write |
+| `POST /api/subtitle-qa/preview` | `read-only-preview` | Frontend cannot probe, convert, repair, or author subtitle QA evidence | Backend reads already-loaded Queue and Completed subtitle QA evidence only; no sidecar rewrite, publish, drain, or media touch |
 
 ### failure-marker-write (medium risk, retry-blocker state)
 
@@ -116,7 +123,7 @@ Moves backend-owned failure marker JSON out of the active marker folder after ex
 
 ### shell-open (no media mutation)
 
-Opens a file or folder in the OS shell. Backend resolves the path from its own state using `row_key` plus an allowlisted `target` key. The frontend cannot pass a raw filesystem path.
+Opens a file or folder in the OS shell. Backend resolves the path from its own state using `row_key` plus an allowlisted `target` key, or from a fixed backend-owned artifact folder. The frontend cannot pass a raw filesystem path.
 
 | Route | Mutation class | Frontend cannot own? | Key restriction |
 |---|---|---|---|
@@ -124,6 +131,15 @@ Opens a file or folder in the OS shell. Backend resolves the path from its own s
 | `POST /api/completed/open` | `shell-open` | Frontend cannot select the path directly | Allowed targets: `output_file`, `output_folder`, `sidecar`, `source_folder` |
 | `POST /api/pending-publish/open` | `shell-open` | Frontend cannot select the path directly | Allowed targets: `local_file`, `manifest`, `destination_folder`, `source_folder` |
 | `POST /api/diagnostics/open` | `shell-open` | Frontend cannot select arbitrary files | `target` must be one of the diagnostics allowlist keys; see `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md` |
+| `POST /api/maintenance/dependency-atlas/open-folder` | `shell-open` | Frontend cannot select arbitrary files | Opens fixed backend-resolved `docs/generated/dependency-atlas/`; request payload must be empty |
+
+### diagnostic-process (scratch test harness)
+
+Runs a backend-owned developer diagnostic process against scratch test-library roots. The frontend supplies a preset action only and cannot provide paths, tool arguments, source-delete settings, live operator config, or output destinations.
+
+| Route | Mutation class | Frontend cannot own? | Key restriction |
+|---|---|---|---|
+| `POST /api/diagnostics/tdarr-matrix-audit` | `diagnostic-process` | Frontend cannot construct commands or choose paths | `action`: `report`, `smoke`, `matrix`, `full`, or `strict-report`; backend expands fixed Tdarr Matrix audit presets under `LocalBase/Scratch/TestLibraries` |
 
 ### shell-dialog (no media mutation)
 

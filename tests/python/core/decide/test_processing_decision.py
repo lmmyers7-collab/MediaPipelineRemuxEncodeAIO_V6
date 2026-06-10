@@ -359,7 +359,7 @@ class ProcessingDecisionTests(unittest.TestCase):
         self.assertIn("OUTPUT_SIZE_CHECK_FALLBACK_REMUX", verification_codes)
         self.assertIn("OUTPUT_SIZE_FALLBACK_REMUX_BEFORE_ENCODE_PUBLISH", publish_codes)
         self.assertEqual(size_guard.enforcement, "HARD_BLOCK")
-        self.assertEqual(size_guard.on_fail, "try_remux_then_record_warning")
+        self.assertEqual(size_guard.on_fail, "try_remux_else_fail_job")
         self.assertEqual(decision.verification_result.output_size_check.action, "fallback_remux")
         self.assertEqual(decision.verification_result.output_size_check.status, "planned")
 
@@ -435,7 +435,7 @@ class ProcessingDecisionTests(unittest.TestCase):
         self.assertNotIn("SUBTITLE_BURN_IN_REQUIRES_ENCODE", reason_codes(decision))
         self.assertEqual(decision.publish_requirements[0].code, "NO_PUBLISH_FOR_REJECTED_SOURCE")
 
-    def test_mp4_text_subtitle_cross_constraint_converts_without_video_encode(self) -> None:
+    def test_mp4_text_subtitle_cross_constraint_drops_embedded_subtitles_without_video_encode(self) -> None:
         decision = build_processing_decision(
             load_source("tv_h264_1080p_12mbps_mkv.json"),
             EffectiveDecisionPolicy(output_container="mp4"),
@@ -443,12 +443,14 @@ class ProcessingDecisionTests(unittest.TestCase):
 
         self.assertEqual(decision.route_summary, "REMUX")
         self.assertEqual(decision.stream_actions.video.action, "copy")
-        self.assertEqual(decision.stream_actions.subtitles[0].action, "convert")
-        self.assertEqual(decision.stream_actions.subtitles[0].output_codec, "mov_text")
+        self.assertEqual(decision.stream_actions.subtitles[0].action, "drop")
+        self.assertEqual(decision.stream_actions.subtitles[0].output_codec, "")
         self.assertIn("SUBTITLE_FORMAT_INCOMPATIBLE_WITH_CONTAINER", reason_codes(decision))
         self.assertNotIn("SUBTITLE_IMAGE_REQUIRES_EXPLICIT_REVIEW", reason_codes(decision))
+        self.assertTrue(decision.planned_output_summary["mp4_compatibility"]["external_srt_sidecar_required"])
+        self.assertEqual(decision.planned_output_summary["mp4_compatibility"]["embedded_subtitle_count"], 0)
 
-    def test_mp4_audio_cross_constraint_is_per_stream_without_forcing_video_encode(self) -> None:
+    def test_mp4_audio_cross_constraint_selects_one_eac3_track_without_forcing_video_encode(self) -> None:
         decision = build_processing_decision(
             load_source("multi_audio_tracks.json"),
             EffectiveDecisionPolicy(output_container="mp4"),
@@ -456,11 +458,15 @@ class ProcessingDecisionTests(unittest.TestCase):
 
         self.assertEqual(decision.route_summary, "REMUX")
         self.assertEqual(decision.stream_actions.video.action, "copy")
-        self.assertEqual(decision.stream_actions.audio[0].action, "transcode")
+        self.assertEqual(decision.stream_actions.audio[0].action, "drop")
         self.assertEqual(decision.stream_actions.audio[1].action, "copy")
-        self.assertEqual(decision.stream_actions.audio[2].action, "copy")
+        self.assertEqual(decision.stream_actions.audio[2].action, "drop")
         self.assertIn("AUDIO_CODEC_INCOMPATIBLE_WITH_CONTAINER", reason_codes(decision))
-        self.assertIn("AUDIO_TRANSCODE_REQUIRED", reason_codes(decision))
+        self.assertIn("MP4_COMPATIBILITY_SINGLE_AUDIO_TRACK", reason_codes(decision))
+        mp4_summary = decision.planned_output_summary["mp4_compatibility"]
+        self.assertEqual(mp4_summary["selected_audio_streams"], [2])
+        self.assertEqual(mp4_summary["audio_output_codec"], "eac3")
+        self.assertEqual(mp4_summary["dropped_audio_count"], 2)
 
     def test_video_filter_setting_forces_video_encode_with_planned_output(self) -> None:
         decision = build_processing_decision(

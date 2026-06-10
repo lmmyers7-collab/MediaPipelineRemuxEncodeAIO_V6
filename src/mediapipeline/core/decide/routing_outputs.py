@@ -110,7 +110,7 @@ def planned_output_summary(
     summary: str,
 ) -> dict[str, Any]:
     primary = source.video_streams[0] if source.video_streams else None
-    return {
+    output = {
         "route_summary": summary,
         "container": policy.output_container,
         "video": actions.video.action,
@@ -127,6 +127,28 @@ def planned_output_summary(
             "drop": sum(1 for item in actions.subtitles if item.action == "drop"),
         },
     }
+    if policy.output_container == "mp4":
+        selected_audio = [
+            item.stream_index for item in actions.audio if item.action in {"copy", "transcode"}
+        ]
+        output["mp4_compatibility"] = {
+            "active": True,
+            "video_encode_required": actions.video.action == "encode",
+            "allowed_video_codec_families": ["h264", "h265"],
+            "selected_audio_streams": selected_audio,
+            "audio_output_codec": "eac3" if selected_audio else "",
+            "dropped_audio_count": sum(1 for item in actions.audio if item.action == "drop"),
+            "external_srt_sidecar_required": bool(source.subtitle_streams),
+            "embedded_subtitle_count": 0,
+            "dropped_embedded_subtitle_count": sum(
+                1 for item in actions.subtitles if item.action in {"drop", "unknown"}
+            ),
+            "fonts_and_attachments_dropped": True,
+            "metadata_stripped": True,
+            "chapters_stripped": True,
+            "faststart_enabled": True,
+        }
+    return output
 
 
 def planned_encode_output(
@@ -240,7 +262,7 @@ def publish_requirements(summary: str, policy: EffectiveDecisionPolicy | None = 
         requirements.append(
             DecisionRequirement(
                 code="OUTPUT_SIZE_FALLBACK_REMUX_BEFORE_ENCODE_PUBLISH",
-                text="Output Size Check fallback-remux failures try stream copy before oversized encode publish continues with warning evidence",
+                text="Output Size Check fallback-remux failures try stream copy before the oversized encode is rejected for review",
                 enforcement="hard_block",
             )
         )
@@ -371,7 +393,7 @@ def _size_check_on_fail(action: OutputSizeCheckAction) -> str:
     if action == "fail_job":
         return "fail_job"
     if action == "fallback_remux":
-        return "try_remux_then_record_warning"
+        return "try_remux_else_fail_job"
     return "record_advisory_warning"
 
 
@@ -383,7 +405,7 @@ def _size_check_message(action: OutputSizeCheckAction, source: SourceMediaInfo) 
     if action == "fail_job":
         return f"Output Size Check can fail the job before publish; {size_text}."
     if action == "fallback_remux":
-        return f"Output Size Check can try remux before oversized encode publish continues with warning evidence; {size_text}."
+        return f"Output Size Check can try remux before rejecting an oversized encode for review; {size_text}."
     return f"Output Size Check warning records advisory evidence without blocking publish; {size_text}."
 
 

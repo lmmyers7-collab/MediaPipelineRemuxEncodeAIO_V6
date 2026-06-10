@@ -1,0 +1,38 @@
+{
+  "id": "MP-CHANGE-2026-0606-007",
+  "title": "Open output folders in foreground",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-06",
+  "date_completed": "2026-06-06",
+  "summary": "Updates the Windows folder-open path so backend-allowlisted directory opens launch Explorer and request foreground focus for the opened Explorer window.",
+  "reason": "The operator reported that the Completed page Open Output Folder action opened Explorer behind the app instead of bringing the output folder to the foreground.",
+  "affected_areas": [
+    "completed",
+    "desktop",
+    "filesystem-open"
+  ],
+  "behavior_before": "Completed output-folder opens resolved the backend-owned path correctly, but the shared Windows shell opener delegated directory targets to os.startfile, which could leave Explorer behind the WebView/Tauri window.",
+  "behavior_after": "Directory targets still resolve through the existing backend allowlist, then launch Explorer and request foreground focus for a newly visible Explorer window; file opens continue to use the existing default-app behavior.",
+  "files_touched": [
+    "docs/generated/summaries/src/mediapipeline/core/files/opening.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_file_open.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0606-007.json",
+    "src/mediapipeline/core/files/opening.py",
+    "tests/python/desktop/test_service_file_open.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_service_file_open.py"
+  ],
+  "manual_validation": [
+    "$env:PYTHONPATH='src'; apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_service_file_open - passed (3 tests)",
+    "$env:PYTHONPATH='src'; apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_facade_completed_open_policy tests.python.desktop.test_application_facade_completed - passed (15 tests)",
+    "$env:PYTHONPATH='src'; apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_service_file_open tests.python.desktop.test_facade_completed_open_policy tests.python.desktop.test_application_facade_completed - passed (18 tests)",
+    "apps\\desktop\\runtime\\Python\\python.exe ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/files/opening.py tests/python/desktop/test_service_file_open.py - passed (2 written, 0 unchanged)"
+  ],
+  "rollback_plan": "Restore directory handling in src/mediapipeline/core/files/opening.py to os.startfile, remove the foreground-focused unit assertion, refresh generated summaries, and rerun the targeted file-open tests.",
+  "related_changes": [],
+  "notes": "No media policy, source/scratch/output movement, publish/drain, rename, or frontend command-surface behavior changes."
+}

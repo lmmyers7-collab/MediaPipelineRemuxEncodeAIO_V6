@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/pendingPublishView.recovery.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-28
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: d247facba8b5004f50b6969cab554898bebd04d67f535b6ce0f1273917418394
+sha256: 3d6ea9900343a6842f88b30e74d4f399126db4953b235e43cd023a56ab121222
 ---
 # `apps/desktop/webview/static/assets/pendingPublishView.recovery.js`
 

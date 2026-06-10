@@ -7,6 +7,8 @@
 
   function noop() {}
 
+  const COMPLETED_TABLE_COLUMN_COUNT = 8;
+
   function normalizeDeps(deps = {}) {
     return {
       appendCells: typeof deps.appendCells === "function" ? deps.appendCells : noop,
@@ -17,6 +19,7 @@
       completedDisplayRowStatus: typeof deps.completedDisplayRowStatus === "function" ? deps.completedDisplayRowStatus : function () { return "normal"; },
       completedFilteredRows: typeof deps.completedFilteredRows === "function" ? deps.completedFilteredRows : function (rows) { return Array.isArray(rows) ? rows : []; },
       completedInvestigationFilterLabel: typeof deps.completedInvestigationFilterLabel === "function" ? deps.completedInvestigationFilterLabel : function () { return ""; },
+      completedLibraryFilterLabel: typeof deps.completedLibraryFilterLabel === "function" ? deps.completedLibraryFilterLabel : function () { return "all libraries"; },
       completedOutputPlacement: typeof deps.completedOutputPlacement === "function" ? deps.completedOutputPlacement : function () { return { label: "Current", state: "ok", key: "current" }; },
       completedRiskStatusLine: typeof deps.completedRiskStatusLine === "function" ? deps.completedRiskStatusLine : function () { return "No current output blockers"; },
       completedRowsStatusLine: typeof deps.completedRowsStatusLine === "function" ? deps.completedRowsStatusLine : function (visibleRows, renderedRows, totalRows) {
@@ -41,6 +44,7 @@
       setCellStatusChip: deps.setCellStatusChip,
       setText: typeof deps.setText === "function" ? deps.setText : noop,
       state: deps.state && typeof deps.state === "object" ? deps.state : {},
+      syncCompletedLibraryFilterOptions: typeof deps.syncCompletedLibraryFilterOptions === "function" ? deps.syncCompletedLibraryFilterOptions : function () { return "all"; },
       updateTableStatusLegend: typeof deps.updateTableStatusLegend === "function" ? deps.updateTableStatusLegend : noop,
     };
   }
@@ -152,9 +156,75 @@
     if (runtimeError.toLowerCase() === "already_processed" && runtimeStatus.toLowerCase().includes("succeed")) return "Already processed";
     if (qaPosture === "blocked") return "Subtitle QA blocked";
     if (qaPosture === "review") return "Subtitle QA review";
-    if (consistency) return consistency;
-    if (item?.publish) return item.publish;
-    return item?.output_health || "Present";
+    const outputHealth = String(item?.output_health || "").trim();
+    if (outputHealth && !["ok", "healthy", "present", "consistent", "consistent-looking"].includes(outputHealth.toLowerCase())) {
+      return outputHealth;
+    }
+    return "";
+  }
+
+  function completedColumnMode(ctx) {
+    const mode = String(ctx?.state?.completedSizeColumnMode || "size").trim().toLowerCase();
+    return mode === "bitrate" ? "bitrate" : "size";
+  }
+
+  function completedFormatMbps(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number) || number <= 0) return "";
+    const precision = number >= 1 ? 1 : 2;
+    return `${number.toFixed(precision).replace(/\.?0+$/, "")} Mbps`;
+  }
+
+  function completedSizeDisplay(item) {
+    return item?.size_reduction_text || item?.output_size_text || "";
+  }
+
+  function completedBitrateDisplay(item) {
+    return item?.bitrate_text || item?.output_bitrate_text || item?.source_bitrate_text || completedFormatMbps(item?.bitrate_mbps);
+  }
+
+  function completedMeasureDisplay(item, mode) {
+    if (mode === "bitrate") return completedBitrateDisplay(item) || "n/a";
+    return completedSizeDisplay(item);
+  }
+
+  function completedDurationText(value) {
+    const seconds = Number(value);
+    if (!Number.isFinite(seconds) || seconds <= 0) return "";
+    const rounded = Math.round(seconds);
+    const minutes = Math.floor(rounded / 60);
+    const remainder = rounded % 60;
+    if (minutes >= 60) {
+      const hours = Math.floor(minutes / 60);
+      const leftoverMinutes = minutes % 60;
+      return `${hours}h ${String(leftoverMinutes).padStart(2, "0")}m`;
+    }
+    if (minutes > 0) return `${minutes}m ${String(remainder).padStart(2, "0")}s`;
+    return `${rounded}s`;
+  }
+
+  function completedMeasureTitle(item, mode) {
+    if (mode === "bitrate") {
+      const lines = [
+        item?.output_bitrate_text ? `Output bitrate: ${item.output_bitrate_text}` : "",
+        item?.source_bitrate_text ? `Source bitrate: ${item.source_bitrate_text}` : "",
+        item?.bitrate_threshold_text ? `Threshold: ${item.bitrate_threshold_text}` : "",
+        item?.bitrate_over_threshold !== null && item?.bitrate_over_threshold !== undefined
+          ? `Over threshold: ${item.bitrate_over_threshold ? "yes" : "no"}`
+          : "",
+        completedDurationText(item?.duration_seconds) ? `Duration: ${completedDurationText(item.duration_seconds)}` : "",
+        item?.bitrate_basis ? `Displayed from: ${String(item.bitrate_basis).replace(/_/g, " ")}` : "",
+      ].filter(Boolean);
+      return lines.join("\n") || "Bitrate evidence is not available for this completed row.";
+    }
+    const lines = [
+      completedSizeDisplay(item) ? `Size: ${completedSizeDisplay(item)}` : "",
+      item?.source_size_bytes ? `Source bytes: ${item.source_size_bytes}` : "",
+      item?.output_size_bytes ? `Output bytes: ${item.output_size_bytes}` : "",
+      item?.size_policy_limit_label ? `Policy limit: ${item.size_policy_limit_label}` : "",
+      item?.size_policy_status ? `Policy status: ${item.size_policy_status}` : "",
+    ].filter(Boolean);
+    return lines.join("\n");
   }
 
   function completedRowModel(item) {
@@ -168,7 +238,6 @@
       ? (outputFileIsDuplicate ? "" : item.output_file)
       : (item.output_path && item.output_path !== titleRaw ? item.output_path : item.source_path || "");
     return {
-      healthText: item.consistency_status || item.operator_status || item.output_health || (item.output_exists === false ? "missing output" : "ok"),
       metaDisplay: completedShortPath(metaSource),
       titleDisplay: titleRaw || "(untitled output)",
       titleRaw,
@@ -176,18 +245,17 @@
   }
 
   function appendCompletedTableCells(ctx, row, item, model) {
+    const measureMode = completedColumnMode(ctx);
     ctx.appendCells(row, [
       item.completed_at || "",
-      "",
       "",
       item.media_type || "",
       "",
       completedEvidenceText(item),
-      item.size_reduction_text || item.output_size_text || "",
+      completedMeasureDisplay(item, measureMode),
       item.publish || "",
       ctx.finalLibraryPromotionStatusText(item),
-      model.healthText,
-    ], [null, "completed-state-cell", "completed-title-cell", null, "completed-route-cell", "completed-evidence-cell", "num", null, null, null]);
+    ], [null, "completed-title-cell", null, "completed-route-cell", "completed-evidence-cell", "num", null, null]);
   }
 
   function renderCompletedTitleCell(cell, item, model) {
@@ -224,7 +292,7 @@
     const chip = ctx.makeStatusChip(placement.label, placement.state);
     chip.classList.add("completed-placement-chip");
     chip.title = `Placement: ${placement.label}. Durable evidence classification for completed history.`;
-    cell.appendChild(document.createElement("br"));
+    if (String(cell.textContent || "").trim()) cell.appendChild(document.createElement("br"));
     cell.appendChild(chip);
   }
 
@@ -236,15 +304,18 @@
     appendCompletedTableCells(ctx, row, item, model);
 
     const cells = row.querySelectorAll("td");
-    const stateCell = cells[1] || row.children?.[1];
-    const titleCell = cells[2] || row.children?.[2];
-    const routeCell = cells[4] || row.children?.[4];
-    const evidenceCell = cells[5] || row.children?.[5];
-    const promotionCell = cells[8] || row.children?.[8];
-    const healthCell = cells[9] || row.children?.[9];
-    if (stateCell) stateCell.appendChild(makeCompletedStateChip(item, row.dataset.status));
+    const titleCell = cells[1] || row.children?.[1];
+    const routeCell = cells[3] || row.children?.[3];
+    const evidenceCell = cells[4] || row.children?.[4];
+    const measureCell = cells[5] || row.children?.[5];
+    const promotionCell = cells[7] || row.children?.[7];
     renderCompletedTitleCell(titleCell, item, model);
     if (routeCell) routeCell.appendChild(makeCompletedRouteChip(item));
+    if (measureCell) {
+      const measureMode = completedColumnMode(ctx);
+      measureCell.dataset.measureMode = measureMode;
+      measureCell.title = completedMeasureTitle(item, measureMode);
+    }
     if (evidenceCell) {
       evidenceCell.title = completedEvidenceCellTitle(item);
       appendCompletedPlacementChip(ctx, evidenceCell, item);
@@ -253,7 +324,6 @@
       ctx.setCellStatusChip(promotionCell, ctx.finalLibraryPromotionStatusText(item), ctx.finalLibraryPromotionChipState(item));
     }
     if (options.allowPromotionAction) ctx.appendCompletedPromotionCellAction(promotionCell, item);
-    if (typeof ctx.setCellStatusChip === "function") ctx.setCellStatusChip(healthCell, model.healthText, row.dataset.status);
     ctx.makeRowSelectable(row, () => ctx.selectCompletedRow(item), {
       selected: Boolean(item.row_key && item.row_key === ctx.state.selectedCompletedRowKey),
       label: `${rowLabel} ${item.lookup_title || item.output_file || item.output_path || ""}`,
@@ -266,7 +336,7 @@
     const rowList = Array.isArray(rows) ? rows : [];
     const sourceList = Array.isArray(sourceRows) ? sourceRows : [];
     if (!rowList.length) {
-      ctx.clearRows(tbody, 10, sourceList.length ? "No completed rows match the filter." : emptyMessage);
+      ctx.clearRows(tbody, COMPLETED_TABLE_COLUMN_COUNT, sourceList.length ? "No completed rows match the filter." : emptyMessage);
       ctx.updateTableStatusLegend(legendId, tbody, legendLabel);
       return;
     }
@@ -278,15 +348,53 @@
     ctx.updateTableStatusLegend(legendId, tbody, legendLabel);
   }
 
-  function renderCurrentFilterSummary(ctx, currentRows, rows, filterText, statusFilter, investigationFilter) {
+  function normalizedCompletedLibraryFilter(value) {
+    return String(value || "all").trim().toLowerCase() || "all";
+  }
+
+  function completedHiddenReviewRows(ctx, allRows, visibleRows) {
+    const visibleSet = new Set(Array.isArray(visibleRows) ? visibleRows : []);
+    return (Array.isArray(allRows) ? allRows : []).filter((row) => {
+      const status = String(ctx.completedDisplayRowStatus(row) || "").trim().toLowerCase();
+      return !visibleSet.has(row) && ["blocked", "failed", "warning"].includes(status);
+    }).length;
+  }
+
+  function completedSummaryLinesWithLibrary(ctx, options) {
+    const lines = ctx.filterResultSummaryLines(options);
+    const libraryFilter = normalizedCompletedLibraryFilter(options.libraryFilter);
+    const libraryActive = libraryFilter !== "all";
+    if (!libraryActive) return lines;
+    const libraryLabel = ctx.completedLibraryFilterLabel(libraryFilter);
+    lines[0] = String(lines[0] || "").replace("; showing ", `; library=${libraryLabel}; showing `);
+    const textActive = Boolean(String(options.filterText || "").trim());
+    const statusActive = String(options.statusFilter || "all").trim().toLowerCase() !== "all";
+    const investigationActive = String(options.investigationFilter || "all").trim().toLowerCase() !== "all";
+    if (textActive || statusActive || investigationActive) return lines;
+    const noteIndex = lines.findIndex((line) => line === "Operator note: no text filter is hiding rows.");
+    if (noteIndex < 0) return lines;
+    const hiddenReviewRows = completedHiddenReviewRows(ctx, options.allRows, options.visibleRows);
+    lines.splice(
+      noteIndex,
+      1,
+      `Hidden review rows: ${hiddenReviewRows}.`,
+      hiddenReviewRows > 0
+        ? `Operator note: clear or change this filter before ${options.decisionName || "operator"} decisions; blocked/warning rows are currently hidden.`
+        : "Operator note: this library filter is not hiding blocked/warning rows in the loaded payload.",
+    );
+    return lines;
+  }
+
+  function renderCurrentFilterSummary(ctx, currentRows, rows, filterText, statusFilter, investigationFilter, libraryFilter) {
     if (typeof ctx.filterResultSummaryLines !== "function") return;
-    ctx.setText("completed-filter-summary", ctx.filterResultSummaryLines({
+    ctx.setText("completed-filter-summary", completedSummaryLinesWithLibrary(ctx, {
       label: "Current output filter",
       allRows: currentRows,
       visibleRows: rows,
       filterText,
       statusFilter,
       investigationFilter,
+      libraryFilter,
       investigationLabel: ctx.completedInvestigationFilterLabel(investigationFilter),
       statusOf: ctx.completedDisplayRowStatus,
       limit: 250,
@@ -319,7 +427,8 @@
     const filterText = ctx.byId("completed-filter")?.value || "";
     const statusFilter = ctx.byId("completed-status-filter")?.value || "all";
     const investigationFilter = ctx.byId("completed-investigation-filter")?.value || "all";
-    const filteredRows = ctx.completedFilteredRows(currentRows, filterText, statusFilter, investigationFilter);
+    const libraryFilter = ctx.syncCompletedLibraryFilterOptions(currentRows);
+    const filteredRows = ctx.completedFilteredRows(currentRows, filterText, statusFilter, investigationFilter, libraryFilter);
     const rows = Array.isArray(filteredRows) ? filteredRows : [];
     const renderLimit = 250;
     const renderedCount = Math.min(rows.length, renderLimit);
@@ -327,7 +436,7 @@
     const rowsStatus = ctx.completedRowsStatusLine(rows.length, renderedCount, currentRows.length, renderLimit);
     ctx.setText("completed-status", `${riskStatus} / ${rowsStatus}`);
     ctx.setText("completed-current-status", rowsStatus);
-    renderCurrentFilterSummary(ctx, currentRows, rows, filterText, statusFilter, investigationFilter);
+    renderCurrentFilterSummary(ctx, currentRows, rows, filterText, statusFilter, investigationFilter, libraryFilter);
     ctx.renderCompletedTrustDecision({
       payload: ctx.state.lastCompletedPayload,
       allRows: lastCompletedRows,
@@ -389,6 +498,9 @@
       makeCompletedRouteChip,
       completedShortPath,
       completedEvidenceText,
+      completedSizeDisplay,
+      completedBitrateDisplay,
+      completedMeasureDisplay,
     };
   }
 

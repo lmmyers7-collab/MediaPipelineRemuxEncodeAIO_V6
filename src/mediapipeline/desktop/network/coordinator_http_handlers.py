@@ -312,6 +312,7 @@ class CoordinatorHttpHandlersMixin:
             error_message     = req.error_message or "",
             queue_terminal    = bool(req.queue_terminal),
             retry_on_failure  = bool(req.retry_on_failure),
+            output_path       = req.output_path or "",
         )
 
         handler._send_json({"status": "ok"})

@@ -1,5 +1,5 @@
       <section class="page" data-page-panel="launch">
-        <h1 class="visually-hidden">Launch Pipeline</h1>
+        <h1 class="visually-hidden">Launch</h1>
         <div class="settings-tab-bar launch-tab-bar" role="tablist" aria-label="Launch sections">
           <button type="button" class="settings-tab-btn" role="tab" aria-selected="true" data-launch-tab="pipeline">Pipeline Processor</button>
           <button type="button" class="settings-tab-btn" role="tab" aria-selected="false" data-launch-tab="audit">Audit</button>
@@ -11,6 +11,18 @@
           <div class="panel-heading">
             <h2>Pipeline Processor</h2>
             <strong id="pipeline-launch-status">Idle</strong>
+          </div>
+          <div class="live-run-strip-panel live-run-strip-inline" data-panel-type="evidence">
+            <div class="panel-heading panel-subheading">
+              <h3>Live Run</h3>
+              <strong id="launch-live-run-status" data-state="unknown">Checking</strong>
+            </div>
+            <div id="launch-live-run-strip" class="live-run-strip" aria-live="polite" aria-label="Launch live run summary">
+              <span class="live-run-chip" data-status="unknown">
+                <span class="live-run-chip-label">State</span>
+                <strong class="live-run-chip-value">Waiting for backend snapshot</strong>
+              </span>
+            </div>
           </div>
           <div class="pipeline-controller-status-strip" aria-label="Pipeline controller status">
             <div class="pipeline-controller-status-card">
@@ -354,7 +366,7 @@
         </section>
         <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="history" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Command History</h2>
+            <h2>Commands Evidence</h2>
             <strong id="launch-history-status">No launches</strong>
           </div>
           <pre id="launch-history" class="prose-block">No launch command history loaded.</pre>
@@ -404,9 +416,9 @@
           </div>
           <pre id="launch-timing" class="prose-block">No launch timing trust loaded.</pre>
         </section>
-        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="readiness" data-panel-type="evidence">
+        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="pipeline" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Start Summary</h2>
+            <h2>Start Decision Summary</h2>
             <strong id="launch-start-decision-status">Not evaluated</strong>
           </div>
           <pre id="launch-start-decision-summary" class="prose-block">No launch start decision summary loaded.</pre>
@@ -574,7 +586,7 @@
             </table>
           <div class="empty-state" data-empty-state="hidden" style="display:none">
             <span class="empty-state-label">No proof loaded</span>
-            <span class="empty-state-hint">Real-media proof rows appear here after sample validation runs on the Dashboard.</span>
+            <span class="empty-state-hint">Real-media proof rows appear here after sample validation runs from Home.</span>
           </div>
           </div>
           <p id="launch-real-media-proof-legend" class="note table-legend">Launch real-media proof rows are read-only and do not launch, accept, publish, save, rename, or touch media.</p>

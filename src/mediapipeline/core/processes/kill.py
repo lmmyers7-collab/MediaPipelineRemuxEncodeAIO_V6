@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 import contextlib
 import os
+from pathlib import Path
 import signal
 import subprocess
 from typing import Any, Protocol
@@ -88,9 +89,30 @@ def process_text_contains_any(proc: Any, needles: list[str]) -> bool:
     return any(needle in text for needle in needles)
 
 
-def related_pipeline_needles(resolved: ResolvedPaths) -> list[str]:
+def _normalized_related_job_kinds(job_kinds: set[str] | None) -> set[str] | None:
+    if job_kinds is None:
+        return None
+    normalized: set[str] = set()
+    for item in job_kinds:
+        key = str(item or "").strip().casefold()
+        if key == "rerun":
+            key = "rerun_csv"
+        if key:
+            normalized.add(key)
+    return normalized
+
+
+def related_pipeline_needles(resolved: ResolvedPaths, *, job_kinds: set[str] | None = None) -> list[str]:
+    normalized_job_kinds = _normalized_related_job_kinds(job_kinds)
+    script_paths: list[Path] = []
+    if normalized_job_kinds is None or "pipeline" in normalized_job_kinds:
+        script_paths.append(resolved.pipeline_path)
+    if normalized_job_kinds is None or "audit" in normalized_job_kinds:
+        script_paths.append(resolved.audit_script_path)
+    if normalized_job_kinds is None or "rerun_csv" in normalized_job_kinds:
+        script_paths.append(resolved.rerun_script_path)
     needles: list[str] = []
-    for path in (resolved.pipeline_path, resolved.audit_script_path, resolved.rerun_script_path):
+    for path in script_paths:
         try:
             resolved_path = path.resolve()
         except Exception:
@@ -107,13 +129,14 @@ def find_related_pipeline_processes(
     *,
     psutil_module: Any,
     current_pid: int | None = None,
+    job_kinds: set[str] | None = None,
 ) -> list[Any]:
     """Find this bundle's pipeline/audit/rerun processes even if the app
     lost its original Popen handle after a restart.
     """
     if psutil_module is None:
         raise RuntimeError("psutil unavailable; related MediaPipeline process detection cannot be verified")
-    needles = related_pipeline_needles(resolved)
+    needles = related_pipeline_needles(resolved, job_kinds=job_kinds)
     if not needles:
         return []
 

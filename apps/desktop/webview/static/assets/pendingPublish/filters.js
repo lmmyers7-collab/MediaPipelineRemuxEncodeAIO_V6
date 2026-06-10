@@ -15,7 +15,8 @@ function pendingTableRowStatus(item) {
     if (backendState) return backendState;
     const severity = String(item?.diagnostic_severity || "").toLowerCase();
     const recommendation = String(item?.drain_recommendation || "").toLowerCase();
-    if (recommendation === "do_not_drain" || severity === "error" || item?.local_exists === false || item?.error) return "failed";
+    if (recommendation === "do_not_drain" || item?.local_exists === false) return "blocked";
+    if (severity === "error" || item?.error) return "failed";
     if (severity === "warning" || item?.ready_to_drain === false || pendingReviewRowReasons(item).length) return "warning";
     return "match";
   }
@@ -39,7 +40,7 @@ function pendingMatchesInvestigationFilter(item, filter) {
     const state = String(item?.state || item?.diagnostic_status || "").toLowerCase();
     const recommendation = String(item?.drain_recommendation || "").toLowerCase();
     if (!normalized || normalized === "all") return true;
-    if (normalized === "do_not_drain") return recommendation === "do_not_drain" || pendingTableRowStatus(item) === "failed";
+    if (normalized === "do_not_drain") return recommendation === "do_not_drain" || pendingTableRowStatus(item) === "blocked";
     if (normalized === "missing_payload") return item?.local_exists === false || Number(item?.missing_local_count || 0) > 0 || state.includes("missing");
     if (normalized === "invalid_manifest") return state.includes("invalid_manifest") || state.includes("unreadable_manifest") || String(item?.error || "").toLowerCase().includes("manifest");
     if (normalized === "missing_sidecars") return Number(item?.missing_sidecar_count || 0) > 0;

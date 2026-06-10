@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/partials/page-reports.html
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-05
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: 5a69e7c9dbefc8256a2a92a41121a1c6eaa9d1f1776da23a930ebe55ea47011c
+sha256: 3765cc358400a447b4dfc16fd339dfc37d94ea7f50cb344c0266697c28e3dc5f
 ---
 # `apps/desktop/webview/static/partials/page-reports.html`
 

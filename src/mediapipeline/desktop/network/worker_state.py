@@ -5,6 +5,7 @@ import logging
 import os
 from pathlib import Path
 import tempfile
+import time
 from typing import Any
 
 from .diagnostics import diagnostic_preview as _worker_diagnostic_preview
@@ -19,7 +20,12 @@ _worker_log = logging.getLogger("mediapipeline.desktop.network.worker")
 
 
 def atomic_write_text(path: Path, text: str) -> None:
-    """Write text via a same-directory temp file and atomic replace."""
+    """Write text via a same-directory temp file and atomic replace.
+
+    The replace is retried with backoff on transient ``PermissionError``
+    (antivirus/indexer briefly holding the destination on Windows),
+    matching ``core.queue.file_io.atomic_write_text`` semantics.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp_name = tempfile.mkstemp(
         prefix=f".{path.name}.",
@@ -33,7 +39,16 @@ def atomic_write_text(path: Path, text: str) -> None:
             handle.write(text)
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(tmp_path, path)
+        delay_seconds = 0.05
+        for attempt in range(7):
+            try:
+                os.replace(tmp_path, path)
+                break
+            except PermissionError:
+                if attempt >= 6:
+                    raise
+                time.sleep(delay_seconds)
+                delay_seconds = min(delay_seconds * 2, 1.0)
     except Exception:
         try:
             tmp_path.unlink(missing_ok=True)
@@ -152,6 +167,60 @@ class WorkerStateMixin:
                 source_path=sp,
             )
             self._clear_worker_state_after_accepted_report(job_id, "crash recovery done")
+
+    def _flush_pending_done_report(self) -> bool:
+        """Deliver a persisted pending done report before claiming new work.
+
+        Returns ``True`` when no pending report remains on disk (none
+        existed, the coordinator accepted it, or the coordinator no
+        longer knows the job).  Returns ``False`` while delivery keeps
+        failing — the caller must not claim, because a new claim's state
+        save would overwrite the single-slot report and lose the
+        completed job's evidence.
+        """
+        state_path = getattr(self, "_state_path", None)
+        if state_path is None or not state_path.exists():
+            return True
+        try:
+            state = load_worker_state(state_path)
+        except Exception:
+            # Unreadable state is crash recovery's concern, not a claim gate.
+            return True
+        pending = state.get("pending_done_report")
+        if not (isinstance(pending, dict) and str(pending.get("job_id", "") or "").strip()):
+            return True
+        payload = dict(pending)
+        payload.setdefault("worker_id", self._worker_id)
+        job_id = str(payload.get("job_id", ""))
+        try:
+            self._http_post("/api/done", payload)
+        except Exception as exc:
+            err_text = str(exc)
+            if "HTTP 404 " in err_text or "HTTP Error 404:" in err_text:
+                # The coordinator no longer tracks the job (reclaimed or
+                # registry reset); this report can never be accepted, so
+                # holding new claims for it would idle the worker forever.
+                _worker_log.warning(
+                    "Pending done report for job %s is no longer known to the coordinator; discarding it.",
+                    job_id,
+                )
+                self._clear_worker_state_after_accepted_report(job_id, "pending done discard")
+                return True
+            _worker_log.warning(
+                "Pending done-report delivery failed; holding new claims until it lands: %s",
+                _worker_diagnostic_preview(exc),
+            )
+            return False
+        self._safe_log_cluster_event(
+            "pending-done-recovered",
+            level="WARN",
+            event="pending_done_recovered",
+            message=f"Delivered pending done report before claiming new work (job {job_id[:8]}).",
+            job_id=job_id,
+            source_path=str(state.get("source_path", "")),
+        )
+        self._clear_worker_state_after_accepted_report(job_id, "pending done delivery")
+        return True
 
     def _save_worker_state(self, job: ClaimedJob) -> None:
         """Write job identity to disk so crash recovery can report it on next start."""

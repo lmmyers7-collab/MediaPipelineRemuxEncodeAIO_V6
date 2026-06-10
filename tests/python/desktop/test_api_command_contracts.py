@@ -138,6 +138,20 @@ class ApiCommandContractsTests(unittest.TestCase):
             "/api/maintenance/release-build": {"destination_root": "C:/Deploy", "output_root": "C:/Other"},
             "/api/maintenance/completed-backfill-dry-run": {"timeout_seconds": 600, "output_root": "C:/Other"},
             "/api/maintenance/dependency-atlas": {"timeout_seconds": 600, "output_root": "C:/Other"},
+            "/api/maintenance/dependency-atlas/open-folder": {"path": "C:/Other"},
+            "/api/diagnostics/tdarr-matrix-audit": {"action": "report", "path": "C:/Other"},
+            "/api/diagnostics/tdarr-matrix/evidence/open": {
+                "run_id": "run-1",
+                "finding_key": "finding-1",
+                "target": "stdout",
+                "path": "C:/Other",
+            },
+            "/api/diagnostics/tdarr-matrix/rerun": {
+                "source_run_id": "run-1",
+                "selection": "selected",
+                "finding_keys": ["finding-1"],
+                "generated_path": "source/Movies/Movie.mkv",
+            },
             "/api/metrics/sources": {"action": "add", "path": r"D:\Media", "label": "Drive D", "root": r"E:\Other"},
             "/api/metrics/backfill": {"scope": "enabled", "recursive": True},
             "/api/final-library-promotion/promote-queue": {"confirm_promote": True, "row_key": "client-owned"},
@@ -235,6 +249,25 @@ class ApiCommandContractsTests(unittest.TestCase):
                 {"timeout_seconds": 600, "min_overview_edge_count": 4, "min_overview_files": 2},
             ),
             {"timeout_seconds": 600, "min_overview_edge_count": 4, "min_overview_files": 2},
+        )
+        self.assertEqual(validate_api_payload("/api/maintenance/dependency-atlas/open-folder", {}), {})
+        self.assertEqual(
+            validate_api_payload("/api/diagnostics/tdarr-matrix-audit", {"action": "smoke"}),
+            {"action": "smoke"},
+        )
+        self.assertEqual(
+            validate_api_payload(
+                "/api/diagnostics/tdarr-matrix/evidence/open",
+                {"run_id": "run-1", "finding_key": "finding-1", "target": "stdout"},
+            ),
+            {"run_id": "run-1", "finding_key": "finding-1", "target": "stdout"},
+        )
+        self.assertEqual(
+            validate_api_payload(
+                "/api/diagnostics/tdarr-matrix/rerun",
+                {"source_run_id": "run-1", "selection": "selected", "finding_keys": ["finding-1"]},
+            ),
+            {"source_run_id": "run-1", "selection": "selected", "finding_keys": ["finding-1"]},
         )
         self.assertEqual(
             validate_api_payload(
@@ -336,7 +369,7 @@ class ApiCommandContractsTests(unittest.TestCase):
     def test_command_ownership_matrix_lists_every_post_command_route(self) -> None:
         matrix = (REPO_ROOT / "docs" / "inventories" / "COMMAND_OWNERSHIP_MATRIX.md").read_text(encoding="utf-8")
 
-        self.assertIn("Total command routes: 53 POST routes across 10 contract groups.", matrix)
+        self.assertIn("Total command routes: 58 POST routes across 10 contract groups.", matrix)
         for route in COMMAND_ROUTE_METHODS:
             with self.subTest(route=route):
                 self.assertIn(f"`POST {route}`", matrix)

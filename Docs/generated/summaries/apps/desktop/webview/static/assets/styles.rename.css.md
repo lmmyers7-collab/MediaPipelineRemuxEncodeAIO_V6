@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/styles.rename.css
 pipeline_stage: rename
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-04
+last_modified: 2026-06-06
 last_reviewed: 2026-06-04
-sha256: 4c1d2f7250e6af30777cd70b29f49164524ef6bd373c2de5f9ffc2ac69bfcfa1
+sha256: 7bd3ab8b10522f694351263117cf814f35d806843d97a3c5ed7611bf5ecfff01
 ---
 # `apps/desktop/webview/static/assets/styles.rename.css`
 

@@ -3,9 +3,9 @@ file: tests/webview/test_webview_navigation_static.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-05
+last_modified: 2026-06-08
 last_reviewed: 2026-06-04
-sha256: 5fdfcb8801e5ec16e9b087f1e4184d269d898a7c9d3a20706dcff3b42ef9d53d
+sha256: cc70fe60222c1ce3fa0192ddec50ea69a002ddfbdca1e699de04cfb0039721e5
 ---
 # `tests/webview/test_webview_navigation_static.py`
 

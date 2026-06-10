@@ -61,9 +61,11 @@ ACTIVE_PROGRESS_STATES = (
     "initializing",
 )
 
-COMPLETE_PROGRESS_STATES = ("complete", "completed", "published", "deferred", "idle")
+COMPLETE_PROGRESS_STATES = ("complete", "completed", "published", "idle")
 
 HELD_PROGRESS_STATES = ("stopped",)
+
+REVIEW_PROGRESS_STATES = ("deferred", "parked", "pending publish", "review")
 
 FAILED_PROGRESS_STATES = ("failed", "error", "blocked")
 
@@ -164,6 +166,8 @@ def progress_state_status(*values: str, stale: bool = False) -> str:
     text = " ".join(str(value or "").lower() for value in values)
     if any(token in text for token in FAILED_PROGRESS_STATES):
         return "blocked"
+    if any(token in text for token in REVIEW_PROGRESS_STATES):
+        return "warning"
     if any(token in text for token in HELD_PROGRESS_STATES):
         return "warning"
     if any(token in text for token in ACTIVE_PROGRESS_STATES):
@@ -212,6 +216,27 @@ def progress_bar(
     return payload
 
 
+def copy_bytes_detail(progress: Mapping[str, Any]) -> str:
+    copied = nullable_int_from_mapping(progress, "CopyBytesCopied")
+    total = nullable_int_from_mapping(progress, "CopyTotalBytes")
+    if total is not None and total > 0:
+        return f"{format_bytes(copied or 0)} / {format_bytes(total)}"
+    if copied is not None and copied > 0:
+        return f"{format_bytes(copied)} copied"
+    return ""
+
+
+def finalizing_progress_detail(stage: str, percent: float | None) -> str:
+    if percent is None or percent < 95.0 or percent >= 100.0:
+        return ""
+    normalized = stage.strip().lower()
+    if normalized in {"encode", "encode_cpu", "encode_verify"}:
+        return "near complete; backend may still verify output, write sidecars, publish, or park"
+    if normalized in {"remux", "remux_av", "remux_verify"}:
+        return "near complete; backend may still verify remux, write sidecars, publish, or park"
+    return ""
+
+
 def publish_step_payloads(stage: str, push_state: str, sidecar_state: str) -> list[dict[str, Any]]:
     stage_lower = stage.strip().lower()
     push_lower = push_state.strip().lower()
@@ -238,7 +263,7 @@ def publish_step_payloads(stage: str, push_state: str, sidecar_state: str) -> li
                 copy_status = "blocked"
 
     return [
-        {"id": "copy", "label": "Copy file", "status": copy_status},
+        {"id": "copy", "label": "Copy completed output", "status": copy_status},
         {"id": "sidecars", "label": "Write sidecars", "status": sidecar_status},
         {"id": "reveal", "label": "Reveal output", "status": reveal_status},
         {"id": "finalize", "label": "Finalize", "status": finalize_status},
@@ -299,6 +324,115 @@ def subtitle_progress_bars(progress: Mapping[str, Any], *, stale: bool) -> list[
     ]
 
 
+def audio_progress_bars(progress: Mapping[str, Any], *, stale: bool) -> list[dict[str, Any]]:
+    raw = progress.get("AudioProgress")
+    if not isinstance(raw, Mapping):
+        return []
+    stream_index = text_from_mapping(raw, "stream_index", "StreamIndex")
+    action = text_from_mapping(raw, "action", "Action")
+    stage = text_from_mapping(raw, "stage", "Stage")
+    status_text = text_from_mapping(raw, "status", "Status")
+    source_codec = text_from_mapping(raw, "source_codec", "SourceCodec")
+    source_channels = text_from_mapping(raw, "source_channels", "SourceChannels")
+    output_codec = text_from_mapping(raw, "output_codec", "OutputCodec")
+    output_channels = text_from_mapping(raw, "output_channels", "OutputChannels")
+    language = text_from_mapping(raw, "language", "Language")
+    reason = text_from_mapping(raw, "reason", "Reason")
+    detail = text_from_mapping(raw, "detail", "Detail")
+    step_total = int_from_mapping(raw, "step_total", "StepTotal")
+    step_index = max(0, min(step_total, int_from_mapping(raw, "step_index", "StepIndex"))) if step_total > 0 else 0
+    percent = float_from_mapping(raw, "percent", "Percent")
+    if percent is None and step_total > 0:
+        percent = max(0.0, min(100.0, round((step_index / step_total) * 100.0, 1)))
+    if bool_from_mapping(raw, "failed", "Failed"):
+        status = "blocked"
+    elif bool_from_mapping(raw, "completed", "Completed"):
+        status = "complete"
+    else:
+        status = progress_state_status(status_text, action, stage, stale=stale)
+        if status == "unknown":
+            status = "active"
+    codec_detail = " -> ".join(part for part in (source_codec, output_codec) if part)
+    channel_detail = " -> ".join(
+        f"{part}ch" for part in (source_channels, output_channels) if part not in ("", "-1")
+    )
+    detail_parts = [
+        f"{step_index} / {step_total}" if step_total > 0 else "",
+        stage.replace("_", " ") if stage else "",
+        action.replace("_", " ") if action else "",
+        codec_detail,
+        channel_detail,
+        language,
+        reason,
+        detail,
+    ]
+    label_parts = ["Audio"]
+    if action:
+        label_parts.append(action.replace("_", " ").title())
+    if stream_index not in ("", "-1"):
+        label_parts.append(f"stream {stream_index}")
+    return [
+        progress_bar(
+            bar_id="audio_track",
+            label=" ".join(label_parts),
+            status=status,
+            percent=percent,
+            mode="stepped" if step_total > 0 else progress_mode(percent, status),
+            detail=" | ".join(part for part in detail_parts if part),
+            source="pipeline_progress.json",
+            updated_at=text_from_mapping(raw, "updated_at", "UpdatedAt"),
+            stale=stale,
+        )
+    ]
+
+
+def pending_drain_progress_bars(progress: Mapping[str, Any], *, stale: bool) -> list[dict[str, Any]]:
+    raw = progress.get("PendingDrainProgress")
+    if not isinstance(raw, Mapping):
+        return []
+    total = int_from_mapping(raw, "manifest_count", "ManifestCount", "manifest_count_at_start", "ManifestCountAtStart")
+    attempted = int_from_mapping(raw, "attempted_count", "AttemptedCount")
+    succeeded = int_from_mapping(raw, "succeeded_count", "SucceededCount")
+    already = int_from_mapping(raw, "already_published_count", "AlreadyPublishedCount")
+    errors = int_from_mapping(raw, "error_count", "ErrorCount")
+    skipped = int_from_mapping(raw, "skipped_count", "SkippedCount")
+    remaining = int_from_mapping(raw, "remaining_count", "RemainingCount")
+    status_text = text_from_mapping(raw, "status", "Status")
+    current_manifest = text_from_mapping(raw, "current_manifest", "CurrentManifest")
+    current_item = text_from_mapping(raw, "current_item", "CurrentItem")
+    percent = max(0.0, min(100.0, round((attempted / total) * 100.0, 1))) if total > 0 else None
+    if errors > 0:
+        status = "blocked"
+    elif total > 0 and attempted >= total and remaining == 0:
+        status = "complete"
+    elif bool_from_mapping(raw, "deferred", "Deferred"):
+        status = "review"
+    else:
+        status = progress_state_status(status_text, "retrying", stale=stale)
+    detail_parts = [
+        f"{attempted} / {total} manifests" if total > 0 else "",
+        f"succeeded {succeeded}" if succeeded else "",
+        f"already published {already}" if already else "",
+        f"errors {errors}" if errors else "",
+        f"skipped {skipped}" if skipped else "",
+        f"remaining {remaining}" if remaining else "",
+        current_item,
+        current_manifest,
+    ]
+    return [
+        progress_bar(
+            bar_id="pending_drain",
+            label="Pending publish drain",
+            status=status,
+            percent=percent,
+            detail=" | ".join(part for part in detail_parts if part),
+            source="pipeline_progress.json",
+            updated_at=text_from_mapping(raw, "updated_at", "UpdatedAt"),
+            stale=stale,
+        )
+    ]
+
+
 def pipeline_progress_bars(progress: Mapping[str, Any], *, pipeline_state: str, stale: bool) -> list[dict[str, Any]]:
     if not progress:
         return []
@@ -308,12 +442,37 @@ def pipeline_progress_bars(progress: Mapping[str, Any], *, pipeline_state: str, 
     file_display = text_from_mapping(progress, "CurrentFileDisplay", "CurrentFile")
     queue_phase = text_from_mapping(progress, "CurrentQueuePhase")
     percent = float_from_mapping(progress, "CurrentStagePercent")
-    status = progress_state_status(pipeline_state, text_from_mapping(progress, "Status"), stage, stale=stale)
+    copy_state = text_from_mapping(progress, "CopyState")
+    push_state = text_from_mapping(progress, "PushState")
+    sidecar_state = text_from_mapping(progress, "SidecarState")
+    status = progress_state_status(
+        pipeline_state,
+        text_from_mapping(progress, "Status"),
+        stage,
+        push_state,
+        sidecar_state,
+        stale=stale,
+    )
+    stage_lower = stage.lower()
     detail_parts = [part for part in (stage, route, file_display) if part]
+    if copy_state:
+        detail_parts.append(f"copy={copy_state}")
+    if stage_lower in {"copy", "copy_to_scratch"}:
+        byte_detail = copy_bytes_detail(progress)
+        if byte_detail:
+            detail_parts.append(byte_detail)
+        detail_parts.append("source unchanged")
+    finalizing_detail = finalizing_progress_detail(stage, percent)
+    if finalizing_detail:
+        detail_parts.append(finalizing_detail)
+    if push_state:
+        detail_parts.append(f"publish={push_state}")
+    if sidecar_state:
+        detail_parts.append(f"sidecar={sidecar_state}")
     bars.append(
         progress_bar(
             bar_id="current_stage",
-            label="Current stage",
+            label="Current backend stage",
             status=status,
             percent=percent,
             detail=" | ".join(detail_parts),
@@ -343,10 +502,7 @@ def pipeline_progress_bars(progress: Mapping[str, Any], *, pipeline_state: str, 
             )
         )
 
-    push_state = text_from_mapping(progress, "PushState")
-    sidecar_state = text_from_mapping(progress, "SidecarState")
     copy_percent = float_from_mapping(progress, "CopyPercent")
-    stage_lower = stage.lower()
     if push_state or sidecar_state or stage_lower in {"push", "sidecar", "retry_pending_push"}:
         publish_steps = publish_step_payloads(stage, push_state, sidecar_state)
         publish_percent = publish_steps_percent(publish_steps)
@@ -376,7 +532,7 @@ def pipeline_progress_bars(progress: Mapping[str, Any], *, pipeline_state: str, 
             bars.append(
                 progress_bar(
                     bar_id="publish_copy",
-                    label="Push file",
+                    label="Publishing completed output",
                     status=progress_state_status(push_state, stage, stale=stale),
                     percent=copy_percent,
                     detail=copy_detail,
@@ -385,6 +541,8 @@ def pipeline_progress_bars(progress: Mapping[str, Any], *, pipeline_state: str, 
                     stale=stale,
                 )
             )
+    bars.extend(pending_drain_progress_bars(progress, stale=stale))
+    bars.extend(audio_progress_bars(progress, stale=stale))
     bars.extend(subtitle_progress_bars(progress, stale=stale))
     return bars
 
@@ -530,6 +688,7 @@ def telemetry_fields(telemetry: TelemetrySnapshot) -> dict[str, Any]:
     return {
         "sampled_at": telemetry_sampled_at(telemetry),
         "cpu_percent": telemetry.cpu_percent,
+        "cpu_utility_percent": telemetry.cpu_utility_percent,
         "memory_percent": telemetry.memory_percent,
         "memory_used_gb": telemetry.memory_used_gb,
         "memory_total_gb": telemetry.memory_total_gb,
@@ -569,6 +728,8 @@ __all__ = [
     "publish_step_payloads",
     "publish_steps_percent",
     "subtitle_progress_bars",
+    "audio_progress_bars",
+    "pending_drain_progress_bars",
     "pipeline_progress_bars",
     "string_list_from_mapping",
     "audit_report_progress_bar",

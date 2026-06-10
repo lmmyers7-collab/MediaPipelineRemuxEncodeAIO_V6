@@ -26,6 +26,9 @@ class DependencyAtlasServiceMixin:
                 return candidate
         return Path(sys.executable)
 
+    def dependency_atlas_output_dir(self) -> Path:
+        return self.workspace_root / "docs/generated/dependency-atlas"
+
     def generate_dependency_atlas(
         self,
         *,
@@ -35,7 +38,7 @@ class DependencyAtlasServiceMixin:
     ) -> dict[str, Any]:
         script = self.dependency_atlas_generator_path()
         python_path = self.dependency_atlas_python_path()
-        output_dir = self.workspace_root / "docs/generated/dependency-atlas"
+        output_dir = self.dependency_atlas_output_dir()
         html_path = output_dir / "dependency-atlas.html"
         png_path = output_dir / "dependency-atlas.png"
         svg_path = output_dir / "dependency-atlas.svg"

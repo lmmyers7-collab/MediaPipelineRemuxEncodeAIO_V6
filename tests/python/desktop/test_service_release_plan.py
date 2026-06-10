@@ -43,6 +43,7 @@ class ReleasePlanTests(unittest.TestCase):
             keep_personal_config=True,
             force=True,
             dry_run=True,
+            include_tauri_preview_binary=True,
         )
         self.assertEqual(
             args,
@@ -62,6 +63,7 @@ class ReleasePlanTests(unittest.TestCase):
                 "-IncludeDevDocs",
                 "-IncludeOptionalTools",
                 "-IncludeToolDocs",
+                "-IncludeTauriPreviewBinary",
                 "-KeepPersonalConfig",
                 "-DryRun",
             ],

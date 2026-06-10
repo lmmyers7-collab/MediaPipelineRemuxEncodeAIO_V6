@@ -21,6 +21,9 @@ from mediapipeline.core.observability.status_policy import progress_state_status
 
 
 class StatusProgressHelperTests(unittest.TestCase):
+    def _timestamp_seconds_ago(self, seconds: float) -> str:
+        return (datetime.now() - timedelta(seconds=seconds)).isoformat(timespec="seconds")
+
     def test_parse_progress_datetime_accepts_iso_z_space_and_t_formats(self) -> None:
         self.assertIsNotNone(parse_progress_datetime("2026-05-08T12:00:00Z"))
         self.assertIsNotNone(parse_progress_datetime("2026-05-08 12:00:00"))
@@ -40,6 +43,54 @@ class StatusProgressHelperTests(unittest.TestCase):
 
         self.assertFalse(is_progress_stale({"CurrentStage": "idle", "LastUpdate": old}))
         self.assertTrue(is_progress_stale({"CurrentStage": "encode", "LastUpdate": old}, stale_after_seconds=5))
+
+    def test_encode_progress_uses_default_five_second_stale_window(self) -> None:
+        old = self._timestamp_seconds_ago(30)
+
+        self.assertTrue(is_progress_stale({"CurrentStage": "encode", "LastUpdate": old}, stale_after_seconds=5))
+
+    def test_publish_copy_uses_freshest_last_or_copy_timestamp(self) -> None:
+        old = self._timestamp_seconds_ago(45)
+        fresh_copy = self._timestamp_seconds_ago(2)
+
+        self.assertFalse(
+            is_progress_stale(
+                {
+                    "CurrentStage": "push",
+                    "PushState": "copying",
+                    "LastUpdate": old,
+                    "CopyUpdatedAt": fresh_copy,
+                },
+                stale_after_seconds=5,
+            )
+        )
+
+    def test_publish_copy_uses_thirty_second_stale_window(self) -> None:
+        twenty_seconds_old = self._timestamp_seconds_ago(20)
+        forty_seconds_old = self._timestamp_seconds_ago(40)
+
+        self.assertFalse(
+            is_progress_stale(
+                {
+                    "CurrentStage": "push",
+                    "PushState": "copying",
+                    "LastUpdate": twenty_seconds_old,
+                    "CopyUpdatedAt": twenty_seconds_old,
+                },
+                stale_after_seconds=5,
+            )
+        )
+        self.assertTrue(
+            is_progress_stale(
+                {
+                    "CurrentStage": "push",
+                    "PushState": "copying",
+                    "LastUpdate": forty_seconds_old,
+                    "CopyUpdatedAt": forty_seconds_old,
+                },
+                stale_after_seconds=5,
+            )
+        )
 
     def test_is_audit_progress_stale_ignores_completed_and_detects_scanning_stale(self) -> None:
         old = (datetime.now() - timedelta(seconds=30)).isoformat(timespec="seconds")

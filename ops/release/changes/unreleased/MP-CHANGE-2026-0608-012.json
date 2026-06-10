@@ -1,0 +1,53 @@
+{
+  "id": "MP-CHANGE-2026-0608-012",
+  "title": "Improve Operator Progress Observability",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-08",
+  "date_completed": "2026-06-08",
+  "summary": "Improves operator-facing progress observability in the WebView without changing media workflow behavior. Adds a shared read-only live-run strip, clearer pending-drain and publish-review progress surfaces, stable determinate progress display, and immediate command/refresh acknowledgement copy.",
+  "reason": "Long-running media jobs need specific, calm progress feedback so the operator can distinguish active work, backend review states, stale progress, pending publish parking, and close readiness without inferring unsafe source or publish behavior.",
+  "affected_areas": [
+    "observability",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Progress indicators were concentrated on the Home progress area, some page refresh and command actions had weak immediate acknowledgement, deferred publish state could visually resemble ordinary active/complete work, and pending-drain progress did not have a dedicated page host.",
+  "behavior_after": "Home, Launch, Pending Publish, and Diagnostics expose the same read-only live-run strip from backend snapshot data. Progress bars carry accessible value text, determinate bars avoid backward display jumps for the same item, copy progress labels source files as unchanged, near-complete encode/remux explains backend finalization, and deferred publish is a warning/review state rather than complete.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/app/refresh.js",
+    "apps/desktop/webview/static/assets/launchView.js",
+    "apps/desktop/webview/static/assets/pendingPublishView.js",
+    "apps/desktop/webview/static/assets/progressView.js",
+    "apps/desktop/webview/static/assets/queueView.js",
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "apps/desktop/webview/static/partials/page-diagnostics.html",
+    "apps/desktop/webview/static/partials/page-home.html",
+    "apps/desktop/webview/static/partials/page-launch.html",
+    "apps/desktop/webview/static/partials/page-pending.html",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0608-012.json",
+    "src/mediapipeline/core/observability/status_policy.py",
+    "tests/python/desktop/test_application_facade_snapshot.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_snapshot.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "manual_validation": [
+    "node --check edited WebView JS files - passed",
+    "npm run webview:check - passed",
+    "npm run webview:dom-gaps:check - passed after regenerating current report (no Git diff)",
+    "npm run webview:lint - passed with existing warning budget (0 errors, 649 warnings)",
+    "npm run webview:script-order:smoke - passed",
+    "PYTHONPATH=src .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_snapshot tests.webview.test_webview_frontend_mutation_boundary -q - passed (29 tests)",
+    "PYTHONPATH=src .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_home_live_state_smoke -q - passed",
+    "PYTHONPATH=src .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_pending_drain_guard_smoke -q - passed"
+  ],
+  "rollback_plan": "Revert the WebView progress rendering/partial/style changes and the status_policy.py progress classification/detail additions, then remove the focused tests added for live-run surfaces and deferred-publish progress state.",
+  "related_changes": [],
+  "notes": "Balanced observability remediation for progress indicators; no media workflow or mutation authority changes.\nAdded shared Live Run Strip hosts/rendering, stable progress display, accessible progressbar text, pending-drain progress host, deferred-publish warning posture, and focused tests.\nSummary refresh ran for touched files: 12 written, 2 unchanged; refreshed summaries produced no Git diff for this change."
+}

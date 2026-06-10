@@ -84,6 +84,14 @@
       return fields.filter(Boolean).map((value) => String(value)).join(" ").toLowerCase();
     }
 
+    function captureCompletedProofSelectionScroll() {
+      return window.mediaPipelineDom?.captureScrollablePositions?.() || null;
+    }
+
+    function restoreCompletedProofSelectionScroll(snapshot) {
+      if (snapshot) window.mediaPipelineDom?.restoreScrollablePositions?.(snapshot);
+    }
+
     function completedSubtitleQaLines(item = null) {
       const qa = item && typeof item.subtitle_qa === "object" ? item.subtitle_qa : null;
       if (!qa) return ["Subtitle QA: not reported by backend."];
@@ -99,7 +107,7 @@
         `SRT validity: ${srt.status || "not_checked"}; cue_count=${srt.cue_count ?? "unknown"}; ${srt.reason || "no detail"}`,
         `Conversion/OCR evidence: ${conversion.status || "not_checked"}; sources=${Array.isArray(conversion.sources) && conversion.sources.length ? conversion.sources.join(", ") : "not reported"}; ${conversion.reason || "no detail"}`,
         `Sync review: risk=${sync.risk || "unknown"}; ${sync.reason || "heuristic only"}`,
-        `Subtitle QA safe action: ${qa.safe_next_action || "manual playback and Completed/Dashboard evidence remain required"}`,
+        `Subtitle QA safe action: ${qa.safe_next_action || "manual playback and Completed/Home evidence remain required"}`,
       ];
       reasons.slice(0, 4).forEach((reason) => lines.push(`Subtitle QA reason: ${reason}`));
       if (qa.guardrail) lines.push(qa.guardrail);
@@ -457,6 +465,7 @@
     }
 
     function selectCompletedRealMediaProofRow(item) {
+      const scrollSnapshot = captureCompletedProofSelectionScroll();
       state.selectedCompletedRealMediaProofKey = item?.key || "";
       if (item?.completedRow?.row_key) {
         state.selectedCompletedRowKey = item.completedRow.row_key;
@@ -468,6 +477,7 @@
       renderCompletedRealMediaProof(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
       renderCompletedFinalTrust(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
       renderCompletedPilotEvidencePacket(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
+      restoreCompletedProofSelectionScroll(scrollSnapshot);
     }
 
     function renderCompletedRealMediaProof(completed = state.lastCompletedPayload, rows = state.lastCompletedRows, proofRows = state.lastCompletedPendingProofRows, pending = state.lastCompletedPendingPayload, commandEntries) {
@@ -735,6 +745,7 @@
     }
 
     function selectCompletedFinalTrustRow(item) {
+      const scrollSnapshot = captureCompletedProofSelectionScroll();
       state.selectedCompletedFinalTrustKey = item?.key || "";
       if (item?.completedRow?.row_key) {
         state.selectedCompletedRowKey = item.completedRow.row_key;
@@ -745,6 +756,7 @@
       }
       renderCompletedFinalTrust(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
       renderCompletedPilotEvidencePacket(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
+      restoreCompletedProofSelectionScroll(scrollSnapshot);
     }
 
     function selectCompletedFinalTrustStep(stepOrKey) {
@@ -1133,8 +1145,10 @@
     }
 
     function selectCompletedPilotEvidenceRow(item) {
+      const scrollSnapshot = captureCompletedProofSelectionScroll();
       state.selectedCompletedPilotEvidenceKey = item?.key || "";
       renderCompletedPilotEvidencePacket(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
+      restoreCompletedProofSelectionScroll(scrollSnapshot);
     }
 
     function renderCompletedPilotEvidencePacket(completed = state.lastCompletedPayload, rows = state.lastCompletedRows, proofRows = state.lastCompletedPendingProofRows, pending = state.lastCompletedPendingPayload, commandEntries) {

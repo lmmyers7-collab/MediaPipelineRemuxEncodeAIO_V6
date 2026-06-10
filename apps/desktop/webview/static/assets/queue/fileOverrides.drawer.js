@@ -134,6 +134,7 @@
     const seriesCancelBtn = ctx.byId("fo-series-cancel");
     const seriesModal = ctx.byId("fo-series-modal");
     const stripAll = ctx.byId("fo-sub-strip-all");
+    const routeOverrideToggle = ctx.byId("fo-route-override-toggle");
 
     if (overlay) overlay.addEventListener("click", requestCloseFileSettingsDrawer);
     if (closeBtn) closeBtn.addEventListener("click", requestCloseFileSettingsDrawer);
@@ -143,6 +144,7 @@
     if (seriesApplyBtn) seriesApplyBtn.addEventListener("click", ctx.series.applySeriesPreview);
     if (seriesCloseBtn) seriesCloseBtn.addEventListener("click", () => ctx.focus.closeSeriesModal());
     if (seriesCancelBtn) seriesCancelBtn.addEventListener("click", () => ctx.focus.closeSeriesModal());
+    if (routeOverrideToggle) routeOverrideToggle.addEventListener("click", ctx.form.toggleRouteOverrideDisclosure);
     if (seriesModal) {
       seriesModal.addEventListener("click", (event) => {
         if (event.target === seriesModal) ctx.focus.closeSeriesModal();
@@ -168,6 +170,7 @@
     });
     document.querySelectorAll("[data-fo-route-control]").forEach((control) => {
       control.addEventListener("change", ctx.routePreview.scheduleRoutePreviewFromCurrentForm);
+      control.addEventListener("change", () => ctx.form.syncRouteOverrideDisclosure());
     });
     document.addEventListener("change", (event) => {
       if (event.target?.matches?.("[data-fo-track-action]")) {

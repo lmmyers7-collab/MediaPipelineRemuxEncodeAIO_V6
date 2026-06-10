@@ -6,6 +6,37 @@ Operator-approved scope (chat, 2026-06-02): execute ADR-0013 Wave 1 step 1,
 Wave 2 (steps 2-3), Wave 3 (steps 4-5), Wave 4 (step 6), then Wave 5
 (steps 7-8) on follow-up approval ("just continue").
 
+## TDARR Matrix audit gap remediation 2026-06-07 (operator-approved in chat; separate from kernel/entrypoint work)
+
+Operator approved (chat, 2026-06-07: "begin working through the MD") implementing the
+remediation items in `docs/dev/tdarr-matrix-audit-gaps.md`. Diagnostics/tooling domain;
+NOT the kernel migration, entrypoint-slice, or telemetry work. Non-§7 (diagnostics audit
+tool only; does not touch FFmpeg/subtitle/audio/publish/queue/settings behaviour).
+
+In-scope files:
+- `src/mediapipeline/core/diagnostics/tdarr_matrix_audit.py` (G1 derived runner timeout;
+  G2 bucket-count constant).
+- `src/mediapipeline/tools/dev/tdarr_matrix_audit.py`,
+  `src/mediapipeline/tools/dev/materialize_tdarr_test_library.py` (later items: G6 etc.).
+- `tests/python/desktop/test_service_tdarr_matrix_audit.py`,
+  `tests/python/tooling/test_tdarr_matrix_audit.py` (G2 sync + G11 unit tests).
+- `docs/dev/tdarr-matrix-audit-gaps.md` (status updates).
+- `docs/generated/summaries/` mirrors for edited sources; change packet under
+  `ops/release/changes/unreleased/`.
+
+Validation rung (AGENTS.md §5): agent-side Python unit tests via
+`apps\desktop\runtime\Python\python.exe`. G9 (strict-gate media-policy severity) is the only
+§7-adjacent item and is deferred / not self-certified.
+
+Status 2026-06-07: G1, G2, G4, G5, G6, G7, G8, G10, G11 implemented; G3 found already
+mitigated (facade `_diagnostics_command_lock`) and given regression tests. 28/28 TDARR
+unittests pass via bundled Python; summaries refreshed; change packet
+`ops/release/changes/unreleased/MP-CHANGE-2026-0607-020.json` created/updated and valid. Full
+per-gap log in `docs/dev/tdarr-matrix-audit-gaps.md`. G4 retention is opt-in CLI only
+(--keep-last; UI never deletes). G9 resolved by operator decision as a documented advisory
+(audio-only stays a warning; strict gate documented as static, no behavior change). All gaps
+G1-G11 now addressed (G3 was a non-gap); no remaining work in this docs/SESSION.md scope.
+
 ## Config hardening #1 2026-06-02 (AGENTS.md §7; operator-approved this turn)
 
 Task: startup self-heal for the live config so it cannot silently go missing.
@@ -939,5 +970,238 @@ movie-cleaning policy (remove_terms/filters) -- for full parity, add a normalize
 the Python queue preview via `current_work_item_label`; that touches the queue DTO/contract
 and needs a separate plan. Movies without a year token in the filename fall back to the
 space-normalized name.
+
+
+## Handoff 2026-06-07 -- CPU telemetry: dual-metric display (Option C; operator-approved in chat; separate from entrypoint-slice refactor)
+
+Operator reported the dashboard CPU reading was "consistently out of line" with Task Manager
+(e.g. app ~89% during a GPU-bound NVENC encode while Task Manager total ~40%). Investigated the
+full collect -> normalize -> snapshot -> DTO -> route -> view path (read-only) first, then the
+operator chose Option C and approved implementing it.
+
+Root cause (NOT a bug; proven by simultaneous Get-Counter + psutil sampling on this Windows
+box): the collector samples `\Processor Information(_Total)\% Processor Time` -- a
+frequency-INDEPENDENT busy fraction that equals the classic `\Processor(_Total)\% Processor
+Time` exactly and matches `psutil.cpu_percent` within rounding. Windows Task Manager instead
+displays `% Processor Utility`, which is frequency-SCALED (clamped 100). The two diverge
+bidirectionally with CPU clock state: above base clock (turbo) Utility > Time and can exceed
+100; downclocked (GPU-bound encode) Utility < Time. The `% Processor Time` headline was a
+deliberate choice (see comment in `system_metrics.py`) to avoid Utility's >100 turbo saturation.
+
+Resolution (Option C = show BOTH): kept `% Processor Time` as the headline `cpu_percent`; added
+a secondary, clamped `% Processor Utility` ("Task Manager-equivalent") figure carried end-to-end
+as a new `cpu_utility_percent` field. No change to the headline basis, polling cadence (backend
+2.0s / UI 4s), caching, memory/GPU telemetry, or any AGENTS.md section-7 area. Telemetry is
+read-only diagnostics; no media/queue/publish/settings behaviour touched.
+
+Changed files (all mine; additive):
+- `src/mediapipeline/core/telemetry/system_metrics.py` -- new `WINDOWS_PROCESSOR_UTILITY_COUNTER`;
+  `create_cpu_utility_sampler()`; `_sample_cpu_utility()` (clamped 0-100, no psutil fallback --
+  Utility has no psutil equivalent); `prime_cpu_sampler()` and `apply_system_metrics_to_snapshot()`
+  gained an optional `cpu_utility_sampler` param (back-compatible; busy-time path unchanged).
+- `src/mediapipeline/core/telemetry/service.py` -- creates/primes the utility sampler in its own
+  PDH query and passes it through `sample_system_telemetry`.
+- `src/mediapipeline/core/kernel/models_core.py`, `.../dto_status.py` -- new optional
+  `cpu_utility_percent: float | None = None` on `TelemetrySnapshot` / `TelemetryDto`.
+- `src/mediapipeline/core/observability/status_policy.py` -- `telemetry_fields` emits
+  `cpu_utility_percent`.
+- `apps/desktop/webview/static/partials/page-telemetry.html` -- `#cpu-utility-note` under the CPU
+  chart.
+- `apps/desktop/webview/static/assets/telemetryView.js` -- `cpuUtilityNoteText()` renders
+  "Task Manager-equivalent (% Utility): N%"; wired into `renderTelemetry`, the readiness summary,
+  and the public namespace export.
+- `tests/python/desktop/test_telemetry_service.py` -- 3 new unit tests (utility counter path;
+  clamped utility recorded separately from the % Processor Time headline; utility None when no
+  sampler). Existing `test_cpu_counter_uses_processor_time_basis_not_turbo_utility` guard still
+  green (headline basis unchanged).
+
+Ollama: not used. No commit/branch performed.
+
+Validation (agent-side; bundled `apps\desktop\runtime\Python\python.exe`, which lacks pytest
+after the 2026-06-04 runtime refresh -- ran via `unittest`):
+- `py_compile` (6 changed Python files) + `node --check telemetryView.js`: clean.
+- `test_telemetry_service.py`: 24/24 OK (incl. the basis-guard test).
+- `test_application_facade_core_contracts` 13/13, `test_application_facade_snapshot` 6/6,
+  `test_facade_status_policy` 4/4: OK (telemetry DTO/`to_mapping` NaN-safe path carries the new
+  field).
+- Live backend probe (real PDH + psutil, 2s window): `cpu_percent=34.4`,
+  `cpu_utility_percent=43.2`, both serialized through `telemetry_fields` (Utility > Time while
+  boosting; inverts when downclocked).
+- Live JS probe of `cpuUtilityNoteText`: 43.2 -> "43%", 137 -> clamped "100%", null/missing ->
+  "unavailable".
+
+Pre-existing red baseline (NOT mine; surfaced only when the wildcard `test_application_facade*.py`
+pattern pulled in `test_application_facade_web_static.py`): the rename static-JS assertions vs the
+operator's uncommitted rename/settings JS refactors, already documented in earlier handoffs.
+
+Operator validation still REQUIRED before sign-off:
+- Visual confirmation in the running app (Launch preview / Tauri) during a real encode: CPU card
+  keeps the busy-time headline and the new "Task Manager-equivalent (% Utility)" line tracks Task
+  Manager. (Agent cannot drive a live encode.)
+
+Change-control follow-ups NOT done (flagged, held to avoid colliding with concurrent sessions):
+- No `ops/release/changes/unreleased/MP-CHANGE-*.json` packet created (id-collision risk with
+  active sessions). `validate_changes --require-worktree-coverage` will list the 8 changed files
+  as uncovered until a packet is added.
+- `docs/generated/summaries/` mirrors for the changed sources not regenerated
+  (`refresh_summaries`).
+
+## Handoff 2026-06-09 -- empty source video-stream detection (operator-approved this turn)
+
+Task: TDARR matrix run-20260608-044850-full surfaced case tdarr-0698, an external tdarr sample
+(`sample__2160__libx265__alac__30s__video.mkv`) whose mkv header declares a 2160p video stream with
+zero decodable packets. ffprobe reported the stream, so the presence-only SOURCE_MEDIA_VIDEO_MISSING
+guard passed; the file routed to encode, ffmpeg aborted ("Cannot determine format of input after
+EOF"), and the failure was mis-classified transient and retried 3x. Operator chose the permanent
+pipeline-side fix.
+
+Scope note (AGENTS.md S7-adjacent; FFmpeg/probe area): change deliberately confined to the clean
+`ops/pipeline/engine/probe/media_probe.ps1`. The source-probe preflight guard in
+`pipeline_processing.ps1` and `failure_codes.ps1` already had uncommitted in-flight changes from other
+work, so this change reuses the existing `video_stream_missing` signal + SOURCE_MEDIA_VIDEO_MISSING
+code (no new failure code, no registry churn, no edits to those dirty files).
+
+Changed:
+- `ops/pipeline/engine/probe/media_probe.ps1` -- Get-SourceMediaRouteProfile now does a bounded
+  first-video-packet probe (`ffprobe -select_streams v:0 -read_intervals %+#1 -count_packets`); a
+  positive zero-packet result sets probe_ok=false / probe_error='video_stream_missing'. Ambiguous or
+  failed probes leave the source eligible (no false rejects).
+- `ops/release/changes/unreleased/MP-CHANGE-2026-0609-001.json` -- new change packet (status
+  in_progress).
+
+Validation (agent-side): media_probe.ps1 parse OK; Invoke-PipelineProcessingSourceProbeChecks.ps1 and
+Invoke-FailureCodeRegistryChecks.ps1 pass; real-media harness (bundled ffprobe) -> broken asset
+probe_ok=False/probe_error='video_stream_missing', healthy asset probe_ok=True/probe_error=''.
+
+Operator validation REQUIRED before status=complete (AGENTS.md S5 media/FFmpeg rung; not
+self-certified):
+- Run the real broken source end-to-end through `ops/pipeline/entrypoints/MediaPipeline.ps1`; confirm
+  permanent, non-retryable SOURCE_MEDIA_VIDEO_MISSING at stage source-probe, no encode, no retries.
+- Confirm a healthy 2160p h265 source still routes/encodes normally (hot-path regression for the added
+  bounded probe).
+
+Follow-ups not done this turn: summary refresh for media_probe.ps1 deferred to the pre-commit hook to
+avoid sweeping unrelated in-flight files. PROJECT_INDEX.md and docs/audit/latest.md were missing
+(degraded mode).
+
+### Part A 2026-06-09 -- quarantine undecodable-video tdarr fixtures (MP-CHANGE-2026-0609-002)
+
+Operator approved doing both the pipeline fix and the fixture-side fix. A full ffprobe sweep of the
+tdarr sample pool found 124 of 2316 files declare a video stream with zero decodable packets (the
+tdarr-0698 libx265/alac/mkv family plus many *.mp2 and libx265-in-wmv stress combos). These download
+byte-complete (size+sha256 match) but cannot be encoded.
+
+Changed (repo, non-S7, prior TDARR-audit session scope):
+- `src/mediapipeline/tools/dev/materialize_tdarr_test_library.py` -- TdarrSample gains
+  `video_decodable`; load_inventory reads it; new is_quarantined_sample/partition_quarantined_samples
+  skip samples marked 'false'; materialize() summary adds quarantined_samples. Absent/empty/other
+  values include (backward compatible).
+- `tests/python/tooling/test_materialize_tdarr_test_library.py` -- 2 new tests (predicate +
+  end-to-end skip). Suite 6/6 pass via bundled Python.
+
+Changed (gitignored E: asset tooling, not repo-tracked):
+- `E:\Videos\TdarrMatrix\TestFixtures\TdarrSamples\download_tdarr_samples.py` -- ffprobe decodability
+  check (find_ffprobe/probe_video_decodable/annotate_decodability), `video_decodable` inventory
+  column, `--verify-only`/`--ffprobe` modes, undecodable_video_files summary. py_compile clean.
+- Ran `--verify-only` to populate the existing inventory's video_decodable column (inventory.csv/json
+  backed up to *.pre-decodable.bak first).
+
+Operator validation REQUIRED: rebuild the matrix library (materialize --rebuild) and confirm
+quarantined_samples matches the undecodable count and those sources are absent from source/Movies +
+source/TV.
+
+Optional remaining hardening (not done): broader malformed-source encode-classification fix at the
+failure-recording site (belt-and-suspenders beyond the preflight catch).
+
+## Handoff 2026-06-09 — Library profile config-cluster code-review fixes (operator-approved in chat; out of TDARR/kernel scope)
+
+Operator approved (chat, 2026-06-09: "go ahead and work on all of these") implementing 7 findings from a
+code review of the `src/mediapipeline/core/config/library_profile_*` cluster. Scope drift flagged: this is the
+config domain, separate from the TDARR-matrix and entrypoint/kernel work scoped above. Touches AGENTS.md §7
+"Settings schema/defaults/persistence" -> NOT self-certified; operator smokes still required (below).
+
+Changed files (all under `src/mediapipeline/core/config/` unless noted):
+- `library_profile_validation.py` -- NEW advisory warning when one enabled library source root is nested
+  inside another's (`_nested_source_warning`); previously only exact-equal source roots errored. Warning only,
+  never blocks save. Also commented the intentional broad `except` blocks.
+- `library_profile_state.py` -- hoisted `default_library_settings`/`coerce_library_overrides` out of the
+  per-key loop in `library_profile_state` (was O(N^2) full rebuilds; output identical) via new private
+  `_setting_override_field_state`; dropped the dead `config` first param from `library_profile_path_field_state`
+  (no external callers; still exported by name).
+- `library_profile_normalization.py` -- `library_profiles_from_config` duplicate-id dedup is now consistently
+  first-wins (movies/tv were last-wins, others first-wins). Only affects invalid configs with duplicate ids
+  (validation already errors on those).
+- `library_profile_promotion.py` -- removed an unreachable guard in `mirror_legacy_keys_from_library_profiles`;
+  commented the broad `except` blocks.
+- `library_profile_compatibility.py` (untracked file) -- `mp4_compatibility_applied` uses `.casefold()` not
+  `.lower()` for cluster consistency.
+- `tests/python/desktop/test_library_profiles.py` -- +3 tests: nested-source warning, sibling-source no-warn,
+  duplicate-movies-id first-wins.
+
+Validation performed (agent-side, bundled `apps\desktop\runtime\Python\python.exe`, `PYTHONPATH=src`):
+- `test_library_profiles.py` 71/71 OK (incl. 3 new).
+- `test_route_map.py`, `test_library_route_map_api.py`, `test_config_contract.py`, `test_config_keys.py`,
+  `test_service_config_validation.py` all OK.
+- `test_final_library_promotion.py`: promotion logic passes; the single failure
+  (`test_webview_exposes_dashboard_and_selected_file_promotion_entry_points`) is PRE-EXISTING and unrelated --
+  the dirty working tree changed the home partial label "Promote Files" -> "Open Completed Output" but that test
+  still asserts the old text. Not caused by this change.
+
+§7 not self-certified -- operator smokes still required:
+- `ops\scripts\smoke\Test-WebViewSettingsLaunchLiveConfigSmoke.ps1`
+- `ops\scripts\smoke\Test-WebViewSettingsPatchEvidenceSmoke.ps1`
+- `ops\scripts\smoke\Test-LocalApiLifecycleContractSmoke.ps1` (operator-surface-opens check)
+
+Follow-ups not done: `docs/generated/summaries/` mirrors for the 4 edited tracked files are now stale
+(regenerate via the documented summary script if desired); no `ops/release/changes/unreleased/` change packet
+created for this out-of-scope work. Ollama not used.
+
+### Round 2 (same approval) -- deeper edge cases A-F
+
+Operator approved (chat, 2026-06-09: "Please address all these issues") fixing 6 additional findings from a
+deeper review (preview-vs-engine routing parity, robustness, contract clarity). Same out-of-scope config domain;
+A/D are §7-adjacent (routing) -> NOT self-certified (smokes below). D additionally touches the §7 PS engine.
+
+Changed files:
+- `src/mediapipeline/core/config/library_profile_state.py` (A, B):
+  - A: rewrote `effective_library_profile_for_source_path` so its path matching mirrors the engine
+    (`Get-MediaPipelineLibraryProfileForPath`/`Test-MediaPipelinePathUnderRoot`): resolve `..`, absolutize,
+    `os.path.normcase`, separator-boundary containment (replaces the prior forward-slash `casefold`/`startswith`).
+    Added optional `selected_profile_id` kwarg that mirrors the engine's `CurrentLibraryProfileId` precedence
+    (default None = unchanged; preview callers reflect default selection-free routing). Docstring documents the
+    contract. The 4 preview callers were NOT rewired (they have no runtime selection).
+  - B: guarded the `library_profiles_from_config` call in `apply_library_profile_resets` so malformed
+    `LibraryProfiles` returns `(values, ["LibraryProfiles is invalid: ..."])` instead of raising (matches the
+    sibling normalize/mirror swallow behavior; fixes the unguarded call at
+    `settings_patch_candidate_facade.py:176`).
+- `src/mediapipeline/core/config/library_profile_validation.py` (C, F):
+  - C: `validate_library_profiles` now warns when a raw id/name slug collapses onto a reserved built-in id
+    ("Library profile {label} maps to the reserved 'movies'/'tv' library (matched '{slug}').").
+  - F: `_validate_profile_effective_settings` validates the base config alone first and subtracts that baseline,
+    so only override-introduced errors/warnings are attributed to the profile (no more mis-attributing
+    pre-existing base errors).
+- `src/mediapipeline/core/config/library_profile_normalization.py` (E): comment documenting the
+  explicit-`inherited_fields` output-path override behavior (no code change).
+- `ops/pipeline/engine/paths/library_profiles.ps1` (D, §7 engine): added 'disable' to the enabled disabled-set
+  and 'enable' to the promotion-enabled true-set so the PS enabled/promotion string vocabulary matches Python
+  `_bool_value`. Note: moot in the normal flow (Python normalizes enabled/promotion_enabled to real booleans at
+  save time); only affects hand-edited/legacy string values.
+- `tests/python/desktop/test_library_profiles.py`: +6 tests (dotdot/case path resolution, selection precedence,
+  malformed-config reset returns error, reserved-id collapse warning, explicit-inherited output, base-error
+  non-attribution). Added `effective_library_profile_for_source_path` to imports.
+
+Validation performed (agent-side):
+- `test_library_profiles.py` 77/77 OK (incl. 6 new).
+- `test_route_map.py`, `test_library_route_map_api.py`, `test_service_config_validation.py` OK.
+- `test_final_library_promotion.py`: same single PRE-EXISTING webview-label failure
+  (`test_webview_exposes_dashboard_and_selected_file_promotion_entry_points`); not introduced here.
+- D engine change: `pwsh -File ops\pipeline\tests\Unit\Invoke-LibraryProfileRoutingChecks.ps1` -> exit 0,
+  "Library profile routing checks passed."
+
+§7 not self-certified -- operator smokes still required (same as Round 1):
+- `ops\scripts\smoke\Test-WebViewSettingsLaunchLiveConfigSmoke.ps1`
+- `ops\scripts\smoke\Test-WebViewSettingsPatchEvidenceSmoke.ps1`
+- `ops\scripts\smoke\Test-LocalApiLifecycleContractSmoke.ps1`
+Plus, because D edits the PS routing engine, an end-to-end/pipeline routing smoke if the operator runs one.
 
 

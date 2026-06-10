@@ -3,9 +3,9 @@ file: src/mediapipeline/contracts/verification.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-06-05
+last_modified: 2026-06-06
 last_reviewed: 2026-06-04
-sha256: b5fb8523d0d405f8f85187d13e1f0dcc694640fcee20b9f9d80b5b574976c02f
+sha256: fe1b5ab151f2d271c479bf30193ea5c295ca5b0b9b000a924a27a4e83741d3a4
 ---
 # `src/mediapipeline/contracts/verification.py`
 

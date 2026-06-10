@@ -116,6 +116,11 @@ function renderSnapshot(snapshot) {
     renderProgressEvidence({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, diagnostics: null });
   }
   window.mediaPipelineProgressView?.renderDiagnosticsProgress?.(lastSnapshot);
+  window.mediaPipelineProgressView?.renderLiveRunStrip?.({
+    snapshot: lastSnapshot,
+    diagnostics: null,
+    closeReadiness: lastCloseReadiness,
+  });
   const recentEvents = Array.isArray(snapshot.recent_events) ? snapshot.recent_events : [];
   renderPipelineEvents(recentEvents);
   renderSparkline(recentEvents);
@@ -515,6 +520,10 @@ function renderHomeRecentCompleted(completed) {
   return window.mediaPipelineAppHomeReadiness?.renderHomeRecentCompleted?.(completed);
 }
 
+function renderHomeTdarrMatrixStatus(context = {}) {
+  return window.mediaPipelineAppHomeReadiness?.renderHomeTdarrMatrixStatus?.(context);
+}
+
 function renderHomePromotionEntry(status = {}) {
   return window.mediaPipelineAppHomeReadiness?.renderHomePromotionEntry?.(status);
 }
@@ -715,8 +724,10 @@ async function refreshAllNow(options = {}) {
     ["pending publish", apiGet("/api/pending-publish"), false],
     ["schedule", apiGet("/api/schedule"), false],
     ["settings", apiGet("/api/settings/workspace"), false],
+    ["libraries route map", apiGet("/api/libraries/route-map"), false],
     ["network workers", apiGet("/api/network/workers"), false],
     ["sample validation", apiGet("/api/sample-validation?limit=10"), false],
+    ["tdarr matrix", apiGet("/api/diagnostics/tdarr-matrix/latest?finding_limit=0"), false],
     ["contract", apiGet("/api/contract"), false],
   ];
   const results = await Promise.allSettled(requests.map(([, request]) => request));
@@ -783,6 +794,10 @@ async function refreshAllNow(options = {}) {
   }
   if (values["pending publish"]) renderPendingPublish(values["pending publish"], values.snapshot || lastSnapshot);
   renderHomePendingCount(values["pending publish"] || {});
+  renderHomeTdarrMatrixStatus({
+    payload: values["tdarr matrix"] || {},
+    failure: failures.find((item) => item.name === "tdarr matrix") || null,
+  });
   if (values.schedule) {
     lastSchedule = values.schedule;
     renderSchedule(values.schedule);
@@ -792,6 +807,13 @@ async function refreshAllNow(options = {}) {
     window.mediaPipelineSettingsLibraries?.renderSettingsLibraries?.(values.settings, refreshOptions);
     window.mediaPipelineReportsView?.renderReports?.(lastSnapshot, getLastSettings());
     window.mediaPipelineLaunchView?.renderAllLaunchPreflights?.();
+  }
+  if (values["libraries route map"]) {
+    window.mediaPipelineLibraryRouteMap?.renderRouteMap?.(values["libraries route map"], {
+      queue: values.queue || {},
+      completed: values.completed || {},
+      sampleValidation: values["sample validation"] || {},
+    });
   }
   if (values.contract) window.mediaPipelineContractView?.renderContract?.(values.contract);
   const renderNetworkViewFn = window.mediaPipelineNetworkView?.renderNetworkView;
@@ -833,6 +855,11 @@ async function refreshAllNow(options = {}) {
       closeReadiness: values["close readiness"] || lastCloseReadiness,
     });
   }
+  window.mediaPipelineProgressView?.renderLiveRunStrip?.({
+    snapshot: values.snapshot || lastSnapshot,
+    diagnostics: values.diagnostics || null,
+    closeReadiness: values["close readiness"] || lastCloseReadiness,
+  });
   if (typeof renderProgressEvidence === "function") {
     renderProgressEvidence({
       snapshot: values.snapshot || lastSnapshot,
@@ -904,6 +931,7 @@ async function refreshAllNow(options = {}) {
     networkWorkers: values["network workers"] || {},
     failuresPayload: values.failures || {},
     auditResults: values["audit results"] || {},
+    tdarrMatrix: values["tdarr matrix"] || {},
     failures,
   };
   renderHomeNextQueue(dashboardContext);
@@ -1456,6 +1484,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   initThemeToggle();
   initLaunchEvidenceToggle();
   initCollapsibleSummaries();
+  window.mediaPipelineDom?.enhanceDataTables?.();
   initPageRefreshButtons();
   initSettingsTabNav();
   initDiagnosticsTabNav();
@@ -1547,6 +1576,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   window.mediaPipelineRenameView?.renameInitWorkbenchEvents?.();
   initSettingsViewEvents();
   window.mediaPipelineSettingsLibraries?.initSettingsLibrariesEvents?.({ refreshAll });
+  window.mediaPipelineLibraryRouteMap?.initLibraryRouteMapEvents?.({ refreshAll });
   window.mediaPipelineSettingsWizard?.initSettingsWizardEvents?.({
     refreshAll,
     setSettingsCommandBusy: window.mediaPipelineSettingsView?.setSettingsCommandBusy,
@@ -1583,6 +1613,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (backfillDryRunButton) backfillDryRunButton.addEventListener("click", runBackfillDryRun);
   const dependencyAtlasButton = byId("dependency-atlas-button");
   if (dependencyAtlasButton) dependencyAtlasButton.addEventListener("click", () => window.mediaPipelineMaintenanceView?.runDependencyAtlas?.());
+  const dependencyAtlasOpenFolderButton = byId("dependency-atlas-open-folder-button");
+  if (dependencyAtlasOpenFolderButton) dependencyAtlasOpenFolderButton.addEventListener("click", () => window.mediaPipelineMaintenanceView?.openDependencyAtlasFolder?.());
   const queueFilter = byId("queue-filter");
   if (queueFilter) queueFilter.addEventListener("input", () => window.mediaPipelineQueueView?.renderQueueRows?.());
   const queueStatusFilter = byId("queue-status-filter");
@@ -1595,6 +1627,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (completedFilter) completedFilter.addEventListener("input", () => window.mediaPipelineCompletedView?.renderCompletedRows?.());
   const completedStatusFilter = byId("completed-status-filter");
   if (completedStatusFilter) completedStatusFilter.addEventListener("change", () => window.mediaPipelineCompletedView?.renderCompletedRows?.());
+  const completedLibraryFilter = byId("completed-library-filter");
+  if (completedLibraryFilter) completedLibraryFilter.addEventListener("change", () => window.mediaPipelineCompletedView?.renderCompletedRows?.());
   const completedInvestigationFilter = byId("completed-investigation-filter");
   if (completedInvestigationFilter) completedInvestigationFilter.addEventListener("change", () => window.mediaPipelineCompletedView?.renderCompletedRows?.());
   const completedClearFiltersButton = byId("completed-clear-filters-button");
@@ -1609,6 +1643,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (completedHistoryInvestigationFilter) completedHistoryInvestigationFilter.addEventListener("change", () => window.mediaPipelineCompletedView?.renderCompletedRows?.());
   const completedHistoryClearFiltersButton = byId("completed-history-clear-filters-button");
   if (completedHistoryClearFiltersButton) completedHistoryClearFiltersButton.addEventListener("click", () => window.mediaPipelineCompletedView?.resetCompletedHistoryFilters?.());
+  document.querySelectorAll("[data-completed-size-column-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      window.mediaPipelineCompletedView?.setCompletedSizeColumnMode?.(button.dataset.completedSizeColumnMode || "size");
+    });
+  });
   const publishReconciliationRefreshButton = byId("publish-reconciliation-refresh-button");
   if (publishReconciliationRefreshButton) publishReconciliationRefreshButton.addEventListener("click", () => window.mediaPipelineCompletedView?.requestPublishReconciliation?.());
   const completedCopyEvidenceButton = byId("completed-copy-evidence-button");

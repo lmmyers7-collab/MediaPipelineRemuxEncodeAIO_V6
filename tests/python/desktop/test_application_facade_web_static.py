@@ -448,7 +448,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
                 updated_at: "2026-05-22T19:42:39.4749504Z",
               },
               {
-                label: "Current stage",
+                label: "Current backend stage",
                 status: "idle",
                 detail: "idle | None",
                 source: "pipeline_progress.json",
@@ -474,13 +474,13 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
                 mode: "stepped",
                 percent: 0,
                 steps: [
-                  { id: "copy", label: "Copy file", status: "active" },
+                  { id: "copy", label: "Copy completed output", status: "active" },
                   { id: "sidecars", label: "Write sidecars", status: "pending" },
                 ],
               },
               {
                 id: "publish_copy",
-                label: "Push file",
+                label: "Publishing completed output",
                 status: "active",
                 percent: 50,
                 detail: "512.0 MB / 1.0 GB",
@@ -491,7 +491,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
                 rows: [
                   {
                     worker_id: "publish_copy",
-                    worker_label: "Push file",
+                    worker_label: "Publishing completed output",
                     eta_seconds: 60,
                     bytes_per_second: 8947849,
                     bytes_remaining: 536870912,
@@ -503,12 +503,159 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             });
             const stepList = container.children[0]?.children[2];
             const stepText = stepList?.children.map((child) => child.textContent).join(" | ") || "";
-            if (!stepText.includes("Copy file") || !stepText.includes("Write sidecars")) {
+            if (!stepText.includes("Copy completed output") || !stepText.includes("Write sidecars")) {
               throw new Error(`Publish steps did not render: ${stepText}`);
             }
             const pushDetail = container.children[1]?.children[2]?.textContent || "";
             if (!pushDetail.includes("eta 1m 00s") || !pushDetail.includes("write 8.5 MB/s") || !pushDetail.includes("remaining 512.0 MB")) {
               throw new Error(`Push ETA detail did not render: ${pushDetail}`);
+            }
+            """
+        )
+        result = subprocess.run(
+            [node, "-e", script],
+            cwd=repo_root,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr or result.stdout)
+
+    def test_home_progress_stale_review_requires_consecutive_snapshots(self) -> None:
+        node = shutil.which("node")
+        if not node:
+            raise unittest.SkipTest("Node.js is required for the progress stale hysteresis smoke.")
+        repo_root = find_repo_root(Path(__file__))
+        script = textwrap.dedent(
+            r"""
+            const fs = require("fs");
+            const vm = require("vm");
+            const path = require("path");
+            const progressPath = path.join(
+              process.cwd(),
+              "apps/desktop/webview/static/assets/progressView.js"
+            );
+            const source = fs.readFileSync(progressPath, "utf8");
+            function makeElement(tag) {
+              const node = {
+                tagName: String(tag || "").toUpperCase(),
+                children: [],
+                dataset: {},
+                className: "",
+                style: {},
+                attributes: {},
+                title: "",
+                appendChild(child) {
+                  this.children.push(child);
+                  return child;
+                },
+                append(...items) { items.forEach((item) => this.appendChild(item)); },
+                replaceChildren(...items) { this.children = []; this.append(...items); },
+                setAttribute(name, value) { this.attributes[name] = String(value); },
+                classList: {
+                  values: new Set(),
+                  add(...names) { names.forEach((name) => this.values.add(name)); },
+                  remove(...names) { names.forEach((name) => this.values.delete(name)); },
+                  contains(name) { return this.values.has(name); },
+                },
+                _textContent: "",
+              };
+              Object.defineProperty(node, "textContent", {
+                get() {
+                  return this._textContent || this.children.map((child) => child.textContent || "").join("");
+                },
+                set(value) {
+                  this._textContent = String(value ?? "");
+                  this.children = [];
+                },
+              });
+              return node;
+            }
+            const container = makeElement("div");
+            const context = {
+              window: {},
+              console,
+              Date,
+              document: { createElement: makeElement },
+              byId(id) { return id === "progress-bar-list" ? container : null; },
+              formatProgressValue(value) { return value == null ? "" : String(value); },
+            };
+            context.window = context;
+            vm.createContext(context);
+            vm.runInContext(source, context, { filename: progressPath });
+            const progress = context.window.mediaPipelineProgressView;
+            if (!progress?.renderProgressBars) {
+              throw new Error("Progress renderer export is missing");
+            }
+
+            function text() {
+              return container.textContent;
+            }
+            function rowStatuses(node = container, statuses = []) {
+              if (node.dataset?.status) statuses.push(node.dataset.status);
+              (node.children || []).forEach((child) => rowStatuses(child, statuses));
+              return statuses;
+            }
+            function snapshotFor(file) {
+              return {
+                progress: {
+                  CurrentFileDisplay: file,
+                  CurrentQueueIndex: 1,
+                  CurrentQueueTotal: 2,
+                },
+              };
+            }
+            function staleBar(file) {
+              return {
+                id: "publish_copy",
+                label: "Publishing completed output",
+                status: "warning",
+                percent: 72,
+                detail: `copying | ${file}`,
+                source: "pipeline_progress.json",
+                updated_at: "2026-06-07 14:03:42",
+                stale: true,
+              };
+            }
+            function freshBar(file) {
+              return {
+                ...staleBar(file),
+                status: "active",
+                stale: false,
+              };
+            }
+
+            progress.renderProgressBars([staleBar("Movie A.mkv")], snapshotFor("Movie A.mkv"));
+            if (text().includes("stale/review")) {
+              throw new Error(`First stale snapshot rendered stale token: ${text()}`);
+            }
+            if (rowStatuses().includes("warning")) {
+              throw new Error(`First stale snapshot kept stale-derived warning status: ${rowStatuses().join(",")}`);
+            }
+
+            progress.renderProgressBars([staleBar("Movie A.mkv")], snapshotFor("Movie A.mkv"));
+            if (!text().includes("stale/review")) {
+              throw new Error(`Second stale snapshot did not render stale token: ${text()}`);
+            }
+
+            progress.renderProgressBars([staleBar("Movie B.mkv")], snapshotFor("Movie B.mkv"));
+            if (text().includes("stale/review")) {
+              throw new Error(`File change did not reset stale confirmation: ${text()}`);
+            }
+
+            progress.renderProgressBars([staleBar("Movie B.mkv")], snapshotFor("Movie B.mkv"));
+            if (!text().includes("stale/review")) {
+              throw new Error(`Second stale snapshot for changed file did not render stale token: ${text()}`);
+            }
+
+            progress.renderProgressBars([freshBar("Movie B.mkv")], snapshotFor("Movie B.mkv"));
+            if (text().includes("stale/review")) {
+              throw new Error(`Fresh snapshot did not clear stale token: ${text()}`);
+            }
+
+            progress.renderProgressBars([staleBar("Movie B.mkv")], snapshotFor("Movie B.mkv"));
+            if (text().includes("stale/review")) {
+              throw new Error(`Fresh snapshot did not reset stale confirmation count: ${text()}`);
             }
             """
         )
@@ -796,7 +943,12 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertEqual(set(command_routes["/api/queue/open"]["allowed_row_scopes"]), {"runnable", "excluded"})
 
         completed_targets = row_open_targets("completed")
-        self.assertEqual(set(command_routes["/api/completed/open"]["allowed_targets"]) - completed_targets, set())
+        self.assertIn("Play Output", app_row_open_js)
+        self.assertNotIn("Open Output File", app_row_open_js)
+        self.assertIn("play_output_file", completed_targets)
+        self.assertNotIn("output_file", completed_targets)
+        completed_route_targets = set(command_routes["/api/completed/open"]["allowed_targets"])
+        self.assertEqual((completed_route_targets - {"output_file"}) - completed_targets, set())
 
         pending_targets = row_open_targets("pending")
         self.assertEqual(set(command_routes["/api/pending-publish/open"]["allowed_targets"]) - pending_targets, set())

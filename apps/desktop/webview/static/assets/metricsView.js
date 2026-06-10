@@ -25,6 +25,7 @@
       panel.classList.toggle("is-active", panel.dataset.metricsTabPanel === selected);
     });
     try { localStorage.setItem(METRICS_TAB_STORAGE_KEY, selected); } catch (_error) {}
+    if (typeof window.mediaPipelineAppLifecycle?.syncTabAccessibility === "function") window.mediaPipelineAppLifecycle.syncTabAccessibility();
     if (typeof updatePagePanelEmptyStates === "function") updatePagePanelEmptyStates();
   }
 

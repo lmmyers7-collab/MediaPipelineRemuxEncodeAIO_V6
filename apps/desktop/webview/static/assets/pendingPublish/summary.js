@@ -136,7 +136,7 @@ function pendingPublishReadinessLines(pending, rows) {
     } else if (warnings.length) {
       lines.push("Safe action: drain may be possible, but review warnings first.");
     } else {
-      lines.push("Safe action: pending rows look ready for Publish Parked Outputs.");
+      lines.push("Safe action: pending rows look ready for Drain Parked Outputs.");
     }
     lines.push("Backend drain command remains the source of truth; this summary does not bypass backend validation or publish checks.");
     return lines;
@@ -187,12 +187,12 @@ function pendingWorkflowLines(pending, rows) {
     } else if (pendingValidationStatus(payload, rowList) === "Do not drain") {
       lines.push("Next step: do not drain. Select the issue row, use Pending Diagnostics Cross-Links, and inspect manifest/payload/sidecar/log evidence first.");
     } else if (Number(payload.issue_count || 0) > 0 || issueRows.length || warnings.length) {
-      lines.push("Next step: review issue/warning rows and Last Stderr before using Publish Parked Outputs.");
+      lines.push("Next step: review issue/warning rows and Last Stderr before using Drain Parked Outputs.");
     } else {
-      lines.push("Next step: pending publish context is coherent. Publish Parked Outputs remains the backend-owned drain command.");
+      lines.push("Next step: pending publish context is coherent. Drain Parked Outputs remains the backend-owned drain command.");
     }
     lines.push("Owning pages: Pending Publish for parked output safety, Completed for output proof, Queue before rerun, Diagnostics for artifacts/logs.");
-    lines.push("Mutation guardrail: this workflow panel is read-only. Publish Parked Outputs remains backend-owned.");
+    lines.push("Mutation guardrail: this workflow panel is read-only. Drain Parked Outputs remains backend-owned.");
     return lines;
   }
 
@@ -279,7 +279,7 @@ function pendingReviewBoardLines(pending, rows) {
     } else if (!rowList.length) {
       lines.push("First action: no parked outputs are waiting. If expected outputs are missing, inspect Completed and Run Logs before reprocessing.");
     } else {
-      lines.push("First action: no pending rows are locally flagged. Publish Parked Outputs remains the backend-owned validation and drain path.");
+      lines.push("First action: no pending rows are locally flagged. Drain Parked Outputs remains the backend-owned validation and drain path.");
     }
     lines.push("Mutation guardrail: this board is read-only; drain, repair, rewrite, move, delete, and publish actions remain backend-owned.");
     return lines;
@@ -316,7 +316,7 @@ function renderPendingReviewDigest(pending, rows) {
           : payload.exists === false
             ? "No pending-publish root exists. Check Completed and Run Logs before assuming a missing output is lost."
             : rowList.length
-              ? "No pending rows are flagged by the loaded backend payload. Publish Parked Outputs remains backend-owned validation."
+              ? "No pending rows are flagged by the loaded backend payload. Drain Parked Outputs remains backend-owned validation."
               : "No parked outputs are waiting. Cross-check Completed before reprocessing expected outputs.",
       );
       updateTableStatusLegend("pending-review-legend", tbody, "Pending publish review rows");
@@ -429,7 +429,7 @@ function pendingRiskLines(pending, rows) {
       });
     }
     lines.push("", ...pendingRecoverySummaryLines(payload));
-    lines.push("", "Operator note: drain readiness is advisory. The backend Publish Parked Outputs command still performs authoritative validation.");
+    lines.push("", "Operator note: drain readiness is advisory. The backend Drain Parked Outputs command still performs authoritative validation.");
     return lines;
   }
 
@@ -524,7 +524,7 @@ function pendingValidationChecklistLines(pending, rows) {
     } else if (warnings.length || Number(payload.issue_count || 0) > 0 || issueRows.length) {
       lines.push("Operator action: review warnings and issue rows before publishing parked outputs.");
     } else {
-      lines.push("Operator action: rows appear ready, but Publish Parked Outputs remains the authoritative backend validation path.");
+      lines.push("Operator action: rows appear ready, but Drain Parked Outputs remains the authoritative backend validation path.");
     }
     lines.push("Mutation guardrail: this checklist is read-only and cannot drain, repair, delete, rewrite, or publish files.");
     return lines;

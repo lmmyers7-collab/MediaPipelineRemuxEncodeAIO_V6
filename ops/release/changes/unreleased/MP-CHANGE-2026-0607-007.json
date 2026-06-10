@@ -1,0 +1,53 @@
+{
+  "id": "MP-CHANGE-2026-0607-007",
+  "title": "Use library profiles for final promotion settings",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "medium",
+  "date_started": "2026-06-07",
+  "date_completed": "2026-06-07",
+  "summary": "Removes the standalone Settings Final Library Promotion editor and makes Library Profiles the operator-facing source for promotion destinations. Library Profile saves now write FinalLibraryPromotionEnabled from profile promotion checkboxes and generate FinalLibraryPromotionRules only from enabled profiles with explicit promotion destinations.",
+  "reason": "The separate manual source-to-destination rule editor duplicated the per-library promotion destination workflow and could preserve stale manual rules after library-profile saves.",
+  "affected_areas": [
+    "final-library",
+    "settings",
+    "webview"
+  ],
+  "behavior_before": "Settings exposed a separate Final Library Promotion panel with manual enable, verification, cleanup, overwrite, and source-to-destination rule controls. Library Profile saves generated profile-derived rules but also retained existing manual FinalLibraryPromotionRules as fallback rules.",
+  "behavior_after": "Settings no longer exposes the standalone Final Library Promotion editor. Operators configure promotion per Library Profile through promotion_destination and promotion_enabled, and Library Profile saves generate only profile-derived promotion rules while disabling global final-library promotion when no enabled profile has promotion enabled.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settings/patchReview.js",
+    "apps/desktop/webview/static/assets/settingsLibraries.js",
+    "apps/desktop/webview/static/assets/settingsMetadata.js",
+    "apps/desktop/webview/static/assets/settingsView.js",
+    "apps/desktop/webview/static/partials/page-settings.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settings/patchReview.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsLibraries.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsMetadata.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-settings.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0607-007.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_final_library_promotion.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_settings_libraries.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0607-007.json",
+    "tests/python/desktop/test_final_library_promotion.py",
+    "tests/webview/test_webview_settings_libraries.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_final_library_promotion.py",
+    "tests/webview/test_webview_settings_libraries.py"
+  ],
+  "manual_validation": [
+    "Final validate_changes --require-worktree-coverage - blocked by unrelated MP-CHANGE-2026-0605-010 missing date_completed, unrelated MP-CHANGE-2026-0607-008 missing high/critical notes or rollback detail, and unrelated uncovered dirty files: src/mediapipeline/core/config/library_profile_compatibility.py, src/mediapipeline/core/config/library_profiles.py, src/mediapipeline/core/config/settings_facade.py, src/mediapipeline/core/kernel/dto_workspaces.py",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_final_library_promotion.FinalLibraryPromotionWebViewSettingsTests - passed",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_final_library_promotion.FinalLibraryPromotionWebViewSettingsTests.test_settings_uses_library_profiles_for_final_library_promotion_settings tests.webview.test_webview_settings_libraries.WebViewSettingsLibrariesStaticTests.test_settings_libraries_asset_stages_profile_patch - passed",
+    "PYTHONPATH=src powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewSettingsLaunchPolicySmoke.ps1 - passed",
+    "Rendered/static shell check confirmed old Settings final-library controls absent, Library Profile promotion fields present in settingsLibraries.js, and Completed promotion button present",
+    "git diff --check targeted touched files - passed",
+    "npm run webview:check - passed"
+  ],
+  "rollback_plan": "Restore the removed Settings Final Library Promotion panel markup, restore the finalLibraryPromotionSettingsBuilderFields entries and command-button/event bindings, restore generatedPromotionRules merging of existing rules, and rerun the focused final-library WebView settings tests plus npm run webview:check.",
+  "related_changes": [],
+  "notes": "In-app Browser validation was attempted against http://127.0.0.1:8765/#settings after starting Local API dev no-token mode; Playwright MCP bridge extension timed out, so the API process was stopped and rendered/static checks were used as substitute evidence.\nAdded generated summary for this change packet to files_touched after strict coverage reported it uncovered.\nFinal strict coverage reported four uncovered dirty source files that are unrelated to this request and were not absorbed into MP-CHANGE-2026-0607-007."
+}

@@ -65,6 +65,10 @@ $truncated = Get-MediaPipelineFailureCodeMetadata -Code 'SOURCE_MEDIA_TRUNCATED'
 if (-not $truncated -or [bool]$truncated.Retryable -or $truncated.OperatorSeverity -ne 'error' -or $truncated.WhenFires -notmatch 'source media') {
     throw 'SOURCE_MEDIA_TRUNCATED metadata is not conservative.'
 }
+$videoMissing = Get-MediaPipelineFailureCodeMetadata -Code 'SOURCE_MEDIA_VIDEO_MISSING'
+if (-not $videoMissing -or $videoMissing.Family -ne 'source_media' -or [bool]$videoMissing.Retryable -or $videoMissing.OperatorSeverity -ne 'error' -or $videoMissing.Stage -ne 'source-intake' -or $videoMissing.HandledBy -notmatch 'MediaProbe' -or $videoMissing.OperatorAction -notmatch 'replace the source media') {
+    throw 'SOURCE_MEDIA_VIDEO_MISSING metadata should be source-media, permanent, probe-handled, and source-repair oriented.'
+}
 if ($null -ne (Get-MediaPipelineFailureCodeMetadata -Code 'NOT_A_REAL_FAILURE_CODE')) {
     throw 'Failure metadata lookup returned metadata for an unknown failure code.'
 }

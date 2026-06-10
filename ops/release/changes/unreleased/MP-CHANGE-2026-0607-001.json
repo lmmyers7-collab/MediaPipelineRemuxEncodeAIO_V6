@@ -1,0 +1,73 @@
+{
+  "id": "MP-CHANGE-2026-0607-001",
+  "title": "Make remux fallback override-safe",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-07",
+  "date_completed": "2026-06-07",
+  "summary": "Changes SizeGuardMode fallback_remux so forced route overrides warn only while automatic size/bitrate threshold encodes can fallback to safe remux after oversized encode output.",
+  "reason": "The operator treats forced route overrides as hard intent and wants no automatic route switching for them. Automatic threshold-driven encodes that grow out of scope should not publish the oversized encode when a safe remux fallback is available.",
+  "affected_areas": [
+    "completed",
+    "decide",
+    "ffmpeg",
+    "publish",
+    "settings"
+  ],
+  "behavior_before": "fallback_remux attempted remux for oversized folder-policy force-encode outputs and did not request remux for automatic size/bitrate threshold encodes.",
+  "behavior_after": "fallback_remux does not request remux for forced route overrides. Oversized automatic size/bitrate threshold encodes request safe remux fallback before encode publish, and successful fallback remux carries warning/review evidence.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settingsMetadata.js",
+    "apps/desktop/webview/static/partials/page-settings.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsMetadata.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-settings.html.md",
+    "docs/generated/summaries/ops/pipeline/engine/decide/route_plan.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/decide/size_policy.ps1.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/encode.ps1.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/remux.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-LibraryProfileRoutingChecks.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-MediaRouteSelectionChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0607-001.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/constants.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/metadata_parts/basic_processing.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/metadata_parts/field_display.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/application/settings_risk_policy_rules.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_settings_workspace.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_metadata_contract.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_handbrake_settings_ui.py.md",
+    "ops/pipeline/engine/decide/route_plan.ps1",
+    "ops/pipeline/engine/decide/size_policy.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/encode.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/remux.ps1",
+    "ops/pipeline/tests/Unit/Invoke-LibraryProfileRoutingChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-MediaRouteSelectionChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0607-001.json",
+    "src/mediapipeline/core/config/constants.py",
+    "src/mediapipeline/core/config/metadata_parts/basic_processing.py",
+    "src/mediapipeline/core/config/metadata_parts/field_display.py",
+    "src/mediapipeline/desktop/application/settings_risk_policy_rules.py",
+    "tests/python/desktop/test_application_facade_settings_workspace.py",
+    "tests/python/desktop/test_metadata_contract.py",
+    "tests/webview/test_webview_handbrake_settings_ui.py"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-MediaRouteSelectionChecks.ps1",
+    "tests/python/desktop/test_application_facade_settings_workspace.py",
+    "tests/python/desktop/test_metadata_contract.py",
+    "tests/webview/test_webview_handbrake_settings_ui.py"
+  ],
+  "manual_validation": [
+    "Invoke-MediaRouteSelectionChecks.ps1 - passed",
+    "Invoke-LibraryProfileRoutingChecks.ps1 - passed",
+    "python unittest targeted verification/decision/settings/WebView suite - passed",
+    "refresh_summaries targeted touched files - passed"
+  ],
+  "rollback_plan": "Restore fallback_remux eligibility to the previous forced-encode-only behavior, restore operator help text, refresh summaries, then rerun focused PowerShell route-selection and Python/WebView settings tests. Because this changes media-policy behavior, rerun representative real-media encode/remux validation after rollback if this path was exercised.",
+  "related_changes": [
+    "MP-CHANGE-2026-0606-016"
+  ],
+  "high_risk_notes": "Touches post-encode route fallback and publish acceptance evidence. Validation must include focused PowerShell unit coverage and should be followed by representative real-media validation for automatic size/bitrate fallback success and fallback-blocked failure.",
+  "notes": "Keep source mutation forbidden. Preserve remux-safe codec/container checks for fallback; do not alter FFmpeg command generation.\nStrict change-control validation is blocked by unrelated existing packet MP-CHANGE-2026-0605-010 missing date_completed. Manual dirty-file coverage comparison found unrelated uncovered file src/mediapipeline/core/config/metadata_support.py."
+}

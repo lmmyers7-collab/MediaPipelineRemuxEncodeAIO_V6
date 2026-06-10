@@ -345,6 +345,40 @@ function New-PipelinePlanExecutorRemuxAvArgumentList {
     return @($args.ToArray())
 }
 
+function New-PipelinePlanExecutorMp4RemuxArgumentList {
+    param(
+        [Parameter(Mandatory)] $Plan,
+        [Parameter(Mandatory)] [string] $InputPath,
+        [Parameter(Mandatory)] [string] $OutputPath
+    )
+
+    $videoAction = Get-PipelinePlanSingleStreamAction -Plan $Plan -StreamType 'video'
+    if ([string]$videoAction.action -ne 'copy') {
+        throw 'PipelinePlan validation failed: MP4 remux command requires video copy action.'
+    }
+
+    $args = [System.Collections.Generic.List[string]]::new()
+    $args.AddRange([string[]]@('-i', $InputPath, '-map', '0:V', '-c:v', 'copy'))
+    $audioArgs = @(New-PipelinePlanExecutorAudioArgumentList -Plan $Plan)
+    if ($audioArgs.Count -gt 0) {
+        $args.AddRange([string[]]$audioArgs)
+    }
+    $subtitleArgs = @(New-PipelinePlanExecutorSubtitleArgumentList -Plan $Plan)
+    if ($subtitleArgs.Count -gt 0) {
+        $args.AddRange([string[]]$subtitleArgs)
+    }
+    $args.AddRange([string[]]@(
+        '-map_chapters', '-1',
+        '-map_metadata', '-1',
+        '-f', 'mp4',
+        '-movflags', '+faststart',
+        '-max_muxing_queue_size', '1024',
+        '-y',
+        $OutputPath
+    ))
+    return @($args.ToArray())
+}
+
 function New-PipelinePlanExecutorMkvmergeArgumentList {
     param(
         [Parameter(Mandatory)] $Plan,
@@ -485,8 +519,17 @@ function New-PipelinePlanExecutorDryRun {
         }
         'REMUX' {
             $container = ([string]$Plan.output.container).Trim().ToLowerInvariant()
+            if ($container -in @('mp4','m4v','mov')) {
+                $commands.Add((New-PipelinePlanExecutorNativeCommand `
+                    -Tool 'ffmpeg' `
+                    -Label 'REMUX-MP4' `
+                    -Stage 'remux-mp4' `
+                    -BuiltWith @('MP4 compatibility remux command shape', 'plan stream action mapping') `
+                    -ArgumentList (New-PipelinePlanExecutorMp4RemuxArgumentList -Plan $Plan -InputPath $resolvedInput -OutputPath $resolvedOutput))) | Out-Null
+                break
+            }
             if ($container -notin @('mkv','matroska')) {
-                throw "PipelinePlan validation failed: Phase 07B remux command parity is currently limited to MKV/Matroska outputs; got '$($Plan.output.container)'."
+                throw "PipelinePlan validation failed: Phase 07B remux command parity supports MKV/Matroska and MP4-family outputs; got '$($Plan.output.container)'."
             }
             $tempAvPath = [System.IO.Path]::ChangeExtension($resolvedOutput, '.temp_av.mkv')
             $commands.Add((New-PipelinePlanExecutorNativeCommand `
@@ -504,8 +547,8 @@ function New-PipelinePlanExecutorDryRun {
         }
         'ENCODE' {
             $container = ([string]$Plan.output.container).Trim().ToLowerInvariant()
-            if ($container -notin @('mkv','matroska')) {
-                throw "PipelinePlan validation failed: Phase 07B encode command parity is currently limited to the existing Matroska FFmpeg builder; got '$($Plan.output.container)'."
+            if ($container -notin @('mkv','matroska','mp4','m4v','mov')) {
+                throw "PipelinePlan validation failed: Phase 07B encode command parity supports MKV/Matroska and MP4-family outputs; got '$($Plan.output.container)'."
             }
             $attemptPlan = New-PipelinePlanExecutorEncodeCommand -Plan $Plan -InputPath $resolvedInput -OutputPath $resolvedOutput
             $commands.Add((New-PipelinePlanExecutorNativeCommand `

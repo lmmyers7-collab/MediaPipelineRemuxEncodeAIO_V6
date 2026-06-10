@@ -187,6 +187,17 @@ class CoordinatorDispatcher(
                 current_stage=stage,
             )
         except Exception as exc:
-            _log.warning("Local coordinator heartbeat failed for job %s; keeping job active: %s", job.job_id[:8], exc)
-            return True
+            # Keep the local encode alive on a transient registry error,
+            # but only while the registry still tracks this claim — once
+            # the job is gone (e.g. reclaimed), reporting "alive" would
+            # let two machines encode the same source.
+            try:
+                still_active = self._registry.is_active(job.job_id, job.worker_id)
+            except Exception:
+                still_active = True
+            if still_active:
+                _log.warning("Local coordinator heartbeat failed for job %s; keeping job active: %s", job.job_id[:8], exc)
+                return True
+            _log.warning("Local coordinator heartbeat failed for job %s and the job is no longer registered; ending local claim: %s", job.job_id[:8], exc)
+            return False
         return result == "ok"

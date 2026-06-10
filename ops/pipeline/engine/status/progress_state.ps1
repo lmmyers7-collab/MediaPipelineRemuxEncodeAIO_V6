@@ -185,6 +185,7 @@ function Reset-ProgressItemContext {
     $script:currentPushState = $null
     $script:currentSidecarState = $null
     $script:currentSubtitleProgress = $null
+    $script:currentAudioProgress = $null
     Reset-ProgressCopyTelemetry
 }
 
@@ -222,6 +223,10 @@ function Set-ProgressItemContext {
     $script:currentPushState = $null
     $script:currentSidecarState = $null
     $script:currentSubtitleProgress = $null
+    $script:currentAudioProgress = $null
+    if ($script:currentQueuePhase -ne 'pending_push') {
+        $script:currentPendingDrainProgress = $null
+    }
 }
 
 function Set-ProgressStage {
@@ -277,6 +282,63 @@ function Set-ProgressStage {
     }
     if ($PSBoundParameters.ContainsKey('SidecarState')) {
         $script:currentSidecarState = if ($null -eq $SidecarState -or [string]::IsNullOrWhiteSpace([string]$SidecarState)) { $null } else { [string]$SidecarState }
+    }
+
+    if ($SaveNow) {
+        Save-Progress $script:pipelineStatus | Out-Null
+    }
+}
+
+function Set-ProgressAudioTrack {
+    param(
+        [int]$StreamIndex = -1,
+        [string]$Stage,
+        [string]$Status,
+        [string]$AudioAction,
+        [string]$SourceCodec,
+        [object]$SourceChannels = $null,
+        [string]$OutputCodec,
+        [object]$OutputChannels = $null,
+        [string]$Language,
+        [string]$Reason,
+        [int]$StepIndex = 0,
+        [int]$StepTotal = 0,
+        [object]$Percent = $null,
+        [string]$Detail = "",
+        [switch]$Completed,
+        [switch]$Failed,
+        [switch]$SaveNow
+    )
+
+    $safeTotal = [math]::Max(0, [int]$StepTotal)
+    $safeIndex = if ($safeTotal -gt 0) { [math]::Max(0, [math]::Min($safeTotal, [int]$StepIndex)) } else { 0 }
+    $percentValue = $null
+    if ($null -ne $Percent -and "$Percent" -ne '') {
+        try { $percentValue = [math]::Max(0.0, [math]::Min(100.0, [double]$Percent)) } catch { $percentValue = $null }
+    } elseif ($safeTotal -gt 0) {
+        $percentValue = [math]::Round(($safeIndex / $safeTotal) * 100.0, 1)
+    }
+
+    $script:currentAudioProgress = [ordered]@{
+        schema_version  = 'pipeline_audio_progress.v1'
+        stream_index    = [int]$StreamIndex
+        stage           = if ([string]::IsNullOrWhiteSpace($Stage)) { 'audio_policy' } else { $Stage }
+        status          = if ([string]::IsNullOrWhiteSpace($Status)) { 'Evaluating audio policy' } else { $Status }
+        action          = if ([string]::IsNullOrWhiteSpace($AudioAction)) { 'evaluate' } else { $AudioAction }
+        source_codec    = if ([string]::IsNullOrWhiteSpace($SourceCodec)) { '' } else { $SourceCodec }
+        source_channels = $SourceChannels
+        output_codec    = if ([string]::IsNullOrWhiteSpace($OutputCodec)) { '' } else { $OutputCodec }
+        output_channels = $OutputChannels
+        language        = if ([string]::IsNullOrWhiteSpace($Language)) { '' } else { $Language }
+        reason          = if ([string]::IsNullOrWhiteSpace($Reason)) { '' } else { $Reason }
+        step_index      = $safeIndex
+        step_total      = $safeTotal
+        percent         = $percentValue
+        detail          = $Detail
+        updated_at      = Get-Date -Format 'o'
+        completed       = [bool]$Completed
+        failed          = [bool]$Failed
+        source_file     = $script:currentFilePath
     }
 
     if ($SaveNow) {
@@ -361,6 +423,43 @@ function Set-ProgressSubtitleSidecarWrite {
         -Completed:$Completed `
         -Failed:$Failed `
         -SaveNow:$SaveNow
+}
+
+function Set-ProgressPendingDrain {
+    param(
+        [int]$ManifestCount = 0,
+        [int]$AttemptedCount = 0,
+        [int]$SucceededCount = 0,
+        [int]$AlreadyPublishedCount = 0,
+        [int]$ErrorCount = 0,
+        [int]$SkippedCount = 0,
+        [int]$RemainingCount = 0,
+        [string]$CurrentManifest = "",
+        [string]$CurrentItem = "",
+        [string]$Status = "Draining parked outputs",
+        [switch]$Deferred,
+        [switch]$SaveNow
+    )
+
+    $script:currentPendingDrainProgress = [ordered]@{
+        schema_version            = 'pipeline_pending_drain_progress.v1'
+        manifest_count            = [math]::Max(0, [int]$ManifestCount)
+        attempted_count           = [math]::Max(0, [int]$AttemptedCount)
+        succeeded_count           = [math]::Max(0, [int]$SucceededCount)
+        already_published_count   = [math]::Max(0, [int]$AlreadyPublishedCount)
+        error_count               = [math]::Max(0, [int]$ErrorCount)
+        skipped_count             = [math]::Max(0, [int]$SkippedCount)
+        remaining_count           = [math]::Max(0, [int]$RemainingCount)
+        current_manifest          = if ([string]::IsNullOrWhiteSpace($CurrentManifest)) { '' } else { $CurrentManifest }
+        current_item              = if ([string]::IsNullOrWhiteSpace($CurrentItem)) { '' } else { $CurrentItem }
+        status                    = if ([string]::IsNullOrWhiteSpace($Status)) { 'Draining parked outputs' } else { $Status }
+        deferred                  = [bool]$Deferred
+        updated_at                = Get-Date -Format 'o'
+    }
+
+    if ($SaveNow) {
+        Save-Progress $script:pipelineStatus | Out-Null
+    }
 }
 
 function Reset-ProgressCopyTelemetry {
@@ -622,6 +721,8 @@ function Save-Progress {
             CopySessionBytesPerSecond = Get-PushAverageBytesPerSecond -TotalBytes $script:SessionPushBytesTotal -TotalSeconds $script:SessionPushSecondsTotal -FilesCompleted $script:SessionPushFilesCompleted
             CopySessionFilesCompleted = if ($null -eq $script:SessionPushFilesCompleted) { 0 } else { [int]$script:SessionPushFilesCompleted }
             SubtitleProgress      = $script:currentSubtitleProgress
+            AudioProgress         = $script:currentAudioProgress
+            PendingDrainProgress  = $script:currentPendingDrainProgress
             PauseRequested        = [bool]$pauseInfo.Exists
             StopRequested         = [bool]($script:StopRequested -or $stopInfo.Exists)
             ControlRequests       = New-ControlRequestProgressState -PauseInfo $pauseInfo -StopInfo $stopInfo -RescanInfo $rescanInfo

@@ -64,7 +64,7 @@
 }
 
 .rename-stage {
-  --rename-stage-accent: var(--blue-500);
+  --rename-stage-accent: var(--semantic-info-accent);
   min-width: 0;
   padding: var(--space-5);
   border: 1px solid var(--grey-700);
@@ -75,20 +75,20 @@
 }
 
 .rename-stage-rules {
-  --rename-stage-accent: var(--blue-300);
+  --rename-stage-accent: var(--semantic-info-muted-text);
 }
 
 .rename-stage-preview,
 .rename-inspector {
-  --rename-stage-accent: var(--amber-500);
+  --rename-stage-accent: var(--semantic-warning-accent);
 }
 
 .rename-stage-apply {
-  --rename-stage-accent: var(--red-500);
+  --rename-stage-accent: var(--semantic-danger-accent);
 }
 
 .rename-stage-result {
-  --rename-stage-accent: var(--green-500);
+  --rename-stage-accent: var(--semantic-success-accent);
 }
 
 .rename-stage .panel-heading h2,
@@ -284,13 +284,13 @@ body.light-mode .rename-disclosure {
 }
 
 .rename-drop-zone.is-dragging {
-  border-color: var(--blue-500);
+  border-color: var(--semantic-selected-border);
   background: var(--grey-800);
   color: var(--grey-50);
 }
 
 .rename-drop-zone:focus {
-  outline: 2px solid var(--blue-500);
+  outline: 2px solid var(--semantic-focus-outline);
   outline-offset: 2px;
 }
 
@@ -359,9 +359,9 @@ body.light-mode .rename-disclosure {
 .rename-modal-warning {
   margin: 0;
   padding: var(--space-2) var(--space-3);
-  background: var(--amber-900);
-  border: 1px solid var(--amber-700);
-  color: var(--amber-500);
+  background: var(--semantic-warning-bg);
+  border: 1px solid var(--semantic-warning-border);
+  color: var(--semantic-warning-text);
   border-radius: 6px;
   font-size: var(--text-xs);
 }
@@ -399,11 +399,11 @@ body.light-mode .rename-disclosure {
 
 .rename-modal-errors {
   padding: var(--space-3);
-  background: var(--red-900);
-  border: 1px solid var(--red-700);
+  background: var(--semantic-danger-bg);
+  border: 1px solid var(--semantic-danger-border);
   border-radius: 6px;
   font-size: var(--text-xs);
-  color: var(--red-100);
+  color: var(--semantic-danger-text);
 }
 
 .rename-modal-error-list {

@@ -38,6 +38,7 @@ mediapipeline.core.api.command_handlers,mediapipeline.core.api.commands_file_ove
 mediapipeline.core.api.command_handlers,mediapipeline.core.api.commands_files,src/mediapipeline/core/api/command_handlers.py,src/mediapipeline/core/api/commands_files.py
 mediapipeline.core.api.command_handlers,mediapipeline.core.api.commands_final_library,src/mediapipeline/core/api/command_handlers.py,src/mediapipeline/core/api/commands_final_library.py
 mediapipeline.core.api.command_handlers,mediapipeline.core.api.commands_maintenance,src/mediapipeline/core/api/command_handlers.py,src/mediapipeline/core/api/commands_maintenance.py
+mediapipeline.core.api.command_handlers,mediapipeline.core.api.commands_metrics,src/mediapipeline/core/api/command_handlers.py,src/mediapipeline/core/api/commands_metrics.py
 mediapipeline.core.api.command_handlers,mediapipeline.core.api.commands_process,src/mediapipeline/core/api/command_handlers.py,src/mediapipeline/core/api/commands_process.py
 mediapipeline.core.api.command_handlers,mediapipeline.core.api.commands_queue_priority,src/mediapipeline/core/api/command_handlers.py,src/mediapipeline/core/api/commands_queue_priority.py
 mediapipeline.core.api.command_handlers,mediapipeline.core.api.commands_queue_scan,src/mediapipeline/core/api/command_handlers.py,src/mediapipeline/core/api/commands_queue_scan.py
@@ -46,6 +47,7 @@ mediapipeline.core.api.command_handlers,mediapipeline.core.api.commands_rename,s
 mediapipeline.core.api.command_handlers,mediapipeline.core.api.commands_sample_validation,src/mediapipeline/core/api/command_handlers.py,src/mediapipeline/core/api/commands_sample_validation.py
 mediapipeline.core.api.command_handlers,mediapipeline.core.api.commands_schedule,src/mediapipeline/core/api/command_handlers.py,src/mediapipeline/core/api/commands_schedule.py
 mediapipeline.core.api.command_handlers,mediapipeline.core.api.commands_settings,src/mediapipeline/core/api/command_handlers.py,src/mediapipeline/core/api/commands_settings.py
+mediapipeline.core.api.command_handlers,mediapipeline.core.api.commands_subtitle_qa,src/mediapipeline/core/api/command_handlers.py,src/mediapipeline/core/api/commands_subtitle_qa.py
 mediapipeline.core.api.command_handlers,mediapipeline.core.api.commands_ui_preferences,src/mediapipeline/core/api/command_handlers.py,src/mediapipeline/core/api/commands_ui_preferences.py
 mediapipeline.core.api.command_results,mediapipeline.desktop.application,src/mediapipeline/core/api/command_results.py,src/mediapipeline/desktop/application/__init__.py
 mediapipeline.core.api.commands_audit,mediapipeline.core.api.command_results,src/mediapipeline/core/api/commands_audit.py,src/mediapipeline/core/api/command_results.py
@@ -64,6 +66,7 @@ mediapipeline.core.api.commands_file_overrides,mediapipeline.desktop.api.queue_s
 mediapipeline.core.api.commands_files,mediapipeline.core.api.command_results,src/mediapipeline/core/api/commands_files.py,src/mediapipeline/core/api/command_results.py
 mediapipeline.core.api.commands_final_library,mediapipeline.core.api.command_results,src/mediapipeline/core/api/commands_final_library.py,src/mediapipeline/core/api/command_results.py
 mediapipeline.core.api.commands_maintenance,mediapipeline.core.api.command_results,src/mediapipeline/core/api/commands_maintenance.py,src/mediapipeline/core/api/command_results.py
+mediapipeline.core.api.commands_metrics,mediapipeline.core.api.command_results,src/mediapipeline/core/api/commands_metrics.py,src/mediapipeline/core/api/command_results.py
 mediapipeline.core.api.commands_process,mediapipeline.core.api.command_results,src/mediapipeline/core/api/commands_process.py,src/mediapipeline/core/api/command_results.py
 mediapipeline.core.api.commands_process,mediapipeline.desktop.api.path_dialogs,src/mediapipeline/core/api/commands_process.py,src/mediapipeline/desktop/api/path_dialogs.py
 mediapipeline.core.api.commands_process,mediapipeline.desktop.application.dto,src/mediapipeline/core/api/commands_process.py,src/mediapipeline/desktop/application/dto.py
@@ -80,6 +83,7 @@ mediapipeline.core.api.commands_sample_validation,mediapipeline.core.api.command
 mediapipeline.core.api.commands_settings,mediapipeline.core.api.command_results,src/mediapipeline/core/api/commands_settings.py,src/mediapipeline/core/api/command_results.py
 mediapipeline.core.api.commands_settings,mediapipeline.desktop.api.path_dialogs,src/mediapipeline/core/api/commands_settings.py,src/mediapipeline/desktop/api/path_dialogs.py
 mediapipeline.core.api.commands_settings,mediapipeline.desktop.application.dto,src/mediapipeline/core/api/commands_settings.py,src/mediapipeline/desktop/application/dto.py
+mediapipeline.core.api.commands_subtitle_qa,mediapipeline.core.api.command_results,src/mediapipeline/core/api/commands_subtitle_qa.py,src/mediapipeline/core/api/command_results.py
 mediapipeline.core.api.commands_ui_preferences,mediapipeline.core.ui_preferences,src/mediapipeline/core/api/commands_ui_preferences.py,src/mediapipeline/core/ui_preferences.py
 mediapipeline.core.api.file_overrides.effective_fields,mediapipeline.core.api.file_overrides.results,src/mediapipeline/core/api/file_overrides/effective_fields.py,src/mediapipeline/core/api/file_overrides/results.py
 mediapipeline.core.api.file_overrides.effective_fields,mediapipeline.core.api.file_overrides.selectors,src/mediapipeline/core/api/file_overrides/effective_fields.py,src/mediapipeline/core/api/file_overrides/selectors.py
@@ -162,8 +166,10 @@ mediapipeline.core.completed.open_policy,mediapipeline.desktop.models,src/mediap
 mediapipeline.core.completed.policy,mediapipeline.core.completed.manifest,src/mediapipeline/core/completed/policy.py,src/mediapipeline/core/completed/manifest.py
 mediapipeline.core.completed.policy,mediapipeline.core.completed.trust_fields,src/mediapipeline/core/completed/policy.py,src/mediapipeline/core/completed/trust_fields.py
 mediapipeline.core.completed.policy,mediapipeline.core.completed.validation_state,src/mediapipeline/core/completed/policy.py,src/mediapipeline/core/completed/validation_state.py
+mediapipeline.core.completed.policy,mediapipeline.core.files.constants,src/mediapipeline/core/completed/policy.py,src/mediapipeline/core/files/constants.py
 mediapipeline.core.completed.policy,mediapipeline.core.observability.artifact_freshness,src/mediapipeline/core/completed/policy.py,src/mediapipeline/core/observability/artifact_freshness.py
 mediapipeline.core.completed.policy,mediapipeline.core.observability.runtime_outcomes,src/mediapipeline/core/completed/policy.py,src/mediapipeline/core/observability/runtime_outcomes.py
+mediapipeline.core.completed.policy,mediapipeline.core.subtitles.qa,src/mediapipeline/core/completed/policy.py,src/mediapipeline/core/subtitles/qa.py
 mediapipeline.core.completed.policy,mediapipeline.desktop.application.dto_inventory,src/mediapipeline/core/completed/policy.py,src/mediapipeline/desktop/application/dto_inventory.py
 mediapipeline.core.completed.policy,mediapipeline.desktop.models,src/mediapipeline/core/completed/policy.py,src/mediapipeline/desktop/models.py
 mediapipeline.core.completed.service,mediapipeline.core.completed.backfill,src/mediapipeline/core/completed/service.py,src/mediapipeline/core/completed/backfill.py
@@ -197,6 +203,7 @@ mediapipeline.core.config.library_profile_validation,mediapipeline.core.kernel.c
 mediapipeline.core.config.library_profile_wizard,mediapipeline.core.config.library_profile_defaults,src/mediapipeline/core/config/library_profile_wizard.py,src/mediapipeline/core/config/library_profile_defaults.py
 mediapipeline.core.config.library_profile_wizard,mediapipeline.core.config.library_profile_normalization,src/mediapipeline/core/config/library_profile_wizard.py,src/mediapipeline/core/config/library_profile_normalization.py
 mediapipeline.core.config.library_profile_wizard,mediapipeline.core.kernel.config_keys,src/mediapipeline/core/config/library_profile_wizard.py,src/mediapipeline/core/kernel/config_keys.py
+mediapipeline.core.config.library_profiles,mediapipeline.core.config.library_profile_compatibility,src/mediapipeline/core/config/library_profiles.py,src/mediapipeline/core/config/library_profile_compatibility.py
 mediapipeline.core.config.library_profiles,mediapipeline.core.config.library_profile_defaults,src/mediapipeline/core/config/library_profiles.py,src/mediapipeline/core/config/library_profile_defaults.py
 mediapipeline.core.config.library_profiles,mediapipeline.core.config.library_profile_normalization,src/mediapipeline/core/config/library_profiles.py,src/mediapipeline/core/config/library_profile_normalization.py
 mediapipeline.core.config.library_profiles,mediapipeline.core.config.library_profile_promotion,src/mediapipeline/core/config/library_profiles.py,src/mediapipeline/core/config/library_profile_promotion.py
@@ -462,9 +469,15 @@ mediapipeline.core.metrics,mediapipeline.core.metrics.facade,src/mediapipeline/c
 mediapipeline.core.metrics,mediapipeline.core.metrics.policy,src/mediapipeline/core/metrics/__init__.py,src/mediapipeline/core/metrics/policy.py
 mediapipeline.core.metrics.facade,mediapipeline.core.completed.manifest,src/mediapipeline/core/metrics/facade.py,src/mediapipeline/core/completed/manifest.py
 mediapipeline.core.metrics.facade,mediapipeline.core.metrics.policy,src/mediapipeline/core/metrics/facade.py,src/mediapipeline/core/metrics/policy.py
+mediapipeline.core.metrics.facade,mediapipeline.core.metrics.sources,src/mediapipeline/core/metrics/facade.py,src/mediapipeline/core/metrics/sources.py
+mediapipeline.core.metrics.facade,mediapipeline.desktop.application.dto_commands,src/mediapipeline/core/metrics/facade.py,src/mediapipeline/desktop/application/dto_commands.py
 mediapipeline.core.metrics.facade,mediapipeline.desktop.models,src/mediapipeline/core/metrics/facade.py,src/mediapipeline/desktop/models.py
 mediapipeline.core.metrics.policy,mediapipeline.core.completed.policy,src/mediapipeline/core/metrics/policy.py,src/mediapipeline/core/completed/policy.py
 mediapipeline.core.metrics.policy,mediapipeline.desktop.models,src/mediapipeline/core/metrics/policy.py,src/mediapipeline/desktop/models.py
+mediapipeline.core.metrics.sources,mediapipeline.core.completed.manifest,src/mediapipeline/core/metrics/sources.py,src/mediapipeline/core/completed/manifest.py
+mediapipeline.core.metrics.sources,mediapipeline.core.kernel.dto_base,src/mediapipeline/core/metrics/sources.py,src/mediapipeline/core/kernel/dto_base.py
+mediapipeline.core.metrics.sources,mediapipeline.core.metrics.policy,src/mediapipeline/core/metrics/sources.py,src/mediapipeline/core/metrics/policy.py
+mediapipeline.core.metrics.sources,mediapipeline.desktop.models,src/mediapipeline/core/metrics/sources.py,src/mediapipeline/desktop/models.py
 mediapipeline.core.network.facade,mediapipeline.desktop.application.dto_workspaces,src/mediapipeline/core/network/facade.py,src/mediapipeline/desktop/application/dto_workspaces.py
 mediapipeline.core.network.facade,mediapipeline.desktop.models,src/mediapipeline/core/network/facade.py,src/mediapipeline/desktop/models.py
 mediapipeline.core.network.facade,mediapipeline.desktop.network.registry,src/mediapipeline/core/network/facade.py,src/mediapipeline/desktop/network/registry.py
@@ -604,6 +617,7 @@ mediapipeline.core.publish.pending_results,mediapipeline.core.publish.pending_ro
 mediapipeline.core.publish.pending_results,mediapipeline.desktop.application.dto_base,src/mediapipeline/core/publish/pending_results.py,src/mediapipeline/desktop/application/dto_base.py
 mediapipeline.core.publish.pending_results,mediapipeline.desktop.application.dto_commands,src/mediapipeline/core/publish/pending_results.py,src/mediapipeline/desktop/application/dto_commands.py
 mediapipeline.core.publish.pending_results,mediapipeline.desktop.application.dto_inventory,src/mediapipeline/core/publish/pending_results.py,src/mediapipeline/desktop/application/dto_inventory.py
+mediapipeline.core.publish.pending_rows,mediapipeline.core.files.constants,src/mediapipeline/core/publish/pending_rows.py,src/mediapipeline/core/files/constants.py
 mediapipeline.core.publish.pending_rows,mediapipeline.core.kernel.contracts.pending_publish,src/mediapipeline/core/publish/pending_rows.py,src/mediapipeline/core/kernel/contracts/pending_publish.py
 mediapipeline.core.publish.pending_rows,mediapipeline.core.publish.pending_drain_confidence,src/mediapipeline/core/publish/pending_rows.py,src/mediapipeline/core/publish/pending_drain_confidence.py
 mediapipeline.core.publish.pending_rows,mediapipeline.core.publish.pending_policy_parts.status_rules,src/mediapipeline/core/publish/pending_rows.py,src/mediapipeline/core/publish/pending_policy_parts/status_rules.py
@@ -661,6 +675,7 @@ mediapipeline.core.queue.policy_parts.rows,mediapipeline.core.queue.policy_parts
 mediapipeline.core.queue.policy_parts.rows,mediapipeline.core.queue.policy_parts.rules,src/mediapipeline/core/queue/policy_parts/rows.py,src/mediapipeline/core/queue/policy_parts/rules.py
 mediapipeline.core.queue.policy_parts.rows,mediapipeline.core.queue.policy_parts.runtime_outcomes,src/mediapipeline/core/queue/policy_parts/rows.py,src/mediapipeline/core/queue/policy_parts/runtime_outcomes.py
 mediapipeline.core.queue.policy_parts.rows,mediapipeline.core.queue.policy_parts.track_metadata,src/mediapipeline/core/queue/policy_parts/rows.py,src/mediapipeline/core/queue/policy_parts/track_metadata.py
+mediapipeline.core.queue.policy_parts.rows,mediapipeline.core.subtitles.qa,src/mediapipeline/core/queue/policy_parts/rows.py,src/mediapipeline/core/subtitles/qa.py
 mediapipeline.core.queue.policy_parts.rows,mediapipeline.desktop.models,src/mediapipeline/core/queue/policy_parts/rows.py,src/mediapipeline/desktop/models.py
 mediapipeline.core.queue.policy_parts.rules,mediapipeline.core.observability.runtime_outcomes,src/mediapipeline/core/queue/policy_parts/rules.py,src/mediapipeline/core/observability/runtime_outcomes.py
 mediapipeline.core.queue.policy_parts.runtime_outcomes,mediapipeline.core.observability.runtime_outcomes,src/mediapipeline/core/queue/policy_parts/runtime_outcomes.py,src/mediapipeline/core/observability/runtime_outcomes.py
@@ -809,6 +824,11 @@ mediapipeline.core.status.summary,mediapipeline.desktop.models,src/mediapipeline
 mediapipeline.core.status.summary_sections,mediapipeline.desktop.models,src/mediapipeline/core/status/summary_sections.py,src/mediapipeline/desktop/models.py
 mediapipeline.core.storage.state_migration,mediapipeline.core.storage.constants,src/mediapipeline/core/storage/state_migration.py,src/mediapipeline/core/storage/constants.py
 mediapipeline.core.storage.state_migration,mediapipeline.core.storage.contracts,src/mediapipeline/core/storage/state_migration.py,src/mediapipeline/core/storage/contracts.py
+mediapipeline.core.subtitles,mediapipeline.core.subtitles.qa,src/mediapipeline/core/subtitles/__init__.py,src/mediapipeline/core/subtitles/qa.py
+mediapipeline.core.subtitles.facade,mediapipeline.core.completed.manifest,src/mediapipeline/core/subtitles/facade.py,src/mediapipeline/core/completed/manifest.py
+mediapipeline.core.subtitles.facade,mediapipeline.core.subtitles.qa,src/mediapipeline/core/subtitles/facade.py,src/mediapipeline/core/subtitles/qa.py
+mediapipeline.core.subtitles.facade,mediapipeline.desktop.models,src/mediapipeline/core/subtitles/facade.py,src/mediapipeline/desktop/models.py
+mediapipeline.core.subtitles.qa,mediapipeline.contracts.subtitles,src/mediapipeline/core/subtitles/qa.py,src/mediapipeline/contracts/subtitles.py
 mediapipeline.core.telemetry.gpu_usage,mediapipeline.desktop.models,src/mediapipeline/core/telemetry/gpu_usage.py,src/mediapipeline/desktop/models.py
 mediapipeline.core.telemetry.health,mediapipeline.contracts.config,src/mediapipeline/core/telemetry/health.py,src/mediapipeline/contracts/config.py
 mediapipeline.core.telemetry.health,mediapipeline.core.config.library_profiles,src/mediapipeline/core/telemetry/health.py,src/mediapipeline/core/config/library_profiles.py
@@ -918,6 +938,7 @@ mediapipeline.desktop.application.facade,mediapipeline.core.rename.facade,src/me
 mediapipeline.desktop.application.facade,mediapipeline.core.sample_validation.facade,src/mediapipeline/desktop/application/facade.py,src/mediapipeline/core/sample_validation/facade.py
 mediapipeline.desktop.application.facade,mediapipeline.core.schedule.facade,src/mediapipeline/desktop/application/facade.py,src/mediapipeline/core/schedule/facade.py
 mediapipeline.desktop.application.facade,mediapipeline.core.status.facade,src/mediapipeline/desktop/application/facade.py,src/mediapipeline/core/status/facade.py
+mediapipeline.desktop.application.facade,mediapipeline.core.subtitles.facade,src/mediapipeline/desktop/application/facade.py,src/mediapipeline/core/subtitles/facade.py
 mediapipeline.desktop.application.facade,mediapipeline.desktop,src/mediapipeline/desktop/application/facade.py,src/mediapipeline/desktop/__init__.py
 mediapipeline.desktop.application.facade,mediapipeline.desktop.application.schedule_stop_watcher,src/mediapipeline/desktop/application/facade.py,src/mediapipeline/desktop/application/schedule_stop_watcher.py
 mediapipeline.desktop.application.runtime_outcomes,mediapipeline.core.observability.runtime_outcomes,src/mediapipeline/desktop/application/runtime_outcomes.py,src/mediapipeline/core/observability/runtime_outcomes.py

@@ -76,13 +76,14 @@ class SettingsRiskPolicyRulesTests(unittest.TestCase):
         self.assertEqual(changed_key_risk_item("DeleteSourceAfterProcessing", True)["code"], "source_mutation_policy")
         self.assertEqual(changed_key_risk_item("SkipStabilityCheck", True)["code"], "file_stability_check_disabled")
         self.assertEqual(changed_key_risk_item("ValidExtensions", [".mkv", ".part"])["code"], "partial_download_extension_allowed")
+        self.assertEqual(changed_key_risk_item("OutputContainer", "mp4")["code"], "mp4_container_limits")
+        self.assertEqual(changed_key_risk_item("OutputContainer", "mp4")["severity"], "high")
         self.assertIsNone(changed_key_risk_item("AllowNoAudio", False))
 
     def test_changed_key_risk_item_classifies_medium_risk_settings(self) -> None:
         self.assertEqual(changed_key_risk_item("SizeGuardMode", "strict")["code"], "strict_size_guard")
         self.assertEqual(changed_key_risk_item("SizeGuardMode", "fallback_remux")["code"], "fallback_remux_size_guard")
         self.assertEqual(changed_key_risk_item("DropAssAfterConversion", True)["code"], "drops_original_subtitle")
-        self.assertEqual(changed_key_risk_item("OutputContainer", "mp4")["code"], "mp4_container_limits")
         self.assertEqual(changed_key_risk_item("LocalBase", r"D:\scratch")["code"], "path_root_changed")
         self.assertEqual(changed_key_risk_item("EnableIntegrityCheck", False)["code"], "integrity_check_disabled")
         self.assertEqual(changed_key_risk_item("RobocopyFlags", ["/J", "/MT:16"])["code"], "high_robocopy_thread_count")

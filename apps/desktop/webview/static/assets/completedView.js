@@ -18,6 +18,46 @@
   let selectedPublishReconciliationKey = "";
   let publishReconciliationInFlight = false;
   let lastCompletedEmptyMessage = "No completed jobs available.";
+  const COMPLETED_SIZE_COLUMN_MODE_STORAGE_KEY = "mediapipeline.completed.sizeColumnMode";
+
+  function normalizeCompletedSizeColumnMode(value) {
+    return String(value || "size").trim().toLowerCase() === "bitrate" ? "bitrate" : "size";
+  }
+
+  function loadCompletedSizeColumnMode() {
+    try {
+      return normalizeCompletedSizeColumnMode(window.localStorage?.getItem(COMPLETED_SIZE_COLUMN_MODE_STORAGE_KEY));
+    } catch (_error) {
+      return "size";
+    }
+  }
+
+  let completedSizeColumnMode = loadCompletedSizeColumnMode();
+
+  function syncCompletedSizeColumnModeControls() {
+    const mode = normalizeCompletedSizeColumnMode(completedSizeColumnMode);
+    const label = mode === "bitrate" ? "Bitrate" : "Size";
+    document.querySelectorAll("[data-completed-size-column-mode]").forEach((button) => {
+      const active = normalizeCompletedSizeColumnMode(button.dataset.completedSizeColumnMode) === mode;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+    document.querySelectorAll("[data-completed-size-column-label]").forEach((node) => {
+      node.textContent = label;
+    });
+  }
+
+  function setCompletedSizeColumnMode(mode) {
+    completedSizeColumnMode = normalizeCompletedSizeColumnMode(mode);
+    try {
+      window.localStorage?.setItem(COMPLETED_SIZE_COLUMN_MODE_STORAGE_KEY, completedSizeColumnMode);
+    } catch (_error) {
+      // Local storage is optional; the table still updates for this session.
+    }
+    syncCompletedSizeColumnModeControls();
+    renderCompletedRows();
+  }
+
   const COMPLETED_FILTER_FIELDS = [
     "completed_at",
     "route",
@@ -30,6 +70,11 @@
     "final_library_destination_path",
     "final_library_rule_label",
     "media_type",
+    "library_id",
+    "library_name",
+    "library_designation",
+    "library_source_root",
+    "library_output_root",
     "lookup_title",
     "output_file",
     "output_path",
@@ -74,6 +119,8 @@
     set selectedCompletedRowKey(value) { selectedCompletedRowKey = value; },
     get lastCompletedEmptyMessage() { return lastCompletedEmptyMessage; },
     set lastCompletedEmptyMessage(value) { lastCompletedEmptyMessage = value; },
+    get completedSizeColumnMode() { return completedSizeColumnMode; },
+    set completedSizeColumnMode(value) { completedSizeColumnMode = normalizeCompletedSizeColumnMode(value); },
     get selectedCompletedSizeEvidenceKey() { return selectedCompletedSizeEvidenceKey; },
     set selectedCompletedSizeEvidenceKey(value) { selectedCompletedSizeEvidenceKey = value; },
     get selectedCompletedAcceptanceKey() { return selectedCompletedAcceptanceKey; },
@@ -109,6 +156,9 @@
   let completedTableRowStatus = completedReviewNoop;
   let completedInvestigationFilterLabel = completedReviewNoop;
   let completedMatchesInvestigationFilter = completedReviewNoop;
+  let completedLibraryFilterLabel = completedReviewNoop;
+  let completedLibraryMatchesFilter = completedReviewNoop;
+  let syncCompletedLibraryFilterOptions = completedReviewNoop;
   let completedFocusedInvestigationLabels = completedReviewNoop;
   let completedFilterVisibilityLines = completedReviewNoop;
   let completedSelectedQuickSignalLines = completedReviewNoop;
@@ -235,6 +285,8 @@
       completedEvidenceState,
       completedFilterFields: COMPLETED_FILTER_FIELDS,
       completedCurrentRows: (...args) => completedCurrentRows(...args),
+      completedLibraryFilterLabel: (...args) => completedLibraryFilterLabel(...args),
+      completedLibraryMatchesFilter: (...args) => completedLibraryMatchesFilter(...args),
       completedInvestigationFilterLabel: (...args) => completedInvestigationFilterLabel(...args),
       completedMatchesInvestigationFilter: (...args) => completedMatchesInvestigationFilter(...args),
       completedReviewRowReasons: (...args) => completedReviewRowReasons(...args),
@@ -428,6 +480,8 @@
       completedAcceptanceProofRowsForItem,
       completedDiagnosticsActionsForRow: (...args) => completedDiagnosticsActionsForRow(...args),
       completedFilterFields: COMPLETED_FILTER_FIELDS,
+      completedLibraryFilterLabel: (...args) => completedLibraryFilterLabel(...args),
+      completedLibraryMatchesFilter: (...args) => completedLibraryMatchesFilter(...args),
       completedFormatCounts,
       completedFreshnessLine,
       completedManifestIsAged,
@@ -625,12 +679,18 @@
   const {
     completedDisplayRowStatus = completedReviewNoop,
     completedFilteredRows = completedReviewNoop,
+    completedLibraryFilterLabel: resolvedCompletedLibraryFilterLabel = completedReviewNoop,
+    completedLibraryMatchesFilter: resolvedCompletedLibraryMatchesFilter = completedReviewNoop,
     completedRiskStatusLine = completedReviewNoop,
     completedRowsStatusLine = completedReviewNoop,
     renderCompletedReconciliationHint = completedReviewNoop,
     resetCompletedFilters = completedReviewNoop,
     resetCompletedHistoryFilters = completedReviewNoop,
+    syncCompletedLibraryFilterOptions: resolvedSyncCompletedLibraryFilterOptions = completedReviewNoop,
   } = completedFilters;
+  completedLibraryFilterLabel = resolvedCompletedLibraryFilterLabel;
+  completedLibraryMatchesFilter = resolvedCompletedLibraryMatchesFilter;
+  syncCompletedLibraryFilterOptions = resolvedSyncCompletedLibraryFilterOptions;
 
   const completedTableModule = window.__completedViewTableModule || {};
   delete window.__completedViewTableModule;
@@ -644,6 +704,7 @@
       completedDisplayRowStatus: (...args) => completedDisplayRowStatus(...args),
       completedFilteredRows: (...args) => completedFilteredRows(...args),
       completedInvestigationFilterLabel: (...args) => completedInvestigationFilterLabel(...args),
+      completedLibraryFilterLabel: (...args) => completedLibraryFilterLabel(...args),
       completedOutputPlacement: (...args) => completedOutputPlacement(...args),
       completedRiskStatusLine: (...args) => completedRiskStatusLine(...args),
       completedRowsStatusLine: (...args) => completedRowsStatusLine(...args),
@@ -662,6 +723,7 @@
       setCellStatusChip: typeof setCellStatusChip === "function" ? setCellStatusChip : window.setCellStatusChip,
       setText: typeof setText === "function" ? setText : window.setText,
       state: completedEvidenceState,
+      syncCompletedLibraryFilterOptions: (...args) => syncCompletedLibraryFilterOptions(...args),
       updateTableStatusLegend: typeof updateTableStatusLegend === "function" ? updateTableStatusLegend : window.updateTableStatusLegend,
     })
     : {};
@@ -669,6 +731,17 @@
     renderCompletedRows = completedReviewNoop,
     renderCompletedHistoryRows = completedReviewNoop,
   } = completedTable);
+  const renderCompletedRowsFromTable = renderCompletedRows;
+  const renderCompletedHistoryRowsFromTable = renderCompletedHistoryRows;
+  renderCompletedRows = (...args) => {
+    syncCompletedSizeColumnModeControls();
+    return renderCompletedRowsFromTable(...args);
+  };
+  renderCompletedHistoryRows = (...args) => {
+    syncCompletedSizeColumnModeControls();
+    return renderCompletedHistoryRowsFromTable(...args);
+  };
+  syncCompletedSizeColumnModeControls();
 
   function completedTrustDecisionState(status) {
     const normalized = String(status || "").toLowerCase();
@@ -915,6 +988,8 @@
     renderCompletedInventoryProgress,
     completedInventoryProgressBars,
     completedCurrentRows,
+    completedLibraryFilterLabel,
+    completedLibraryMatchesFilter,
     completedMissingRows,
     completedOutputPlacement,
     completedPlacementCounts,
@@ -929,6 +1004,8 @@
     currentFinalLibraryPromotionRunId,
     renderCompletedRows,
     renderCompletedHistoryRows,
+    setCompletedSizeColumnMode,
+    syncCompletedSizeColumnModeControls,
     resetCompletedFilters,
     resetCompletedHistoryFilters,
     renderCompletedDetail,

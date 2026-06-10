@@ -12,6 +12,10 @@ from mediapipeline.core.maintenance.command_policy import (
     completed_backfill_dry_run_result,
     completed_backfill_exception_result,
     completed_backfill_unavailable_result,
+    dependency_atlas_open_exception_result,
+    dependency_atlas_open_missing_result,
+    dependency_atlas_open_service_unavailable_result,
+    dependency_atlas_open_success_result,
     maintenance_int_value,
     release_build_builder_kwargs,
     release_build_confirmation_required_result,
@@ -291,6 +295,25 @@ class MaintenanceCommandPolicyTests(unittest.TestCase):
         self.assertEqual(failed.errors, ["Backfill dry run failed."])
         self.assertEqual(completed_backfill_unavailable_result().command, "maintenance.completed_backfill_dry_run")
         self.assertIn("offline", completed_backfill_exception_result(OSError("offline")).message)
+
+    def test_dependency_atlas_open_results_keep_fixed_folder_contract(self) -> None:
+        path = Path("C:/Repo/docs/generated/dependency-atlas")
+
+        opened = dependency_atlas_open_success_result(path)
+        missing = dependency_atlas_open_missing_result(path)
+        unavailable = dependency_atlas_open_service_unavailable_result(path)
+        failed = dependency_atlas_open_exception_result(path, RuntimeError("blocked"))
+
+        self.assertTrue(opened.ok)
+        self.assertEqual(opened.command, "maintenance.dependency_atlas_open_folder")
+        self.assertEqual(opened.data["target"], "dependency_atlas_folder")
+        self.assertEqual(opened.data["path"], str(path))
+        self.assertFalse(opened.data["writes_media"])
+        self.assertFalse(opened.data["writes_dependency_atlas"])
+        self.assertEqual(missing.severity, "warning")
+        self.assertIn("Run Update Atlas", missing.message)
+        self.assertEqual(unavailable.errors, ["open_path is required."])
+        self.assertIn("blocked", failed.message)
 
 
 if __name__ == "__main__":

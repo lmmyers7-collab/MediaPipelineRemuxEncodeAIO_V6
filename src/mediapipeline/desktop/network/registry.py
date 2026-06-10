@@ -356,11 +356,25 @@ class InFlightRegistry:
                     stale.append(job)
                     del self._jobs[job_id]
                     self._claimed_paths.pop(job.source_path, None)
+                    # Quarantine like complete()/unclaim() (N10): the
+                    # silenced worker may still be running and writing
+                    # output; the grace TTL absorbs its late done/release
+                    # reports before the path can be claimed again.
+                    self._recent_completions[job.source_path] = time.monotonic()
         return stale
 
     # ------------------------------------------------------------------
     # Queries
     # ------------------------------------------------------------------
+
+    def is_active(self, job_id: str, worker_id: str = "") -> bool:
+        """Return ``True`` if *job_id* is still tracked, and — when a
+        non-empty *worker_id* is given — still owned by that worker."""
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job is None:
+                return False
+            return not worker_id or job.worker_id == worker_id
 
     def is_in_flight(self, source_path: str) -> bool:
         """Return ``True`` if *source_path* is currently claimed OR was

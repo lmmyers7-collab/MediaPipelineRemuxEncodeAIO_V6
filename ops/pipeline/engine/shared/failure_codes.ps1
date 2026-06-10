@@ -52,6 +52,7 @@ function Get-MediaPipelineKnownFailureCodes {
         'SOURCE_MEDIA_DECODE_FAILED',
         'SOURCE_MEDIA_STREAM_UNSUPPORTED',
         'SOURCE_MEDIA_TRUNCATED',
+        'SOURCE_MEDIA_VIDEO_MISSING',
         'SYSTEM_OUT_OF_MEMORY'
     )
 }
@@ -117,6 +118,7 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'SOURCE_MEDIA_PROBE_STOPPED',
         'SOURCE_MEDIA_PROBE_TIMEOUT',
         'SOURCE_MEDIA_UNREADABLE',
+        'SOURCE_MEDIA_VIDEO_MISSING',
         'SOURCE_STILL_WRITING',
         'SOURCE_TV_PARSE_FAILED',
         'STOP_REQUESTED',
@@ -139,6 +141,7 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'SUBTITLE_BURN_STREAM_UNRESOLVED',
         'SUBTITLE_BURN_UNSUPPORTED',
         'SUBTITLE_BURN_UNSUPPORTED_CODEC',
+        'SUBTITLE_MP4_EXTERNAL_SRT_REQUIRED',
         'SUBTITLE_PROBE_FAILED',
         'SUBTITLE_PROBE_JSON_INVALID',
         'SUBTITLE_TX3G_CONTAINER_UNSUPPORTED',
@@ -264,7 +267,7 @@ function Get-MediaPipelineCodeRetryable {
     if ($codeText -match '^OK$|^ALREADY_PROCESSED$|^BAD_EXTENSION$|^OPERATOR_REQUIRED$|^PERMANENT_FAILURE$|^TV_PARSE_UNRELIABLE$|^SOURCE_TV_PARSE_FAILED$|^OUTPUT_PATH_UNSUPPORTED$|^FILE_PATH_EMPTY$|^FILE_ZERO_BYTES$|^SOURCE_FILE_PATH_EMPTY$|^SOURCE_FILE_ZERO_BYTES$') {
         return $false
     }
-    if ($codeText -match 'TRUNCATED|CONTAINER_INVALID|DECODE_FAILED|STREAM_UNSUPPORTED|AUDIO_MISSING|AUDIO_OVERRIDE_STRIPPED|INTEGRITY_FAILED|ACCESS_DENIED') {
+    if ($codeText -match 'TRUNCATED|CONTAINER_INVALID|DECODE_FAILED|STREAM_UNSUPPORTED|AUDIO_MISSING|VIDEO_MISSING|AUDIO_OVERRIDE_STRIPPED|INTEGRITY_FAILED|ACCESS_DENIED') {
         return $false
     }
     if ($codeText -match 'TIMEOUT|STOPPED|STILL_WRITING|LOW_SPACE|SPACE_UNKNOWN|DISK_FULL|PUBLISH|PENDING|SIDECAR|TRANSIENT|NATIVE_|PROGRESS_') {
@@ -305,6 +308,7 @@ function Get-MediaPipelineCodeWhenFires {
         'LOW_SPACE|SPACE_UNKNOWN|DISK_FULL|INSUFFICIENT_SPACE' { return 'The destination or scratch disk did not have enough verifiable free space.' }
         'TOOL_MISSING|ENCODER_UNAVAILABLE' { return 'A required encoder, OCR tool, or bundled/system executable was unavailable.' }
         'AUDIO_MISSING|AUDIO_INVALID|AUDIO_OVERRIDE_STRIPPED' { return 'Audio policy could not produce an acceptable output audio stream.' }
+        'VIDEO_MISSING' { return 'Source probing found no usable video stream for a source being processed by the video media pipeline.' }
         'SUBTITLE' { return 'Subtitle probing, extraction, conversion, OCR, validation, or sidecar publish failed.' }
         'PUBLISH|PENDING|SIDECAR' { return 'Publishing, deferred publish parking, drain, manifest, or sidecar work failed.' }
         'TRUNCATED|CONTAINER_INVALID|DECODE_FAILED|STREAM_UNSUPPORTED|PROBE_FAILED|PROBE_TIMEOUT' { return 'The source media could not be probed, decoded, or validated as healthy media.' }
@@ -344,6 +348,9 @@ function Get-MediaPipelineCodeOperatorAction {
         }
         'AUDIO_MISSING|AUDIO_OVERRIDE_STRIPPED|AUDIO_INVALID' {
             return 'Review source audio streams and per-file audio overrides before retrying or accepting no-audio output.'
+        }
+        'VIDEO_MISSING' {
+            return 'Inspect or replace the source media; do not clear the failure marker until source health is understood.'
         }
         'TRUNCATED|CONTAINER_INVALID|DECODE_FAILED|STREAM_UNSUPPORTED|PROBE_FAILED|PROBE_TIMEOUT' {
             return 'Inspect or replace the source media; do not clear the failure marker until source health is understood.'
@@ -481,6 +488,9 @@ function Get-FFmpegFailureCode {
         if ($isEncode) { return 'ENCODE_TIMEOUT' }
         if ($isRemux) { return 'REMUX_TIMEOUT' }
         return 'FFMPEG_TIMEOUT'
+    }
+    if ($text -match 'video_stream_missing|no usable video stream|Stream map .*0:V.*matches no streams') {
+        return 'SOURCE_MEDIA_VIDEO_MISSING'
     }
     if ($text -match '\[KILLED:\s*STOP|stop requested') { return 'FFMPEG_STOPPED' }
     if ($text -match 'No space left on device|not enough space|disk full') {

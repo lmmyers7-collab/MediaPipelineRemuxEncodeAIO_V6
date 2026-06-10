@@ -298,7 +298,7 @@ try {
     Assert-Equal @(Get-ChildItem -LiteralPath $script:processingDir -Filter '*.srt' -File -ErrorAction SilentlyContinue).Count 0 'decision planner must not create SRT temp artifacts.'
 
     $assDecision = @($records | Where-Object { $_.Action -eq 'ConvertAss' })[0]
-    Assert-True $assDecision.PreserveOriginal 'ASS conversion decision should preserve the source track when drop-original is disabled.'
+    Assert-True (-not $assDecision.PreserveOriginal) 'MP4 compatibility should not preserve embedded ASS after SRT conversion.'
     Assert-Equal $assDecision.ConversionKind 'ass_to_srt' 'ASS conversion decision should name the SRT conversion kind.'
     Assert-True $assDecision.ConversionFailureRoutesToReview 'ASS conversion failure should remain review-routed.'
     Assert-True $assDecision.IsPreferredDefaultCandidate 'English ASS should be a preferred default candidate.'
@@ -319,6 +319,15 @@ try {
 
     $srtKeepDecision = @($records | Where-Object { $_.Action -eq 'Keep' -and $_.Entry.Stream.index -eq 14 })[0]
     Assert-True $srtKeepDecision.IsFallbackDefaultCandidate 'Undefined kept SRT should remain a fallback default candidate.'
+    Assert-True $srtKeepDecision.RoutesToReview 'MP4 compatibility should route embedded SRT preserve attempts to review.'
+    Assert-Equal $srtKeepDecision.ReviewErrorCode 'SUBTITLE_MP4_EXTERNAL_SRT_REQUIRED' 'MP4 embedded subtitle review route should be explicit.'
+
+    $mp4Build = Build-SubtitleArgsForFFmpeg -FilterResult $filter -DefaultAudioLang 'eng' -SourceFile (Join-Path $script:processingDir 'source.mkv') -Context 'TEST: '
+    Assert-Equal $mp4Build.TrackCount 0 'MP4 compatibility should not emit embedded subtitle tracks.'
+    Assert-Equal $mp4Build.MapArgs.Count 0 'MP4 compatibility should not emit subtitle map args.'
+    Assert-Equal $mp4Build.ExtraInputs.Count 0 'MP4 compatibility should not add generated SRT inputs for embedding.'
+    Assert-Equal $mp4Build.Tx3gTracks.Count 1 'MP4 compatibility should reduce converted SRT sidecar candidates to exactly one publish record.'
+    Assert-True ($mp4Build.DroppedEmbeddedTrackCount -ge 3) 'MP4 compatibility should report dropped embedded subtitle candidates.'
 
     $mkvRecords = @(Get-SubtitleBuilderTrackDecisionRecords -FilterResult $filter -Builder 'Mkvmerge')
     $mkvBdpgsDecision = @($mkvRecords | Where-Object { $_.Action -eq 'ConvertBdpgs' })[0]
@@ -377,6 +386,7 @@ try {
     Assert-True $vobSubSidecarKeepDecision.RoutesToReview 'External VobSub sidecars kept without OCR should route to review instead of silent publish.'
     Assert-Equal $vobSubSidecarKeepDecision.ReviewErrorCode 'SUBTITLE_VOBSUB_SIDECAR_PRESERVE_UNSUPPORTED' 'External VobSub sidecar preserve review should use the sidecar-specific error code.'
 
+    $script:OutputContainer = 'mkv'
     $script:ConversionCalls.Clear()
     $build = Build-SubtitleArgsForFFmpeg -FilterResult $filter -DefaultAudioLang 'jpn' -SourceFile (Join-Path $script:processingDir 'source.mkv') -Context 'TEST: '
     Assert-Equal $build.TrackCount 5 'FFmpeg builder should emit preserved ASS, converted ASS/TX3G/BDPGS, and kept SRT tracks while excluding review-routed kept BDPGS.'

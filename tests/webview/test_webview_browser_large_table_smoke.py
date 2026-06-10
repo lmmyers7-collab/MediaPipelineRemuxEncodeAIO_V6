@@ -8,9 +8,16 @@ import textwrap
 import unittest
 from pathlib import Path
 
-from mediapipeline.tools.paths import find_repo_root
 
-sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
+def _find_repo_root(start: Path) -> Path:
+    for candidate in (start.resolve(), *start.resolve().parents):
+        if (candidate / "AGENTS.md").exists() and (candidate / "src" / "mediapipeline").exists():
+            return candidate
+    raise RuntimeError(f"Could not locate repository root from {start}")
+
+
+REPO_ROOT = _find_repo_root(Path(__file__))
+sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
@@ -44,10 +51,21 @@ def _browser_large_table_runner_source() -> str:
         r"""
         function largeTableScript() {
           return `
-          (() => {
+          (async () => {
             const posts = [];
+            const priorityPosts = [];
+            const priorityConfirmMessages = [];
+            window.confirm = (message) => {
+              priorityConfirmMessages.push(String(message || ""));
+              return true;
+            };
             window.apiPost = async (path, body) => {
-              posts.push(String(path || ""));
+              const route = String(path || "");
+              posts.push(route);
+              if (route === "/api/queue/priority") {
+                priorityPosts.push({ url: route, body: body || {} });
+                return { command: "queue.priority", ok: true, data: { count: (body?.items || []).length } };
+              }
               return { ok: false, message: "large-table smoke blocks mutation posts", request: body || {} };
             };
             function byId(id) { return document.getElementById(id); }
@@ -85,6 +103,46 @@ def _browser_large_table_runner_source() -> str:
               const count = document.querySelectorAll(selector).length;
               if (count !== expected) throw new Error(selector + " expected " + expected + " rendered rows, got " + count);
             }
+            function visibleRenderedRows(selector) {
+              return Array.from(document.querySelectorAll(selector)).filter((row) => !row.hidden).length;
+            }
+            function enhancedTableState(tbodyId) {
+              window.mediaPipelineDom?.enhanceDataTables?.();
+              const tbody = byId(tbodyId);
+              if (!tbody) throw new Error("missing table body " + tbodyId);
+              const table = tbody.closest("table");
+              if (!table) throw new Error("missing table for " + tbodyId);
+              const toolbar = document.querySelector('[data-table-toolbar-for="' + table.id + '"]');
+              if (!toolbar) throw new Error("missing shared table toolbar for " + tbodyId);
+              const filter = toolbar.querySelector(".table-ui-filter");
+              const density = toolbar.querySelector(".table-density-control");
+              const columns = toolbar.querySelector(".table-column-menu");
+              const filterToggle = toolbar.querySelector(".table-column-filter-toggle");
+              if (!table.classList.contains("is-enhanced-table")) throw new Error(tbodyId + " was not enhanced");
+              if (!filter || !density || !columns || !filterToggle) throw new Error(tbodyId + " missing shared table controls");
+              if (!table.querySelector("th[data-sticky-column]")) throw new Error(tbodyId + " missing sticky identifier columns");
+              if (!table.querySelector(".table-sort-button")) throw new Error(tbodyId + " missing sortable headers");
+              return { tbody, table, toolbar, filter, density, columns, filterToggle };
+            }
+            function requireSharedTableFilter(tbodyId, selector, needle, expectedVisible) {
+              const state = enhancedTableState(tbodyId);
+              state.filter.value = needle;
+              state.filter.dispatchEvent(new Event("input", { bubbles: true }));
+              const visible = visibleRenderedRows(selector);
+              if (visible !== expectedVisible) {
+                throw new Error(tbodyId + " shared filter expected " + expectedVisible + " visible rows, got " + visible);
+              }
+              if (!state.toolbar.textContent.includes(String(expectedVisible) + " shown")) {
+                throw new Error(tbodyId + " toolbar summary did not report filtered rows: " + state.toolbar.textContent);
+              }
+              state.filter.value = "";
+              state.filter.dispatchEvent(new Event("input", { bubbles: true }));
+            }
+            function click(selector, label) {
+              const node = document.querySelector(selector);
+              if (!node) throw new Error("missing " + label + " selector " + selector);
+              node.click();
+            }
             function clickRowContaining(selector, fragment) {
               const rows = Array.from(document.querySelectorAll(selector));
               const row = rows.find((candidate) => (candidate.textContent || "").includes(fragment));
@@ -103,6 +161,42 @@ def _browser_large_table_runner_source() -> str:
                 throw new Error("queue table scroll reset after row selection: before=" + before + " after=" + after);
               }
             }
+            function requireCompletedScrollPreservedOnSelection(fragment) {
+              const row = Array.from(document.querySelectorAll("#completed-rows tr[data-row-key]"))
+                .find((candidate) => (candidate.textContent || "").includes(fragment));
+              if (!row) throw new Error("completed table missing row containing " + fragment);
+              const wrap = row.closest(".table-wrap");
+              if (!wrap) throw new Error("missing completed table scroll wrapper");
+              wrap.style.height = "220px";
+              wrap.style.maxHeight = "220px";
+              wrap.style.overflow = "auto";
+              wrap.scrollTop = wrap.scrollHeight;
+              const before = wrap.scrollTop;
+              if (before <= 0) throw new Error("completed table did not become scrollable");
+              row.click();
+              const after = wrap.scrollTop;
+              if (after < Math.max(1, before - 3)) {
+                throw new Error("completed table scroll reset after row selection: before=" + before + " after=" + after);
+              }
+            }
+            function requirePendingScrollPreservedOnSelection(fragment) {
+              const row = Array.from(document.querySelectorAll("#pending-rows tr[data-row-key]"))
+                .find((candidate) => (candidate.textContent || "").includes(fragment));
+              if (!row) throw new Error("pending table missing row containing " + fragment);
+              const wrap = row.closest(".table-wrap");
+              if (!wrap) throw new Error("missing pending table scroll wrapper");
+              wrap.style.height = "220px";
+              wrap.style.maxHeight = "220px";
+              wrap.style.overflow = "auto";
+              wrap.scrollTop = wrap.scrollHeight;
+              const before = wrap.scrollTop;
+              if (before <= 0) throw new Error("pending table did not become scrollable");
+              row.click();
+              const after = wrap.scrollTop;
+              if (after < Math.max(1, before - 3)) {
+                throw new Error("pending table scroll reset after row selection: before=" + before + " after=" + after);
+              }
+            }
             function pad(index) { return String(index + 1).padStart(3, "0"); }
             [
               "renderQueue", "renderQueueRows", "selectQueueRow",
@@ -118,7 +212,7 @@ def _browser_large_table_runner_source() -> str:
                 global_order: index + 1,
                 queue_index: index + 1,
                 queue_total: 260,
-                media_type: index % 2 ? "episode" : "movie",
+                media_type: index % 3 === 0 ? "movie" : index % 3 === 1 ? "tv" : "episode",
                 display_name: label,
                 relative_path: "Large/" + label + ".mkv",
                 source_path: "C:/Source/Large/" + label + ".mkv",
@@ -136,7 +230,7 @@ def _browser_large_table_runner_source() -> str:
                 proof_summary: ["large payload queue row", "render cap smoke"],
               };
             });
-            window.renderQueue({
+            const queuePayload = {
               ok: true,
               count: 260,
               rows: queueRows,
@@ -162,7 +256,8 @@ def _browser_large_table_runner_source() -> str:
                   stale: false
                 }]
               }
-            });
+            };
+            window.renderQueue(queuePayload);
             requireText("queue-status", ["250 shown / 260 filtered / 260 rows"]);
             requireText("queue-progress-status", ["Complete"]);
             requireText("queue-progress-summary", ["Queue source scan progress:", "Source candidates: 260", "indeterminate until backend scanner telemetry"]);
@@ -170,6 +265,7 @@ def _browser_large_table_runner_source() -> str:
             requireText("queue-filter-summary", ["Display cap: only the first 250 filtered rows are rendered", "filtering the Queue table does not change backend launch scope"]);
             requireText("queue-table-legend", ["Queue rows: 250 selectable rows"]);
             requireRenderedRows("#queue-rows tr[data-row-key]", 250);
+            requireSharedTableFilter("queue-rows", "#queue-rows tr[data-row-key]", "Large Queue 240", 1);
             if (!pressShortcut("2")) throw new Error("Queue page shortcut should be handled before scroll preservation check");
             requireActivePage("queue");
             requireQueueScrollPreservedOnSelection("Large Queue 240");
@@ -203,9 +299,6 @@ def _browser_large_table_runner_source() -> str:
             ]);
             clickRowContaining("#queue-launch-decision-rows tr", "Display filter / backend launch scope");
             requireText("queue-launch-decision-detail", ["visible WebView table subset", "hidden blocked rows: 1", "hidden review rows: 1", "Queue filters never launch"]);
-            window.selectQueueRow(queueRows[259]);
-            requireText("queue-selected-summary", ["Selected Queue row: Large Queue 260", "at-a-glance=Blocked", "Filter visibility: Selected row visible in table: no", "Authority: this summary is read-only"]);
-            requireText("queue-detail", ["Large Queue 260", "Selected row visible in table: no", "Hidden by current filters: text filter=\\"Large Queue 001\\"", "Mutation guardrail"]);
             if (!pressShortcut("2")) throw new Error("Queue page shortcut should be handled");
             requireActivePage("queue");
             if (!pressShortcut("/")) throw new Error("Queue search shortcut should be handled");
@@ -218,6 +311,56 @@ def _browser_large_table_runner_source() -> str:
             requireActiveElement("queue-detail");
             if (!pressShortcut("c")) throw new Error("Queue clear-filter shortcut should be handled");
             requireText("queue-status", ["250 shown / 260 filtered / 260 rows"]);
+
+            const loadedMovieRows = queueRows.filter((row) => String(row.media_type || "").toLowerCase() === "movie");
+            const loadedTvRows = queueRows.filter((row) => String(row.media_type || "").toLowerCase() === "tv");
+            setValue("queue-filter", "Large Queue 001");
+            window.mediaPipelineQueueView.renderQueueRows();
+            requireText("queue-priority-promote-movies-btn", ["All Loaded Movies"]);
+            requireText("queue-priority-promote-tv-btn", ["All Loaded TV"]);
+            requireText("queue-priority-status", [
+              "Selected-row priority actions apply only to checked rows.",
+              "All Loaded Movies and All Loaded TV apply to loaded queue rows regardless of display filters or render cap.",
+              "They do not define Launch scope.",
+            ]);
+            const originalRefreshAll = window.refreshAll;
+            window.refreshAll = async () => {};
+            click("#queue-priority-promote-movies-btn", "all loaded movie priority");
+            click("#queue-priority-promote-tv-btn", "all loaded TV priority");
+            await new Promise((resolve) => setTimeout(resolve, 150));
+            window.refreshAll = originalRefreshAll;
+            if (priorityConfirmMessages.length !== 2) {
+              throw new Error("expected movie and TV loaded-row confirmations: " + JSON.stringify(priorityConfirmMessages));
+            }
+            for (const fragment of [
+              "Loaded queue rows: 260.",
+              "This loaded-row action ignores display filters and the table render cap",
+              "Backend Launch scope remains unchanged",
+              "does not touch source, scratch, output, or rename files",
+            ]) {
+              if (!priorityConfirmMessages.join("\\n").includes(fragment)) {
+                throw new Error("loaded-row confirmation missing " + fragment + "\\nActual:\\n" + priorityConfirmMessages.join("\\n---\\n"));
+              }
+            }
+            if (!priorityConfirmMessages[0].includes("Current display-filter matches for movie: 1.")) {
+              throw new Error("movie confirmation did not disclose filtered movie count: " + priorityConfirmMessages[0]);
+            }
+            if (!priorityConfirmMessages[1].includes("Current display-filter matches for tv: 0.")) {
+              throw new Error("TV confirmation did not disclose filtered TV count: " + priorityConfirmMessages[1]);
+            }
+            if (priorityPosts.length !== 2) {
+              throw new Error("expected two queue priority posts: " + JSON.stringify(priorityPosts));
+            }
+            if ((priorityPosts[0].body?.items || []).length !== loadedMovieRows.length) {
+              throw new Error("movie bulk post did not include all loaded movie rows: " + JSON.stringify(priorityPosts[0]));
+            }
+            if ((priorityPosts[1].body?.items || []).length !== loadedTvRows.length) {
+              throw new Error("TV bulk post did not include all loaded TV rows: " + JSON.stringify(priorityPosts[1]));
+            }
+            requireText("queue-priority-status", ["Promoted " + loadedTvRows.length + " loaded TV row(s) to High."]);
+            window.renderQueue(queuePayload);
+            setValue("queue-filter", "");
+            window.mediaPipelineQueueView.renderQueueRows();
 
             const completedRows = Array.from({ length: 260 }, (_value, index) => {
               const label = "Large Completed " + pad(index);
@@ -232,8 +375,11 @@ def _browser_large_table_runner_source() -> str:
                 sidecar_path: "C:/Output/Large/" + label + ".pipeline.json",
                 route: index % 2 ? "encode" : "remux",
                 route_label: index % 2 ? "Encode" : "Remux",
+                library_id: index % 2 ? "tv-library" : "movie-library",
+                library_name: index % 2 ? "TV Library" : "Movie Library",
+                library_designation: index % 2 ? "tv" : "movie",
                 publish: "completed",
-                media_type: index % 2 ? "episode" : "movie",
+                media_type: index % 3 === 0 ? "movie" : index % 3 === 1 ? "tv" : "episode",
                 output_exists: !blocked,
                 output_health: blocked ? "missing output" : "ok",
                 sidecar_exists: !blocked,
@@ -292,6 +438,21 @@ def _browser_large_table_runner_source() -> str:
             requireText("completed-table-legend", ["Current output rows: 250 selectable rows"]);
             requireRenderedRows("#completed-rows tr[data-row-key]", 250);
             requireRenderedRows("#completed-history-rows tr[data-row-key]", 250);
+            requireSharedTableFilter("completed-rows", "#completed-rows tr[data-row-key]", "Large Completed 240", 1);
+            const completedLibrarySelect = byId("completed-library-filter");
+            const tvLibraryOption = Array.from(completedLibrarySelect.options).find((option) => option.textContent === "TV Library");
+            if (!tvLibraryOption) {
+              throw new Error("Completed library filter should include TV Library.");
+            }
+            setValue("completed-library-filter", tvLibraryOption.value);
+            requireText("completed-status", ["1 missing from expected destination / 129 / 259 rows"]);
+            requireText("completed-filter-summary", ["library=TV Library", "showing 129 of 259 rows"]);
+            requireRenderedRows("#completed-rows tr[data-row-key]", 129);
+            setValue("completed-library-filter", "all");
+            if (!pressShortcut("3")) throw new Error("Completed Output shortcut should be handled before scroll preservation check");
+            requireActivePage("completed");
+            requireCompletedScrollPreservedOnSelection("Large Completed 240");
+            requireText("completed-detail", ["Completed selected-row detail:", "Large Completed 240", "Mutation guardrail"]);
             setValue("completed-history-filter", "Large Completed 260");
             window.mediaPipelineCompletedView.renderCompletedRows();
             requireText("completed-history-status", ["1 / 260 rows"]);
@@ -335,7 +496,7 @@ def _browser_large_table_runner_source() -> str:
               "Authority: this summary is read-only",
             ]);
             requireText("completed-detail", ["Large Completed 260", "Selected row visible in table: no", "not present in Current Output Status table", "text filter=\\"Large Completed 001\\"", "Mutation guardrail"]);
-            if (!pressShortcut("3")) throw new Error("Output page shortcut should be handled");
+            if (!pressShortcut("3")) throw new Error("Completed Output shortcut should be handled");
             requireActivePage("completed");
             if (!pressShortcut("/")) throw new Error("Output search shortcut should be handled");
             requireActiveElement("completed-filter");
@@ -410,6 +571,11 @@ def _browser_large_table_runner_source() -> str:
             requireText("pending-filter-summary", ["Display cap: only the first 250 filtered rows are rendered", "filtering Pending Publish rows does not change drain scope"]);
             requireText("pending-table-legend", ["Pending publish rows: 250 selectable rows"]);
             requireRenderedRows("#pending-rows tr[data-row-key]", 250);
+            requireSharedTableFilter("pending-rows", "#pending-rows tr[data-row-key]", "Large Pending 240", 1);
+            if (!pressShortcut("4")) throw new Error("Pending Publish shortcut should be handled before scroll preservation check");
+            requireActivePage("pending");
+            requirePendingScrollPreservedOnSelection("Large Pending 240");
+            requireText("pending-detail", ["Large Pending 240", "Mutation guardrail"]);
             setValue("pending-filter", "Large Pending 001");
             window.mediaPipelinePendingPublishView.renderPendingRows();
             requireText("pending-status", ["1 / 260 rows"]);
@@ -422,10 +588,10 @@ def _browser_large_table_runner_source() -> str:
             ]);
             requireText("pending-backend-scope-rows", [
               "Display filter vs drain scope",
-              "Selecting a row cannot make Publish Parked Outputs drain only that row.",
+              "Selecting a row cannot make Drain Parked Outputs drain only that row.",
             ]);
             requireText("pending-drain-decision-summary", [
-              "Daily-use handoff: Pending Publish evidence decides whether it is sensible to press Publish Parked Outputs",
+              "Daily-use handoff: Pending Publish evidence decides whether it is sensible to press Drain Parked Outputs",
               "Operator outcome:",
               "Scope boundary: Pending filters, selected rows, recovery dry-runs",
               "Blocked/review/read-first/unknown",
@@ -433,7 +599,7 @@ def _browser_large_table_runner_source() -> str:
             window.selectPendingRow(pendingRows[259]);
             requireText("pending-selected-summary", ["Selected Pending Publish row: C:/Scratch/Pending/Large Pending 260.mkv", "at-a-glance=Do not drain", "Filter visibility: Selected row visible in table: no", "Authority: this summary is read-only"]);
             requireText("pending-detail", ["Large Pending 260", "Selected row visible in table: no", "Hidden by current filters: text filter=\\"Large Pending 001\\"", "Mutation guardrail"]);
-            if (!pressShortcut("4")) throw new Error("Publish page shortcut should be handled");
+            if (!pressShortcut("4")) throw new Error("Pending Publish shortcut should be handled");
             requireActivePage("pending");
             if (!pressShortcut("/")) throw new Error("Publish search shortcut should be handled");
             requireActiveElement("pending-filter");
@@ -455,6 +621,8 @@ def _browser_large_table_runner_source() -> str:
               completedStatus: text("completed-status"),
               pendingStatus: text("pending-status"),
               posts,
+              priorityPosts,
+              priorityConfirmMessages,
             };
           })()
           `;
@@ -595,7 +763,12 @@ class WebViewBrowserLargeTableSmoke(unittest.TestCase):
         self.assertEqual(browser_result["queueStatus"], "250 shown / 260 filtered / 260 rows")
         self.assertEqual(browser_result["completedStatus"], "1 missing from expected destination / 250 shown / 259 filtered / 259 rows")
         self.assertEqual(browser_result["pendingStatus"], "250 shown / 260 filtered / 260 rows")
-        self.assertEqual(browser_result["posts"], [])
+        command_posts = [path for path in browser_result["posts"] if path != "/api/ui-preferences"]
+        self.assertEqual(command_posts, ["/api/queue/priority", "/api/queue/priority"])
+        self.assertEqual(len(browser_result["priorityPosts"]), 2)
+        self.assertEqual(len(browser_result["priorityPosts"][0]["body"]["items"]), 87)
+        self.assertEqual(len(browser_result["priorityPosts"][1]["body"]["items"]), 87)
+        self.assertIn("Backend Launch scope remains unchanged", "\n".join(browser_result["priorityConfirmMessages"]))
 
 
 if __name__ == "__main__":

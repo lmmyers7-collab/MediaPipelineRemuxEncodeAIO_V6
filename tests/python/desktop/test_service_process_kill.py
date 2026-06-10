@@ -156,6 +156,43 @@ class ProcessKillHelperTests(unittest.TestCase):
 
         self.assertEqual(matches, [matching])
 
+    def test_find_related_pipeline_processes_can_filter_by_job_kind(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            resolved = self._resolved(root)
+            pipeline = FakePsutilProc(
+                pid=100,
+                name="pwsh.exe",
+                cmdline=["pwsh", "-File", str(resolved.pipeline_path)],
+            )
+            audit = FakePsutilProc(
+                pid=101,
+                name="pwsh.exe",
+                cmdline=["pwsh", "-File", str(resolved.audit_script_path)],
+            )
+            rerun = FakePsutilProc(
+                pid=102,
+                name="pwsh.exe",
+                cmdline=["pwsh", "-File", str(resolved.rerun_script_path)],
+            )
+            FakePsutil.processes = [pipeline, audit, rerun]
+
+            audit_matches = find_related_pipeline_processes(
+                resolved,
+                psutil_module=FakePsutil,
+                current_pid=999,
+                job_kinds={"audit"},
+            )
+            pipeline_matches = find_related_pipeline_processes(
+                resolved,
+                psutil_module=FakePsutil,
+                current_pid=999,
+                job_kinds={"pipeline"},
+            )
+
+        self.assertEqual(audit_matches, [audit])
+        self.assertEqual(pipeline_matches, [pipeline])
+
     def test_find_related_pipeline_processes_fails_closed_without_psutil(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             resolved = self._resolved(Path(td))

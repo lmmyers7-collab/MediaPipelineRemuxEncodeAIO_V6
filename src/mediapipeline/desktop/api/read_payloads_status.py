@@ -46,6 +46,23 @@ class LocalApiStatusReadPayloadMixin:
             return read_unavailable_payload("diagnostics_state_summary")
         return self.facade.read_diagnostics_state_summary(resolved)
 
+    def _tdarr_matrix_console_payload(self, query: dict[str, list[str]]) -> dict[str, Any]:
+        request = {
+            "run_id": query_value(query, "run_id", ""),
+            "finding_limit": query_int(query, "finding_limit", 100),
+        }
+        return self.facade.read_tdarr_matrix_console(request)
+
+    def _tdarr_matrix_runs_payload(self) -> dict[str, Any]:
+        return self.facade.list_tdarr_matrix_runs({})
+
+    def _tdarr_matrix_compare_payload(self, query: dict[str, list[str]]) -> dict[str, Any]:
+        request = {
+            "left_run_id": query_value(query, "left_run_id", query_value(query, "left", "")),
+            "right_run_id": query_value(query, "right_run_id", query_value(query, "right", "")),
+        }
+        return self.facade.compare_tdarr_matrix_runs(request)
+
     def _telemetry_payload(self) -> dict[str, Any]:
         return self.facade.get_cached_telemetry().to_mapping()
 

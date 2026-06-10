@@ -3,9 +3,9 @@ file: src/mediapipeline/core/maintenance/dependency_atlas.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: 53929d393f7057174726f10580569128109fecd5ab39d9b63522601c896be113
+sha256: fe8e75446bb5631b82c8a3fbead83a651cdf82f4c04045a02193d7662b5c2c71
 ---
 # `src/mediapipeline/core/maintenance/dependency_atlas.py`
 

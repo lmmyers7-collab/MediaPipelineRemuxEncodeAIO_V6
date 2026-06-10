@@ -15,6 +15,7 @@
   let lastAuditEmptyMessage = "No audit rows available.";
   let activeFailureFilterChip = "all";
   let activeAuditFilterChip = "all";
+  let reportAuditStartBusy = false;
   let reportsTabNavInitialized = false;
   let reportsViewEventsInitialized = false;
   const REPORTS_TAB_STORAGE_KEY = "mediapipeline-reports-tab";
@@ -48,6 +49,7 @@
       panel.classList.toggle("is-active", panel.dataset.reportsTabPanel === selected);
     });
     try { localStorage.setItem(REPORTS_TAB_STORAGE_KEY, selected); } catch (_) {}
+    if (typeof window.mediaPipelineAppLifecycle?.syncTabAccessibility === "function") window.mediaPipelineAppLifecycle.syncTabAccessibility();
     if (typeof updatePagePanelEmptyStates === "function") updatePagePanelEmptyStates();
   }
 
@@ -422,6 +424,11 @@
     lastReportSettings = settingsPayload;
     const latestPaths = snapshotPayload.latest_paths || {};
     const workspacePaths = settingsPayload.paths || {};
+    const auditRootInput = byId("report-audit-start-library-root");
+    if (auditRootInput && !auditRootInput.value && workspacePaths.outsource) {
+      auditRootInput.value = workspacePaths.outsource;
+    }
+    renderReportAuditLaunchPreflight();
     setText("report-failure-json-state", latestPaths.latest_failure_json ? "Present" : "Missing");
     setText("report-audit-csv-state", latestPaths.latest_audit_csv ? "Present" : "Missing");
     setText("report-priority-csv-state", latestPaths.latest_priority_csv ? "Present" : "Missing");
@@ -1768,6 +1775,30 @@
     }
   }
 
+  function collectReportAuditStartRequest() {
+    return {
+      library_root: String(byId("report-audit-start-library-root")?.value || "").trim(),
+      include_sidecars: Boolean(byId("report-audit-start-include-sidecars")?.checked),
+      show_console: Boolean(byId("report-audit-start-show-console")?.checked),
+    };
+  }
+
+  function reportAuditLaunchPreflightLines(request = collectReportAuditStartRequest()) {
+    const lines = [
+      "Reports audit start request:",
+      `Library root: ${request.library_root || "(backend configured Outsource fallback)"}`,
+      `Include sidecars: ${request.include_sidecars ? "yes" : "no"}`,
+      `Show console: ${request.show_console ? "yes" : "no"}`,
+      "Boundary: Reports submits /api/audit/start only. Backend launch locking, config identity, duplicate-audit detection, and audit/pipeline concurrency policy remain authoritative.",
+      "Concurrency: an active backend pipeline does not by itself block audit start; an active audit or CSV rerun still blocks this request.",
+    ];
+    return lines;
+  }
+
+  function renderReportAuditLaunchPreflight(request = collectReportAuditStartRequest()) {
+    setText("report-audit-launch-preflight", reportAuditLaunchPreflightLines(request).join("\n"));
+  }
+
   function reportAuditSelectionRequest() {
     return {
       row_keys: selectedAuditRowKeysList(),
@@ -1826,6 +1857,60 @@
       ));
     }
     return lines.join("\n");
+  }
+
+  async function startReportAuditFromForm() {
+    if (reportAuditStartBusy) {
+      const result = {
+        command: "audit.start",
+        ok: false,
+        severity: "warning",
+        message: "Another Reports audit start command is already in progress.",
+      };
+      appendReportAuditCommandResult(result);
+      setText("report-audit-launch-status", "Busy");
+      setText("report-audit-launch-detail", formatReportAuditCommandDetail(result));
+      return;
+    }
+    const request = collectReportAuditStartRequest();
+    renderReportAuditLaunchPreflight(request);
+    if (!window.confirm("Start audit from Reports?")) {
+      const result = {
+        command: "audit.start",
+        ok: false,
+        severity: "info",
+        message: "Audit start canceled.",
+      };
+      appendReportAuditCommandResult(result);
+      setText("report-audit-launch-status", "Canceled");
+      setText("report-audit-launch-detail", formatReportAuditCommandDetail(result, request));
+      return;
+    }
+    reportAuditStartBusy = true;
+    setText("report-audit-launch-status", "Starting...");
+    setText("report-audit-launch-detail", formatReportAuditCommandDetail({
+      command: "audit.start",
+      ok: true,
+      severity: "info",
+      message: "Submitting backend audit start request.",
+    }, request));
+    try {
+      const result = await apiPost("/api/audit/start", request);
+      appendReportAuditCommandResult(result);
+      setText("report-audit-launch-status", result.ok ? "Started" : "Blocked");
+      setText("report-audit-launch-detail", formatReportAuditCommandDetail(result, request));
+      if ((result.refresh_hint || "") === "snapshot") {
+        await refreshReportsAuditData();
+      }
+    } catch (error) {
+      const text = error instanceof Error ? error.message : String(error);
+      const result = { command: "audit.start", ok: false, severity: "error", message: text };
+      appendReportAuditCommandResult(result);
+      setText("report-audit-launch-status", "Error");
+      setText("report-audit-launch-detail", formatReportAuditCommandDetail(result, request));
+    } finally {
+      reportAuditStartBusy = false;
+    }
   }
 
   async function saveReportAuditScorePolicy(reset = false) {
@@ -1935,6 +2020,18 @@
     if (saveAuditScorePolicyButton) saveAuditScorePolicyButton.addEventListener("click", () => saveReportAuditScorePolicy(false));
     const resetAuditScorePolicyButton = byId("report-audit-score-policy-reset-button");
     if (resetAuditScorePolicyButton) resetAuditScorePolicyButton.addEventListener("click", () => saveReportAuditScorePolicy(true));
+    const startAuditButton = byId("report-audit-start-button");
+    if (startAuditButton) startAuditButton.addEventListener("click", () => startReportAuditFromForm());
+    [
+      "report-audit-start-library-root",
+      "report-audit-start-include-sidecars",
+      "report-audit-start-show-console",
+    ].forEach((id) => {
+      const element = byId(id);
+      if (!element) return;
+      element.addEventListener("input", () => renderReportAuditLaunchPreflight());
+      element.addEventListener("change", () => renderReportAuditLaunchPreflight());
+    });
     const ignoreAuditRowsButton = byId("report-audit-ignore-selected-button");
     if (ignoreAuditRowsButton) ignoreAuditRowsButton.addEventListener("click", () => ignoreSelectedAuditRows());
     const exportAuditRowsButton = byId("report-audit-export-rerun-csv-button");
@@ -2128,6 +2225,9 @@
     renderAuditRows,
     renderAuditDetail,
     renderAuditReviewBoard,
+    collectReportAuditStartRequest,
+    renderReportAuditLaunchPreflight,
+    startReportAuditFromForm,
     saveReportAuditScorePolicy,
     ignoreSelectedAuditRows,
     exportAuditRerunCsv,

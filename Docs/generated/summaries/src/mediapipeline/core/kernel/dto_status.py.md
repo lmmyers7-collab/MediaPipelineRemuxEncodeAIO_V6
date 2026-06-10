@@ -3,9 +3,9 @@ file: src/mediapipeline/core/kernel/dto_status.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-02
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: cb51e3be6e1c561b19e7fe35f89e917f78387c34787866028fb064be19924dc8
+sha256: be89d4e00c2be0d408e01bf4310b87a69369a4d3b8b07f23b6f8b6d1fd337df3
 ---
 # `src/mediapipeline/core/kernel/dto_status.py`
 

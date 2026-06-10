@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0606-013",
+  "title": "Simplify Completed current output status table",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-06",
+  "date_completed": "2026-06-06",
+  "summary": "Removes redundant health/state presentation from the Completed output tables and keeps the Evidence cell focused on actionable text plus placement status.",
+  "reason": "The Current Output Status table repeated healthy/consistent information in the State, Evidence, and Health columns. The operator only needs the placement status chip for normal current rows and actionable evidence text when a row needs review.",
+  "affected_areas": [
+    "completed_output_table",
+    "webview"
+  ],
+  "behavior_before": "Completed output rows showed a green Healthy state chip, a non-actionable Consistent evidence line above the Current chip, and a Health column with the same healthy/consistent status.",
+  "behavior_after": "Completed output rows omit the redundant State and Health columns; normal healthy evidence text is suppressed so the Current chip stands alone, while warnings and review signals still render as evidence text.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/completed/table.js",
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "apps/desktop/webview/static/partials/page-completed.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/completed/table.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.components.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-completed.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0606-013.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_completed_table_title_cell.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0606-013.json",
+    "tests/webview/test_webview_completed_table_title_cell.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_completed_table_title_cell -q - passed",
+    "PYTHONPATH=src ops/scripts/smoke/Test-WebViewBrowserLargeTableSmoke.ps1 - passed",
+    "npm run webview:check - passed"
+  ],
+  "rollback_plan": "Revert the Completed table renderer, Completed partial, CSS width updates, and focused table-rendering test changes, then rerun the targeted WebView tests.",
+  "related_changes": [],
+  "notes": "WebView presentation-only change. No backend command route, settings persistence, media policy, queue, publish/drain, rename, source, scratch, output, FFmpeg, subtitle, or audio behavior is changed.\nImplementation scope limited to Completed WebView table presentation and focused renderer coverage."
+}

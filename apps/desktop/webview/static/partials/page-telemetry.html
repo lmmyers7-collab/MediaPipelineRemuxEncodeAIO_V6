@@ -1,6 +1,6 @@
       <section class="page" data-page-panel="live">
-        <h1 class="visually-hidden">Hardware Telemetry</h1>
-        <section class="panel" data-panel-type="interactive">
+        <h1 class="visually-hidden">Telemetry</h1>
+        <section class="panel" data-panel-type="status">
           <div class="panel-heading">
             <h2>Monitoring Status</h2>
             <strong id="telemetry-readiness-status">Not loaded</strong>
@@ -34,42 +34,43 @@
         </section>
 
         <div class="telemetry-grid">
-          <section class="panel" data-panel-type="interactive">
+          <section class="panel" data-panel-type="status">
             <div class="panel-heading">
               <h2>CPU Usage</h2>
               <strong id="cpu-value">...</strong>
             </div>
-            <canvas id="cpu-chart" width="520" height="140"></canvas>
+            <canvas id="cpu-chart" width="520" height="140" role="img" aria-label="CPU usage over the last eight minutes" aria-describedby="cpu-chart-meta cpu-utility-note"></canvas>
             <p id="cpu-chart-meta" class="telemetry-chart-meta">0-100% | Last ~8 min | Refreshes every 4s | Sample age unknown</p>
+            <p id="cpu-utility-note" class="note">Task Manager-equivalent (% Utility): ...</p>
           </section>
 
-          <section class="panel" data-panel-type="interactive">
+          <section class="panel" data-panel-type="status">
             <div class="panel-heading">
               <h2>Video Encoder (NVENC)</h2>
               <strong id="gpu-value">...</strong>
             </div>
-            <canvas id="gpu-chart" width="520" height="140"></canvas>
+            <canvas id="gpu-chart" width="520" height="140" role="img" aria-label="Video encoder usage over the last eight minutes" aria-describedby="gpu-chart-meta gpu-note"></canvas>
             <p id="gpu-chart-meta" class="telemetry-chart-meta">0-100% | Last ~8 min | Refreshes every 4s | Sample age unknown</p>
             <p id="gpu-note" class="note"></p>
           </section>
 
-          <section class="panel" data-panel-type="interactive">
+          <section class="panel" data-panel-type="status">
             <div class="panel-heading">
               <h2>RAM Usage</h2>
               <strong id="ram-value">...</strong>
             </div>
-            <canvas id="ram-chart" width="520" height="140"></canvas>
+            <canvas id="ram-chart" width="520" height="140" role="img" aria-label="RAM usage over the last eight minutes" aria-describedby="ram-chart-meta"></canvas>
             <p id="ram-chart-meta" class="telemetry-chart-meta">0-100% | Last ~8 min | Refreshes every 4s | Sample age unknown</p>
           </section>
         </div>
 
-        <section class="panel" data-panel-type="interactive">
+        <section class="panel" data-panel-type="status">
           <div class="panel-heading">
             <h2>GPU Details</h2>
             <strong id="gpu-detail-status">No GPU rows</strong>
           </div>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="GPU telemetry detail rows">
               <thead>
                 <tr>
                   <th scope="col" class="num">GPU</th>

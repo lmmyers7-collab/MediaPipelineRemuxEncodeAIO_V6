@@ -169,6 +169,10 @@ def _normalize_path_inheritance(
 
     # Output inheritance is backend-owned: blank or missing output roots follow
     # Outsource, while explicit nonblank roots stay pinned even if they match it.
+    # Exception: when the client sends an explicit inherited_fields list naming
+    # output_path, that intent wins and a typed output_path is still treated as
+    # inherited (resolved from Outsource). See
+    # test_explicit_inherited_output_path_follows_tracking.
     if not _text(profile.get("output_path")):
         inherited_fields.add("output_path")
     elif not inherited_fields_is_explicit:
@@ -308,7 +312,9 @@ def library_profiles_from_config(config: Mapping[str, Any]) -> list[dict[str, An
         for index, profile in enumerate(raw_profiles, start=1)
     ]
 
-    by_id: dict[str, dict[str, Any]] = {str(profile["id"]): profile for profile in normalized}
+    by_id: dict[str, dict[str, Any]] = {}
+    for profile in normalized:
+        by_id.setdefault(str(profile["id"]), profile)
     for default_id in DEFAULT_LIBRARY_IDS:
         if default_id not in by_id:
             by_id[default_id] = _default_profile(default_id, config_map)
@@ -319,7 +325,7 @@ def library_profiles_from_config(config: Mapping[str, Any]) -> list[dict[str, An
         profile_id = str(profile["id"])
         if profile_id in seen:
             continue
-        ordered.append(profile)
+        ordered.append(by_id[profile_id])
         seen.add(profile_id)
     return ordered
 

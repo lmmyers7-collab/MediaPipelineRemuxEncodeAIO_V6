@@ -203,6 +203,7 @@
       !rows.length ? pendingEmptyStateMessage(pending, rows) : "",
     ].filter(Boolean);
     setText("pending-summary", summary.join("\n") || pending.error || "No pending publish health issues.");
+    renderPendingDrainProgress(snapshot || {});
     renderPendingInventoryProgress(pending);
     renderPendingFileInventory(pending);
     renderPendingPublishReadiness(pending, rows);
@@ -247,6 +248,18 @@
         }
       }
     }
+  }
+
+  function renderPendingDrainProgress(snapshot = {}) {
+    const bars = Array.isArray(snapshot?.progress_bars)
+      ? snapshot.progress_bars.filter((bar) => ["pending_drain", "publish_copy", "publish_output"].includes(String(bar?.id || "")))
+      : [];
+    window.mediaPipelineProgressView?.renderProgressBarsInto?.(
+      "pending-drain-progress-bars",
+      bars,
+      snapshot,
+      "No active pending-publish drain progress loaded.",
+    );
   }
 
   function getLastPendingPublishPayload() {
@@ -466,7 +479,16 @@
     return lastPendingRows.find((row) => pendingRowKey(row) === selectedPendingRowKey) || null;
   }
 
+  function capturePendingSelectionScroll() {
+    return window.mediaPipelineDom?.captureScrollablePositions?.() || null;
+  }
+
+  function restorePendingSelectionScroll(snapshot) {
+    if (snapshot) window.mediaPipelineDom?.restoreScrollablePositions?.(snapshot);
+  }
+
   function selectPendingRow(item) {
+    const scrollSnapshot = capturePendingSelectionScroll();
     selectedPendingRowKey = pendingRowKey(item);
     renderPendingDetail(item || null);
     renderPendingReviewDigest(lastPendingPayload, lastPendingRows);
@@ -474,6 +496,7 @@
     renderPendingBackendDrainScopePreview(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
     renderPendingDrainDecisionChecklist(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
     renderPendingRows();
+    restorePendingSelectionScroll(scrollSnapshot);
   }
 
   function pendingDrainOverviewState(status) {
@@ -508,7 +531,7 @@
       `Publish checklist: ${validationStatus}.`,
       `Rows loaded: ${rowList.length}; visible table scope: ${filterScope.visibleCount ?? rowList.length}/${filterScope.totalCount ?? rowList.length}; hidden blocked=${filterScope.hiddenBlockedCount || 0}; hidden review=${filterScope.hiddenReviewCount || 0}.`,
       `Button guard: ${guard.allowed ? (guard.review_required ? "review confirmation required" : "allowed by local evidence") : "blocked by local evidence"}.`,
-      "Command boundary: Publish Parked Outputs remains the backend-owned validation and movement path; this overview cannot move, publish, repair, delete, rewrite, or mark outputs complete.",
+      "Command boundary: Drain Parked Outputs remains the backend-owned validation and movement path; this overview cannot move, publish, repair, delete, rewrite, or mark outputs complete.",
     ].join("\n"));
     const overviewNode = byId("pending-drain-overview");
     if (overviewNode) overviewNode.dataset.state = pendingDrainOverviewState(decisionStatus);
@@ -1022,6 +1045,7 @@
     pendingDrainDecisionSummaryLines,
     pendingDrainDecisionDetailLines,
     pendingDrainDecisionPostureStatus,
+    renderPendingDrainProgress,
     pendingPostDrainTrustRows,
     pendingPostDrainTrustStatus,
     pendingPostDrainTrustSummaryLines,
@@ -1078,6 +1102,7 @@
   window.renderPendingDetail = renderPendingDetail;
   window.getLastPendingPublishPayload = getLastPendingPublishPayload;
   window.renderPendingDrainEvidence = renderPendingDrainEvidence;
+  window.renderPendingDrainProgress = renderPendingDrainProgress;
   window.renderPendingDrainEvents = renderPendingDrainEvents;
   window.renderPendingDrainSummary = renderPendingDrainSummary;
   window.renderPendingDrainCorrelation = renderPendingDrainCorrelation;

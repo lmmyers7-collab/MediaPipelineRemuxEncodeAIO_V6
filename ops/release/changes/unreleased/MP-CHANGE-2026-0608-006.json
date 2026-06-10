@@ -1,0 +1,49 @@
+{
+  "id": "MP-CHANGE-2026-0608-006",
+  "title": "Show Tdarr Matrix Full Progress And Prevent Duplicates",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-08",
+  "date_completed": "2026-06-08",
+  "summary": "Expose progress and ETA for long Tdarr Matrix runs and prevent launching another incomplete 100 percent matrix run.",
+  "reason": "A 4,632-row full run is a multi-day sequential proof in the current harness. Without progress/ETA and duplicate-run guards, the operator sees a run that appears unfinished and can accidentally start a second full run.",
+  "affected_areas": [
+    "diagnostics",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Diagnostics listed run selected counts and final finding counts, but incomplete full runs had no completed/total progress or ETA. The full button could start another full run even while a previous full run was still incomplete.",
+  "behavior_after": "Diagnostics reports worker-result progress, processing rate, and ETA for selected Tdarr Matrix runs. A new full action returns the existing incomplete full run instead of launching a duplicate.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/diagnosticsView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/diagnosticsView.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0608-006.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/diagnostics/tdarr_matrix_audit.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/diagnostics/tdarr_matrix_console.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_tdarr_matrix_audit.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0608-006.json",
+    "src/mediapipeline/core/diagnostics/tdarr_matrix_audit.py",
+    "src/mediapipeline/core/diagnostics/tdarr_matrix_console.py",
+    "tests/python/desktop/test_service_tdarr_matrix_audit.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_service_tdarr_matrix_audit.py verifies full runs reuse an existing incomplete full run instead of launching another subprocess",
+    "tests/python/desktop/test_service_tdarr_matrix_audit.py verifies existing full-run results render as active warning results",
+    "tests/python/desktop/test_service_tdarr_matrix_audit.py verifies selected run console payload includes worker-result progress",
+    "tests/python/desktop/test_service_tdarr_matrix_audit.py verifies incomplete runs with worker results report processing status"
+  ],
+  "manual_validation": [
+    "2026-06-08: apps/desktop/runtime/Python/python.exe -m py_compile src/mediapipeline/core/diagnostics/tdarr_matrix_audit.py src/mediapipeline/core/diagnostics/tdarr_matrix_console.py tests/python/desktop/test_service_tdarr_matrix_audit.py",
+    "2026-06-08: node --check apps/desktop/webview/static/assets/diagnosticsView.js",
+    "2026-06-08: PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_service_tdarr_matrix_audit tests.webview.test_webview_frontend_mutation_boundary tests.python.desktop.test_api_command_contracts tests.python.desktop.test_api_contract_payload",
+    "2026-06-08: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths <edited paths>",
+    "2026-06-08: Live run read model for run-20260608-044850-full reported 587/4632 worker results, 12.7 percent complete, 84.72 files/hour, and 47.7 estimated remaining hours before the final patch."
+  ],
+  "rollback_plan": "Remove incomplete-full-run detection and progress summary fields; restore full action to always launch a new background run.",
+  "related_changes": [
+    "MP-CHANGE-2026-0608-005"
+  ],
+  "notes": "Observed run-20260608-044850-full at 582/4632 worker results after about 6.9 hours of worker-result time, estimating about 55.7 hours total at the current rate. A second older full run was also still processing."
+}

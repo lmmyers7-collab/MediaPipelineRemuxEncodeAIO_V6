@@ -16,7 +16,12 @@ from mediapipeline.desktop.api.contract_payload import local_api_contract_payloa
 
 REPO_ROOT = find_repo_root(Path(__file__))
 ASSET_ROOT = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "assets"
+HOME_PARTIAL = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "partials" / "page-home.html"
+LAUNCH_PARTIAL = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "partials" / "page-launch.html"
+PENDING_PARTIAL = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "partials" / "page-pending.html"
 DIAGNOSTICS_PARTIAL = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "partials" / "page-diagnostics.html"
+QUEUE_PARTIAL = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "partials" / "page-queue.html"
+SETTINGS_PARTIAL = REPO_ROOT / "apps" / "desktop" / "webview" / "static" / "partials" / "page-settings.html"
 API_POST_LITERAL_RE = re.compile(
     r"(?<![\w$])(?:\w+\.)?apiPost(?:Local)?\s*\(\s*(?P<quote>[\"'])(?P<route>/api/[^\"']+)(?P=quote)"
 )
@@ -28,7 +33,7 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/pipeline/control": {"launchView.js"},
     "/api/pipeline/browse-file": {"launchView.js"},
     "/api/pipeline/start": {"launchView.js"},
-    "/api/audit/start": {"launchView.js"},
+    "/api/audit/start": {"launchView.js", "reportsView.js"},
     "/api/rerun/start": {"launchView.js"},
     "/api/audit/score-policy": {"launchView.js", "reportsView.js"},
     "/api/audit/ignore": {"launchView.js", "reportsView.js"},
@@ -41,9 +46,13 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/maintenance/release-build": {"maintenanceView.js"},
     "/api/maintenance/completed-backfill-dry-run": {"maintenanceView.js"},
     "/api/maintenance/dependency-atlas": {"maintenanceView.js"},
+    "/api/maintenance/dependency-atlas/open-folder": {"maintenanceView.js"},
     "/api/sample-validation/preview": {"crossPageContextView.sampleValidation.js"},
     "/api/sample-validation/append": {"crossPageContextView.sampleValidation.js"},
     "/api/diagnostics/open": {"diagnosticsView.js"},
+    "/api/diagnostics/tdarr-matrix-audit": {"diagnosticsView.js"},
+    "/api/diagnostics/tdarr-matrix/evidence/open": {"diagnosticsView.js"},
+    "/api/diagnostics/tdarr-matrix/rerun": {"diagnosticsView.js"},
     "/api/pending-publish/open": {"pendingPublishView.diagnostics.js"},
     "/api/pending-publish/recovery-plan": {"pendingPublishView.recovery.js"},
     "/api/queue/open": {"queue/openActions.js"},
@@ -165,6 +174,82 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             diagnostics_html,
         )
 
+    def test_tdarr_matrix_findings_render_in_diagnostics_table(self) -> None:
+        diagnostics_view = _asset_sources()["diagnosticsView.js"]
+        diagnostics_html = DIAGNOSTICS_PARTIAL.read_text(encoding="utf-8")
+
+        self.assertIn('id="tdarr-matrix-audit-findings-rows"', diagnostics_html)
+        self.assertIn('id="tdarr-matrix-audit-findings-status"', diagnostics_html)
+        self.assertIn('id="tdarr-matrix-audit-filter"', diagnostics_html)
+        self.assertIn('id="tdarr-matrix-audit-bucket-rows"', diagnostics_html)
+        self.assertIn('id="tdarr-matrix-run-compare-rows"', diagnostics_html)
+        self.assertIn('id="tdarr-matrix-audit-rerun-selected"', diagnostics_html)
+        self.assertIn('data-tdarr-matrix-audit-action="full"', diagnostics_html)
+        self.assertIn("function renderTdarrMatrixAuditFindings", diagnostics_view)
+        self.assertIn("function renderTdarrMatrixBucketCoverage", diagnostics_view)
+        self.assertIn("function renderTdarrMatrixRunComparison", diagnostics_view)
+        self.assertIn("function requestTdarrMatrixEvidenceOpen", diagnostics_view)
+        self.assertIn("function requestTdarrMatrixRerun", diagnostics_view)
+        self.assertIn('full: "Run 100% Matrix"', diagnostics_view)
+        self.assertIn('checkbox.addEventListener("click"', diagnostics_view)
+        self.assertIn('selectCell.addEventListener("click"', diagnostics_view)
+        self.assertIn("/api/diagnostics/tdarr-matrix/latest", diagnostics_view)
+        self.assertIn("/api/diagnostics/tdarr-matrix/compare", diagnostics_view)
+        self.assertIn("findings_preview", diagnostics_view)
+        self.assertIn("findings_preview_truncated", diagnostics_view)
+        self.assertIn("tdarr-matrix-audit-findings-rows", diagnostics_view)
+        self.assertIn("tdarr-matrix-audit-findings-status", diagnostics_view)
+
+    def test_home_surfaces_tdarr_matrix_activity_without_run_controls(self) -> None:
+        home_html = HOME_PARTIAL.read_text(encoding="utf-8")
+        app_js = _asset_sources()["app.js"]
+        home_js = _asset_sources()["app/home.js"]
+        home_readiness_js = _asset_sources()["app/homeReadiness.js"]
+
+        self.assertIn('id="home-tdarr-matrix-status"', home_html)
+        self.assertIn('id="home-tdarr-matrix-detail"', home_html)
+        self.assertIn('id="home-tdarr-matrix-panel-status"', home_html)
+        self.assertIn('id="home-tdarr-matrix-progress-bars"', home_html)
+        self.assertIn('id="home-tdarr-matrix-summary"', home_html)
+        self.assertIn('data-cross-page-target="diagnostics"', home_html)
+        self.assertNotIn("data-tdarr-matrix-audit-action", home_html)
+        self.assertIn('apiGet("/api/diagnostics/tdarr-matrix/latest?finding_limit=0")', app_js)
+        self.assertIn("function renderHomeTdarrMatrixStatus", home_js)
+        self.assertIn("function homeTdarrMatrixStatusModel", home_js)
+        self.assertIn("function homeTdarrMatrixProgressBars", home_js)
+        self.assertIn('renderProgressBarsInto("home-tdarr-matrix-progress-bars"', home_js)
+        self.assertIn("renderHomeTdarrMatrixStatus", home_readiness_js)
+        self.assertNotIn('apiPost("/api/diagnostics/tdarr-matrix', app_js)
+
+    def test_live_run_progress_surfaces_are_read_only_shared_renderer(self) -> None:
+        home_html = HOME_PARTIAL.read_text(encoding="utf-8")
+        launch_html = LAUNCH_PARTIAL.read_text(encoding="utf-8")
+        pending_html = PENDING_PARTIAL.read_text(encoding="utf-8")
+        diagnostics_html = DIAGNOSTICS_PARTIAL.read_text(encoding="utf-8")
+        app_js = _asset_sources()["app.js"]
+        progress_js = _asset_sources()["progressView.js"]
+        pending_js = _asset_sources()["pendingPublishView.js"]
+
+        for html, prefix in [
+            (home_html, "home"),
+            (launch_html, "launch"),
+            (pending_html, "pending"),
+            (diagnostics_html, "diagnostics"),
+        ]:
+            self.assertIn(f'id="{prefix}-live-run-status"', html)
+            self.assertIn(f'id="{prefix}-live-run-strip"', html)
+            self.assertIn('class="live-run-strip"', html)
+
+        self.assertIn("function renderLiveRunStrip", progress_js)
+        self.assertIn("function liveRunStripItems", progress_js)
+        self.assertIn("progressBarForStableDisplay", progress_js)
+        self.assertIn('track.setAttribute("aria-valuetext", progressBarStatusLabel(bar));', progress_js)
+        self.assertIn("renderLiveRunStrip?.({", app_js)
+        self.assertIn('id="pending-drain-progress-bars"', pending_html)
+        self.assertIn("function renderPendingDrainProgress", pending_js)
+        self.assertIn('"pending_drain"', pending_js)
+        self.assertNotIn('apiPost("/api/progress', progress_js)
+
     def test_ui_preferences_sync_stays_allowlisted_and_runs_before_layout_init(self) -> None:
         app_js = _asset_sources()["app.js"]
 
@@ -194,9 +279,12 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
     def test_shell_open_routes_submit_backend_selector_keys_not_raw_paths(self) -> None:
         specs = {
             "/api/diagnostics/open": ("diagnosticsView.js", {"target"}),
+            "/api/diagnostics/tdarr-matrix/evidence/open": ("diagnosticsView.js", {"run_id", "finding_key", "target"}),
+            "/api/diagnostics/tdarr-matrix/rerun": ("diagnosticsView.js", {"source_run_id", "selection", "finding_keys"}),
             "/api/queue/open": ("queue/openActions.js", {"row_key", "row_scope", "target"}),
             "/api/completed/open": ("completed/openActions.js", {"row_key", "target"}),
             "/api/pending-publish/open": ("pendingPublishView.diagnostics.js", {"row_key", "target"}),
+            "/api/maintenance/dependency-atlas/open-folder": ("maintenanceView.js", set()),
         }
         forbidden_path_keys = {
             "path",
@@ -210,6 +298,9 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             "destination",
             "destination_folder",
             "manifest",
+            "generated_path",
+            "source_path",
+            "output_path",
         }
 
         for route, (asset_name, required_keys) in specs.items():
@@ -243,6 +334,66 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn("const request = { confirm_promote: true };", completed_js)
         self.assertIn("if (selectedRowKeys.length) request.row_keys = selectedRowKeys;", completed_js)
         self.assertIn('apiPost("/api/final-library-promotion/promote-queue", request)', completed_js)
+
+    def test_queue_loaded_priority_copy_does_not_imply_launch_scope(self) -> None:
+        queue_html = QUEUE_PARTIAL.read_text(encoding="utf-8")
+        queue_view = _asset_sources()["queueView.js"]
+
+        for snippet in [
+            "All Loaded Movies",
+            "All Loaded TV",
+            "loaded queue rows regardless of display filters or render cap",
+            "They do not define Launch scope",
+            "Save Loaded Backend Order",
+            "save loaded backend rows within their backend phase",
+            "display filters and render caps do not define Launch scope",
+        ]:
+            with self.subTest(asset="page-queue.html", snippet=snippet):
+                self.assertIn(snippet, queue_html)
+        for snippet in [
+            "Loaded queue rows:",
+            "Current display-filter matches for",
+            "This loaded-row action ignores display filters and the table render cap",
+            "Backend Launch scope remains unchanged and is still decided by Launch routes.",
+            "does not touch source, scratch, output, or rename files",
+            "Saving loaded backend manual positions",
+            "Saved loaded backend queue order to the backend manifest",
+            "Display filters and render caps did not define the saved scope.",
+        ]:
+            with self.subTest(asset="queueView.js", snippet=snippet):
+                self.assertIn(snippet, queue_view)
+        self.assertNotIn("Save Order", queue_html)
+        self.assertNotIn("current table order", queue_html + queue_view)
+        self.assertNotIn("Promote all visible Movie", queue_html + queue_view)
+        self.assertNotIn("visible rows to High priority", queue_html + queue_view)
+
+    def test_rename_filter_staging_uses_settings_patch_not_direct_psd1_save(self) -> None:
+        rename_view = _asset_sources()["renameView.js"]
+        settings_html = SETTINGS_PARTIAL.read_text(encoding="utf-8")
+
+        for snippet in [
+            "Stage Rename Filter Patch",
+            "Settings Changes JSON",
+            "Browser storage is local draft recovery only and does not persist PSD1 settings",
+            "Preview Patch",
+            "Save Settings",
+            "Guided setup stages the same PSD1-backed settings used by the manual editor.",
+            "Preview and save go through backend validation",
+        ]:
+            with self.subTest(asset="page-settings.html", snippet=snippet):
+                self.assertIn(snippet, settings_html)
+        self.assertNotIn("Guided setup writes PSD1", settings_html)
+        self.assertNotIn("validates locally", settings_html)
+        for snippet in [
+            "function stageRenameCleaningFilterPatch(changes)",
+            "Rename filter patch staged into Settings Changes JSON; no backend save route was called.",
+            "Next step: run Preview Patch, then Save Settings from Settings.",
+            "Browser storage is local draft recovery only",
+        ]:
+            with self.subTest(asset="renameView.js", snippet=snippet):
+                self.assertIn(snippet, rename_view)
+        self.assertNotIn('/api/settings/preview-patch', rename_view)
+        self.assertNotIn('/api/settings/save-patch', rename_view)
 
     def test_settings_save_warns_active_runtime_keeps_startup_config(self) -> None:
         settings_view = _asset_sources()["settingsView.js"]
@@ -291,6 +442,38 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn("touching media files", preview_contract["purpose"])
         self.assertNotIn("/api/settings/pipeline-plan-preview", _literal_api_post_owners())
         self.assertNotIn("/api/settings/pipeline-plan-preview", _asset_sources()["settingsView.js"])
+
+    def test_library_route_map_frontend_is_read_only_evidence_navigation(self) -> None:
+        sources = _asset_sources()
+        route_map = sources["librariesRouteMap.js"]
+        forbidden_routes = (
+            "/api/pipeline/start",
+            "/api/pipeline/control",
+            "/api/pending-publish/recovery-plan",
+            "/api/final-library-promotion/promote-queue",
+            "/api/final-library-promotion/pause",
+            "/api/final-library-promotion/resume",
+            "/api/rename/apply",
+            "/api/rename/preview",
+            "/api/settings/save-patch",
+            "/api/settings/preview-patch",
+            "/api/settings/browse-path",
+            "/api/queue/scan",
+            "/api/queue/priority",
+            "/api/queue/file-overrides",
+            "/api/sample-validation/append",
+        )
+
+        self.assertIn("/api/libraries/route-map", route_map)
+        self.assertIn("/api/libraries/route-map/trace", route_map)
+        self.assertIn("/api/libraries/route-map/compare", route_map)
+        self.assertIn("/api/libraries/route-map/validation", route_map)
+        self.assertIn("data-library-route-navigate", route_map)
+        self.assertIn("focusLibraryControl", route_map)
+        self.assertNotIn("apiPost", route_map)
+        for route in forbidden_routes:
+            with self.subTest(route=route):
+                self.assertNotIn(route, route_map)
 
     def test_repair_reconcile_mutation_remains_design_only_and_not_webview_callable(self) -> None:
         payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")

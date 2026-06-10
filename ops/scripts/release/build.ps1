@@ -99,7 +99,7 @@ function Get-MediaPipelineReleaseLabel {
 }
 
 $scriptRoot = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
-$script:SourceRoot = [System.IO.Path]::GetFullPath((Split-Path -Parent (Split-Path -Parent $scriptRoot)))
+$script:SourceRoot = [System.IO.Path]::GetFullPath((Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $scriptRoot))))
 $releasePolicyModule = Join-Path $script:SourceRoot 'ops\scripts\release\release_policy.ps1'
 if (-not (Test-Path -LiteralPath $releasePolicyModule -PathType Leaf)) {
     throw "Release policy module is missing: $releasePolicyModule"

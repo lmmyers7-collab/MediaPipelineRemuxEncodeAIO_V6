@@ -272,6 +272,7 @@ function New-EncodeFfmpegArgumentList {
     )
 
     $muxerName = Get-MediaEncodeOutputMuxerName -OutputPath $OutputPath
+    $isMp4Output = ($muxerName -eq 'mp4')
     $videoMapArgs = if (@($VideoFilterArgs).Count -gt 0) {
         @($VideoFilterArgs)
     } else {
@@ -281,18 +282,30 @@ function New-EncodeFfmpegArgumentList {
             '-map', '0:V'
         )
     }
-    return @('-i', $InputPath) + @($ExtraInputs) + @($videoMapArgs) + @(
-        '-map', '0:t?',
-        '-map_chapters', '0',
-        '-map_metadata', '0',
-        '-metadata', "title=$GlobalTitle"
-    ) + @($VideoFlags) + @($AudioArgs) + @($SubtitleMapArgs) + @(
-        '-c:t', 'copy',
-            '-f', $muxerName,
-        '-max_muxing_queue_size', '1024',
-        '-y',
-        $OutputPath
-    )
+    $containerMetadataArgs = if ($isMp4Output) {
+        @(
+            '-map_chapters', '-1',
+            '-map_metadata', '-1'
+        )
+    } else {
+        @(
+            '-map', '0:t?',
+            '-map_chapters', '0',
+            '-map_metadata', '0',
+            '-metadata', "title=$GlobalTitle"
+        )
+    }
+    $attachmentArgs = if ($isMp4Output) { @() } else { @('-c:t', 'copy') }
+    $muxerArgs = @('-f', $muxerName)
+    if ($isMp4Output) {
+        $muxerArgs += @('-movflags', '+faststart')
+    }
+    return @('-i', $InputPath) + @($ExtraInputs) + @($videoMapArgs) + @($containerMetadataArgs) +
+        @($VideoFlags) + @($AudioArgs) + @($SubtitleMapArgs) + @($attachmentArgs) + @($muxerArgs) + @(
+            '-max_muxing_queue_size', '1024',
+            '-y',
+            $OutputPath
+        )
 }
 
 function Get-EncodeArgumentValue {

@@ -119,7 +119,10 @@ def apply_library_profile_resets(
         return dict(values or {}), ["library_profile_resets must be an object or list of objects."]
 
     updated = dict(values or {})
-    profiles = [dict(profile) for profile in library_profiles_from_config(updated)]
+    try:
+        profiles = [dict(profile) for profile in library_profiles_from_config(updated)]
+    except (ValueError, TypeError) as exc:
+        return dict(values or {}), [f"LibraryProfiles is invalid: {exc}"]
     by_id = {str(profile.get("id") or ""): profile for profile in profiles}
     errors: list[str] = []
 
@@ -236,7 +239,6 @@ def _profile_origin(raw_profile: Mapping[str, Any] | None, *, synthesized: bool)
     return "configured"
 
 def library_profile_path_field_state(
-    config: Mapping[str, Any],
     library_profile: Mapping[str, Any],
     field: str,
     *,
@@ -283,16 +285,13 @@ def library_profile_path_field_state(
         "required": required,
     }
 
-def library_setting_override_field_state(
-    global_defaults: Mapping[str, Any],
-    library_profile: Mapping[str, Any],
+def _setting_override_field_state(
+    inherited_group: Mapping[str, Any],
+    group_overrides: Mapping[str, Any],
     group: str,
     key: str,
 ) -> dict[str, Any]:
-    defaults = default_library_settings(global_defaults)
-    inherited_value = defaults.get(group, {}).get(key)
-    overrides = coerce_library_overrides(library_profile)
-    group_overrides = overrides.get(group, {})
+    inherited_value = inherited_group.get(key)
     is_explicit = key in group_overrides
     explicit_value = group_overrides.get(key) if is_explicit else None
     effective_value = explicit_value if is_explicit else inherited_value
@@ -306,6 +305,18 @@ def library_setting_override_field_state(
         "value_equals_global": is_explicit and _jsonable(explicit_value) == _jsonable(inherited_value),
     }
 
+def library_setting_override_field_state(
+    global_defaults: Mapping[str, Any],
+    library_profile: Mapping[str, Any],
+    group: str,
+    key: str,
+) -> dict[str, Any]:
+    defaults = default_library_settings(global_defaults)
+    overrides = coerce_library_overrides(library_profile)
+    return _setting_override_field_state(
+        defaults.get(group, {}), overrides.get(group, {}), group, key
+    )
+
 def library_profile_state(
     config: Mapping[str, Any],
     library_profile: Mapping[str, Any],
@@ -313,10 +324,14 @@ def library_profile_state(
     raw_profile: Mapping[str, Any] | None = None,
     synthesized: bool = False,
 ) -> dict[str, Any]:
+    defaults = default_library_settings(config)
+    overrides = coerce_library_overrides(library_profile)
     setting_overrides: dict[str, dict[str, Any]] = {}
     for group, keys in LIBRARY_OVERRIDE_KEYS_BY_GROUP.items():
+        inherited_group = defaults.get(group, {})
+        group_overrides = overrides.get(group, {})
         setting_overrides[group] = {
-            key: library_setting_override_field_state(config, library_profile, group, key)
+            key: _setting_override_field_state(inherited_group, group_overrides, group, key)
             for key in keys
         }
     return {
@@ -325,7 +340,6 @@ def library_profile_state(
         "library_name": str(library_profile.get("name") or ""),
         "path_fields": {
             field: library_profile_path_field_state(
-                config,
                 library_profile,
                 field,
                 raw_profile=raw_profile,
@@ -395,29 +409,73 @@ def effective_library_profiles_from_config(config: Mapping[str, Any]) -> list[di
         effective.append(row)
     return effective
 
-def _profile_source_path_key(value: Any) -> str:
-    return str(value or "").replace("\\", "/").rstrip("/").casefold()
+def _resolved_match_key(value: Any) -> str:
+    """Resolve a path to a canonical comparison key.
+
+    Mirrors the engine's ``[System.IO.Path]::GetFullPath`` + ``OrdinalIgnoreCase``
+    handling (ops/pipeline/engine/paths/path_capability.ps1): collapse ``..``,
+    make absolute, normalize separators, and case-fold for the host filesystem.
+    """
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    try:
+        full = os.path.abspath(text)
+    except (OSError, ValueError):
+        full = text
+    return os.path.normcase(full.rstrip("\\/"))
+
+def _path_is_under_or_equal(candidate_key: str, root_key: str) -> bool:
+    if not candidate_key or not root_key:
+        return False
+    if candidate_key == root_key:
+        return True
+    return candidate_key.startswith(root_key + os.sep)
+
+def _profile_match_root_key(profile: Mapping[str, Any]) -> str:
+    return _resolved_match_key(profile.get("effective_source_root") or profile.get("source_path"))
 
 def effective_library_profile_for_source_path(
     config: Mapping[str, Any],
     source_path: str | os.PathLike[str],
+    *,
+    selected_profile_id: str | None = None,
 ) -> dict[str, Any] | None:
-    """Return the enabled effective Library profile with the deepest matching source root."""
-    candidate = _profile_source_path_key(source_path)
+    """Return the enabled effective Library profile that owns ``source_path``.
+
+    Mirrors the pipeline engine's path-to-library resolution
+    (ops/pipeline/engine/paths/library_profiles.ps1::Get-MediaPipelineLibraryProfileForPath):
+    source roots are compared as resolved, case-insensitive paths and the
+    deepest matching enabled source root wins. When ``selected_profile_id`` is
+    supplied and that enabled profile's source root contains the path, it takes
+    precedence over the deepest-match rule -- matching the engine's
+    ``CurrentLibraryProfileId`` behavior. Read-only preview callers that have no
+    runtime selection omit it and therefore reflect the engine's default
+    (selection-free) routing.
+    """
+    candidate = _resolved_match_key(source_path)
     if not candidate:
         return None
-    matches: list[dict[str, Any]] = []
-    for profile in effective_library_profiles_from_config(config):
-        if not profile.get("enabled", True):
-            continue
-        root = _profile_source_path_key(profile.get("effective_source_root") or profile.get("source_path"))
-        if root and (candidate == root or candidate.startswith(root + "/")):
-            matches.append(profile)
-    if not matches:
-        return None
-    return max(
-        matches,
-        key=lambda profile: len(
-            _profile_source_path_key(profile.get("effective_source_root") or profile.get("source_path"))
-        ),
-    )
+    profiles = [
+        profile
+        for profile in effective_library_profiles_from_config(config)
+        if profile.get("enabled", True)
+    ]
+
+    selected_id = str(selected_profile_id or "").strip().casefold()
+    if selected_id:
+        for profile in profiles:
+            if str(profile.get("id") or "").strip().casefold() != selected_id:
+                continue
+            if _path_is_under_or_equal(candidate, _profile_match_root_key(profile)):
+                return profile
+            break
+
+    best: dict[str, Any] | None = None
+    best_len = -1
+    for profile in profiles:
+        root_key = _profile_match_root_key(profile)
+        if _path_is_under_or_equal(candidate, root_key) and len(root_key) > best_len:
+            best = profile
+            best_len = len(root_key)
+    return best

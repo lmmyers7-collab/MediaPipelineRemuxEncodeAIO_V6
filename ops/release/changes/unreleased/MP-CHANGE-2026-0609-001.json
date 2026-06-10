@@ -1,0 +1,37 @@
+{
+  "id": "MP-CHANGE-2026-0609-001",
+  "title": "Detect declared-but-empty source video stream at probe",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-09",
+  "date_completed": "",
+  "summary": "Teaches Get-SourceMediaRouteProfile (source-route probe) to detect a video stream that is declared in the container header but carries zero decodable packets, and to report it via the existing probe_error='video_stream_missing' signal so the existing source-probe preflight guard marks it permanent and non-retryable.",
+  "reason": "A TDARR matrix run (run-20260608-044850-full) surfaced case tdarr-0698: an external tdarr sample (sample__2160__libx265__alac__30s__video.mkv) whose mkv header declares a 2160p video stream containing no video packets. ffprobe reported the stream, so the presence-only SOURCE_MEDIA_VIDEO_MISSING guard passed and the file routed to encode, where ffmpeg aborted with 'Cannot determine format of input after EOF'. The encode failure was classified transient and retried 3 times before giving up, wasting work on a permanently undecodable source.",
+  "affected_areas": [
+    "media_probe",
+    "pipeline_processing"
+  ],
+  "behavior_before": "Get-SourceMediaRouteProfile set probe_ok/probe_error purely on video-stream presence (codec_type=video). A header-only video stream (zero packets) passed the check, routed to encode, failed at ffmpeg, and was retried as a transient failure up to the retry limit.",
+  "behavior_after": "When a video stream is present, the probe performs a bounded first-packet read (ffprobe -select_streams v:0 -read_intervals %+#1 -count_packets). If it positively determines zero packets, probe_ok=false and probe_error='video_stream_missing'; the existing preflight guard then records a permanent, non-retryable SOURCE_MEDIA_VIDEO_MISSING failure and never routes the source to encode. Ambiguous or failed packet probes leave the source eligible (no false rejects).",
+  "files_touched": [
+    "ops/pipeline/engine/probe/media_probe.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0609-001.json",
+    "docs/SESSION.md"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "pwsh parse check of media_probe.ps1 - PARSE_OK",
+    "ops/pipeline/tests/Unit/Invoke-PipelineProcessingSourceProbeChecks.ps1 - passed (guard contract intact)",
+    "ops/pipeline/tests/Unit/Invoke-FailureCodeRegistryChecks.ps1 - passed (38 classifier codes, 144 outcome codes)",
+    "Real-media harness via bundled ffprobe: broken asset sample__2160__libx265__alac__30s__video.mkv -> probe_ok=False, probe_error='video_stream_missing'; healthy asset (mpeg1video) -> probe_ok=True, probe_error=''"
+  ],
+  "operator_validation_required": [
+    "AGENTS.md section 5 media/FFmpeg rung: run the real broken source end-to-end through ops/pipeline/entrypoints/MediaPipeline.ps1 and confirm it lands as a permanent, non-retryable SOURCE_MEDIA_VIDEO_MISSING at stage source-probe with no encode attempt and no transient retries.",
+    "Confirm a representative healthy 2160p h265 source still routes and encodes normally (regression check for the added bounded packet probe in the hot path)."
+  ],
+  "rollback_plan": "Revert the added bounded packet-probe block in ops/pipeline/engine/probe/media_probe.ps1 (Get-SourceMediaRouteProfile), restoring probe_ok=($null -ne $video) and probe_error=if($video){''}else{'video_stream_missing'}.",
+  "related_changes": [],
+  "notes": "Scoped deliberately to the clean media_probe.ps1 only. The source-probe preflight guard in pipeline_processing.ps1 and failure_codes.ps1 already had uncommitted in-flight changes from other work; this change reuses the existing video_stream_missing signal and SOURCE_MEDIA_VIDEO_MISSING code to avoid touching those dirty files, adding no new failure code and no registry churn. Operator real-media rung still required before status=complete (AGENTS.md section 7 not self-certified). Summary refresh deferred to the pre-commit hook to avoid sweeping unrelated in-flight files. PROJECT_INDEX.md and docs/audit/latest.md were missing during this session (degraded mode)."
+}

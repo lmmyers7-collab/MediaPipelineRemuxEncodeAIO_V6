@@ -181,9 +181,10 @@
       message,
       `Custom negative terms: ${customTermsCount}`,
       `Movie filter terms: ${categoryCounts || "none"}`,
-      "Save writes RenameMovieFilterOptions, RenameMovieFilterTerms, and RenameMovieRemoveTerms through backend Settings.",
+      "Stage writes RenameMovieFilterOptions, RenameMovieFilterTerms, and RenameMovieRemoveTerms into Settings Changes JSON.",
       "Saved filters affect future pipeline output naming, Rename preview planning, and Rename apply planning.",
-      "Browser storage is draft recovery only; unsaved edits affect only the filename test preview on this page.",
+      "Browser storage is local draft recovery only; it does not persist PSD1 settings.",
+      "Next step: run Preview Patch, then Save Settings from Settings.",
       "Mutation guardrail: editing cleaning filters changes rename preview/apply planning only; filesystem changes still require backend rename apply confirmation.",
     ].filter(Boolean).join("\n"));
   }
@@ -200,47 +201,57 @@
     }
   }
 
-  async function saveRenameCleaningFilterState(message = "Rename cleaning filters saved to backend settings.") {
-    const draftSaved = saveRenameCleaningFilterDraft("Saving rename cleaning filters to backend settings...");
-    const post = typeof apiPost === "function" ? apiPost : window.apiPost;
-    if (typeof post !== "function") {
-      renderRenameCleaningFilterEditor(
-        draftSaved
-          ? "Backend Settings API is unavailable; filter edits were retained only as a browser draft."
-          : "Backend Settings API is unavailable and browser draft storage failed."
-      );
-      return false;
-    }
-    const changes = renameCleaningFilterConfigPatch();
+  function stageRenameCleaningFilterPatch(changes) {
+    const patchNode = byId("settings-patch-json");
+    if (!patchNode) return false;
+    let current = {};
     try {
-      const preview = await post("/api/settings/preview-patch", { changes });
-      appendCommandResult(preview);
-      if (!preview?.ok) {
-        renderRenameCleaningFilterEditor(preview?.message || "Backend rejected the rename filter settings preview.");
-        return false;
-      }
-      const result = await post("/api/settings/save-patch", { changes, confirm_save: true });
-      appendCommandResult(result);
-      if (!result?.ok) {
-        renderRenameCleaningFilterEditor(result?.message || "Rename filter settings save failed.");
-        return false;
-      }
-      try { localStorage.removeItem(RENAME_CLEANING_FILTER_STORAGE_KEY); } catch (_) {}
-      renameCleaningFilterSaveMessage = message;
-      renameCleaningFilterSaveMessageUntil = Date.now() + 1500;
-      const reloaded = result?.data?.reloaded !== false;
-      if (reloaded) {
-        await loadRenameMovieFilterCatalog({ preserveValues: false, message });
-      }
-      if (reloaded && typeof window.refreshAll === "function") await window.refreshAll();
-      renderRenameCleaningFilterEditor(message);
-      updateRenameFilterPreview();
-      syncRenameCommandButtons();
-      return true;
+      current = JSON.parse(patchNode.value || "{}");
     } catch (error) {
-      renderRenameCleaningFilterEditor(`Rename filter settings save failed: ${error?.message || error}`);
+      renderRenameCleaningFilterEditor(`Cannot stage rename filters: Settings Changes JSON is invalid. ${error?.message || error}`);
       return false;
     }
+    if (!current || Array.isArray(current) || typeof current !== "object") {
+      renderRenameCleaningFilterEditor("Cannot stage rename filters: Settings Changes JSON must be an object.");
+      return false;
+    }
+    const next = { ...current, ...changes };
+    patchNode.value = JSON.stringify(next, null, 2);
+    patchNode.dispatchEvent(new Event("input", { bubbles: true }));
+    patchNode.dispatchEvent(new Event("change", { bubbles: true }));
+    const settingsView = window.mediaPipelineSettingsView || {};
+    if (typeof settingsView.markSettingsPatchTouched === "function") settingsView.markSettingsPatchTouched();
+    if (typeof settingsView.renderSettingsPatchSummary === "function") settingsView.renderSettingsPatchSummary();
+    if (typeof window.renderAllLaunchPreflights === "function") window.renderAllLaunchPreflights();
+    return true;
+  }
+
+  async function saveRenameCleaningFilterState(message = "Rename cleaning filters staged into Settings Changes JSON.") {
+    const draftSaved = saveRenameCleaningFilterDraft("Rename filter draft retained in this browser while staging Settings Changes JSON...");
+    const changes = renameCleaningFilterConfigPatch();
+    if (!stageRenameCleaningFilterPatch(changes)) {
+      return false;
+    }
+    renameCleaningFilterSaveMessage = message;
+    renameCleaningFilterSaveMessageUntil = Date.now() + 1500;
+    renderRenameCleaningFilterEditor([
+      message,
+      draftSaved
+        ? "Local draft retained until Settings Save succeeds and saved backend settings reload."
+        : "Local browser draft storage failed; staged Settings Changes JSON remains the save source.",
+      "Next step: run Preview Patch, then Save Settings from Settings.",
+    ].join("\n"));
+    if (typeof appendCommandResult === "function") {
+      appendCommandResult({
+        command: "settings.stage_rename_filters",
+        ok: true,
+        severity: "info",
+        message: "Rename filter patch staged into Settings Changes JSON; no backend save route was called.",
+      });
+    }
+    updateRenameFilterPreview();
+    syncRenameCommandButtons();
+    return true;
   }
 
   function resetRenameCleaningFilters() {
@@ -849,13 +860,23 @@
     if (forceInput) forceInput.checked = Boolean(renameForceOverrides[key] ?? item?.force_pipeline_name);
   }
 
+  function captureRenameSelectionScroll() {
+    return window.mediaPipelineDom?.captureScrollablePositions?.() || null;
+  }
+
+  function restoreRenameSelectionScroll(snapshot) {
+    if (snapshot) window.mediaPipelineDom?.restoreScrollablePositions?.(snapshot);
+  }
+
   function selectRenameRow(item) {
+    const scrollSnapshot = captureRenameSelectionScroll();
     const key = renameSourceKey(item);
     selectedRenameSourceKey = key;
     syncRenameSelectedInputs(item);
     renderRenameDetail(item || null);
     renderRenameBulkEditor();
     renderRenameRows();
+    restoreRenameSelectionScroll(scrollSnapshot);
   }
 
   const renamePreviewSlice = window.mediaPipelineRenamePreviewSlice.create({

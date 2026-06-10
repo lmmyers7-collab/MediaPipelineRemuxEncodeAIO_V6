@@ -77,6 +77,67 @@ function New-AudioOmitAllDecisionRecord {
     }
 }
 
+function Select-Mp4CompatibilityAudioSourceKey {
+    param(
+        [array] $AudioStreams,
+        [object] $AudioOverride,
+        [string[]] $PreferredLanguages
+    )
+
+    $preferred = @($PreferredLanguages | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($preferred.Count -eq 0) { $preferred = @('eng') }
+
+    $candidates = [System.Collections.Generic.List[object]]::new()
+    for ($i = 0; $i -lt @($AudioStreams).Count; $i++) {
+        $s = $AudioStreams[$i]
+        $rawLang = "und"
+        try {
+            if ($s.tags -and $s.tags.language) { $rawLang = ([string]$s.tags.language).ToLowerInvariant() }
+        } catch {}
+        $normalizedLang = Normalize-AudioLanguagePreferenceValue $rawLang
+        $rawTitle = ""
+        try {
+            if ($s.tags -and $s.tags.title) { $rawTitle = [string]$s.tags.title }
+        } catch {}
+        $codec = ([string]$s.codec_name).Trim().ToLowerInvariant()
+        $ch = 0
+        try { $ch = [int]$s.channels } catch { $ch = 0 }
+        $sourceStreamIndex = if ($null -ne $s.PSObject.Properties['index']) { $s.index } else { $null }
+        $sourceKey = if ($null -ne $sourceStreamIndex) { [int]$sourceStreamIndex } else { [int]$i }
+        if (-not (Test-AudioTrackKeptByOverride `
+                -Language $normalizedLang `
+                -Channels $ch `
+                -Title $rawTitle `
+                -Codec $codec `
+                -StreamIndex $sourceStreamIndex `
+                -AudioOverride $AudioOverride)) {
+            continue
+        }
+        $preferenceRank = $preferred.IndexOf($normalizedLang)
+        if ($preferenceRank -lt 0) { $preferenceRank = [int]::MaxValue }
+        $isCommentary = ($rawTitle -match '(?i)commentary|director|cast|audio\s*description|descriptive|behind.the.scenes|isolated\s*score')
+        $candidates.Add([pscustomobject]@{
+            SourceKey         = $sourceKey
+            PreferenceRank    = $preferenceRank
+            CommentaryPenalty = if ($isCommentary) { 1 } else { 0 }
+            CodecPenalty      = if ($codec -eq 'eac3') { 0 } else { 1 }
+            FidelityScore     = Get-AudioFidelityScore -Codec $codec -Channels $ch
+            SourceOrdinal     = [int]$i
+        }) | Out-Null
+    }
+
+    if ($candidates.Count -eq 0) { return $null }
+    $selected = $candidates |
+        Sort-Object `
+            @{ Expression = { $_.PreferenceRank } }, `
+            @{ Expression = { $_.CommentaryPenalty } }, `
+            @{ Expression = { $_.CodecPenalty } }, `
+            @{ Expression = { $_.FidelityScore }; Descending = $true }, `
+            @{ Expression = { $_.SourceOrdinal } } |
+        Select-Object -First 1
+    return [int]$selected.SourceKey
+}
+
 function Build-AudioStreamDecisionPlan {
     param(
         [array] $AudioStreams,
@@ -89,7 +150,8 @@ function Build-AudioStreamDecisionPlan {
         [Parameter(Mandatory)] [string] $TranscodeCodecLabel,
         [Parameter(Mandatory)] [string] $DownmixMode,
         [Parameter(Mandatory)] [int] $MaxChannels,
-        [string[]] $PreferredLanguages
+        [string[]] $PreferredLanguages,
+        [bool] $Mp4CompatibilityMode = $false
     )
 
     $trackDecisions = [System.Collections.Generic.List[object]]::new()
@@ -143,6 +205,11 @@ function Build-AudioStreamDecisionPlan {
     $CommentaryRegex = '(?i)commentary|director|cast|audio\s*description|descriptive|behind.the.scenes|isolated\s*score'
 
     $outOrdinal = 0
+    $mp4SelectedSourceKey = if ($Mp4CompatibilityMode) {
+        Select-Mp4CompatibilityAudioSourceKey -AudioStreams @($AudioStreams) -AudioOverride $AudioOverride -PreferredLanguages $PreferredLanguages
+    } else {
+        $null
+    }
     for ($i = 0; $i -lt $AudioStreams.Count; $i++) {
         $s        = $AudioStreams[$i]
         $rawLang = "und"
@@ -170,6 +237,7 @@ function Build-AudioStreamDecisionPlan {
 
         $isCommentary = ($rawTitle -match $CommentaryRegex)
         $sourceStreamIndex = if ($null -ne $s.PSObject.Properties['index']) { $s.index } else { $null }
+        $sourceKey = if ($null -ne $sourceStreamIndex) { [int]$sourceStreamIndex } else { [int]$i }
 
         if (-not (Test-AudioTrackKeptByOverride `
                 -Language $normalizedLang `
@@ -202,6 +270,47 @@ function Build-AudioStreamDecisionPlan {
                 SourceStreamIndex = $sourceStreamIndex
                 Action            = 'drop'
                 Reason            = 'file_override'
+                Language          = $normalizedLang
+                SourceCodec       = $codec
+                SourceChannels    = $ch
+                OutputCodec       = ''
+                OutputCodecLabel  = ''
+                OutputChannels    = 0
+                Bitrate           = ''
+                BitrateSource     = ''
+                IsForced          = $isForcedAudio
+                IsCommentary      = $isCommentary
+                Title             = $rawTitle
+                ChannelLayout     = ''
+            }) | Out-Null
+            continue
+        }
+
+        if ($Mp4CompatibilityMode -and $null -ne $mp4SelectedSourceKey -and $sourceKey -ne [int]$mp4SelectedSourceKey) {
+            $audioDecisionRecords.Add([pscustomobject]@{
+                audio_ordinal       = $null
+                source_stream_index = $sourceStreamIndex
+                action              = 'drop'
+                reason              = 'mp4_single_eac3_compatibility'
+                passthrough_profile = $PassthroughProfile
+                language            = $normalizedLang
+                normalized_language = $normalizedLang
+                source_codec        = $codec
+                source_channels     = $ch
+                output_codec        = ''
+                output_channels     = 0
+                bitrate             = ''
+                is_default          = $false
+                is_forced           = $isForcedAudio
+                is_commentary       = $isCommentary
+                title               = $rawTitle
+            }) | Out-Null
+            $trackDecisions.Add([pscustomobject]@{
+                AudioOrdinal      = $null
+                SourceOrdinal     = $i
+                SourceStreamIndex = $sourceStreamIndex
+                Action            = 'drop'
+                Reason            = 'mp4_single_eac3_compatibility'
                 Language          = $normalizedLang
                 SourceCodec       = $codec
                 SourceChannels    = $ch

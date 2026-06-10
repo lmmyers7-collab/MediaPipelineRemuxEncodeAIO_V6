@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/api/read_payloads.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-05-07
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: 211e6cdf11df42bff6c75b64ad0101fc475d4c3ede0dee7281c81efa35a6ad50
+sha256: 8b53cc4d6f2dbfe5bb3911a629cdb24056fc2873f81373342d4eac3a7a61a8e1
 ---
 # `src/mediapipeline/desktop/api/read_payloads.py`
 

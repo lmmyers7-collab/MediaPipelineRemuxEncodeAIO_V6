@@ -65,8 +65,6 @@ const settingsCommandButtonIds = [
   "settings-reload-button",
   "settings-preview-patch-button",
   "settings-save-patch-button",
-  "settings-final-library-preview-button",
-  "settings-final-library-save-button",
   "settings-file-safety-source-movies-browse",
   "settings-file-safety-source-tv-browse",
   "settings-file-safety-outsource-browse",
@@ -1296,7 +1294,7 @@ function appendSettingsRiskSummaryLines(lines, riskSummary) {
     const releaseGroupsEditor = byId("settings-rename-filter-release-groups");
     const renameView = window.mediaPipelineRenameView || {};
     if (!releaseGroupsEditor || typeof renameView.saveRenameCleaningFilterDraft !== "function") return false;
-    return renameView.saveRenameCleaningFilterDraft("Rename filter draft retained in this browser; use Save Rename Filters to persist PSD1 settings.");
+    return renameView.saveRenameCleaningFilterDraft("Rename filter draft retained in this browser; use Stage Rename Filter Patch to add it to Settings Changes JSON before Preview Patch and Save Settings.");
   }
 
   async function previewSettingsPatch() {
@@ -1456,7 +1454,7 @@ async function saveSettingsPatch() {
     const renameFiltersSaved = saveRenameCleaningFiltersFromSettingsSave();
     setText("settings-patch-status", "No changes");
     setText("settings-patch-detail", [
-      renameFiltersSaved ? "Rename cleaning filter draft was retained in browser storage." : "",
+      renameFiltersSaved ? "Rename filter draft retained in this browser; use Stage Rename Filter Patch to add it to Settings Changes JSON before Preview Patch and Save Settings." : "",
       "No backend settings patch keys were provided, so the PSD1 was not changed.",
     ].filter(Boolean).join("\n"));
     return;
@@ -1479,7 +1477,7 @@ async function saveSettingsPatch() {
     const renameFiltersSaved = saveRenameCleaningFiltersFromSettingsSave();
     setText("settings-patch-status", "No changes");
     setText("settings-patch-detail", [
-      renameFiltersSaved ? "Rename cleaning filter draft was retained in browser storage." : "",
+      renameFiltersSaved ? "Rename filter draft retained in this browser; use Stage Rename Filter Patch to add it to Settings Changes JSON before Preview Patch and Save Settings." : "",
       "No staged settings differ from the saved config, so nothing was saved.",
       "Edit a setting on any tab (subtitle / audio / routing / etc.), then Save again.",
       "Builder edits are merged into the Changes JSON automatically when you Save.",

@@ -1,0 +1,42 @@
+{
+  "id": "MP-CHANGE-2026-0607-017",
+  "title": "Add Tdarr matrix audit harness",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "medium",
+  "date_started": "2026-06-07",
+  "date_completed": "2026-06-07",
+  "summary": "Add a developer audit harness for the scratch Tdarr Matrix library, including strict evidence reports and isolated sample-processing runs.",
+  "reason": "The Tdarr scratch library needs repeatable diagnostics that convert queue, route, source-integrity, and sample-processing evidence into actionable findings.",
+  "affected_areas": [
+    "test",
+    "test_fixtures",
+    "tooling"
+  ],
+  "behavior_before": "The generated Tdarr Matrix scratch library could be validated manually, but there was no single tool to audit queue coverage, path containment, source hashes, or sampled SingleFile runs.",
+  "behavior_after": "A repeatable CLI audits the Tdarr Matrix evidence, can create an isolated sampled run library, and emits JSON, Markdown, and CSV finding reports with strict failure behavior.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0607-017.json.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/tdarr_matrix_audit.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_tdarr_matrix_audit.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0607-017.json",
+    "src/mediapipeline/tools/dev/tdarr_matrix_audit.py",
+    "tests/python/tooling/test_tdarr_matrix_audit.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_tdarr_matrix_audit.py"
+  ],
+  "manual_validation": [
+    "python -m compileall tdarr_matrix_audit/test_tdarr_matrix_audit - passed",
+    "python -m unittest tests.python.tooling.test_tdarr_matrix_audit - passed",
+    "python -m unittest tests.python.tooling.test_tdarr_matrix_audit tests.python.tooling.test_materialize_tdarr_test_library - passed",
+    "refresh_summaries --paths tdarr_matrix_audit/test_tdarr_matrix_audit/MP-CHANGE-2026-0607-017 - passed",
+    "tdarr_matrix_audit report --prepare-evidence --prepare-timeout-seconds 30 --report-only - loaded 4632 manifest rows and wrote report; queue snapshot intentionally timed out"
+  ],
+  "rollback_plan": "Delete src/mediapipeline/tools/dev/tdarr_matrix_audit.py, tests/python/tooling/test_tdarr_matrix_audit.py, this change packet, and any ignored LocalBase/Scratch/TestLibraries/TdarrMatrixRuns runtime outputs.",
+  "related_changes": [
+    "MP-CHANGE-2026-0607-016"
+  ],
+  "notes": "Default PowerShell host resolves to pwsh when available and timeout handling terminates the process tree."
+}

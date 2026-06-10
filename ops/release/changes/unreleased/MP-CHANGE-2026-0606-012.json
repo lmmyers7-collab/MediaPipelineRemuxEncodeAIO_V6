@@ -1,0 +1,41 @@
+{
+  "id": "MP-CHANGE-2026-0606-012",
+  "title": "Prevent duplicate TV output folder nesting",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-06",
+  "date_completed": "2026-06-06",
+  "summary": "Prevents TV output planning from appending a TV library folder when the selected library profile output root already points at a TV leaf folder.",
+  "reason": "A TV Library Profile can use an output root such as \\\\LAYNE-SERVER\\Users\\Layne\\Videos\\outsource\\TV. With CreateTVSubfolder enabled, output planning also requested a TV relative folder, producing \\\\LAYNE-SERVER\\Users\\Layne\\Videos\\outsource\\TV\\TV\\Show\\Season output paths.",
+  "affected_areas": [
+    "library_profiles",
+    "output_path_planning",
+    "source_output_paths"
+  ],
+  "behavior_before": "When CreateTVSubfolder was enabled, TV output planning always prefixed relative paths with TV, even when the selected library output root already ended in TV.",
+  "behavior_after": "TV output planning keeps the configured CreateTVSubfolder behavior for shared output roots, but suppresses the extra TV prefix when the selected library output root leaf is already TV.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/engine/paths/output_path_planning.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-LibraryProfileRoutingChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0606-012.json.md",
+    "ops/pipeline/engine/paths/output_path_planning.ps1",
+    "ops/pipeline/tests/Unit/Invoke-LibraryProfileRoutingChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0606-012.json"
+  ],
+  "tests_added": [
+    "Added Library Profile routing coverage proving shared TV output roots still include TV/Show/Season while TV-leaf output roots produce Show/Season instead of TV/TV/Show/Season."
+  ],
+  "manual_validation": [
+    ".\\ops\\pipeline\\tests\\Invoke-EndToEndSmokeChecks.ps1 -> passed",
+    ".\\ops\\pipeline\\tests\\Unit\\Invoke-LibraryProfileRoutingChecks.ps1 -> passed",
+    ".\\ops\\pipeline\\tests\\Unit\\Invoke-NamingSupportChecks.ps1 -> passed",
+    ".\\ops\\pipeline\\tests\\Unit\\Invoke-PathBoundaryGuardChecks.ps1 -> did not reach assertions; pre-existing harness path resolution looked for ops\\ops\\pipeline\\engine\\shared\\path_helpers.ps1",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/engine/paths/output_path_planning.ps1 ops/pipeline/tests/Unit/Invoke-LibraryProfileRoutingChecks.ps1 ops/release/changes/unreleased/MP-CHANGE-2026-0606-012.json -> passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> failed only on unrelated existing work: MP-CHANGE-2026-0605-010 missing date_completed, MP-CHANGE-2026-0606-013 invalid type ui_cleanup, and uncovered files apps/desktop/webview/static/assets/styles.controls.css, apps/desktop/webview/static/assets/styles.layout-manager.css, apps/desktop/webview/static/assets/styles.theme.css, apps/desktop/webview/static/assets/styles.tokens.css"
+  ],
+  "rollback_plan": "Revert the output-path planning guard and associated PowerShell unit coverage, refresh generated summaries, then rerun the targeted path/library-profile checks.",
+  "related_changes": [],
+  "notes": "High-risk because final output paths are operator-facing filesystem behavior. This change does not move existing files, delete sources, bypass pending publish, or alter FFmpeg, subtitle, audio, route, queue, or publish/drain execution policy. Representative real-media validation was not rerun in this turn; generated end-to-end smoke passed."
+}

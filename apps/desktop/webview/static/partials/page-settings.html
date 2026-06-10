@@ -1,15 +1,15 @@
       <section class="page" data-page-panel="settings">
-        <h1 class="visually-hidden">Pipeline Settings</h1>
-        <div class="settings-tab-bar" role="tablist" aria-label="Operator settings sections">
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="status" aria-selected="true">Status</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="guided-setup" aria-selected="false">Guided Setup</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="paths-safety" aria-selected="false">Paths &amp; Safety</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="routing-size" aria-selected="false">Routing &amp; Size</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="media-output" aria-selected="false">Media Output</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="publish-recovery" aria-selected="false">Publish &amp; Recovery</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="naming" aria-selected="false">Naming</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="queue-runtime" aria-selected="false">Queue &amp; Runtime</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-settings-tab="advanced-evidence" aria-selected="false">Advanced Evidence</button>
+        <h1 class="visually-hidden">Settings</h1>
+        <div class="settings-section-nav" role="navigation" aria-label="Operator settings sections">
+          <button type="button" class="settings-section-nav-btn" data-settings-tab="status" aria-current="location">Status</button>
+          <button type="button" class="settings-section-nav-btn" data-settings-tab="guided-setup">Guided Setup</button>
+          <button type="button" class="settings-section-nav-btn" data-settings-tab="paths-safety">Paths &amp; Safety</button>
+          <button type="button" class="settings-section-nav-btn" data-settings-tab="routing-size">Routing &amp; Size</button>
+          <button type="button" class="settings-section-nav-btn" data-settings-tab="media-output">Media Output</button>
+          <button type="button" class="settings-section-nav-btn" data-settings-tab="publish-recovery">Publish &amp; Recovery</button>
+          <button type="button" class="settings-section-nav-btn" data-settings-tab="naming">Naming</button>
+          <button type="button" class="settings-section-nav-btn" data-settings-tab="queue-runtime">Queue &amp; Runtime</button>
+          <button type="button" class="settings-section-nav-btn" data-settings-tab="advanced-evidence">Evidence</button>
         </div>
 
         <!-- SAVE HEADER: visible across all settings subtabs -->
@@ -32,7 +32,7 @@
             <h2>Guided Setup</h2>
             <strong id="settings-wizard-status">Not loaded</strong>
           </div>
-          <p class="note" id="settings-wizard-status-detail">Guided setup writes the same PSD1 config used by the manual editor. It validates locally and does not start media processing, drain pending publish, rename files, or touch source media.</p>
+          <p class="note" id="settings-wizard-status-detail">Guided setup stages the same PSD1-backed settings used by the manual editor. Preview and save go through backend validation; this does not start media processing, drain pending publish, rename files, or touch source media.</p>
           <div class="settings-wizard-readiness-strip" id="settings-wizard-readiness-strip" aria-label="Guided Setup readiness">
             <span><span class="settings-mini-label">Blockers</span><strong id="settings-wizard-readiness-blockers">0</strong></span>
             <span><span class="settings-mini-label">Warnings</span><strong id="settings-wizard-readiness-warnings">0</strong></span>
@@ -439,7 +439,7 @@
                 <dl>
                   <div>
                     <dt>Try remux fallback</dt>
-                    <dd>If an override-forced encode grows past the buffer, try remux/direct copy. If remux is blocked, keep the oversized encode with warning evidence.</dd>
+                    <dd>If an automatic size/bitrate-threshold encode grows past the buffer, try safe remux/direct copy. Forced route overrides warn only and do not fallback. If remux is blocked, reject the oversized encode for review before publish.</dd>
                   </div>
                   <div>
                     <dt>Block publish</dt>
@@ -850,7 +850,7 @@
         </section>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Command History</h2>
+            <h2>Commands Evidence</h2>
             <strong id="settings-command-history-status">No commands</strong>
           </div>
           <pre id="settings-command-history" class="prose-block">No settings command history loaded.</pre>
@@ -904,62 +904,6 @@
         </section>
         </div>
 
-        <!-- TAB: VERIFICATION / PUBLISH -->
-        <div class="settings-tab-pane" data-settings-tab="publish-recovery">
-        <section class="panel" data-panel-type="interactive">
-          <div class="panel-heading">
-            <h2>Final Library Promotion <span class="impact-chip" data-impact="high" title="Final library promotion — destination rules, verification, overwrite, and cleanup">High Impact</span></h2>
-            <strong id="settings-final-library-status">Not loaded</strong>
-          </div>
-          <div class="form-grid launch-form-grid">
-            <label class="check-row launch-check-row">
-              <input id="settings-final-library-enabled" type="checkbox"> Enable manual promotion
-            </label>
-            <label>
-              Verification
-              <select id="settings-final-library-verification-mode">
-                <option value="cautious">Cautious hash verification</option>
-                <option value="fast">Fast size verification</option>
-              </select>
-            </label>
-            <label class="check-row launch-check-row">
-              <input id="settings-final-library-cleanup" type="checkbox"> Cleanup publish output after verified promotion
-            </label>
-            <label class="check-row launch-check-row">
-              <input id="settings-final-library-overwrite" type="checkbox"> Destructive overwrite existing final files
-            </label>
-          </div>
-          <div class="panel-heading panel-subheading">
-            <h3>Source-to-Destination Rules</h3>
-            <strong id="settings-final-library-rule-count">No rules</strong>
-          </div>
-          <div class="table-wrap detail-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Use</th>
-                  <th scope="col">Label</th>
-                  <th scope="col">Source Root</th>
-                  <th scope="col">Destination Root</th>
-                  <th scope="col">Action</th>
-                </tr>
-              </thead>
-              <tbody id="settings-final-library-rules-rows">
-                <tr><td colspan="5">No final library promotion rules loaded.</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="action-row action-row-left wrap-actions">
-            <button type="button" id="settings-final-library-add-rule-button" class="secondary-button">Add Rule</button>
-            <button type="button" id="settings-final-library-preview-button" class="secondary-button">Preview Final Library Settings</button>
-            <button type="button" id="settings-final-library-save-button" class="primary-button">Save Final Library Settings</button>
-            <button type="button" id="settings-final-library-reset-button" class="secondary-button">Reset From Current</button>
-          </div>
-          <pre id="settings-final-library-guidance" class="prose-block">No final library promotion settings loaded.</pre>
-          <p class="note">This panel writes only backend settings. Promotion itself still happens from the Completed/Output page and still requires the manual Promote Queue button.</p>
-        </section>
-        </div>
-
         <!-- TAB: VIDEO -->
         <div class="settings-tab-pane" data-settings-tab="media-output">
         <section class="panel" data-panel-type="interactive">
@@ -1010,7 +954,7 @@
             </label>
             <label>
               Encode target calculation
-              <select id="settings-builder-encode-ladder">
+              <select id="settings-builder-encode-ladder" aria-describedby="settings-encode-ladder-help">
                 <option value="auto">Auto</option>
                 <option value="tv_balanced">TV balanced</option>
                 <option value="tv_space_saver">TV space saver</option>
@@ -1019,6 +963,34 @@
                 <option value="plex_compat">Plex compatibility</option>
               </select>
             </label>
+            <div id="settings-encode-ladder-help" class="settings-size-guard-help settings-encode-ladder-help" aria-label="Encode target calculation descriptions">
+              <dl>
+                <div>
+                  <dt>Auto</dt>
+                  <dd>Uses TV balanced for TV sources and movie balanced for movie sources.</dd>
+                </div>
+                <div>
+                  <dt>TV balanced</dt>
+                  <dd>One step smaller/softer than the base quality, with 90M maxrate and 180M buffer.</dd>
+                </div>
+                <div>
+                  <dt>TV space saver</dt>
+                  <dd>Two steps smaller/softer than the base quality, with 80M maxrate and 160M buffer.</dd>
+                </div>
+                <div>
+                  <dt>Movie balanced</dt>
+                  <dd>Uses the configured base quality unchanged, with 120M maxrate and 240M buffer.</dd>
+                </div>
+                <div>
+                  <dt>Movie archive</dt>
+                  <dd>One step cleaner/larger than the base quality, with 160M maxrate and 320M buffer.</dd>
+                </div>
+                <div>
+                  <dt>Plex compatibility</dt>
+                  <dd>One step smaller/softer, 80M maxrate, 160M buffer, and conservative encoder flags for broader Plex playback.</dd>
+                </div>
+              </dl>
+            </div>
             <label>
               Video encoder
               <select id="settings-builder-video-codec">
@@ -1062,7 +1034,7 @@
             <div class="form-grid launch-form-grid">
               <label>
                 NVENC tuning bundle
-                <select id="settings-builder-encode-tuning">
+                <select id="settings-builder-encode-tuning" aria-describedby="settings-encode-tuning-help">
                   <option value="balanced_nvenc">Balanced NVENC</option>
                   <option value="quality_nvenc">Quality NVENC</option>
                   <option value="fast_nvenc">Fast NVENC</option>
@@ -1070,6 +1042,30 @@
                   <option value="custom_legacy_flags">Custom legacy flags</option>
                 </select>
               </label>
+              <div id="settings-encode-tuning-help" class="settings-size-guard-help settings-encode-tuning-help" aria-label="NVENC tuning bundle descriptions">
+                <dl>
+                  <div>
+                    <dt>Balanced NVENC</dt>
+                    <dd>Default HEVC NVENC bundle: VBR, 60-frame lookahead, spatial and temporal AQ, full-resolution multipass, 4 B-frames, and HQ tune.</dd>
+                  </div>
+                  <div>
+                    <dt>Quality NVENC</dt>
+                    <dd>Cleaner output: keeps deep lookahead, AQ, full-resolution multipass, and 4 B-frames while raising AQ strength for larger/slower encodes.</dd>
+                  </div>
+                  <div>
+                    <dt>Fast NVENC</dt>
+                    <dd>Faster output: shorter 20-frame lookahead, temporal AQ off, lower AQ strength, disabled multipass, 2 B-frames, and low-latency tune.</dd>
+                  </div>
+                  <div>
+                    <dt>Compatibility</dt>
+                    <dd>Conservative output: minimal VBR, spatial AQ, lower AQ strength, and 2 B-frames for fragile hardware or Plex compatibility.</dd>
+                  </div>
+                  <div>
+                    <dt>Custom legacy flags</dt>
+                    <dd>Bypasses the named bundles and passes raw ExtraVideoFlags to FFmpeg exactly as entered.</dd>
+                  </div>
+                </dl>
+              </div>
               <label>
                 CPU fallback CRF
                 <input id="settings-video-cpu-quality" type="number" min="14" max="28" step="1">
@@ -1531,7 +1527,7 @@
             <h2>Rename Movie Cleaning Filters</h2>
             <strong id="settings-rename-cleaning-filter-status">Backend terms active</strong>
           </div>
-          <p class="note">Saved filters write backend PSD1 settings and affect future pipeline output naming, Rename preview planning, and Rename apply planning. Browser storage is only unsaved draft recovery; filesystem changes still require backend rename apply confirmation.</p>
+          <p class="note">Stage filters into Settings Changes JSON, then use Preview Patch and Save Settings to persist PSD1 settings. Browser storage is local draft recovery only and does not persist PSD1 settings; filesystem changes still require backend rename apply confirmation.</p>
           <label class="full-field">
             Custom negative terms
             <textarea id="settings-rename-remove-terms" rows="3" spellcheck="false" data-default-terms="sample, trailer, extras, featurette, deleted scenes, behind the scenes" title="Custom negative terms are added to the backend rename planner. Built-in movie scrub filters below handle common ops/release/metadata/source/audio/edition tags; this field is for local terms you want removed from preview names.">sample, trailer, extras, featurette, deleted scenes, behind the scenes</textarea>
@@ -1582,7 +1578,7 @@
             <div id="settings-rename-preview-output" class="rename-preview-output" aria-live="polite"></div>
           </div>
           <div class="action-row action-row-left wrap-actions">
-            <button type="button" id="settings-rename-cleaning-filters-save-button" class="secondary-button">Save Rename Filters</button>
+            <button type="button" id="settings-rename-cleaning-filters-save-button" class="secondary-button">Stage Rename Filter Patch</button>
             <button type="button" id="settings-rename-cleaning-filters-reset-button" class="secondary-button">Reset Rename Filters</button>
             <button type="button" class="secondary-button" data-cross-page-target="rename">Open Rename</button>
           </div>

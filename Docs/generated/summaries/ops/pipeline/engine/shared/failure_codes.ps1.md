@@ -3,9 +3,9 @@ file: ops/pipeline/engine/shared/failure_codes.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shared
-last_modified: 2026-06-05
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: 94e0de1d12020ec35ad8c1fcfb3c806a080a358a44941db62336e9b1698f4d31
+sha256: c267fa57506a90d8b4998b4157d1e58f73b7fbd5ab644022188d8f706ed5a04c
 ---
 # `ops/pipeline/engine/shared/failure_codes.ps1`
 

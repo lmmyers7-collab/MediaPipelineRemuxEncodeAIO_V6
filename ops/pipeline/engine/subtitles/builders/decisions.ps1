@@ -19,6 +19,21 @@ function Test-SubtitleBuilderFallbackDefaultCandidate {
     return (Test-SubtitleEntryLanguageIsFallbackDefault -Entry $Entry)
 }
 
+if (-not (Get-Command -Name Test-ConfiguredOutputContainerIsMp4 -ErrorAction SilentlyContinue)) {
+    function Test-ConfiguredOutputContainerIsMp4 {
+        $container = if (Get-Command -Name Get-ConfiguredOutputContainerName -ErrorAction SilentlyContinue) {
+            (Get-ConfiguredOutputContainerName)
+        } else {
+            ''
+        }
+        $normalized = ([string]$container).Trim().TrimStart('.').ToLowerInvariant()
+        if (Get-Command -Name Get-MediaContainerMp4FamilyNames -ErrorAction SilentlyContinue) {
+            return ($normalized -in (Get-MediaContainerMp4FamilyNames))
+        }
+        return ($normalized -in @('mp4','m4v','mov'))
+    }
+}
+
 function New-SubtitleBuilderTrackDecisionRecord {
     param(
         [Parameter(Mandatory)]
@@ -165,6 +180,13 @@ function Get-SubtitleBuilderTrackDecisionRecords {
     $effectiveDropBdpgs = Get-EffectiveSubtitleSwitch -Name 'DropBdpgsAfterConversion' -Default $false
     $effectiveDropVobSub = Get-EffectiveSubtitleSwitch -Name 'DropVobSubAfterConversion' -Default $false
     $containerName = (Get-ConfiguredOutputContainerName).ToUpperInvariant()
+    $mp4CompatibilityMode = ($Builder -eq 'FFmpeg' -and (Test-ConfiguredOutputContainerIsMp4))
+    if ($mp4CompatibilityMode) {
+        $effectiveDropAss = $true
+        $CanPreserveTx3g = $false
+        $CanPreserveBdpgs = $false
+        $CanPreserveVobSub = $false
+    }
 
     foreach ($entry in @($FilterResult.Convert)) {
         $preserveAssOriginal = -not $effectiveDropAss
@@ -315,6 +337,12 @@ function Get-SubtitleBuilderTrackDecisionRecords {
                 $reviewKind = 'vobsub'
                 $reviewReason = "$containerName output cannot preserve VobSub stream $($entry.Stream.index); enable ConvertVobSubToSrt for OCR conversion."
             }
+        }
+        if ($mp4CompatibilityMode -and -not $routesToReview) {
+            $routesToReview = $true
+            $reviewErrorCode = 'SUBTITLE_MP4_EXTERNAL_SRT_REQUIRED'
+            $reviewKind = 'tx3g'
+            $reviewReason = "$containerName compatibility output does not embed subtitle stream $($entry.Stream.index); route through an SRT conversion sidecar path or review manually."
         }
 
         $preserveKeepOriginal = -not $routesToReview

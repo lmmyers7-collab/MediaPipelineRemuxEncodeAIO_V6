@@ -25,6 +25,14 @@
     const renderCompletedSizeReview = deps.renderCompletedSizeReview;
     const state = deps.state || {};
 
+    function captureCompletedRouteAgreementSelectionScroll() {
+      return window.mediaPipelineDom?.captureScrollablePositions?.() || null;
+    }
+
+    function restoreCompletedRouteAgreementSelectionScroll(snapshot) {
+      if (snapshot) window.mediaPipelineDom?.restoreScrollablePositions?.(snapshot);
+    }
+
     function completedRouteAgreementRouteToken(row, kind = "completed") {
       const value = kind === "queue"
         ? completedProofFirstValue(row, ["route_name", "route", "route_label", "route_decision_summary"])
@@ -321,6 +329,7 @@
     }
 
     function selectCompletedRouteAgreementRow(item) {
+      const scrollSnapshot = captureCompletedRouteAgreementSelectionScroll();
       state.selectedCompletedRouteAgreementKey = item?.key || "";
       if (item?.completedRow?.row_key) {
         state.selectedCompletedRowKey = item.completedRow.row_key;
@@ -341,6 +350,7 @@
         typeof window.getLastQueuePayload === "function" ? window.getLastQueuePayload() : {},
         typeof window.getLastQueueRows === "function" ? window.getLastQueueRows() : [],
       );
+      restoreCompletedRouteAgreementSelectionScroll(scrollSnapshot);
     }
 
     return {

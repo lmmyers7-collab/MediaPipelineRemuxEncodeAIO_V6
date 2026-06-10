@@ -408,6 +408,16 @@ def _run_node_dom_helper_smoke() -> dict[str, object]:
           throw new Error("document restore should skip stale positions that clamp to the new bottom");
         }}
 
+        const makeStatusChip = context.window.mediaPipelineDom.makeStatusChip;
+        const queuePendingChip = makeStatusChip("Queue Pending", "queue_pending");
+        const parkedChip = makeStatusChip("Parked", "pending_publish");
+        const drainPendingChip = makeStatusChip("Drain Pending", "drain_pending");
+        const publishingChip = makeStatusChip("Publishing", "publishing");
+        const failedChip = makeStatusChip("Failed", "failed");
+        const unknownChip = makeStatusChip("Unknown", "unknown");
+        const ambiguousPendingChip = makeStatusChip("pending", "pending");
+        const queuePendingChipHasTabIndex = Object.prototype.hasOwnProperty.call(queuePendingChip, "tabIndex");
+
         console.log(JSON.stringify({{
           ok: true,
           scrollCalls,
@@ -420,6 +430,14 @@ def _run_node_dom_helper_smoke() -> dict[str, object]:
           restoredDocumentTop,
           restoredDocumentLeft,
           documentTop: documentScroller.scrollTop,
+          queuePendingStatus: queuePendingChip.dataset.status,
+          parkedStatus: parkedChip.dataset.status,
+          drainPendingStatus: drainPendingChip.dataset.status,
+          publishingStatus: publishingChip.dataset.status,
+          failedStatus: failedChip.dataset.status,
+          unknownStatus: unknownChip.dataset.status,
+          ambiguousPendingStatus: ambiguousPendingChip.dataset.status,
+          queuePendingChipHasTabIndex,
         }}));
         """
     )
@@ -456,6 +474,14 @@ class WebViewDomHelpersSmoke(unittest.TestCase):
         self.assertEqual(result["restoredDocumentTop"], 120)
         self.assertEqual(result["restoredDocumentLeft"], 8)
         self.assertEqual(result["documentTop"], 0)
+        self.assertEqual(result["queuePendingStatus"], "queued")
+        self.assertEqual(result["parkedStatus"], "parked")
+        self.assertEqual(result["drainPendingStatus"], "queued")
+        self.assertEqual(result["publishingStatus"], "publishing")
+        self.assertEqual(result["failedStatus"], "failed")
+        self.assertEqual(result["unknownStatus"], "unknown")
+        self.assertEqual(result["ambiguousPendingStatus"], "unknown")
+        self.assertFalse(result["queuePendingChipHasTabIndex"])
 
 
 if __name__ == "__main__":

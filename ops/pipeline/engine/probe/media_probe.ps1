@@ -525,10 +525,47 @@ function Get-SourceMediaRouteProfile {
             0.0
         }
 
+        # Detect a declared-but-empty video stream. Some malformed or partially
+        # transferred sources carry a video stream header with zero decodable
+        # packets: ffprobe lists the stream (so a presence-only check passes), but
+        # ffmpeg later aborts the encode with "Cannot determine format of input
+        # after EOF" and the failure is mis-classified as transient and retried.
+        # A bounded packet read (first video packet only) lets us treat this like a
+        # missing video stream up front, so preflight marks it permanent/non-
+        # retryable and never routes it to a doomed, repeatedly-retried encode.
+        $videoHasPackets = $true
+        if ($null -ne $video) {
+            $packetProbe = Invoke-FFprobeCommand -ArgumentList @(
+                '-v', 'error',
+                '-select_streams', 'v:0',
+                '-read_intervals', '%+#1',
+                '-count_packets',
+                '-show_entries', 'stream=nb_read_packets',
+                '-of', 'json',
+                '--', $FilePath
+            ) -TimeoutSeconds 30 -Stage 'source-video-packet-probe'
+            if ($packetProbe.ExitCode -eq 0 -and -not [string]::IsNullOrWhiteSpace([string]$packetProbe.Output)) {
+                try {
+                    $packetJson = $packetProbe.Output | ConvertFrom-Json -ErrorAction Stop
+                    $packetStream = @($packetJson.streams)[0]
+                    [int]$readPackets = 0
+                    if ($packetStream -and $packetStream.PSObject.Properties['nb_read_packets']) {
+                        [void][int]::TryParse([string]$packetStream.nb_read_packets, [ref]$readPackets)
+                    }
+                    # Only flag empty when we positively determine zero packets;
+                    # ambiguous probes leave the source eligible (no false rejects).
+                    $videoHasPackets = ($readPackets -ge 1)
+                } catch {
+                    $videoHasPackets = $true
+                }
+            }
+        }
+        $hasUsableVideo = ($null -ne $video -and $videoHasPackets)
+
         return [pscustomobject][ordered]@{
             schema_version          = 'source_media_profile.v1'
-            probe_ok                = ($null -ne $video)
-            probe_error             = if ($video) { '' } else { 'video_stream_missing' }
+            probe_ok                = $hasUsableVideo
+            probe_error             = if ($hasUsableVideo) { '' } else { 'video_stream_missing' }
             video_codec             = $codec
             width                   = $width
             height                  = $height

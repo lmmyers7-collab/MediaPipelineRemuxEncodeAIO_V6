@@ -1,5 +1,10 @@
 (function () {
   let selectedProgressEvidenceKey = "";
+  const STALE_DISPLAY_CONFIRMATION_COUNT = 2;
+  const progressStaleDisplayCounts = new Map();
+  let progressStaleDisplayItemKey = "";
+  const progressDisplayPercentCache = new Map();
+  let progressDisplayPercentItemKey = "";
 
   function progressBarStatusLabel(bar) {
     const status = String(bar?.status || "unknown").trim();
@@ -37,6 +42,7 @@
 
   const homeProgressTimelineGroups = [
     { key: "primary", label: "Active work", ids: ["current_stage", "run_total"] },
+    { key: "audio", label: "Audio", ids: ["audio_track"] },
     { key: "publish", label: "Publish", ids: ["publish_output", "publish_copy"] },
     { key: "subtitles", label: "Subtitles", ids: [] },
     { key: "completed", label: "Completed", ids: [] },
@@ -53,6 +59,122 @@
 
   function progressBarMode(bar) {
     return String(bar?.mode || "determinate").toLowerCase();
+  }
+
+  function progressSnapshotItemKey(snapshot = null) {
+    const progress = snapshot?.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
+    const file = progress.CurrentFilePath
+      || progress.CurrentFileDisplay
+      || progress.CurrentFile
+      || progress.InputFile
+      || "";
+    return [
+      file,
+      progress.CurrentQueueIndex ?? "",
+      progress.CurrentQueueTotal ?? "",
+    ].map((part) => String(part || "").trim()).join("|");
+  }
+
+  function resetProgressStaleDisplayCountsForItem(snapshot = null) {
+    const itemKey = progressSnapshotItemKey(snapshot);
+    if (itemKey === progressStaleDisplayItemKey) return;
+    progressStaleDisplayCounts.clear();
+    progressStaleDisplayItemKey = itemKey;
+  }
+
+  function resetProgressDisplayPercentForItem(snapshot = null) {
+    const itemKey = progressSnapshotItemKey(snapshot);
+    if (itemKey === progressDisplayPercentItemKey) return;
+    progressDisplayPercentCache.clear();
+    progressDisplayPercentItemKey = itemKey;
+  }
+
+  function progressBarStaleDisplayKey(bar, snapshot = null) {
+    return [
+      progressSnapshotItemKey(snapshot),
+      progressBarId(bar) || String(bar?.label || "progress").trim().toLowerCase(),
+    ].join("|");
+  }
+
+  function progressBarWithStaleDisplayHysteresis(bar, snapshot = null) {
+    if (!bar || typeof bar !== "object") return bar;
+    const key = progressBarStaleDisplayKey(bar, snapshot);
+    if (!bar.stale) {
+      progressStaleDisplayCounts.delete(key);
+      return bar;
+    }
+    const count = (progressStaleDisplayCounts.get(key) || 0) + 1;
+    progressStaleDisplayCounts.set(key, count);
+    if (count >= STALE_DISPLAY_CONFIRMATION_COUNT) return bar;
+    const displayBar = { ...bar, stale: false };
+    if (progressBarStatus(displayBar) === "warning") displayBar.status = "active";
+    return displayBar;
+  }
+
+  function progressBarsWithStaleDisplayHysteresis(bars = [], snapshot = null) {
+    resetProgressStaleDisplayCountsForItem(snapshot);
+    const items = Array.isArray(bars) ? bars.filter(Boolean) : [];
+    if (!items.length) {
+      progressStaleDisplayCounts.clear();
+      return items;
+    }
+    if (!items.some((bar) => Boolean(bar?.stale))) {
+      progressStaleDisplayCounts.clear();
+      return items;
+    }
+    const seenKeys = new Set(items.map((bar) => progressBarStaleDisplayKey(bar, snapshot)));
+    for (const key of progressStaleDisplayCounts.keys()) {
+      if (!seenKeys.has(key)) progressStaleDisplayCounts.delete(key);
+    }
+    return items.map((bar) => progressBarWithStaleDisplayHysteresis(bar, snapshot));
+  }
+
+  function progressDisplayPercentKey(bar, snapshot = null) {
+    const progress = snapshot?.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
+    return [
+      progressSnapshotItemKey(snapshot),
+      progressBarId(bar) || String(bar?.label || "progress").trim().toLowerCase(),
+      progress.CurrentStage || "",
+      progress.CurrentRoute || progress.Route || "",
+    ].map((part) => String(part || "").trim().toLowerCase()).join("|");
+  }
+
+  function progressBarForStableDisplay(bar, snapshot = null) {
+    if (!bar || typeof bar !== "object") return bar;
+    resetProgressDisplayPercentForItem(snapshot);
+    const mode = progressBarMode(bar);
+    if (mode === "indeterminate") return bar;
+    const rawPercent = progressBarPercent(bar);
+    const status = progressBarStatus(bar);
+    const activeStatus = ["active", "running", "publishing", "warning", "unknown"].includes(status);
+    const key = progressDisplayPercentKey(bar, snapshot);
+    if (!activeStatus || status === "complete" || rawPercent >= 100) {
+      progressDisplayPercentCache.set(key, rawPercent);
+      return bar;
+    }
+    const previous = progressDisplayPercentCache.get(key);
+    if (Number.isFinite(previous) && rawPercent + 0.05 < previous) {
+      const held = { ...bar, percent: previous };
+      const rawText = rawPercent % 1 === 0 ? `${rawPercent.toFixed(0)}%` : `${rawPercent.toFixed(1)}%`;
+      const heldText = previous % 1 === 0 ? `${previous.toFixed(0)}%` : `${previous.toFixed(1)}%`;
+      const detail = String(bar.detail || "").trim();
+      held.detail = [
+        detail,
+        `backend percent now ${rawText}; display held at ${heldText} to avoid backward progress`,
+      ].filter(Boolean).join(" | ");
+      return held;
+    }
+    progressDisplayPercentCache.set(key, Math.max(rawPercent, Number.isFinite(previous) ? previous : rawPercent));
+    return bar;
+  }
+
+  function progressBarsForStableDisplay(bars = [], snapshot = null) {
+    const items = Array.isArray(bars) ? bars.filter(Boolean) : [];
+    if (!items.length) {
+      progressDisplayPercentCache.clear();
+      return items;
+    }
+    return items.map((bar) => progressBarForStableDisplay(bar, snapshot));
   }
 
   function progressBarPercentLabel(bar) {
@@ -74,7 +196,8 @@
     if (id === "operator_stop") return "primary";
     if (id === "current_stage" || id === "run_total") return "primary";
     if (id === "publish_copy" && progressBarStatus(bar) === "active") return "primary";
-    if (id === "publish_output" || id === "publish_copy") return "publish";
+    if (id === "audio_track" || label.includes("audio")) return "audio";
+    if (id === "publish_output" || id === "publish_copy" || id === "pending_drain") return "publish";
     if (id.startsWith("subtitle") || label.includes("subtitle")) return "subtitles";
     if (progressBarStatus(bar) === "complete" && (id === "audit_progress" || id === "audit_reports" || source.includes("audit_progress"))) {
       return "completed";
@@ -98,7 +221,9 @@
     if (id === "publish_copy" && progressBarStatus(bar) === "active") return 0;
     if (id === "current_stage") return 10;
     if (id === "run_total") return 20;
-    if (id === "publish_output") return 30;
+    if (id === "audio_track") return 25;
+    if (id === "pending_drain") return 30;
+    if (id === "publish_output") return 35;
     if (id === "publish_copy") return 40;
     return 100;
   }
@@ -148,7 +273,7 @@
     if (row.eta_seconds !== undefined && row.eta_seconds !== null) {
       tokens.push({ kind: "eta", text: `eta ${formatEtaSeconds(row.eta_seconds)}`, title: row.basis || "" });
     } else if (row.unavailable_reason) {
-      tokens.push({ kind: "eta", text: "eta pending", title: row.unavailable_reason });
+      tokens.push({ kind: "eta", text: "ETA unavailable", title: row.unavailable_reason });
     }
     const rate = formatProgressByteRate(row.bytes_per_second);
     if (rate) tokens.push({ kind: "rate", text: `write ${rate}` });
@@ -279,15 +404,18 @@
   function renderHomeProgressTimeline(bars = [], snapshot = null) {
     const container = byId("progress-bar-list");
     if (!container) return;
-    const items = progressBarsWithOperatorStop(bars, snapshot);
+    const items = progressBarsForStableDisplay(
+      progressBarsWithOperatorStop(progressBarsWithStaleDisplayHysteresis(bars, snapshot), snapshot),
+      snapshot,
+    );
     container.classList.add("progress-timeline-list");
     container.replaceChildren();
     if (!items.length) {
       const empty = document.createElement("p");
       empty.className = "note";
       empty.textContent = snapshot?.progress || snapshot?.audit_progress
-        ? "Progress fields loaded, but no backend progress bars were emitted."
-        : "No progress bars loaded.";
+        ? "No active run progress from backend yet."
+        : "Waiting for backend progress snapshot.";
       container.appendChild(empty);
       return;
     }
@@ -317,14 +445,14 @@
   function renderProgressBarsInto(containerOrId, bars = [], snapshot = null, emptyText = "") {
     const container = typeof containerOrId === "string" ? byId(containerOrId) : containerOrId;
     if (!container) return;
-    const items = Array.isArray(bars) ? bars.filter(Boolean) : [];
+    const items = progressBarsForStableDisplay(Array.isArray(bars) ? bars.filter(Boolean) : [], snapshot);
     container.replaceChildren();
     if (!items.length) {
       const empty = document.createElement("p");
       empty.className = "note";
       empty.textContent = emptyText || (snapshot?.progress || snapshot?.audit_progress
-        ? "Progress fields loaded, but no backend progress bars were emitted."
-        : "No progress bars loaded.");
+        ? "No active run progress from backend yet."
+        : "Waiting for backend progress snapshot.");
       container.appendChild(empty);
       return;
     }
@@ -350,6 +478,7 @@
       track.className = "progress-track";
       track.setAttribute("role", "progressbar");
       track.setAttribute("aria-label", bar.label || bar.id || "Progress");
+      track.setAttribute("aria-valuetext", progressBarStatusLabel(bar));
       if (mode === "determinate" || mode === "stepped") {
         const percent = progressBarPercent(bar);
         track.setAttribute("aria-valuemin", "0");
@@ -613,6 +742,76 @@
     };
   }
 
+  function audioProgressLine(audio) {
+    const payload = audio && typeof audio === "object" ? audio : {};
+    if (!Object.keys(payload).length) return "";
+    const action = formatProgressValue(payload.action || payload.Action || "audio");
+    const status = formatProgressValue(payload.status || payload.Status || "unknown");
+    const stream = payload.stream_index !== undefined && payload.stream_index !== null && payload.stream_index !== -1
+      ? `stream ${formatProgressValue(payload.stream_index)}`
+      : "";
+    const source = payload.source_codec || payload.SourceCodec || "";
+    const output = payload.output_codec || payload.OutputCodec || "";
+    const codecs = [source, output].filter(Boolean).join(" -> ");
+    const sourceChannels = payload.source_channels || payload.SourceChannels || "";
+    const outputChannels = payload.output_channels || payload.OutputChannels || "";
+    const channels = [sourceChannels, outputChannels].filter(Boolean).map((value) => `${formatProgressValue(value)}ch`).join(" -> ");
+    const reason = payload.reason || payload.Reason || "";
+    return [status, action, stream, codecs, channels, reason].filter(Boolean).join(" | ");
+  }
+
+  function audioProgressItem(payload) {
+    const audio = payload?.AudioProgress && typeof payload.AudioProgress === "object" ? payload.AudioProgress : null;
+    if (!audio) return null;
+    const failed = progressBooleanValue(audio.failed || audio.Failed);
+    const completed = progressBooleanValue(audio.completed || audio.Completed);
+    return {
+      label: "Audio",
+      value: formatProgressValue(audio.action || audio.Action || audio.status || audio.Status || "loaded"),
+      hint: audioProgressLine(audio) || "Backend audio policy progress loaded.",
+      status: failed ? "blocked" : completed ? "ok" : "running",
+    };
+  }
+
+  function pendingDrainProgressLine(pending) {
+    const payload = pending && typeof pending === "object" ? pending : {};
+    if (!Object.keys(payload).length) return "";
+    const total = progressNumericValue(payload.manifest_count ?? payload.ManifestCount ?? payload.manifest_count_at_start ?? payload.ManifestCountAtStart);
+    const attempted = progressNumericValue(payload.attempted_count ?? payload.AttemptedCount);
+    const succeeded = progressNumericValue(payload.succeeded_count ?? payload.SucceededCount);
+    const already = progressNumericValue(payload.already_published_count ?? payload.AlreadyPublishedCount);
+    const errors = progressNumericValue(payload.error_count ?? payload.ErrorCount);
+    const skipped = progressNumericValue(payload.skipped_count ?? payload.SkippedCount);
+    const remaining = progressNumericValue(payload.remaining_count ?? payload.RemainingCount);
+    const status = payload.status || payload.Status || "pending publish drain";
+    const current = payload.current_item || payload.CurrentItem || payload.current_manifest || payload.CurrentManifest || "";
+    return [
+      formatProgressValue(status),
+      total ? `${attempted} / ${total} manifests` : "",
+      succeeded ? `succeeded ${succeeded}` : "",
+      already ? `already published ${already}` : "",
+      errors ? `errors ${errors}` : "",
+      skipped ? `skipped ${skipped}` : "",
+      remaining ? `remaining ${remaining}` : "",
+      current ? `current ${formatProgressValue(current)}` : "",
+    ].filter(Boolean).join(" | ");
+  }
+
+  function pendingDrainProgressItem(payload) {
+    const pending = payload?.PendingDrainProgress && typeof payload.PendingDrainProgress === "object" ? payload.PendingDrainProgress : null;
+    if (!pending) return null;
+    const total = progressNumericValue(pending.manifest_count ?? pending.ManifestCount ?? pending.manifest_count_at_start ?? pending.ManifestCountAtStart);
+    const attempted = progressNumericValue(pending.attempted_count ?? pending.AttemptedCount);
+    const errors = progressNumericValue(pending.error_count ?? pending.ErrorCount);
+    const deferred = progressBooleanValue(pending.deferred || pending.Deferred);
+    return {
+      label: "Drain",
+      value: total ? `${attempted} / ${total}` : formatProgressValue(pending.status || pending.Status || "loaded"),
+      hint: pendingDrainProgressLine(pending) || "Backend pending-publish drain progress loaded.",
+      status: errors ? "blocked" : deferred ? "warning" : total && attempted >= total ? "ok" : "running",
+    };
+  }
+
   function progressDetailItems(progress) {
     const payload = progress && typeof progress === "object" ? progress : {};
     const route = payload.CurrentRoute || payload.Route || "";
@@ -641,6 +840,8 @@
         hint: reason ? formatProgressValue(reason) : "No route reason",
         status: route ? "ok" : "empty",
       },
+      audioProgressItem(payload),
+      pendingDrainProgressItem(payload),
       {
         label: "Done",
         value: `${remuxed + encoded}`,
@@ -654,7 +855,7 @@
         status: visibleFailed ? "blocked" : "ok",
       }
     );
-    return items;
+    return items.filter(Boolean);
   }
 
   function renderProgressDetails(progress) {
@@ -1210,10 +1411,17 @@
       "updated_at",
       "error",
     ];
+    const progress = snapshot?.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
     const rows = [
-      ...progressRowsForSource("Pipeline", snapshot?.progress, pipelinePreferred),
+      ...progressRowsForSource("Pipeline", progress, pipelinePreferred),
       ...progressRowsForSource("Audit", snapshot?.audit_progress, auditPreferred),
     ];
+    if (progress.AudioProgress && typeof progress.AudioProgress === "object") {
+      rows.push({ source: "Pipeline", field: "AudioProgress summary", value: audioProgressLine(progress.AudioProgress) });
+    }
+    if (progress.PendingDrainProgress && typeof progress.PendingDrainProgress === "object") {
+      rows.push({ source: "Pipeline", field: "PendingDrainProgress summary", value: pendingDrainProgressLine(progress.PendingDrainProgress) });
+    }
     const workerRows = progressWorkerRows(snapshot, diagnostics);
     workerRows.forEach((row) => {
       rows.push({ source: "Worker", field: row.worker_label || row.worker_id || "Local worker", value: formatWorkerProgressRow(row) });
@@ -1380,6 +1588,24 @@
     return flags.join(" | ");
   }
 
+  function progressLooksFinalizing(progress = {}) {
+    const stage = String(progress?.CurrentStage || progress?.Status || "").trim().toLowerCase();
+    const percent = progressNumericValue(progress?.CurrentStagePercent, NaN);
+    const pushState = String(progress?.PushState || "").trim().toLowerCase();
+    const sidecarState = String(progress?.SidecarState || "").trim().toLowerCase();
+    if (!Number.isFinite(percent) || percent < 95 || percent >= 100) return false;
+    if (["encode", "encode_cpu", "encode_verify", "remux_av", "remux_verify"].includes(stage)) return true;
+    return Boolean(pushState || sidecarState);
+  }
+
+  function activeWorkFinalizingLine(progress) {
+    if (!progressLooksFinalizing(progress)) return "";
+    const stage = String(progress?.CurrentStage || "").trim().toLowerCase();
+    if (stage.includes("encode")) return "Stage note: encoding is near completion; backend may still be verifying output, writing sidecars, publishing, or parking.";
+    if (stage.includes("remux")) return "Stage note: remux is near completion; backend may still be verifying output, writing sidecars, publishing, or parking.";
+    return "Stage note: progress is near completion; wait for backend completion, parked-publish, or close-readiness evidence.";
+  }
+
   function latestEventLine(diagnostics, snapshot) {
     const diagnosticEvents = Array.isArray(diagnostics?.recent_events) ? diagnostics.recent_events : [];
     if (diagnosticEvents.length) return `Latest diagnostic event: ${formatProgressValue(diagnosticEvents[0])}`;
@@ -1387,6 +1613,106 @@
     if (!snapshotEvents.length) return "";
     const event = snapshotEvents[snapshotEvents.length - 1];
     return `Latest pipeline event: ${formatProgressValue(event?.event_type || event?.type || event)}`;
+  }
+
+  function liveRunStatus({ snapshot = null, closeReadiness = null } = {}) {
+    const activity = String(snapshot?.activity || snapshot?.current_activity || "").toLowerCase();
+    const state = String(snapshot?.pipeline_state || closeReadiness?.state || "").toLowerCase();
+    if (activity.includes("stale progress")) return { label: "Stale/review", state: "warning" };
+    if (closeReadiness?.safe_to_close === false || ["processing", "running", "active", "publishing"].includes(state)) {
+      return { label: "Active work", state: "running" };
+    }
+    if (closeReadiness?.safe_to_close === true) return { label: "Idle", state: "ok" };
+    return { label: "Checking", state: "unknown" };
+  }
+
+  function compactUpdatedAgeText(value) {
+    const updated = compactProgressUpdatedAt(value);
+    return updated?.text || "";
+  }
+
+  function liveRunItem(label, value, hint = "", status = "") {
+    return {
+      label,
+      value: String(value || "").trim() || "Not loaded",
+      hint: String(hint || "").trim(),
+      status: status || "unknown",
+    };
+  }
+
+  function liveRunStripItems({ snapshot = null, diagnostics = null, closeReadiness = null } = {}) {
+    const progress = snapshot?.progress && typeof snapshot.progress === "object" ? snapshot.progress : {};
+    const currentWork = snapshot?.current_work && typeof snapshot.current_work === "object" ? snapshot.current_work : {};
+    const workerRows = progressWorkerRows(snapshot, diagnostics);
+    const etaRows = progressEtaRows(snapshot, diagnostics);
+    const ffmpegPayload = progressFfmpegPayload(snapshot, diagnostics);
+    const state = snapshot?.pipeline_state || closeReadiness?.state || progress.Status || "unknown";
+    const stage = currentWork.phase_label || progress.CurrentStage || progress.Status || "No active work";
+    const percent = currentWork.percent_label || (progress.CurrentStagePercent !== undefined && progress.CurrentStagePercent !== null && progress.CurrentStagePercent !== "" ? `${formatProgressValue(progress.CurrentStagePercent)}%` : "");
+    const file = currentWork.item_label || progress.CurrentFileDisplay || progress.CurrentFile || progress.InputFile || "";
+    const route = progress.CurrentRoute || progress.Route || "";
+    const queue = activeWorkQueueLine(progress).replace(/^Queue position:\s*/i, "");
+    const updated = compactUpdatedAgeText(progress.LastUpdate || progress.UpdatedAt || progress.updated_at);
+    const eta = etaRows.find((row) => row && row.eta_seconds !== undefined && row.eta_seconds !== null);
+    const activeWorker = workerRows.find((row) => ["running", "active", "warning"].includes(String(row.status_state || row.status || "").toLowerCase())) || workerRows[0];
+    const items = [
+      liveRunItem("Stage", [formatProgressValue(stage), percent].filter(Boolean).join(" "), activeWorkFinalizingLine(progress), progressLooksFinalizing(progress) ? "warning" : "running"),
+      liveRunItem("File", file || "No current file", file ? "Current backend-reported item." : "No current file evidence loaded.", file ? "running" : "empty"),
+      liveRunItem("Route", route ? `${formatProgressValue(route)} route` : "No route", progress.RouteReason || progress.CurrentRouteReason || "Backend route evidence only.", route ? "ok" : "empty"),
+      liveRunItem("Queue", queue || "No queue position", "Display filters do not define Launch scope.", queue ? "ok" : "empty"),
+      liveRunItem("ETA", eta ? formatEtaSeconds(eta.eta_seconds) : "Unavailable", eta?.basis || progressEtaSummaryLine(snapshot, diagnostics), eta ? "ok" : "warning"),
+      liveRunItem("Last update", updated || "Not loaded", updated ? "Runtime progress update age." : "No runtime progress timestamp loaded.", updated ? "ok" : "unknown"),
+      liveRunItem("FFmpeg", ffmpegPayload?.status || "idle", progressFfmpegSummaryLine(snapshot, diagnostics), ffmpegPayload?.status === "unavailable" ? "warning" : "ok"),
+      liveRunItem("Worker", activeWorker ? formatWorkerProgressRow(activeWorker) : "No active worker", progressWorkerSummaryLine(snapshot, diagnostics), activeWorker ? "running" : "empty"),
+      liveRunItem("Close", closeReadiness ? (closeReadiness.safe_to_close ? "Safe" : "Not safe") : "Unknown", closeReadiness?.reason || "Close-readiness is backend-owned.", closeReadiness?.safe_to_close ? "ok" : closeReadiness?.safe_to_close === false ? "blocked" : "unknown"),
+    ];
+    const status = liveRunStatus({ snapshot, closeReadiness });
+    if (status.state === "warning") {
+      items.unshift(liveRunItem("Review", "Stale progress", "No update from runtime progress. Inspect Diagnostics, ActiveJobs, Run Logs, and Last Stderr before stopping or closing.", "warning"));
+    }
+    return items;
+  }
+
+  const liveRunStripTargets = [
+    { statusId: "home-live-run-status", bodyId: "home-live-run-strip" },
+    { statusId: "launch-live-run-status", bodyId: "launch-live-run-strip" },
+    { statusId: "pending-live-run-status", bodyId: "pending-live-run-strip" },
+    { statusId: "diagnostics-live-run-status", bodyId: "diagnostics-live-run-strip" },
+  ];
+
+  function renderLiveRunStrip(context = {}, targets = liveRunStripTargets) {
+    const status = liveRunStatus(context);
+    const items = liveRunStripItems(context);
+    targets.forEach((target) => {
+      const statusNode = byId(target.statusId);
+      if (statusNode) {
+        statusNode.textContent = status.label;
+        statusNode.dataset.state = status.state;
+      }
+      const body = byId(target.bodyId);
+      if (!body) return;
+      body.replaceChildren();
+      items.forEach((item) => {
+        const node = document.createElement("span");
+        node.className = "live-run-chip";
+        node.dataset.status = item.status;
+        const label = document.createElement("span");
+        label.className = "live-run-chip-label";
+        label.textContent = item.label;
+        const value = document.createElement("strong");
+        value.className = "live-run-chip-value";
+        value.textContent = item.value;
+        node.append(label, value);
+        if (item.hint) {
+          const hint = document.createElement("span");
+          hint.className = "live-run-chip-hint";
+          hint.textContent = item.hint;
+          node.title = item.hint;
+          node.appendChild(hint);
+        }
+        body.appendChild(node);
+      });
+    });
   }
 
   function activeWorkNextStep({ activeJobs, closeReadiness, state }) {
@@ -1423,6 +1749,7 @@
       activeWorkRouteLine(progress),
       activeWorkQueueLine(progress),
       activeWorkControlLine(progress),
+      activeWorkFinalizingLine(progress),
       auditProgress.status || auditProgress.Status ? `Audit: ${formatProgressValue(auditProgress.status || auditProgress.Status)}` : "",
       latestEventLine(diagnostics, snapshot),
       "",
@@ -1460,6 +1787,9 @@
     progressEvidenceSummaryLines,
     progressEvidenceDetailLines,
     renderDiagnosticsProgress,
+    renderLiveRunStrip,
+    liveRunStripItems,
+    liveRunStatus,
     diagnosticsProgressRows,
     diagnosticsProgressStatus,
     diagnosticsProgressSummaryLines,
@@ -1478,4 +1808,5 @@
   window.renderPipelineEvents = renderPipelineEvents;
   window.renderProgressEvidence = renderProgressEvidence;
   window.renderHomeActiveWork = renderHomeActiveWork;
+  window.renderLiveRunStrip = renderLiveRunStrip;
 })();

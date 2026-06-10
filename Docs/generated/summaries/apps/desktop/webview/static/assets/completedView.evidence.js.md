@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/completedView.evidence.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-05
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: 1af5a11d852eca901d0ac2e44b84367a8261a31fab99b72a78cf91358d1805cd
+sha256: 9315d196ffd0bd0971ce0dadac60fbbcb533f63e323ab2ed58fcf599d9b3070b
 ---
 # `apps/desktop/webview/static/assets/completedView.evidence.js`
 

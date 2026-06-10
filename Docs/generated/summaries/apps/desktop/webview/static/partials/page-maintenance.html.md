@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/partials/page-maintenance.html
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-04
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: 7a11bfcf34f833d1762b250c4a7626ad256de85f44b01f6e1f452489f35cb519
+sha256: 4460045d66b69fae65a43d642f6df16068768518a92a8e7623011cb60fd0e963
 ---
 # `apps/desktop/webview/static/partials/page-maintenance.html`
 

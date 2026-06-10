@@ -1,5 +1,25 @@
 (function () {
   let diagnosticsTailInFlight = false;
+  const diagnosticsTailTargetGroups = [
+    { label: "Logs", targets: ["last_stderr_log", "last_stdout_log", "cluster_log"] },
+    { label: "State and manifests", targets: ["queue_snapshot", "completed_manifest", "active_jobs"] },
+    { label: "Failures and audit", targets: ["latest_failure_report", "latest_failure_json", "latest_audit_csv", "latest_priority_csv"] },
+    { label: "Validation", targets: ["sample_validation_log"] },
+  ];
+
+  const diagnosticsTailTargetDescriptions = {
+    last_stderr_log: "Newest stderr evidence from the pipeline boundary.",
+    last_stdout_log: "Newest stdout evidence from the pipeline boundary.",
+    cluster_log: "Cluster-level worker coordination log.",
+    queue_snapshot: "Current queue snapshot artifact.",
+    completed_manifest: "Completed output manifest evidence.",
+    active_jobs: "Runtime ActiveJobs state.",
+    latest_failure_report: "Newest human-readable failure report.",
+    latest_failure_json: "Newest structured failure marker.",
+    latest_audit_csv: "Newest audit CSV artifact.",
+    latest_priority_csv: "Newest priority manifest CSV.",
+    sample_validation_log: "Representative validation run log.",
+  };
 
   function selectedDiagnosticsTailTarget() {
     return String(byId("diagnostics-tail-target")?.value || "").trim();
@@ -8,6 +28,97 @@
   function selectedDiagnosticsTailMaxBytes() {
     const raw = String(byId("diagnostics-tail-max-bytes")?.value || "65536").trim();
     return /^\d+$/.test(raw) ? raw : "65536";
+  }
+
+  function diagnosticsTailChoiceSafeId(value) {
+    return String(value || "blank").replace(/[^a-z0-9_-]+/gi, "-").replace(/^-+|-+$/g, "") || "blank";
+  }
+
+  function syncDiagnosticsTailTargetChoices() {
+    const select = byId("diagnostics-tail-target");
+    const group = byId("diagnostics-tail-target-choice-groups");
+    if (!select || !group) return;
+    group.querySelectorAll("input[type='radio']").forEach((radio) => {
+      const selected = String(radio.value || "") === String(select.value || "");
+      radio.checked = selected;
+      radio.closest(".enhanced-choice-card")?.classList.toggle("is-selected", selected);
+    });
+  }
+
+  function diagnosticsTailTargetOptionLabel(select, value) {
+    const option = Array.from(select.options || []).find((item) => item.value === value);
+    return String(option?.textContent || value).trim();
+  }
+
+  function initDiagnosticsTailTargetChoices() {
+    const select = byId("diagnostics-tail-target");
+    if (!select || byId("diagnostics-tail-target-choice-groups")) {
+      syncDiagnosticsTailTargetChoices();
+      return;
+    }
+    const wrapper = select.closest("label");
+    const group = document.createElement("fieldset");
+    group.id = "diagnostics-tail-target-choice-groups";
+    group.className = "enhanced-choice-group diagnostics-tail-target-choice-groups";
+    group.dataset.enhancedChoiceFor = "diagnostics-tail-target";
+
+    const legend = document.createElement("legend");
+    legend.textContent = "Target Key";
+    group.appendChild(legend);
+
+    diagnosticsTailTargetGroups.forEach((targetGroup) => {
+      const section = document.createElement("div");
+      section.className = "enhanced-choice-section";
+      const heading = document.createElement("strong");
+      heading.className = "enhanced-choice-section-title";
+      heading.textContent = targetGroup.label;
+      section.appendChild(heading);
+
+      const grid = document.createElement("div");
+      grid.className = "enhanced-choice-grid diagnostics-tail-target-choice-grid";
+      targetGroup.targets.forEach((target) => {
+        const optionId = `diagnostics-tail-target-choice-${diagnosticsTailChoiceSafeId(target)}`;
+        const card = document.createElement("label");
+        card.className = "enhanced-choice-card diagnostics-tail-target-choice";
+        card.htmlFor = optionId;
+
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.id = optionId;
+        radio.name = "diagnostics-tail-target-choice";
+        radio.value = target;
+        radio.checked = target === String(select.value || "");
+        radio.addEventListener("change", () => {
+          if (!radio.checked) return;
+          select.value = target;
+          select.dispatchEvent(new Event("input", { bubbles: true }));
+          select.dispatchEvent(new Event("change", { bubbles: true }));
+          syncDiagnosticsTailTargetChoices();
+        });
+
+        const title = document.createElement("span");
+        title.className = "enhanced-choice-card-title";
+        title.textContent = diagnosticsTailTargetOptionLabel(select, target);
+        const detail = document.createElement("span");
+        detail.className = "enhanced-choice-card-detail";
+        detail.textContent = diagnosticsTailTargetDescriptions[target] || "Backend allowlisted diagnostics tail target.";
+        card.append(radio, title, detail);
+        grid.appendChild(card);
+      });
+      section.appendChild(grid);
+      group.appendChild(section);
+    });
+
+    select.classList.add("enhanced-choice-source");
+    select.addEventListener("input", syncDiagnosticsTailTargetChoices);
+    select.addEventListener("change", syncDiagnosticsTailTargetChoices);
+    if (wrapper) {
+      wrapper.classList.add("enhanced-choice-source-label");
+      wrapper.insertAdjacentElement("afterend", group);
+    } else {
+      select.insertAdjacentElement("afterend", group);
+    }
+    syncDiagnosticsTailTargetChoices();
   }
 
   function setDiagnosticsTailStatus(message) {
@@ -170,7 +281,18 @@
     const select = byId("diagnostics-tail-target");
     if (!select || !normalized) return;
     const option = Array.from(select.options || []).find((item) => item.value === normalized);
-    if (option) select.value = normalized;
+    if (option) {
+      select.value = normalized;
+      syncDiagnosticsTailTargetChoices();
+    }
+  }
+
+  if (typeof document !== "undefined") {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", initDiagnosticsTailTargetChoices);
+    } else {
+      initDiagnosticsTailTargetChoices();
+    }
   }
 
   async function requestDiagnosticsTail(target = "") {
@@ -213,6 +335,8 @@
     setDiagnosticsTailTarget,
     setDiagnosticsTailStatus,
     setDiagnosticsTailBusy,
+    initDiagnosticsTailTargetChoices,
+    syncDiagnosticsTailTargetChoices,
     renderDiagnosticsTail,
     requestDiagnosticsTail,
     diagnosticsTailOperatorStatusState,

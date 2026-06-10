@@ -51,6 +51,8 @@ core/diagnostics,desktop/application,3
 core/diagnostics,desktop/models,3
 core/final_library,desktop/models,3
 core/maintenance,desktop/subprocess_runner,3
+core/metrics,core/completed,3
+core/metrics,desktop/models,3
 core/orchestration,core/decide,3
 core/paths,core/kernel,3
 core/publish,desktop/models,3
@@ -64,8 +66,6 @@ core/config,contracts/height_tolerance,2
 core/config,contracts/verification,2
 core/config,desktop/subprocess_runner,2
 core/decide,contracts/verification,2
-core/metrics,core/completed,2
-core/metrics,desktop/models,2
 core/network,desktop/network,2
 core/observability,desktop/models,2
 core/orchestration,contracts/source_media,2
@@ -131,7 +131,9 @@ core/api,core/ui_preferences,1
 core/application,desktop/models,1
 core/audit,core/failures,1
 core/audit,desktop/models_core,1
+core/completed,core/files,1
 core/completed,core/kernel,1
+core/completed,core/subtitles,1
 core/config,contracts/decision_policy,1
 core/config,core/processes,1
 core/config,desktop/models_core,1
@@ -149,6 +151,8 @@ core/final_library,desktop/application,1
 core/folder_policy,core/files,1
 core/folder_policy,desktop/subprocess_runner,1
 core/maintenance,tools/change_control,1
+core/metrics,core/kernel,1
+core/metrics,desktop/application,1
 core/network,desktop/application,1
 core/network,desktop/models,1
 core/observability,core/telemetry,1
@@ -160,11 +164,13 @@ core/orchestration,desktop/models,1
 core/orchestration,tools/paths,1
 core/paths,core/config,1
 core/publish,core/completed,1
+core/publish,core/files,1
 core/publish,core/kernel,1
 core/publish,desktop/contracts,1
 core/queue,contracts/config,1
 core/queue,core/files,1
 core/queue,core/storage,1
+core/queue,core/subtitles,1
 core/queue,desktop/contracts,1
 core/queue,desktop/models_core,1
 core/queue,desktop/subprocess_runner,1
@@ -172,6 +178,9 @@ core/rename,desktop/models,1
 core/status,core/processes,1
 core/status,desktop/application,1
 core/status,desktop/models_core,1
+core/subtitles,contracts/subtitles,1
+core/subtitles,core/completed,1
+core/subtitles,desktop/models,1
 core/telemetry,contracts/config,1
 core/telemetry,core/config,1
 core/telemetry,core/kernel,1
@@ -203,6 +212,7 @@ desktop/application,core/rename,1
 desktop/application,core/sample_validation,1
 desktop/application,core/schedule,1
 desktop/application,core/status,1
+desktop/application,core/subtitles,1
 desktop/application,desktop/root,1
 desktop/config_keys,core/kernel,1
 desktop/local_api_main,desktop/application,1

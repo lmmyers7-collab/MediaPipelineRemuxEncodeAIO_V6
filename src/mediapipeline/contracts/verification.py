@@ -164,7 +164,7 @@ def evaluate_output_size_check(
     status: OutputSizeCheckStatus
     if action == "block_publish":
         status = "blocked"
-    elif action == "fail_job":
+    elif action == "fail_job" or action == "fallback_remux":
         status = "failed"
     else:
         status = "warning"
@@ -226,7 +226,7 @@ def _output_size_on_fail(action: OutputSizeCheckAction) -> str:
     if action == "fail_job":
         return "fail_job"
     if action == "fallback_remux":
-        return "try_remux_then_record_warning"
+        return "try_remux_else_fail_job"
     if action == "warn_only":
         return "record_advisory_warning"
     return "continue"

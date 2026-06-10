@@ -34,6 +34,14 @@
     const renderCompletedSizeReview = deps.renderCompletedSizeReview;
     const state = deps.state || {};
 
+    function captureCompletedAcceptanceSelectionScroll() {
+      return window.mediaPipelineDom?.captureScrollablePositions?.() || null;
+    }
+
+    function restoreCompletedAcceptanceSelectionScroll(snapshot) {
+      if (snapshot) window.mediaPipelineDom?.restoreScrollablePositions?.(snapshot);
+    }
+
     function completedAcceptancePostureStatus(posture) {
       const normalized = String(posture || "").toLowerCase();
       if (normalized.includes("blocked")) return "blocked";
@@ -287,6 +295,7 @@
     }
 
     function selectCompletedAcceptanceRow(item) {
+      const scrollSnapshot = captureCompletedAcceptanceSelectionScroll();
       state.selectedCompletedAcceptanceKey = item?.key || "";
       if (item?.completedRow?.row_key) {
         state.selectedCompletedRowKey = item.completedRow.row_key;
@@ -301,6 +310,7 @@
       renderCompletedRealMediaProof(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
       renderCompletedFinalTrust(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
       renderCompletedPilotEvidencePacket(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
+      restoreCompletedAcceptanceSelectionScroll(scrollSnapshot);
     }
 
     return {

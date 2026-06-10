@@ -13,6 +13,18 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Added
 
+- Library Route Map planning pack:
+  `docs/implementation/library-route-map/` defines a no-plugin, backend-owned
+  Libraries tab plan for read-only route maps, selected-file dry-run traces,
+  profile comparison, guided editing through existing Library Profile
+  Preview/Save controls, and route validation handoff to Launch, Completed,
+  Pending Publish, Diagnostics, and Sample Validation evidence.
+- Library Profile route/size replication planning:
+  `docs/implementation/library-profile-routing-size-replication-plan.md`
+  records the investigation and implementation plan for making Libraries mirror
+  the current Settings routing/size controls while preserving backend-owned
+  LibraryProfiles inheritance, designation filtering, Preview/Save authority,
+  and validation boundaries.
 - Read-only Metrics workspace:
   `GET /api/metrics` returns `desktop_metrics.v1` from completed manifest,
   pending publish, worker runtime, and final-library evidence. The WebView now

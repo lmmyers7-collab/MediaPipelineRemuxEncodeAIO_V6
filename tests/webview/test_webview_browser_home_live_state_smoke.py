@@ -163,7 +163,7 @@ def _browser_home_live_state_runner_source() -> str:
                 && text("home-next-queue-list").includes("Serial Experiments Lain S02E01 Weird.mkv")
                 && text("home-scratch-storage-status").includes("OK")
                 && text("home-output-storage-status").includes("OK")
-                && text("progress-bar-list").includes("Current stage")
+                && text("progress-bar-list").includes("Current backend stage")
                 && text("progress-bar-list").includes("Publish")
                 && text("home-readiness-summary").includes("Backend snapshot: ok")
                 && text("home-active-work-summary").includes("ActiveJobs:")
@@ -310,12 +310,12 @@ def _browser_home_live_state_runner_source() -> str:
             ]);
             requireText("progress-bar-list", [
               "Active work",
-              "Current stage",
+              "Current backend stage",
               "42.5%",
               "Run total",
               "Publish",
               "Publish steps",
-              "Push file",
+              "Publishing completed output",
               "50%",
             ]);
             requireText("home-external-dependencies-summary", [
@@ -347,7 +347,7 @@ def _browser_home_live_state_runner_source() -> str:
             await waitFor(
               () => text("progress-detail-status").includes("checks")
                 && text("progress-bar-list").includes("Active work")
-                && text("progress-bar-list").includes("Current stage")
+                && text("progress-bar-list").includes("Current backend stage")
                 && text("progress-bar-list").includes("42.5%")
                 && text("progress-bar-list").includes("Run total")
                 && text("progress-bar-list").includes("Publish")
@@ -366,11 +366,11 @@ def _browser_home_live_state_runner_source() -> str:
             requireText("progress-bar-list", [
               "Active work",
               "3 checks",
-              "Current stage",
+              "Current backend stage",
               "42.5%",
               "active",
               "Run total",
-              "Push file",
+              "Publishing completed output",
               "eta 1s",
               "Publish",
               "Publish steps",
@@ -896,7 +896,7 @@ class WebViewBrowserHomeLiveStateSmoke(unittest.TestCase):
             self.assertIn("Daily-driver readiness checklist:", browser_result["dailyDriver"])
             self.assertIn("Anime Library", browser_result["progressDetails"])
             self.assertNotIn("Controls", browser_result["progressDetails"])
-            self.assertIn("Current stage", browser_result["progressBars"])
+            self.assertIn("Current backend stage", browser_result["progressBars"])
             self.assertIn("active", browser_result["progressBars"])
             self.assertIn("42.5%", browser_result["progressBars"])
             self.assertIn("Progress evidence board:", browser_result["progressEvidence"])

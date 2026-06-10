@@ -6,9 +6,9 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from mediapipeline.tools.paths import find_repo_root
-from unittest.mock import patch
 
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
@@ -54,6 +54,24 @@ class FileOpenServiceTests(unittest.TestCase):
                         service.open_path_with_default_app(media)
 
         self.assertEqual(opened, [media])
+
+    def test_windows_folder_open_launches_explorer_and_requests_foreground(self) -> None:
+        service = DummyFileOpenService()
+        with tempfile.TemporaryDirectory() as raw_root:
+            folder = Path(raw_root)
+            with patch(
+                "mediapipeline.core.files.opening._top_level_explorer_window_handles",
+                side_effect=[[100], [100, 200]],
+            ):
+                with patch(
+                    "mediapipeline.core.files.opening._bring_window_to_foreground",
+                    return_value=True,
+                ) as foreground:
+                    with patch("mediapipeline.core.files.opening.subprocess.Popen") as popen:
+                        service._open_windows_path_with_shell(folder)
+
+        popen.assert_called_once_with(["explorer.exe", str(folder)], close_fds=True)
+        foreground.assert_called_once_with(200)
 
 
 if __name__ == "__main__":

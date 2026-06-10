@@ -18,12 +18,18 @@
             <strong id="pending-health-count">0</strong>
           </section>
         </div>
-        <div class="settings-tab-bar completed-tab-bar" role="tablist" aria-label="Output Files sections">
-          <button type="button" class="settings-tab-btn" role="tab" data-output-completed-tab="overview" aria-selected="false">Overview</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-output-page-target="pending" aria-selected="true">Pending Publish</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-output-completed-tab="history" aria-selected="false">History</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-output-completed-tab="advanced" aria-selected="false">Advanced</button>
-        </div>
+        <section class="panel live-run-strip-panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Live Run</h2>
+            <strong id="pending-live-run-status" data-state="unknown">Checking</strong>
+          </div>
+          <div id="pending-live-run-strip" class="live-run-strip" aria-live="polite" aria-label="Pending publish live run summary">
+            <span class="live-run-chip" data-status="unknown">
+              <span class="live-run-chip-label">State</span>
+              <strong class="live-run-chip-value">Waiting for backend snapshot</strong>
+            </span>
+          </div>
+        </section>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Pending Publish Guard Evidence</h2>
@@ -51,8 +57,11 @@
             <span class="status-chip" data-status="ok">Ready-looking</span>
           </div>
           <pre id="pending-drain-overview" class="prose-block">No pending publish drain decision summary loaded.</pre>
+          <div id="pending-drain-progress-bars" class="progress-bar-list" aria-live="polite">
+            <p class="note">No active pending-publish drain progress loaded.</p>
+          </div>
           <div class="action-row action-row-left">
-            <button type="button" id="pending-drain-button" class="danger-button">Publish Parked Outputs</button>
+            <button type="button" id="pending-drain-button" class="danger-button">Drain Parked Outputs</button>
             <strong id="pending-drain-status">Idle</strong>
           </div>
           <pre id="pending-drain-detail" class="prose-block">No pending publish drain result.</pre>
@@ -84,7 +93,7 @@
           </div>
           <pre id="pending-file-inventory-summary" class="prose-block">No parked file inventory loaded.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="Parked file inventory evidence rows">
               <thead>
                 <tr>
                   <th scope="col">Kind</th>
@@ -141,7 +150,7 @@
           </div>
           <pre id="pending-review-board" class="prose-block">No pending publish review board loaded.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="Pending publish flagged item evidence rows">
               <thead>
                 <tr>
                   <th scope="col">Class</th>
@@ -169,7 +178,7 @@
           </div>
           <pre id="pending-evidence-summary" class="prose-block">No pending publish drain evidence loaded.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="Pending publish drain evidence rows">
               <thead>
                 <tr>
                   <th scope="col">Class</th>
@@ -201,7 +210,7 @@
           </div>
           <pre id="pending-recovery-plan-detail" class="prose-block">No pending publish dry-run recovery plan built. This panel never repairs, drains, rewrites, moves, deletes, or publishes files.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="Pending publish dry-run recovery plan rows">
               <thead>
                 <tr>
                   <th scope="col">Class</th>
@@ -231,7 +240,7 @@
           </div>
           <pre id="pending-drain-confidence-summary" class="prose-block">No pending publish drain action confidence loaded.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="Pending publish drain confidence rows">
               <thead>
                 <tr>
                   <th scope="col">Check</th>
@@ -258,7 +267,7 @@
           </div>
           <pre id="pending-backend-scope-summary" class="prose-block">No backend drain scope preview loaded.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="Pending publish backend drain scope rows">
               <thead>
                 <tr>
                   <th scope="col">Signal</th>
@@ -285,7 +294,7 @@
           </div>
           <pre id="pending-drain-decision-summary" class="prose-block">No pending publish drain decision checklist loaded.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="Pending publish drain checklist rows">
               <thead>
                 <tr>
                   <th scope="col">Checkpoint</th>
@@ -304,7 +313,7 @@
           </div>
           </div>
           <p id="pending-drain-decision-legend" class="note table-legend">Pending drain decision rows: no selectable rows.</p>
-          <pre id="pending-drain-decision-detail" class="prose-block">Select a drain decision checkpoint before publishing parked outputs.</pre>
+          <pre id="pending-drain-decision-detail" class="prose-block">Select a drain decision checkpoint before draining parked outputs.</pre>
         </section>
         <section class="panel" data-advanced data-panel-type="evidence">
           <div class="panel-heading">
@@ -320,7 +329,7 @@
           </div>
           <pre id="pending-post-drain-trust-summary" class="prose-block">No post-drain trust review loaded.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="Pending publish post-drain trust rows">
               <thead>
                 <tr>
                   <th scope="col">Checkpoint</th>
@@ -335,7 +344,7 @@
             </table>
           <div class="empty-state" data-empty-state="hidden" style="display:none">
             <span class="empty-state-label">No post-drain evidence</span>
-            <span class="empty-state-hint">Run Publish Parked Outputs to see post-drain trust rows here.</span>
+            <span class="empty-state-hint">Run Drain Parked Outputs to see post-drain trust rows here.</span>
           </div>
           </div>
           <p id="pending-post-drain-trust-legend" class="note table-legend">Post-drain trust rows are read-only and do not move, publish, repair, delete, rewrite, or mark outputs complete.</p>
@@ -393,7 +402,7 @@
           </div>
           <pre id="pending-filter-summary" class="prose-block">Pending publish filter inactive. No rows loaded.</pre>
           <div class="table-wrap">
-            <table class="workflow-table pending-table">
+            <table class="workflow-table pending-table" aria-label="Pending publish rows">
               <thead>
                 <tr>
                   <th scope="col">State</th>

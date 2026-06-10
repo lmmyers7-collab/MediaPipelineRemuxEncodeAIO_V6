@@ -51,10 +51,20 @@
       return Array.isArray(ctx.state.lastCompletedPendingProofRows) ? ctx.state.lastCompletedPendingProofRows.slice() : [];
     }
 
+    function captureCompletedSelectionScroll() {
+      return window.mediaPipelineDom?.captureScrollablePositions?.() || null;
+    }
+
+    function restoreCompletedSelectionScroll(snapshot) {
+      if (snapshot) window.mediaPipelineDom?.restoreScrollablePositions?.(snapshot);
+    }
+
     function selectCompletedRow(item) {
+      const scrollSnapshot = captureCompletedSelectionScroll();
       if (item?.row_key) ctx.state.selectedCompletedRowKey = item.row_key;
       ctx.renderCompletedRows();
       renderCompletedDetail(item || getSelectedCompletedRow());
+      restoreCompletedSelectionScroll(scrollSnapshot);
     }
 
     function renderCompletedDetail(item) {

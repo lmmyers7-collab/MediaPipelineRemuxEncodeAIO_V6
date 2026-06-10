@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from mediapipeline.core.maintenance.command_policy import (
     DEPENDENCY_ATLAS_COMMAND,
     dependency_atlas_exception_result,
     dependency_atlas_invalid_result,
+    dependency_atlas_open_exception_result,
+    dependency_atlas_open_missing_result,
+    dependency_atlas_open_service_unavailable_result,
+    dependency_atlas_open_success_result,
     dependency_atlas_result,
     dependency_atlas_unavailable_result,
     maintenance_command_blocked_result,
@@ -47,6 +52,26 @@ class MaintenanceDependencyAtlasFacadeMixin:
             "min_overview_files": min_files,
         }
         return dependency_atlas_result(result, normalized_request)
+
+    def open_dependency_atlas_folder(self) -> CommandResult:
+        path = self._dependency_atlas_output_dir()
+        if not path.exists() or not path.is_dir():
+            return dependency_atlas_open_missing_result(path)
+        opener = getattr(self.service, "open_path", None)
+        if not callable(opener):
+            return dependency_atlas_open_service_unavailable_result(path)
+        try:
+            opener(path)
+        except Exception as exc:
+            return dependency_atlas_open_exception_result(path, exc)
+        return dependency_atlas_open_success_result(path)
+
+    def _dependency_atlas_output_dir(self) -> Path:
+        output_dir = getattr(self.service, "dependency_atlas_output_dir", None)
+        if callable(output_dir):
+            path = output_dir()
+            return path if isinstance(path, Path) else Path(path)
+        return Path(getattr(self.service, "workspace_root")) / "docs/generated/dependency-atlas"
 
 
 __all__ = [

@@ -158,7 +158,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "Publish &amp; Recovery",
             "Naming",
             "Queue &amp; Runtime",
-            "Advanced Evidence",
+            "Evidence",
         ]
         cursor = -1
         for label in expected_order:
@@ -403,10 +403,17 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "If encoded output is too large",
             "Oversize result",
             "Oversize result descriptions",
-            "If an override-forced encode grows past the buffer, try remux/direct copy.",
+            "If an automatic size/bitrate-threshold encode grows past the buffer, try safe remux/direct copy.",
             "Stop an oversized encode before publish",
             "Record the size overage and continue",
             "Encode target calculation",
+            "Encode target calculation descriptions",
+            "Uses TV balanced for TV sources and movie balanced for movie sources.",
+            "One step smaller/softer than the base quality, with 90M maxrate and 180M buffer.",
+            "Two steps smaller/softer than the base quality, with 80M maxrate and 160M buffer.",
+            "Uses the configured base quality unchanged, with 120M maxrate and 240M buffer.",
+            "One step cleaner/larger than the base quality, with 160M maxrate and 320M buffer.",
+            "conservative encoder flags for broader Plex playback",
             "Video encoder",
             "settings-routing-video-codec-readout",
             "settings-routing-output-container-readout",
@@ -422,6 +429,13 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "Target size strict",
             "Direct-copy bitrate strict",
             "Block publish",
+            "NVENC tuning bundle descriptions",
+            "Default HEVC NVENC bundle: VBR, 60-frame lookahead, spatial and temporal AQ",
+            "raising AQ strength for larger/slower encodes",
+            "shorter 20-frame lookahead, temporal AQ off",
+            "disabled multipass, 2 B-frames, and low-latency tune",
+            "fragile hardware or Plex compatibility",
+            "passes raw ExtraVideoFlags to FFmpeg exactly as entered",
         ):
             self.assertIn(token, html)
 
@@ -980,6 +994,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertIn("Warn-only records oversized output", backend["SizeGuardMode"]["help_text"])
         self.assertIn("Strict blocks publish", backend["SizeGuardMode"]["help_text"])
         self.assertIn("Fallback remux applies existing growth buffers", backend["SizeGuardMode"]["help_text"])
+        self.assertIn("Forced route overrides warn only", backend["SizeGuardMode"]["help_text"])
         self.assertIn("Applies only when encoding is required.", backend["EncodeTuningPreset"]["help_text"])
         self.assertIn("Applies only when encoding is required.", backend["VideoPreset"]["help_text"])
 

@@ -27,6 +27,9 @@ LAUNCH_COMMAND_BUTTONS_PATH = ASSETS_ROOT / "launch" / "commandButtons.js"
 LAUNCH_PARTIAL_PATH = STATIC_ROOT / "partials" / "page-launch.html"
 REPORTS_VIEW_PATH = ASSETS_ROOT / "reportsView.js"
 COMPLETED_PARTIAL_PATH = STATIC_ROOT / "partials" / "page-completed.html"
+PENDING_PARTIAL_PATH = STATIC_ROOT / "partials" / "page-pending.html"
+QUEUE_PARTIAL_PATH = STATIC_ROOT / "partials" / "page-queue.html"
+TELEMETRY_PARTIAL_PATH = STATIC_ROOT / "partials" / "page-telemetry.html"
 RENAME_PARTIAL_PATH = STATIC_ROOT / "partials" / "page-rename.html"
 
 
@@ -63,6 +66,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
     def test_no_raw_colors_outside_custom_property_tokens(self) -> None:
         raw_color = re.compile(r"#[0-9a-fA-F]{3,8}\b|rgba\s*\(|hsla\s*\(")
         raw_hsl = re.compile(r"hsl\s*\(")
+        raw_state_palette = re.compile(r"var\(--(?:red|green|amber|blue|purple)-\d+\)")
         violations: list[str] = []
 
         for file_name, line_number, line in self._css_lines():
@@ -71,6 +75,8 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
                 violations.append(f"{file_name}:{line_number}: {line}")
                 continue
             if raw_hsl.search(line) and not stripped.startswith("--"):
+                violations.append(f"{file_name}:{line_number}: {line}")
+            if file_name != "styles.tokens.css" and raw_state_palette.search(line):
                 violations.append(f"{file_name}:{line_number}: {line}")
 
         self.assertEqual(violations, [])
@@ -198,6 +204,30 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         for selector in [".queue-table", ".completed-table", ".pending-table"]:
             self.assertIn(selector, components)
 
+    def test_shared_data_table_controls_are_wired(self) -> None:
+        helpers = _read_dom_helpers_bundle()
+        app_js = (ASSETS_ROOT / "app.js").read_text(encoding="utf-8")
+        components = (ASSETS_ROOT / "styles.components.css").read_text(encoding="utf-8")
+
+        self.assertIn("function enhanceDataTables", helpers)
+        self.assertIn("enhanceDataTables,", helpers)
+        self.assertIn("window.mediaPipelineDom?.enhanceDataTables?.();", app_js)
+        for selector in [
+            ".data-table-wrap",
+            ".table-ui-toolbar",
+            ".table-ui-filter",
+            ".table-density-control",
+            ".table-column-menu",
+            ".table-sort-button",
+            ".table-column-resizer",
+            ".table-filter-row",
+            ".data-table th[data-sticky-column]",
+            ".table-wrap[data-table-density=\"compact\"] th",
+            ".table-wrap[data-table-density=\"comfortable\"] th",
+            ".data-table.has-many-rows tbody tr:nth-child(even):not(.is-selected):not([data-status]) td",
+        ]:
+            self.assertIn(selector, components)
+
     def test_status_chip_helper_and_owner_tables_are_wired(self) -> None:
         helpers = _read_dom_helpers_bundle()
         controls = (ASSETS_ROOT / "styles.controls.css").read_text(encoding="utf-8")
@@ -206,11 +236,118 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
 
         self.assertIn("function makeStatusChip", helpers)
         self.assertIn("function setCellStatusChip", helpers)
+        self.assertIn('if (["parked", "park", "pending_publish", "pending publish"].includes(raw)) return "parked";', helpers)
+        self.assertIn('if (["health-check", "health_check", "health check"].includes(raw)) return "health-check";', helpers)
+        self.assertIn('if (["unavailable", "not_available", "not available"].includes(raw)) return "unavailable";', helpers)
+        self.assertIn('if (["unknown"].includes(raw)) return "unknown";', helpers)
+        self.assertIn('if (["queue_pending", "queue pending"].includes(raw)) return "queued";', helpers)
+        self.assertIn('if (["drain_pending", "drain pending"].includes(raw)) return "queued";', helpers)
+        self.assertIn('if (["pending"].includes(raw)) return "unknown";', helpers)
+        self.assertIn('do_not_drain: "blocked"', helpers)
+        self.assertNotIn('do_not_drain: "failed"', helpers)
+        self.assertNotIn("span.tabIndex = 0", helpers)
+        self.assertIn("Visual tone:", helpers)
+        self.assertNotIn("Color meaning:", helpers)
         self.assertRegex(helpers, r"window\.mediaPipelineDom\s*=\s*\{[\s\S]*\bmakeStatusChip,")
         self.assertRegex(helpers, r"window\.mediaPipelineDom\s*=\s*\{[\s\S]*\bsetCellStatusChip,")
         self.assertIn(".status-chip", controls)
-        self.assertIn("setCellStatusChip(healthCell", completed)
+        self.assertIn("setCellStatusChip(promotionCell", completed)
         self.assertIn("setCellStatusChip(stateCell", pending)
+
+    def test_semantic_color_roles_are_wired(self) -> None:
+        tokens = (ASSETS_ROOT / "styles.tokens.css").read_text(encoding="utf-8")
+        controls = (ASSETS_ROOT / "styles.controls.css").read_text(encoding="utf-8")
+        components = (ASSETS_ROOT / "styles.components.css").read_text(encoding="utf-8")
+        pages = (ASSETS_ROOT / "styles.pages.css").read_text(encoding="utf-8")
+        queue = (ASSETS_ROOT / "styles.queue.css").read_text(encoding="utf-8")
+        theme = (ASSETS_ROOT / "styles.theme.css").read_text(encoding="utf-8")
+
+        for token in (
+            "--semantic-success-bg:",
+            "--semantic-warning-bg:",
+            "--semantic-danger-bg:",
+            "--semantic-info-bg:",
+            "--semantic-pending-bg:",
+            "--semantic-disabled-bg:",
+            "--semantic-selected-bg:",
+            "--semantic-backend-evidence-bg:",
+            "--semantic-frontend-advisory-bg:",
+            "--semantic-evidence-panel-bg:",
+            "--semantic-interactive-panel-border:",
+        ):
+            self.assertIn(token, tokens)
+
+        self.assertIn("--semantic-backend-evidence-bg: hsl(265, 15%, 14%);", tokens)
+        self.assertIn("--semantic-backend-evidence-bg: var(--purple-100);", tokens)
+        self.assertIn("--evidence-bg: var(--semantic-evidence-panel-bg);", tokens)
+        self.assertNotIn("--evidence-bg: var(--blue-100);", tokens)
+        self.assertIn("keep backend evidence purple in both themes", theme)
+
+        self.assertRegex(controls, r'\.status-chip\[data-status="unknown"\]\s*\{[^}]*var\(--semantic-warning-bg\)')
+        self.assertRegex(controls, r'\.status-chip\[data-status="queued"\]\s*\{[^}]*var\(--semantic-pending-bg\)')
+        self.assertRegex(controls, r'\.status-chip\[data-status="empty"\],\s*\n\.status-chip\[data-status="unavailable"\]\s*\{[^}]*var\(--semantic-disabled-bg\)')
+        self.assertRegex(controls, r'\.route-chip\[data-route="encode"\].*var\(--semantic-info-bg\)')
+        self.assertRegex(controls, r'\.route-chip\[data-route="review"\].*var\(--semantic-warning-bg\)')
+        self.assertRegex(controls, r'tr\[data-status="empty"\] td,\s*\ntr\[data-status="unavailable"\] td \{ background: var\(--semantic-disabled-bg\); \}')
+        self.assertIn('[data-page-panel="schedule"] tr[data-status="review"] td  { background: var(--row-warning-bg); }', controls)
+
+        self.assertRegex(components, r'\.panel\[data-panel-type="evidence"\]\s*\{[^}]*var\(--evidence-bg\)[^}]*var\(--semantic-evidence-panel-border\)')
+        self.assertRegex(components, r'\.completed-selected-status-chip\[data-state="warning"\]\s*\{[^}]*var\(--semantic-warning-border\)[^}]*var\(--semantic-warning-text\)')
+        self.assertNotRegex(components, r'\.completed-selected-status-chip\[data-state="warning"\]\s*\{[^}]*blue')
+        self.assertRegex(components, r'tr\.is-selected td\s*\{[^}]*var\(--semantic-selected-bg\)')
+        self.assertIn("body.light-mode tr.is-selected td { background: var(--semantic-selected-bg); }", theme)
+
+        self.assertRegex(pages, r'\.rename-preview-output\[data-state="changed"\]\s*\{[^}]*var\(--semantic-info-border\)[^}]*var\(--semantic-info-text\)')
+        self.assertRegex(pages, r'\.settings-wizard-steps strong\[data-state="not-started"\]\s*\{[^}]*var\(--semantic-disabled-text\)')
+
+        rename = (ASSETS_ROOT / "styles.rename.css").read_text(encoding="utf-8")
+        self.assertIn("--rename-stage-accent: var(--semantic-info-accent);", rename)
+        self.assertIn("--rename-stage-accent: var(--semantic-warning-accent);", rename)
+        self.assertIn("--rename-stage-accent: var(--semantic-danger-accent);", rename)
+        self.assertIn("--rename-stage-accent: var(--semantic-success-accent);", rename)
+
+        self.assertRegex(queue, r'\.fo-route-encode-advisory\[data-tone="warning"\]\s*\{[^}]*var\(--semantic-frontend-advisory-bg\)')
+        self.assertRegex(queue, r'\.fo-drawer-status\[data-tone="working"\]\s*\{[^}]*var\(--semantic-pending-bg\)')
+        self.assertIn("box-shadow: inset 3px 0 0 var(--semantic-pending-accent);", queue)
+        self.assertIn("outline: 2px solid var(--semantic-focus-outline);", queue)
+        self.assertRegex(queue, r'\.fo-series-modal\s*\{[^}]*background: var\(--semantic-overlay-bg\);')
+
+    def test_topbar_and_evidence_tools_accessibility_contract(self) -> None:
+        html = _rendered_index_html()
+        layout = (ASSETS_ROOT / "styles.layout.css").read_text(encoding="utf-8")
+        components = (ASSETS_ROOT / "styles.components.css").read_text(encoding="utf-8")
+
+        for token in (
+            '<button type="button" id="refresh-health"',
+            '<button type="button" id="close-readiness"',
+            'aria-label="Open Diagnostics for refresh health"',
+            'aria-label="Open Diagnostics for close readiness"',
+            'aria-label="Current output status rows"',
+            'aria-label="Completed history rows"',
+            'aria-label="Final library promotion rows"',
+            'aria-label="Acceptance and evidence packet rows"',
+            'aria-label="Queue rows"',
+            'aria-label="Queue backend launch scope boundary rows"',
+            'aria-label="Pending publish rows"',
+            'aria-label="Pending publish backend drain scope rows"',
+            'aria-label="GPU telemetry detail rows"',
+            'role="tablist" aria-label="Completed output sections"',
+            'role="img" aria-label="CPU usage over the last eight minutes"',
+            'role="img" aria-label="Video encoder usage over the last eight minutes"',
+            'role="img" aria-label="RAM usage over the last eight minutes"',
+            'aria-describedby="cpu-chart-meta cpu-utility-note"',
+            'data-panel-subtype="evidence-tools"',
+        ):
+            self.assertIn(token, html)
+        self.assertIn('id="pipeline-sparkline" class="pipeline-sparkline" aria-hidden="true"', html)
+        self.assertNotIn('aria-label="Recent pipeline event history"', html)
+        self.assertNotIn('title="Last 20 pipeline events"', html)
+        self.assertNotIn('<span id="refresh-health"', html)
+        self.assertNotIn('<span id="close-readiness"', html)
+        self.assertIn(".close-readiness:focus-visible", layout)
+        self.assertIn(".refresh-health:focus-visible", layout)
+        self.assertIn('.panel[data-panel-subtype="evidence-tools"]', components)
+        self.assertIn('content: "evidence tools"', components)
 
     def test_design_system_cleanup_tokens_and_action_hierarchy_are_wired(self) -> None:
         tokens = (ASSETS_ROOT / "styles.tokens.css").read_text(encoding="utf-8")
@@ -235,7 +372,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertEqual(used_radius_tokens - declared_radius_tokens, set())
 
         self.assertRegex(layout, r"\.danger-button\s*\{[^}]*background: var\(--grey-800\);")
-        self.assertRegex(layout, r"\.emergency-button\s*\{[^}]*background: var\(--red-900\);")
+        self.assertRegex(layout, r"\.emergency-button\s*\{[^}]*background: var\(--semantic-danger-bg\);")
         self.assertIn(".status-chip::before", controls)
         self.assertIn("background: currentColor;", controls)
         self.assertIn("padding: var(--space-3) var(--space-4);", components)
@@ -257,6 +394,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         components = (ASSETS_ROOT / "styles.components.css").read_text(encoding="utf-8")
         rename_css = (ASSETS_ROOT / "styles.rename.css").read_text(encoding="utf-8")
         app_js = APP_LAYOUT_MANAGER_PATH.read_text(encoding="utf-8")
+        lifecycle_js = APP_LIFECYCLE_PATH.read_text(encoding="utf-8")
         launch_js = LAUNCH_VIEW_PATH.read_text(encoding="utf-8")
         reports_js = REPORTS_VIEW_PATH.read_text(encoding="utf-8")
         completed_html = COMPLETED_PARTIAL_PATH.read_text(encoding="utf-8")
@@ -266,6 +404,8 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
             ".settings-tab-btn:hover",
             ".settings-tab-btn:focus-visible",
             ".settings-tab-btn[aria-selected=\"true\"]",
+            ".settings-section-nav-btn[aria-current=\"location\"]",
+            ".profile-nav-btn[aria-current=\"location\"]",
             ".settings-tab-btn:disabled",
             ".settings-tab-btn[aria-disabled=\"true\"]",
             ".settings-tab-btn[aria-busy=\"true\"]",
@@ -284,16 +424,30 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertIn(".settings-tab-pane[data-reports-tab-panel]", app_js)
 
         self.assertIn('class="settings-tab-bar completed-tab-bar"', html)
+        self.assertIn('role="tablist" aria-label="Completed output sections"', completed_html)
+        self.assertIn('role="tab" data-completed-tab="overview" aria-selected="true">Overview</button>', completed_html)
+        self.assertIn('role="tab" data-completed-tab="evidence" aria-selected="false">Evidence</button>', completed_html)
+        self.assertNotIn('data-output-page-target="pending"', completed_html)
         self.assertIn('class="panel settings-tab-pane is-active output-overview-section output-overview-section-current" data-completed-tab="overview"', completed_html)
         self.assertIn('class="panel settings-tab-pane is-active" data-completed-tab="overview"', completed_html)
-        self.assertIn('class="panel settings-tab-pane" data-completed-tab="advanced"', completed_html)
+        self.assertIn('class="panel settings-tab-pane" data-completed-tab="evidence"', completed_html)
         self.assertIn('class="panel settings-tab-pane" data-completed-tab="history"', completed_html)
         self.assertIn("function _normalizeLayoutTabPaneContainers(page)", app_js)
         self.assertIn('page.querySelectorAll("section.panel.settings-tab-pane")', app_js)
         self.assertIn('className !== "panel"', app_js)
         self.assertIn('while (pane.firstChild) existing.appendChild(pane.firstChild);', app_js)
+        self.assertIn("function syncTabAccessibility()", lifecycle_js)
+        self.assertIn('button.setAttribute("aria-controls", panelIds.join(" "))', lifecycle_js)
+        self.assertIn('panel.setAttribute("role", "tabpanel")', lifecycle_js)
+        self.assertIn('panel.setAttribute("aria-labelledby", buttonId)', lifecycle_js)
+        self.assertIn('if (event.key === "ArrowRight" || event.key === "ArrowDown")', lifecycle_js)
+        self.assertIn('if (event.key === "Home") nextIndex = 0;', lifecycle_js)
+        self.assertNotIn('function syncOutputSectionButtons(activePage, completedTab)', lifecycle_js)
+        self.assertNotIn('document.querySelectorAll("[data-output-page-target]")', lifecycle_js)
         self.assertIn('data-completed-tab="overview"', completed_html)
         self.assertIn("output-overview-kicker", completed_html)
+        self.assertIn('<h2>Selected File</h2>', completed_html)
+        self.assertRegex(completed_html, r'<section class="panel settings-tab-pane is-active" data-completed-tab="overview" data-panel-type="evidence">\s*<div class="panel-heading">\s*<h2>Selected File</h2>')
         self.assertLess(
             completed_html.index('<h2 id="completed-current-output-heading">Current Output Status</h2>'),
             completed_html.index("<h2>Output Files</h2>"),
@@ -311,7 +465,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertIn('class="table-toolbar queue-priority-toolbar"', html)
         self.assertIn('class="table-toolbar queue-strategy-toolbar"', html)
         self.assertIn(".rename-workbench > h1.visually-hidden", rename_css)
-        self.assertIn('<h1 class="visually-hidden">Rename Files</h1>', rename_html)
+        self.assertIn('<h1 class="visually-hidden">Rename</h1>', rename_html)
 
     def test_rename_workbench_keeps_mode_stage_left_aligned_at_wide_width(self) -> None:
         rename_css = (ASSETS_ROOT / "styles.rename.css").read_text(encoding="utf-8")
@@ -344,6 +498,9 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertIn(".table-wrap,\n  .prose-block,\n  .log-block,\n  .status-block", components)
         self.assertIn("max-width: 100%;", components)
         self.assertIn(".home-next-queue-list li", pages)
+        self.assertRegex(components, r"\.telemetry-grid\s*\{[^}]*grid-template-columns: repeat\(3, minmax\(280px, 1fr\)\);")
+        self.assertRegex(components, r"@media \(max-width: 900px\)[\s\S]*\.telemetry-grid\s*\{[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);")
+        self.assertRegex(components, r"@media \(max-width: 520px\)[\s\S]*\.telemetry-grid,[\s\S]*grid-template-columns: minmax\(0, 1fr\);")
 
 
 if __name__ == "__main__":

@@ -44,10 +44,75 @@
   --red-500:   hsl(5, 68%, 48%);
   --red-100:   hsl(5, 70%, 94%);
 
-  /* ===== STATUS - purple (advisory / evidence panels) ===== */
+  /* ===== STATUS - purple (backend-authored evidence) ===== */
   --purple-700: hsl(265, 45%, 30%);
   --purple-500: hsl(265, 48%, 52%);
   --purple-100: hsl(265, 52%, 94%);
+
+  /* ===== SEMANTIC COLOR MAP ================================================
+     Meaning must stay consistent across pages. Components should consume these
+     role tokens instead of raw palette tokens when styling operator state. */
+  --semantic-success-bg: var(--green-700);
+  --semantic-success-border: var(--green-500);
+  --semantic-success-text: var(--green-100);
+  --semantic-success-accent: var(--green-500);
+  --semantic-success-row-bg: hsl(145, 28%, 14%);
+
+  --semantic-warning-bg: var(--amber-900);
+  --semantic-warning-strong-bg: var(--amber-700);
+  --semantic-warning-border: var(--amber-700);
+  --semantic-warning-text: var(--amber-100);
+  --semantic-warning-accent: var(--amber-500);
+  --semantic-warning-row-bg: hsl(38, 28%, 15%);
+
+  --semantic-danger-bg: var(--red-900);
+  --semantic-danger-strong-bg: var(--red-700);
+  --semantic-danger-border: var(--red-500);
+  --semantic-danger-text: var(--red-100);
+  --semantic-danger-accent: var(--red-500);
+  --semantic-danger-row-bg: hsl(5, 35%, 14%);
+
+  --semantic-info-bg: var(--blue-900);
+  --semantic-info-strong-bg: var(--blue-800);
+  --semantic-info-border: var(--blue-700);
+  --semantic-info-text: var(--blue-100);
+  --semantic-info-muted-text: var(--blue-200);
+  --semantic-info-accent: var(--blue-500);
+
+  --semantic-pending-bg: var(--blue-800);
+  --semantic-pending-border: var(--blue-500);
+  --semantic-pending-text: var(--blue-200);
+  --semantic-pending-accent: var(--blue-400);
+
+  --semantic-disabled-bg: var(--grey-700);
+  --semantic-disabled-border: var(--grey-600);
+  --semantic-disabled-text: var(--grey-500);
+
+  --semantic-neutral-bg: var(--grey-700);
+  --semantic-neutral-border: var(--grey-600);
+  --semantic-neutral-text: var(--grey-200);
+  --semantic-neutral-muted-text: var(--grey-300);
+
+  --semantic-selected-bg: var(--blue-800);
+  --semantic-selected-border: var(--blue-500);
+  --semantic-selected-text: var(--grey-50);
+  --semantic-active-nav-bg: var(--blue-900);
+  --semantic-active-nav-border: var(--blue-500);
+  --semantic-focus-outline: var(--blue-300);
+
+  --semantic-backend-evidence-bg: hsl(265, 15%, 14%);
+  --semantic-backend-evidence-border: var(--purple-700);
+  --semantic-backend-evidence-text: var(--purple-500);
+  --semantic-backend-evidence-accent: var(--purple-500);
+  --semantic-frontend-advisory-bg: var(--semantic-warning-bg);
+  --semantic-frontend-advisory-border: var(--semantic-warning-border);
+  --semantic-frontend-advisory-text: var(--semantic-warning-text);
+  --semantic-evidence-panel-bg: var(--semantic-backend-evidence-bg);
+  --semantic-evidence-panel-border: var(--semantic-backend-evidence-border);
+  --semantic-evidence-panel-text: var(--semantic-backend-evidence-text);
+  --semantic-interactive-panel-border: var(--blue-500);
+  --semantic-interactive-panel-bg: var(--grey-800);
+  --semantic-overlay-bg: hsl(220 15% 0% / 0.64);
 
   /* ===== TYPE SCALE ===== */
   --text-2xs:  10px;
@@ -95,19 +160,19 @@
   --shadow-5: 0 16px 48px hsl(220 15% 0% / 0.50), 0 4px 12px hsl(220 15% 0% / 0.35);
 
   /* ===== COMPONENT TOKENS ===== */
-  /* Evidence panel - dark-mode tint (light-mode equivalent: --purple-100) */
-  --evidence-bg: hsl(265, 15%, 14%);
+  /* Evidence panel - backend-authored evidence surface */
+  --evidence-bg: var(--semantic-evidence-panel-bg);
   /* Focus rings - alpha blends of status colors */
   --focus-ring:       0 0 0 2px hsl(215, 55%, 56%, 0.22);
   --focus-ring-error: 0 0 0 2px hsl(5, 68%, 48%, 0.22);
 
   /* ===== ROW BACKGROUND TOKENS - status row tints and focus-visible rows ===== */
   /* Defined here as tokens so the dark/light split is maintainable from one place.
-     Light-mode overrides live in the body.light-mode block via higher-specificity rules
-     that already use --amber-100 / --red-100 / --green-100 directly.               */
-  --row-warning-bg:   hsl(38, 28%, 15%);
-  --row-blocked-bg:   hsl(5, 35%, 14%);
-  --row-match-bg:     hsl(145, 28%, 14%);
+     Light-mode overrides remap the semantic row tokens instead of page classes
+     choosing raw palette colors directly.                                      */
+  --row-warning-bg:   var(--semantic-warning-row-bg);
+  --row-blocked-bg:   var(--semantic-danger-row-bg);
+  --row-match-bg:     var(--semantic-success-row-bg);
   /* Focus-row - semi-transparent blue highlight for keyboard-focused selectable rows */
   --focus-row-bg:     hsl(215 55% 56% / 0.14);
   --focus-row-border: hsl(215 55% 56% / 0.65);
@@ -140,8 +205,70 @@ body.light-mode {
   --grey-100: hsl(220, 13%, 12%);   /* default body text */
   --grey-50:  hsl(220, 15%, 7%);    /* headings, brand */
 
-  /* Evidence panel tint - light blue on light surfaces (purple used in dark mode only) */
-  --evidence-bg: var(--blue-100);
+  --semantic-success-bg: var(--green-100);
+  --semantic-success-border: var(--green-500);
+  --semantic-success-text: var(--green-700);
+  --semantic-success-accent: var(--green-500);
+  --semantic-success-row-bg: var(--green-100);
+
+  --semantic-warning-bg: var(--amber-100);
+  --semantic-warning-strong-bg: var(--amber-100);
+  --semantic-warning-border: var(--amber-700);
+  --semantic-warning-text: var(--amber-900);
+  --semantic-warning-accent: var(--amber-500);
+  --semantic-warning-row-bg: var(--amber-100);
+
+  --semantic-danger-bg: var(--red-100);
+  --semantic-danger-strong-bg: var(--red-100);
+  --semantic-danger-border: var(--red-500);
+  --semantic-danger-text: var(--red-700);
+  --semantic-danger-accent: var(--red-500);
+  --semantic-danger-row-bg: var(--red-100);
+
+  --semantic-info-bg: var(--blue-100);
+  --semantic-info-strong-bg: var(--blue-100);
+  --semantic-info-border: var(--blue-600);
+  --semantic-info-text: var(--blue-900);
+  --semantic-info-muted-text: var(--blue-700);
+  --semantic-info-accent: var(--blue-500);
+
+  --semantic-pending-bg: var(--blue-100);
+  --semantic-pending-border: var(--blue-500);
+  --semantic-pending-text: var(--blue-700);
+  --semantic-pending-accent: var(--blue-400);
+
+  --semantic-disabled-bg: var(--grey-800);
+  --semantic-disabled-border: var(--grey-600);
+  --semantic-disabled-text: var(--grey-500);
+
+  --semantic-neutral-bg: var(--grey-200);
+  --semantic-neutral-border: var(--grey-600);
+  --semantic-neutral-text: var(--grey-700);
+  --semantic-neutral-muted-text: var(--grey-500);
+
+  --semantic-selected-bg: var(--blue-100);
+  --semantic-selected-border: var(--blue-500);
+  --semantic-selected-text: var(--blue-900);
+  --semantic-active-nav-bg: var(--blue-100);
+  --semantic-active-nav-border: var(--blue-500);
+  --semantic-focus-outline: var(--blue-500);
+
+  --semantic-backend-evidence-bg: var(--purple-100);
+  --semantic-backend-evidence-border: var(--purple-700);
+  --semantic-backend-evidence-text: var(--purple-700);
+  --semantic-backend-evidence-accent: var(--purple-500);
+  --semantic-frontend-advisory-bg: var(--semantic-warning-bg);
+  --semantic-frontend-advisory-border: var(--semantic-warning-border);
+  --semantic-frontend-advisory-text: var(--semantic-warning-text);
+  --semantic-evidence-panel-bg: var(--semantic-backend-evidence-bg);
+  --semantic-evidence-panel-border: var(--semantic-backend-evidence-border);
+  --semantic-evidence-panel-text: var(--semantic-backend-evidence-text);
+  --semantic-interactive-panel-border: var(--blue-500);
+  --semantic-interactive-panel-bg: var(--grey-900);
+  --semantic-overlay-bg: hsl(220 15% 10% / 0.35);
+
+  /* Evidence panel tint - purple in both themes so evidence never looks like active action */
+  --evidence-bg: var(--semantic-evidence-panel-bg);
 
   /* Shadows - reduced opacity against light backgrounds */
   --shadow-1: 0 1px 2px hsl(220 15% 10% / 0.08);
@@ -161,6 +288,6 @@ body.light-mode {
   --shadow-input: inset 0 1px 2px hsl(220 5% 0% / 0.06);
   /* Sidebar right-edge shadow - lighter on light bg */
   --shadow-sidebar: 2px 0 8px hsl(220 15% 10% / 0.08);
-  --overlay-backdrop-bg: hsl(220 15% 10% / 0.35);
+  --overlay-backdrop-bg: var(--semantic-overlay-bg);
   --shadow-drawer: -4px 0 24px hsl(220 15% 10% / 0.14);
 }

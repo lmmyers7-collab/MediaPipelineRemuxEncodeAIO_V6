@@ -107,7 +107,7 @@ def _browser_pending_drain_guard_runner_source() -> str:
                   });
                 }
               }
-              const pendingButton = document.querySelector("button[data-output-page-target='pending']");
+              const pendingButton = document.querySelector("button.nav-button[data-page='pending']");
               if (pendingButton) pendingButton.click();
               return findings;
             }
@@ -301,7 +301,7 @@ def _browser_pending_drain_guard_runner_source() -> str:
             filterScopeDecisionRow.click();
             requireText("pending-drain-decision-detail", [
               "Checkpoint: Display filter / backend drain scope",
-              "Publish Parked Outputs does not drain only the visible table subset.",
+              "Drain Parked Outputs does not drain only the visible table subset.",
               "Backend validation sees current parked payloads/manifests, not the filtered WebView table.",
             ]);
             if (posts.some((entry) => entry.path === "/api/pipeline/start")) {
@@ -372,7 +372,7 @@ def _browser_pending_drain_guard_runner_source() -> str:
               throw new Error("normal mode exposed diagnostic callouts across pages/tabs:\\n" + visibleDiagnosticFindings.join("\\n"));
             }
             requireText("pending-drain-guard-summary", [
-              "Publish Parked Outputs blocked by WebView evidence: Do not drain.",
+              "Drain Parked Outputs blocked by WebView evidence: Do not drain.",
               "First action: select blocked/review checklist rows",
               "Mutation guardrail",
             ]);
@@ -387,7 +387,7 @@ def _browser_pending_drain_guard_runner_source() -> str:
 
             await window.mediaPipelineLaunchView.startPendingPublishDrain();
             await waitFor(
-              () => text("pending-drain-status") === "Blocked" && text("pending-drain-detail").includes("Publish Parked Outputs blocked by WebView evidence: Do not drain."),
+              () => text("pending-drain-status") === "Blocked" && text("pending-drain-detail").includes("Drain Parked Outputs blocked by WebView evidence: Do not drain."),
               "blocked drain click handled locally",
             );
             const history = window.getCommandHistory().filter((entry) => entry.command === "pending_publish.drain");

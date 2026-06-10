@@ -121,6 +121,31 @@ function Add-PendingDrainSummaryCount {
     $Counts[$safeKey] = [int]$Counts[$safeKey] + 1
 }
 
+function Write-PendingDrainRuntimeProgress {
+    param(
+        [Parameter(Mandatory)] [System.Collections.IDictionary] $Summary,
+        [string] $CurrentManifest = "",
+        [string] $CurrentItem = "",
+        [string] $Status = "Draining parked outputs",
+        [switch] $Deferred
+    )
+
+    if (-not (Get-Command -Name Set-ProgressPendingDrain -ErrorAction SilentlyContinue)) { return }
+    Set-ProgressPendingDrain `
+        -ManifestCount ([int]$Summary['manifest_count_at_start']) `
+        -AttemptedCount ([int]$Summary['attempted_count']) `
+        -SucceededCount ([int]$Summary['succeeded_count']) `
+        -AlreadyPublishedCount ([int]$Summary['already_published_count']) `
+        -ErrorCount ([int]$Summary['error_count']) `
+        -SkippedCount ([int]$Summary['skipped_count']) `
+        -RemainingCount ([int]$Summary['remaining_count']) `
+        -CurrentManifest $CurrentManifest `
+        -CurrentItem $CurrentItem `
+        -Status $Status `
+        -Deferred:$Deferred `
+        -SaveNow
+}
+
 function New-PendingDrainSummaryItem {
     param(
         $ManifestFile,
@@ -399,6 +424,7 @@ function Invoke-RetryPendingPushes {
         route_counts            = [ordered]@{}
         items                   = @()
     }
+    Write-PendingDrainRuntimeProgress -Summary $summary -Status 'Preparing parked output drain'
     if ($script:DeferredPublish -and -not $Force) {
         Write-Log "Deferred publish enabled — leaving $($manifests.Count) parked output(s) queued for manual drain" "DEBUG"
         $summary['deferred'] = $true
@@ -409,6 +435,7 @@ function Invoke-RetryPendingPushes {
             try { $manifest = Read-PendingManifestFile -Path $m.FullName } catch { $readError = [string]$_ }
             $summaryItems.Add((New-PendingDrainSummaryItem -ManifestFile $m -Manifest $manifest -Status 'deferred' -ErrorMessage $readError)) | Out-Null
         }
+        Write-PendingDrainRuntimeProgress -Summary $summary -Status 'Drain deferred; parked outputs remain queued' -Deferred
         Complete-PendingDrainSummary -Summary $summary -Items $summaryItems
         return 0
     }
@@ -416,6 +443,7 @@ function Invoke-RetryPendingPushes {
     $recovered = 0
     $visitedCount = 0
     Set-ProgressStage -Stage 'retry_pending_push' -Status 'Retrying pending push' -PushState 'retrying' -Percent $null -SaveNow
+    Write-PendingDrainRuntimeProgress -Summary $summary -Status 'Draining parked outputs'
     Write-Log "PendingServerPush: found $($manifests.Count) parked file(s) — retrying"
     foreach ($m in $manifests) {
         $manifest = $null
@@ -426,9 +454,11 @@ function Invoke-RetryPendingPushes {
                 $summary['stopped'] = $true
                 $remainingToSkip = $manifests.Count - $visitedCount
                 $summary['skipped_count'] = [int]$summary['skipped_count'] + $remainingToSkip
+                $summary['remaining_count'] = [int]$remainingToSkip
                 for ($skipIndex = $visitedCount; $skipIndex -lt $manifests.Count; $skipIndex++) {
                     $summaryItems.Add((New-PendingDrainSummaryItem -ManifestFile $manifests[$skipIndex] -Status 'skipped')) | Out-Null
                 }
+                Write-PendingDrainRuntimeProgress -Summary $summary -Status 'Drain stopped; remaining parked outputs left queued'
                 break
             }
             $visitedCount++
@@ -440,16 +470,29 @@ function Invoke-RetryPendingPushes {
             if ([string]::IsNullOrWhiteSpace($displayName)) { $displayName = Split-Path $local -Leaf }
             Set-ProgressItemContext -DisplayName $displayName -FilePath $local -MediaType 'pending' -QueuePhase 'pending_push' -QueueIndex $visitedCount -QueueTotal $manifests.Count
             Set-ProgressStage -Stage 'retry_pending_push' -Status 'Retrying pending push' -Route $route -PushState 'retrying' -Percent $null -SaveNow
+            Write-PendingDrainRuntimeProgress -Summary $summary -CurrentManifest ([string]$m.FullName) -CurrentItem $displayName -Status 'Checking parked manifest'
 
             $summary['attempted_count'] = [int]$summary['attempted_count'] + 1
+            $summary['remaining_count'] = [math]::Max(0, $manifests.Count - $visitedCount)
+            Write-PendingDrainRuntimeProgress -Summary $summary -CurrentManifest ([string]$m.FullName) -CurrentItem $displayName -Status 'Checking manifest trust'
             $drainTrust = Test-PendingManifestTrustedForDrain -ManifestFile $m -Manifest $manifest
             if (-not $drainTrust.Ok) {
                 Write-Log "Pending: refusing retry drain for untrusted manifest $($m.Name): $($drainTrust.Reason)" "ERROR"
                 $summaryItems.Add((New-PendingDrainSummaryItem -ManifestFile $m -Manifest $manifest -Status $drainTrust.Status -ErrorMessage $drainTrust.Reason)) | Out-Null
+                $summary['error_count'] = [int]$summary['error_count'] + 1
+                Write-PendingDrainRuntimeProgress -Summary $summary -CurrentManifest ([string]$m.FullName) -CurrentItem $displayName -Status 'Manifest blocked before drain'
                 continue
             }
             $transaction = Invoke-PendingDrainTransaction -ManifestFile $m -Manifest $manifest
             $summaryItems.Add((New-PendingDrainSummaryItem -ManifestFile $m -Manifest $manifest -Transaction $transaction)) | Out-Null
+            if ($transaction.Status -eq 'already_published') {
+                $summary['already_published_count'] = [int]$summary['already_published_count'] + 1
+            } elseif ($transaction.Status -eq 'succeeded') {
+                $summary['succeeded_count'] = [int]$summary['succeeded_count'] + 1
+            } else {
+                $summary['error_count'] = [int]$summary['error_count'] + 1
+            }
+            Write-PendingDrainRuntimeProgress -Summary $summary -CurrentManifest ([string]$m.FullName) -CurrentItem $displayName -Status "Drain transaction $($transaction.Status)"
             if ($transaction.Status -eq 'already_published' -or $transaction.Status -eq 'succeeded') {
                 if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
                     Write-PipelineEvent -EventType 'publish_drained' -Stage 'retry_pending_push' -Route ([string]$transaction.Route) -Status ([string]$transaction.Status) -SourcePath ([string]$transaction.SourcePath) -Data @{
@@ -468,6 +511,9 @@ function Invoke-RetryPendingPushes {
         } catch {
             Write-Log "Pending: error processing $($m.Name) : $_" "WARN"
             $summaryItems.Add((New-PendingDrainSummaryItem -ManifestFile $m -Manifest $manifest -Status 'error' -ErrorMessage ([string]$_))) | Out-Null
+            $summary['error_count'] = [int]$summary['error_count'] + 1
+            $summary['remaining_count'] = [math]::Max(0, $manifests.Count - $visitedCount)
+            Write-PendingDrainRuntimeProgress -Summary $summary -CurrentManifest ([string]$m.FullName) -Status 'Drain manifest errored'
         } finally {
             Reset-ProgressItemContext
         }
@@ -481,6 +527,7 @@ function Invoke-RetryPendingPushes {
     }
     $summary['recovered_count'] = [int]$recovered
     Complete-PendingDrainSummary -Summary $summary -Items $summaryItems
+    Write-PendingDrainRuntimeProgress -Summary $summary -Status 'Pending publish drain complete'
     Set-ProgressStage -Stage 'processing' -Status 'Processing' -PushState $null -SidecarState $null -Percent $null -SaveNow
     return $recovered
 }

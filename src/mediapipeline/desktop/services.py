@@ -34,6 +34,7 @@ from mediapipeline.core.processes.lifecycle import ProcessLifecycleServiceMixin
 from mediapipeline.core.queue.service import QueueServiceMixin
 from mediapipeline.core.maintenance.dependency_atlas import DependencyAtlasServiceMixin
 from mediapipeline.core.maintenance.release import ReleasePackageServiceMixin
+from mediapipeline.core.diagnostics.tdarr_matrix_audit import TdarrMatrixAuditServiceMixin
 from mediapipeline.core.rename.service import RenameServiceMixin
 from mediapipeline.core.status.service import StatusServiceMixin
 from mediapipeline.core.telemetry.service import TelemetryServiceMixin
@@ -50,6 +51,7 @@ class DesktopAppService(
     AppStateScheduleServiceMixin,
     ReleasePackageServiceMixin,
     DependencyAtlasServiceMixin,
+    TdarrMatrixAuditServiceMixin,
     PendingPublishServiceMixin,
     AuditRerunServiceMixin,
     QueueServiceMixin,

@@ -248,8 +248,20 @@ class ProcessLifecycleServiceMixin:
     def _active_job_pid_is_alive(self, pid: int) -> bool | None:
         return active_job_pid_is_alive_for_service(self, pid, psutil)
 
-    def active_job_close_block_messages(self, resolved: ResolvedPaths, *, max_items: int = 24) -> list[str]:
-        return active_job_close_block_messages_for_service(self, resolved, max_items=max_items, psutil_module=psutil)
+    def active_job_close_block_messages(
+        self,
+        resolved: ResolvedPaths,
+        *,
+        max_items: int = 24,
+        job_kinds: set[str] | None = None,
+    ) -> list[str]:
+        return active_job_close_block_messages_for_service(
+            self,
+            resolved,
+            max_items=max_items,
+            psutil_module=psutil,
+            job_kinds=job_kinds,
+        )
 
     def reconcile_active_job_records(self, resolved: ResolvedPaths, *, max_items: int = 24) -> list[str]:
         return reconcile_active_job_records_for_service(self, resolved, max_items=max_items, psutil_module=psutil)
@@ -312,8 +324,18 @@ class ProcessLifecycleServiceMixin:
     def _process_text_contains_any(self, proc: Any, needles: list[str]) -> bool:
         return process_text_contains_any(proc, needles)
 
-    def find_related_pipeline_processes(self, resolved: ResolvedPaths) -> list[Any]:
-        return find_related_pipeline_processes(resolved, psutil_module=psutil, current_pid=os.getpid())
+    def find_related_pipeline_processes(
+        self,
+        resolved: ResolvedPaths,
+        *,
+        job_kinds: set[str] | None = None,
+    ) -> list[Any]:
+        return find_related_pipeline_processes(
+            resolved,
+            psutil_module=psutil,
+            current_pid=os.getpid(),
+            job_kinds=job_kinds,
+        )
 
     def kill_related_pipeline_processes(self, resolved: ResolvedPaths) -> list[str]:
         return kill_related_pipeline_processes(resolved, psutil_module=psutil, logger=self.logger)

@@ -22,17 +22,22 @@
         complete: "completed",
         done: "completed",
         published: "completed",
-        pending_publish: "publishing",
-        pending: "publishing",
+        pending_publish: "parked",
+        "pending publish": "parked",
+        drain_pending: "queued",
+        "drain pending": "queued",
+        pending: "unknown",
+        queued: "queued",
+        queue: "queued",
         validation_needed: "validation-needed",
         health_check: "health-check",
-        do_not_drain: "failed",
+        do_not_drain: "blocked",
         do_not_launch: "blocked",
         review: "warning",
         active: "running",
-        unavailable: "unknown",
-        "not available": "unknown",
-        not_available: "unknown",
+        unavailable: "unavailable",
+        "not available": "unavailable",
+        not_available: "unavailable",
       };
       const normalized = aliases[raw] || raw;
       return [
@@ -45,12 +50,14 @@
         "skipped",
         "parked",
         "publishing",
+        "queued",
         "validation-needed",
         "health-check",
         "running",
         "paused",
         "retrying",
         "changed",
+        "unavailable",
         "unknown",
         "empty",
         "normal",
@@ -62,7 +69,8 @@
       const operatorSeverity = normalizedTableStatus(input.operator_severity || "");
       const diagnosticSeverity = normalizedTableStatus(input.diagnostic_severity || "");
       const drainRecommendation = normalizedTableStatus(input.drain_recommendation || "");
-      if (drainRecommendation === "do_not_drain" || diagnosticSeverity === "error" || diagnosticSeverity === "critical" || input.local_exists === false) return "failed";
+      if (drainRecommendation === "do_not_drain" || input.local_exists === false) return "blocked";
+      if (diagnosticSeverity === "error" || diagnosticSeverity === "critical") return "failed";
       if (operatorSeverity === "error" || operatorSeverity === "critical" || input.output_exists === false || input.blocked_reason || input.blocked_reason_code) return "blocked";
       const candidates = [
         input.operator_status_state,
@@ -86,23 +94,33 @@
       if (["ready"].includes(raw)) return "ready";
       if (["completed", "complete", "done", "published"].includes(raw)) return "completed";
       if (["skipped", "skip", "excluded"].includes(raw)) return "skipped";
-      if (["parked", "park"].includes(raw)) return "warning";
-      if (["health-check", "health_check", "health check"].includes(raw)) return "validation-needed";
+      if (["parked", "park", "pending_publish", "pending publish"].includes(raw)) return "parked";
+      if (["queue_pending", "queue pending"].includes(raw)) return "queued";
+      if (["drain_pending", "drain pending"].includes(raw)) return "queued";
+      if (["health-check", "health_check", "health check"].includes(raw)) return "health-check";
       if (["failed", "failure", "error"].includes(raw)) return "failed";
       if (["blocked", "missing", "do_not_drain"].includes(raw)) return "blocked";
       if (["validation_needed", "validation-needed", "needs_validation"].includes(raw)) return "validation-needed";
-      if (["warning", "review", "unknown", "limited", "hold", "held"].includes(raw)) return "warning";
+      if (["unavailable", "not_available", "not available"].includes(raw)) return "unavailable";
+      if (["unknown"].includes(raw)) return "unknown";
+      if (["warning", "review", "limited", "hold", "held"].includes(raw)) return "warning";
       if (["changed"].includes(raw)) return "changed";
+      if (["queued", "queue"].includes(raw)) return "queued";
+      if (["pending"].includes(raw)) return "unknown";
       if (["active", "processing", "running", "encoding", "remuxing", "copying", "scanning", "validating"].includes(raw)) return "running";
       if (["paused", "pause_pending", "paused_pending"].includes(raw)) return "paused";
       if (["retrying", "retry"].includes(raw)) return "retrying";
       if (["publishing", "draining"].includes(raw)) return "publishing";
       if (raw.includes("fail") || raw.includes("error")) return "failed";
       if (raw.includes("block") || raw.includes("missing")) return "blocked";
-      if (raw.includes("warning") || raw.includes("review") || raw.includes("unknown")) return "warning";
+      if (raw.includes("unavailable") || raw.includes("not available")) return "unavailable";
+      if (raw.includes("unknown")) return "unknown";
+      if (raw.includes("health-check") || raw.includes("health check")) return "health-check";
+      if (raw.includes("warning") || raw.includes("review")) return "warning";
       if (raw.includes("validation")) return "validation-needed";
       if (raw.includes("retry")) return "retrying";
       if (raw.includes("publish") || raw.includes("drain")) return "publishing";
+      if (raw.includes("queue")) return "queued";
       if (raw.includes("pause")) return "paused";
       if (raw.includes("running") || raw.includes("processing") || raw.includes("active")) return "running";
       if (raw.includes("skip") || raw.includes("exclude")) return "skipped";
@@ -117,8 +135,7 @@
       span.className = "status-chip";
       span.dataset.status = statusChipState(status, text);
       span.textContent = text;
-      span.tabIndex = 0;
-      span.title = `Status: ${text}. Color meaning: ${span.dataset.status}.`;
+      span.title = `Status: ${text}. Visual tone: ${span.dataset.status}.`;
       span.setAttribute("aria-label", span.title);
       return span;
     }

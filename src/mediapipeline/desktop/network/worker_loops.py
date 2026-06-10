@@ -83,6 +83,13 @@ class WorkerLoopMixin:
                 self._wait_interruptible()
                 continue
 
+            # Deliver any persisted pending done report before claiming:
+            # worker_state.json is a single slot, so a new claim's state
+            # save would overwrite the undelivered report.
+            if not self._flush_pending_done_report():
+                self._wait_interruptible()
+                continue
+
             resp: dict[str, Any] | None = None
             try:
                 resp = self._http_get(

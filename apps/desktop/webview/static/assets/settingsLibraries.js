@@ -1,9 +1,65 @@
 (function () {
   const metadata = window.mediaPipelineSettingsMetadata || {};
   const choiceLabels = metadata.settingsChoiceLabels || {};
+  const routeModel = window.mediaPipelineRoutePolicyModel || {};
   const advancedFallbackKeys = new Set(metadata.settingsAdvancedFallbackKeys || []);
+  const staticCompatibilityPresets = Array.isArray(metadata.settingsLibraryCompatibilityPresets)
+    ? metadata.settingsLibraryCompatibilityPresets
+    : [];
   const pathFields = ["source_path", "output_path", "promotion_destination"];
   const designationValues = ["movie", "tv", "auto"];
+  const routeToleranceKeys = [
+    "Route1080pUpperHeightTolerancePercent",
+    "Route1440pLowerHeightTolerancePercent",
+    "Route1440pUpperHeightTolerancePercent",
+    "Route4KLowerHeightTolerancePercent",
+  ];
+  const routeSizeFields = [
+    "RoutingProfile",
+    "SizeGuardMode",
+    "RouteThresholdMode",
+    "MaxEncodeGrowthPercent",
+    "CompatibilityEncodeGrowthPercent",
+    "MovieRoute1080pTargetSizeGB",
+    "MovieRoute1440pTargetSizeGB",
+    "MovieRoute4KTargetSizeGB",
+    "TVRoute1080pTargetSizeGB",
+    "TVRoute1440pTargetSizeGB",
+    "TVRoute4KTargetSizeGB",
+    ...routeToleranceKeys,
+    "Route1080pMaxVideoBitrateMbps",
+    "Route1440pMaxVideoBitrateMbps",
+    "Route4KMaxVideoBitrateMbps",
+  ];
+  const routeBucketDefinitions = [
+    {
+      key: "1080p",
+      label: "1080p",
+      targetLabel: "1080p",
+      movieTargetKey: "MovieRoute1080pTargetSizeGB",
+      tvTargetKey: "TVRoute1080pTargetSizeGB",
+      bitrateKey: "Route1080pMaxVideoBitrateMbps",
+      estimateMinutes: { tv: 30, movie: 120 },
+    },
+    {
+      key: "1440p",
+      label: "1440p",
+      targetLabel: "1440p",
+      movieTargetKey: "MovieRoute1440pTargetSizeGB",
+      tvTargetKey: "TVRoute1440pTargetSizeGB",
+      bitrateKey: "Route1440pMaxVideoBitrateMbps",
+      estimateMinutes: { tv: 30, movie: 120 },
+    },
+    {
+      key: "4k",
+      label: "4K",
+      targetLabel: "4K",
+      movieTargetKey: "MovieRoute4KTargetSizeGB",
+      tvTargetKey: "TVRoute4KTargetSizeGB",
+      bitrateKey: "Route4KMaxVideoBitrateMbps",
+      estimateMinutes: { tv: 30, movie: 120 },
+    },
+  ];
 
   const overrideGroupTitles = {
     editor: "Default Editor Overrides",
@@ -25,7 +81,9 @@
 
   const overrideLayouts = {
     editor: [
-      { type: "grid", fields: ["RoutingProfile", "SizeGuardMode", "RouteThresholdMode", "EncodeTuningPreset", "EncodeLadder", "VideoCodec", "OutputContainer", "MaxEncodeGrowthPercent", "CompatibilityEncodeGrowthPercent", "MovieRoute1080pTargetSizeGB", "MovieRoute1440pTargetSizeGB", "MovieRoute4KTargetSizeGB", "TVRoute1080pTargetSizeGB", "TVRoute1440pTargetSizeGB", "TVRoute4KTargetSizeGB", "Route1080pUpperHeightTolerancePercent", "Route1080pMaxVideoBitrateMbps", "Route1440pLowerHeightTolerancePercent", "Route1440pUpperHeightTolerancePercent", "Route1440pMaxVideoBitrateMbps", "Route4KLowerHeightTolerancePercent", "Route4KMaxVideoBitrateMbps"] },
+      { type: "routeSize", fields: ["RoutingProfile", "SizeGuardMode", "RouteThresholdMode", "MaxEncodeGrowthPercent", "CompatibilityEncodeGrowthPercent", "MovieRoute1080pTargetSizeGB", "MovieRoute1440pTargetSizeGB", "MovieRoute4KTargetSizeGB", "TVRoute1080pTargetSizeGB", "TVRoute1440pTargetSizeGB", "TVRoute4KTargetSizeGB", "Route1080pUpperHeightTolerancePercent", "Route1440pLowerHeightTolerancePercent", "Route1440pUpperHeightTolerancePercent", "Route4KLowerHeightTolerancePercent", "Route1080pMaxVideoBitrateMbps", "Route1440pMaxVideoBitrateMbps", "Route4KMaxVideoBitrateMbps"] },
+      { type: "grid", fields: ["EncodeTuningPreset", "EncodeLadder", "VideoCodec", "OutputContainer"] },
+      { type: "compatibility" },
       { type: "note", text: "Library editor overrides affect only content routed through this library. Backend preview/save remains authoritative before future runs use these values." },
     ],
     video: [
@@ -89,6 +147,17 @@
 
   function libraryProfileStates() {
     return Array.isArray(lastSettings?.library_profile_state) ? lastSettings.library_profile_state : [];
+  }
+
+  function libraryCompatibilityPresets() {
+    const dynamic = Array.isArray(lastSettings?.library_compatibility_presets)
+      ? lastSettings.library_compatibility_presets
+      : [];
+    return dynamic.length ? dynamic : staticCompatibilityPresets;
+  }
+
+  function mp4CompatibilityPreset() {
+    return libraryCompatibilityPresets().find((preset) => String(preset?.id || "") === "mp4_compatibility") || null;
   }
 
   function profileState(profile) {
@@ -398,6 +467,29 @@
     });
   }
 
+  function mp4CompatibilityConsequences(preset = mp4CompatibilityPreset()) {
+    const consequences = Array.isArray(preset?.consequences) ? preset.consequences : [];
+    return consequences.map((item) => String(item?.message || "").trim()).filter(Boolean);
+  }
+
+  function libraryCardMp4CompatibilityActive(card) {
+    const row = card?.querySelector?.('[data-library-override-row][data-library-override-key="OutputContainer"]');
+    const control = row?.querySelector?.("[data-library-override-control]");
+    if (!row || !control || row.dataset.libraryOverride !== "true") return false;
+    return String(readOverrideControlValue(control, "OutputContainer") || "").trim().toLowerCase() === "mp4";
+  }
+
+  function mp4CompatibilityWarningLines() {
+    return profileCardsFromDom().flatMap((card) => {
+      if (!libraryCardMp4CompatibilityActive(card)) return [];
+      const name = activeLibraryName(card);
+      const lines = mp4CompatibilityConsequences();
+      return lines.length
+        ? lines.map((line) => `${name}: ${line}`)
+        : [`${name}: MP4 compatibility is enabled and will drop or rewrite media features MKV can preserve.`];
+    });
+  }
+
   function normalizeProfile(raw, index) {
     const rawId = text(raw?.id || raw?.library_id || raw?.name);
     let id = slug(rawId, `library-${index}`);
@@ -557,6 +649,12 @@
     return "text";
   }
 
+  function fieldOwnValue(field, key) {
+    if (!field || !Object.prototype.hasOwnProperty.call(field, key)) return undefined;
+    const value = field[key];
+    return value === null || value === undefined || value === "" ? undefined : value;
+  }
+
   function buildOverrideControl(key, value, disabled = false) {
     const field = fieldDefinition(key);
     const kind = field?.kind || "";
@@ -580,10 +678,16 @@
       return `<select${disabledAttr} data-library-override-control data-library-override-key="${escapeHtml(key)}">${options.join("")}</select>`;
     }
     const inputType = inputTypeForField(field);
-    const stepValue = field?.step || (field?.kind === "optional_float" ? "any" : "");
+    const minValue = inputType === "number" ? fieldOwnValue(field, "min") : undefined;
+    const maxValue = inputType === "number" ? fieldOwnValue(field, "max") : undefined;
+    const stepValue = inputType === "number" ? (fieldOwnValue(field, "step") ?? (field?.kind === "optional_float" ? "any" : "")) : "";
+    const unitValue = fieldOwnValue(field, "unit") ?? fieldOwnValue(field, "display_unit");
+    const min = minValue !== undefined ? ` min="${escapeHtml(minValue)}"` : "";
+    const max = maxValue !== undefined ? ` max="${escapeHtml(maxValue)}"` : "";
     const step = stepValue ? ` step="${escapeHtml(stepValue)}"` : "";
+    const unit = unitValue !== undefined ? ` data-settings-unit="${escapeHtml(unitValue)}"` : "";
     const textAttrs = inputType === "text" ? ' autocomplete="off" spellcheck="false"' : "";
-    return `<input type="${inputType}"${step}${textAttrs}${disabledAttr} data-library-override-control data-library-override-key="${escapeHtml(key)}" value="${escapeHtml(formatValue(value))}">`;
+    return `<input type="${inputType}"${min}${max}${step}${unit}${textAttrs}${disabledAttr} data-library-override-control data-library-override-key="${escapeHtml(key)}" value="${escapeHtml(formatValue(value))}">`;
   }
 
   function effectiveOverrideValue(profile, groupKey, fieldKey) {
@@ -611,6 +715,354 @@
 
   function renderUseDefaultButton(groupKey, fieldKey, isOverride) {
     return `<button type="button" class="tertiary-button settings-library-override-use-default" data-library-use-default-override data-library-override-group="${escapeHtml(groupKey)}" data-library-override-key="${escapeHtml(fieldKey)}" title="Reset to inherited removes the persisted library override key; it does not write the global value into this library."${isOverride ? "" : " hidden disabled"}>Reset to inherited</button>`;
+  }
+
+  function routeNumberValue(value, fallback = 0) {
+    if (typeof routeModel.numberValue === "function") return routeModel.numberValue(value, fallback);
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
+  }
+
+  function routeFormatPercent(value) {
+    if (typeof routeModel.formatPercent === "function") return routeModel.formatPercent(value);
+    const number = Number(value);
+    if (!Number.isFinite(number)) return "";
+    return number.toFixed(6).replace(/\.?0+$/, "");
+  }
+
+  function routeFormatHeight(value) {
+    if (typeof routeModel.formatHeight === "function") return routeModel.formatHeight(value);
+    const number = Number(value);
+    return Number.isFinite(number) ? String(Math.round(number)) : "";
+  }
+
+  function routeSafeIdPart(value) {
+    return String(value || "library").replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "library";
+  }
+
+  function routeElementId(profile, suffix) {
+    return `settings-library-route-${routeSafeIdPart(profile?.id)}-${suffix}`;
+  }
+
+  function routeValueAvailable(value) {
+    return value !== undefined && value !== null && String(value).trim() !== "";
+  }
+
+  function routeValueFromBackendSource(values, key) {
+    if (values && Object.prototype.hasOwnProperty.call(values, key) && routeValueAvailable(values[key])) {
+      return values[key];
+    }
+    return defaultSettingValue(key);
+  }
+
+  function routeMetadataMissingKeys(values) {
+    return routeSizeFields.filter((key) => {
+      const field = fieldDefinition(key);
+      const hasMetadata = Boolean(field && Object.keys(field).length);
+      return !hasMetadata || !routeValueAvailable(routeValueFromBackendSource(values, key));
+    });
+  }
+
+  function routeSourceSummary(values) {
+    const missing = routeMetadataMissingKeys(values);
+    if (missing.length) {
+      const visibleKeys = missing.slice(0, 5).join(", ");
+      const suffix = missing.length > 5 ? `, and ${missing.length - 5} more` : "";
+      return `Advisory only: backend route metadata/current values are missing for ${visibleKeys}${suffix}. Preview or save with the backend before treating these readouts as evidence.`;
+    }
+    return "Readouts use backend field metadata and current config values. Library controls stage overrides only; backend preview/save remains authoritative.";
+  }
+
+  function routeValuesFromObject(values) {
+    return routeSizeFields.reduce((accumulator, key) => {
+      accumulator[key] = routeValueFromBackendSource(values, key);
+      return accumulator;
+    }, {});
+  }
+
+  function routeBoundariesFromValues(values) {
+    if (typeof routeModel.boundariesFromValues === "function") return routeModel.boundariesFromValues(values);
+    const withDefaults = routeValuesFromObject(values);
+    return {
+      route1080pMaxHeight: Math.round(1080 * (1 + (routeNumberValue(withDefaults.Route1080pUpperHeightTolerancePercent, 0) / 100))),
+      route1440pMinHeight: Math.round(1440 * (1 - (routeNumberValue(withDefaults.Route1440pLowerHeightTolerancePercent, 0) / 100))),
+      route1440pMaxHeight: Math.round(1440 * (1 + (routeNumberValue(withDefaults.Route1440pUpperHeightTolerancePercent, 0) / 100))),
+      route4kMinHeight: Math.round(2160 * (1 - (routeNumberValue(withDefaults.Route4KLowerHeightTolerancePercent, 0) / 100))),
+    };
+  }
+
+  function routeRailPercentages(boundaries) {
+    if (typeof routeModel.railPercentages === "function") return routeModel.railPercentages(boundaries);
+    const minHeight = 1080;
+    const maxHeight = 2160;
+    const span = maxHeight - minHeight;
+    const clamp = (value) => Math.min(100, Math.max(0, Number(value)));
+    return {
+      firstPct: clamp(((routeNumberValue(boundaries?.route1080pMaxHeight, minHeight) - minHeight) / span) * 100),
+      secondPct: clamp(((routeNumberValue(boundaries?.route4kMinHeight, maxHeight) - minHeight) / span) * 100),
+    };
+  }
+
+  function routeValuesFromProfile(profile) {
+    return routeSizeFields.reduce((accumulator, key) => {
+      accumulator[key] = effectiveLibraryOverrideValue(profile, "editor", key);
+      return accumulator;
+    }, {});
+  }
+
+  function routeValuesFromCard(card) {
+    return routeSizeFields.reduce((accumulator, key) => {
+      const control = card.querySelector(`[data-library-override-key="${key}"] [data-library-override-control]`);
+      accumulator[key] = control ? readOverrideControlValue(control, key) : defaultSettingValue(key);
+      return accumulator;
+    }, {});
+  }
+
+  function effectiveLibraryOverrideValue(profile, groupKey, fieldKey) {
+    const groupOverrides = profile.overrides?.[groupKey] || {};
+    const evidence = settingOverrideEvidence(profile, groupKey, fieldKey);
+    if (Object.prototype.hasOwnProperty.call(groupOverrides, fieldKey)) return groupOverrides[fieldKey];
+    if (evidence && Object.prototype.hasOwnProperty.call(evidence, "effective_value")) return evidence.effective_value;
+    return defaultSettingValue(fieldKey);
+  }
+
+  function routeTriggerSummary(mode) {
+    if (typeof routeModel.triggerSummary === "function") return routeModel.triggerSummary(mode);
+    return "Routing trigger behavior follows the selected backend mode.";
+  }
+
+  function routeHeightPixelSummary(boundaries) {
+    if (typeof routeModel.heightPixelSummary === "function") return routeModel.heightPixelSummary(boundaries);
+    return `Derived direct-copy buckets: 1080p <=${routeFormatHeight(boundaries.route1080pMaxHeight)}p, 1440p ${routeFormatHeight(boundaries.route1440pMinHeight)}-${routeFormatHeight(boundaries.route1440pMaxHeight)}p, 4K >=${routeFormatHeight(boundaries.route4kMinHeight)}p. Boundary values route to the higher bucket.`;
+  }
+
+  function routeConsequenceSummary(boundaries, values) {
+    if (typeof routeModel.consequenceSummary === "function") return routeModel.consequenceSummary(boundaries, values);
+    const withDefaults = routeValuesFromObject(values);
+    return `A ${routeFormatHeight(boundaries.route1440pMinHeight)}p source routes as 1440p: Movie ${withDefaults.MovieRoute1440pTargetSizeGB} GB / TV ${withDefaults.TVRoute1440pTargetSizeGB} GB, direct-copy cap ${withDefaults.Route1440pMaxVideoBitrateMbps} Mbps. A ${routeFormatHeight(boundaries.route4kMinHeight)}p source routes as 4K.`;
+  }
+
+  function routeUnknownHeightSummary(values) {
+    if (typeof routeModel.unknownHeightSummary === "function") return routeModel.unknownHeightSummary(values);
+    return "Unknown-height routing remains backend-owned until ffprobe dimensions or backend fallback evidence is available.";
+  }
+
+  function routeEstimatedGb(value, minutes) {
+    if (typeof routeModel.estimatedSizeGb === "function") return routeModel.estimatedSizeGb(value, minutes);
+    const mbps = routeNumberValue(value, 0);
+    return mbps > 0 ? (mbps * routeNumberValue(minutes, 0) * 60) / 8 / 1024 : 0;
+  }
+
+  function routeFormatEstimatedGb(value) {
+    if (typeof routeModel.formatEstimatedGb === "function") return routeModel.formatEstimatedGb(value);
+    const number = Number(value);
+    if (!Number.isFinite(number) || number <= 0) return "0 GB";
+    return number < 10 ? `${number.toFixed(1).replace(/\.0$/, "")} GB` : `${Math.round(number)} GB`;
+  }
+
+  function renderLibraryRouteOverrideField(profile, groupKey, fieldKey, options = {}) {
+    const status = overrideStatus(groupKey, fieldKey, profile);
+    if (!status.render) return "";
+    const field = status.field;
+    const editable = status.editable;
+    const groupOverrides = profile.overrides?.[groupKey] || {};
+    const evidence = settingOverrideEvidence(profile, groupKey, fieldKey);
+    const hasLocalOverride = Object.prototype.hasOwnProperty.call(groupOverrides, fieldKey);
+    const isOverride = editable && (hasLocalOverride || evidence?.state === "explicit");
+    const value = effectiveLibraryOverrideValue(profile, groupKey, fieldKey);
+    const inheritedValue = evidence && Object.prototype.hasOwnProperty.call(evidence, "inherited_value")
+      ? evidence.inherited_value
+      : defaultSettingValue(fieldKey);
+    const label = escapeHtml(options.label || choiceLabel(fieldKey));
+    const unavailableReason = editable ? "" : status.reason || "not available for library overrides";
+    const stateText = editable ? overrideStateText(isOverride, value, inheritedValue) : unavailableReason;
+    const stateClass = editable ? (isOverride ? "is-custom" : "is-inherited") : "is-readonly";
+    const state = `<span class="settings-library-state ${stateClass}" data-library-override-state-label>${escapeHtml(stateText)}</span>`;
+    const titleText = [fieldHelpText(field), unavailableReason ? `Unavailable: ${unavailableReason}` : ""].filter(Boolean).join(" ");
+    const title = titleText ? ` title="${escapeHtml(titleText)}"` : "";
+    const advancedVisibility = field?.advanced_visibility || "standard";
+    const persistedKey = String(field?.persisted_key || fieldKey);
+    const section = String(field?.section || "");
+    const scope = String(field?.scope || "");
+    const baseClass = [
+      "settings-library-override-row",
+      "settings-library-route-override-row",
+      options.hidden ? "settings-library-route-hidden-row" : "",
+      options.inline ? "settings-library-route-inline-row" : "",
+      fieldIsAdvanced(fieldKey, field) ? "is-advanced-field" : "",
+      editable ? "" : "is-unavailable",
+      isOverride ? "is-custom" : "is-inherited",
+    ].filter(Boolean).join(" ");
+    const advancedAttr = fieldIsAdvanced(fieldKey, field) ? " data-advanced" : "";
+    const routeAttr = options.routeRole ? ` data-library-route-role="${escapeHtml(options.routeRole)}"` : "";
+    const rowAttrs = `class="${baseClass}" data-library-override-row data-library-override-group="${escapeHtml(groupKey)}" data-library-override-key="${escapeHtml(fieldKey)}" data-library-persisted-key="${escapeHtml(persistedKey)}" data-library-override="${isOverride ? "true" : "false"}" data-library-override-eligible="${editable ? "true" : "false"}" data-library-section="${escapeHtml(section)}" data-library-scope="${escapeHtml(scope)}" data-library-advanced-visibility="${escapeHtml(advancedVisibility)}" data-library-unavailable-reason="${escapeHtml(unavailableReason)}"${routeAttr}${advancedAttr}${title}`;
+    const control = buildOverrideControl(fieldKey, value, !editable);
+    const controlMarkup = options.unit
+      ? `<span class="settings-input-with-unit">${control}<span>${escapeHtml(options.unit)}</span></span>`
+      : control;
+    const button = editable ? renderUseDefaultButton(groupKey, fieldKey, isOverride) : "";
+    const unavailable = unavailableReason ? `<span class="note settings-library-override-unavailable">${escapeHtml(unavailableReason)}</span>` : "";
+    return `
+      <label ${rowAttrs}>
+        <span class="settings-library-override-field-heading">
+          <span class="settings-library-override-label-text">${label}</span>
+          ${state}
+          ${button}
+        </span>
+        ${controlMarkup}
+        ${unavailable}
+      </label>
+    `;
+  }
+
+  function renderLibraryRouteRail(boundaries) {
+    const firstBoundary = routeFormatHeight(boundaries.route1080pMaxHeight);
+    const secondBoundary = routeFormatHeight(boundaries.route4kMinHeight);
+    const percentages = routeRailPercentages(boundaries);
+    return `
+      <div class="settings-route-range-rail settings-library-route-rail" data-library-route-rail style="--route-first-pct: ${routeFormatPercent(percentages.firstPct)}%; --route-second-pct: ${routeFormatPercent(percentages.secondPct)}%;">
+        <div class="settings-route-slider-labels">
+          <div class="settings-route-slider-bucket"><span>1080p</span><output data-library-route-readout="range-1080p">uses &lt;=${firstBoundary}p</output></div>
+          <div class="settings-route-slider-bucket"><span>1440p</span><output data-library-route-readout="range-1440p">uses ${routeFormatHeight(boundaries.route1440pMinHeight)}-${routeFormatHeight(boundaries.route1440pMaxHeight)}p</output></div>
+          <div class="settings-route-slider-bucket"><span>4K</span><output data-library-route-readout="range-4k">uses &gt;=${secondBoundary}p</output></div>
+        </div>
+        <div class="settings-route-slider settings-library-route-visual" data-library-route-visual aria-hidden="true">
+          <div class="settings-route-slider-track">
+            <span class="settings-route-slider-fill settings-route-slider-fill-1080p"></span>
+            <span class="settings-route-slider-fill settings-route-slider-fill-1440p"></span>
+            <span class="settings-route-slider-fill settings-route-slider-fill-4k"></span>
+          </div>
+          <span class="settings-library-route-marker settings-library-route-marker-first"></span>
+          <span class="settings-library-route-marker settings-library-route-marker-second"></span>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderLibraryRouteBoundaryControls(boundaries, describedBy) {
+    const firstBoundary = routeFormatHeight(boundaries.route1080pMaxHeight);
+    const secondBoundary = routeFormatHeight(boundaries.route4kMinHeight);
+    const describedByAttr = describedBy ? ` aria-describedby="${escapeHtml(describedBy)}"` : "";
+    return `
+      <div class="settings-library-route-boundary-grid" data-library-route-boundary-controls>
+        <label class="settings-library-route-boundary-field">
+          <span>1080p maximum height</span>
+          <span class="settings-route-range-control">
+            <input type="number" min="1080" max="1439" step="1" value="${firstBoundary}" data-library-route-boundary-input="first" aria-label="1080p maximum height"${describedByAttr}>
+            <span>p</span>
+          </span>
+        </label>
+        <label class="settings-library-route-boundary-field">
+          <span>4K minimum height</span>
+          <span class="settings-route-range-control">
+            <input type="number" min="1441" max="2160" step="1" value="${secondBoundary}" data-library-route-boundary-input="second" aria-label="4K minimum height"${describedByAttr}>
+            <span>p</span>
+          </span>
+        </label>
+      </div>
+      <div class="settings-library-route-boundary-actions">
+        <button type="button" class="tertiary-button" data-library-route-boundary-reset="first">Reset 1080p/1440p boundary</button>
+        <button type="button" class="tertiary-button" data-library-route-boundary-reset="second">Reset 1440p/4K boundary</button>
+      </div>
+    `;
+  }
+
+  function renderLibraryRouteBucket(profile, bucket, boundaries) {
+    const movieTarget = renderLibraryRouteOverrideField(profile, "editor", bucket.movieTargetKey, {
+      label: `Movie ${bucket.targetLabel} target output size`,
+      routeRole: "target-size",
+      unit: "GB",
+    });
+    const tvTarget = renderLibraryRouteOverrideField(profile, "editor", bucket.tvTargetKey, {
+      label: `TV ${bucket.targetLabel} target output size`,
+      routeRole: "target-size",
+      unit: "GB",
+    });
+    const bitrate = renderLibraryRouteOverrideField(profile, "editor", bucket.bitrateKey, {
+      label: `${bucket.label} max bitrate for direct copy`,
+      routeRole: "direct-copy-bitrate",
+      unit: "Mbps",
+    });
+    const targetRows = [movieTarget, tvTarget].filter(Boolean).join("");
+    const values = routeValuesFromProfile(profile);
+    const bitrateValue = routeNumberValue(values[bucket.bitrateKey], 0);
+    const tvEstimate = routeFormatEstimatedGb(routeEstimatedGb(bitrateValue, bucket.estimateMinutes.tv));
+    const movieEstimate = routeFormatEstimatedGb(routeEstimatedGb(bitrateValue, bucket.estimateMinutes.movie));
+    const rangeText = bucket.key === "1080p"
+      ? `uses <=${routeFormatHeight(boundaries.route1080pMaxHeight)}p`
+      : bucket.key === "1440p"
+        ? `uses ${routeFormatHeight(boundaries.route1440pMinHeight)}-${routeFormatHeight(boundaries.route1440pMaxHeight)}p`
+        : `uses >=${routeFormatHeight(boundaries.route4kMinHeight)}p`;
+    return `
+      <section class="settings-route-bucket-card settings-library-route-bucket" data-library-route-bucket="${escapeHtml(bucket.key)}">
+        <div class="settings-route-bucket-header">
+          <div>
+            <h4>${escapeHtml(bucket.label)}</h4>
+            <p>Derived height range</p>
+          </div>
+          <span class="settings-route-range-ref" data-library-route-readout="bucket-${escapeHtml(bucket.key)}">${escapeHtml(rangeText)}</span>
+        </div>
+        <div class="settings-route-bucket-grid">
+          ${targetRows ? `<div class="settings-route-bucket-group"><h5>Encoded output size (GB)</h5><div class="settings-route-target-stack">${targetRows}</div></div>` : ""}
+          <div class="settings-route-bucket-group">
+            <h5>Direct-copy limits</h5>
+            <div class="settings-route-target-stack">${bitrate}</div>
+            <p class="note" data-library-route-readout="estimate-${escapeHtml(bucket.key)}">If constant: 30m TV ~${escapeHtml(tvEstimate)}; 2h movie ~${escapeHtml(movieEstimate)}</p>
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderLibraryRouteSizeLayout(profile, groupKey, block) {
+    const fields = new Set(block.fields || []);
+    const values = routeValuesFromProfile(profile);
+    const boundaries = routeBoundariesFromValues(values);
+    const routeConsequenceId = routeElementId(profile, "bucket-consequences");
+    const routeUnknownId = routeElementId(profile, "unknown-height");
+    const routeSourceId = routeElementId(profile, "metadata-source");
+    const routeBoundaryDescriptions = `${routeConsequenceId} ${routeUnknownId} ${routeSourceId}`;
+    const hiddenToleranceRows = routeToleranceKeys
+      .filter((key) => fields.has(key))
+      .map((key) => renderLibraryRouteOverrideField(profile, groupKey, key, { hidden: true, routeRole: "height-tolerance" }))
+      .join("");
+    return `
+      <div class="settings-library-route-editor" data-library-route-editor>
+        <section class="settings-library-route-section">
+          <h3>Library Goal</h3>
+          ${renderLibraryRouteOverrideField(profile, groupKey, "RoutingProfile", { routeRole: "routing-profile" })}
+        </section>
+        <section class="settings-library-route-section">
+          <h3>What Forces An Encode?</h3>
+          ${renderLibraryRouteOverrideField(profile, groupKey, "RouteThresholdMode", { routeRole: "route-threshold" })}
+          <p class="note settings-library-route-summary" data-library-route-summary="trigger">${escapeHtml(routeTriggerSummary(values.RouteThresholdMode))}</p>
+        </section>
+        <section class="settings-library-route-section">
+          <h3>TV / Movie Targets By Height</h3>
+          <p class="note">Target GB is the encoded output budget. Mbps is the source direct-copy/remux cap. Height chooses the bucket.</p>
+          <p id="${escapeHtml(routeSourceId)}" class="note settings-library-route-summary" data-library-route-source-summary>${escapeHtml(routeSourceSummary(values))}</p>
+          ${renderLibraryRouteRail(boundaries)}
+          ${renderLibraryRouteBoundaryControls(boundaries, routeBoundaryDescriptions)}
+          <div class="settings-route-target-editor settings-library-route-target-editor">
+            ${routeBucketDefinitions.map((bucket) => renderLibraryRouteBucket(profile, bucket, boundaries)).join("")}
+          </div>
+          <p class="note settings-library-route-summary" data-library-route-summary="pixel">${escapeHtml(routeHeightPixelSummary(boundaries))}</p>
+          <p id="${escapeHtml(routeConsequenceId)}" class="note settings-library-route-summary" data-library-route-summary="consequence">${escapeHtml(routeConsequenceSummary(boundaries, values))}</p>
+          <p id="${escapeHtml(routeUnknownId)}" class="note settings-library-route-summary" data-library-route-summary="unknown">${escapeHtml(routeUnknownHeightSummary(values))}</p>
+        </section>
+        <section class="settings-library-route-section">
+          <h3>If Encoded Output Is Too Large</h3>
+          <div class="form-grid launch-form-grid settings-library-route-guard-grid">
+            ${renderLibraryRouteOverrideField(profile, groupKey, "SizeGuardMode", { routeRole: "size-guard" })}
+            ${renderLibraryRouteOverrideField(profile, groupKey, "MaxEncodeGrowthPercent", { routeRole: "size-guard", unit: "%" })}
+            ${renderLibraryRouteOverrideField(profile, groupKey, "CompatibilityEncodeGrowthPercent", { routeRole: "size-guard", unit: "%" })}
+          </div>
+        </section>
+        <div class="settings-library-route-hidden-fields" hidden>
+          ${hiddenToleranceRows}
+        </div>
+      </div>
+    `;
   }
 
   function renderOverrideField(profile, groupKey, fieldKey, variant = "grid") {
@@ -721,10 +1173,12 @@
   function renderOverrideLayout(profile, groupKey) {
     const blocks = overrideLayouts[groupKey] || [{ type: "grid", fields: overrideFieldsForGroup(groupKey) }];
     return blocks.map((block) => {
+      if (block.type === "routeSize") return renderLibraryRouteSizeLayout(profile, groupKey, block);
       if (block.type === "grid") return renderFieldGrid(profile, groupKey, block.fields || []);
       if (block.type === "options") return renderOptionGrid(profile, groupKey, block.fields || []);
       if (block.type === "full") return renderFullFields(profile, groupKey, block.fields || []);
       if (block.type === "panel") return renderNestedOptionPanel(profile, groupKey, block);
+      if (block.type === "compatibility") return renderCompatibilityPresetEditorControl(profile);
       if (block.type === "note") return `<p class="note settings-library-panel-note">${escapeHtml(block.text || "")}</p>`;
       return "";
     }).join("");
@@ -742,6 +1196,27 @@
           ${renderOverrideLayout(profile, group.key)}
         </div>
       </details>
+    `;
+  }
+
+  function profileMp4CompatibilityActive(profile) {
+    const overrides = normalizeOverrides(profile || {});
+    return String(overrides.editor?.OutputContainer || "").trim().toLowerCase() === "mp4";
+  }
+
+  function renderCompatibilityPresetEditorControl(profile) {
+    const preset = mp4CompatibilityPreset();
+    if (!preset) return "";
+    const active = profileMp4CompatibilityActive(profile);
+    return `
+      <label class="settings-library-compatibility-field" data-library-compatibility-preset="${escapeHtml(preset.id)}" data-library-compatibility-active="${active ? "true" : "false"}">
+        <span>Compatibility mode</span>
+        <select data-library-compatibility-select>
+          <option value=""${active ? "" : " selected"}>Standard library overrides</option>
+          <option value="${escapeHtml(preset.id)}"${active ? " selected" : ""}>${escapeHtml(preset.label || "MP4 Compatibility")}</option>
+        </select>
+        <span class="note" data-library-compatibility-note>${escapeHtml(active ? (preset.warning || preset.summary || "") : "Optional lossy MP4 reset preset.")}</span>
+      </label>
     `;
   }
 
@@ -823,6 +1298,8 @@
     promotionRow.className = "settings-library-promotion-toggle";
     promotionRow.innerHTML = `<input type="checkbox" data-library-field="promotion_enabled" ${profile.promotion_enabled ? "checked" : ""}> Enable promotion for this library`;
     pathGrid.appendChild(promotionRow);
+    syncLibraryRouteReadouts(card);
+    syncLibraryCompatibilityAvailability(card);
     return card;
   }
 
@@ -831,7 +1308,7 @@
     if (!(active instanceof Element) || active === document.body) return false;
     const containers = [
       byId("settings-library-profile-list"),
-      byId("settings-library-tab-bar"),
+      byId("settings-library-profile-nav"),
       byId("settings-library-active-title")?.closest?.(".settings-library-actions-panel"),
     ].filter(Boolean);
     if (!containers.some((container) => container.contains(active))) return false;
@@ -872,7 +1349,7 @@
 
   function storedLibraryTabId(validIds) {
     try {
-      const stored = localStorage.getItem("mediapipeline-library-tab") || "";
+      const stored = localStorage.getItem("mediapipeline-library-profile") || localStorage.getItem("mediapipeline-library-tab") || "";
       if (validIds.includes(stored)) return stored;
     } catch (_error) {}
     if (validIds.includes(activeLibraryTabId)) return activeLibraryTabId;
@@ -881,25 +1358,25 @@
   }
 
   function activateLibraryTab(libraryId) {
-    const tabBar = byId("settings-library-tab-bar");
+    const tabBar = byId("settings-library-profile-nav");
     const list = byId("settings-library-profile-list");
     if (!tabBar || !list) return;
-    const tabs = Array.from(tabBar.querySelectorAll("[data-library-profile-tab]"));
+    const tabs = Array.from(tabBar.querySelectorAll("[data-library-profile-nav]"));
     const panes = Array.from(list.querySelectorAll("[data-library-profile-pane]"));
     const validIds = panes.map((pane) => pane.getAttribute("data-library-profile-pane") || "").filter(Boolean);
     const activeId = validIds.includes(libraryId) ? libraryId : storedLibraryTabId(validIds);
     const previousActiveId = activeLibraryTabId;
     activeLibraryTabId = activeId;
     tabs.forEach((tab) => {
-      const active = tab.getAttribute("data-library-profile-tab") === activeId;
-      tab.setAttribute("aria-selected", String(active));
-      tab.setAttribute("tabindex", active ? "0" : "-1");
+      const active = tab.getAttribute("data-library-profile-nav") === activeId;
+      if (active) tab.setAttribute("aria-current", "location");
+      else tab.removeAttribute("aria-current");
     });
     panes.forEach((pane) => {
       pane.classList.toggle("is-active", pane.getAttribute("data-library-profile-pane") === activeId);
     });
     if (activeId !== previousActiveId) closeOverrideSections(activeId);
-    try { localStorage.setItem("mediapipeline-library-tab", activeId); } catch (_error) {}
+    try { localStorage.setItem("mediapipeline-library-profile", activeId); } catch (_error) {}
     renderActiveLibraryCommandState();
     if (typeof window.updatePagePanelEmptyStates === "function") window.updatePagePanelEmptyStates();
   }
@@ -961,7 +1438,7 @@
 
   function renderProfileCards() {
     const list = byId("settings-library-profile-list");
-    const tabBar = byId("settings-library-tab-bar");
+    const tabBar = byId("settings-library-profile-nav");
     if (!list) return;
     captureOpenOverrideSections();
     if (tabBar) tabBar.replaceChildren();
@@ -970,11 +1447,9 @@
       if (tabBar) {
         const tab = document.createElement("button");
         tab.type = "button";
-        tab.className = "settings-tab-btn";
-        tab.setAttribute("role", "tab");
-        tab.setAttribute("aria-selected", "false");
+        tab.className = "profile-nav-btn";
         tab.setAttribute("aria-controls", libraryPaneId(profile.id));
-        tab.setAttribute("data-library-profile-tab", profile.id);
+        tab.setAttribute("data-library-profile-nav", profile.id);
         tab.textContent = profile.name;
         tab.addEventListener("click", () => activateLibraryTab(profile.id));
         tabBar.appendChild(tab);
@@ -982,7 +1457,8 @@
       const pane = document.createElement("div");
       pane.id = libraryPaneId(profile.id);
       pane.className = "settings-tab-pane settings-library-profile-pane";
-      pane.setAttribute("role", "tabpanel");
+      pane.setAttribute("role", "region");
+      pane.setAttribute("aria-label", `${profile.name} library profile`);
       pane.setAttribute("data-library-profile-pane", profile.id);
       pane.appendChild(renderCard(profile));
       list.appendChild(pane);
@@ -1043,6 +1519,175 @@
       return;
     }
     control.value = field?.kind === "list" ? formatValue(value) : String(value ?? "");
+  }
+
+  function libraryRouteRow(card, key) {
+    return card.querySelector(`[data-library-override-row][data-library-override-key="${key}"]`);
+  }
+
+  function setLibraryOverrideValue(card, key, value, options = {}) {
+    const row = libraryRouteRow(card, key);
+    const control = row?.querySelector("[data-library-override-control]");
+    if (!row || !control) return false;
+    const wasOverride = row.dataset.libraryOverride === "true";
+    setOverrideControlValue(control, key, value);
+    if (options.reset === true) {
+      updateOverrideRowState(row, false);
+      if (wasOverride) row.dataset.libraryResetPending = "true";
+      else delete row.dataset.libraryResetPending;
+    } else {
+      delete row.dataset.libraryResetPending;
+      updateOverrideRowState(row, true);
+    }
+    return true;
+  }
+
+  function setLibraryRouteOverrideValue(card, key, value, options = {}) {
+    return setLibraryOverrideValue(card, key, value, options);
+  }
+
+  function presetReasonForKey(preset, group, key) {
+    const reasons = preset?.disabled_reasons?.[group];
+    if (reasons && Object.prototype.hasOwnProperty.call(reasons, key)) return String(reasons[key] || "");
+    return preset?.warning || "Managed by the selected library compatibility preset.";
+  }
+
+  function syncLibraryCompatibilityAvailability(card) {
+    if (!card) return;
+    const preset = mp4CompatibilityPreset();
+    const active = libraryCardMp4CompatibilityActive(card);
+    card.dataset.libraryCompatibilityMp4Active = active ? "true" : "false";
+    const control = card.querySelector('[data-library-compatibility-preset="mp4_compatibility"]');
+    if (control) {
+      control.dataset.libraryCompatibilityActive = active ? "true" : "false";
+      const select = control.querySelector("[data-library-compatibility-select]");
+      if (select) select.value = active ? "mp4_compatibility" : "";
+      const note = control.querySelector("[data-library-compatibility-note]");
+      if (note) note.textContent = active
+        ? (preset?.warning || preset?.summary || "MP4 compatibility is active.")
+        : "Optional lossy MP4 reset preset.";
+    }
+    card.querySelectorAll("[data-library-override-row]").forEach((row) => {
+      const group = row.getAttribute("data-library-override-group") || "";
+      const key = row.getAttribute("data-library-override-key") || "";
+      const control = row.querySelector("[data-library-override-control]");
+      const forced = Boolean(active && preset?.overrides?.[group] && Object.prototype.hasOwnProperty.call(preset.overrides[group], key));
+      row.classList.toggle("is-forced", forced);
+      if (forced) {
+        const reason = presetReasonForKey(preset, group, key);
+        if (control) {
+          setOverrideControlValue(control, key, preset.overrides[group][key]);
+          updateOverrideRowState(row, true);
+        }
+        row.dataset.libraryForcedByPreset = "mp4_compatibility";
+        row.dataset.libraryDisabledReason = reason;
+        row.title = reason;
+        if (control) {
+          control.disabled = true;
+          control.title = reason;
+        }
+      } else {
+        delete row.dataset.libraryForcedByPreset;
+        delete row.dataset.libraryDisabledReason;
+        row.removeAttribute("title");
+        if (control && row.getAttribute("data-library-override-eligible") === "true") {
+          control.disabled = false;
+          control.removeAttribute("title");
+        }
+      }
+    });
+  }
+
+  function applyLibraryCompatibilityPreset(card, presetId) {
+    const preset = libraryCompatibilityPresets().find((item) => String(item?.id || "") === presetId);
+    if (!card || !preset?.overrides) return false;
+    Object.entries(preset.overrides).forEach(([group, values]) => {
+      Object.entries(values || {}).forEach(([key, value]) => {
+        setLibraryOverrideValue(card, key, value);
+      });
+    });
+    syncLibraryRouteReadouts(card);
+    syncLibraryCompatibilityAvailability(card);
+    return true;
+  }
+
+  function clearLibraryCompatibilityPreset(card, presetId) {
+    const preset = libraryCompatibilityPresets().find((item) => String(item?.id || "") === presetId);
+    if (!card || !preset?.overrides) return false;
+    Object.values(preset.overrides).forEach((values) => {
+      Object.keys(values || {}).forEach((key) => {
+        setLibraryOverrideValue(card, key, defaultSettingValue(key), { reset: true });
+      });
+    });
+    syncLibraryRouteReadouts(card);
+    syncLibraryCompatibilityAvailability(card);
+    return true;
+  }
+
+  function updateLibraryRouteText(card, selector, value) {
+    const element = card.querySelector(selector);
+    if (element) element.textContent = value;
+  }
+
+  function syncLibraryRouteReadouts(card) {
+    if (!card) return;
+    const editor = card.querySelector("[data-library-route-editor]");
+    if (!editor) return;
+    const values = routeValuesFromCard(card);
+    const boundaries = routeBoundariesFromValues(values);
+    const percentages = routeRailPercentages(boundaries);
+    const rail = editor.querySelector("[data-library-route-rail]");
+    if (rail) {
+      rail.style.setProperty("--route-first-pct", `${routeFormatPercent(percentages.firstPct)}%`);
+      rail.style.setProperty("--route-second-pct", `${routeFormatPercent(percentages.secondPct)}%`);
+    }
+    const firstBoundary = routeFormatHeight(boundaries.route1080pMaxHeight);
+    const secondBoundary = routeFormatHeight(boundaries.route4kMinHeight);
+    const firstInput = editor.querySelector('[data-library-route-boundary-input="first"]');
+    const secondInput = editor.querySelector('[data-library-route-boundary-input="second"]');
+    if (firstInput && document.activeElement !== firstInput) firstInput.value = firstBoundary;
+    if (secondInput && document.activeElement !== secondInput) secondInput.value = secondBoundary;
+    updateLibraryRouteText(card, '[data-library-route-readout="range-1080p"]', `uses <=${firstBoundary}p`);
+    updateLibraryRouteText(card, '[data-library-route-readout="range-1440p"]', `uses ${routeFormatHeight(boundaries.route1440pMinHeight)}-${routeFormatHeight(boundaries.route1440pMaxHeight)}p`);
+    updateLibraryRouteText(card, '[data-library-route-readout="range-4k"]', `uses >=${secondBoundary}p`);
+    updateLibraryRouteText(card, '[data-library-route-readout="bucket-1080p"]', `uses <=${firstBoundary}p`);
+    updateLibraryRouteText(card, '[data-library-route-readout="bucket-1440p"]', `uses ${routeFormatHeight(boundaries.route1440pMinHeight)}-${routeFormatHeight(boundaries.route1440pMaxHeight)}p`);
+    updateLibraryRouteText(card, '[data-library-route-readout="bucket-4k"]', `uses >=${secondBoundary}p`);
+    routeBucketDefinitions.forEach((bucket) => {
+      const bitrate = routeNumberValue(values[bucket.bitrateKey], 0);
+      const tvEstimate = routeFormatEstimatedGb(routeEstimatedGb(bitrate, bucket.estimateMinutes.tv));
+      const movieEstimate = routeFormatEstimatedGb(routeEstimatedGb(bitrate, bucket.estimateMinutes.movie));
+      updateLibraryRouteText(card, `[data-library-route-readout="estimate-${bucket.key}"]`, `If constant: 30m TV ~${tvEstimate}; 2h movie ~${movieEstimate}`);
+    });
+    updateLibraryRouteText(card, "[data-library-route-source-summary]", routeSourceSummary(values));
+    updateLibraryRouteText(card, '[data-library-route-summary="trigger"]', routeTriggerSummary(values.RouteThresholdMode));
+    updateLibraryRouteText(card, '[data-library-route-summary="pixel"]', routeHeightPixelSummary(boundaries));
+    updateLibraryRouteText(card, '[data-library-route-summary="consequence"]', routeConsequenceSummary(boundaries, values));
+    updateLibraryRouteText(card, '[data-library-route-summary="unknown"]', routeUnknownHeightSummary(values));
+  }
+
+  function applyLibraryRouteBoundary(card, boundary, rawHeight, options = {}) {
+    const height = Number(rawHeight);
+    if (!card || !Number.isFinite(height)) return false;
+    const values = boundary === "first"
+      ? typeof routeModel.valuesFromFirstBoundary === "function" ? routeModel.valuesFromFirstBoundary(height + (options.inputIsEnd === true ? 1 : 0)) : null
+      : typeof routeModel.valuesFromSecondBoundary === "function" ? routeModel.valuesFromSecondBoundary(height) : null;
+    if (!values) return false;
+    Object.entries(values).forEach(([key, value]) => {
+      setLibraryRouteOverrideValue(card, key, routeFormatPercent(value));
+    });
+    syncLibraryRouteReadouts(card);
+    return true;
+  }
+
+  function resetLibraryRouteBoundary(card, boundary) {
+    const keys = boundary === "first"
+      ? ["Route1080pUpperHeightTolerancePercent", "Route1440pLowerHeightTolerancePercent"]
+      : ["Route1440pUpperHeightTolerancePercent", "Route4KLowerHeightTolerancePercent"];
+    keys.forEach((key) => {
+      setLibraryRouteOverrideValue(card, key, defaultSettingValue(key), { reset: true });
+    });
+    syncLibraryRouteReadouts(card);
   }
 
   function localInheritedFields(card) {
@@ -1146,7 +1791,7 @@
     return profileCardsFromDom().map((card, index) => profileFromCard(card, index + 1));
   }
 
-  function generatedPromotionRules(libraryProfiles, existingRules) {
+  function generatedPromotionRules(libraryProfiles) {
     const rules = [];
     libraryProfiles.forEach((profile) => {
       if (!profile.enabled || !profile.promotion_enabled || !profile.source_path || !profile.promotion_destination) return;
@@ -1160,13 +1805,6 @@
         library_id: profile.id,
         designation: profile.designation,
       });
-    });
-    const seen = new Set(rules.map((rule) => `${rule.source_root}|${rule.destination_root}`.toLowerCase()));
-    (Array.isArray(existingRules) ? existingRules : []).forEach((rule) => {
-      if (!rule || typeof rule !== "object") return;
-      const key = `${rule.source_root || ""}|${rule.destination_root || ""}`.toLowerCase();
-      if (seen.has(key)) return;
-      rules.push(rule);
     });
     return rules;
   }
@@ -1221,10 +1859,9 @@
       if (movie && movie.source_path) patch.SourceMovies = movie.source_path;
       if (tv && tv.source_path) patch.SourceTV = tv.source_path;
       if (movie && movie.output_path) patch.Outsource = movie.output_path;
-      if (libraryProfiles.some((profile) => profile.enabled && profile.promotion_enabled)) {
-        patch.FinalLibraryPromotionEnabled = true;
-      }
-      patch.FinalLibraryPromotionRules = generatedPromotionRules(libraryProfiles, config().FinalLibraryPromotionRules);
+      const promotionEnabled = libraryProfiles.some((profile) => profile.enabled && profile.promotion_enabled);
+      patch.FinalLibraryPromotionEnabled = promotionEnabled;
+      patch.FinalLibraryPromotionRules = generatedPromotionRules(libraryProfiles);
       lastLibraryProfileResetRequest = collectLibraryProfileResetsFromDom();
       if (typeof window.writeSettingsPatchJson === "function") {
         window.writeSettingsPatchJson(patch, "LibraryProfiles patch built. Preview/Save will validate paths, overrides, and mirrored Movie/TV compatibility keys.");
@@ -1255,8 +1892,10 @@
     const patchStatus = byId("settings-patch-status")?.textContent || "No patch";
     const keys = currentSettingsPatchKeys();
     const prunedWarnings = prunedOverrideWarningLines();
+    const mp4Warnings = mp4CompatibilityWarningLines();
     const lines = [
       message,
+      ...mp4Warnings,
       ...prunedWarnings,
       `Shared settings patch status: ${patchStatus}`,
       `Staged keys: ${keys.length ? keys.join(", ") : "none"}`,
@@ -1299,7 +1938,7 @@
   }
 
   function renderLibraryWarningSummary() {
-    setLibraryFeedback(prunedOverrideWarningLines().join("\n"));
+    setLibraryFeedback([...mp4CompatibilityWarningLines(), ...prunedOverrideWarningLines()].join("\n"));
   }
 
   function addLibraryCard() {
@@ -1371,6 +2010,7 @@
       updateOverrideRowState(row, false);
       if (wasOverride) row.dataset.libraryResetPending = "true";
     });
+    syncLibraryRouteReadouts(card);
     try {
       profiles = profileCardsFromDom().map((profileCard, index) => profileFromCard(profileCard, index + 1));
     } catch (error) {
@@ -1398,6 +2038,13 @@
         if (!(target instanceof Element)) return;
         const card = target.closest?.(".settings-library-card");
         if (!card) return;
+        const boundaryReset = target.getAttribute?.("data-library-route-boundary-reset");
+        if (boundaryReset) {
+          resetLibraryRouteBoundary(card, boundaryReset);
+          markLibraryEditorDirty();
+          renderLibraryWarningSummary();
+          return;
+        }
         const defaultField = target.getAttribute?.("data-library-use-default");
         if (defaultField) {
           const input = card.querySelector(`[data-library-field="${defaultField}"]`);
@@ -1426,6 +2073,8 @@
             updateOverrideRowState(row, false);
             row.dataset.libraryResetPending = "true";
           }
+          syncLibraryRouteReadouts(card);
+          syncLibraryCompatibilityAvailability(card);
           markLibraryEditorDirty();
           renderLibraryWarningSummary();
         }
@@ -1439,8 +2088,8 @@
         if (field === "name") {
           const pane = card.closest?.("[data-library-profile-pane]");
           const tabId = pane?.getAttribute("data-library-profile-pane") || card.dataset.libraryId || "";
-          const tab = Array.from(byId("settings-library-tab-bar")?.querySelectorAll("[data-library-profile-tab]") || [])
-            .find((item) => item.getAttribute("data-library-profile-tab") === tabId);
+          const tab = Array.from(byId("settings-library-profile-nav")?.querySelectorAll("[data-library-profile-nav]") || [])
+            .find((item) => item.getAttribute("data-library-profile-nav") === tabId);
           if (tab) tab.textContent = text(target.value) || (tabId === "tv" ? "TV" : tabId === "movies" ? "Movies" : "Library");
           renderActiveLibraryCommandState();
         }
@@ -1458,6 +2107,8 @@
             delete row.dataset.libraryResetPending;
             updateOverrideRowState(row, true);
           }
+          syncLibraryRouteReadouts(card);
+          syncLibraryCompatibilityAvailability(card);
         }
         if (field || target.matches?.("[data-library-override-control]")) markLibraryEditorDirty();
         renderLibraryWarningSummary();
@@ -1465,10 +2116,41 @@
       list.addEventListener("change", (event) => {
         const target = event.target;
         const field = target instanceof Element ? target.getAttribute?.("data-library-field") : "";
+        const compatibilitySelect = target instanceof Element ? target.getAttribute?.("data-library-compatibility-select") : null;
+        const routeBoundary = target instanceof Element ? target.getAttribute?.("data-library-route-boundary-input") : "";
+        if (compatibilitySelect !== null) {
+          const card = target.closest?.(".settings-library-card");
+          if (card) {
+            const presetId = String(target.value || "");
+            const changed = presetId
+              ? applyLibraryCompatibilityPreset(card, presetId)
+              : clearLibraryCompatibilityPreset(card, "mp4_compatibility");
+            if (changed) {
+              profiles = profileCardsFromDom().map((profileCard, index) => profileFromCard(profileCard, index + 1));
+              markLibraryEditorDirty();
+              setText("settings-libraries-status", presetId
+                ? `${activeLibraryName(card)} MP4 compatibility staged`
+                : `${activeLibraryName(card)} MP4 compatibility cleared`);
+            }
+          }
+          renderLibraryWarningSummary();
+          return;
+        }
+        if (routeBoundary) {
+          const card = target.closest?.(".settings-library-card");
+          if (card) {
+            applyLibraryRouteBoundary(card, routeBoundary, target.value, { inputIsEnd: routeBoundary === "first" });
+            markLibraryEditorDirty();
+          }
+          renderLibraryWarningSummary();
+          return;
+        }
         if (field === "designation") {
           const card = target.closest?.(".settings-library-card");
           if (card) {
             rerenderLibraryCard(card);
+            syncLibraryRouteReadouts(card);
+            syncLibraryCompatibilityAvailability(card);
             markLibraryEditorDirty();
           }
           renderLibraryWarningSummary();
@@ -1479,6 +2161,11 @@
           if (row) {
             delete row.dataset.libraryResetPending;
             updateOverrideRowState(row, true);
+          }
+          const card = target.closest?.(".settings-library-card");
+          if (card) {
+            syncLibraryRouteReadouts(card);
+            syncLibraryCompatibilityAvailability(card);
           }
         }
         if (target instanceof Element && (target.getAttribute?.("data-library-field") || target.matches?.("[data-library-override-control]"))) {

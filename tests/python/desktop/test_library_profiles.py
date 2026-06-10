@@ -15,13 +15,16 @@ from mediapipeline.core.config.library_profiles import (
     LIBRARY_OVERRIDE_KEYS_BY_GROUP,
     apply_library_profile_resets,
     coerce_library_overrides,
+    effective_library_profile_for_source_path,
     effective_library_profiles_from_config,
     library_profiles_from_wizard_payload,
     library_override_state,
     library_profile_signature,
     library_profile_state_from_config,
     library_profiles_from_config,
+    library_compatibility_presets,
     mirror_legacy_keys_from_library_profiles,
+    mp4_compatibility_preset,
     normalize_library_profile_config_values,
     promotion_rules_from_library_profiles,
     resolve_effective_library_settings,
@@ -176,6 +179,39 @@ class LibraryProfileTests(unittest.TestCase):
 
     def test_backend_library_override_keys_have_field_metadata(self) -> None:
         self.assertEqual(sorted(_backend_library_override_keys() - set(CONFIG_MANAGED_KEYS)), [])
+
+    def test_mp4_compatibility_preset_is_library_override_only_and_validates(self) -> None:
+        preset = mp4_compatibility_preset()
+        self.assertEqual(preset["id"], "mp4_compatibility")
+        self.assertEqual(library_compatibility_presets()[0]["id"], "mp4_compatibility")
+        override_keys = _backend_library_override_keys()
+        for group, values in preset["overrides"].items():
+            with self.subTest(group=group):
+                self.assertIn(group, LIBRARY_OVERRIDE_KEYS_BY_GROUP)
+            for key in values:
+                with self.subTest(group=group, key=key):
+                    self.assertIn(key, override_keys)
+                    self.assertIn(key, LIBRARY_OVERRIDE_KEYS_BY_GROUP[group])
+
+        config = _base_config()
+        config["LibraryProfiles"] = [
+            {
+                "id": "movies",
+                "name": "Movies",
+                "enabled": True,
+                "designation": "movie",
+                "source_path": r"C:\Incoming\Movies",
+                "output_path": r"D:\Processed",
+                "overrides": preset["overrides"],
+            }
+        ]
+        errors, warnings = validate_config_values(
+            config,
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+        self.assertEqual(errors, [])
+        self.assertIsInstance(warnings, list)
 
     def test_backend_library_override_metadata_matches_persisted_groups(self) -> None:
         self.assertEqual(tuple(LIBRARY_OVERRIDE_KEYS_BY_GROUP), ("editor", "video", "subtitles", "audio"))
@@ -1699,6 +1735,167 @@ class LibraryProfileTests(unittest.TestCase):
 
         self.assertTrue(any("Beta shares an enabled source root with Alpha" in error for error in errors))
         self.assertFalse(any("shares a source root" in warning for warning in warnings))
+
+    def test_nested_enabled_source_roots_warn(self) -> None:
+        values = _base_config()
+        values["LibraryProfiles"] = [
+            {"id": "movies", "designation": "movie", "source_path": r"C:\Media", "output_path": r"D:\Processed"},
+            {"id": "tv", "designation": "tv", "source_path": r"C:\Media\TV", "output_path": r"D:\Processed"},
+        ]
+
+        errors: list[str] = []
+        warnings: list[str] = []
+        validate_library_profiles(
+            values,
+            errors,
+            warnings,
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        self.assertEqual(errors, [])
+        self.assertTrue(any("source root is inside" in warning for warning in warnings))
+
+    def test_sibling_source_roots_do_not_warn(self) -> None:
+        values = _base_config()
+        values["LibraryProfiles"] = [
+            {"id": "movies", "designation": "movie", "source_path": r"C:\Media\Movies", "output_path": r"D:\Processed"},
+            {"id": "tv", "designation": "tv", "source_path": r"C:\Media\TV", "output_path": r"D:\Processed"},
+        ]
+
+        errors: list[str] = []
+        warnings: list[str] = []
+        validate_library_profiles(
+            values,
+            errors,
+            warnings,
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        self.assertEqual(errors, [])
+        self.assertFalse(any("source root is inside" in warning for warning in warnings))
+
+    def test_duplicate_movies_id_keeps_first_occurrence(self) -> None:
+        values = _base_config()
+        values["LibraryProfiles"] = [
+            {"id": "movies", "name": "First Movies", "designation": "movie", "source_path": r"C:\A", "output_path": r"D:\Processed"},
+            {"id": "movies", "name": "Second Movies", "designation": "movie", "source_path": r"C:\B", "output_path": r"D:\Processed"},
+        ]
+
+        profiles = library_profiles_from_config(values)
+        movies = [profile for profile in profiles if profile["id"] == "movies"]
+
+        self.assertEqual(len(movies), 1)
+        self.assertEqual(movies[0]["name"], "First Movies")
+
+    def test_effective_profile_for_path_resolves_dotdot_and_case(self) -> None:
+        values = _base_config()
+        values["LibraryProfiles"] = [
+            {"id": "movies", "designation": "movie", "source_path": r"C:\Media\Movies", "output_path": r"D:\Processed"},
+            {"id": "tv", "designation": "tv", "source_path": r"C:\Media\TV", "output_path": r"D:\Processed"},
+        ]
+
+        profile = effective_library_profile_for_source_path(values, r"C:\Media\Other\..\tv\Show\ep.mkv")
+
+        self.assertIsNotNone(profile)
+        self.assertEqual(profile["id"], "tv")
+
+    def test_effective_profile_for_path_honors_selection(self) -> None:
+        values = _base_config()
+        values["LibraryProfiles"] = [
+            {"id": "movies", "designation": "movie", "source_path": r"C:\Media", "output_path": r"D:\Processed"},
+            {"id": "tv", "designation": "tv", "source_path": r"C:\Media\TV", "output_path": r"D:\Processed"},
+        ]
+        path = r"C:\Media\TV\Show\ep.mkv"
+
+        # Default: the deepest matching enabled source root wins.
+        self.assertEqual(effective_library_profile_for_source_path(values, path)["id"], "tv")
+        # Selection: a selected enabled profile whose root contains the path wins.
+        self.assertEqual(
+            effective_library_profile_for_source_path(values, path, selected_profile_id="movies")["id"],
+            "movies",
+        )
+
+    def test_apply_resets_returns_error_on_malformed_profiles(self) -> None:
+        values = _base_config()
+        values["LibraryProfiles"] = "not-json-or-list{"
+
+        updated, errors = apply_library_profile_resets(
+            values,
+            [{"library_id": "movies", "path_fields": ["output_path"]}],
+        )
+
+        self.assertTrue(any("LibraryProfiles is invalid" in error for error in errors))
+        self.assertEqual(updated.get("LibraryProfiles"), "not-json-or-list{")
+
+    def test_custom_library_name_colliding_with_builtin_warns(self) -> None:
+        values = _base_config()
+        values["LibraryProfiles"] = [
+            {"id": "movies", "designation": "movie", "source_path": r"C:\Incoming\Movies", "output_path": r"D:\Processed"},
+            {"id": "tv", "designation": "tv", "source_path": r"C:\Incoming\TV", "output_path": r"D:\Processed"},
+            {"name": "Show", "designation": "tv", "source_path": r"C:\Incoming\Shows", "output_path": r"D:\Processed"},
+        ]
+
+        errors: list[str] = []
+        warnings: list[str] = []
+        validate_library_profiles(
+            values,
+            errors,
+            warnings,
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        self.assertTrue(any("maps to the reserved 'tv' library" in warning for warning in warnings))
+
+    def test_explicit_inherited_output_path_follows_tracking(self) -> None:
+        values = _base_config()  # Outsource = D:\Processed
+        values["LibraryProfiles"] = [
+            {
+                "id": "movies",
+                "designation": "movie",
+                "source_path": r"C:\Incoming\Movies",
+                "output_path": r"E:\CustomOut",
+                "default_tracking": {"inherited_fields": ["output_path"]},
+            },
+            {"id": "tv", "designation": "tv", "source_path": r"C:\Incoming\TV", "output_path": r"D:\Processed"},
+        ]
+
+        movies = next(p for p in library_profiles_from_config(values) if p["id"] == "movies")
+
+        # Explicit inherited_fields wins: the typed output is treated as inherited from Outsource.
+        self.assertEqual(movies["output_path"], r"D:\Processed")
+        self.assertIn("output_path", movies["default_tracking"]["inherited_fields"])
+
+    def test_base_config_errors_not_attributed_to_profile_override(self) -> None:
+        values = _base_config()
+        values["MovieRoute1080pTargetSizeGB"] = -1  # pre-existing invalid base value, untouched by the override
+        values["LibraryProfiles"] = [
+            {
+                "id": "movies",
+                "designation": "movie",
+                "source_path": r"C:\Incoming\Movies",
+                "output_path": r"D:\Processed",
+                "overrides": {"audio": {"AudioMaxChannels": 6}},
+            },
+            {"id": "tv", "designation": "tv", "source_path": r"C:\Incoming\TV", "output_path": r"D:\Processed"},
+        ]
+
+        errors: list[str] = []
+        warnings: list[str] = []
+        validate_library_profiles(
+            values,
+            errors,
+            warnings,
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        self.assertFalse(
+            any("override is invalid" in error and "MovieRoute1080pTargetSizeGB" in error for error in errors),
+            msg=f"base error mis-attributed to override: {errors}",
+        )
 
 
 if __name__ == "__main__":

@@ -78,7 +78,7 @@ function Test-MediaPipelineLibraryProfileEnabled {
 
     $enabled = Get-MediaPipelineProfileProperty -Profile $Profile -Name 'enabled' -Default $true
     if ($enabled -is [string]) {
-        $enabled = $enabled.Trim().ToLowerInvariant() -notin @('false','0','no','off','disabled')
+        $enabled = $enabled.Trim().ToLowerInvariant() -notin @('false','0','no','off','disabled','disable')
     }
     return [bool]$enabled
 }
@@ -170,7 +170,7 @@ function Get-MediaPipelineLibraryProfileEvidenceForPath {
     $profileId = [string](Get-MediaPipelineProfileProperty -Profile $profile -Name 'id' -Default '')
     $promotionEnabledValue = Get-MediaPipelineProfileProperty -Profile $profile -Name 'promotion_enabled' -Default $false
     if ($promotionEnabledValue -is [string]) {
-        $promotionEnabledValue = $promotionEnabledValue.Trim().ToLowerInvariant() -in @('true','1','yes','on','enabled')
+        $promotionEnabledValue = $promotionEnabledValue.Trim().ToLowerInvariant() -in @('true','1','yes','on','enabled','enable')
     }
     $promotionEnabled = [bool]$promotionEnabledValue
     $promotionDestinationRoot = [string](Get-MediaPipelineProfileProperty -Profile $profile -Name 'promotion_destination' -Default '')

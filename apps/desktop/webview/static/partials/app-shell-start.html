@@ -5,15 +5,16 @@
         <div id="app-version" class="brand-version">2026.06.04.001</div>
       </div>
       <nav class="nav">
-        <button type="button" class="nav-button is-active" data-page="home">Dashboard</button>
+        <button type="button" class="nav-button is-active" data-page="home" aria-current="page">Home</button>
         <button type="button" class="nav-button" data-page="launch">Launch</button>
         <button type="button" class="nav-button" data-page="live">Telemetry</button>
         <button type="button" class="nav-button" data-page="metrics">Metrics</button>
         <button type="button" class="nav-button" data-page="queue">Queue</button>
-        <button type="button" class="nav-button" data-page="completed">Output</button>
+        <button type="button" class="nav-button" data-page="completed">Completed Output</button>
+        <button type="button" class="nav-button" data-page="pending">Pending Publish</button>
         <button type="button" class="nav-button" data-page="rename">Rename</button>
         <button type="button" class="nav-button" data-page="reports">Reports</button>
-        <button type="button" class="nav-button" data-page="network">Workers</button>
+        <button type="button" class="nav-button" data-page="network">Network Workers</button>
         <button type="button" class="nav-button" data-page="libraries">Libraries</button>
         <button type="button" class="nav-button" data-page="schedule">Schedule</button>
         <button type="button" class="nav-button" data-page="settings">Settings</button>
@@ -33,9 +34,9 @@
           <p class="topbar-event-ticker" id="topbar-event-ticker" aria-live="polite">Latest event: waiting for backend snapshot...</p>
         </div>
         <div class="topbar-actions">
-          <span id="refresh-health" class="refresh-health" data-state="unknown" title="Click to open Diagnostics">Refresh: starting</span>
-          <span id="close-readiness" class="close-readiness" data-state="unknown" title="Click to open Diagnostics">Close: checking</span>
-          <div id="pipeline-sparkline" class="pipeline-sparkline" title="Last 20 pipeline events" aria-label="Recent pipeline event history" aria-hidden="true"></div>
+          <button type="button" id="refresh-health" class="refresh-health" data-state="unknown" title="Open Diagnostics" aria-label="Open Diagnostics for refresh health">Refresh: starting</button>
+          <button type="button" id="close-readiness" class="close-readiness" data-state="unknown" title="Open Diagnostics" aria-label="Open Diagnostics for close readiness">Close: checking</button>
+          <div id="pipeline-sparkline" class="pipeline-sparkline" aria-hidden="true"></div>
           <button type="button" id="advanced-toggle" class="secondary-button" aria-pressed="false">Advanced</button>
           <button type="button" id="evidence-toggle" class="secondary-button" aria-pressed="false">Hide Evidence</button>
           <button type="button" id="customize-layout-btn" class="secondary-button" aria-pressed="false" title="Open the Layout Editor drawer">Customize</button>
@@ -50,7 +51,7 @@
         <div class="layout-editor-header">
           <div>
             <h2>Layout Editor</h2>
-            <p id="layout-editor-page-label" class="layout-editor-page-label">Page: Dashboard</p>
+            <p id="layout-editor-page-label" class="layout-editor-page-label">Page: Home</p>
           </div>
           <button type="button" id="layout-editor-done" class="secondary-button">Done</button>
         </div>

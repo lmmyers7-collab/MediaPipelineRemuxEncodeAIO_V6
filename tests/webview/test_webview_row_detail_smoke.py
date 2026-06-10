@@ -555,6 +555,60 @@ def _node_runner_source() -> str:
           "Current encoded/remuxed: 0 / 1",
           "Current table rule: a row appears here once per expected output path",
         ]);
+        const libraryFilterRows = [
+          Object.assign({}, currentBaseRow, {
+            row_key: "library-filter-anime",
+            lookup_title: "Anime Library Match",
+            output_file: "Anime Library Match.mkv",
+            output_path: "C:/Output/Anime/Anime Library Match.mkv",
+            library_id: "anime",
+            library_name: "Anime Library",
+            output_exists: true,
+          }),
+          Object.assign({}, currentBaseRow, {
+            row_key: "library-filter-movies",
+            lookup_title: "Movie Library Hidden",
+            output_file: "Movie Library Hidden.mkv",
+            output_path: "C:/Output/Movies/Movie Library Hidden.mkv",
+            library_id: "movies",
+            library_name: "Movie Library",
+            output_exists: true,
+          }),
+        ];
+        context.renderCompleted(Object.assign({}, payload.completed, {
+          count: libraryFilterRows.length,
+          rows: libraryFilterRows,
+        }));
+        const librarySelect = context.document.getElementById("completed-library-filter");
+        const animeLibraryOption = librarySelect.children.find((option) => option.textContent === "Anime Library");
+        if (!animeLibraryOption) {
+          throw new Error(`Completed library filter did not include Anime Library; got ${librarySelect.children.map((option) => option.textContent).join(", ")}`);
+        }
+        librarySelect.value = animeLibraryOption.value;
+        context.mediaPipelineCompletedView.renderCompletedRows();
+        const libraryFilteredRows = context.document.getElementById("completed-rows").children
+          .filter((row) => row.dataset && row.dataset.rowKey);
+        if (libraryFilteredRows.length !== 1 || libraryFilteredRows[0].dataset.rowKey !== "library-filter-anime") {
+          throw new Error(`Completed library filter should show only Anime Library row; got ${libraryFilteredRows.map((row) => row.dataset.rowKey).join(",")}`);
+        }
+        requireText("completed-filter-summary", [
+          "library=Anime Library",
+          "showing 1 of 2 rows",
+          "Hidden review rows: 1.",
+          "clear or change this filter before rerun, cleanup, or library decisions",
+        ]);
+        const libraryScope = context.completedCurrentFilterScope(libraryFilterRows);
+        if (!libraryScope.active || libraryScope.libraryLabel !== "Anime Library" || libraryScope.visibleRows !== 1 || libraryScope.totalRows !== 2) {
+          throw new Error(`Completed library filter scope mismatch: ${JSON.stringify(libraryScope)}`);
+        }
+        context.selectCompletedRow(libraryFilterRows[1]);
+        requireText("completed-detail", [
+          "Selected row visible in table: no",
+          "library=Anime Library",
+          "Hidden by current filters:",
+        ]);
+        librarySelect.value = "all";
+        context.mediaPipelineCompletedView.renderCompletedRows();
         context.renderCompleted(payload.completed);
         context.selectCompletedRow(payload.completed.rows[0]);
 
@@ -855,10 +909,10 @@ def _node_runner_source() -> str:
           context.document.getElementById("queue-filter").value = "definitely-no-queue-match";
           context.renderQueueRows();
           requireText("queue-filter-summary", [
-            "Queue filter: text=\"definitely-no-queue-match\"; status=all; view=all signals; showing 0 of 1 row.",
+            "Queue display filter: text=\"definitely-no-queue-match\"; status=all; view=all signals; showing 0 of 1 row.",
             "Hidden review rows: 1.",
             "clear or change this filter before launch decisions",
-            "Mutation guardrail: filtering the Queue table does not change backend launch scope",
+            "Mutation guardrail: display filtering the Queue table does not change backend launch scope",
           ]);
           requireText("queue-detail", [
             "Selected row visible in table: no",
@@ -869,7 +923,7 @@ def _node_runner_source() -> str:
           context.document.getElementById("queue-status-filter").value = "ready";
           context.renderQueueRows();
           requireText("queue-filter-summary", [
-            "Queue filter: text=none; status=ready/healthy; view=all signals; showing 0 of 1 row.",
+            "Queue display filter: text=none; status=ready/healthy; view=all signals; showing 0 of 1 row.",
             "Hidden review rows: 1.",
             "clear or change this filter before launch decisions",
           ]);
@@ -880,7 +934,7 @@ def _node_runner_source() -> str:
           context.document.getElementById("queue-investigation-filter").value = "priority";
           context.renderQueueRows();
           requireText("queue-filter-summary", [
-            "Queue filter: text=none; status=all; view=priority rows; showing 0 of 1 row.",
+            "Queue display filter: text=none; status=all; view=priority rows; showing 0 of 1 row.",
             "Hidden review rows: 1.",
             "clear or change this filter before launch decisions",
           ]);
@@ -889,7 +943,7 @@ def _node_runner_source() -> str:
           ]);
           context.resetQueueFilters();
           requireText("queue-filter-summary", [
-            "Queue filter: text=none; status=all; view=all signals; showing 1 of 1 row.",
+            "Queue display filter: text=none; status=all; view=all signals; showing 1 of 1 row.",
           ]);
           requireText("queue-detail", [
             "Selected row visible in table: yes",
@@ -1167,8 +1221,8 @@ def _node_runner_source() -> str:
             "Signals: backend do_not_drain; diagnostic error; missing payload; 2 missing sidecars; invalid/unreadable manifest; row error manifest parse failed",
             "Read first: Pending manifest -> Pending payload path -> Sidecar paths -> Last Stderr -> Run Logs",
             "Cross-check: Completed Manifest correlation -> Durable drain summary -> Queue/source route evidence before rerun -> Recovery class manifest_repair",
-            "Decision: do not run Publish Parked Outputs for this row until pending artifacts and logs explain the blocker.",
-            "Table status: failed",
+            "Decision: do not run Drain Parked Outputs for this row until pending artifacts and logs explain the blocker.",
+            "Table status: blocked",
             "Focused views: do not drain, missing payload, invalid manifest, missing sidecars",
             "Selected row visible in table: yes",
             "- do not drain: do_not_drain",

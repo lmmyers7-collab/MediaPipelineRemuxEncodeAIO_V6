@@ -1,0 +1,44 @@
+{
+  "id": "MP-CHANGE-2026-0609-002",
+  "title": "Quarantine undecodable-video tdarr sample fixtures",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "tooling",
+  "risk_level": "low",
+  "date_started": "2026-06-09",
+  "date_completed": "",
+  "summary": "Adds decodable-video verification to the TDARR sample fixture pipeline so header-only/undecodable upstream samples are quarantined out of generated test libraries instead of being linked in and producing guaranteed encode failures. The materializer now honours a 'video_decodable' inventory column and skips any sample marked 'false'; the (gitignored) downloader gained an ffprobe decodability check, a 'video_decodable' column, and a --verify-only mode to re-probe an existing pool without re-downloading.",
+  "reason": "Companion to MP-CHANGE-2026-0609-001. A full sweep of the tdarr sample pool (2316 files) found 124 samples whose container header declares a video stream with zero decodable packets (e.g. sample__2160__libx265__alac__30s__video.mkv -> tdarr-0698, plus many *.mp2 and libx265-in-wmv stress combos). These are faithfully downloaded (size+sha256 match) but cannot be encoded, so they only manufacture failures when materialized into the matrix library.",
+  "affected_areas": [
+    "tooling",
+    "tests",
+    "diagnostics"
+  ],
+  "behavior_before": "materialize_tdarr_test_library linked every inventory sample whose file existed, including undecodable-video samples, which then failed downstream encode. The downloader verified only byte size and sha256, with no decodability signal.",
+  "behavior_after": "TdarrSample carries a video_decodable field read from the inventory; materialize() partitions out samples where video_decodable=='false' (case/space-insensitive), skips them, and reports quarantined_samples in its summary. Absent/empty/'true'/'n/a'/'unknown' values are treated as include (backward compatible with pre-column inventories). The downloader computes video_decodable via a bounded ffprobe first-packet read on download and via a new --verify-only pass, and records undecodable_video_files in its summary.",
+  "files_touched": [
+    "src/mediapipeline/tools/dev/materialize_tdarr_test_library.py",
+    "tests/python/tooling/test_materialize_tdarr_test_library.py",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0609-002.json",
+    "docs/SESSION.md"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_materialize_tdarr_test_library.py::TdarrMatrixMaterializerTests::test_is_quarantined_sample_matches_only_false",
+    "tests/python/tooling/test_materialize_tdarr_test_library.py::TdarrMatrixMaterializerTests::test_materialize_skips_quarantined_undecodable_samples"
+  ],
+  "manual_validation": [
+    "py_compile of the downloader - exit 0",
+    "PYTHONPATH=src .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.tooling.test_materialize_tdarr_test_library - 6 tests OK",
+    "Full pool sweep via bundled ffprobe: 124 of 2316 files have undecodable video (35 declare a video stream with zero packets; 89 are fully rejected by ffprobe with 'Invalid data', mostly *.mp2/*.wmv stress muxes)",
+    "download_tdarr_samples.py --verify-only run to populate inventory video_decodable column (gitignored E: asset pool; inventory.csv/json backed up to *.pre-decodable.bak first). Final counts: 124 false, 165 n/a (audio-only), 2027 true, 0 unknown (= 2316)",
+    "End-to-end on the real inventory: load_inventory + partition_quarantined_samples -> 2192 included, 124 quarantined"
+  ],
+  "operator_validation_required": [
+    "Rebuild the matrix test library (materialize --rebuild) and confirm summary quarantined_samples == count of undecodable pool samples and those sources are absent from source/Movies + source/TV."
+  ],
+  "rollback_plan": "Revert the video_decodable field + partition_quarantined_samples/is_quarantined_sample additions in materialize_tdarr_test_library.py and the two new tests; restore the gitignored inventory from inventory.csv/json.pre-decodable.bak and revert the downloader edits (find_ffprobe/probe_video_decodable/annotate_decodability/verify_existing/--verify-only/--ffprobe and the video_decodable column).",
+  "related_changes": [
+    "MP-CHANGE-2026-0609-001"
+  ],
+  "notes": "The downloader (E:\\Videos\\TdarrMatrix\\TestFixtures\\TdarrSamples\\download_tdarr_samples.py) and the sample inventory live in the gitignored LocalBase/TestFixtures asset cache (symlinked to E:), so they are not repo-tracked and are recorded here for traceability only. The generator and its test were untracked in-flight files prior to this change (prior TDARR matrix audit gap session scope, non-S7). PROJECT_INDEX.md and docs/audit/latest.md were missing during this session (degraded mode). Summary refresh deferred to the pre-commit hook."
+}

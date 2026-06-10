@@ -1,6 +1,6 @@
       <section class="page" data-page-panel="libraries">
-        <h1 class="visually-hidden">Library Profiles</h1>
-        <div id="settings-library-tab-bar" class="settings-tab-bar settings-library-tab-bar" role="tablist" aria-label="Library profile tabs"></div>
+        <h1 class="visually-hidden">Libraries</h1>
+        <div id="settings-library-profile-nav" class="profile-nav settings-library-profile-nav" role="navigation" aria-label="Library profiles"></div>
 
         <section class="panel settings-library-actions-panel" data-panel-type="interactive">
           <div class="panel-heading">
@@ -31,5 +31,90 @@
           </div>
           <div id="settings-library-profile-list" class="settings-library-profile-list"></div>
           <pre id="settings-library-warning-summary" class="prose-block settings-library-feedback" hidden></pre>
+        </section>
+
+        <section class="panel settings-library-route-map-panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Library Route Map</h2>
+            <strong id="library-route-map-status">Not loaded</strong>
+          </div>
+          <div class="settings-library-route-map-toolbar" aria-label="Library route map selectors">
+            <label>Profile
+              <select id="library-route-map-profile-select"></select>
+            </label>
+            <label>Trace Row
+              <select id="library-route-trace-selector"></select>
+            </label>
+            <label>Compare From
+              <select id="library-route-compare-left"></select>
+            </label>
+            <label>Compare To
+              <select id="library-route-compare-right"></select>
+            </label>
+          </div>
+
+          <div id="library-route-map-graph" class="settings-library-route-map-graph"></div>
+
+          <div class="settings-library-route-map-grid">
+            <section class="settings-library-route-map-section" aria-labelledby="library-route-decision-title">
+              <h3 id="library-route-decision-title">Decision Matrix</h3>
+              <div class="table-wrap detail-table-wrap">
+                <table class="workflow-table">
+                  <thead><tr><th>Bucket</th><th>Height</th><th>Targets</th><th>Bitrate</th><th>Status</th></tr></thead>
+                  <tbody id="library-route-decision-rows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="settings-library-route-map-section" aria-labelledby="library-route-node-title">
+              <h3 id="library-route-node-title">Node Evidence</h3>
+              <div class="table-wrap detail-table-wrap">
+                <table class="workflow-table">
+                  <thead><tr><th>Node</th><th>Status</th><th>Evidence</th><th>Navigation</th></tr></thead>
+                  <tbody id="library-route-node-rows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="settings-library-route-map-section" aria-labelledby="library-route-trace-title">
+              <h3 id="library-route-trace-title">Selected-File Trace</h3>
+              <div class="table-wrap detail-table-wrap">
+                <table class="workflow-table">
+                  <thead><tr><th>Step</th><th>Status</th><th>Evidence</th><th>Gaps</th></tr></thead>
+                  <tbody id="library-route-trace-rows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="settings-library-route-map-section" aria-labelledby="library-route-compare-title">
+              <h3 id="library-route-compare-title">Profile Compare</h3>
+              <div class="table-wrap detail-table-wrap">
+                <table class="workflow-table">
+                  <thead><tr><th>Field</th><th>From</th><th>To</th><th>State</th></tr></thead>
+                  <tbody id="library-route-compare-rows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="settings-library-route-map-section" aria-labelledby="library-route-navigation-title">
+              <h3 id="library-route-navigation-title">Guided Policy Navigation</h3>
+              <div class="table-wrap detail-table-wrap">
+                <table class="workflow-table">
+                  <thead><tr><th>Profile</th><th>Control</th><th>Route Node</th><th>Handoff</th></tr></thead>
+                  <tbody id="library-route-navigation-rows"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="settings-library-route-map-section" aria-labelledby="library-route-validation-title">
+              <h3 id="library-route-validation-title">Validation Handoff</h3>
+              <div class="table-wrap detail-table-wrap">
+                <table class="workflow-table">
+                  <thead><tr><th>Proof Type</th><th>Status</th><th>Rows</th><th>Evidence</th></tr></thead>
+                  <tbody id="library-route-validation-rows"></tbody>
+                </table>
+              </div>
+            </section>
+          </div>
         </section>
       </section>

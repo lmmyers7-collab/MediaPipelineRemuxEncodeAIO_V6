@@ -76,6 +76,7 @@
     makeRowSelectable = domNoop,
     scrollSelectedRowIntoView = domNoop,
     renderOpenTargetActionGroups = () => ({ readFirst: 0, openNext: 0 }),
+    enhanceDataTables = () => 0,
   } = domTable;
 
   /**
@@ -116,6 +117,7 @@
     jsonDetailText,
     renderJsonDetail,
     renderOpenTargetActionGroups,
+    enhanceDataTables,
   };
   window.byId = byId;
   window.setText = setText;
@@ -133,4 +135,5 @@
   window.tableStatusMatchesFilter = tableStatusMatchesFilter;
   window.filterRowsByStatus = filterRowsByStatus;
   window.filterRowsByInvestigation = filterRowsByInvestigation;
+  window.enhanceDataTables = enhanceDataTables;
 })();

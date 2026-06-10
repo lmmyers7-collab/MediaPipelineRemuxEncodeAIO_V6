@@ -469,7 +469,7 @@
 
   function _layoutClickTabButton(page, datasetKey, value) {
     if (!page || !datasetKey || value === undefined) return false;
-    const button = Array.from(page.querySelectorAll(".settings-tab-btn"))
+    const button = Array.from(page.querySelectorAll(".settings-tab-btn, .settings-section-nav-btn, .profile-nav-btn"))
       .find((candidate) => candidate.dataset?.[datasetKey] === value);
     if (!button) return false;
     button.click();
@@ -988,7 +988,8 @@
     for (const [paneKey, buttonKey] of pairs) {
       const tab = container.dataset?.[paneKey];
       if (!tab || !page) continue;
-      const button = page.querySelector(`.settings-tab-btn[data-${buttonKey.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`)}="${tab}"]`);
+      const dataAttribute = buttonKey.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
+      const button = page.querySelector(`.settings-tab-btn[data-${dataAttribute}="${tab}"], .settings-section-nav-btn[data-${dataAttribute}="${tab}"], .profile-nav-btn[data-${dataAttribute}="${tab}"]`);
       const label = button?.textContent?.trim();
       if (label) return label;
     }

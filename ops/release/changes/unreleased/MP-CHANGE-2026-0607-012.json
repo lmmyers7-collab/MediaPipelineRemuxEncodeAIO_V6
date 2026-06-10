@@ -1,0 +1,46 @@
+{
+  "id": "MP-CHANGE-2026-0607-012",
+  "title": "Implement Library Route Map phase 3",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-07",
+  "date_completed": "2026-06-07",
+  "summary": "Add backend-authored Library Profile compare/diff evidence for route, path, video, subtitle, and audio settings.",
+  "reason": "Operators need a safe profile-to-profile comparison before staging policy edits through the existing settings Preview/Save path.",
+  "affected_areas": [
+    "library_profiles",
+    "local_api",
+    "webview"
+  ],
+  "behavior_before": "Library Profile comparisons were implicit in individual controls and not exposed as a backend-authored diff.",
+  "behavior_after": "A read-only compare endpoint and Libraries panel show explicit/inherited states, value equality, designation filtering, and changed fields between two profiles.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/librariesRouteMap.js",
+    "apps/desktop/webview/static/partials/page-libraries.html",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0607-012.json",
+    "src/mediapipeline/core/library/facade.py",
+    "src/mediapipeline/core/library/route_map.py",
+    "src/mediapipeline/desktop/api/contract_read.py",
+    "src/mediapipeline/desktop/api/read_payloads_libraries.py",
+    "src/mediapipeline/desktop/api/routes_read.py",
+    "tests/python/core/library/test_route_map.py",
+    "tests/python/desktop/test_library_route_map_api.py",
+    "tests/webview/test_webview_settings_libraries.py"
+  ],
+  "tests_added": [
+    "tests/python/core/library/test_route_map.py",
+    "tests/python/desktop/test_library_route_map_api.py"
+  ],
+  "manual_validation": [
+    "profile compare edge cases covered: explicit/inherited state, value equality, designation not-applicable rows"
+  ],
+  "rollback_plan": "Remove the compare builder route, WebView compare panel, related tests, summaries, and this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0607-009",
+    "MP-CHANGE-2026-0607-010"
+  ],
+  "affected_python_scripts": [],
+  "notes": "Compare is evidence-only and does not write settings or create a new save route."
+}

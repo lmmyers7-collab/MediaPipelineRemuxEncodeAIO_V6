@@ -52,6 +52,13 @@ from .library_profile_validation import (
     validate_raw_library_profile_override_groups,
 )
 from .library_profile_wizard import library_profiles_from_wizard_payload
+from .library_profile_compatibility import (
+    MP4_COMPATIBILITY_PRESET_ID,
+    library_compatibility_presets,
+    mp4_compatibility_applied,
+    mp4_compatibility_forced_fields,
+    mp4_compatibility_preset,
+)
 
 __all__ = [
     "DEFAULT_AUDIO_KEYS",
@@ -68,6 +75,7 @@ __all__ = [
     "LIBRARY_PROFILE_SCHEMA_VERSION",
     "LIBRARY_PROFILE_TOP_LEVEL_KEYS",
     "LIBRARY_PROFILE_TRACKING_VERSION",
+    "MP4_COMPATIBILITY_PRESET_ID",
     "apply_library_profile_resets",
     "coerce_library_overrides",
     "coerce_library_profiles",
@@ -89,8 +97,12 @@ __all__ = [
     "library_profile_state_from_config",
     "library_profiles_from_config",
     "library_profiles_from_wizard_payload",
+    "library_compatibility_presets",
     "library_setting_override_field_state",
     "mirror_legacy_keys_from_library_profiles",
+    "mp4_compatibility_applied",
+    "mp4_compatibility_forced_fields",
+    "mp4_compatibility_preset",
     "normalize_library_profile_config_values",
     "promotion_rules_from_library_profiles",
     "resolve_effective_library_settings",

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/publish/pending_policy_parts/trust_fields.py
 pipeline_stage: publish
 token_priority: high
 owner_domain: publish
-last_modified: 2026-05-30
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: 0425bdc20419982029d068693de4d9a4cb3630f2558e7522c8f8b900376b3a1a
+sha256: 02c8428303d5d8fbf66b559ca99a6efb6c2cdad45b39c9fe74f7517c20c7c219
 ---
 # `src/mediapipeline/core/publish/pending_policy_parts/trust_fields.py`
 

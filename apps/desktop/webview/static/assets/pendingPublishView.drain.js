@@ -70,7 +70,7 @@
   function pendingCurrentFilterScopeAction(scope = pendingCurrentFilterScope()) {
     const current = scope || {};
     if (!current.active) return "No display filter is active; visible table scope matches loaded Pending Publish rows.";
-    if (current.hiddenBlockedCount) return "Clear or change filters before drain. Blocked rows are hidden, but backend Publish Parked Outputs still sees all parked rows.";
+    if (current.hiddenBlockedCount) return "Clear or change filters before drain. Blocked rows are hidden, but backend Drain Parked Outputs still sees all parked rows.";
     if (current.hiddenReviewCount) return "Review hidden warning rows or clear filters before drain; display filters do not narrow backend drain scope.";
     if (current.hiddenCount) return "Confirm the hidden ready-looking rows are intentionally out of view; backend drain scope is still all loaded parked rows.";
     return "Filters are active but no loaded rows are hidden.";
@@ -92,7 +92,7 @@
     return [
       {
         signal: "Backend drain authority",
-        evidence: "/api/pipeline/start with mode=drain_pending_pushes owns Publish Parked Outputs.",
+        evidence: "/api/pipeline/start with mode=drain_pending_pushes owns Drain Parked Outputs.",
         meaning: "The backend validates manifests, payloads, destinations, and movement safety before publishing.",
         boundary: "WebView filters, selected rows, recovery-plan rows, and tables do not publish files.",
         status: "ready",
@@ -115,7 +115,7 @@
         signal: "Selected row",
         evidence: selected ? selected.local_file || selected.server_out || selected.state || "selected pending row" : "none selected",
         meaning: selected ? "Selection drives details, diagnostics, open targets, and selected recovery dry-run context only." : "No row sample selected for focused inspection.",
-        boundary: "Selecting a row cannot make Publish Parked Outputs drain only that row.",
+        boundary: "Selecting a row cannot make Drain Parked Outputs drain only that row.",
         status: selected ? "ready" : "changed",
       },
       {
@@ -161,9 +161,9 @@
     } else if (scope.hiddenBlockedCount || scope.hiddenReviewCount) {
       lines.push("First action: clear filters or inspect hidden review rows before drain; backend validation still sees parked rows hidden by the table.");
     } else if (Number(payload.issue_count || 0) || Number(payload.missing_local_count || 0)) {
-      lines.push("First action: inspect issue rows and build a dry-run recovery plan before Publish Parked Outputs.");
+      lines.push("First action: inspect issue rows and build a dry-run recovery plan before Drain Parked Outputs.");
     } else {
-      lines.push("First action: compare this scope preview with the drain decision checklist and button guard before pressing Publish Parked Outputs.");
+      lines.push("First action: compare this scope preview with the drain decision checklist and button guard before pressing Drain Parked Outputs.");
     }
     lines.push("Mutation guardrail: this preview cannot drain, repair, rewrite, move, delete, publish, accept outputs, write manifests, or bypass backend validation.");
     return lines;
@@ -268,7 +268,7 @@
     if (evidenceClass === "orphan-payload") return "Classify the orphan payload with Run Logs before cleanup, rerun, or manual move.";
     if (evidenceClass === "missing-sidecar") return "Compare manifest sidecar paths against disk before publishing or cleanup.";
     if (evidenceClass === "review") return "Build a selected-row recovery dry-run plan and inspect recommended open targets.";
-    return "Row looks ready, but only backend Publish Parked Outputs may move files.";
+    return "Row looks ready, but only backend Drain Parked Outputs may move files.";
   }
   function pendingDrainEvidenceLines(pending, rows) {
     const payload = pending || {};
@@ -293,7 +293,7 @@
     } else if (evidenceRows.length) {
       lines.push("First action: select the highest-risk evidence row below, inspect backend-selected row targets, then build a selected-row recovery dry-run plan if needed.");
     } else {
-      lines.push("First action: no loaded pending rows expose drain blockers. Publish Parked Outputs remains the backend-owned validation and movement path.");
+      lines.push("First action: no loaded pending rows expose drain blockers. Drain Parked Outputs remains the backend-owned validation and movement path.");
     }
     lines.push("Mutation guardrail: this board is read-only. It cannot drain, repair, rewrite, move, delete, or publish files.");
     return lines;
@@ -387,8 +387,8 @@
         limit: 5,
         targetId: "pending-drain-history",
         itemLabel: "pending publish drain command",
-        emptyHistoryText: "No pending publish drain history loaded. Refresh command history after running Publish Parked Outputs.",
-        emptyMatchText: "No pending publish drain commands found in command history. Use Publish Parked Outputs to start a backend-owned drain.",
+        emptyHistoryText: "No pending publish drain history loaded. Refresh command history after running Drain Parked Outputs.",
+        emptyMatchText: "No pending publish drain commands found in command history. Use Drain Parked Outputs to start a backend-owned drain.",
         lineFor: pendingDrainHistoryLine,
         footer: "Open Run Logs from Diagnostics when a drain reports warnings, errors, or no payload movement.",
       });
@@ -403,7 +403,7 @@
     if (!Array.isArray(entries) || !entries.length) {
       setText(
         "pending-drain-history",
-        "No pending publish drain history loaded. Refresh command history after running Publish Parked Outputs.",
+        "No pending publish drain history loaded. Refresh command history after running Drain Parked Outputs.",
       );
       renderPendingDrainCorrelation(getLastPendingPayload(), getLastPendingRows(), getLastPendingSnapshot(), entries);
       renderPendingPostDrainTrust(getLastPendingPayload(), getLastPendingRows(), getLastPendingSnapshot(), entries);
@@ -415,7 +415,7 @@
     if (!history.length) {
       setText(
         "pending-drain-history",
-        "No pending publish drain commands found in command history. Use Publish Parked Outputs to start a backend-owned drain.",
+        "No pending publish drain commands found in command history. Use Drain Parked Outputs to start a backend-owned drain.",
       );
       renderPendingDrainCorrelation(getLastPendingPayload(), getLastPendingRows(), getLastPendingSnapshot(), entries);
       renderPendingPostDrainTrust(getLastPendingPayload(), getLastPendingRows(), getLastPendingSnapshot(), entries);
@@ -489,13 +489,13 @@
     if (!Array.isArray(snapshot?.recent_events)) {
       return [
         "No snapshot events are loaded.",
-        "Refresh the WebView after running Publish Parked Outputs to see backend-authored drain events here.",
+        "Refresh the WebView after running Drain Parked Outputs to see backend-authored drain events here.",
       ];
     }
     if (!events.length) {
       return [
         "No recent publish_drained events found in the backend snapshot.",
-        "After a successful Publish Parked Outputs run, pipeline_events.jsonl should contain backend-authored publish_drained records.",
+        "After a successful Drain Parked Outputs run, pipeline_events.jsonl should contain backend-authored publish_drained records.",
         "Open Diagnostics > Pipeline Events or Run Logs if a drain command reported success but no events appear.",
       ];
     }
@@ -563,7 +563,7 @@
       return [
         "No durable pending-publish drain summary has been written yet.",
         `Expected path: ${summary.path || "not resolved"}`,
-        "Run Publish Parked Outputs or let the backend encounter deferred parked outputs to create this summary.",
+        "Run Drain Parked Outputs or let the backend encounter deferred parked outputs to create this summary.",
       ];
     }
 
@@ -698,7 +698,7 @@
     } else if (latest && pendingDrainCommandIssueLevel(latest) === "blocked") {
       lines.push("Correlation: latest drain command failed or was blocked. Treat any partial output movement as untrusted until Last Drain Summary and Completed output proof agree.");
     } else if (summary.read_error) {
-      lines.push("Correlation: the durable drain summary is unreadable. Open Diagnostics > State and Run Logs before retrying Publish Parked Outputs.");
+      lines.push("Correlation: the durable drain summary is unreadable. Open Diagnostics > State and Run Logs before retrying Drain Parked Outputs.");
     } else if (summary.stopped || Number(summary.error_count || 0) > 0) {
       lines.push("Correlation: the durable summary reports stopped/error state. Inspect summary items, Last Stderr, and remaining pending rows before rerun or drain.");
     } else if (Number(summary.remaining_count || 0) > 0 || rowList.length > 0) {
@@ -706,11 +706,11 @@
     } else if (!rowList.length && (Number(summary.succeeded_count || 0) > 0 || Number(summary.already_published_count || 0) > 0 || events.length)) {
       lines.push("Correlation: current pending rows are empty and backend drain evidence exists. Check Completed/output proof if an expected file is still missing.");
     } else if (!latest && summary.exists === false) {
-      lines.push("Correlation: no drain command or durable summary is loaded. This is expected before the first Publish Parked Outputs run.");
+      lines.push("Correlation: no drain command or durable summary is loaded. This is expected before the first Drain Parked Outputs run.");
     } else if (!rowList.length) {
       lines.push("Correlation: no parked rows are loaded. Do not rerun sources solely because Pending Publish is empty; compare Completed, Queue, and Run Logs first.");
     } else {
-      lines.push("Correlation: loaded rows do not expose blockers, but Publish Parked Outputs remains the only backend-owned movement path.");
+      lines.push("Correlation: loaded rows do not expose blockers, but Drain Parked Outputs remains the only backend-owned movement path.");
     }
     lines.push("Mutation guardrail: this correlation is read-only. It cannot repair, drain, rewrite, move, delete, publish, or bypass backend validation.");
     return lines;

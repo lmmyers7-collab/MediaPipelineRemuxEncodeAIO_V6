@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/partials/page-rename.html
 pipeline_stage: rename
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-05
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: dec791df164c7f3dc8ab8c1d8dc23505f4744635e5495ef78fb068bb4e801789
+sha256: e9e38f309f4906196c733e0cbd1a0f7e32486de841677320116ffebda6c9d15b
 ---
 # `apps/desktop/webview/static/partials/page-rename.html`
 

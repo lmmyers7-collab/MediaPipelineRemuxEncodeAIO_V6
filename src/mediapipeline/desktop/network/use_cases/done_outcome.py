@@ -23,6 +23,7 @@ class DoneOutcome:
     error_message: str
     queue_terminal: bool
     retry_on_failure: bool
+    output_path: str = ""
 
 
 class CoordinatorDoneOutcomeService:
@@ -54,6 +55,20 @@ class CoordinatorDoneOutcomeService:
 
         self._save_registry_after_done(outcome)
 
+    def _remove_queue_record_directly(self, source_path: str) -> bool:
+        """Last-resort removal when the app scheduler cannot run callbacks.
+
+        A failed ``root.after()`` means no UI loop is consuming
+        ``queue_records``, so removing from this thread cannot race the
+        scheduler path it replaces.
+        """
+        try:
+            self._remove_from_queue(source_path)
+        except Exception:
+            self._log.exception("Direct queue-record removal failed for %s.", source_path)
+            return False
+        return True
+
     def _handle_success(self, outcome: DoneOutcome) -> None:
         job = outcome.job
         source_path = job.source_path
@@ -62,20 +77,29 @@ class CoordinatorDoneOutcomeService:
                 0, lambda sp=source_path: self._remove_from_queue(sp)
             )
         except Exception as exc:
-            self._log.warning(
-                "Failed to schedule queue removal for completed job %s; queue record may remain claimable until manually removed: %s",
-                job.job_id[:8],
-                exc,
-            )
+            if self._remove_queue_record_directly(source_path):
+                self._log.info(
+                    "App scheduler unavailable for completed job %s; queue record removed directly: %s",
+                    job.job_id[:8],
+                    exc,
+                )
+            else:
+                self._log.warning(
+                    "Failed to schedule queue removal for completed job %s; queue record may remain claimable until manually removed: %s",
+                    job.job_id[:8],
+                    exc,
+                )
         out_mb = (outcome.output_size_bytes / (1024 * 1024)) if outcome.output_size_bytes else 0.0
+        output_path_suffix = f" Output: {outcome.output_path}" if outcome.output_path else ""
         self._log.info(
-            "Worker '%s' completed %s (%.1f s, %.1f MB out, status=%s, publish=%s/%s).",
+            "Worker '%s' completed %s (%.1f s, %.1f MB out, status=%s, publish=%s/%s).%s",
             job.worker_name or outcome.worker_id[:8],
             Path(job.source_path).name,
             outcome.elapsed_seconds, out_mb,
             outcome.completion_status or "processed",
             outcome.publish_state or "unknown",
             outcome.publish_mode or "",
+            output_path_suffix,
         )
         event_name = "job_completed"
         if outcome.publish_state and outcome.publish_state != "published":
@@ -88,6 +112,7 @@ class CoordinatorDoneOutcomeService:
                 f"{Path(job.source_path).name} ({outcome.elapsed_seconds:.1f}s, "
                 f"{out_mb:.1f} MB out, status={outcome.completion_status or 'processed'}, "
                 f"publish={outcome.publish_state or 'unknown'}/{outcome.publish_mode or ''})"
+                f"{output_path_suffix}"
             ),
             worker_id=outcome.worker_id,
             worker_name=job.worker_name,
@@ -129,11 +154,18 @@ class CoordinatorDoneOutcomeService:
                     0, lambda sp=source_path: self._remove_from_queue(sp)
                 )
             except Exception as exc:
-                self._log.warning(
-                    "Failed to schedule queue removal after done report for %s; queue record may remain claimable until manually removed: %s",
-                    Path(job.source_path).name,
-                    exc,
-                )
+                if self._remove_queue_record_directly(source_path):
+                    self._log.info(
+                        "App scheduler unavailable after done report for %s; queue record removed directly: %s",
+                        Path(job.source_path).name,
+                        exc,
+                    )
+                else:
+                    self._log.warning(
+                        "Failed to schedule queue removal after done report for %s; queue record may remain claimable until manually removed: %s",
+                        Path(job.source_path).name,
+                        exc,
+                    )
             else:
                 self._log.info(
                     "Retry policy: scheduled queue removal for %s (queue_terminal=%s, retry_on_failure=%s).",

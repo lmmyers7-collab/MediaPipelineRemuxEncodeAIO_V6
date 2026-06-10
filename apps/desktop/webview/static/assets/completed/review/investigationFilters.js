@@ -8,6 +8,8 @@
   function createCompletedReviewInvestigationFiltersModule(deps = {}) {
     const byId = typeof deps.byId === "function" ? deps.byId : () => null;
     const completedFilterFields = Array.isArray(deps.completedFilterFields) ? deps.completedFilterFields : [];
+    const completedLibraryFilterLabel = typeof deps.completedLibraryFilterLabel === "function" ? deps.completedLibraryFilterLabel : () => "all libraries";
+    const completedLibraryMatchesFilter = typeof deps.completedLibraryMatchesFilter === "function" ? deps.completedLibraryMatchesFilter : () => true;
     const completedSizeDeltaPercent = typeof deps.completedSizeDeltaPercent === "function" ? deps.completedSizeDeltaPercent : () => Number.NaN;
     const completedTableRowStatus = typeof deps.completedTableRowStatus === "function" ? deps.completedTableRowStatus : () => "unknown";
     const filterRows = typeof deps.filterRows === "function" ? deps.filterRows : null;
@@ -69,22 +71,26 @@
       const filterText = byId("completed-filter")?.value || "";
       const statusFilter = byId("completed-status-filter")?.value || "all";
       const investigationFilter = byId("completed-investigation-filter")?.value || "all";
+      const libraryFilter = byId("completed-library-filter")?.value || "all";
       const textMatches = filterRows ? filterRows([item], filterText, completedFilterFields).length > 0 : true;
       const status = completedTableRowStatus(item);
       const statusMatches = tableStatusMatchesFilter ? tableStatusMatchesFilter(status, statusFilter) : true;
       const normalizedInvestigation = String(investigationFilter || "all").trim().toLowerCase();
+      const normalizedLibrary = String(libraryFilter || "all").trim().toLowerCase();
       const investigationMatches = !normalizedInvestigation || normalizedInvestigation === "all" || completedMatchesInvestigationFilter(item, normalizedInvestigation);
-      const activeFilters = Boolean(String(filterText || "").trim()) || String(statusFilter || "all").toLowerCase() !== "all" || normalizedInvestigation !== "all";
+      const libraryMatches = !normalizedLibrary || normalizedLibrary === "all" || completedLibraryMatchesFilter(item, normalizedLibrary);
+      const activeFilters = Boolean(String(filterText || "").trim()) || String(statusFilter || "all").toLowerCase() !== "all" || normalizedInvestigation !== "all" || normalizedLibrary !== "all";
       const currentOutputPresent = item?.output_exists !== false;
       const reasons = [];
       if (!currentOutputPresent) reasons.push("not present in Current Output Status table");
       if (!textMatches) reasons.push(`text filter="${String(filterText || "").trim()}"`);
       if (!statusMatches) reasons.push(`status filter=${tableStatusFilterLabel ? tableStatusFilterLabel(statusFilter) : statusFilter}`);
       if (!investigationMatches) reasons.push(`investigation view=${completedInvestigationFilterLabel(investigationFilter)}`);
+      if (!libraryMatches) reasons.push(`library=${completedLibraryFilterLabel(libraryFilter)}`);
       const lines = [
         "Current filter visibility:",
-        `Selected row visible in table: ${currentOutputPresent && textMatches && statusMatches && investigationMatches ? "yes" : "no"}`,
-        `Active filters: ${activeFilters ? `text=${String(filterText || "").trim() || "none"}; status=${tableStatusFilterLabel ? tableStatusFilterLabel(statusFilter) : statusFilter}; view=${completedInvestigationFilterLabel(investigationFilter)}` : "none"}`,
+        `Selected row visible in table: ${currentOutputPresent && textMatches && statusMatches && investigationMatches && libraryMatches ? "yes" : "no"}`,
+        `Active filters: ${activeFilters ? `text=${String(filterText || "").trim() || "none"}; status=${tableStatusFilterLabel ? tableStatusFilterLabel(statusFilter) : statusFilter}; view=${completedInvestigationFilterLabel(investigationFilter)}; library=${completedLibraryFilterLabel(libraryFilter)}` : "none"}`,
       ];
       if (reasons.length) {
         lines.push(`Hidden by current filters: ${reasons.join("; ")}.`);

@@ -75,6 +75,8 @@ def _write_idle_progress_file(progress_file: Path | None, logger: Any = None) ->
         "CopyStartedAt": None,
         "CopyUpdatedAt": None,
         "SubtitleProgress": None,
+        "AudioProgress": None,
+        "PendingDrainProgress": None,
         "PauseRequested": False,
         "StopRequested": False,
         "ControlRequests": existing.get("ControlRequests"),

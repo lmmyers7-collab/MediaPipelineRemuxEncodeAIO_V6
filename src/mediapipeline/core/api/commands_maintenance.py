@@ -23,3 +23,7 @@ class LocalApiMaintenanceCommandPayloadMixin:
 
     def _maintenance_dependency_atlas_payload(self, request: dict[str, Any]) -> dict[str, Any]:
         return self.facade.run_dependency_atlas(request).to_mapping()
+
+    def _maintenance_dependency_atlas_open_folder_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        _ = request
+        return self.facade.open_dependency_atlas_folder().to_mapping()

@@ -88,8 +88,14 @@ def active_job_close_block_messages_for_service(
     *,
     max_items: int,
     psutil_module: Any,
+    job_kinds: set[str] | None = None,
 ) -> list[str]:
-    return active_job_close_block_messages(resolved, max_items=max_items, psutil_module=psutil_module)
+    return active_job_close_block_messages(
+        resolved,
+        max_items=max_items,
+        psutil_module=psutil_module,
+        job_kinds=job_kinds,
+    )
 
 
 def reconcile_active_job_records_for_service(

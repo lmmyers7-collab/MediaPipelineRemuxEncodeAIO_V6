@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/telemetryView.js
 pipeline_stage: observability
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-05
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: 8bff576bbc49f582c708d4c504f810c64c4ff724190af89ab823e16c3d43ff4e
+sha256: f276a9d4e669fa1e0c82f66cda71fa7630814d6396d4bf874dcb14ec4dd33e43
 ---
 # `apps/desktop/webview/static/assets/telemetryView.js`
 

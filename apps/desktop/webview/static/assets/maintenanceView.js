@@ -15,6 +15,7 @@
     "dependency-atlas-button",
   ];
   let maintenanceDryRunInFlight = false;
+  let dependencyAtlasOpenInFlight = false;
 
   function setMaintenanceDryRunBusy(isBusy) {
     maintenanceDryRunInFlight = Boolean(isBusy);
@@ -36,6 +37,12 @@
     setText(statusId, "Busy");
     if (detailId) setText(detailId, result.message);
     return true;
+  }
+
+  function setDependencyAtlasOpenBusy(isBusy) {
+    dependencyAtlasOpenInFlight = Boolean(isBusy);
+    const button = byId("dependency-atlas-open-folder-button");
+    if (button) button.disabled = dependencyAtlasOpenInFlight;
   }
 
   function hasMaintenanceLoaded() {
@@ -1309,6 +1316,31 @@
     }
   }
 
+  async function openDependencyAtlasFolder() {
+    if (dependencyAtlasOpenInFlight) return;
+    setDependencyAtlasOpenBusy(true);
+    try {
+      const result = await apiPost("/api/maintenance/dependency-atlas/open-folder", {});
+      appendCommandResult(result);
+      if (!result.ok) {
+        setText("dependency-atlas-status", result.severity || "Open failed");
+        setText("dependency-atlas-detail", result.message || "Dependency atlas folder could not be opened.");
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      appendCommandResult({
+        command: "maintenance.dependency_atlas_open_folder",
+        ok: false,
+        severity: "error",
+        message,
+      });
+      setText("dependency-atlas-status", "Error");
+      setText("dependency-atlas-detail", message);
+    } finally {
+      setDependencyAtlasOpenBusy(false);
+    }
+  }
+
   /**
    * Public namespace for the Maintenance page module.
    * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.
@@ -1377,6 +1409,7 @@
     renderMaintenanceDryRunHistory,
     runBackfillDryRun,
     runDependencyAtlas,
+    openDependencyAtlasFolder,
   };
   window.hasMaintenanceLoaded = hasMaintenanceLoaded;
   window.getLastMaintenance = getLastMaintenance;

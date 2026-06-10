@@ -272,7 +272,7 @@ def changed_key_risk_item(key: str, value: Any) -> RiskItem | None:
                 "medium",
                 "fallback_remux_size_guard",
                 key,
-                "SizeGuardMode tries remux fallback for oversized override-forced encodes; validate with real media before unattended batches.",
+                "SizeGuardMode tries remux fallback for oversized automatic size/bitrate-threshold encodes and rejects the oversized encode when remux is blocked; forced route overrides warn only. Validate with real media before unattended batches.",
             )
     if normalized_key in {"droptx3gafterconversion", "dropbdpgsafterconversion", "dropvobsubafterconversion", "dropassafterconversion"} and truthy_setting(value):
         return make_risk_item(
@@ -283,10 +283,10 @@ def changed_key_risk_item(key: str, value: Any) -> RiskItem | None:
         )
     if normalized_key == "outputcontainer" and str(value or "").strip().casefold() == "mp4":
         return make_risk_item(
-            "medium",
+            "high",
             "mp4_container_limits",
             key,
-            "OutputContainer is MP4. Incompatible subtitle types such as ASS/PGS/VobSub cannot be preserved in that container.",
+            "OutputContainer is MP4. MP4 compatibility keeps only H.264/H.265 video, one preferred-language EAC3 audio track, one external SRT sidecar, and strips embedded subtitles, fonts, attachments, chapters, and source metadata.",
         )
     if normalized_key == "validextensions":
         extensions = [str(item or "").strip().casefold() for item in value] if isinstance(value, list | tuple | set) else []

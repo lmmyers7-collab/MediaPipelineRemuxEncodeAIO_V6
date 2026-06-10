@@ -130,7 +130,7 @@ REPRESENTATIVE_DISPLAY_TAXONOMY = {
         "Size / Bitrate Guards",
         ("size", "verification"),
         "hard",
-        "Checked after encode. Warn-only records oversized output. Strict blocks publish. Fallback remux applies existing growth buffers to override-forced encodes, tries remux first, and keeps the oversized encode with warning evidence when remux is blocked.",
+        "Checked after encode. Warn-only records oversized output. Strict blocks publish. Fallback remux applies existing growth buffers to automatic size/bitrate-threshold encodes, tries safe remux first, and rejects the oversized encode for review when remux is blocked. Forced route overrides warn only.",
     ),
     "EncodeTuningPreset": (
         "NVENC Tuning",
@@ -304,6 +304,7 @@ class MetadataContractTests(unittest.TestCase):
         self.assertIn("Warn-only records oversized output", fields["SizeGuardMode"]["help_text"])
         self.assertIn("Strict blocks publish", fields["SizeGuardMode"]["help_text"])
         self.assertIn("Fallback remux applies existing growth buffers", fields["SizeGuardMode"]["help_text"])
+        self.assertIn("Forced route overrides warn only", fields["SizeGuardMode"]["help_text"])
         self.assertIn("Unknown-height movies use this 1080p target", fields["MovieRoute1080pTargetSizeGB"]["help_text"])
         self.assertIn("Unknown-height TV uses this 1080p target", fields["TVRoute1080pTargetSizeGB"]["help_text"])
         self.assertIn("known-height movie sources", fields["MovieRoute1440pTargetSizeGB"]["help_text"])
@@ -312,6 +313,20 @@ class MetadataContractTests(unittest.TestCase):
         self.assertIn("Direct-copy/remux bitrate cap", fields["Route1440pMaxVideoBitrateMbps"]["help_text"])
         self.assertIn("Applies only when encoding is required.", fields["EncodeTuningPreset"]["help_text"])
         self.assertIn("Applies only when encoding is required.", fields["VideoPreset"]["help_text"])
+        self.assertIn("60-frame lookahead", fields["EncodeTuningPreset"]["choice_help"]["balanced_nvenc"])
+        self.assertIn("raises AQ strength", fields["EncodeTuningPreset"]["choice_help"]["quality_nvenc"])
+        self.assertIn("disabled multipass", fields["EncodeTuningPreset"]["choice_help"]["fast_nvenc"])
+        self.assertIn("fragile hardware or Plex compatibility", fields["EncodeTuningPreset"]["choice_help"]["compatibility"])
+        self.assertIn("raw ExtraVideoFlags", fields["EncodeTuningPreset"]["choice_help"]["custom_legacy_flags"])
+        self.assertEqual(
+            fields["EncodeLadder"]["choice_help"]["auto"],
+            "Use TV balanced for TV sources and movie balanced for movie sources.",
+        )
+        self.assertIn("90M maxrate and 180M buffer", fields["EncodeLadder"]["choice_help"]["tv_balanced"])
+        self.assertIn("80M maxrate and 160M buffer", fields["EncodeLadder"]["choice_help"]["tv_space_saver"])
+        self.assertIn("120M maxrate and 240M buffer", fields["EncodeLadder"]["choice_help"]["movie_balanced"])
+        self.assertIn("160M maxrate and 320M buffer", fields["EncodeLadder"]["choice_help"]["movie_archive"])
+        self.assertIn("conservative encoder flags", fields["EncodeLadder"]["choice_help"]["plex_compat"])
 
     def test_library_profile_designation_metadata_scopes_movie_and_tv_fields_only(self) -> None:
         fields = _fields_by_key()

@@ -1,5 +1,5 @@
       <section class="page" data-page-panel="reports">
-        <h1 class="visually-hidden">Reports &amp; Audit</h1>
+        <h1 class="visually-hidden">Reports</h1>
         <div class="metric-grid">
           <section class="metric">
             <span class="metric-label">Failure JSON</span>
@@ -137,7 +137,27 @@
           <pre id="report-progress-summary" class="prose-block">No audit report progress loaded.</pre>
         </section>
 
-<section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="interactive">
+        <section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Start Audit</h2>
+            <strong id="report-audit-launch-status">Idle</strong>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label>
+              Library Root
+              <input id="report-audit-start-library-root" type="text" autocomplete="off">
+            </label>
+            <label class="check-row launch-check-row"><input id="report-audit-start-include-sidecars" type="checkbox" checked> Include Sidecars</label>
+            <label class="check-row launch-check-row"><input id="report-audit-start-show-console" type="checkbox"> Show Console</label>
+          </div>
+          <pre id="report-audit-launch-preflight" class="prose-block">No audit start request staged.</pre>
+          <div class="action-row action-row-left">
+            <button type="button" id="report-audit-start-button" class="primary-button">Start Audit</button>
+          </div>
+          <pre id="report-audit-launch-detail" class="prose-block">No audit launch result.</pre>
+        </section>
+
+        <section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Audit Log</h2>
             <strong id="audit-preview-status">No rows</strong>

@@ -200,6 +200,7 @@
       panel.classList.toggle("is-active", panel.dataset.launchTabPanel === selected);
     });
     try { localStorage.setItem(LAUNCH_TAB_STORAGE_KEY, selected); } catch (_) {}
+    if (typeof window.mediaPipelineAppLifecycle?.syncTabAccessibility === "function") window.mediaPipelineAppLifecycle.syncTabAccessibility();
     if (typeof updatePagePanelEmptyStates === "function") updatePagePanelEmptyStates();
   }
 
@@ -1231,6 +1232,7 @@
       return;
     }
     const startBtn = byId("pipeline-start-button");
+    const startBtnText = startBtn ? startBtn.textContent : "";
     if (startBtn) startBtn.textContent = "Launching…";
     setLaunchCommandBusy(true);
     setStartupBanner("Spooling up tasks…");
@@ -1277,6 +1279,7 @@
       }, request);
     } finally {
       setLaunchCommandBusy(false);
+      if (startBtn) startBtn.textContent = startBtnText || "Start Pipeline";
       syncPipelineModeControls();
     }
   }
@@ -1320,8 +1323,11 @@
       setText("pending-drain-status", "Canceled");
       return;
     }
+    const drainBtn = byId("pending-drain-button");
+    const drainBtnText = drainBtn ? drainBtn.textContent : "";
+    if (drainBtn) drainBtn.textContent = "Draining...";
     setLaunchCommandBusy(true);
-    setText("pending-drain-status", "Starting...");
+    setText("pending-drain-status", "Draining...");
     renderJsonDetail("pending-drain-detail", {
       label: "Submitted request",
       value: request,
@@ -1354,6 +1360,7 @@
       }, request);
     } finally {
       setLaunchCommandBusy(false);
+      if (drainBtn) drainBtn.textContent = drainBtnText || "Drain Parked Outputs";
     }
   }
 

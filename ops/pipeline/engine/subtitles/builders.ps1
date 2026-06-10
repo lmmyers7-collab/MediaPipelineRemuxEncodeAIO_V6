@@ -509,6 +509,15 @@ function Build-SubtitleArgsForFFmpeg {
             Codec   = $convertedSrtCodec
         }
         $allTracks.Add($track)
+        if (Test-ConfiguredOutputContainerIsMp4) {
+            $tx3gTracks.Add(@{
+                SrtPath    = $srtPath
+                StreamInfo = $entry
+                CueCount   = $ass.CueCount
+                OriginalPreserved = ($null -ne $keptAssTrack)
+                OriginalPreserveReason = $decision.OriginalPreserveReason
+            })
+        }
         if ($disp -eq "0") {
             Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $track
         }
@@ -730,6 +739,36 @@ function Build-SubtitleArgsForFFmpeg {
     }
 
     Set-SubtitleBuilderFallbackDefault -DefaultState $defaultState -Builder 'FFmpeg'
+
+    if (Test-ConfiguredOutputContainerIsMp4) {
+        $sidecarCandidates = @($tx3gTracks) + @($bdpgsTracks) + @($vobSubTracks)
+        $selectedSidecar = @(
+            $sidecarCandidates |
+                Where-Object { $_ -and $_.SrtPath } |
+                Sort-Object `
+                    @{ Expression = { if ($_.StreamInfo -and $_.StreamInfo.ContainsKey('IsDefault') -and [bool]$_.StreamInfo.IsDefault) { 0 } else { 1 } } }, `
+                    @{ Expression = { if ($_.StreamInfo -and $_.StreamInfo.ContainsKey('IsSupplemental') -and [bool]$_.StreamInfo.IsSupplemental) { 1 } else { 0 } } }, `
+                    @{ Expression = { if ($_.StreamInfo -and $_.StreamInfo.ContainsKey('SubtitleOrdinal')) { [int]$_.StreamInfo.SubtitleOrdinal } else { [int]::MaxValue } } }
+        )
+        $selectedTx3gTracks = if ($selectedSidecar.Count -gt 0) { @($selectedSidecar[0]) } else { @() }
+        if ($sidecarCandidates.Count -gt 1) {
+            Write-Log "${Context}SUB: MP4 compatibility selected one external SRT sidecar and dropped $($sidecarCandidates.Count - 1) additional converted SRT candidate(s)." "WARN"
+        } else {
+            Write-Log "${Context}SUB: MP4 compatibility emits no embedded subtitle tracks." "DEBUG"
+        }
+        return @{
+            ExtraInputs = @()
+            MapArgs     = @()
+            VideoFilterArgs = @()
+            TempFiles   = @($tempFiles)
+            Tx3gTracks  = @($selectedTx3gTracks)
+            BdpgsTracks = @()
+            VobSubTracks = @()
+            Failures    = @($failures)
+            TrackCount  = 0
+            DroppedEmbeddedTrackCount = $allTracks.Count
+        }
+    }
 
     # Number the SRT extra inputs (1, 2, 3...) and back-fill their MapArg
     $extraInputs = [System.Collections.Generic.List[string]]::new()

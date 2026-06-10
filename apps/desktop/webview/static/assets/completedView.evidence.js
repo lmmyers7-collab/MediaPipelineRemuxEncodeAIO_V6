@@ -13,6 +13,8 @@
       completedFilterFields,
       completedCurrentRows,
       completedInvestigationFilterLabel,
+      completedLibraryFilterLabel,
+      completedLibraryMatchesFilter,
       completedMatchesInvestigationFilter,
       completedReviewRowReasons,
       completedTableRowStatus,
@@ -60,6 +62,8 @@
         completedCurrentRows,
         completedFilterFields,
         completedInvestigationFilterLabel,
+        completedLibraryFilterLabel,
+        completedLibraryMatchesFilter,
         completedMatchesInvestigationFilter,
         completedReviewRowReasons,
         completedTableRowStatus,
@@ -77,6 +81,14 @@
       completedFilterScopeAction = completedEvidenceNoop,
       completedFilterScopeDetailLines = completedEvidenceNoop,
     } = completedEvidenceFilterScope;
+
+    function captureCompletedEvidenceSelectionScroll() {
+      return window.mediaPipelineDom?.captureScrollablePositions?.() || null;
+    }
+
+    function restoreCompletedEvidenceSelectionScroll(snapshot) {
+      if (snapshot) window.mediaPipelineDom?.restoreScrollablePositions?.(snapshot);
+    }
 
     const completedEvidenceAcceptanceModule = window.__completedViewEvidenceAcceptanceModule || {};
     delete window.__completedViewEvidenceAcceptanceModule;
@@ -544,6 +556,7 @@
     }
 
     function selectCompletedPendingProofRow(item, index = 0) {
+      const scrollSnapshot = captureCompletedEvidenceSelectionScroll();
       state.selectedCompletedPendingProofKey = completedPendingProofRowKey(item, index);
       if (item?.completed?.row_key) {
         state.selectedCompletedRowKey = item.completed.row_key;
@@ -558,6 +571,7 @@
       renderCompletedRealMediaProof(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
       renderCompletedFinalTrust(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
       renderCompletedPilotEvidencePacket(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
+      restoreCompletedEvidenceSelectionScroll(scrollSnapshot);
     }
 
     function completedPendingProofRows(completed, rows, pending) {

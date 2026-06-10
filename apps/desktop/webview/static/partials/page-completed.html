@@ -1,5 +1,5 @@
       <section class="page" data-page-panel="completed">
-        <h1 class="visually-hidden">Pipeline Output</h1>
+        <h1 class="visually-hidden">Completed Output</h1>
         <div class="metric-grid">
           <section class="metric">
             <span class="metric-label">Completed</span>
@@ -18,11 +18,10 @@
             <strong id="completed-missing-count">0</strong>
           </section>
         </div>
-        <div class="settings-tab-bar completed-tab-bar" role="tablist" aria-label="Output Files sections">
+        <div class="settings-tab-bar completed-tab-bar" role="tablist" aria-label="Completed output sections">
           <button type="button" class="settings-tab-btn" role="tab" data-completed-tab="overview" aria-selected="true">Overview</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-output-page-target="pending" aria-selected="false">Pending Publish</button>
           <button type="button" class="settings-tab-btn" role="tab" data-completed-tab="history" aria-selected="false">History</button>
-          <button type="button" class="settings-tab-btn" role="tab" data-completed-tab="advanced" aria-selected="false">Advanced</button>
+          <button type="button" class="settings-tab-btn" role="tab" data-completed-tab="evidence" aria-selected="false">Evidence</button>
         </div>
 
         <section class="panel settings-tab-pane is-active output-overview-section output-trust-decision-section" data-completed-tab="overview" data-panel-type="evidence" aria-labelledby="completed-trust-decision-heading">
@@ -50,7 +49,7 @@
           <div class="form-grid launch-form-grid">
             <label>
               Filter current outputs
-              <input id="completed-filter" type="search" autocomplete="off" placeholder="Title, route, output, encoder, health, consistency">
+              <input id="completed-filter" type="search" autocomplete="off" placeholder="Title, route, library, output, encoder, health, consistency">
             </label>
             <label>
               Current status
@@ -60,6 +59,12 @@
                 <option value="blocked">Blocked only</option>
                 <option value="warning">Warnings only</option>
                 <option value="ready">Healthy only</option>
+              </select>
+            </label>
+            <label>
+              Library
+              <select id="completed-library-filter">
+                <option value="all">All libraries</option>
               </select>
             </label>
             <label>
@@ -74,6 +79,11 @@
                 <option value="route_review">Route review</option>
               </select>
             </label>
+            <div class="completed-column-mode-control" role="group" aria-label="Completed numeric column display">
+              <span class="completed-column-mode-label">Column</span>
+              <button type="button" class="secondary-button completed-column-mode-button is-active" data-completed-size-column-mode="size" aria-pressed="true">Size</button>
+              <button type="button" class="secondary-button completed-column-mode-button" data-completed-size-column-mode="bitrate" aria-pressed="false">Bitrate</button>
+            </div>
             <div class="form-actions-inline completed-current-filter-actions">
               <button id="completed-refresh-current-output-button" class="secondary-button completed-current-filter-button" type="button">Refresh Current Output Status</button>
               <button id="completed-clear-filters-button" class="secondary-button completed-current-filter-button" type="button">Clear Current Filters</button>
@@ -81,23 +91,21 @@
           </div>
           <pre id="completed-filter-summary" class="prose-block">Current output filter inactive. No rows loaded.</pre>
           <div class="table-wrap">
-            <table class="workflow-table completed-table">
+            <table class="workflow-table completed-table" aria-label="Current output status rows">
               <thead>
                 <tr>
                   <th scope="col">Completed</th>
-                  <th scope="col">State</th>
                   <th scope="col">Title</th>
                   <th scope="col">Media</th>
                   <th scope="col">Route</th>
                   <th scope="col">Evidence</th>
-                  <th scope="col" class="num">Size</th>
+                  <th scope="col" class="num"><span data-completed-size-column-label>Size</span></th>
                   <th scope="col">Publish</th>
                   <th scope="col">Final</th>
-                  <th scope="col">Health</th>
                 </tr>
               </thead>
               <tbody id="completed-rows">
-                <tr><td colspan="10">No completed jobs loaded.</td></tr>
+                <tr><td colspan="8">No completed jobs loaded.</td></tr>
               </tbody>
             </table>
             <div class="empty-state" data-empty-state="hidden" style="display:none">
@@ -110,7 +118,7 @@
             <div class="action-row action-row-left wrap-actions" data-open-target-row-actions="completed"></div>
             <div class="action-row action-row-left wrap-actions completed-promotion-action-row">
               <span class="status-chip" data-status="publishing">Promotion command</span>
-              <button type="button" class="secondary-button" data-completed-promote-selected disabled>Promote Selected File</button>
+              <button type="button" class="secondary-button" data-completed-promote-selected disabled>Promote Selected Reviewed Output</button>
             </div>
             <p id="completed-open-status" class="note completed-open-status-note">Select a completed row to open a backend-selected location.</p>
             <pre id="completed-open-history" class="prose-block completed-open-history-block">No completed open command history loaded.</pre>
@@ -136,13 +144,13 @@
             <strong id="final-library-promotion-status">Not loaded</strong>
           </div>
           <div class="action-row action-row-left wrap-actions">
-            <button id="final-library-promote-button" class="primary-button" type="button">Promote Queue to Final Library</button>
+            <button id="final-library-promote-button" class="primary-button" type="button">Promote Reviewed Outputs to Final Library</button>
             <button id="final-library-pause-button" class="secondary-button" type="button" disabled>Pause Promotion</button>
             <button id="final-library-resume-button" class="secondary-button" type="button" disabled>Resume Promotion</button>
           </div>
           <pre id="final-library-promotion-summary" class="prose-block">Final library promotion status has not been loaded.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="Final library promotion rows">
               <thead>
                 <tr>
                   <th scope="col">State</th>
@@ -157,7 +165,7 @@
           </div>
         </section>
 
-        <section class="panel settings-tab-pane is-active" data-completed-tab="overview" data-panel-type="interactive">
+        <section class="panel settings-tab-pane is-active" data-completed-tab="overview" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Selected File</h2>
             <strong id="completed-selected-status">No selection</strong>
@@ -178,7 +186,7 @@
           <div class="form-grid launch-form-grid">
             <label>
               Filter history
-              <input id="completed-history-filter" type="search" autocomplete="off" placeholder="Title, route, output, encoder, health, consistency">
+              <input id="completed-history-filter" type="search" autocomplete="off" placeholder="Title, route, library, output, encoder, health, consistency">
             </label>
             <label>
               History status
@@ -203,29 +211,32 @@
                 <option value="route_review">Route review</option>
               </select>
             </label>
+            <div class="completed-column-mode-control" role="group" aria-label="Completed numeric column display">
+              <span class="completed-column-mode-label">Column</span>
+              <button type="button" class="secondary-button completed-column-mode-button is-active" data-completed-size-column-mode="size" aria-pressed="true">Size</button>
+              <button type="button" class="secondary-button completed-column-mode-button" data-completed-size-column-mode="bitrate" aria-pressed="false">Bitrate</button>
+            </div>
             <div class="form-actions-inline">
               <button id="completed-history-clear-filters-button" class="secondary-button" type="button">Clear History Filters</button>
             </div>
           </div>
           <pre id="completed-history-filter-summary" class="prose-block">Completed history filter inactive. No rows loaded.</pre>
           <div class="table-wrap">
-            <table class="workflow-table completed-table">
+            <table class="workflow-table completed-table" aria-label="Completed history rows">
               <thead>
                 <tr>
                   <th scope="col">Completed</th>
-                  <th scope="col">State</th>
                   <th scope="col">Title</th>
                   <th scope="col">Media</th>
                   <th scope="col">Route</th>
                   <th scope="col">Evidence</th>
-                  <th scope="col" class="num">Size</th>
+                  <th scope="col" class="num"><span data-completed-size-column-label>Size</span></th>
                   <th scope="col">Publish</th>
                   <th scope="col">Final</th>
-                  <th scope="col">Health</th>
                 </tr>
               </thead>
               <tbody id="completed-history-rows">
-                <tr><td colspan="10">No completed history loaded.</td></tr>
+                <tr><td colspan="8">No completed history loaded.</td></tr>
               </tbody>
             </table>
             <div class="empty-state" data-empty-state="hidden" style="display:none">
@@ -301,22 +312,22 @@
           <div id="completed-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
         </section>
 
-        <section class="panel settings-tab-pane" data-completed-tab="advanced" data-panel-type="evidence">
+        <section class="panel settings-tab-pane" data-completed-tab="evidence" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Advanced Evidence Groups</h2>
+            <h2>Evidence Groups</h2>
             <strong>Read-only</strong>
           </div>
           <p class="note">Read-only output evidence grouped by File and Size Proof, Media and Route Proof, Publish and Pending Proof, Acceptance and Evidence Packet, and Reconciliation.</p>
         </section>
 
-        <section class="panel settings-tab-pane" data-completed-tab="advanced" data-panel-type="evidence">
+        <section class="panel settings-tab-pane" data-completed-tab="evidence" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>File And Size Proof</h2>
             <strong id="completed-size-evidence-status">Not loaded</strong>
           </div>
           <pre id="completed-size-evidence-summary" class="prose-block">No completed size-growth evidence handoff loaded.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="File and size proof evidence rows">
               <thead>
                 <tr>
                   <th scope="col">Checkpoint</th>
@@ -338,14 +349,14 @@
           <pre id="completed-size-evidence-detail" class="prose-block">Select a size-growth evidence checkpoint for proof-order detail.</pre>
         </section>
 
-        <section class="panel settings-tab-pane" data-completed-tab="advanced" data-panel-type="evidence">
+        <section class="panel settings-tab-pane" data-completed-tab="evidence" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Media And Route Proof</h2>
             <strong id="completed-real-media-proof-status">Not loaded</strong>
           </div>
           <pre id="completed-real-media-proof-summary" class="prose-block">No real-media output proof ladder loaded.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="Media and route proof evidence rows">
               <thead>
                 <tr>
                   <th scope="col">Checkpoint</th>
@@ -367,14 +378,14 @@
           <pre id="completed-real-media-proof-detail" class="prose-block">Select a real-media proof checkpoint to inspect the evidence chain.</pre>
         </section>
 
-        <section class="panel settings-tab-pane" data-completed-tab="advanced" data-panel-type="evidence">
+        <section class="panel settings-tab-pane" data-completed-tab="evidence" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Output Verification</h2>
             <strong id="completed-final-trust-status">Not loaded</strong>
           </div>
           <pre id="completed-final-trust-summary" class="prose-block">No final output trust walkthrough loaded.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="Output verification evidence rows">
               <thead>
                 <tr>
                   <th scope="col">Step</th>
@@ -396,14 +407,14 @@
           <pre id="completed-final-trust-detail" class="prose-block">Select a final output trust step to inspect proof order and safe next action.</pre>
         </section>
 
-        <section class="panel settings-tab-pane" data-completed-tab="advanced" data-panel-type="evidence">
+        <section class="panel settings-tab-pane" data-completed-tab="evidence" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Acceptance Readiness</h2>
             <strong id="completed-output-acceptance-status">Not loaded</strong>
           </div>
           <pre id="completed-output-acceptance-summary" class="prose-block">No completed output acceptance readiness loaded.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="Acceptance readiness evidence rows">
               <thead>
                 <tr>
                   <th scope="col">Checkpoint</th>
@@ -425,14 +436,14 @@
           <pre id="completed-output-acceptance-detail" class="prose-block">Select a completed row to review output readiness evidence.</pre>
         </section>
 
-        <section class="panel settings-tab-pane" data-completed-tab="advanced" data-panel-type="interactive">
+        <section class="panel settings-tab-pane" data-completed-tab="evidence" data-panel-type="interactive" data-panel-subtype="evidence-tools" aria-describedby="completed-pilot-evidence-legend completed-copy-evidence-status">
           <div class="panel-heading">
             <h2>Acceptance And Evidence Packet</h2>
             <strong id="completed-pilot-evidence-status">Read-only packet</strong>
           </div>
           <pre id="completed-pilot-evidence-summary" class="prose-block">No selected pilot evidence packet loaded.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="Acceptance and evidence packet rows">
               <thead>
                 <tr>
                   <th scope="col">Checkpoint</th>
@@ -459,14 +470,14 @@
           <pre id="completed-pilot-evidence-markdown" class="prose-block">No copyable pilot evidence packet loaded.</pre>
         </section>
 
-        <section class="panel settings-tab-pane" data-completed-tab="advanced" data-panel-type="evidence">
+        <section class="panel settings-tab-pane" data-completed-tab="evidence" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Publish And Pending Proof</h2>
             <strong id="completed-pending-proof-status">Not loaded</strong>
           </div>
           <pre id="completed-pending-proof-summary" class="prose-block">No completed-to-pending output proof loaded.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="Publish and pending proof evidence rows">
               <thead>
                 <tr>
                   <th scope="col">Signal</th>
@@ -489,7 +500,7 @@
           <pre id="completed-pending-proof-detail" class="prose-block">Select a completed-to-pending proof row to inspect output, pending, and drain-summary evidence.</pre>
         </section>
 
-        <section class="panel settings-tab-pane" data-completed-tab="advanced" data-panel-type="interactive">
+        <section class="panel settings-tab-pane" data-completed-tab="evidence" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Publish Reconciliation</h2>
             <strong id="publish-reconciliation-status">Not loaded</strong>
@@ -499,7 +510,7 @@
           </div>
           <pre id="publish-reconciliation-summary" class="prose-block">Backend publish reconciliation has not been loaded. Use Refresh Backend Reconciliation for a backend-owned Completed/Pending/drain-summary proof snapshot.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="Publish reconciliation proof rows">
               <thead>
                 <tr>
                   <th scope="col">Signal</th>
@@ -522,14 +533,14 @@
           <pre id="publish-reconciliation-detail" class="prose-block">Select a backend reconciliation row to inspect Completed, Pending Publish, and durable drain-summary evidence.</pre>
         </section>
 
-        <section class="panel settings-tab-pane" data-completed-tab="advanced" data-panel-type="evidence">
+        <section class="panel settings-tab-pane" data-completed-tab="evidence" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Route Agreement</h2>
             <strong id="completed-route-agreement-status">Not loaded</strong>
           </div>
           <pre id="completed-route-agreement-summary" class="prose-block">No queue/completed route agreement loaded.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="Route agreement proof rows">
               <thead>
                 <tr>
                   <th scope="col">Signal</th>

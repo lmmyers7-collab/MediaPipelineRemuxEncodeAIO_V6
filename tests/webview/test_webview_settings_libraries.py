@@ -200,6 +200,102 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertIn("if (field?.label) return field.label;", js)
         self.assertIn("fieldHelpText(field)", js)
 
+    def test_library_route_size_editor_replicates_settings_route_surface(self) -> None:
+        libraries_js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        route_model_js = (STATIC_ROOT / "assets" / "settings" / "routePolicyModel.js").read_text(encoding="utf-8")
+        html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
+
+        for token in (
+            'type: "routeSize"',
+            "function renderLibraryRouteSizeLayout(profile, groupKey, block)",
+            "function renderLibraryRouteRail(boundaries)",
+            "function renderLibraryRouteBoundaryControls(boundaries, describedBy)",
+            "function renderLibraryRouteBucket(profile, bucket, boundaries)",
+            "function syncLibraryRouteReadouts(card)",
+            "function applyLibraryRouteBoundary(card, boundary, rawHeight, options = {})",
+            "settings-library-route-editor",
+            "settings-library-route-rail",
+            "settings-library-route-visual",
+            "settings-library-route-target-editor",
+            "settings-library-route-boundary-grid",
+            "settings-library-route-boundary-actions",
+            "data-library-route-boundary-input=\"first\"",
+            "data-library-route-boundary-input=\"second\"",
+            "aria-describedby",
+            "data-library-route-source-summary",
+            "function routeMetadataMissingKeys(values)",
+            "function routeSourceSummary(values)",
+            "function routeValueFromBackendSource(values, key)",
+            'fieldOwnValue(field, "min")',
+            'fieldOwnValue(field, "max")',
+            'fieldOwnValue(field, "step")',
+            'fieldOwnValue(field, "unit")',
+            'data-settings-unit="${escapeHtml(unitValue)}"',
+            "data-library-route-boundary-reset=\"first\"",
+            "data-library-route-boundary-reset=\"second\"",
+            "data-library-route-summary=\"trigger\"",
+            "data-library-route-summary=\"pixel\"",
+            "data-library-route-summary=\"consequence\"",
+            "data-library-route-summary=\"unknown\"",
+            "data-library-route-readout=\"range-1080p\"",
+            "data-library-route-readout=\"range-1440p\"",
+            "data-library-route-readout=\"range-4k\"",
+            'routeRole: "height-tolerance"',
+            "setLibraryRouteOverrideValue(card, key, routeFormatPercent(value))",
+            "resetLibraryRouteBoundary(card, boundaryReset)",
+            "syncLibraryRouteReadouts(card)",
+        ):
+            self.assertIn(token, libraries_js)
+        for token in (
+            "function startLibraryRouteDrag(event)",
+            "function handleLibraryRouteKeydown(event)",
+            "list.addEventListener(\"pointerdown\", startLibraryRouteDrag)",
+            "data-library-route-drag-boundary",
+            "settings-route-slider-hit",
+            'role="slider"',
+            "routeValuesWithDefaults",
+        ):
+            self.assertNotIn(token, libraries_js)
+
+        for key in (
+            "Route1080pUpperHeightTolerancePercent",
+            "Route1440pLowerHeightTolerancePercent",
+            "Route1440pUpperHeightTolerancePercent",
+            "Route4KLowerHeightTolerancePercent",
+        ):
+            self.assertIn(key, libraries_js)
+            self.assertIn(key, route_model_js)
+
+        for key in (
+            "MovieRoute1080pTargetSizeGB",
+            "TVRoute1080pTargetSizeGB",
+            "Route1080pMaxVideoBitrateMbps",
+            "Route1440pMaxVideoBitrateMbps",
+            "Route4KMaxVideoBitrateMbps",
+        ):
+            self.assertIn(key, libraries_js)
+            self.assertNotIn(f"{key}:", route_model_js)
+
+        for token in (
+            "window.mediaPipelineRoutePolicyModel",
+            "function numberValue(value, fallback = 0)",
+            "function boundariesFromValues(values = {})",
+            "function valuesFromFirstBoundary(route1440pMinHeight)",
+            "function valuesFromSecondBoundary(route4kMinHeight)",
+            "function consequenceSummary(boundaries, values = {})",
+            "function unknownHeightSummary()",
+        ):
+            self.assertIn(token, route_model_js)
+        for token in (
+            "const DEFAULTS",
+            "DEFAULTS,",
+            "routeValuesWithDefaults",
+        ):
+            self.assertNotIn(token, route_model_js)
+
+        self.assertLess(html.index("/assets/settings/routePolicyModel.js"), html.index("/assets/settings/patchReview.js"))
+        self.assertLess(html.index("/assets/settings/routePolicyModel.js"), html.index("/assets/settingsLibraries.js"))
+
     def test_library_designation_filtering_omits_inapplicable_override_rows(self) -> None:
         metadata = _backend_field_metadata()
         js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
@@ -313,12 +409,12 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertNotIn("Movie and TV are always present.", libraries_html)
         self.assertNotIn("Movie and TV cannot be deleted.", libraries_html)
         self.assertIn("settings-library-editor-status", libraries_html)
-        self.assertIn("settings-library-tab-bar", libraries_html)
+        self.assertIn("settings-library-profile-nav", libraries_html)
         self.assertIn("settings-library-feedback", libraries_html)
         self.assertIn('id="settings-library-warning-summary"', libraries_html)
         self.assertIn("hidden", libraries_html)
         self.assertLess(
-            libraries_html.index("settings-library-tab-bar"),
+            libraries_html.index("settings-library-profile-nav"),
             libraries_html.index("settings-library-actions-panel"),
         )
         self.assertLess(
@@ -351,6 +447,9 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "SourceTV",
             "Outsource",
             "FinalLibraryPromotionRules",
+            "const promotionEnabled = libraryProfiles.some((profile) => profile.enabled && profile.promotion_enabled);",
+            "patch.FinalLibraryPromotionEnabled = promotionEnabled;",
+            "patch.FinalLibraryPromotionRules = generatedPromotionRules(libraryProfiles);",
             "Default Editor Overrides",
             "Default Video / Media Overrides",
             "Default Subtitle Overrides",
@@ -377,9 +476,22 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "promotion_destination",
             "promotion_enabled",
             "settings-library-promotion-toggle",
-            "data-library-profile-tab",
+            "data-library-profile-nav",
             "data-library-profile-pane",
             "library_profile_state",
+            "library_compatibility_presets",
+            "settingsLibraryCompatibilityPresets",
+            "mp4_compatibility",
+            'type: "compatibility"',
+            "renderCompatibilityPresetEditorControl",
+            "Compatibility mode",
+            "Standard library overrides",
+            "data-library-compatibility-select",
+            "syncLibraryCompatibilityAvailability",
+            "libraryCardMp4CompatibilityActive",
+            "mp4CompatibilityWarningLines",
+            "mp4CompatibilityConsequences",
+            "Optional lossy MP4 reset preset.",
             "profileState",
             "pathEvidence",
             "pathCanReset",
@@ -404,6 +516,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             self.assertIn(token, js)
         self.assertIn("<details", js)
         self.assertIn('hidden disabled"}>Reset to inherited</button>', js)
+        self.assertNotIn("generatedPromotionRules(libraryProfiles, config().FinalLibraryPromotionRules)", js)
         self.assertNotIn('["movie", "tv", "mixed", "custom"]', js)
         self.assertNotIn("editor_overrides:", js)
         self.assertNotIn("media_overrides:", js)
@@ -435,21 +548,28 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             'overrides[group][key] = readOverrideControlValue(control, key)',
             'if (row.dataset.libraryOverride !== "true") return;',
             'setOverrideControlValue(control, key, defaultSettingValue(key))',
+            'row.classList.toggle("is-forced", forced)',
+            'control.disabled = true',
+            'data-library-compatibility-preset="${escapeHtml(preset.id)}"',
+            'target.getAttribute?.("data-library-compatibility-select")',
         ):
             self.assertIn(token, js)
         self.assertRegex(css, r"\.settings-library-state\s*\{[^}]*display: inline;")
         self.assertRegex(css, r"\.settings-library-state\.is-inherited\s*\{[^}]*color: var\(--grey-400\);")
-        self.assertRegex(css, r"\.settings-library-state\.is-custom\s*\{[^}]*color: var\(--blue-200\);")
-        self.assertRegex(css, r"\.settings-library-state\.is-readonly\s*\{[^}]*color: var\(--amber-100\);")
+        self.assertRegex(css, r"\.settings-library-state\.is-custom\s*\{[^}]*color: var\(--semantic-info-muted-text\);")
+        self.assertRegex(css, r"\.settings-library-state\.is-readonly\s*\{[^}]*color: var\(--semantic-warning-text\);")
         self.assertNotIn(".settings-library-metadata-badges", css)
         self.assertNotIn(".settings-library-metadata-badge", css)
-        self.assertRegex(css, r"\.settings-library-override-unavailable\s*\{[^}]*color: var\(--grey-400\);")
+        self.assertRegex(css, r"\.settings-library-override-unavailable\s*\{[^}]*color: var\(--semantic-disabled-text\);")
         self.assertNotRegex(css, r"\.settings-library-state\s*\{[^}]*background:")
         self.assertNotRegex(css, r"\.settings-library-state\.is-inherited\s*\{[^}]*background:")
         self.assertNotRegex(css, r"\.settings-library-state\.is-custom\s*\{[^}]*background:")
         self.assertRegex(css, r"\.settings-library-promotion-toggle\s*\{[^}]*display: inline-flex;")
         self.assertRegex(css, r"\.settings-library-promotion-toggle\s+input\s*\{[^}]*width: 16px;")
         self.assertRegex(css, r"\.settings-library-promotion-toggle\s+input\s*\{[^}]*flex: 0 0 16px;")
+        self.assertRegex(css, r"\.settings-library-compatibility-field\s*\{[^}]*display: grid;")
+        self.assertNotIn(".settings-library-compatibility-panel", css)
+        self.assertRegex(css, r"\.settings-library-override-row\.is-forced\s*\{[^}]*color: var\(--semantic-warning-text\);")
         self.assertNotIn('data-library-override-state="${isOverride ? "custom" : "inherited"}"', js)
         self.assertNotIn("Settings overrides:", js)
         self.assertNotIn("Inherited path fields:", js)
@@ -529,11 +649,67 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             app_js,
         )
 
+    def test_libraries_tab_contains_read_only_route_map_panels_after_profile_editor(self) -> None:
+        partial = (STATIC_ROOT / "partials" / "page-libraries.html").read_text(encoding="utf-8")
+        route_map_js = (STATIC_ROOT / "assets" / "librariesRouteMap.js").read_text(encoding="utf-8")
+        app_js = (STATIC_ROOT / "assets" / "app.js").read_text(encoding="utf-8")
+        route_panel_start = partial.index("settings-library-route-map-panel")
+        route_panel = partial[route_panel_start:]
+
+        self.assertLess(partial.index("settings-libraries-panel"), route_panel_start)
+        self.assertIn('data-panel-type="evidence"', route_panel)
+        for token in (
+            "Library Route Map",
+            "Decision Matrix",
+            "Node Evidence",
+            "Selected-File Trace",
+            "Profile Compare",
+            "Guided Policy Navigation",
+            "Validation Handoff",
+            "library-route-map-graph",
+            "library-route-decision-rows",
+            "library-route-node-rows",
+            "library-route-trace-rows",
+            "library-route-compare-rows",
+            "library-route-navigation-rows",
+            "library-route-validation-rows",
+        ):
+            self.assertIn(token, route_panel)
+        self.assertNotIn("<button", route_panel)
+
+        for token in (
+            '"/api/libraries/route-map"',
+            '"/api/libraries/route-map/validation?limit=20"',
+            "/api/libraries/route-map/trace",
+            "/api/libraries/route-map/compare",
+            "window.mediaPipelineLibraryRouteMap",
+            "collectEvidenceRows(context = {})",
+            "context.queue?.rows",
+            "context.completed?.rows",
+            "context.sampleValidation?.records",
+            "data-library-route-navigate",
+            "row.handoff ||",
+            "rows.slice(0, 120)",
+            "rows.slice(0, 80)",
+        ):
+            self.assertIn(token, route_map_js)
+        self.assertNotIn("apiPost", route_map_js)
+        self.assertNotIn("/api/settings/save-patch", route_map_js)
+        self.assertNotIn("/api/pipeline/start", route_map_js)
+        self.assertIn('["libraries route map", apiGet("/api/libraries/route-map"), false]', app_js)
+        self.assertIn("window.mediaPipelineLibraryRouteMap?.renderRouteMap?", app_js)
+        self.assertIn("queue: values.queue || {}", app_js)
+        self.assertIn("completed: values.completed || {}", app_js)
+        self.assertIn('sampleValidation: values["sample validation"] || {}', app_js)
+
     def test_settings_libraries_asset_is_loaded_after_settings_view(self) -> None:
         html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
 
         self.assertLess(html.index("/assets/settingsView.js"), html.index("/assets/settingsLibraries.js"))
+        self.assertLess(html.index("/assets/settings/routePolicyModel.js"), html.index("/assets/settingsLibraries.js"))
         self.assertLess(html.index("/assets/settingsLibraries.js"), html.index("/assets/settingsWizard.js"))
+        self.assertLess(html.index("/assets/settingsLibraries.js"), html.index("/assets/librariesRouteMap.js"))
+        self.assertLess(html.index("/assets/librariesRouteMap.js"), html.index("/assets/settingsWizard.js"))
 
     def test_settings_wizard_library_rows_collect_backend_profile_model(self) -> None:
         js = (STATIC_ROOT / "assets" / "settingsWizard.js").read_text(encoding="utf-8")

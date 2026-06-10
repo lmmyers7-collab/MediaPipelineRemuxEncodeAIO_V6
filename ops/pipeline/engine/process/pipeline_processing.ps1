@@ -363,6 +363,34 @@ function Invoke-MediaPipelineProcessFile {
         $script:CurrentSizePolicyResult = $null
         $routeHints = Get-ActiveMediaRouteHints
         $sourceMediaProfile = Get-SourceMediaRouteProfile -FilePath $file.FullName -FileSizeBytes ([long]$file.Length)
+        if ([string]$sourceMediaProfile.probe_error -eq 'video_stream_missing') {
+            $reason = 'SOURCE_MEDIA_VIDEO_MISSING: ffprobe found no usable video stream in a source being processed by the video media pipeline.'
+            $suggestedAction = 'Inspect or replace the source with media that contains a usable video stream; do not clear this marker until source health is understood.'
+            Write-Log "${queuePrefix}$reason" "ERROR"
+            try {
+                Register-SourceFailure `
+                    -SourceFile $file `
+                    -Classification 'permanent' `
+                    -Reason $reason `
+                    -Stage 'source-probe' `
+                    -ErrorCode 'SOURCE_MEDIA_VIDEO_MISSING' `
+                    -SuggestedAction $suggestedAction | Out-Null
+            } catch {
+                Write-Log "${queuePrefix}Failed to record SOURCE_MEDIA_VIDEO_MISSING failure state: $($_.Exception.Message)" "WARN"
+            }
+            $result = New-MediaPipelineProcessFileResult `
+                -File $file `
+                -Status 'failed' `
+                -Success:$false `
+                -QueueTerminal:$true `
+                -Retryable:$false `
+                -Reason $reason `
+                -ErrorCode 'SOURCE_MEDIA_VIDEO_MISSING' `
+                -RouteReasonCode 'source_video_missing' `
+                -RouteReason $reason
+            Write-MediaPipelineProcessCompletedEvent -Result $result -Stage 'source-probe' -MediaType $queueLabel.ToLowerInvariant()
+            return $result
+        }
         $routePlan = Resolve-InitialMediaRoutePlan -File $file -IsTV:$isTV -MediaProfile $sourceMediaProfile -RouteHints $routeHints
         $encode    = [bool]$routePlan.ShouldEncode
         $script:CurrentRoutePlan = $routePlan

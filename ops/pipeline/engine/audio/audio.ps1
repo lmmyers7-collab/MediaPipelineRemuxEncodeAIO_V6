@@ -205,6 +205,26 @@ function Get-EffectiveAllowNoAudio {
     return (ConvertTo-EffectiveAudioBoolean -Value $value -Default $false)
 }
 
+function Get-EffectiveAudioOutputContainerName {
+    if ($script:ActiveOverrides -and $script:ActiveOverrides.ContainsKey('OutputContainer')) {
+        $activeContainer = ([string]$script:ActiveOverrides['OutputContainer']).Trim().TrimStart('.').ToLowerInvariant()
+        if (-not [string]::IsNullOrWhiteSpace($activeContainer)) { return $activeContainer }
+    }
+    if (Get-Variable -Name OutputContainer -Scope Script -ErrorAction SilentlyContinue) {
+        $configuredContainer = ([string]$script:OutputContainer).Trim().TrimStart('.').ToLowerInvariant()
+        if (-not [string]::IsNullOrWhiteSpace($configuredContainer)) { return $configuredContainer }
+    }
+    return 'mkv'
+}
+
+function Test-EffectiveAudioOutputContainerIsMp4 {
+    $container = Get-EffectiveAudioOutputContainerName
+    if (Get-Command -Name Get-MediaContainerMp4FamilyNames -ErrorAction SilentlyContinue) {
+        return ($container -in (Get-MediaContainerMp4FamilyNames))
+    }
+    return ($container -in @('mp4','m4v','mov'))
+}
+
 function Get-EffectiveAudioPassthroughProfile {
     $hasOverrideCodecs = $script:ActiveOverrides -and $script:ActiveOverrides.ContainsKey('CompatibleAudioCodecs') -and @($script:ActiveOverrides['CompatibleAudioCodecs']).Count -gt 0
     $hasOverrideProfile = $script:ActiveOverrides -and $script:ActiveOverrides.ContainsKey('AudioPassthroughProfile')
@@ -310,6 +330,46 @@ function Get-LastAudioDecisionRecords {
     return @($script:LastAudioDecisionRecords)
 }
 
+function Write-AudioTrackProgress {
+    param(
+        [int]$StreamIndex = -1,
+        [string]$Stage = 'audio_policy',
+        [string]$Status = 'Evaluating audio policy',
+        [string]$AudioAction = 'evaluate',
+        [string]$SourceCodec = '',
+        [object]$SourceChannels = $null,
+        [string]$OutputCodec = '',
+        [object]$OutputChannels = $null,
+        [string]$Language = '',
+        [string]$Reason = '',
+        [int]$StepIndex = 0,
+        [int]$StepTotal = 0,
+        [string]$Detail = '',
+        [switch]$Completed,
+        [switch]$Failed
+    )
+
+    if (Get-Command -Name Set-ProgressAudioTrack -ErrorAction SilentlyContinue) {
+        Set-ProgressAudioTrack `
+            -StreamIndex $StreamIndex `
+            -Stage $Stage `
+            -Status $Status `
+            -AudioAction $AudioAction `
+            -SourceCodec $SourceCodec `
+            -SourceChannels $SourceChannels `
+            -OutputCodec $OutputCodec `
+            -OutputChannels $OutputChannels `
+            -Language $Language `
+            -Reason $Reason `
+            -StepIndex $StepIndex `
+            -StepTotal $StepTotal `
+            -Detail $Detail `
+            -Completed:$Completed `
+            -Failed:$Failed `
+            -SaveNow
+    }
+}
+
 function Build-AudioArgs {
     param([string]$FilePath)
     Set-LastAudioDecisionRecords @()
@@ -318,10 +378,15 @@ function Build-AudioArgs {
     # passthrough behavior for a specific series or folder without changing the
     # global workstation profile.
     $effectiveCompat = @(Get-EffectiveCompatibleAudioCodecs)
+    $mp4CompatibilityMode = Test-EffectiveAudioOutputContainerIsMp4
+    if ($mp4CompatibilityMode) {
+        $effectiveCompat = @('eac3')
+    }
 
     # Probe language AND title (title needed for commentary / descriptive detection).
     # channel_layout is also pulled for completeness though we derive the label
     # from the post-downmix channel count, not the source layout.
+    Write-AudioTrackProgress -Stage 'audio_probe' -Status 'Probing audio streams with ffprobe' -Detail (Split-Path -Leaf $FilePath)
     $probeResult = Invoke-FFprobeCommand -ArgumentList @(
         "-v","error","-select_streams","a",
         "-show_entries","stream=index,codec_name,channels,channel_layout,disposition:stream_tags=language,title",
@@ -336,7 +401,7 @@ function Build-AudioArgs {
     $mapArgs   = [System.Collections.Generic.List[string]]::new()
     $codecArgs = [System.Collections.Generic.List[string]]::new()
     $passthroughProfile = Get-EffectiveAudioPassthroughProfile
-    $transcodeCodec = Get-EffectiveAudioTranscodeCodec
+    $transcodeCodec = if ($mp4CompatibilityMode) { 'eac3' } else { Get-EffectiveAudioTranscodeCodec }
     $transcodeBitrate = Get-EffectiveAudioTranscodeBitrate
     # Suggestion #7 — when AudioTranscodeAutoBitrateByChannels is on,
     # ignore the static AudioTranscodeBitrate and pick a per-stream
@@ -358,15 +423,18 @@ function Build-AudioArgs {
             if (Get-EffectiveAllowNoAudio) {
                 Write-Log "$message; AllowNoAudio is enabled, output will omit audio." "WARN"
                 Set-LastAudioDecisionRecords @((New-AudioOmitAllDecisionRecord -PassthroughProfile $passthroughProfile))
+                Write-AudioTrackProgress -Stage 'audio_policy' -Status 'Audio omitted by backend policy' -AudioAction 'omit' -Reason 'AllowNoAudio enabled' -Detail (Split-Path -Leaf $FilePath) -Completed
                 return @('-an')
             }
             Write-Log $message "ERROR"
+            Write-AudioTrackProgress -Stage 'audio_probe' -Status 'Audio probe found no streams' -AudioAction 'probe' -Reason $message -Detail (Split-Path -Leaf $FilePath) -Failed
             throw $message
         }
         # The metadata probe failed even though ffprobe can see audio. Do not
         # guess 0:a:0 and risk dropping alternate/default/commentary tracks.
         $message = "SOURCE_MEDIA_AUDIO_METADATA_PROBE_FAILED: audio presence was detected but audio stream metadata could not be parsed for $FilePath"
         Write-Log $message "ERROR"
+        Write-AudioTrackProgress -Stage 'audio_probe' -Status 'Audio metadata probe failed' -AudioAction 'probe' -Reason $message -Detail (Split-Path -Leaf $FilePath) -Failed
         throw $message
     }
 
@@ -383,12 +451,29 @@ function Build-AudioArgs {
         -TranscodeCodecLabel $transcodeCodecLabel `
         -DownmixMode $downmixMode `
         -MaxChannels $maxChannels `
-        -PreferredLanguages $preferredLanguages
+        -PreferredLanguages $preferredLanguages `
+        -Mp4CompatibilityMode:$mp4CompatibilityMode
 
+    $audioStepTotal = [math]::Max(1, @($decisionPlan.Tracks).Count)
+    $audioStepIndex = 0
     foreach ($decision in @($decisionPlan.Tracks)) {
+        $audioStepIndex++
         $i = [int]$decision.SourceOrdinal
         if ($decision.Action -eq 'drop') {
-            Write-Log "Audio $i ($($decision.SourceCodec), $($decision.SourceChannels)ch, $($decision.Language)) -> dropped by file override" "DEBUG"
+            $dropReason = if ($decision.Reason -eq 'mp4_single_eac3_compatibility') { 'MP4 compatibility single-audio policy' } else { 'file override' }
+            Write-Log "Audio $i ($($decision.SourceCodec), $($decision.SourceChannels)ch, $($decision.Language)) -> dropped by $dropReason" "DEBUG"
+            Write-AudioTrackProgress `
+                -StreamIndex $i `
+                -Stage 'audio_policy' `
+                -Status "Audio stream $i dropped by backend policy" `
+                -AudioAction 'drop' `
+                -SourceCodec ([string]$decision.SourceCodec) `
+                -SourceChannels $decision.SourceChannels `
+                -Language ([string]$decision.Language) `
+                -Reason $dropReason `
+                -StepIndex $audioStepIndex `
+                -StepTotal $audioStepTotal `
+                -Detail ([string]$decision.Title)
             continue
         }
 
@@ -401,19 +486,49 @@ function Build-AudioArgs {
                 $codecArgs.AddRange([string[]]@("-channel_layout:a:$outOrdinal", $decision.ChannelLayout))
             }
             Write-Log "Audio $i ($($decision.SourceCodec), $($decision.SourceChannels)ch, $($decision.Language)) -> $($decision.OutputCodecLabel) $($decision.OutputChannels)ch @ $($decision.Bitrate) ($($decision.Reason); bitrate $($decision.BitrateSource))" "DEBUG"
+            Write-AudioTrackProgress `
+                -StreamIndex $i `
+                -Stage 'audio_policy' `
+                -Status "Audio stream $i will be transcoded" `
+                -AudioAction 'transcode' `
+                -SourceCodec ([string]$decision.SourceCodec) `
+                -SourceChannels $decision.SourceChannels `
+                -OutputCodec ([string]$decision.OutputCodecLabel) `
+                -OutputChannels $decision.OutputChannels `
+                -Language ([string]$decision.Language) `
+                -Reason ([string]$decision.Reason) `
+                -StepIndex $audioStepIndex `
+                -StepTotal $audioStepTotal `
+                -Detail ("bitrate {0}; title {1}" -f $decision.Bitrate, $decision.Title)
         } else {
             $codecArgs.AddRange([string[]]@("-c:a:$outOrdinal","copy"))
             # Do not emit channel_layout for streamcopy. FFmpeg cannot
             # reliably change codec properties while copying packets, and
             # some builds reject -channel_layout with -c:a copy.
             Write-Log "Audio $i ($($decision.SourceCodec), $($decision.SourceChannels)ch, $($decision.Language)) -> copy" "DEBUG"
+            Write-AudioTrackProgress `
+                -StreamIndex $i `
+                -Stage 'audio_policy' `
+                -Status "Audio stream $i will be passed through" `
+                -AudioAction 'copy' `
+                -SourceCodec ([string]$decision.SourceCodec) `
+                -SourceChannels $decision.SourceChannels `
+                -OutputCodec ([string]$decision.OutputCodecLabel) `
+                -OutputChannels $decision.OutputChannels `
+                -Language ([string]$decision.Language) `
+                -Reason ([string]$decision.Reason) `
+                -StepIndex $audioStepIndex `
+                -StepTotal $audioStepTotal `
+                -Detail ([string]$decision.Title)
         }
 
         # Language tag — THE critical fix. Previously this was logged but not
         # written back to the output. Plex uses this to match against the
         # user's audio language preference.
         $codecArgs.AddRange([string[]]@("-metadata:s:a:$outOrdinal","language=$($decision.Language)"))
-        $codecArgs.AddRange([string[]]@("-metadata:s:a:$outOrdinal","title=$($decision.Title)"))
+        if (-not $mp4CompatibilityMode) {
+            $codecArgs.AddRange([string[]]@("-metadata:s:a:$outOrdinal","title=$($decision.Title)"))
+        }
 
         Write-Log "Audio $i -> out:$outOrdinal title: '$($decision.Title)'" "DEBUG"
     }
@@ -424,9 +539,11 @@ function Build-AudioArgs {
         if (Get-EffectiveAllowNoAudio) {
             Write-Log "$message; AllowNoAudio is enabled, output will omit audio." "WARN"
             Set-LastAudioDecisionRecords @($decisionPlan.Records)
+            Write-AudioTrackProgress -Stage 'audio_policy' -Status 'Audio omitted by backend policy' -AudioAction 'omit' -Reason 'All audio streams dropped and AllowNoAudio enabled' -Detail (Split-Path -Leaf $FilePath) -Completed
             return @('-an')
         }
         Write-Log $message "ERROR"
+        Write-AudioTrackProgress -Stage 'audio_policy' -Status 'Audio policy blocked output' -AudioAction 'drop' -Reason $message -Detail (Split-Path -Leaf $FilePath) -Failed
         throw $message
     }
 
@@ -451,6 +568,14 @@ function Build-AudioArgs {
     if ($decisionPlan.TranscodeActive) {
         Write-Log "Audio: at least one stream will be transcoded; AV stage will run as CPU-bound work" "DEBUG"
     }
+    Write-AudioTrackProgress `
+        -Stage 'audio_policy' `
+        -Status 'Audio policy complete' `
+        -AudioAction $(if ($decisionPlan.TranscodeActive) { 'transcode' } else { 'copy' }) `
+        -StepIndex $audioStepTotal `
+        -StepTotal $audioStepTotal `
+        -Detail ("tracks {0}; default stream {1}" -f $decisionPlan.TrackCount, $decisionPlan.DefaultIndex) `
+        -Completed
 
     return @($mapArgs) + @($codecArgs)
 }

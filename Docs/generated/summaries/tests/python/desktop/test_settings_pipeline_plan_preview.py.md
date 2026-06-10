@@ -3,9 +3,9 @@ file: tests/python/desktop/test_settings_pipeline_plan_preview.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: 0fb6cac8890df9f7a15dcfda211c3f0eb1bee2e75c7e163777e893f93a06ea35
+sha256: b8e36b97c9d3d3aba12202949e5014db6c81c73bc76fc06d6659bf6c52a6565e
 ---
 # `tests/python/desktop/test_settings_pipeline_plan_preview.py`
 

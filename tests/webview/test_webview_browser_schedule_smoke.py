@@ -149,6 +149,22 @@ def _browser_schedule_runner_source() -> str:
             if (draft.day_windows[today] !== "09:00 - 10:00") {
               throw new Error("schedule block editor did not stage a 30-minute range: " + JSON.stringify(draft.day_windows));
             }
+            if (!byId("schedule-editor-" + today.toLowerCase() + "-copy-day")) {
+              throw new Error("schedule editor did not render Copy Day for " + today);
+            }
+            if (!byId("schedule-editor-" + today.toLowerCase() + "-paste-day").disabled) {
+              throw new Error("Paste Day should be disabled before a day is copied.");
+            }
+            click("schedule-editor-" + today.toLowerCase() + "-copy-day");
+            if (byId("schedule-editor-" + today.toLowerCase() + "-paste-day").disabled) {
+              throw new Error("Paste Day should be enabled after copying " + today);
+            }
+            click("schedule-editor-" + today.toLowerCase() + "-paste-day");
+            draft = window.mediaPipelineScheduleView.scheduleEditorRequest();
+            if (draft.day_windows[today] !== "09:00 - 10:00") {
+              throw new Error("Paste Day changed the copied day unexpectedly: " + JSON.stringify(draft.day_windows));
+            }
+            requireText("schedule-editor-status", ["Pasted " + today + " into " + today]);
             click("schedule-editor-" + today.toLowerCase() + "-allow-day");
             draft = window.mediaPipelineScheduleView.scheduleEditorRequest();
             if (!draft.enabled) throw new Error("schedule editor did not stage enabled=true");

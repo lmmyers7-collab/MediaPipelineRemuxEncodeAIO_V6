@@ -3,9 +3,9 @@ file: src/mediapipeline/core/decide/stream_actions.py
 pipeline_stage: decide
 token_priority: high
 owner_domain: decide
-last_modified: 2026-06-04
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: aefb5cbfeb8fd0a80d209866a3c15d46af2289a79189fa66d0cfbfe8119d925d
+sha256: c502b4178d02963a2ea875b2ddab6ca2ef6805031ebbeae6550b60d52aae3bf7
 ---
 # `src/mediapipeline/core/decide/stream_actions.py`
 

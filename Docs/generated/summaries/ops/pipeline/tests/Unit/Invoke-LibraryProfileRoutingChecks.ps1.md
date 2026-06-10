@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-LibraryProfileRoutingChecks.ps1
 pipeline_stage: n/a
 token_priority: high
 owner_domain: tests
-last_modified: 2026-06-05
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: ce1d303f99104d9218ca45cc19199735875a1fd311b4840a6560a78f9016e9da
+sha256: 489e6723ad2ea9a7bdc5973164b2df2002d4c2c2e355e21c234320a35563ad5c
 ---
 # `ops/pipeline/tests/Unit/Invoke-LibraryProfileRoutingChecks.ps1`
 

@@ -458,6 +458,13 @@ function Do-Encode {
             return $false
         }
 
+        $routeIntentReasonCode = ''
+        if ($script:CurrentRoutePlan -and $script:CurrentRoutePlan.PSObject.Properties['ReasonCode']) {
+            $routeIntentReasonCode = [string]$script:CurrentRoutePlan.ReasonCode
+        }
+        if ([string]::IsNullOrWhiteSpace($routeIntentReasonCode)) {
+            $routeIntentReasonCode = [string]$script:CurrentRouteReasonCode
+        }
         $sizePolicy = Test-MediaEncodeOutputSizePolicy `
             -SourcePath $localIn `
             -OutputPath $tempOut `
@@ -465,7 +472,8 @@ function Do-Encode {
             -SizeGuardMode $script:SizeGuardMode `
             -MaxGrowthPercent $script:MaxEncodeGrowthPercent `
             -CompatibilityGrowthPercent $script:CompatibilityEncodeGrowthPercent `
-            -RouteReasonCode ([string]$script:CurrentRouteReasonCode)
+            -RouteReasonCode ([string]$script:CurrentRouteReasonCode) `
+            -RouteIntentReasonCode $routeIntentReasonCode
         $script:CurrentSizePolicyResult = $sizePolicy.Metadata
         if ($sizePolicy.Exceeded) {
             $sizePolicySeverity = ([string]$sizePolicy.Severity).ToUpperInvariant()
@@ -484,7 +492,7 @@ function Do-Encode {
             $originalRouteReasonCode = [string]$script:CurrentRouteReasonCode
             $originalRouteReason = [string]$script:CurrentRouteReason
             $originalSizePolicyResult = $script:CurrentSizePolicyResult
-            Write-Log "ENCODE SIZE: attempting remux fallback for oversized override encode; direct-copy bitrate caps are bypassed for this fallback" "WARN"
+            Write-Log "ENCODE SIZE: attempting remux fallback for oversized automatic size/bitrate-threshold encode; direct-copy size/bitrate caps are bypassed for this fallback" "WARN"
             $fallbackRemuxOk = Do-Remux $file $isTV $tvInfo -FallbackFromOversizedEncode
             if ($fallbackRemuxOk) {
                 Write-Log "ENCODE SIZE: remux fallback published; rejected oversized encode temp output will be deleted" "WARN"
@@ -495,7 +503,11 @@ function Do-Encode {
             $script:CurrentRouteReasonCode = $originalRouteReasonCode
             $script:CurrentRouteReason = $originalRouteReason
             $script:CurrentSizePolicyResult = $originalSizePolicyResult
-            Write-Log "ENCODE SIZE: remux fallback unavailable; keeping oversized encode with warning evidence" "WARN"
+            $fallbackFailureReason = "$($sizePolicy.Message); remux fallback unavailable or blocked; oversized encode rejected before publish"
+            $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason $fallbackFailureReason -Stage 'encode-size-policy' -ErrorCode 'ENCODE_SIZE_GUARD_EXCEEDED' -SuggestedAction 'Review the source and remux-safe codec/container policy. Adjust the route, size guard, or encode settings before retrying; the oversized encode was not published.'
+            $localIn = $null
+            Write-Log "ENCODE SIZE: remux fallback unavailable; rejecting oversized encode before publish: $safeName" "ERROR"
+            return $false
         }
 
         [System.IO.Directory]::CreateDirectory($paths.LocalDir) | Out-Null

@@ -466,10 +466,10 @@ def pending_publish_recovery_summary(rows: list[dict[str, Any]], raw: Mapping[st
         primary_action = "Do not drain; inspect blocker rows and backend diagnostics evidence first."
     elif reviews:
         status = "review"
-        primary_action = "Review warning rows and evidence before using Publish Parked Outputs."
+        primary_action = "Review warning rows and evidence before using Drain Parked Outputs."
     else:
         status = "ready"
-        primary_action = "Rows look drain-ready; Publish Parked Outputs remains the authoritative backend validation path."
+        primary_action = "Rows look drain-ready; Drain Parked Outputs remains the authoritative backend validation path."
     next_steps: list[str] = []
     if class_counts.get("manifest_repair"):
         next_steps.append("Open unreadable/invalid manifests and Last Stderr before any drain retry.")

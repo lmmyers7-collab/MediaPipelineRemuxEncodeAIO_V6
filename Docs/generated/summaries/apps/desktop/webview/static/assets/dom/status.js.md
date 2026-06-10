@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/dom/status.js
 pipeline_stage: observability
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-04
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: 7523e50a0fc7b4de2d4bb6c5c86b5deaf18a415d420ef844202683f841e517b8
+sha256: d3d041e41cb7a841f81c6357c49ea05afcde57f9088d77507d254ab601e64f24
 ---
 # `apps/desktop/webview/static/assets/dom/status.js`
 

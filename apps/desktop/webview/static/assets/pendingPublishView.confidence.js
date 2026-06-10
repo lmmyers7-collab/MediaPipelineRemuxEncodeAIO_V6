@@ -64,6 +64,14 @@
       state.selectedPendingDrainDecisionKey = value || "";
     }
 
+    function capturePendingConfidenceSelectionScroll() {
+      return window.mediaPipelineDom?.captureScrollablePositions?.() || null;
+    }
+
+    function restorePendingConfidenceSelectionScroll(snapshot) {
+      if (snapshot) window.mediaPipelineDom?.restoreScrollablePositions?.(snapshot);
+    }
+
   function pendingPostDrainTrustPostureStatus(posture) {
     const normalized = String(posture || "").toLowerCase();
     if (normalized.includes("blocked") || normalized.includes("do not")) return "blocked";
@@ -146,7 +154,7 @@
           ? "Inspect summary items, current parked rows, and Last Stderr before accepting or retrying publish."
           : pendingDrainSummaryIssueLevel(summary) === "ok"
             ? "Use as supporting post-drain evidence, then verify Completed/output proof for the expected sample."
-            : "No durable summary is loaded yet; run or review backend-owned Publish Parked Outputs before post-drain trust.",
+            : "No durable summary is loaded yet; run or review backend-owned Drain Parked Outputs before post-drain trust.",
       [
         `Summary path: ${summary.path || "not reported"}`,
         `Started/completed: ${summary.started_at || "unknown"} / ${summary.completed_at || "unknown"}`,
@@ -296,7 +304,7 @@
     if (!item) {
       return [
         "Pending Publish post-drain trust review:",
-        "Select a checkpoint after running or reviewing Publish Parked Outputs.",
+        "Select a checkpoint after running or reviewing Drain Parked Outputs.",
         "Mutation guardrail: this detail panel is read-only.",
       ];
     }
@@ -332,6 +340,7 @@
   }
 
   function selectPendingPostDrainTrustRow(item) {
+    const scrollSnapshot = capturePendingConfidenceSelectionScroll();
     setSelectedPendingPostDrainTrustKey(item?.key || "");
     if (item?.row) {
       setSelectedPendingRowKey(pendingRowKey(item.row));
@@ -340,6 +349,7 @@
       renderPendingReviewDigest(getLastPendingPayload(), getLastPendingRows());
     }
     renderPendingPostDrainTrust(getLastPendingPayload(), getLastPendingRows(), getLastPendingSnapshot(), typeof getCommandHistory === "function" ? getCommandHistory() : []);
+    restorePendingConfidenceSelectionScroll(scrollSnapshot);
   }
 
   function renderPendingPostDrainTrust(pending, rows, snapshot, entries) {
@@ -446,7 +456,7 @@
         ? "No pending root exists. Confirm Completed and Run Logs before rerun."
         : !rowList.length
           ? "No parked outputs are waiting. Do not reprocess solely because Pending Publish is empty."
-        : "Review row-level evidence below before pressing Publish Parked Outputs.",
+        : "Review row-level evidence below before pressing Drain Parked Outputs.",
     );
     add(
       "Display filter / drain scope",
@@ -546,8 +556,8 @@
     const lines = [
       "Pending Publish drain action confidence:",
       `Rows: ${confidenceRows.length}; ready=${counts.ready || 0}; review=${counts.review || 0}; blocked=${counts.blocked || 0}; unknown=${counts.unknown || 0}.`,
-      "This is the final read-only operator handoff before Publish Parked Outputs.",
-      "Backend Publish Parked Outputs remains the only authority that can validate and move parked files.",
+      "This is the final read-only operator handoff before Drain Parked Outputs.",
+      "Backend Drain Parked Outputs remains the only authority that can validate and move parked files.",
     ];
     if (filterScope.active) {
       lines.push(`Display filter / drain scope: ${filterScopeAction}`);
@@ -649,7 +659,7 @@
         "Open Diagnostics > Pending Publish, Run Logs, and Last Stderr before any publish attempt.",
         [
           "Pending Publish drain decision checklist:",
-          "A readable pending scan is required before Publish Parked Outputs is trustworthy.",
+          "A readable pending scan is required before Drain Parked Outputs is trustworthy.",
         ],
       );
       return rowsOut;
@@ -659,7 +669,7 @@
       "backend-authority",
       "Backend movement authority",
       "Read-only",
-      "Publish Parked Outputs remains the only authority that can validate and move parked files.",
+      "Drain Parked Outputs remains the only authority that can validate and move parked files.",
       "Use this checklist only to decide whether evidence is coherent enough to press the backend-owned button.",
       [
         "This panel never drains, repairs, rewrites, moves, deletes, publishes, opens arbitrary paths, or bypasses backend validation.",
@@ -687,7 +697,7 @@
       pendingCurrentFilterScopeAction(filterScope),
       [
         "Pending Publish display filters are local UI only.",
-        "Publish Parked Outputs does not drain only the visible table subset.",
+        "Drain Parked Outputs does not drain only the visible table subset.",
         "Backend validation sees current parked payloads/manifests, not the filtered WebView table.",
       ],
       selectedRow,
@@ -747,7 +757,7 @@
       "Diagnostics read order",
       blockedConfidence.length || reviewConfidence.length || recoveryBlocked || recoveryReview || completedProofBlocked ? "Read-first" : "Read-only",
       "Read first: Pending Publish state, Last Stderr, Run Logs, Last Drain Summary, Completed Manifest.",
-      "Use backend allowlisted diagnostics targets before pressing Publish Parked Outputs when any row is blocked, review, or unknown.",
+      "Use backend allowlisted diagnostics targets before pressing Drain Parked Outputs when any row is blocked, review, or unknown.",
       [
         "Open-next order: selected row manifest/payload/destination only through backend-selected targets.",
         "Do not paste arbitrary paths into the frontend.",
@@ -759,7 +769,7 @@
       "Decision boundary",
       "Read-only",
       "This checklist is an operator handoff, not a publish action.",
-      "Press Publish Parked Outputs only when the evidence is coherent enough for backend validation to run.",
+      "Press Drain Parked Outputs only when the evidence is coherent enough for backend validation to run.",
       [
         "Mutation guardrail: this checklist cannot drain, repair, rewrite, move, delete, publish, accept outputs, write manifests, or bypass backend validation.",
       ],
@@ -795,18 +805,18 @@
     const outcome = blocked ? "Do not drain" : review ? "Review first" : readFirst ? "Read evidence" : unknown ? "Evidence incomplete" : decisionRows.length ? "Ready-looking" : "Not evaluated";
     const lines = [
       "Pending Publish drain decision checklist:",
-      `Daily-use handoff: Pending Publish evidence decides whether it is sensible to press Publish Parked Outputs; only the backend drain can move files. Operator outcome: ${outcome}.`,
+      `Daily-use handoff: Pending Publish evidence decides whether it is sensible to press Drain Parked Outputs; only the backend drain can move files. Operator outcome: ${outcome}.`,
       `Checkpoints loaded: ${decisionRows.length}`,
       `Blocked/review/read-first/unknown: ${blocked}/${review}/${readFirst}/${unknown}`,
       "Decision rule: drain only after current parked rows, recovery dry-run, latest drain evidence, Completed/output proof, and diagnostics order agree.",
       "Scope boundary: Pending filters, selected rows, recovery dry-runs, and rendered row caps never narrow backend drain scope or publish files.",
     ];
     if (blocked) {
-      lines.push("First action: do not press Publish Parked Outputs until blocked evidence is explained.");
+      lines.push("First action: do not press Drain Parked Outputs until blocked evidence is explained.");
     } else if (review || readFirst || unknown) {
       lines.push("First action: select review/read-first checkpoints, then use backend allowlisted diagnostics before publishing.");
     } else {
-      lines.push("First action: no local blocker is visible, but backend Publish Parked Outputs still performs the authoritative validation and movement.");
+      lines.push("First action: no local blocker is visible, but backend Drain Parked Outputs still performs the authoritative validation and movement.");
     }
     lines.push("Mutation guardrail: this checklist cannot drain, repair, rewrite, move, delete, publish, accept outputs, write manifests, or bypass backend validation.");
     return lines;
@@ -828,10 +838,10 @@
     const latest = pendingDrainLatestCommand(entryList);
     const filterScope = pendingCurrentFilterScope(rowList);
     const message = blocked
-      ? `Publish Parked Outputs blocked by WebView evidence: ${decision}.`
+      ? `Drain Parked Outputs blocked by WebView evidence: ${decision}.`
       : review
-        ? `Publish Parked Outputs requires operator review: ${decision}.`
-        : "Publish Parked Outputs can be submitted to backend validation.";
+        ? `Drain Parked Outputs requires operator review: ${decision}.`
+        : "Drain Parked Outputs can be submitted to backend validation.";
     return {
       allowed: !blocked,
       review_required: review,
@@ -946,6 +956,7 @@
   }
 
   function selectPendingDrainDecisionRow(item) {
+    const scrollSnapshot = capturePendingConfidenceSelectionScroll();
     setSelectedPendingDrainDecisionKey(item?.key || "");
     if (item?.row) {
       setSelectedPendingRowKey(pendingRowKey(item.row));
@@ -955,6 +966,7 @@
       renderPendingDrainEvidence(getLastPendingPayload(), getLastPendingRows());
     }
     renderPendingDrainDecisionChecklist(getLastPendingPayload(), getLastPendingRows(), getLastPendingSnapshot(), typeof getCommandHistory === "function" ? getCommandHistory() : []);
+    restorePendingConfidenceSelectionScroll(scrollSnapshot);
   }
 
   function renderPendingDrainDecisionChecklist(pending = getLastPendingPayload(), rows = getLastPendingRows(), snapshot = getLastPendingSnapshot(), entries) {

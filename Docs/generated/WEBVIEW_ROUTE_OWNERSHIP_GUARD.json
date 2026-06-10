@@ -36,7 +36,8 @@
     {
       "route": "/api/audit/start",
       "files": [
-        "apps/desktop/webview/static/assets/launchView.js"
+        "apps/desktop/webview/static/assets/launchView.js",
+        "apps/desktop/webview/static/assets/reportsView.js"
       ]
     },
     {
@@ -136,6 +137,12 @@
       ]
     },
     {
+      "route": "/api/libraries/route-map",
+      "files": [
+        "apps/desktop/webview/static/assets/app.js"
+      ]
+    },
+    {
       "route": "/api/maintenance",
       "files": [
         "apps/desktop/webview/static/assets/maintenanceView.js"
@@ -155,6 +162,12 @@
     },
     {
       "route": "/api/maintenance/dependency-atlas",
+      "files": [
+        "apps/desktop/webview/static/assets/maintenanceView.js"
+      ]
+    },
+    {
+      "route": "/api/maintenance/dependency-atlas/open-folder",
       "files": [
         "apps/desktop/webview/static/assets/maintenanceView.js"
       ]

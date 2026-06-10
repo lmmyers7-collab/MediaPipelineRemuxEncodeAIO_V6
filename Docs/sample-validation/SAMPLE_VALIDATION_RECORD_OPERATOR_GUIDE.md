@@ -95,7 +95,7 @@ The frontend **never** receives an output path for the log, cannot choose a writ
 `State\Validation\sample_validation_log.jsonl` records contain personal machine paths (`source_path`, `output_path`) and operator notes. Treat this file as operator-private:
 
 - Do not commit it to a shared or public git repository.
-- The release builder excludes `LocalBase\State\*` by default, so clean release packages will not include it.
+- The release builder excludes the entire `LocalBase\` tree (including `LocalBase\State\*`) by default, so clean release packages will not include it.
 - `.gitignore` has no explicit entry for this file. If this workspace is tracked in git, add `LocalBase/State/Validation/sample_validation_log.jsonl` (or `LocalBase/State/`) to `.gitignore` before staging any working tree state.
 - If the log contains paths you do not want to share, delete it or keep it out of any commits. Records are append-only — there is no edit or delete route.
 

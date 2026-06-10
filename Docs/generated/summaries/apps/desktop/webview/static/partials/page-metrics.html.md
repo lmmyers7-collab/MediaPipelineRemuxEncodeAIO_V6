@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/partials/page-metrics.html
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-05
+last_modified: 2026-06-07
 last_reviewed: 2026-06-05
-sha256: f8369ba04dd7a8c4cf31105eea5c9993859c63f8f57a01f2ca5888a194389372
+sha256: 39593b56f206639394f8b417c0ea23553f180a3699bd881cad16f1d547630b8d
 ---
 # `apps/desktop/webview/static/partials/page-metrics.html`
 

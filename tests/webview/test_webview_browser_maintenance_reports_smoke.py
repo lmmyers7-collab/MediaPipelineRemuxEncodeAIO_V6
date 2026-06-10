@@ -108,6 +108,22 @@ def _browser_maintenance_reports_runner_source() -> str:
                   },
                 };
               }
+              if (String(path || "").includes("/api/audit/start")) {
+                return {
+                  command: "audit.start",
+                  ok: true,
+                  severity: "info",
+                  message: "Started audit via PID 24681.",
+                  refresh_hint: "snapshot",
+                  data: {
+                    library_root: body?.library_root || "",
+                    include_sidecars: Boolean(body?.include_sidecars),
+                    pid: 24681,
+                    launch_prep: ["audit runtime ready"],
+                    logs: "stdout: audit.stdout.log",
+                  },
+                };
+              }
               return { ok: false, message: "maintenance/reports smoke blocks mutation posts" };
             };
             function byId(id) { return document.getElementById(id); }
@@ -342,6 +358,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Guardrail:",
               "Modules: 377",
             ]);
+            requireText("dependency-atlas-open-folder-button", ["Open Folder"]);
             window.appendCommandResult({
               command: "maintenance.release_dry_run",
               ok: true,
@@ -589,7 +606,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               { type: "base", key: "redownload_bonus", label: "Redownload candidate bonus", applies_when: "Added once when a redownload issue is present." },
               { type: "base", key: "rerun_bonus", label: "Rerun pipeline bonus", applies_when: "Added once when a rerun issue is present." }
             );
-            window.mediaPipelineReportsView.renderAuditControls({
+            const reportAuditControls = {
               schema_version: "desktop_audit_controls.v1",
               score_policy: {
                 schema_version: "desktop_audit_score_policy.v2",
@@ -623,7 +640,8 @@ def _browser_maintenance_reports_runner_source() -> str:
                 entry_count: 0,
                 path: "C:/State/audit_ignore_manifest.json",
               },
-            });
+            };
+            window.mediaPipelineReportsView.renderAuditControls(reportAuditControls);
             clickFirst('[data-reports-tab="files"]', "Reports Locations tab");
             if (document.querySelector('[data-reports-tab="files"]')?.getAttribute("aria-selected") !== "true") {
               throw new Error("Reports Locations tab did not become selected.");
@@ -910,6 +928,7 @@ def _browser_maintenance_reports_runner_source() -> str:
             ]);
             window.mediaPipelineReportsView.renderFailurePreview(reportFailurePreview);
             window.mediaPipelineReportsView.renderAuditPreview(reportAuditPreview);
+            window.mediaPipelineReportsView.renderAuditControls(reportAuditControls);
             clickFirst('[data-reports-tab="audit"]', "Reports Audit tab");
             if (document.querySelector('[data-reports-tab="audit"]')?.getAttribute("aria-selected") !== "true") {
               throw new Error("Reports Audit tab did not become selected.");
@@ -971,6 +990,10 @@ def _browser_maintenance_reports_runner_source() -> str:
               throw new Error("Reports manually edited high issue-code row did not stay independent.");
             }
             [
+              "report-audit-start-button",
+              "report-audit-start-library-root",
+              "report-audit-start-include-sidecars",
+              "report-audit-start-show-console",
               "report-audit-score-policy-save-button",
               "report-audit-score-policy-reset-button",
               "report-audit-ignore-selected-button",
@@ -978,7 +1001,26 @@ def _browser_maintenance_reports_runner_source() -> str:
             ].forEach((id) => {
               if (!byId(id)) throw new Error("missing Reports audit control " + id);
             });
+            if (posts.some((entry) => entry.path.includes("/api/audit/start"))) {
+              throw new Error("Reports posted audit start before the explicit Start Audit click.");
+            }
             const originalConfirm = window.confirm;
+            byId("report-audit-start-library-root").value = "C:/Reports/Library";
+            byId("report-audit-start-include-sidecars").checked = true;
+            byId("report-audit-start-show-console").checked = false;
+            window.confirm = () => true;
+            byId("report-audit-start-button").click();
+            await waitFor(() => posts.some((entry) => entry.path.includes("/api/audit/start")), "reports audit start");
+            const auditStartPost = posts.find((entry) => entry.path.includes("/api/audit/start"));
+            if (auditStartPost.body?.library_root !== "C:/Reports/Library") {
+              throw new Error("Reports audit start did not submit the staged library root.");
+            }
+            if (auditStartPost.body?.include_sidecars !== true) {
+              throw new Error("Reports audit start did not submit include_sidecars.");
+            }
+            if (text("report-audit-launch-status") !== "Started") {
+              throw new Error("Reports audit launch status did not show Started.");
+            }
             window.confirm = () => true;
             byId("report-audit-score-policy-save-button").click();
             await waitFor(() => posts.some((entry) => entry.path.includes("/api/audit/score-policy")), "audit score policy save");
@@ -1025,12 +1067,12 @@ def _browser_maintenance_reports_runner_source() -> str:
 
             const forbidden = [
               "/api/pipeline/start",
-              "/api/audit/start",
               "/api/rerun/start",
               "/api/maintenance/release-dry-run",
               "/api/maintenance/release-build",
               "/api/maintenance/completed-backfill-dry-run",
               "/api/maintenance/dependency-atlas",
+              "/api/maintenance/dependency-atlas/open-folder",
               "/api/settings/save-patch",
               "/api/rename/apply",
               "/api/pending-publish/drain",
@@ -1176,7 +1218,8 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
 
         browser_result = result["result"]
         posts = browser_result["posts"]
-        self.assertEqual(len(posts), 4)
+        self.assertEqual(len(posts), 5)
+        audit_start_post = next(post for post in posts if post["path"] == "/api/audit/start")
         score_policy_post = next(post for post in posts if post["path"] == "/api/audit/score-policy")
         latest_warning_clear = next(
             post
@@ -1189,6 +1232,9 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
             if post["body"].get("marker_paths") == ["C:/State/Failures/Markers/marker-1.json"]
         )
         bulk_preview = next(post for post in posts if post["body"].get("scope") == "all_markers")
+        self.assertEqual(audit_start_post["body"]["library_root"], "C:/Reports/Library")
+        self.assertTrue(audit_start_post["body"]["include_sidecars"])
+        self.assertFalse(audit_start_post["body"]["show_console"])
         self.assertEqual(latest_warning_clear["path"], "/api/failures/clear")
         self.assertEqual(latest_warning_clear["body"]["scope"], "selected")
         self.assertFalse(latest_warning_clear["body"]["dry_run"])

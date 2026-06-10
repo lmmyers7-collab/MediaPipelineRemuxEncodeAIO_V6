@@ -1,0 +1,53 @@
+{
+  "id": "MP-CHANGE-2026-0607-020",
+  "title": "Tdarr Matrix audit gap remediation (G1-G11)",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "medium",
+  "date_started": "2026-06-07",
+  "date_completed": "2026-06-07",
+  "summary": "Hardens the backend-owned Tdarr Matrix audit tool: derives the outer run timeout from the actual prepare-plus-sample budget, pins the diagnostic bucket count, surfaces unmapped codecs and missing test libraries, turns on source-hash verification for the report and strict presets, adds opt-in sentinel-guarded run-root retention, documents the bucket-precedence skew, and makes the path-containment scan roots a single source of truth. Adds unit coverage for previously untested audit branches.",
+  "reason": "A gap review (docs/dev/tdarr-matrix-audit-gaps.md) found the audit could kill healthy runs on a too-small timeout (G1), silently drop a whole bucket from sampling if bucket lists drifted (G2), fail cryptically when the base library was not materialized (G5), silently mis-bucket unknown codecs (G6), and skip the cheap source-hash integrity check on the report and strict paths (G8). Several audit branches had no tests (G11).",
+  "affected_areas": [
+    "diagnostics",
+    "tests",
+    "tooling"
+  ],
+  "behavior_before": "The runner timeout was a hard-coded constant that ignored prepare-evidence and could expire before a smoke or matrix run finished. The diagnostic bucket count was implicit and could drift between the generator and the audit, silently excluding a bucket from sampling. A missing materialized base library produced a cryptic FileNotFoundError or required-input critical. Unknown video codecs defaulted to legacy-video with no finding. The report and strict presets never verified source hashes.",
+  "behavior_after": "The runner timeout is derived as three times the prepare timeout plus samples-per-bucket times bucket-count times the sample timeout plus a fixed margin, with the configured value kept as a floor so it can only rise. A TDARR_MATRIX_AUDIT_BUCKET_COUNT constant is pinned and asserted equal to the generator BUCKET_SERIES and the tool BUCKET_ORDER. A missing base library returns an actionable result naming the materialize command without launching the subprocess. The audit emits warning findings bucket_classification_fallback and bucket_classification_drift, and the report and strict presets pass --hash-sources so source integrity is verified. The run-samples command gains opt-in retention (--keep-last N, --prune-dry-run) that deletes only sentinel-marked run roots under TdarrMatrixRuns and never the newest run; the UI wrapper does not pass it. The bucket-precedence skew is documented on classify_bucket, and the path-containment scan roots are a single CONTAINMENT_SCAN_SUBDIRS constant. New unit tests cover the timeout invariant, bucket sync, command_failure_finding, all audit_worker_result branches, diagnostic_bucket classification, the progress payload, the facade single-flight guard, the missing-library path, run-root pruning, and all declared containment roots.",
+  "files_touched": [
+    "docs/dev/tdarr-matrix-audit-gaps.md",
+    "docs/generated/summaries/src/mediapipeline/core/diagnostics/tdarr_matrix_audit.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/materialize_tdarr_test_library.py.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/tdarr_matrix_audit.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_tdarr_matrix_audit.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_materialize_tdarr_test_library.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_tdarr_matrix_audit.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0607-020.json",
+    "src/mediapipeline/core/diagnostics/tdarr_matrix_audit.py",
+    "src/mediapipeline/tools/dev/materialize_tdarr_test_library.py",
+    "src/mediapipeline/tools/dev/tdarr_matrix_audit.py",
+    "tests/python/desktop/test_service_tdarr_matrix_audit.py",
+    "tests/python/tooling/test_materialize_tdarr_test_library.py",
+    "tests/python/tooling/test_tdarr_matrix_audit.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_service_tdarr_matrix_audit.py",
+    "tests/python/tooling/test_materialize_tdarr_test_library.py",
+    "tests/python/tooling/test_tdarr_matrix_audit.py"
+  ],
+  "manual_validation": [
+    "PYTHONPATH=src bundled python -m unittest tests.python.desktop.test_service_tdarr_matrix_audit tests.python.tooling.test_tdarr_matrix_audit tests.python.tooling.test_materialize_tdarr_test_library - passed (28 tests)",
+    "bundled python -m py_compile on the three edited sources - passed",
+    "integration check: audit_source_hashes + audit_bucket_classification over the real 4632-row materialized library - 0 hash findings, 0 bucket findings",
+    "bundled python run-python-tool mediapipeline.tools.dev.refresh_summaries on edited sources - passed",
+    "bundled and system Python pytest - blocked: pytest not installed; same suites run via unittest"
+  ],
+  "rollback_plan": "Revert the listed src/ and tests/ edits and delete this change packet. The changes are confined to the diagnostics Tdarr Matrix audit tool and its tests; no FFmpeg, subtitle, audio, publish/pending-publish, queue, settings-schema, or media-policy behavior was touched. G3 was found already mitigated by the existing facade diagnostics lock and was not modified.",
+  "related_changes": [
+    "MP-CHANGE-2026-0607-016",
+    "MP-CHANGE-2026-0607-017"
+  ],
+  "notes": "G4 retention is opt-in only (CLI --keep-last; the UI/backend wrapper never deletes) and is sentinel-guarded with keep_last >= 1, so the current run cannot be removed. G9 was resolved by operator decision as a documented advisory: audio-only success stays a warning (no behavior change) and the strict gate is documented in code as a static config/queue/hash gate, not a media-policy gate; promoting it to a hard failure remains a future AGENTS.md section 7 change. G3 was found already mitigated by the existing facade diagnostics lock. No gaps remain open in docs/dev/tdarr-matrix-audit-gaps.md."
+}

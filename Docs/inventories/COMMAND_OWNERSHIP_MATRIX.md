@@ -1,13 +1,13 @@
 # Command Ownership Matrix
 
-Date: 2026-06-05
+Date: 2026-06-07
 
 Documents every POST command route in the Local API: command type, backend
 contract group, primary frontend owner, mutation class, and key restrictions.
 Source: `src/mediapipeline/desktop/api/contract_command.py`,
 `app/api/commands.py`, and the WebView `apiPost` call inventory.
 
-Total command routes: 53 POST routes across 10 contract groups.
+Total command routes: 58 POST routes across 10 contract groups.
 
 Network lifecycle and repair/reconcile mutation controls remain design-only.
 `/api/contract` publishes future contract gates for those areas, but no Network
@@ -20,10 +20,10 @@ POST route is authorized until the matching architecture contract is satisfied.
 
 | Contract constant | Routes |
 |---|---|
-| `LOCAL_API_FILE_COMMAND_ROUTE_CONTRACT` | queue/scan, queue/priority, queue/strategy, queue/file-overrides, queue/file-overrides/route-preview, queue/file-overrides/series-preview, queue/file-overrides/series-apply, queue/file-overrides/folder-preview, queue/file-overrides/folder-rule, failures/clear, queue/open, completed/open, pending-publish/open, pending-publish/recovery-plan, final-library-promotion/promote-queue, final-library-promotion/pause, final-library-promotion/resume |
-| `LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT` | maintenance/release-dry-run, maintenance/release-build, maintenance/completed-backfill-dry-run, maintenance/dependency-atlas |
+| `LOCAL_API_FILE_COMMAND_ROUTE_CONTRACT` | queue/scan, queue/priority, queue/strategy, queue/file-overrides, queue/file-overrides/route-preview, queue/file-overrides/series-preview, queue/file-overrides/series-apply, queue/file-overrides/folder-preview, queue/file-overrides/folder-rule, failures/clear, queue/open, completed/open, subtitle-qa/preview, pending-publish/open, pending-publish/recovery-plan, final-library-promotion/promote-queue, final-library-promotion/pause, final-library-promotion/resume |
+| `LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT` | maintenance/release-dry-run, maintenance/release-build, maintenance/completed-backfill-dry-run, maintenance/dependency-atlas, maintenance/dependency-atlas/open-folder |
 | `LOCAL_API_METRICS_COMMAND_ROUTE_CONTRACT` | metrics/sources, metrics/backfill |
-| `LOCAL_API_DIAGNOSTICS_COMMAND_ROUTE_CONTRACT` | diagnostics/open |
+| `LOCAL_API_DIAGNOSTICS_COMMAND_ROUTE_CONTRACT` | diagnostics/open, diagnostics/tdarr-matrix-audit, diagnostics/tdarr-matrix/evidence/open, diagnostics/tdarr-matrix/rerun |
 | `LOCAL_API_RENAME_COMMAND_ROUTE_CONTRACT` | rename/preview, rename/browse, rename/apply |
 | `LOCAL_API_SETTINGS_COMMAND_ROUTE_CONTRACT` | settings/validate, settings/browse-path, settings/preview-patch, settings/pipeline-plan-preview, settings/save-patch, settings/wizard/validate-paths, settings/wizard/validate-tools, settings/wizard/probe-hardware, settings/wizard/validate-workers, settings/wizard/preview, settings/wizard/save, settings/reload |
 | `LOCAL_API_SCHEDULE_COMMAND_ROUTE_CONTRACT` | schedule/preview, schedule/save |
@@ -76,6 +76,12 @@ completed manifests, pending-publish files, or source/output paths.
 Backend resolves actual filesystem paths from state. The frontend submits row
 keys and allowlisted target keys, not arbitrary paths.
 
+### Subtitle QA Preview
+
+| Route | Owner page | Owner JS | Mutation class | Key restriction |
+|---|---|---|---|---|
+| `POST /api/subtitle-qa/preview` | Queue, Completed | No WebView caller; backend route only | `read-only-preview` | Reads already-loaded Queue and Completed subtitle QA evidence only; does not probe files, convert/OCR/sync subtitles, repair, rewrite sidecars, publish, drain, or touch media |
+
 ### Final Library Promotion
 
 | Route | Owner page | Owner JS | Mutation class | Key restriction |
@@ -95,6 +101,7 @@ destinations, eligibility, cleanup behavior, or media policy.
 | `POST /api/maintenance/release-build` | Maintenance | `maintenanceView.js` | `deployment-write` | `confirm_create: true` required; writes release deployment artifacts through backend builder |
 | `POST /api/maintenance/completed-backfill-dry-run` | Maintenance | `maintenanceView.js` | `process-dry-run` | Runs backfill script with `-DryRun`; no completed manifest is written |
 | `POST /api/maintenance/dependency-atlas` | Maintenance | `maintenanceView.js` | `tooling-artifact-write` | Writes generated dependency-atlas artifacts under `docs/generated/dependency-atlas/` only |
+| `POST /api/maintenance/dependency-atlas/open-folder` | Maintenance | `maintenanceView.js` | `shell-open` | Opens fixed backend-resolved `docs/generated/dependency-atlas/`; request payload must be empty |
 
 ### Metrics Commands
 
@@ -103,11 +110,14 @@ destinations, eligibility, cleanup behavior, or media policy.
 | `POST /api/metrics/sources` | Metrics | `metricsView.js` | `metrics-state-write` | Adds/removes/enables/disables Metrics source roots in `State\Metrics`; does not scan or touch media |
 | `POST /api/metrics/backfill` | Metrics | `metricsView.js` | `metrics-backfill-state-write` | Recursively reads configured `*.pipeline.json` sidecars and refreshes Metrics cache/status under `State\Metrics`; skips symlinked folders and does not rewrite sidecars or media |
 
-### Diagnostics Open
+### Diagnostics Commands
 
 | Route | Owner page | Owner JS | Mutation class | Key restriction |
 |---|---|---|---|---|
 | `POST /api/diagnostics/open` | Diagnostics | `diagnosticsView.js` | `shell-open` | `target` must be one of 20 allowlisted diagnostics keys |
+| `POST /api/diagnostics/tdarr-matrix-audit` | Diagnostics | `diagnosticsView.js` | `diagnostic-process` | `action` must be one of `report`, `smoke`, `matrix`, `full`, `strict-report`; backend expands fixed Tdarr Matrix audit presets only |
+| `POST /api/diagnostics/tdarr-matrix/evidence/open` | Diagnostics | `diagnosticsView.js` | `shell-open` | `run_id`, `finding_key`, and allowlisted evidence `target`; backend resolves the path inside the selected Tdarr Matrix run root |
+| `POST /api/diagnostics/tdarr-matrix/rerun` | Diagnostics | `diagnosticsView.js` | `diagnostic-process` | `source_run_id`, `selection`, and finding keys only; backend maps findings to manifest case IDs and creates a fresh isolated run root |
 
 Allowed targets: `run_logs`, `cluster_log`, `config`, `config_folder`,
 `workspace`, `state`, `pending_publish`, `failed_reports`, `failed_markers`,
@@ -190,8 +200,8 @@ write file overrides, launch rerun work, save settings, or touch media files.
 | Class | Count | Routes |
 |---|---:|---|
 | `none` | 13 | pending-publish/recovery-plan, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, settings/wizard/validate-paths, settings/wizard/validate-tools, settings/wizard/probe-hardware, settings/wizard/validate-workers, settings/wizard/preview, settings/reload, schedule/preview, sample-validation/preview |
-| `read-only-preview` | 3 | queue/file-overrides/route-preview, queue/file-overrides/series-preview, queue/file-overrides/folder-preview |
-| `shell-open` | 4 | queue/open, completed/open, pending-publish/open, diagnostics/open |
+| `read-only-preview` | 4 | queue/file-overrides/route-preview, queue/file-overrides/series-preview, queue/file-overrides/folder-preview, subtitle-qa/preview |
+| `shell-open` | 6 | queue/open, completed/open, pending-publish/open, diagnostics/open, diagnostics/tdarr-matrix/evidence/open, maintenance/dependency-atlas/open-folder |
 | `shell-dialog` | 3 | rename/browse, settings/browse-path, pipeline/browse-file |
 | `queue-state-write` | 5 | queue/priority, queue/strategy, queue/file-overrides, queue/file-overrides/series-apply, queue/file-overrides/folder-rule |
 | `failure-marker-write` | 1 | failures/clear |
@@ -207,6 +217,7 @@ write file overrides, launch rerun work, save settings, or touch media files.
 | `control-state-write` | 2 | final-library-promotion/pause, final-library-promotion/resume |
 | `control-flag-write` | 1 | pipeline/control |
 | `process-dry-run` | 3 | queue/scan, maintenance/release-dry-run, maintenance/completed-backfill-dry-run |
+| `diagnostic-process` | 2 | diagnostics/tdarr-matrix-audit, diagnostics/tdarr-matrix/rerun |
 | `tooling-artifact-write` | 1 | maintenance/dependency-atlas |
 | `deployment-write` | 1 | maintenance/release-build |
 | `process-launch` | 3 | pipeline/start, audit/start, rerun/start |
@@ -242,6 +253,7 @@ deployment artifacts:
 - `schedule/save`
 - `final-library-promotion/pause`, `final-library-promotion/resume`
 - `audit/score-policy`, `audit/ignore`, `audit/export-rerun-csv`
+- `diagnostics/tdarr-matrix-audit`, `diagnostics/tdarr-matrix/rerun`
 - `maintenance/dependency-atlas`
 - `metrics/sources`, `metrics/backfill`
 
@@ -249,6 +261,7 @@ deployment artifacts:
 operator evidence only:
 
 - All `*/open` routes
+- `maintenance/dependency-atlas/open-folder`
 - `rename/browse`
 - `settings/browse-path`
 - `pipeline/browse-file`
@@ -260,6 +273,7 @@ operator evidence only:
 - All `*/preview`, `*/validate`, and `settings/reload` routes
 - `settings/pipeline-plan-preview`
 - `pending-publish/recovery-plan`
+- `subtitle-qa/preview`
 - ops/release/metadata/backfill dry-run routes
 
 Network-page Worker Mode Settings preview/save is config-only through the existing Settings routes above. It is not a Network lifecycle command surface and does not authorize coordinator/worker start, stop, retry, reclaim, release, abort, or worker-polling controls.
@@ -285,8 +299,9 @@ These are backend/API contract requirements, not frontend conventions.
 ## Freshness Review - 2026-06-05 (MDS-005)
 
 Re-checked `COMMAND_ROUTE_METHODS`, `LOCAL_API_COMMAND_ROUTE_CONTRACT`, and
-`COMMAND_ROUTE_PAYLOAD_MODELS`; all three contain the same 53 POST routes,
-including the backend-owned queue source scan route and audit control routes.
+`COMMAND_ROUTE_PAYLOAD_MODELS`; all three contain the same 56 POST routes,
+including the backend-owned queue source scan route, subtitle QA preview route,
+maintenance dependency-atlas folder-open route, and audit control routes.
 This review refreshed the matrix for the queue source scan, route-preview,
 series-preview, series-apply, folder-preview, folder-rule, audit controls,
 Settings Wizard, pipeline-plan preview, UI preferences, and final-library

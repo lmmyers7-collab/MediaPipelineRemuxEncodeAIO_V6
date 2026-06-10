@@ -382,7 +382,7 @@
       `Pipeline state: ${state}`,
       `Active work: ${active ? "yes" : "no"}`,
       `Close readiness: ${closeReadiness ? (closeReadiness.safe_to_close ? "safe" : "active/blocked") : "unknown"}`,
-      progress.CurrentStage ? `Current stage: ${progress.CurrentStage}` : "",
+      progress.CurrentStage ? `Current backend stage: ${progress.CurrentStage}` : "",
       progress.Status ? `Progress status: ${progress.Status}` : "",
     ].filter(Boolean);
     if (closeReadiness?.reason) lines.push(`Close reason: ${closeReadiness.reason}`);
@@ -512,6 +512,74 @@
     document.querySelectorAll(".page[data-page-panel]").forEach(updatePagePanelEmptyState);
   }
 
+  function kebabCase(value) {
+    return String(value || "").replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
+  }
+
+  function ensureElementId(element, prefix, suffix) {
+    if (element.id) return element.id;
+    const cleanPrefix = String(prefix || "tab").replace(/[^a-z0-9_-]+/gi, "-").toLowerCase();
+    const cleanSuffix = String(suffix || "panel").replace(/[^a-z0-9_-]+/gi, "-").toLowerCase();
+    element.id = `${cleanPrefix}-${cleanSuffix}`;
+    return element.id;
+  }
+
+  function tabDatasetKey(button) {
+    return Object.keys(button?.dataset || {}).find((key) => key.endsWith("Tab") && !key.endsWith("TabPanel")) || "";
+  }
+
+  function tabPanelDatasetKey(page, buttonKey) {
+    const candidates = [`${buttonKey}Panel`, buttonKey];
+    return candidates.find((key) => page.querySelector(`.settings-tab-pane[data-${kebabCase(key)}]`)) || "";
+  }
+
+  function syncTabAccessibility() {
+    document.querySelectorAll('[role="tablist"]').forEach((tablist) => {
+      const buttons = Array.from(tablist.querySelectorAll('[role="tab"]'));
+      if (!buttons.length) return;
+      const page = tablist.closest("[data-page-panel]") || document;
+      const buttonKey = tabDatasetKey(buttons[0]);
+      const panelKey = tabPanelDatasetKey(page, buttonKey);
+      if (!buttonKey || !panelKey) return;
+      const pageName = page.dataset?.pagePanel || "page";
+      const panels = Array.from(page.querySelectorAll(`.settings-tab-pane[data-${kebabCase(panelKey)}]`));
+      buttons.forEach((button) => {
+        const tabValue = button.dataset[buttonKey] || "";
+        const active = button.getAttribute("aria-selected") === "true";
+        const buttonId = ensureElementId(button, `${pageName}-tab`, tabValue || "button");
+        const controlledPanels = panels.filter((panel) => panel.dataset[panelKey] === tabValue);
+        const panelIds = controlledPanels.map((panel, index) => ensureElementId(panel, `${pageName}-tabpanel-${tabValue || "pane"}`, String(index + 1)));
+        if (panelIds.length) button.setAttribute("aria-controls", panelIds.join(" "));
+        button.tabIndex = active ? 0 : -1;
+        controlledPanels.forEach((panel) => {
+          panel.setAttribute("role", "tabpanel");
+          panel.setAttribute("aria-labelledby", buttonId);
+          panel.hidden = !active;
+        });
+      });
+      if (!tablist.dataset.tabKeyboardBound) {
+        tablist.dataset.tabKeyboardBound = "true";
+        tablist.addEventListener("keydown", (event) => {
+          const current = event.target?.closest?.('[role="tab"]');
+          if (!current || !tablist.contains(current)) return;
+          const index = buttons.indexOf(current);
+          if (index < 0) return;
+          const lastIndex = buttons.length - 1;
+          let nextIndex = -1;
+          if (event.key === "ArrowRight" || event.key === "ArrowDown") nextIndex = index === lastIndex ? 0 : index + 1;
+          if (event.key === "ArrowLeft" || event.key === "ArrowUp") nextIndex = index === 0 ? lastIndex : index - 1;
+          if (event.key === "Home") nextIndex = 0;
+          if (event.key === "End") nextIndex = lastIndex;
+          if (nextIndex < 0) return;
+          event.preventDefault();
+          buttons[nextIndex].focus();
+          buttons[nextIndex].click();
+        });
+        tablist.addEventListener("click", () => window.setTimeout(syncTabAccessibility, 0));
+      }
+    });
+  }
+
   const resetWorkspaceScroll = function () {
     const workspace = document.querySelector(".workspace");
     if (workspace && typeof workspace.scrollTo === "function") {
@@ -533,8 +601,12 @@
     const buttons = Array.from(document.querySelectorAll(".nav-button"));
     const panels = Array.from(document.querySelectorAll("[data-page-panel]"));
     const current = panels.find((panel) => panel.classList.contains("is-visible"))?.dataset.pagePanel || "";
-    const activeNavPage = normalized === "pending" ? "completed" : normalized;
-    buttons.forEach((item) => item.classList.toggle("is-active", item.dataset.page === activeNavPage));
+    buttons.forEach((item) => {
+      const active = item.dataset.page === normalized;
+      item.classList.toggle("is-active", active);
+      if (active) item.setAttribute("aria-current", "page");
+      else item.removeAttribute("aria-current");
+    });
     panels.forEach((panel) => panel.classList.toggle("is-visible", panel.dataset.pagePanel === normalized));
     if (current && current !== normalized) resetWorkspaceScroll();
     updatePagePanelEmptyStates();
@@ -562,7 +634,7 @@
       ["#backfill-dry-run-button", "Dry-run completed-manifest backfill. No manifest writes should occur during dry-run."],
       ["#dependency-atlas-button", "Regenerates dependency atlas HTML, images, and CSV exports through backend tooling."],
       ["#completed-refresh-current-output-button", "Rereads completed history and rechecks destination existence. It does not accept, delete, rerun, publish, drain, or move media."],
-      ['[data-home-promotion-entry]', "Opens Output when Final Library Promotion has reviewed files ready for delivery."],
+      ['[data-home-promotion-entry]', "Opens Completed Output when Final Library Promotion has reviewed files ready for delivery."],
       ['[data-completed-promote-selected]', "Promotes the selected reviewed file through the backend after confirmation. It never sends raw filesystem paths."],
       ["#diagnostics-tail-refresh-button", "Reads a bounded backend-allowlisted log tail. It cannot open arbitrary paths."],
       ["#sample-validation-append-button", "Appends backend-authored sample validation evidence only after preview/review. It does not accept output or publish media."],
@@ -577,7 +649,7 @@
       ["#rename-add-path-button", "Adds the typed source path to Rename paths. It does not inspect or rename files."],
       ["#rename-clear-paths-button", "Clears staged Rename paths and preview rows. It does not touch source files."],
       ["#settings-network-apply-button", "Stages standalone/coordinator/worker settings into the shared Settings patch JSON. It does not start or stop workers."],
-      ["#settings-network-reset-button", "Reloads the Workers tab mode controls from current saved backend settings."],
+      ["#settings-network-reset-button", "Reloads the Network Workers tab mode controls from current saved backend settings."],
       ["#network-settings-preview-button", "Previews staged Worker Mode Settings through the backend settings route. It does not save the PSD1."],
       ["#network-settings-save-button", "Saves staged Worker Mode Settings through backend validation and config backup. It does not start or stop workers."],
       ["#settings-library-add-button", "Adds a new editable library profile tab. It does not scan, move, publish, promote, or delete media files."],
@@ -599,17 +671,19 @@
   }
 
   function initSettingsTabNav() {
-    const STORAGE_KEY = "mediapipeline-settings-tab";
+    const STORAGE_KEY = "mediapipeline-settings-section";
+    const LEGACY_STORAGE_KEY = "mediapipeline-settings-tab";
     const page = document.querySelector('[data-page-panel="settings"]');
     if (!page) return;
-    const btns = Array.from(page.querySelectorAll(".settings-tab-btn[data-settings-tab]"));
+    const btns = Array.from(page.querySelectorAll(".settings-section-nav-btn[data-settings-tab]"));
     const panes = Array.from(page.querySelectorAll(".settings-tab-pane[data-settings-tab]"));
     if (!btns.length || !panes.length) return;
   
-    function activateTab(tabId) {
+    function activateSection(tabId) {
       btns.forEach((b) => {
         const active = b.dataset.settingsTab === tabId;
-        b.setAttribute("aria-selected", String(active));
+        if (active) b.setAttribute("aria-current", "location");
+        else b.removeAttribute("aria-current");
       });
       panes.forEach((p) => {
         p.classList.toggle("is-active", p.dataset.settingsTab === tabId);
@@ -619,14 +693,14 @@
     }
   
     btns.forEach((btn) => {
-      btn.addEventListener("click", () => activateTab(btn.dataset.settingsTab));
+      btn.addEventListener("click", () => activateSection(btn.dataset.settingsTab));
     });
   
     let stored = "status";
-    try { stored = localStorage.getItem(STORAGE_KEY) || "status"; } catch (_) {}
-    // Validate stored value is a real tab, fall back to status
+    try { stored = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY) || "status"; } catch (_) {}
+    // Validate stored value is a real section, fall back to status.
     if (!btns.some((b) => b.dataset.settingsTab === stored)) stored = "status";
-    activateTab(stored);
+    activateSection(stored);
   }
 
   function initDiagnosticsTabNav() {
@@ -646,6 +720,7 @@
         p.classList.toggle("is-active", p.dataset.diagTab === tabId);
       });
       try { localStorage.setItem(STORAGE_KEY, tabId); } catch (_) {}
+      syncTabAccessibility();
       updatePagePanelEmptyStates();
     }
   
@@ -668,7 +743,7 @@
     if (!btns.length || !panes.length) return false;
 
     let normalized = String(tabId || "overview").trim() || "overview";
-    if (normalized === "evidence" || normalized === "proof") normalized = "advanced";
+    if (normalized === "advanced" || normalized === "proof") normalized = "evidence";
     if (!btns.some((b) => b.dataset.completedTab === normalized)) normalized = "overview";
     btns.forEach((b) => {
       const active = b.dataset.completedTab === normalized;
@@ -678,6 +753,7 @@
       p.classList.toggle("is-active", p.dataset.completedTab === normalized);
     });
     try { localStorage.setItem(COMPLETED_TAB_STORAGE_KEY, normalized); } catch (_) {}
+    syncTabAccessibility();
     updatePagePanelEmptyStates();
     return true;
   }
@@ -713,13 +789,8 @@
     document.querySelectorAll("[data-cross-page-target]").forEach((button) => {
       button.addEventListener("click", () => showPage(button.dataset.crossPageTarget));
     });
-    document.querySelectorAll("[data-output-completed-tab]").forEach((button) => {
-      button.addEventListener("click", () => showCompletedOutputTab(button.dataset.outputCompletedTab));
-    });
-    document.querySelectorAll("[data-output-page-target]").forEach((button) => {
-      button.addEventListener("click", () => showPage(button.dataset.outputPageTarget));
-    });
-    // S15: topbar health badges → click navigates to Diagnostics
+    syncTabAccessibility();
+    // S15: topbar health/readiness buttons navigate to Diagnostics.
     const refreshHealthBadge = byId("refresh-health");
     if (refreshHealthBadge) refreshHealthBadge.addEventListener("click", () => showPage("diagnostics"));
     const closeReadinessBadge = byId("close-readiness");
@@ -906,10 +977,10 @@
   // they must not submit pipeline, publish, rename, settings-save, or file-open
   // mutation commands.
   const KEYBOARD_PAGE_KEYS = {
-    "1": { page: "home", label: "Dashboard" },
+    "1": { page: "home", label: "Home" },
     "2": { page: "queue", label: "Queue" },
-    "3": { page: "completed", label: "Output" },
-    "4": { page: "pending", label: "Publish" },
+    "3": { page: "completed", label: "Completed Output" },
+    "4": { page: "pending", label: "Pending Publish" },
     "5": { page: "launch", label: "Launch" },
     "6": { page: "reports", label: "Reports" },
     "7": { page: "diagnostics", label: "Diagnostics" },
@@ -1036,14 +1107,7 @@
     const panel = activeKeyboardPanel();
     const target = byId(KEYBOARD_DETAIL_IDS[page] || "") || panel?.querySelector('pre[id$="-detail"]');
     if (page === "completed" && target?.id === "completed-detail" && !shortcutElementVisible(target)) {
-      panel?.querySelectorAll(".settings-tab-btn[data-completed-tab]").forEach((button) => {
-        button.setAttribute("aria-selected", String(button.dataset.completedTab === "overview"));
-      });
-      panel?.querySelectorAll(".settings-tab-pane[data-completed-tab]").forEach((pane) => {
-        pane.classList.toggle("is-active", pane.dataset.completedTab === "overview");
-      });
-      try { localStorage.setItem("mediapipeline-completed-tab", "overview"); } catch (_) {}
-      if (typeof updatePagePanelEmptyStates === "function") updatePagePanelEmptyStates();
+      activateCompletedTab("overview");
     }
     if (!target || !shortcutElementVisible(target)) return false;
     if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");
@@ -1149,6 +1213,7 @@
     renderTauriBackendLifecycleAlert,
     renderControlReadiness,
     updatePagePanelEmptyStates,
+    syncTabAccessibility,
     showPage,
     applyDefaultActionTooltips,
     initSettingsTabNav,

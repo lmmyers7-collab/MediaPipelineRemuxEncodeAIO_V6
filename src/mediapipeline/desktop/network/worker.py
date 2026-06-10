@@ -68,7 +68,7 @@ class WorkerDispatcher(
 
     * A background **poll thread** that calls ``GET /api/claim`` on a
       configurable interval and, when a job is available, schedules
-      ``mediapipeline.core._worker_start_single_file(job)`` on the app callback thread.
+      ``app._worker_start_single_file(job)`` on the app callback thread.
     * A **heartbeat thread** (started per-job) that sends
       ``POST /api/heartbeat`` every 30 s.  If the coordinator responds
       with ``"reclaimed"`` the worker signals the active pipeline process

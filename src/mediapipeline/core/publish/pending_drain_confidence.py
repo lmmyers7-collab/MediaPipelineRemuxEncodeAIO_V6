@@ -198,7 +198,7 @@ def pending_publish_drain_confidence_payload(payload: Mapping[str, Any], rows: l
             if exists is False
             else "No parked outputs are waiting. Do not reprocess solely because Pending Publish is empty."
             if not rows
-            else "Review row-level evidence below before pressing Publish Parked Outputs.",
+            else "Review row-level evidence below before pressing Drain Parked Outputs.",
         )
         add(
             "Blocker evidence",

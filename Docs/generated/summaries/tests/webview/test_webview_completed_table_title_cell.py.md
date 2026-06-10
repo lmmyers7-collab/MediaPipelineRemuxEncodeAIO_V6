@@ -3,9 +3,9 @@ file: tests/webview/test_webview_completed_table_title_cell.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: b894831c002799a52d5646b25e098f3ca06d240db94d863cd3dbffcce3064467
+sha256: 95fe37d4d27f2728434e7a655e31d18cde97446ef4f34debf326f12a4faa485b
 ---
 # `tests/webview/test_webview_completed_table_title_cell.py`
 

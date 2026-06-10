@@ -75,7 +75,7 @@ class StandaloneDispatcher(QueueDispatcher):
         record, failure logging) is invoked directly — nothing changes
         from the pre-dispatcher implementation.
         """
-        # The existing completion path lives on the mediapipeline.core.  We call it
+        # The existing completion path lives on the app.  We call it
         # through whatever method the app exposes after the encode
         # subprocess exits.  In standalone mode the encode loop handles
         # this; mark_done is a signal that the dispatcher layer is done

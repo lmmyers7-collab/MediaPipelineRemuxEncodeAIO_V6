@@ -92,7 +92,7 @@ class EtaPayloadTests(unittest.TestCase):
         self.assertEqual(payload["estimated_count"], 1)
         row = payload["rows"][0]
         self.assertEqual(row["worker_id"], "publish_copy")
-        self.assertEqual(row["worker_label"], "Push file")
+        self.assertEqual(row["worker_label"], "Publishing completed output")
         self.assertEqual(row["eta_seconds"], 60)
         self.assertEqual(row["bytes_remaining"], 536870912)
         self.assertEqual(row["bytes_per_second"], 8947849)

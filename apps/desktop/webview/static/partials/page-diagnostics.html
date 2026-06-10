@@ -1,5 +1,5 @@
       <section class="page" data-page-panel="diagnostics">
-        <h1 class="visually-hidden">System Diagnostics</h1>
+        <h1 class="visually-hidden">Diagnostics</h1>
         <div class="settings-tab-bar" role="tablist" aria-label="Diagnostics sections">
           <button type="button" class="settings-tab-btn" role="tab" data-diag-tab="triage" aria-selected="true">Overview</button>
           <button type="button" class="settings-tab-btn" role="tab" data-diag-tab="investigation" aria-selected="false">Investigation</button>
@@ -10,6 +10,19 @@
         <div class="action-row action-row-left">
           <button class="secondary-button" type="button" data-page-refresh-button="diagnostics">Refresh Diagnostics</button>
         </div>
+
+        <section class="panel live-run-strip-panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Live Run</h2>
+            <strong id="diagnostics-live-run-status" data-state="unknown">Checking</strong>
+          </div>
+          <div id="diagnostics-live-run-strip" class="live-run-strip" aria-live="polite" aria-label="Diagnostics live run summary">
+            <span class="live-run-chip" data-status="unknown">
+              <span class="live-run-chip-label">State</span>
+              <strong class="live-run-chip-value">Waiting for backend snapshot</strong>
+            </span>
+          </div>
+        </section>
 
         <!-- TAB: TRIAGE -->
         <div class="settings-tab-pane is-active" data-diag-tab="triage">
@@ -48,6 +61,20 @@
             <strong id="diagnostics-close-status">Not loaded</strong>
           </div>
           <pre id="diagnostics-close-readiness" class="prose-block">No close-readiness data loaded.</pre>
+        </section>
+
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Lifecycle - Backend State</h2>
+            <strong id="backend-lifecycle-status" data-state="unknown">Not loaded</strong>
+          </div>
+          <p class="note">Lifecycle evidence for close-readiness and backend shutdown posture. Shutdown remains backend-owned and disabled until close-readiness reports safe.</p>
+          <pre id="backend-lifecycle-summary" class="prose-block">No backend lifecycle readiness loaded.</pre>
+          <div class="action-row action-row-left">
+            <button type="button" id="backend-shutdown-button" class="danger-button" disabled>Request Backend Shutdown</button>
+          </div>
+          <p id="backend-shutdown-status" class="note">Shutdown requests stay disabled until close-readiness reports safe.</p>
+          <pre id="backend-lifecycle-history" class="prose-block">No backend lifecycle command history loaded.</pre>
         </section>
 
         <section class="panel" data-panel-type="evidence">
@@ -149,7 +176,7 @@
           </div>
           <pre id="diagnostics-state-recovery" class="prose-block">No diagnostics state recovery checklist loaded.</pre>
           <div class="panel-heading panel-subheading">
-            <h3>Recovery Controls</h3>
+            <h3>Recovery Guidance</h3>
           </div>
           <p class="note">Diagnostics is read-only. If evidence shows stuck progress, compare ActiveJobs, Runtime Progress, Run Logs, and Shutdown Readiness here, then use the owning Launch/active control surface for Force Stop or Stop After Current.</p>
           <div data-advanced>
@@ -309,7 +336,7 @@
 
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Command History</h2>
+            <h2>Commands Evidence</h2>
             <strong id="diagnostics-command-status">No commands</strong>
           </div>
           <pre id="diagnostics-command-history" class="log-block">No backend command history loaded.</pre>
@@ -493,16 +520,113 @@
         <div class="settings-tab-pane" data-diag-tab="advanced">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Lifecycle - Backend State</h2>
-            <strong id="backend-lifecycle-status" data-state="unknown">Not loaded</strong>
+            <h2>Tdarr Matrix Tests</h2>
+            <strong id="tdarr-matrix-audit-status">Idle</strong>
           </div>
-          <p class="note">Lifecycle evidence for close-readiness and backend shutdown posture. Shutdown remains backend-owned and disabled until close-readiness reports safe.</p>
-          <pre id="backend-lifecycle-summary" class="prose-block">No backend lifecycle readiness loaded.</pre>
-          <div class="action-row action-row-left">
-            <button type="button" id="backend-shutdown-button" class="danger-button" disabled>Request Backend Shutdown</button>
+          <p class="note">Runs backend-owned Tdarr Matrix audit presets against LocalBase/Scratch/TestLibraries/TdarrMatrix and isolated TdarrMatrixRuns roots.</p>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="report">Prepare Audit Report</button>
+            <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="smoke">Run 6-File Smoke</button>
+            <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="matrix">Run 30-File Matrix</button>
+            <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="full">Run 100% Matrix</button>
+            <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="strict-report">Strict Report Gate</button>
           </div>
-          <p id="backend-shutdown-status" class="note">Shutdown requests stay disabled until close-readiness reports safe.</p>
-          <pre id="backend-lifecycle-history" class="prose-block">No backend lifecycle command history loaded.</pre>
+          <pre id="tdarr-matrix-audit-detail" class="prose-block">No Tdarr Matrix audit has been run from this shell.</pre>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" class="secondary-button" id="tdarr-matrix-audit-load-latest">Load Latest Report</button>
+            <button type="button" class="secondary-button" id="tdarr-matrix-audit-rerun-selected" disabled>Rerun Selected Cases</button>
+            <button type="button" class="secondary-button" id="tdarr-matrix-audit-rerun-failures" disabled>Rerun Latest Failures</button>
+          </div>
+          <pre id="tdarr-matrix-console-summary" class="prose-block">No Tdarr Matrix run summary loaded.</pre>
+          <div class="action-row action-row-left wrap-actions">
+            <label class="field-label" for="tdarr-matrix-audit-filter">Search</label>
+            <input id="tdarr-matrix-audit-filter" type="search" placeholder="code, case, bucket, route, message">
+            <label class="field-label" for="tdarr-matrix-audit-severity-filter">Severity</label>
+            <select id="tdarr-matrix-audit-severity-filter">
+              <option value="">All</option>
+            </select>
+            <label class="field-label" for="tdarr-matrix-audit-bucket-filter">Bucket</label>
+            <select id="tdarr-matrix-audit-bucket-filter">
+              <option value="">All</option>
+            </select>
+          </div>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Select</th>
+                  <th scope="col">Severity</th>
+                  <th scope="col">Code</th>
+                  <th scope="col">Case</th>
+                  <th scope="col">View</th>
+                  <th scope="col">Bucket</th>
+                  <th scope="col">Route</th>
+                  <th scope="col">Message</th>
+                  <th scope="col">Source</th>
+                </tr>
+              </thead>
+              <tbody id="tdarr-matrix-audit-findings-rows">
+                <tr><td colspan="9">No Tdarr Matrix findings loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p id="tdarr-matrix-audit-findings-status" class="note">Findings table updates after a Tdarr Matrix audit command completes.</p>
+          <div class="panel-heading panel-subheading">
+            <h3>Selected Finding Evidence</h3>
+            <strong id="tdarr-matrix-audit-evidence-status">No selection</strong>
+          </div>
+          <pre id="tdarr-matrix-audit-finding-detail" class="prose-block">Select a finding row to inspect available evidence.</pre>
+          <div id="tdarr-matrix-audit-evidence-actions" class="action-row action-row-left wrap-actions"></div>
+          <div class="panel-heading panel-subheading">
+            <h3>Bucket Coverage</h3>
+            <strong id="tdarr-matrix-audit-bucket-status">Not loaded</strong>
+          </div>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Bucket</th>
+                  <th scope="col">Selected</th>
+                  <th scope="col">Queued</th>
+                  <th scope="col">Passed</th>
+                  <th scope="col">Failed</th>
+                  <th scope="col">Critical</th>
+                  <th scope="col">Error</th>
+                  <th scope="col">Warning</th>
+                  <th scope="col">Movies</th>
+                  <th scope="col">TV</th>
+                </tr>
+              </thead>
+              <tbody id="tdarr-matrix-audit-bucket-rows">
+                <tr><td colspan="10">No Tdarr Matrix bucket coverage loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="panel-heading panel-subheading">
+            <h3>Run Comparison</h3>
+            <strong id="tdarr-matrix-run-compare-status">Not loaded</strong>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <label class="field-label" for="tdarr-matrix-compare-left">Left</label>
+            <select id="tdarr-matrix-compare-left"></select>
+            <label class="field-label" for="tdarr-matrix-compare-right">Right</label>
+            <select id="tdarr-matrix-compare-right"></select>
+            <button type="button" class="secondary-button" id="tdarr-matrix-compare-refresh">Compare Runs</button>
+          </div>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Diff</th>
+                  <th scope="col">Count</th>
+                  <th scope="col">Examples</th>
+                </tr>
+              </thead>
+              <tbody id="tdarr-matrix-run-compare-rows">
+                <tr><td colspan="3">No Tdarr Matrix run comparison loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
         </section>
 
         <section class="panel" data-panel-type="interactive">
@@ -534,7 +658,7 @@
 
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Developer / Contract Evidence - API Contract</h2>
+            <h2>Developer / Contract Evidence - API Contract Evidence</h2>
             <strong id="api-contract-status">Not loaded</strong>
           </div>
           <p class="note">Developer-facing route evidence for effects, schemas, and ownership boundaries. Contract review is advisory and does not execute commands.</p>

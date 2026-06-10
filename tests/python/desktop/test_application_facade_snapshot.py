@@ -196,6 +196,22 @@ class ApplicationFacadeSnapshotTests(unittest.TestCase):
                         "cue_count": 32,
                         "updated_at": "2026-05-17T12:00:05Z",
                     },
+                    "AudioProgress": {
+                        "schema_version": "pipeline_audio_progress.v1",
+                        "stream_index": 1,
+                        "stage": "audio_policy",
+                        "status": "Audio stream 1 will be transcoded",
+                        "action": "transcode",
+                        "source_codec": "dts",
+                        "source_channels": 8,
+                        "output_codec": "EAC3",
+                        "output_channels": 6,
+                        "language": "eng",
+                        "reason": "channel cap policy",
+                        "step_index": 2,
+                        "step_total": 3,
+                        "updated_at": "2026-05-17T12:00:06Z",
+                    },
                     "TotalProcessed": 2,
                     "Encoded": 0,
                     "Remuxed": 2,
@@ -236,6 +252,11 @@ class ApplicationFacadeSnapshotTests(unittest.TestCase):
         self.assertEqual(bars["subtitle_track"]["percent"], 75.0)
         self.assertEqual(bars["subtitle_track"]["label"], "Subtitle ASS stream 2")
         self.assertIn("validate", bars["subtitle_track"]["detail"])
+        self.assertEqual(bars["audio_track"]["mode"], "stepped")
+        self.assertEqual(bars["audio_track"]["status"], "active")
+        self.assertEqual(bars["audio_track"]["percent"], 66.7)
+        self.assertEqual(bars["audio_track"]["label"], "Audio Transcode stream 1")
+        self.assertIn("dts -> EAC3", bars["audio_track"]["detail"])
         self.assertEqual(bars["audit_progress"]["percent"], 100.0)
         self.assertEqual(bars["audit_progress"]["source"], "audit_progress.json")
         self.assertEqual(bars["audit_reports"]["mode"], "stepped")
@@ -271,6 +292,19 @@ class ApplicationFacadeSnapshotTests(unittest.TestCase):
                     "CopyAttempt": 1,
                     "CopyStartedAt": "2026-05-17T12:00:00Z",
                     "CopyUpdatedAt": "2026-05-17T12:00:02Z",
+                    "PendingDrainProgress": {
+                        "schema_version": "pipeline_pending_drain_progress.v1",
+                        "manifest_count": 4,
+                        "attempted_count": 2,
+                        "succeeded_count": 1,
+                        "already_published_count": 1,
+                        "error_count": 0,
+                        "skipped_count": 0,
+                        "remaining_count": 2,
+                        "current_item": "Episode.mkv",
+                        "status": "Drain transaction succeeded",
+                        "updated_at": "2026-05-17T12:00:02Z",
+                    },
                     "TotalProcessed": 2,
                     "Encoded": 0,
                     "Remuxed": 2,
@@ -294,13 +328,97 @@ class ApplicationFacadeSnapshotTests(unittest.TestCase):
         self.assertEqual(bars["publish_output"]["percent"], 0.0)
         self.assertEqual(bars["publish_output"]["mode"], "stepped")
         self.assertEqual([step["status"] for step in bars["publish_output"]["steps"]], ["active", "pending", "pending", "pending"])
-        self.assertEqual(bars["publish_copy"]["label"], "Push file")
+        self.assertEqual(bars["publish_copy"]["label"], "Publishing completed output")
         self.assertEqual(bars["publish_copy"]["percent"], 50.0)
         self.assertEqual(bars["publish_copy"]["source"], "pipeline_progress.json")
         self.assertIn("512.0 MB / 1.0 GB", bars["publish_copy"]["detail"])
+        self.assertEqual(bars["pending_drain"]["label"], "Pending publish drain")
+        self.assertEqual(bars["pending_drain"]["percent"], 50.0)
+        self.assertIn("2 / 4 manifests", bars["pending_drain"]["detail"])
         eta_row = snapshot.eta["rows"][0]
         self.assertEqual(eta_row["worker_id"], "publish_copy")
         self.assertEqual(eta_row["eta_seconds"], 2)
+
+    def test_snapshot_progress_bars_explain_near_complete_encode(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            service = DummyFacadeService(root)
+            service.snapshot = Snapshot(
+                resolved=resolved,
+                current_activity="Encoding output.",
+                status_summary="Status OK",
+                log_tail="",
+                progress={
+                    "ProgressVersion": 2,
+                    "LastUpdate": "2026-05-17 12:00:00",
+                    "Status": "Processing",
+                    "CurrentStage": "encode",
+                    "CurrentStagePercent": 95,
+                    "CurrentQueueIndex": 1,
+                    "CurrentQueueTotal": 1,
+                    "CurrentRoute": "encode",
+                    "CurrentFileDisplay": "Long Encode.mkv",
+                    "TotalProcessed": 0,
+                    "Encoded": 0,
+                    "Remuxed": 0,
+                    "Failed": 0,
+                },
+                audit_progress=None,
+                latest_failure_report=None,
+                latest_failure_json=None,
+                latest_audit_csv=None,
+                latest_priority_csv=None,
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            snapshot = facade.get_snapshot(resolved)
+
+        bars = {bar["id"]: bar for bar in snapshot.progress_bars}
+        self.assertEqual(bars["current_stage"]["status"], "active")
+        self.assertIn("near complete", bars["current_stage"]["detail"])
+        self.assertIn("verify output", bars["current_stage"]["detail"])
+
+    def test_snapshot_progress_bars_treat_deferred_publish_as_review_not_complete(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            service = DummyFacadeService(root)
+            service.snapshot = Snapshot(
+                resolved=resolved,
+                current_activity="Parking output pending safe publish.",
+                status_summary="Status OK",
+                log_tail="",
+                progress={
+                    "ProgressVersion": 2,
+                    "LastUpdate": "2026-05-17 12:00:00",
+                    "Status": "Processing",
+                    "CurrentStage": "push",
+                    "CurrentStagePercent": 100,
+                    "CurrentQueueIndex": 1,
+                    "CurrentQueueTotal": 1,
+                    "CurrentRoute": "encode",
+                    "CurrentFileDisplay": "Parked Output.mkv",
+                    "PushState": "deferred",
+                    "SidecarState": "complete",
+                    "TotalProcessed": 1,
+                    "Encoded": 1,
+                    "Remuxed": 0,
+                    "Failed": 0,
+                },
+                audit_progress=None,
+                latest_failure_report=None,
+                latest_failure_json=None,
+                latest_audit_csv=None,
+                latest_priority_csv=None,
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            snapshot = facade.get_snapshot(resolved)
+
+        bars = {bar["id"]: bar for bar in snapshot.progress_bars}
+        self.assertEqual(bars["current_stage"]["status"], "warning")
+        self.assertEqual(bars["publish_output"]["status"], "warning")
+        self.assertEqual([step["status"] for step in bars["publish_output"]["steps"]], ["complete", "complete", "complete", "review"])
+        self.assertIn("publish=deferred", bars["current_stage"]["detail"])
 
     def test_telemetry_zero_percent_gpu_is_present_not_missing(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

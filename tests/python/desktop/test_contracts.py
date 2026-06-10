@@ -236,6 +236,16 @@ class ContractTests(unittest.TestCase):
             "CopyState": None,
             "PushState": None,
             "SidecarState": None,
+            "AudioProgress": {
+                "schema_version": "pipeline_audio_progress.v1",
+                "action": "copy",
+                "status": "Audio policy complete",
+            },
+            "PendingDrainProgress": {
+                "schema_version": "pipeline_pending_drain_progress.v1",
+                "manifest_count": 2,
+                "attempted_count": 1,
+            },
             "PauseRequested": False,
             "StopRequested": False,
             "ControlRequests": {"Pause": {"Requested": False}},
@@ -255,6 +265,8 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(progress.current_library_name, "Movies")
         self.assertEqual(progress.to_mapping()["CurrentQueueIndex"], 1)
         self.assertEqual(progress.to_mapping()["CurrentLibrarySourceRoot"], r"C:\Media")
+        self.assertEqual(progress.to_mapping()["AudioProgress"]["schema_version"], "pipeline_audio_progress.v1")
+        self.assertEqual(progress.to_mapping()["PendingDrainProgress"]["manifest_count"], 2)
 
     def test_process_result_contract_accepts_powershell_pascal_case_shape(self) -> None:
         payload = {

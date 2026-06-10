@@ -5,7 +5,6 @@
         targetDataset: "openCompleted",
         actions: [
           { kind: "open", target: "play_output_file", label: "Play Output", primary: true, hint: "Play the backend-selected completed output file with the PC default app." },
-          { kind: "open", target: "output_file", label: "Open Output File", hint: "Open the backend-selected completed output file." },
           { kind: "open", target: "output_folder", label: "Open Output Folder", hint: "Open the backend-selected completed output folder." },
           { kind: "open", target: "sidecar", label: "Open Sidecar", hint: "Open the backend-selected sidecar file." },
           { kind: "open", target: "source_folder", label: "Open Source Folder", hint: "Open the backend-selected source folder." },

@@ -401,35 +401,112 @@ try {
     [System.IO.File]::WriteAllBytes($sizePolicySourcePath, [byte[]](0..99))
     [System.IO.File]::WriteAllBytes($sizePolicyOutputPath, [byte[]](0..129))
 
-    $overrideFallback = Test-MediaEncodeOutputSizePolicy `
+    $forcedEncodeFallback = Test-MediaEncodeOutputSizePolicy `
         -SourcePath $sizePolicySourcePath `
         -OutputPath $sizePolicyOutputPath `
         -SizeGuardMode 'fallback_remux' `
         -MaxGrowthPercent 5 `
         -CompatibilityGrowthPercent 15 `
         -RouteReasonCode 'folder_policy_force_encode'
-    Assert-Equal ([bool]$overrideFallback.Exceeded) $true 'Fallback-remux guard should detect oversized override-forced encode output.'
-    Assert-Equal ([bool]$overrideFallback.Ok) $true 'Fallback-remux guard should let encode continue unless fallback succeeds.'
-    Assert-Equal ([bool]$overrideFallback.ShouldBlock) $false 'Fallback-remux guard should not use strict publish block semantics.'
-    Assert-Equal ([bool]$overrideFallback.ShouldFallbackRemux) $true 'Fallback-remux guard should request remux only for override-forced encodes.'
-    Assert-Equal ([bool]$overrideFallback.Metadata.fallback_remux_eligible) $true 'Fallback-remux metadata should mark override-forced encode eligibility.'
-    Assert-Equal ([bool]$overrideFallback.Metadata.should_fallback_remux) $true 'Fallback-remux metadata should record the requested fallback.'
+    Assert-Equal ([bool]$forcedEncodeFallback.Exceeded) $true 'Fallback-remux guard should detect oversized forced encode output.'
+    Assert-Equal ([bool]$forcedEncodeFallback.Ok) $true 'Fallback-remux guard should warn-only for forced encode overrides.'
+    Assert-Equal ([bool]$forcedEncodeFallback.ShouldBlock) $false 'Fallback-remux guard should not use strict publish block semantics for forced encode overrides.'
+    Assert-Equal ([bool]$forcedEncodeFallback.ShouldFallbackRemux) $false 'Fallback-remux guard should not request remux for forced encode overrides.'
+    Assert-Equal ([bool]$forcedEncodeFallback.Metadata.forced_route_override) $true 'Fallback-remux metadata should mark forced encode overrides.'
+    Assert-Equal ([bool]$forcedEncodeFallback.Metadata.fallback_remux_eligible) $false 'Fallback-remux metadata should mark forced encode overrides ineligible.'
 
-    $nonOverrideFallback = Test-MediaEncodeOutputSizePolicy `
+    $forcedRemuxRejectedFallback = Test-MediaEncodeOutputSizePolicy `
+        -SourcePath $sizePolicySourcePath `
+        -OutputPath $sizePolicyOutputPath `
+        -SizeGuardMode 'fallback_remux' `
+        -MaxGrowthPercent 5 `
+        -CompatibilityGrowthPercent 15 `
+        -RouteReasonCode 'forced_remux_rejected_unsafe_codec'
+    Assert-Equal ([bool]$forcedRemuxRejectedFallback.Exceeded) $true 'Fallback-remux guard should detect oversized forced-remux-rejected encode output.'
+    Assert-Equal ([bool]$forcedRemuxRejectedFallback.Ok) $true 'Fallback-remux guard should warn-only after a forced remux override is rejected to encode.'
+    Assert-Equal ([bool]$forcedRemuxRejectedFallback.ShouldFallbackRemux) $false 'Fallback-remux guard should not request remux after forced remux override rejection.'
+    Assert-Equal ([bool]$forcedRemuxRejectedFallback.Metadata.forced_route_override) $true 'Fallback-remux metadata should mark forced remux rejection as override-owned.'
+
+    $bitrateFallback = Test-MediaEncodeOutputSizePolicy `
         -SourcePath $sizePolicySourcePath `
         -OutputPath $sizePolicyOutputPath `
         -SizeGuardMode 'fallback_remux' `
         -MaxGrowthPercent 5 `
         -CompatibilityGrowthPercent 15 `
         -RouteReasonCode 'bitrate_over_threshold'
-    Assert-Equal ([bool]$nonOverrideFallback.Exceeded) $true 'Fallback-remux guard should still record non-override size growth.'
-    Assert-Equal ([bool]$nonOverrideFallback.ShouldFallbackRemux) $false 'Fallback-remux guard should not request remux for non-override encodes.'
-    Assert-Equal ([bool]$nonOverrideFallback.Metadata.fallback_remux_eligible) $false 'Fallback-remux metadata should mark non-override encodes ineligible.'
+    Assert-Equal ([bool]$bitrateFallback.Exceeded) $true 'Fallback-remux guard should detect oversized automatic bitrate-threshold encode output.'
+    Assert-Equal ([bool]$bitrateFallback.Ok) $true 'Fallback-remux guard should let the encode branch attempt remux fallback for automatic bitrate-threshold encodes.'
+    Assert-Equal ([bool]$bitrateFallback.ShouldFallbackRemux) $true 'Fallback-remux guard should request remux for automatic bitrate-threshold encodes.'
+    Assert-Equal ([bool]$bitrateFallback.Metadata.fallback_remux_eligible) $true 'Fallback-remux metadata should mark bitrate-threshold encodes eligible.'
+    Assert-Equal ([bool]$bitrateFallback.Metadata.forced_route_override) $false 'Fallback-remux metadata should not mark bitrate-threshold encodes override-owned.'
+
+    $sizeFallback = Test-MediaEncodeOutputSizePolicy `
+        -SourcePath $sizePolicySourcePath `
+        -OutputPath $sizePolicyOutputPath `
+        -SizeGuardMode 'fallback_remux' `
+        -MaxGrowthPercent 5 `
+        -CompatibilityGrowthPercent 15 `
+        -RouteReasonCode 'size_over_threshold'
+    Assert-Equal ([bool]$sizeFallback.Exceeded) $true 'Fallback-remux guard should detect oversized automatic size-threshold encode output.'
+    Assert-Equal ([bool]$sizeFallback.Ok) $true 'Fallback-remux guard should let the encode branch attempt remux fallback for automatic size-threshold encodes.'
+    Assert-Equal ([bool]$sizeFallback.ShouldFallbackRemux) $true 'Fallback-remux guard should request remux for automatic size-threshold encodes.'
+    Assert-Equal ([bool]$sizeFallback.Metadata.fallback_remux_eligible) $true 'Fallback-remux metadata should mark size-threshold encodes eligible.'
+
+    $hardwareIntentFallback = Test-MediaEncodeOutputSizePolicy `
+        -SourcePath $sizePolicySourcePath `
+        -OutputPath $sizePolicyOutputPath `
+        -SizeGuardMode 'fallback_remux' `
+        -MaxGrowthPercent 5 `
+        -CompatibilityGrowthPercent 15 `
+        -RouteReasonCode 'hardware_encoder_cpu_fallback' `
+        -RouteIntentReasonCode 'bitrate_over_threshold'
+    Assert-Equal ([bool]$hardwareIntentFallback.ShouldFallbackRemux) $true 'Fallback-remux guard should use original automatic route intent when encoder fallback changes the active reason code.'
+    Assert-Equal ([string]$hardwareIntentFallback.Metadata.route_reason_code) 'hardware_encoder_cpu_fallback' 'Fallback-remux metadata should preserve the active encoder outcome reason.'
+    Assert-Equal ([string]$hardwareIntentFallback.Metadata.route_intent_reason_code) 'bitrate_over_threshold' 'Fallback-remux metadata should preserve the original route intent reason.'
+    Assert-Equal ([double]$hardwareIntentFallback.Metadata.max_growth_percent) 15.0 'Hardware fallback should retain the compatibility growth budget.'
+
+    $forcedHardwareFallback = Test-MediaEncodeOutputSizePolicy `
+        -SourcePath $sizePolicySourcePath `
+        -OutputPath $sizePolicyOutputPath `
+        -SizeGuardMode 'fallback_remux' `
+        -MaxGrowthPercent 5 `
+        -CompatibilityGrowthPercent 15 `
+        -RouteReasonCode 'hardware_encoder_cpu_fallback' `
+        -RouteIntentReasonCode 'folder_policy_force_encode'
+    Assert-Equal ([bool]$forcedHardwareFallback.ShouldFallbackRemux) $false 'Fallback-remux guard should not request remux when hardware fallback came from a forced encode override.'
+    Assert-Equal ([bool]$forcedHardwareFallback.Metadata.forced_route_override) $true 'Fallback-remux metadata should keep forced route override ownership after hardware fallback.'
 } finally {
     Remove-Item -LiteralPath $sizePolicyRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 Assert-Equal (Get-MediaEncodeOutputMuxerName -OutputPath 'output.mkv') 'matroska' 'MKV encode output should keep Matroska muxer.'
 Assert-Equal (Get-MediaEncodeOutputMuxerName -OutputPath 'output.mp4') 'mp4' 'MP4 encode output should use MP4 muxer when a route/video override selects MP4 output.'
+
+$mp4EncodeArgs = @(New-EncodeFfmpegArgumentList `
+    -InputPath 'input.mkv' `
+    -GlobalTitle 'Source Title' `
+    -VideoFlags @('-c:v','hevc_nvenc') `
+    -AudioArgs @('-map','0:a:0','-c:a:0','eac3') `
+    -SubtitleMapArgs @() `
+    -OutputPath 'output.mp4')
+$mp4EncodeJoined = $mp4EncodeArgs -join ' '
+Assert-True ($mp4EncodeJoined -match '-map_chapters -1') 'MP4 encode args should strip chapters.'
+Assert-True ($mp4EncodeJoined -match '-map_metadata -1') 'MP4 encode args should strip source/global metadata.'
+Assert-True ($mp4EncodeJoined -match '-movflags \+faststart') 'MP4 encode args should enable faststart muxing.'
+Assert-True ($mp4EncodeJoined -notmatch '-map 0:t\?') 'MP4 encode args must not map attachments/fonts.'
+Assert-True ($mp4EncodeJoined -notmatch '-c:t copy') 'MP4 encode args must not copy attachments/fonts.'
+Assert-True ($mp4EncodeJoined -notmatch '-metadata title=') 'MP4 encode args must not write a global title.'
+
+$mkvEncodeArgs = @(New-EncodeFfmpegArgumentList `
+    -InputPath 'input.mkv' `
+    -GlobalTitle 'Source Title' `
+    -VideoFlags @('-c:v','hevc_nvenc') `
+    -AudioArgs @('-map','0:a:0','-c:a:0','copy') `
+    -SubtitleMapArgs @() `
+    -OutputPath 'output.mkv')
+$mkvEncodeJoined = $mkvEncodeArgs -join ' '
+Assert-True ($mkvEncodeJoined -match '-map 0:t\?') 'MKV encode args should continue preserving attachments/fonts.'
+Assert-True ($mkvEncodeJoined -match '-map_chapters 0') 'MKV encode args should continue preserving chapters.'
+Assert-True ($mkvEncodeJoined -match '-map_metadata 0') 'MKV encode args should continue preserving source/global metadata.'
 
 Write-Host 'Media route selection checks passed.'

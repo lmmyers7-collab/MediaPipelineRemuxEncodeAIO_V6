@@ -34,6 +34,7 @@ function Get-MediaPipelineReleaseExclusionReason {
     if ($relative -like 'CodexVerification\*') { return 'local verification evidence' }
     if ($relative -like 'LocalBase\*') { return 'local runtime state' }
     if ($relative -like 'RunLogs\*') { return 'root runtime logs' }
+    if ($relative -like 'artifacts\*') { return 'generated proof artifact' }
     if ($segments.Count -eq 1 -and $name -like '*.log') { return 'root runtime log' }
     if ($segments.Count -eq 1 -and $name -like '*.state.json') { return 'root runtime state' }
     if ($segments.Count -eq 1 -and $name -like '*_AUDIT.md') { return 'generated audit/report artifact' }
@@ -55,7 +56,7 @@ function Get-MediaPipelineReleaseExclusionReason {
 
     if (-not $IncludeOptionalTools) {
         if ($relative -eq 'ops\pipeline\tools\ffmpeg\bin\ffplay.exe') { return 'optional media playback tool omitted' }
-        if ($relative -match '^Pipeline\\Tools\\MKVToolNix\\(mkvtoolnix-gui|mkvextract|mkvinfo|mkvpropedit|uninst)\.exe$') { return 'optional MKVToolNix tool omitted' }
+        if ($relative -match '^ops\\pipeline\\tools\\MKVToolNix\\(mkvtoolnix-gui|mkvextract|mkvinfo|mkvpropedit|uninst)\.exe$') { return 'optional MKVToolNix tool omitted' }
         if ($relative -eq 'ops\pipeline\tools\MKVToolNix\MKVToolNix.url') { return 'optional MKVToolNix shortcut omitted' }
         if ($relative -like 'ops\pipeline\tools\MKVToolNix\tools\*') { return 'optional MKVToolNix diagnostic tool omitted' }
         if ($relative -like 'ops\pipeline\tools\MKVToolNix\data\*') { return 'optional MKVToolNix GUI asset omitted' }
@@ -80,7 +81,9 @@ function Get-MediaPipelineReleaseExclusionReason {
     if ($relative -like 'docs\archive\root-artifacts\*') { return 'local assistant root artifact' }
 
     if ($relative -like 'Pipeline\*.log' -or $relative -like 'Pipeline\*.tmp' -or $relative -like 'Pipeline\*.bak') { return 'pipeline runtime artifact' }
+    if ($relative -like 'ops\pipeline\*.log' -or $relative -like 'ops\pipeline\*.tmp' -or $relative -like 'ops\pipeline\*.bak') { return 'pipeline runtime artifact' }
     if ($relative -like 'Pipeline\*_progress.json' -or $relative -eq 'Pipeline\pipeline_progress.json' -or $relative -eq 'Pipeline\audit_progress.json') { return 'pipeline runtime state' }
+    if ($relative -like 'ops\pipeline\*_progress.json') { return 'pipeline runtime state' }
     if ($relative -like 'Pipeline\MediaPipeline_config.backup_*.psd1' -or $relative -like 'ops\pipeline\config\MediaPipeline_config.backup_*.psd1' -or $relative -like 'ops\pipeline\config\MediaPipeline_config.psd1.bak.*') { return 'generated config backup' }
     if ($relative -like 'Pipeline\MediaPipeline_config_chatgpt.backup_*.psd1' -or $relative -like 'ops\pipeline\config\MediaPipeline_config_chatgpt.backup_*.psd1' -or $relative -like 'ops\pipeline\config\MediaPipeline_config_chatgpt.psd1.bak.*') { return 'generated config backup (legacy)' }
     if ($relative -like 'ops\pipeline\config\backups\*.psd1') { return 'generated config backup' }
@@ -150,6 +153,7 @@ function Get-MediaPipelineReleaseHygieneRules {
         (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'CodexVerification' -Label 'local verification evidence'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'LocalBase' -Label 'local runtime state'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'RunLogs' -Label 'root runtime logs'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'path_absent' -RelativePath 'artifacts' -Label 'generated proof artifacts'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern '*.log' -Label 'root runtime logs'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern '*.state.json' -Label 'root runtime state files'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern '*_AUDIT.md' -Label 'root generated audit documents'),
@@ -183,6 +187,10 @@ function Get-MediaPipelineReleaseHygieneRules {
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'Pipeline\*.tmp' -Label 'pipeline runtime temp files'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'Pipeline\*.bak' -Label 'pipeline runtime backup files'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'Pipeline\*_progress.json' -Label 'pipeline runtime progress files'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'ops\pipeline\*.log' -Label 'pipeline runtime logs'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'ops\pipeline\*.tmp' -Label 'pipeline runtime temp files'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'ops\pipeline\*.bak' -Label 'pipeline runtime backup files'),
+        (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'ops\pipeline\*_progress.json' -Label 'pipeline runtime progress files'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'src\*.log' -Label 'python source-tree runtime logs'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern 'src\*.egg-info\*' -Label 'python packaging metadata'),
         (New-MediaPipelineReleaseHygieneRule -Kind 'pattern_absent' -RelativePattern '~$*' -Label 'Office lock/temp files')

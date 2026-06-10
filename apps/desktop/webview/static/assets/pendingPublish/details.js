@@ -60,7 +60,7 @@ function pendingRowReviewChecklistLines(item) {
     } else if (recommendation === "review") {
       lines.push("Operator action: review row targets and diagnostics before publishing parked outputs.");
     } else {
-      lines.push("Operator action: row looks ready, but Publish Parked Outputs remains the authoritative backend validation path.");
+      lines.push("Operator action: row looks ready, but Drain Parked Outputs remains the authoritative backend validation path.");
     }
     lines.push("Mutation guardrail: selected-row detail is read-only and cannot drain, repair, delete, rewrite, or publish files.");
     return lines;
@@ -108,7 +108,7 @@ function pendingSelectedAtAGlanceLines(item) {
       return [
         "Selected Pending Publish row: none",
         "Next step: select a pending row to review parked payload, manifest, sidecars, Completed correlation, and drain guidance.",
-        "Authority: this summary is read-only. Backend Publish Parked Outputs remains the only path that can move parked files.",
+        "Authority: this summary is read-only. Backend Drain Parked Outputs remains the only path that can move parked files.",
       ];
     }
     const concern = item.primary_concern
@@ -120,7 +120,7 @@ function pendingSelectedAtAGlanceLines(item) {
       || item.operator_guidance
       || item.recovery_action
       || (pendingSelectedAtAGlanceState(item) === "ready"
-        ? "Use only backend-owned Publish Parked Outputs after page-level drain validation agrees."
+        ? "Use only backend-owned Drain Parked Outputs after page-level drain validation agrees."
         : "Inspect pending manifest/payload/sidecars, Completed correlation, Last Stderr, and Run Logs before drain.");
     return [
       `Selected Pending Publish row: ${item.local_file || item.server_out || item.manifest_path || "(unnamed row)"}`,
@@ -170,9 +170,9 @@ function pendingRowIssueDigestLines(item) {
     if (recommendation === "do_not_drain" || severity === "error") {
       lines.push("Safe next action: do not drain; inspect row targets, Pending Publish diagnostics, Last Stderr, and Run Logs first.");
     } else if (issues.length) {
-      lines.push("Safe next action: review row targets before Publish Parked Outputs; backend drain validation remains authoritative.");
+      lines.push("Safe next action: review row targets before Drain Parked Outputs; backend drain validation remains authoritative.");
     } else if (item.ready_to_drain) {
-      lines.push("Safe next action: row looks ready, but use only the backend-owned Publish Parked Outputs command to move files.");
+      lines.push("Safe next action: row looks ready, but use only the backend-owned Drain Parked Outputs command to move files.");
     } else {
       lines.push("Safe next action: treat this row as review-needed until backend diagnostics or a refreshed pending scan marks it ready.");
     }
@@ -209,11 +209,11 @@ function pendingRowCombinedReviewPlanLines(item) {
       `Cross-check: ${[...new Set(crossCheck)].join(" -> ")}`,
     ];
     if (recommendation === "do_not_drain" || severity === "error") {
-      lines.push("Decision: do not run Publish Parked Outputs for this row until pending artifacts and logs explain the blocker.");
+      lines.push("Decision: do not run Drain Parked Outputs for this row until pending artifacts and logs explain the blocker.");
     } else if (signals.length) {
       lines.push("Decision: review the selected artifacts first; backend drain validation remains authoritative.");
     } else if (item.ready_to_drain) {
-      lines.push("Decision: row is ready-looking, but only backend-owned Publish Parked Outputs may move files.");
+      lines.push("Decision: row is ready-looking, but only backend-owned Drain Parked Outputs may move files.");
     } else {
       lines.push("Decision: treat this row as review-needed until pending scan and drain decision both report ready.");
     }
@@ -232,7 +232,7 @@ function pendingRealMediaTraceLines(item) {
       `Parking proof: state=${item.state || "unknown"}; manifest=${item.manifest_path || "not reported"}; payload exists=${item.local_exists === false ? "no" : item.local_exists === true ? "yes" : "unknown"}`,
       `Drain proof: recommendation=${item.drain_recommendation || "review"}; diagnostic=${[item.diagnostic_status, item.diagnostic_severity].filter(Boolean).join(" / ") || "unknown"}; ready=${item.ready_to_drain ? "yes" : "no"}`,
       "What this proves: the backend pending-publish scan can see a parked output or parked-output issue and can classify drain safety.",
-      "What remains unproven: final publish completion until Publish Parked Outputs succeeds and durable drain summary/recent drain event agrees with Completed output proof.",
+      "What remains unproven: final publish completion until Drain Parked Outputs succeeds and durable drain summary/recent drain event agrees with Completed output proof.",
     ];
     if (proofSummary.length || evidenceFields.length) {
       lines.push("Pending proof to compare with Completed and logs:");
@@ -245,7 +245,7 @@ function pendingRealMediaTraceLines(item) {
     if (item.drain_recommendation === "do_not_drain" || item.ready_to_drain === false || item.local_exists === false) {
       lines.push("Drain boundary: do not drain this row until blockers are explained by pending diagnostics and logs.");
     }
-    lines.push("Next evidence stop: run or review backend-owned recovery dry-run, then compare durable drain summary with Completed output proof after Publish Parked Outputs.");
+    lines.push("Next evidence stop: run or review backend-owned recovery dry-run, then compare durable drain summary with Completed output proof after Drain Parked Outputs.");
     lines.push("Mutation guardrail: this trace is read-only and cannot drain, repair, delete, rewrite, move, publish, or mutate files.");
     return lines;
   }
@@ -430,7 +430,7 @@ function pendingSampleValidationHandoffLines(item) {
     if (blocked) {
       lines.push("Do not append accepted sample evidence from this pending row until blockers are resolved or intentionally documented as review evidence.");
     } else {
-      lines.push("If this row is part of a real-media pilot, use Home Sample Validation after backend-owned Publish Parked Outputs and post-drain proof are checked.");
+      lines.push("If this row is part of a real-media pilot, use Home Sample Validation after backend-owned Drain Parked Outputs and post-drain proof are checked.");
     }
     lines.push("Home Sample Validation can write JSONL evidence notes only; it cannot drain, publish, mark complete, accept output, rewrite manifests, or mutate media.");
     return lines;
@@ -520,7 +520,7 @@ function pendingRowTrustSummaryLines(item) {
         item.manifest_path ? `manifest=${item.manifest_path}` : "",
         item.server_out ? `destination=${item.server_out}` : "",
       ],
-      safeAction: item.safe_next_action || (trustState === "ready-looking" ? "use only backend-owned Publish Parked Outputs after page-level validation agrees." : "inspect pending manifest/payload/sidecar evidence, Last Stderr, and Run Logs before drain."),
+      safeAction: item.safe_next_action || (trustState === "ready-looking" ? "use only backend-owned Drain Parked Outputs after page-level validation agrees." : "inspect pending manifest/payload/sidecar evidence, Last Stderr, and Run Logs before drain."),
       unsafeAction: item.unsafe_if_ignored || "move, delete, drain, repair, or rewrite pending payloads/manifests from this page.",
       owningPages: "Pending Publish owns parked output safety; Completed owns output proof; Queue owns rerun risk; Diagnostics owns artifact/log evidence.",
     });
@@ -544,7 +544,7 @@ function renderPendingDetail(item) {
           item.recovery_class || item.recovery_action ? `recovery=${[item.recovery_class, item.recovery_action].filter(Boolean).join(" - ")}` : "",
           item.manifest_path || item.local_file ? `payload=${item.local_file || item.manifest_path}` : "",
         ],
-        safeAction: "compare Pending Publish, manifest/payload/sidecar evidence, Last Stderr, and Run Logs before using Publish Parked Outputs.",
+        safeAction: "compare Pending Publish, manifest/payload/sidecar evidence, Last Stderr, and Run Logs before using Drain Parked Outputs.",
       })
       : [];
     const detail = [

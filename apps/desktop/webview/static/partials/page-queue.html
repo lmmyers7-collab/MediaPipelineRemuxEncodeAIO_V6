@@ -1,5 +1,5 @@
       <section class="page" data-page-panel="queue">
-        <h1 class="visually-hidden">Processing Queue</h1>
+        <h1 class="visually-hidden">Queue</h1>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Queue Decision</h2>
@@ -68,11 +68,11 @@
             <button type="button" class="secondary-button" id="queue-priority-normal-btn" title="Reset selected row(s) to Normal priority">↺ Normal</button>
             <button type="button" class="secondary-button" id="queue-priority-low-btn" title="Demote selected row(s) to Low priority">⬇ Low</button>
             <button type="button" class="secondary-button" id="queue-priority-hold-btn" title="Hold selected row(s) — exclude from processing">⏸ Hold</button>
-            <button type="button" class="secondary-button" id="queue-priority-promote-movies-btn" title="Promote all visible Movie rows to High">⬆ All Movies</button>
-            <button type="button" class="secondary-button" id="queue-priority-promote-tv-btn" title="Promote all visible TV rows to High">⬆ All TV</button>
+            <button type="button" class="secondary-button" id="queue-priority-promote-movies-btn" title="Promote all loaded Movie rows to High, regardless of display filters or render cap">⬆ All Loaded Movies</button>
+            <button type="button" class="secondary-button" id="queue-priority-promote-tv-btn" title="Promote all loaded TV rows to High, regardless of display filters or render cap">⬆ All Loaded TV</button>
             <button type="button" class="secondary-button" id="queue-priority-clear-all-btn" title="Reset all manifest entries to Normal (clear entire manifest)">✕ Clear All</button>
           </div>
-          <p id="queue-priority-status" class="note">Priority actions apply to rows selected for Queue actions only. Hold writes a backend queue-state override only; it does not delete, rename, or define backend Launch scope.</p>
+          <p id="queue-priority-status" class="note">Selected-row priority actions apply only to checked rows. All Loaded Movies and All Loaded TV apply to loaded queue rows regardless of display filters or render cap. They do not define Launch scope. Hold writes a backend queue-state override only; it does not delete or rename files.</p>
           <!-- End S60 Priority toolbar -->
           <!-- S70 Queue ordering strategy selector -->
           <div class="table-toolbar queue-strategy-toolbar">
@@ -93,22 +93,22 @@
           <!-- End S70 Queue ordering strategy selector -->
           <div class="table-toolbar queue-manual-order-toolbar" aria-label="Manual queue order controls">
             <span class="toolbar-label">Manual order:</span>
-            <button type="button" class="secondary-button" id="queue-manual-save-order-btn" title="Save the current table order as backend manual-order positions">Save Order</button>
+            <button type="button" class="secondary-button" id="queue-manual-save-order-btn" title="Save loaded backend queue rows as manual-order positions within their backend phase">Save Loaded Backend Order</button>
             <button type="button" class="secondary-button icon-button" id="queue-manual-move-top-btn" title="Move selected row(s) to the top of the current backend phase" aria-label="Move selected queue rows to top">⇤</button>
             <button type="button" class="secondary-button icon-button" id="queue-manual-move-up-btn" title="Move selected row(s) up within the current backend phase" aria-label="Move selected queue rows up">↑</button>
             <button type="button" class="secondary-button icon-button" id="queue-manual-move-down-btn" title="Move selected row(s) down within the current backend phase" aria-label="Move selected queue rows down">↓</button>
             <button type="button" class="secondary-button icon-button" id="queue-manual-move-bottom-btn" title="Move selected row(s) to the bottom of the current backend phase" aria-label="Move selected queue rows to bottom">⇥</button>
           </div>
-          <p id="queue-manual-order-status" class="note">Manual order controls are available when the strategy selector is Manual Order.</p>
+          <p id="queue-manual-order-status" class="note">Manual order controls are available when the strategy selector is Manual Order. They save loaded backend rows within their backend phase; display filters and render caps do not define Launch scope.</p>
           <div class="table-wrap queue-table-wrap" data-queue-loading="false">
             <div id="queue-loading-screen" class="queue-loading-screen" role="status" aria-live="polite" aria-atomic="true" hidden>
               <span class="queue-loading-spinner" aria-hidden="true"></span>
               <span class="queue-loading-copy">
                 <strong>Building fresh queue preview</strong>
-                <span id="queue-loading-status">Dry-run scan in progress. Current queue rows are hidden until the refreshed backend snapshot arrives.</span>
+                <span id="queue-loading-status">Scanning configured source roots. Previous backend queue rows remain visible until the refreshed dry-run snapshot arrives.</span>
               </span>
             </div>
-            <table class="workflow-table queue-table">
+            <table class="workflow-table queue-table" aria-label="Queue rows">
               <thead>
                 <tr>
                   <th scope="col" class="num">Order</th>
@@ -252,6 +252,9 @@
               <section id="fo-processing-route-section" class="fo-section fo-route-section" hidden>
                 <h4 class="fo-section-title">Processing route</h4>
                 <p id="fo-processing-route-help" class="fo-section-help">These settings can change whether this file is remuxed or fully transcoded. Transcoding may take significantly longer.</p>
+                <button type="button" id="fo-route-override-toggle" class="secondary-button fo-route-override-toggle" aria-expanded="false" aria-controls="fo-route-override-controls">Override processing route</button>
+                <p id="fo-route-override-disclosure-status" class="fo-route-override-status" aria-live="polite">Using saved processing policy unless an override is expanded and saved.</p>
+                <div id="fo-route-override-controls" class="fo-route-override-controls" hidden>
                 <div class="fo-label fo-field" data-fo-field="routeProfile" hidden>
                   <span class="fo-label-row">
                     <label class="fo-label-text" for="fo-route-profile">Routing profile</label>
@@ -318,6 +321,7 @@
                   </select>
                   <span id="fo-route-threshold-mode-inherited" class="fo-inherited-hint"></span>
                 </div>
+                </div>
                 <div id="fo-route-preview-status" class="fo-route-preview-status" aria-live="polite" hidden></div>
               </section>
               <div class="fo-drawer-footer" aria-label="File override actions">
@@ -355,7 +359,7 @@
                 <button type="button" class="secondary-button" data-fo-series-filter="issues">Issues</button>
               </div>
               <div class="fo-series-table-wrap">
-                <table class="workflow-table fo-series-table">
+                <table class="workflow-table fo-series-table" aria-label="Series override preview rows">
                   <thead>
                     <tr>
                       <th>Action</th>
@@ -404,7 +408,7 @@
           </div>
           <pre id="queue-backend-scope-summary" class="prose-block">No backend launch scope boundary loaded.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="Queue backend launch scope boundary rows">
               <thead>
                 <tr>
                   <th scope="col">Signal</th>
@@ -431,7 +435,7 @@
           </div>
           <pre id="queue-launch-decision-summary" class="prose-block">No queue-to-Launch handoff loaded.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="Queue-to-Launch handoff rows">
               <thead>
                 <tr>
                   <th scope="col">Checkpoint</th>
@@ -511,7 +515,7 @@
           </div>
           <pre id="queue-review-board" class="prose-block">No queue review board loaded.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="Queue review rows">
               <thead>
                 <tr>
                   <th scope="col">Order</th>
@@ -546,7 +550,7 @@
           </div>
           <pre id="queue-excluded-summary" class="prose-block">No backend-excluded source row detail loaded.</pre>
           <div class="table-wrap detail-table-wrap">
-            <table>
+            <table aria-label="Backend-excluded source file rows">
               <thead>
                 <tr>
                   <th scope="col">Order</th>

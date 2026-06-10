@@ -184,6 +184,157 @@ def completed_size_reduction_text(source_size: int | None, output_size: int | No
     return f"{pct:+.1f}%  ({src_gb:.2f} → {out_gb:.2f} GB)"
 
 
+def _completed_payload_path_value(payload: dict[str, Any], *path: str) -> Any:
+    current: Any = payload
+    for key in path:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(key)
+    return current
+
+
+def _completed_first_positive_number(
+    payload: dict[str, Any],
+    paths: Iterable[tuple[str, ...]],
+) -> tuple[float | None, tuple[str, ...] | None]:
+    for path in paths:
+        value = _completed_payload_path_value(payload, *path)
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            continue
+        if number > 0:
+            return number, path
+    return None, None
+
+
+def _completed_first_bool(payload: dict[str, Any], paths: Iterable[tuple[str, ...]]) -> bool | None:
+    for path in paths:
+        value = _completed_payload_path_value(payload, *path)
+        if isinstance(value, bool):
+            return value
+        text = str(value or "").strip().casefold()
+        if text in {"true", "yes", "1"}:
+            return True
+        if text in {"false", "no", "0"}:
+            return False
+    return None
+
+
+def completed_bitrate_display(value: float | None) -> str:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return ""
+    if number <= 0:
+        return ""
+    precision = 1 if number >= 1.0 else 2
+    text = f"{number:.{precision}f}".rstrip("0").rstrip(".")
+    return f"{text} Mbps"
+
+
+def _completed_bitrate_basis(path: tuple[str, ...] | None, fallback: str = "") -> str:
+    if not path:
+        return fallback
+    if path[0] == "route_plan":
+        return "route_plan"
+    if path[0] == "source_media_profile":
+        return "source_media_profile"
+    return "manifest"
+
+
+def _completed_derived_bitrate_mbps(size_bytes: int | None, duration_seconds: float | None) -> float | None:
+    if not size_bytes or not duration_seconds or size_bytes <= 0 or duration_seconds <= 0:
+        return None
+    return (float(size_bytes) * 8.0) / float(duration_seconds) / 1_000_000.0
+
+
+def completed_bitrate_fields(
+    payload: dict[str, Any],
+    *,
+    source_size: int | None,
+    output_size: int | None,
+) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        payload = {}
+    duration_seconds, duration_path = _completed_first_positive_number(
+        payload,
+        (
+            ("duration_seconds",),
+            ("media_duration_seconds",),
+            ("source_media_profile", "duration_seconds"),
+            ("route_plan", "source_media_profile", "duration_seconds"),
+            ("route_plan", "duration_seconds"),
+        ),
+    )
+    source_bitrate_mbps, source_bitrate_path = _completed_first_positive_number(
+        payload,
+        (
+            ("source_bitrate_mbps",),
+            ("source_estimated_bitrate_mbps",),
+            ("estimated_bitrate_mbps",),
+            ("source_media_profile", "bitrate_mbps"),
+            ("source_media_profile", "estimated_bitrate_mbps"),
+            ("route_plan", "source_bitrate_mbps"),
+            ("route_plan", "estimated_bitrate_mbps"),
+            ("route_plan", "source_media_profile", "bitrate_mbps"),
+            ("route_plan", "source_media_profile", "estimated_bitrate_mbps"),
+        ),
+    )
+    source_bitrate_basis = _completed_bitrate_basis(source_bitrate_path)
+    if source_bitrate_mbps is None:
+        source_bitrate_mbps = _completed_derived_bitrate_mbps(source_size, duration_seconds)
+        source_bitrate_basis = "source_size_duration" if source_bitrate_mbps is not None else ""
+
+    output_bitrate_mbps, output_bitrate_path = _completed_first_positive_number(
+        payload,
+        (
+            ("output_bitrate_mbps",),
+            ("output_estimated_bitrate_mbps",),
+            ("route_plan", "output_bitrate_mbps"),
+            ("route_plan", "output_estimated_bitrate_mbps"),
+        ),
+    )
+    output_bitrate_basis = _completed_bitrate_basis(output_bitrate_path)
+    if output_bitrate_mbps is None:
+        output_bitrate_mbps = _completed_derived_bitrate_mbps(output_size, duration_seconds)
+        output_bitrate_basis = "output_size_duration" if output_bitrate_mbps is not None else ""
+
+    threshold_mbps, _threshold_path = _completed_first_positive_number(
+        payload,
+        (
+            ("bitrate_threshold_mbps",),
+            ("route_bitrate_threshold_mbps",),
+            ("route_plan", "bitrate_threshold_mbps"),
+        ),
+    )
+    over_threshold = _completed_first_bool(
+        payload,
+        (
+            ("bitrate_over_threshold",),
+            ("route_plan", "bitrate_over_threshold"),
+        ),
+    )
+    primary_bitrate = output_bitrate_mbps if output_bitrate_mbps is not None else source_bitrate_mbps
+    primary_basis = output_bitrate_basis if output_bitrate_mbps is not None else source_bitrate_basis
+    return {
+        "duration_seconds": duration_seconds,
+        "duration_basis": _completed_bitrate_basis(duration_path),
+        "source_bitrate_mbps": round(source_bitrate_mbps, 3) if source_bitrate_mbps is not None else None,
+        "source_bitrate_text": completed_bitrate_display(source_bitrate_mbps),
+        "source_bitrate_basis": source_bitrate_basis,
+        "output_bitrate_mbps": round(output_bitrate_mbps, 3) if output_bitrate_mbps is not None else None,
+        "output_bitrate_text": completed_bitrate_display(output_bitrate_mbps),
+        "output_bitrate_basis": output_bitrate_basis,
+        "bitrate_mbps": round(primary_bitrate, 3) if primary_bitrate is not None else None,
+        "bitrate_text": completed_bitrate_display(primary_bitrate),
+        "bitrate_basis": primary_basis,
+        "bitrate_threshold_mbps": threshold_mbps,
+        "bitrate_threshold_text": completed_bitrate_display(threshold_mbps),
+        "bitrate_over_threshold": over_threshold,
+    }
+
+
 def completed_record_to_row(record: CompletedJobRecord) -> dict[str, Any]:
     deferred = _output_proof_deferred(record)
     # Deferred rows must not touch the filesystem: take output size from the
@@ -192,6 +343,7 @@ def completed_record_to_row(record: CompletedJobRecord) -> dict[str, Any]:
     source_size = record.source_size_bytes
     size_delta_percent = completed_size_delta_percent(source_size, output_size)
     size_policy_fields = completed_size_policy_fields(record.payload, size_delta_percent=size_delta_percent)
+    bitrate_fields = completed_bitrate_fields(record.payload, source_size=source_size, output_size=output_size)
     route_reason = str(record.payload.get("route_reason", "") or "").strip()
     route_reason_code = str(record.payload.get("route_reason_code", "") or "").strip()
     audio_decisions = record.audio_decisions
@@ -208,6 +360,11 @@ def completed_record_to_row(record: CompletedJobRecord) -> dict[str, Any]:
         "publish_state": record.publish_state,
         "publish_mode": record.publish_mode,
         "media_type": record.media_type,
+        "library_id": str(record.payload.get("library_id", "") or "").strip(),
+        "library_name": str(record.payload.get("library_name", "") or "").strip(),
+        "library_designation": str(record.payload.get("library_designation", "") or "").strip(),
+        "library_source_root": str(record.payload.get("library_source_root", "") or "").strip(),
+        "library_output_root": str(record.payload.get("library_output_root", "") or "").strip(),
         "lookup_title": record.lookup_title,
         "relative_path": record.relative_path,
         "output_file": record.output_file,
@@ -227,6 +384,7 @@ def completed_record_to_row(record: CompletedJobRecord) -> dict[str, Any]:
         "size_delta_label": completed_size_delta_label(size_delta_percent),
         "size_growth_over_5": bool(size_delta_percent is not None and size_delta_percent > 5.0),
         **size_policy_fields,
+        **bitrate_fields,
         "encoder": record.encode_selected_encoder,
         "encoder_kind": record.encode_selected_encoder_kind,
         "gpu_device": record.encode_selected_gpu_device,
@@ -626,6 +784,24 @@ def completed_row_route_evidence_lines(row: dict[str, Any]) -> list[str]:
     size_policy_line = completed_row_size_policy_line(row)
     if size_policy_line:
         lines.append(size_policy_line)
+    bitrate_parts: list[str] = []
+    output_bitrate = str(row.get("output_bitrate_text") or "").strip()
+    source_bitrate = str(row.get("source_bitrate_text") or "").strip()
+    primary_bitrate = str(row.get("bitrate_text") or "").strip()
+    if output_bitrate:
+        bitrate_parts.append(f"output={output_bitrate}")
+    if source_bitrate and source_bitrate != output_bitrate:
+        bitrate_parts.append(f"source={source_bitrate}")
+    elif primary_bitrate and not bitrate_parts:
+        bitrate_parts.append(f"value={primary_bitrate}")
+    threshold_bitrate = str(row.get("bitrate_threshold_text") or "").strip()
+    if threshold_bitrate:
+        bitrate_parts.append(f"threshold={threshold_bitrate}")
+    over_threshold = row.get("bitrate_over_threshold")
+    if over_threshold is not None:
+        bitrate_parts.append(f"over threshold={'yes' if bool(over_threshold) else 'no'}")
+    if bitrate_parts:
+        lines.append("Bitrate: " + "; ".join(bitrate_parts))
     publish = str(row.get("publish") or row.get("publish_state") or "").strip()
     if publish:
         lines.append(f"Publish: {publish}")
@@ -963,6 +1139,8 @@ __all__ = [
     "completed_preview_limit",
     "completed_inventory_progress_payload",
     "format_bytes_compact",
+    "completed_bitrate_display",
+    "completed_bitrate_fields",
     "completed_record_key",
     "completed_decision_value",
     "completed_audio_decision_preview",

@@ -195,6 +195,12 @@
     return Math.max(0, Math.min(100, Number(value)));
   }
 
+  function cpuUtilityNoteText(telemetry) {
+    const util = telemetryPercentNumber(telemetry?.cpu_utility_percent);
+    if (util === null) return "Task Manager-equivalent (% Utility): unavailable";
+    return `Task Manager-equivalent (% Utility): ${formatPercent(util)}`;
+  }
+
   function telemetryGpuPresent(telemetry) {
     const rows = Array.isArray(telemetry?.gpu_rows) ? telemetry.gpu_rows : [];
     return Boolean(
@@ -350,6 +356,7 @@
       `Age: ${formatTelemetryAge(age)}`,
       `Source: ${telemetry.source || "not reported"}`,
       `CPU: ${telemetryHasNumber(telemetry.cpu_percent) ? formatPercent(telemetry.cpu_percent) : "unavailable"}`,
+      `CPU (Task Manager-equivalent, % Utility): ${telemetryHasNumber(telemetry.cpu_utility_percent) ? formatPercent(telemetry.cpu_utility_percent) : "unavailable"}`,
       `RAM: ${telemetryHasNumber(telemetry.memory_percent) ? formatPercent(telemetry.memory_percent) : "unavailable"}`,
       `GPU present: ${gpuPresent ? "yes" : "no"}`,
       `Video encoder (NVENC): ${gpuPresent ? formatGpuEncoderPercent(telemetry.gpu_encoder_percent) : "unavailable"}`,
@@ -416,6 +423,7 @@
     pushTelemetryHistory("gpu", gpu);
     pushTelemetryHistory("ram", ram);
     setText("cpu-value", formatPercent(cpu));
+    setText("cpu-utility-note", cpuUtilityNoteText(telemetry));
     setText("gpu-value", telemetryGpuPresent(telemetry) ? formatGpuEncoderPercent(gpu) : "Unavailable");
     setText("ram-value", formatPercent(ram));
     setText("gpu-note", telemetryGpuNote(telemetry));
@@ -486,6 +494,7 @@
     telemetryCanvasColors,
     formatGpuEncoderPercent,
     telemetryGpuNote,
+    cpuUtilityNoteText,
     telemetryVisibleGpuRows,
     telemetryGpuUsagePayload,
     telemetryGpuUsageSummaryLine,

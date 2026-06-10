@@ -66,6 +66,14 @@ function Get-ConfiguredOutputContainerName {
     return Get-MediaContainerMkvExtensionName
 }
 
+function Test-ConfiguredOutputContainerIsMp4 {
+    $container = Get-ConfiguredOutputContainerName
+    if (Get-Command -Name Get-MediaContainerMp4FamilyNames -ErrorAction SilentlyContinue) {
+        return ($container -in (Get-MediaContainerMp4FamilyNames))
+    }
+    return ($container -in @('mp4','m4v','mov'))
+}
+
 function Get-ConvertedSrtCodecForFfmpegOutput {
     $container = Get-ConfiguredOutputContainerName
     if ($container -in (Get-MediaContainerMp4FamilyNames)) { return Get-MediaSubtitleCodecMovTextName }

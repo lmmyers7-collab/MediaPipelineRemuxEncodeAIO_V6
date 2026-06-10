@@ -153,7 +153,8 @@ function Get-MediaRouteRuleOutcomeEvidence {
         'size_threshold_ignored',
         'folder_policy_prefer_encode',
         'codec_allowed_by_routing_profile',
-        'unsafe_forced_remux_allowed'
+        'unsafe_forced_remux_allowed',
+        'oversized_encode_remux_fallback'
     )
 
     $classify = {

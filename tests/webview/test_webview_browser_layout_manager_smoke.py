@@ -210,8 +210,8 @@ def _browser_layout_manager_runner_source() -> str:
             openDrawer();
             const sizeEvidenceRow = requireDrawerPanel("completed", "File And Size Proof");
             sizeEvidenceRow.click();
-            const advancedSelected = document.querySelector('[data-page-panel="completed"] .settings-tab-btn[data-completed-tab="advanced"]').getAttribute("aria-selected") === "true";
-            if (!advancedSelected) throw new Error("selecting File And Size Proof did not switch to Completed Advanced");
+            const evidenceSelected = document.querySelector('[data-page-panel="completed"] .settings-tab-btn[data-completed-tab="evidence"]').getAttribute("aria-selected") === "true";
+            if (!evidenceSelected) throw new Error("selecting File And Size Proof did not switch to Completed Evidence");
             const sizeEvidencePanel = panelForDrawerRow(sizeEvidenceRow);
             if (!sizeEvidencePanel.classList.contains("layout-panel-preview")) throw new Error("selected drawer row did not highlight visible panel");
             window.showPage("completed");

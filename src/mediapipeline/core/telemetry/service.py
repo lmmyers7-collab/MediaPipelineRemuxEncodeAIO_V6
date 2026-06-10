@@ -31,7 +31,12 @@ from mediapipeline.core.telemetry.health import (
     subtitle_tool_health_rows,
 )
 from mediapipeline.core.telemetry.nvidia import apply_nvidia_smi_rows_to_snapshot, parse_nvidia_smi_encoder_rows
-from mediapipeline.core.telemetry.system_metrics import apply_system_metrics_to_snapshot, create_cpu_sampler, prime_cpu_sampler
+from mediapipeline.core.telemetry.system_metrics import (
+    apply_system_metrics_to_snapshot,
+    create_cpu_sampler,
+    create_cpu_utility_sampler,
+    prime_cpu_sampler,
+)
 from mediapipeline.desktop.subprocess_runner import run_capture
 
 
@@ -46,7 +51,8 @@ TELEMETRY_INTERVAL_SECONDS = 2.0
 class TelemetryServiceMixin:
     def _initialize_telemetry_sampler(self) -> None:
         self._cpu_sampler = create_cpu_sampler()
-        prime_cpu_sampler(psutil, self._cpu_sampler)
+        self._cpu_utility_sampler = create_cpu_utility_sampler()
+        prime_cpu_sampler(psutil, self._cpu_sampler, self._cpu_utility_sampler)
 
     def _resolve_nvidia_smi(self) -> str | None:
         if self._nvidia_smi_checked:
@@ -96,7 +102,12 @@ class TelemetryServiceMixin:
     def sample_system_telemetry(self) -> TelemetrySnapshot:
         snapshot = TelemetrySnapshot(collected_at=datetime.now())
 
-        apply_system_metrics_to_snapshot(snapshot, psutil, getattr(self, "_cpu_sampler", None))
+        apply_system_metrics_to_snapshot(
+            snapshot,
+            psutil,
+            getattr(self, "_cpu_sampler", None),
+            getattr(self, "_cpu_utility_sampler", None),
+        )
 
         nvidia_smi = self._resolve_nvidia_smi()
         if nvidia_smi:

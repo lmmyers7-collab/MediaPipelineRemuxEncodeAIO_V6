@@ -1,0 +1,40 @@
+{
+  "id": "MP-CHANGE-2026-0607-016",
+  "title": "Add Tdarr matrix scratch library generator",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "medium",
+  "date_started": "2026-06-07",
+  "date_completed": "2026-06-07",
+  "summary": "Add a developer tool that materializes the downloaded Tdarr sample inventory into a scratch-hosted Movies and TV diagnostic library using hardlinks, manifests, and a generated test config.",
+  "reason": "The Tdarr sample cache is large and should remain immutable; hardlinked scratch libraries provide repeatable movie/TV parser, queue, route, container, codec, and audio test inputs without physically duplicating the corpus.",
+  "affected_areas": [
+    "test",
+    "test_fixtures",
+    "tooling"
+  ],
+  "behavior_before": "Tdarr samples existed only as a local fixture cache and had to be selected or renamed manually before pipeline validation.",
+  "behavior_after": "A repeatable CLI creates the scratch TdarrMatrix test library, manifest evidence, and explicit movie/tv LibraryProfiles config without editing live operator config or mutating the canonical Tdarr cache.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0607-016.json.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/materialize_tdarr_test_library.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_materialize_tdarr_test_library.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0607-016.json",
+    "src/mediapipeline/tools/dev/materialize_tdarr_test_library.py",
+    "tests/python/tooling/test_materialize_tdarr_test_library.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_materialize_tdarr_test_library.py"
+  ],
+  "manual_validation": [
+    "MediaPipeline.ps1 -ConfigPath LocalBase/Scratch/TestLibraries/TdarrMatrix/config/MediaPipeline_config.tdarr-matrix.psd1 -ValidateOnly - passed",
+    "git check-ignore LocalBase/Scratch/TestLibraries/TdarrMatrix sample/config/manifest - passed",
+    "python -m unittest tests.python.tooling.test_materialize_tdarr_test_library - passed",
+    "real TdarrMatrix materialization - 2316 Movies, 2316 TV, 4632 manifest rows, 0 missing targets, generated files ignored",
+    "refresh_summaries --paths materialize_tdarr_test_library/test_materialize_tdarr_test_library/MP-CHANGE-2026-0607-016 - passed"
+  ],
+  "rollback_plan": "Delete src/mediapipeline/tools/dev/materialize_tdarr_test_library.py, tests/python/tooling/test_materialize_tdarr_test_library.py, this change packet, and any generated ignored LocalBase/Scratch/TestLibraries/TdarrMatrix runtime library.",
+  "related_changes": [],
+  "notes": "Generated LocalBase/Scratch/TestLibraries/TdarrMatrix with 2316 Movies hardlinks, 2316 TV hardlinks, 4632 manifest rows, and explicit movie/tv LibraryProfiles."
+}

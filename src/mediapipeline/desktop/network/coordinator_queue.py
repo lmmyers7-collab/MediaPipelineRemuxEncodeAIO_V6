@@ -277,6 +277,7 @@ class CoordinatorQueueMixin:
         error_message: str,
         queue_terminal: bool,
         retry_on_failure: bool,
+        output_path: str = "",
     ) -> None:
         """Shared post-``registry.complete()`` bookkeeping.
 
@@ -312,5 +313,6 @@ class CoordinatorQueueMixin:
                 error_message=error_message,
                 queue_terminal=queue_terminal,
                 retry_on_failure=retry_on_failure,
+                output_path=output_path,
             )
         )

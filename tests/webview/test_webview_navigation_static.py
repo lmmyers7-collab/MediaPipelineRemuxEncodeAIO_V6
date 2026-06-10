@@ -33,6 +33,7 @@ _EXPECTED_NAV_PAGES = [
     "metrics",
     "queue",
     "completed",
+    "pending",
     "rename",
     "reports",
     "network",
@@ -43,18 +44,19 @@ _EXPECTED_NAV_PAGES = [
     "maintenance",
 ]
 
-_EXPECTED_PAGE_PANELS = _EXPECTED_NAV_PAGES[:5] + ["pending"] + _EXPECTED_NAV_PAGES[5:]
+_EXPECTED_PAGE_PANELS = _EXPECTED_NAV_PAGES
 
 _EXPECTED_NAV_LABELS = {
-    "home": "Dashboard",
+    "home": "Home",
     "launch": "Launch",
     "live": "Telemetry",
     "metrics": "Metrics",
     "queue": "Queue",
-    "completed": "Output",
+    "completed": "Completed Output",
+    "pending": "Pending Publish",
     "rename": "Rename",
     "reports": "Reports",
-    "network": "Workers",
+    "network": "Network Workers",
     "libraries": "Libraries",
     "schedule": "Schedule",
     "settings": "Settings",
@@ -261,13 +263,11 @@ class WebViewNavigationStaticTests(unittest.TestCase):
         panel_pages = set(p["panel"] for p in self.parsed.page_panels)
         self.assertEqual(
             button_pages,
-            panel_pages - {"pending"},
+            panel_pages,
             f"Nav button pages and page panels differ.\n"
             f"  Buttons only: {button_pages - panel_pages}\n"
             f"  Panels without primary nav:  {panel_pages - button_pages}",
         )
-        self.assertIn("pending", panel_pages)
-        self.assertNotIn("pending", button_pages)
 
     def test_initial_active_nav_button_is_home(self) -> None:
         active_buttons = [b["page"] for b in self.parsed.nav_buttons if "is-active" in b["classes"]]
@@ -276,6 +276,16 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             [_INITIAL_ACTIVE_PAGE],
             f"Expected exactly one initially active nav button ('home'), got: {active_buttons}",
         )
+
+    def test_initial_active_nav_button_has_aria_current(self) -> None:
+        response = render_index(
+            _STATIC_ROOT,
+            {"token": "nav-aria-current-test-token", "appVersion": "v5-test", "shellSurface": "webview"},
+        )
+        self.assertEqual(response.status, 200)
+        html = response.body.decode("utf-8")
+        self.assertIn('data-page="home" aria-current="page"', html)
+        self.assertEqual(html.count('aria-current="page"'), 1)
 
     def test_initial_visible_page_panel_is_home(self) -> None:
         visible_panels = [p["panel"] for p in self.parsed.page_panels if "is-visible" in p["classes"]]
@@ -300,6 +310,33 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             0,
             "No nav buttons found — nav element may be missing or malformed in index.html",
         )
+
+    def test_page_identity_and_diagnostics_subview_labels_are_canonical(self) -> None:
+        response = render_index(
+            _STATIC_ROOT,
+            {"token": "page-identity-test-token", "appVersion": "v5-test", "shellSurface": "webview"},
+        )
+        self.assertEqual(response.status, 200)
+        html = response.body.decode("utf-8")
+        for label in [
+            "Home",
+            "Launch",
+            "Telemetry",
+            "Queue",
+            "Completed Output",
+            "Pending Publish",
+            "Rename",
+            "Reports",
+            "Network Workers",
+            "Libraries",
+            "Schedule",
+            "Settings",
+            "Diagnostics",
+            "Maintenance",
+        ]:
+            self.assertIn(f'<h1 class="visually-hidden">{label}</h1>', html)
+        self.assertIn("Commands Evidence", html)
+        self.assertIn("API Contract Evidence", html)
 
     def test_operational_summary_blocks_are_movable_page_panels(self) -> None:
         layout = _parse_panel_layout().panel_headings_by_page
@@ -347,7 +384,7 @@ class WebViewNavigationStaticTests(unittest.TestCase):
                 "Manifest Check",
                 "Output Checklist",
                 "Diagnostics Links",
-                "Advanced Evidence Groups",
+                "Evidence Groups",
                 "File And Size Proof",
                 "Media And Route Proof",
                 "Acceptance Readiness",
@@ -385,6 +422,8 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             "home-control-readiness-status",
             "home-refresh-button",
             "home-control-message",
+            "Open Completed Output",
+            "Open Pending Publish",
             'data-cross-page-target="launch"',
             'data-cross-page-target="completed" data-home-promotion-entry',
             'data-cross-page-target="queue"',

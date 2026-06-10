@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/pendingPublishView.confidence.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-30
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: 341f16f3b59442e4575a524f9a3a26061de8b5f8d8a6cf9986676ca92935d55e
+sha256: ecf24643c391cf838c3c0ec13b3816c1c314344933379fcdfc6bc16902a50d27
 ---
 # `apps/desktop/webview/static/assets/pendingPublishView.confidence.js`
 

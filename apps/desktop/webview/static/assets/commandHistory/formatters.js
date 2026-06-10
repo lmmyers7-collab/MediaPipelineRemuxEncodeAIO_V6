@@ -146,7 +146,7 @@
     if (refresh === "completed") return "Completed";
     if (refresh === "settings") return "Settings";
     if (refresh === "schedule") return "Schedule";
-    if (refresh === "snapshot") return "Dashboard / Launch";
+    if (refresh === "snapshot") return "Home / Launch";
     return "Diagnostics";
   }
 
@@ -235,7 +235,7 @@
     const level = commandHistoryPendingPublishIssueLevel(item);
     if (kind === "recovery dry-run") {
       if (level === "blocked") return "Do not drain yet. Inspect blocker rows in Pending Publish, then read Last Stderr and Run Logs before any publish retry.";
-      if (level === "review") return "Review the planned row actions and evidence before using backend-owned Publish Parked Outputs.";
+      if (level === "review") return "Review the planned row actions and evidence before using backend-owned Drain Parked Outputs.";
       return "No blocker was reported by the dry-run plan; refresh Pending Publish before deciding whether to drain.";
     }
     if (kind === "publish drain") {

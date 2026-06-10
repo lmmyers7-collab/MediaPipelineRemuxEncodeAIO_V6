@@ -193,6 +193,7 @@ _LEGACY_POLICY_ALIASES: Mapping[str, str] = {
     "VideoQuality": "video_quality_target",
     "AudioPassthroughProfile": "audio_passthrough_profile",
     "CompatibleAudioCodecs": "audio_passthrough_codecs",
+    "PreferredDefaultAudioLanguages": "preferred_default_audio_languages",
     "AudioTranscodeCodec": "audio_transcode_codec",
     "AudioMaxChannels": "audio_max_channels",
 }

@@ -44,8 +44,8 @@ def _schedule_runner_source() -> str:
         }
 
         function makeElement(id = "") {
+          let elementId = "";
           const node = {
-            id,
             textContent: "",
             value: "",
             checked: false,
@@ -76,6 +76,15 @@ def _schedule_runner_source() -> str:
             scrollIntoView() {},
             focus() {},
           };
+          Object.defineProperty(node, "id", {
+            get() { return elementId; },
+            set(value) {
+              elementId = String(value || "");
+              if (elementId) elements.set(elementId, node);
+            },
+            configurable: true,
+          });
+          node.id = id;
           return node;
         }
 
@@ -241,6 +250,12 @@ def _schedule_runner_source() -> str:
         requireContains("day detail default", text("schedule-day-detail"), ["Day: Monday", "no allowed window"]);
         requireContains("editor rows", tableText("schedule-editor-rows"), ["Monday", "Tuesday", "Wednesday", "01:00 - 03:00", "All day"]);
         requireContains("editor result", text("schedule-editor-result"), ["No schedule preview or save result loaded", "Backend validation owns time parsing"]);
+        if (!context.document.getElementById("schedule-editor-monday-copy-day")) {
+          throw new Error("schedule editor did not render Copy Day for Monday");
+        }
+        if (!context.document.getElementById("schedule-editor-tuesday-paste-day")?.disabled) {
+          throw new Error("Paste Day should be disabled until a day is copied");
+        }
 
         const weeklyCoverage = context.scheduleCoverageRows(schedule).find((row) => row.key === "weekly-coverage");
         context.selectScheduleCoverageRow(weeklyCoverage);
@@ -269,6 +284,16 @@ def _schedule_runner_source() -> str:
         if (request.day_windows.Monday !== "09:00 - 10:00") {
           throw new Error(`block editor did not generate a 30-minute window draft: ${JSON.stringify(request.day_windows)}`);
         }
+        context.document.getElementById("schedule-editor-monday-copy-day").click();
+        if (context.document.getElementById("schedule-editor-tuesday-paste-day").disabled) {
+          throw new Error("Paste Day should be enabled after copying a day");
+        }
+        context.document.getElementById("schedule-editor-tuesday-paste-day").click();
+        request = context.scheduleEditorRequest();
+        if (request.day_windows.Tuesday !== "09:00 - 10:00") {
+          throw new Error(`Paste Day did not copy Monday windows into Tuesday: ${JSON.stringify(request.day_windows)}`);
+        }
+        requireContains("paste status", text("schedule-editor-status"), ["Pasted Monday into Tuesday"]);
         if (!context.document.getElementById("schedule-editor-save-button").disabled) {
           throw new Error("save button should stay disabled for an unpreviewed draft");
         }

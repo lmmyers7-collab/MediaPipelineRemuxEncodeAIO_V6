@@ -97,7 +97,7 @@ _PHASE3_DISPLAY_METADATA_BY_KEY: dict[str, dict[str, object]] = {
         "section": "Size / Bitrate Guards",
         "rule_taxonomy": ("size", "verification"),
         "strictness": "hard",
-        "help_text": "Checked after encode. Warn-only records oversized output. Strict blocks publish. Fallback remux applies existing growth buffers to override-forced encodes, tries remux first, and keeps the oversized encode with warning evidence when remux is blocked.",
+        "help_text": "Checked after encode. Warn-only records oversized output. Strict blocks publish. Fallback remux applies existing growth buffers to automatic size/bitrate-threshold encodes, tries safe remux first, and rejects the oversized encode for review when remux is blocked. Forced route overrides warn only.",
     },
     "EncodeTuningPreset": {
         "label": "NVENC tuning bundle",

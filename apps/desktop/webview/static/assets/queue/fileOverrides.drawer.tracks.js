@@ -509,6 +509,10 @@
     }
   }
 
+  // Tracks without a stream index need a unique suffix so repeated
+  // unknown-index rows do not produce duplicate reason-element ids.
+  let trackActionReasonUnknownIdCounter = 0;
+
   function createTrackActionControl(track, kind, resolvedAction) {
     const streamIndex = trackStreamIndex(track);
     const wrapper = document.createElement("label");
@@ -540,11 +544,20 @@
       select.appendChild(option);
     });
     select.value = trackExactActionForTrack(track, kind);
+    const reason = document.createElement("span");
+    reason.className = "fo-track-action-reason";
+    trackActionReasonUnknownIdCounter += 1;
+    reason.id = `fo-track-action-reason-${kind}-${streamIndex === null ? `unknown-${trackActionReasonUnknownIdCounter}` : streamIndex}`;
     if (streamIndex === null) {
       select.disabled = true;
-      select.title = "Track stream index unavailable; exact-track override cannot be saved for this row.";
+      reason.textContent = "Track stream index unavailable; exact-track override cannot be saved for this row.";
+      select.title = reason.textContent;
+      select.setAttribute("aria-describedby", reason.id);
+    } else {
+      reason.hidden = true;
     }
     wrapper.appendChild(select);
+    wrapper.appendChild(reason);
     return wrapper;
   }
 

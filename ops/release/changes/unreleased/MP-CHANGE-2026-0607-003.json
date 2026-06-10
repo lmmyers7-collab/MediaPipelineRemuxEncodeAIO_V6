@@ -1,0 +1,45 @@
+{
+  "id": "MP-CHANGE-2026-0607-003",
+  "title": "Clarify encode target calculation choices",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-07",
+  "date_completed": "2026-06-07",
+  "summary": "Adds concrete descriptions for every EncodeLadder choice in backend field metadata and shows those definitions directly below the Settings Video encode-target dropdown.",
+  "reason": "The dropdown labels alone do not explain how each encode target changes quality, maxrate, buffer, or Plex compatibility behavior.",
+  "affected_areas": [
+    "settings",
+    "webview"
+  ],
+  "behavior_before": "The Settings Video dropdown listed Auto, TV balanced, TV space saver, Movie balanced, Movie archive, and Plex compatibility without visible per-choice meaning. Backend choice help existed but was brief and easy to miss.",
+  "behavior_after": "The Settings Video panel shows a compact definition list for all six encode target choices, and backend choice help explains the target quality delta plus maxrate/buffer behavior for each named mode.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/styles.pages.css",
+    "apps/desktop/webview/static/partials/page-settings.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.pages.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-settings.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0607-003.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/metadata_support.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_metadata_contract.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_handbrake_settings_ui.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0607-003.json",
+    "src/mediapipeline/core/config/metadata_support.py",
+    "tests/python/desktop/test_metadata_contract.py",
+    "tests/webview/test_webview_handbrake_settings_ui.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_metadata_contract.py",
+    "tests/webview/test_webview_handbrake_settings_ui.py"
+  ],
+  "manual_validation": [
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_metadata_contract tests.webview.test_webview_handbrake_settings_ui - passed",
+    "PYTHONPATH=src powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewSettingsLaunchPolicySmoke.ps1 - passed",
+    "npm run webview:check - passed",
+    "validate_changes --require-worktree-coverage - blocked by unrelated MP-CHANGE-2026-0605-010 missing date_completed; direct coverage helper reported 197/199 dirty paths covered and 2 unrelated uncovered generated summaries"
+  ],
+  "rollback_plan": "Remove the Settings encode-target definition list and CSS, restore the prior EncodeLadder choice_help strings, and rerun the focused metadata/WebView Settings tests. No media files, FFmpeg routing behavior, or persisted config schema are changed.",
+  "related_changes": [],
+  "notes": "Clarify every EncodeLadder choice in backend metadata and visible Settings UI help without changing routing or encode behavior.\nRefreshed targeted generated summaries for changed Settings UI, metadata, tests, and packet.\nBundled Python has no pytest module in this workspace, so focused tests were run through unittest with PYTHONPATH=src.\nUnrelated uncovered coverage paths: docs/generated/summaries/apps/desktop/webview/static/assets/completed/evidence/filterScope.js.md; docs/generated/summaries/apps/desktop/webview/static/assets/completed/review/investigationFilters.js.md."
+}

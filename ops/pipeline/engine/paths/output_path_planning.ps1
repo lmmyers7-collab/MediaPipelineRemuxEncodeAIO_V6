@@ -12,6 +12,23 @@
 . (Join-Path $PSScriptRoot 'effective_settings.ps1')
 . (Join-Path $PSScriptRoot 'output_evidence.ps1')
 . (Join-Path $PSScriptRoot 'path_capability.ps1')
+
+function Test-MediaPipelineOutputRootHasLibraryFolder {
+    param(
+        [string] $OutputRoot,
+        [string] $LibraryFolder
+    )
+
+    if ([string]::IsNullOrWhiteSpace($OutputRoot) -or [string]::IsNullOrWhiteSpace($LibraryFolder)) {
+        return $false
+    }
+
+    $trimmedRoot = ([string]$OutputRoot).Trim().TrimEnd([char[]]@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar))
+    if ([string]::IsNullOrWhiteSpace($trimmedRoot)) { return $false }
+    $leaf = Split-Path -Leaf $trimmedRoot
+    return ([string]::Equals($leaf, $LibraryFolder, [System.StringComparison]::OrdinalIgnoreCase))
+}
+
 function Get-OutputPaths {
     param($File, [bool]$isTV, $tvInfo, [string]$SafeName)
     $libraryOverrides = Resolve-MediaPipelineLibraryOverridesForPath -SourcePath ([string]$File.FullName)
@@ -23,16 +40,20 @@ function Get-OutputPaths {
     } else {
         [string]$OutputContainer
     }
+    $libraryEvidence = Get-MediaPipelineLibraryProfileEvidenceForPath -SourcePath ([string]$File.FullName)
+    $outputRoot = [string]$libraryEvidence['output_root']
+    if ([string]::IsNullOrWhiteSpace($outputRoot)) { $outputRoot = [string]$Outsource }
     if ($isTV) {
-        $plan = New-PlexDestinationPlan -MediaKind 'TV' -File $File -TvInfo $tvInfo -OriginalName $tvInfo.OriginalName -Extension $effectiveOutputContainer -IncludeLibraryFolder:$CreateTVSubfolder
+        $includeTvLibraryFolder = [bool]$CreateTVSubfolder
+        if ($includeTvLibraryFolder -and (Test-MediaPipelineOutputRootHasLibraryFolder -OutputRoot $outputRoot -LibraryFolder 'TV')) {
+            $includeTvLibraryFolder = $false
+        }
+        $plan = New-PlexDestinationPlan -MediaKind 'TV' -File $File -TvInfo $tvInfo -OriginalName $tvInfo.OriginalName -Extension $effectiveOutputContainer -IncludeLibraryFolder:$includeTvLibraryFolder
     } else {
         $plan = New-PlexDestinationPlan -MediaKind 'Movie' -File $File -OriginalName $File.Name -Extension $effectiveOutputContainer
     }
 
     $localDir  = Join-Path $LocalEncoded $plan.RelativeDirectory
-    $libraryEvidence = Get-MediaPipelineLibraryProfileEvidenceForPath -SourcePath ([string]$File.FullName)
-    $outputRoot = [string]$libraryEvidence['output_root']
-    if ([string]::IsNullOrWhiteSpace($outputRoot)) { $outputRoot = [string]$Outsource }
     $serverDir = Join-Path $outputRoot $plan.RelativeDirectory
     return @{
         LocalDir=$localDir; LocalOut=Join-Path $localDir $plan.FileName

@@ -166,6 +166,7 @@ class LocalApiStaticFilesPolicyTests(unittest.TestCase):
         self.assertIn('id="release-build-button"', body)
         self.assertIn('id="backfill-dry-run-button"', body)
         self.assertIn('id="dependency-atlas-button"', body)
+        self.assertIn('id="dependency-atlas-open-folder-button"', body)
         self.assertIn('data-page-panel="diagnostics"', body)
         self.assertIn('id="diagnostics-triage-status"', body)
         self.assertIn('id="diagnostics-log-rows"', body)

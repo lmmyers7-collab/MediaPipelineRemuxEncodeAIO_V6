@@ -24,6 +24,20 @@ class DummyReleaseService(ReleasePackageServiceMixin):
 
 
 class ReleasePackageServiceTests(unittest.TestCase):
+    def test_default_release_builder_prefers_ops_scripts_path(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            canonical = root / "ops" / "scripts" / "release" / "build.ps1"
+            canonical.parent.mkdir(parents=True)
+            canonical.write_text("# canonical", encoding="utf-8")
+            legacy = root / "scripts" / "release" / "build.ps1"
+            legacy.parent.mkdir(parents=True)
+            legacy.write_text("# legacy", encoding="utf-8")
+
+            service = DummyReleaseService(root)
+
+            self.assertEqual(service.default_release_builder_path(), canonical)
+
     def test_default_release_builder_prefers_workspace_scripts_path(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

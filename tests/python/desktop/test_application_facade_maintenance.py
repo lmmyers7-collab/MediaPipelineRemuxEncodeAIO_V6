@@ -145,6 +145,24 @@ class ApplicationFacadeMaintenanceTests(unittest.TestCase):
         self.assertEqual(service.dependency_atlas_calls[-1]["min_overview_edge_count"], 5)
         self.assertEqual(service.dependency_atlas_calls[-1]["min_overview_files"], 3)
 
+    def test_dependency_atlas_open_folder_uses_backend_workspace_path(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            atlas_dir = root / "docs/generated/dependency-atlas"
+            atlas_dir.mkdir(parents=True)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+
+            result = facade.open_dependency_atlas_folder()
+
+        self.assertTrue(result.ok)
+        self.assertEqual(result.command, "maintenance.dependency_atlas_open_folder")
+        self.assertEqual(result.data["target"], "dependency_atlas_folder")
+        self.assertEqual(result.data["path"], str(atlas_dir))
+        self.assertFalse(result.data["writes_media"])
+        self.assertFalse(result.data["writes_dependency_atlas"])
+        self.assertEqual(service.opened_paths, [atlas_dir])
+
     def test_maintenance_dry_run_commands_share_backend_command_lock(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

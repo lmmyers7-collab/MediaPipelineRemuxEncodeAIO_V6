@@ -48,6 +48,7 @@ def build_release_command_args(
     keep_personal_config: bool,
     force: bool,
     dry_run: bool,
+    include_tauri_preview_binary: bool = False,
 ) -> list[str]:
     args = [
         powershell_host,
@@ -73,6 +74,8 @@ def build_release_command_args(
         args.append("-IncludeOptionalTools")
     if include_tool_docs:
         args.append("-IncludeToolDocs")
+    if include_tauri_preview_binary:
+        args.append("-IncludeTauriPreviewBinary")
     if keep_personal_config:
         args.append("-KeepPersonalConfig")
     if dry_run:

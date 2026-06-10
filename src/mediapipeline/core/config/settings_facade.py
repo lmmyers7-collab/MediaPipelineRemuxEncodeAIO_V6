@@ -5,7 +5,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
-from mediapipeline.core.config.library_profiles import library_profile_state_from_config
+from mediapipeline.core.config.library_profiles import (
+    library_compatibility_presets,
+    library_profile_state_from_config,
+)
 from mediapipeline.core.config.identity import config_identity_block_reasons
 from mediapipeline.core.config.settings_policy import (
     settings_validation_exception_result,
@@ -85,6 +88,7 @@ class SettingsFacadeMixin:
             config=self._redacted_config(config),
             field_definitions=self._settings_field_definitions(),
             library_profile_state=library_profile_state,
+            library_compatibility_presets=library_compatibility_presets(),
             key_count=len(config),
             profiles=profiles,
             profile_summary=self._settings_profile_summary(resolved, config, profiles),

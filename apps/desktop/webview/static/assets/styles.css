@@ -20,10 +20,6 @@
 }
 
 @media (max-width: 1280px) {
-  .telemetry-grid {
-    grid-template-columns: 1fr;
-  }
-
   .form-grid {
     grid-template-columns: repeat(2, minmax(140px, 1fr));
   }

@@ -2,7 +2,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 
-$repoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
+$repoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)))
 
 function Write-Log {
     param([string] $Message, [string] $Level = 'INFO')
@@ -242,6 +242,27 @@ Assert-Equal $audioDecisions[1].reason 'PCM standardization' 'PCM transcode reas
 Assert-True $audioDecisions[1].is_default 'Preferred forced Japanese track was not recorded as default.'
 Assert-Equal $audioDecisions[2].output_codec 'truehd' 'TrueHD copy output codec decision changed.'
 Assert-Equal $audioDecisions[2].passthrough_profile 'custom_codec_list' 'Passthrough profile was not recorded.'
+
+$script:OutputContainer = 'mp4'
+$mp4Args = @(Build-AudioArgs 'source.mkv')
+Assert-SequenceEqual $mp4Args @(
+    '-map','0:a:1',
+    '-c:a:0','eac3',
+    '-b:a:0','640k',
+    '-ac:0','2',
+    '-channel_layout:a:0','stereo',
+    '-metadata:s:a:0','language=jpn',
+    '-disposition:a:0','forced',
+    '-disposition:a:0','default+forced'
+) 'MP4 compatibility should keep exactly one preferred-language EAC3 audio stream without title metadata.'
+$mp4Decisions = @(Get-LastAudioDecisionRecords)
+Assert-Equal $mp4Decisions.Count 3 'MP4 decision record count changed.'
+Assert-Equal $mp4Decisions[0].action 'drop' 'MP4 should drop non-selected commentary audio.'
+Assert-Equal $mp4Decisions[0].reason 'mp4_single_eac3_compatibility' 'MP4 drop reason should be explicit.'
+Assert-Equal $mp4Decisions[1].action 'transcode' 'MP4 should transcode selected PCM audio to EAC3.'
+Assert-True $mp4Decisions[1].is_default 'MP4 selected audio should be default.'
+Assert-Equal $mp4Decisions[2].action 'drop' 'MP4 should drop non-selected alternate audio.'
+$script:OutputContainer = 'mkv'
 
 $script:AudioTranscodeAutoBitrateByChannels = $true
 $scaledAudioArgs = @(Build-AudioArgs 'source.mkv')

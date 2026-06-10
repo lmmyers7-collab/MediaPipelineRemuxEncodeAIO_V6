@@ -38,8 +38,10 @@ from mediapipeline.core.telemetry.nvidia import (
 from mediapipeline.core.telemetry.gpu_usage import GPU_ENCODER_USAGE_SCHEMA_VERSION, gpu_encoder_usage_payload
 from mediapipeline.core.telemetry.system_metrics import (
     apply_system_metrics_to_snapshot,
+    create_cpu_utility_sampler,
     prime_cpu_sampler,
     WINDOWS_PROCESSOR_TIME_COUNTER,
+    WINDOWS_PROCESSOR_UTILITY_COUNTER,
     WindowsProcessorUtilitySampler,
 )
 from mediapipeline.desktop.services import DesktopAppService
@@ -161,6 +163,78 @@ class TelemetryServiceTests(unittest.TestCase):
             WindowsProcessorUtilitySampler()._counter_path,
             WINDOWS_PROCESSOR_TIME_COUNTER,
         )
+
+    def test_cpu_utility_sampler_uses_processor_utility_counter(self) -> None:
+        # The secondary "Task Manager-equivalent" figure must sample the
+        # frequency-scaled "% Processor Utility" counter, separate from the
+        # % Processor Time headline.
+        self.assertEqual(
+            WINDOWS_PROCESSOR_UTILITY_COUNTER,
+            r"\Processor Information(_Total)\% Processor Utility",
+        )
+        self.assertEqual(
+            WindowsProcessorUtilitySampler(WINDOWS_PROCESSOR_UTILITY_COUNTER)._counter_path,
+            WINDOWS_PROCESSOR_UTILITY_COUNTER,
+        )
+
+    def test_system_metric_helper_records_clamped_cpu_utility_separately(self) -> None:
+        class Vm:
+            percent = 50.0
+            used = 2 * 1024 ** 3
+            total = 4 * 1024 ** 3
+
+        class FakePsutil:
+            @staticmethod
+            def cpu_percent(interval=None):
+                return 14.0
+
+            @staticmethod
+            def virtual_memory():
+                return Vm()
+
+        class TimeSampler:
+            @staticmethod
+            def sample():
+                return 88.0
+
+        class UtilitySampler:
+            @staticmethod
+            def sample():
+                # Above base clock: Utility exceeds 100 and must be clamped,
+                # while the headline busy-time stays at its own value.
+                return 113.0
+
+        snapshot = TelemetrySnapshot()
+
+        apply_system_metrics_to_snapshot(snapshot, FakePsutil, TimeSampler, UtilitySampler)
+
+        self.assertEqual(snapshot.cpu_percent, 88.0)
+        self.assertEqual(snapshot.cpu_utility_percent, 100.0)
+        self.assertEqual(snapshot.memory_percent, 50.0)
+        self.assertEqual(snapshot.error, "")
+
+    def test_system_metric_helper_cpu_utility_absent_when_no_sampler(self) -> None:
+        class Vm:
+            percent = 50.0
+            used = 2 * 1024 ** 3
+            total = 4 * 1024 ** 3
+
+        class FakePsutil:
+            @staticmethod
+            def cpu_percent(interval=None):
+                return 14.0
+
+            @staticmethod
+            def virtual_memory():
+                return Vm()
+
+        snapshot = TelemetrySnapshot()
+
+        apply_system_metrics_to_snapshot(snapshot, FakePsutil)
+
+        self.assertEqual(snapshot.cpu_percent, 14.0)
+        self.assertIsNone(snapshot.cpu_utility_percent)
+        self.assertEqual(snapshot.error, "")
 
     def test_system_metric_helper_clamps_task_manager_cpu_utility(self) -> None:
         class Vm:

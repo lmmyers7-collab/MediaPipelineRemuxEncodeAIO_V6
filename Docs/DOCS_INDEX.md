@@ -34,6 +34,12 @@ This is the active documentation map for the current promoted tree. It reflects 
 
 ## Implementation Plans
 
+- `implementation/library-route-map/README.md`: no-plugin Library Route Map planning pack for placing backend-authored route maps, route tables, selected-file traces, profile comparison, guided existing-policy editing, and validation handoff on the Libraries tab.
+- `implementation/library-route-map/PHASE_1_READ_ONLY_LIBRARY_ROUTE_MAP.md`: read-only Libraries tab route map and decision matrix plan.
+- `implementation/library-route-map/PHASE_2_SELECTED_FILE_DRY_RUN_TRACE.md`: selected Queue/Completed/Sample Validation file dry-run trace plan.
+- `implementation/library-route-map/PHASE_3_PROFILE_COMPARE_AND_DIFF.md`: side-by-side Library Profile route and settings comparison plan.
+- `implementation/library-route-map/PHASE_4_GUIDED_POLICY_EDITING.md`: graph-node navigation into existing backend-owned Library Profile controls.
+- `implementation/library-route-map/PHASE_5_ROUTE_MAP_VALIDATION_HANDOFF.md`: Launch, Completed, Pending Publish, Diagnostics, and Sample Validation evidence handoff plan.
 - `implementation/release-foundation/README.md`: `2026.06.04.001` portable Tauri release-foundation planning pack.
 - `implementation/release-foundation/PHASE_0_DOCS_ONLY_PLANNING.md`: docs-only planning and validation.
 - `implementation/release-foundation/PHASE_1_RELEASE_IDENTITY.md`: `2026.06.04.001` release identity alignment plan.

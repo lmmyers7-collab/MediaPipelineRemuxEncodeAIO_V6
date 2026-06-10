@@ -819,7 +819,7 @@
       const matches = commandHistoryMatchingRows(candidates, rows, ["row_key", "local_file", "server_out", "destination_path", "source_path", "manifest_path"]);
       const guard = typeof pendingDrainGuardState === "function" ? pendingDrainGuardState() : null;
       return finish(true, `Pending cached rows: ${rows.length}; pending root=${payload.pending_root || payload.source || "loaded/unknown"}; row-key/path match=${matches.length ? "yes" : "no"}.`, matches, [
-        guard ? `Publish Button Guard: ${guard.status || "unknown"}; ${guard.action || guard.message || ""}` : "Publish Button Guard: unavailable in this command context.",
+        guard ? `Drain Button Guard: ${guard.status || "unknown"}; ${guard.action || guard.message || ""}` : "Drain Button Guard: unavailable in this command context.",
         "Owner action: inspect Pending Publish recovery/drain evidence before another publish attempt.",
         ...commandHistoryFinalPlacementConflictLines(item),
       ]);

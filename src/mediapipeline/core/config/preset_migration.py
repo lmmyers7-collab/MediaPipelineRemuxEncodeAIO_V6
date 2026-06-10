@@ -290,6 +290,7 @@ def effective_decision_policy_from_preset_v2(value: PresetV2 | Mapping[str, Any]
         video_max_bitrate_mbps=preset.video.max_bitrate_mbps,
         audio_passthrough_profile=preset.audio.passthrough_profile,
         audio_passthrough_codecs=preset.audio.compatible_codecs,
+        preferred_default_audio_languages=preset.audio.preferred_default_languages,
         audio_transcode_codec=preset.audio.transcode_codec,
         audio_max_channels=preset.audio.max_channels,
         audio_force_transcode=preset.audio.force_transcode,

@@ -97,7 +97,7 @@
     function renderRefreshInProgress(options = {}) {
     const node = byId("refresh-health");
     if (node) {
-      node.textContent = "Refresh";
+      node.textContent = "Refresh: updating";
       node.dataset.state = "updating";
       node.setAttribute("aria-busy", "true");
       node.title = `Refresh started ${refreshTimeLabel(lastRefreshStartedAt)}. Previous completed refresh: ${refreshTimeLabel(lastRefreshCompletedAt)}.`;
@@ -105,7 +105,7 @@
     const button = byId("refresh-button");
     if (button) {
       button.disabled = true;
-      button.textContent = "Refresh";
+      button.textContent = "Refreshing...";
       button.setAttribute("aria-busy", "true");
       button.title = "Refreshing backend health, queue, completed, pending publish, diagnostics, settings, network, schedule, and contract state.";
     }
@@ -161,10 +161,31 @@
     return payload;
   }
   
+  function pageRefreshBusyLabel(button) {
+    const page = String(button?.dataset?.pageRefreshButton || "").trim().toLowerCase();
+    if (page === "diagnostics") return "Reading diagnostics...";
+    if (page === "settings") return "Reloading settings...";
+    if (page === "pending") return "Refreshing pending...";
+    if (page === "queue") return "Refreshing queue...";
+    return "Refreshing...";
+  }
+
     function initPageRefreshButtons() {
     if (typeof document.querySelectorAll !== "function") return;
     document.querySelectorAll("[data-page-refresh-button]").forEach((button) => {
-      button.addEventListener("click", () => refreshAll());
+      button.addEventListener("click", async () => {
+        const previousText = button.textContent;
+        button.disabled = true;
+        button.textContent = pageRefreshBusyLabel(button);
+        button.setAttribute("aria-busy", "true");
+        try {
+          await refreshAll();
+        } finally {
+          button.disabled = false;
+          button.textContent = previousText;
+          button.removeAttribute("aria-busy");
+        }
+      });
       if (!button.title) {
         button.title = "Refreshes backend read-only state for this page without starting, saving, publishing, repairing, deleting, or moving files.";
       }

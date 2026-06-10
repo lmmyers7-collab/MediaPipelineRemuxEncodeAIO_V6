@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settingsView.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-04
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: 7c8272704d7cdb7f0f0d229d7ad84e51965aa50af872b16cb36770696dc97ef8
+sha256: 11413cdfb975eded8cbf55769c598df2657c9839536d077e6588fab93ddd9f5a
 ---
 # `apps/desktop/webview/static/assets/settingsView.js`
 

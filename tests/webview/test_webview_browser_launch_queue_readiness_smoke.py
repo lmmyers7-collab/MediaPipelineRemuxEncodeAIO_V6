@@ -738,20 +738,20 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             const queueWrap = document.querySelector(".queue-table-wrap");
             const loadingScreen = document.getElementById("queue-loading-screen");
             if (!queueWrap || queueWrap.dataset.queueLoading !== "true" || !queueWrap.classList.contains("is-queue-loading")) {
-              throw new Error("Scan Sources did not hide the current queue with loading state.");
+              throw new Error("Scan Sources did not mark the queue with loading state.");
             }
             if (!loadingScreen || loadingScreen.hidden) {
               throw new Error("Queue loading screen was not visible after Scan Sources.");
             }
             requireText("queue-loading-status", [
-              "Dry-run scan in progress.",
-              "Current queue rows are hidden",
-              "refreshed backend snapshot",
+              "Scanning configured source roots",
+              "previous backend snapshot",
+              "No media mutation has been submitted",
             ]);
-            requireText("queue-table-legend", ["Queue refresh in progress", "Current rows hidden"]);
+            requireText("queue-table-legend", ["Queue refresh in progress", "previous backend snapshot", "Backend Launch scope is unchanged"]);
             const loadingRowsText = tableText("queue-rows");
-            if (!loadingRowsText.includes("Current queue rows are hidden") || loadingRowsText === queueRowsBeforeScan) {
-              throw new Error("Queue table body did not replace stale rows with loading copy: " + loadingRowsText);
+            if (!loadingRowsText.includes("Serial Experiments Lain") || loadingRowsText.includes("Current queue rows are hidden")) {
+              throw new Error("Queue table body did not keep previous backend rows visible during loading: " + loadingRowsText);
             }
             await waitFor(
               () => {

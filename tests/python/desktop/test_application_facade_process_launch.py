@@ -155,6 +155,53 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertTrue(service.started_audit["include_sidecars"])
         self.assertEqual(service.started_audit["library_root"], str(root / "Outsource"))
 
+    def test_audit_start_can_run_while_pipeline_is_active_but_rejects_duplicate_audit(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+
+            def related_processes(_resolved: object, *, job_kinds: set[str] | None = None) -> list[DummyProc]:
+                if job_kinds is not None and "pipeline" not in job_kinds:
+                    return []
+                return [DummyProc(25001)]
+
+            def active_job_messages(_resolved: object, *, job_kinds: set[str] | None = None) -> list[str]:
+                if job_kinds is not None and "pipeline" not in job_kinds:
+                    return []
+                return [
+                    "ActiveJobs record pipeline.json reports pipeline continuous as active and PID 25001 is still running."
+                ]
+
+            service.find_related_pipeline_processes = related_processes  # type: ignore[method-assign]
+            service.active_job_close_block_messages = active_job_messages  # type: ignore[method-assign]
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {"Outsource": str(root / "Outsource")}
+
+            audit = facade.start_audit_process(resolved, {"include_sidecars": True}).to_mapping()
+            audit_preflight = facade.get_launch_preflight(resolved, {"target": "audit", "include_sidecars": True})
+            pipeline_preflight = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "validate"})
+
+            service_with_audit = DummyWorkflowFacadeService(root)
+            service_with_audit.find_related_pipeline_processes = lambda _resolved, *, job_kinds=None: [DummyProc(25002)] if job_kinds is None or "audit" in job_kinds else []  # type: ignore[method-assign]
+            facade_with_audit = MediaPipelineApplicationFacade(service_with_audit, app_version="v5-test")
+            resolved_with_audit = _resolved(root)
+            resolved_with_audit.config_data = {"Outsource": str(root / "Outsource")}
+
+            duplicate_audit = facade_with_audit.start_audit_process(resolved_with_audit, {}).to_mapping()
+
+        self.assertTrue(audit["ok"])
+        self.assertEqual(audit["command"], "audit.start")
+        self.assertEqual(audit["data"]["pid"], 24681)
+        self.assertEqual(service.started_audit["library_root"], str(root / "Outsource"))
+        self.assertTrue(audit_preflight["can_request_start"])
+        self.assertTrue(any(row["key"] == "active_work" and row["status"] == "ready" for row in audit_preflight["checks"]))
+        self.assertFalse(pipeline_preflight["can_request_start"])
+        self.assertTrue(any(row["key"] == "active_work" and row["status"] == "blocked" for row in pipeline_preflight["checks"]))
+        self.assertFalse(duplicate_audit["ok"])
+        self.assertIn("still running from this bundle", duplicate_audit["message"])
+        self.assertFalse(hasattr(service_with_audit, "started_audit"))
+
     def test_rerun_start_uses_existing_service_launch_path(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

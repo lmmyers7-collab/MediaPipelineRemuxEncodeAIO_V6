@@ -20,6 +20,7 @@ from mediapipeline.desktop.api.contract_payload import (
     local_api_contract_payload,
 )
 from mediapipeline.desktop.api.contract import LOCAL_API_ROUTE_CONTRACT
+from mediapipeline.desktop.api.routes_read import GET_ROUTE_HANDLERS
 
 
 class LocalApiContractPayloadTests(unittest.TestCase):
@@ -89,6 +90,36 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertIn("single_file", query_keys)
         self.assertEqual(routes["/api/launch/preflight"]["effect"], "none")
 
+    def test_tdarr_matrix_console_contracts_are_backend_keyed(self) -> None:
+        routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
+
+        latest = routes["/api/diagnostics/tdarr-matrix/latest"]
+        runs = routes["/api/diagnostics/tdarr-matrix/runs"]
+        compare = routes["/api/diagnostics/tdarr-matrix/compare"]
+        evidence = routes["/api/diagnostics/tdarr-matrix/evidence/open"]
+        rerun = routes["/api/diagnostics/tdarr-matrix/rerun"]
+
+        self.assertEqual(latest["method"], "GET")
+        self.assertEqual(latest["effect"], "none")
+        self.assertEqual(latest["query_keys"], ["run_id", "finding_limit"])
+        self.assertEqual(latest["response_schema"], "desktop_tdarr_matrix_console.v1")
+        self.assertEqual(runs["method"], "GET")
+        self.assertEqual(runs["effect"], "none")
+        self.assertEqual(compare["method"], "GET")
+        self.assertEqual(compare["effect"], "none")
+        self.assertEqual(compare["query_keys"], ["left_run_id", "right_run_id", "left", "right"])
+        self.assertEqual(compare["response_schema"], "desktop_tdarr_matrix_compare.v1")
+        self.assertEqual(evidence["request_keys"], ["run_id", "finding_key", "target"])
+        self.assertIn("stdout", evidence["allowed_targets"])
+        self.assertIn("source_hashes", evidence["allowed_targets"])
+        self.assertEqual(rerun["request_keys"], ["source_run_id", "selection", "finding_keys"])
+        self.assertEqual(rerun["allowed_selections"], ["selected", "latest_failures"])
+        self.assertIn("/api/diagnostics/tdarr-matrix/latest", GET_ROUTE_HANDLERS)
+        self.assertIn("/api/diagnostics/tdarr-matrix/runs", GET_ROUTE_HANDLERS)
+        self.assertIn("/api/diagnostics/tdarr-matrix/compare", GET_ROUTE_HANDLERS)
+        self.assertTrue(GET_ROUTE_HANDLERS["/api/diagnostics/tdarr-matrix/latest"].needs_query)
+        self.assertTrue(GET_ROUTE_HANDLERS["/api/diagnostics/tdarr-matrix/compare"].needs_query)
+
     def test_shell_open_route_contracts_match_backend_allowlists(self) -> None:
         routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
 
@@ -97,12 +128,56 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertEqual(set(routes["/api/completed/open"]["allowed_targets"]), set(COMPLETED_OPEN_TARGETS))
         self.assertEqual(set(routes["/api/pending-publish/open"]["allowed_targets"]), set(PENDING_PUBLISH_OPEN_TARGETS))
         self.assertEqual(set(routes["/api/diagnostics/open"]["allowed_targets"]), set(DIAGNOSTICS_OPEN_TARGETS))
+        self.assertEqual(
+            routes["/api/diagnostics/tdarr-matrix-audit"]["allowed_actions"],
+            ["report", "smoke", "matrix", "full", "strict-report"],
+        )
+        self.assertEqual(routes["/api/maintenance/dependency-atlas/open-folder"]["allowed_targets"], ["dependency_atlas_folder"])
 
     def test_settings_patch_contract_advertises_library_profile_resets(self) -> None:
         routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
 
         self.assertIn("library_profile_resets", routes["/api/settings/preview-patch"]["request_keys"])
         self.assertIn("library_profile_resets", routes["/api/settings/save-patch"]["request_keys"])
+
+    def test_library_route_map_read_contracts_are_evidence_only(self) -> None:
+        routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
+        expected = {
+            "/api/libraries/route-map": ("library_route_map.v1", []),
+            "/api/libraries/route-map/trace": (
+                "library_route_trace.v1",
+                ["row_key", "id", "source_path", "path", "output_path"],
+            ),
+            "/api/libraries/route-map/compare": (
+                "library_profile_compare.v1",
+                ["left_id", "right_id", "left", "right"],
+            ),
+            "/api/libraries/route-map/validation": (
+                "library_route_validation_handoff.v1",
+                ["limit"],
+            ),
+        }
+
+        for route, (schema, query_keys) in expected.items():
+            with self.subTest(route=route):
+                contract = routes[route]
+                self.assertEqual(contract["method"], "GET")
+                self.assertTrue(contract["auth_required"])
+                self.assertEqual(contract["effect"], "none")
+                self.assertEqual(contract["response_schema"], schema)
+                self.assertEqual(contract.get("query_keys", []), query_keys)
+                self.assertIn(route, GET_ROUTE_HANDLERS)
+                purpose = contract["purpose"].casefold()
+                self.assertTrue("without" in purpose or "no " in purpose, contract["purpose"])
+                self.assertTrue(
+                    any(term in purpose for term in ("saving", "save", "launch", "mutating", "mutation")),
+                    contract["purpose"],
+                )
+
+        self.assertFalse(GET_ROUTE_HANDLERS["/api/libraries/route-map"].needs_query)
+        self.assertTrue(GET_ROUTE_HANDLERS["/api/libraries/route-map/trace"].needs_query)
+        self.assertTrue(GET_ROUTE_HANDLERS["/api/libraries/route-map/compare"].needs_query)
+        self.assertTrue(GET_ROUTE_HANDLERS["/api/libraries/route-map/validation"].needs_query)
 
     def test_sample_validation_contract_advertises_category_payload(self) -> None:
         routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
@@ -267,6 +342,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
                     "/api/queue/file-overrides/folder-preview": "read-only-preview",
                     "/api/queue/file-overrides/route-preview": "read-only-preview",
                     "/api/queue/file-overrides/series-preview": "read-only-preview",
+                    "/api/subtitle-qa/preview": "read-only-preview",
                     "/api/ui-preferences": "ui-state-write",
                 }.get(str(route["path"]), "none")
                 self.assertEqual(route["effect"], expected_effect, route["path"])
@@ -279,6 +355,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
                 "/api/queue/file-overrides/series-preview",
                 "/api/rename/preview",
                 "/api/sample-validation/preview",
+                "/api/subtitle-qa/preview",
                 "/api/ui-preferences",
             ],
         )
@@ -310,8 +387,11 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             "config-write",
             "control-state-write",
             "control-flag-write",
+            "diagnostic-process",
             "filesystem-mutation",
             "failure-marker-write",
+            "metrics-backfill-state-write",
+            "metrics-state-write",
             "process-dry-run",
             "deployment-write",
             "process-launch",

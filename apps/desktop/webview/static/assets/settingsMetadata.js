@@ -41,13 +41,7 @@
     ["CleanupRemoteStaging", "settings-file-safety-cleanup-remote", "bool"],
   ];
 
-  const finalLibraryPromotionSettingsBuilderFields = [
-    ["FinalLibraryPromotionEnabled", "settings-final-library-enabled", "bool"],
-    ["FinalLibraryPromotionRules", "settings-final-library-rules-rows", "rules"],
-    ["FinalLibraryPromotionVerificationMode", "settings-final-library-verification-mode", "select"],
-    ["FinalLibraryPromotionCleanupAfterVerified", "settings-final-library-cleanup", "bool"],
-    ["FinalLibraryPromotionOverwriteExisting", "settings-final-library-overwrite", "bool"],
-  ];
+  const finalLibraryPromotionSettingsBuilderFields = [];
 
   const networkSettingsBuilderFields = [
     ["NetworkRole", "settings-network-role", "select"],
@@ -462,7 +456,7 @@
     TransientFailureRetryLimit: "Higher retry limits can delay operator review for persistent network, disk, or media failures.",
     DeferredPublish: "When enabled, completed payloads can park in pending publish until the drain workflow moves them to final output.",
     CleanupRemoteStaging: "Remote staging cleanup can remove transient files on slow or unreliable shares; keep disabled unless the drain workflow is trusted.",
-    FinalLibraryPromotionEnabled: "Enables only the manual Promote Queue workflow; promotion still requires the Completed/Output button.",
+    FinalLibraryPromotionEnabled: "Enables only the manual Promote Reviewed Outputs to Final Library workflow; promotion still requires the Completed/Output button.",
     FinalLibraryPromotionRules: "Maps each source root to a final library destination. Longest matching source root wins.",
     FinalLibraryPromotionVerificationMode: "Cautious hashes every copied media and sidecar file; fast checks existence and byte size only.",
     FinalLibraryPromotionCleanupAfterVerified: "Deletes only verified promoted publish-output files below Outsource and then removes empty folders.",
@@ -471,7 +465,7 @@
     RobocopyTimeoutSeconds: "Too-low copy timeouts can fail large files on slow SMB shares before the transfer has a fair chance to finish.",
     OutsourceMinFreeSpaceGB: "Output free-space reserve should account for pending publish drains and same-disk source/output/scratch layouts.",
     OutputContainer: "MP4 cannot carry every subtitle/audio format; incompatible tracks must be handled deliberately.",
-    SizeGuardMode: "Checked after encode. Warn only records oversized output; strict blocks publish; fallback remux tries stream copy for oversized override-forced encodes before keeping the encode with warning evidence; off ignores output growth.",
+    SizeGuardMode: "Checked after encode. Warn only records oversized output; strict blocks publish; fallback remux tries safe stream copy for oversized automatic size/bitrate-threshold encodes before rejecting the oversized encode for review when remux is blocked; forced route overrides warn only; off ignores output growth.",
     OutputValidationProbeTimeoutSeconds: "Too-low probe timeouts can send valid large outputs to review before validation completes.",
     OutputValidationMinSizeBytes: "Raising this can reject small-but-valid outputs; lowering it weakens empty-output detection.",
     OutputValidationDurationToleranceSeconds: "Duration tolerance affects completed-output validation; keep it tight unless real media proves a wider tolerance is needed.",
@@ -614,6 +608,97 @@
     "MergeThresholdMs",
   ];
 
+  const settingsLibraryCompatibilityPresets = [
+    {
+      id: "mp4_compatibility",
+      label: "MP4 Compatibility",
+      scope: "library",
+      severity: "high",
+      summary: "Lossy per-library MP4 compatibility mode for Plex-oriented H.264/H.265 video, one EAC3 audio track, and one external SRT sidecar.",
+      warning: "MP4 compatibility rewrites this library profile and discards media features MKV can preserve: extra audio, embedded subtitles, fonts, attachments, chapters, and source metadata.",
+      overrides: {
+        editor: {
+          OutputContainer: "mp4",
+          VideoCodec: "hevc_nvenc",
+          EncodeLadder: "plex_compat",
+        },
+        video: {
+          AllowH264RemuxIfPlexCompatible: true,
+          RemuxSafeVideoCodecs: ["hevc", "h265", "h.265", "h264", "h.264", "avc", "avc1"],
+          ExtraVideoFlags: [],
+        },
+        subtitles: {
+          SubKeepLanguages: ["eng", "en", "und"],
+          ConvertTx3gToSrt: true,
+          DropTx3gAfterConversion: true,
+          CreateExternalTx3gSrtSidecars: true,
+          DropAssAfterConversion: true,
+          StripFormatting: true,
+          RemoveKaraoke: true,
+          KeepSignsAndSongs: false,
+          TreatAssSignsSongsAsForced: false,
+          TreatTx3gSignsSongsAsForced: false,
+          TreatBdpgsSignsSongsAsForced: false,
+          TreatVobSubSignsSongsAsForced: false,
+        },
+        audio: {
+          AudioPassthroughProfile: "custom_codec_list",
+          CompatibleAudioCodecs: ["eac3"],
+          PreferredDefaultAudioLanguages: ["eng", "en", "und"],
+          AudioTranscodeCodec: "eac3",
+          AudioDownmixMode: "max_channels",
+          AudioMaxChannels: 6,
+          AllowNoAudio: false,
+        },
+      },
+      disabled_reasons: {
+        editor: {
+          OutputContainer: "MP4 compatibility forces the output container to MP4.",
+          VideoCodec: "MP4 compatibility uses a Plex-oriented H.265 encoder by default.",
+          EncodeLadder: "MP4 compatibility uses the Plex compatibility encode ladder.",
+        },
+        video: {
+          AllowH264RemuxIfPlexCompatible: "H.264 direct-copy is allowed only when the backend compatibility checks pass.",
+          RemuxSafeVideoCodecs: "MP4 compatibility limits direct-copy video to H.264/H.265 families.",
+          ExtraVideoFlags: "Freeform FFmpeg flags are cleared for predictable MP4 muxing.",
+        },
+        subtitles: {
+          SubKeepLanguages: "MP4 compatibility selects one preferred-language SRT sidecar candidate.",
+          ConvertTx3gToSrt: "MP4 timed text is converted to external SRT instead of embedded in the MP4.",
+          DropTx3gAfterConversion: "Embedded TX3G/mov_text is dropped after SRT sidecar conversion.",
+          CreateExternalTx3gSrtSidecars: "MP4 compatibility writes external SRT sidecars for converted TX3G/mov_text.",
+          DropAssAfterConversion: "Styled ASS/SSA is not embedded in MP4; only converted SRT sidecars are kept.",
+          StripFormatting: "SRT sidecars are plain text for compatibility.",
+          RemoveKaraoke: "Karaoke timing/formatting is stripped for SRT compatibility.",
+          KeepSignsAndSongs: "Supplemental subtitle tracks are not kept in MP4 compatibility mode.",
+          TreatAssSignsSongsAsForced: "Signs/songs tracks are not split into extra MP4 subtitle tracks.",
+          TreatTx3gSignsSongsAsForced: "Signs/songs tracks are not split into extra MP4 subtitle tracks.",
+          TreatBdpgsSignsSongsAsForced: "Signs/songs tracks are not split into extra MP4 subtitle tracks.",
+          TreatVobSubSignsSongsAsForced: "Signs/songs tracks are not split into extra MP4 subtitle tracks.",
+        },
+        audio: {
+          AudioPassthroughProfile: "MP4 compatibility uses a custom one-codec passthrough policy.",
+          CompatibleAudioCodecs: "Only EAC3 audio is retained without transcode in MP4 compatibility mode.",
+          PreferredDefaultAudioLanguages: "One preferred-language audio track is selected; all other audio is dropped.",
+          AudioTranscodeCodec: "Non-EAC3 selected audio is transcoded to EAC3.",
+          AudioDownmixMode: "Surround audio is capped by AudioMaxChannels before EAC3 transcode.",
+          AudioMaxChannels: "MP4 compatibility caps transcoded audio at 5.1 by default.",
+          AllowNoAudio: "MP4 compatibility does not permit silent output by default.",
+        },
+      },
+      hidden_fields: {
+        subtitles: ["IncludeSubtitleStyles", "ExcludeSubtitleStyles"],
+        video: ["ExtraVideoFlags"],
+      },
+      consequences: [
+        { severity: "high", code: "mp4_forces_lossy_compatibility_profile", message: "MP4 compatibility is intentionally lossy and rewrites the library profile for playback compatibility." },
+        { severity: "high", code: "mp4_single_eac3_audio", message: "Only one preferred-language audio track remains; it is EAC3 or transcoded to EAC3." },
+        { severity: "high", code: "mp4_external_srt_only", message: "Embedded subtitles are omitted; one preferred-language external SRT sidecar is required when subtitles are selected." },
+        { severity: "medium", code: "mp4_strips_metadata_attachments", message: "Fonts, attachments, chapters, source metadata, and stream titles are stripped for maximum MP4 compatibility." },
+      ],
+    },
+  ];
+
   /**
    * Public namespace for the settings metadata module.
    * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.
@@ -635,5 +720,6 @@
     settingsChoiceLabels,
     settingsFriendlyPersistedKeyAliases,
     settingsAdvancedFallbackKeys,
+    settingsLibraryCompatibilityPresets,
   };
 })();

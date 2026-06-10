@@ -35,6 +35,15 @@ class DummyDependencyAtlasService(DependencyAtlasServiceMixin):
 
 
 class DependencyAtlasServiceTests(unittest.TestCase):
+    def test_dependency_atlas_output_dir_is_repo_generated_folder(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyDependencyAtlasService(root)
+
+            output_dir = service.dependency_atlas_output_dir()
+
+        self.assertEqual(output_dir, root / "docs/generated/dependency-atlas")
+
     def test_generate_dependency_atlas_prefixes_source_pythonpath_for_module_command(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

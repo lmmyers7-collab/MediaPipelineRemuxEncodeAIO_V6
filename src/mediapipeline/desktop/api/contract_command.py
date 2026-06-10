@@ -287,6 +287,16 @@ LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "response_schema": "desktop_command_result.v1",
         "purpose": "Regenerate dependency-atlas HTML, PNG/SVG diagrams, and CSV exports under the repository-root docs/generated/dependency-atlas folder through the backend tooling runner. It does not touch media, queue, settings, manifests, or pipeline state.",
     },
+    {
+        "method": "POST",
+        "path": "/api/maintenance/dependency-atlas/open-folder",
+        "auth_required": True,
+        "effect": "shell-open",
+        "request_keys": [],
+        "allowed_targets": ["dependency_atlas_folder"],
+        "response_schema": "desktop_command_result.v1",
+        "purpose": "Open the backend-resolved repository-root docs/generated/dependency-atlas folder through the OS shell. The frontend does not submit arbitrary paths, and this does not touch media, queue, settings, manifests, or pipeline state.",
+    },
 )
 
 LOCAL_API_METRICS_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
@@ -346,6 +356,39 @@ LOCAL_API_DIAGNOSTICS_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         ],
         "response_schema": "desktop_command_result.v1",
         "purpose": "Open backend-allowlisted diagnostics/log/config locations through the OS shell.",
+    },
+    {
+        "method": "POST",
+        "path": "/api/diagnostics/tdarr-matrix-audit",
+        "auth_required": True,
+        "effect": "diagnostic-process",
+        "request_keys": ["action"],
+        "allowed_actions": ["report", "smoke", "matrix", "full", "strict-report"],
+        "safe_defaults": {"action": "report"},
+        "response_schema": "desktop_command_result.v1",
+        "data_schema": "desktop_tdarr_matrix_audit_result.v1",
+        "purpose": "Run backend-owned Tdarr Matrix audit presets through ops/scripts/dev/run-python-tool.py. Presets use the scratch Tdarr Matrix library and isolated run roots; full is an explicit all-manifest-row proof run. The frontend cannot submit paths, command arguments, or live operator config.",
+    },
+    {
+        "method": "POST",
+        "path": "/api/diagnostics/tdarr-matrix/evidence/open",
+        "auth_required": True,
+        "effect": "shell-open",
+        "request_keys": ["run_id", "finding_key", "target"],
+        "allowed_targets": ["stdout", "stderr", "worker_result", "source_hashes", "failure_artifact", "output", "report_folder"],
+        "response_schema": "desktop_command_result.v1",
+        "purpose": "Open a backend-resolved evidence artifact for a selected Tdarr Matrix finding. The frontend sends only a run ID, finding key, and allowlisted target name; arbitrary paths are rejected.",
+    },
+    {
+        "method": "POST",
+        "path": "/api/diagnostics/tdarr-matrix/rerun",
+        "auth_required": True,
+        "effect": "diagnostic-process",
+        "request_keys": ["source_run_id", "selection", "finding_keys"],
+        "allowed_selections": ["selected", "latest_failures"],
+        "response_schema": "desktop_command_result.v1",
+        "data_schema": "desktop_tdarr_matrix_audit_result.v1",
+        "purpose": "Rerun selected Tdarr Matrix cases, or latest failure cases, into a fresh isolated TdarrMatrixRuns root. The backend maps finding keys to manifest case IDs and the frontend cannot submit paths or command arguments.",
     },
 )
 

@@ -7,6 +7,7 @@ from mediapipeline.core.audit.facade import AuditFacadeMixin
 from mediapipeline.core.completed.facade import CompletedFacadeMixin
 from mediapipeline.core.completed.open_facade import CompletedOpenFacadeMixin
 from mediapipeline.core.diagnostics.facade import DiagnosticsFacadeMixin
+from mediapipeline.core.diagnostics.tdarr_matrix_audit_facade import DiagnosticsTdarrMatrixAuditFacadeMixin
 from mediapipeline.core.failures.facade import FailureFacadeMixin
 from mediapipeline.core.final_library.facade import FinalLibraryPromotionFacadeMixin
 from mediapipeline.core.maintenance.backfill_facade import MaintenanceBackfillFacadeMixin
@@ -14,6 +15,7 @@ from mediapipeline.core.maintenance.commands_facade import MaintenanceCommandFac
 from mediapipeline.core.maintenance.dependency_atlas_facade import MaintenanceDependencyAtlasFacadeMixin
 from mediapipeline.core.maintenance.facade import MaintenanceFacadeMixin
 from mediapipeline.core.maintenance.release_facade import MaintenanceReleaseFacadeMixin
+from mediapipeline.core.library.facade import LibraryRouteMapFacadeMixin
 from mediapipeline.core.metrics.facade import MetricsFacadeMixin
 from mediapipeline.core.network.facade import NetworkFacadeMixin
 from mediapipeline.core.publish.pending_facade import PendingPublishFacadeMixin
@@ -57,6 +59,7 @@ class MediaPipelineApplicationFacade(
     MaintenanceReleaseFacadeMixin,
     MaintenanceBackfillFacadeMixin,
     MaintenanceDependencyAtlasFacadeMixin,
+    LibraryRouteMapFacadeMixin,
     MetricsFacadeMixin,
     NetworkFacadeMixin,
     QueueFacadeMixin,
@@ -75,6 +78,7 @@ class MediaPipelineApplicationFacade(
     RenameFacadeMixin,
     SampleValidationFacadeMixin,
     ScheduleFacadeMixin,
+    DiagnosticsTdarrMatrixAuditFacadeMixin,
     DiagnosticsFacadeMixin,
     StatusFacadeMixin,
 ):
@@ -98,6 +102,7 @@ class MediaPipelineApplicationFacade(
         self.app_version = app_version
         self._process_launch_lock = threading.Lock()
         self._process_control_lock = threading.Lock()
+        self._diagnostics_command_lock = threading.Lock()
         self._maintenance_command_lock = threading.Lock()
         self._maintenance_health_progress_lock = threading.Lock()
         self._maintenance_health_progress = {}

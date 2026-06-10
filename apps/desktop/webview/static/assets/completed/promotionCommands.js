@@ -92,20 +92,38 @@
       if (!item.final_library_destination_path) return { available: false, reason: "No final-library destination path is configured for this output." };
       if (!item.ready_for_promotion) return { available: false, reason: "This output is not currently marked ready for final-library promotion." };
       if (!item.row_key) return { available: false, reason: "This completed output has no backend row key." };
-      return { available: true, reason: "Promote this reviewed file to its final destination." };
+      return { available: true, reason: "Promote this reviewed output to the final library." };
     }
 
-    function finalLibraryPromotionConfirmMessage(rowCount) {
+    function finalLibraryPromotionFlagLines(status = ctx.state.lastFinalLibraryPromotionStatus) {
+      const payload = status && typeof status === "object" ? status : {};
+      return [
+        `Overwrite existing final files: ${payload.overwrite_existing ? "yes - destructive" : "no"}`,
+        `Cleanup after verified promotion: ${payload.cleanup_after_verified ? "yes" : "no"}`,
+        "Backend owns destination selection and file movement.",
+      ];
+    }
+
+    function finalLibraryPromotionConfirmMessage(rowCount, status = ctx.state.lastFinalLibraryPromotionStatus) {
       const count = Number(rowCount || 0);
-      if (count === 1) {
-        return "Promote this file to its final destination?\n\nThis means you have reviewed it and are ready for it to be delivered.";
-      }
-      return "Promote these files to their final destination?\n\nThis means you have reviewed them and are ready for them to be delivered.";
+      const heading = count === 1
+        ? "Promote this reviewed output to the final library?"
+        : `Promote ${count || "all eligible"} reviewed outputs to the final library?`;
+      const reviewed = count === 1
+        ? "This means you have reviewed the output and are ready for backend final-library promotion."
+        : "This means you have reviewed the outputs and are ready for backend final-library promotion.";
+      const lines = [
+        heading,
+        "",
+        reviewed,
+        ...finalLibraryPromotionFlagLines(status),
+      ];
+      return lines.join("\n");
     }
 
-    function shouldConfirmFinalLibraryPromotion(rowCount) {
+    function shouldConfirmFinalLibraryPromotion(rowCount, status = ctx.state.lastFinalLibraryPromotionStatus) {
       if (typeof window.confirm !== "function") return true;
-      return window.confirm(finalLibraryPromotionConfirmMessage(rowCount));
+      return window.confirm(finalLibraryPromotionConfirmMessage(rowCount, status));
     }
 
     function createCompletedPromotionButton(item = {}) {
@@ -114,8 +132,8 @@
       const button = document.createElement("button");
       button.type = "button";
       button.className = "secondary-button completed-row-promotion-button";
-      button.textContent = "Promote";
-      button.title = "Promote this reviewed file to its final destination after confirmation.";
+      button.textContent = "Promote Reviewed Output";
+      button.title = "Promote this reviewed output to the final library after confirmation.";
       button.dataset.completedPromoteRowKey = item.row_key || "";
       button.addEventListener("click", (event) => {
         event.preventDefault();
@@ -139,7 +157,7 @@
       document.querySelectorAll("[data-completed-promote-selected]").forEach((button) => {
         button.disabled = !action.available;
         button.setAttribute("aria-disabled", String(!action.available));
-        button.textContent = "Promote Selected File";
+        button.textContent = "Promote Selected Reviewed Output";
         button.title = action.reason;
       });
     }
@@ -226,7 +244,7 @@
       const selectedRowKeys = (Array.isArray(rowKeys) ? rowKeys : [rowKeys])
         .map((value) => String(value || "").trim())
         .filter(Boolean);
-      if (!shouldConfirmFinalLibraryPromotion(selectedRowKeys.length || Number(ctx.state.lastFinalLibraryPromotionStatus?.counts?.eligible || 0))) return;
+      if (!shouldConfirmFinalLibraryPromotion(selectedRowKeys.length || Number(ctx.state.lastFinalLibraryPromotionStatus?.counts?.eligible || 0), ctx.state.lastFinalLibraryPromotionStatus)) return;
       setFinalLibraryPromotionCommandBusy(true);
       ctx.setText("final-library-promotion-status", "Starting");
       try {

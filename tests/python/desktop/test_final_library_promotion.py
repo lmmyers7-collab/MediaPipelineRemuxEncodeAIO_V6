@@ -1185,27 +1185,26 @@ class FinalLibraryPromotionServiceTests(unittest.TestCase):
 
 
 class FinalLibraryPromotionWebViewSettingsTests(unittest.TestCase):
-    def test_settings_has_dedicated_final_library_promotion_controls(self) -> None:
+    def test_settings_uses_library_profiles_for_final_library_promotion_settings(self) -> None:
         static_root = REPO_ROOT / "apps" / "desktop" / "webview" / "static"
         settings_html = (static_root / "partials" / "page-settings.html").read_text(encoding="utf-8")
         settings_js = (static_root / "assets" / "settingsView.js").read_text(encoding="utf-8")
-        settings_patch_review_js = (static_root / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
-        settings_script_text = settings_js + "\n" + settings_patch_review_js
+        settings_libraries_js = (static_root / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
         metadata_js = (static_root / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
 
         self.assertIn('data-settings-tab="publish-recovery"', settings_html)
-        self.assertIn("settings-final-library-enabled", settings_html)
-        self.assertIn("settings-final-library-rules-rows", settings_html)
-        self.assertIn("Preview Final Library Settings", settings_html)
-        self.assertIn("Save Final Library Settings", settings_html)
-        self.assertIn("FinalLibraryPromotionRuleDestinationRoot", settings_script_text)
-        self.assertIn("collectFinalLibraryPromotionSettingsPatch", settings_script_text)
-        self.assertIn("saveFinalLibraryPromotionSettings", settings_script_text)
-        self.assertIn("/api/settings/save-patch", settings_script_text)
-        self.assertIn("confirm_save: true", settings_script_text)
-        self.assertIn("It never promotes, overwrites, cleans up, or touches media files", settings_script_text)
+        self.assertNotIn("settings-final-library-enabled", settings_html)
+        self.assertNotIn("settings-final-library-rules-rows", settings_html)
+        self.assertNotIn("Preview Final Library Settings", settings_html)
+        self.assertNotIn("Save Final Library Settings", settings_html)
+        self.assertNotIn("settings-final-library-preview-button", settings_js)
+        self.assertNotIn("settings-final-library-save-button", settings_js)
+        self.assertIn('["promotion_destination", "Promotion destination", profile.promotion_destination]', settings_libraries_js)
+        self.assertIn("promotion_enabled: Boolean(fieldValue(\"promotion_enabled\"))", settings_libraries_js)
+        self.assertIn("patch.FinalLibraryPromotionEnabled = promotionEnabled;", settings_libraries_js)
+        self.assertIn("patch.FinalLibraryPromotionRules = generatedPromotionRules(libraryProfiles);", settings_libraries_js)
         self.assertIn("Existing final files are staged and verified before the replacement is revealed", metadata_js)
-        self.assertIn("finalLibraryPromotionSettingsBuilderFields", metadata_js)
+        self.assertIn("const finalLibraryPromotionSettingsBuilderFields = [];", metadata_js)
 
     def test_webview_exposes_dashboard_and_selected_file_promotion_entry_points(self) -> None:
         static_root = REPO_ROOT / "apps" / "desktop" / "webview" / "static"
@@ -1239,8 +1238,14 @@ class FinalLibraryPromotionWebViewSettingsTests(unittest.TestCase):
         self.assertIn("requestSelectedFinalLibraryPromotion", completed_script_text)
         self.assertIn("if (selectedRowKeys.length) request.row_keys = selectedRowKeys;", completed_script_text)
         self.assertIn('apiPost("/api/final-library-promotion/promote-queue", request)', completed_script_text)
-        self.assertIn("Promote these files to their final destination?", completed_script_text)
-        self.assertIn("window.confirm(finalLibraryPromotionConfirmMessage(rowCount))", completed_script_text)
+        self.assertIn("Promote Reviewed Outputs to Final Library", completed_html)
+        self.assertIn("Promote Selected Reviewed Output", completed_html)
+        self.assertIn("Promote this reviewed output to the final library?", completed_script_text)
+        self.assertIn("reviewed outputs to the final library?", completed_script_text)
+        self.assertIn("Overwrite existing final files:", completed_script_text)
+        self.assertIn("Cleanup after verified promotion:", completed_script_text)
+        self.assertIn("Backend owns destination selection and file movement.", completed_script_text)
+        self.assertIn("window.confirm(finalLibraryPromotionConfirmMessage(rowCount, status))", completed_script_text)
         self.assertIn("await ctx.refreshCurrentOutputStatus();", completed_script_text)
         self.assertIn("Start failed", completed_script_text)
         self.assertIn("appendCompletedPromotionCellAction", completed_table_js)

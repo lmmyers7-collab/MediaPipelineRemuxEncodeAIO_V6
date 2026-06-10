@@ -48,6 +48,7 @@ class AppSnapshotDto:
 class TelemetryDto:
     sampled_at: str = ""
     cpu_percent: float | None = None
+    cpu_utility_percent: float | None = None
     memory_percent: float | None = None
     memory_used_gb: float | None = None
     memory_total_gb: float | None = None

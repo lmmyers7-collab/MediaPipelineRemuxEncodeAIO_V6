@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/completed/evidence/routeAgreement.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-04
+last_modified: 2026-06-06
 last_reviewed: 2026-06-04
-sha256: f0ab5fad7ecaa95e84673c2d9edd08461f04c8a89ef9f89fbe911fbf9b8bfc37
+sha256: 5ef681a198f9090f951727996916679e4596cecb3ce8f458320cbba049b98baa
 ---
 # `apps/desktop/webview/static/assets/completed/evidence/routeAgreement.js`
 

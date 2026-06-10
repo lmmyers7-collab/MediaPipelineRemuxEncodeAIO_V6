@@ -3,9 +3,9 @@ file: tests/python/desktop/test_application_facade_snapshot.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-08
 last_reviewed: 2026-06-04
-sha256: 87b241bb8c51db8465987811d10633f6ade4c557d33cdc534b7e5307ac6e4d8e
+sha256: ea701358768c6c196230ac04a2e05a2d31105d22ad5ba48929c21f5b3c12fd54
 ---
 # `tests/python/desktop/test_application_facade_snapshot.py`
 

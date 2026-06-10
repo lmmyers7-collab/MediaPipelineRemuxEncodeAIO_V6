@@ -1,0 +1,34 @@
+{
+  "id": "MP-CHANGE-2026-0606-005",
+  "title": "Plan Library Profile route settings replication",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-06",
+  "date_completed": "2026-06-06",
+  "summary": "Documents an exhaustive plan to replicate the current Settings routing and size controls inside Library Profiles while preserving backend-owned LibraryProfiles override semantics.",
+  "reason": "The operator requested an investigation and implementation plan for making Libraries closely match current Settings route and size controls.",
+  "affected_areas": [
+    "docs",
+    "library_profiles",
+    "settings",
+    "webview"
+  ],
+  "behavior_before": "Library Profiles can already stage route and size overrides, but the WebView renders those controls through a generic override grid rather than the Settings route and size builder shown to the operator.",
+  "behavior_after": "No runtime behavior changes. The new implementation plan records the existing backend support, the UI gap, the recommended files to change, the inheritance and designation rules to preserve, and the validation ladder for a future implementation.",
+  "files_touched": [
+    "CHANGELOG.md",
+    "docs/implementation/library-profile-routing-size-replication-plan.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0606-005.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Test-Path planned docs/change packet files - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed due unrelated pre-existing ops/release/changes/unreleased/MP-CHANGE-2026-0605-010.json missing required date_completed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries - passed; no changed source files vs HEAD, no generated summaries produced"
+  ],
+  "rollback_plan": "Remove the implementation plan document, remove the changelog entry, and remove this change packet. No runtime state or saved operator config is affected.",
+  "related_changes": [],
+  "notes": "Investigation found existing backend metadata, LibraryProfiles override state, validation, and PowerShell tests already support the route/size keys. The future work is UI replication and targeted validation."
+}

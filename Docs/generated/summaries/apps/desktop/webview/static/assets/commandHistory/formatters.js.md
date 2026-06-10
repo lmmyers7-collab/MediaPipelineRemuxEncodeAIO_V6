@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/commandHistory/formatters.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-30
+last_modified: 2026-06-07
 last_reviewed: 2026-06-04
-sha256: 6ae9af5f18f0e6fa387cb9da15957d10b50608a908c9ef4f1973219561b21989
+sha256: d8c325b0c260b7c3efbd0826a06283312a433a72eb30613681d84400b12e3310
 ---
 # `apps/desktop/webview/static/assets/commandHistory/formatters.js`
 

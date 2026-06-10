@@ -13,11 +13,20 @@ BYTES_PER_GB = 1024**3
 PDH_SUCCESS = 0
 PDH_FMT_DOUBLE = 0x00000200
 # Sample "% Processor Time": the true 0-100% utilization that matches psutil and
-# the classic Windows CPU-usage number. Do NOT use "% Processor Utility" here: it
-# is scaled by the turbo frequency ratio, so on turbo-capable CPUs (e.g. Ryzen
-# 7800X3D ~4.77/4.20 GHz) it reads ~110% under load and saturates the 0-100%
-# telemetry bar at a flat 100% even when actual utilization is far lower.
+# the classic Windows CPU-usage number. Do NOT use "% Processor Utility" here for
+# the headline cpu_percent: it is scaled by the turbo frequency ratio, so on
+# turbo-capable CPUs (e.g. Ryzen 7800X3D ~4.77/4.20 GHz) it reads ~110% under load
+# and saturates the 0-100% telemetry bar at a flat 100% even when actual
+# utilization is far lower.
 WINDOWS_PROCESSOR_TIME_COUNTER = r"\Processor Information(_Total)\% Processor Time"
+# Secondary "Task Manager-equivalent" CPU figure. "% Processor Utility" is scaled
+# by the actual/base frequency ratio, which is exactly what Windows Task Manager
+# displays. It is clamped to 0-100 (Task Manager caps it the same way) and shown
+# ALONGSIDE, never replacing, the % Processor Time headline. The two diverge with
+# CPU clock state: above base clock Utility > Time; downclocked (e.g. a GPU-bound
+# NVENC encode) Utility < Time. Exposing both lets the operator reconcile the
+# dashboard with Task Manager without changing the headline basis.
+WINDOWS_PROCESSOR_UTILITY_COUNTER = r"\Processor Information(_Total)\% Processor Utility"
 
 
 class _PdhFormattedCounterValue(ctypes.Structure):
@@ -126,10 +135,22 @@ def create_cpu_sampler() -> WindowsProcessorUtilitySampler | None:
     return WindowsProcessorUtilitySampler()
 
 
-def prime_cpu_sampler(psutil_module: Any | None, cpu_sampler: Any | None = None) -> None:
-    if cpu_sampler is not None:
-        with contextlib.suppress(Exception):
-            cpu_sampler.prime()
+def create_cpu_utility_sampler() -> WindowsProcessorUtilitySampler | None:
+    """Sampler for the frequency-scaled "% Processor Utility" (Task Manager basis)."""
+    if sys.platform != "win32":
+        return None
+    return WindowsProcessorUtilitySampler(WINDOWS_PROCESSOR_UTILITY_COUNTER)
+
+
+def prime_cpu_sampler(
+    psutil_module: Any | None,
+    cpu_sampler: Any | None = None,
+    cpu_utility_sampler: Any | None = None,
+) -> None:
+    for sampler in (cpu_sampler, cpu_utility_sampler):
+        if sampler is not None:
+            with contextlib.suppress(Exception):
+                sampler.prime()
     if psutil_module is None:
         return
     with contextlib.suppress(Exception):
@@ -147,11 +168,27 @@ def _sample_cpu_percent(psutil_module: Any | None, cpu_sampler: Any | None) -> f
     return _bounded_percent(psutil_module.cpu_percent(interval=None))
 
 
+def _sample_cpu_utility(cpu_utility_sampler: Any | None) -> float | None:
+    # "% Processor Utility" has no psutil equivalent, so there is no fallback:
+    # if the sampler is absent (non-Windows) or fails, the secondary figure is
+    # simply reported as unavailable and the UI hides it.
+    if cpu_utility_sampler is None:
+        return None
+    with contextlib.suppress(Exception):
+        sampled = cpu_utility_sampler.sample()
+        if sampled is not None:
+            return _bounded_percent(sampled)
+    return None
+
+
 def apply_system_metrics_to_snapshot(
     snapshot: TelemetrySnapshot,
     psutil_module: Any | None,
     cpu_sampler: Any | None = None,
+    cpu_utility_sampler: Any | None = None,
 ) -> TelemetrySnapshot:
+    snapshot.cpu_utility_percent = _sample_cpu_utility(cpu_utility_sampler)
+
     if psutil_module is None:
         cpu_percent = _sample_cpu_percent(psutil_module, cpu_sampler)
         if cpu_percent is not None:

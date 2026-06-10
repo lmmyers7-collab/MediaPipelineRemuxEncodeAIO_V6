@@ -9,6 +9,8 @@
     const completedCurrentRows = deps.completedCurrentRows;
     const completedFilterFields = deps.completedFilterFields;
     const completedInvestigationFilterLabel = deps.completedInvestigationFilterLabel;
+    const completedLibraryFilterLabel = deps.completedLibraryFilterLabel;
+    const completedLibraryMatchesFilter = deps.completedLibraryMatchesFilter;
     const completedMatchesInvestigationFilter = deps.completedMatchesInvestigationFilter;
     const completedReviewRowReasons = deps.completedReviewRowReasons;
     const completedTableRowStatus = deps.completedTableRowStatus;
@@ -26,11 +28,16 @@
       const filterText = byId("completed-filter")?.value || "";
       const statusFilter = byId("completed-status-filter")?.value || "all";
       const investigationFilter = byId("completed-investigation-filter")?.value || "all";
+      const libraryFilter = byId("completed-library-filter")?.value || "all";
       const normalizedStatus = String(statusFilter || "all").trim().toLowerCase();
       const normalizedInvestigation = String(investigationFilter || "all").trim().toLowerCase();
+      const normalizedLibrary = String(libraryFilter || "all").trim().toLowerCase();
       const textRows = typeof filterRows === "function" ? filterRows(allRows, filterText, completedFilterFields) : allRows;
       const statusRows = typeof filterRowsByStatus === "function" ? filterRowsByStatus(textRows, statusFilter, completedTableRowStatus) : textRows;
-      const visibleRows = typeof filterRowsByInvestigation === "function" ? filterRowsByInvestigation(statusRows, investigationFilter, completedMatchesInvestigationFilter) : statusRows;
+      const investigationRows = typeof filterRowsByInvestigation === "function" ? filterRowsByInvestigation(statusRows, investigationFilter, completedMatchesInvestigationFilter) : statusRows;
+      const visibleRows = typeof completedLibraryMatchesFilter === "function"
+        ? investigationRows.filter((row) => completedLibraryMatchesFilter(row, normalizedLibrary))
+        : investigationRows;
       const visibleSet = new Set(visibleRows);
       const hiddenRows = allRows.filter((row) => !visibleSet.has(row));
       const hiddenBlocked = hiddenRows.filter((row) => completedTableRowStatus(row) === "blocked").length;
@@ -38,7 +45,8 @@
       const hiddenReview = hiddenRows.filter((row) => completedReviewRowReasons(row).length || ["blocked", "warning"].includes(completedTableRowStatus(row))).length;
       const active = Boolean(String(filterText || "").trim())
         || (normalizedStatus && normalizedStatus !== "all")
-        || (normalizedInvestigation && normalizedInvestigation !== "all");
+        || (normalizedInvestigation && normalizedInvestigation !== "all")
+        || (normalizedLibrary && normalizedLibrary !== "all");
       return {
         active,
         filterText: String(filterText || "").trim(),
@@ -46,6 +54,8 @@
         statusLabel: typeof tableStatusFilterLabel === "function" ? tableStatusFilterLabel(statusFilter) : statusFilter,
         investigationFilter: normalizedInvestigation || "all",
         investigationLabel: completedInvestigationFilterLabel(investigationFilter),
+        libraryFilter: normalizedLibrary || "all",
+        libraryLabel: typeof completedLibraryFilterLabel === "function" ? completedLibraryFilterLabel(libraryFilter) : libraryFilter,
         totalRows: allRows.length,
         visibleRows: visibleRows.length,
         hiddenRows: hiddenRows.length,
@@ -64,7 +74,7 @@
     }
 
     function completedFilterScopeEvidence(scope) {
-      return `Filters=${scope.active ? "active" : "inactive"}; visible=${scope.visibleRows}/${scope.totalRows}; hidden=${scope.hiddenRows}; hidden blocked=${scope.hiddenBlocked}; hidden review=${scope.hiddenReview}.`;
+      return `Filters=${scope.active ? "active" : "inactive"}; library=${scope.libraryLabel || "all libraries"}; visible=${scope.visibleRows}/${scope.totalRows}; hidden=${scope.hiddenRows}; hidden blocked=${scope.hiddenBlocked}; hidden review=${scope.hiddenReview}.`;
     }
 
     function completedFilterScopeAction(scope) {
@@ -83,6 +93,7 @@
         `Text filter: ${scope.filterText || "none"}`,
         `Status filter: ${scope.statusLabel || scope.statusFilter || "all"}`,
         `Investigation view: ${scope.investigationLabel || scope.investigationFilter || "all"}`,
+        `Library filter: ${scope.libraryLabel || scope.libraryFilter || "all libraries"}`,
         `Visible rows after filters: ${scope.visibleRows} of ${scope.totalRows}`,
         `Hidden rows: ${scope.hiddenRows}; hidden blocked rows: ${scope.hiddenBlocked}; hidden warning rows: ${scope.hiddenWarning}; hidden review rows: ${scope.hiddenReview}`,
         `Render cap: first ${scope.renderLimit} visible rows are rendered when a large filtered set remains.`,

@@ -1045,6 +1045,59 @@ class NetworkWorkerRuntimeTests(unittest.TestCase):
         self.assertEqual(worker._last_heartbeat_failure_text, long_error)
 
 
+class WorkerEncodeStartTests(unittest.TestCase):
+    def test_on_job_claimed_callback_reaches_app_encode_entry_point(self) -> None:
+        """Regression: the scheduled claim callback must invoke the app's
+        encode entry point when executed (a stale attribute path here once
+        passed the suite because the callback was never evaluated)."""
+
+        class InertThread:
+            def __init__(self, *args, **kwargs) -> None:
+                return None
+
+            def start(self) -> None:
+                return None
+
+            def is_alive(self) -> bool:
+                return False
+
+        started: list[object] = []
+        worker = WorkerDispatcher.__new__(WorkerDispatcher)
+        worker.app = SimpleNamespace(_worker_start_single_file=started.append)
+        worker._worker_id = "worker-1"
+        worker._save_worker_state = lambda _job: None  # type: ignore[method-assign]
+        worker._notify_status = lambda _msg: None  # type: ignore[method-assign]
+        worker._safe_log_cluster_event = lambda context, **kwargs: None  # type: ignore[method-assign]
+        worker._post_app_callback = lambda _name, callback: callback()  # type: ignore[method-assign]
+        job = SimpleNamespace(job_id="job-1", record=SimpleNamespace(source_path=r"C:\Media\movie.mkv"))
+
+        with patch("mediapipeline.desktop.network.worker_claims.threading.Thread", InertThread):
+            WorkerDispatcher._on_job_claimed(worker, job)
+
+        self.assertEqual(started, [job])
+
+    def test_start_claimed_encode_failure_releases_claim(self) -> None:
+        def boom(_job: object) -> None:
+            raise RuntimeError("encode entry exploded")
+
+        statuses: list[str] = []
+        events: list[dict] = []
+        releases: list[object] = []
+        worker = WorkerDispatcher.__new__(WorkerDispatcher)
+        worker.app = SimpleNamespace(_worker_start_single_file=boom)
+        worker._notify_status = statuses.append  # type: ignore[method-assign]
+        worker._safe_log_cluster_event = lambda context, **kwargs: events.append({"context": context, **kwargs})  # type: ignore[method-assign]
+        worker._do_release = releases.append  # type: ignore[method-assign]
+        job = SimpleNamespace(job_id="job-1", record=SimpleNamespace(source_path=r"C:\Media\movie.mkv"))
+
+        with self.assertLogs("mediapipeline.desktop.network.worker", level="ERROR") as logs:
+            WorkerDispatcher._start_claimed_encode(worker, job)
+
+        self.assertEqual(releases, [job])
+        self.assertEqual(events[0]["event"], "encode_start_failed")
+        self.assertIn("Claimed job failed to start", statuses[0])
+        self.assertIn("Worker encode start failed for job job-1", "\n".join(logs.output))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -32,7 +32,7 @@ from .library_profile_state import flatten_library_settings
 def _path_key(path: str, normalized_path_key: Any) -> str:
     try:
         return str(normalized_path_key(path))
-    except Exception:
+    except Exception:  # fall back to filesystem normalization when the key func fails
         try:
             return os.path.normcase(os.path.abspath(path))
         except (OSError, ValueError):
@@ -60,7 +60,32 @@ def _overlap_warning(
             return f"{left_label} is inside {right_label}. Keep library source, output, and promotion roots separated."
         if path_within_root(right_path, left_path):
             return f"{right_label} is inside {left_label}. Keep library source, output, and promotion roots separated."
-    except Exception:
+    except Exception:  # pragma: no cover - tolerate path comparison failures
+        return None
+    return None
+
+def _nested_source_warning(
+    label: str,
+    source_path: str,
+    other_label: str,
+    other_source: str,
+    *,
+    path_within_root: Any,
+) -> str | None:
+    if not source_path or not other_source:
+        return None
+    try:
+        if path_within_root(source_path, other_source):
+            return (
+                f"Library profile {label} source root is inside {other_label}; "
+                "files under the shared tree route to the deepest matching library."
+            )
+        if path_within_root(other_source, source_path):
+            return (
+                f"Library profile {other_label} source root is inside {label}; "
+                "files under the shared tree route to the deepest matching library."
+            )
+    except Exception:  # pragma: no cover - tolerate path comparison failures
         return None
     return None
 
@@ -136,15 +161,30 @@ def _validate_profile_effective_settings(
     if not overrides:
         return
 
-    candidate = dict(base_values or {})
+    # Validate the base config alone first so only failures the override
+    # actually introduces are attributed to this Library profile.
+    base = dict(base_values or {})
+    base_errors: list[str] = []
+    base_warnings: list[str] = []
+    validate_required_and_numeric_config(base, base_errors)
+    validate_option_config(base, base_errors, base_warnings)
+
+    candidate = dict(base)
     candidate.update(overrides)
     override_errors: list[str] = []
     override_warnings: list[str] = []
     validate_required_and_numeric_config(candidate, override_errors)
     validate_option_config(candidate, override_errors, override_warnings)
+
+    base_error_set = set(base_errors)
+    base_warning_set = set(base_warnings)
     for message in override_errors:
+        if message in base_error_set:
+            continue
         errors.append(f"Library profile {label} override is invalid: {message}")
     for message in override_warnings:
+        if message in base_warning_set:
+            continue
         warnings.append(f"Library profile {label} override review: {message}")
 
 def validate_library_profiles(
@@ -162,7 +202,8 @@ def validate_library_profiles(
         return
     raw_seen_ids: set[str] = set()
     for index, raw_profile in enumerate(raw_profiles, start=1):
-        raw_id = _slug(raw_profile.get("id") or raw_profile.get("library_id") or raw_profile.get("name"), f"library-{index}")
+        raw_slug = _slug(raw_profile.get("id") or raw_profile.get("library_id") or raw_profile.get("name"), f"library-{index}")
+        raw_id = raw_slug
         if raw_id in {"movie", "movies"}:
             raw_id = "movies"
         elif raw_id in {"show", "shows", "tv"}:
@@ -170,6 +211,10 @@ def validate_library_profiles(
         raw_designation = str(raw_profile.get("designation") or "").strip().casefold()
         raw_name = _text(raw_profile.get("name"))
         raw_label = raw_name or _default_name(raw_id, raw_designation)
+        if raw_id in DEFAULT_LIBRARY_IDS and raw_slug != raw_id:
+            warnings.append(
+                f"Library profile {raw_label} maps to the reserved '{raw_id}' library (matched '{raw_slug}')."
+            )
         if raw_designation in {"mixed", "custom"}:
             warnings.append(f"Library profile {raw_label} designation '{raw_designation}' is legacy; use auto.")
         elif raw_designation and raw_designation not in LIBRARY_DESIGNATIONS:
@@ -191,6 +236,7 @@ def validate_library_profiles(
 
     seen_ids: set[str] = set()
     seen_sources: dict[str, str] = {}
+    enabled_sources: list[tuple[str, str]] = []
     for profile in profiles:
         profile_id = str(profile.get("id") or "").strip()
         label = str(profile.get("name") or profile_id or "Library").strip()
@@ -224,7 +270,18 @@ def validate_library_profiles(
             if source_key in seen_sources:
                 errors.append(f"Library profile {label} shares an enabled source root with {seen_sources[source_key]}.")
             else:
+                for other_label, other_source in enabled_sources:
+                    nested = _nested_source_warning(
+                        label,
+                        source_path,
+                        other_label,
+                        other_source,
+                        path_within_root=path_within_root,
+                    )
+                    if nested:
+                        warnings.append(nested)
                 seen_sources[source_key] = label
+                enabled_sources.append((label, source_path))
 
         for warning in (
             _overlap_warning(

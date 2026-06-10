@@ -38,8 +38,16 @@ class ApplicationFacadeCompletedTests(unittest.TestCase):
                         "route": "encode",
                         "encoded_at": "2026-05-07T21:00:00-04:00",
                         "elapsed_seconds": 65,
-                        "source_size": 4096,
-                        "output_size": 2048,
+                        "source_size": 4 * 1024 ** 3,
+                        "output_size": 2 * 1024 ** 3,
+                        "route_plan": {
+                            "estimated_bitrate_mbps": 19.1,
+                            "bitrate_threshold_mbps": 20.0,
+                            "bitrate_over_threshold": False,
+                            "source_media_profile": {
+                                "duration_seconds": 1800,
+                            },
+                        },
                         "publish_state": "published",
                         "publish_mode": "immediate",
                         "encode_selected_encoder": "hevc_nvenc",
@@ -86,7 +94,7 @@ class ApplicationFacadeCompletedTests(unittest.TestCase):
         self.assertEqual(preview["progress_bars"][0]["id"], "completed_inventory")
         self.assertEqual(preview["encode_count"], 1)
         self.assertEqual(preview["missing_output_count"], 0)
-        self.assertEqual(preview["total_output_bytes"], 2048)
+        self.assertEqual(preview["total_output_bytes"], 2 * 1024 ** 3)
         self.assertEqual(preview["route_counts"], {"encode": 1})
         self.assertEqual(preview["publish_counts"], {"published": 1})
         self.assertEqual(preview["health_counts"], {"ok": 1})
@@ -113,10 +121,16 @@ class ApplicationFacadeCompletedTests(unittest.TestCase):
         self.assertEqual(preview["rows"][0]["route_label"], "ENCODE")
         self.assertEqual(preview["rows"][0]["route_reason_code"], "subtitle_srt_required")
         self.assertEqual(preview["rows"][0]["route_reason"], "needs preferred-language SRT")
-        self.assertEqual(preview["rows"][0]["output_size_text"], "2.0 KB")
+        self.assertEqual(preview["rows"][0]["output_size_text"], "2.00 GB")
         self.assertEqual(preview["rows"][0]["size_delta_percent"], -50.0)
         self.assertEqual(preview["rows"][0]["size_delta_label"], "-50.0%")
         self.assertFalse(preview["rows"][0]["size_growth_over_5"])
+        self.assertEqual(preview["rows"][0]["duration_seconds"], 1800.0)
+        self.assertEqual(preview["rows"][0]["bitrate_text"], "9.5 Mbps")
+        self.assertEqual(preview["rows"][0]["output_bitrate_text"], "9.5 Mbps")
+        self.assertEqual(preview["rows"][0]["source_bitrate_text"], "19.1 Mbps")
+        self.assertEqual(preview["rows"][0]["bitrate_threshold_text"], "20 Mbps")
+        self.assertIs(preview["rows"][0]["bitrate_over_threshold"], False)
         self.assertEqual(preview["rows"][0]["operator_status"], "Healthy")
         self.assertEqual(preview["rows"][0]["operator_status_state"], "match")
         self.assertEqual(preview["rows"][0]["operator_severity"], "ok")
@@ -141,6 +155,10 @@ class ApplicationFacadeCompletedTests(unittest.TestCase):
         self.assertEqual(preview["rows"][0]["consistency_issues"], [])
         self.assertIn("Route: ENCODE", preview["rows"][0]["route_evidence_lines"])
         self.assertIn("Reason code: subtitle_srt_required", preview["rows"][0]["route_evidence_lines"])
+        self.assertIn(
+            "Bitrate: output=9.5 Mbps; source=19.1 Mbps; threshold=20 Mbps; over threshold=no",
+            preview["rows"][0]["route_evidence_lines"],
+        )
         self.assertIn("Audio: a:0 eng aac -> copy (compatible)", preview["rows"][0]["route_evidence_lines"])
         self.assertIn("Subtitles: s:0 eng ass -> srt (plex_srt)", preview["rows"][0]["route_evidence_lines"])
         self.assertEqual(preview["rows"][0]["audio_decision_count"], 1)

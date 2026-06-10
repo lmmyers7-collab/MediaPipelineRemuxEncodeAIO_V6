@@ -7,6 +7,8 @@
       completedAcceptanceProofRowsForItem,
       completedDiagnosticsActionsForRow,
       completedFilterFields = [],
+      completedLibraryFilterLabel,
+      completedLibraryMatchesFilter,
       completedFormatCounts,
       completedFreshnessLine = () => "",
       completedManifestIsAged,
@@ -183,6 +185,8 @@
       ? reviewInvestigationFiltersModule.createCompletedReviewInvestigationFiltersModule({
         byId,
         completedFilterFields,
+        completedLibraryFilterLabel,
+        completedLibraryMatchesFilter,
         completedSizeDeltaPercent,
         completedTableRowStatus,
         filterRows,
@@ -198,6 +202,14 @@
       completedSelectedQuickSignalLines = () => [],
       completedInvestigationSignalLines = () => [],
     } = reviewInvestigationFilters;
+
+    function captureCompletedReviewSelectionScroll() {
+      return window.mediaPipelineDom?.captureScrollablePositions?.() || null;
+    }
+
+    function restoreCompletedReviewSelectionScroll(snapshot) {
+      if (snapshot) window.mediaPipelineDom?.restoreScrollablePositions?.(snapshot);
+    }
 
     function renderCompletedReviewDigest(completed, rows) {
       const tbody = byId("completed-review-rows");
@@ -523,6 +535,7 @@
     }
 
     function selectCompletedSizeEvidenceRow(item) {
+      const scrollSnapshot = captureCompletedReviewSelectionScroll();
       state.selectedCompletedSizeEvidenceKey = item?.key || "";
       if (item?.completedRow?.row_key) {
         state.selectedCompletedRowKey = item.completedRow.row_key;
@@ -535,9 +548,11 @@
         renderCompletedFinalTrust(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
         renderCompletedPilotEvidencePacket(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
         renderCompletedRows();
+        restoreCompletedReviewSelectionScroll(scrollSnapshot);
         return;
       }
       renderCompletedSizeEvidence(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows);
+      restoreCompletedReviewSelectionScroll(scrollSnapshot);
     }
 
     function renderCompletedSizeEvidence(completed, rows, proofRows = state.lastCompletedPendingProofRows) {

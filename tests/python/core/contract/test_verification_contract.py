@@ -63,7 +63,7 @@ class VerificationContractTests(unittest.TestCase):
         self.assertEqual(len(result.failures), 1)
         self.assertEqual(result.publish_blockers, [])
 
-    def test_fallback_remux_size_check_records_warning_without_failure_or_publish_block(self) -> None:
+    def test_fallback_remux_size_check_fails_when_oversized_encode_exceeds_policy(self) -> None:
         check = evaluate_output_size_check(
             action="fallback_remux",
             source_size_bytes=100,
@@ -72,10 +72,10 @@ class VerificationContractTests(unittest.TestCase):
         )
         result = verification_result_from_size_check(check)
 
-        self.assertEqual(check.status, "warning")
-        self.assertEqual(check.on_fail, "try_remux_then_record_warning")
-        self.assertEqual(len(result.advisory_warnings), 1)
-        self.assertEqual(result.failures, [])
+        self.assertEqual(check.status, "failed")
+        self.assertEqual(check.on_fail, "try_remux_else_fail_job")
+        self.assertEqual(result.advisory_warnings, [])
+        self.assertEqual(len(result.failures), 1)
         self.assertEqual(result.publish_blockers, [])
 
 

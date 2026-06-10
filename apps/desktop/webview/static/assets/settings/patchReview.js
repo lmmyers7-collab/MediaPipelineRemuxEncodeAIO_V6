@@ -1342,11 +1342,6 @@
       } else {
         addSettingsEventHandlers.renderPendingPublishSettingsBuilderGuidance();
       }
-      if (!finalLibraryPromotionSettingsBuilderState.initialized || !finalLibraryPromotionSettingsBuilderState.dirty) {
-        addSettingsEventHandlers.syncFinalLibraryPromotionSettingsBuilderFromConfig();
-      } else {
-        renderFinalLibraryPromotionSettingsGuidance();
-      }
       if (!subtitleSettingsBuilderState.initialized || !subtitleSettingsBuilderState.dirty) {
         addSettingsEventHandlers.syncSubtitleSettingsBuilderFromConfig();
       } else {
@@ -1533,14 +1528,6 @@
       bindSettingsClick("settings-pending-apply-button", addSettingsEventHandlers.applyPendingPublishSettingsBuilderToPatch);
       bindSettingsClick("settings-pending-reset-button", addSettingsEventHandlers.syncPendingPublishSettingsBuilderFromConfig);
       bindSettingsControls(pendingPublishSettingsBuilderFields, addSettingsEventHandlers.markPendingPublishSettingsBuilderDirty);
-      bindSettingsClick("settings-final-library-add-rule-button", addSettingsEventHandlers.addFinalLibraryPromotionRule);
-      bindSettingsClick("settings-final-library-preview-button", addSettingsEventHandlers.previewFinalLibraryPromotionSettings);
-      bindSettingsClick("settings-final-library-save-button", addSettingsEventHandlers.saveFinalLibraryPromotionSettings);
-      bindSettingsClick("settings-final-library-reset-button", addSettingsEventHandlers.syncFinalLibraryPromotionSettingsBuilderFromConfig);
-      bindSettingsControls(
-        finalLibraryPromotionSettingsBuilderFields.filter(([, id]) => id !== "settings-final-library-rules-rows"),
-        addSettingsEventHandlers.markFinalLibraryPromotionSettingsBuilderDirty
-      );
       bindSettingsClick("settings-subtitle-apply-button", addSettingsEventHandlers.applySubtitleSettingsBuilderToPatch);
       bindSettingsClick("settings-subtitle-reset-button", addSettingsEventHandlers.syncSubtitleSettingsBuilderFromConfig);
       bindSettingsControls(subtitleSettingsBuilderFields, addSettingsEventHandlers.markSubtitleSettingsBuilderDirty);
@@ -1961,7 +1948,7 @@
             `Command: ${command || "unknown"}`,
             `Result: ${latestCommand.result || (ok ? "ok" : latestCommand.severity || "unknown")}`,
             latestCommand.message ? `Message: ${latestCommand.message}` : "Message: none",
-            "Use Settings Command History and Home/Diagnostics command drilldown for full backend result data.",
+            "Use Settings Commands Evidence and Home/Diagnostics command drilldown for full backend result data.",
           ],
         });
       }

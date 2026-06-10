@@ -97,8 +97,8 @@ class EffectiveDecisionPolicy(DecisionPolicyModel):
     output_container: Literal["mkv", "mp4"] = "mkv"
     force_container_remux: bool = True
     direct_copy_video_codecs: list[str] = Field(default_factory=lambda: ["hevc", "h265", "h.265"])
-    mp4_audio_copy_codecs: list[str] = Field(default_factory=lambda: ["aac", "ac3", "eac3", "mp3", "alac"])
-    mp4_subtitle_copy_codecs: list[str] = Field(default_factory=lambda: ["mov_text", "tx3g"])
+    mp4_audio_copy_codecs: list[str] = Field(default_factory=lambda: ["eac3"])
+    mp4_subtitle_copy_codecs: list[str] = Field(default_factory=list)
     resolution_limit: ResolutionLimit = "source"
     custom_max_height: int | None = Field(default=None, ge=1)
     scaling_policy: ScalingPolicy = "never_upscale"
@@ -115,6 +115,7 @@ class EffectiveDecisionPolicy(DecisionPolicyModel):
     audio_passthrough_codecs: list[str] = Field(
         default_factory=lambda: ["aac", "ac3", "eac3", "mp3", "opus", "vorbis", "truehd", "mlp"]
     )
+    preferred_default_audio_languages: list[str] = Field(default_factory=lambda: ["eng"])
     audio_transcode_codec: str = "eac3"
     audio_max_channels: int = Field(default=6, ge=1, le=16)
     audio_force_transcode: bool = False
@@ -173,6 +174,7 @@ class EffectiveDecisionPolicy(DecisionPolicyModel):
         "mp4_subtitle_copy_codecs",
         "video_filter_names",
         "audio_passthrough_codecs",
+        "preferred_default_audio_languages",
         mode="before",
     )
     @classmethod
@@ -183,6 +185,19 @@ class EffectiveDecisionPolicy(DecisionPolicyModel):
     def _default_output_size_check_action(self) -> "EffectiveDecisionPolicy":
         if self.output_size_check_action is None:
             self.output_size_check_action = output_size_check_action_from_settings(self.size_guard_mode)
+        if self.output_container == "mp4":
+            allowed_video_codecs = {"hevc", "h265", "h.265", "h264", "h.264", "avc", "avc1"}
+            self.direct_copy_video_codecs = [
+                item for item in self.direct_copy_video_codecs if _normalized_text(item) in allowed_video_codecs
+            ] or ["hevc", "h265", "h.265", "h264", "h.264", "avc", "avc1"]
+            output_codec = _normalized_text(self.video_output_codec)
+            if not any(token in output_codec for token in ("h264", "h265", "hevc", "x264", "x265")):
+                self.video_output_codec = "hevc_nvenc"
+                self.video_codec_family = "hevc"
+                self.video_encoder_backend = "nvenc"
+            self.audio_transcode_codec = "eac3"
+            self.mp4_audio_copy_codecs = ["eac3"]
+            self.mp4_subtitle_copy_codecs = []
         height_tolerances = {
             "Route1080pUpperHeightTolerancePercent": self.route_1080p_upper_height_tolerance_percent,
             "Route1440pLowerHeightTolerancePercent": self.route_1440p_lower_height_tolerance_percent,

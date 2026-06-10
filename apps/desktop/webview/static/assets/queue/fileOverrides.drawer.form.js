@@ -31,6 +31,58 @@
     function renderRoutePreviewFromEffectivePayload(payload) { return ctx.routePreview.renderRoutePreviewFromEffectivePayload(payload); }
     function routeControlElement(fieldKey) { return ctx.routePreview.routeControlElement(fieldKey); }
 
+  // Remembers an operator-initiated expand so value-driven syncs cannot
+  // collapse the controls while the operator is still editing empty fields.
+  let routeOverrideManualExpand = false;
+
+  function routeOverrideDisclosureElements() {
+    return {
+      button: byId("fo-route-override-toggle"),
+      controls: byId("fo-route-override-controls"),
+      status: byId("fo-route-override-disclosure-status"),
+      section: byId("fo-processing-route-section"),
+    };
+  }
+
+  function routeOverrideHasValues() {
+    return ROUTE_FIELD_KEYS.some((fieldKey) => {
+      const control = routeControlElement(fieldKey);
+      return String(control?.value || "").trim() !== "";
+    });
+  }
+
+  function setRouteOverrideDisclosureExpanded(expanded) {
+    const { button, controls, status, section } = routeOverrideDisclosureElements();
+    const isExpanded = Boolean(expanded);
+    if (controls) controls.hidden = !isExpanded;
+    if (button) {
+      button.setAttribute("aria-expanded", isExpanded ? "true" : "false");
+      button.textContent = isExpanded ? "Hide processing route overrides" : "Override processing route";
+    }
+    if (status) {
+      status.textContent = isExpanded
+        ? "Route override controls are visible. Leave fields on saved policy to inherit backend settings."
+        : "Using saved processing policy unless an override is expanded and saved.";
+    }
+    if (section) section.dataset.routeOverridesExpanded = isExpanded ? "true" : "false";
+  }
+
+  function syncRouteOverrideDisclosure(options = {}) {
+    if (options.resetManualExpand) routeOverrideManualExpand = false;
+    if (options.forceExpanded) {
+      setRouteOverrideDisclosureExpanded(true);
+      return;
+    }
+    setRouteOverrideDisclosureExpanded(routeOverrideHasValues() || routeOverrideManualExpand);
+  }
+
+  function toggleRouteOverrideDisclosure() {
+    const button = byId("fo-route-override-toggle");
+    const expanded = button?.getAttribute("aria-expanded") === "true";
+    routeOverrideManualExpand = !expanded;
+    setRouteOverrideDisclosureExpanded(!expanded);
+  }
+
   function drawerChoiceLabel(value, explicitLabel = "") {
     const label = String(explicitLabel || "").trim();
     if (label) return label;
@@ -517,12 +569,28 @@
     if (resetRouteControls) clearProcessingRouteControls();
     else clearRoutePreviewStatus();
     syncSubFilterFields();
+    syncRouteOverrideDisclosure({ resetManualExpand: true });
     syncDrawerDirtyState();
   }
 
   function selectedSubtitleBurnControls() {
     return Array.from(document.querySelectorAll('[data-fo-track-action][data-fo-track-kind="subtitle"]'))
       .filter((control) => String(control.value || "") === "burn");
+  }
+
+  function setTrackActionDisabledReason(control, message) {
+    if (!control) return;
+    const reason = control.closest(".fo-track-action")?.querySelector(".fo-track-action-reason");
+    const text = String(message || "").trim();
+    if (reason) {
+      reason.textContent = text;
+      reason.hidden = !text;
+      if (text && reason.id) control.setAttribute("aria-describedby", reason.id);
+      else control.removeAttribute("aria-describedby");
+    } else {
+      control.removeAttribute("aria-describedby");
+    }
+    control.title = text;
   }
 
   function syncSubFilterFields() {
@@ -551,9 +619,10 @@
       const hasIndex = control.dataset.foTrackIndexAvailable !== "false";
       control.disabled = stripAllChecked || !hasIndex || (burnSelected && control !== burnedControl);
       if (stripAllChecked) control.value = "";
-      if (burnSelected && control !== burnedControl) control.title = "Only one subtitle stream can be burned; clear the burned row to edit other subtitle actions.";
-      else if (!hasIndex) control.title = "Track stream index unavailable; exact-track override cannot be saved for this row.";
-      else control.title = "";
+      if (stripAllChecked) setTrackActionDisabledReason(control, "Subtitle track actions are disabled while Strip all subtitles is selected.");
+      else if (burnSelected && control !== burnedControl) setTrackActionDisabledReason(control, "Only one subtitle stream can be burned; clear the burned row to edit other subtitle actions.");
+      else if (!hasIndex) setTrackActionDisabledReason(control, "Track stream index unavailable; exact-track override cannot be saved for this row.");
+      else setTrackActionDisabledReason(control, "");
     });
   }
 
@@ -598,6 +667,7 @@
     if (videoEncodeLadder) videoEncodeLadder.value = String(video.encodeLadder || "");
     renderDrawerOverrideMarkers(entry);
     syncSubFilterFields();
+    syncRouteOverrideDisclosure({ resetManualExpand: true });
     syncDrawerDirtyState();
   }
 
@@ -742,6 +812,8 @@
       markDrawerClean,
       handleDrawerFormChanged,
       confirmDiscardDrawerChanges,
+      toggleRouteOverrideDisclosure,
+      syncRouteOverrideDisclosure,
       clearDrawerOverrideMarkers,
       renderDrawerOverrideMarkers,
       clearDrawerForm,

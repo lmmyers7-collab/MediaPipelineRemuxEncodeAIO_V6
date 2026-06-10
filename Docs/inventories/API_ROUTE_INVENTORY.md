@@ -1,16 +1,16 @@
 # API Route Inventory
 
-Date: 2026-06-05
+Date: 2026-06-07
 
 Full inventory of all Local API routes: route, method, effect class, backend contract/handler, mutation risk, primary frontend caller, and test coverage. Source: `contract_read.py`, `contract_command.py`, `routes_read.py`, `routes_command.py`.
 
-Total: 89 routes — 36 GET (read) + 53 POST (command).
+Total: 98 routes — 42 GET (read) + 56 POST (command).
 
 All routes require the bootstrap token (`Authorization: Bearer` or `X-MediaPipeline-Token`) except `GET /api/health`.
 
 ---
 
-## GET Routes (Read — 36 routes)
+## GET Routes (Read — 42 routes)
 
 All GET routes return data only. None launch pipeline work, write config, drain pending outputs, rename files, or mutate queue or manifest state.
 
@@ -32,7 +32,7 @@ All GET routes return data only. None launch pipeline work, write config, drain 
 
 Query params: `/api/diagnostics/tail` accepts `target` (allowlisted key) and `max_bytes` (1 KB–256 KB); backend tail evidence includes `evidence_authority=backend`, and any WebView fallback over older/no-evidence payloads must be labelled frontend advisory only. `/api/launch/preflight` accepts target-specific read-only start-intent fields (`target`, pipeline `mode`, `sleep_seconds`, `show_config`, `show_console`, `single_file`, `schedule_override`, `extra_args`, `allow_extra_args`, audit `library_root`/`include_sidecars`, and rerun `csv_path`/`dry_run`/`stage_mode`/`original_mode`/`return_mode`) and returns nested backend `operator_readiness` (`desktop_launch_readiness.v1`) so Launch readiness rendering does not have to infer start posture from DOM state. `/api/commands` accepts `limit`. `/api/failures` accepts `source` and `limit`. `/api/queue/file-overrides`, `/api/queue/file-overrides/effective`, and `/api/queue/file-overrides/tracks` accept `path` and validate it under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots).
 
-### Inventory Group (16 routes)
+### Inventory Group (18 routes)
 
 | Route | Effect | Response Schema | Frontend Caller | Auth | Backend Test Coverage |
 |---|---|---|---|---|---|
@@ -43,6 +43,8 @@ Query params: `/api/diagnostics/tail` accepts `target` (allowlisted key) and `ma
 | `GET /api/queue/file-overrides/effective` | `none` | `queue_file_overrides_effective.v1` | Queue | Yes | `test_application_facade_local_api.py`, `test_file_override_tracks.py` |
 | `GET /api/queue/file-overrides/tracks` | `none` | `queue_file_override_tracks.v1` | Queue | Yes | `test_file_override_tracks.py` |
 | `GET /api/completed` | `none` | `desktop_completed_preview.v1` | Completed | Yes | `test_facade_completed_policy.py`, `test_service_completed_manifest.py` |
+| `GET /api/subtitle-qa/summary` | `none` | `subtitle_qa_summary.v1` | Queue, Completed | Yes | `test_subtitle_qa_feature.py` |
+| `GET /api/subtitle-qa/item` | `none` | `subtitle_qa_result.v1` | Queue, Completed | Yes | `test_subtitle_qa_feature.py` |
 | `GET /api/metrics` | `none` | `desktop_metrics.v1` | Metrics | Yes | `test_metrics_feature.py` |
 | `GET /api/final-library-promotion/status` | `none` | `desktop_final_library_promotion_status.v1` | Completed | Yes | `test_final_library_promotion.py` |
 | `GET /api/failures` | `none` | `desktop_failure_preview.v1` | Reports, Diagnostics | Yes | `test_facade_failures_policy.py`, `test_service_failure_markers.py` |
@@ -59,7 +61,7 @@ Repair/reconcile mutation remains design-only. `/api/contract` publishes the fut
 
 Network lifecycle mutation remains design-only. `/api/contract` publishes the future dry-run, process cleanup/rollback, source-file, and route-exposure gates for coordinator/worker lifecycle commands, but there are no Network start/stop/reclaim/ops/release/metadata/worker-polling POST routes in this inventory and no WebView controls may call one until `docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` is satisfied.
 
-### Workspace Group (9 routes)
+### Workspace Group (13 routes)
 
 | Route | Effect | Response Schema | Frontend Caller | Auth | Backend Test Coverage |
 |---|---|---|---|---|---|
@@ -68,6 +70,10 @@ Network lifecycle mutation remains design-only. `/api/contract` publishes the fu
 | `GET /api/maintenance/change-ledger` | `none` | `desktop_change_ledger.v1` | Maintenance | Yes | `test_maintenance_change_ledger.py` |
 | `GET /api/schedule` | `none` | `desktop_schedule_workspace.v1` | Schedule | Yes | `test_facade_schedule_policy.py`, `test_application_facade_schedule.py` |
 | `GET /api/settings/workspace` | `none` | `desktop_settings_workspace.v1` | Settings | Yes | `test_facade_settings_policy.py`, `test_application_facade_settings_workspace.py` |
+| `GET /api/libraries/route-map` | `none` | `library_route_map.v1` | Libraries | Yes | `test_route_map.py`, `test_library_route_map_api.py`, `test_api_contract_payload.py` |
+| `GET /api/libraries/route-map/trace` | `none` | `library_route_trace.v1` | Libraries | Yes | `test_route_map.py`, `test_library_route_map_api.py`, `test_api_contract_payload.py` |
+| `GET /api/libraries/route-map/compare` | `none` | `library_profile_compare.v1` | Libraries | Yes | `test_route_map.py`, `test_library_route_map_api.py`, `test_api_contract_payload.py` |
+| `GET /api/libraries/route-map/validation` | `none` | `library_route_validation_handoff.v1` | Libraries | Yes | `test_route_map.py`, `test_library_route_map_api.py`, `test_api_contract_payload.py` |
 | `GET /api/settings/wizard/status` | `none` | `desktop_settings_wizard_status.v1` | Settings Wizard | Yes | `test_api_command_contracts.py`, `test_application_facade_settings_workspace.py` |
 | `GET /api/settings/wizard/defaults` | `none` | `desktop_settings_wizard.v1` | Settings Wizard | Yes | `test_api_command_contracts.py`, `test_application_facade_settings_workspace.py` |
 | `GET /api/network/workers` | `none` | `desktop_network_workers.v1` | Network | Yes | `test_application_facade_network.py`, `test_webview_network_read_only_boundary.py` |
@@ -77,7 +83,7 @@ Network lifecycle mutation remains design-only. `/api/contract` publishes the fu
 
 ---
 
-## POST Routes (Command — 53 routes)
+## POST Routes (Command — 55 routes)
 
 All POST routes require auth. File-open routes pass row keys or allowlisted target keys. Queue state routes accept only absolute paths under backend-configured `SourceMovies`/`SourceTV` roots and write non-destructive state manifests. Queue source scan is backend-owned and writes scan evidence plus an authoritative queue snapshot through the existing queue-plan dry run.
 
@@ -116,6 +122,14 @@ Priority and file override/folder-rule path writes are rejected unless the submi
 
 `recovery-plan` builds a backend-authored dry-run plan and returns it. No files are drained, moved, deleted, or published.
 
+### Subtitle QA Preview Commands (1 route)
+
+| Route | Effect | Key Request Keys | Frontend Caller | Mutation Risk | Backend Test Coverage |
+|---|---|---|---|---|---|
+| `POST /api/subtitle-qa/preview` | `read-only-preview` | `id`, `row_key`, `path`, `source_path`, `output_path`, `scope`, `limit` | Queue, Completed | None — backend-authored evidence preview only | `test_subtitle_qa_feature.py` |
+
+`subtitle-qa/preview` reads evidence already present in loaded Queue and Completed payloads. It does not probe files, OCR, convert, sync, repair, rewrite sidecars, publish, drain, or touch media.
+
 ### Final Library Promotion Commands (3 routes)
 
 | Route | Effect | Key Request Keys | Frontend Caller | Mutation Risk | Backend Test Coverage |
@@ -126,11 +140,12 @@ Priority and file override/folder-rule path writes are rejected unless the submi
 
 Final-library promotion is backend-owned. The frontend can request the run, pause, or resume with allowlisted keys, but the backend owns destination resolution, completed-output eligibility, copy behavior, pause state, and any configured publish-output cleanup.
 
-### Diagnostics Open Command (1 route)
+### Diagnostics Commands (2 routes)
 
 | Route | Effect | Allowed Targets | Frontend Caller | Mutation Risk | Backend Test Coverage |
 |---|---|---|---|---|---|
 | `POST /api/diagnostics/open` | `shell-open` | 20 allowlisted target keys (see below) | Diagnostics, all pages | Low — OS open only | `test_facade_diagnostics_open_policy.py` |
+| `POST /api/diagnostics/tdarr-matrix-audit` | `diagnostic-process` | actions: `report`, `smoke`, `matrix`, `full`, `strict-report` | Diagnostics | Medium — backend runs fixed Tdarr Matrix scratch audit presets only | `test_service_tdarr_matrix_audit.py` |
 
 Allowlisted targets (20): `run_logs`, `cluster_log`, `config`, `config_folder`, `workspace`, `state`, `pending_publish`, `failed_reports`, `failed_markers`, `audit_reports`, `queue_snapshot`, `active_jobs`, `completed_manifest`, `latest_failure_report`, `latest_failure_json`, `latest_audit_csv`, `latest_priority_csv`, `last_stdout_log`, `last_stderr_log`, `sample_validation_log`.
 
@@ -144,7 +159,7 @@ Full target catalog: `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`.
 
 `ui-preferences` persists browser-local UI customization such as layout, theme, evidence visibility, and selected tabs under `LocalBase\State`. It does not save settings, mutate queue state, launch work, drain, rename, publish, or touch media files.
 
-### Maintenance Commands (4 routes)
+### Maintenance Commands (5 routes)
 
 | Route | Effect | Key Request Keys | Frontend Caller | Mutation Risk | Backend Test Coverage |
 |---|---|---|---|---|---|
@@ -152,8 +167,9 @@ Full target catalog: `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`.
 | `POST /api/maintenance/release-build` | `deployment-write` | `destination_root`, `zip_package`, `verify`, `include_tests`, `force`, `confirm_create` | Maintenance | Medium — creates deployable release folder, manifest, and optional zip through the backend release builder; `force` may replace the destination | `test_facade_maintenance_command_policy.py`, `test_application_facade_maintenance.py` |
 | `POST /api/maintenance/completed-backfill-dry-run` | `process-dry-run` | `timeout_seconds` | Maintenance | None — `-DryRun` only | `test_facade_maintenance_command_policy.py`, `test_application_facade_maintenance.py` |
 | `POST /api/maintenance/dependency-atlas` | `tooling-artifact-write` | `timeout_seconds`, `min_overview_edge_count`, `min_overview_files` | Maintenance | Low — regenerates dependency atlas HTML, PNG/SVG, and CSV tooling artifacts under `docs/generated/dependency-atlas/` only | `test_application_facade_maintenance.py`, `test_application_facade_local_api.py` |
+| `POST /api/maintenance/dependency-atlas/open-folder` | `shell-open` | none | Maintenance | Low — opens the backend-resolved `docs/generated/dependency-atlas/` folder only; no frontend path is accepted | `test_application_facade_maintenance.py`, `test_application_facade_local_api.py`, `test_webview_frontend_mutation_boundary.py` |
 
-The dry-run routes do not write a release folder, zip, manifest, or completed manifest. `dependency-atlas` writes generated tooling artifacts under `docs/generated/dependency-atlas/` only; it does not touch media, queue, settings, manifests, pending publish state, or pipeline state. `release-build` requires `confirm_create: true`, is blocked while active work is present, and writes deployment artifacts only through the backend release builder.
+The dry-run routes do not write a release folder, zip, manifest, or completed manifest. `dependency-atlas` writes generated tooling artifacts under `docs/generated/dependency-atlas/` only; `dependency-atlas/open-folder` opens that backend-resolved folder only and accepts no frontend path. Neither dependency-atlas route touches media, queue, settings, manifests, pending publish state, or pipeline state. `release-build` requires `confirm_create: true`, is blocked while active work is present, and writes deployment artifacts only through the backend release builder.
 
 ### Metrics Commands (2 routes)
 
@@ -242,11 +258,12 @@ media files.
 
 | Effect | Count | Routes |
 |---|---|---|
-| `none` (read-only) | 48 | All non-probing GET routes + preview/validate/reload POSTs |
+| `none` (read-only) | 50 | All non-probing GET routes + preview/validate/reload POSTs |
 | `bounded-health-check` | 1 | `GET /api/maintenance` |
-| `read-only-preview` | 3 | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/folder-preview` |
-| `shell-open` | 4 | `POST /api/queue/open`, `completed/open`, `pending-publish/open`, `diagnostics/open` |
+| `read-only-preview` | 4 | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/folder-preview`, `POST /api/subtitle-qa/preview` |
+| `shell-open` | 5 | `POST /api/queue/open`, `completed/open`, `pending-publish/open`, `diagnostics/open`, `maintenance/dependency-atlas/open-folder` |
 | `shell-dialog` | 3 | `POST /api/rename/browse`, `POST /api/settings/browse-path`, `POST /api/pipeline/browse-file` |
+| `diagnostic-process` | 1 | `POST /api/diagnostics/tdarr-matrix-audit` |
 | `ui-state-write` | 1 | `POST /api/ui-preferences` |
 | `metrics-state-write` | 1 | `POST /api/metrics/sources` |
 | `metrics-backfill-state-write` | 1 | `POST /api/metrics/backfill` |

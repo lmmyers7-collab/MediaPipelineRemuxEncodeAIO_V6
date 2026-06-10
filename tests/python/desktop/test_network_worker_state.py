@@ -166,3 +166,102 @@ class NetworkWorkerStateTests(unittest.TestCase):
         self.assertIn("Failed to clear worker_state.json after coordinator state transition", combined)
         self.assertIn("Coordinator accepted done report for job job-1", combined)
         self.assertIn("not saving a pending done report", combined)
+
+
+class WorkerPendingDoneFlushTests(unittest.TestCase):
+    def _make_worker(
+        self,
+        state_path: Path,
+        posts: list[tuple[str, dict]],
+        events: list[dict],
+        post_error: Exception | None = None,
+    ) -> WorkerDispatcher:
+        worker = WorkerDispatcher.__new__(WorkerDispatcher)
+        worker._state_path = state_path
+        worker._worker_id = "worker-1"
+        worker._safe_log_cluster_event = lambda context, **kwargs: events.append({"context": context, **kwargs})  # type: ignore[method-assign]
+
+        def _post(path: str, payload: dict) -> dict:
+            if post_error is not None:
+                raise post_error
+            posts.append((path, payload))
+            return {}
+
+        worker._http_post = _post  # type: ignore[method-assign]
+        return worker
+
+    def test_flush_returns_true_when_no_state_file(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            worker = self._make_worker(Path(td) / "worker_state.json", [], [])
+            self.assertTrue(WorkerDispatcher._flush_pending_done_report(worker))
+
+    def test_flush_keeps_active_claim_record_without_pending_report(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "worker_state.json"
+            save_worker_state(path, job_id="job-1", source_path=r"C:\Media\movie.mkv")
+            posts: list[tuple[str, dict]] = []
+            worker = self._make_worker(path, posts, [])
+
+            self.assertTrue(WorkerDispatcher._flush_pending_done_report(worker))
+
+            self.assertEqual(posts, [])
+            self.assertTrue(path.exists())
+
+    def test_flush_delivers_pending_report_and_clears_state(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "worker_state.json"
+            save_worker_state(
+                path,
+                job_id="job-1",
+                source_path=r"C:\Media\movie.mkv",
+                pending_done_report={"job_id": "job-1", "success": True},
+            )
+            posts: list[tuple[str, dict]] = []
+            events: list[dict] = []
+            worker = self._make_worker(path, posts, events)
+
+            self.assertTrue(WorkerDispatcher._flush_pending_done_report(worker))
+
+            self.assertEqual(posts[0][0], "/api/done")
+            self.assertEqual(posts[0][1]["job_id"], "job-1")
+            self.assertEqual(posts[0][1]["worker_id"], "worker-1")
+            self.assertFalse(path.exists())
+            self.assertEqual(events[0]["event"], "pending_done_recovered")
+
+    def test_flush_holds_claims_while_delivery_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "worker_state.json"
+            save_worker_state(
+                path,
+                job_id="job-1",
+                source_path=r"C:\Media\movie.mkv",
+                pending_done_report={"job_id": "job-1", "success": True},
+            )
+            worker = self._make_worker(
+                path, [], [], post_error=RuntimeError("HTTP 503 from http://x/api/done: busy"),
+            )
+
+            with self.assertLogs("mediapipeline.desktop.network.worker", level="WARNING") as logs:
+                self.assertFalse(WorkerDispatcher._flush_pending_done_report(worker))
+
+            self.assertTrue(path.exists())
+            self.assertIn("holding new claims", "\n".join(logs.output))
+
+    def test_flush_discards_pending_report_unknown_to_coordinator(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "worker_state.json"
+            save_worker_state(
+                path,
+                job_id="job-1",
+                source_path=r"C:\Media\movie.mkv",
+                pending_done_report={"job_id": "job-1", "success": True},
+            )
+            worker = self._make_worker(
+                path, [], [], post_error=RuntimeError("HTTP 404 from http://x/api/done: not found"),
+            )
+
+            with self.assertLogs("mediapipeline.desktop.network.worker", level="WARNING") as logs:
+                self.assertTrue(WorkerDispatcher._flush_pending_done_report(worker))
+
+            self.assertFalse(path.exists())
+            self.assertIn("no longer known to the coordinator", "\n".join(logs.output))

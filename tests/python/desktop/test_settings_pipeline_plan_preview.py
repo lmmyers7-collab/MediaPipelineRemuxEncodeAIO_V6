@@ -110,6 +110,31 @@ class SettingsPipelinePlanPreviewTests(unittest.TestCase):
         self.assertIn("H264RemuxMaxHeight", patched.data["effectivePresetSnapshot"]["settingsPreview"]["changedKeys"])
         self.assertEqual(service.saved_config_calls, [])
 
+    def test_mp4_patch_preview_reports_compatibility_consequences(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {"OutputContainer": "mkv"}
+
+            result = facade.preview_settings_pipeline_plan(
+                resolved,
+                {"source_media": source_media_payload("multi_audio_tracks.json"), "changes": {"OutputContainer": "mp4"}},
+            )
+
+        self.assertTrue(result.ok)
+        summary = result.data["decisionSnapshot"]["plannedOutputSummary"]["mp4_compatibility"]
+        self.assertTrue(summary["active"])
+        self.assertEqual(summary["selected_audio_streams"], [2])
+        self.assertEqual(summary["audio_output_codec"], "eac3")
+        self.assertEqual(summary["dropped_audio_count"], 2)
+        self.assertTrue(summary["metadata_stripped"])
+        self.assertTrue(summary["faststart_enabled"])
+        risk = result.data["effectivePresetSnapshot"]["settingsPreview"]["riskSummary"]
+        self.assertTrue(any(item["code"] == "mp4_container_limits" and item["severity"] == "high" for item in risk["items"]))
+        self.assertEqual(service.saved_config_calls, [])
+
     def test_invalid_staged_patch_returns_structured_preview_error_without_saving(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

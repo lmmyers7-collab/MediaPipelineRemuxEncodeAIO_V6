@@ -137,7 +137,7 @@ if ($DryRun) {
 if ($SkipReleaseBuild) {
     Write-Step "Step 2: skipped (--SkipReleaseBuild)"
 } else {
-    Write-Step "Step 2: invoking ops/scripts/ops/release/metadata/build.ps1 -> $ReleaseDir"
+    Write-Step "Step 2: invoking ops/scripts/release/build.ps1 -> $ReleaseDir"
     $buildScript = Join-Path $RepoRoot 'ops\scripts\release\build.ps1'
     if (-not (Test-Path $buildScript)) {
         throw "Release build script not found at ops\scripts\release\build.ps1."

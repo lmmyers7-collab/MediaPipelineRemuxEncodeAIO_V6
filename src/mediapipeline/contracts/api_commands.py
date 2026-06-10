@@ -37,6 +37,22 @@ class OpenLocationCommandPayload(ApiCommandPayload):
     manifest_path: Any = None
 
 
+class DiagnosticsTdarrMatrixAuditCommandPayload(StrictApiCommandPayload):
+    action: Any = None
+
+
+class DiagnosticsTdarrMatrixEvidenceOpenCommandPayload(StrictApiCommandPayload):
+    run_id: Any = None
+    finding_key: Any = None
+    target: Any = None
+
+
+class DiagnosticsTdarrMatrixRerunCommandPayload(StrictApiCommandPayload):
+    source_run_id: Any = None
+    selection: Any = None
+    finding_keys: Any = None
+
+
 class QueuePriorityItemPayload(ApiCommandPayload):
     path: Any = None
     level: Any = None
@@ -282,6 +298,10 @@ class MaintenanceDependencyAtlasCommandPayload(StrictApiCommandPayload):
     min_overview_files: Any = None
 
 
+class MaintenanceDependencyAtlasOpenFolderCommandPayload(StrictApiCommandPayload):
+    pass
+
+
 class MaintenanceCompletedBackfillDryRunCommandPayload(StrictApiCommandPayload):
     timeout_seconds: Any = None
 
@@ -352,6 +372,9 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/rename/browse": RenameCommandPayload,
     "/api/rename/apply": RenameApplyCommandPayload,
     "/api/diagnostics/open": OpenLocationCommandPayload,
+    "/api/diagnostics/tdarr-matrix-audit": DiagnosticsTdarrMatrixAuditCommandPayload,
+    "/api/diagnostics/tdarr-matrix/evidence/open": DiagnosticsTdarrMatrixEvidenceOpenCommandPayload,
+    "/api/diagnostics/tdarr-matrix/rerun": DiagnosticsTdarrMatrixRerunCommandPayload,
     "/api/queue/scan": QueueScanCommandPayload,
     "/api/queue/open": OpenLocationCommandPayload,
     "/api/queue/priority": QueuePriorityCommandPayload,
@@ -384,6 +407,7 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/maintenance/release-build": MaintenanceReleaseBuildCommandPayload,
     "/api/maintenance/completed-backfill-dry-run": MaintenanceCompletedBackfillDryRunCommandPayload,
     "/api/maintenance/dependency-atlas": MaintenanceDependencyAtlasCommandPayload,
+    "/api/maintenance/dependency-atlas/open-folder": MaintenanceDependencyAtlasOpenFolderCommandPayload,
     "/api/metrics/sources": MetricsSourcesCommandPayload,
     "/api/metrics/backfill": MetricsBackfillCommandPayload,
     "/api/settings/reload": EmptyCommandPayload,

@@ -816,11 +816,13 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertEqual(paths_by_effect["/api/maintenance/release-build"], "deployment-write")
         self.assertEqual(paths_by_effect["/api/maintenance/completed-backfill-dry-run"], "process-dry-run")
         self.assertEqual(paths_by_effect["/api/maintenance/dependency-atlas"], "tooling-artifact-write")
+        self.assertEqual(paths_by_effect["/api/maintenance/dependency-atlas/open-folder"], "shell-open")
         self.assertEqual(paths_by_effect["/api/schedule"], "none")
         self.assertEqual(paths_by_effect["/api/schedule/preview"], "none")
         self.assertEqual(paths_by_effect["/api/schedule/save"], "app-state-write")
         self.assertEqual(paths_by_effect["/api/network/workers"], "none")
         self.assertEqual(paths_by_effect["/api/diagnostics/open"], "shell-open")
+        self.assertEqual(paths_by_effect["/api/diagnostics/tdarr-matrix-audit"], "diagnostic-process")
         self.assertEqual(paths_by_effect["/api/settings/browse-path"], "shell-dialog")
         self.assertEqual(paths_by_effect["/api/settings/preview-patch"], "none")
         self.assertEqual(paths_by_effect["/api/settings/save-patch"], "config-write")
@@ -2669,6 +2671,12 @@ class LocalApiServerTests(unittest.TestCase):
                     {"timeout_seconds": 99999, "min_overview_edge_count": 5},
                     token="workflow-token",
                 )
+                (root / "docs/generated/dependency-atlas").mkdir(parents=True, exist_ok=True)
+                dependency_atlas_open_status, dependency_atlas_open_payload = self._post_json(
+                    f"{server.url}/api/maintenance/dependency-atlas/open-folder",
+                    {},
+                    token="workflow-token",
+                )
                 schedule_status, schedule_payload = self._get_json(f"{server.url}/api/schedule", token="workflow-token")
                 schedule_preview_status, schedule_preview_payload = self._post_json(
                     f"{server.url}/api/schedule/preview",
@@ -2861,6 +2869,13 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertFalse(dependency_atlas_payload["data"]["writes_media"])
         self.assertEqual(dependency_atlas_payload["data"]["dependency_atlas_progress"]["schema_version"], "desktop_dependency_atlas_progress.v1")
         self.assertEqual(dependency_atlas_payload["data"]["progress_bars"][0]["id"], "dependency_atlas")
+        self.assertEqual(dependency_atlas_open_status, 200)
+        self.assertEqual(dependency_atlas_open_payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(dependency_atlas_open_payload["command"], "maintenance.dependency_atlas_open_folder")
+        self.assertTrue(dependency_atlas_open_payload["ok"])
+        self.assertEqual(dependency_atlas_open_payload["data"]["target"], "dependency_atlas_folder")
+        self.assertFalse(dependency_atlas_open_payload["data"]["writes_media"])
+        self.assertFalse(dependency_atlas_open_payload["data"]["writes_dependency_atlas"])
         self.assertEqual(schedule_status, 200)
         self.assertEqual(schedule_payload["schema_version"], "desktop_schedule_workspace.v1")
         self.assertIn("day_summaries", schedule_payload)
@@ -2946,7 +2961,14 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertEqual(diagnostics_open_payload["schema_version"], "desktop_command_result.v1")
         self.assertEqual(diagnostics_open_payload["command"], "diagnostics.open")
         self.assertEqual(diagnostics_open_payload["data"]["target"], "run_logs")
-        self.assertEqual(service.opened_paths, [completed_output.parent, root / "RunLogs"])
+        self.assertEqual(
+            service.opened_paths,
+            [
+                completed_output.parent,
+                root / "docs/generated/dependency-atlas",
+                root / "RunLogs",
+            ],
+        )
         self.assertEqual(control_status, 200)
         self.assertEqual(control_payload["schema_version"], "desktop_command_result.v1")
         self.assertEqual(control_payload["command"], "pipeline.control.stop")
@@ -4242,6 +4264,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("backfill-dry-run-button", html)
         self.assertIn("backfill-dry-run-detail", html)
         self.assertIn("dependency-atlas-button", html)
+        self.assertIn("dependency-atlas-open-folder-button", html)
         self.assertIn("dependency-atlas-status", html)
         self.assertIn("dependency-atlas-progress-bars", html)
         self.assertIn("dependency-atlas-detail", html)
@@ -6447,6 +6470,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("Another diagnostics open command is already in progress.", diagnostics_view_js)
         self.assertIn("log_tail", diagnostics_view_js)
         self.assertIn("/api/diagnostics/open", diagnostics_view_js)
+        self.assertIn("/api/diagnostics/tdarr-matrix-audit", diagnostics_view_js)
+        self.assertIn("data-tdarr-matrix-audit-action", html)
         self.assertIn("window.mediaPipelineReportsView", reports_view_js)
         self.assertIn("function renderReports", reports_view_js)
         self.assertIn("renderAuditProgressInto", reports_view_js)
@@ -6633,6 +6658,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function renderDependencyAtlasResult", maintenance_view_js)
         self.assertIn("function renderDependencyAtlasProgress", maintenance_view_js)
         self.assertIn("function dependencyAtlasProgressBars", maintenance_view_js)
+        self.assertIn("function openDependencyAtlasFolder", maintenance_view_js)
         self.assertIn('renderProgressBarsInto("dependency-atlas-progress-bars"', maintenance_view_js)
         self.assertIn("function isMaintenanceDryRunCommand", maintenance_view_js)
         self.assertIn("function renderMaintenanceDryRunHistory", maintenance_view_js)
@@ -6641,10 +6667,12 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("/api/maintenance/release-dry-run", maintenance_view_js)
         self.assertIn("/api/maintenance/release-build", maintenance_view_js)
         self.assertIn("/api/maintenance/dependency-atlas", maintenance_view_js)
+        self.assertIn("/api/maintenance/dependency-atlas/open-folder", maintenance_view_js)
         self.assertIn('command: "maintenance.release_dry_run"', maintenance_view_js)
         self.assertIn('command: "maintenance.release_build"', maintenance_view_js)
         self.assertIn('command: "maintenance.completed_backfill_dry_run"', maintenance_view_js)
         self.assertIn('command: "maintenance.dependency_atlas"', maintenance_view_js)
+        self.assertIn('command: "maintenance.dependency_atlas_open_folder"', maintenance_view_js)
         self.assertIn("window.mediaPipelineTelemetryView", telemetry_view_js)
         self.assertIn("function renderTelemetry", telemetry_view_js)
         self.assertIn("function renderGpuRows", telemetry_view_js)
@@ -7153,6 +7181,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn('"/api/completed?limit=all&force_refresh=true&proof=live"', js)
         self.assertIn('const completedStatusFilter = byId("completed-status-filter")', js)
         self.assertIn('completedStatusFilter.addEventListener("change", () => window.mediaPipelineCompletedView?.renderCompletedRows?.())', js)
+        self.assertIn('const completedLibraryFilter = byId("completed-library-filter")', js)
+        self.assertIn('completedLibraryFilter.addEventListener("change", () => window.mediaPipelineCompletedView?.renderCompletedRows?.())', js)
         self.assertIn('const completedInvestigationFilter = byId("completed-investigation-filter")', js)
         self.assertIn('completedInvestigationFilter.addEventListener("change", () => window.mediaPipelineCompletedView?.renderCompletedRows?.())', js)
         self.assertIn('const completedHistoryFilter = byId("completed-history-filter")', js)
@@ -7162,6 +7192,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function completedReviewDigestStatus", completed_view_review_js)
         self.assertIn("completed-filter-summary", html)
         self.assertIn("completed-status-filter", html)
+        self.assertIn("completed-library-filter", html)
         self.assertIn("completed-investigation-filter", html)
         self.assertIn("completed-history-filter-summary", html)
         self.assertIn("completed-history-status-filter", html)
@@ -7188,11 +7219,13 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("No Completed review flags or consistency issues were reported for this row.", completed_view_review_js)
         self.assertIn("Authority: this summary is read-only. It cannot accept outputs", completed_view_review_js)
         self.assertIn('byId("completed-status-filter")', completed_view_filters_js)
+        self.assertIn('byId("completed-library-filter")', completed_view_filters_js)
         self.assertIn('byId("completed-investigation-filter")', completed_view_filters_js)
         self.assertIn('byId("completed-history-status-filter")', completed_view_filters_js)
         self.assertIn('byId("completed-history-investigation-filter")', completed_view_filters_js)
         self.assertIn("filterResultSummaryLines({", completed_view_table_js)
         self.assertIn("filterRowsByInvestigation(statusRows, investigationFilter, completedMatchesInvestigationFilter)", completed_view_filters_js)
+        self.assertIn("function completedLibraryMatchesFilter", completed_view_filters_js)
         self.assertIn("${renderedRows} shown / ${visibleRows} filtered / ${totalRows} rows", completed_view_filters_js)
         self.assertIn("filtering Current Output Status does not mark outputs accepted", completed_view_table_js)
         self.assertIn("filtering Completed history does not mark outputs accepted", completed_view_table_js)

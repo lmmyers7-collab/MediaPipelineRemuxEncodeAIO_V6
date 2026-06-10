@@ -127,6 +127,31 @@ for path in sorted(root.glob("*.json")):
     return @($cases.ToArray())
 }
 
+function Get-Phase07BMp4FixturePlan {
+    $python = Join-Path $repoRoot 'apps\desktop\runtime\Python\python.exe'
+    $script = @'
+import json
+from pathlib import Path
+from mediapipeline.contracts.source_media import source_media_from_ffprobe
+from mediapipeline.core.orchestration.planner import build_pipeline_plan_from_preset
+
+source = source_media_from_ffprobe(json.loads(Path("tests/fixtures/source_media/multi_audio_tracks.json").read_text(encoding="utf-8")))
+plan = build_pipeline_plan_from_preset(source, {"OutputContainer": "mp4"}, plan_id="mp4-compatibility-remux")
+print(json.dumps(plan.model_dump(mode="json", by_alias=True), separators=(",", ":")))
+'@
+    $oldPythonPath = $env:PYTHONPATH
+    try {
+        $env:PYTHONPATH = Join-Path $repoRoot 'src'
+        $output = & $python -c $script
+        if ($LASTEXITCODE -ne 0) {
+            throw "Python MP4 plan generation failed with exit $LASTEXITCODE."
+        }
+    } finally {
+        $env:PYTHONPATH = $oldPythonPath
+    }
+    return ($output | Select-Object -First 1 | ConvertFrom-Json -Depth 100)
+}
+
 $fixtureCases = @(Get-Phase07BFixturePlans)
 Assert-Equal $fixtureCases.Count 10 'Phase 07B parity harness must cover every Phase 03 source-media fixture.'
 
@@ -203,6 +228,20 @@ foreach ($case in $fixtureCases) {
 }
 
 Assert-Equal $matched.Count $fixtureCases.Count 'Not every Phase 03 fixture reached a parity assertion.'
+
+$mp4Plan = ConvertFrom-PipelinePlanJson -Json ((Get-Phase07BMp4FixturePlan) | ConvertTo-Json -Depth 100)
+$mp4DryRun = New-PipelinePlanExecutorDryRun -Plan $mp4Plan
+Assert-Equal $mp4DryRun.commands.Count 1 'MP4 REMUX dry-run should produce one FFmpeg mux command.'
+$mp4Command = $mp4DryRun.commands[0]
+Assert-Equal $mp4Command.label 'REMUX-MP4' 'MP4 REMUX command label mismatch.'
+Assert-Equal $mp4Command.tool 'ffmpeg' 'MP4 REMUX command tool mismatch.'
+$mp4Joined = $mp4Command.argumentList -join ' '
+Assert-ContainsText $mp4Joined '-map_chapters -1' 'MP4 REMUX should strip chapters.'
+Assert-ContainsText $mp4Joined '-map_metadata -1' 'MP4 REMUX should strip source/global metadata.'
+Assert-ContainsText $mp4Joined '-movflags +faststart' 'MP4 REMUX should enable faststart.'
+Assert-DoesNotContainText $mp4Joined '-map 0:t?' 'MP4 REMUX should not map attachments/fonts.'
+Assert-DoesNotContainText $mp4Joined '-map_metadata 0' 'MP4 REMUX should not preserve metadata.'
+Assert-DoesNotContainText $mp4Joined '-c:t copy' 'MP4 REMUX should not copy attachments/fonts.'
 
 $textBurnPlan = [pscustomobject]@{
     streamActions = @(

@@ -122,13 +122,37 @@ class WorkerClaimMixin:
         try:
             self._post_app_callback(
                 "worker-start-single-file",
-                lambda: self.mediapipeline.core._worker_start_single_file(job),
+                lambda: self._start_claimed_encode(job),
             )
         except Exception as exc:
             reason_preview = _worker_diagnostic_preview(exc)
             _log.error("Failed to schedule _worker_start_single_file: %s", reason_preview)
             self._notify_status(f"⚠ Could not schedule claimed job: {reason_preview[:80]}")
             # Release the job immediately so the coordinator can re-queue it.
+            self._do_release(job)
+
+    def _start_claimed_encode(self, job: ClaimedJob) -> None:
+        """Run the app's encode entry point on the app callback thread.
+
+        Releases the claim when the encode cannot start — without this
+        guard an exception here would leave the claim heartbeating
+        forever with no encode running, locking the source out of the
+        whole cluster.
+        """
+        try:
+            self.app._worker_start_single_file(job)
+        except Exception as exc:
+            reason_preview = _worker_diagnostic_preview(exc)
+            _log.error("Worker encode start failed for job %s: %s", job.job_id, reason_preview)
+            self._notify_status(f"⚠ Claimed job failed to start: {reason_preview[:80]}")
+            self._safe_log_cluster_event(
+                "encode-start-failed",
+                level="ERROR",
+                event="encode_start_failed",
+                message=f"Worker could not start encode for claimed job: {reason_preview}",
+                job_id=job.job_id,
+                source_path=str(job.record.source_path),
+            )
             self._do_release(job)
 
     def _do_release(self, job: ClaimedJob) -> None:

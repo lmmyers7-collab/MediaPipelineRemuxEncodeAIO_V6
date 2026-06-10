@@ -111,7 +111,7 @@
       const robocopyTimeout = Number(settingsBuilderInputValue("settings-pending-robocopy-timeout") || 0);
       const outputMultiplier = Number(settingsBuilderInputValue("settings-pending-output-size-multiplier") || 0);
       const lines = [
-        "Guardrail: this builder stages existing config keys only; Publish Parked Outputs, copy, cleanup, and retry behavior remain backend-owned.",
+        "Guardrail: this builder stages existing config keys only; Drain Parked Outputs, copy, cleanup, and retry behavior remain backend-owned.",
         deferred
           ? "Mode: deferred publish is enabled. Completed payloads can park until the pending-publish drain validates and moves them."
           : "Mode: deferred publish is disabled. Processing can publish directly to final output after validation.",

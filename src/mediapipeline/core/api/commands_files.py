@@ -24,6 +24,15 @@ class LocalApiFileCommandPayloadMixin:
             return resolved_paths_unavailable_payload("diagnostics.open", "diagnostics")
         return self.facade.open_diagnostics_location(resolved, request).to_mapping()
 
+    def _diagnostics_tdarr_matrix_audit_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        return self.facade.run_tdarr_matrix_audit(request).to_mapping()
+
+    def _diagnostics_tdarr_matrix_evidence_open_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        return self.facade.open_tdarr_matrix_evidence(request).to_mapping()
+
+    def _diagnostics_tdarr_matrix_rerun_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        return self.facade.rerun_tdarr_matrix_cases(request).to_mapping()
+
     def _pending_publish_open_payload(self, request: dict[str, Any]) -> dict[str, Any]:
         resolved = self._resolved()
         if resolved is None:

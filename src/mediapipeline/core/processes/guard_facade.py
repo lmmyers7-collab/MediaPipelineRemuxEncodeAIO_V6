@@ -18,6 +18,14 @@ class ProcessGuardFacadeMixin:
 
     service: object
 
+    def _blocking_job_kinds_for_action(self, action: str) -> set[str] | None:
+        normalized = str(action or "").strip().casefold()
+        if normalized.startswith("audit "):
+            return {"audit", "rerun_csv"}
+        if normalized.startswith("pipeline "):
+            return {"pipeline", "rerun_csv"}
+        return None
+
     def _acquire_process_launch_lock(self, action: str) -> tuple[object | None, str]:
         lock = getattr(self, "_process_launch_lock", None)
         if lock is None:
@@ -53,10 +61,15 @@ class ProcessGuardFacadeMixin:
 
     def _active_work_block_message(self, resolved: ResolvedPaths, action: str) -> str:
         self._cleanup_stale_launch_guards(resolved, action)
+        blocking_job_kinds = self._blocking_job_kinds_for_action(action)
         related_method = getattr(self.service, "find_related_pipeline_processes", None)
         if callable(related_method):
             try:
-                related_processes = related_method(resolved)
+                related_processes = self._related_processes_for_action(
+                    related_method,
+                    resolved,
+                    blocking_job_kinds=blocking_job_kinds,
+                )
             except Exception as exc:
                 self._log_close_guard_exception("Related process close-readiness verification failed", exc)
                 return f"{action} blocked because related MediaPipeline processes could not be verified: {exc}"
@@ -67,21 +80,40 @@ class ProcessGuardFacadeMixin:
         promotion_block = self._final_library_promotion_block_message(action)
         if promotion_block:
             return promotion_block
-        watcher_block = self._schedule_stop_watcher_close_block_message(action)
-        if watcher_block:
-            return watcher_block
-        active_job_blocks = self._active_job_block_messages(resolved)
+        if blocking_job_kinds is None or "pipeline" in blocking_job_kinds:
+            watcher_block = self._schedule_stop_watcher_close_block_message(action)
+            if watcher_block:
+                return watcher_block
+        active_job_blocks = self._active_job_block_messages(resolved, job_kinds=blocking_job_kinds)
         if active_job_blocks:
             shown = "; ".join(active_job_blocks[:3])
             suffix = "" if len(active_job_blocks) <= 3 else f"; and {len(active_job_blocks) - 3} more"
             return f"{action} blocked because ActiveJobs still reports active work: {shown}{suffix}"
-        progress_block = self._progress_block_message(resolved, action)
-        if progress_block:
-            return progress_block
-        audit_block = self._audit_progress_block_message(resolved, action)
-        if audit_block:
-            return audit_block
+        if blocking_job_kinds is None or "pipeline" in blocking_job_kinds:
+            progress_block = self._progress_block_message(resolved, action)
+            if progress_block:
+                return progress_block
+        if blocking_job_kinds is None or "audit" in blocking_job_kinds:
+            audit_block = self._audit_progress_block_message(resolved, action)
+            if audit_block:
+                return audit_block
         return ""
+
+    def _related_processes_for_action(
+        self,
+        related_method: object,
+        resolved: ResolvedPaths,
+        *,
+        blocking_job_kinds: set[str] | None,
+    ) -> list[object]:
+        if not callable(related_method):
+            return []
+        if blocking_job_kinds is None:
+            return list(related_method(resolved))
+        try:
+            return list(related_method(resolved, job_kinds=blocking_job_kinds))
+        except TypeError:
+            return list(related_method(resolved))
 
     def _cleanup_stale_launch_guards(self, resolved: ResolvedPaths, action: str) -> None:
         cleanup = getattr(self.service, "cleanup_stale_launch_guards", None)
@@ -102,12 +134,22 @@ class ProcessGuardFacadeMixin:
             self._log_close_guard_exception("Final-library promotion close-readiness verification failed", exc)
             return f"{action} blocked because final-library promotion state could not be verified: {exc}"
 
-    def _active_job_block_messages(self, resolved: ResolvedPaths) -> list[str]:
+    def _active_job_block_messages(self, resolved: ResolvedPaths, *, job_kinds: set[str] | None = None) -> list[str]:
         block_messages = getattr(self.service, "active_job_close_block_messages", None)
         if not callable(block_messages):
             return []
         try:
-            return [str(message) for message in block_messages(resolved) if str(message).strip()]
+            if job_kinds is None:
+                messages = block_messages(resolved)
+            else:
+                messages = block_messages(resolved, job_kinds=job_kinds)
+            return [str(message) for message in messages if str(message).strip()]
+        except TypeError:
+            try:
+                return [str(message) for message in block_messages(resolved) if str(message).strip()]
+            except Exception as exc:
+                self._log_close_guard_exception("ActiveJobs close-readiness verification failed", exc)
+                return ["ActiveJobs state could not be verified."]
         except Exception as exc:
             self._log_close_guard_exception("ActiveJobs close-readiness verification failed", exc)
             return ["ActiveJobs state could not be verified."]

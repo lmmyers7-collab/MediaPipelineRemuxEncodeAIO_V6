@@ -258,7 +258,7 @@ class WorkflowEnhancementTests(unittest.TestCase):
         self.assertEqual(events[0]["source_path"], r"C:\Media\ghost.mkv")
         self.assertIn("Failed to save inflight state after missing local completion", "\n".join(logs.output))
 
-    def test_terminal_done_queue_removal_schedule_failure_warns_queue_may_remain(self) -> None:
+    def test_terminal_done_queue_removal_schedule_failure_removes_directly(self) -> None:
         class BadRoot:
             def after(self, _delay: int, _callback: object) -> None:
                 raise RuntimeError("tk offline")
@@ -267,6 +267,50 @@ class WorkflowEnhancementTests(unittest.TestCase):
         events: list[dict] = []
         dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
         dispatcher._app = SimpleNamespace(root=BadRoot(), queue_records=[])
+        dispatcher._registry = SimpleNamespace(save=lambda path: saves.append(path))
+        dispatcher._inflight_state_path = lambda: Path(tempfile.gettempdir()) / "ignored.json"
+        dispatcher.log_cluster_event = lambda **kwargs: events.append(kwargs)  # type: ignore[assignment]
+        job = SimpleNamespace(job_id="job-1", source_path=r"C:\Media\movie.mkv", worker_name="Worker")
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="INFO") as logs:
+            CoordinatorDispatcher._emit_done_outcome(
+                dispatcher,
+                job=job,
+                success=False,
+                worker_id="worker-1",
+                elapsed_seconds=0.0,
+                output_size_bytes=0,
+                completion_status="failed",
+                publish_state="",
+                publish_mode="",
+                error_message="encode failed",
+                queue_terminal=True,
+                retry_on_failure=True,
+            )
+
+        text = "\n".join(logs.output)
+        self.assertIn("App scheduler unavailable after done report for movie.mkv", text)
+        self.assertIn("queue record removed directly", text)
+        self.assertIn("tk offline", text)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(len(saves), 1)
+
+    def test_terminal_done_queue_removal_warns_when_direct_removal_also_fails(self) -> None:
+        class BadRoot:
+            def after(self, _delay: int, _callback: object) -> None:
+                raise RuntimeError("tk offline")
+
+        class ExplodingRecords:
+            def __bool__(self) -> bool:
+                return True
+
+            def __iter__(self):
+                raise RuntimeError("records unavailable")
+
+        saves: list[Path] = []
+        events: list[dict] = []
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._app = SimpleNamespace(root=BadRoot(), queue_records=ExplodingRecords())
         dispatcher._registry = SimpleNamespace(save=lambda path: saves.append(path))
         dispatcher._inflight_state_path = lambda: Path(tempfile.gettempdir()) / "ignored.json"
         dispatcher.log_cluster_event = lambda **kwargs: events.append(kwargs)  # type: ignore[assignment]

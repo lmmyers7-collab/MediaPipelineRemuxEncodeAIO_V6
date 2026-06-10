@@ -95,8 +95,8 @@ def _browser_settings_launch_runner_source() -> str:
               node.click();
             }
             function clickSettingsTab(tabId) {
-              const button = document.querySelector('.settings-tab-btn[data-settings-tab="' + tabId + '"]');
-              if (!button) throw new Error("missing settings tab " + tabId);
+              const button = document.querySelector('.settings-section-nav-btn[data-settings-tab="' + tabId + '"]');
+              if (!button) throw new Error("missing settings section " + tabId);
               button.click();
             }
             function requireDefaultVisibleAssSsaCheckboxes() {
@@ -192,6 +192,33 @@ def _browser_settings_launch_runner_source() -> str:
               if (directCopyRow.dataset.libraryOverride !== "false") {
                 throw new Error("Inherited direct-copy value rendered as a library override");
               }
+              if (directCopyControl.getAttribute("min") !== "1" || directCopyControl.getAttribute("max") !== "500" || directCopyControl.getAttribute("step") !== "1") {
+                throw new Error("Library direct-copy control did not use backend metadata min/max/step");
+              }
+              if (directCopyControl.getAttribute("data-settings-unit") !== "Mbps") {
+                throw new Error("Library direct-copy control did not expose backend metadata unit");
+              }
+              if (tvCard.querySelector('[role="slider"]') || tvCard.querySelector("[data-library-route-drag-boundary]")) {
+                throw new Error("Library route boundary rendered a nested draggable slider instead of numeric controls");
+              }
+              const routeSourceSummary = tvCard.querySelector("[data-library-route-source-summary]");
+              if (!routeSourceSummary || !routeSourceSummary.textContent.includes("backend field metadata")) {
+                throw new Error("Library route source summary did not identify backend metadata/current config as the readout source");
+              }
+              const firstBoundary = tvCard.querySelector('[data-library-route-boundary-input="first"]');
+              const secondBoundary = tvCard.querySelector('[data-library-route-boundary-input="second"]');
+              if (!firstBoundary || !secondBoundary) throw new Error("missing Library route boundary numeric controls");
+              if (!firstBoundary.getAttribute("aria-describedby") || !secondBoundary.getAttribute("aria-describedby")) {
+                throw new Error("Library route boundary controls do not describe bucket consequences");
+              }
+              firstBoundary.focus({ preventScroll: true });
+              firstBoundary.value = "1200";
+              firstBoundary.dispatchEvent(new Event("change", { bubbles: true }));
+              const toleranceRow = requireRow(tvCard, "Route1080pUpperHeightTolerancePercent");
+              const toleranceControl = toleranceRow.querySelector("[data-library-override-control]");
+              if (!toleranceControl || String(toleranceControl.value || "").trim() === "") {
+                throw new Error("Library route boundary control did not update backend tolerance override fields");
+              }
 
               setLibraryDesignation(tvCard, "auto");
               tvCard = libraryCard("tv");
@@ -219,6 +246,91 @@ def _browser_settings_launch_runner_source() -> str:
               if (!warning.includes("omitted designation-specific override")) {
                 throw new Error("missing designation-prune warning after staging TV LibraryProfiles patch: " + warning);
               }
+              window.showPage("settings");
+            }
+            async function requireLibraryRouteMapEvidence() {
+              window.showPage("libraries");
+              if (typeof window.mediaPipelineLibraryRouteMap?.renderRouteMap !== "function") {
+                throw new Error("missing Library Route Map renderer");
+              }
+              const routeContext = {
+                queue: {
+                  rows: [
+                    {
+                      row_key: "browser-route-map-row",
+                      display_name: "Browser Route Map Row",
+                      source_path: payload.routeMapSourcePath,
+                      height: 1080,
+                      duration_seconds: 1200,
+                      estimated_bitrate_mbps: 8,
+                      media_type: "tv",
+                    },
+                  ],
+                },
+                completed: { rows: [] },
+                sampleValidation: { records: [] },
+              };
+              window.mediaPipelineLibraryRouteMap.renderRouteMap(payload.routeMap, routeContext);
+              const panel = document.querySelector(".settings-library-route-map-panel");
+              if (!panel) throw new Error("missing Library Route Map panel");
+              const routeMapButtons = Array.from(panel.querySelectorAll("button"))
+                .filter((button) => !Array.from(button.classList).some((className) => className.startsWith("pcb-btn")));
+              if (routeMapButtons.length) {
+                throw new Error("Library Route Map evidence panel rendered mutation buttons: " + routeMapButtons.map((button) => button.outerHTML).join("\\n"));
+              }
+              for (const id of [
+                "library-route-map-profile-select",
+                "library-route-trace-selector",
+                "library-route-compare-left",
+                "library-route-compare-right",
+                "library-route-map-graph",
+                "library-route-decision-rows",
+                "library-route-node-rows",
+                "library-route-trace-rows",
+                "library-route-compare-rows",
+                "library-route-navigation-rows",
+                "library-route-validation-rows",
+              ]) {
+                if (!byId(id)) throw new Error("missing Library Route Map control " + id);
+              }
+              await waitFor(
+                () => byId("library-route-map-graph").textContent.includes("Decision matrix")
+                  && byId("library-route-decision-rows").querySelectorAll("tr").length > 0,
+                "Library Route Map graph and decision matrix"
+              );
+              const traceSelect = byId("library-route-trace-selector");
+              if (!traceSelect || traceSelect.options.length < 1) {
+                throw new Error("Library Route Map trace selector did not load row evidence");
+              }
+              traceSelect.selectedIndex = 0;
+              traceSelect.dispatchEvent(new Event("change", { bubbles: true }));
+              await waitFor(
+                () => byId("library-route-trace-rows").textContent.includes("profile_match"),
+                "Library Route Map trace rows"
+              );
+              const left = byId("library-route-compare-left");
+              const right = byId("library-route-compare-right");
+              if (left && right && left.options.length > 1 && right.options.length > 1) {
+                left.selectedIndex = 0;
+                right.selectedIndex = 1;
+                left.dispatchEvent(new Event("change", { bubbles: true }));
+                right.dispatchEvent(new Event("change", { bubbles: true }));
+                await waitFor(
+                  () => byId("library-route-compare-rows").querySelectorAll("tr").length > 0,
+                  "Library Route Map compare rows"
+                );
+              }
+              const navigation = panel.querySelector("[data-library-route-navigate]");
+              if (!navigation) throw new Error("Library Route Map did not render guided navigation");
+              navigation.click();
+              await waitFor(
+                () => Boolean(document.querySelector("[data-library-profile-nav]")),
+                "Library Route Map guided navigation target"
+              );
+              await waitFor(
+                () => byId("library-route-validation-rows").textContent.includes("Sample Validation proof"),
+                "Library Route Map validation handoff"
+              );
               window.showPage("settings");
             }
             function historyHasPreview() {
@@ -277,6 +389,7 @@ def _browser_settings_launch_runner_source() -> str:
             window.showPage("settings");
             requireDefaultVisibleAssSsaCheckboxes();
             requireLibraryProfileDesignationFiltering();
+            await requireLibraryRouteMapEvidence();
             requireText("settings-raw-action-plan-summary", [
               "Settings raw-key action plan:",
               "Purpose: separate schema drift, OCR path evidence, subtitle keyword builder coverage, intentionally excluded auth secrets",
@@ -390,7 +503,7 @@ def _browser_settings_launch_runner_source() -> str:
             queueScopeIntentRow.click();
             requireText("launch-settings-intent-detail", [
               "Queue display filter / backend launch scope",
-              "hidden blocked rows: 1",
+              "hidden blocked rows: 0",
               "hidden review rows: 1",
               "Backend launch scope: unchanged",
             ]);
@@ -549,6 +662,8 @@ def _run_browser_settings_launch_smoke(
     browser_path: str,
     url: str,
     settings: dict[str, object],
+    route_map: dict[str, object],
+    route_map_source_path: str,
     patch: dict[str, object],
 ) -> dict[str, object]:
     node = shutil.which("node")
@@ -567,6 +682,8 @@ def _run_browser_settings_launch_smoke(
                     "tmpRoot": str(tmp),
                     "url": url,
                     "settings": settings,
+                    "routeMap": route_map,
+                    "routeMapSourcePath": route_map_source_path,
                     "patch": patch,
                 },
                 ensure_ascii=False,
@@ -592,6 +709,13 @@ class WebViewBrowserSettingsLaunchSmoke(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             resolved, _source, _output = _write_fixture_state(root)
+            resolved.config_data.update(
+                {
+                    "SourceMovies": str(root / "Movies"),
+                    "SourceTV": str(root / "TV"),
+                    "Outsource": str(root / "Outsource"),
+                }
+            )
             media_snapshot = capture_media_no_mutation_snapshot(root)
             service = DummyWorkflowFacadeService(root)
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
@@ -614,10 +738,14 @@ class WebViewBrowserSettingsLaunchSmoke(unittest.TestCase):
                 server.start()
                 settings_status, settings = _get_json(f"{server.url}/api/settings/workspace", token=server.token)
                 self.assertEqual(settings_status, 200)
+                route_status, route_map = _get_json(f"{server.url}/api/libraries/route-map", token=server.token)
+                self.assertEqual(route_status, 200)
                 result = _run_browser_settings_launch_smoke(
                     browser_path=browser_path,
                     url=f"{server.url}/",
                     settings=settings,
+                    route_map=route_map,
+                    route_map_source_path=str(_source),
                     patch=patch,
                 )
             finally:
