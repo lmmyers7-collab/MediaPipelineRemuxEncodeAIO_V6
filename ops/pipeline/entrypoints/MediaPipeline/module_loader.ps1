@@ -3,16 +3,14 @@
 # ==============================================================================
 # Defines the engine module manifest ($engineModulePaths) and dot-sources every
 # engine module, in dependency order, into the caller (entrypoint) scope so all
-# modules share the entrypoint's $script: state. Reads $repoRootForModules and
-# $moduleRoot from the caller (set in MediaPipeline.ps1 before this slice loads).
-# Pure code-locality move; no behaviour change.
+# modules share the entrypoint's $script: state. Reads $repoRootForModules from
+# the caller (set in MediaPipeline.ps1 before this slice loads).
 ## Order matters slightly:
 #   - Logging.ps1 defines Add-StartupWarning (called by the config-loader
 #     helpers below), so it must be sourced first.
-#   - PathHelpers.ps1 must come before Native.ps1 (Save-ReproCommand and
-#     Invoke-RecursivePathScan reference Format-NativeCommandLine and
-#     Test-IsUncPath at definition time? No — at call time. Listed first
-#     anyway for readability of the dependency chain.)
+#   - PathHelpers.ps1 is listed before Native.ps1 for readability of the
+#     dependency chain; Native.ps1 references Format-NativeCommandLine and
+#     Test-IsUncPath at call time, not definition time.
 #   - MediaConstants.ps1 owns shared route/codec/container names used by
 #     routing, encode policy, probes, audio, subtitle, and failure helpers.
 #   - FailureCodes.ps1, ConfigSchema.ps1, Routing.ps1, and EncodePolicy.ps1
@@ -89,10 +87,33 @@ $engineModulePaths = @{
     'TempCleanup.ps1'            = Join-Path $repoRootForModules 'ops\pipeline\engine\shared\temp_cleanup.ps1'
     'Versioning.ps1'             = Join-Path $repoRootForModules 'ops\pipeline\engine\shared\versioning.ps1'
 }
-foreach ($module in @('Logging.ps1', 'ConfigGetters.ps1', 'RuntimeConfig.ps1', 'ConfigKeys.ps1', 'ExecutableResolution.ps1', 'TempCleanup.ps1', 'PathHelpers.ps1', 'MediaConstants.ps1', 'ShowOverrides.ps1', 'Versioning.ps1', 'FailureCodes.ps1', 'ConfigSchema.ps1', 'StateStore.ps1', 'Routing.ps1', 'EncodePolicy.ps1', 'NativeProcessContracts.ps1', 'Native.ps1', 'Disk.ps1', 'MediaProbe.ps1', 'FolderPolicy.ps1', 'FileOverrides.ps1', 'Audio.ps1', 'Subtitles.ps1', 'ProgressState.ps1', 'FfmpegProgress.ps1', 'QueuePlan.ps1', 'Naming.ps1', 'OutputPathPlanning.ps1', 'SourceIdentity.ps1', 'ScratchCopy.ps1', 'LocalWorkerSlots.ps1', 'FailureState.ps1', 'Sidecar.ps1', 'Publish.Result.ps1', 'Publish.Partial.ps1', 'Publish.Sidecars.ps1', 'PendingManifestStore.ps1', 'PendingTransactions.ps1', 'PendingPush.ps1', 'PendingPublishIndex.ps1', 'PublishCompletion.ps1', 'LibraryIndex.ps1', 'PipelineProcessing.ps1', 'FileProcessor.ps1', 'WorkerResult.ps1', 'PipelineEngine.ps1')) {
-    $modulePath = if ($engineModulePaths.ContainsKey($module)) { $engineModulePaths[$module] } else { Join-Path $moduleRoot $module }
+# Documented topological load order. Must name exactly the modules in
+# $engineModulePaths above; the contract check below fails fast on any drift.
+$engineModuleLoadOrder = @('Logging.ps1', 'ConfigGetters.ps1', 'RuntimeConfig.ps1', 'ConfigKeys.ps1', 'ExecutableResolution.ps1', 'TempCleanup.ps1', 'PathHelpers.ps1', 'MediaConstants.ps1', 'ShowOverrides.ps1', 'Versioning.ps1', 'FailureCodes.ps1', 'ConfigSchema.ps1', 'StateStore.ps1', 'Routing.ps1', 'EncodePolicy.ps1', 'NativeProcessContracts.ps1', 'Native.ps1', 'Disk.ps1', 'MediaProbe.ps1', 'FolderPolicy.ps1', 'FileOverrides.ps1', 'Audio.ps1', 'Subtitles.ps1', 'ProgressState.ps1', 'FfmpegProgress.ps1', 'QueuePlan.ps1', 'Naming.ps1', 'OutputPathPlanning.ps1', 'SourceIdentity.ps1', 'ScratchCopy.ps1', 'LocalWorkerSlots.ps1', 'FailureState.ps1', 'Sidecar.ps1', 'Publish.Result.ps1', 'Publish.Partial.ps1', 'Publish.Sidecars.ps1', 'PendingManifestStore.ps1', 'PendingTransactions.ps1', 'PendingPush.ps1', 'PendingPublishIndex.ps1', 'PublishCompletion.ps1', 'LibraryIndex.ps1', 'PipelineProcessing.ps1', 'FileProcessor.ps1', 'WorkerResult.ps1', 'PipelineEngine.ps1')
+$modulesMissingFromManifest = @($engineModuleLoadOrder | Where-Object { -not $engineModulePaths.ContainsKey($_) })
+$modulesMissingFromLoadOrder = @($engineModulePaths.Keys | Where-Object { $engineModuleLoadOrder -notcontains $_ })
+if ($modulesMissingFromManifest.Count -gt 0 -or
+    $modulesMissingFromLoadOrder.Count -gt 0 -or
+    $engineModuleLoadOrder.Count -ne $engineModulePaths.Count) {
+    if ($modulesMissingFromManifest.Count -gt 0) {
+        Write-Host "FATAL: engine modules in the load order but missing from the manifest: $($modulesMissingFromManifest -join ', ')" -ForegroundColor Red
+    }
+    if ($modulesMissingFromLoadOrder.Count -gt 0) {
+        Write-Host "FATAL: engine modules in the manifest but missing from the load order: $($modulesMissingFromLoadOrder -join ', ')" -ForegroundColor Red
+    }
+    if ($engineModuleLoadOrder.Count -ne $engineModulePaths.Count) {
+        Write-Host "FATAL: engine module load order lists $($engineModuleLoadOrder.Count) modules but the manifest defines $($engineModulePaths.Count) (duplicate or missing entry)." -ForegroundColor Red
+    }
+    # exit inside a dot-sourced slice only aborts this file, not the
+    # entrypoint; the sentinel tells MediaPipeline.ps1 to exit for real.
+    $startupFatalExitCode = 1
+    exit 1
+}
+foreach ($module in $engineModuleLoadOrder) {
+    $modulePath = $engineModulePaths[$module]
     if (-not (Test-Path -LiteralPath $modulePath)) {
         Write-Host "FATAL: required module not found: $modulePath" -ForegroundColor Red
+        $startupFatalExitCode = 1
         exit 1
     }
     . $modulePath

@@ -6,6 +6,7 @@
   "type": "refactor",
   "risk_level": "medium",
   "date_started": "2026-06-05",
+  "date_completed": "",
   "summary": "Code-locality refactor of the keystone entrypoint ops/pipeline/entrypoints/MediaPipeline.ps1: trim the historical comment header; extract the session-state initializer and the startup-config logger into their engine domains; and move the engine module manifest/loader, the derived runtime paths + state layout, the startup filesystem prep, and the startup path validation into dot-sourced slices. Pure relocation; no behaviour change. 1112 -> 597 lines.",
   "reason": "MediaPipeline.ps1 had grown to 1112 lines mixing a 181-line historical changelog, session-state setup, a 75-line startup log dump, a 100-line module-loading block, derived-path resolution, and startup validation into the orchestrator, obscuring the actual startup sequence and run-mode dispatch.",
   "affected_areas": [

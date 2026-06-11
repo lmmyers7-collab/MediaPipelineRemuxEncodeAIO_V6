@@ -128,10 +128,6 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
         $relaunchArgs += $name
         $relaunchArgs += [string]$entry.Value
     }
-    if ($args.Count -gt 0) {
-        $relaunchArgs += $args
-    }
-
     & $pwshPath @relaunchArgs
     # If the child never launched, $LASTEXITCODE can be $null; exit $null would
     # become exit 0 and mask the failure to a caller/scheduler. Default to 1.
@@ -147,14 +143,18 @@ $ProgressPreference    = 'SilentlyContinue'
 # ==============================================================================
 $pipelineRoot = if ($PSScriptRoot) { $PSScriptRoot } else { (Get-Location).Path }
 $repoRootForModules = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $pipelineRoot))
-$moduleRoot = Join-Path $pipelineRoot 'Modules'
 # Engine module manifest + ordered dot-source loader (see MediaPipeline/module_loader.ps1).
+# Slices cannot abort this script directly: exit inside a dot-sourced file
+# only ends that file. Fatal-capable slices set $startupFatalExitCode and this
+# entrypoint exits on their behalf after each dot-source.
+$startupFatalExitCode = $null
 $moduleLoaderSlice = Join-Path $pipelineRoot 'MediaPipeline\module_loader.ps1'
 if (-not (Test-Path -LiteralPath $moduleLoaderSlice)) {
     Write-Host "FATAL: required loader not found: $moduleLoaderSlice" -ForegroundColor Red
     exit 1
 }
 . $moduleLoaderSlice
+if ($startupFatalExitCode) { exit $startupFatalExitCode }
 
 # ==============================================================================
 # CONFIGURATION
@@ -181,7 +181,7 @@ if (-not $configPath) {
     Write-Host "ERROR: Config not found. Checked: $($configCandidates -join ', ')" -ForegroundColor Red; exit 1
 }
 $configPath = (Resolve-Path -LiteralPath $configPath).Path
-$config = Import-PowerShellDataFile $configPath
+$config = Import-PowerShellDataFile -LiteralPath $configPath
 
 $configSchemaCheck = Test-MediaPipelineConfigSchema -Config $config
 if (-not $configSchemaCheck.Ok) {
@@ -193,8 +193,6 @@ if (-not $configSchemaCheck.Ok) {
 foreach ($warningText in @($configSchemaCheck.Warnings)) {
     Add-StartupWarning $warningText
 }
-$requiredKeys = @($configSchemaCheck.RequiredKeys)
-$arrayKeys = @($configSchemaCheck.ArrayKeys)
 $script:ConfigSchemaVersion = [int]$configSchemaCheck.EffectiveSchemaVersion
 
 Initialize-MediaPipelineRuntimeConfig -Config $config -SchemaResult $configSchemaCheck
@@ -207,6 +205,7 @@ $ProgressPreference    = 'SilentlyContinue'
 $bootSlice = Join-Path $pipelineRoot 'MediaPipeline\runtime_paths.ps1'
 if (-not (Test-Path -LiteralPath $bootSlice)) { Write-Host "FATAL: required slice not found: $bootSlice" -ForegroundColor Red; exit 1 }
 . $bootSlice
+if ($startupFatalExitCode) { exit $startupFatalExitCode }
 
 # ==============================================================================
 # SINGLE INSTANCE LOCK — named OS Mutex (eliminates TOCTOU race from file+PID)
@@ -282,13 +281,13 @@ $mkvmergePath = Resolve-BundledExecutable -CommandName 'mkvmerge' -RelativeCandi
 $mkvextractPath = Resolve-BundledExecutable -CommandName 'mkvextract' -RelativeCandidates @('..\tools\MKVToolNix\mkvextract.exe', 'Tools\MKVToolNix\mkvextract.exe')
 
 if (-not $ffmpegPath -or -not $ffprobePath) {
-    Write-Host "FATAL: bundled ffmpeg/ffprobe not found in ops\\pipeline\\tools\\ffmpeg\\bin. Set AllowSystemTools=true only for development fallback." -ForegroundColor Red; exit 1
+    Write-Host "FATAL: bundled ffmpeg/ffprobe not found in ops\\pipeline\\tools\\ffmpeg\\bin. Set AllowSystemTools=true only for development fallback." -ForegroundColor Red; & $Script:ExitCleanup; exit 1
 }
 if (-not $mkvmergePath) {
-    Write-Host "FATAL: bundled mkvmerge not found in ops\\pipeline\\tools\\MKVToolNix. Set AllowSystemTools=true only for development fallback." -ForegroundColor Red; exit 1
+    Write-Host "FATAL: bundled mkvmerge not found in ops\\pipeline\\tools\\MKVToolNix. Set AllowSystemTools=true only for development fallback." -ForegroundColor Red; & $Script:ExitCleanup; exit 1
 }
 if (-not (Get-Command robocopy -ErrorAction SilentlyContinue)) {
-    Write-Host "FATAL: robocopy not found" -ForegroundColor Red; exit 1
+    Write-Host "FATAL: robocopy not found" -ForegroundColor Red; & $Script:ExitCleanup; exit 1
 }
 
 # Python + pysubs2 check — subtitle conversion depends on these.
@@ -301,7 +300,7 @@ $pythonPath = Resolve-BundledExecutable -CommandName 'python' -RelativeCandidate
     'Tools\Python\python.exe'
 )
 if (-not $pythonPath) {
-    Write-Host "FATAL: bundled python not found in ops\\pipeline\\runtime\\Python, apps\\desktop\\runtime\\Python, or Tools\\Python. Set AllowSystemTools=true only for development fallback." -ForegroundColor Red; exit 1
+    Write-Host "FATAL: bundled python not found in ops\\pipeline\\runtime\\Python, apps\\desktop\\runtime\\Python, or Tools\\Python. Set AllowSystemTools=true only for development fallback." -ForegroundColor Red; & $Script:ExitCleanup; exit 1
 }
 $sourcePythonPath = Join-Path $repoRootForModules 'src'
 if (Test-Path -LiteralPath $sourcePythonPath) {
@@ -315,7 +314,7 @@ if (Test-Path -LiteralPath $sourcePythonPath) {
 }
 $null = & $pythonPath -c "import pysubs2" 2>&1
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "FATAL: pysubs2 not installed. Run: pip install pysubs2" -ForegroundColor Red; exit 1
+    Write-Host "FATAL: pysubs2 not installed. Run: pip install pysubs2" -ForegroundColor Red; & $Script:ExitCleanup; exit 1
 }
 
 # Validate the Python helper script exists next to this script
@@ -326,6 +325,7 @@ $assToSrtCandidates = @(
 $assToSrtScript = $assToSrtCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 if (-not $assToSrtScript) {
     Write-Host "FATAL: ASS-to-SRT helper not found. Checked: $($assToSrtCandidates -join ', ')" -ForegroundColor Red
+    & $Script:ExitCleanup
     exit 1
 }
 
@@ -340,7 +340,7 @@ $logLock = [System.Threading.Mutex]::new($false, $logMutexName)
 # STARTUP — directories first, then clean temp files
 # ==============================================================================
 $bootSlice = Join-Path $pipelineRoot 'MediaPipeline\startup_filesystem.ps1'
-if (-not (Test-Path -LiteralPath $bootSlice)) { Write-Host "FATAL: required slice not found: $bootSlice" -ForegroundColor Red; exit 1 }
+if (-not (Test-Path -LiteralPath $bootSlice)) { Write-Host "FATAL: required slice not found: $bootSlice" -ForegroundColor Red; & $Script:ExitCleanup; exit 1 }
 . $bootSlice
 
 # ==============================================================================
@@ -367,6 +367,7 @@ foreach ($slice in @('tx3g_sidecars.ps1', 'remux.ps1', 'encode.ps1')) {
     $slicePath = Join-Path $mediaPipelineSliceRoot $slice
     if (-not (Test-Path -LiteralPath $slicePath)) {
         Write-Host "FATAL: required MediaPipeline slice not found: $slicePath" -ForegroundColor Red
+        & $Script:ExitCleanup
         exit 1
     }
     . $slicePath
@@ -383,7 +384,10 @@ foreach ($slice in @('tx3g_sidecars.ps1', 'remux.ps1', 'encode.ps1')) {
 # ==============================================================================
 # MAIN LOOP
 # ==============================================================================
-if (-not $ValidateOnly) {
+# -DumpEffectiveConfigPath is a read-only diagnostic that holds no instance
+# lock and may run beside a live pipeline, so it must not sweep temp or
+# stale-partial files.
+if (-not $ValidateOnly -and -not $DumpEffectiveConfigPath) {
     Clear-OldTempFiles
     # FIX#6: sweep any stale .mp-partial files from crashed prior runs so we
     # don't confuse them with in-flight copies.
@@ -394,7 +398,12 @@ if (-not $ValidateOnly) {
     }
 }
 
-if (-not $ValidateOnly) {
+# Clear stale operator pause/stop flags from a previous run -- controller runs
+# only. Worker children share these flag paths with the controller, and the
+# lockless -DumpEffectiveConfigPath mode may run beside a live pipeline; in
+# both cases deleting here would silently cancel a pause/stop the operator
+# just requested.
+if (-not $ValidateOnly -and -not $WorkerChild -and -not $DumpEffectiveConfigPath) {
     foreach ($flag in @($PauseFlag, $StopFlag)) {
         if (Test-Path -LiteralPath $flag) { Remove-Item -LiteralPath $flag -Force -ErrorAction SilentlyContinue }
     }
@@ -407,8 +416,9 @@ Write-MediaPipelineStartupConfigLog
 # STARTUP PATH VALIDATION  (see MediaPipeline/startup_path_validation.ps1)
 # ==============================================================================
 $bootSlice = Join-Path $pipelineRoot 'MediaPipeline\startup_path_validation.ps1'
-if (-not (Test-Path -LiteralPath $bootSlice)) { Write-Host "FATAL: required slice not found: $bootSlice" -ForegroundColor Red; exit 1 }
+if (-not (Test-Path -LiteralPath $bootSlice)) { Write-Host "FATAL: required slice not found: $bootSlice" -ForegroundColor Red; & $Script:ExitCleanup; exit 1 }
 . $bootSlice
+if ($startupFatalExitCode) { & $Script:ExitCleanup; exit $startupFatalExitCode }
 
 if (-not (Test-ProgressPersistence)) {
     $script:ProgressWriteFailures = 3
@@ -448,7 +458,8 @@ if ($DumpEffectiveConfigPath) {
         $effectiveDump = Get-MediaPipelineResolvedConfigDump
         ($effectiveDump | ConvertTo-Json -Depth 6) | Set-Content -LiteralPath $DumpEffectiveConfigPath -Encoding UTF8 -Force
         Write-Log "Effective config dumped to $DumpEffectiveConfigPath"
-        Set-ProgressStage -Stage 'idle' -Status 'Idle' -Percent $null -SaveNow
+        # No progress-stage write here: this mode holds no instance lock, so
+        # it must not touch the shared progress file a live run may own.
         & $Script:ExitCleanup
         exit 0
     } catch {
@@ -457,15 +468,15 @@ if ($DumpEffectiveConfigPath) {
         exit 1
     }
 }
-Set-ProgressStage -Stage 'startup' -Status 'Initializing' -Percent $null -SaveNow
-
 if ($ValidateOnly) {
+    # -ValidateOnly holds no instance lock, so it must not write the shared
+    # progress file a concurrent live run may own.
     Write-Log "VALIDATION ONLY: dependency checks and startup validation completed; exiting before scan loop."
-    Set-ProgressStage -Stage 'idle' -Status 'Idle' -Percent $null -SaveNow
     Write-Log "PIPELINE SHUTDOWN CLEANLY"
     & $Script:ExitCleanup
     exit 0
 }
+Set-ProgressStage -Stage 'startup' -Status 'Initializing' -Percent $null -SaveNow
 
 if ($DrainPendingPushes) {
     Write-Log "DRAIN PENDING PUSHES: forcing upload of parked outputs without scanning sources."

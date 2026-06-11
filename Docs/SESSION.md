@@ -1204,4 +1204,63 @@ Validation performed (agent-side):
 - `ops\scripts\smoke\Test-LocalApiLifecycleContractSmoke.ps1`
 Plus, because D edits the PS routing engine, an end-to-end/pipeline routing smoke if the operator runs one.
 
+## Handoff 2026-06-10 -- launch-section code-review fixes (operator-approved in chat; branch refactor/mediapipeline-entrypoint-slice)
+
+Operator approved (chat, 2026-06-10: "Please address these issues") fixing the 7 findings from a
+launch-section code review of `ops/pipeline/entrypoints/MediaPipeline.ps1` + its startup slices.
+Change packet `ops/release/changes/unreleased/MP-CHANGE-2026-0610-001.json` (in_progress); strict
+worktree coverage passes (162 packets valid). Ollama: not used. No commit performed; the tree was
+clean before this work, so the working-tree diff is exactly this change set.
+
+Changed files:
+- `ops/pipeline/entrypoints/MediaPipeline.ps1` -- pause/stop-flag cleanup and temp/stale-partial
+  sweeps gated to controller-style runs (skip -WorkerChild and -DumpEffectiveConfigPath); dump and
+  -ValidateOnly no longer write the shared progress file; explicit `& $Script:ExitCleanup` on every
+  post-lock fatal exit; `Import-PowerShellDataFile -LiteralPath`; removed dead `$args` relaunch
+  branch, `$requiredKeys`/`$arrayKeys`, `$moduleRoot`; added `$startupFatalExitCode` checks after
+  each fatal-capable slice dot-source.
+- `ops/pipeline/entrypoints/MediaPipeline/module_loader.ps1` -- ordered load list extracted to
+  `$engineModuleLoadOrder` with a startup contract check (load order and manifest must describe the
+  same 46-module set; FATAL on drift); removed the silent `Join-Path $moduleRoot` legacy fallback;
+  fatal paths set the sentinel.
+- `ops/pipeline/entrypoints/MediaPipeline/runtime_paths.ps1` -- worker-arg FATALs (exit 74) set the
+  sentinel.
+- `ops/pipeline/entrypoints/MediaPipeline/startup_filesystem.ps1` -- claims repair + active-jobs
+  reset additionally skip -DumpEffectiveConfigPath.
+- `ops/pipeline/entrypoints/MediaPipeline/startup_path_validation.ps1` -- LocalBase FATAL (exit 2)
+  sets the sentinel.
+- `ops/release/changes/unreleased/MP-CHANGE-2026-0605-010.json` -- added missing required
+  `date_completed` field (schema compliance only; was blocking validate_changes for every session).
+- `docs/generated/summaries/` mirrors regenerated for the 5 edited sources.
+
+IMPORTANT LEARNING (proven by minimal repro under PS 7.6): `exit` inside a dot-sourced .ps1 aborts
+only that file; the dot-sourcing script CONTINUES and the process exits 0. Every FATAL `exit`
+inside the extracted slices (worker-arg 74, LocalBase 2, loader 1) was therefore a no-op for the
+entrypoint -- a latent regression from the slice extraction that the parity oracle could not catch
+(those paths never fire in healthy runs). Fixed via a `$startupFatalExitCode` sentinel contract:
+the slice sets it and exits (aborting the rest of the slice); the entrypoint checks it after each
+dot-source and exits for real, running ExitCleanup where the instance lock is already held. Any
+FUTURE fatal path added to a dot-sourced slice must follow this pattern.
+
+Validation (agent-side): parse OK x5; -DumpEffectiveConfigPath canonical parity vs pre-change
+baseline IDENTICAL (live per-user config, key-sorted JSON compare); -ValidateOnly log diff 0 lines
+(timestamps stripped); progress-file mtime unchanged across post-fix dump/validate runs; stop-flag
+survival test (flag survives a dump run; was deleted at HEAD); dump-mode cleanup log markers absent
+after fix; loader drift negative test trips both FATALs; real-entrypoint negative test
+`-WorkerChild -WorkerSlotId 9` exits 74 (continued running before the sentinel fix);
+`ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1` exit 0 before and after.
+
+§7 NOT self-certified (queue launch scope / worker dispatch / progress): operator must run a real
+-Once/continuous pass with at least one parallel-encode worker-child dispatch, confirming pause/stop
+flags set mid-run are honored and worker results are consumed normally; optionally
+`python -m mediapipeline.tools.dev.ai_guardrail` preflight/postflight.
+
+Pre-existing, not mine: `ops/pipeline/tests/Unit/Invoke-RuntimeConfigResolutionChecks.ps1`
+self-skips (still points at pre-reorg `ops/pipeline/MediaPipeline.ps1` and
+`ops/pipeline/PowerShell-7.6.0-win-x64`), and
+`ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1` reads the same
+nonexistent path. PROJECT_INDEX.md and docs/audit/latest.md absent (degraded mode). A TDARR-matrix
+worker child (separate LocalBase) ran concurrently throughout; validation used the per-user live
+config, whose LocalBase it does not share.
+
 

@@ -3,7 +3,8 @@
 # ==============================================================================
 # Procedural slice: create local working dirs, migrate legacy state layout, rotate
 # logs, repair local-worker claims, flush startup warnings. Reads $script:LocalStateLayout,
-# the $Local* dirs, $WorkerChild, $ValidateOnly, $ProgressFile, $script:PipelineRunId.
+# the $Local* dirs, $WorkerChild, $ValidateOnly, $DumpEffectiveConfigPath, $ProgressFile,
+# $script:PipelineRunId.
 # ==============================================================================
 Initialize-MediaPipelineStateLayout -Layout $script:LocalStateLayout -MigrateLegacy | Out-Null
 foreach ($dir in @($LocalIncoming, $LocalEncoded, $LocalRemuxTemp, $script:processingDir)) {
@@ -14,7 +15,10 @@ foreach ($dir in @($LocalIncoming, $LocalEncoded, $LocalRemuxTemp, $script:proce
 }
 
 Invoke-LogRotation
-if (-not $WorkerChild -and -not $ValidateOnly) {
+# Controller runs only: worker children must not rewrite the shared claim
+# store/active-jobs files, and the lockless -DumpEffectiveConfigPath mode may
+# run beside a live pipeline that owns them.
+if (-not $WorkerChild -and -not $ValidateOnly -and -not $DumpEffectiveConfigPath) {
     Repair-MediaPipelineLocalWorkerClaims -ClaimStorePath $script:LocalStateLayout.Paths.LocalWorkerClaims -CurrentRunId $script:PipelineRunId | Out-Null
     Write-MediaPipelineLocalWorkerActiveJobs -ActiveJobsPath $script:LocalStateLayout.Paths.LocalWorkerActiveJobs -CompatibilityProgressPath $ProgressFile -ActiveJobs @() -WriteCompatibilityProgress | Out-Null
 }

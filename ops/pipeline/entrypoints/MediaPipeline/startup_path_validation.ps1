@@ -12,6 +12,9 @@ if ($localBaseReachable -ne $true) {
     Write-Log "       Path check result: $reachability" "ERROR"
     Write-Log "       Check the LocalBase setting in your config file." "ERROR"
     Write-Log "PIPELINE ABORTED"
+    # exit inside a dot-sourced slice only aborts this file, not the
+    # entrypoint; the sentinel tells MediaPipeline.ps1 to clean up and exit.
+    $startupFatalExitCode = 2
     exit 2
 }
 if ($DrainPendingPushes) {

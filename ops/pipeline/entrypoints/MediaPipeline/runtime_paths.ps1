@@ -54,16 +54,21 @@ $script:PendingPublishIndex = @{
 $script:FailureMarkerIndex = $null
 
 if ($WorkerChild) {
+    # exit inside a dot-sourced slice only aborts this file, not the
+    # entrypoint; the sentinel tells MediaPipeline.ps1 to exit for real.
     if ($WorkerSlotId -lt 1 -or $WorkerSlotId -gt 2) {
         Write-Host "FATAL: -WorkerChild requires -WorkerSlotId 1 or 2." -ForegroundColor Red
+        $startupFatalExitCode = 74
         exit 74
     }
     if ([string]::IsNullOrWhiteSpace($SingleFile)) {
         Write-Host "FATAL: -WorkerChild requires -SingleFile." -ForegroundColor Red
+        $startupFatalExitCode = 74
         exit 74
     }
     if ([string]::IsNullOrWhiteSpace($WorkerResultPath)) {
         Write-Host "FATAL: -WorkerChild requires -WorkerResultPath." -ForegroundColor Red
+        $startupFatalExitCode = 74
         exit 74
     }
     $script:WorkerSlotLayout = Initialize-MediaPipelineWorkerSlotLayout -SlotLayout (New-MediaPipelineWorkerSlotLayout -StateLayout $script:LocalStateLayout -SlotId $WorkerSlotId)

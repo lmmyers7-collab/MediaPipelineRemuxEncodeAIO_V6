@@ -1,0 +1,56 @@
+{
+  "id": "MP-CHANGE-2026-0610-001",
+  "title": "Harden MediaPipeline launch section: mode gating, slice fatal exits, loader contract",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-10",
+  "date_completed": "",
+  "summary": "Fixes seven launch-section code-review findings in ops/pipeline/entrypoints/MediaPipeline.ps1 and its startup slices: (1) worker children and the lockless -DumpEffectiveConfigPath mode no longer delete the shared pause/stop flags; (2) -DumpEffectiveConfigPath no longer sweeps temp/stale-partial files, repairs worker claims, blanks the active-jobs file, or writes the progress file (it is now actually read-only as documented); (3) -ValidateOnly no longer writes the shared progress file; (4) the module loader load-order/manifest dual source of truth is enforced by a startup contract check and the silent legacy Modules fallback is removed; (5) post-lock fatal exits now run ExitCleanup explicitly; (6) the config import uses -LiteralPath; (7) dead code removed ($args relaunch branch, $requiredKeys/$arrayKeys, $moduleRoot). Additionally fixes a latent slice-extraction regression discovered during validation: exit inside a dot-sourced slice does not terminate the entrypoint in PowerShell 7, so the FATAL paths in module_loader.ps1 (missing module), runtime_paths.ps1 (worker-arg validation, exit 74), and startup_path_validation.ps1 (unreachable LocalBase, exit 2) printed FATAL but let the pipeline keep running; slices now set $startupFatalExitCode and the entrypoint exits on their behalf after each dot-source.",
+  "reason": "Operator-approved remediation of a launch-section code review (chat, 2026-06-10). The flag-deletion race could silently cancel an operator pause/stop request whenever a parallel-encode worker child started; the lockless dump/validate modes could mutate live pipeline state from a mode documented as read-only; and the dot-sourced exit semantics meant startup FATALs (including an unreachable LocalBase) did not actually stop the pipeline.",
+  "affected_areas": [
+    "entrypoint_startup",
+    "progress_state",
+    "queue_launch_scope",
+    "worker_child_dispatch"
+  ],
+  "behavior_before": "Every non-ValidateOnly invocation (including -WorkerChild and -DumpEffectiveConfigPath) deleted the shared pause/stop flags and ran Clear-OldTempFiles/Clear-StalePartialFiles; dump mode also repaired worker claims, overwrote the active-jobs file with an empty list plus a compatibility progress write, and wrote progress stage idle, all without holding the instance lock; -ValidateOnly wrote progress stages startup then idle. A drifted module-loader name silently fell back to the nonexistent legacy entrypoints/Modules path. exit 74/2/1 inside the dot-sourced startup slices aborted only the slice file and the entrypoint continued running.",
+  "behavior_after": "Pause/stop flag cleanup and temp/stale-partial sweeps run only for controller-style runs (not WorkerChild, not DumpEffectiveConfigPath); claims repair and the active-jobs reset additionally skip dump mode; dump and ValidateOnly write no progress stages. The loader validates load order and manifest describe the same module set and fails fast on drift. Slice FATALs set $startupFatalExitCode and the entrypoint exits with the intended code (74 worker args, 2 LocalBase, 1 loader) immediately after the slice returns, running ExitCleanup where the lock is already held.",
+  "files_touched": [
+    "docs/SESSION.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline.ps1.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/module_loader.ps1.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/runtime_paths.ps1.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/startup_filesystem.ps1.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/startup_path_validation.ps1.md",
+    "ops/pipeline/entrypoints/MediaPipeline.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/module_loader.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/runtime_paths.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/startup_filesystem.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/startup_path_validation.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0605-010.json",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0610-001.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "-DumpEffectiveConfigPath parity oracle vs pre-change baseline (live per-user config, canonical key-sorted JSON compare via bundled Python) - IDENTICAL",
+    "-ValidateOnly startup log diff vs pre-change baseline (timestamps stripped) - 0 differing lines",
+    "Dump-mode log marker check: Clear-OldTempFiles / stale-partial scan markers present in baseline dump log, absent after fix",
+    "End-to-end negative test: -WorkerChild -WorkerSlotId 9 through the real entrypoint exits 74 with the FATAL message (continued running before the sentinel fix)",
+    "Loader drift negative test: removing one entry from the load order trips the new contract check with both FATAL messages",
+    "Parser parse check on all five edited files - PARSE OK",
+    "Progress file mtime unchanged across post-fix -DumpEffectiveConfigPath and -ValidateOnly runs (was rewritten before the fix)",
+    "Stop-flag survival test: pipeline_stop.flag created, dump-mode run executed, flag still present afterwards (deleted at HEAD); test flag removed",
+    "ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1 - exit 0 (run before and after edits)"
+  ],
+  "operator_validation_required": [
+    "AGENTS.md section 7 (queue launch scope / settings paths are touched): a real -Once or continuous run, including at least one parallel-encode worker-child dispatch, confirming pause/stop flags set mid-run are honored and worker results are consumed normally.",
+    "Optionally python -m mediapipeline.tools.dev.ai_guardrail preflight/postflight pair."
+  ],
+  "rollback_plan": "git checkout the five PowerShell files on branch refactor/mediapipeline-entrypoint-slice (all edits are confined to them); the change is behavior-gating plus sentinel plumbing with no engine or contract changes.",
+  "related_changes": [
+    "MP-CHANGE-2026-0605-010"
+  ],
+  "notes": "Ollama not used. ops/pipeline/tests/Unit/Invoke-RuntimeConfigResolutionChecks.ps1 self-skips at HEAD because it still points at pre-reorg paths (ops/pipeline/MediaPipeline.ps1 and ops/pipeline/PowerShell-7.6.0-win-x64); pre-existing, not addressed here. PROJECT_INDEX.md and docs/audit/latest.md were absent during this session (degraded mode). A TDARR-matrix worker child (separate LocalBase) was running during validation; all validation used the per-user live config whose LocalBase it does not share."
+}
